@@ -20,7 +20,7 @@ async function seedAdminAccount() {
     if (!existing) {
       const hashed = await bcrypt.hash("AdminOnly13", 10);
       await storage.createUser({
-        username: "ParaDoxAdmin",
+        username: "TheParadox",
         email: adminEmail,
         password: hashed,
         isAdmin: true,
