@@ -44,6 +44,7 @@ export default function AuthPage() {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
@@ -85,7 +86,7 @@ export default function AuthPage() {
   const loginMutation = useMutation({
     mutationFn: async () => {
       await simulateLoad();
-      const res = await apiRequest("POST", "/api/auth/login", { username, password });
+      const res = await apiRequest("POST", "/api/auth/login", { username, password, rememberMe });
       return res.json();
     },
     onSuccess: async () => {
@@ -315,6 +316,35 @@ export default function AuthPage() {
                   </button>
                 </div>
               </div>
+
+              {mode === "login" && (
+                <button
+                  data-testid="button-remember-me"
+                  type="button"
+                  onClick={() => setRememberMe(!rememberMe)}
+                  className="flex items-center gap-2 mt-1"
+                  style={{ background: "none", border: "none", cursor: "pointer" }}
+                >
+                  <div
+                    className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 transition-colors"
+                    style={{
+                      background: rememberMe
+                        ? "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)"
+                        : "rgba(242,232,208,0.15)",
+                      border: rememberMe
+                        ? "2px solid rgba(127,255,212,0.5)"
+                        : "2px solid #8b5e3c",
+                    }}
+                  >
+                    {rememberMe && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7fffd4" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                  </div>
+                  <span className="font-fantasy text-[#c8b896] text-xs tracking-wider">Remember Me</span>
+                </button>
+              )}
             </div>
 
             {isLoading && (

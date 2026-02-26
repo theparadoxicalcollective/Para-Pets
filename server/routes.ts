@@ -117,6 +117,12 @@ export async function registerRoutes(
       if (!user) return res.status(401).json({ message: info?.message || "Invalid credentials" });
       req.login(user, (loginErr) => {
         if (loginErr) return next(loginErr);
+        if (req.body.rememberMe) {
+          req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000;
+        } else {
+          (req.session.cookie as any).maxAge = undefined;
+          req.session.cookie.expires = false as any;
+        }
         const { password: _, ...safeUser } = user;
         return res.json(safeUser);
       });
