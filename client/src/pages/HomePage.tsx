@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import bgImg from "@assets/bg_home.png";
 import navBarImg from "@assets/bar_nav.png";
-import questIcon from "@assets/icon_quest_v4.png";
+import questIcon from "@assets/icon_quest_v5.png";
 import globeImg from "@assets/icon_globe.png";
 import swordsImg from "@assets/icon_pvp_new.png";
 import eggImg from "@assets/icon_pets.png";
@@ -289,7 +289,7 @@ export default function HomePage({ user }: HomePageProps) {
   );
 }
 
-function NavIcon({ src, alt, testId, onClick, round }: { src: string; alt: string; testId: string; onClick?: () => void; round?: boolean }) {
+function NavIcon({ src, alt, testId, onClick, round, badge }: { src: string; alt: string; testId: string; onClick?: () => void; round?: boolean; badge?: "new" | "complete" }) {
   const [tapped, setTapped] = useState(false);
 
   const handleTap = () => {
@@ -302,7 +302,7 @@ function NavIcon({ src, alt, testId, onClick, round }: { src: string; alt: strin
     <button
       data-testid={testId}
       onClick={handleTap}
-      className="flex flex-col items-center group"
+      className="relative flex flex-col items-center group"
       style={{ background: "none", border: "none", cursor: "pointer" }}
     >
       <div
@@ -318,6 +318,34 @@ function NavIcon({ src, alt, testId, onClick, round }: { src: string; alt: strin
           className={`w-full h-full object-cover transition-all duration-150 group-active:brightness-125 ${round ? "rounded-full" : "rounded-xl"}`}
         />
       </div>
+      {badge === "new" && (
+        <div
+          className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center animate-pulse"
+          style={{
+            background: "radial-gradient(circle, #f0c040 0%, #d4a017 100%)",
+            border: "2px solid rgba(30,15,5,0.8)",
+            boxShadow: "0 0 8px rgba(240,192,64,0.8), 0 0 16px rgba(240,192,64,0.4)",
+          }}
+          data-testid="badge-quest-new"
+        >
+          <span className="font-bold text-[10px] leading-none" style={{ color: "#3a2010" }}>!</span>
+        </div>
+      )}
+      {badge === "complete" && (
+        <div
+          className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center"
+          style={{
+            background: "radial-gradient(circle, #4ade80 0%, #22c55e 100%)",
+            border: "2px solid rgba(30,15,5,0.8)",
+            boxShadow: "0 0 8px rgba(74,222,128,0.8), 0 0 16px rgba(74,222,128,0.4)",
+          }}
+          data-testid="badge-quest-complete"
+        >
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#0a3a0a" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </div>
+      )}
     </button>
   );
 }
