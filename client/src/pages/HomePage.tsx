@@ -196,17 +196,17 @@ export default function HomePage({ user }: HomePageProps) {
 
             <div className="relative z-10 flex items-center justify-evenly w-full px-6">
               <NavIcon
-                src={questIcon}
-                alt="Quests"
-                testId="button-nav-quests"
-                onClick={() => setScrollOpen(true)}
-              />
-              <NavIcon
                 src={globeImg}
                 alt="Map"
                 testId="button-nav-map"
                 onClick={() => navigate("/map")}
                 round
+              />
+              <NavIcon
+                src={questIcon}
+                alt="Quests"
+                testId="button-nav-quests"
+                onClick={() => setScrollOpen(true)}
               />
               <NavIcon
                 src={swordsImg}
@@ -228,6 +228,7 @@ export default function HomePage({ user }: HomePageProps) {
       {scrollOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
           <div
+            data-testid="backdrop-quest-log"
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             onClick={() => setScrollOpen(false)}
           />
@@ -255,42 +256,65 @@ export default function HomePage({ user }: HomePageProps) {
                 className="w-full object-contain"
                 style={{ filter: "drop-shadow(0 8px 30px rgba(0,0,0,0.8))" }}
               />
-              <div className="absolute inset-0 flex flex-col items-center px-[16%] pt-[12%] pb-[10%]">
-                <h3
-                  className="font-fantasy text-[#5c3a1e] text-lg tracking-widest font-bold mb-3"
-                  style={{ textShadow: "0 1px 2px rgba(0,0,0,0.1)" }}
-                  data-testid="text-quest-log-title"
-                >
-                  QUEST LOG
-                </h3>
-                <div
-                  className="w-full h-px mb-3"
-                  style={{ background: "linear-gradient(90deg, transparent, rgba(92,58,30,0.3), transparent)" }}
-                />
-                <div className="w-full flex-1 overflow-y-auto scrollbar-hide">
+              <div className="absolute inset-0 flex flex-col px-[14%] pt-[10%] pb-[8%]">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <div
+                    className="w-7 h-7 rounded-md flex items-center justify-center"
+                    style={{ background: "rgba(92,58,30,0.2)", border: "1px solid rgba(139,110,78,0.3)" }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b6e4e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                      <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                  </div>
+                  <h3
+                    className="font-fantasy text-[#5c3a1e] text-base tracking-widest font-bold"
+                    style={{ textShadow: "0 1px 2px rgba(0,0,0,0.1)" }}
+                    data-testid="text-quest-log-title"
+                  >
+                    QUEST LOG
+                  </h3>
+                </div>
+
+                <div className="flex items-center gap-3 mb-2 px-2">
+                  <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(92,58,30,0.35))" }} />
+                  <span className="font-fantasy text-[#a08060] text-[8px] tracking-[0.2em]">ACTIVE QUESTS</span>
+                  <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, rgba(92,58,30,0.35), transparent)" }} />
+                </div>
+
+                <div className="flex-1 overflow-y-auto scrollbar-hide px-1">
                   <div className="flex flex-col items-center justify-center h-full">
                     <div
-                      className="w-14 h-14 rounded-full flex items-center justify-center mb-3"
-                      style={{
-                        background: "radial-gradient(ellipse at center, rgba(92,58,30,0.1) 0%, transparent 70%)",
-                        border: "1px dashed rgba(139,110,78,0.25)",
-                      }}
+                      className="w-full rounded-lg p-4 flex flex-col items-center"
+                      style={{ background: "rgba(92,58,30,0.06)", border: "1px dashed rgba(139,110,78,0.2)" }}
                     >
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(139,110,78,0.4)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-                        <polyline points="14 2 14 8 20 8" />
-                        <line x1="16" y1="13" x2="8" y2="13" />
-                        <line x1="16" y1="17" x2="8" y2="17" />
-                        <line x1="10" y1="9" x2="8" y2="9" />
-                      </svg>
+                      <div
+                        className="w-12 h-12 rounded-full flex items-center justify-center mb-2"
+                        style={{
+                          background: "radial-gradient(ellipse at center, rgba(92,58,30,0.12) 0%, transparent 70%)",
+                          border: "1px dashed rgba(139,110,78,0.2)",
+                        }}
+                      >
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(139,110,78,0.35)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="11" cy="11" r="8" />
+                          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                        </svg>
+                      </div>
+                      <p className="font-fantasy text-[#7a5c3a] text-xs text-center tracking-wider leading-relaxed mb-1" data-testid="text-no-quests">
+                        No active quests
+                      </p>
+                      <p className="font-fantasy text-[#a08060] text-[10px] text-center tracking-wider leading-relaxed">
+                        Explore the realm to discover adventures...
+                      </p>
                     </div>
-                    <p className="font-fantasy text-[#7a5c3a] text-sm text-center tracking-wider leading-relaxed" data-testid="text-no-quests">
-                      No active quests
-                    </p>
-                    <p className="font-fantasy text-[#a08060] text-xs text-center tracking-wider mt-2 px-2 leading-relaxed">
-                      Explore the realm to discover adventures...
-                    </p>
                   </div>
+                </div>
+
+                <div className="mt-2 px-2">
+                  <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(92,58,30,0.2), transparent)" }} />
+                  <p className="font-fantasy text-[#a08060] text-[7px] tracking-[0.15em] text-center mt-1.5">
+                    QUESTS COMPLETED: 0
+                  </p>
                 </div>
               </div>
             </div>
