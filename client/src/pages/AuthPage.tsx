@@ -43,6 +43,7 @@ export default function AuthPage() {
   const [profilePreview, setProfilePreview] = useState<string | null>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
@@ -282,21 +283,37 @@ export default function AuthPage() {
 
               <div>
                 <label className="font-fantasy text-[#c8b896] text-xs tracking-wider block mb-1 ml-1">PASSWORD</label>
-                <input
-                  data-testid="input-password"
-                  type="password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  disabled={isPending}
-                  placeholder="••••••••"
-                  className="w-full px-4 py-3 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#8a7060] outline-none focus:ring-2 focus:ring-[#d4a017] disabled:opacity-60"
-                  style={{
-                    background: "linear-gradient(135deg, #f2e8d0 0%, #e8d8b0 100%)",
-                    border: "2px solid #8b5e3c",
-                    boxShadow: "inset 0 2px 6px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1)",
-                  }}
-                  onKeyDown={e => e.key === "Enter" && handleSubmit()}
-                />
+                <div className="relative">
+                  <input
+                    data-testid="input-password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    disabled={isPending}
+                    placeholder="••••••••"
+                    className="w-full px-4 py-3 pr-12 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#8a7060] outline-none focus:ring-2 focus:ring-[#d4a017] disabled:opacity-60"
+                    style={{
+                      background: "linear-gradient(135deg, #f2e8d0 0%, #e8d8b0 100%)",
+                      border: "2px solid #8b5e3c",
+                      boxShadow: "inset 0 2px 6px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1)",
+                    }}
+                    onKeyDown={e => e.key === "Enter" && handleSubmit()}
+                  />
+                  <button
+                    data-testid="button-toggle-password"
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 font-fantasy text-[10px] tracking-wider px-1.5 py-0.5 rounded"
+                    style={{
+                      background: "rgba(139,94,60,0.3)",
+                      border: "1px solid rgba(139,94,60,0.5)",
+                      color: "#8b5e3c",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {showPassword ? "HIDE" : "SHOW"}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -343,7 +360,7 @@ export default function AuthPage() {
 
               <button
                 data-testid="button-back"
-                onClick={() => { setMode("landing"); setUsername(""); setEmail(""); setPassword(""); setProfileImageData(null); setProfilePreview(null); setIsLoading(false); setLoadingProgress(0); }}
+                onClick={() => { setMode("landing"); setUsername(""); setEmail(""); setPassword(""); setProfileImageData(null); setProfilePreview(null); setIsLoading(false); setLoadingProgress(0); setShowPassword(false); }}
                 disabled={isPending}
                 className="font-fantasy text-[#a89878] text-xs tracking-widest hover:text-[#d4b896] transition-colors disabled:opacity-40"
               >

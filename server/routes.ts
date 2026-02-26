@@ -49,6 +49,7 @@ export async function registerRoutes(
 
       const existingEmail = await storage.getUserByEmail(email);
       if (existingEmail) {
+        console.log("Email conflict found:", existingEmail.id, existingEmail.email, existingEmail.username);
         return res.status(400).json({ message: "Email already registered" });
       }
 
