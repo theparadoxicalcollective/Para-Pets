@@ -2,9 +2,9 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import bgImg from "@assets/bg_home.png";
 import navBarImg from "@assets/bar_nav.png";
-import questImg from "@assets/icon_quest.png";
-import mapImg from "@assets/icon_map.png";
-import swordsImg from "@assets/icon_pvp.png";
+import questImg from "@assets/icon_quest_new.png";
+import mapImg from "@assets/icon_map_new.png";
+import swordsImg from "@assets/icon_pvp_new.png";
 import eggImg from "@assets/icon_pets.png";
 import scrollOpenImg from "@assets/scroll_open.png";
 import TopBar from "@/components/TopBar";
@@ -99,31 +99,27 @@ export default function HomePage({ user }: HomePageProps) {
               style={{ filter: "drop-shadow(0 -4px 20px rgba(0,0,0,0.8))" }}
             />
 
-            <div className="relative z-10 flex items-center justify-evenly w-full px-8">
+            <div className="relative z-10 flex items-center justify-evenly w-full px-6">
               <NavIcon
                 src={questImg}
                 alt="Quests"
-                label="Quests"
                 testId="button-nav-quests"
                 onClick={() => setScrollOpen(true)}
               />
               <NavIcon
                 src={mapImg}
                 alt="Map"
-                label="Map"
                 testId="button-nav-map"
                 onClick={() => navigate("/map")}
               />
               <NavIcon
                 src={swordsImg}
-                alt="PvP"
-                label="Battle"
+                alt="Battle"
                 testId="button-nav-pvp"
               />
               <NavIcon
                 src={eggImg}
                 alt="Pets"
-                label="Pets"
                 testId="button-nav-pets"
               />
             </div>
@@ -200,7 +196,7 @@ export default function HomePage({ user }: HomePageProps) {
   );
 }
 
-function NavIcon({ src, alt, label, testId, onClick }: { src: string; alt: string; label: string; testId: string; onClick?: () => void }) {
+function NavIcon({ src, alt, testId, onClick }: { src: string; alt: string; testId: string; onClick?: () => void }) {
   const [tapped, setTapped] = useState(false);
 
   const handleTap = () => {
@@ -213,28 +209,22 @@ function NavIcon({ src, alt, label, testId, onClick }: { src: string; alt: strin
     <button
       data-testid={testId}
       onClick={handleTap}
-      className="flex flex-col items-center gap-0.5 group"
+      className="flex flex-col items-center group"
       style={{ background: "none", border: "none", cursor: "pointer" }}
     >
       <div
-        className="nav-icon-size flex items-center justify-center transition-transform duration-150 rounded-lg overflow-hidden"
-        style={{ transform: tapped ? "scale(0.88)" : "scale(1)" }}
+        className="nav-icon-size flex items-center justify-center transition-transform duration-150 rounded-xl overflow-hidden"
+        style={{
+          transform: tapped ? "scale(0.88)" : "scale(1)",
+          filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.6))",
+        }}
       >
         <img
           src={src}
           alt={alt}
-          className="w-full h-full object-contain drop-shadow-lg transition-all duration-150 group-active:brightness-125"
+          className="w-full h-full object-cover rounded-xl transition-all duration-150 group-active:brightness-125"
         />
       </div>
-      <span
-        className="font-fantasy nav-label-size tracking-wider transition-colors"
-        style={{
-          color: "rgba(240,192,64,0.8)",
-          textShadow: "0 1px 4px rgba(0,0,0,0.9)",
-        }}
-      >
-        {label}
-      </span>
     </button>
   );
 }

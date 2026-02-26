@@ -348,17 +348,23 @@
 }
 
 .nav-icon-size {
+  width: 48px;
+  height: 48px;
+}
+
+.topbar-icon-size {
   width: 44px;
   height: 44px;
 }
 
-.nav-label-size {
-  font-size: 9px;
+.topbar-profile-size {
+  width: 60px;
+  height: 60px;
 }
 
-@media (min-width: 500px) {
+@media (min-width: 480px) {
   .nav-bar-height {
-    height: 100px;
+    height: 96px;
   }
 
   .nav-icon-size {
@@ -366,7 +372,34 @@
     height: 60px;
   }
 
-  .nav-label-size {
-    font-size: 11px;
+  .topbar-icon-size {
+    width: 52px;
+    height: 52px;
+  }
+
+  .topbar-profile-size {
+    width: 68px;
+    height: 68px;
+  }
+}
+
+@media (min-width: 640px) {
+  .nav-bar-height {
+    height: 110px;
+  }
+
+  .nav-icon-size {
+    width: 72px;
+    height: 72px;
+  }
+
+  .topbar-icon-size {
+    width: 58px;
+    height: 58px;
+  }
+
+  .topbar-profile-size {
+    width: 76px;
+    height: 76px;
   }
 }
