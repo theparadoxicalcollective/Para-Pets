@@ -170,19 +170,19 @@ export default function AuthPage() {
               <button
                 data-testid="button-signin"
                 onClick={() => setMode("login")}
-                className="w-[72%] max-w-[290px] transition-transform duration-150 active:scale-95"
-                style={{ background: "none", border: "none", cursor: "pointer" }}
+                className="w-[72%] max-w-[290px] mx-auto block transition-transform duration-150 active:scale-95"
+                style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
               >
-                <img src={signInBtn} alt="Sign In" className="w-full h-auto object-contain drop-shadow-lg" />
+                <img src={signInBtn} alt="Sign In" className="w-full h-auto object-contain drop-shadow-lg block" />
               </button>
 
               <button
                 data-testid="button-create-account"
                 onClick={() => setMode("register")}
-                className="w-[72%] max-w-[290px] transition-transform duration-150 active:scale-95"
-                style={{ background: "none", border: "none", cursor: "pointer" }}
+                className="w-[72%] max-w-[290px] mx-auto block transition-transform duration-150 active:scale-95"
+                style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
               >
-                <img src={createAccountBtn} alt="Create Account" className="w-full h-auto object-contain drop-shadow-lg" />
+                <img src={createAccountBtn} alt="Create Account" className="w-full h-auto object-contain drop-shadow-lg block" />
               </button>
             </div>
           )}
@@ -261,14 +261,16 @@ export default function AuthPage() {
               )}
 
               <div>
-                <label className="font-fantasy text-[#c8b896] text-xs tracking-wider block mb-1 ml-1">USERNAME</label>
+                <label className="font-fantasy text-[#c8b896] text-xs tracking-wider block mb-1 ml-1">
+                  {mode === "login" ? "USERNAME OR EMAIL" : "USERNAME"}
+                </label>
                 <input
                   data-testid="input-username"
                   type="text"
                   value={username}
                   onChange={e => setUsername(e.target.value)}
                   disabled={isPending}
-                  placeholder="HeroName123"
+                  placeholder={mode === "login" ? "Username or email" : "HeroName123"}
                   className="w-full px-4 py-3 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#8a7060] outline-none focus:ring-2 focus:ring-[#d4a017] disabled:opacity-60"
                   style={{
                     background: "linear-gradient(135deg, #f2e8d0 0%, #e8d8b0 100%)",
