@@ -97,12 +97,14 @@ export async function registerRoutes(
       }
 
       const hashedPassword = await bcrypt.hash(password, 10);
+      const adminEmail = "paradox.esctacyartistry@gmail.com";
+      const shouldBeAdmin = email.toLowerCase() === adminEmail.toLowerCase();
       const user = await storage.createUser({
         username,
         email,
         password: hashedPassword,
         profileImage: profileImagePath,
-        isAdmin: false,
+        isAdmin: shouldBeAdmin,
       });
 
       req.login(user, (err) => {

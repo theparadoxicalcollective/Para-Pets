@@ -6,7 +6,6 @@ import questImg from "@assets/icon_quest.png";
 import mapImg from "@assets/icon_map.png";
 import swordsImg from "@assets/icon_pvp.png";
 import eggImg from "@assets/icon_pets.png";
-import scrollRolledImg from "@assets/scroll_rolled.png";
 import scrollOpenImg from "@assets/scroll_open.png";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
@@ -92,7 +91,7 @@ export default function HomePage({ user }: HomePageProps) {
         </div>
 
         <div className="relative flex-shrink-0">
-          <div className="relative w-full h-20 flex items-center justify-center">
+          <div className="relative w-full nav-bar-height flex items-center justify-center">
             <img
               src={navBarImg}
               alt="Navigation Bar"
@@ -100,7 +99,7 @@ export default function HomePage({ user }: HomePageProps) {
               style={{ filter: "drop-shadow(0 -4px 20px rgba(0,0,0,0.8))" }}
             />
 
-            <div className="relative z-10 flex items-center justify-evenly w-full px-10">
+            <div className="relative z-10 flex items-center justify-evenly w-full px-8">
               <NavIcon
                 src={questImg}
                 alt="Quests"
@@ -132,28 +131,6 @@ export default function HomePage({ user }: HomePageProps) {
         </div>
       </div>
 
-      {!scrollOpen && (
-        <button
-          data-testid="button-scroll-rolled"
-          onClick={() => setScrollOpen(true)}
-          className="absolute z-20 transition-transform duration-200 active:scale-95"
-          style={{
-            bottom: "90px",
-            right: "16px",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.8))",
-          }}
-        >
-          <img
-            src={scrollRolledImg}
-            alt="Quest Scroll"
-            className="w-14 h-14 object-contain"
-          />
-        </button>
-      )}
-
       {scrollOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
           <div
@@ -163,6 +140,22 @@ export default function HomePage({ user }: HomePageProps) {
           <div
             className="relative w-[85%] max-h-[70vh] flex flex-col items-center animate-slide-up"
           >
+            <button
+              data-testid="button-close-scroll"
+              onClick={() => setScrollOpen(false)}
+              className="absolute -top-2 -right-2 z-30 w-8 h-8 rounded-full flex items-center justify-center transition-transform active:scale-90"
+              style={{
+                background: "linear-gradient(135deg, #5c3a1e 0%, #3a2010 100%)",
+                border: "2px solid rgba(212,160,23,0.6)",
+                color: "#f0c040",
+                cursor: "pointer",
+                boxShadow: "0 2px 10px rgba(0,0,0,0.6)",
+                fontSize: "14px",
+                fontWeight: "bold",
+              }}
+            >
+              X
+            </button>
             <div className="relative w-full">
               <img
                 src={scrollOpenImg}
@@ -189,20 +182,6 @@ export default function HomePage({ user }: HomePageProps) {
                 </div>
               </div>
             </div>
-            <button
-              data-testid="button-close-scroll"
-              onClick={() => setScrollOpen(false)}
-              className="mt-3 px-6 py-2 rounded-md font-fantasy text-xs tracking-widest transition-transform active:scale-95"
-              style={{
-                background: "linear-gradient(135deg, #5c3a1e 0%, #8b5e3c 100%)",
-                border: "1px solid rgba(212,160,23,0.5)",
-                color: "#f0c040",
-                cursor: "pointer",
-                boxShadow: "0 4px 15px rgba(0,0,0,0.5)",
-              }}
-            >
-              Close Scroll
-            </button>
           </div>
         </div>
       )}
@@ -234,21 +213,21 @@ function NavIcon({ src, alt, label, testId, onClick }: { src: string; alt: strin
     <button
       data-testid={testId}
       onClick={handleTap}
-      className="flex flex-col items-center gap-0 group"
+      className="flex flex-col items-center gap-0.5 group"
       style={{ background: "none", border: "none", cursor: "pointer" }}
     >
       <div
-        className="w-11 h-11 flex items-center justify-center transition-transform duration-150 rounded-lg overflow-hidden"
+        className="nav-icon-size flex items-center justify-center transition-transform duration-150 rounded-lg overflow-hidden"
         style={{ transform: tapped ? "scale(0.88)" : "scale(1)" }}
       >
         <img
           src={src}
           alt={alt}
-          className="w-11 h-11 object-contain drop-shadow-lg transition-all duration-150 group-active:brightness-125"
+          className="w-full h-full object-contain drop-shadow-lg transition-all duration-150 group-active:brightness-125"
         />
       </div>
       <span
-        className="font-fantasy text-[9px] tracking-wider transition-colors"
+        className="font-fantasy nav-label-size tracking-wider transition-colors"
         style={{
           color: "rgba(240,192,64,0.8)",
           textShadow: "0 1px 4px rgba(0,0,0,0.9)",

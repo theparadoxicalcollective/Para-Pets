@@ -342,3 +342,31 @@
 .font-fantasy {
   font-family: 'Cinzel', 'Cinzel Decorative', serif;
 }
+
+.nav-bar-height {
+  height: 80px;
+}
+
+.nav-icon-size {
+  width: 44px;
+  height: 44px;
+}
+
+.nav-label-size {
+  font-size: 9px;
+}
+
+@media (min-width: 500px) {
+  .nav-bar-height {
+    height: 100px;
+  }
+
+  .nav-icon-size {
+    width: 60px;
+    height: 60px;
+  }
+
+  .nav-label-size {
+    font-size: 11px;
+  }
+}
