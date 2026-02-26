@@ -9,8 +9,13 @@ import fs from "fs";
 import path from "path";
 
 function isAuthenticated(req: Request, res: Response, next: any) {
-  if (req.isAuthenticated()) return next();
-  return res.status(401).json({ message: "Unauthorized" });
+  if (!req.isAuthenticated()) return res.status(401).json({ message: "Unauthorized" });
+  const user = req.user as any;
+  if (user.isBanned) {
+    req.logout(() => {});
+    return res.status(403).json({ message: "This account has been banished from the realm" });
+  }
+  return next();
 }
 
 async function ensureAdminAccount() {
@@ -203,6 +208,64 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Update profile image error:", err);
       return res.status(500).json({ message: "Failed to update profile image" });
+    }
+  });
+
+  function isAdmin(req: Request, res: Response, next: any) {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Unauthorized" });
+    const user = req.user as any;
+    if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
+    return next();
+  }
+
+  app.get("/api/admin/users", isAdmin, async (_req, res) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      const safeUsers = allUsers.map(({ password: _, ...u }) => u);
+      return res.json(safeUsers);
+    } catch (err) {
+      console.error("Get users error:", err);
+      return res.status(500).json({ message: "Failed to get users" });
+    }
+  });
+
+  app.post("/api/admin/ban/:userId", isAdmin, async (req, res) => {
+    try {
+      const target = await storage.getUser(req.params.userId);
+      if (!target) return res.status(404).json({ message: "User not found" });
+      if (target.isAdmin) return res.status(400).json({ message: "Cannot banish an admin" });
+      const updated = await storage.banUser(req.params.userId);
+      const { password: _, ...safe } = updated;
+      return res.json(safe);
+    } catch (err) {
+      console.error("Ban user error:", err);
+      return res.status(500).json({ message: "Failed to banish user" });
+    }
+  });
+
+  app.post("/api/admin/unban/:userId", isAdmin, async (req, res) => {
+    try {
+      const updated = await storage.unbanUser(req.params.userId);
+      const { password: _, ...safe } = updated;
+      return res.json(safe);
+    } catch (err) {
+      console.error("Unban user error:", err);
+      return res.status(500).json({ message: "Failed to unbanish user" });
+    }
+  });
+
+  app.post("/api/admin/coins/:userId", isAdmin, async (req, res) => {
+    try {
+      const { amount } = req.body;
+      if (typeof amount !== "number" || amount === 0) {
+        return res.status(400).json({ message: "Provide a valid coin amount" });
+      }
+      const updated = await storage.addCoins(req.params.userId, amount);
+      const { password: _, ...safe } = updated;
+      return res.json(safe);
+    } catch (err) {
+      console.error("Add coins error:", err);
+      return res.status(500).json({ message: "Failed to modify coins" });
     }
   });
 

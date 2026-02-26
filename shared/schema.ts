@@ -11,6 +11,7 @@ export const users = pgTable("users", {
   profileImage: text("profile_image"),
   coins: integer("coins").notNull().default(0),
   isAdmin: boolean("is_admin").notNull().default(false),
+  isBanned: boolean("is_banned").notNull().default(false),
   lastUsernameChange: timestamp("last_username_change"),
   lastProfilePicChange: timestamp("last_profile_pic_change"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),

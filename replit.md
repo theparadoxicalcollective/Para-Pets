@@ -1,80 +1,62 @@
 # Para Pets - Fantasy Pet Adventure Game
 
 ## Overview
-Para Pets is a mobile-first fantasy game web app where players collect, raise, and battle magical pets. The app is designed with a medieval fantasy aesthetic.
+Para Pets is a mobile-first fantasy game web app where players collect, raise, and battle magical pets. The app is designed with a medieval fantasy aesthetic (max 480px width, centered on desktop with dark sides).
 
 ## Architecture
-- **Frontend**: React + Vite + TypeScript + TailwindCSS
+- **Frontend**: React + Vite + TypeScript + TailwindCSS + wouter routing
 - **Backend**: Express.js + TypeScript
 - **Database**: PostgreSQL (Neon via Replit) with Drizzle ORM
-- **Auth**: Passport.js (local strategy) + express-session + connect-pg-simple
+- **Auth**: Passport.js (local strategy, accepts username or email) + express-session + connect-pg-simple
 - **Image Processing**: Sharp (server-side resize to 500x500)
 
-## Pages Built
-1. **Auth Page** (`/auth`) - Login / Sign Up with:
-   - Fantasy game UI (medieval interior background)
-   - Para Pets logo, leaf-shaped buttons (Sign In = green leaf, Create Account = orange leaf)
-   - Animated loading progress bar (1.5 seconds minimum)
-   - Profile picture upload with auto-resize to 500x500px
-   - Form validation (username: letters+numbers only, email, password min 6 chars)
+## Pages
+1. **Auth Page** (`/auth`) - Login / Sign Up with fantasy UI, crystal pill buttons, show/hide password toggle
+2. **Home Page** (`/`) - Main game screen with pet platform, rolled scroll quest log, bottom nav bar
+3. **Map Page** (`/map`) - World map with 8 clickable locations, each opens to a full-screen area background
+4. **Admin Page** (`/admin`) - Admin-only realm administration with member list, ban/unban, give coins
 
-2. **Home Page** (`/`) - Main game screen with:
-   - Forest fantasy background
-   - Top left: Clickable profile portrait with wood frame asset
-   - Top center: Username display in fantasy wood style
-   - Top right: Pet shop icon + coin counter (placeholder 0)
-   - Center: Empty pet platform area ready for future pet animation
-   - Bottom: Wood carved navigation bar with 4 icons (Quests, Map, PvP, Pet Inventory)
-
-3. **User Profile Panel** - Slide-up overlay (opened by clicking profile portrait):
-   - Change username (once per month limit)
-   - Change profile picture (once per week limit)
-   - Account info display (email, admin badge if applicable)
-   - Logout / "Leave Realm" button
-   - X button to close
+## Shared Components
+- **TopBar** - Profile pic (framed), player name, coin display, shop icon, home icon — shown on all game pages
+- **UserProfilePanel** - Slide-up overlay for profile settings, username change, admin panel link, logout
+- **NavIcon** - Bottom navigation bar icons with tap feedback
 
 ## Admin Account
-- Email: paradox.esctacyartistry@gmail.com
-- Password: AdminOnly13
-- Username: ParaDoxAdmin
-- Auto-seeded on server startup
+- Email: paradox.esctacyartistry@gmail.com is auto-promoted to admin on startup
+- Admin can access Realm Administration from profile panel
+- Admin can banish/unbanish users and give/remove coins
 
 ## Database Schema
-- `users` table: id, username, email, password (bcrypt hashed), profileImage (path), coins, isAdmin, lastUsernameChange, lastProfilePicChange, createdAt
+- `users` table: id, username, email, password (bcrypt), profileImage, coins, isAdmin, isBanned, lastUsernameChange, lastProfilePicChange, createdAt
 - `session` table: managed by connect-pg-simple
 
-## File Storage
-- Profile images stored in `uploads/` directory at project root
-- Served via Express static middleware at `/uploads/` path
-- Auto-resized to 500x500px square crop using Sharp
-
 ## API Endpoints
-- `POST /api/auth/register` - Create account with optional profile image
-- `POST /api/auth/login` - Login with username + password
+### Auth
+- `POST /api/auth/register` - Create account (optional profile image)
+- `POST /api/auth/login` - Login (username or email)
 - `POST /api/auth/logout` - Logout
-- `GET /api/auth/me` - Get current user (returns null if unauthenticated)
-- `PATCH /api/user/username` - Update username (monthly limit)
-- `PATCH /api/user/profile-image` - Update profile picture (weekly limit)
+- `GET /api/auth/me` - Get current user
 
-## Fantasy Assets Used
-- `IMG_6038` - Forest background (Home page)
-- `IMG_6042` - Medieval interior background (Auth page)
-- `IMG_6039` - Para Pets logo
-- `IMG_6041` - Sign In button (green leaf)
-- `IMG_6040` - Create Account button (orange leaf)
-- `IMG_6048` - Profile portrait frame (wood frame)
-- `IMG_6047` - Shop icon (pet shop building)
-- `IMG_6049` - Bottom navigation bar (wood plank)
-- `IMG_6053` - Quests icon (scroll)
-- `IMG_6052` - Map icon (treasure map)
-- `IMG_6051` - PvP icon (crossed swords)
-- `IMG_6050` - Pet inventory icon (egg with leaf)
+### User
+- `PATCH /api/user/username` - Update username (monthly limit)
+- `PATCH /api/user/profile-image` - Update profile picture (no cooldown)
+
+### Admin
+- `GET /api/admin/users` - List all users
+- `POST /api/admin/ban/:userId` - Banish a user
+- `POST /api/admin/unban/:userId` - Unbanish a user
+- `POST /api/admin/coins/:userId` - Add/remove coins
+
+## Map Locations
+Haunted Woods, The Swamp, Scorched Desert, Treasure Isle, Volcanic Isle, Sky Realm, Frostpeak, Enchanted Grove
 
 ## Design Tokens
-- Fantasy fonts: Cinzel (heading), Cinzel Decorative (logo), Lora/Playfair Display (body)
-- Fantasy colors: Gold (#d4a017, #f0c040), Wood (#5c3a1e, #8b5e3c), Forest (#1a4a2e), Parchment (#f2e8d0), Teal Glow (#7fffd4)
+- Fantasy fonts: Cinzel (heading), Cinzel Decorative (logo)
+- Fantasy colors: Gold (#d4a017, #f0c040), Wood (#5c3a1e, #8b5e3c), Forest (#1a4a2e), Teal (#7fffd4)
+- Button images contain their own text — no overlaid text spans
 
-## Future Expansion Ready
-- Currency system modular (coins field on user)
-- Pet system ready (empty platform in center)
-- Quest, Map, PvP, Pet Inventory navigation placeholders
+## Key Notes
+- Login accepts username OR email (passport strategy)
+- `apiRequest` returns Response object — call `.json()` on it
+- Mobile-first 480px max width; desktop centered with #0a0a0a sides
+- Profile frame image has been processed for true center transparency

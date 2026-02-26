@@ -72,6 +72,9 @@ passport.use(
       if (!user) {
         return done(null, false, { message: "Invalid username or password" });
       }
+      if (user.isBanned) {
+        return done(null, false, { message: "This account has been banished from the realm" });
+      }
       const isValid = await bcrypt.compare(password, user.password);
       if (!isValid) {
         return done(null, false, { message: "Invalid username or password" });

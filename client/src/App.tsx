@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
 import AuthPage from "@/pages/AuthPage";
 import HomePage from "@/pages/HomePage";
+import MapPage from "@/pages/MapPage";
+import AdminPage from "@/pages/AdminPage";
 
 function AppRouter() {
   const { data: user, isLoading, isFetched } = useQuery<any>({
@@ -31,6 +33,12 @@ function AppRouter() {
   return (
     <Switch>
       <Route path="/auth" component={AuthPage} />
+      <Route path="/map">
+        {user ? <MapPage user={user} /> : <Redirect to="/auth" />}
+      </Route>
+      <Route path="/admin">
+        {user && user.isAdmin ? <AdminPage user={user} /> : <Redirect to="/" />}
+      </Route>
       <Route path="/">
         {user ? <HomePage user={user} /> : <Redirect to="/auth" />}
       </Route>

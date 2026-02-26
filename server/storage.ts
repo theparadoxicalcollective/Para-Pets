@@ -9,8 +9,10 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUsername(id: string, username: string): Promise<User>;
   updateProfileImage(id: string, profileImage: string): Promise<User>;
-  updateLastUsernameChange(id: string): Promise<void>;
-  updateLastProfilePicChange(id: string): Promise<void>;
+  getAllUsers(): Promise<User[]>;
+  banUser(id: string): Promise<User>;
+  unbanUser(id: string): Promise<User>;
+  addCoins(id: string, amount: number): Promise<User>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -52,18 +54,38 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async updateLastUsernameChange(id: string): Promise<void> {
-    await db
-      .update(users)
-      .set({ lastUsernameChange: new Date() })
-      .where(eq(users.id, id));
+  async getAllUsers(): Promise<User[]> {
+    return db.select().from(users);
   }
 
-  async updateLastProfilePicChange(id: string): Promise<void> {
-    await db
+  async banUser(id: string): Promise<User> {
+    const [user] = await db
       .update(users)
-      .set({ lastProfilePicChange: new Date() })
-      .where(eq(users.id, id));
+      .set({ isBanned: true })
+      .where(eq(users.id, id))
+      .returning();
+    return user;
+  }
+
+  async unbanUser(id: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ isBanned: false })
+      .where(eq(users.id, id))
+      .returning();
+    return user;
+  }
+
+  async addCoins(id: string, amount: number): Promise<User> {
+    const user = await this.getUser(id);
+    if (!user) throw new Error("User not found");
+    const newCoins = Math.max(0, user.coins + amount);
+    const [updated] = await db
+      .update(users)
+      .set({ coins: newCoins })
+      .where(eq(users.id, id))
+      .returning();
+    return updated;
   }
 }
 

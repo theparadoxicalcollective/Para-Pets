@@ -1,12 +1,14 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import bgImg from "@assets/bg_home.png";
-import profileFrameImg from "@assets/frame_profile.png";
-import shopIconImg from "@assets/icon_shop.png";
 import navBarImg from "@assets/bar_nav.png";
 import questImg from "@assets/icon_quest.png";
 import mapImg from "@assets/icon_map.png";
 import swordsImg from "@assets/icon_pvp.png";
 import eggImg from "@assets/icon_pets.png";
+import scrollRolledImg from "@assets/scroll_rolled.png";
+import scrollOpenImg from "@assets/scroll_open.png";
+import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 
 interface HomePageProps {
@@ -25,6 +27,8 @@ interface HomePageProps {
 export default function HomePage({ user }: HomePageProps) {
   const [showProfile, setShowProfile] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
+  const [scrollOpen, setScrollOpen] = useState(false);
+  const [, navigate] = useLocation();
 
   return (
     <div
@@ -41,103 +45,8 @@ export default function HomePage({ user }: HomePageProps) {
       <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/60 z-0 pointer-events-none" />
 
       <div className="relative z-10 flex flex-col min-h-[100dvh]" style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+        <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} />
 
-        {/* TOP BAR */}
-        <div className="flex items-start justify-between px-3 pt-5 gap-2">
-
-          {/* TOP LEFT - Profile Portrait */}
-          <button
-            data-testid="button-profile"
-            onClick={() => setShowProfile(true)}
-            className="relative flex-shrink-0 transition-transform duration-150 active:scale-95"
-            style={{ background: "none", border: "none", cursor: "pointer" }}
-          >
-            <div className="relative w-[68px] h-[68px]">
-              <img
-                src={profileFrameImg}
-                alt="Profile Frame"
-                className="absolute inset-0 w-full h-full object-contain z-20"
-                style={{ filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.7))" }}
-              />
-              <div
-                className="absolute z-10 overflow-hidden rounded-sm"
-                style={{
-                  inset: "14px",
-                }}
-              >
-                {currentUser.profileImage ? (
-                  <img
-                    data-testid="img-profile-avatar"
-                    src={currentUser.profileImage}
-                    alt={currentUser.username}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div
-                    className="w-full h-full flex items-center justify-center"
-                    style={{ background: "linear-gradient(135deg, #2a1a0a 0%, #4a2e18 100%)" }}
-                  >
-                    <span className="font-fantasy text-[#d4a017] text-xl font-bold">
-                      {currentUser.username.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </button>
-
-          {/* TOP CENTER - Username */}
-          <div className="flex-1 flex flex-col items-center pt-1">
-            <div
-              className="px-5 py-1.5 rounded-md"
-              style={{
-                background: "linear-gradient(135deg, rgba(30,15,5,0.85) 0%, rgba(60,35,10,0.85) 100%)",
-                border: "1px solid rgba(212,160,23,0.5)",
-                boxShadow: "0 2px 12px rgba(0,0,0,0.6), inset 0 1px 0 rgba(212,160,23,0.2)",
-              }}
-            >
-              <p
-                className="font-fantasy text-[#f0c040] text-center font-semibold tracking-widest text-xs"
-                style={{ textShadow: "0 0 10px rgba(240,192,64,0.6)" }}
-                data-testid="text-username"
-              >
-                {currentUser.username}
-              </p>
-            </div>
-          </div>
-
-          {/* TOP RIGHT - Shop + Coins */}
-          <div className="flex-shrink-0 flex flex-col items-center gap-1">
-            <button
-              data-testid="button-shop"
-              className="w-14 h-14 flex items-center justify-center transition-transform duration-150 active:scale-95"
-              style={{ background: "none", border: "none", cursor: "pointer" }}
-            >
-              <img
-                src={shopIconImg}
-                alt="Shop"
-                className="w-14 h-14 object-contain drop-shadow-lg"
-              />
-            </button>
-            <div
-              className="flex items-center gap-1 px-2 py-0.5 rounded-md"
-              style={{
-                background: "linear-gradient(135deg, rgba(30,15,5,0.85) 0%, rgba(60,35,10,0.85) 100%)",
-                border: "1px solid rgba(212,160,23,0.4)",
-              }}
-            >
-              <span className="text-yellow-400 text-xs">&#9733;</span>
-              <span
-                className="font-fantasy text-[#f0c040] text-xs font-semibold"
-                data-testid="text-coins"
-              >
-                {currentUser.coins}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* CENTER - Pet Platform Area */}
         <div className="flex-1 flex flex-col items-center justify-center px-8 py-4">
           <div className="relative w-full max-w-xs">
             <div
@@ -182,7 +91,6 @@ export default function HomePage({ user }: HomePageProps) {
           </div>
         </div>
 
-        {/* BOTTOM NAVIGATION */}
         <div className="relative flex-shrink-0">
           <div className="relative w-full h-20 flex items-center justify-center">
             <img
@@ -198,12 +106,14 @@ export default function HomePage({ user }: HomePageProps) {
                 alt="Quests"
                 label="Quests"
                 testId="button-nav-quests"
+                onClick={() => setScrollOpen(true)}
               />
               <NavIcon
                 src={mapImg}
                 alt="Map"
                 label="Map"
                 testId="button-nav-map"
+                onClick={() => navigate("/map")}
               />
               <NavIcon
                 src={swordsImg}
@@ -222,6 +132,81 @@ export default function HomePage({ user }: HomePageProps) {
         </div>
       </div>
 
+      {!scrollOpen && (
+        <button
+          data-testid="button-scroll-rolled"
+          onClick={() => setScrollOpen(true)}
+          className="absolute z-20 transition-transform duration-200 active:scale-95"
+          style={{
+            bottom: "90px",
+            right: "16px",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.8))",
+          }}
+        >
+          <img
+            src={scrollRolledImg}
+            alt="Quest Scroll"
+            className="w-14 h-14 object-contain"
+          />
+        </button>
+      )}
+
+      {scrollOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "480px", margin: "0 auto", left: 0, right: 0 }}>
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setScrollOpen(false)}
+          />
+          <div
+            className="relative w-[85%] max-h-[70vh] flex flex-col items-center animate-slide-up"
+          >
+            <div className="relative w-full">
+              <img
+                src={scrollOpenImg}
+                alt="Quest Scroll"
+                className="w-full object-contain"
+                style={{ filter: "drop-shadow(0 8px 30px rgba(0,0,0,0.8))" }}
+              />
+              <div
+                className="absolute inset-0 flex flex-col items-center justify-center px-[18%] py-[22%]"
+              >
+                <h3
+                  className="font-fantasy text-[#5c3a1e] text-sm tracking-widest font-bold mb-3"
+                  style={{ textShadow: "0 1px 2px rgba(0,0,0,0.1)" }}
+                >
+                  QUEST LOG
+                </h3>
+                <div className="w-full flex-1 overflow-y-auto">
+                  <p className="font-fantasy text-[#8b6e4e] text-xs text-center tracking-wider leading-relaxed">
+                    No active quests.
+                  </p>
+                  <p className="font-fantasy text-[#a08060] text-[10px] text-center tracking-wider mt-2">
+                    Explore the realm to discover adventures...
+                  </p>
+                </div>
+              </div>
+            </div>
+            <button
+              data-testid="button-close-scroll"
+              onClick={() => setScrollOpen(false)}
+              className="mt-3 px-6 py-2 rounded-md font-fantasy text-xs tracking-widest transition-transform active:scale-95"
+              style={{
+                background: "linear-gradient(135deg, #5c3a1e 0%, #8b5e3c 100%)",
+                border: "1px solid rgba(212,160,23,0.5)",
+                color: "#f0c040",
+                cursor: "pointer",
+                boxShadow: "0 4px 15px rgba(0,0,0,0.5)",
+              }}
+            >
+              Close Scroll
+            </button>
+          </div>
+        </div>
+      )}
+
       {showProfile && (
         <UserProfilePanel
           user={currentUser}
@@ -236,12 +221,13 @@ export default function HomePage({ user }: HomePageProps) {
   );
 }
 
-function NavIcon({ src, alt, label, testId }: { src: string; alt: string; label: string; testId: string }) {
+function NavIcon({ src, alt, label, testId, onClick }: { src: string; alt: string; label: string; testId: string; onClick?: () => void }) {
   const [tapped, setTapped] = useState(false);
 
   const handleTap = () => {
     setTapped(true);
     setTimeout(() => setTapped(false), 200);
+    onClick?.();
   };
 
   return (

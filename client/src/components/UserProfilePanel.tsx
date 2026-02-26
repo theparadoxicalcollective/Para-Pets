@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import profileFrameImg from "@assets/frame_profile.png";
@@ -64,6 +65,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
 
   const usernameStatus = canChangeUsername(user.lastUsernameChange);
 
@@ -324,7 +326,26 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
             )}
           </div>
 
-          {/* Logout */}
+          {user.isAdmin && (
+            <button
+              data-testid="button-admin-panel"
+              onClick={() => {
+                onClose();
+                navigate("/admin");
+              }}
+              className="w-full py-3 rounded-md font-fantasy text-sm tracking-widest transition-all"
+              style={{
+                background: "linear-gradient(135deg, rgba(212,160,23,0.3) 0%, rgba(180,120,10,0.3) 100%)",
+                border: "1px solid rgba(212,160,23,0.5)",
+                color: "#f0c040",
+                cursor: "pointer",
+                boxShadow: "0 2px 12px rgba(212,160,23,0.2)",
+              }}
+            >
+              Realm Administration
+            </button>
+          )}
+
           <button
             data-testid="button-logout"
             onClick={() => logoutMutation.mutate()}
