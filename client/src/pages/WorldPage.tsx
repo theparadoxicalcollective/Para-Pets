@@ -50,6 +50,7 @@ interface ShopItem {
   eggImageUrl: string | null;
   hatchedImageUrl: string | null;
   statBoostType: string | null;
+  statBoostAmount: number | null;
   createdAt: string;
 }
 
@@ -321,7 +322,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                           className="font-fantasy text-[9px] tracking-wider px-2 py-0.5 rounded-full capitalize"
                           style={{ background: "rgba(127,255,212,0.15)", color: "#7fbfb0", border: "1px solid rgba(127,255,212,0.2)" }}
                         >
-                          {item.type}{item.type === "item" && item.statBoostType ? ` (+${item.statBoostType.toUpperCase()})` : ""}
+                          {item.type}{item.type === "item" && item.statBoostType ? ` (+${item.statBoostAmount || "?"}${item.statBoostType === "health" ? " HP" : item.statBoostType === "atk" ? " ATK" : item.statBoostType === "def" ? " DEF" : " LVL"})` : ""}
                         </span>
                         {ownedItemIds.has(item.id) ? (
                           <span
@@ -415,13 +416,17 @@ export default function WorldPage({ user }: WorldPageProps) {
   );
 }
 
-function ImageUpload({ label, preview, onSelect, onRemove, inputId }: { label: string; preview: string | null; onSelect: (data: string) => void; onRemove: () => void; inputId: string }) {
+function ImageUpload({ label, preview, onSelect, onRemove, inputId, allowGif = false }: { label: string; preview: string | null; onSelect: (data: string) => void; onRemove: () => void; inputId: string; allowGif?: boolean }) {
   const { toast } = useToast();
+  const allowedTypes = allowGif ? ["image/png", "image/gif"] : ["image/png"];
+  const acceptStr = allowGif ? "image/png,image/gif" : "image/png";
+  const formatLabel = allowGif ? "PNG or GIF" : "PNG only";
+
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!["image/png", "image/gif"].includes(file.type)) {
-      toast({ title: "Invalid format", description: "Only PNG and GIF", variant: "destructive" });
+    if (!allowedTypes.includes(file.type)) {
+      toast({ title: "Invalid format", description: formatLabel, variant: "destructive" });
       return;
     }
     if (file.size > 10 * 1024 * 1024) {
@@ -448,7 +453,7 @@ function ImageUpload({ label, preview, onSelect, onRemove, inputId }: { label: s
             <span className="text-[#d4a017] text-lg">+</span>
           )}
         </div>
-        <input id={inputId} type="file" accept="image/png,image/gif" onChange={handleFile} className="hidden" />
+        <input id={inputId} type="file" accept={acceptStr} onChange={handleFile} className="hidden" />
         <div className="flex-1 flex flex-col gap-1">
           <button
             type="button"
@@ -468,6 +473,7 @@ function ImageUpload({ label, preview, onSelect, onRemove, inputId }: { label: s
               Remove
             </button>
           )}
+          <span className="font-fantasy text-[#6a5840] text-[7px] tracking-wider">{formatLabel}</span>
         </div>
       </div>
     </div>
@@ -491,6 +497,7 @@ function ShopItemForm({
   const [rarity, setRarity] = useState(item?.rarity?.toString() || "1");
   const [hatchTime, setHatchTime] = useState(item?.hatchTime?.toString() || "1");
   const [statBoostType, setStatBoostType] = useState(item?.statBoostType || "health");
+  const [statBoostAmount, setStatBoostAmount] = useState(item?.statBoostAmount?.toString() || "10");
   const [imageData, setImageData] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(item?.imageUrl || null);
   const [eggImageData, setEggImageData] = useState<string | null>(null);
@@ -530,8 +537,10 @@ function ShopItemForm({
 
       if (type === "item") {
         payload.statBoostType = statBoostType;
+        payload.statBoostAmount = parseInt(statBoostAmount) || 10;
       } else {
         payload.statBoostType = null;
+        payload.statBoostAmount = null;
       }
 
       if (item) {
@@ -578,7 +587,7 @@ function ShopItemForm({
 
         <div className="space-y-3">
           <ImageUpload
-            label="Shop Image (PNG/GIF)"
+            label="Shop Image (PNG)"
             preview={imagePreview}
             onSelect={(d) => { setImageData(d); setImagePreview(d); }}
             onRemove={() => { setImageData(null); setImagePreview(null); }}
@@ -624,6 +633,7 @@ function ShopItemForm({
                 onSelect={(d) => { setEggImageData(d); setEggImagePreview(d); }}
                 onRemove={() => { setEggImageData(null); setEggImagePreview(null); }}
                 inputId="egg-image-input"
+                allowGif
               />
               <ImageUpload
                 label="Hatched Pet Image (shown after hatch)"
@@ -631,20 +641,41 @@ function ShopItemForm({
                 onSelect={(d) => { setHatchedImageData(d); setHatchedImagePreview(d); }}
                 onRemove={() => { setHatchedImageData(null); setHatchedImagePreview(null); }}
                 inputId="hatched-image-input"
+                allowGif
               />
             </>
           )}
 
           {type === "item" && (
-            <div>
-              <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Stat Boost Type</label>
-              <select data-testid="select-stat-boost" value={statBoostType} onChange={(e) => setStatBoostType(e.target.value)} className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle}>
-                <option value="health">Health (+HP)</option>
-                <option value="atk">Attack (+ATK)</option>
-                <option value="def">Defense (+DEF)</option>
-                <option value="lvl">Level (+LVL)</option>
-              </select>
-            </div>
+            <>
+              <div>
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Stat Boost Type</label>
+                <select data-testid="select-stat-boost" value={statBoostType} onChange={(e) => setStatBoostType(e.target.value)} className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle}>
+                  <option value="health">Health (+HP)</option>
+                  <option value="atk">Attack (+ATK)</option>
+                  <option value="def">Defense (+DEF)</option>
+                  <option value="lvl">Level (+LVL)</option>
+                </select>
+              </div>
+              <div>
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">
+                  {statBoostType === "health" ? "HP Added" : statBoostType === "atk" ? "ATK Added" : statBoostType === "def" ? "DEF Added" : "Levels Added"}
+                </label>
+                <input
+                  data-testid="input-stat-boost-amount"
+                  type="number"
+                  value={statBoostAmount}
+                  onChange={(e) => setStatBoostAmount(e.target.value)}
+                  placeholder="10"
+                  min="1"
+                  className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+                  style={inputStyle}
+                />
+                <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">
+                  How much {statBoostType === "health" ? "HP" : statBoostType === "atk" ? "ATK" : statBoostType === "def" ? "DEF" : "LVL"} this item gives when used on a pet
+                </p>
+              </div>
+            </>
           )}
 
           <button

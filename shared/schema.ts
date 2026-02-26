@@ -32,6 +32,7 @@ export const shopItems = pgTable("shop_items", {
   eggImageUrl: text("egg_image_url"),
   hatchedImageUrl: text("hatched_image_url"),
   statBoostType: text("stat_boost_type"),
+  statBoostAmount: integer("stat_boost_amount"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 

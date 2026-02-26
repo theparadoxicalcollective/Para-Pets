@@ -19,6 +19,7 @@ interface InventoryItem {
   eggImageUrl: string | null;
   hatchedImageUrl: string | null;
   statBoostType: string | null;
+  statBoostAmount: number | null;
   hatchStartedAt: string | null;
   isHatched: boolean;
   petHealth: number;
@@ -480,7 +481,7 @@ function BagView({ items }: { items: InventoryItem[] }) {
                   border: `1px solid ${item.statBoostType === "health" ? "rgba(74,222,128,0.3)" : item.statBoostType === "atk" ? "rgba(248,113,113,0.3)" : item.statBoostType === "def" ? "rgba(96,165,250,0.3)" : "rgba(192,132,252,0.3)"}`,
                 }}
               >
-                +{item.statBoostType.toUpperCase()}
+                +{item.statBoostAmount || "?"} {item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "LVL"}
               </span>
             )}
             <span

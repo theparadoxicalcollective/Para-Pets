@@ -339,6 +339,7 @@ export async function registerRoutes(
             eggImageUrl: shopItem?.eggImageUrl || null,
             hatchedImageUrl: shopItem?.hatchedImageUrl || null,
             statBoostType: shopItem?.statBoostType || null,
+            statBoostAmount: shopItem?.statBoostAmount || null,
             hatchStartedAt: inv.hatchStartedAt,
             isHatched: inv.isHatched,
             petHealth: inv.petHealth,
@@ -471,7 +472,7 @@ export async function registerRoutes(
       }
 
       const updates: any = { itemsUsedThisLevel: petInv.itemsUsedThisLevel + 1 };
-      const boostAmount = itemShopItem.price;
+      const boostAmount = itemShopItem.statBoostAmount || 10;
 
       if (boostType === "health") {
         updates.petHealth = petInv.petHealth + boostAmount;
@@ -830,9 +831,9 @@ export async function registerRoutes(
     try {
       const allItems = await storage.getAllShopItems();
       if (allItems.length === 0) {
-        await storage.createShopItem({ name: "Forest Sprite", price: 100, type: "pet", worldId: "haunted_woods", rarity: 3, hatchTime: 1, statBoostType: null, imageUrl: null, eggImageUrl: null, hatchedImageUrl: null });
-        await storage.createShopItem({ name: "Enchanted Berry", price: 50, type: "item", worldId: "haunted_woods", rarity: null, hatchTime: null, statBoostType: "health", imageUrl: null, eggImageUrl: null, hatchedImageUrl: null });
-        await storage.createShopItem({ name: "Mystic Scroll", price: 75, type: "item", worldId: "haunted_woods", rarity: null, hatchTime: null, statBoostType: "lvl", imageUrl: null, eggImageUrl: null, hatchedImageUrl: null });
+        await storage.createShopItem({ name: "Forest Sprite", price: 100, type: "pet", worldId: "haunted_woods", rarity: 3, hatchTime: 1, statBoostType: null, statBoostAmount: null, imageUrl: null, eggImageUrl: null, hatchedImageUrl: null });
+        await storage.createShopItem({ name: "Enchanted Berry", price: 50, type: "item", worldId: "haunted_woods", rarity: null, hatchTime: null, statBoostType: "health", statBoostAmount: 100, imageUrl: null, eggImageUrl: null, hatchedImageUrl: null });
+        await storage.createShopItem({ name: "Mystic Scroll", price: 75, type: "item", worldId: "haunted_woods", rarity: null, hatchTime: null, statBoostType: "lvl", statBoostAmount: 1, imageUrl: null, eggImageUrl: null, hatchedImageUrl: null });
         console.log("Seeded test shop items in Haunted Woods");
       }
     } catch (e) {

@@ -27,6 +27,7 @@ interface BagItem {
   type: string;
   imageUrl: string | null;
   statBoostType: string | null;
+  statBoostAmount: number | null;
 }
 
 interface PetDetailPageProps {
@@ -278,7 +279,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                           color: item.statBoostType === "health" ? "#4ade80" : item.statBoostType === "atk" ? "#f87171" : item.statBoostType === "def" ? "#60a5fa" : "#c084fc",
                         }}
                       >
-                        +{item.statBoostType?.toUpperCase()}
+                        +{item.statBoostAmount || "?"} {item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "LVL"}
                       </span>
                     </button>
                   ))}
