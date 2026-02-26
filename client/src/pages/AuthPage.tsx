@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import logoImg from "@assets/IMG_6039_1772070776195.png";
+import logoImg from "@assets/logo_parapets.png";
 import bgImg from "@assets/bg_login.png";
 import signInBtn from "@assets/btn_signin.png";
 import createAccountBtn from "@assets/btn_create.png";
