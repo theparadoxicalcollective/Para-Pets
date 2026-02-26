@@ -56,6 +56,7 @@ export default function HomePage({ user }: HomePageProps) {
 
   const { data: inventory = [], isLoading: inventoryLoading } = useQuery<InventoryItem[]>({
     queryKey: ["/api/inventory"],
+    staleTime: 0,
   });
 
   const activePet = currentUser.activePetId

@@ -49,6 +49,7 @@ export default function PetInventory({ user, onClose, onUserUpdate }: PetInvento
 
   const { data: inventory = [], isLoading } = useQuery<InventoryItem[]>({
     queryKey: ["/api/inventory"],
+    staleTime: 0,
   });
 
   const setActivePetMutation = useMutation({

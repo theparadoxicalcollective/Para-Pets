@@ -101,6 +101,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   const { data: inventory = [] } = useQuery<InventoryItem[]>({
     queryKey: ["/api/inventory"],
     enabled: showShop,
+    staleTime: 0,
   });
 
   const ownedItemIds = new Set(inventory.map((inv) => inv.shopItemId));

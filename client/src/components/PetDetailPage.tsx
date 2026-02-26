@@ -46,6 +46,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
 
   const { data: inventory = [] } = useQuery<BagItem[]>({
     queryKey: ["/api/inventory"],
+    staleTime: 0,
   });
 
   const usableItems = inventory.filter(
