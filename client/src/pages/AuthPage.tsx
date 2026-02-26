@@ -150,7 +150,7 @@ export default function AuthPage() {
       <div className="absolute inset-0 bg-black/40 z-0" />
 
       <div className="relative z-10 flex flex-col items-center w-full px-6 pt-12 pb-8 min-h-screen">
-        <div className="mb-6 text-center animate-fade-in">
+        <div className="mb-2 text-center animate-fade-in">
           <img
             src={logoImg}
             alt="Para Pets"
@@ -160,7 +160,7 @@ export default function AuthPage() {
         </div>
 
         {mode === "landing" && (
-          <div className="flex flex-col items-center gap-6 mt-8 w-full animate-slide-up">
+          <div className="flex flex-col items-center gap-3 mt-2 w-full animate-slide-up">
             <p className="font-fantasy text-[#c8d8b0] text-center text-sm tracking-wider px-4 leading-relaxed">
               A world of magical companions awaits.
               <br />Embark on your journey now.
@@ -169,7 +169,7 @@ export default function AuthPage() {
             <button
               data-testid="button-signin"
               onClick={() => setMode("login")}
-              className="w-[70%] max-w-[280px] transition-transform duration-150 active:scale-93"
+              className="w-[72%] max-w-[290px] transition-transform duration-150 active:scale-95"
               style={{ background: "none", border: "none", cursor: "pointer" }}
             >
               <img src={signInBtn} alt="Sign In" className="w-full h-auto object-contain drop-shadow-lg" />
@@ -178,7 +178,7 @@ export default function AuthPage() {
             <button
               data-testid="button-create-account"
               onClick={() => setMode("register")}
-              className="w-[70%] max-w-[280px] transition-transform duration-150 active:scale-93"
+              className="w-[72%] max-w-[290px] transition-transform duration-150 active:scale-95"
               style={{ background: "none", border: "none", cursor: "pointer" }}
             >
               <img src={createAccountBtn} alt="Create Account" className="w-full h-auto object-contain drop-shadow-lg" />
