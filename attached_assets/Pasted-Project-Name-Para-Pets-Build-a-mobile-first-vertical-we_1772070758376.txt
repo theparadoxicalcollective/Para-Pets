@@ -1,0 +1,129 @@
+Project Name: Para Pets
+
+Build a mobile-first vertical web app game called Para Pets.
+
+For now, only create:
+	1.	Login / Sign Up Page
+	2.	Home Page
+
+Do NOT build additional pages yet.
+
+App must look like a fantasy game UI — NOT a website dashboard.
+
+No generic website headers or horizontal nav bars.
+
+⸻
+
+GENERAL TECH REQUIREMENTS
+	•	Mobile-first (portrait orientation)
+	•	Responsive for phones and tablets
+	•	Clean component structure
+	•	Secure backend authentication
+	•	Store users in database (Replit DB or similar)
+	•	Hash passwords securely
+	•	Persist login session after refresh
+
+⸻
+
+PAGE 1: LOGIN / SIGN UP
+
+(Keep previous auth instructions exactly as written before, including:)
+	•	Functional loading bar animation (1–2 seconds minimum)
+	•	Username (letters + numbers only, no duplicates)
+	•	Email validation
+	•	Password (min 6 characters)
+	•	Profile picture upload
+	•	Max 500x500px
+	•	Auto resize OR provide square crop tool
+	•	Store image path in database
+
+Loading bar must:
+	•	Animate from 0% to 100%
+	•	Disable buttons during processing
+	•	Reset on failure
+	•	Transition to Home page on success
+
+⸻
+
+PAGE 2: HOME SCREEN LAYOUT (MATCH IMAGE EXACTLY)
+
+Do NOT create a row of top buttons.
+
+The layout is structured like this:
+
+⸻
+
+BACKGROUND
+	•	Background image
+	•	Full screen
+	•	No distortion
+	•	Maintain depth and warm lighting feel
+
+⸻
+
+TOP SECTION
+
+Top Left:
+	•	Framed profile portrait
+	•	Use uploaded profile border asset
+	•	Display user’s uploaded profile image inside
+	•	If none, show placeholder
+
+Top Center:
+	•     
+	•	Display logged-in user’s username
+	•	Styled to match fantasy wood aesthetic
+
+Top Right:
+	•	Small shop icon (pet shop icon)
+	•	Under- game currency user amount. Coin amount should be placeholder for now (example:0)
+
+⸻
+
+CENTER AREA
+	•	Platform where Main Pet will be displayed once user squires one. Leave pet space empty for now. 
+	•	This is the focal point of the page
+	•	Leave structure ready for future animation
+
+⸻
+
+BOTTOM NAVIGATION BAR
+
+Must look like carved wood decorative panel if possible.
+
+Not a flat rectangle.
+
+Contains:
+
+Centered row of 4 icons:
+	1.	Scroll (Quests)
+	2.	Map (for world exploration)
+	3.	Crossed Swords (PvP)
+	4.	Egg with leaf (Pet Inventory) 
+
+Icons evenly spaced across center of panel.
+
+Icons do NOT need functionality yet. Just placement. 
+
+Add subtle tap animation (slight scale effect).
+
+⸻
+
+UI STYLE RULES
+	•	Use absolute positioning where necessary to match layout.
+	•	Maintain fantasy medieval aesthetic.
+	•	Rounded edges.
+	•	No modern flat UI.
+	•	No generic HTML button styling.
+	•	No default blue hyperlinks.
+
+⸻
+
+FUTURE-READY STRUCTURE
+
+	•	Keep currency system modular.
+	•	Keep user data structured for expansion.
+
+Set up my admin account using my email ( paradox.esctacyartistry@gmail.com  password: AdminOnly13). That should be the only admin account available. 
+
+User page should only be accessible by clicking on the users profile pic. User page will include where they can change their username once a month. Change their profile pic once a week, and log out. Use an ‘ x ‘ to rerun to the home/ main page
