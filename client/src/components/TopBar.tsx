@@ -27,6 +27,12 @@ export default function TopBar({ user, onProfileClick }: TopBarProps) {
         style={{ background: "none", border: "none", cursor: "pointer" }}
       >
         <div className="relative topbar-profile-size">
+          <div
+            className="absolute inset-[-3px] rounded-lg z-0"
+            style={{
+              background: "radial-gradient(ellipse at center, rgba(0,0,0,0.5) 0%, transparent 70%)",
+            }}
+          />
           <img
             src={profileFrameImg}
             alt="Profile Frame"
@@ -62,7 +68,7 @@ export default function TopBar({ user, onProfileClick }: TopBarProps) {
         <div
           className="px-5 py-1.5 rounded-md"
           style={{
-            background: "linear-gradient(135deg, rgba(30,15,5,0.85) 0%, rgba(60,35,10,0.85) 100%)",
+            background: "linear-gradient(135deg, rgba(30,15,5,0.9) 0%, rgba(60,35,10,0.9) 100%)",
             border: "1px solid rgba(212,160,23,0.5)",
             boxShadow: "0 2px 12px rgba(0,0,0,0.6), inset 0 1px 0 rgba(212,160,23,0.2)",
           }}
@@ -78,7 +84,7 @@ export default function TopBar({ user, onProfileClick }: TopBarProps) {
         <div
           className="flex items-center gap-1 px-3 py-0.5 rounded-md"
           style={{
-            background: "linear-gradient(135deg, rgba(30,15,5,0.85) 0%, rgba(60,35,10,0.85) 100%)",
+            background: "linear-gradient(135deg, rgba(30,15,5,0.9) 0%, rgba(60,35,10,0.9) 100%)",
             border: "1px solid rgba(212,160,23,0.4)",
           }}
         >
@@ -101,12 +107,18 @@ export default function TopBar({ user, onProfileClick }: TopBarProps) {
         data-testid="button-home"
         onClick={() => navigate("/")}
         className="topbar-icon-size flex-shrink-0 flex items-center justify-center transition-transform duration-150 active:scale-95 rounded-lg overflow-hidden"
-        style={{ background: "none", border: "none", cursor: "pointer" }}
+        style={{
+          background: "none",
+          border: "2px solid rgba(212,160,23,0.4)",
+          cursor: "pointer",
+          boxShadow: "0 2px 10px rgba(0,0,0,0.6)",
+          borderRadius: "10px",
+        }}
       >
         <img
           src={homeIconImg}
           alt="Home"
-          className="w-full h-full object-cover rounded-lg"
+          className="w-full h-full object-cover"
           style={{ filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.8))" }}
         />
       </button>

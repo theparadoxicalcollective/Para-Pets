@@ -8,6 +8,7 @@ import AuthPage from "@/pages/AuthPage";
 import HomePage from "@/pages/HomePage";
 import MapPage from "@/pages/MapPage";
 import AdminPage from "@/pages/AdminPage";
+import WorldPage from "@/pages/WorldPage";
 
 function AppRouter() {
   const { data: user, isLoading, isFetched } = useQuery<any>({
@@ -35,6 +36,9 @@ function AppRouter() {
       <Route path="/auth" component={AuthPage} />
       <Route path="/map">
         {user ? <MapPage user={user} /> : <Redirect to="/auth" />}
+      </Route>
+      <Route path="/world/:worldId">
+        {user ? <WorldPage user={user} /> : <Redirect to="/auth" />}
       </Route>
       <Route path="/admin">
         {user && user.isAdmin ? <AdminPage user={user} /> : <Redirect to="/" />}
