@@ -56,7 +56,7 @@ export default function MapPage({ user }: MapPageProps) {
       <div className="absolute inset-0 z-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at center, transparent 40%, rgba(120,80,30,0.3) 100%)" }} />
 
       <div className="relative z-10 flex flex-col min-h-[100dvh]" style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
-        <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} />
+        <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
 
         <div className="flex-1 px-4 py-2">
           <h2

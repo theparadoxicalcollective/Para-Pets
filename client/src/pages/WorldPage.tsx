@@ -160,7 +160,7 @@ export default function WorldPage({ user }: WorldPageProps) {
       <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60 z-0 pointer-events-none" />
 
       <div className="relative z-10 flex flex-col min-h-[100dvh]" style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
-        <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} />
+        <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
 
         <div className="flex-1 flex flex-col items-center justify-center px-6">
           <h2

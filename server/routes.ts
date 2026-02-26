@@ -602,5 +602,117 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/admin/shop-items-all", isAdmin, async (req, res) => {
+    try {
+      const items = await storage.getAllShopItems();
+      return res.json(items);
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to get shop items" });
+    }
+  });
+
+  app.post("/api/admin/reward-bundle", isAdmin, async (req, res) => {
+    try {
+      const { name, coinAmount, shopItemIds, targetUserIds } = req.body;
+      if (!name || (!coinAmount && (!shopItemIds || shopItemIds.length === 0))) {
+        return res.status(400).json({ message: "Bundle must have a name and at least coins or items" });
+      }
+
+      const bundle = await storage.createRewardBundle(name, coinAmount || 0);
+
+      if (shopItemIds && shopItemIds.length > 0) {
+        for (const itemId of shopItemIds) {
+          await storage.addRewardBundleItem(bundle.id, itemId);
+        }
+      }
+
+      let recipients: string[] = [];
+      if (targetUserIds && targetUserIds.length > 0) {
+        recipients = targetUserIds;
+      } else {
+        const allUsers = await storage.getAllUsers();
+        recipients = allUsers.filter(u => !u.isAdmin).map(u => u.id);
+      }
+
+      for (const userId of recipients) {
+        await storage.createUserReward(userId, bundle.id);
+      }
+
+      return res.status(201).json({ bundle, recipientCount: recipients.length });
+    } catch (err) {
+      console.error("Create reward bundle error:", err);
+      return res.status(500).json({ message: "Failed to create reward bundle" });
+    }
+  });
+
+  app.get("/api/rewards/pending", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const rewards = await storage.getUnclaimedRewards(user.id);
+      const detailed = await Promise.all(rewards.map(async (reward) => {
+        const bundle = await storage.getRewardBundle(reward.bundleId);
+        const items = bundle ? await storage.getRewardBundleItems(bundle.id) : [];
+        const itemDetails = await Promise.all(items.map(async (bi) => {
+          const shopItem = await storage.getShopItem(bi.shopItemId);
+          return shopItem ? { id: shopItem.id, name: shopItem.name, type: shopItem.type, imageUrl: shopItem.imageUrl, eggImageUrl: shopItem.eggImageUrl } : null;
+        }));
+        return {
+          rewardId: reward.id,
+          bundleName: bundle?.name || "Unknown",
+          coinAmount: bundle?.coinAmount || 0,
+          items: itemDetails.filter(Boolean),
+          createdAt: reward.createdAt,
+        };
+      }));
+      return res.json(detailed);
+    } catch (err) {
+      console.error("Get pending rewards error:", err);
+      return res.status(500).json({ message: "Failed to get rewards" });
+    }
+  });
+
+  app.post("/api/rewards/:rewardId/claim", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+
+      const claimed = await storage.claimReward(req.params.rewardId);
+      if (!claimed) {
+        return res.status(404).json({ message: "Reward not found or already claimed" });
+      }
+
+      if (claimed.userId !== user.id) {
+        return res.status(403).json({ message: "This reward is not yours" });
+      }
+
+      const bundle = await storage.getRewardBundle(claimed.bundleId);
+      if (!bundle) {
+        return res.status(404).json({ message: "Bundle not found" });
+      }
+
+      if (bundle.coinAmount > 0) {
+        await storage.addCoins(user.id, bundle.coinAmount);
+      }
+
+      const bundleItems = await storage.getRewardBundleItems(bundle.id);
+      for (const bi of bundleItems) {
+        const shopItem = await storage.getShopItem(bi.shopItemId);
+        if (shopItem) {
+          const invItem = await storage.addToInventory(user.id, bi.shopItemId);
+          if (shopItem.type === "pet" && shopItem.hatchTime) {
+            await storage.updateInventoryItem(invItem.id, { hatchStartedAt: new Date() });
+          }
+        }
+      }
+
+      const updatedUser = await storage.getUser(user.id);
+      const { password: _, ...safeUser } = updatedUser!;
+
+      return res.json({ user: safeUser });
+    } catch (err) {
+      console.error("Claim reward error:", err);
+      return res.status(500).json({ message: "Failed to claim reward" });
+    }
+  });
+
   return httpServer;
 }

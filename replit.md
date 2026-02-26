@@ -34,6 +34,9 @@ Para Pets is a mobile-first fantasy game web app where players collect, raise, a
 - `users` table: id, username, email, password (bcrypt), profileImage (base64 data URI), coins, isAdmin, isBanned, activePetId, lastUsernameChange, lastProfilePicChange, createdAt
 - `shop_items` table: id, name, price, type, worldId, imageUrl (base64 data URI), rarity (1-5 stars, nullable), hatchTime (hours, nullable), eggImageUrl (base64, nullable), hatchedImageUrl (base64, nullable), statBoostType (health/atk/def/lvl, nullable), createdAt
 - `user_inventory` table: id, userId, shopItemId, acquiredAt, hatchStartedAt (timestamp, nullable), isHatched (boolean, default false), petHealth (int, default 1000), petAtk (int, default 50), petDef (int, default 50), petLevel (int, default 0), itemsUsedThisLevel (int, default 0)
+- `reward_bundles` table: id, name, coinAmount, createdAt
+- `reward_bundle_items` table: id, bundleId, shopItemId
+- `user_rewards` table: id, userId, bundleId, claimed (boolean), createdAt
 - `session` table: managed by connect-pg-simple (created manually in async startup)
 
 ## API Endpoints
@@ -60,6 +63,12 @@ Para Pets is a mobile-first fantasy game web app where players collect, raise, a
 - `POST /api/admin/ban/:userId` - Banish a user
 - `POST /api/admin/unban/:userId` - Unbanish a user
 - `POST /api/admin/coins/:userId` - Add/remove coins
+- `GET /api/admin/shop-items-all` - Get all shop items across worlds (for reward bundles)
+- `POST /api/admin/reward-bundle` - Create and send reward bundle to users
+
+### Rewards
+- `GET /api/rewards/pending` - Get current user's unclaimed rewards with bundle details
+- `POST /api/rewards/:rewardId/claim` - Claim a reward (atomic, prevents double-claim)
 
 ### Shop
 - `GET /api/shop/:worldId` - Get shop items for a world
@@ -92,6 +101,15 @@ Frostpeak, Sky Realm, The Lost Island, Volcanic Isle, Enchanted Grove, Scorched 
 - LVL items bypass the per-level cap and reset itemsUsedThisLevel to 0
 - Max level: 100
 - Stat reset: 300 coins, resets all stats to base values with confirmation warning
+
+### Reward Bundle System
+- Admin creates bundles with a name, optional coins, and optional shop items
+- Can target all non-admin users or select specific users
+- Recipients see a magical gift icon (🎁) bouncing next to their username in the TopBar
+- Gift icon shows count badge for pending rewards
+- Clicking gift opens RewardClaimModal showing all pending bundles with previews
+- Claiming a bundle atomically marks it claimed (preventing double-claims), adds coins, and adds items to inventory
+- Pets received via bundles auto-start hatch timer
 
 ### Admin Shop Form
 - Pet type: shows rarity dropdown (1-5★), hatch time input, egg image upload, hatched pet image upload

@@ -1,6 +1,6 @@
-import { type User, type InsertUser, users, type ShopItem, type InsertShopItem, shopItems, type UserInventoryItem, userInventory } from "@shared/schema";
+import { type User, type InsertUser, users, type ShopItem, type InsertShopItem, shopItems, type UserInventoryItem, userInventory, type RewardBundle, rewardBundles, type RewardBundleItem, rewardBundleItems, type UserReward, userRewards } from "@shared/schema";
 import { db } from "./db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, ne } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -26,6 +26,14 @@ export interface IStorage {
   getInventoryItemById(id: string): Promise<UserInventoryItem | undefined>;
   removeFromInventory(id: string): Promise<void>;
   updateInventoryItem(id: string, updates: Partial<UserInventoryItem>): Promise<UserInventoryItem>;
+  createRewardBundle(name: string, coinAmount: number): Promise<RewardBundle>;
+  addRewardBundleItem(bundleId: string, shopItemId: string): Promise<RewardBundleItem>;
+  getRewardBundleItems(bundleId: string): Promise<RewardBundleItem[]>;
+  createUserReward(userId: string, bundleId: string): Promise<UserReward>;
+  getUnclaimedRewards(userId: string): Promise<UserReward[]>;
+  claimReward(rewardId: string): Promise<UserReward | undefined>;
+  getRewardBundle(id: string): Promise<RewardBundle | undefined>;
+  getAllRewardBundles(): Promise<RewardBundle[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -174,6 +182,43 @@ export class DatabaseStorage implements IStorage {
       .where(eq(userInventory.id, id))
       .returning();
     return updated;
+  }
+
+  async createRewardBundle(name: string, coinAmount: number): Promise<RewardBundle> {
+    const [bundle] = await db.insert(rewardBundles).values({ name, coinAmount }).returning();
+    return bundle;
+  }
+
+  async addRewardBundleItem(bundleId: string, shopItemId: string): Promise<RewardBundleItem> {
+    const [item] = await db.insert(rewardBundleItems).values({ bundleId, shopItemId }).returning();
+    return item;
+  }
+
+  async getRewardBundleItems(bundleId: string): Promise<RewardBundleItem[]> {
+    return db.select().from(rewardBundleItems).where(eq(rewardBundleItems.bundleId, bundleId));
+  }
+
+  async createUserReward(userId: string, bundleId: string): Promise<UserReward> {
+    const [reward] = await db.insert(userRewards).values({ userId, bundleId }).returning();
+    return reward;
+  }
+
+  async getUnclaimedRewards(userId: string): Promise<UserReward[]> {
+    return db.select().from(userRewards).where(and(eq(userRewards.userId, userId), eq(userRewards.claimed, false)));
+  }
+
+  async claimReward(rewardId: string): Promise<UserReward | undefined> {
+    const [reward] = await db.update(userRewards).set({ claimed: true }).where(and(eq(userRewards.id, rewardId), eq(userRewards.claimed, false))).returning();
+    return reward;
+  }
+
+  async getRewardBundle(id: string): Promise<RewardBundle | undefined> {
+    const [bundle] = await db.select().from(rewardBundles).where(eq(rewardBundles.id, id));
+    return bundle;
+  }
+
+  async getAllRewardBundles(): Promise<RewardBundle[]> {
+    return db.select().from(rewardBundles);
   }
 }
 

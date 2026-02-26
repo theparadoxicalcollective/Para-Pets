@@ -47,6 +47,27 @@ export const userInventory = pgTable("user_inventory", {
   itemsUsedThisLevel: integer("items_used_this_level").notNull().default(0),
 });
 
+export const rewardBundles = pgTable("reward_bundles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  coinAmount: integer("coin_amount").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const rewardBundleItems = pgTable("reward_bundle_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bundleId: varchar("bundle_id").notNull(),
+  shopItemId: varchar("shop_item_id").notNull(),
+});
+
+export const userRewards = pgTable("user_rewards", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  bundleId: varchar("bundle_id").notNull(),
+  claimed: boolean("claimed").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   email: true,
@@ -80,3 +101,6 @@ export type LoginData = z.infer<typeof loginSchema>;
 export type ShopItem = typeof shopItems.$inferSelect;
 export type InsertShopItem = z.infer<typeof insertShopItemSchema>;
 export type UserInventoryItem = typeof userInventory.$inferSelect;
+export type RewardBundle = typeof rewardBundles.$inferSelect;
+export type RewardBundleItem = typeof rewardBundleItems.$inferSelect;
+export type UserReward = typeof userRewards.$inferSelect;

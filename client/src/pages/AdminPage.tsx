@@ -6,6 +6,7 @@ import bgImg from "@assets/bg_home.png";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import profileFrameImg from "@assets/frame_profile.png";
+import coinIconImg from "@assets/icon_coin.png";
 
 interface AdminPageProps {
   user: {
@@ -31,11 +32,21 @@ interface MemberUser {
   createdAt: string;
 }
 
+interface ShopItemOption {
+  id: string;
+  name: string;
+  type: string;
+  imageUrl: string | null;
+  eggImageUrl: string | null;
+  worldId: string;
+}
+
 export default function AdminPage({ user }: AdminPageProps) {
   const [showProfile, setShowProfile] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
   const [coinAmounts, setCoinAmounts] = useState<Record<string, string>>({});
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"members" | "rewards">("members");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -95,7 +106,7 @@ export default function AdminPage({ user }: AdminPageProps) {
       <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/60 to-black/80 z-0 pointer-events-none" />
 
       <div className="relative z-10 flex flex-col min-h-[100dvh]" style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
-        <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} />
+        <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
 
         <div className="flex-1 overflow-y-auto px-4 py-4">
           <h2
@@ -104,11 +115,39 @@ export default function AdminPage({ user }: AdminPageProps) {
           >
             Realm Administration
           </h2>
-          <p className="font-fantasy text-[#a89878] text-center text-[10px] tracking-wider mb-4">
-            {members.length} {members.length === 1 ? "member" : "members"} in the realm
-          </p>
 
-          {isLoading ? (
+          <div className="flex justify-center gap-2 mb-4">
+            <button
+              data-testid="tab-members"
+              onClick={() => setActiveTab("members")}
+              className="px-4 py-1.5 rounded-md font-fantasy text-[10px] tracking-wider transition-all"
+              style={{
+                background: activeTab === "members" ? "linear-gradient(135deg, #5c3a1e 0%, #8b5e3c 100%)" : "rgba(0,0,0,0.3)",
+                border: activeTab === "members" ? "1px solid rgba(212,160,23,0.6)" : "1px solid rgba(212,160,23,0.2)",
+                color: activeTab === "members" ? "#f0c040" : "#a89878",
+                cursor: "pointer",
+              }}
+            >
+              Members ({members.length})
+            </button>
+            <button
+              data-testid="tab-rewards"
+              onClick={() => setActiveTab("rewards")}
+              className="px-4 py-1.5 rounded-md font-fantasy text-[10px] tracking-wider transition-all"
+              style={{
+                background: activeTab === "rewards" ? "linear-gradient(135deg, rgba(120,80,200,0.6) 0%, rgba(80,40,160,0.6) 100%)" : "rgba(0,0,0,0.3)",
+                border: activeTab === "rewards" ? "1px solid rgba(192,132,252,0.5)" : "1px solid rgba(212,160,23,0.2)",
+                color: activeTab === "rewards" ? "#e0d0f0" : "#a89878",
+                cursor: "pointer",
+              }}
+            >
+              Reward Bundles
+            </button>
+          </div>
+
+          {activeTab === "rewards" ? (
+            <RewardBundleSection members={members.filter(m => !m.isAdmin)} />
+          ) : isLoading ? (
             <div className="text-center py-8">
               <p className="font-fantasy text-[#7fbfb0] text-sm animate-pulse">Summoning records...</p>
             </div>
@@ -266,6 +305,347 @@ export default function AdminPage({ user }: AdminPageProps) {
           }}
         />
       )}
+    </div>
+  );
+}
+
+function RewardBundleSection({ members }: { members: MemberUser[] }) {
+  const [bundleName, setBundleName] = useState("");
+  const [coinAmount, setCoinAmount] = useState("");
+  const [selectedItems, setSelectedItems] = useState<ShopItemOption[]>([]);
+  const [targetMode, setTargetMode] = useState<"all" | "select">("all");
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [userSearch, setUserSearch] = useState("");
+  const [showItemPicker, setShowItemPicker] = useState(false);
+  const { toast } = useToast();
+
+  const { data: allShopItems = [] } = useQuery<ShopItemOption[]>({
+    queryKey: ["/api/admin/shop-items-all"],
+  });
+
+  const sendMutation = useMutation({
+    mutationFn: async () => {
+      const payload: any = {
+        name: bundleName.trim(),
+        coinAmount: parseInt(coinAmount) || 0,
+        shopItemIds: selectedItems.map(i => i.id),
+      };
+      if (targetMode === "select") {
+        payload.targetUserIds = selectedUserIds;
+      }
+      const res = await apiRequest("POST", "/api/admin/reward-bundle", payload);
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      toast({ title: "Reward Sent!", description: `Bundle sent to ${data.recipientCount} user${data.recipientCount !== 1 ? "s" : ""}` });
+      setBundleName("");
+      setCoinAmount("");
+      setSelectedItems([]);
+      setSelectedUserIds([]);
+      setTargetMode("all");
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed", description: err?.message || "Could not send bundle", variant: "destructive" });
+    },
+  });
+
+  const handleSend = () => {
+    if (!bundleName.trim()) {
+      toast({ title: "Missing name", description: "Give the bundle a name", variant: "destructive" });
+      return;
+    }
+    const coins = parseInt(coinAmount) || 0;
+    if (coins === 0 && selectedItems.length === 0) {
+      toast({ title: "Empty bundle", description: "Add coins or items to the bundle", variant: "destructive" });
+      return;
+    }
+    if (targetMode === "select" && selectedUserIds.length === 0) {
+      toast({ title: "No recipients", description: "Select at least one user", variant: "destructive" });
+      return;
+    }
+    sendMutation.mutate();
+  };
+
+  const toggleUser = (userId: string) => {
+    setSelectedUserIds(prev =>
+      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+    );
+  };
+
+  const removeItem = (index: number) => {
+    setSelectedItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const filteredMembers = userSearch
+    ? members.filter(m => m.username.toLowerCase().includes(userSearch.toLowerCase()) || m.email.toLowerCase().includes(userSearch.toLowerCase()))
+    : members;
+
+  const inputStyle = { background: "rgba(242,232,208,0.9)", border: "1px solid #8b5e3c", color: "#2a1a0a" };
+
+  return (
+    <div className="space-y-4">
+      <div
+        className="rounded-lg p-4"
+        style={{ background: "linear-gradient(135deg, rgba(40,20,60,0.4) 0%, rgba(25,10,40,0.4) 100%)", border: "1px solid rgba(192,132,252,0.3)" }}
+      >
+        <h3 className="font-fantasy text-[#c084fc] text-sm tracking-wider text-center mb-3" style={{ textShadow: "0 0 8px rgba(192,132,252,0.3)" }}>
+          Create Reward Bundle
+        </h3>
+
+        <div className="space-y-3">
+          <div>
+            <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Bundle Name</label>
+            <input
+              data-testid="input-bundle-name"
+              type="text"
+              value={bundleName}
+              onChange={(e) => setBundleName(e.target.value)}
+              placeholder="e.g. Welcome Gift, Weekly Reward..."
+              className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+              style={inputStyle}
+            />
+          </div>
+
+          <div>
+            <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Coin Amount</label>
+            <div className="flex items-center gap-2">
+              <img src={coinIconImg} alt="" className="w-5 h-5" />
+              <input
+                data-testid="input-bundle-coins"
+                type="number"
+                value={coinAmount}
+                onChange={(e) => setCoinAmount(e.target.value)}
+                placeholder="0"
+                min="0"
+                className="flex-1 px-3 py-2 rounded-md font-sans text-sm outline-none"
+                style={inputStyle}
+              />
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider">Items ({selectedItems.length})</label>
+              <button
+                data-testid="button-add-bundle-item"
+                onClick={() => setShowItemPicker(true)}
+                className="px-2 py-1 rounded-md font-fantasy text-[9px] tracking-wider"
+                style={{ background: "rgba(192,132,252,0.2)", border: "1px solid rgba(192,132,252,0.4)", color: "#c084fc", cursor: "pointer" }}
+              >
+                + Add Item
+              </button>
+            </div>
+            {selectedItems.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {selectedItems.map((item, idx) => {
+                  const displayImg = item.type === "pet" && item.eggImageUrl ? item.eggImageUrl : item.imageUrl;
+                  return (
+                    <div
+                      key={idx}
+                      className="flex items-center gap-1 px-2 py-1 rounded-md"
+                      style={{ background: "rgba(192,132,252,0.1)", border: "1px solid rgba(192,132,252,0.3)" }}
+                    >
+                      {displayImg ? (
+                        <img src={displayImg} alt="" className="w-5 h-5 object-contain rounded-sm" />
+                      ) : (
+                        <span className="text-xs">{item.type === "pet" ? "🥚" : "📦"}</span>
+                      )}
+                      <span className="font-fantasy text-[#e0d0f0] text-[8px] max-w-[60px] truncate">{item.name}</span>
+                      <button
+                        onClick={() => removeItem(idx)}
+                        className="text-[#ff9999] text-[10px] ml-0.5"
+                        style={{ background: "none", border: "none", cursor: "pointer", fontWeight: "bold" }}
+                      >
+                        x
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Recipients</label>
+            <div className="flex gap-2 mb-2">
+              <button
+                data-testid="button-target-all"
+                onClick={() => setTargetMode("all")}
+                className="flex-1 py-1.5 rounded-md font-fantasy text-[10px] tracking-wider"
+                style={{
+                  background: targetMode === "all" ? "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)" : "rgba(0,0,0,0.3)",
+                  border: targetMode === "all" ? "1px solid rgba(127,255,212,0.4)" : "1px solid rgba(212,160,23,0.2)",
+                  color: targetMode === "all" ? "#7fffd4" : "#a89878",
+                  cursor: "pointer",
+                }}
+              >
+                All Users
+              </button>
+              <button
+                data-testid="button-target-select"
+                onClick={() => setTargetMode("select")}
+                className="flex-1 py-1.5 rounded-md font-fantasy text-[10px] tracking-wider"
+                style={{
+                  background: targetMode === "select" ? "linear-gradient(135deg, #5c3a1e 0%, #8b5e3c 100%)" : "rgba(0,0,0,0.3)",
+                  border: targetMode === "select" ? "1px solid rgba(212,160,23,0.5)" : "1px solid rgba(212,160,23,0.2)",
+                  color: targetMode === "select" ? "#f0c040" : "#a89878",
+                  cursor: "pointer",
+                }}
+              >
+                Select Users
+              </button>
+            </div>
+
+            {targetMode === "select" && (
+              <div>
+                <input
+                  data-testid="input-user-search"
+                  type="text"
+                  value={userSearch}
+                  onChange={(e) => setUserSearch(e.target.value)}
+                  placeholder="Search by name or email..."
+                  className="w-full px-3 py-2 rounded-md font-sans text-xs outline-none mb-2"
+                  style={inputStyle}
+                />
+                {selectedUserIds.length > 0 && (
+                  <p className="font-fantasy text-[#7fffd4] text-[9px] tracking-wider mb-2">
+                    {selectedUserIds.length} user{selectedUserIds.length !== 1 ? "s" : ""} selected
+                  </p>
+                )}
+                <div className="max-h-32 overflow-y-auto space-y-1 rounded-md p-1" style={{ background: "rgba(0,0,0,0.2)" }}>
+                  {filteredMembers.map(m => {
+                    const isSelected = selectedUserIds.includes(m.id);
+                    return (
+                      <button
+                        key={m.id}
+                        data-testid={`button-select-user-${m.id}`}
+                        onClick={() => toggleUser(m.id)}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left"
+                        style={{
+                          background: isSelected ? "rgba(127,255,212,0.1)" : "transparent",
+                          border: isSelected ? "1px solid rgba(127,255,212,0.3)" : "1px solid transparent",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <div
+                          className="w-4 h-4 rounded-sm flex items-center justify-center flex-shrink-0"
+                          style={{
+                            background: isSelected ? "rgba(127,255,212,0.3)" : "rgba(0,0,0,0.3)",
+                            border: isSelected ? "1px solid rgba(127,255,212,0.5)" : "1px solid rgba(212,160,23,0.3)",
+                          }}
+                        >
+                          {isSelected && <span className="text-[#7fffd4] text-[8px]">✓</span>}
+                        </div>
+                        <span className="font-fantasy text-[#f0c040] text-[10px] truncate">{m.username}</span>
+                        <span className="font-fantasy text-[#6a5840] text-[8px] truncate">{m.email}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <button
+            data-testid="button-send-bundle"
+            onClick={handleSend}
+            disabled={sendMutation.isPending}
+            className="w-full py-2.5 rounded-md font-fantasy text-sm tracking-wider transition-transform active:scale-95 disabled:opacity-50"
+            style={{
+              background: "linear-gradient(135deg, rgba(120,80,200,0.7) 0%, rgba(80,40,160,0.7) 100%)",
+              border: "1px solid rgba(192,132,252,0.5)",
+              color: "#e0d0f0",
+              cursor: "pointer",
+              boxShadow: "0 0 20px rgba(192,132,252,0.2)",
+            }}
+          >
+            {sendMutation.isPending ? "Sending..." : "Send Reward Bundle"}
+          </button>
+        </div>
+      </div>
+
+      {showItemPicker && (
+        <ItemPickerModal
+          items={allShopItems}
+          onSelect={(item) => {
+            setSelectedItems(prev => [...prev, item]);
+            setShowItemPicker(false);
+          }}
+          onClose={() => setShowItemPicker(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ItemPickerModal({ items, onSelect, onClose }: { items: ShopItemOption[]; onSelect: (item: ShopItemOption) => void; onClose: () => void }) {
+  const [search, setSearch] = useState("");
+
+  const filtered = search
+    ? items.filter(i => i.name.toLowerCase().includes(search.toLowerCase()))
+    : items;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="relative w-[85%] max-w-sm rounded-lg p-4 animate-slide-up"
+        style={{
+          background: "linear-gradient(135deg, rgba(20,10,3,0.98) 0%, rgba(45,25,8,0.98) 100%)",
+          border: "1px solid rgba(192,132,252,0.5)",
+          boxShadow: "0 8px 40px rgba(0,0,0,0.8)",
+          maxHeight: "70vh",
+        }}
+      >
+        <button
+          onClick={onClose}
+          className="absolute -top-3 -right-3 w-8 h-8 rounded-full flex items-center justify-center"
+          style={{ background: "linear-gradient(135deg, #5c3a1e 0%, #3a2010 100%)", border: "2px solid rgba(212,160,23,0.6)", color: "#f0c040", cursor: "pointer", fontSize: "14px", fontWeight: "bold" }}
+        >
+          X
+        </button>
+
+        <h4 className="font-fantasy text-[#c084fc] text-xs tracking-wider text-center mb-3">Select Item</h4>
+        <input
+          data-testid="input-item-search"
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search items..."
+          className="w-full px-3 py-2 rounded-md font-sans text-xs outline-none mb-3"
+          style={{ background: "rgba(242,232,208,0.9)", border: "1px solid #8b5e3c", color: "#2a1a0a" }}
+        />
+        <div className="overflow-y-auto space-y-1.5" style={{ maxHeight: "45vh" }}>
+          {filtered.length === 0 ? (
+            <p className="font-fantasy text-[#a89878] text-xs text-center py-4">No items found</p>
+          ) : (
+            filtered.map(item => {
+              const displayImg = item.type === "pet" && item.eggImageUrl ? item.eggImageUrl : item.imageUrl;
+              return (
+                <button
+                  key={item.id}
+                  data-testid={`button-pick-item-${item.id}`}
+                  onClick={() => onSelect(item)}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-all"
+                  style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.2)", cursor: "pointer" }}
+                >
+                  <div className="w-8 h-8 rounded flex items-center justify-center overflow-hidden flex-shrink-0" style={{ background: "rgba(0,0,0,0.3)" }}>
+                    {displayImg ? (
+                      <img src={displayImg} alt="" className="w-full h-full object-contain" />
+                    ) : (
+                      <span className="text-lg">{item.type === "pet" ? "🥚" : "📦"}</span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-fantasy text-[#f0c040] text-[10px] truncate">{item.name}</p>
+                    <p className="font-fantasy text-[#6a5840] text-[8px] capitalize">{item.type}</p>
+                  </div>
+                </button>
+              );
+            })
+          )}
+        </div>
+      </div>
     </div>
   );
 }
