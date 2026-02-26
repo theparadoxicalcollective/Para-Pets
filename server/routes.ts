@@ -639,13 +639,13 @@ export async function registerRoutes(
 
     if (isGif) {
       const resized = await sharp(imageBuffer, { animated: true })
-        .resize(1000, 1000, { fit: "inside", withoutEnlargement: true })
+        .resize(2000, 2000, { fit: "inside", withoutEnlargement: true })
         .gif()
         .toBuffer();
       return `data:image/gif;base64,${resized.toString("base64")}`;
     } else {
       const resized = await sharp(imageBuffer)
-        .resize(1000, 1000, { fit: "inside", withoutEnlargement: true })
+        .resize(2000, 2000, { fit: "inside", withoutEnlargement: true })
         .png({ quality: 90 })
         .toBuffer();
       return `data:image/png;base64,${resized.toString("base64")}`;

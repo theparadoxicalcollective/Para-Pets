@@ -10,7 +10,7 @@ Para Pets is a mobile-first fantasy game web app where players collect, raise, a
 - **Auth**: Passport.js (local strategy, accepts username or email) + express-session + connect-pg-simple
 - **Image Processing**: Sharp (server-side)
   - Profile images: resize to 500x500 JPEG, stored as base64 data URI in database
-  - Shop item images: resize to max 1000x1000 (fit inside, no enlargement), supports PNG and animated GIF, stored as base64 data URI in database
+  - Shop item images: resize to max 2000x2000 (fit inside, no enlargement), supports PNG and animated GIF, stored as base64 data URI in database
 
 ## Pages
 1. **Auth Page** (`/auth`) - Login / Sign Up with fantasy UI, crystal pill buttons, show/hide password toggle
