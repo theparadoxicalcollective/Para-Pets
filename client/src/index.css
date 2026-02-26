@@ -170,10 +170,25 @@
     @apply border-border;
   }
 
-  body {
-    @apply font-sans antialiased bg-background text-foreground;
+  html, body {
+    @apply font-sans antialiased;
+    background: #0a0a0a;
+    color: #f5f5f5;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  input, button, textarea {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
   }
 }
+
 
 /**
  * Using the elevate system.

@@ -28,7 +28,7 @@ export default function HomePage({ user }: HomePageProps) {
 
   return (
     <div
-      className="relative w-full min-h-screen overflow-hidden flex flex-col"
+      className="relative w-full min-h-[100dvh] overflow-hidden flex flex-col"
       style={{
         backgroundImage: `url(${bgImg})`,
         backgroundSize: "cover",
@@ -40,7 +40,7 @@ export default function HomePage({ user }: HomePageProps) {
     >
       <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/60 z-0 pointer-events-none" />
 
-      <div className="relative z-10 flex flex-col min-h-screen">
+      <div className="relative z-10 flex flex-col min-h-[100dvh]" style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
 
         {/* TOP BAR */}
         <div className="flex items-start justify-between px-3 pt-5 gap-2">
