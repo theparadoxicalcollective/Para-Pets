@@ -1,12 +1,12 @@
 import { useState } from "react";
 import bgImg from "@assets/bg_home.png";
-import profileFrameImg from "@assets/IMG_6048_1772070776195.png";
-import shopIconImg from "@assets/IMG_6047_1772070776195.png";
-import navBarImg from "@assets/IMG_6049_1772070776195.png";
-import questImg from "@assets/IMG_6053_1772070776195.png";
-import mapImg from "@assets/IMG_6052_1772070776195.png";
-import swordsImg from "@assets/IMG_6051_1772070776195.png";
-import eggImg from "@assets/IMG_6050_1772070776195.png";
+import profileFrameImg from "@assets/frame_profile.png";
+import shopIconImg from "@assets/icon_shop.png";
+import navBarImg from "@assets/bar_nav.png";
+import questImg from "@assets/icon_quest.png";
+import mapImg from "@assets/icon_map.png";
+import swordsImg from "@assets/icon_pvp.png";
+import eggImg from "@assets/icon_pets.png";
 import UserProfilePanel from "@/components/UserProfilePanel";
 
 interface HomePageProps {
@@ -52,7 +52,7 @@ export default function HomePage({ user }: HomePageProps) {
             className="relative flex-shrink-0 transition-transform duration-150 active:scale-95"
             style={{ background: "none", border: "none", cursor: "pointer" }}
           >
-            <div className="relative w-[72px] h-[72px]">
+            <div className="relative w-[68px] h-[68px]">
               <img
                 src={profileFrameImg}
                 alt="Profile Frame"
@@ -62,7 +62,7 @@ export default function HomePage({ user }: HomePageProps) {
               <div
                 className="absolute z-10 overflow-hidden rounded-sm"
                 style={{
-                  inset: "10px",
+                  inset: "14px",
                 }}
               >
                 {currentUser.profileImage ? (
@@ -184,7 +184,7 @@ export default function HomePage({ user }: HomePageProps) {
 
         {/* BOTTOM NAVIGATION */}
         <div className="relative flex-shrink-0">
-          <div className="relative w-full h-24 flex items-center justify-center">
+          <div className="relative w-full h-20 flex items-center justify-center">
             <img
               src={navBarImg}
               alt="Navigation Bar"
@@ -192,7 +192,7 @@ export default function HomePage({ user }: HomePageProps) {
               style={{ filter: "drop-shadow(0 -4px 20px rgba(0,0,0,0.8))" }}
             />
 
-            <div className="relative z-10 flex items-center justify-center gap-8 px-8">
+            <div className="relative z-10 flex items-center justify-evenly w-full px-10">
               <NavIcon
                 src={questImg}
                 alt="Quests"
@@ -248,24 +248,24 @@ function NavIcon({ src, alt, label, testId }: { src: string; alt: string; label:
     <button
       data-testid={testId}
       onClick={handleTap}
-      className="flex flex-col items-center gap-0.5 group"
+      className="flex flex-col items-center gap-0 group"
       style={{ background: "none", border: "none", cursor: "pointer" }}
     >
       <div
-        className="w-10 h-10 flex items-center justify-center transition-transform duration-150"
+        className="w-11 h-11 flex items-center justify-center transition-transform duration-150 rounded-lg overflow-hidden"
         style={{ transform: tapped ? "scale(0.88)" : "scale(1)" }}
       >
         <img
           src={src}
           alt={alt}
-          className="w-10 h-10 object-contain drop-shadow-lg transition-all duration-150 group-active:brightness-125"
+          className="w-11 h-11 object-contain drop-shadow-lg transition-all duration-150 group-active:brightness-125"
         />
       </div>
       <span
-        className="font-fantasy text-[10px] tracking-wider transition-colors"
+        className="font-fantasy text-[9px] tracking-wider transition-colors"
         style={{
-          color: "rgba(240,192,64,0.7)",
-          textShadow: "0 1px 4px rgba(0,0,0,0.8)",
+          color: "rgba(240,192,64,0.8)",
+          textShadow: "0 1px 4px rgba(0,0,0,0.9)",
         }}
       >
         {label}

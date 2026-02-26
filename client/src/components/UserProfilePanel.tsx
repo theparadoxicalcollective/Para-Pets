@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import profileFrameImg from "@assets/IMG_6048_1772070776195.png";
+import profileFrameImg from "@assets/frame_profile.png";
 
 interface User {
   id: string;
@@ -202,7 +202,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                 className="absolute inset-0 w-full h-full object-contain z-20"
                 style={{ filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.8))" }}
               />
-              <div className="absolute z-10 overflow-hidden rounded-sm" style={{ inset: "13px" }}>
+              <div className="absolute z-10 overflow-hidden rounded-sm" style={{ inset: "18px" }}>
                 {profilePreview || user.profileImage ? (
                   <img
                     data-testid="img-profile-current"
