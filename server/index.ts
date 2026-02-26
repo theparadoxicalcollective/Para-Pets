@@ -9,9 +9,6 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { storage } from "./storage";
 import { pool } from "./db";
-import path from "path";
-import fs from "fs";
-
 const app = express();
 const httpServer = createServer(app);
 const PgSession = connectPgSimple(session);
@@ -38,12 +35,6 @@ app.use(
 );
 
 app.use(express.urlencoded({ extended: false, limit: "10mb" }));
-
-const uploadsDir = path.join(process.cwd(), "uploads");
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-app.use("/uploads", express.static(uploadsDir));
 
 app.use(
   session({

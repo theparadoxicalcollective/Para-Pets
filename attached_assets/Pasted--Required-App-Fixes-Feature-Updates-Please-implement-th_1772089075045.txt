@@ -1,0 +1,125 @@
+ Required App Fixes & Feature Updates
+
+Please implement the following fixes and updates to the existing app:
+
+⸻
+
+1️⃣ Profile Photo Resetting on Republish (Critical Fix)
+
+Issue:
+Every time the app is republished, the saved user profile photo disappears and resets.
+
+Required Fix:
+	•	Ensure profile photos are permanently stored in persistent storage (database or cloud storage), NOT temporary session/local state.
+	•	Profile photo must be tied to the specific user account in the database.
+	•	The image path/URL should be saved in the user’s profile record.
+	•	On login, fetch and display the saved profile image.
+	•	Confirm this applies to:
+	•	Admin profile
+	•	Regular user profiles
+	•	Republishing the app must NOT remove saved profile photos.
+
+⸻
+
+2️⃣ Add Thin Border Around Profile Photo
+
+Please regenerate a thin border frame around profile photos.
+
+Requirements:
+	•	Border should match homepage aesthetic.
+	•	Clean, minimal, slightly magical style (matching Para Pets theme).
+	•	Thin but visible.
+	•	Soft glow or subtle gradient allowed.
+	•	Should look intentional and polished.
+
+⸻
+
+3️⃣ Bottom Menu Map Icon Update
+
+Replace the current paper map icon with:
+	•	A globe icon
+	•	Clean, modern style
+	•	Consistent with other bottom navigation icons
+
+⸻
+
+4️⃣ Map Page – World Icon Redesign & Layout
+
+On the Map page:
+
+World Icons:
+	•	Redesign each world icon to look more polished and game-like.
+	•	Slight 3D or illustrated style.
+	•	Distinct theme per world (elemental, forest, fire, water, etc. if applicable).
+
+Positioning:
+	•	Spread worlds evenly.
+	•	Make layout visually balanced.
+	•	Avoid clutter.
+	•	Use a natural “exploration map” aesthetic.
+	•	Improve spacing and alignment for mobile responsiveness.
+
+⸻
+
+5️⃣ Pet Inventory System Fix & Expansion
+
+🐾 Homepage Pet Icon Behavior
+The pet icon on the homepage must:
+	•	Open the User’s Pet Inventory
+	•	Only show items labeled as:
+	•	type: "pet"
+	•	These pets come from any shop in the app.
+
+⸻
+
+🎒 Add Bag Icon Inside Pet Inventory
+Inside the Pet Inventory page:
+
+Add a bag icon that opens a second inventory containing items labeled:
+	•	accessory
+	•	item
+	•	potion
+
+This bag inventory should:
+	•	Be separate from pets
+	•	Only show those three item types
+	•	Be tied to the logged-in user
+
+⸻
+
+6️⃣ Select Active Homepage Pet (Important Logic)
+
+Inside the Pet Inventory:
+
+Add pet selection functionality with the following logic:
+	•	Each pet has a “Select” toggle button.
+	•	Clicking a pet once:
+→ Sets it as the active homepage pet.
+	•	Clicking the same pet again:
+→ Deselects it (no pet shown).
+	•	Clicking a different pet:
+→ Automatically switches active pet to the new one.
+	•	Only ONE pet can be active at a time.
+	•	Active pet should persist in database.
+	•	On login, homepage loads the selected pet automatically.
+
+Database recommendation:
+	•	Add field to user profile:
+activePetId: string | null
+
+⸻
+
+7️⃣ Persistence Requirements (Very Important)
+
+All of the following must persist after:
+	•	Logout
+	•	App refresh
+	•	Republishing app
+
+Persist:
+	•	Profile photo
+	•	Owned pets
+	•	Owned items
+	•	Active selected pet
+
+No data should reset unless the database is cleared manually.

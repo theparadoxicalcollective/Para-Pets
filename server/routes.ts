@@ -5,8 +5,6 @@ import bcrypt from "bcryptjs";
 import { storage } from "./storage";
 import { insertUserSchema, updateUsernameSchema, insertShopItemSchema } from "@shared/schema";
 import sharp from "sharp";
-import fs from "fs";
-import path from "path";
 
 function isAuthenticated(req: Request, res: Response, next: any) {
   if (!req.isAuthenticated()) return res.status(401).json({ message: "Unauthorized" });
@@ -71,7 +69,6 @@ export async function registerRoutes(
 
       const existingEmail = await storage.getUserByEmail(email);
       if (existingEmail) {
-        console.log("Email conflict found:", existingEmail.id, existingEmail.email, existingEmail.username);
         return res.status(400).json({ message: "Email already registered" });
       }
 
@@ -85,12 +82,7 @@ export async function registerRoutes(
             .resize(500, 500, { fit: "cover", position: "center" })
             .jpeg({ quality: 85 })
             .toBuffer();
-
-          const filename = `profile_${Date.now()}.jpg`;
-          const uploadsDir = path.join(process.cwd(), "uploads");
-          if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-          fs.writeFileSync(path.join(uploadsDir, filename), resized);
-          profileImagePath = `/uploads/${filename}`;
+          profileImagePath = `data:image/jpeg;base64,${resized.toString("base64")}`;
         } catch (imgErr) {
           console.error("Image processing error:", imgErr);
         }
@@ -192,17 +184,7 @@ export async function registerRoutes(
         .jpeg({ quality: 85 })
         .toBuffer();
 
-      const filename = `profile_${user.id}_${Date.now()}.jpg`;
-      const uploadsDir = path.join(process.cwd(), "uploads");
-      if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-
-      if (user.profileImage && user.profileImage.startsWith("/uploads/")) {
-        const oldFile = path.join(process.cwd(), user.profileImage);
-        if (fs.existsSync(oldFile)) fs.unlinkSync(oldFile);
-      }
-
-      fs.writeFileSync(path.join(uploadsDir, filename), resized);
-      const profileImage = `/uploads/${filename}`;
+      const profileImage = `data:image/jpeg;base64,${resized.toString("base64")}`;
 
       const updated = await storage.updateProfileImage(user.id, profileImage);
       const { password: _, ...safeUser } = updated;
@@ -210,6 +192,93 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Update profile image error:", err);
       return res.status(500).json({ message: "Failed to update profile image" });
+    }
+  });
+
+  app.patch("/api/user/active-pet", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { activePetId } = req.body;
+
+      if (activePetId !== null) {
+        const invItem = await storage.getInventoryItem(user.id, activePetId);
+        if (!invItem) {
+          return res.status(400).json({ message: "You don't own this pet" });
+        }
+        const shopItem = await storage.getShopItem(activePetId);
+        if (!shopItem || shopItem.type !== "pet") {
+          return res.status(400).json({ message: "This item is not a pet" });
+        }
+      }
+
+      const updated = await storage.updateActivePet(user.id, activePetId);
+      const { password: _, ...safeUser } = updated;
+      return res.json(safeUser);
+    } catch (err) {
+      console.error("Update active pet error:", err);
+      return res.status(500).json({ message: "Failed to update active pet" });
+    }
+  });
+
+  app.get("/api/inventory", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const inventory = await storage.getUserInventory(user.id);
+      const itemsWithDetails = await Promise.all(
+        inventory.map(async (inv) => {
+          const shopItem = await storage.getShopItem(inv.shopItemId);
+          return {
+            inventoryId: inv.id,
+            shopItemId: inv.shopItemId,
+            acquiredAt: inv.acquiredAt,
+            name: shopItem?.name || "Unknown",
+            type: shopItem?.type || "item",
+            imageUrl: shopItem?.imageUrl || null,
+            worldId: shopItem?.worldId || "",
+          };
+        })
+      );
+      return res.json(itemsWithDetails);
+    } catch (err) {
+      console.error("Get inventory error:", err);
+      return res.status(500).json({ message: "Failed to get inventory" });
+    }
+  });
+
+  app.post("/api/shop/:worldId/buy/:itemId", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { itemId } = req.params;
+
+      const shopItem = await storage.getShopItem(itemId);
+      if (!shopItem) {
+        return res.status(404).json({ message: "Item not found" });
+      }
+
+      if (shopItem.worldId !== req.params.worldId) {
+        return res.status(400).json({ message: "Item does not belong to this world" });
+      }
+
+      const existing = await storage.getInventoryItem(user.id, itemId);
+      if (existing) {
+        return res.status(400).json({ message: "You already own this item" });
+      }
+
+      const currentUser = await storage.getUser(user.id);
+      if (!currentUser || currentUser.coins < shopItem.price) {
+        return res.status(400).json({ message: "Not enough coins" });
+      }
+
+      await storage.addCoins(user.id, -shopItem.price);
+      const invItem = await storage.addToInventory(user.id, itemId);
+
+      const updatedUser = await storage.getUser(user.id);
+      const { password: _, ...safeUser } = updatedUser!;
+
+      return res.json({ inventory: invItem, user: safeUser });
+    } catch (err) {
+      console.error("Buy item error:", err);
+      return res.status(500).json({ message: "Failed to purchase item" });
     }
   });
 
@@ -281,13 +350,55 @@ export async function registerRoutes(
     }
   });
 
+  async function processShopItemImage(imageData: string): Promise<string> {
+    const mimeMatch = imageData.match(/^data:(image\/(png|gif));base64,/);
+    if (!mimeMatch) {
+      throw new Error("Invalid image format. Only PNG and GIF are supported.");
+    }
+    const mimeType = mimeMatch[1];
+    const base64Data = imageData.replace(/^data:image\/\w+;base64,/, "");
+
+    if (base64Data.length > 10 * 1024 * 1024) {
+      throw new Error("Image data too large. Max 10MB.");
+    }
+
+    const imageBuffer = Buffer.from(base64Data, "base64");
+
+    const isGif = mimeType === "image/gif";
+
+    if (isGif) {
+      const resized = await sharp(imageBuffer, { animated: true })
+        .resize(1000, 1000, { fit: "inside", withoutEnlargement: true })
+        .gif()
+        .toBuffer();
+      return `data:image/gif;base64,${resized.toString("base64")}`;
+    } else {
+      const resized = await sharp(imageBuffer)
+        .resize(1000, 1000, { fit: "inside", withoutEnlargement: true })
+        .png({ quality: 90 })
+        .toBuffer();
+      return `data:image/png;base64,${resized.toString("base64")}`;
+    }
+  }
+
   app.post("/api/admin/shop", isAdmin, async (req, res) => {
     try {
-      const parse = insertShopItemSchema.safeParse(req.body);
+      const { imageData, ...itemData } = req.body;
+      const parse = insertShopItemSchema.safeParse(itemData);
       if (!parse.success) {
         return res.status(400).json({ message: parse.error.errors[0].message });
       }
-      const item = await storage.createShopItem(parse.data);
+
+      let imageUrl: string | null = null;
+      if (imageData) {
+        try {
+          imageUrl = await processShopItemImage(imageData);
+        } catch (imgErr) {
+          console.error("Shop image processing error:", imgErr);
+        }
+      }
+
+      const item = await storage.createShopItem({ ...parse.data, imageUrl });
       return res.status(201).json(item);
     } catch (err) {
       console.error("Create shop item error:", err);
@@ -297,7 +408,17 @@ export async function registerRoutes(
 
   app.patch("/api/admin/shop/:itemId", isAdmin, async (req, res) => {
     try {
-      const updated = await storage.updateShopItem(req.params.itemId, req.body);
+      const { imageData, ...updateData } = req.body;
+
+      if (imageData) {
+        try {
+          updateData.imageUrl = await processShopItemImage(imageData);
+        } catch (imgErr) {
+          console.error("Shop image processing error:", imgErr);
+        }
+      }
+
+      const updated = await storage.updateShopItem(req.params.itemId, updateData);
       return res.json(updated);
     } catch (err) {
       console.error("Update shop item error:", err);

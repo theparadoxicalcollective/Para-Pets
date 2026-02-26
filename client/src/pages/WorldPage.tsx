@@ -61,6 +61,13 @@ interface WorldPageProps {
   };
 }
 
+interface InventoryItem {
+  inventoryId: string;
+  shopItemId: string;
+  name: string;
+  type: string;
+}
+
 export default function WorldPage({ user }: WorldPageProps) {
   const params = useParams<{ worldId: string }>();
   const worldId = params.worldId || "";
@@ -84,6 +91,13 @@ export default function WorldPage({ user }: WorldPageProps) {
     enabled: showShop,
   });
 
+  const { data: inventory = [] } = useQuery<InventoryItem[]>({
+    queryKey: ["/api/inventory"],
+    enabled: showShop,
+  });
+
+  const ownedItemIds = new Set(inventory.map((inv) => inv.shopItemId));
+
   const deleteMutation = useMutation({
     mutationFn: async (itemId: string) => {
       await apiRequest("DELETE", `/api/admin/shop/${itemId}`);
@@ -94,6 +108,27 @@ export default function WorldPage({ user }: WorldPageProps) {
     },
     onError: () => {
       toast({ title: "Failed", description: "Could not delete item", variant: "destructive" });
+    },
+  });
+
+  const buyMutation = useMutation({
+    mutationFn: async (itemId: string) => {
+      const res = await apiRequest("POST", `/api/shop/${worldId}/buy/${itemId}`);
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      if (data.user) setCurrentUser(data.user);
+      toast({ title: "Purchased!", description: "Item added to your inventory" });
+    },
+    onError: (err: any) => {
+      let msg = "Could not purchase item";
+      try {
+        const parsed = JSON.parse(err.message.split(": ").slice(1).join(": "));
+        msg = parsed.message || msg;
+      } catch {}
+      toast({ title: "Purchase Failed", description: msg, variant: "destructive" });
     },
   });
 
@@ -266,6 +301,30 @@ export default function WorldPage({ user }: WorldPageProps) {
                         >
                           {item.type}
                         </span>
+                        {ownedItemIds.has(item.id) ? (
+                          <span
+                            className="w-full text-center py-1.5 rounded font-fantasy text-[10px] tracking-wider"
+                            style={{ background: "rgba(127,255,212,0.1)", color: "#7fbfb0", border: "1px solid rgba(127,255,212,0.2)" }}
+                            data-testid={`text-owned-${item.id}`}
+                          >
+                            Owned
+                          </span>
+                        ) : (
+                          <button
+                            data-testid={`button-buy-item-${item.id}`}
+                            onClick={() => buyMutation.mutate(item.id)}
+                            disabled={buyMutation.isPending}
+                            className="w-full py-1.5 rounded font-fantasy text-[10px] tracking-wider transition-transform active:scale-95 disabled:opacity-50"
+                            style={{
+                              background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
+                              border: "1px solid rgba(127,255,212,0.4)",
+                              color: "#7fffd4",
+                              cursor: "pointer",
+                            }}
+                          >
+                            {buyMutation.isPending ? "Buying..." : "Buy"}
+                          </button>
+                        )}
                         {currentUser.isAdmin && (
                           <div className="flex gap-2 w-full mt-1">
                             <button
@@ -348,8 +407,34 @@ function ShopItemForm({
   const [name, setName] = useState(item?.name || "");
   const [price, setPrice] = useState(item?.price?.toString() || "");
   const [type, setType] = useState(item?.type || "item");
+  const [imageData, setImageData] = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(item?.imageUrl || null);
   const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ["image/png", "image/gif"];
+    if (!validTypes.includes(file.type)) {
+      toast({ title: "Invalid format", description: "Only PNG and GIF files are supported", variant: "destructive" });
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Max file size is 10MB", variant: "destructive" });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string;
+      setImageData(dataUrl);
+      setImagePreview(dataUrl);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSubmit = async () => {
     if (!name.trim() || !price.trim()) {
@@ -364,11 +449,16 @@ function ShopItemForm({
 
     setSubmitting(true);
     try {
+      const payload: any = { name: name.trim(), price: priceNum, type };
+      if (imageData) {
+        payload.imageData = imageData;
+      }
+
       if (item) {
-        await apiRequest("PATCH", `/api/admin/shop/${item.id}`, { name: name.trim(), price: priceNum, type });
+        await apiRequest("PATCH", `/api/admin/shop/${item.id}`, payload);
         toast({ title: "Updated", description: "Item updated successfully" });
       } else {
-        await apiRequest("POST", "/api/admin/shop", { name: name.trim(), price: priceNum, type, worldId });
+        await apiRequest("POST", "/api/admin/shop", { ...payload, worldId });
         toast({ title: "Created", description: "Item added to shop" });
       }
       onSuccess();
@@ -383,11 +473,12 @@ function ShopItemForm({
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <div
-        className="relative w-[85%] max-w-sm rounded-lg p-5 animate-slide-up"
+        className="relative w-[85%] max-w-sm rounded-lg p-5 animate-slide-up overflow-y-auto"
         style={{
           background: "linear-gradient(135deg, rgba(30,15,5,0.97) 0%, rgba(60,35,10,0.97) 100%)",
           border: "1px solid rgba(212,160,23,0.5)",
           boxShadow: "0 8px 40px rgba(0,0,0,0.7)",
+          maxHeight: "85vh",
         }}
       >
         <button
@@ -411,6 +502,72 @@ function ShopItemForm({
         </h3>
 
         <div className="space-y-3">
+          <div>
+            <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Image (PNG or GIF, max 1000x1000)</label>
+            <div className="flex items-center gap-3">
+              <div
+                className="w-20 h-20 rounded-md flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer"
+                style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.3)" }}
+                onClick={() => {
+                  const input = document.getElementById("shop-item-file-input") as HTMLInputElement;
+                  input?.click();
+                }}
+                data-testid="button-item-image-upload"
+              >
+                {imagePreview ? (
+                  <img src={imagePreview} alt="Preview" className="w-full h-full object-contain" />
+                ) : (
+                  <div className="text-center">
+                    <span className="text-[#d4a017] text-xl">+</span>
+                    <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider">Upload</p>
+                  </div>
+                )}
+              </div>
+              <input
+                id="shop-item-file-input"
+                data-testid="input-item-image"
+                type="file"
+                accept="image/png,image/gif"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <div className="flex-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const input = document.getElementById("shop-item-file-input") as HTMLInputElement;
+                    input?.click();
+                  }}
+                  className="w-full py-2 rounded-md font-fantasy text-[10px] tracking-wider"
+                  style={{
+                    background: "linear-gradient(135deg, #5c3a1e 0%, #8b5e3c 100%)",
+                    border: "1px solid rgba(212,160,23,0.4)",
+                    color: "#f0c040",
+                    cursor: "pointer",
+                  }}
+                >
+                  {imagePreview ? "Change Image" : "Choose Image"}
+                </button>
+                {imagePreview && (
+                  <button
+                    type="button"
+                    onClick={() => { setImageData(null); setImagePreview(null); }}
+                    className="w-full mt-1 py-1 rounded-md font-fantasy text-[9px] tracking-wider"
+                    style={{
+                      background: "rgba(139,0,0,0.3)",
+                      border: "1px solid rgba(200,50,50,0.3)",
+                      color: "#ff9999",
+                      cursor: "pointer",
+                    }}
+                    data-testid="button-remove-image"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
           <div>
             <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Name</label>
             <input

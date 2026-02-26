@@ -1,6 +1,6 @@
-import { type User, type InsertUser, users, type ShopItem, type InsertShopItem, shopItems } from "@shared/schema";
+import { type User, type InsertUser, users, type ShopItem, type InsertShopItem, shopItems, type UserInventoryItem, userInventory } from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -9,15 +9,20 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUsername(id: string, username: string): Promise<User>;
   updateProfileImage(id: string, profileImage: string): Promise<User>;
+  updateActivePet(id: string, activePetId: string | null): Promise<User>;
   getAllUsers(): Promise<User[]>;
   banUser(id: string): Promise<User>;
   unbanUser(id: string): Promise<User>;
   addCoins(id: string, amount: number): Promise<User>;
   getShopItemsByWorld(worldId: string): Promise<ShopItem[]>;
   getAllShopItems(): Promise<ShopItem[]>;
+  getShopItem(id: string): Promise<ShopItem | undefined>;
   createShopItem(item: InsertShopItem): Promise<ShopItem>;
   updateShopItem(id: string, item: Partial<InsertShopItem>): Promise<ShopItem>;
   deleteShopItem(id: string): Promise<void>;
+  getUserInventory(userId: string): Promise<UserInventoryItem[]>;
+  addToInventory(userId: string, shopItemId: string): Promise<UserInventoryItem>;
+  getInventoryItem(userId: string, shopItemId: string): Promise<UserInventoryItem | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -54,6 +59,15 @@ export class DatabaseStorage implements IStorage {
     const [user] = await db
       .update(users)
       .set({ profileImage, lastProfilePicChange: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return user;
+  }
+
+  async updateActivePet(id: string, activePetId: string | null): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ activePetId })
       .where(eq(users.id, id))
       .returning();
     return user;
@@ -101,6 +115,11 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(shopItems);
   }
 
+  async getShopItem(id: string): Promise<ShopItem | undefined> {
+    const [item] = await db.select().from(shopItems).where(eq(shopItems.id, id));
+    return item;
+  }
+
   async createShopItem(item: InsertShopItem): Promise<ShopItem> {
     const [created] = await db.insert(shopItems).values(item).returning();
     return created;
@@ -117,6 +136,23 @@ export class DatabaseStorage implements IStorage {
 
   async deleteShopItem(id: string): Promise<void> {
     await db.delete(shopItems).where(eq(shopItems.id, id));
+  }
+
+  async getUserInventory(userId: string): Promise<UserInventoryItem[]> {
+    return db.select().from(userInventory).where(eq(userInventory.userId, userId));
+  }
+
+  async addToInventory(userId: string, shopItemId: string): Promise<UserInventoryItem> {
+    const [item] = await db.insert(userInventory).values({ userId, shopItemId }).returning();
+    return item;
+  }
+
+  async getInventoryItem(userId: string, shopItemId: string): Promise<UserInventoryItem | undefined> {
+    const [item] = await db
+      .select()
+      .from(userInventory)
+      .where(and(eq(userInventory.userId, userId), eq(userInventory.shopItemId, shopItemId)));
+    return item;
   }
 }
 

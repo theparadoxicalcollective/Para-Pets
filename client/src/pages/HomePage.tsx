@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import bgImg from "@assets/bg_home.png";
 import navBarImg from "@assets/bar_nav.png";
 import scrollRolledIcon from "@assets/icon_scroll_rolled.png";
-import mapImg from "@assets/icon_map_new.png";
+import globeImg from "@assets/icon_globe.png";
 import swordsImg from "@assets/icon_pvp_new.png";
 import eggImg from "@assets/icon_pets.png";
 import scrollOpenImg from "@assets/scroll_open_new.png";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
+import PetInventory from "@/components/PetInventory";
 
 interface HomePageProps {
   user: {
@@ -18,16 +20,38 @@ interface HomePageProps {
     profileImage: string | null;
     coins: number;
     isAdmin: boolean;
+    activePetId: string | null;
     lastUsernameChange: string | null;
     lastProfilePicChange: string | null;
   };
+}
+
+interface InventoryItem {
+  inventoryId: string;
+  shopItemId: string;
+  acquiredAt: string;
+  name: string;
+  type: string;
+  imageUrl: string | null;
+  worldId: string;
 }
 
 export default function HomePage({ user }: HomePageProps) {
   const [showProfile, setShowProfile] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
   const [scrollOpen, setScrollOpen] = useState(false);
+  const [showPetInventory, setShowPetInventory] = useState(false);
   const [, navigate] = useLocation();
+
+  const { data: inventory = [], isLoading: inventoryLoading } = useQuery<InventoryItem[]>({
+    queryKey: ["/api/inventory"],
+  });
+
+  const activePet = currentUser.activePetId
+    ? inventory.find((item) => item.shopItemId === currentUser.activePetId && item.type === "pet")
+    : null;
+
+  const petLoading = currentUser.activePetId && inventoryLoading;
 
   return (
     <div
@@ -52,35 +76,76 @@ export default function HomePage({ user }: HomePageProps) {
               className="w-full aspect-square rounded-xl flex flex-col items-center justify-center"
               style={{
                 background: "radial-gradient(ellipse at center, rgba(45,122,79,0.15) 0%, transparent 70%)",
-                border: "1px dashed rgba(127,191,176,0.2)",
+                border: activePet ? "none" : "1px dashed rgba(127,191,176,0.2)",
               }}
             >
-              <div className="text-center space-y-3 animate-float">
-                <div
-                  className="w-20 h-20 mx-auto rounded-full flex items-center justify-center"
-                  style={{
-                    background: "radial-gradient(ellipse at center, rgba(45,122,79,0.3) 0%, rgba(10,40,20,0.5) 100%)",
-                    border: "2px dashed rgba(127,191,176,0.3)",
-                    boxShadow: "0 0 30px rgba(45,122,79,0.3)",
-                  }}
-                >
-                  <span className="text-3xl" style={{ filter: "grayscale(100%) opacity(0.3)" }}>?</span>
+              {petLoading ? (
+                <div className="flex flex-col items-center gap-3 animate-pulse">
+                  <div
+                    className="w-20 h-20 rounded-full"
+                    style={{
+                      background: "radial-gradient(ellipse at center, rgba(45,122,79,0.3) 0%, rgba(10,40,20,0.5) 100%)",
+                      border: "2px dashed rgba(127,191,176,0.3)",
+                    }}
+                  />
+                  <p className="font-fantasy text-[#7fbfb0] text-xs tracking-wider">Summoning companion...</p>
                 </div>
-                <div
-                  className="px-4 py-2 rounded-md mx-4"
-                  style={{
-                    background: "rgba(0,0,0,0.4)",
-                    border: "1px solid rgba(127,191,176,0.2)",
-                  }}
-                >
-                  <p className="font-fantasy text-[#7fbfb0] text-xs tracking-wider leading-relaxed">
-                    Your companion awaits...
-                  </p>
-                  <p className="font-fantasy text-[#5a8a78] text-xs tracking-wider">
-                    Acquire a pet to begin
-                  </p>
+              ) : activePet ? (
+                <div className="flex flex-col items-center gap-3 animate-float" data-testid="display-active-pet">
+                  <div
+                    className="w-32 h-32 rounded-xl flex items-center justify-center overflow-hidden"
+                    style={{
+                      background: "radial-gradient(ellipse at center, rgba(45,122,79,0.3) 0%, rgba(10,40,20,0.5) 100%)",
+                      border: "2px solid rgba(127,255,212,0.3)",
+                      boxShadow: "0 0 30px rgba(45,122,79,0.3), 0 8px 20px rgba(0,0,0,0.4)",
+                    }}
+                  >
+                    {activePet.imageUrl ? (
+                      <img src={activePet.imageUrl} alt={activePet.name} className="w-full h-full object-contain" />
+                    ) : (
+                      <span className="text-5xl">🐾</span>
+                    )}
+                  </div>
+                  <div
+                    className="px-4 py-2 rounded-md"
+                    style={{
+                      background: "rgba(0,0,0,0.5)",
+                      border: "1px solid rgba(127,255,212,0.3)",
+                    }}
+                  >
+                    <p className="font-fantasy text-[#7fffd4] text-sm tracking-wider font-semibold text-center" data-testid="text-active-pet-name">
+                      {activePet.name}
+                    </p>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="text-center space-y-3 animate-float">
+                  <div
+                    className="w-20 h-20 mx-auto rounded-full flex items-center justify-center"
+                    style={{
+                      background: "radial-gradient(ellipse at center, rgba(45,122,79,0.3) 0%, rgba(10,40,20,0.5) 100%)",
+                      border: "2px dashed rgba(127,191,176,0.3)",
+                      boxShadow: "0 0 30px rgba(45,122,79,0.3)",
+                    }}
+                  >
+                    <span className="text-3xl" style={{ filter: "grayscale(100%) opacity(0.3)" }}>?</span>
+                  </div>
+                  <div
+                    className="px-4 py-2 rounded-md mx-4"
+                    style={{
+                      background: "rgba(0,0,0,0.4)",
+                      border: "1px solid rgba(127,191,176,0.2)",
+                    }}
+                  >
+                    <p className="font-fantasy text-[#7fbfb0] text-xs tracking-wider leading-relaxed">
+                      Your companion awaits...
+                    </p>
+                    <p className="font-fantasy text-[#5a8a78] text-xs tracking-wider">
+                      Acquire a pet to begin
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div
@@ -107,7 +172,7 @@ export default function HomePage({ user }: HomePageProps) {
                 onClick={() => setScrollOpen(true)}
               />
               <NavIcon
-                src={mapImg}
+                src={globeImg}
                 alt="Map"
                 testId="button-nav-map"
                 onClick={() => navigate("/map")}
@@ -121,6 +186,7 @@ export default function HomePage({ user }: HomePageProps) {
                 src={eggImg}
                 alt="Pets"
                 testId="button-nav-pets"
+                onClick={() => setShowPetInventory(true)}
               />
             </div>
           </div>
@@ -176,6 +242,14 @@ export default function HomePage({ user }: HomePageProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {showPetInventory && (
+        <PetInventory
+          user={currentUser}
+          onClose={() => setShowPetInventory(false)}
+          onUserUpdate={(updatedUser) => setCurrentUser(updatedUser)}
+        />
       )}
 
       {showProfile && (

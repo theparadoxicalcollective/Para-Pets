@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import profileFrameImg from "@assets/frame_profile.png";
+import profileFrameImg from "@assets/frame_profile_thin.png";
 
 interface User {
   id: string;

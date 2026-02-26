@@ -12,6 +12,7 @@ export const users = pgTable("users", {
   coins: integer("coins").notNull().default(0),
   isAdmin: boolean("is_admin").notNull().default(false),
   isBanned: boolean("is_banned").notNull().default(false),
+  activePetId: varchar("active_pet_id"),
   lastUsernameChange: timestamp("last_username_change"),
   lastProfilePicChange: timestamp("last_profile_pic_change"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
@@ -25,6 +26,13 @@ export const shopItems = pgTable("shop_items", {
   worldId: text("world_id").notNull(),
   imageUrl: text("image_url"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const userInventory = pgTable("user_inventory", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  shopItemId: varchar("shop_item_id").notNull(),
+  acquiredAt: timestamp("acquired_at").notNull().default(sql`now()`),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -58,3 +66,4 @@ export type User = typeof users.$inferSelect;
 export type LoginData = z.infer<typeof loginSchema>;
 export type ShopItem = typeof shopItems.$inferSelect;
 export type InsertShopItem = z.infer<typeof insertShopItemSchema>;
+export type UserInventoryItem = typeof userInventory.$inferSelect;
