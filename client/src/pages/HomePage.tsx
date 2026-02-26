@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import bgImg from "@assets/bg_home.png";
@@ -34,6 +34,16 @@ interface InventoryItem {
   type: string;
   imageUrl: string | null;
   worldId: string;
+  rarity: number | null;
+  hatchTime: number | null;
+  eggImageUrl: string | null;
+  hatchedImageUrl: string | null;
+  hatchStartedAt: string | null;
+  isHatched: boolean;
+  petHealth: number;
+  petAtk: number;
+  petDef: number;
+  petLevel: number;
 }
 
 export default function HomePage({ user }: HomePageProps) {
@@ -96,26 +106,45 @@ export default function HomePage({ user }: HomePageProps) {
                     className="w-32 h-32 rounded-xl flex items-center justify-center overflow-hidden"
                     style={{
                       background: "radial-gradient(ellipse at center, rgba(45,122,79,0.3) 0%, rgba(10,40,20,0.5) 100%)",
-                      border: "2px solid rgba(127,255,212,0.3)",
-                      boxShadow: "0 0 30px rgba(45,122,79,0.3), 0 8px 20px rgba(0,0,0,0.4)",
+                      border: activePet.isHatched ? "2px solid rgba(127,255,212,0.3)" : "2px solid rgba(240,192,64,0.3)",
+                      boxShadow: activePet.isHatched
+                        ? "0 0 30px rgba(45,122,79,0.3), 0 8px 20px rgba(0,0,0,0.4)"
+                        : "0 0 30px rgba(240,192,64,0.2), 0 8px 20px rgba(0,0,0,0.4)",
                     }}
                   >
-                    {activePet.imageUrl ? (
-                      <img src={activePet.imageUrl} alt={activePet.name} className="w-full h-full object-contain" />
+                    {activePet.isHatched ? (
+                      (activePet.hatchedImageUrl || activePet.imageUrl) ? (
+                        <img src={activePet.hatchedImageUrl || activePet.imageUrl || ""} alt={activePet.name} className="w-full h-full object-contain" />
+                      ) : (
+                        <span className="text-5xl">🐾</span>
+                      )
                     ) : (
-                      <span className="text-5xl">🐾</span>
+                      activePet.eggImageUrl ? (
+                        <img src={activePet.eggImageUrl} alt={activePet.name} className="w-full h-full object-contain" />
+                      ) : (
+                        <span className="text-5xl">🥚</span>
+                      )
                     )}
                   </div>
-                  <div
-                    className="px-4 py-2 rounded-md"
-                    style={{
-                      background: "rgba(0,0,0,0.5)",
-                      border: "1px solid rgba(127,255,212,0.3)",
-                    }}
-                  >
-                    <p className="font-fantasy text-[#7fffd4] text-sm tracking-wider font-semibold text-center" data-testid="text-active-pet-name">
-                      {activePet.name}
-                    </p>
+
+                  <div className="w-40 flex flex-col items-center gap-1.5">
+                    <div
+                      className="w-full px-4 py-1.5 rounded-md"
+                      style={{ background: "rgba(0,0,0,0.5)", border: "1px solid rgba(127,255,212,0.3)" }}
+                    >
+                      <p className="font-fantasy text-[#7fffd4] text-sm tracking-wider font-semibold text-center" data-testid="text-active-pet-name">
+                        {activePet.name}
+                      </p>
+                    </div>
+
+                    {activePet.isHatched ? (
+                      <div className="w-full space-y-1">
+                        <HomePetBar label="HP" value={activePet.petHealth} max={5000} color="#4ade80" />
+                        <HomePetBar label="LV" value={activePet.petLevel} max={100} color="#c084fc" />
+                      </div>
+                    ) : activePet.hatchStartedAt && activePet.hatchTime ? (
+                      <HomeHatchBar hatchStartedAt={activePet.hatchStartedAt} hatchTime={activePet.hatchTime} />
+                    ) : null}
                   </div>
                 </div>
               ) : (
@@ -347,5 +376,83 @@ function NavIcon({ src, alt, testId, onClick, round, badge }: { src: string; alt
         </div>
       )}
     </button>
+  );
+}
+
+function HomePetBar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
+  return (
+    <div className="flex items-center gap-1.5 w-full">
+      <span className="font-fantasy text-[8px] tracking-wider w-5 text-right" style={{ color }}>{label}</span>
+      <div className="flex-1 h-1.5 rounded-full" style={{ background: "rgba(0,0,0,0.4)" }}>
+        <div
+          style={{
+            width: `${Math.min(100, (value / max) * 100)}%`,
+            background: `linear-gradient(90deg, ${color}, ${color}88)`,
+            height: "100%",
+            borderRadius: "4px",
+            boxShadow: `0 0 4px ${color}40`,
+          }}
+        />
+      </div>
+      <span className="font-fantasy text-[7px] text-[#a89878] w-8">{value}</span>
+    </div>
+  );
+}
+
+function HomeHatchBar({ hatchStartedAt, hatchTime }: { hatchStartedAt: string; hatchTime: number }) {
+  const [progress, setProgress] = useState(0);
+  const [timeLeft, setTimeLeft] = useState("");
+
+  useEffect(() => {
+    const update = () => {
+      const start = new Date(hatchStartedAt).getTime();
+      const required = hatchTime * 3600000;
+      const elapsed = Date.now() - start;
+      const pct = Math.min(1, elapsed / required);
+      setProgress(pct);
+
+      if (pct >= 1) {
+        setTimeLeft("Ready to hatch!");
+      } else {
+        const remaining = required - elapsed;
+        const hrs = Math.floor(remaining / 3600000);
+        const mins = Math.floor((remaining % 3600000) / 60000);
+        if (hrs > 0) {
+          setTimeLeft(`${hrs}h ${mins}m`);
+        } else {
+          const secs = Math.floor((remaining % 60000) / 1000);
+          setTimeLeft(`${mins}m ${secs}s`);
+        }
+      }
+    };
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [hatchStartedAt, hatchTime]);
+
+  const isReady = progress >= 1;
+
+  return (
+    <div className="w-full">
+      <div className="flex items-center gap-1.5 w-full">
+        <span className="font-fantasy text-[8px] tracking-wider w-5 text-right" style={{ color: isReady ? "#4ade80" : "#f0c040" }}>🥚</span>
+        <div className="flex-1 h-1.5 rounded-full" style={{ background: "rgba(0,0,0,0.4)" }}>
+          <div
+            className={isReady ? "animate-pulse" : ""}
+            style={{
+              width: `${progress * 100}%`,
+              background: isReady ? "linear-gradient(90deg, #4ade80, #22c55e)" : "linear-gradient(90deg, #f0c040, #d4a017)",
+              height: "100%",
+              borderRadius: "4px",
+              boxShadow: isReady ? "0 0 6px rgba(74,222,128,0.6)" : "0 0 4px rgba(240,192,64,0.4)",
+              transition: "width 1s linear",
+            }}
+          />
+        </div>
+      </div>
+      <p className="font-fantasy text-[7px] tracking-wider text-center mt-0.5" style={{ color: isReady ? "#4ade80" : "#d4a017" }} data-testid="text-home-hatch-time">
+        {timeLeft}
+      </p>
+    </div>
   );
 }

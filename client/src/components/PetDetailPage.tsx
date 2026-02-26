@@ -1,0 +1,371 @@
+import { useState, useEffect } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import coinIconImg from "@assets/icon_coin.png";
+
+interface PetData {
+  inventoryId: string;
+  shopItemId: string;
+  name: string;
+  imageUrl: string | null;
+  eggImageUrl: string | null;
+  hatchedImageUrl: string | null;
+  rarity: number | null;
+  petHealth: number;
+  petAtk: number;
+  petDef: number;
+  petLevel: number;
+  itemsUsedThisLevel: number;
+  isHatched: boolean;
+}
+
+interface BagItem {
+  inventoryId: string;
+  shopItemId: string;
+  name: string;
+  type: string;
+  imageUrl: string | null;
+  statBoostType: string | null;
+}
+
+interface PetDetailPageProps {
+  pet: PetData;
+  onClose: () => void;
+  onUpdate: () => void;
+  userCoins: number;
+  onUserUpdate: (user: any) => void;
+}
+
+export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUserUpdate }: PetDetailPageProps) {
+  const [showPowerUp, setShowPowerUp] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: inventory = [] } = useQuery<BagItem[]>({
+    queryKey: ["/api/inventory"],
+  });
+
+  const usableItems = inventory.filter(
+    (item) => item.type === "item" && item.statBoostType
+  );
+
+  const rarity = pet.rarity || 1;
+  const maxItemsPerLevel = rarity + 2;
+  const itemsRemaining = maxItemsPerLevel - pet.itemsUsedThisLevel;
+
+  const powerUpMutation = useMutation({
+    mutationFn: async (itemInventoryId: string) => {
+      const res = await apiRequest("POST", `/api/pet/${pet.inventoryId}/power-up`, { itemInventoryId });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      onUpdate();
+      toast({ title: "Power Up!", description: "Your pet grew stronger!" });
+      setShowPowerUp(false);
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed", description: err?.message || "Could not power up", variant: "destructive" });
+    },
+  });
+
+  const resetMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/pet/${pet.inventoryId}/reset-stats`);
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      if (data.user) onUserUpdate(data.user);
+      onUpdate();
+      toast({ title: "Stats Reset", description: "Pet stats have been reset to base values" });
+      setShowResetConfirm(false);
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed", description: err?.message || "Could not reset stats", variant: "destructive" });
+    },
+  });
+
+  const petImage = pet.hatchedImageUrl || pet.imageUrl;
+
+  const statBarStyle = (value: number, max: number, color: string) => ({
+    width: `${Math.min(100, (value / max) * 100)}%`,
+    background: `linear-gradient(90deg, ${color}, ${color}88)`,
+    height: "100%",
+    borderRadius: "4px",
+    transition: "width 0.5s ease",
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="relative w-[90%] max-w-sm rounded-lg overflow-y-auto animate-slide-up"
+        style={{
+          background: "linear-gradient(135deg, rgba(20,10,3,0.98) 0%, rgba(45,25,8,0.98) 100%)",
+          border: "1px solid rgba(212,160,23,0.5)",
+          boxShadow: "0 8px 40px rgba(0,0,0,0.8), 0 0 60px rgba(212,160,23,0.1)",
+          maxHeight: "85vh",
+        }}
+      >
+        <button
+          data-testid="button-close-pet-detail"
+          onClick={onClose}
+          className="absolute top-3 right-3 z-20 w-8 h-8 rounded-full flex items-center justify-center"
+          style={{ background: "linear-gradient(135deg, #5c3a1e 0%, #3a2010 100%)", border: "2px solid rgba(212,160,23,0.6)", color: "#f0c040", cursor: "pointer", fontSize: "14px", fontWeight: "bold" }}
+        >
+          X
+        </button>
+
+        <div className="p-5">
+          <div className="flex flex-col items-center mb-4">
+            <div
+              className="w-36 h-36 rounded-xl flex items-center justify-center overflow-hidden mb-3"
+              style={{
+                background: "radial-gradient(ellipse at center, rgba(45,122,79,0.25) 0%, rgba(10,40,20,0.5) 100%)",
+                border: "2px solid rgba(127,255,212,0.3)",
+                boxShadow: "0 0 30px rgba(45,122,79,0.3)",
+              }}
+              data-testid="img-pet-detail"
+            >
+              {petImage ? (
+                <img src={petImage} alt={pet.name} className="w-full h-full object-contain" />
+              ) : (
+                <span className="text-5xl">🐾</span>
+              )}
+            </div>
+
+            {pet.eggImageUrl && (
+              <div
+                className="w-8 h-8 rounded-md overflow-hidden -mt-6 ml-24 relative z-10"
+                style={{ border: "1px solid rgba(212,160,23,0.4)", background: "rgba(0,0,0,0.5)" }}
+                data-testid="img-pet-egg-thumb"
+              >
+                <img src={pet.eggImageUrl} alt="Egg" className="w-full h-full object-contain" />
+              </div>
+            )}
+
+            <h3
+              className="font-fantasy text-[#f0c040] text-lg tracking-widest font-semibold mt-2"
+              style={{ textShadow: "0 0 10px rgba(240,192,64,0.3)" }}
+              data-testid="text-pet-detail-name"
+            >
+              {pet.name}
+            </h3>
+
+            {rarity > 0 && (
+              <div className="flex items-center gap-0.5 mt-1" data-testid="stars-pet-detail">
+                {Array.from({ length: rarity }).map((_, i) => (
+                  <span key={i} className="text-sm" style={{ color: "#f0c040", textShadow: "0 0 6px rgba(240,192,64,0.6)" }}>★</span>
+                ))}
+                {Array.from({ length: 5 - rarity }).map((_, i) => (
+                  <span key={i} className="text-sm" style={{ color: "#3a2a1a" }}>★</span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div
+            className="rounded-lg p-4 mb-4"
+            style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.2)" }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="font-fantasy text-[#a89878] text-xs tracking-wider">LEVEL</span>
+              <span className="font-fantasy text-[#f0c040] text-lg font-bold" data-testid="text-pet-level">{pet.petLevel}</span>
+            </div>
+
+            <StatBar label="HP" value={pet.petHealth} displayValue={pet.petHealth.toLocaleString()} color="#4ade80" testId="bar-pet-health" />
+            <StatBar label="ATK" value={pet.petAtk} displayValue={pet.petAtk.toLocaleString()} color="#f87171" testId="bar-pet-atk" />
+            <StatBar label="DEF" value={pet.petDef} displayValue={pet.petDef.toLocaleString()} color="#60a5fa" testId="bar-pet-def" />
+
+            <div className="mt-3 pt-3" style={{ borderTop: "1px solid rgba(212,160,23,0.15)" }}>
+              <div className="flex items-center justify-between">
+                <span className="font-fantasy text-[#6a5840] text-[10px] tracking-wider">ITEMS THIS LEVEL</span>
+                <span className="font-fantasy text-[#a89878] text-[10px]" data-testid="text-items-used">
+                  {pet.itemsUsedThisLevel} / {maxItemsPerLevel}
+                </span>
+              </div>
+              <div className="w-full h-1.5 rounded-full mt-1" style={{ background: "rgba(0,0,0,0.4)" }}>
+                <div style={{ ...statBarStyle(pet.itemsUsedThisLevel, maxItemsPerLevel, "#c084fc"), height: "6px", borderRadius: "4px" }} />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-2 mb-3">
+            <button
+              data-testid="button-power-up"
+              onClick={() => setShowPowerUp(true)}
+              disabled={pet.petLevel >= 100}
+              className="flex-1 py-2.5 rounded-md font-fantasy text-xs tracking-wider transition-transform active:scale-95 disabled:opacity-40"
+              style={{
+                background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
+                border: "1px solid rgba(127,255,212,0.4)",
+                color: "#7fffd4",
+                cursor: pet.petLevel >= 100 ? "not-allowed" : "pointer",
+              }}
+            >
+              {pet.petLevel >= 100 ? "MAX LEVEL" : "Power Up"}
+            </button>
+            <button
+              data-testid="button-reset-stats"
+              onClick={() => setShowResetConfirm(true)}
+              className="flex-1 py-2.5 rounded-md font-fantasy text-xs tracking-wider transition-transform active:scale-95"
+              style={{
+                background: "linear-gradient(135deg, rgba(139,0,0,0.4) 0%, rgba(80,0,0,0.4) 100%)",
+                border: "1px solid rgba(200,50,50,0.3)",
+                color: "#ff9999",
+                cursor: "pointer",
+              }}
+            >
+              Reset Stats
+            </button>
+          </div>
+        </div>
+
+        {showPowerUp && (
+          <div className="p-5 pt-0">
+            <div
+              className="rounded-lg p-4"
+              style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(127,255,212,0.2)" }}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-fantasy text-[#7fffd4] text-xs tracking-wider">SELECT ITEM</h4>
+                <button
+                  onClick={() => setShowPowerUp(false)}
+                  className="font-fantasy text-[#a89878] text-[10px] tracking-wider"
+                  style={{ cursor: "pointer", background: "none", border: "none" }}
+                >
+                  Cancel
+                </button>
+              </div>
+              {itemsRemaining <= 0 ? (
+                <p className="font-fantasy text-[#ff9999] text-xs text-center py-4">
+                  No more items can be used this level. Use a LVL item to level up!
+                </p>
+              ) : usableItems.length === 0 ? (
+                <p className="font-fantasy text-[#a89878] text-xs text-center py-4">
+                  No power-up items in your bag
+                </p>
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  {usableItems.map((item) => (
+                    <button
+                      key={item.inventoryId}
+                      data-testid={`button-use-item-${item.inventoryId}`}
+                      onClick={() => powerUpMutation.mutate(item.inventoryId)}
+                      disabled={powerUpMutation.isPending || (item.statBoostType !== "lvl" && itemsRemaining <= 0)}
+                      className="rounded-md p-2 flex flex-col items-center gap-1 transition-transform active:scale-95 disabled:opacity-40"
+                      style={{
+                        background: "rgba(30,15,5,0.8)",
+                        border: "1px solid rgba(212,160,23,0.3)",
+                        cursor: powerUpMutation.isPending ? "wait" : "pointer",
+                      }}
+                    >
+                      <div className="w-10 h-10 rounded flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.3)" }}>
+                        {item.imageUrl ? (
+                          <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
+                        ) : (
+                          <span className="text-lg">📦</span>
+                        )}
+                      </div>
+                      <span className="font-fantasy text-[#f0c040] text-[8px] tracking-wider text-center truncate w-full">{item.name}</span>
+                      <span
+                        className="font-fantasy text-[7px] tracking-wider px-1.5 py-0.5 rounded-full"
+                        style={{
+                          background: item.statBoostType === "health" ? "rgba(74,222,128,0.15)" : item.statBoostType === "atk" ? "rgba(248,113,113,0.15)" : item.statBoostType === "def" ? "rgba(96,165,250,0.15)" : "rgba(192,132,252,0.15)",
+                          color: item.statBoostType === "health" ? "#4ade80" : item.statBoostType === "atk" ? "#f87171" : item.statBoostType === "def" ? "#60a5fa" : "#c084fc",
+                        }}
+                      >
+                        +{item.statBoostType?.toUpperCase()}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {showResetConfirm && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+            <div className="absolute inset-0 bg-black/60" onClick={() => setShowResetConfirm(false)} />
+            <div
+              className="relative w-[80%] max-w-xs rounded-lg p-5 animate-slide-up"
+              style={{
+                background: "linear-gradient(135deg, rgba(60,10,10,0.97) 0%, rgba(30,5,5,0.97) 100%)",
+                border: "1px solid rgba(200,50,50,0.5)",
+                boxShadow: "0 8px 40px rgba(0,0,0,0.8)",
+              }}
+            >
+              <h4 className="font-fantasy text-[#ff6666] text-sm tracking-wider text-center mb-3" data-testid="text-reset-warning-title">
+                ⚠ RESET STATS ⚠
+              </h4>
+              <p className="font-fantasy text-[#ffaaaa] text-xs text-center leading-relaxed mb-2">
+                This will reset ALL of {pet.name}'s stats to base values:
+              </p>
+              <div className="text-center mb-3 space-y-1">
+                <p className="font-fantasy text-[#ff9999] text-[10px]">HP → 1,000 | ATK → 50 | DEF → 50</p>
+                <p className="font-fantasy text-[#ff9999] text-[10px]">Level → 0 | Items Used → 0</p>
+              </div>
+              <div className="flex items-center justify-center gap-1 mb-4">
+                <span className="font-fantasy text-[#ffaaaa] text-xs">Cost:</span>
+                <img src={coinIconImg} alt="" className="w-4 h-4" />
+                <span className="font-fantasy text-[#f0c040] text-sm font-bold">300</span>
+              </div>
+              {userCoins < 300 && (
+                <p className="font-fantasy text-[#ff6666] text-[10px] text-center mb-3">
+                  Not enough coins! You have {userCoins}
+                </p>
+              )}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowResetConfirm(false)}
+                  className="flex-1 py-2 rounded-md font-fantasy text-xs tracking-wider"
+                  style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#ccc", cursor: "pointer" }}
+                  data-testid="button-cancel-reset"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => resetMutation.mutate()}
+                  disabled={resetMutation.isPending || userCoins < 300}
+                  className="flex-1 py-2 rounded-md font-fantasy text-xs tracking-wider disabled:opacity-40"
+                  style={{ background: "linear-gradient(135deg, #8b0000 0%, #500000 100%)", border: "1px solid rgba(200,50,50,0.5)", color: "#ff6666", cursor: userCoins < 300 ? "not-allowed" : "pointer" }}
+                  data-testid="button-confirm-reset"
+                >
+                  {resetMutation.isPending ? "Resetting..." : "RESET"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StatBar({ label, value, displayValue, color, testId }: { label: string; value: number; displayValue: string; color: string; testId: string }) {
+  const maxDisplay = Math.max(value, label === "HP" ? 5000 : 500);
+  return (
+    <div className="mb-2">
+      <div className="flex items-center justify-between mb-0.5">
+        <span className="font-fantasy text-[10px] tracking-wider" style={{ color }}>{label}</span>
+        <span className="font-fantasy text-[#e0d0b0] text-[10px]" data-testid={testId}>{displayValue}</span>
+      </div>
+      <div className="w-full h-2 rounded-full" style={{ background: "rgba(0,0,0,0.4)" }}>
+        <div
+          style={{
+            width: `${Math.min(100, (value / maxDisplay) * 100)}%`,
+            background: `linear-gradient(90deg, ${color}, ${color}88)`,
+            height: "100%",
+            borderRadius: "4px",
+            transition: "width 0.5s ease",
+            boxShadow: `0 0 6px ${color}40`,
+          }}
+        />
+      </div>
+    </div>
+  );
+}

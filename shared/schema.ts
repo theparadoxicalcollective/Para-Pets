@@ -25,6 +25,11 @@ export const shopItems = pgTable("shop_items", {
   type: text("type").notNull(),
   worldId: text("world_id").notNull(),
   imageUrl: text("image_url"),
+  rarity: integer("rarity"),
+  hatchTime: integer("hatch_time"),
+  eggImageUrl: text("egg_image_url"),
+  hatchedImageUrl: text("hatched_image_url"),
+  statBoostType: text("stat_boost_type"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
@@ -33,6 +38,13 @@ export const userInventory = pgTable("user_inventory", {
   userId: varchar("user_id").notNull(),
   shopItemId: varchar("shop_item_id").notNull(),
   acquiredAt: timestamp("acquired_at").notNull().default(sql`now()`),
+  hatchStartedAt: timestamp("hatch_started_at"),
+  isHatched: boolean("is_hatched").notNull().default(false),
+  petHealth: integer("pet_health").notNull().default(1000),
+  petAtk: integer("pet_atk").notNull().default(50),
+  petDef: integer("pet_def").notNull().default(50),
+  petLevel: integer("pet_level").notNull().default(0),
+  itemsUsedThisLevel: integer("items_used_this_level").notNull().default(0),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({

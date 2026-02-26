@@ -45,6 +45,11 @@ interface ShopItem {
   type: string;
   worldId: string;
   imageUrl: string | null;
+  rarity: number | null;
+  hatchTime: number | null;
+  eggImageUrl: string | null;
+  hatchedImageUrl: string | null;
+  statBoostType: string | null;
   createdAt: string;
 }
 
@@ -282,7 +287,9 @@ export default function WorldPage({ user }: WorldPageProps) {
                           className="w-full aspect-square rounded-md flex items-center justify-center"
                           style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.15)" }}
                         >
-                          {item.imageUrl ? (
+                          {item.type === "pet" && item.eggImageUrl ? (
+                            <img src={item.eggImageUrl} alt={item.name} className="w-full h-full object-contain rounded-md" />
+                          ) : item.imageUrl ? (
                             <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain rounded-md" />
                           ) : (
                             <span className="font-fantasy text-[#5a4a3a] text-2xl">?</span>
@@ -295,11 +302,26 @@ export default function WorldPage({ user }: WorldPageProps) {
                           <img src={coinIconImg} alt="" className="w-3.5 h-3.5 object-contain" />
                           <span className="font-fantasy text-[#f0c040] text-xs">{item.price}</span>
                         </div>
+                        {item.type === "pet" && item.rarity && (
+                          <div className="flex items-center gap-0.5" data-testid={`stars-${item.id}`}>
+                            {Array.from({ length: item.rarity }).map((_, i) => (
+                              <span key={i} className="text-[10px]" style={{ color: "#f0c040", textShadow: "0 0 4px rgba(240,192,64,0.6)" }}>&#9733;</span>
+                            ))}
+                          </div>
+                        )}
+                        {item.type === "pet" && item.hatchTime && (
+                          <span
+                            className="font-fantasy text-[8px] tracking-wider px-2 py-0.5 rounded-full"
+                            style={{ background: "rgba(240,192,64,0.1)", color: "#d4a017", border: "1px solid rgba(212,160,23,0.2)" }}
+                          >
+                            Hatch: {item.hatchTime}h
+                          </span>
+                        )}
                         <span
                           className="font-fantasy text-[9px] tracking-wider px-2 py-0.5 rounded-full capitalize"
                           style={{ background: "rgba(127,255,212,0.15)", color: "#7fbfb0", border: "1px solid rgba(127,255,212,0.2)" }}
                         >
-                          {item.type}
+                          {item.type}{item.type === "item" && item.statBoostType ? ` (+${item.statBoostType.toUpperCase()})` : ""}
                         </span>
                         {ownedItemIds.has(item.id) ? (
                           <span
@@ -393,6 +415,65 @@ export default function WorldPage({ user }: WorldPageProps) {
   );
 }
 
+function ImageUpload({ label, preview, onSelect, onRemove, inputId }: { label: string; preview: string | null; onSelect: (data: string) => void; onRemove: () => void; inputId: string }) {
+  const { toast } = useToast();
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!["image/png", "image/gif"].includes(file.type)) {
+      toast({ title: "Invalid format", description: "Only PNG and GIF", variant: "destructive" });
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: "Too large", description: "Max 10MB", variant: "destructive" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => onSelect(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div>
+      <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">{label}</label>
+      <div className="flex items-center gap-2">
+        <div
+          className="w-16 h-16 rounded-md flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer"
+          style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.3)" }}
+          onClick={() => (document.getElementById(inputId) as HTMLInputElement)?.click()}
+        >
+          {preview ? (
+            <img src={preview} alt="" className="w-full h-full object-contain" />
+          ) : (
+            <span className="text-[#d4a017] text-lg">+</span>
+          )}
+        </div>
+        <input id={inputId} type="file" accept="image/png,image/gif" onChange={handleFile} className="hidden" />
+        <div className="flex-1 flex flex-col gap-1">
+          <button
+            type="button"
+            onClick={() => (document.getElementById(inputId) as HTMLInputElement)?.click()}
+            className="w-full py-1.5 rounded-md font-fantasy text-[9px] tracking-wider"
+            style={{ background: "linear-gradient(135deg, #5c3a1e 0%, #8b5e3c 100%)", border: "1px solid rgba(212,160,23,0.4)", color: "#f0c040", cursor: "pointer" }}
+          >
+            {preview ? "Change" : "Upload"}
+          </button>
+          {preview && (
+            <button
+              type="button"
+              onClick={onRemove}
+              className="w-full py-1 rounded-md font-fantasy text-[8px] tracking-wider"
+              style={{ background: "rgba(139,0,0,0.3)", border: "1px solid rgba(200,50,50,0.3)", color: "#ff9999", cursor: "pointer" }}
+            >
+              Remove
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ShopItemForm({
   worldId,
   item,
@@ -407,34 +488,17 @@ function ShopItemForm({
   const [name, setName] = useState(item?.name || "");
   const [price, setPrice] = useState(item?.price?.toString() || "");
   const [type, setType] = useState(item?.type || "item");
+  const [rarity, setRarity] = useState(item?.rarity?.toString() || "1");
+  const [hatchTime, setHatchTime] = useState(item?.hatchTime?.toString() || "1");
+  const [statBoostType, setStatBoostType] = useState(item?.statBoostType || "health");
   const [imageData, setImageData] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(item?.imageUrl || null);
+  const [eggImageData, setEggImageData] = useState<string | null>(null);
+  const [eggImagePreview, setEggImagePreview] = useState<string | null>(item?.eggImageUrl || null);
+  const [hatchedImageData, setHatchedImageData] = useState<string | null>(null);
+  const [hatchedImagePreview, setHatchedImagePreview] = useState<string | null>(item?.hatchedImageUrl || null);
   const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const validTypes = ["image/png", "image/gif"];
-    if (!validTypes.includes(file.type)) {
-      toast({ title: "Invalid format", description: "Only PNG and GIF files are supported", variant: "destructive" });
-      return;
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-      toast({ title: "File too large", description: "Max file size is 10MB", variant: "destructive" });
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const dataUrl = ev.target?.result as string;
-      setImageData(dataUrl);
-      setImagePreview(dataUrl);
-    };
-    reader.readAsDataURL(file);
-  };
 
   const handleSubmit = async () => {
     if (!name.trim() || !price.trim()) {
@@ -450,8 +514,24 @@ function ShopItemForm({
     setSubmitting(true);
     try {
       const payload: any = { name: name.trim(), price: priceNum, type };
-      if (imageData) {
-        payload.imageData = imageData;
+      if (imageData) payload.imageData = imageData;
+
+      if (type === "pet") {
+        payload.rarity = parseInt(rarity);
+        payload.hatchTime = parseInt(hatchTime);
+        if (eggImageData) payload.eggImageData = eggImageData;
+        if (hatchedImageData) payload.hatchedImageData = hatchedImageData;
+      } else {
+        payload.rarity = null;
+        payload.hatchTime = null;
+        payload.eggImageUrl = null;
+        payload.hatchedImageUrl = null;
+      }
+
+      if (type === "item") {
+        payload.statBoostType = statBoostType;
+      } else {
+        payload.statBoostType = null;
       }
 
       if (item) {
@@ -469,6 +549,8 @@ function ShopItemForm({
     }
   };
 
+  const inputStyle = { background: "rgba(242,232,208,0.9)", border: "1px solid #8b5e3c", color: "#2a1a0a" };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
@@ -485,14 +567,7 @@ function ShopItemForm({
           data-testid="button-close-form"
           onClick={onClose}
           className="absolute -top-3 -right-3 w-8 h-8 rounded-full flex items-center justify-center"
-          style={{
-            background: "linear-gradient(135deg, #5c3a1e 0%, #3a2010 100%)",
-            border: "2px solid rgba(212,160,23,0.6)",
-            color: "#f0c040",
-            cursor: "pointer",
-            fontSize: "14px",
-            fontWeight: "bold",
-          }}
+          style={{ background: "linear-gradient(135deg, #5c3a1e 0%, #3a2010 100%)", border: "2px solid rgba(212,160,23,0.6)", color: "#f0c040", cursor: "pointer", fontSize: "14px", fontWeight: "bold" }}
         >
           X
         </button>
@@ -502,125 +577,82 @@ function ShopItemForm({
         </h3>
 
         <div className="space-y-3">
-          <div>
-            <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Image (PNG or GIF, max 1000x1000)</label>
-            <div className="flex items-center gap-3">
-              <div
-                className="w-20 h-20 rounded-md flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer"
-                style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.3)" }}
-                onClick={() => {
-                  const input = document.getElementById("shop-item-file-input") as HTMLInputElement;
-                  input?.click();
-                }}
-                data-testid="button-item-image-upload"
-              >
-                {imagePreview ? (
-                  <img src={imagePreview} alt="Preview" className="w-full h-full object-contain" />
-                ) : (
-                  <div className="text-center">
-                    <span className="text-[#d4a017] text-xl">+</span>
-                    <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider">Upload</p>
-                  </div>
-                )}
-              </div>
-              <input
-                id="shop-item-file-input"
-                data-testid="input-item-image"
-                type="file"
-                accept="image/png,image/gif"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-              <div className="flex-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const input = document.getElementById("shop-item-file-input") as HTMLInputElement;
-                    input?.click();
-                  }}
-                  className="w-full py-2 rounded-md font-fantasy text-[10px] tracking-wider"
-                  style={{
-                    background: "linear-gradient(135deg, #5c3a1e 0%, #8b5e3c 100%)",
-                    border: "1px solid rgba(212,160,23,0.4)",
-                    color: "#f0c040",
-                    cursor: "pointer",
-                  }}
-                >
-                  {imagePreview ? "Change Image" : "Choose Image"}
-                </button>
-                {imagePreview && (
-                  <button
-                    type="button"
-                    onClick={() => { setImageData(null); setImagePreview(null); }}
-                    className="w-full mt-1 py-1 rounded-md font-fantasy text-[9px] tracking-wider"
-                    style={{
-                      background: "rgba(139,0,0,0.3)",
-                      border: "1px solid rgba(200,50,50,0.3)",
-                      color: "#ff9999",
-                      cursor: "pointer",
-                    }}
-                    data-testid="button-remove-image"
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
+          <ImageUpload
+            label="Shop Image (PNG/GIF)"
+            preview={imagePreview}
+            onSelect={(d) => { setImageData(d); setImagePreview(d); }}
+            onRemove={() => { setImageData(null); setImagePreview(null); }}
+            inputId="shop-item-file-input"
+          />
 
           <div>
             <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Name</label>
-            <input
-              data-testid="input-item-name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Item name"
-              className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
-              style={{ background: "rgba(242,232,208,0.9)", border: "1px solid #8b5e3c", color: "#2a1a0a" }}
-            />
+            <input data-testid="input-item-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Item name" className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
           </div>
 
           <div>
             <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Price</label>
-            <input
-              data-testid="input-item-price"
-              type="number"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              placeholder="0"
-              min="0"
-              className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
-              style={{ background: "rgba(242,232,208,0.9)", border: "1px solid #8b5e3c", color: "#2a1a0a" }}
-            />
+            <input data-testid="input-item-price" type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0" min="0" className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
           </div>
 
           <div>
             <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Type</label>
-            <select
-              data-testid="select-item-type"
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-              className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
-              style={{ background: "rgba(242,232,208,0.9)", border: "1px solid #8b5e3c", color: "#2a1a0a" }}
-            >
+            <select data-testid="select-item-type" value={type} onChange={(e) => setType(e.target.value)} className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle}>
               {ITEM_TYPES.map((t) => (
                 <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
               ))}
             </select>
           </div>
 
+          {type === "pet" && (
+            <>
+              <div>
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Rarity</label>
+                <select data-testid="select-rarity" value={rarity} onChange={(e) => setRarity(e.target.value)} className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle}>
+                  {[1,2,3,4,5].map((r) => (
+                    <option key={r} value={r}>{"★".repeat(r)} ({r} Star{r > 1 ? "s" : ""})</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Hatch Time (hours)</label>
+                <input data-testid="input-hatch-time" type="number" value={hatchTime} onChange={(e) => setHatchTime(e.target.value)} placeholder="1" min="1" className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
+              </div>
+              <ImageUpload
+                label="Egg Image (shown in shop & before hatch)"
+                preview={eggImagePreview}
+                onSelect={(d) => { setEggImageData(d); setEggImagePreview(d); }}
+                onRemove={() => { setEggImageData(null); setEggImagePreview(null); }}
+                inputId="egg-image-input"
+              />
+              <ImageUpload
+                label="Hatched Pet Image (shown after hatch)"
+                preview={hatchedImagePreview}
+                onSelect={(d) => { setHatchedImageData(d); setHatchedImagePreview(d); }}
+                onRemove={() => { setHatchedImageData(null); setHatchedImagePreview(null); }}
+                inputId="hatched-image-input"
+              />
+            </>
+          )}
+
+          {type === "item" && (
+            <div>
+              <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Stat Boost Type</label>
+              <select data-testid="select-stat-boost" value={statBoostType} onChange={(e) => setStatBoostType(e.target.value)} className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle}>
+                <option value="health">Health (+HP)</option>
+                <option value="atk">Attack (+ATK)</option>
+                <option value="def">Defense (+DEF)</option>
+                <option value="lvl">Level (+LVL)</option>
+              </select>
+            </div>
+          )}
+
           <button
             data-testid="button-submit-item"
             onClick={handleSubmit}
             disabled={submitting}
             className="w-full py-2.5 rounded-md font-fantasy text-sm tracking-wider transition-transform active:scale-98 disabled:opacity-50"
-            style={{
-              background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
-              border: "1px solid rgba(127,255,212,0.4)",
-              color: "#7fffd4",
-              cursor: "pointer",
-            }}
+            style={{ background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)", border: "1px solid rgba(127,255,212,0.4)", color: "#7fffd4", cursor: "pointer" }}
           >
             {submitting ? "Saving..." : item ? "Update Item" : "Add to Shop"}
           </button>

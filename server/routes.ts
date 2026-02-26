@@ -236,6 +236,18 @@ export async function registerRoutes(
             type: shopItem?.type || "item",
             imageUrl: shopItem?.imageUrl || null,
             worldId: shopItem?.worldId || "",
+            rarity: shopItem?.rarity || null,
+            hatchTime: shopItem?.hatchTime || null,
+            eggImageUrl: shopItem?.eggImageUrl || null,
+            hatchedImageUrl: shopItem?.hatchedImageUrl || null,
+            statBoostType: shopItem?.statBoostType || null,
+            hatchStartedAt: inv.hatchStartedAt,
+            isHatched: inv.isHatched,
+            petHealth: inv.petHealth,
+            petAtk: inv.petAtk,
+            petDef: inv.petDef,
+            petLevel: inv.petLevel,
+            itemsUsedThisLevel: inv.itemsUsedThisLevel,
           };
         })
       );
@@ -273,6 +285,10 @@ export async function registerRoutes(
       await storage.addCoins(user.id, -shopItem.price);
       const invItem = await storage.addToInventory(user.id, itemId);
 
+      if (shopItem.type === "pet" && shopItem.hatchTime) {
+        await storage.updateInventoryItem(invItem.id, { hatchStartedAt: new Date() });
+      }
+
       const updatedUser = await storage.getUser(user.id);
       const { password: _, ...safeUser } = updatedUser!;
 
@@ -280,6 +296,147 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Buy item error:", err);
       return res.status(500).json({ message: "Failed to purchase item" });
+    }
+  });
+
+  app.post("/api/pet/:inventoryId/hatch-check", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const invItem = await storage.getInventoryItemById(req.params.inventoryId);
+      if (!invItem || invItem.userId !== user.id) {
+        return res.status(404).json({ message: "Pet not found" });
+      }
+      const shopItem = await storage.getShopItem(invItem.shopItemId);
+      if (!shopItem || shopItem.type !== "pet") {
+        return res.status(400).json({ message: "Not a pet" });
+      }
+      if (invItem.isHatched) {
+        return res.json({ isHatched: true });
+      }
+      if (invItem.hatchStartedAt && shopItem.hatchTime) {
+        const elapsed = Date.now() - new Date(invItem.hatchStartedAt).getTime();
+        const required = shopItem.hatchTime * 3600000;
+        if (elapsed >= required) {
+          await storage.updateInventoryItem(invItem.id, { isHatched: true });
+          return res.json({ isHatched: true });
+        }
+      }
+      return res.json({ isHatched: false });
+    } catch (err) {
+      console.error("Hatch check error:", err);
+      return res.status(500).json({ message: "Failed to check hatch status" });
+    }
+  });
+
+  app.post("/api/pet/:inventoryId/power-up", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { itemInventoryId } = req.body;
+
+      const petInv = await storage.getInventoryItemById(req.params.inventoryId);
+      if (!petInv || petInv.userId !== user.id) {
+        return res.status(404).json({ message: "Pet not found" });
+      }
+
+      const petShopItem = await storage.getShopItem(petInv.shopItemId);
+      if (!petShopItem || petShopItem.type !== "pet") {
+        return res.status(400).json({ message: "Not a pet" });
+      }
+
+      if (!petInv.isHatched) {
+        return res.status(400).json({ message: "Pet has not hatched yet" });
+      }
+
+      if (petInv.petLevel >= 100) {
+        return res.status(400).json({ message: "Pet is at max level" });
+      }
+
+      const itemInv = await storage.getInventoryItemById(itemInventoryId);
+      if (!itemInv || itemInv.userId !== user.id) {
+        return res.status(404).json({ message: "Item not found in inventory" });
+      }
+
+      const itemShopItem = await storage.getShopItem(itemInv.shopItemId);
+      if (!itemShopItem || itemShopItem.type !== "item") {
+        return res.status(400).json({ message: "Not a usable item" });
+      }
+
+      const boostType = itemShopItem.statBoostType;
+      if (!boostType) {
+        return res.status(400).json({ message: "This item has no stat boost" });
+      }
+
+      const rarity = petShopItem.rarity || 1;
+      const maxItemsPerLevel = rarity + 2;
+      if (boostType !== "lvl" && petInv.itemsUsedThisLevel >= maxItemsPerLevel) {
+        return res.status(400).json({ message: `This pet can only use ${maxItemsPerLevel} items per level. Level up first!` });
+      }
+
+      const updates: any = { itemsUsedThisLevel: petInv.itemsUsedThisLevel + 1 };
+      const boostAmount = itemShopItem.price;
+
+      if (boostType === "health") {
+        updates.petHealth = petInv.petHealth + boostAmount;
+      } else if (boostType === "atk") {
+        updates.petAtk = petInv.petAtk + boostAmount;
+      } else if (boostType === "def") {
+        updates.petDef = petInv.petDef + boostAmount;
+      } else if (boostType === "lvl") {
+        const newLevel = Math.min(100, petInv.petLevel + 1);
+        updates.petLevel = newLevel;
+        if (newLevel > petInv.petLevel) {
+          updates.itemsUsedThisLevel = 0;
+        }
+      }
+
+      const updatedPet = await storage.updateInventoryItem(petInv.id, updates);
+      await storage.removeFromInventory(itemInv.id);
+
+      return res.json(updatedPet);
+    } catch (err) {
+      console.error("Power up error:", err);
+      return res.status(500).json({ message: "Failed to power up pet" });
+    }
+  });
+
+  app.post("/api/pet/:inventoryId/reset-stats", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const currentUser = await storage.getUser(user.id);
+      if (!currentUser || currentUser.coins < 300) {
+        return res.status(400).json({ message: "Not enough coins. Stat reset costs 300 coins." });
+      }
+
+      const petInv = await storage.getInventoryItemById(req.params.inventoryId);
+      if (!petInv || petInv.userId !== user.id) {
+        return res.status(404).json({ message: "Pet not found" });
+      }
+
+      const petShopItem = await storage.getShopItem(petInv.shopItemId);
+      if (!petShopItem || petShopItem.type !== "pet") {
+        return res.status(400).json({ message: "Not a pet" });
+      }
+
+      if (!petInv.isHatched) {
+        return res.status(400).json({ message: "Pet has not hatched yet" });
+      }
+
+      await storage.addCoins(user.id, -300);
+      const updatedPet = await storage.updateInventoryItem(petInv.id, {
+        petHealth: 1000,
+        petAtk: 50,
+        petDef: 50,
+        petLevel: 0,
+        itemsUsedThisLevel: 0,
+      });
+
+      const updatedUser = await storage.getUser(user.id);
+      const { password: _, ...safeUser } = updatedUser!;
+
+      return res.json({ pet: updatedPet, user: safeUser });
+    } catch (err) {
+      console.error("Reset stats error:", err);
+      return res.status(500).json({ message: "Failed to reset stats" });
     }
   });
 
@@ -384,7 +541,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/shop", isAdmin, async (req, res) => {
     try {
-      const { imageData, ...itemData } = req.body;
+      const { imageData, eggImageData, hatchedImageData, ...itemData } = req.body;
       const parse = insertShopItemSchema.safeParse(itemData);
       if (!parse.success) {
         return res.status(400).json({ message: parse.error.errors[0].message });
@@ -392,14 +549,20 @@ export async function registerRoutes(
 
       let imageUrl: string | null = null;
       if (imageData) {
-        try {
-          imageUrl = await processShopItemImage(imageData);
-        } catch (imgErr) {
-          console.error("Shop image processing error:", imgErr);
-        }
+        try { imageUrl = await processShopItemImage(imageData); } catch (e) { console.error("Image error:", e); }
       }
 
-      const item = await storage.createShopItem({ ...parse.data, imageUrl });
+      let eggImageUrl: string | null = null;
+      if (eggImageData) {
+        try { eggImageUrl = await processShopItemImage(eggImageData); } catch (e) { console.error("Egg image error:", e); }
+      }
+
+      let hatchedImageUrl: string | null = null;
+      if (hatchedImageData) {
+        try { hatchedImageUrl = await processShopItemImage(hatchedImageData); } catch (e) { console.error("Hatched image error:", e); }
+      }
+
+      const item = await storage.createShopItem({ ...parse.data, imageUrl, eggImageUrl, hatchedImageUrl });
       return res.status(201).json(item);
     } catch (err) {
       console.error("Create shop item error:", err);
@@ -409,14 +572,16 @@ export async function registerRoutes(
 
   app.patch("/api/admin/shop/:itemId", isAdmin, async (req, res) => {
     try {
-      const { imageData, ...updateData } = req.body;
+      const { imageData, eggImageData, hatchedImageData, ...updateData } = req.body;
 
       if (imageData) {
-        try {
-          updateData.imageUrl = await processShopItemImage(imageData);
-        } catch (imgErr) {
-          console.error("Shop image processing error:", imgErr);
-        }
+        try { updateData.imageUrl = await processShopItemImage(imageData); } catch (e) { console.error("Image error:", e); }
+      }
+      if (eggImageData) {
+        try { updateData.eggImageUrl = await processShopItemImage(eggImageData); } catch (e) { console.error("Egg image error:", e); }
+      }
+      if (hatchedImageData) {
+        try { updateData.hatchedImageUrl = await processShopItemImage(hatchedImageData); } catch (e) { console.error("Hatched image error:", e); }
       }
 
       const updated = await storage.updateShopItem(req.params.itemId, updateData);

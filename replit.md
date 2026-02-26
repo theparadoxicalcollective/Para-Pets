@@ -32,8 +32,8 @@ Para Pets is a mobile-first fantasy game web app where players collect, raise, a
 
 ## Database Schema
 - `users` table: id, username, email, password (bcrypt), profileImage (base64 data URI), coins, isAdmin, isBanned, activePetId, lastUsernameChange, lastProfilePicChange, createdAt
-- `shop_items` table: id, name, price, type, worldId, imageUrl (base64 data URI), createdAt
-- `user_inventory` table: id, userId, shopItemId, acquiredAt
+- `shop_items` table: id, name, price, type, worldId, imageUrl (base64 data URI), rarity (1-5 stars, nullable), hatchTime (hours, nullable), eggImageUrl (base64, nullable), hatchedImageUrl (base64, nullable), statBoostType (health/atk/def/lvl, nullable), createdAt
+- `user_inventory` table: id, userId, shopItemId, acquiredAt, hatchStartedAt (timestamp, nullable), isHatched (boolean, default false), petHealth (int, default 1000), petAtk (int, default 50), petDef (int, default 50), petLevel (int, default 0), itemsUsedThisLevel (int, default 0)
 - `session` table: managed by connect-pg-simple (created manually in async startup)
 
 ## API Endpoints
@@ -48,9 +48,12 @@ Para Pets is a mobile-first fantasy game web app where players collect, raise, a
 - `PATCH /api/user/profile-image` - Update profile picture (no cooldown)
 - `PATCH /api/user/active-pet` - Set or clear active pet (toggle)
 
-### Inventory
-- `GET /api/inventory` - Get current user's inventory with item details
-- `POST /api/shop/:worldId/buy/:itemId` - Purchase item from shop (deducts coins)
+### Inventory & Pets
+- `GET /api/inventory` - Get current user's inventory with item details (includes rarity, hatchTime, hatch status, pet stats)
+- `POST /api/shop/:worldId/buy/:itemId` - Purchase item from shop (deducts coins, starts hatch timer for pets)
+- `POST /api/pet/:inventoryId/hatch-check` - Check if egg is ready to hatch, auto-marks as hatched
+- `POST /api/pet/:inventoryId/power-up` - Apply item to pet (validates rarity limits, LVL items bypass cap)
+- `POST /api/pet/:inventoryId/reset-stats` - Reset pet stats to base values for 300 coins
 
 ### Admin
 - `GET /api/admin/users` - List all users
@@ -75,6 +78,30 @@ Frostpeak, Sky Realm, The Lost Island, Volcanic Isle, Enchanted Grove, Scorched 
 - Users can select one active pet to display on homepage (toggle on/off)
 - Active pet persists in database (activePetId on users table)
 - Only one pet active at a time; clicking same pet deselects it
+
+### Hatching System
+- Pets have a rarity (1-5 stars) and hatch time (hours)
+- Purchasing a pet starts the hatch timer (hatchStartedAt = now)
+- Before hatching: egg image shown with animated progress bar
+- After hatch timer completes: tap egg to hatch, reveals hatched pet image
+- Fresh hatched pets start with: 1000 HP, 50 ATK, 50 DEF, Level 0
+
+### Pet Stats & Power-Ups
+- Items with statBoostType (health/atk/def/lvl) can be used on hatched pets
+- Items per level limited by rarity: 1★=3, 2★=4, 3★=5, 4★=6, 5★=7 items
+- LVL items bypass the per-level cap and reset itemsUsedThisLevel to 0
+- Max level: 100
+- Stat reset: 300 coins, resets all stats to base values with confirmation warning
+
+### Admin Shop Form
+- Pet type: shows rarity dropdown (1-5★), hatch time input, egg image upload, hatched pet image upload
+- Item type: shows stat boost type dropdown (health/atk/def/lvl)
+- Shop displays egg image for pets, rarity stars, and hatch time
+
+### Components
+- **PetDetailPage** (`client/src/components/PetDetailPage.tsx`) - Full pet stats overlay with power-up and reset functionality
+- **PetInventory** (`client/src/components/PetInventory.tsx`) - Shows eggs with progress bars, hatched pets with stats, bag items with boost badges
+- **HomePage** pet display - Active pet shows egg+hatch bar or hatched pet with HP/LV bars
 
 ## Image Storage (Persistence Fix)
 - ALL images stored as base64 data URIs directly in the PostgreSQL database
