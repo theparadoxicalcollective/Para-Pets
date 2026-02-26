@@ -14,6 +14,10 @@ export interface IStorage {
   banUser(id: string): Promise<User>;
   unbanUser(id: string): Promise<User>;
   addCoins(id: string, amount: number): Promise<User>;
+  updatePassword(id: string, hashedPassword: string): Promise<User>;
+  setPasswordResetToken(id: string, token: string, expires: Date): Promise<void>;
+  getUserByResetToken(token: string): Promise<User | undefined>;
+  clearPasswordResetToken(id: string): Promise<void>;
   getShopItemsByWorld(worldId: string): Promise<ShopItem[]>;
   getAllShopItems(): Promise<ShopItem[]>;
   getShopItem(id: string): Promise<ShopItem | undefined>;
@@ -116,6 +120,37 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, id))
       .returning();
     return updated;
+  }
+
+  async updatePassword(id: string, hashedPassword: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ password: hashedPassword })
+      .where(eq(users.id, id))
+      .returning();
+    return user;
+  }
+
+  async setPasswordResetToken(id: string, token: string, expires: Date): Promise<void> {
+    await db
+      .update(users)
+      .set({ passwordResetToken: token, passwordResetExpires: expires })
+      .where(eq(users.id, id));
+  }
+
+  async getUserByResetToken(token: string): Promise<User | undefined> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.passwordResetToken, token));
+    return user;
+  }
+
+  async clearPasswordResetToken(id: string): Promise<void> {
+    await db
+      .update(users)
+      .set({ passwordResetToken: null, passwordResetExpires: null })
+      .where(eq(users.id, id));
   }
 
   async getShopItemsByWorld(worldId: string): Promise<ShopItem[]> {

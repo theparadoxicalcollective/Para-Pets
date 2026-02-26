@@ -9,6 +9,7 @@ import HomePage from "@/pages/HomePage";
 import MapPage from "@/pages/MapPage";
 import AdminPage from "@/pages/AdminPage";
 import WorldPage from "@/pages/WorldPage";
+import ResetPasswordPage from "@/pages/ResetPasswordPage";
 
 function AppRouter() {
   const { data: user, isLoading, isFetched } = useQuery<any>({
@@ -34,6 +35,7 @@ function AppRouter() {
   return (
     <Switch>
       <Route path="/auth" component={AuthPage} />
+      <Route path="/reset-password/:token" component={ResetPasswordPage} />
       <Route path="/map">
         {user ? <MapPage user={user} /> : <Redirect to="/auth" />}
       </Route>

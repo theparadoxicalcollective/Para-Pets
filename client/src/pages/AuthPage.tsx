@@ -8,7 +8,7 @@ import bgImg from "@assets/bg_login.png";
 import signInBtn from "@assets/btn_signin_v2.png";
 import createAccountBtn from "@assets/btn_create_v2.png";
 
-type Mode = "landing" | "login" | "register";
+type Mode = "landing" | "login" | "register" | "forgot";
 
 function resizeImageTo500(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -39,6 +39,8 @@ export default function AuthPage() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSent, setForgotSent] = useState(false);
   const [profileImageData, setProfileImageData] = useState<string | null>(null);
   const [profilePreview, setProfilePreview] = useState<string | null>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
@@ -129,13 +131,26 @@ export default function AuthPage() {
     },
   });
 
+  const forgotMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/auth/forgot-password", { email: forgotEmail });
+      return res.json();
+    },
+    onSuccess: () => {
+      setForgotSent(true);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to process request. Please try again.", variant: "destructive" });
+    },
+  });
+
   const handleSubmit = () => {
     if (isLoading) return;
     if (mode === "login") loginMutation.mutate();
     else registerMutation.mutate();
   };
 
-  const isPending = loginMutation.isPending || registerMutation.isPending;
+  const isPending = loginMutation.isPending || registerMutation.isPending || forgotMutation.isPending;
 
   return (
     <div

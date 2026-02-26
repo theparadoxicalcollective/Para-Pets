@@ -15,6 +15,8 @@ export const users = pgTable("users", {
   activePetId: varchar("active_pet_id"),
   lastUsernameChange: timestamp("last_username_change"),
   lastProfilePicChange: timestamp("last_profile_pic_change"),
+  passwordResetToken: text("password_reset_token"),
+  passwordResetExpires: timestamp("password_reset_expires"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
