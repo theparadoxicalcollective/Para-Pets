@@ -3,11 +3,11 @@ import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import bgImg from "@assets/bg_home.png";
 import navBarImg from "@assets/bar_nav.png";
-import questIcon from "@assets/icon_quest_scroll_v2.png";
+import questIcon from "@assets/icon_quest_v3.png";
 import globeImg from "@assets/icon_globe.png";
 import swordsImg from "@assets/icon_pvp_new.png";
 import eggImg from "@assets/icon_pets.png";
-import scrollOpenImg from "@assets/scroll_open_new.png";
+import scrollQuestLog from "@assets/scroll_quest_log.png";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import PetInventory from "@/components/PetInventory";
@@ -200,7 +200,7 @@ export default function HomePage({ user }: HomePageProps) {
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             onClick={() => setScrollOpen(false)}
           />
-          <div className="relative w-[80%] max-w-[340px] animate-slide-up">
+          <div className="relative w-[85%] max-w-[360px] animate-slide-up">
             <button
               data-testid="button-close-scroll"
               onClick={() => setScrollOpen(false)}
@@ -219,25 +219,43 @@ export default function HomePage({ user }: HomePageProps) {
             </button>
             <div className="relative w-full">
               <img
-                src={scrollOpenImg}
-                alt="Quest Scroll"
+                src={scrollQuestLog}
+                alt="Quest Log"
                 className="w-full object-contain"
                 style={{ filter: "drop-shadow(0 8px 30px rgba(0,0,0,0.8))" }}
               />
-              <div className="absolute inset-0 flex flex-col items-center justify-center px-[15%] py-[18%]">
+              <div className="absolute inset-0 flex flex-col items-center px-[18%] pt-[22%] pb-[14%]">
                 <h3
-                  className="font-fantasy text-[#5c3a1e] text-base tracking-widest font-bold mb-4"
+                  className="font-fantasy text-[#5c3a1e] text-lg tracking-widest font-bold mb-4"
                   style={{ textShadow: "0 1px 2px rgba(0,0,0,0.1)" }}
+                  data-testid="text-quest-log-title"
                 >
                   QUEST LOG
                 </h3>
-                <div className="w-full flex-1 overflow-y-auto flex flex-col items-center justify-center">
-                  <p className="font-fantasy text-[#8b6e4e] text-sm text-center tracking-wider leading-relaxed">
-                    No active quests.
-                  </p>
-                  <p className="font-fantasy text-[#a08060] text-xs text-center tracking-wider mt-3">
-                    Explore the realm to discover adventures...
-                  </p>
+                <div className="w-full flex-1 overflow-y-auto scrollbar-hide">
+                  <div className="flex flex-col items-center justify-center h-full">
+                    <div
+                      className="w-16 h-16 rounded-full flex items-center justify-center mb-3"
+                      style={{
+                        background: "radial-gradient(ellipse at center, rgba(92,58,30,0.15) 0%, transparent 70%)",
+                        border: "1px dashed rgba(139,110,78,0.3)",
+                      }}
+                    >
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(139,110,78,0.5)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <line x1="16" y1="13" x2="8" y2="13" />
+                        <line x1="16" y1="17" x2="8" y2="17" />
+                        <line x1="10" y1="9" x2="8" y2="9" />
+                      </svg>
+                    </div>
+                    <p className="font-fantasy text-[#7a5c3a] text-sm text-center tracking-wider leading-relaxed" data-testid="text-no-quests">
+                      No active quests
+                    </p>
+                    <p className="font-fantasy text-[#a08060] text-xs text-center tracking-wider mt-2 px-4 leading-relaxed">
+                      Explore the realm to discover adventures...
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
