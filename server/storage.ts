@@ -1,4 +1,4 @@
-import { type User, type InsertUser, users } from "@shared/schema";
+import { type User, type InsertUser, users, type ShopItem, type InsertShopItem, shopItems } from "@shared/schema";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
 
@@ -13,6 +13,11 @@ export interface IStorage {
   banUser(id: string): Promise<User>;
   unbanUser(id: string): Promise<User>;
   addCoins(id: string, amount: number): Promise<User>;
+  getShopItemsByWorld(worldId: string): Promise<ShopItem[]>;
+  getAllShopItems(): Promise<ShopItem[]>;
+  createShopItem(item: InsertShopItem): Promise<ShopItem>;
+  updateShopItem(id: string, item: Partial<InsertShopItem>): Promise<ShopItem>;
+  deleteShopItem(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -86,6 +91,32 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, id))
       .returning();
     return updated;
+  }
+
+  async getShopItemsByWorld(worldId: string): Promise<ShopItem[]> {
+    return db.select().from(shopItems).where(eq(shopItems.worldId, worldId));
+  }
+
+  async getAllShopItems(): Promise<ShopItem[]> {
+    return db.select().from(shopItems);
+  }
+
+  async createShopItem(item: InsertShopItem): Promise<ShopItem> {
+    const [created] = await db.insert(shopItems).values(item).returning();
+    return created;
+  }
+
+  async updateShopItem(id: string, item: Partial<InsertShopItem>): Promise<ShopItem> {
+    const [updated] = await db
+      .update(shopItems)
+      .set(item)
+      .where(eq(shopItems.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteShopItem(id: string): Promise<void> {
+    await db.delete(shopItems).where(eq(shopItems.id, id));
   }
 }
 

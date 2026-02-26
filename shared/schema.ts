@@ -17,12 +17,27 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
+export const shopItems = pgTable("shop_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  price: integer("price").notNull(),
+  type: text("type").notNull(),
+  worldId: text("world_id").notNull(),
+  imageUrl: text("image_url"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   email: true,
   password: true,
   profileImage: true,
   isAdmin: true,
+});
+
+export const insertShopItemSchema = createInsertSchema(shopItems).omit({
+  id: true,
+  createdAt: true,
 });
 
 export const loginSchema = z.object({
@@ -41,3 +56,5 @@ export const updateProfilePicSchema = z.object({
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type LoginData = z.infer<typeof loginSchema>;
+export type ShopItem = typeof shopItems.$inferSelect;
+export type InsertShopItem = z.infer<typeof insertShopItemSchema>;

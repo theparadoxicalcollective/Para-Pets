@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import passport from "passport";
 import bcrypt from "bcryptjs";
 import { storage } from "./storage";
-import { insertUserSchema, updateUsernameSchema } from "@shared/schema";
+import { insertUserSchema, updateUsernameSchema, insertShopItemSchema } from "@shared/schema";
 import sharp from "sharp";
 import fs from "fs";
 import path from "path";
@@ -268,6 +268,50 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Add coins error:", err);
       return res.status(500).json({ message: "Failed to modify coins" });
+    }
+  });
+
+  app.get("/api/shop/:worldId", isAuthenticated, async (req, res) => {
+    try {
+      const items = await storage.getShopItemsByWorld(req.params.worldId);
+      return res.json(items);
+    } catch (err) {
+      console.error("Get shop items error:", err);
+      return res.status(500).json({ message: "Failed to get shop items" });
+    }
+  });
+
+  app.post("/api/admin/shop", isAdmin, async (req, res) => {
+    try {
+      const parse = insertShopItemSchema.safeParse(req.body);
+      if (!parse.success) {
+        return res.status(400).json({ message: parse.error.errors[0].message });
+      }
+      const item = await storage.createShopItem(parse.data);
+      return res.status(201).json(item);
+    } catch (err) {
+      console.error("Create shop item error:", err);
+      return res.status(500).json({ message: "Failed to create shop item" });
+    }
+  });
+
+  app.patch("/api/admin/shop/:itemId", isAdmin, async (req, res) => {
+    try {
+      const updated = await storage.updateShopItem(req.params.itemId, req.body);
+      return res.json(updated);
+    } catch (err) {
+      console.error("Update shop item error:", err);
+      return res.status(500).json({ message: "Failed to update shop item" });
+    }
+  });
+
+  app.delete("/api/admin/shop/:itemId", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteShopItem(req.params.itemId);
+      return res.json({ message: "Item deleted" });
+    } catch (err) {
+      console.error("Delete shop item error:", err);
+      return res.status(500).json({ message: "Failed to delete shop item" });
     }
   });
 

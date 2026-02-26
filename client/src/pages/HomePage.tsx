@@ -2,11 +2,11 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import bgImg from "@assets/bg_home.png";
 import navBarImg from "@assets/bar_nav.png";
-import questImg from "@assets/icon_quest_new.png";
+import scrollRolledIcon from "@assets/icon_scroll_rolled.png";
 import mapImg from "@assets/icon_map_new.png";
 import swordsImg from "@assets/icon_pvp_new.png";
 import eggImg from "@assets/icon_pets.png";
-import scrollOpenImg from "@assets/scroll_open.png";
+import scrollOpenImg from "@assets/scroll_open_new.png";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 
@@ -101,7 +101,7 @@ export default function HomePage({ user }: HomePageProps) {
 
             <div className="relative z-10 flex items-center justify-evenly w-full px-6">
               <NavIcon
-                src={questImg}
+                src={scrollRolledIcon}
                 alt="Quests"
                 testId="button-nav-quests"
                 onClick={() => setScrollOpen(true)}
@@ -130,23 +130,21 @@ export default function HomePage({ user }: HomePageProps) {
       {scrollOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
           <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             onClick={() => setScrollOpen(false)}
           />
-          <div
-            className="relative w-[85%] max-h-[70vh] flex flex-col items-center animate-slide-up"
-          >
+          <div className="relative w-[80%] max-w-[340px] animate-slide-up">
             <button
               data-testid="button-close-scroll"
               onClick={() => setScrollOpen(false)}
-              className="absolute -top-2 -right-2 z-30 w-8 h-8 rounded-full flex items-center justify-center transition-transform active:scale-90"
+              className="absolute -top-3 -right-3 z-30 w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
               style={{
                 background: "linear-gradient(135deg, #5c3a1e 0%, #3a2010 100%)",
                 border: "2px solid rgba(212,160,23,0.6)",
                 color: "#f0c040",
                 cursor: "pointer",
                 boxShadow: "0 2px 10px rgba(0,0,0,0.6)",
-                fontSize: "14px",
+                fontSize: "16px",
                 fontWeight: "bold",
               }}
             >
@@ -159,20 +157,18 @@ export default function HomePage({ user }: HomePageProps) {
                 className="w-full object-contain"
                 style={{ filter: "drop-shadow(0 8px 30px rgba(0,0,0,0.8))" }}
               />
-              <div
-                className="absolute inset-0 flex flex-col items-center justify-center px-[18%] py-[22%]"
-              >
+              <div className="absolute inset-0 flex flex-col items-center justify-center px-[15%] py-[18%]">
                 <h3
-                  className="font-fantasy text-[#5c3a1e] text-sm tracking-widest font-bold mb-3"
+                  className="font-fantasy text-[#5c3a1e] text-base tracking-widest font-bold mb-4"
                   style={{ textShadow: "0 1px 2px rgba(0,0,0,0.1)" }}
                 >
                   QUEST LOG
                 </h3>
-                <div className="w-full flex-1 overflow-y-auto">
-                  <p className="font-fantasy text-[#8b6e4e] text-xs text-center tracking-wider leading-relaxed">
+                <div className="w-full flex-1 overflow-y-auto flex flex-col items-center justify-center">
+                  <p className="font-fantasy text-[#8b6e4e] text-sm text-center tracking-wider leading-relaxed">
                     No active quests.
                   </p>
-                  <p className="font-fantasy text-[#a08060] text-[10px] text-center tracking-wider mt-2">
+                  <p className="font-fantasy text-[#a08060] text-xs text-center tracking-wider mt-3">
                     Explore the realm to discover adventures...
                   </p>
                 </div>

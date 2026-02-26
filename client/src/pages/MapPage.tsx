@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import bgMapImg from "@assets/bg_map.png";
+import bgParchment from "@assets/bg_map_parchment.png";
 import bgHauntedWoods from "@assets/bg_haunted_woods.png";
 import bgSwamp from "@assets/bg_swamp.png";
 import bgDesert from "@assets/bg_desert.png";
@@ -9,6 +9,14 @@ import bgVolcanic from "@assets/bg_volcanic.png";
 import bgSkyRealm from "@assets/bg_sky_realm.png";
 import bgSnowyMountain from "@assets/bg_snowy_mountain.png";
 import bgMagicalForest from "@assets/bg_magical_forest.png";
+import worldFrostpeak from "@assets/world_frostpeak.png";
+import worldSkyRealm from "@assets/world_sky_realm.png";
+import worldVolcanic from "@assets/world_volcanic.png";
+import worldIsland from "@assets/world_island.png";
+import worldDesert from "@assets/world_desert.png";
+import worldEnchantedGrove from "@assets/world_enchanted_grove.png";
+import worldHauntedWoods from "@assets/world_haunted_woods.png";
+import worldSwamp from "@assets/world_swamp.png";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 
@@ -26,20 +34,21 @@ interface MapPageProps {
 }
 
 const MAP_LOCATIONS = [
-  { id: "haunted_woods", name: "Haunted Woods", bg: bgHauntedWoods, top: "12%", left: "8%", color: "#9b59b6" },
-  { id: "swamp", name: "The Swamp", bg: bgSwamp, top: "30%", left: "65%", color: "#27ae60" },
-  { id: "desert", name: "Scorched Desert", bg: bgDesert, top: "55%", left: "15%", color: "#f39c12" },
-  { id: "island", name: "Treasure Isle", bg: bgIsland, top: "72%", left: "55%", color: "#3498db" },
-  { id: "volcanic", name: "Volcanic Isle", bg: bgVolcanic, top: "80%", left: "20%", color: "#e74c3c" },
-  { id: "sky_realm", name: "Sky Realm", bg: bgSkyRealm, top: "5%", left: "55%", color: "#f1c40f" },
-  { id: "snowy_mountain", name: "Frostpeak", bg: bgSnowyMountain, top: "22%", left: "30%", color: "#bdc3c7" },
-  { id: "magical_forest", name: "Enchanted Grove", bg: bgMagicalForest, top: "45%", left: "45%", color: "#2ecc71" },
+  { id: "snowy_mountain", name: "Frostpeak", bg: bgSnowyMountain, icon: worldFrostpeak, top: "8%", left: "5%", width: "42%" },
+  { id: "sky_realm", name: "Sky Realm", bg: bgSkyRealm, icon: worldSkyRealm, top: "5%", left: "55%", width: "40%" },
+  { id: "island", name: "Treasure Isle", bg: bgIsland, icon: worldIsland, top: "28%", left: "2%", width: "40%" },
+  { id: "volcanic", name: "Volcanic Isle", bg: bgVolcanic, icon: worldVolcanic, top: "26%", left: "52%", width: "35%" },
+  { id: "enchanted_grove", name: "Enchanted Grove", bg: bgMagicalForest, icon: worldEnchantedGrove, top: "44%", left: "8%", width: "46%" },
+  { id: "desert", name: "Scorched Desert", bg: bgDesert, icon: worldDesert, top: "45%", left: "52%", width: "44%" },
+  { id: "swamp", name: "The Swamp", bg: bgSwamp, icon: worldSwamp, top: "68%", left: "2%", width: "44%" },
+  { id: "haunted_woods", name: "Haunted Woods", bg: bgHauntedWoods, icon: worldHauntedWoods, top: "66%", left: "50%", width: "46%" },
 ];
 
 export default function MapPage({ user }: MapPageProps) {
   const [showProfile, setShowProfile] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
   const [selectedLocation, setSelectedLocation] = useState<typeof MAP_LOCATIONS[0] | null>(null);
+  const [, navigate] = useLocation();
 
   if (selectedLocation) {
     return (
@@ -59,18 +68,19 @@ export default function MapPage({ user }: MapPageProps) {
         <div className="relative z-10 flex flex-col min-h-[100dvh]" style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
           <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} />
 
-          <div className="flex-1 flex flex-col items-center justify-center px-6">
+          <div className="flex-1 flex flex-col items-center justify-end px-6 pb-8">
             <div
-              className="px-8 py-4 rounded-lg text-center"
+              className="px-8 py-5 rounded-lg text-center w-full max-w-sm"
               style={{
-                background: "rgba(0,0,0,0.6)",
-                border: `2px solid ${selectedLocation.color}60`,
-                boxShadow: `0 0 30px ${selectedLocation.color}30`,
+                background: "rgba(0,0,0,0.7)",
+                border: "1px solid rgba(212,160,23,0.4)",
+                boxShadow: "0 4px 30px rgba(0,0,0,0.5)",
+                backdropFilter: "blur(4px)",
               }}
             >
               <h2
-                className="font-fantasy text-xl font-bold tracking-widest mb-2"
-                style={{ color: selectedLocation.color, textShadow: `0 0 15px ${selectedLocation.color}80` }}
+                className="font-fantasy text-xl font-bold tracking-widest mb-2 text-[#f0c040]"
+                style={{ textShadow: "0 0 15px rgba(240,192,64,0.5)" }}
                 data-testid={`text-location-name-${selectedLocation.id}`}
               >
                 {selectedLocation.name}
@@ -78,19 +88,34 @@ export default function MapPage({ user }: MapPageProps) {
               <p className="font-fantasy text-[#a89878] text-xs tracking-wider mb-4">
                 This realm awaits exploration...
               </p>
-              <button
-                data-testid="button-back-to-map"
-                onClick={() => setSelectedLocation(null)}
-                className="px-6 py-2 rounded-md font-fantasy text-sm tracking-wider transition-transform active:scale-95"
-                style={{
-                  background: "linear-gradient(135deg, #5c3a1e 0%, #8b5e3c 100%)",
-                  border: "1px solid rgba(212,160,23,0.5)",
-                  color: "#f0c040",
-                  cursor: "pointer",
-                }}
-              >
-                Return to Map
-              </button>
+              <div className="flex gap-3 justify-center">
+                <button
+                  data-testid="button-world-shop"
+                  onClick={() => navigate(`/shop/${selectedLocation.id}`)}
+                  className="px-5 py-2 rounded-md font-fantasy text-sm tracking-wider transition-transform active:scale-95"
+                  style={{
+                    background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
+                    border: "1px solid rgba(127,255,212,0.4)",
+                    color: "#7fffd4",
+                    cursor: "pointer",
+                  }}
+                >
+                  Shop
+                </button>
+                <button
+                  data-testid="button-back-to-map"
+                  onClick={() => setSelectedLocation(null)}
+                  className="px-5 py-2 rounded-md font-fantasy text-sm tracking-wider transition-transform active:scale-95"
+                  style={{
+                    background: "linear-gradient(135deg, #5c3a1e 0%, #8b5e3c 100%)",
+                    border: "1px solid rgba(212,160,23,0.5)",
+                    color: "#f0c040",
+                    cursor: "pointer",
+                  }}
+                >
+                  Back to Map
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -113,7 +138,7 @@ export default function MapPage({ user }: MapPageProps) {
     <div
       className="relative w-full min-h-[100dvh] overflow-hidden flex flex-col"
       style={{
-        backgroundImage: `url(${bgMapImg})`,
+        backgroundImage: `url(${bgParchment})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
@@ -121,49 +146,43 @@ export default function MapPage({ user }: MapPageProps) {
         margin: "0 auto",
       }}
     >
-      <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/40 z-0 pointer-events-none" />
+      <div className="absolute inset-0 z-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at center, transparent 40%, rgba(120,80,30,0.3) 100%)" }} />
 
       <div className="relative z-10 flex flex-col min-h-[100dvh]" style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} />
 
-        <div className="flex-1 relative">
+        <div className="flex-1 relative px-2">
           {MAP_LOCATIONS.map((loc) => (
             <button
               key={loc.id}
               data-testid={`button-location-${loc.id}`}
               onClick={() => setSelectedLocation(loc)}
-              className="absolute transition-transform duration-200 active:scale-110 group"
+              className="absolute transition-transform duration-200 active:scale-105 group"
               style={{
                 top: loc.top,
                 left: loc.left,
+                width: loc.width,
                 background: "none",
                 border: "none",
                 cursor: "pointer",
+                padding: 0,
               }}
             >
-              <div
-                className="w-14 h-14 rounded-full flex items-center justify-center animate-pulse-slow"
+              <img
+                src={loc.icon}
+                alt={loc.name}
+                className="w-full h-auto object-contain transition-all duration-200 group-hover:brightness-110"
                 style={{
-                  background: `radial-gradient(circle, ${loc.color}50 0%, ${loc.color}20 50%, transparent 70%)`,
-                  border: `2px solid ${loc.color}80`,
-                  boxShadow: `0 0 15px ${loc.color}40, inset 0 0 8px ${loc.color}30`,
+                  filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.4))",
                 }}
-              >
-                <div
-                  className="w-4 h-4 rounded-full"
-                  style={{
-                    background: loc.color,
-                    boxShadow: `0 0 8px ${loc.color}`,
-                  }}
-                />
-              </div>
+              />
               <span
-                className="absolute top-full left-1/2 -translate-x-1/2 mt-1 whitespace-nowrap font-fantasy text-[9px] tracking-wider px-2 py-0.5 rounded"
+                className="absolute bottom-[-4px] left-1/2 -translate-x-1/2 whitespace-nowrap font-fantasy text-[10px] tracking-wider px-2 py-0.5 rounded"
                 style={{
-                  background: "rgba(0,0,0,0.8)",
-                  color: loc.color,
-                  border: `1px solid ${loc.color}40`,
-                  textShadow: `0 0 6px ${loc.color}60`,
+                  background: "rgba(60,30,10,0.85)",
+                  color: "#f0c040",
+                  border: "1px solid rgba(212,160,23,0.4)",
+                  textShadow: "0 1px 3px rgba(0,0,0,0.8)",
                 }}
               >
                 {loc.name}
