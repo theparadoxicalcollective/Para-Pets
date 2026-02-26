@@ -83,6 +83,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [showShop, setShowShop] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingItem, setEditingItem] = useState<ShopItem | null>(null);
+  const [shopError, setShopError] = useState<string | null>(null);
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -134,7 +135,7 @@ export default function WorldPage({ user }: WorldPageProps) {
         const parsed = JSON.parse(err.message.split(": ").slice(1).join(": "));
         msg = parsed.message || msg;
       } catch {}
-      toast({ title: "Purchase Failed", description: msg, variant: "destructive" });
+      setShopError(msg);
     },
   });
 
@@ -245,6 +246,33 @@ export default function WorldPage({ user }: WorldPageProps) {
                 X
               </button>
             </div>
+
+            {shopError && (
+              <div
+                className="mx-4 mb-2 flex items-center justify-between px-3 py-2 rounded-lg font-fantasy text-xs tracking-wider"
+                style={{
+                  background: "rgba(220,38,38,0.15)",
+                  border: "1px solid rgba(220,38,38,0.4)",
+                  color: "#fca5a5",
+                }}
+                data-testid="shop-error-message"
+              >
+                <span>{shopError}</span>
+                <button
+                  onClick={() => setShopError(null)}
+                  className="ml-3 flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"
+                  style={{
+                    background: "rgba(220,38,38,0.3)",
+                    color: "#fca5a5",
+                    cursor: "pointer",
+                    border: "none",
+                  }}
+                  data-testid="button-close-shop-error"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
 
             <div className="flex-1 overflow-y-auto px-4 pb-6">
               {currentUser.isAdmin && (
