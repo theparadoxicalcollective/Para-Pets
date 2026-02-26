@@ -1,17 +1,42 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import NotFound from "@/pages/not-found";
+import { useQuery } from "@tanstack/react-query";
+import AuthPage from "@/pages/AuthPage";
+import HomePage from "@/pages/HomePage";
 
-function Router() {
+function AppRouter() {
+  const { data: user, isLoading, isFetched } = useQuery<any>({
+    queryKey: ["/api/auth/me"],
+    retry: false,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-4xl font-fantasy text-[#7fbfb0] animate-pulse mb-4">
+            Para Pets
+          </div>
+          <div className="w-48 h-1.5 bg-gray-800 rounded-full mx-auto overflow-hidden">
+            <div className="h-full bg-[#1a6b55] rounded-full animate-loading-bar" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Switch>
-      {/* Add pages below */}
-      {/* <Route path="/" component={Home}/> */}
-      {/* Fallback to 404 */}
-      <Route component={NotFound} />
+      <Route path="/auth" component={AuthPage} />
+      <Route path="/">
+        {user ? <HomePage user={user} /> : <Redirect to="/auth" />}
+      </Route>
+      <Route>
+        <Redirect to="/" />
+      </Route>
     </Switch>
   );
 }
@@ -21,7 +46,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-        <Router />
+        <AppRouter />
       </TooltipProvider>
     </QueryClientProvider>
   );
