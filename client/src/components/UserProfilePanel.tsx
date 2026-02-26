@@ -56,16 +56,6 @@ function canChangeUsername(lastChange: string | null): { can: boolean; daysLeft:
   return { can: false, daysLeft };
 }
 
-function canChangeProfilePic(lastChange: string | null): { can: boolean; daysLeft: number } {
-  if (!lastChange) return { can: true, daysLeft: 0 };
-  const last = new Date(lastChange);
-  const nextChange = new Date(last);
-  nextChange.setDate(nextChange.getDate() + 7);
-  const now = new Date();
-  if (now >= nextChange) return { can: true, daysLeft: 0 };
-  const daysLeft = Math.ceil((nextChange.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-  return { can: false, daysLeft };
-}
 
 export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props) {
   const [newUsername, setNewUsername] = useState(user.username);
@@ -76,15 +66,10 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
   const queryClient = useQueryClient();
 
   const usernameStatus = canChangeUsername(user.lastUsernameChange);
-  const picStatus = canChangeProfilePic(user.lastProfilePicChange);
 
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!picStatus.can) {
-      toast({ title: "Not Available", description: `You can change your profile picture in ${picStatus.daysLeft} days`, variant: "destructive" });
-      return;
-    }
     try {
       const resized = await resizeImageTo500(file);
       setProfileImageData(resized);
@@ -92,7 +77,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
     } catch {
       toast({ title: "Image Error", description: "Failed to process image", variant: "destructive" });
     }
-  }, [toast, picStatus]);
+  }, [toast]);
 
   const updateUsernameMutation = useMutation({
     mutationFn: async () => {
@@ -193,7 +178,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
           <div className="flex flex-col items-center gap-3">
             <div
               className="relative w-24 h-24 cursor-pointer transition-transform active:scale-95"
-              onClick={() => picStatus.can && fileInputRef.current?.click()}
+              onClick={() => fileInputRef.current?.click()}
               data-testid="button-profile-pic-change"
             >
               <img
@@ -222,13 +207,11 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                 )}
               </div>
 
-              {picStatus.can && (
-                <div className="absolute -bottom-1 -right-1 z-30 w-6 h-6 rounded-full flex items-center justify-center"
-                  style={{ background: "rgba(212,160,23,0.9)", border: "1px solid rgba(240,192,64,0.8)" }}
-                >
-                  <span className="text-black text-xs font-bold">+</span>
-                </div>
-              )}
+              <div className="absolute -bottom-1 -right-1 z-30 w-6 h-6 rounded-full flex items-center justify-center"
+                style={{ background: "rgba(212,160,23,0.9)", border: "1px solid rgba(240,192,64,0.8)" }}
+              >
+                <span className="text-black text-xs font-bold">+</span>
+              </div>
             </div>
 
             <input
@@ -240,40 +223,34 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
               data-testid="input-profile-pic-file"
             />
 
-            {picStatus.can ? (
-              <div className="flex flex-col items-center gap-2 w-full">
-                {profileImageData && (
-                  <button
-                    data-testid="button-save-profile-pic"
-                    onClick={() => updateProfilePicMutation.mutate()}
-                    disabled={isPending}
-                    className="w-full py-2.5 rounded-md font-fantasy text-sm tracking-wider transition-opacity disabled:opacity-60"
-                    style={{
-                      background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
-                      border: "1px solid rgba(45,154,100,0.6)",
-                      color: "#7fffd4",
-                      boxShadow: "0 0 12px rgba(127,255,212,0.2)",
-                      cursor: "pointer",
-                    }}
-                  >
-                    {updateProfilePicMutation.isPending ? "Saving..." : "Save New Photo"}
-                  </button>
-                )}
-                {!profileImageData && (
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="font-fantasy text-xs text-[#a89878] tracking-wider hover:text-[#d4a017] transition-colors"
-                    style={{ background: "none", border: "none", cursor: "pointer" }}
-                  >
-                    Tap portrait to change photo
-                  </button>
-                )}
-              </div>
-            ) : (
-              <p className="font-fantasy text-[#6a5840] text-xs tracking-wider text-center">
-                Photo change available in {picStatus.daysLeft} days
-              </p>
-            )}
+            <div className="flex flex-col items-center gap-2 w-full">
+              {profileImageData && (
+                <button
+                  data-testid="button-save-profile-pic"
+                  onClick={() => updateProfilePicMutation.mutate()}
+                  disabled={isPending}
+                  className="w-full py-2.5 rounded-md font-fantasy text-sm tracking-wider transition-opacity disabled:opacity-60"
+                  style={{
+                    background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
+                    border: "1px solid rgba(45,154,100,0.6)",
+                    color: "#7fffd4",
+                    boxShadow: "0 0 12px rgba(127,255,212,0.2)",
+                    cursor: "pointer",
+                  }}
+                >
+                  {updateProfilePicMutation.isPending ? "Saving..." : "Save New Photo"}
+                </button>
+              )}
+              {!profileImageData && (
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="font-fantasy text-xs text-[#a89878] tracking-wider hover:text-[#d4a017] transition-colors"
+                  style={{ background: "none", border: "none", cursor: "pointer" }}
+                >
+                  Tap portrait to change photo
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="w-full h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(212,160,23,0.3), transparent)" }} />

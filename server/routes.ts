@@ -178,15 +178,6 @@ export async function registerRoutes(
         return res.status(400).json({ message: "No image provided" });
       }
 
-      if (user.lastProfilePicChange) {
-        const lastChange = new Date(user.lastProfilePicChange);
-        const oneWeekAgo = new Date();
-        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-        if (lastChange > oneWeekAgo) {
-          return res.status(400).json({ message: "You can only change your profile picture once per week" });
-        }
-      }
-
       const base64Data = profileImageData.replace(/^data:image\/\w+;base64,/, "");
       const imageBuffer = Buffer.from(base64Data, "base64");
       const resized = await sharp(imageBuffer)
