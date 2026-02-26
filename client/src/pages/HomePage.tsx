@@ -1,5 +1,5 @@
 import { useState } from "react";
-import bgImg from "@assets/IMG_6038_1772070776195.jpeg";
+import bgImg from "@assets/bg_home.png";
 import profileFrameImg from "@assets/IMG_6048_1772070776195.png";
 import shopIconImg from "@assets/IMG_6047_1772070776195.png";
 import navBarImg from "@assets/IMG_6049_1772070776195.png";

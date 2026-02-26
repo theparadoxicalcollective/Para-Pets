@@ -4,10 +4,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import logoImg from "@assets/IMG_6039_1772070776195.png";
-import bgImg from "@assets/IMG_5834_1772070776195.png";
-import signInBtn from "@assets/IMG_6041_1772070776195.png";
-import createAccountBtn from "@assets/IMG_6040_1772070776195.png";
-import loadingBarImg from "@assets/IMG_5835_1772070776195.png";
+import bgImg from "@assets/bg_login.png";
+import signInBtn from "@assets/btn_signin.png";
+import createAccountBtn from "@assets/btn_create.png";
 
 type Mode = "landing" | "login" | "register";
 
