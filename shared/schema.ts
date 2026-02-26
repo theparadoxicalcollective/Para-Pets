@@ -41,6 +41,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
   password: true,
   profileImage: true,
   isAdmin: true,
+  coins: true,
 });
 
 export const insertShopItemSchema = createInsertSchema(shopItems).omit({

@@ -20,7 +20,7 @@ Para Pets is a mobile-first fantasy game web app where players collect, raise, a
 5. **Admin Page** (`/admin`) - Admin-only realm administration with ranked leaderboard, ban/unban, give coins
 
 ## Shared Components
-- **TopBar** - Profile pic (thin frame), player name, coin display (with coin icon), home icon — shown on all game pages
+- **TopBar** - Profile pic (thin frame), player name, coin display (with coin icon), home icon (hidden on homepage via hideHome prop) — shown on all game pages
 - **UserProfilePanel** - Slide-up overlay for profile settings, username change, admin panel link, logout
 - **PetInventory** - Full-screen overlay opened by pets nav icon; shows owned pets with select/deselect toggle; bag sub-view for items/accessories/potions
 
@@ -38,7 +38,7 @@ Para Pets is a mobile-first fantasy game web app where players collect, raise, a
 
 ## API Endpoints
 ### Auth
-- `POST /api/auth/register` - Create account (optional profile image)
+- `POST /api/auth/register` - Create account (optional profile image, starts with 100 coins)
 - `POST /api/auth/login` - Login (username or email)
 - `POST /api/auth/logout` - Logout
 - `GET /api/auth/me` - Get current user
@@ -65,7 +65,7 @@ Para Pets is a mobile-first fantasy game web app where players collect, raise, a
 - `DELETE /api/admin/shop/:itemId` - Delete shop item (admin only)
 
 ## World Locations (8 worlds)
-Frostpeak, Sky Realm, Treasure Isle, Volcanic Isle, Enchanted Grove, Scorched Desert, The Swamp, Haunted Woods
+Frostpeak, Sky Realm, The Lost Island, Volcanic Isle, Enchanted Grove, Scorched Desert, The Swamp, Haunted Woods
 - Each world has its own page, background, shop icon, and shop inventory
 - Shop items are per-world (worldId links items to their world)
 

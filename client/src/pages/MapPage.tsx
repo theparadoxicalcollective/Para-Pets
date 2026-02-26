@@ -2,13 +2,13 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import bgParchment from "@assets/bg_map_parchment.png";
 import worldFrostpeak from "@assets/world_frostpeak_v2.png";
-import worldSkyRealm from "@assets/world_sky_realm_v2.png";
+import worldSkyRealm from "@assets/world_sky_realm_v3.png";
 import worldVolcanic from "@assets/world_volcanic_v2.png";
-import worldIsland from "@assets/world_island_v2.png";
+import worldLostIsland from "@assets/world_lost_island.png";
 import worldDesert from "@assets/world_desert_v2.png";
 import worldEnchantedGrove from "@assets/world_enchanted_grove_v2.png";
 import worldHauntedWoods from "@assets/world_haunted_woods_v2.png";
-import worldSwamp from "@assets/world_swamp_v2.png";
+import worldSwamp from "@assets/world_swamp_v3.png";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 
@@ -26,9 +26,9 @@ interface MapPageProps {
 }
 
 const MAP_LOCATIONS = [
-  { id: "snowy_mountain", name: "Frostpeak", icon: worldFrostpeak, row: 0, col: 0 },
+  { id: "snowy_mountain", name: "Frostpeak", icon: worldFrostpeak, row: 0, col: 0, scale: 1.15 },
   { id: "sky_realm", name: "Sky Realm", icon: worldSkyRealm, row: 0, col: 1 },
-  { id: "island", name: "Treasure Isle", icon: worldIsland, row: 1, col: 0 },
+  { id: "island", name: "The Lost Island", icon: worldLostIsland, row: 1, col: 0 },
   { id: "volcanic", name: "Volcanic Isle", icon: worldVolcanic, row: 1, col: 1 },
   { id: "enchanted_grove", name: "Enchanted Grove", icon: worldEnchantedGrove, row: 2, col: 0 },
   { id: "desert", name: "Scorched Desert", icon: worldDesert, row: 2, col: 1 },
@@ -83,7 +83,7 @@ export default function MapPage({ user }: MapPageProps) {
                     src={loc.icon}
                     alt={loc.name}
                     className="w-full h-full object-contain transition-all duration-200 group-hover:scale-105"
-                    style={{ filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.3))" }}
+                    style={{ filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.3))", transform: loc.scale ? `scale(${loc.scale})` : undefined }}
                   />
                 </div>
                 <span

@@ -12,9 +12,10 @@ interface TopBarProps {
     isAdmin: boolean;
   };
   onProfileClick: () => void;
+  hideHome?: boolean;
 }
 
-export default function TopBar({ user, onProfileClick }: TopBarProps) {
+export default function TopBar({ user, onProfileClick, hideHome }: TopBarProps) {
   const [, navigate] = useLocation();
 
   return (
@@ -102,25 +103,27 @@ export default function TopBar({ user, onProfileClick }: TopBarProps) {
         </div>
       </div>
 
-      <button
-        data-testid="button-home"
-        onClick={() => navigate("/")}
-        className="topbar-icon-size flex-shrink-0 flex items-center justify-center transition-transform duration-150 active:scale-95 rounded-lg overflow-hidden"
-        style={{
-          background: "none",
-          border: "2px solid rgba(212,160,23,0.4)",
-          cursor: "pointer",
-          boxShadow: "0 2px 10px rgba(0,0,0,0.6)",
-          borderRadius: "10px",
-        }}
-      >
-        <img
-          src={homeIconImg}
-          alt="Home"
-          className="w-full h-full object-cover"
-          style={{ filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.8))" }}
-        />
-      </button>
+      {!hideHome && (
+        <button
+          data-testid="button-home"
+          onClick={() => navigate("/")}
+          className="topbar-icon-size flex-shrink-0 flex items-center justify-center transition-transform duration-150 active:scale-95 rounded-lg overflow-hidden"
+          style={{
+            background: "none",
+            border: "2px solid rgba(212,160,23,0.4)",
+            cursor: "pointer",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.6)",
+            borderRadius: "10px",
+          }}
+        >
+          <img
+            src={homeIconImg}
+            alt="Home"
+            className="w-full h-full object-cover"
+            style={{ filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.8))" }}
+          />
+        </button>
+      )}
     </div>
   );
 }

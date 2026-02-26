@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import bgImg from "@assets/bg_home.png";
 import navBarImg from "@assets/bar_nav.png";
-import scrollRolledIcon from "@assets/icon_scroll_rolled.png";
+import questIcon from "@assets/icon_quest_scroll_v2.png";
 import globeImg from "@assets/icon_globe.png";
 import swordsImg from "@assets/icon_pvp_new.png";
 import eggImg from "@assets/icon_pets.png";
@@ -68,7 +68,7 @@ export default function HomePage({ user }: HomePageProps) {
       <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/60 z-0 pointer-events-none" />
 
       <div className="relative z-10 flex flex-col min-h-[100dvh]" style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
-        <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} />
+        <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} hideHome />
 
         <div className="flex-1 flex flex-col items-center justify-center px-8 py-4">
           <div className="relative w-full max-w-xs">
@@ -166,7 +166,7 @@ export default function HomePage({ user }: HomePageProps) {
 
             <div className="relative z-10 flex items-center justify-evenly w-full px-6">
               <NavIcon
-                src={scrollRolledIcon}
+                src={questIcon}
                 alt="Quests"
                 testId="button-nav-quests"
                 onClick={() => setScrollOpen(true)}
@@ -176,6 +176,7 @@ export default function HomePage({ user }: HomePageProps) {
                 alt="Map"
                 testId="button-nav-map"
                 onClick={() => navigate("/map")}
+                round
               />
               <NavIcon
                 src={swordsImg}
@@ -266,7 +267,7 @@ export default function HomePage({ user }: HomePageProps) {
   );
 }
 
-function NavIcon({ src, alt, testId, onClick }: { src: string; alt: string; testId: string; onClick?: () => void }) {
+function NavIcon({ src, alt, testId, onClick, round }: { src: string; alt: string; testId: string; onClick?: () => void; round?: boolean }) {
   const [tapped, setTapped] = useState(false);
 
   const handleTap = () => {
@@ -283,7 +284,7 @@ function NavIcon({ src, alt, testId, onClick }: { src: string; alt: string; test
       style={{ background: "none", border: "none", cursor: "pointer" }}
     >
       <div
-        className="nav-icon-size flex items-center justify-center transition-transform duration-150 rounded-xl overflow-hidden"
+        className={`flex items-center justify-center transition-transform duration-150 overflow-hidden ${round ? "nav-icon-size-lg rounded-full" : "nav-icon-size rounded-xl"}`}
         style={{
           transform: tapped ? "scale(0.88)" : "scale(1)",
           filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.6))",
@@ -292,7 +293,7 @@ function NavIcon({ src, alt, testId, onClick }: { src: string; alt: string; test
         <img
           src={src}
           alt={alt}
-          className="w-full h-full object-cover rounded-xl transition-all duration-150 group-active:brightness-125"
+          className={`w-full h-full object-cover transition-all duration-150 group-active:brightness-125 ${round ? "rounded-full" : "rounded-xl"}`}
         />
       </div>
     </button>

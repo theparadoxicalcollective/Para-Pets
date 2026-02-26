@@ -12,7 +12,7 @@ import shopSkyRealm from "@assets/shop_sky_realm.png";
 import shopVolcanic from "@assets/shop_volcanic.png";
 import shopIsland from "@assets/shop_island.png";
 import shopDesert from "@assets/shop_desert.png";
-import shopEnchantedGrove from "@assets/shop_enchanted_grove.png";
+import shopEnchantedGrove from "@assets/shop_enchanted_grove_v2.png";
 import shopHauntedWoods from "@assets/shop_haunted_woods.png";
 import shopSwamp from "@assets/shop_swamp.png";
 
@@ -29,7 +29,7 @@ const WORLD_CONFIG: Record<string, { name: string; shopIcon: string; bg: string 
   snowy_mountain: { name: "Frostpeak", shopIcon: shopFrostpeak, bg: bgSnowyMountain },
   sky_realm: { name: "Sky Realm", shopIcon: shopSkyRealm, bg: bgSkyRealm },
   volcanic: { name: "Volcanic Isle", shopIcon: shopVolcanic, bg: bgVolcanic },
-  island: { name: "Treasure Isle", shopIcon: shopIsland, bg: bgIsland },
+  island: { name: "The Lost Island", shopIcon: shopIsland, bg: bgIsland },
   desert: { name: "Scorched Desert", shopIcon: shopDesert, bg: bgDesert },
   enchanted_grove: { name: "Enchanted Grove", shopIcon: shopEnchantedGrove, bg: bgMagicalForest },
   haunted_woods: { name: "Haunted Woods", shopIcon: shopHauntedWoods, bg: bgHauntedWoods },

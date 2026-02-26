@@ -97,6 +97,7 @@ export async function registerRoutes(
         password: hashedPassword,
         profileImage: profileImagePath,
         isAdmin: shouldBeAdmin,
+        coins: 100,
       });
 
       req.login(user, (err) => {
