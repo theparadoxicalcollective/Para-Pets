@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import logoImg from "@assets/IMG_6039_1772070776195.png";
-import bgImg from "@assets/IMG_6042_1772070776195.jpeg";
+import bgImg from "@assets/IMG_5834_1772070776195.png";
 import signInBtn from "@assets/IMG_6041_1772070776195.png";
 import createAccountBtn from "@assets/IMG_6040_1772070776195.png";
 import loadingBarImg from "@assets/IMG_5835_1772070776195.png";
@@ -170,25 +170,19 @@ export default function AuthPage() {
             <button
               data-testid="button-signin"
               onClick={() => setMode("login")}
-              className="relative w-56 h-16 flex items-center justify-center transition-transform duration-150 active:scale-95"
+              className="w-[70%] max-w-[280px] transition-transform duration-150 active:scale-93"
               style={{ background: "none", border: "none", cursor: "pointer" }}
             >
-              <img src={signInBtn} alt="Sign In" className="absolute inset-0 w-full h-full object-contain drop-shadow-lg" />
-              <span className="relative font-fantasy font-bold text-yellow-200 text-sm tracking-[0.15em] drop-shadow-md">
-                SIGN IN
-              </span>
+              <img src={signInBtn} alt="Sign In" className="w-full h-auto object-contain drop-shadow-lg" />
             </button>
 
             <button
               data-testid="button-create-account"
               onClick={() => setMode("register")}
-              className="relative w-56 h-16 flex items-center justify-center transition-transform duration-150 active:scale-95"
+              className="w-[70%] max-w-[280px] transition-transform duration-150 active:scale-93"
               style={{ background: "none", border: "none", cursor: "pointer" }}
             >
-              <img src={createAccountBtn} alt="Create Account" className="absolute inset-0 w-full h-full object-contain drop-shadow-lg" />
-              <span className="relative font-fantasy font-bold text-yellow-100 text-xs tracking-[0.1em] drop-shadow-md">
-                CREATE ACCOUNT
-              </span>
+              <img src={createAccountBtn} alt="Create Account" className="w-full h-auto object-contain drop-shadow-lg" />
             </button>
           </div>
         )}
@@ -328,26 +322,20 @@ export default function AuthPage() {
                   data-testid="button-submit-signin"
                   onClick={handleSubmit}
                   disabled={isPending}
-                  className="relative w-52 h-14 flex items-center justify-center transition-transform duration-150 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-[65%] max-w-[260px] transition-transform duration-150 active:scale-93 disabled:opacity-60 disabled:cursor-not-allowed"
                   style={{ background: "none", border: "none", cursor: "pointer" }}
                 >
-                  <img src={signInBtn} alt="Sign In" className="absolute inset-0 w-full h-full object-contain drop-shadow-lg" />
-                  <span className="relative font-fantasy font-bold text-yellow-200 text-sm tracking-[0.15em] drop-shadow-md">
-                    {isPending ? "..." : "SIGN IN"}
-                  </span>
+                  <img src={signInBtn} alt="Sign In" className="w-full h-auto object-contain drop-shadow-lg" style={isPending ? { filter: "brightness(0.7)" } : {}} />
                 </button>
               ) : (
                 <button
                   data-testid="button-submit-register"
                   onClick={handleSubmit}
                   disabled={isPending}
-                  className="relative w-52 h-14 flex items-center justify-center transition-transform duration-150 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-[65%] max-w-[260px] transition-transform duration-150 active:scale-93 disabled:opacity-60 disabled:cursor-not-allowed"
                   style={{ background: "none", border: "none", cursor: "pointer" }}
                 >
-                  <img src={createAccountBtn} alt="Create Account" className="absolute inset-0 w-full h-full object-contain drop-shadow-lg" />
-                  <span className="relative font-fantasy font-bold text-yellow-100 text-xs tracking-[0.1em] drop-shadow-md">
-                    {isPending ? "..." : "CREATE ACCOUNT"}
-                  </span>
+                  <img src={createAccountBtn} alt="Create Account" className="w-full h-auto object-contain drop-shadow-lg" style={isPending ? { filter: "brightness(0.7)" } : {}} />
                 </button>
               )}
 
