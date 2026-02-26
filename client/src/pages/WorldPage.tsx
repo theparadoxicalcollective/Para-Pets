@@ -324,7 +324,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                         >
                           {item.type}{item.type === "item" && item.statBoostType ? ` (+${item.statBoostAmount || "?"}${item.statBoostType === "health" ? " HP" : item.statBoostType === "atk" ? " ATK" : item.statBoostType === "def" ? " DEF" : " LVL"})` : ""}
                         </span>
-                        {ownedItemIds.has(item.id) ? (
+                        {item.type === "pet" && ownedItemIds.has(item.id) ? (
                           <span
                             className="w-full text-center py-1.5 rounded font-fantasy text-[10px] tracking-wider"
                             style={{ background: "rgba(127,255,212,0.1)", color: "#7fbfb0", border: "1px solid rgba(127,255,212,0.2)" }}

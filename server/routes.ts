@@ -371,9 +371,11 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Item does not belong to this world" });
       }
 
-      const existing = await storage.getInventoryItem(user.id, itemId);
-      if (existing) {
-        return res.status(400).json({ message: "You already own this item" });
+      if (shopItem.type === "pet") {
+        const existing = await storage.getInventoryItem(user.id, itemId);
+        if (existing) {
+          return res.status(400).json({ message: "You already own this pet" });
+        }
       }
 
       const currentUser = await storage.getUser(user.id);
