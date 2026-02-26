@@ -13,10 +13,26 @@ function isAuthenticated(req: Request, res: Response, next: any) {
   return res.status(401).json({ message: "Unauthorized" });
 }
 
+async function cleanupOldAccounts() {
+  try {
+    const old = await storage.getUserByEmail("paradox.esctacyartistry@gmail.com");
+    if (old) {
+      const { db } = await import("./db");
+      const { users } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      await db.delete(users).where(eq(users.id, old.id));
+      console.log("Cleaned up old admin account");
+    }
+  } catch (err) {
+    console.error("Cleanup error:", err);
+  }
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  await cleanupOldAccounts();
 
   app.post("/api/auth/register", async (req, res) => {
     try {
