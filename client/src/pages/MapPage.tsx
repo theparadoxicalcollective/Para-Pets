@@ -50,7 +50,7 @@ export default function MapPage({ user }: MapPageProps) {
           backgroundSize: "cover",
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat",
-          maxWidth: "480px",
+          maxWidth: "768px",
           margin: "0 auto",
         }}
       >
@@ -117,7 +117,7 @@ export default function MapPage({ user }: MapPageProps) {
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
-        maxWidth: "480px",
+        maxWidth: "768px",
         margin: "0 auto",
       }}
     >

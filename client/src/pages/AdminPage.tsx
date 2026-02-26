@@ -85,7 +85,7 @@ export default function AdminPage({ user }: AdminPageProps) {
         backgroundSize: "cover",
         backgroundPosition: "center top",
         backgroundRepeat: "no-repeat",
-        maxWidth: "480px",
+        maxWidth: "768px",
         margin: "0 auto",
       }}
     >

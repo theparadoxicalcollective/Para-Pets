@@ -38,7 +38,7 @@ export default function HomePage({ user }: HomePageProps) {
         backgroundSize: "cover",
         backgroundPosition: "center top",
         backgroundRepeat: "no-repeat",
-        maxWidth: "480px",
+        maxWidth: "768px",
         margin: "0 auto",
       }}
     >
@@ -155,7 +155,7 @@ export default function HomePage({ user }: HomePageProps) {
       )}
 
       {scrollOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "480px", margin: "0 auto", left: 0, right: 0 }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
           <div
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => setScrollOpen(false)}

@@ -144,7 +144,7 @@ export default function AuthPage() {
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
-        maxWidth: "480px",
+        maxWidth: "768px",
         margin: "0 auto",
       }}
     >

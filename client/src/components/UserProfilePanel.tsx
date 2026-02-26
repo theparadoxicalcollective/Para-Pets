@@ -136,7 +136,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
   const isPending = updateUsernameMutation.isPending || updateProfilePicMutation.isPending || logoutMutation.isPending;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ maxWidth: "480px", margin: "0 auto", left: 0, right: 0 }}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
