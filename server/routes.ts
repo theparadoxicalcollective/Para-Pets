@@ -294,6 +294,38 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/user/password", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { currentPassword, newPassword } = req.body;
+
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: "Current and new passwords are required" });
+      }
+      if (newPassword.length < 6) {
+        return res.status(400).json({ message: "New password must be at least 6 characters" });
+      }
+
+      const fullUser = await storage.getUser(user.id);
+      if (!fullUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const valid = await bcrypt.compare(currentPassword, fullUser.password);
+      if (!valid) {
+        return res.status(400).json({ message: "Current password is incorrect" });
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await storage.updatePassword(user.id, hashedPassword);
+
+      return res.json({ message: "Password updated successfully" });
+    } catch (err) {
+      console.error("Change password error:", err);
+      return res.status(500).json({ message: "Failed to change password" });
+    }
+  });
+
   app.patch("/api/user/active-pet", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;

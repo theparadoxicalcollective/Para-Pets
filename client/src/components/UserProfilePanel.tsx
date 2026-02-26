@@ -62,6 +62,10 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
   const [newUsername, setNewUsername] = useState(user.username);
   const [profilePreview, setProfilePreview] = useState<string | null>(null);
   const [profileImageData, setProfileImageData] = useState<string | null>(null);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -119,6 +123,26 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
     },
   });
 
+  const changePasswordMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("PATCH", "/api/user/password", { currentPassword, newPassword });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Password Changed", description: "Your password has been updated" });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setShowChangePassword(false);
+    },
+    onError: (err: any) => {
+      const msg = err.message?.includes(":") ? err.message.split(": ").slice(1).join(": ") : err.message;
+      let parsed: any = {};
+      try { parsed = JSON.parse(msg); } catch {}
+      toast({ title: "Update Failed", description: parsed.message || msg || "Failed to change password", variant: "destructive" });
+    },
+  });
+
   const logoutMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/auth/logout", {});
@@ -133,7 +157,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
     },
   });
 
-  const isPending = updateUsernameMutation.isPending || updateProfilePicMutation.isPending || logoutMutation.isPending;
+  const isPending = updateUsernameMutation.isPending || updateProfilePicMutation.isPending || changePasswordMutation.isPending || logoutMutation.isPending;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
@@ -322,6 +346,86 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
               <div className="flex items-center gap-1">
                 <span className="text-yellow-400 text-xs">&#9733;</span>
                 <span className="font-fantasy text-[#d4a017] text-xs tracking-wider">Administrator</span>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <button
+              data-testid="button-toggle-change-password"
+              onClick={() => setShowChangePassword(!showChangePassword)}
+              className="w-full py-2.5 rounded-md font-fantasy text-xs tracking-widest transition-all"
+              style={{
+                background: "linear-gradient(135deg, rgba(92,58,30,0.6) 0%, rgba(58,32,16,0.6) 100%)",
+                border: "1px solid rgba(212,160,23,0.3)",
+                color: "#d4a017",
+                cursor: "pointer",
+              }}
+            >
+              {showChangePassword ? "Cancel" : "Change Password"}
+            </button>
+
+            {showChangePassword && (
+              <div className="mt-2 space-y-2 p-3 rounded-lg" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.15)" }}>
+                <input
+                  data-testid="input-current-password"
+                  type="password"
+                  placeholder="Current Password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="w-full px-3 py-2 rounded font-sans text-xs"
+                  style={{
+                    background: "rgba(255,255,255,0.08)",
+                    border: "1px solid rgba(212,160,23,0.3)",
+                    color: "#e8d8b0",
+                    outline: "none",
+                  }}
+                />
+                <input
+                  data-testid="input-new-password"
+                  type="password"
+                  placeholder="New Password (min 6 chars)"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full px-3 py-2 rounded font-sans text-xs"
+                  style={{
+                    background: "rgba(255,255,255,0.08)",
+                    border: "1px solid rgba(212,160,23,0.3)",
+                    color: "#e8d8b0",
+                    outline: "none",
+                  }}
+                />
+                <input
+                  data-testid="input-confirm-password"
+                  type="password"
+                  placeholder="Confirm New Password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full px-3 py-2 rounded font-sans text-xs"
+                  style={{
+                    background: "rgba(255,255,255,0.08)",
+                    border: "1px solid rgba(212,160,23,0.3)",
+                    color: "#e8d8b0",
+                    outline: "none",
+                  }}
+                />
+                {newPassword && confirmPassword && newPassword !== confirmPassword && (
+                  <p className="font-fantasy text-[10px] text-red-400 tracking-wider">Passwords do not match</p>
+                )}
+                <button
+                  data-testid="button-save-password"
+                  onClick={() => changePasswordMutation.mutate()}
+                  disabled={isPending || !currentPassword || !newPassword || newPassword !== confirmPassword || newPassword.length < 6}
+                  className="w-full py-2 rounded font-fantasy text-xs tracking-widest transition-all disabled:opacity-50"
+                  style={{
+                    background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
+                    border: "1px solid rgba(127,255,212,0.4)",
+                    color: "#7fffd4",
+                    cursor: "pointer",
+                  }}
+                >
+                  {changePasswordMutation.isPending ? "Updating..." : "Update Password"}
+                </button>
               </div>
             )}
           </div>
