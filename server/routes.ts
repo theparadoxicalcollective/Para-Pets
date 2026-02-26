@@ -13,31 +13,10 @@ function isAuthenticated(req: Request, res: Response, next: any) {
   return res.status(401).json({ message: "Unauthorized" });
 }
 
-async function seedAdminAccount() {
-  try {
-    const adminEmail = "paradox.esctacyartistry@gmail.com";
-    const existing = await storage.getUserByEmail(adminEmail);
-    if (!existing) {
-      const hashed = await bcrypt.hash("AdminOnly13", 10);
-      await storage.createUser({
-        username: "TheParadox",
-        email: adminEmail,
-        password: hashed,
-        isAdmin: true,
-        profileImage: null,
-      });
-      console.log("Admin account seeded");
-    }
-  } catch (err) {
-    console.error("Error seeding admin:", err);
-  }
-}
-
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  await seedAdminAccount();
 
   app.post("/api/auth/register", async (req, res) => {
     try {

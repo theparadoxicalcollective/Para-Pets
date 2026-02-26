@@ -5,8 +5,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import logoImg from "@assets/logo_parapets.png";
 import bgImg from "@assets/bg_login.png";
-import signInBtn from "@assets/btn_signin.png";
-import createAccountBtn from "@assets/btn_create.png";
+import signInBtn from "@assets/btn_signin_v2.png";
+import createAccountBtn from "@assets/btn_create_v2.png";
 
 type Mode = "landing" | "login" | "register";
 
