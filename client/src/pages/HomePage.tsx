@@ -580,7 +580,8 @@ function NavIcon({ src, alt, testId, onClick, round, badge }: { src: string; alt
         <img
           src={src}
           alt={alt}
-          className={`w-full h-full object-cover transition-all duration-150 group-active:brightness-125 ${round ? "rounded-full" : "rounded-xl"}`}
+          className={`transition-all duration-150 group-active:brightness-125 ${round ? "rounded-full" : "rounded-xl"}`}
+          style={{ width: "115%", height: "115%", objectFit: "cover" }}
         />
       </div>
       {badge === "new" && (
