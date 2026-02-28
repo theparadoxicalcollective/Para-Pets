@@ -67,7 +67,7 @@ export default function HomePage({ user }: HomePageProps) {
 
   return (
     <div
-      className="relative w-full min-h-[100dvh] overflow-hidden flex flex-col"
+      className="relative w-full h-[100dvh] overflow-hidden flex flex-col"
       style={{
         backgroundImage: `url(${bgImg})`,
         backgroundSize: "cover",
@@ -79,7 +79,7 @@ export default function HomePage({ user }: HomePageProps) {
     >
       <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/60 z-0 pointer-events-none" />
 
-      <div className="relative z-10 flex flex-col min-h-[100dvh]" style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+      <div className="relative z-10 flex flex-col h-full" style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} hideHome />
 
         <div className="flex-1 flex flex-col items-center justify-center px-8 py-4">
