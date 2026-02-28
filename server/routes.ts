@@ -389,6 +389,11 @@ export async function registerRoutes(
         if (existing) {
           return res.status(400).json({ message: "You already own this pet" });
         }
+      } else {
+        const dailyCount = await storage.getDailyItemPurchaseCount(user.id);
+        if (dailyCount >= 100) {
+          return res.status(400).json({ message: "Daily purchase limit reached (100 items/day)" });
+        }
       }
 
       const currentUser = await storage.getUser(user.id);
@@ -926,27 +931,30 @@ export async function registerRoutes(
 
   app.post("/api/admin/world/:worldId/location", isAdmin, async (req, res) => {
     try {
-      const { name, type, description, iconData, bgData, posX, posY } = req.body;
+      const { name, description, iconData, bgData, ownerImageData, isShop, posX, posY } = req.body;
       if (!name || typeof name !== "string" || !name.trim()) return res.status(400).json({ message: "Name is required" });
-      if (!type || typeof type !== "string") return res.status(400).json({ message: "Type is required" });
-      const validTypes = ["shop", "arena", "tavern", "sanctuary", "mine", "garden", "custom"];
-      if (!validTypes.includes(type)) return res.status(400).json({ message: "Invalid location type" });
 
       let iconUrl: string | null = null;
       let bgUrl: string | null = null;
+      let ownerImageUrl: string | null = null;
       if (iconData) {
         iconUrl = await processWorldImage(iconData, 500);
       }
       if (bgData) {
         bgUrl = await processWorldImage(bgData, 2000);
       }
+      if (ownerImageData) {
+        ownerImageUrl = await processWorldImage(ownerImageData, 500);
+      }
 
       const loc = await storage.createWorldLocation({
         worldId: req.params.worldId,
         name,
-        type,
+        type: isShop ? "shop" : "custom",
         iconUrl,
         bgUrl,
+        ownerImageUrl,
+        isShop: !!isShop,
         description: description || null,
         posX: typeof posX === "number" ? Math.max(0, Math.min(85, posX)) : 40,
         posY: typeof posY === "number" ? Math.max(0, Math.min(85, posY)) : 40,
@@ -962,20 +970,22 @@ export async function registerRoutes(
   app.patch("/api/admin/world/location/:locationId", isAdmin, async (req, res) => {
     try {
       const sanitized: Record<string, any> = {};
-      const { name, type, description, iconData, bgData, posX, posY } = req.body;
+      const { name, description, iconData, bgData, ownerImageData, isShop, posX, posY } = req.body;
 
       if (name !== undefined) sanitized.name = name;
       if (description !== undefined) sanitized.description = description;
-      if (type !== undefined) {
-        const validTypes = ["shop", "arena", "tavern", "sanctuary", "mine", "garden", "custom"];
-        if (!validTypes.includes(type)) return res.status(400).json({ message: "Invalid location type" });
-        sanitized.type = type;
+      if (isShop !== undefined) {
+        sanitized.isShop = !!isShop;
+        sanitized.type = isShop ? "shop" : "custom";
       }
       if (iconData) {
         sanitized.iconUrl = await processWorldImage(iconData, 500);
       }
       if (bgData) {
         sanitized.bgUrl = await processWorldImage(bgData, 2000);
+      }
+      if (ownerImageData) {
+        sanitized.ownerImageUrl = await processWorldImage(ownerImageData, 500);
       }
       if (typeof posX === "number") sanitized.posX = Math.max(0, Math.min(85, posX));
       if (typeof posY === "number") sanitized.posY = Math.max(0, Math.min(85, posY));
@@ -1022,6 +1032,94 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Get shop items error:", err);
       return res.status(500).json({ message: "Failed to get shop items" });
+    }
+  });
+
+  app.get("/api/location/:locationId/items", isAuthenticated, async (req, res) => {
+    try {
+      const items = await storage.getLocationItems(req.params.locationId);
+      return res.json(items);
+    } catch (err) {
+      console.error("Get location items error:", err);
+      return res.status(500).json({ message: "Failed to get location items" });
+    }
+  });
+
+  app.post("/api/admin/location/:locationId/assign-item/:itemId", isAdmin, async (req, res) => {
+    try {
+      const item = await storage.getShopItem(req.params.itemId);
+      if (!item) return res.status(404).json({ message: "Item not found" });
+      const updated = await storage.assignItemToLocation(req.params.itemId, req.params.locationId);
+      return res.json(updated);
+    } catch (err) {
+      console.error("Assign item to location error:", err);
+      return res.status(500).json({ message: "Failed to assign item" });
+    }
+  });
+
+  app.delete("/api/admin/location/:locationId/unassign-item/:itemId", isAdmin, async (req, res) => {
+    try {
+      const updated = await storage.unassignItemFromLocation(req.params.itemId);
+      return res.json(updated);
+    } catch (err) {
+      console.error("Unassign item from location error:", err);
+      return res.status(500).json({ message: "Failed to unassign item" });
+    }
+  });
+
+  app.get("/api/location/:locationId/objects", isAuthenticated, async (req, res) => {
+    try {
+      const objects = await storage.getLocationObjects(req.params.locationId);
+      return res.json(objects);
+    } catch (err) {
+      console.error("Get location objects error:", err);
+      return res.status(500).json({ message: "Failed to get objects" });
+    }
+  });
+
+  app.post("/api/admin/location/:locationId/object", isAdmin, async (req, res) => {
+    try {
+      const { imageData, posX, posY, width } = req.body;
+      if (!imageData) return res.status(400).json({ message: "Image is required" });
+      const imageUrl = await processWorldImage(imageData, 500);
+      const obj = await storage.createLocationObject({
+        locationId: req.params.locationId,
+        imageUrl,
+        posX: typeof posX === "number" ? posX : 50,
+        posY: typeof posY === "number" ? posY : 50,
+        width: typeof width === "number" ? width : 80,
+      });
+      return res.status(201).json(obj);
+    } catch (err) {
+      console.error("Create location object error:", err);
+      return res.status(500).json({ message: "Failed to create object" });
+    }
+  });
+
+  app.patch("/api/admin/location/object/:objectId/position", isAdmin, async (req, res) => {
+    try {
+      const { posX, posY } = req.body;
+      if (typeof posX !== "number" || typeof posY !== "number") {
+        return res.status(400).json({ message: "posX and posY are required numbers" });
+      }
+      const updated = await storage.updateLocationObject(req.params.objectId, {
+        posX: Math.max(0, Math.min(100, Math.round(posX))),
+        posY: Math.max(0, Math.min(100, Math.round(posY))),
+      });
+      return res.json(updated);
+    } catch (err) {
+      console.error("Update object position error:", err);
+      return res.status(500).json({ message: "Failed to update object position" });
+    }
+  });
+
+  app.delete("/api/admin/location/object/:objectId", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteLocationObject(req.params.objectId);
+      return res.json({ message: "Object deleted" });
+    } catch (err) {
+      console.error("Delete location object error:", err);
+      return res.status(500).json({ message: "Failed to delete object" });
     }
   });
 

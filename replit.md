@@ -34,7 +34,8 @@ Para Pets is a mobile-first fantasy game web app where players collect, raise, a
 ## Database Schema
 - `users` table: id, username, email, password (bcrypt), profileImage (base64 data URI), coins, isAdmin, isBanned, activePetId, lastUsernameChange, lastProfilePicChange, createdAt
 - `shop_items` table: id, name, price, type, worldId, locationId (nullable, references world_locations), imageUrl (base64 data URI, PNG only), rarity (1-5 stars, nullable), hatchTime (hours, nullable), eggImageUrl (base64, PNG/GIF, nullable), hatchedImageUrl (base64, PNG/GIF, nullable), statBoostType (health/atk/def/lvl, nullable), statBoostAmount (integer, nullable), createdAt
-- `world_locations` table: id, worldId, name, type, iconUrl, bgUrl, description, posX, posY, shopkeeperId, shopkeeperName, shopkeeperImageUrl, sortOrder, createdAt
+- `world_locations` table: id, worldId, name, type, iconUrl, bgUrl, description, posX, posY, ownerImageUrl, isShop, shopkeeperId, shopkeeperName, shopkeeperImageUrl, sortOrder, createdAt
+- `location_objects` table: id, locationId, imageUrl, posX, posY, width, createdAt — decorative objects for non-shop locations
 - `user_inventory` table: id, userId, shopItemId, acquiredAt, hatchStartedAt (timestamp, nullable), isHatched (boolean, default false), petHealth (int, default 1000), petAtk (int, default 50), petDef (int, default 50), petLevel (int, default 0), itemsUsedThisLevel (int, default 0)
 - `reward_bundles` table: id, name, coinAmount, createdAt
 - `reward_bundle_items` table: id, bundleId, shopItemId
@@ -98,10 +99,16 @@ Para Pets is a mobile-first fantasy game web app where players collect, raise, a
   - Supports both static (default) and dynamic (custom) worlds via API fallback
   - No hardcoded default locations — all places are admin-created via DB
   - Locations positioned via posX/posY percentages, admin can drag to reposition
-  - Admin "+" FAB to add places: name, type, icon image (PNG/GIF), background image (PNG/GIF/JPEG), description
+  - Admin "+" FAB to add places: name, owner character PNG, shop toggle, icon image (PNG/GIF), background image (PNG/GIF/JPEG), description
   - Admin delete button on each location
   - Location icons float with animation, themed glow effects
-  - Clicking Shop-type location opens shop overlay; other locations show "Coming Soon"
+  - isShop locations: open shop overlay with location-specific items; admin can assign/unassign items from Item DB via "+" button
+  - Non-shop locations: open full-screen location view with background, decorative objects, and owner character
+  - Decorative objects (non-shop only): admin adds PNG/GIF objects via "+", objects displayed as positioned images, admin can drag/drop to reposition
+  - Owner character: floating PNG displayed at bottom-left of location view
+  - Location-specific shop: items assigned per-location (locationId on shop_items), 100/day purchase limit for non-pet items
+- Location object APIs: GET /api/location/:id/objects, POST /api/admin/location/:id/object, PATCH /api/admin/location/object/:id/position, DELETE /api/admin/location/object/:id
+- Location item APIs: GET /api/location/:id/items, POST /api/admin/location/:id/assign-item/:itemId, DELETE /api/admin/location/:id/unassign-item/:itemId
 - CoinShopPage: "Enchanted Treasury" forest theme with generated coin pack PNG images (coin_pack_100-10000.png)
 - World APIs: GET /api/worlds, GET /api/worlds/:id, POST /api/admin/worlds, PATCH /api/admin/worlds/:id/position, DELETE /api/admin/worlds/:id
 - World location CRUD: POST /api/admin/world/:worldId/location, PATCH /api/admin/world/location/:id, PATCH /api/admin/world/location/:id/position, DELETE /api/admin/world/location/:id

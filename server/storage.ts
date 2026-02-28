@@ -1,4 +1,4 @@
-import { type User, type InsertUser, users, type ShopItem, type InsertShopItem, shopItems, type UserInventoryItem, userInventory, type RewardBundle, rewardBundles, type RewardBundleItem, rewardBundleItems, type UserReward, userRewards, coinPurchases, type CoinPurchase, worldLocations, type WorldLocation, worlds, type World, gameSettings } from "@shared/schema";
+import { type User, type InsertUser, users, type ShopItem, type InsertShopItem, shopItems, type UserInventoryItem, userInventory, type RewardBundle, rewardBundles, type RewardBundleItem, rewardBundleItems, type UserReward, userRewards, coinPurchases, type CoinPurchase, worldLocations, type WorldLocation, worlds, type World, gameSettings, locationObjects, type LocationObject } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, ne, gte, sql, asc } from "drizzle-orm";
 
@@ -53,6 +53,14 @@ export interface IStorage {
   deleteWorld(id: string): Promise<void>;
   getGameSetting(key: string): Promise<string | null>;
   setGameSetting(key: string, value: string): Promise<void>;
+  getLocationObjects(locationId: string): Promise<LocationObject[]>;
+  createLocationObject(data: { locationId: string; imageUrl: string; posX?: number; posY?: number; width?: number }): Promise<LocationObject>;
+  deleteLocationObject(id: string): Promise<void>;
+  getLocationItems(locationId: string): Promise<ShopItem[]>;
+  assignItemToLocation(itemId: string, locationId: string): Promise<ShopItem>;
+  unassignItemFromLocation(itemId: string): Promise<ShopItem>;
+  getDailyItemPurchaseCount(userId: string): Promise<number>;
+  updateLocationObject(id: string, data: Partial<{ posX: number; posY: number; width: number }>): Promise<LocationObject>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -352,6 +360,60 @@ export class DatabaseStorage implements IStorage {
 
   async setGameSetting(key: string, value: string): Promise<void> {
     await db.insert(gameSettings).values({ key, value }).onConflictDoUpdate({ target: gameSettings.key, set: { value } });
+  }
+
+  async getLocationObjects(locationId: string): Promise<LocationObject[]> {
+    return db.select().from(locationObjects).where(eq(locationObjects.locationId, locationId)).orderBy(asc(locationObjects.createdAt));
+  }
+
+  async createLocationObject(data: { locationId: string; imageUrl: string; posX?: number; posY?: number; width?: number }): Promise<LocationObject> {
+    const [obj] = await db.insert(locationObjects).values({
+      locationId: data.locationId,
+      imageUrl: data.imageUrl,
+      posX: data.posX ?? 50,
+      posY: data.posY ?? 50,
+      width: data.width ?? 80,
+    }).returning();
+    return obj;
+  }
+
+  async deleteLocationObject(id: string): Promise<void> {
+    await db.delete(locationObjects).where(eq(locationObjects.id, id));
+  }
+
+  async getLocationItems(locationId: string): Promise<ShopItem[]> {
+    return db.select().from(shopItems).where(eq(shopItems.locationId, locationId));
+  }
+
+  async assignItemToLocation(itemId: string, locationId: string): Promise<ShopItem> {
+    const [item] = await db.update(shopItems).set({ locationId }).where(eq(shopItems.id, itemId)).returning();
+    return item;
+  }
+
+  async unassignItemFromLocation(itemId: string): Promise<ShopItem> {
+    const [item] = await db.update(shopItems).set({ locationId: null }).where(eq(shopItems.id, itemId)).returning();
+    return item;
+  }
+
+  async updateLocationObject(id: string, data: Partial<{ posX: number; posY: number; width: number }>): Promise<LocationObject> {
+    const [obj] = await db.update(locationObjects).set(data).where(eq(locationObjects.id, id)).returning();
+    return obj;
+  }
+
+  async getDailyItemPurchaseCount(userId: string): Promise<number> {
+    const dayStart = new Date();
+    dayStart.setHours(0, 0, 0, 0);
+    const rows = await db.select()
+      .from(userInventory)
+      .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
+      .where(
+        and(
+          eq(userInventory.userId, userId),
+          gte(userInventory.acquiredAt, dayStart),
+          ne(shopItems.type, "pet")
+        )
+      );
+    return rows.length;
   }
 }
 

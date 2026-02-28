@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import coinIconImg from "@assets/icon_coin.png";
-import { Plus, Trash2, X, MapPin } from "lucide-react";
+import { Plus, Trash2, X, MapPin, ImageIcon, Package } from "lucide-react";
 
 import shopFrostpeak from "@assets/shop_frostpeak.png";
 import shopSkyRealm from "@assets/shop_sky_realm.png";
@@ -84,6 +84,17 @@ interface WorldLocationData {
   posX: number;
   posY: number;
   sortOrder: number;
+  ownerImageUrl: string | null;
+  isShop: boolean;
+}
+
+interface LocationObjectData {
+  id: string;
+  locationId: string;
+  imageUrl: string;
+  posX: number;
+  posY: number;
+  width: number;
 }
 
 interface WorldApiData {
@@ -124,10 +135,20 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [shopError, setShopError] = useState<string | null>(null);
   const [showAddLocation, setShowAddLocation] = useState(false);
   const [newLocName, setNewLocName] = useState("");
-  const [newLocType, setNewLocType] = useState("custom");
+  const [newLocIsShop, setNewLocIsShop] = useState(false);
   const [newLocDesc, setNewLocDesc] = useState("");
   const [newLocIcon, setNewLocIcon] = useState<string | null>(null);
   const [newLocBg, setNewLocBg] = useState<string | null>(null);
+  const [newLocOwner, setNewLocOwner] = useState<string | null>(null);
+  const [activeLocationId, setActiveLocationId] = useState<string | null>(null);
+  const [showLocationView, setShowLocationView] = useState(false);
+  const [showItemPicker, setShowItemPicker] = useState(false);
+  const [showAddObject, setShowAddObject] = useState(false);
+  const [newObjectImage, setNewObjectImage] = useState<string | null>(null);
+  const [objDragPos, setObjDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
+  const objDragRef = useRef<{ objId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
+  const objDidDrag = useRef(false);
+  const locViewRef = useRef<HTMLDivElement>(null);
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -147,19 +168,34 @@ export default function WorldPage({ user }: WorldPageProps) {
   });
 
   const { data: items = [], isLoading: itemsLoading } = useQuery<ShopItem[]>({
-    queryKey: ["/api/shop", worldId],
+    queryKey: ["/api/location", activeLocationId, "items"],
     queryFn: async () => {
-      const res = await fetch(`/api/shop/${worldId}`, { credentials: "include" });
+      const res = await fetch(`/api/location/${activeLocationId}/items`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch");
       return res.json();
     },
-    enabled: showShop,
+    enabled: showShop && !!activeLocationId,
   });
 
   const { data: inventory = [] } = useQuery<InventoryItem[]>({
     queryKey: ["/api/inventory"],
     enabled: showShop,
     staleTime: 0,
+  });
+
+  const { data: allShopItems = [] } = useQuery<ShopItem[]>({
+    queryKey: ["/api/admin/shop-items-all"],
+    enabled: showItemPicker && currentUser.isAdmin,
+  });
+
+  const { data: locationObjects = [] } = useQuery<LocationObjectData[]>({
+    queryKey: ["/api/location", activeLocationId, "objects"],
+    queryFn: async () => {
+      const res = await fetch(`/api/location/${activeLocationId}/objects`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+    enabled: (showLocationView || showShop) && !!activeLocationId,
   });
 
   const ownedItemIds = new Set(inventory.map((inv) => inv.shopItemId));
@@ -186,7 +222,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   });
 
   const addLocationMutation = useMutation({
-    mutationFn: async (data: { name: string; type: string; description?: string; iconData?: string | null; bgData?: string | null }) => {
+    mutationFn: async (data: { name: string; isShop: boolean; description?: string; iconData?: string | null; bgData?: string | null; ownerImageData?: string | null }) => {
       const res = await apiRequest("POST", `/api/admin/world/${worldId}/location`, data);
       return res.json();
     },
@@ -194,14 +230,82 @@ export default function WorldPage({ user }: WorldPageProps) {
       queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "locations"] });
       setShowAddLocation(false);
       setNewLocName("");
-      setNewLocType("custom");
+      setNewLocIsShop(false);
       setNewLocDesc("");
       setNewLocIcon(null);
       setNewLocBg(null);
+      setNewLocOwner(null);
       toast({ title: "Place Added", description: "New place created" });
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to add place", variant: "destructive" });
+    },
+  });
+
+  const assignItemMutation = useMutation({
+    mutationFn: async ({ locationId, itemId }: { locationId: string; itemId: string }) => {
+      const res = await apiRequest("POST", `/api/admin/location/${locationId}/assign-item/${itemId}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/location", activeLocationId, "items"] });
+      toast({ title: "Assigned", description: "Item added to shop" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to assign item", variant: "destructive" });
+    },
+  });
+
+  const unassignItemMutation = useMutation({
+    mutationFn: async ({ locationId, itemId }: { locationId: string; itemId: string }) => {
+      const res = await apiRequest("DELETE", `/api/admin/location/${locationId}/unassign-item/${itemId}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/location", activeLocationId, "items"] });
+      toast({ title: "Removed", description: "Item removed from shop" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to remove item", variant: "destructive" });
+    },
+  });
+
+  const addObjectMutation = useMutation({
+    mutationFn: async (data: { locationId: string; imageData: string }) => {
+      const res = await apiRequest("POST", `/api/admin/location/${data.locationId}/object`, { imageData: data.imageData });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/location", activeLocationId, "objects"] });
+      setShowAddObject(false);
+      setNewObjectImage(null);
+      toast({ title: "Added", description: "Object added to location" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to add object", variant: "destructive" });
+    },
+  });
+
+  const deleteObjectMutation = useMutation({
+    mutationFn: async (objectId: string) => {
+      await apiRequest("DELETE", `/api/admin/location/object/${objectId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/location", activeLocationId, "objects"] });
+      toast({ title: "Deleted", description: "Object removed" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete object", variant: "destructive" });
+    },
+  });
+
+  const objPositionMutation = useMutation({
+    mutationFn: async ({ objectId, posX, posY }: { objectId: string; posX: number; posY: number }) => {
+      const res = await apiRequest("PATCH", `/api/admin/location/object/${objectId}/position`, { posX, posY });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/location", activeLocationId, "objects"] });
     },
   });
 
@@ -270,12 +374,55 @@ export default function WorldPage({ user }: WorldPageProps) {
 
   const handleLocationClick = useCallback((loc: WorldLocationData) => {
     if (didDrag.current) return;
-    if (loc.type === "shop") {
+    setActiveLocationId(loc.id);
+    if (loc.isShop) {
+      setShowLocationView(false);
       setShowShop(true);
     } else {
-      toast({ title: loc.name, description: "Coming Soon" });
+      setShowShop(false);
+      setShowLocationView(true);
     }
-  }, [toast]);
+  }, []);
+
+  const handleObjPointerDown = useCallback((e: React.PointerEvent, obj: LocationObjectData) => {
+    if (!currentUser.isAdmin) return;
+    e.preventDefault();
+    e.stopPropagation();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    objDidDrag.current = false;
+    objDragRef.current = {
+      objId: obj.id,
+      startX: e.clientX,
+      startY: e.clientY,
+      origPosX: obj.posX,
+      origPosY: obj.posY,
+    };
+  }, [currentUser.isAdmin]);
+
+  const handleObjPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!objDragRef.current || !locViewRef.current) return;
+    e.preventDefault();
+    const rect = locViewRef.current.getBoundingClientRect();
+    const dx = e.clientX - objDragRef.current.startX;
+    const dy = e.clientY - objDragRef.current.startY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) objDidDrag.current = true;
+    const pxPerPercX = rect.width / 100;
+    const pxPerPercY = rect.height / 100;
+    const newX = Math.max(0, Math.min(95, objDragRef.current.origPosX + dx / pxPerPercX));
+    const newY = Math.max(0, Math.min(95, objDragRef.current.origPosY + dy / pxPerPercY));
+    setObjDragPos({ id: objDragRef.current.objId, x: newX, y: newY });
+  }, []);
+
+  const handleObjPointerUp = useCallback((e: React.PointerEvent) => {
+    if (!objDragRef.current) return;
+    e.preventDefault();
+    const d = objDragRef.current;
+    objDragRef.current = null;
+    if (objDidDrag.current && objDragPos) {
+      objPositionMutation.mutate({ objectId: d.objId, posX: Math.round(objDragPos.x), posY: Math.round(objDragPos.y) });
+    }
+    setObjDragPos(null);
+  }, [objDragPos, objPositionMutation]);
 
   const readFileAsDataUrl = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -612,27 +759,52 @@ export default function WorldPage({ user }: WorldPageProps) {
               </div>
 
               <div>
-                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>Type</label>
-                <select
-                  data-testid="select-location-type"
-                  value={newLocType}
-                  onChange={(e) => setNewLocType(e.target.value)}
-                  className="w-full px-3 py-2 rounded-md font-fantasy text-sm"
+                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>Owner Character (PNG)</label>
+                <input
+                  data-testid="input-location-owner"
+                  type="file"
+                  accept="image/png"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const dataUrl = await readFileAsDataUrl(file);
+                      setNewLocOwner(dataUrl);
+                    }
+                  }}
+                  className="w-full text-xs font-fantasy"
+                  style={{ color: `${accent}cc` }}
+                />
+                {newLocOwner && (
+                  <div className="mt-2 flex justify-center">
+                    <img src={newLocOwner} alt="Preview" className="w-16 h-16 object-contain rounded-lg" style={{ border: `1px solid ${accent}30` }} />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3">
+                <label className="font-fantasy text-[10px] tracking-wider" style={{ color: `${accent}bb` }}>Shop</label>
+                <button
+                  data-testid="toggle-location-shop"
+                  type="button"
+                  onClick={() => setNewLocIsShop(!newLocIsShop)}
+                  className="w-10 h-5 rounded-full relative transition-colors"
                   style={{
-                    background: "rgba(0,0,0,0.5)",
-                    border: `1px solid ${accent}35`,
-                    color: "#e8ddd0",
-                    outline: "none",
+                    background: newLocIsShop ? `${accent}80` : "rgba(255,255,255,0.1)",
+                    border: `1px solid ${newLocIsShop ? accent : "rgba(255,255,255,0.2)"}`,
+                    cursor: "pointer",
                   }}
                 >
-                  <option value="shop">Shop</option>
-                  <option value="arena">Arena</option>
-                  <option value="tavern">Tavern</option>
-                  <option value="sanctuary">Sanctuary</option>
-                  <option value="mine">Mine</option>
-                  <option value="garden">Garden</option>
-                  <option value="custom">Custom</option>
-                </select>
+                  <div
+                    className="absolute top-0.5 w-3.5 h-3.5 rounded-full transition-all"
+                    style={{
+                      left: newLocIsShop ? "calc(100% - 18px)" : "2px",
+                      background: newLocIsShop ? accent : "rgba(255,255,255,0.5)",
+                    }}
+                  />
+                </button>
+                <span className="font-fantasy text-[9px] tracking-wider" style={{ color: `${accent}88` }}>
+                  {newLocIsShop ? "This place has a shop" : "No shop"}
+                </span>
               </div>
 
               <div>
@@ -705,10 +877,11 @@ export default function WorldPage({ user }: WorldPageProps) {
                   if (!newLocName.trim()) return;
                   addLocationMutation.mutate({
                     name: newLocName.trim(),
-                    type: newLocType,
+                    isShop: newLocIsShop,
                     description: newLocDesc.trim() || undefined,
                     iconData: newLocIcon,
                     bgData: newLocBg,
+                    ownerImageData: newLocOwner,
                   });
                 }}
                 disabled={addLocationMutation.isPending || !newLocName.trim()}
@@ -729,37 +902,61 @@ export default function WorldPage({ user }: WorldPageProps) {
         </div>
       )}
 
-      {showShop && (
+      {showShop && (() => {
+        const activeLoc = locations.find(l => l.id === activeLocationId);
+        const shopName = activeLoc?.name || world.name;
+        return (
         <div className="fixed inset-0 z-40 flex flex-col" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowShop(false)} />
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => { setShowShop(false); setShowItemPicker(false); }} />
           <div className="relative z-10 flex flex-col h-full overflow-hidden">
             <div className="flex items-center justify-between px-4 pt-5 pb-3">
               <div className="flex items-center gap-3">
-                <img src={world.shopIcon} alt="" className="w-12 h-12 rounded-lg object-cover" style={{ border: "1px solid rgba(212,160,23,0.4)" }} />
+                {activeLoc?.iconUrl ? (
+                  <img src={activeLoc.iconUrl} alt="" className="w-12 h-12 rounded-lg object-cover" style={{ border: `1px solid ${accent}40` }} />
+                ) : (
+                  <img src={world.shopIcon} alt="" className="w-12 h-12 rounded-lg object-cover" style={{ border: "1px solid rgba(212,160,23,0.4)" }} />
+                )}
                 <div>
-                  <h3 className="font-fantasy text-[#f0c040] text-base tracking-widest font-semibold" style={{ textShadow: "0 0 10px rgba(240,192,64,0.3)" }}>
-                    {world.name} Shop
+                  <h3 className="font-fantasy text-base tracking-widest font-semibold" style={{ color: accent, textShadow: `0 0 10px ${accent}30` }}>
+                    {shopName} Shop
                   </h3>
                   <p className="font-fantasy text-[#a89878] text-[10px] tracking-wider">
                     {items.length} {items.length === 1 ? "item" : "items"}
                   </p>
                 </div>
               </div>
-              <button
-                data-testid="button-close-shop"
-                onClick={() => setShowShop(false)}
-                className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
-                style={{
-                  background: "linear-gradient(135deg, #5c3a1e 0%, #3a2010 100%)",
-                  border: "2px solid rgba(212,160,23,0.6)",
-                  color: "#f0c040",
-                  cursor: "pointer",
-                  fontSize: "14px",
-                  fontWeight: "bold",
-                }}
-              >
-                X
-              </button>
+              <div className="flex items-center gap-2">
+                {currentUser.isAdmin && (
+                  <button
+                    data-testid="button-add-shop-item"
+                    onClick={() => setShowItemPicker(true)}
+                    className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                    style={{
+                      background: `linear-gradient(135deg, ${accent}40 0%, ${accent}20 100%)`,
+                      border: `2px solid ${accent}60`,
+                      color: accent,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Plus className="w-5 h-5" />
+                  </button>
+                )}
+                <button
+                  data-testid="button-close-shop"
+                  onClick={() => { setShowShop(false); setShowItemPicker(false); }}
+                  className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                  style={{
+                    background: "linear-gradient(135deg, #5c3a1e 0%, #3a2010 100%)",
+                    border: "2px solid rgba(212,160,23,0.6)",
+                    color: "#f0c040",
+                    cursor: "pointer",
+                    fontSize: "14px",
+                    fontWeight: "bold",
+                  }}
+                >
+                  X
+                </button>
+              </div>
             </div>
 
             {shopError && (
@@ -789,14 +986,23 @@ export default function WorldPage({ user }: WorldPageProps) {
               </div>
             )}
 
+            {activeLoc?.ownerImageUrl && (
+              <div className="absolute bottom-4 left-4 z-20 pointer-events-none" style={{ animation: "locFloat 4s ease-in-out infinite" }}>
+                <img src={activeLoc.ownerImageUrl} alt="Owner" className="w-20 h-20 object-contain" style={{ filter: `drop-shadow(0 2px 8px rgba(0,0,0,0.6)) drop-shadow(0 0 12px ${accent}30)` }} />
+              </div>
+            )}
+
             <div className="flex-1 overflow-y-auto px-4 pb-6">
               {itemsLoading ? (
                 <div className="text-center py-8">
-                  <p className="font-fantasy text-[#7fbfb0] text-sm animate-pulse">Loading wares...</p>
+                  <p className="font-fantasy text-sm animate-pulse" style={{ color: `${accent}cc` }}>Loading wares...</p>
                 </div>
               ) : items.length === 0 ? (
                 <div className="text-center py-12">
                   <p className="font-fantasy text-[#a89878] text-sm tracking-wider">No items in this shop yet.</p>
+                  {currentUser.isAdmin && (
+                    <p className="font-fantasy text-[10px] tracking-wider mt-2" style={{ color: `${accent}60` }}>Tap + to assign items from the Item DB</p>
+                  )}
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3">
@@ -804,43 +1010,56 @@ export default function WorldPage({ user }: WorldPageProps) {
                     <div
                       key={item.id}
                       data-testid={`card-shop-item-${item.id}`}
-                      className="rounded-lg overflow-hidden"
+                      className="rounded-lg overflow-hidden relative"
                       style={{
                         background: "linear-gradient(135deg, rgba(30,15,5,0.95) 0%, rgba(50,30,10,0.95) 100%)",
-                        border: "1px solid rgba(212,160,23,0.3)",
+                        border: `1px solid ${accent}30`,
                       }}
                     >
+                      {currentUser.isAdmin && (
+                        <button
+                          data-testid={`button-unassign-item-${item.id}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (activeLocationId) unassignItemMutation.mutate({ locationId: activeLocationId, itemId: item.id });
+                          }}
+                          className="absolute top-1 right-1 z-20 w-5 h-5 rounded-full flex items-center justify-center"
+                          style={{ background: "rgba(220,38,38,0.9)", border: "1px solid rgba(255,100,100,0.5)", cursor: "pointer" }}
+                        >
+                          <X className="w-3 h-3 text-white" />
+                        </button>
+                      )}
                       <div className="p-3 flex flex-col items-center gap-2">
                         <div
                           className="w-full aspect-square rounded-md flex items-center justify-center"
-                          style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.15)" }}
+                          style={{ background: "rgba(0,0,0,0.3)", border: `1px solid ${accent}15` }}
                         >
                           {item.type === "pet" && item.eggImageUrl ? (
                             <img src={item.eggImageUrl} alt={item.name} className="w-full h-full object-contain rounded-md" />
                           ) : item.imageUrl ? (
                             <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain rounded-md" />
                           ) : (
-                            <span className="font-fantasy text-[#5a4a3a] text-2xl">?</span>
+                            <span className="font-fantasy text-2xl" style={{ color: `${accent}30` }}>?</span>
                           )}
                         </div>
-                        <p className="font-fantasy text-[#f0c040] text-xs font-semibold text-center truncate w-full" data-testid={`text-item-name-${item.id}`}>
+                        <p className="font-fantasy text-xs font-semibold text-center truncate w-full" style={{ color: accent }} data-testid={`text-item-name-${item.id}`}>
                           {item.name}
                         </p>
                         <div className="flex items-center gap-1">
                           <img src={coinIconImg} alt="" className="w-3.5 h-3.5 object-contain" />
-                          <span className="font-fantasy text-[#f0c040] text-xs">{item.price}</span>
+                          <span className="font-fantasy text-xs" style={{ color: accent }}>{item.price}</span>
                         </div>
                         {item.type === "pet" && item.rarity && (
                           <div className="flex items-center gap-0.5" data-testid={`stars-${item.id}`}>
                             {Array.from({ length: item.rarity }).map((_, i) => (
-                              <span key={i} className="text-[10px]" style={{ color: "#f0c040", textShadow: "0 0 4px rgba(240,192,64,0.6)" }}>&#9733;</span>
+                              <span key={i} className="text-[10px]" style={{ color: accent, textShadow: `0 0 4px ${accent}60` }}>&#9733;</span>
                             ))}
                           </div>
                         )}
                         {item.type === "pet" && item.hatchTime && (
                           <span
                             className="font-fantasy text-[8px] tracking-wider px-2 py-0.5 rounded-full"
-                            style={{ background: "rgba(240,192,64,0.1)", color: "#d4a017", border: "1px solid rgba(212,160,23,0.2)" }}
+                            style={{ background: `${accent}10`, color: `${accent}cc`, border: `1px solid ${accent}20` }}
                           >
                             Hatch: {item.hatchTime}h
                           </span>
@@ -880,6 +1099,282 @@ export default function WorldPage({ user }: WorldPageProps) {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+        );
+      })()}
+
+      {showItemPicker && currentUser.isAdmin && activeLocationId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowItemPicker(false)} />
+          <div
+            className="relative z-10 w-[90%] max-w-sm rounded-lg p-4 max-h-[80vh] overflow-y-auto"
+            style={{
+              background: `linear-gradient(135deg, rgba(8,5,18,0.98) 0%, rgba(18,12,30,0.98) 100%)`,
+              border: `1px solid ${accent}55`,
+              boxShadow: `0 0 40px ${accent}25`,
+            }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-fantasy text-sm tracking-widest" style={{ color: accent, textShadow: `0 0 10px ${accent}40` }}>
+                Assign Items
+              </h3>
+              <button
+                data-testid="button-close-item-picker"
+                onClick={() => setShowItemPicker(false)}
+                className="w-7 h-7 rounded-full flex items-center justify-center"
+                style={{ background: `${accent}20`, border: `1px solid ${accent}40`, cursor: "pointer", color: accent }}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            {allShopItems.length === 0 ? (
+              <p className="font-fantasy text-[#a89878] text-xs text-center py-6">No items in the database yet.</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {allShopItems.map((si) => {
+                  const alreadyAssigned = items.some(it => it.id === si.id);
+                  return (
+                    <div
+                      key={si.id}
+                      data-testid={`picker-item-${si.id}`}
+                      className="flex items-center gap-3 p-2 rounded-lg"
+                      style={{
+                        background: alreadyAssigned ? `${accent}15` : "rgba(255,255,255,0.03)",
+                        border: `1px solid ${alreadyAssigned ? accent + "40" : "rgba(255,255,255,0.08)"}`,
+                      }}
+                    >
+                      <div className="w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: "rgba(0,0,0,0.3)" }}>
+                        {si.imageUrl ? (
+                          <img src={si.imageUrl} alt="" className="w-full h-full object-contain rounded-md" />
+                        ) : si.eggImageUrl ? (
+                          <img src={si.eggImageUrl} alt="" className="w-full h-full object-contain rounded-md" />
+                        ) : (
+                          <Package className="w-5 h-5" style={{ color: `${accent}40` }} />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-fantasy text-xs truncate" style={{ color: accent }}>{si.name}</p>
+                        <p className="font-fantasy text-[9px]" style={{ color: `${accent}70` }}>{si.price} coins - {si.type}</p>
+                      </div>
+                      {alreadyAssigned ? (
+                        <span className="font-fantasy text-[9px] px-2 py-1 rounded-full" style={{ background: `${accent}20`, color: accent }}>Added</span>
+                      ) : (
+                        <button
+                          data-testid={`button-assign-${si.id}`}
+                          onClick={() => assignItemMutation.mutate({ locationId: activeLocationId, itemId: si.id })}
+                          disabled={assignItemMutation.isPending}
+                          className="font-fantasy text-[9px] px-3 py-1 rounded-full transition-transform active:scale-95"
+                          style={{
+                            background: `${accent}30`,
+                            border: `1px solid ${accent}50`,
+                            color: accent,
+                            cursor: "pointer",
+                          }}
+                        >
+                          Add
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showLocationView && (() => {
+        const activeLoc = locations.find(l => l.id === activeLocationId);
+        if (!activeLoc) return null;
+        return (
+        <div className="fixed inset-0 z-40 flex flex-col" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+          <div className="absolute inset-0">
+            {activeLoc.bgUrl ? (
+              <img src={activeLoc.bgUrl} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full" style={{ background: `linear-gradient(180deg, rgba(5,3,15,1) 0%, rgba(15,10,30,1) 50%, rgba(5,3,15,1) 100%)` }} />
+            )}
+            <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.2) 40%, rgba(0,0,0,0.3) 70%, rgba(0,0,0,0.7) 100%)` }} />
+            <div className="absolute inset-0" style={{ background: `radial-gradient(ellipse at 50% 30%, ${accent}08 0%, transparent 60%)` }} />
+          </div>
+
+          <div className="relative z-10 flex flex-col h-full">
+            <div className="flex items-center justify-between px-4 pt-5 pb-3">
+              <div className="flex items-center gap-3">
+                {activeLoc.iconUrl && (
+                  <img src={activeLoc.iconUrl} alt="" className="w-10 h-10 rounded-lg object-contain" style={{ border: `1px solid ${accent}40`, filter: `drop-shadow(0 0 8px ${accent}30)` }} />
+                )}
+                <div>
+                  <h3 className="font-fantasy text-lg tracking-widest font-semibold" style={{ color: accent, textShadow: `0 0 15px ${accent}50` }}>
+                    {activeLoc.name}
+                  </h3>
+                  {activeLoc.description && (
+                    <p className="font-fantasy text-[10px] tracking-wider" style={{ color: `${accent}88` }}>
+                      {activeLoc.description}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <button
+                data-testid="button-close-location-view"
+                onClick={() => { setShowLocationView(false); setActiveLocationId(null); }}
+                className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                style={{
+                  background: `linear-gradient(135deg, ${accent}30 0%, ${accent}15 100%)`,
+                  border: `2px solid ${accent}60`,
+                  color: accent,
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: "bold",
+                }}
+              >
+                X
+              </button>
+            </div>
+
+            <div
+              ref={locViewRef}
+              className="flex-1 relative overflow-hidden"
+              onPointerMove={handleObjPointerMove}
+              onPointerUp={handleObjPointerUp}
+            >
+              {locationObjects.map((obj) => {
+                const pos = objDragPos?.id === obj.id ? { x: objDragPos.x, y: objDragPos.y } : { x: obj.posX, y: obj.posY };
+                const isDragging = objDragRef.current?.objId === obj.id;
+                return (
+                  <div
+                    key={obj.id}
+                    data-testid={`location-object-${obj.id}`}
+                    className="absolute"
+                    style={{
+                      left: `${pos.x}%`,
+                      top: `${pos.y}%`,
+                      width: `${obj.width}px`,
+                      cursor: currentUser.isAdmin ? "grab" : "default",
+                      zIndex: isDragging ? 30 : 10,
+                      touchAction: "none",
+                      transition: isDragging ? "none" : "left 0.1s, top 0.1s",
+                    }}
+                    onPointerDown={(e) => handleObjPointerDown(e, obj)}
+                  >
+                    <img
+                      src={obj.imageUrl}
+                      alt=""
+                      className="w-full h-auto object-contain pointer-events-none"
+                      draggable={false}
+                      style={{ filter: `drop-shadow(0 2px 6px rgba(0,0,0,0.5)) drop-shadow(0 0 8px ${accent}20)` }}
+                    />
+                    {currentUser.isAdmin && (
+                      <button
+                        data-testid={`button-delete-object-${obj.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!objDidDrag.current) deleteObjectMutation.mutate(obj.id);
+                        }}
+                        className="absolute -top-2 -right-2 w-5 h-5 rounded-full flex items-center justify-center z-20"
+                        style={{ background: "rgba(220,38,38,0.9)", border: "1px solid rgba(255,100,100,0.5)", cursor: "pointer" }}
+                      >
+                        <Trash2 className="w-3 h-3 text-white" />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+
+              {activeLoc.ownerImageUrl && (
+                <div className="absolute bottom-4 left-4 z-20 pointer-events-none" style={{ animation: "locFloat 4s ease-in-out infinite" }}>
+                  <img src={activeLoc.ownerImageUrl} alt="Owner" className="w-24 h-24 object-contain" style={{ filter: `drop-shadow(0 3px 10px rgba(0,0,0,0.6)) drop-shadow(0 0 15px ${accent}30)` }} />
+                </div>
+              )}
+
+              {currentUser.isAdmin && (
+                <button
+                  data-testid="button-add-object"
+                  onClick={() => setShowAddObject(true)}
+                  className="absolute bottom-4 right-4 z-20 w-12 h-12 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                  style={{
+                    background: `linear-gradient(135deg, ${accent}cc 0%, ${accent}88 100%)`,
+                    border: `2px solid ${accent}`,
+                    boxShadow: `0 4px 20px ${accent}50`,
+                    cursor: "pointer",
+                  }}
+                >
+                  <Plus className="w-6 h-6 text-black" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+        );
+      })()}
+
+      {showAddObject && activeLocationId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => { setShowAddObject(false); setNewObjectImage(null); }} />
+          <div
+            className="relative z-10 w-[85%] max-w-sm rounded-lg p-5"
+            style={{
+              background: `linear-gradient(135deg, rgba(8,5,18,0.98) 0%, rgba(18,12,30,0.98) 100%)`,
+              border: `1px solid ${accent}55`,
+              boxShadow: `0 0 40px ${accent}25`,
+            }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-fantasy text-sm tracking-widest" style={{ color: accent, textShadow: `0 0 10px ${accent}40` }}>
+                Add Object
+              </h3>
+              <button
+                data-testid="button-close-add-object"
+                onClick={() => { setShowAddObject(false); setNewObjectImage(null); }}
+                className="w-7 h-7 rounded-full flex items-center justify-center"
+                style={{ background: `${accent}20`, border: `1px solid ${accent}40`, cursor: "pointer", color: accent }}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex flex-col gap-3">
+              <div>
+                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>Image (PNG or GIF)</label>
+                <input
+                  data-testid="input-object-image"
+                  type="file"
+                  accept="image/png,image/gif"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const dataUrl = await readFileAsDataUrl(file);
+                      setNewObjectImage(dataUrl);
+                    }
+                  }}
+                  className="w-full text-xs font-fantasy"
+                  style={{ color: `${accent}cc` }}
+                />
+                {newObjectImage && (
+                  <div className="mt-2 flex justify-center">
+                    <img src={newObjectImage} alt="Preview" className="w-20 h-20 object-contain rounded-lg" style={{ border: `1px solid ${accent}30` }} />
+                  </div>
+                )}
+              </div>
+              <button
+                data-testid="button-submit-add-object"
+                onClick={() => {
+                  if (!newObjectImage || !activeLocationId) return;
+                  addObjectMutation.mutate({ locationId: activeLocationId, imageData: newObjectImage });
+                }}
+                disabled={addObjectMutation.isPending || !newObjectImage}
+                className="w-full py-2.5 rounded-md font-fantasy text-sm tracking-wider transition-transform active:scale-95 disabled:opacity-50"
+                style={{
+                  background: `linear-gradient(135deg, ${accent}50 0%, ${accent}25 100%)`,
+                  border: `1px solid ${accent}70`,
+                  color: accent,
+                  cursor: "pointer",
+                  boxShadow: `0 0 15px ${accent}20`,
+                }}
+              >
+                {addObjectMutation.isPending ? "Adding..." : "Add Object"}
+              </button>
             </div>
           </div>
         </div>

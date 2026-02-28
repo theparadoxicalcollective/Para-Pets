@@ -91,7 +91,19 @@ export const worldLocations = pgTable("world_locations", {
   shopkeeperId: varchar("shopkeeper_id"),
   shopkeeperName: text("shopkeeper_name"),
   shopkeeperImageUrl: text("shopkeeper_image_url"),
+  ownerImageUrl: text("owner_image_url"),
+  isShop: boolean("is_shop").notNull().default(false),
   sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const locationObjects = pgTable("location_objects", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  locationId: varchar("location_id").notNull(),
+  imageUrl: text("image_url").notNull(),
+  posX: integer("pos_x").notNull().default(50),
+  posY: integer("pos_y").notNull().default(50),
+  width: integer("width").notNull().default(80),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
@@ -162,3 +174,4 @@ export type CoinPurchase = typeof coinPurchases.$inferSelect;
 export type WorldLocation = typeof worldLocations.$inferSelect;
 export type World = typeof worlds.$inferSelect;
 export type GameSetting = typeof gameSettings.$inferSelect;
+export type LocationObject = typeof locationObjects.$inferSelect;
