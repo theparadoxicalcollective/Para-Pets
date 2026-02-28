@@ -42,53 +42,54 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideHome }:
           >
             <div className="relative topbar-profile-size">
               <div
-                className="absolute inset-[-5px] rounded-xl z-0 pointer-events-none"
+                className="absolute inset-[-4px] rounded-xl z-0 pointer-events-none"
                 style={{
-                  background: "radial-gradient(ellipse at center, rgba(80,200,160,0.2) 0%, rgba(40,120,90,0.1) 40%, transparent 70%)",
+                  background: "radial-gradient(ellipse at center, rgba(200,170,80,0.15) 0%, transparent 65%)",
                 }}
               />
               <div
                 className="absolute inset-0 rounded-lg z-20 pointer-events-none"
                 style={{
-                  border: "2px solid #a08030",
-                  boxShadow: "0 0 10px rgba(80,200,140,0.3), 0 0 20px rgba(60,160,120,0.15), inset 0 0 6px rgba(80,200,140,0.1), 0 2px 8px rgba(0,0,0,0.6)",
+                  border: "2.5px solid #b8942e",
+                  boxShadow: "0 0 8px rgba(184,148,46,0.25), inset 0 0 4px rgba(184,148,46,0.1), 0 2px 6px rgba(0,0,0,0.5)",
                 }}
               />
-              <svg className="absolute inset-[-6px] z-30 pointer-events-none" style={{ width: "calc(100% + 12px)", height: "calc(100% + 12px)" }} viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <svg className="absolute inset-[-4px] z-30 pointer-events-none" style={{ width: "calc(100% + 8px)", height: "calc(100% + 8px)" }} viewBox="0 0 68 68" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <defs>
-                  <radialGradient id="glow1" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%" stopColor="#7fffd4" stopOpacity="0.6"/>
-                    <stop offset="100%" stopColor="#7fffd4" stopOpacity="0"/>
-                  </radialGradient>
+                  <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#d4a830"/>
+                    <stop offset="50%" stopColor="#f0d060"/>
+                    <stop offset="100%" stopColor="#b8942e"/>
+                  </linearGradient>
                 </defs>
-                <path d="M8 42 C6 34, 6 26, 8 18 C9 14, 11 10, 14 8" stroke="#3a7a50" strokeWidth="1.5" fill="none" opacity="0.85"/>
-                <path d="M8 36 C5 33, 3 36, 5 38" stroke="#4a8a60" strokeWidth="1" fill="none" opacity="0.6"/>
-                <path d="M7 28 C4 26, 3 28, 5 30" stroke="#4a8a60" strokeWidth="1" fill="none" opacity="0.6"/>
-                <path d="M10 20 C7 18, 5 20, 7 22" stroke="#4a8a60" strokeWidth="0.8" fill="none" opacity="0.5"/>
-                <ellipse cx="4" cy="37" rx="3" ry="1.8" fill="#2d6b40" opacity="0.7" transform="rotate(-20 4 37)"/>
-                <ellipse cx="3.5" cy="29" rx="2.8" ry="1.6" fill="#3a7a50" opacity="0.65" transform="rotate(15 3.5 29)"/>
-                <ellipse cx="6" cy="21" rx="2.5" ry="1.4" fill="#2d6b40" opacity="0.6" transform="rotate(-35 6 21)"/>
-                <ellipse cx="9" cy="14" rx="2.2" ry="1.3" fill="#3a7a50" opacity="0.55" transform="rotate(25 9 14)"/>
-                <path d="M14 8 C20 6, 28 6, 36 6" stroke="#3a7a50" strokeWidth="1.3" fill="none" opacity="0.8"/>
-                <ellipse cx="18" cy="6.5" rx="2.8" ry="1.5" fill="#2d6b40" opacity="0.6" transform="rotate(5 18 6.5)"/>
-                <ellipse cx="26" cy="5.5" rx="2.5" ry="1.4" fill="#3a7a50" opacity="0.55" transform="rotate(-10 26 5.5)"/>
-                <path d="M64 30 C66 38, 66 46, 64 54 C63 58, 61 62, 58 64" stroke="#3a7a50" strokeWidth="1.5" fill="none" opacity="0.85"/>
-                <path d="M64 36 C67 39, 69 36, 67 34" stroke="#4a8a60" strokeWidth="1" fill="none" opacity="0.6"/>
-                <path d="M65 44 C68 46, 69 44, 67 42" stroke="#4a8a60" strokeWidth="1" fill="none" opacity="0.6"/>
-                <path d="M62 52 C65 54, 67 52, 65 50" stroke="#4a8a60" strokeWidth="0.8" fill="none" opacity="0.5"/>
-                <ellipse cx="68" cy="35" rx="3" ry="1.8" fill="#2d6b40" opacity="0.7" transform="rotate(160 68 35)"/>
-                <ellipse cx="68.5" cy="43" rx="2.8" ry="1.6" fill="#3a7a50" opacity="0.65" transform="rotate(-165 68.5 43)"/>
-                <ellipse cx="66" cy="51" rx="2.5" ry="1.4" fill="#2d6b40" opacity="0.6" transform="rotate(145 66 51)"/>
-                <ellipse cx="63" cy="58" rx="2.2" ry="1.3" fill="#3a7a50" opacity="0.55" transform="rotate(-155 63 58)"/>
-                <path d="M58 64 C52 66, 44 66, 36 66" stroke="#3a7a50" strokeWidth="1.3" fill="none" opacity="0.8"/>
-                <ellipse cx="54" cy="65.5" rx="2.8" ry="1.5" fill="#2d6b40" opacity="0.6" transform="rotate(-175 54 65.5)"/>
-                <ellipse cx="46" cy="66.5" rx="2.5" ry="1.4" fill="#3a7a50" opacity="0.55" transform="rotate(170 46 66.5)"/>
-                <circle cx="5" cy="38" r="1.2" fill="url(#glow1)" opacity="0.7"/>
-                <circle cx="68" cy="34" r="1.2" fill="url(#glow1)" opacity="0.7"/>
-                <circle cx="12" cy="10" r="1" fill="url(#glow1)" opacity="0.5"/>
-                <circle cx="60" cy="62" r="1" fill="url(#glow1)" opacity="0.5"/>
-                <circle cx="4" cy="30" r="0.7" fill="#7fffd4" opacity="0.4"/>
-                <circle cx="67" cy="44" r="0.7" fill="#7fffd4" opacity="0.4"/>
+                <path d="M6 14 C6 10, 10 6, 14 6" stroke="url(#goldGrad)" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
+                <path d="M14 6 C11 9, 9 11, 6 14" stroke="#d4a830" strokeWidth="0.6" fill="none" opacity="0.4" strokeDasharray="1.5 2"/>
+                <path d="M6 8 Q4 10, 5 12" stroke="#c9a030" strokeWidth="0.8" fill="none" opacity="0.5"/>
+                <path d="M8 6 Q10 4, 12 5" stroke="#c9a030" strokeWidth="0.8" fill="none" opacity="0.5"/>
+                <circle cx="6" cy="6" r="2" fill="none" stroke="#d4a830" strokeWidth="0.7" opacity="0.5"/>
+                <circle cx="6" cy="6" r="0.8" fill="#f0d060" opacity="0.6"/>
+                <path d="M62 14 C62 10, 58 6, 54 6" stroke="url(#goldGrad)" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
+                <path d="M54 6 C57 9, 59 11, 62 14" stroke="#d4a830" strokeWidth="0.6" fill="none" opacity="0.4" strokeDasharray="1.5 2"/>
+                <path d="M62 8 Q64 10, 63 12" stroke="#c9a030" strokeWidth="0.8" fill="none" opacity="0.5"/>
+                <path d="M60 6 Q58 4, 56 5" stroke="#c9a030" strokeWidth="0.8" fill="none" opacity="0.5"/>
+                <circle cx="62" cy="6" r="2" fill="none" stroke="#d4a830" strokeWidth="0.7" opacity="0.5"/>
+                <circle cx="62" cy="6" r="0.8" fill="#f0d060" opacity="0.6"/>
+                <path d="M6 54 C6 58, 10 62, 14 62" stroke="url(#goldGrad)" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
+                <path d="M14 62 C11 59, 9 57, 6 54" stroke="#d4a830" strokeWidth="0.6" fill="none" opacity="0.4" strokeDasharray="1.5 2"/>
+                <path d="M6 60 Q4 58, 5 56" stroke="#c9a030" strokeWidth="0.8" fill="none" opacity="0.5"/>
+                <path d="M8 62 Q10 64, 12 63" stroke="#c9a030" strokeWidth="0.8" fill="none" opacity="0.5"/>
+                <circle cx="6" cy="62" r="2" fill="none" stroke="#d4a830" strokeWidth="0.7" opacity="0.5"/>
+                <circle cx="6" cy="62" r="0.8" fill="#f0d060" opacity="0.6"/>
+                <path d="M62 54 C62 58, 58 62, 54 62" stroke="url(#goldGrad)" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
+                <path d="M54 62 C57 59, 59 57, 62 54" stroke="#d4a830" strokeWidth="0.6" fill="none" opacity="0.4" strokeDasharray="1.5 2"/>
+                <path d="M62 60 Q64 58, 63 56" stroke="#c9a030" strokeWidth="0.8" fill="none" opacity="0.5"/>
+                <path d="M60 62 Q58 64, 56 63" stroke="#c9a030" strokeWidth="0.8" fill="none" opacity="0.5"/>
+                <circle cx="62" cy="62" r="2" fill="none" stroke="#d4a830" strokeWidth="0.7" opacity="0.5"/>
+                <circle cx="62" cy="62" r="0.8" fill="#f0d060" opacity="0.6"/>
+                <line x1="18" y1="5" x2="50" y2="5" stroke="#c9a030" strokeWidth="0.4" opacity="0.3"/>
+                <line x1="18" y1="63" x2="50" y2="63" stroke="#c9a030" strokeWidth="0.4" opacity="0.3"/>
+                <line x1="5" y1="18" x2="5" y2="50" stroke="#c9a030" strokeWidth="0.4" opacity="0.3"/>
+                <line x1="63" y1="18" x2="63" y2="50" stroke="#c9a030" strokeWidth="0.4" opacity="0.3"/>
               </svg>
               <div
                 className="absolute z-10 overflow-hidden rounded-md"
