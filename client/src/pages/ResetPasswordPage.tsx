@@ -62,7 +62,7 @@ export default function ResetPasswordPage() {
 
   return (
     <div
-      className="relative min-h-[100dvh] w-full overflow-hidden flex flex-col items-center"
+      className="relative h-[100dvh] w-full overflow-hidden flex flex-col items-center"
       style={{
         backgroundImage: `url(${bgImg})`,
         backgroundSize: "cover",
@@ -74,7 +74,7 @@ export default function ResetPasswordPage() {
     >
       <div className="absolute inset-0 bg-black/40 z-0" />
 
-      <div className="relative z-10 flex flex-col items-center justify-center w-full px-6 py-8 min-h-[100dvh]">
+      <div className="relative z-10 flex flex-col items-center justify-center w-full px-6 py-8 h-full overflow-y-auto">
         <div className="mb-4">
           <img
             src={logoImg}

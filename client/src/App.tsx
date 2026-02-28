@@ -20,7 +20,7 @@ function AppRouter() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="h-[100dvh] bg-black flex items-center justify-center overflow-hidden">
         <div className="text-center">
           <div className="text-4xl font-fantasy text-[#7fbfb0] animate-pulse mb-4">
             Para Pets

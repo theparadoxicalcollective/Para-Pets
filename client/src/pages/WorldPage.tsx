@@ -288,7 +288,7 @@ export default function WorldPage({ user }: WorldPageProps) {
 
   if (!world) {
     return (
-      <div className="min-h-[100dvh] flex items-center justify-center bg-black" style={{ maxWidth: "768px", margin: "0 auto" }}>
+      <div className="h-[100dvh] flex items-center justify-center bg-black" style={{ maxWidth: "768px", margin: "0 auto" }}>
         <p className="font-fantasy text-[#f0c040] animate-pulse" style={{ textShadow: "0 0 20px rgba(240,192,64,0.5)" }}>Loading realm...</p>
       </div>
     );
@@ -298,7 +298,7 @@ export default function WorldPage({ user }: WorldPageProps) {
 
   return (
     <div
-      className="relative w-full min-h-[100dvh] overflow-hidden flex flex-col"
+      className="relative w-full h-[100dvh] overflow-hidden flex flex-col"
       style={{
         backgroundImage: `url(${world.bg})`,
         backgroundSize: "cover",
@@ -370,7 +370,7 @@ export default function WorldPage({ user }: WorldPageProps) {
         ))}
       </div>
 
-      <div className="relative z-10 flex flex-col min-h-[100dvh]" style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+      <div className="relative z-10 flex flex-col h-full" style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
 
         <div className="flex flex-col items-center px-6 pt-4 pb-2">

@@ -217,7 +217,7 @@ export default function MapPage({ user }: MapPageProps) {
 
   return (
     <div
-      className="relative w-full min-h-[100dvh] overflow-hidden flex flex-col"
+      className="relative w-full h-[100dvh] overflow-hidden flex flex-col"
       style={{
         background: "linear-gradient(180deg, #080812 0%, #0a0d1a 15%, #0d1020 35%, #0a0e1c 55%, #0d1020 75%, #080812 100%)",
         maxWidth: "768px",
@@ -293,7 +293,7 @@ export default function MapPage({ user }: MapPageProps) {
       `}</style>
 
       <div
-        className="relative z-10 flex flex-col min-h-[100dvh]"
+        className="relative z-10 flex flex-col h-full"
         style={{
           paddingTop: "env(safe-area-inset-top, 0px)",
           paddingBottom: "env(safe-area-inset-bottom, 0px)",

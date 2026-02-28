@@ -125,7 +125,7 @@ export default function AdminPage({ user }: AdminPageProps) {
 
   return (
     <div
-      className="relative w-full min-h-[100dvh] overflow-hidden flex flex-col"
+      className="relative w-full h-[100dvh] overflow-hidden flex flex-col"
       style={{
         backgroundImage: `url(${bgImg})`,
         backgroundSize: "cover",
@@ -137,7 +137,7 @@ export default function AdminPage({ user }: AdminPageProps) {
     >
       <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/60 to-black/80 z-0 pointer-events-none" />
 
-      <div className="relative z-10 flex flex-col min-h-[100dvh]" style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+      <div className="relative z-10 flex flex-col h-full" style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
 
         <div className="flex-1 overflow-y-auto px-4 py-4">

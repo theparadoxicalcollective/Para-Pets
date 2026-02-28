@@ -154,7 +154,7 @@ export default function AuthPage() {
 
   return (
     <div
-      className="relative min-h-[100dvh] w-full overflow-hidden flex flex-col items-center"
+      className="relative h-[100dvh] w-full overflow-hidden flex flex-col items-center"
       style={{
         backgroundImage: `url(${bgImg})`,
         backgroundSize: "cover",
@@ -166,7 +166,7 @@ export default function AuthPage() {
     >
       <div className="absolute inset-0 bg-black/40 z-0" />
 
-      <div className="relative z-10 flex flex-col items-center justify-center w-full px-6 py-8 min-h-[100dvh]" style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+      <div className="relative z-10 flex flex-col items-center justify-center w-full px-6 py-8 h-full overflow-y-auto" style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         <div className="flex flex-col items-center w-full">
           <div className="mb-3 text-center animate-fade-in">
             <img
