@@ -41,58 +41,15 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideHome }:
           >
             <div className="relative topbar-profile-size">
               <div
-                className="absolute inset-[-4px] rounded-xl z-0 pointer-events-none"
-                style={{
-                  background: "radial-gradient(ellipse at center, rgba(200,170,80,0.15) 0%, transparent 65%)",
-                }}
-              />
-              <div
                 className="absolute inset-0 rounded-lg z-20 pointer-events-none"
                 style={{
-                  border: "2.5px solid #b8942e",
-                  boxShadow: "0 0 8px rgba(184,148,46,0.25), inset 0 0 4px rgba(184,148,46,0.1), 0 2px 6px rgba(0,0,0,0.5)",
+                  border: "2px solid rgba(212,160,23,0.5)",
+                  boxShadow: "0 0 10px rgba(212,160,23,0.15), 0 2px 8px rgba(0,0,0,0.5)",
                 }}
               />
-              <svg className="absolute inset-[-4px] z-30 pointer-events-none" style={{ width: "calc(100% + 8px)", height: "calc(100% + 8px)" }} viewBox="0 0 68 68" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                  <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#d4a830"/>
-                    <stop offset="50%" stopColor="#f0d060"/>
-                    <stop offset="100%" stopColor="#b8942e"/>
-                  </linearGradient>
-                </defs>
-                <path d="M6 14 C6 10, 10 6, 14 6" stroke="url(#goldGrad)" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
-                <path d="M14 6 C11 9, 9 11, 6 14" stroke="#d4a830" strokeWidth="0.6" fill="none" opacity="0.4" strokeDasharray="1.5 2"/>
-                <path d="M6 8 Q4 10, 5 12" stroke="#c9a030" strokeWidth="0.8" fill="none" opacity="0.5"/>
-                <path d="M8 6 Q10 4, 12 5" stroke="#c9a030" strokeWidth="0.8" fill="none" opacity="0.5"/>
-                <circle cx="6" cy="6" r="2" fill="none" stroke="#d4a830" strokeWidth="0.7" opacity="0.5"/>
-                <circle cx="6" cy="6" r="0.8" fill="#f0d060" opacity="0.6"/>
-                <path d="M62 14 C62 10, 58 6, 54 6" stroke="url(#goldGrad)" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
-                <path d="M54 6 C57 9, 59 11, 62 14" stroke="#d4a830" strokeWidth="0.6" fill="none" opacity="0.4" strokeDasharray="1.5 2"/>
-                <path d="M62 8 Q64 10, 63 12" stroke="#c9a030" strokeWidth="0.8" fill="none" opacity="0.5"/>
-                <path d="M60 6 Q58 4, 56 5" stroke="#c9a030" strokeWidth="0.8" fill="none" opacity="0.5"/>
-                <circle cx="62" cy="6" r="2" fill="none" stroke="#d4a830" strokeWidth="0.7" opacity="0.5"/>
-                <circle cx="62" cy="6" r="0.8" fill="#f0d060" opacity="0.6"/>
-                <path d="M6 54 C6 58, 10 62, 14 62" stroke="url(#goldGrad)" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
-                <path d="M14 62 C11 59, 9 57, 6 54" stroke="#d4a830" strokeWidth="0.6" fill="none" opacity="0.4" strokeDasharray="1.5 2"/>
-                <path d="M6 60 Q4 58, 5 56" stroke="#c9a030" strokeWidth="0.8" fill="none" opacity="0.5"/>
-                <path d="M8 62 Q10 64, 12 63" stroke="#c9a030" strokeWidth="0.8" fill="none" opacity="0.5"/>
-                <circle cx="6" cy="62" r="2" fill="none" stroke="#d4a830" strokeWidth="0.7" opacity="0.5"/>
-                <circle cx="6" cy="62" r="0.8" fill="#f0d060" opacity="0.6"/>
-                <path d="M62 54 C62 58, 58 62, 54 62" stroke="url(#goldGrad)" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
-                <path d="M54 62 C57 59, 59 57, 62 54" stroke="#d4a830" strokeWidth="0.6" fill="none" opacity="0.4" strokeDasharray="1.5 2"/>
-                <path d="M62 60 Q64 58, 63 56" stroke="#c9a030" strokeWidth="0.8" fill="none" opacity="0.5"/>
-                <path d="M60 62 Q58 64, 56 63" stroke="#c9a030" strokeWidth="0.8" fill="none" opacity="0.5"/>
-                <circle cx="62" cy="62" r="2" fill="none" stroke="#d4a830" strokeWidth="0.7" opacity="0.5"/>
-                <circle cx="62" cy="62" r="0.8" fill="#f0d060" opacity="0.6"/>
-                <line x1="18" y1="5" x2="50" y2="5" stroke="#c9a030" strokeWidth="0.4" opacity="0.3"/>
-                <line x1="18" y1="63" x2="50" y2="63" stroke="#c9a030" strokeWidth="0.4" opacity="0.3"/>
-                <line x1="5" y1="18" x2="5" y2="50" stroke="#c9a030" strokeWidth="0.4" opacity="0.3"/>
-                <line x1="63" y1="18" x2="63" y2="50" stroke="#c9a030" strokeWidth="0.4" opacity="0.3"/>
-              </svg>
               <div
-                className="absolute z-10 overflow-hidden rounded-md"
-                style={{ inset: "3px" }}
+                className="absolute z-10 overflow-hidden rounded-lg"
+                style={{ inset: "0px" }}
               >
                 {user.profileImage ? (
                   <img

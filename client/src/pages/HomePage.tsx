@@ -248,7 +248,7 @@ export default function HomePage({ user }: HomePageProps) {
           <div
             className="relative w-full nav-bar-height flex items-center justify-center"
             style={{
-              background: "linear-gradient(180deg, rgba(20,10,3,0) 0%, rgba(20,10,3,0.95) 15%, rgba(15,8,2,1) 100%)",
+              background: "linear-gradient(180deg, rgba(20,10,3,0) 0%, rgba(20,10,3,0.65) 20%, rgba(15,8,2,0.8) 100%)",
             }}
           >
             <div
