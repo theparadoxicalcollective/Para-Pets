@@ -9,13 +9,42 @@ import sharp from "sharp";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
 
 const COIN_PACKS = [
-  { id: "pack_100", coins: 100, priceUsd: 1, label: "100 Coins", stripePriceId: "price_1T5wWXGo8Ubm3xKjv5WFjg8H" },
-  { id: "pack_500", coins: 500, priceUsd: 5, label: "500 Coins", stripePriceId: "price_1T5wWYGo8Ubm3xKjzifY4xLU" },
-  { id: "pack_1000", coins: 1000, priceUsd: 10, label: "1,000 Coins", stripePriceId: "price_1T5wWYGo8Ubm3xKj5Qlj4Jze" },
-  { id: "pack_2500", coins: 2500, priceUsd: 25, label: "2,500 Coins", stripePriceId: "price_1T5wWZGo8Ubm3xKjSPbHDzlv" },
-  { id: "pack_5000", coins: 5000, priceUsd: 50, label: "5,000 Coins", stripePriceId: "price_1T5wWaGo8Ubm3xKjXhowQ4Rc" },
-  { id: "pack_10000", coins: 10000, priceUsd: 100, label: "10,000 Coins", stripePriceId: "price_1T5wWbGo8Ubm3xKjfIX6sKJT" },
+  { id: "pack_100", coins: 100, priceUsd: 1, label: "100 Coins" },
+  { id: "pack_500", coins: 500, priceUsd: 5, label: "500 Coins" },
+  { id: "pack_1000", coins: 1000, priceUsd: 10, label: "1,000 Coins" },
+  { id: "pack_2500", coins: 2500, priceUsd: 25, label: "2,500 Coins" },
+  { id: "pack_5000", coins: 5000, priceUsd: 50, label: "5,000 Coins" },
+  { id: "pack_10000", coins: 10000, priceUsd: 100, label: "10,000 Coins" },
 ];
+
+const stripePriceCache: Record<string, string> = {};
+
+async function getOrCreateStripePrice(stripe: any, pack: typeof COIN_PACKS[0]): Promise<string> {
+  if (stripePriceCache[pack.id]) return stripePriceCache[pack.id];
+
+  const products = await stripe.products.list({ limit: 100, active: true });
+  const existing = products.data.find((p: any) => p.metadata?.packId === pack.id);
+  if (existing) {
+    const prices = await stripe.prices.list({ product: existing.id, active: true, limit: 1 });
+    if (prices.data.length > 0) {
+      stripePriceCache[pack.id] = prices.data[0].id;
+      return prices.data[0].id;
+    }
+  }
+
+  const product = await stripe.products.create({
+    name: `${pack.label} - Para Pets`,
+    description: `Purchase ${pack.coins} coins for Para Pets`,
+    metadata: { coins: pack.coins.toString(), packId: pack.id },
+  });
+  const price = await stripe.prices.create({
+    product: product.id,
+    unit_amount: pack.priceUsd * 100,
+    currency: 'usd',
+  });
+  stripePriceCache[pack.id] = price.id;
+  return price.id;
+}
 
 const MAX_PER_SESSION = 100;
 const MAX_PER_DAY = 500;
@@ -599,10 +628,12 @@ export async function registerRoutes(
       const stripe = await getUncachableStripeClient();
       const baseUrl = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`;
 
+      const priceId = await getOrCreateStripePrice(stripe, pack);
+
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
         line_items: [{
-          price: pack.stripePriceId,
+          price: priceId,
           quantity: 1,
         }],
         mode: 'payment',
