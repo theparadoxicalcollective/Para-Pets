@@ -47,28 +47,6 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideHome }:
                   boxShadow: "0 0 8px rgba(201,160,48,0.3), 0 2px 8px rgba(0,0,0,0.5), inset 0 0 3px rgba(201,160,48,0.15)",
                 }}
               />
-              <svg
-                className="absolute z-30 pointer-events-none"
-                style={{ top: "-8px", left: "-8px", width: "32px", height: "32px" }}
-                viewBox="0 0 40 40"
-                fill="none"
-              >
-                <path d="M20,38 C18,30 14,24 6,22" fill="none" stroke="#3a6a2a" strokeWidth="2" strokeLinecap="round" />
-                <path d="M10,26 Q6,22 10,20 Q8,24 10,26 Z" fill="#4a7a3a" />
-                <path d="M16,32 Q12,28 16,26 Q14,30 16,32 Z" fill="#3a6a2a" opacity="0.85" />
-                <path d="M6,22 Q2,18 6,16 Q4,20 6,22 Z" fill="#4a7a3a" opacity="0.75" />
-                <circle cx="8" cy="20" r="1" fill="#f0c040" opacity="0.5" />
-              </svg>
-              <svg
-                className="absolute z-30 pointer-events-none"
-                style={{ bottom: "-6px", right: "-6px", width: "24px", height: "24px" }}
-                viewBox="0 0 30 30"
-                fill="none"
-              >
-                <path d="M10,2 C12,10 16,14 24,16" fill="none" stroke="#3a6a2a" strokeWidth="1.5" strokeLinecap="round" />
-                <path d="M18,12 Q22,14 20,18 Q20,14 18,12 Z" fill="#4a7a3a" opacity="0.8" />
-                <circle cx="22" cy="16" r="0.8" fill="#f0c040" opacity="0.4" />
-              </svg>
               <div
                 className="absolute z-10 overflow-hidden rounded-lg"
                 style={{ inset: "0px" }}
