@@ -419,45 +419,6 @@
   }
 }
 
-@keyframes vineSway1 {
-  0%, 100% { transform: rotate(0deg); }
-  50% { transform: rotate(3deg); }
-}
-@keyframes vineSway2 {
-  0%, 100% { transform: rotate(0deg); }
-  50% { transform: rotate(-2.5deg); }
-}
-@keyframes vineSway3 {
-  0%, 100% { transform: rotate(0deg); }
-  33% { transform: rotate(2deg); }
-  66% { transform: rotate(-1.5deg); }
-}
-@keyframes sparkleFlicker {
-  0%, 100% { opacity: 0.2; }
-  50% { opacity: 0.7; }
-}
-@keyframes sparkleFlicker2 {
-  0%, 100% { opacity: 0.3; }
-  40% { opacity: 0.1; }
-  80% { opacity: 0.6; }
-}
-
-.vine-sway-1 {
-  transform-origin: bottom center;
-  animation: vineSway1 4s ease-in-out infinite;
-}
-.vine-sway-2 {
-  transform-origin: bottom center;
-  animation: vineSway2 5s ease-in-out infinite;
-}
-.vine-sway-3 {
-  transform-origin: bottom center;
-  animation: vineSway3 6s ease-in-out infinite;
-}
-.sparkle-1 { animation: sparkleFlicker 3s ease-in-out infinite; }
-.sparkle-2 { animation: sparkleFlicker2 4s ease-in-out infinite 0.5s; }
-.sparkle-3 { animation: sparkleFlicker 3.5s ease-in-out infinite 1s; }
-
 @keyframes scrollUnroll {
   0% {
     opacity: 0;
