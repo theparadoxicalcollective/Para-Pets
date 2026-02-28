@@ -39,6 +39,7 @@ Para Pets is a mobile-first fantasy game web app where players collect, raise, a
 - `reward_bundles` table: id, name, coinAmount, createdAt
 - `reward_bundle_items` table: id, bundleId, shopItemId
 - `user_rewards` table: id, userId, bundleId, claimed (boolean), createdAt
+- `game_settings` table: key (varchar PK), value (text) — key-value store for app-wide settings (e.g. map_background)
 - `session` table: managed by connect-pg-simple (created manually in async startup)
 
 ## API Endpoints

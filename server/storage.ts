@@ -1,4 +1,4 @@
-import { type User, type InsertUser, users, type ShopItem, type InsertShopItem, shopItems, type UserInventoryItem, userInventory, type RewardBundle, rewardBundles, type RewardBundleItem, rewardBundleItems, type UserReward, userRewards, coinPurchases, type CoinPurchase, worldLocations, type WorldLocation, worlds, type World } from "@shared/schema";
+import { type User, type InsertUser, users, type ShopItem, type InsertShopItem, shopItems, type UserInventoryItem, userInventory, type RewardBundle, rewardBundles, type RewardBundleItem, rewardBundleItems, type UserReward, userRewards, coinPurchases, type CoinPurchase, worldLocations, type WorldLocation, worlds, type World, gameSettings } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, ne, gte, sql, asc } from "drizzle-orm";
 
@@ -51,6 +51,8 @@ export interface IStorage {
   updateWorldPosition(id: string, posX: number, posY: number): Promise<World>;
   updateWorld(id: string, data: Partial<World>): Promise<World>;
   deleteWorld(id: string): Promise<void>;
+  getGameSetting(key: string): Promise<string | null>;
+  setGameSetting(key: string, value: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -341,6 +343,15 @@ export class DatabaseStorage implements IStorage {
 
   async deleteWorld(id: string): Promise<void> {
     await db.delete(worlds).where(eq(worlds.id, id));
+  }
+
+  async getGameSetting(key: string): Promise<string | null> {
+    const [row] = await db.select().from(gameSettings).where(eq(gameSettings.key, key));
+    return row?.value ?? null;
+  }
+
+  async setGameSetting(key: string, value: string): Promise<void> {
+    await db.insert(gameSettings).values({ key, value }).onConflictDoUpdate({ target: gameSettings.key, set: { value } });
   }
 }
 

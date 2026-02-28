@@ -13,7 +13,7 @@ import worldHauntedWoods from "@assets/world_haunted_woods_v2.png";
 import worldSwamp from "@assets/world_swamp_v3.png";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
-import { Plus, X, Trash2, Pencil } from "lucide-react";
+import { Plus, X, Trash2, Pencil, ImageIcon } from "lucide-react";
 
 interface MapPageProps {
   user: {
@@ -70,6 +70,9 @@ export default function MapPage({ user }: MapPageProps) {
   const [editIcon, setEditIcon] = useState<string | null>(null);
   const [editBg, setEditBg] = useState<string | null>(null);
 
+  const [showMapBgEdit, setShowMapBgEdit] = useState(false);
+  const [mapBgPreview, setMapBgPreview] = useState<string | null>(null);
+
   const mapRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ worldId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const [dragPos, setDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
@@ -77,6 +80,28 @@ export default function MapPage({ user }: MapPageProps) {
 
   const { data: worldsList = [], isLoading } = useQuery<WorldData[]>({
     queryKey: ["/api/worlds"],
+  });
+
+  const { data: mapBgData } = useQuery<{ bgUrl: string | null }>({
+    queryKey: ["/api/settings/map-background"],
+  });
+
+  const mapBgMutation = useMutation({
+    mutationFn: async (imageData: string | null) => {
+      const res = await apiRequest("PATCH", "/api/admin/settings/map-background", { imageData });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/settings/map-background"] });
+      setShowMapBgEdit(false);
+      setMapBgPreview(null);
+      toast({ title: "Updated", description: "Map background updated" });
+    },
+    onError: (err: any) => {
+      let msg = "Failed to update background";
+      try { const p = JSON.parse(err.message.split(": ").slice(1).join(": ")); msg = p.message || msg; } catch {}
+      toast({ title: "Error", description: msg, variant: "destructive" });
+    },
   });
 
   const positionMutation = useMutation({
@@ -270,6 +295,18 @@ export default function MapPage({ user }: MapPageProps) {
           boxShadow: "inset 0 0 100px rgba(0,10,30,0.6), inset 0 0 250px rgba(0,5,15,0.3)",
         }}
       />
+
+      {mapBgData?.bgUrl && (
+        <div
+          className="absolute inset-0 z-[1] pointer-events-none"
+          style={{
+            backgroundImage: `url(${mapBgData.bgUrl})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            opacity: 0.35,
+          }}
+        />
+      )}
 
       <style>{`
         @keyframes floatWorld {
@@ -489,20 +526,35 @@ export default function MapPage({ user }: MapPageProps) {
         </div>
 
         {currentUser.isAdmin && (
-          <button
-            data-testid="button-add-world"
-            onClick={() => setShowAddWorld(true)}
-            className="fixed bottom-6 right-6 w-14 h-14 rounded-full flex items-center justify-center z-30 transition-transform active:scale-90"
-            style={{
-              background: "linear-gradient(135deg, #2a1850 0%, #1a1040 100%)",
-              border: "2px solid rgba(140,100,240,0.5)",
-              boxShadow: "0 4px 20px rgba(100,60,200,0.4), 0 0 30px rgba(140,100,240,0.2)",
-              cursor: "pointer",
-              maxWidth: "768px",
-            }}
-          >
-            <Plus className="w-7 h-7 text-white" />
-          </button>
+          <>
+            <button
+              data-testid="button-add-world"
+              onClick={() => setShowAddWorld(true)}
+              className="fixed bottom-6 right-6 w-14 h-14 rounded-full flex items-center justify-center z-30 transition-transform active:scale-90"
+              style={{
+                background: "linear-gradient(135deg, #2a1850 0%, #1a1040 100%)",
+                border: "2px solid rgba(140,100,240,0.5)",
+                boxShadow: "0 4px 20px rgba(100,60,200,0.4), 0 0 30px rgba(140,100,240,0.2)",
+                cursor: "pointer",
+                maxWidth: "768px",
+              }}
+            >
+              <Plus className="w-7 h-7 text-white" />
+            </button>
+            <button
+              data-testid="button-edit-map-bg"
+              onClick={() => { setMapBgPreview(null); setShowMapBgEdit(true); }}
+              className="fixed bottom-6 right-[5.5rem] w-11 h-11 rounded-full flex items-center justify-center z-30 transition-transform active:scale-90"
+              style={{
+                background: "linear-gradient(135deg, #1a2850 0%, #102040 100%)",
+                border: "2px solid rgba(100,140,240,0.5)",
+                boxShadow: "0 4px 16px rgba(60,100,200,0.3), 0 0 20px rgba(100,140,240,0.15)",
+                cursor: "pointer",
+              }}
+            >
+              <ImageIcon className="w-5 h-5 text-white" />
+            </button>
+          </>
         )}
       </div>
 
@@ -773,6 +825,104 @@ export default function MapPage({ user }: MapPageProps) {
               >
                 {editWorldMutation.isPending ? "Saving..." : "Save Changes"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showMapBgEdit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowMapBgEdit(false)} />
+          <div
+            data-testid="modal-edit-map-bg"
+            className="relative z-10 w-[90%] max-w-sm rounded-xl p-5 max-h-[85vh] overflow-y-auto"
+            style={{
+              background: "linear-gradient(135deg, rgba(16,18,35,0.98) 0%, rgba(22,25,50,0.98) 100%)",
+              border: "1px solid rgba(100,80,200,0.3)",
+              boxShadow: "0 10px 40px rgba(0,0,0,0.5), 0 0 30px rgba(100,60,200,0.1)",
+            }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-fantasy text-base tracking-widest" style={{ color: "#d0c8e0" }}>
+                Map Background
+              </h3>
+              <button
+                data-testid="button-close-map-bg"
+                onClick={() => setShowMapBgEdit(false)}
+                className="w-7 h-7 rounded-full flex items-center justify-center"
+                style={{ background: "rgba(140,120,200,0.15)", border: "1px solid rgba(140,120,200,0.3)", cursor: "pointer", color: "#c0b8d0" }}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              {mapBgData?.bgUrl && (
+                <div>
+                  <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: "#9088b0" }}>Current Background</label>
+                  <img src={mapBgData.bgUrl} alt="Current map bg" className="w-full h-28 object-cover rounded-lg" style={{ border: "1px solid rgba(140,120,200,0.3)" }} />
+                </div>
+              )}
+
+              <div>
+                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: "#9088b0" }}>
+                  {mapBgData?.bgUrl ? "Replace Background (PNG/GIF/JPEG)" : "Upload Background (PNG/GIF/JPEG)"}
+                </label>
+                <input
+                  data-testid="input-map-bg"
+                  type="file"
+                  accept="image/png,image/gif,image/jpeg"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const dataUrl = await readFileAsDataUrl(file);
+                      setMapBgPreview(dataUrl);
+                    }
+                  }}
+                  className="w-full text-xs font-fantasy"
+                  style={{ color: "#c0b8d0" }}
+                />
+                {mapBgPreview && (
+                  <div className="mt-2 flex justify-center">
+                    <img src={mapBgPreview} alt="Preview" className="w-full h-28 object-cover rounded-lg" style={{ border: "1px solid rgba(140,120,200,0.3)" }} />
+                  </div>
+                )}
+              </div>
+
+              <button
+                data-testid="button-submit-map-bg"
+                onClick={() => {
+                  if (mapBgPreview) mapBgMutation.mutate(mapBgPreview);
+                }}
+                disabled={mapBgMutation.isPending || !mapBgPreview}
+                className="w-full py-2.5 rounded-md font-fantasy text-sm tracking-wider transition-transform active:scale-95 disabled:opacity-50 mt-1"
+                style={{
+                  background: "linear-gradient(135deg, #2a1850 0%, #3a2070 100%)",
+                  border: "1px solid rgba(140,100,240,0.4)",
+                  color: "#e0d8f0",
+                  cursor: "pointer",
+                  boxShadow: "0 0 15px rgba(100,60,200,0.2)",
+                }}
+              >
+                {mapBgMutation.isPending ? "Uploading..." : "Save Background"}
+              </button>
+
+              {mapBgData?.bgUrl && (
+                <button
+                  data-testid="button-remove-map-bg"
+                  onClick={() => mapBgMutation.mutate(null)}
+                  disabled={mapBgMutation.isPending}
+                  className="w-full py-2 rounded-md font-fantasy text-xs tracking-wider transition-transform active:scale-95 disabled:opacity-50"
+                  style={{
+                    background: "rgba(180,50,50,0.2)",
+                    border: "1px solid rgba(220,80,80,0.4)",
+                    color: "#e0a0a0",
+                    cursor: "pointer",
+                  }}
+                >
+                  Remove Background
+                </button>
+              )}
             </div>
           </div>
         </div>

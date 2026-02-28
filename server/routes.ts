@@ -791,6 +791,32 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/settings/map-background", async (_req, res) => {
+    try {
+      const bgUrl = await storage.getGameSetting("map_background");
+      return res.json({ bgUrl });
+    } catch (err) {
+      console.error("Get map background error:", err);
+      return res.status(500).json({ message: "Failed to get map background" });
+    }
+  });
+
+  app.patch("/api/admin/settings/map-background", isAdmin, async (req, res) => {
+    try {
+      const { imageData } = req.body;
+      if (!imageData) {
+        await storage.setGameSetting("map_background", "");
+        return res.json({ bgUrl: null });
+      }
+      const processed = await processWorldImage(imageData, 2000);
+      await storage.setGameSetting("map_background", processed);
+      return res.json({ bgUrl: processed });
+    } catch (err: any) {
+      console.error("Set map background error:", err);
+      return res.status(500).json({ message: err.message || "Failed to update map background" });
+    }
+  });
+
   app.patch("/api/admin/worlds/:worldId/position", isAdmin, async (req, res) => {
     try {
       const { posX, posY } = req.body;

@@ -108,6 +108,11 @@ export const worlds = pgTable("worlds", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
+export const gameSettings = pgTable("game_settings", {
+  key: varchar("key").primaryKey(),
+  value: text("value").notNull(),
+});
+
 export const coinPurchases = pgTable("coin_purchases", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
@@ -156,3 +161,4 @@ export type UserReward = typeof userRewards.$inferSelect;
 export type CoinPurchase = typeof coinPurchases.$inferSelect;
 export type WorldLocation = typeof worldLocations.$inferSelect;
 export type World = typeof worlds.$inferSelect;
+export type GameSetting = typeof gameSettings.$inferSelect;
