@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import homeIconImg from "@assets/icon_home_new.png";
 import coinIconImg from "@assets/icon_coin.png";
+import profileFrameImg from "@assets/profile_frame.png";
 import RewardClaimModal from "./RewardClaimModal";
 
 interface TopBarProps {
@@ -40,60 +41,16 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideHome }:
             style={{ background: "none", border: "none", cursor: "pointer" }}
           >
             <div className="relative topbar-profile-size">
-              <svg
+              <img
+                src={profileFrameImg}
+                alt=""
                 className="absolute z-30 pointer-events-none"
-                style={{ inset: "-6px", width: "calc(100% + 12px)", height: "calc(100% + 12px)" }}
-                viewBox="0 0 80 80"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <defs>
-                  <linearGradient id="vineGrad" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#5a3a1a" />
-                    <stop offset="100%" stopColor="#3a2210" />
-                  </linearGradient>
-                  <linearGradient id="leafG1" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#4a7a3a" />
-                    <stop offset="100%" stopColor="#2d5a1e" />
-                  </linearGradient>
-                  <linearGradient id="leafG2" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#3a6a2a" />
-                    <stop offset="100%" stopColor="#1e4a10" />
-                  </linearGradient>
-                </defs>
-
-                <rect x="7" y="7" width="66" height="66" rx="8" fill="none" stroke="url(#vineGrad)" strokeWidth="2.5" />
-                <rect x="7" y="7" width="66" height="66" rx="8" fill="none" stroke="rgba(90,58,26,0.3)" strokeWidth="1" strokeDasharray="2 3" />
-
-                <path d="M10,18 C8,14 8,10 12,8 C10,10 10,14 10,18" fill="url(#vineGrad)" opacity="0.8" />
-                <path d="M6,12 Q4,8 8,6" fill="none" stroke="#3a5a28" strokeWidth="1.5" strokeLinecap="round" />
-                <path d="M8,6 Q5,3 7,8 Q8,4 8,6 Z" fill="url(#leafG1)" opacity="0.9" />
-                <path d="M5,10 Q2,7 5,11 Q5,8 5,10 Z" fill="url(#leafG2)" opacity="0.7" />
-
-                <path d="M70,18 C72,14 72,10 68,8 C70,10 70,14 70,18" fill="url(#vineGrad)" opacity="0.8" />
-                <path d="M74,12 Q76,8 72,6" fill="none" stroke="#3a5a28" strokeWidth="1.5" strokeLinecap="round" />
-                <path d="M72,6 Q75,3 73,8 Q72,4 72,6 Z" fill="url(#leafG1)" opacity="0.9" />
-                <path d="M75,10 Q78,7 75,11 Q75,8 75,10 Z" fill="url(#leafG2)" opacity="0.7" />
-
-                <path d="M10,62 C8,66 8,70 12,72 C10,70 10,66 10,62" fill="url(#vineGrad)" opacity="0.8" />
-                <path d="M6,68 Q4,72 8,74" fill="none" stroke="#3a5a28" strokeWidth="1.5" strokeLinecap="round" />
-                <path d="M8,74 Q5,77 7,72 Q8,76 8,74 Z" fill="url(#leafG1)" opacity="0.9" />
-                <path d="M5,70 Q2,73 5,69 Q5,72 5,70 Z" fill="url(#leafG2)" opacity="0.7" />
-
-                <path d="M70,62 C72,66 72,70 68,72 C70,70 70,66 70,62" fill="url(#vineGrad)" opacity="0.8" />
-                <path d="M74,68 Q76,72 72,74" fill="none" stroke="#3a5a28" strokeWidth="1.5" strokeLinecap="round" />
-                <path d="M72,74 Q75,77 73,72 Q72,76 72,74 Z" fill="url(#leafG1)" opacity="0.9" />
-                <path d="M75,70 Q78,73 75,69 Q75,72 75,70 Z" fill="url(#leafG2)" opacity="0.7" />
-
-                <circle cx="8" cy="8" r="1.2" fill="#f0c040" opacity="0.35" />
-                <circle cx="72" cy="8" r="1" fill="#f0c040" opacity="0.3" />
-                <circle cx="8" cy="72" r="1" fill="#f0c040" opacity="0.3" />
-                <circle cx="72" cy="72" r="1.2" fill="#f0c040" opacity="0.35" />
-              </svg>
-              <div
-                className="absolute z-20 inset-0 rounded-lg pointer-events-none"
                 style={{
-                  boxShadow: "0 0 12px rgba(42,90,40,0.2), 0 3px 10px rgba(0,0,0,0.5)",
+                  inset: "-20%",
+                  width: "140%",
+                  height: "140%",
+                  objectFit: "contain",
+                  filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.5))",
                 }}
               />
               <div
