@@ -245,71 +245,46 @@ export default function HomePage({ user }: HomePageProps) {
         </div>
 
         <div className="relative flex-shrink-0">
-          <div className="relative w-full nav-bar-height flex items-center justify-center">
-            <svg
-              className="absolute inset-0 w-full h-full"
-              viewBox="0 0 800 120"
-              preserveAspectRatio="none"
-              xmlns="http://www.w3.org/2000/svg"
-              style={{ filter: "drop-shadow(0 -4px 16px rgba(0,0,0,0.7))" }}
-            >
-              <defs>
-                <linearGradient id="barkGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#5c3a1e" />
-                  <stop offset="40%" stopColor="#3a2010" />
-                  <stop offset="100%" stopColor="#1a0e05" />
-                </linearGradient>
-                <linearGradient id="barkHighlight" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#7a5030" stopOpacity="0.6" />
-                  <stop offset="100%" stopColor="#3a2010" stopOpacity="0" />
-                </linearGradient>
-                <linearGradient id="leafGrad1" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stopColor="#4a7a3a" />
-                  <stop offset="100%" stopColor="#2d5a1e" />
-                </linearGradient>
-                <linearGradient id="leafGrad2" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stopColor="#3a6a2a" />
-                  <stop offset="100%" stopColor="#1e4a10" />
-                </linearGradient>
-              </defs>
+          <div
+            className="relative w-full nav-bar-height flex items-center justify-center"
+            style={{
+              background: "linear-gradient(180deg, rgba(20,10,3,0) 0%, rgba(20,10,3,0.95) 15%, rgba(15,8,2,1) 100%)",
+            }}
+          >
+            <div
+              className="absolute top-0 left-0 right-0 h-[3px]"
+              style={{
+                background: "linear-gradient(90deg, transparent 0%, rgba(212,160,23,0.5) 20%, rgba(240,192,64,0.7) 50%, rgba(212,160,23,0.5) 80%, transparent 100%)",
+                boxShadow: "0 0 8px rgba(240,192,64,0.3), 0 0 20px rgba(240,192,64,0.15)",
+              }}
+            />
+            <div
+              className="absolute top-[3px] left-0 right-0 h-[1px]"
+              style={{
+                background: "linear-gradient(90deg, transparent 5%, rgba(139,110,78,0.3) 25%, rgba(139,110,78,0.5) 50%, rgba(139,110,78,0.3) 75%, transparent 95%)",
+              }}
+            />
 
-              <path d="M-10,35 C80,15 150,50 250,30 C350,10 400,45 500,25 C600,8 700,40 810,20 L810,120 L-10,120 Z" fill="url(#barkGrad)" />
-              <path d="M-10,38 C60,55 130,25 220,42 C310,58 370,28 480,40 C590,52 700,22 810,38 L810,120 L-10,120 Z" fill="url(#barkGrad)" opacity="0.7" />
-              <path d="M-10,35 C80,15 150,50 250,30 C350,10 400,45 500,25 C600,8 700,40 810,20" fill="none" stroke="url(#barkHighlight)" strokeWidth="3" />
+            <div
+              className="absolute top-0 left-[15%] w-[2px] h-3"
+              style={{ background: "linear-gradient(180deg, rgba(212,160,23,0.5), transparent)" }}
+            />
+            <div
+              className="absolute top-0 left-[50%] w-[2px] h-4"
+              style={{ background: "linear-gradient(180deg, rgba(212,160,23,0.4), transparent)" }}
+            />
+            <div
+              className="absolute top-0 right-[15%] w-[2px] h-3"
+              style={{ background: "linear-gradient(180deg, rgba(212,160,23,0.5), transparent)" }}
+            />
 
-              <path d="M40,42 C60,38 80,48 100,40" fill="none" stroke="#2a1508" strokeWidth="1.5" opacity="0.4" />
-              <path d="M200,32 C230,28 250,38 280,30" fill="none" stroke="#2a1508" strokeWidth="1.5" opacity="0.4" />
-              <path d="M450,30 C480,24 510,36 540,28" fill="none" stroke="#2a1508" strokeWidth="1.5" opacity="0.4" />
-              <path d="M650,34 C680,28 710,40 740,32" fill="none" stroke="#2a1508" strokeWidth="1.5" opacity="0.4" />
-
-              <path d="M30,55 Q35,40 50,50 Q35,55 30,55 Z" fill="#2a1508" opacity="0.3" />
-              <path d="M300,50 Q310,35 320,48 Q310,52 300,50 Z" fill="#2a1508" opacity="0.3" />
-              <path d="M580,45 Q585,30 600,42 Q590,48 580,45 Z" fill="#2a1508" opacity="0.3" />
-              <path d="M750,48 Q758,33 770,45 Q760,52 750,48 Z" fill="#2a1508" opacity="0.3" />
-
-              <path d="M50,30 C40,12 25,8 15,15" fill="none" stroke="#3a5a28" strokeWidth="2" strokeLinecap="round" />
-              <path d="M18,14 Q8,4 12,18 Q16,8 18,14 Z" fill="url(#leafGrad1)" opacity="0.9" />
-              <path d="M30,18 Q22,8 26,22 Q30,12 30,18 Z" fill="url(#leafGrad2)" opacity="0.7" />
-
-              <path d="M160,28 C155,8 140,2 130,10" fill="none" stroke="#3a5a28" strokeWidth="1.8" strokeLinecap="round" />
-              <path d="M133,9 Q124,0 127,14 Q132,4 133,9 Z" fill="url(#leafGrad1)" opacity="0.85" />
-              <path d="M148,14 Q140,5 143,18 Q147,8 148,14 Z" fill="url(#leafGrad2)" opacity="0.65" />
-
-              <path d="M340,24 C335,6 320,0 310,8" fill="none" stroke="#2d5020" strokeWidth="2" strokeLinecap="round" />
-              <path d="M313,7 Q304,-2 307,12 Q312,2 313,7 Z" fill="url(#leafGrad1)" opacity="0.9" />
-              <path d="M328,12 Q320,3 323,16 Q327,6 328,12 Z" fill="url(#leafGrad2)" opacity="0.7" />
-              <path d="M338,18 Q332,10 334,22 Q337,13 338,18 Z" fill="url(#leafGrad1)" opacity="0.5" />
-
-              <path d="M520,22 C515,4 500,-2 490,6" fill="none" stroke="#3a5a28" strokeWidth="1.8" strokeLinecap="round" />
-              <path d="M493,5 Q484,-4 487,10 Q492,0 493,5 Z" fill="url(#leafGrad2)" opacity="0.85" />
-              <path d="M508,10 Q500,1 503,14 Q507,4 508,10 Z" fill="url(#leafGrad1)" opacity="0.7" />
-
-              <path d="M680,30 C675,12 660,6 650,14" fill="none" stroke="#2d5020" strokeWidth="2" strokeLinecap="round" />
-              <path d="M653,13 Q644,3 647,17 Q652,7 653,13 Z" fill="url(#leafGrad1)" opacity="0.9" />
-              <path d="M668,18 Q660,8 663,22 Q667,12 668,18 Z" fill="url(#leafGrad2)" opacity="0.65" />
-
-              <path d="M780,26 C775,10 762,4 752,12" fill="none" stroke="#3a5a28" strokeWidth="1.5" strokeLinecap="round" />
-              <path d="M755,11 Q747,2 750,16 Q754,6 755,11 Z" fill="url(#leafGrad1)" opacity="0.8" />
+            <svg className="absolute top-[-6px] left-[8%] w-5 h-5" viewBox="0 0 20 20" fill="none">
+              <path d="M10,2 L12,8 L18,10 L12,12 L10,18 L8,12 L2,10 L8,8 Z" fill="rgba(240,192,64,0.25)" />
+              <circle cx="10" cy="10" r="1.5" fill="rgba(240,192,64,0.4)" />
+            </svg>
+            <svg className="absolute top-[-4px] right-[12%] w-4 h-4" viewBox="0 0 20 20" fill="none">
+              <path d="M10,3 L11.5,8.5 L17,10 L11.5,11.5 L10,17 L8.5,11.5 L3,10 L8.5,8.5 Z" fill="rgba(240,192,64,0.2)" />
+              <circle cx="10" cy="10" r="1" fill="rgba(240,192,64,0.35)" />
             </svg>
 
             <div className="relative z-10 flex items-center justify-evenly w-full px-6">
@@ -597,7 +572,9 @@ function NavIcon({ src, alt, testId, onClick, round, badge }: { src: string; alt
         className={`flex items-center justify-center transition-transform duration-150 overflow-hidden ${round ? "nav-icon-size-lg rounded-full" : "nav-icon-size rounded-xl"}`}
         style={{
           transform: tapped ? "scale(0.88)" : "scale(1)",
-          filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.6))",
+          filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.8))",
+          border: "2px solid rgba(212,160,23,0.35)",
+          background: "rgba(15,8,2,0.6)",
         }}
       >
         <img
