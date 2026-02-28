@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import bgImg from "@assets/bg_home_v2.png";
-import navBarImg from "@assets/bar_nav.png";
 import questIcon from "@assets/icon_quest_v5.png";
 import globeImg from "@assets/icon_globe.png";
 import swordsImg from "@assets/icon_pvp_new.png";
@@ -248,12 +247,99 @@ export default function HomePage({ user }: HomePageProps) {
 
         <div className="relative flex-shrink-0">
           <div className="relative w-full nav-bar-height flex items-center justify-center">
-            <img
-              src={navBarImg}
-              alt="Navigation Bar"
-              className="absolute inset-0 w-full h-full object-fill"
-              style={{ filter: "drop-shadow(0 -4px 20px rgba(0,0,0,0.8))" }}
-            />
+            <svg
+              className="absolute inset-0 w-full h-full"
+              viewBox="0 0 800 120"
+              preserveAspectRatio="none"
+              xmlns="http://www.w3.org/2000/svg"
+              style={{ filter: "drop-shadow(0 -4px 16px rgba(0,0,0,0.7))" }}
+            >
+              <defs>
+                <linearGradient id="barkGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#5c3a1e" />
+                  <stop offset="40%" stopColor="#3a2010" />
+                  <stop offset="100%" stopColor="#1a0e05" />
+                </linearGradient>
+                <linearGradient id="barkHighlight" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#7a5030" stopOpacity="0.6" />
+                  <stop offset="100%" stopColor="#3a2010" stopOpacity="0" />
+                </linearGradient>
+                <linearGradient id="leafGrad1" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stopColor="#4a7a3a" />
+                  <stop offset="100%" stopColor="#2d5a1e" />
+                </linearGradient>
+                <linearGradient id="leafGrad2" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stopColor="#3a6a2a" />
+                  <stop offset="100%" stopColor="#1e4a10" />
+                </linearGradient>
+                <radialGradient id="glowSpot" cx="50%" cy="30%" r="60%">
+                  <stop offset="0%" stopColor="#f0c040" stopOpacity="0.15" />
+                  <stop offset="100%" stopColor="#f0c040" stopOpacity="0" />
+                </radialGradient>
+              </defs>
+
+              <path d="M-10,35 C80,15 150,50 250,30 C350,10 400,45 500,25 C600,8 700,40 810,20 L810,120 L-10,120 Z" fill="url(#barkGrad)" />
+
+              <path d="M-10,38 C60,55 130,25 220,42 C310,58 370,28 480,40 C590,52 700,22 810,38 L810,120 L-10,120 Z" fill="url(#barkGrad)" opacity="0.7" />
+
+              <path d="M-10,35 C80,15 150,50 250,30 C350,10 400,45 500,25 C600,8 700,40 810,20" fill="none" stroke="url(#barkHighlight)" strokeWidth="3" />
+
+              <path d="M40,42 C60,38 80,48 100,40" fill="none" stroke="#2a1508" strokeWidth="1.5" opacity="0.4" />
+              <path d="M200,32 C230,28 250,38 280,30" fill="none" stroke="#2a1508" strokeWidth="1.5" opacity="0.4" />
+              <path d="M450,30 C480,24 510,36 540,28" fill="none" stroke="#2a1508" strokeWidth="1.5" opacity="0.4" />
+              <path d="M650,34 C680,28 710,40 740,32" fill="none" stroke="#2a1508" strokeWidth="1.5" opacity="0.4" />
+
+              <path d="M30,55 Q35,40 50,50 Q35,55 30,55 Z" fill="#2a1508" opacity="0.3" />
+              <path d="M300,50 Q310,35 320,48 Q310,52 300,50 Z" fill="#2a1508" opacity="0.3" />
+              <path d="M580,45 Q585,30 600,42 Q590,48 580,45 Z" fill="#2a1508" opacity="0.3" />
+              <path d="M750,48 Q758,33 770,45 Q760,52 750,48 Z" fill="#2a1508" opacity="0.3" />
+
+              <g className="vine-sway-1">
+                <path d="M50,30 C40,12 25,8 15,15" fill="none" stroke="#3a5a28" strokeWidth="2" strokeLinecap="round" />
+                <path d="M18,14 Q8,4 12,18 Q16,8 18,14 Z" fill="url(#leafGrad1)" opacity="0.9" />
+                <path d="M30,18 Q22,8 26,22 Q30,12 30,18 Z" fill="url(#leafGrad2)" opacity="0.7" />
+              </g>
+
+              <g className="vine-sway-2">
+                <path d="M160,28 C155,8 140,2 130,10" fill="none" stroke="#3a5a28" strokeWidth="1.8" strokeLinecap="round" />
+                <path d="M133,9 Q124,0 127,14 Q132,4 133,9 Z" fill="url(#leafGrad1)" opacity="0.85" />
+                <path d="M148,14 Q140,5 143,18 Q147,8 148,14 Z" fill="url(#leafGrad2)" opacity="0.65" />
+              </g>
+
+              <g className="vine-sway-3">
+                <path d="M340,24 C335,6 320,0 310,8" fill="none" stroke="#2d5020" strokeWidth="2" strokeLinecap="round" />
+                <path d="M313,7 Q304,-2 307,12 Q312,2 313,7 Z" fill="url(#leafGrad1)" opacity="0.9" />
+                <path d="M328,12 Q320,3 323,16 Q327,6 328,12 Z" fill="url(#leafGrad2)" opacity="0.7" />
+                <path d="M338,18 Q332,10 334,22 Q337,13 338,18 Z" fill="url(#leafGrad1)" opacity="0.5" />
+              </g>
+
+              <g className="vine-sway-1">
+                <path d="M520,22 C515,4 500,-2 490,6" fill="none" stroke="#3a5a28" strokeWidth="1.8" strokeLinecap="round" />
+                <path d="M493,5 Q484,-4 487,10 Q492,0 493,5 Z" fill="url(#leafGrad2)" opacity="0.85" />
+                <path d="M508,10 Q500,1 503,14 Q507,4 508,10 Z" fill="url(#leafGrad1)" opacity="0.7" />
+              </g>
+
+              <g className="vine-sway-2">
+                <path d="M680,30 C675,12 660,6 650,14" fill="none" stroke="#2d5020" strokeWidth="2" strokeLinecap="round" />
+                <path d="M653,13 Q644,3 647,17 Q652,7 653,13 Z" fill="url(#leafGrad1)" opacity="0.9" />
+                <path d="M668,18 Q660,8 663,22 Q667,12 668,18 Z" fill="url(#leafGrad2)" opacity="0.65" />
+              </g>
+
+              <g className="vine-sway-3">
+                <path d="M780,26 C775,10 762,4 752,12" fill="none" stroke="#3a5a28" strokeWidth="1.5" strokeLinecap="round" />
+                <path d="M755,11 Q747,2 750,16 Q754,6 755,11 Z" fill="url(#leafGrad1)" opacity="0.8" />
+              </g>
+
+              <circle cx="100" cy="32" r="12" fill="url(#glowSpot)" />
+              <circle cx="400" cy="28" r="15" fill="url(#glowSpot)" />
+              <circle cx="700" cy="32" r="12" fill="url(#glowSpot)" />
+
+              <circle cx="85" cy="28" r="1.2" fill="#f0c040" opacity="0.4" className="sparkle-1" />
+              <circle cx="270" cy="24" r="1" fill="#f0c040" opacity="0.3" className="sparkle-2" />
+              <circle cx="420" cy="22" r="1.3" fill="#f0c040" opacity="0.4" className="sparkle-3" />
+              <circle cx="610" cy="26" r="1" fill="#f0c040" opacity="0.35" className="sparkle-1" />
+              <circle cx="730" cy="30" r="1.2" fill="#f0c040" opacity="0.3" className="sparkle-2" />
+            </svg>
 
             <div className="relative z-10 flex items-center justify-evenly w-full px-6">
               <NavIcon
