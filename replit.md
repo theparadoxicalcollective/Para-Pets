@@ -33,7 +33,8 @@ Para Pets is a mobile-first fantasy game web app where players collect, raise, a
 
 ## Database Schema
 - `users` table: id, username, email, password (bcrypt), profileImage (base64 data URI), coins, isAdmin, isBanned, activePetId, lastUsernameChange, lastProfilePicChange, createdAt
-- `shop_items` table: id, name, price, type, worldId, imageUrl (base64 data URI, PNG only), rarity (1-5 stars, nullable), hatchTime (hours, nullable), eggImageUrl (base64, PNG/GIF, nullable), hatchedImageUrl (base64, PNG/GIF, nullable), statBoostType (health/atk/def/lvl, nullable), statBoostAmount (integer, nullable), createdAt
+- `shop_items` table: id, name, price, type, worldId, locationId (nullable, references world_locations), imageUrl (base64 data URI, PNG only), rarity (1-5 stars, nullable), hatchTime (hours, nullable), eggImageUrl (base64, PNG/GIF, nullable), hatchedImageUrl (base64, PNG/GIF, nullable), statBoostType (health/atk/def/lvl, nullable), statBoostAmount (integer, nullable), createdAt
+- `world_locations` table: id, worldId, name, type, iconUrl, description, shopkeeperId, shopkeeperName, shopkeeperImageUrl, sortOrder, createdAt
 - `user_inventory` table: id, userId, shopItemId, acquiredAt, hatchStartedAt (timestamp, nullable), isHatched (boolean, default false), petHealth (int, default 1000), petAtk (int, default 50), petDef (int, default 50), petLevel (int, default 0), itemsUsedThisLevel (int, default 0)
 - `reward_bundles` table: id, name, coinAmount, createdAt
 - `reward_bundle_items` table: id, bundleId, shopItemId

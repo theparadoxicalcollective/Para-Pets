@@ -26,6 +26,7 @@ export const shopItems = pgTable("shop_items", {
   price: integer("price").notNull(),
   type: text("type").notNull(),
   worldId: text("world_id").notNull(),
+  locationId: varchar("location_id"),
   imageUrl: text("image_url"),
   rarity: integer("rarity"),
   hatchTime: integer("hatch_time"),
@@ -77,6 +78,20 @@ export const userRewards = pgTable("user_rewards", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
+export const worldLocations = pgTable("world_locations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  worldId: text("world_id").notNull(),
+  name: text("name").notNull(),
+  type: text("type").notNull(),
+  iconUrl: text("icon_url"),
+  description: text("description"),
+  shopkeeperId: varchar("shopkeeper_id"),
+  shopkeeperName: text("shopkeeper_name"),
+  shopkeeperImageUrl: text("shopkeeper_image_url"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
 export const coinPurchases = pgTable("coin_purchases", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
@@ -123,3 +138,4 @@ export type RewardBundle = typeof rewardBundles.$inferSelect;
 export type RewardBundleItem = typeof rewardBundleItems.$inferSelect;
 export type UserReward = typeof userRewards.$inferSelect;
 export type CoinPurchase = typeof coinPurchases.$inferSelect;
+export type WorldLocation = typeof worldLocations.$inferSelect;

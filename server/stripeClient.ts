@@ -34,6 +34,9 @@ async function getCredentials() {
   connectionSettings = data.items?.[0];
 
   if (!connectionSettings || (!connectionSettings.settings.publishable || !connectionSettings.settings.secret)) {
+    if (isProduction) {
+      throw new Error('Stripe production keys not configured. Add live Stripe keys in the Publish settings to enable coin purchases.');
+    }
     throw new Error(`Stripe ${targetEnvironment} connection not found`);
   }
 
