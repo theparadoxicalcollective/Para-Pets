@@ -41,6 +41,7 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotSent, setForgotSent] = useState(false);
+  const [resetUrl, setResetUrl] = useState<string | null>(null);
   const [profileImageData, setProfileImageData] = useState<string | null>(null);
   const [profilePreview, setProfilePreview] = useState<string | null>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
@@ -136,8 +137,9 @@ export default function AuthPage() {
       const res = await apiRequest("POST", "/api/auth/forgot-password", { email: forgotEmail });
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       setForgotSent(true);
+      if (data.resetUrl) setResetUrl(data.resetUrl);
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to process request. Please try again.", variant: "destructive" });
@@ -416,7 +418,7 @@ export default function AuthPage() {
                 <>
                   <button
                     data-testid="button-forgot-password"
-                    onClick={() => { setMode("forgot"); setForgotSent(false); setForgotEmail(""); }}
+                    onClick={() => { setMode("forgot"); setForgotSent(false); setForgotEmail(""); setResetUrl(null); }}
                     disabled={isPending}
                     className="font-fantasy text-[#d4a017] text-xs tracking-wider hover:text-[#f0c040] transition-colors"
                     style={{ background: "none", border: "none", cursor: "pointer" }}
@@ -473,15 +475,39 @@ export default function AuthPage() {
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                 </div>
-                <p className="font-fantasy text-[#7fffd4] text-sm tracking-wider" data-testid="text-forgot-sent">
-                  Reset link sent!
-                </p>
-                <p className="font-fantasy text-[#a89878] text-xs tracking-wider">
-                  Check your email for a password reset link. It expires in 1 hour.
-                </p>
+                {resetUrl ? (
+                  <>
+                    <p className="font-fantasy text-[#7fffd4] text-sm tracking-wider" data-testid="text-forgot-sent">
+                      Reset link ready!
+                    </p>
+                    <p className="font-fantasy text-[#a89878] text-xs tracking-wider">
+                      Click below to reset your password. The link expires in 1 hour.
+                    </p>
+                    <button
+                      data-testid="button-go-to-reset"
+                      onClick={() => { window.location.href = resetUrl; }}
+                      className="w-full py-3 rounded-md font-fantasy text-sm tracking-wider transition-transform active:scale-95"
+                      style={{
+                        background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
+                        border: "1px solid rgba(127,255,212,0.4)",
+                        color: "#7fffd4",
+                        cursor: "pointer",
+                        boxShadow: "0 0 12px rgba(127,255,212,0.2)",
+                      }}
+                    >
+                      Reset My Password
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-fantasy text-[#a89878] text-sm tracking-wider" data-testid="text-forgot-no-account">
+                      If an account exists with that email, a reset option will appear.
+                    </p>
+                  </>
+                )}
                 <button
                   data-testid="button-back-to-login-from-forgot"
-                  onClick={() => { setMode("login"); setForgotSent(false); }}
+                  onClick={() => { setMode("login"); setForgotSent(false); setResetUrl(null); }}
                   className="font-fantasy text-[#d4a017] text-xs tracking-wider hover:text-[#f0c040] transition-colors"
                   style={{ background: "none", border: "none", cursor: "pointer" }}
                 >
