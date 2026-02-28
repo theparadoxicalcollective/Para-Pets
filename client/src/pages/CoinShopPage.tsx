@@ -259,13 +259,12 @@ export default function CoinShopPage({ user }: CoinShopProps) {
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               textShadow: "none",
-              animation: "titleGlow 3s ease-in-out infinite",
             }}
           >
             Enchanted Treasury
           </h1>
           <p className="font-fantasy text-[10px] tracking-[0.2em] mt-2" style={{ color: "rgba(127,255,212,0.45)" }}>
-            Gather coins beneath the ancient canopy
+            Fuel your adventure with mystical currency
           </p>
         </div>
 
