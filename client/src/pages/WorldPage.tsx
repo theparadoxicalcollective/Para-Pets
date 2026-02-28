@@ -101,10 +101,38 @@ interface WorldLocationData {
   sortOrder: number;
 }
 
+interface WorldApiData {
+  id: string;
+  name: string;
+  iconUrl: string | null;
+  bgUrl: string | null;
+  glowColor: string;
+  isDefault: boolean;
+}
+
 export default function WorldPage({ user }: WorldPageProps) {
   const params = useParams<{ worldId: string }>();
   const worldId = params.worldId || "";
-  const world = WORLD_CONFIG[worldId];
+  const staticWorld = WORLD_CONFIG[worldId];
+
+  const { data: worldApiData } = useQuery<WorldApiData>({
+    queryKey: ["/api/worlds", worldId],
+    queryFn: async () => {
+      const res = await fetch(`/api/worlds/${worldId}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    enabled: !staticWorld,
+  });
+
+  const world = staticWorld || (worldApiData ? {
+    name: worldApiData.name,
+    shopIcon: worldApiData.iconUrl || "",
+    bg: worldApiData.bgUrl || "",
+    accent: worldApiData.glowColor || "#ffd700",
+    bgGradient: "linear-gradient(180deg, rgba(20,15,10,0.7) 0%, rgba(40,30,15,0.3) 50%, rgba(10,8,5,0.7) 100%)",
+  } : null);
+
   const [showProfile, setShowProfile] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
   const [showShop, setShowShop] = useState(false);
@@ -209,7 +237,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   if (!world) {
     return (
       <div className="min-h-[100dvh] flex items-center justify-center bg-black" style={{ maxWidth: "768px", margin: "0 auto" }}>
-        <p className="font-fantasy text-[#f0c040]">Unknown realm</p>
+        <p className="font-fantasy text-[#f0c040] animate-pulse">Loading realm...</p>
       </div>
     );
   }

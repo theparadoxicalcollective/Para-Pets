@@ -84,16 +84,22 @@ Para Pets is a mobile-first fantasy game web app where players collect, raise, a
 - `POST /api/coins/verify` - Verify and credit coins after successful Stripe payment
 - `GET /api/stripe/publishable-key` - Get Stripe publishable key for frontend
 
-## World Locations (8 worlds)
-Frostpeak, Sky Realm, The Lost Island, Volcanic Isle, Enchanted Grove, Scorched Desert, The Swamp, Haunted Woods
-- Each world has its own page, background, shop icon, and shop inventory
-- Shop items are per-world (worldId links items to their world)
-- MapPage: dark fantasy aesthetic with themed glow effects per world (no parchment)
+## World System
+- `worlds` table: id (varchar PK, slug), name, iconUrl (base64, nullable), bgUrl (base64, nullable), posX, posY, iconSize, glowColor, isDefault, createdAt
+- Default 8 worlds seeded on startup (isDefault=true): Frostpeak, Sky Realm, Lost Island, Volcanic Isle, Enchanted Grove, Scorched Desert, The Swamp, Haunted Woods
+- Default worlds use static asset imports for icons; custom worlds use iconUrl from DB
+- MapPage: daylight magical land background, worlds positioned organically using DB-stored posX/posY percentages
+  - Admin can drag worlds to reposition (pointer events, no snapping, percentage-based for responsiveness)
+  - Admin can add new worlds via "+" FAB: name, glow color, icon image (PNG/GIF), background image
+  - Admin can delete custom (non-default) worlds via trash icon
+  - Worlds float with gentle animation, connected by dashed path lines
 - WorldPage: 3-column grid of location icons (Shop, Arena, Tavern, Sanctuary, Mine, Garden) with world-themed colors
+  - Supports both static (default) and dynamic (custom) worlds via API fallback
   - Locations fetched from DB via GET /api/world/:worldId/locations, falls back to defaults if empty
   - Admin can add locations via "+" FAB button, delete via trash icon
   - Clicking Shop location opens shop overlay; other locations show "Coming Soon"
 - CoinShopPage: "Enchanted Treasury" forest theme with generated coin pack PNG images (coin_pack_100-10000.png)
+- World APIs: GET /api/worlds, GET /api/worlds/:id, POST /api/admin/worlds, PATCH /api/admin/worlds/:id/position, DELETE /api/admin/worlds/:id
 - World location CRUD: POST /api/admin/world/:worldId/location, PATCH /api/admin/world/location/:id, DELETE /api/admin/world/location/:id
 - World theme colors: Frostpeak=#88ccff, Sky Realm=#ffd700, Lost Island=#20b2aa, Volcanic=#ff4500, Enchanted Grove=#7fffd4, Desert=#daa520, Swamp=#9370db, Haunted Woods=#8b008b
 

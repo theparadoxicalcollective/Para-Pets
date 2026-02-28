@@ -92,6 +92,19 @@ export const worldLocations = pgTable("world_locations", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
+export const worlds = pgTable("worlds", {
+  id: varchar("id").primaryKey(),
+  name: text("name").notNull(),
+  iconUrl: text("icon_url"),
+  bgUrl: text("bg_url"),
+  posX: integer("pos_x").notNull().default(50),
+  posY: integer("pos_y").notNull().default(50),
+  iconSize: integer("icon_size").notNull().default(28),
+  glowColor: text("glow_color").notNull().default("#ffd700"),
+  isDefault: boolean("is_default").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
 export const coinPurchases = pgTable("coin_purchases", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
@@ -139,3 +152,4 @@ export type RewardBundleItem = typeof rewardBundleItems.$inferSelect;
 export type UserReward = typeof userRewards.$inferSelect;
 export type CoinPurchase = typeof coinPurchases.$inferSelect;
 export type WorldLocation = typeof worldLocations.$inferSelect;
+export type World = typeof worlds.$inferSelect;

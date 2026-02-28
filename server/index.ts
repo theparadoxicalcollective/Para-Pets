@@ -184,6 +184,23 @@ app.use((req, res, next) => {
     console.error('Stripe init error (non-fatal):', err);
   }
 
+  const DEFAULT_WORLDS = [
+    { id: "sky_realm", name: "Sky Realm", posX: 45, posY: 3, glowColor: "#ffd700" },
+    { id: "snowy_mountain", name: "Frostpeak", posX: 5, posY: 15, glowColor: "#88ccff" },
+    { id: "enchanted_grove", name: "Enchanted Grove", posX: 60, posY: 18, glowColor: "#7fffd4" },
+    { id: "island", name: "Lost Island", posX: 3, posY: 38, glowColor: "#20b2aa" },
+    { id: "volcanic", name: "Volcanic Isle", posX: 56, posY: 40, glowColor: "#ff4500" },
+    { id: "desert", name: "Scorched Desert", posX: 25, posY: 54, glowColor: "#daa520" },
+    { id: "swamp", name: "The Swamp", posX: 62, posY: 62, glowColor: "#9370db" },
+    { id: "haunted_woods", name: "Haunted Woods", posX: 15, posY: 74, glowColor: "#8b008b" },
+  ];
+  for (const w of DEFAULT_WORLDS) {
+    const existing = await storage.getWorld(w.id);
+    if (!existing) {
+      await storage.createWorld({ ...w, isDefault: true });
+    }
+  }
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {

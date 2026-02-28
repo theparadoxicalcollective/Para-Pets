@@ -1,4 +1,4 @@
-import { type User, type InsertUser, users, type ShopItem, type InsertShopItem, shopItems, type UserInventoryItem, userInventory, type RewardBundle, rewardBundles, type RewardBundleItem, rewardBundleItems, type UserReward, userRewards, coinPurchases, type CoinPurchase, worldLocations, type WorldLocation } from "@shared/schema";
+import { type User, type InsertUser, users, type ShopItem, type InsertShopItem, shopItems, type UserInventoryItem, userInventory, type RewardBundle, rewardBundles, type RewardBundleItem, rewardBundleItems, type UserReward, userRewards, coinPurchases, type CoinPurchase, worldLocations, type WorldLocation, worlds, type World } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, ne, gte, sql, asc } from "drizzle-orm";
 
@@ -45,6 +45,12 @@ export interface IStorage {
   createWorldLocation(data: Partial<WorldLocation> & { worldId: string; name: string; type: string }): Promise<WorldLocation>;
   updateWorldLocation(id: string, data: Partial<WorldLocation>): Promise<WorldLocation>;
   deleteWorldLocation(id: string): Promise<void>;
+  getAllWorlds(): Promise<World[]>;
+  getWorld(id: string): Promise<World | undefined>;
+  createWorld(data: { id: string; name: string; iconUrl?: string | null; bgUrl?: string | null; posX: number; posY: number; glowColor: string; isDefault?: boolean }): Promise<World>;
+  updateWorldPosition(id: string, posX: number, posY: number): Promise<World>;
+  updateWorld(id: string, data: Partial<World>): Promise<World>;
+  deleteWorld(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -298,6 +304,43 @@ export class DatabaseStorage implements IStorage {
 
   async deleteWorldLocation(id: string): Promise<void> {
     await db.delete(worldLocations).where(eq(worldLocations.id, id));
+  }
+
+  async getAllWorlds(): Promise<World[]> {
+    return db.select().from(worlds);
+  }
+
+  async getWorld(id: string): Promise<World | undefined> {
+    const [w] = await db.select().from(worlds).where(eq(worlds.id, id));
+    return w;
+  }
+
+  async createWorld(data: { id: string; name: string; iconUrl?: string | null; bgUrl?: string | null; posX: number; posY: number; glowColor: string; isDefault?: boolean }): Promise<World> {
+    const [w] = await db.insert(worlds).values({
+      id: data.id,
+      name: data.name,
+      iconUrl: data.iconUrl || null,
+      bgUrl: data.bgUrl || null,
+      posX: data.posX,
+      posY: data.posY,
+      glowColor: data.glowColor,
+      isDefault: data.isDefault || false,
+    }).returning();
+    return w;
+  }
+
+  async updateWorldPosition(id: string, posX: number, posY: number): Promise<World> {
+    const [w] = await db.update(worlds).set({ posX, posY }).where(eq(worlds.id, id)).returning();
+    return w;
+  }
+
+  async updateWorld(id: string, data: Partial<World>): Promise<World> {
+    const [w] = await db.update(worlds).set(data).where(eq(worlds.id, id)).returning();
+    return w;
+  }
+
+  async deleteWorld(id: string): Promise<void> {
+    await db.delete(worlds).where(eq(worlds.id, id));
   }
 }
 

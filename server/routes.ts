@@ -770,6 +770,124 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/worlds", isAuthenticated, async (_req, res) => {
+    try {
+      const allWorlds = await storage.getAllWorlds();
+      return res.json(allWorlds);
+    } catch (err) {
+      console.error("Get worlds error:", err);
+      return res.status(500).json({ message: "Failed to get worlds" });
+    }
+  });
+
+  app.get("/api/worlds/:worldId", isAuthenticated, async (req, res) => {
+    try {
+      const world = await storage.getWorld(req.params.worldId);
+      if (!world) return res.status(404).json({ message: "World not found" });
+      return res.json(world);
+    } catch (err) {
+      console.error("Get world error:", err);
+      return res.status(500).json({ message: "Failed to get world" });
+    }
+  });
+
+  app.patch("/api/admin/worlds/:worldId/position", isAdmin, async (req, res) => {
+    try {
+      const { posX, posY } = req.body;
+      if (typeof posX !== "number" || typeof posY !== "number") {
+        return res.status(400).json({ message: "posX and posY are required numbers" });
+      }
+      const clamped = { posX: Math.max(0, Math.min(85, Math.round(posX))), posY: Math.max(0, Math.min(90, Math.round(posY))) };
+      const updated = await storage.updateWorldPosition(req.params.worldId, clamped.posX, clamped.posY);
+      return res.json(updated);
+    } catch (err) {
+      console.error("Update world position error:", err);
+      return res.status(500).json({ message: "Failed to update position" });
+    }
+  });
+
+  app.post("/api/admin/worlds", isAdmin, async (req, res) => {
+    try {
+      const { name, iconData, bgData, glowColor, posX, posY } = req.body;
+      if (!name || typeof name !== "string" || !name.trim()) {
+        return res.status(400).json({ message: "Name is required" });
+      }
+      const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+      if (!slug) return res.status(400).json({ message: "Invalid name" });
+
+      const existing = await storage.getWorld(slug);
+      if (existing) return res.status(400).json({ message: "A world with this name already exists" });
+
+      let iconUrl: string | null = null;
+      let bgUrl: string | null = null;
+
+      if (iconData) {
+        iconUrl = await processWorldImage(iconData, 500);
+      }
+      if (bgData) {
+        bgUrl = await processWorldImage(bgData, 2000);
+      }
+
+      const world = await storage.createWorld({
+        id: slug,
+        name: name.trim(),
+        iconUrl,
+        bgUrl,
+        posX: posX || 50,
+        posY: posY || 50,
+        glowColor: glowColor || "#ffd700",
+        isDefault: false,
+      });
+      return res.status(201).json(world);
+    } catch (err) {
+      console.error("Create world error:", err);
+      return res.status(500).json({ message: "Failed to create world" });
+    }
+  });
+
+  app.patch("/api/admin/worlds/:worldId", isAdmin, async (req, res) => {
+    try {
+      const world = await storage.getWorld(req.params.worldId);
+      if (!world) return res.status(404).json({ message: "World not found" });
+
+      const { name, glowColor, iconData, bgData } = req.body;
+      const updates: Record<string, any> = {};
+
+      if (name && typeof name === "string" && name.trim()) updates.name = name.trim();
+      if (glowColor && typeof glowColor === "string") updates.glowColor = glowColor;
+
+      if (iconData) {
+        updates.iconUrl = await processWorldImage(iconData, 500);
+      }
+      if (bgData) {
+        updates.bgUrl = await processWorldImage(bgData, 2000);
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return res.json(world);
+      }
+
+      const updated = await storage.updateWorld(req.params.worldId, updates);
+      return res.json(updated);
+    } catch (err) {
+      console.error("Update world error:", err);
+      return res.status(500).json({ message: "Failed to update world" });
+    }
+  });
+
+  app.delete("/api/admin/worlds/:worldId", isAdmin, async (req, res) => {
+    try {
+      const world = await storage.getWorld(req.params.worldId);
+      if (!world) return res.status(404).json({ message: "World not found" });
+      if (world.isDefault) return res.status(400).json({ message: "Cannot delete default worlds" });
+      await storage.deleteWorld(req.params.worldId);
+      return res.json({ message: "World deleted" });
+    } catch (err) {
+      console.error("Delete world error:", err);
+      return res.status(500).json({ message: "Failed to delete world" });
+    }
+  });
+
   app.get("/api/world/:worldId/locations", isAuthenticated, async (req, res) => {
     try {
       const locations = await storage.getWorldLocations(req.params.worldId);
@@ -840,6 +958,33 @@ export async function registerRoutes(
       return res.status(500).json({ message: "Failed to get shop items" });
     }
   });
+
+  async function processWorldImage(imageData: string, maxSize: number): Promise<string> {
+    const mimeMatch = imageData.match(/^data:(image\/(png|gif|jpeg|jpg));base64,/);
+    if (!mimeMatch) {
+      throw new Error("Invalid image format. Only PNG, GIF, and JPEG are supported.");
+    }
+    const mimeType = mimeMatch[1];
+    const base64Data = imageData.replace(/^data:image\/\w+;base64,/, "");
+    if (base64Data.length > 15 * 1024 * 1024) {
+      throw new Error("Image data too large. Max 15MB.");
+    }
+    const imageBuffer = Buffer.from(base64Data, "base64");
+    const isGif = mimeType === "image/gif";
+    if (isGif) {
+      const resized = await sharp(imageBuffer, { animated: true })
+        .resize(maxSize, maxSize, { fit: "inside", withoutEnlargement: true })
+        .gif()
+        .toBuffer();
+      return `data:image/gif;base64,${resized.toString("base64")}`;
+    } else {
+      const resized = await sharp(imageBuffer)
+        .resize(maxSize, maxSize, { fit: "inside", withoutEnlargement: true })
+        .png({ quality: 90 })
+        .toBuffer();
+      return `data:image/png;base64,${resized.toString("base64")}`;
+    }
+  }
 
   async function processShopItemImage(imageData: string): Promise<string> {
     const mimeMatch = imageData.match(/^data:(image\/(png|gif));base64,/);
