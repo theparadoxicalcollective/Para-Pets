@@ -33,6 +33,12 @@ export const shopItems = pgTable("shop_items", {
   hatchedImageUrl: text("hatched_image_url"),
   statBoostType: text("stat_boost_type"),
   statBoostAmount: integer("stat_boost_amount"),
+  specialSkill: text("special_skill"),
+  healthRestored: integer("health_restored"),
+  manaRestored: integer("mana_restored"),
+  petsRevived: integer("pets_revived"),
+  atkBoost: integer("atk_boost"),
+  defBoost: integer("def_boost"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 

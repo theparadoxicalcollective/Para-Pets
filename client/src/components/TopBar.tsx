@@ -33,49 +33,68 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideHome }:
   return (
     <>
       <div className="flex items-start justify-between px-3 pt-5 gap-2">
-        <button
-          data-testid="button-profile"
-          onClick={onProfileClick}
-          className="relative flex-shrink-0 transition-transform duration-150 active:scale-95"
-          style={{ background: "none", border: "none", cursor: "pointer" }}
-        >
-          <div className="relative topbar-profile-size">
-            <div
-              className="absolute inset-[-3px] rounded-lg z-0"
-              style={{
-                background: "radial-gradient(ellipse at center, rgba(0,0,0,0.5) 0%, transparent 70%)",
-              }}
-            />
-            <img
-              src={profileFrameImg}
-              alt="Profile Frame"
-              className="absolute inset-0 w-full h-full object-contain z-20"
-              style={{ filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.7))" }}
-            />
-            <div
-              className="absolute z-10 overflow-hidden rounded-sm"
-              style={{ inset: "10px" }}
-            >
-              {user.profileImage ? (
-                <img
-                  data-testid="img-profile-avatar"
-                  src={user.profileImage}
-                  alt={user.username}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div
-                  className="w-full h-full flex items-center justify-center"
-                  style={{ background: "linear-gradient(135deg, #2a1a0a 0%, #4a2e18 100%)" }}
-                >
-                  <span className="font-fantasy text-[#d4a017] text-lg font-bold">
-                    {user.username.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-              )}
+        <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+          <button
+            data-testid="button-profile"
+            onClick={onProfileClick}
+            className="relative flex-shrink-0 transition-transform duration-150 active:scale-95"
+            style={{ background: "none", border: "none", cursor: "pointer" }}
+          >
+            <div className="relative topbar-profile-size">
+              <div
+                className="absolute inset-[-3px] rounded-lg z-0"
+                style={{
+                  background: "radial-gradient(ellipse at center, rgba(0,0,0,0.5) 0%, transparent 70%)",
+                }}
+              />
+              <img
+                src={profileFrameImg}
+                alt="Profile Frame"
+                className="absolute inset-0 w-full h-full object-contain z-20"
+                style={{ filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.7))" }}
+              />
+              <div
+                className="absolute z-10 overflow-hidden rounded-sm"
+                style={{ inset: "10px" }}
+              >
+                {user.profileImage ? (
+                  <img
+                    data-testid="img-profile-avatar"
+                    src={user.profileImage}
+                    alt={user.username}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div
+                    className="w-full h-full flex items-center justify-center"
+                    style={{ background: "linear-gradient(135deg, #2a1a0a 0%, #4a2e18 100%)" }}
+                  >
+                    <span className="font-fantasy text-[#d4a017] text-lg font-bold">
+                      {user.username.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        </button>
+          </button>
+          {user.isAdmin && (
+            <button
+              data-testid="button-admin-icon"
+              onClick={() => navigate("/admin")}
+              className="w-7 h-7 rounded-full flex items-center justify-center transition-transform duration-150 active:scale-90"
+              style={{
+                background: "linear-gradient(135deg, rgba(212,160,23,0.3) 0%, rgba(180,120,10,0.3) 100%)",
+                border: "1.5px solid rgba(212,160,23,0.6)",
+                cursor: "pointer",
+                boxShadow: "0 0 8px rgba(212,160,23,0.3)",
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f0c040" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z" fill="rgba(240,192,64,0.3)" />
+              </svg>
+            </button>
+          )}
+        </div>
 
         <div className="flex-1 flex flex-col items-center pt-1 gap-1">
           <div className="flex items-center gap-1.5">

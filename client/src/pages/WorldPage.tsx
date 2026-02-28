@@ -36,8 +36,6 @@ const WORLD_CONFIG: Record<string, { name: string; shopIcon: string; bg: string 
   swamp: { name: "The Swamp", shopIcon: shopSwamp, bg: bgSwamp },
 };
 
-const ITEM_TYPES = ["pet", "item", "accessory", "potion"];
-
 interface ShopItem {
   id: string;
   name: string;
@@ -81,8 +79,6 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [showProfile, setShowProfile] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
   const [showShop, setShowShop] = useState(false);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [editingItem, setEditingItem] = useState<ShopItem | null>(null);
   const [shopError, setShopError] = useState<string | null>(null);
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -105,19 +101,6 @@ export default function WorldPage({ user }: WorldPageProps) {
   });
 
   const ownedItemIds = new Set(inventory.map((inv) => inv.shopItemId));
-
-  const deleteMutation = useMutation({
-    mutationFn: async (itemId: string) => {
-      await apiRequest("DELETE", `/api/admin/shop/${itemId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/shop", worldId] });
-      toast({ title: "Deleted", description: "Item removed from shop" });
-    },
-    onError: () => {
-      toast({ title: "Failed", description: "Could not delete item", variant: "destructive" });
-    },
-  });
 
   const buyMutation = useMutation({
     mutationFn: async (itemId: string) => {
@@ -276,21 +259,7 @@ export default function WorldPage({ user }: WorldPageProps) {
             )}
 
             <div className="flex-1 overflow-y-auto px-4 pb-6">
-              {currentUser.isAdmin && (
-                <button
-                  data-testid="button-add-item"
-                  onClick={() => { setShowAddForm(true); setEditingItem(null); }}
-                  className="w-full mb-3 py-2.5 rounded-lg font-fantasy text-sm tracking-wider flex items-center justify-center gap-2 transition-transform active:scale-98"
-                  style={{
-                    background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
-                    border: "1px solid rgba(127,255,212,0.4)",
-                    color: "#7fffd4",
-                    cursor: "pointer",
-                  }}
-                >
-                  <span className="text-xl leading-none">+</span> Add Item
-                </button>
-              )}
+              
 
               {itemsLoading ? (
                 <div className="text-center py-8">
@@ -377,37 +346,6 @@ export default function WorldPage({ user }: WorldPageProps) {
                             {buyMutation.isPending ? "Buying..." : "Buy"}
                           </button>
                         )}
-                        {currentUser.isAdmin && (
-                          <div className="flex gap-2 w-full mt-1">
-                            <button
-                              data-testid={`button-edit-item-${item.id}`}
-                              onClick={() => { setEditingItem(item); setShowAddForm(true); }}
-                              className="flex-1 py-1 rounded font-fantasy text-[9px] tracking-wider"
-                              style={{
-                                background: "linear-gradient(135deg, #5c3a1e 0%, #8b5e3c 100%)",
-                                border: "1px solid rgba(212,160,23,0.4)",
-                                color: "#f0c040",
-                                cursor: "pointer",
-                              }}
-                            >
-                              Edit
-                            </button>
-                            <button
-                              data-testid={`button-delete-item-${item.id}`}
-                              onClick={() => deleteMutation.mutate(item.id)}
-                              disabled={deleteMutation.isPending}
-                              className="flex-1 py-1 rounded font-fantasy text-[9px] tracking-wider disabled:opacity-50"
-                              style={{
-                                background: "linear-gradient(135deg, rgba(139,0,0,0.6) 0%, rgba(80,0,0,0.6) 100%)",
-                                border: "1px solid rgba(200,50,50,0.4)",
-                                color: "#ff9999",
-                                cursor: "pointer",
-                              }}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        )}
                       </div>
                     </div>
                   ))}
@@ -416,19 +354,6 @@ export default function WorldPage({ user }: WorldPageProps) {
             </div>
           </div>
         </div>
-      )}
-
-      {showAddForm && (
-        <ShopItemForm
-          worldId={worldId}
-          item={editingItem}
-          onClose={() => { setShowAddForm(false); setEditingItem(null); }}
-          onSuccess={() => {
-            setShowAddForm(false);
-            setEditingItem(null);
-            queryClient.invalidateQueries({ queryKey: ["/api/shop", worldId] });
-          }}
-        />
       )}
 
       {showProfile && (
@@ -445,279 +370,3 @@ export default function WorldPage({ user }: WorldPageProps) {
   );
 }
 
-function ImageUpload({ label, preview, onSelect, onRemove, inputId, allowGif = false }: { label: string; preview: string | null; onSelect: (data: string) => void; onRemove: () => void; inputId: string; allowGif?: boolean }) {
-  const { toast } = useToast();
-  const allowedTypes = allowGif ? ["image/png", "image/gif"] : ["image/png"];
-  const acceptStr = allowGif ? "image/png,image/gif" : "image/png";
-  const formatLabel = allowGif ? "PNG or GIF" : "PNG only";
-
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!allowedTypes.includes(file.type)) {
-      toast({ title: "Invalid format", description: formatLabel, variant: "destructive" });
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      toast({ title: "Too large", description: "Max 10MB", variant: "destructive" });
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (ev) => onSelect(ev.target?.result as string);
-    reader.readAsDataURL(file);
-  };
-
-  return (
-    <div>
-      <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">{label}</label>
-      <div className="flex items-center gap-2">
-        <div
-          className="w-16 h-16 rounded-md flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer"
-          style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.3)" }}
-          onClick={() => (document.getElementById(inputId) as HTMLInputElement)?.click()}
-        >
-          {preview ? (
-            <img src={preview} alt="" className="w-full h-full object-contain" />
-          ) : (
-            <span className="text-[#d4a017] text-lg">+</span>
-          )}
-        </div>
-        <input id={inputId} type="file" accept={acceptStr} onChange={handleFile} className="hidden" />
-        <div className="flex-1 flex flex-col gap-1">
-          <button
-            type="button"
-            onClick={() => (document.getElementById(inputId) as HTMLInputElement)?.click()}
-            className="w-full py-1.5 rounded-md font-fantasy text-[9px] tracking-wider"
-            style={{ background: "linear-gradient(135deg, #5c3a1e 0%, #8b5e3c 100%)", border: "1px solid rgba(212,160,23,0.4)", color: "#f0c040", cursor: "pointer" }}
-          >
-            {preview ? "Change" : "Upload"}
-          </button>
-          {preview && (
-            <button
-              type="button"
-              onClick={onRemove}
-              className="w-full py-1 rounded-md font-fantasy text-[8px] tracking-wider"
-              style={{ background: "rgba(139,0,0,0.3)", border: "1px solid rgba(200,50,50,0.3)", color: "#ff9999", cursor: "pointer" }}
-            >
-              Remove
-            </button>
-          )}
-          <span className="font-fantasy text-[#6a5840] text-[7px] tracking-wider">{formatLabel}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ShopItemForm({
-  worldId,
-  item,
-  onClose,
-  onSuccess,
-}: {
-  worldId: string;
-  item: ShopItem | null;
-  onClose: () => void;
-  onSuccess: () => void;
-}) {
-  const [name, setName] = useState(item?.name || "");
-  const [price, setPrice] = useState(item?.price?.toString() || "");
-  const [type, setType] = useState(item?.type || "item");
-  const [rarity, setRarity] = useState(item?.rarity?.toString() || "1");
-  const [hatchTime, setHatchTime] = useState(item?.hatchTime?.toString() || "1");
-  const [statBoostType, setStatBoostType] = useState(item?.statBoostType || "health");
-  const [statBoostAmount, setStatBoostAmount] = useState(item?.statBoostAmount?.toString() || "10");
-  const [imageData, setImageData] = useState<string | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(item?.imageUrl || null);
-  const [eggImageData, setEggImageData] = useState<string | null>(null);
-  const [eggImagePreview, setEggImagePreview] = useState<string | null>(item?.eggImageUrl || null);
-  const [hatchedImageData, setHatchedImageData] = useState<string | null>(null);
-  const [hatchedImagePreview, setHatchedImagePreview] = useState<string | null>(item?.hatchedImageUrl || null);
-  const [submitting, setSubmitting] = useState(false);
-  const { toast } = useToast();
-
-  const handleSubmit = async () => {
-    if (!name.trim() || !price.trim()) {
-      toast({ title: "Missing fields", description: "Name and price are required", variant: "destructive" });
-      return;
-    }
-    const priceNum = parseInt(price);
-    if (isNaN(priceNum) || priceNum < 0) {
-      toast({ title: "Invalid price", description: "Price must be a positive number", variant: "destructive" });
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const payload: any = { name: name.trim(), price: priceNum, type };
-      if (imageData) payload.imageData = imageData;
-
-      if (type === "pet") {
-        payload.rarity = parseInt(rarity);
-        payload.hatchTime = parseInt(hatchTime);
-        if (eggImageData) payload.eggImageData = eggImageData;
-        if (hatchedImageData) payload.hatchedImageData = hatchedImageData;
-      } else {
-        payload.rarity = null;
-        payload.hatchTime = null;
-        payload.eggImageUrl = null;
-        payload.hatchedImageUrl = null;
-      }
-
-      if (type === "item") {
-        payload.statBoostType = statBoostType;
-        payload.statBoostAmount = parseInt(statBoostAmount) || 10;
-      } else {
-        payload.statBoostType = null;
-        payload.statBoostAmount = null;
-      }
-
-      if (item) {
-        await apiRequest("PATCH", `/api/admin/shop/${item.id}`, payload);
-        toast({ title: "Updated", description: "Item updated successfully" });
-      } else {
-        await apiRequest("POST", "/api/admin/shop", { ...payload, worldId });
-        toast({ title: "Created", description: "Item added to shop" });
-      }
-      onSuccess();
-    } catch {
-      toast({ title: "Failed", description: "Could not save item", variant: "destructive" });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const inputStyle = { background: "rgba(242,232,208,0.9)", border: "1px solid #8b5e3c", color: "#2a1a0a" };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-      <div
-        className="relative w-[85%] max-w-sm rounded-lg p-5 animate-slide-up overflow-y-auto"
-        style={{
-          background: "linear-gradient(135deg, rgba(30,15,5,0.97) 0%, rgba(60,35,10,0.97) 100%)",
-          border: "1px solid rgba(212,160,23,0.5)",
-          boxShadow: "0 8px 40px rgba(0,0,0,0.7)",
-          maxHeight: "85vh",
-        }}
-      >
-        <button
-          data-testid="button-close-form"
-          onClick={onClose}
-          className="absolute -top-3 -right-3 w-8 h-8 rounded-full flex items-center justify-center"
-          style={{ background: "linear-gradient(135deg, #5c3a1e 0%, #3a2010 100%)", border: "2px solid rgba(212,160,23,0.6)", color: "#f0c040", cursor: "pointer", fontSize: "14px", fontWeight: "bold" }}
-        >
-          X
-        </button>
-
-        <h3 className="font-fantasy text-[#f0c040] text-center text-base tracking-widest mb-4">
-          {item ? "Edit Item" : "Add Item"}
-        </h3>
-
-        <div className="space-y-3">
-          <ImageUpload
-            label="Shop Image (PNG)"
-            preview={imagePreview}
-            onSelect={(d) => { setImageData(d); setImagePreview(d); }}
-            onRemove={() => { setImageData(null); setImagePreview(null); }}
-            inputId="shop-item-file-input"
-          />
-
-          <div>
-            <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Name</label>
-            <input data-testid="input-item-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Item name" className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
-          </div>
-
-          <div>
-            <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Price</label>
-            <input data-testid="input-item-price" type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0" min="0" className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
-          </div>
-
-          <div>
-            <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Type</label>
-            <select data-testid="select-item-type" value={type} onChange={(e) => setType(e.target.value)} className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle}>
-              {ITEM_TYPES.map((t) => (
-                <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
-              ))}
-            </select>
-          </div>
-
-          {type === "pet" && (
-            <>
-              <div>
-                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Rarity</label>
-                <select data-testid="select-rarity" value={rarity} onChange={(e) => setRarity(e.target.value)} className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle}>
-                  {[1,2,3,4,5].map((r) => (
-                    <option key={r} value={r}>{"★".repeat(r)} ({r} Star{r > 1 ? "s" : ""})</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Hatch Time (hours)</label>
-                <input data-testid="input-hatch-time" type="number" value={hatchTime} onChange={(e) => setHatchTime(e.target.value)} placeholder="1" min="1" className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
-              </div>
-              <ImageUpload
-                label="Egg Image (shown in shop & before hatch)"
-                preview={eggImagePreview}
-                onSelect={(d) => { setEggImageData(d); setEggImagePreview(d); }}
-                onRemove={() => { setEggImageData(null); setEggImagePreview(null); }}
-                inputId="egg-image-input"
-                allowGif
-              />
-              <ImageUpload
-                label="Hatched Pet Image (shown after hatch)"
-                preview={hatchedImagePreview}
-                onSelect={(d) => { setHatchedImageData(d); setHatchedImagePreview(d); }}
-                onRemove={() => { setHatchedImageData(null); setHatchedImagePreview(null); }}
-                inputId="hatched-image-input"
-                allowGif
-              />
-            </>
-          )}
-
-          {type === "item" && (
-            <>
-              <div>
-                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Stat Boost Type</label>
-                <select data-testid="select-stat-boost" value={statBoostType} onChange={(e) => setStatBoostType(e.target.value)} className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle}>
-                  <option value="health">Health (+HP)</option>
-                  <option value="atk">Attack (+ATK)</option>
-                  <option value="def">Defense (+DEF)</option>
-                  <option value="lvl">Level (+LVL)</option>
-                </select>
-              </div>
-              <div>
-                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">
-                  {statBoostType === "health" ? "HP Added" : statBoostType === "atk" ? "ATK Added" : statBoostType === "def" ? "DEF Added" : "Levels Added"}
-                </label>
-                <input
-                  data-testid="input-stat-boost-amount"
-                  type="number"
-                  value={statBoostAmount}
-                  onChange={(e) => setStatBoostAmount(e.target.value)}
-                  placeholder="10"
-                  min="1"
-                  className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
-                  style={inputStyle}
-                />
-                <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">
-                  How much {statBoostType === "health" ? "HP" : statBoostType === "atk" ? "ATK" : statBoostType === "def" ? "DEF" : "LVL"} this item gives when used on a pet
-                </p>
-              </div>
-            </>
-          )}
-
-          <button
-            data-testid="button-submit-item"
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="w-full py-2.5 rounded-md font-fantasy text-sm tracking-wider transition-transform active:scale-98 disabled:opacity-50"
-            style={{ background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)", border: "1px solid rgba(127,255,212,0.4)", color: "#7fffd4", cursor: "pointer" }}
-          >
-            {submitting ? "Saving..." : item ? "Update Item" : "Add to Shop"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}

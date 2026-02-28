@@ -41,6 +41,9 @@ interface PetDetailPageProps {
 export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUserUpdate }: PetDetailPageProps) {
   const [showPowerUp, setShowPowerUp] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [confirmItem, setConfirmItem] = useState<BagItem | null>(null);
+  const [showSuccessAnim, setShowSuccessAnim] = useState(false);
+  const [successBoostLabel, setSuccessBoostLabel] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -63,12 +66,20 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
       return res.json();
     },
     onSuccess: () => {
+      const item = confirmItem;
+      const boostLabel = item
+        ? `+${item.statBoostAmount || "?"} ${item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "LVL"}`
+        : "Power Up!";
+      setSuccessBoostLabel(boostLabel);
+      setShowSuccessAnim(true);
+      setConfirmItem(null);
+      setShowPowerUp(false);
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       onUpdate();
-      toast({ title: "Power Up!", description: "Your pet grew stronger!" });
-      setShowPowerUp(false);
+      setTimeout(() => setShowSuccessAnim(false), 2000);
     },
     onError: (err: any) => {
+      setConfirmItem(null);
       toast({ title: "Failed", description: err?.message || "Could not power up", variant: "destructive" });
     },
   });
@@ -92,14 +103,6 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
 
   const petImage = pet.hatchedImageUrl || pet.imageUrl;
 
-  const statBarStyle = (value: number, max: number, color: string) => ({
-    width: `${Math.min(100, (value / max) * 100)}%`,
-    background: `linear-gradient(90deg, ${color}, ${color}88)`,
-    height: "100%",
-    borderRadius: "4px",
-    transition: "width 0.5s ease",
-  });
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
@@ -122,7 +125,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
         </button>
 
         <div className="p-5">
-          <div className="flex flex-col items-center mb-4">
+          <div className="flex flex-col items-center mb-4 relative">
             <div
               className="w-36 h-36 rounded-xl flex items-center justify-center overflow-hidden mb-3"
               style={{
@@ -138,6 +141,35 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                 <span className="text-5xl">🐾</span>
               )}
             </div>
+
+            {showSuccessAnim && (
+              <div
+                className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none"
+                style={{ animation: "powerUpFlash 2s ease-out forwards" }}
+              >
+                <div
+                  className="flex flex-col items-center"
+                  style={{ animation: "powerUpRise 2s ease-out forwards" }}
+                >
+                  <div
+                    className="text-4xl mb-1"
+                    style={{ animation: "powerUpSpin 0.6s ease-out", filter: "drop-shadow(0 0 20px rgba(127,255,212,0.8))" }}
+                  >
+                    ⚡
+                  </div>
+                  <span
+                    className="font-fantasy text-lg font-bold tracking-wider"
+                    style={{
+                      color: "#7fffd4",
+                      textShadow: "0 0 20px rgba(127,255,212,0.8), 0 0 40px rgba(127,255,212,0.4)",
+                    }}
+                    data-testid="text-power-up-success"
+                  >
+                    {successBoostLabel}
+                  </span>
+                </div>
+              </div>
+            )}
 
             {pet.eggImageUrl && (
               <div
@@ -190,7 +222,13 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                 </span>
               </div>
               <div className="w-full h-1.5 rounded-full mt-1" style={{ background: "rgba(0,0,0,0.4)" }}>
-                <div style={{ ...statBarStyle(pet.itemsUsedThisLevel, maxItemsPerLevel, "#c084fc"), height: "6px", borderRadius: "4px" }} />
+                <div style={{
+                  width: `${Math.min(100, (pet.itemsUsedThisLevel / maxItemsPerLevel) * 100)}%`,
+                  background: "linear-gradient(90deg, #c084fc, #c084fc88)",
+                  height: "6px",
+                  borderRadius: "4px",
+                  transition: "width 0.5s ease",
+                }} />
               </div>
             </div>
           </div>
@@ -256,7 +294,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                     <button
                       key={item.inventoryId}
                       data-testid={`button-use-item-${item.inventoryId}`}
-                      onClick={() => powerUpMutation.mutate(item.inventoryId)}
+                      onClick={() => setConfirmItem(item)}
                       disabled={powerUpMutation.isPending || (item.statBoostType !== "lvl" && itemsRemaining <= 0)}
                       className="rounded-md p-2 flex flex-col items-center gap-1 transition-transform active:scale-95 disabled:opacity-40"
                       style={{
@@ -286,6 +324,72 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {confirmItem && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+            <div className="absolute inset-0 bg-black/60" onClick={() => setConfirmItem(null)} />
+            <div
+              className="relative w-[80%] max-w-xs rounded-lg p-5 animate-slide-up"
+              style={{
+                background: "linear-gradient(135deg, rgba(10,40,25,0.97) 0%, rgba(20,60,35,0.97) 100%)",
+                border: "1px solid rgba(127,255,212,0.5)",
+                boxShadow: "0 8px 40px rgba(0,0,0,0.8), 0 0 30px rgba(127,255,212,0.15)",
+              }}
+            >
+              <h4 className="font-fantasy text-[#7fffd4] text-sm tracking-wider text-center mb-3" data-testid="text-confirm-use-title">
+                Use Item?
+              </h4>
+              <div className="flex flex-col items-center gap-2 mb-4">
+                <div className="w-14 h-14 rounded-md flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.3)" }}>
+                  {confirmItem.imageUrl ? (
+                    <img src={confirmItem.imageUrl} alt={confirmItem.name} className="w-full h-full object-contain" />
+                  ) : (
+                    <span className="text-2xl">📦</span>
+                  )}
+                </div>
+                <p className="font-fantasy text-[#f0c040] text-xs font-semibold">{confirmItem.name}</p>
+                <span
+                  className="font-fantasy text-xs tracking-wider px-3 py-1 rounded-full"
+                  style={{
+                    background: confirmItem.statBoostType === "health" ? "rgba(74,222,128,0.2)" : confirmItem.statBoostType === "atk" ? "rgba(248,113,113,0.2)" : confirmItem.statBoostType === "def" ? "rgba(96,165,250,0.2)" : "rgba(192,132,252,0.2)",
+                    color: confirmItem.statBoostType === "health" ? "#4ade80" : confirmItem.statBoostType === "atk" ? "#f87171" : confirmItem.statBoostType === "def" ? "#60a5fa" : "#c084fc",
+                    border: `1px solid ${confirmItem.statBoostType === "health" ? "rgba(74,222,128,0.4)" : confirmItem.statBoostType === "atk" ? "rgba(248,113,113,0.4)" : confirmItem.statBoostType === "def" ? "rgba(96,165,250,0.4)" : "rgba(192,132,252,0.4)"}`,
+                  }}
+                >
+                  +{confirmItem.statBoostAmount || "?"} {confirmItem.statBoostType === "health" ? "HP" : confirmItem.statBoostType === "atk" ? "ATK" : confirmItem.statBoostType === "def" ? "DEF" : "LVL"}
+                </span>
+                <p className="font-fantasy text-[#a89878] text-[10px] text-center">
+                  This item will be consumed and cannot be undone.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setConfirmItem(null)}
+                  className="flex-1 py-2 rounded-md font-fantasy text-xs tracking-wider"
+                  style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#ccc", cursor: "pointer" }}
+                  data-testid="button-cancel-use-item"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => powerUpMutation.mutate(confirmItem.inventoryId)}
+                  disabled={powerUpMutation.isPending}
+                  className="flex-1 py-2 rounded-md font-fantasy text-xs tracking-wider disabled:opacity-50"
+                  style={{
+                    background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
+                    border: "1px solid rgba(127,255,212,0.5)",
+                    color: "#7fffd4",
+                    cursor: "pointer",
+                    boxShadow: "0 0 15px rgba(127,255,212,0.2)",
+                  }}
+                  data-testid="button-confirm-use-item"
+                >
+                  {powerUpMutation.isPending ? "Using..." : "Use Item"}
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -344,6 +448,25 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
           </div>
         )}
       </div>
+
+      <style>{`
+        @keyframes powerUpFlash {
+          0% { opacity: 1; }
+          70% { opacity: 1; }
+          100% { opacity: 0; }
+        }
+        @keyframes powerUpRise {
+          0% { transform: translateY(20px) scale(0.8); opacity: 0; }
+          20% { transform: translateY(0px) scale(1.2); opacity: 1; }
+          50% { transform: translateY(-10px) scale(1); opacity: 1; }
+          100% { transform: translateY(-30px) scale(0.9); opacity: 0; }
+        }
+        @keyframes powerUpSpin {
+          0% { transform: rotate(0deg) scale(0.5); }
+          50% { transform: rotate(180deg) scale(1.3); }
+          100% { transform: rotate(360deg) scale(1); }
+        }
+      `}</style>
     </div>
   );
 }
