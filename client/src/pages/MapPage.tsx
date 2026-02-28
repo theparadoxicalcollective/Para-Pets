@@ -370,35 +370,6 @@ export default function MapPage({ user }: MapPageProps) {
               onPointerUp={handlePointerUp}
             >
               <div className="absolute inset-0">
-                <svg className="absolute inset-0 w-full h-full pointer-events-none z-[5] opacity-[0.3]">
-                  <defs>
-                    <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="rgba(120,160,255,0.6)" />
-                      <stop offset="50%" stopColor="rgba(160,120,255,0.5)" />
-                      <stop offset="100%" stopColor="rgba(120,160,255,0.6)" />
-                    </linearGradient>
-                  </defs>
-                  {worldsList.length > 1 && worldsList.map((w, i) => {
-                    if (i === 0) return null;
-                    const prev = worldsList[i - 1];
-                    const wPos = dragPos?.id === w.id ? dragPos : w;
-                    const prevPos = dragPos?.id === prev.id ? dragPos : prev;
-                    const x1 = (prevPos.x ?? prev.posX) + 14;
-                    const y1 = (prevPos.y ?? prev.posY) + 8;
-                    const x2 = (wPos.x ?? w.posX) + 14;
-                    const y2 = (wPos.y ?? w.posY) + 8;
-                    return (
-                      <line
-                        key={`path-${i}`}
-                        x1={`${x1}%`} y1={`${y1}%`}
-                        x2={`${x2}%`} y2={`${y2}%`}
-                        stroke="url(#lineGrad)"
-                        strokeWidth="1"
-                        strokeDasharray="4,6"
-                      />
-                    );
-                  })}
-                </svg>
 
                 {worldsList.map((w, i) => {
                   const icon = getWorldIcon(w);
