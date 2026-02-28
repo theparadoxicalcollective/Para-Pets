@@ -22,14 +22,14 @@ const stripePriceCache: Record<string, string> = {};
 async function getOrCreateStripePrice(stripe: any, pack: typeof COIN_PACKS[0]): Promise<string> {
   if (stripePriceCache[pack.id]) return stripePriceCache[pack.id];
 
-  const products = await stripe.products.list({ limit: 100, active: true });
-  const existing = products.data.find((p: any) => p.metadata?.packId === pack.id);
-  if (existing) {
-    const prices = await stripe.prices.list({ product: existing.id, active: true, limit: 1 });
-    if (prices.data.length > 0) {
-      stripePriceCache[pack.id] = prices.data[0].id;
-      return prices.data[0].id;
-    }
+  const targetAmount = pack.priceUsd * 100;
+  const prices = await stripe.prices.list({ active: true, limit: 100, expand: ['data.product'] });
+  const matchingPrice = prices.data.find((p: any) =>
+    p.unit_amount === targetAmount && p.currency === 'usd' && (p.product as any)?.active !== false
+  );
+  if (matchingPrice) {
+    stripePriceCache[pack.id] = matchingPrice.id;
+    return matchingPrice.id;
   }
 
   const product = await stripe.products.create({
@@ -39,7 +39,7 @@ async function getOrCreateStripePrice(stripe: any, pack: typeof COIN_PACKS[0]): 
   });
   const price = await stripe.prices.create({
     product: product.id,
-    unit_amount: pack.priceUsd * 100,
+    unit_amount: targetAmount,
     currency: 'usd',
   });
   stripePriceCache[pack.id] = price.id;
