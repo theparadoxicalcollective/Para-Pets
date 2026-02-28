@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import profileFrameImg from "@assets/frame_profile_thin.png";
 import homeIconImg from "@assets/icon_home_new.png";
 import coinIconImg from "@assets/icon_coin.png";
 import RewardClaimModal from "./RewardClaimModal";
