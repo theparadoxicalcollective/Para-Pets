@@ -196,8 +196,39 @@ export async function registerRoutes(
         const token = crypto.randomBytes(32).toString("hex");
         const expires = new Date(Date.now() + 60 * 60 * 1000);
         await storage.setPasswordResetToken(user.id, token, expires);
+
+        const baseUrl = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`;
+        const resetUrl = `${baseUrl}/reset-password/${token}`;
+
+        if (process.env.RESEND_API_KEY) {
+          try {
+            const { Resend } = await import("resend");
+            const resend = new Resend(process.env.RESEND_API_KEY);
+            await resend.emails.send({
+              from: "Para Pets <onboarding@resend.dev>",
+              to: email,
+              subject: "Reset Your Para Pets Password",
+              html: `
+                <div style="font-family: Georgia, serif; max-width: 500px; margin: 0 auto; background: #1a1a2e; color: #d4b896; padding: 30px; border-radius: 12px; border: 1px solid #3a2a1a;">
+                  <h1 style="text-align: center; color: #d4a017; font-size: 24px; letter-spacing: 3px;">PARA PETS</h1>
+                  <p style="text-align: center; color: #a89878; font-size: 12px; letter-spacing: 2px;">PASSWORD RESET</p>
+                  <hr style="border: none; border-top: 1px solid #3a2a1a; margin: 20px 0;" />
+                  <p style="color: #c8b896; font-size: 14px;">Hello ${user.username},</p>
+                  <p style="color: #a89878; font-size: 14px;">We received a request to reset your password. Click the button below to set a new password:</p>
+                  <div style="text-align: center; margin: 25px 0;">
+                    <a href="${resetUrl}" style="display: inline-block; background: linear-gradient(135deg, #2d6a4f, #1a4a2e); color: #7fffd4; padding: 12px 30px; border-radius: 6px; text-decoration: none; font-size: 14px; letter-spacing: 2px; border: 1px solid rgba(127,255,212,0.3);">RESET PASSWORD</a>
+                  </div>
+                  <p style="color: #6a5840; font-size: 12px;">This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p>
+                </div>
+              `,
+            });
+            console.log(`Password reset email sent to ${email}`);
+          } catch (emailErr) {
+            console.error("Failed to send reset email:", emailErr);
+          }
+        }
       }
-      return res.json({ message: "If an account exists with that email, a password reset link has been generated", token: user ? undefined : undefined });
+      return res.json({ message: "If an account exists with that email, a password reset link will be sent." });
     } catch (err) {
       console.error("Forgot password error:", err);
       return res.status(500).json({ message: "Failed to process request" });
