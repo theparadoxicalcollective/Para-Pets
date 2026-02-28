@@ -1123,6 +1123,177 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/admin/pet-templates", isAdmin, async (_req, res) => {
+    try {
+      const templates = await storage.getAllPetTemplates();
+      return res.json(templates);
+    } catch (err) {
+      console.error("Get pet templates error:", err);
+      return res.status(500).json({ message: "Failed to get pet templates" });
+    }
+  });
+
+  app.get("/api/admin/pet-templates/:id", isAdmin, async (req, res) => {
+    try {
+      const template = await storage.getPetTemplate(req.params.id);
+      if (!template) return res.status(404).json({ message: "Template not found" });
+      const parts = await storage.getPetTemplateParts(req.params.id);
+      return res.json({ ...template, parts });
+    } catch (err) {
+      console.error("Get pet template error:", err);
+      return res.status(500).json({ message: "Failed to get pet template" });
+    }
+  });
+
+  app.post("/api/admin/pet-templates", isAdmin, async (req, res) => {
+    try {
+      const { name } = req.body;
+      if (!name || typeof name !== "string" || !name.trim()) {
+        return res.status(400).json({ message: "Name is required" });
+      }
+      const template = await storage.createPetTemplate(name.trim());
+      return res.status(201).json(template);
+    } catch (err) {
+      console.error("Create pet template error:", err);
+      return res.status(500).json({ message: "Failed to create pet template" });
+    }
+  });
+
+  app.patch("/api/admin/pet-templates/:id", isAdmin, async (req, res) => {
+    try {
+      const { name, frontAssembled, backAssembled } = req.body;
+      const updates: Record<string, any> = {};
+      if (name !== undefined) updates.name = name;
+      if (frontAssembled !== undefined) updates.frontAssembled = frontAssembled;
+      if (backAssembled !== undefined) updates.backAssembled = backAssembled;
+      const updated = await storage.updatePetTemplate(req.params.id, updates);
+      return res.json(updated);
+    } catch (err) {
+      console.error("Update pet template error:", err);
+      return res.status(500).json({ message: "Failed to update pet template" });
+    }
+  });
+
+  app.delete("/api/admin/pet-templates/:id", isAdmin, async (req, res) => {
+    try {
+      await storage.deletePetTemplate(req.params.id);
+      return res.json({ message: "Pet template deleted" });
+    } catch (err) {
+      console.error("Delete pet template error:", err);
+      return res.status(500).json({ message: "Failed to delete pet template" });
+    }
+  });
+
+  app.post("/api/admin/pet-templates/:id/part", isAdmin, async (req, res) => {
+    try {
+      const { partType, view, imageData, posX, posY, width, height, zIndex } = req.body;
+      if (!partType || !view || !imageData) {
+        return res.status(400).json({ message: "partType, view, and imageData are required" });
+      }
+      const imageUrl = await processWorldImage(imageData, 1000);
+      const part = await storage.createPetTemplatePart({
+        templateId: req.params.id,
+        partType,
+        view,
+        imageUrl,
+        posX: typeof posX === "number" ? posX : 0,
+        posY: typeof posY === "number" ? posY : 0,
+        width: typeof width === "number" ? width : 100,
+        height: typeof height === "number" ? height : 100,
+        zIndex: typeof zIndex === "number" ? zIndex : 0,
+      });
+      return res.status(201).json(part);
+    } catch (err) {
+      console.error("Create pet template part error:", err);
+      return res.status(500).json({ message: "Failed to add part" });
+    }
+  });
+
+  app.patch("/api/admin/pet-template-parts/:partId", isAdmin, async (req, res) => {
+    try {
+      const { posX, posY, width, height, zIndex } = req.body;
+      const updates: Record<string, any> = {};
+      if (typeof posX === "number") updates.posX = posX;
+      if (typeof posY === "number") updates.posY = posY;
+      if (typeof width === "number") updates.width = width;
+      if (typeof height === "number") updates.height = height;
+      if (typeof zIndex === "number") updates.zIndex = zIndex;
+      const updated = await storage.updatePetTemplatePart(req.params.partId, updates);
+      return res.json(updated);
+    } catch (err) {
+      console.error("Update pet template part error:", err);
+      return res.status(500).json({ message: "Failed to update part" });
+    }
+  });
+
+  app.delete("/api/admin/pet-template-parts/:partId", isAdmin, async (req, res) => {
+    try {
+      await storage.deletePetTemplatePart(req.params.partId);
+      return res.json({ message: "Part deleted" });
+    } catch (err) {
+      console.error("Delete pet template part error:", err);
+      return res.status(500).json({ message: "Failed to delete part" });
+    }
+  });
+
+  app.post("/api/admin/pet-templates/:id/assemble", isAdmin, async (req, res) => {
+    try {
+      const { view, canvasWidth, canvasHeight } = req.body;
+      if (!view || !canvasWidth || !canvasHeight) {
+        return res.status(400).json({ message: "view, canvasWidth, canvasHeight required" });
+      }
+      const template = await storage.getPetTemplate(req.params.id);
+      if (!template) return res.status(404).json({ message: "Template not found" });
+
+      const parts = await storage.getPetTemplateParts(req.params.id);
+      const viewParts = parts.filter(p => p.view === view).sort((a, b) => a.zIndex - b.zIndex);
+
+      if (viewParts.length === 0) {
+        return res.status(400).json({ message: `No ${view} parts to assemble` });
+      }
+
+      const cw = Math.min(canvasWidth, 1000);
+      const ch = Math.min(canvasHeight, 1000);
+
+      const composites: { input: Buffer; left: number; top: number; width: number; height: number }[] = [];
+
+      for (const part of viewParts) {
+        const base64Data = part.imageUrl.replace(/^data:image\/\w+;base64,/, "");
+        const buf = Buffer.from(base64Data, "base64");
+        const resized = await sharp(buf)
+          .resize(Math.max(1, Math.round(part.width)), Math.max(1, Math.round(part.height)), { fit: "fill" })
+          .png()
+          .toBuffer();
+        composites.push({
+          input: resized,
+          left: Math.max(0, Math.round(part.posX)),
+          top: Math.max(0, Math.round(part.posY)),
+          width: Math.round(part.width),
+          height: Math.round(part.height),
+        });
+      }
+
+      const assembled = await sharp({
+        create: { width: cw, height: ch, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } }
+      })
+        .composite(composites.map(c => ({ input: c.input, left: c.left, top: c.top })))
+        .png()
+        .toBuffer();
+
+      const assembledDataUrl = `data:image/png;base64,${assembled.toString("base64")}`;
+
+      const updates: Record<string, any> = {};
+      if (view === "front") updates.frontAssembled = assembledDataUrl;
+      else updates.backAssembled = assembledDataUrl;
+
+      const updated = await storage.updatePetTemplate(req.params.id, updates);
+      return res.json(updated);
+    } catch (err) {
+      console.error("Assemble pet template error:", err);
+      return res.status(500).json({ message: "Failed to assemble pet" });
+    }
+  });
+
   async function processWorldImage(imageData: string, maxSize: number): Promise<string> {
     const mimeMatch = imageData.match(/^data:(image\/(png|gif|jpeg|jpg));base64,/);
     if (!mimeMatch) {

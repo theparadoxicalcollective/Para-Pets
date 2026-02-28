@@ -1,4 +1,4 @@
-import { type User, type InsertUser, users, type ShopItem, type InsertShopItem, shopItems, type UserInventoryItem, userInventory, type RewardBundle, rewardBundles, type RewardBundleItem, rewardBundleItems, type UserReward, userRewards, coinPurchases, type CoinPurchase, worldLocations, type WorldLocation, worlds, type World, gameSettings, locationObjects, type LocationObject } from "@shared/schema";
+import { type User, type InsertUser, users, type ShopItem, type InsertShopItem, shopItems, type UserInventoryItem, userInventory, type RewardBundle, rewardBundles, type RewardBundleItem, rewardBundleItems, type UserReward, userRewards, coinPurchases, type CoinPurchase, worldLocations, type WorldLocation, worlds, type World, gameSettings, locationObjects, type LocationObject, petTemplates, type PetTemplate, petTemplateParts, type PetTemplatePart } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, ne, gte, sql, asc } from "drizzle-orm";
 
@@ -61,6 +61,16 @@ export interface IStorage {
   unassignItemFromLocation(itemId: string): Promise<ShopItem>;
   getDailyItemPurchaseCount(userId: string): Promise<number>;
   updateLocationObject(id: string, data: Partial<{ posX: number; posY: number; width: number }>): Promise<LocationObject>;
+  getAllPetTemplates(): Promise<PetTemplate[]>;
+  getPetTemplate(id: string): Promise<PetTemplate | undefined>;
+  createPetTemplate(name: string): Promise<PetTemplate>;
+  updatePetTemplate(id: string, data: Partial<PetTemplate>): Promise<PetTemplate>;
+  deletePetTemplate(id: string): Promise<void>;
+  getPetTemplateParts(templateId: string): Promise<PetTemplatePart[]>;
+  createPetTemplatePart(data: { templateId: string; partType: string; view: string; imageUrl: string; posX?: number; posY?: number; width?: number; height?: number; zIndex?: number }): Promise<PetTemplatePart>;
+  updatePetTemplatePart(id: string, data: Partial<PetTemplatePart>): Promise<PetTemplatePart>;
+  deletePetTemplatePart(id: string): Promise<void>;
+  deletePetTemplatePartsByTemplate(templateId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -398,6 +408,62 @@ export class DatabaseStorage implements IStorage {
   async updateLocationObject(id: string, data: Partial<{ posX: number; posY: number; width: number }>): Promise<LocationObject> {
     const [obj] = await db.update(locationObjects).set(data).where(eq(locationObjects.id, id)).returning();
     return obj;
+  }
+
+  async getAllPetTemplates(): Promise<PetTemplate[]> {
+    return db.select().from(petTemplates).orderBy(asc(petTemplates.createdAt));
+  }
+
+  async getPetTemplate(id: string): Promise<PetTemplate | undefined> {
+    const [t] = await db.select().from(petTemplates).where(eq(petTemplates.id, id));
+    return t;
+  }
+
+  async createPetTemplate(name: string): Promise<PetTemplate> {
+    const [t] = await db.insert(petTemplates).values({ name }).returning();
+    return t;
+  }
+
+  async updatePetTemplate(id: string, data: Partial<PetTemplate>): Promise<PetTemplate> {
+    const [t] = await db.update(petTemplates).set(data).where(eq(petTemplates.id, id)).returning();
+    return t;
+  }
+
+  async deletePetTemplate(id: string): Promise<void> {
+    await db.delete(petTemplateParts).where(eq(petTemplateParts.templateId, id));
+    await db.delete(petTemplates).where(eq(petTemplates.id, id));
+  }
+
+  async getPetTemplateParts(templateId: string): Promise<PetTemplatePart[]> {
+    return db.select().from(petTemplateParts).where(eq(petTemplateParts.templateId, templateId));
+  }
+
+  async createPetTemplatePart(data: { templateId: string; partType: string; view: string; imageUrl: string; posX?: number; posY?: number; width?: number; height?: number; zIndex?: number }): Promise<PetTemplatePart> {
+    const [p] = await db.insert(petTemplateParts).values({
+      templateId: data.templateId,
+      partType: data.partType,
+      view: data.view,
+      imageUrl: data.imageUrl,
+      posX: data.posX ?? 0,
+      posY: data.posY ?? 0,
+      width: data.width ?? 100,
+      height: data.height ?? 100,
+      zIndex: data.zIndex ?? 0,
+    }).returning();
+    return p;
+  }
+
+  async updatePetTemplatePart(id: string, data: Partial<PetTemplatePart>): Promise<PetTemplatePart> {
+    const [p] = await db.update(petTemplateParts).set(data).where(eq(petTemplateParts.id, id)).returning();
+    return p;
+  }
+
+  async deletePetTemplatePart(id: string): Promise<void> {
+    await db.delete(petTemplateParts).where(eq(petTemplateParts.id, id));
+  }
+
+  async deletePetTemplatePartsByTemplate(templateId: string): Promise<void> {
+    await db.delete(petTemplateParts).where(eq(petTemplateParts.templateId, templateId));
   }
 
   async getDailyItemPurchaseCount(userId: string): Promise<number> {

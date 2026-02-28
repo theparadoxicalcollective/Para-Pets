@@ -7,6 +7,7 @@ import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import profileFrameImg from "@assets/frame_profile.png";
 import coinIconImg from "@assets/icon_coin.png";
+import PetDatabasePanel from "@/components/PetDatabasePanel";
 
 interface AdminPageProps {
   user: {
@@ -72,7 +73,7 @@ export default function AdminPage({ user }: AdminPageProps) {
   const [currentUser, setCurrentUser] = useState(user);
   const [coinAmounts, setCoinAmounts] = useState<Record<string, string>>({});
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"members" | "rewards" | "items">("members");
+  const [activeTab, setActiveTab] = useState<"members" | "rewards" | "items" | "pets">("members");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -121,6 +122,7 @@ export default function AdminPage({ user }: AdminPageProps) {
     { key: "members" as const, label: `Members (${members.length})`, color: "#f0c040", activeBg: "linear-gradient(135deg, #5c3a1e 0%, #8b5e3c 100%)", activeBorder: "rgba(212,160,23,0.6)" },
     { key: "rewards" as const, label: "Rewards", color: "#e0d0f0", activeBg: "linear-gradient(135deg, rgba(120,80,200,0.6) 0%, rgba(80,40,160,0.6) 100%)", activeBorder: "rgba(192,132,252,0.5)" },
     { key: "items" as const, label: "Item DB", color: "#7fffd4", activeBg: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)", activeBorder: "rgba(127,255,212,0.5)" },
+    { key: "pets" as const, label: "Pet DB", color: "#ffb347", activeBg: "linear-gradient(135deg, #8b4513 0%, #5c3a1e 100%)", activeBorder: "rgba(255,179,71,0.5)" },
   ];
 
   return (
@@ -321,6 +323,10 @@ export default function AdminPage({ user }: AdminPageProps) {
 
           {activeTab === "items" && (
             <ItemDatabaseSection />
+          )}
+
+          {activeTab === "pets" && (
+            <PetDatabasePanel />
           )}
         </div>
       </div>

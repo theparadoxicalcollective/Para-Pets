@@ -125,6 +125,27 @@ export const gameSettings = pgTable("game_settings", {
   value: text("value").notNull(),
 });
 
+export const petTemplates = pgTable("pet_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  frontAssembled: text("front_assembled"),
+  backAssembled: text("back_assembled"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const petTemplateParts = pgTable("pet_template_parts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  templateId: varchar("template_id").notNull(),
+  partType: text("part_type").notNull(),
+  view: text("view").notNull().default("front"),
+  imageUrl: text("image_url").notNull(),
+  posX: integer("pos_x").notNull().default(0),
+  posY: integer("pos_y").notNull().default(0),
+  width: integer("width").notNull().default(100),
+  height: integer("height").notNull().default(100),
+  zIndex: integer("z_index").notNull().default(0),
+});
+
 export const coinPurchases = pgTable("coin_purchases", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
@@ -175,3 +196,5 @@ export type WorldLocation = typeof worldLocations.$inferSelect;
 export type World = typeof worlds.$inferSelect;
 export type GameSetting = typeof gameSettings.$inferSelect;
 export type LocationObject = typeof locationObjects.$inferSelect;
+export type PetTemplate = typeof petTemplates.$inferSelect;
+export type PetTemplatePart = typeof petTemplateParts.$inferSelect;

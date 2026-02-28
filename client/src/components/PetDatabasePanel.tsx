@@ -1,0 +1,639 @@
+import { useState, useRef, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { Plus, Trash2, X, ArrowLeft, Save, RotateCw, Layers } from "lucide-react";
+
+interface PetTemplate {
+  id: string;
+  name: string;
+  frontAssembled: string | null;
+  backAssembled: string | null;
+  createdAt: string;
+}
+
+interface PetTemplatePart {
+  id: string;
+  templateId: string;
+  partType: string;
+  view: string;
+  imageUrl: string;
+  posX: number;
+  posY: number;
+  width: number;
+  height: number;
+  zIndex: number;
+}
+
+interface PetTemplateWithParts extends PetTemplate {
+  parts: PetTemplatePart[];
+}
+
+const PART_TYPES = [
+  { key: "head", label: "Head", defaultZ: 5 },
+  { key: "body", label: "Body", defaultZ: 3 },
+  { key: "tail", label: "Tail", defaultZ: 1 },
+  { key: "wings", label: "Wings", defaultZ: 2 },
+  { key: "legs", label: "Legs", defaultZ: 4 },
+  { key: "feet", label: "Feet", defaultZ: 4 },
+  { key: "arms", label: "Arms", defaultZ: 6 },
+  { key: "hands", label: "Hands", defaultZ: 7 },
+];
+
+const CANVAS_SIZE = 500;
+
+export default function PetDatabasePanel() {
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newPetName, setNewPetName] = useState("");
+  const [activeView, setActiveView] = useState<"front" | "back">("front");
+  const [uploadPartType, setUploadPartType] = useState<string | null>(null);
+  const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ partId: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
+  const [dragPos, setDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
+  const didDrag = useRef(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: templates = [], isLoading } = useQuery<PetTemplate[]>({
+    queryKey: ["/api/admin/pet-templates"],
+  });
+
+  const { data: templateDetail } = useQuery<PetTemplateWithParts>({
+    queryKey: ["/api/admin/pet-templates", selectedTemplateId],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/pet-templates/${selectedTemplateId}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    enabled: !!selectedTemplateId,
+  });
+
+  const viewParts = (templateDetail?.parts || []).filter(p => p.view === activeView).sort((a, b) => a.zIndex - b.zIndex);
+
+  const createMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const res = await apiRequest("POST", "/api/admin/pet-templates", { name });
+      return res.json();
+    },
+    onSuccess: (data: PetTemplate) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates"] });
+      setShowCreateModal(false);
+      setNewPetName("");
+      setSelectedTemplateId(data.id);
+      toast({ title: "Created", description: "Pet template created" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to create", variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/admin/pet-templates/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates"] });
+      setSelectedTemplateId(null);
+      toast({ title: "Deleted", description: "Pet template removed" });
+    },
+  });
+
+  const addPartMutation = useMutation({
+    mutationFn: async (data: { templateId: string; partType: string; view: string; imageData: string; zIndex: number }) => {
+      const res = await apiRequest("POST", `/api/admin/pet-templates/${data.templateId}/part`, {
+        partType: data.partType,
+        view: data.view,
+        imageData: data.imageData,
+        posX: Math.round(CANVAS_SIZE / 2 - 50),
+        posY: Math.round(CANVAS_SIZE / 2 - 50),
+        width: 100,
+        height: 100,
+        zIndex: data.zIndex,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates", selectedTemplateId] });
+      setUploadPartType(null);
+      toast({ title: "Added", description: "Part added to canvas" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to add part", variant: "destructive" });
+    },
+  });
+
+  const updatePartMutation = useMutation({
+    mutationFn: async ({ partId, ...data }: { partId: string; posX?: number; posY?: number; width?: number; height?: number; zIndex?: number }) => {
+      const res = await apiRequest("PATCH", `/api/admin/pet-template-parts/${partId}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates", selectedTemplateId] });
+    },
+  });
+
+  const deletePartMutation = useMutation({
+    mutationFn: async (partId: string) => {
+      await apiRequest("DELETE", `/api/admin/pet-template-parts/${partId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates", selectedTemplateId] });
+      setSelectedPartId(null);
+      toast({ title: "Removed", description: "Part removed" });
+    },
+  });
+
+  const assembleMutation = useMutation({
+    mutationFn: async ({ id, view }: { id: string; view: string }) => {
+      const res = await apiRequest("POST", `/api/admin/pet-templates/${id}/assemble`, {
+        view,
+        canvasWidth: CANVAS_SIZE,
+        canvasHeight: CANVAS_SIZE,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates", selectedTemplateId] });
+      toast({ title: "Saved!", description: `${activeView === "front" ? "Front" : "Back"} view assembled and saved` });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to assemble", variant: "destructive" });
+    },
+  });
+
+  const handlePointerDown = useCallback((e: React.PointerEvent, part: PetTemplatePart) => {
+    e.preventDefault();
+    e.stopPropagation();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    didDrag.current = false;
+    dragRef.current = {
+      partId: part.id,
+      startX: e.clientX,
+      startY: e.clientY,
+      origX: part.posX,
+      origY: part.posY,
+    };
+    setSelectedPartId(part.id);
+  }, []);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!dragRef.current || !canvasRef.current) return;
+    e.preventDefault();
+    const rect = canvasRef.current.getBoundingClientRect();
+    const scale = rect.width / CANVAS_SIZE;
+    const dx = (e.clientX - dragRef.current.startX) / scale;
+    const dy = (e.clientY - dragRef.current.startY) / scale;
+    if (Math.abs(dx) > 2 || Math.abs(dy) > 2) didDrag.current = true;
+    const newX = Math.round(dragRef.current.origX + dx);
+    const newY = Math.round(dragRef.current.origY + dy);
+    setDragPos({ id: dragRef.current.partId, x: newX, y: newY });
+  }, []);
+
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    if (!dragRef.current) return;
+    e.preventDefault();
+    const d = dragRef.current;
+    dragRef.current = null;
+    if (didDrag.current && dragPos) {
+      updatePartMutation.mutate({ partId: d.partId, posX: dragPos.x, posY: dragPos.y });
+    }
+    setDragPos(null);
+  }, [dragPos, updatePartMutation]);
+
+  const readFileAsDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const selectedPart = viewParts.find(p => p.id === selectedPartId);
+
+  if (selectedTemplateId && templateDetail) {
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-2 mb-1">
+          <button
+            data-testid="button-back-to-pet-list"
+            onClick={() => { setSelectedTemplateId(null); setSelectedPartId(null); }}
+            className="w-8 h-8 rounded-full flex items-center justify-center"
+            style={{ background: "rgba(240,192,64,0.15)", border: "1px solid rgba(240,192,64,0.3)", cursor: "pointer", color: "#f0c040" }}
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <h3 className="font-fantasy text-[#f0c040] text-sm tracking-widest flex-1 truncate">{templateDetail.name}</h3>
+          <button
+            data-testid="button-delete-pet-template"
+            onClick={() => { if (confirm(`Delete "${templateDetail.name}"?`)) deleteMutation.mutate(templateDetail.id); }}
+            className="w-8 h-8 rounded-full flex items-center justify-center"
+            style={{ background: "rgba(220,38,38,0.2)", border: "1px solid rgba(220,38,38,0.4)", cursor: "pointer", color: "#fca5a5" }}
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="flex justify-center gap-2 mb-1">
+          {(["front", "back"] as const).map(v => (
+            <button
+              key={v}
+              data-testid={`button-view-${v}`}
+              onClick={() => { setActiveView(v); setSelectedPartId(null); }}
+              className="px-4 py-1.5 rounded-md font-fantasy text-[10px] tracking-wider"
+              style={{
+                background: activeView === v ? "linear-gradient(135deg, #5c3a1e 0%, #8b5e3c 100%)" : "rgba(0,0,0,0.3)",
+                border: `1px solid ${activeView === v ? "rgba(212,160,23,0.6)" : "rgba(212,160,23,0.2)"}`,
+                color: activeView === v ? "#f0c040" : "#a89878",
+                cursor: "pointer",
+              }}
+            >
+              {v === "front" ? "Front View" : "Back View"}
+            </button>
+          ))}
+        </div>
+
+        <div
+          ref={canvasRef}
+          className="relative mx-auto rounded-lg overflow-hidden"
+          style={{
+            width: "100%",
+            maxWidth: "500px",
+            aspectRatio: "1",
+            background: "repeating-conic-gradient(rgba(255,255,255,0.03) 0% 25%, transparent 0% 50%) 0 0 / 20px 20px",
+            border: "2px solid rgba(240,192,64,0.3)",
+            boxShadow: "inset 0 0 30px rgba(0,0,0,0.5)",
+            touchAction: "none",
+          }}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+        >
+          {viewParts.map(part => {
+            const pos = dragPos?.id === part.id ? { x: dragPos.x, y: dragPos.y } : { x: part.posX, y: part.posY };
+            const isSelected = selectedPartId === part.id;
+            const isDragging = dragRef.current?.partId === part.id;
+            return (
+              <div
+                key={part.id}
+                data-testid={`canvas-part-${part.id}`}
+                className="absolute"
+                style={{
+                  left: `${(pos.x / CANVAS_SIZE) * 100}%`,
+                  top: `${(pos.y / CANVAS_SIZE) * 100}%`,
+                  width: `${(part.width / CANVAS_SIZE) * 100}%`,
+                  height: `${(part.height / CANVAS_SIZE) * 100}%`,
+                  zIndex: part.zIndex + (isDragging ? 100 : 0),
+                  cursor: "grab",
+                  outline: isSelected ? "2px solid rgba(240,192,64,0.8)" : "none",
+                  outlineOffset: "2px",
+                  borderRadius: "4px",
+                }}
+                onPointerDown={(e) => handlePointerDown(e, part)}
+                onClick={(e) => { e.stopPropagation(); if (!didDrag.current) setSelectedPartId(part.id); }}
+              >
+                <img
+                  src={part.imageUrl}
+                  alt={part.partType}
+                  className="w-full h-full object-contain pointer-events-none"
+                  draggable={false}
+                />
+                {isSelected && (
+                  <div
+                    className="absolute -top-5 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded font-fantasy text-[8px] tracking-wider whitespace-nowrap"
+                    style={{ background: "rgba(240,192,64,0.9)", color: "#1a0a00" }}
+                  >
+                    {part.partType}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="flex flex-wrap gap-1.5 justify-center">
+          {PART_TYPES.map(pt => {
+            const exists = viewParts.some(p => p.partType === pt.key);
+            return (
+              <button
+                key={pt.key}
+                data-testid={`button-upload-${pt.key}`}
+                onClick={() => setUploadPartType(pt.key)}
+                className="px-2 py-1 rounded font-fantasy text-[9px] tracking-wider transition-transform active:scale-95"
+                style={{
+                  background: exists ? "rgba(127,255,212,0.15)" : "rgba(240,192,64,0.1)",
+                  border: `1px solid ${exists ? "rgba(127,255,212,0.3)" : "rgba(240,192,64,0.25)"}`,
+                  color: exists ? "#7fffd4" : "#f0c040",
+                  cursor: "pointer",
+                }}
+              >
+                {exists ? "✓ " : "+ "}{pt.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {selectedPart && (
+          <div
+            className="rounded-lg p-3"
+            style={{ background: "rgba(240,192,64,0.08)", border: "1px solid rgba(240,192,64,0.2)" }}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-fantasy text-[#f0c040] text-xs tracking-wider capitalize">{selectedPart.partType}</span>
+              <button
+                data-testid="button-delete-selected-part"
+                onClick={() => deletePartMutation.mutate(selectedPart.id)}
+                className="w-6 h-6 rounded-full flex items-center justify-center"
+                style={{ background: "rgba(220,38,38,0.3)", cursor: "pointer", color: "#fca5a5" }}
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="font-fantasy text-[8px] text-[#a89878] block">Width</label>
+                <input
+                  data-testid="input-part-width"
+                  type="number"
+                  value={selectedPart.width}
+                  onChange={(e) => {
+                    const val = Math.max(10, Math.min(500, parseInt(e.target.value) || 10));
+                    updatePartMutation.mutate({ partId: selectedPart.id, width: val });
+                  }}
+                  className="w-full px-2 py-1 rounded text-xs font-mono"
+                  style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(240,192,64,0.2)", color: "#e8ddd0", outline: "none" }}
+                />
+              </div>
+              <div>
+                <label className="font-fantasy text-[8px] text-[#a89878] block">Height</label>
+                <input
+                  data-testid="input-part-height"
+                  type="number"
+                  value={selectedPart.height}
+                  onChange={(e) => {
+                    const val = Math.max(10, Math.min(500, parseInt(e.target.value) || 10));
+                    updatePartMutation.mutate({ partId: selectedPart.id, height: val });
+                  }}
+                  className="w-full px-2 py-1 rounded text-xs font-mono"
+                  style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(240,192,64,0.2)", color: "#e8ddd0", outline: "none" }}
+                />
+              </div>
+              <div>
+                <label className="font-fantasy text-[8px] text-[#a89878] block">Layer (Z)</label>
+                <input
+                  data-testid="input-part-zindex"
+                  type="number"
+                  value={selectedPart.zIndex}
+                  onChange={(e) => {
+                    const val = Math.max(0, Math.min(20, parseInt(e.target.value) || 0));
+                    updatePartMutation.mutate({ partId: selectedPart.id, zIndex: val });
+                  }}
+                  className="w-full px-2 py-1 rounded text-xs font-mono"
+                  style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(240,192,64,0.2)", color: "#e8ddd0", outline: "none" }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <button
+            data-testid="button-assemble-save"
+            onClick={() => {
+              if (!selectedTemplateId) return;
+              assembleMutation.mutate({ id: selectedTemplateId, view: activeView });
+            }}
+            disabled={assembleMutation.isPending || viewParts.length === 0}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-fantasy text-xs tracking-wider transition-transform active:scale-95 disabled:opacity-50"
+            style={{
+              background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
+              border: "1px solid rgba(127,255,212,0.4)",
+              color: "#7fffd4",
+              cursor: "pointer",
+            }}
+          >
+            <Save className="w-4 h-4" />
+            {assembleMutation.isPending ? "Assembling..." : `Save ${activeView === "front" ? "Front" : "Back"} View`}
+          </button>
+        </div>
+
+        {(templateDetail.frontAssembled || templateDetail.backAssembled) && (
+          <div className="mt-1">
+            <p className="font-fantasy text-[9px] text-[#a89878] tracking-wider mb-2 text-center">Assembled Previews</p>
+            <div className="flex gap-3 justify-center">
+              {templateDetail.frontAssembled && (
+                <div className="text-center">
+                  <img
+                    src={templateDetail.frontAssembled}
+                    alt="Front"
+                    className="w-24 h-24 object-contain rounded-lg"
+                    style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(127,255,212,0.2)" }}
+                    data-testid="preview-front-assembled"
+                  />
+                  <span className="font-fantasy text-[8px] text-[#7fbfb0] tracking-wider">Front</span>
+                </div>
+              )}
+              {templateDetail.backAssembled && (
+                <div className="text-center">
+                  <img
+                    src={templateDetail.backAssembled}
+                    alt="Back"
+                    className="w-24 h-24 object-contain rounded-lg"
+                    style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(127,255,212,0.2)" }}
+                    data-testid="preview-back-assembled"
+                  />
+                  <span className="font-fantasy text-[8px] text-[#7fbfb0] tracking-wider">Back</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {uploadPartType && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setUploadPartType(null)} />
+            <div
+              className="relative z-10 w-[85%] max-w-sm rounded-lg p-5"
+              style={{
+                background: "linear-gradient(135deg, rgba(30,15,5,0.97) 0%, rgba(60,35,10,0.97) 100%)",
+                border: "1px solid rgba(212,160,23,0.5)",
+                boxShadow: "0 8px 40px rgba(0,0,0,0.7)",
+              }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="font-fantasy text-[#f0c040] text-sm tracking-widest capitalize">
+                  Upload {uploadPartType} ({activeView})
+                </h4>
+                <button
+                  onClick={() => setUploadPartType(null)}
+                  className="w-7 h-7 rounded-full flex items-center justify-center"
+                  style={{ background: "rgba(240,192,64,0.15)", border: "1px solid rgba(240,192,64,0.3)", cursor: "pointer", color: "#f0c040" }}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="font-fantasy text-[9px] text-[#a89878] tracking-wider mb-3">PNG only, up to 1000x1000px / 15MB</p>
+              <input
+                data-testid="input-part-upload"
+                type="file"
+                accept="image/png"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  if (file.size > 15 * 1024 * 1024) {
+                    toast({ title: "Too Large", description: "Max 15MB per image", variant: "destructive" });
+                    return;
+                  }
+                  const dataUrl = await readFileAsDataUrl(file);
+                  const defaultZ = PART_TYPES.find(p => p.key === uploadPartType)?.defaultZ || 0;
+                  addPartMutation.mutate({
+                    templateId: selectedTemplateId!,
+                    partType: uploadPartType!,
+                    view: activeView,
+                    imageData: dataUrl,
+                    zIndex: defaultZ,
+                  });
+                }}
+                className="w-full text-xs font-fantasy"
+                style={{ color: "#f0c040" }}
+              />
+              {addPartMutation.isPending && (
+                <p className="font-fantasy text-[10px] text-[#7fbfb0] animate-pulse mt-3 text-center">Uploading...</p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="font-fantasy text-[#f0c040] text-sm tracking-widest" style={{ textShadow: "0 0 10px rgba(240,192,64,0.3)" }}>
+          Pet Database
+        </h3>
+        <button
+          data-testid="button-add-pet-template"
+          onClick={() => setShowCreateModal(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md font-fantasy text-[10px] tracking-wider transition-transform active:scale-95"
+          style={{
+            background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
+            border: "1px solid rgba(127,255,212,0.4)",
+            color: "#7fffd4",
+            cursor: "pointer",
+          }}
+        >
+          <Plus className="w-3.5 h-3.5" /> Add Pet
+        </button>
+      </div>
+
+      {isLoading ? (
+        <p className="font-fantasy text-[#7fbfb0] text-xs animate-pulse text-center py-4">Loading pet database...</p>
+      ) : templates.length === 0 ? (
+        <div className="text-center py-8">
+          <Layers className="w-10 h-10 mx-auto mb-3" style={{ color: "rgba(240,192,64,0.3)" }} />
+          <p className="font-fantasy text-[#a89878] text-xs tracking-wider">No pets in database yet</p>
+          <p className="font-fantasy text-[9px] text-[#a89878] tracking-wider mt-1 opacity-60">Tap "Add Pet" to create your first</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          {templates.map(t => (
+            <button
+              key={t.id}
+              data-testid={`card-pet-template-${t.id}`}
+              onClick={() => setSelectedTemplateId(t.id)}
+              className="rounded-lg overflow-hidden text-left transition-transform active:scale-95"
+              style={{
+                background: "linear-gradient(135deg, rgba(30,15,5,0.95) 0%, rgba(50,30,10,0.95) 100%)",
+                border: "1px solid rgba(212,160,23,0.3)",
+                cursor: "pointer",
+              }}
+            >
+              <div className="p-3 flex flex-col items-center gap-2">
+                <div
+                  className="w-full aspect-square rounded-md flex items-center justify-center overflow-hidden"
+                  style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.15)" }}
+                >
+                  {t.frontAssembled ? (
+                    <img src={t.frontAssembled} alt={t.name} className="w-full h-full object-contain" />
+                  ) : (
+                    <Layers className="w-8 h-8" style={{ color: "rgba(240,192,64,0.2)" }} />
+                  )}
+                </div>
+                <p className="font-fantasy text-[#f0c040] text-xs font-semibold text-center truncate w-full">
+                  {t.name}
+                </p>
+                <div className="flex gap-1">
+                  {t.frontAssembled && (
+                    <span className="font-fantasy text-[7px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(127,255,212,0.1)", color: "#7fbfb0", border: "1px solid rgba(127,255,212,0.2)" }}>
+                      Front ✓
+                    </span>
+                  )}
+                  {t.backAssembled && (
+                    <span className="font-fantasy text-[7px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(127,255,212,0.1)", color: "#7fbfb0", border: "1px solid rgba(127,255,212,0.2)" }}>
+                      Back ✓
+                    </span>
+                  )}
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowCreateModal(false)} />
+          <div
+            className="relative z-10 w-[85%] max-w-sm rounded-lg p-5"
+            style={{
+              background: "linear-gradient(135deg, rgba(30,15,5,0.97) 0%, rgba(60,35,10,0.97) 100%)",
+              border: "1px solid rgba(212,160,23,0.5)",
+              boxShadow: "0 8px 40px rgba(0,0,0,0.7)",
+            }}
+          >
+            <h4 className="font-fantasy text-[#f0c040] text-center text-sm tracking-widest mb-4">Add Pet</h4>
+            <div className="mb-4">
+              <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Pet Name</label>
+              <input
+                data-testid="input-pet-template-name"
+                type="text"
+                value={newPetName}
+                onChange={(e) => setNewPetName(e.target.value)}
+                placeholder="Enter pet name..."
+                className="w-full px-3 py-2 rounded-md font-fantasy text-sm outline-none"
+                style={{ background: "rgba(242,232,208,0.9)", border: "1px solid #8b5e3c", color: "#2a1a0a" }}
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="flex-1 py-2 rounded-md font-fantasy text-xs tracking-wider"
+                style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.2)", color: "#a89878", cursor: "pointer" }}
+              >
+                Cancel
+              </button>
+              <button
+                data-testid="button-confirm-create-pet"
+                onClick={() => { if (newPetName.trim()) createMutation.mutate(newPetName.trim()); }}
+                disabled={createMutation.isPending || !newPetName.trim()}
+                className="flex-1 py-2 rounded-md font-fantasy text-xs tracking-wider disabled:opacity-50"
+                style={{
+                  background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
+                  border: "1px solid rgba(127,255,212,0.4)",
+                  color: "#7fffd4",
+                  cursor: "pointer",
+                }}
+              >
+                {createMutation.isPending ? "Creating..." : "Create"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
