@@ -900,18 +900,31 @@ export async function registerRoutes(
 
   app.post("/api/admin/world/:worldId/location", isAdmin, async (req, res) => {
     try {
-      const { name, type, iconUrl, description, sortOrder } = req.body;
+      const { name, type, description, iconData, bgData, posX, posY } = req.body;
       if (!name || typeof name !== "string" || !name.trim()) return res.status(400).json({ message: "Name is required" });
       if (!type || typeof type !== "string") return res.status(400).json({ message: "Type is required" });
       const validTypes = ["shop", "arena", "tavern", "sanctuary", "mine", "garden", "custom"];
       if (!validTypes.includes(type)) return res.status(400).json({ message: "Invalid location type" });
+
+      let iconUrl: string | null = null;
+      let bgUrl: string | null = null;
+      if (iconData) {
+        iconUrl = await processWorldImage(iconData, 500);
+      }
+      if (bgData) {
+        bgUrl = await processWorldImage(bgData, 2000);
+      }
+
       const loc = await storage.createWorldLocation({
         worldId: req.params.worldId,
         name,
         type,
-        iconUrl: iconUrl || null,
+        iconUrl,
+        bgUrl,
         description: description || null,
-        sortOrder: sortOrder || 0,
+        posX: typeof posX === "number" ? Math.max(0, Math.min(85, posX)) : 40,
+        posY: typeof posY === "number" ? Math.max(0, Math.min(85, posY)) : 40,
+        sortOrder: 0,
       });
       return res.status(201).json(loc);
     } catch (err) {
@@ -922,20 +935,47 @@ export async function registerRoutes(
 
   app.patch("/api/admin/world/location/:locationId", isAdmin, async (req, res) => {
     try {
-      const allowedFields = ["name", "type", "iconUrl", "description", "sortOrder"];
       const sanitized: Record<string, any> = {};
-      for (const key of allowedFields) {
-        if (req.body[key] !== undefined) sanitized[key] = req.body[key];
-      }
-      if (sanitized.type) {
+      const { name, type, description, iconData, bgData, posX, posY } = req.body;
+
+      if (name !== undefined) sanitized.name = name;
+      if (description !== undefined) sanitized.description = description;
+      if (type !== undefined) {
         const validTypes = ["shop", "arena", "tavern", "sanctuary", "mine", "garden", "custom"];
-        if (!validTypes.includes(sanitized.type)) return res.status(400).json({ message: "Invalid location type" });
+        if (!validTypes.includes(type)) return res.status(400).json({ message: "Invalid location type" });
+        sanitized.type = type;
       }
+      if (iconData) {
+        sanitized.iconUrl = await processWorldImage(iconData, 500);
+      }
+      if (bgData) {
+        sanitized.bgUrl = await processWorldImage(bgData, 2000);
+      }
+      if (typeof posX === "number") sanitized.posX = Math.max(0, Math.min(85, posX));
+      if (typeof posY === "number") sanitized.posY = Math.max(0, Math.min(85, posY));
+
       const updated = await storage.updateWorldLocation(req.params.locationId, sanitized);
       return res.json(updated);
     } catch (err) {
       console.error("Update world location error:", err);
       return res.status(500).json({ message: "Failed to update location" });
+    }
+  });
+
+  app.patch("/api/admin/world/location/:locationId/position", isAdmin, async (req, res) => {
+    try {
+      const { posX, posY } = req.body;
+      if (typeof posX !== "number" || typeof posY !== "number") {
+        return res.status(400).json({ message: "posX and posY are required numbers" });
+      }
+      const updated = await storage.updateWorldLocation(req.params.locationId, {
+        posX: Math.max(0, Math.min(85, Math.round(posX))),
+        posY: Math.max(0, Math.min(85, Math.round(posY))),
+      });
+      return res.json(updated);
+    } catch (err) {
+      console.error("Update location position error:", err);
+      return res.status(500).json({ message: "Failed to update position" });
     }
   });
 

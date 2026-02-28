@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import coinIconImg from "@assets/icon_coin.png";
-import { Store, Swords, Beer, Landmark, Pickaxe, Sprout, Plus, Trash2, X } from "lucide-react";
+import { Plus, Trash2, X, MapPin } from "lucide-react";
 
 import shopFrostpeak from "@assets/shop_frostpeak.png";
 import shopSkyRealm from "@assets/shop_sky_realm.png";
@@ -36,24 +36,6 @@ const WORLD_CONFIG: Record<string, { name: string; shopIcon: string; bg: string;
   haunted_woods: { name: "Haunted Woods", shopIcon: shopHauntedWoods, bg: bgHauntedWoods, accent: "#8b008b", bgGradient: "linear-gradient(180deg, rgba(30,5,30,0.7) 0%, rgba(60,10,60,0.3) 50%, rgba(15,3,15,0.7) 100%)" },
   swamp: { name: "The Swamp", shopIcon: shopSwamp, bg: bgSwamp, accent: "#9370db", bgGradient: "linear-gradient(180deg, rgba(20,15,35,0.7) 0%, rgba(40,30,70,0.3) 50%, rgba(10,8,18,0.7) 100%)" },
 };
-
-const LOCATION_ICONS: Record<string, typeof Store> = {
-  shop: Store,
-  arena: Swords,
-  tavern: Beer,
-  sanctuary: Landmark,
-  mine: Pickaxe,
-  garden: Sprout,
-};
-
-const DEFAULT_LOCATIONS = [
-  { id: "default-shop", name: "Shop", type: "shop", description: null },
-  { id: "default-arena", name: "Arena", type: "arena", description: null },
-  { id: "default-tavern", name: "Tavern", type: "tavern", description: null },
-  { id: "default-sanctuary", name: "Sanctuary", type: "sanctuary", description: null },
-  { id: "default-mine", name: "Mine", type: "mine", description: null },
-  { id: "default-garden", name: "Garden", type: "garden", description: null },
-];
 
 interface ShopItem {
   id: string;
@@ -97,7 +79,10 @@ interface WorldLocationData {
   name: string;
   type: string;
   iconUrl: string | null;
+  bgUrl: string | null;
   description: string | null;
+  posX: number;
+  posY: number;
   sortOrder: number;
 }
 
@@ -139,11 +124,18 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [shopError, setShopError] = useState<string | null>(null);
   const [showAddLocation, setShowAddLocation] = useState(false);
   const [newLocName, setNewLocName] = useState("");
-  const [newLocType, setNewLocType] = useState("shop");
+  const [newLocType, setNewLocType] = useState("custom");
   const [newLocDesc, setNewLocDesc] = useState("");
+  const [newLocIcon, setNewLocIcon] = useState<string | null>(null);
+  const [newLocBg, setNewLocBg] = useState<string | null>(null);
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const areaRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ locId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
+  const [dragPos, setDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
+  const didDrag = useRef(false);
 
   const { data: locations = [], isLoading: locationsLoading } = useQuery<WorldLocationData[]>({
     queryKey: ["/api/world", worldId, "locations"],
@@ -153,8 +145,6 @@ export default function WorldPage({ user }: WorldPageProps) {
       return res.json();
     },
   });
-
-  const displayLocations = locations.length > 0 ? locations : DEFAULT_LOCATIONS;
 
   const { data: items = [], isLoading: itemsLoading } = useQuery<ShopItem[]>({
     queryKey: ["/api/shop", worldId],
@@ -196,7 +186,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   });
 
   const addLocationMutation = useMutation({
-    mutationFn: async (data: { name: string; type: string; description?: string }) => {
+    mutationFn: async (data: { name: string; type: string; description?: string; iconData?: string | null; bgData?: string | null }) => {
       const res = await apiRequest("POST", `/api/admin/world/${worldId}/location`, data);
       return res.json();
     },
@@ -204,12 +194,14 @@ export default function WorldPage({ user }: WorldPageProps) {
       queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "locations"] });
       setShowAddLocation(false);
       setNewLocName("");
-      setNewLocType("shop");
+      setNewLocType("custom");
       setNewLocDesc("");
-      toast({ title: "Location Added", description: "New location created successfully" });
+      setNewLocIcon(null);
+      setNewLocBg(null);
+      toast({ title: "Place Added", description: "New place created" });
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to add location" });
+      toast({ title: "Error", description: "Failed to add place", variant: "destructive" });
     },
   });
 
@@ -219,19 +211,79 @@ export default function WorldPage({ user }: WorldPageProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "locations"] });
-      toast({ title: "Deleted", description: "Location removed" });
+      toast({ title: "Deleted", description: "Place removed" });
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to delete location" });
+      toast({ title: "Error", description: "Failed to delete place", variant: "destructive" });
     },
   });
 
-  const handleLocationClick = (loc: { id: string; name: string; type: string }) => {
+  const positionMutation = useMutation({
+    mutationFn: async ({ locationId, posX, posY }: { locationId: string; posX: number; posY: number }) => {
+      const res = await apiRequest("PATCH", `/api/admin/world/location/${locationId}/position`, { posX, posY });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "locations"] });
+    },
+  });
+
+  const handlePointerDown = useCallback((e: React.PointerEvent, loc: WorldLocationData) => {
+    if (!currentUser.isAdmin) return;
+    e.preventDefault();
+    e.stopPropagation();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    didDrag.current = false;
+    dragRef.current = {
+      locId: loc.id,
+      startX: e.clientX,
+      startY: e.clientY,
+      origPosX: loc.posX,
+      origPosY: loc.posY,
+    };
+  }, [currentUser.isAdmin]);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!dragRef.current || !areaRef.current) return;
+    e.preventDefault();
+    const rect = areaRef.current.getBoundingClientRect();
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDrag.current = true;
+    const pxPerPercX = rect.width / 100;
+    const pxPerPercY = rect.height / 100;
+    const newX = Math.max(0, Math.min(85, dragRef.current.origPosX + dx / pxPerPercX));
+    const newY = Math.max(0, Math.min(85, dragRef.current.origPosY + dy / pxPerPercY));
+    setDragPos({ id: dragRef.current.locId, x: newX, y: newY });
+  }, []);
+
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    if (!dragRef.current) return;
+    e.preventDefault();
+    const d = dragRef.current;
+    dragRef.current = null;
+    if (didDrag.current && dragPos) {
+      positionMutation.mutate({ locationId: d.locId, posX: Math.round(dragPos.x), posY: Math.round(dragPos.y) });
+    }
+    setDragPos(null);
+  }, [dragPos, positionMutation]);
+
+  const handleLocationClick = useCallback((loc: WorldLocationData) => {
+    if (didDrag.current) return;
     if (loc.type === "shop") {
       setShowShop(true);
     } else {
       toast({ title: loc.name, description: "Coming Soon" });
     }
+  }, [toast]);
+
+  const readFileAsDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   };
 
   if (!world) {
@@ -258,6 +310,19 @@ export default function WorldPage({ user }: WorldPageProps) {
     >
       <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/20 to-black/70 z-0 pointer-events-none" />
 
+      <style>{`
+        @keyframes locFloat {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-4px); }
+        }
+        @keyframes locGlow {
+          0%, 100% { opacity: 0.4; }
+          50% { opacity: 0.8; }
+        }
+        .loc-node { transition: filter 0.2s ease; touch-action: none; }
+        .loc-node:active { filter: brightness(1.15); }
+      `}</style>
+
       <div className="relative z-10 flex flex-col min-h-[100dvh]" style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
 
@@ -272,69 +337,126 @@ export default function WorldPage({ user }: WorldPageProps) {
           >
             {world.name}
           </h2>
-          <p className="font-fantasy text-[#a89878] text-xs tracking-wider text-center mb-4"
+          <p className="font-fantasy text-[#a89878] text-xs tracking-wider text-center mb-2"
             style={{ textShadow: "0 1px 4px rgba(0,0,0,0.9)" }}>
             Explore the realm...
           </p>
         </div>
 
-        <div className="flex-1 px-6 pb-4 overflow-y-auto">
+        <div className="flex-1 relative">
           {locationsLoading ? (
             <div className="flex items-center justify-center py-12">
-              <p className="font-fantasy text-sm animate-pulse" style={{ color: accent }}>Loading locations...</p>
+              <p className="font-fantasy text-sm animate-pulse" style={{ color: accent }}>Loading places...</p>
+            </div>
+          ) : locations.length === 0 ? (
+            <div className="flex items-center justify-center py-16 px-8">
+              <div className="text-center">
+                <p className="font-fantasy text-sm tracking-wider mb-1" style={{ color: `${accent}90`, textShadow: `0 0 8px ${accent}30` }}>
+                  No places yet
+                </p>
+                {currentUser.isAdmin && (
+                  <p className="font-fantasy text-[10px] tracking-wider" style={{ color: "#a89878", textShadow: "0 1px 4px rgba(0,0,0,0.9)" }}>
+                    Tap + to add places to this world
+                  </p>
+                )}
+              </div>
             </div>
           ) : (
-            <div className="grid grid-cols-3 gap-4">
-              {displayLocations.map((loc) => {
-                const IconComponent = LOCATION_ICONS[loc.type] || Store;
-                const isDefault = loc.id.startsWith("default-");
-                return (
-                  <div key={loc.id} className="flex flex-col items-center gap-1.5 relative" data-testid={`location-${loc.id}`}>
-                    {currentUser.isAdmin && !isDefault && (
-                      <button
-                        data-testid={`button-delete-location-${loc.id}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (confirm(`Delete "${loc.name}"?`)) {
-                            deleteLocationMutation.mutate(loc.id);
-                          }
-                        }}
-                        className="absolute -top-1 -right-1 z-10 w-5 h-5 rounded-full flex items-center justify-center"
+            <div
+              ref={areaRef}
+              className="relative w-full"
+              style={{ paddingBottom: "100%" }}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+            >
+              <div className="absolute inset-0">
+                {locations.map((loc, i) => {
+                  const pos = dragPos?.id === loc.id ? { x: dragPos.x, y: dragPos.y } : { x: loc.posX, y: loc.posY };
+                  const isDragging = dragRef.current?.locId === loc.id;
+                  return (
+                    <div
+                      key={loc.id}
+                      data-testid={`location-${loc.id}`}
+                      className="absolute loc-node flex flex-col items-center"
+                      style={{
+                        left: `${pos.x}%`,
+                        top: `${pos.y}%`,
+                        width: "22%",
+                        cursor: currentUser.isAdmin ? "grab" : "pointer",
+                        zIndex: isDragging ? 50 : 10 + i,
+                        animation: isDragging ? "none" : `locFloat ${3 + (i % 3) * 0.5}s ease-in-out infinite`,
+                        animationDelay: `${i * 0.3}s`,
+                      }}
+                      onPointerDown={(e) => handlePointerDown(e, loc)}
+                      onClick={() => handleLocationClick(loc)}
+                    >
+                      <div className="relative w-full" style={{ aspectRatio: "1" }}>
+                        <div
+                          className="absolute inset-[-15%] rounded-full pointer-events-none"
+                          style={{
+                            background: `radial-gradient(circle, ${accent}35 0%, ${accent}15 50%, transparent 70%)`,
+                            animation: `locGlow ${3 + (i % 2)}s ease-in-out infinite`,
+                            animationDelay: `${i * 0.25}s`,
+                          }}
+                        />
+                        {loc.iconUrl ? (
+                          <img
+                            src={loc.iconUrl}
+                            alt={loc.name}
+                            className="w-full h-full object-contain relative z-10"
+                            draggable={false}
+                            style={{
+                              filter: `drop-shadow(0 3px 6px rgba(0,0,0,0.5)) drop-shadow(0 0 8px ${accent}30)`,
+                            }}
+                          />
+                        ) : (
+                          <div
+                            className="w-full h-full rounded-full flex items-center justify-center relative z-10"
+                            style={{
+                              background: `linear-gradient(135deg, ${accent}30, ${accent}15)`,
+                              border: `2px solid ${accent}50`,
+                            }}
+                          >
+                            <MapPin className="w-7 h-7" style={{ color: accent, filter: `drop-shadow(0 0 6px ${accent}60)` }} />
+                          </div>
+                        )}
+
+                        {currentUser.isAdmin && (
+                          <button
+                            data-testid={`button-delete-location-${loc.id}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm(`Delete "${loc.name}"?`)) {
+                                deleteLocationMutation.mutate(loc.id);
+                              }
+                            }}
+                            className="absolute -top-1 -right-1 z-30 w-5 h-5 rounded-full flex items-center justify-center"
+                            style={{
+                              background: "rgba(220,38,38,0.9)",
+                              border: "1px solid rgba(255,100,100,0.5)",
+                              cursor: "pointer",
+                            }}
+                          >
+                            <Trash2 className="w-3 h-3 text-white" />
+                          </button>
+                        )}
+                      </div>
+                      <span
+                        className="font-fantasy text-[9px] sm:text-[10px] tracking-wider font-semibold whitespace-nowrap mt-0.5 px-2 py-0.5 rounded-full relative z-10"
                         style={{
-                          background: "rgba(220,38,38,0.8)",
-                          border: "1px solid rgba(220,38,38,0.6)",
-                          cursor: "pointer",
+                          color: accent,
+                          textShadow: `0 0 8px ${accent}40, 0 1px 3px rgba(0,0,0,0.9)`,
+                          background: "rgba(0,0,0,0.4)",
+                          border: `1px solid ${accent}30`,
+                          backdropFilter: "blur(4px)",
                         }}
                       >
-                        <Trash2 className="w-3 h-3 text-white" />
-                      </button>
-                    )}
-                    <button
-                      data-testid={`button-location-${loc.type}-${loc.id}`}
-                      onClick={() => handleLocationClick(loc)}
-                      className="w-16 h-16 rounded-full flex items-center justify-center transition-transform active:scale-90"
-                      style={{
-                        background: `radial-gradient(ellipse at center, ${accent}20 0%, ${accent}08 60%, transparent 100%)`,
-                        border: `2px solid ${accent}80`,
-                        boxShadow: `0 0 15px ${accent}30, 0 0 30px ${accent}15, inset 0 0 10px ${accent}10`,
-                        cursor: "pointer",
-                        animation: "locationPulse 3s ease-in-out infinite",
-                      }}
-                    >
-                      <IconComponent className="w-7 h-7" style={{ color: accent, filter: `drop-shadow(0 0 6px ${accent}60)` }} />
-                    </button>
-                    <span
-                      className="font-fantasy text-[11px] tracking-wider text-center"
-                      style={{
-                        color: accent,
-                        textShadow: `0 0 8px ${accent}40, 0 1px 4px rgba(0,0,0,0.9)`,
-                      }}
-                    >
-                      {loc.name}
-                    </span>
-                  </div>
-                );
-              })}
+                        {loc.name}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
@@ -381,7 +503,7 @@ export default function WorldPage({ user }: WorldPageProps) {
           <div data-testid="overlay-add-location-backdrop" className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowAddLocation(false)} />
           <div
             data-testid="modal-add-location"
-            className="relative z-10 w-[85%] max-w-sm rounded-lg p-5"
+            className="relative z-10 w-[85%] max-w-sm rounded-lg p-5 max-h-[85vh] overflow-y-auto"
             style={{
               background: "linear-gradient(135deg, rgba(20,10,5,0.98) 0%, rgba(40,25,10,0.98) 100%)",
               border: `1px solid ${accent}50`,
@@ -390,7 +512,7 @@ export default function WorldPage({ user }: WorldPageProps) {
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-fantasy text-base tracking-widest" style={{ color: accent, textShadow: `0 0 10px ${accent}40` }}>
-                Add Location
+                Add Place
               </h3>
               <button
                 data-testid="button-close-add-location"
@@ -410,7 +532,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                   type="text"
                   value={newLocName}
                   onChange={(e) => setNewLocName(e.target.value)}
-                  placeholder="Location name..."
+                  placeholder="Place name..."
                   className="w-full px-3 py-2 rounded-md font-fantasy text-sm"
                   style={{
                     background: "rgba(0,0,0,0.4)",
@@ -446,6 +568,52 @@ export default function WorldPage({ user }: WorldPageProps) {
               </div>
 
               <div>
+                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}99` }}>Icon (PNG or GIF)</label>
+                <input
+                  data-testid="input-location-icon"
+                  type="file"
+                  accept="image/png,image/gif"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const dataUrl = await readFileAsDataUrl(file);
+                      setNewLocIcon(dataUrl);
+                    }
+                  }}
+                  className="w-full text-xs font-fantasy"
+                  style={{ color: `${accent}cc` }}
+                />
+                {newLocIcon && (
+                  <div className="mt-2 flex justify-center">
+                    <img src={newLocIcon} alt="Preview" className="w-16 h-16 object-contain rounded-lg" style={{ border: `1px solid ${accent}30` }} />
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}99` }}>Background (PNG/GIF/JPEG)</label>
+                <input
+                  data-testid="input-location-bg"
+                  type="file"
+                  accept="image/png,image/gif,image/jpeg"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const dataUrl = await readFileAsDataUrl(file);
+                      setNewLocBg(dataUrl);
+                    }
+                  }}
+                  className="w-full text-xs font-fantasy"
+                  style={{ color: `${accent}cc` }}
+                />
+                {newLocBg && (
+                  <div className="mt-2 flex justify-center">
+                    <img src={newLocBg} alt="Preview" className="w-full h-20 object-cover rounded-lg" style={{ border: `1px solid ${accent}30` }} />
+                  </div>
+                )}
+              </div>
+
+              <div>
                 <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}99` }}>Description (optional)</label>
                 <input
                   data-testid="input-location-description"
@@ -471,6 +639,8 @@ export default function WorldPage({ user }: WorldPageProps) {
                     name: newLocName.trim(),
                     type: newLocType,
                     description: newLocDesc.trim() || undefined,
+                    iconData: newLocIcon,
+                    bgData: newLocBg,
                   });
                 }}
                 disabled={addLocationMutation.isPending || !newLocName.trim()}
@@ -482,7 +652,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                   cursor: "pointer",
                 }}
               >
-                {addLocationMutation.isPending ? "Adding..." : "Add Location"}
+                {addLocationMutation.isPending ? "Adding..." : "Add Place"}
               </button>
             </div>
           </div>
@@ -550,8 +720,6 @@ export default function WorldPage({ user }: WorldPageProps) {
             )}
 
             <div className="flex-1 overflow-y-auto px-4 pb-6">
-              
-
               {itemsLoading ? (
                 <div className="text-center py-8">
                   <p className="font-fantasy text-[#7fbfb0] text-sm animate-pulse">Loading wares...</p>
@@ -657,13 +825,6 @@ export default function WorldPage({ user }: WorldPageProps) {
           }}
         />
       )}
-
-      <style>{`
-        @keyframes locationPulse {
-          0%, 100% { box-shadow: 0 0 15px ${accent}30, 0 0 30px ${accent}15, inset 0 0 10px ${accent}10; }
-          50% { box-shadow: 0 0 25px ${accent}50, 0 0 45px ${accent}25, inset 0 0 15px ${accent}20; }
-        }
-      `}</style>
     </div>
   );
 }

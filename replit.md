@@ -34,7 +34,7 @@ Para Pets is a mobile-first fantasy game web app where players collect, raise, a
 ## Database Schema
 - `users` table: id, username, email, password (bcrypt), profileImage (base64 data URI), coins, isAdmin, isBanned, activePetId, lastUsernameChange, lastProfilePicChange, createdAt
 - `shop_items` table: id, name, price, type, worldId, locationId (nullable, references world_locations), imageUrl (base64 data URI, PNG only), rarity (1-5 stars, nullable), hatchTime (hours, nullable), eggImageUrl (base64, PNG/GIF, nullable), hatchedImageUrl (base64, PNG/GIF, nullable), statBoostType (health/atk/def/lvl, nullable), statBoostAmount (integer, nullable), createdAt
-- `world_locations` table: id, worldId, name, type, iconUrl, description, shopkeeperId, shopkeeperName, shopkeeperImageUrl, sortOrder, createdAt
+- `world_locations` table: id, worldId, name, type, iconUrl, bgUrl, description, posX, posY, shopkeeperId, shopkeeperName, shopkeeperImageUrl, sortOrder, createdAt
 - `user_inventory` table: id, userId, shopItemId, acquiredAt, hatchStartedAt (timestamp, nullable), isHatched (boolean, default false), petHealth (int, default 1000), petAtk (int, default 50), petDef (int, default 50), petLevel (int, default 0), itemsUsedThisLevel (int, default 0)
 - `reward_bundles` table: id, name, coinAmount, createdAt
 - `reward_bundle_items` table: id, bundleId, shopItemId
@@ -93,14 +93,17 @@ Para Pets is a mobile-first fantasy game web app where players collect, raise, a
   - Admin can add new worlds via "+" FAB: name, glow color, icon image (PNG/GIF), background image
   - Admin can delete custom (non-default) worlds via trash icon
   - Worlds float with gentle animation, connected by dashed path lines
-- WorldPage: 3-column grid of location icons (Shop, Arena, Tavern, Sanctuary, Mine, Garden) with world-themed colors
+- WorldPage: free-position drag-and-drop locations on world background
   - Supports both static (default) and dynamic (custom) worlds via API fallback
-  - Locations fetched from DB via GET /api/world/:worldId/locations, falls back to defaults if empty
-  - Admin can add locations via "+" FAB button, delete via trash icon
-  - Clicking Shop location opens shop overlay; other locations show "Coming Soon"
+  - No hardcoded default locations — all places are admin-created via DB
+  - Locations positioned via posX/posY percentages, admin can drag to reposition
+  - Admin "+" FAB to add places: name, type, icon image (PNG/GIF), background image (PNG/GIF/JPEG), description
+  - Admin delete button on each location
+  - Location icons float with animation, themed glow effects
+  - Clicking Shop-type location opens shop overlay; other locations show "Coming Soon"
 - CoinShopPage: "Enchanted Treasury" forest theme with generated coin pack PNG images (coin_pack_100-10000.png)
 - World APIs: GET /api/worlds, GET /api/worlds/:id, POST /api/admin/worlds, PATCH /api/admin/worlds/:id/position, DELETE /api/admin/worlds/:id
-- World location CRUD: POST /api/admin/world/:worldId/location, PATCH /api/admin/world/location/:id, DELETE /api/admin/world/location/:id
+- World location CRUD: POST /api/admin/world/:worldId/location, PATCH /api/admin/world/location/:id, PATCH /api/admin/world/location/:id/position, DELETE /api/admin/world/location/:id
 - World theme colors: Frostpeak=#88ccff, Sky Realm=#ffd700, Lost Island=#20b2aa, Volcanic=#ff4500, Enchanted Grove=#7fffd4, Desert=#daa520, Swamp=#9370db, Haunted Woods=#8b008b
 
 ## Pet System
