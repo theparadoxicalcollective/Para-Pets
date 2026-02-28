@@ -82,6 +82,22 @@ export default function HomePage({ user }: HomePageProps) {
       <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/60 z-0 pointer-events-none" />
 
       <style>{`
+        @keyframes eggWobble {
+          0%, 100% { transform: rotate(0deg) translateY(0px); }
+          10% { transform: rotate(3deg) translateY(-1px); }
+          20% { transform: rotate(-3deg) translateY(0px); }
+          30% { transform: rotate(4deg) translateY(-2px); }
+          40% { transform: rotate(-2deg) translateY(0px); }
+          50% { transform: rotate(0deg) translateY(-1px); }
+          60% { transform: rotate(2deg) translateY(-2px); }
+          70% { transform: rotate(-4deg) translateY(-1px); }
+          80% { transform: rotate(3deg) translateY(0px); }
+          90% { transform: rotate(-2deg) translateY(-1px); }
+        }
+        @keyframes eggGlow {
+          0%, 100% { box-shadow: 0 0 20px rgba(240,192,64,0.15), 0 8px 20px rgba(0,0,0,0.4); }
+          50% { box-shadow: 0 0 35px rgba(240,192,64,0.35), 0 0 60px rgba(240,192,64,0.15), 0 8px 20px rgba(0,0,0,0.4); }
+        }
         @keyframes orbFloat1 {
           0% { transform: translate(0, 0) scale(1); opacity: 0.3; }
           25% { transform: translate(15px, -30px) scale(1.2); opacity: 0.6; }
@@ -150,7 +166,8 @@ export default function HomePage({ user }: HomePageProps) {
                       border: activePet.isHatched ? "2px solid rgba(127,255,212,0.3)" : "2px solid rgba(240,192,64,0.3)",
                       boxShadow: activePet.isHatched
                         ? "0 0 30px rgba(45,122,79,0.3), 0 8px 20px rgba(0,0,0,0.4)"
-                        : "0 0 30px rgba(240,192,64,0.2), 0 8px 20px rgba(0,0,0,0.4)",
+                        : undefined,
+                      animation: !activePet.isHatched ? "eggGlow 3s ease-in-out infinite" : undefined,
                     }}
                   >
                     {activePet.isHatched ? (
@@ -162,11 +179,13 @@ export default function HomePage({ user }: HomePageProps) {
                         <span className="text-5xl">🐾</span>
                       )
                     ) : (
-                      activePet.eggImageUrl ? (
-                        <img src={activePet.eggImageUrl} alt={activePet.name} className="w-full h-full object-contain" />
-                      ) : (
-                        <span className="text-5xl">🥚</span>
-                      )
+                      <div style={{ animation: "eggWobble 2.5s ease-in-out infinite" }} className="w-full h-full flex items-center justify-center">
+                        {activePet.eggImageUrl ? (
+                          <img src={activePet.eggImageUrl} alt={activePet.name} className="w-full h-full object-contain" />
+                        ) : (
+                          <span className="text-5xl">🥚</span>
+                        )}
+                      </div>
                     )}
                   </div>
 

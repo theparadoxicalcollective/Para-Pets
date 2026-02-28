@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { readFileAsDataUrl } from "@/lib/utils";
-import { Plus, Trash2, X, ArrowLeft, Save, Layers } from "lucide-react";
+import { Plus, Trash2, X, ArrowLeft, Save, Layers, Link2 } from "lucide-react";
 
 interface PetTemplate {
   id: string;
@@ -28,6 +28,15 @@ interface PetTemplatePart {
 
 interface PetTemplateWithParts extends PetTemplate {
   parts: PetTemplatePart[];
+}
+
+interface LinkedShopPet {
+  id: string;
+  name: string;
+  eggImageUrl: string | null;
+  imageUrl: string | null;
+  petTemplateId: string | null;
+  rarity: number | null;
 }
 
 const PART_TYPES = [
@@ -60,6 +69,15 @@ export default function PetDatabasePanel() {
   const { data: templates = [], isLoading } = useQuery<PetTemplate[]>({
     queryKey: ["/api/admin/pet-templates"],
   });
+
+  const { data: allShopItems = [] } = useQuery<LinkedShopPet[]>({
+    queryKey: ["/api/admin/shop-items-all"],
+    select: (data: any[]) => data.filter((i: any) => i.type === "pet"),
+  });
+
+  const getLinkedShopPet = (templateId: string): LinkedShopPet | undefined => {
+    return allShopItems.find(item => item.petTemplateId === templateId);
+  };
 
   const { data: templateDetail } = useQuery<PetTemplateWithParts>({
     queryKey: ["/api/admin/pet-templates", selectedTemplateId],
@@ -207,6 +225,7 @@ export default function PetDatabasePanel() {
   const selectedPart = viewParts.find(p => p.id === selectedPartId);
 
   if (selectedTemplateId && templateDetail) {
+    const linkedPet = getLinkedShopPet(templateDetail.id);
     return (
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-2 mb-1">
@@ -228,6 +247,41 @@ export default function PetDatabasePanel() {
             <Trash2 className="w-4 h-4" />
           </button>
         </div>
+
+        {linkedPet ? (
+          <div
+            className="flex items-center gap-3 px-3 py-2 rounded-lg"
+            style={{ background: "rgba(127,255,212,0.06)", border: "1px solid rgba(127,255,212,0.2)" }}
+            data-testid="linked-shop-pet-info"
+          >
+            <Link2 className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#7fbfb0" }} />
+            {(linkedPet.eggImageUrl || linkedPet.imageUrl) && (
+              <img
+                src={linkedPet.eggImageUrl || linkedPet.imageUrl || ""}
+                alt=""
+                className="w-8 h-8 object-contain rounded-md flex-shrink-0"
+                style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.15)" }}
+              />
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="font-fantasy text-[#7fbfb0] text-[9px] tracking-wider">Linked to Item DB</p>
+              <p className="font-fantasy text-[#f0c040] text-[10px] truncate">{linkedPet.name}</p>
+            </div>
+            {linkedPet.rarity && (
+              <span className="text-[8px] flex-shrink-0" style={{ color: "#f0c040" }}>
+                {"★".repeat(linkedPet.rarity)}
+              </span>
+            )}
+          </div>
+        ) : (
+          <div
+            className="flex items-center gap-2 px-3 py-2 rounded-lg"
+            style={{ background: "rgba(240,192,64,0.05)", border: "1px dashed rgba(240,192,64,0.2)" }}
+          >
+            <Link2 className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#6a5840" }} />
+            <p className="font-fantasy text-[#6a5840] text-[9px] tracking-wider">Not linked to any Item DB pet — assign in Item DB editor</p>
+          </div>
+        )}
 
         <div className="flex justify-center gap-2 mb-1">
           {(["front", "back"] as const).map(v => (
@@ -532,47 +586,73 @@ export default function PetDatabasePanel() {
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-3">
-          {templates.map(t => (
-            <button
-              key={t.id}
-              data-testid={`card-pet-template-${t.id}`}
-              onClick={() => setSelectedTemplateId(t.id)}
-              className="rounded-lg overflow-hidden text-left transition-transform active:scale-95"
-              style={{
-                background: "linear-gradient(135deg, rgba(30,15,5,0.95) 0%, rgba(50,30,10,0.95) 100%)",
-                border: "1px solid rgba(212,160,23,0.3)",
-                cursor: "pointer",
-              }}
-            >
-              <div className="p-3 flex flex-col items-center gap-2">
-                <div
-                  className="w-full aspect-square rounded-md flex items-center justify-center overflow-hidden"
-                  style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.15)" }}
-                >
-                  {t.frontAssembled ? (
-                    <img src={t.frontAssembled} alt={t.name} className="w-full h-full object-contain" />
-                  ) : (
-                    <Layers className="w-8 h-8" style={{ color: "rgba(240,192,64,0.2)" }} />
+          {templates.map(t => {
+            const linked = getLinkedShopPet(t.id);
+            return (
+              <button
+                key={t.id}
+                data-testid={`card-pet-template-${t.id}`}
+                onClick={() => setSelectedTemplateId(t.id)}
+                className="rounded-lg overflow-hidden text-left transition-transform active:scale-95"
+                style={{
+                  background: "linear-gradient(135deg, rgba(30,15,5,0.95) 0%, rgba(50,30,10,0.95) 100%)",
+                  border: linked ? "1px solid rgba(127,255,212,0.3)" : "1px solid rgba(212,160,23,0.3)",
+                  cursor: "pointer",
+                }}
+              >
+                <div className="p-3 flex flex-col items-center gap-2">
+                  <div
+                    className="w-full aspect-square rounded-md flex items-center justify-center overflow-hidden"
+                    style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.15)" }}
+                  >
+                    {t.frontAssembled ? (
+                      <img src={t.frontAssembled} alt={t.name} className="w-full h-full object-contain" />
+                    ) : (
+                      <Layers className="w-8 h-8" style={{ color: "rgba(240,192,64,0.2)" }} />
+                    )}
+                  </div>
+                  <p className="font-fantasy text-[#f0c040] text-xs font-semibold text-center truncate w-full">
+                    {t.name}
+                  </p>
+                  {linked && (
+                    <div className="flex items-center gap-1.5 w-full justify-center">
+                      {(linked.eggImageUrl || linked.imageUrl) && (
+                        <img
+                          src={linked.eggImageUrl || linked.imageUrl || ""}
+                          alt=""
+                          className="w-5 h-5 object-contain rounded-sm"
+                          style={{ background: "rgba(0,0,0,0.3)" }}
+                        />
+                      )}
+                      <span className="font-fantasy text-[7px] tracking-wider truncate" style={{ color: "#7fbfb0" }}>
+                        {linked.name}
+                      </span>
+                      {linked.rarity && (
+                        <span className="text-[7px]" style={{ color: "#f0c040" }}>{"★".repeat(linked.rarity)}</span>
+                      )}
+                    </div>
                   )}
+                  <div className="flex gap-1">
+                    {t.frontAssembled && (
+                      <span className="font-fantasy text-[7px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(127,255,212,0.1)", color: "#7fbfb0", border: "1px solid rgba(127,255,212,0.2)" }}>
+                        Front ✓
+                      </span>
+                    )}
+                    {t.backAssembled && (
+                      <span className="font-fantasy text-[7px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(127,255,212,0.1)", color: "#7fbfb0", border: "1px solid rgba(127,255,212,0.2)" }}>
+                        Back ✓
+                      </span>
+                    )}
+                    {!linked && (
+                      <span className="font-fantasy text-[7px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(240,192,64,0.08)", color: "#6a5840", border: "1px dashed rgba(240,192,64,0.2)" }}>
+                        Unlinked
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <p className="font-fantasy text-[#f0c040] text-xs font-semibold text-center truncate w-full">
-                  {t.name}
-                </p>
-                <div className="flex gap-1">
-                  {t.frontAssembled && (
-                    <span className="font-fantasy text-[7px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(127,255,212,0.1)", color: "#7fbfb0", border: "1px solid rgba(127,255,212,0.2)" }}>
-                      Front ✓
-                    </span>
-                  )}
-                  {t.backAssembled && (
-                    <span className="font-fantasy text-[7px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(127,255,212,0.1)", color: "#7fbfb0", border: "1px solid rgba(127,255,212,0.2)" }}>
-                      Back ✓
-                    </span>
-                  )}
-                </div>
-              </div>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
       )}
 

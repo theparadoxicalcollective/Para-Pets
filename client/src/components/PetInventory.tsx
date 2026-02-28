@@ -392,26 +392,24 @@ function PetView({
                 </span>
               )}
 
-              {!isEgg && (
-                <button
-                  data-testid={`button-select-pet-${pet.shopItemId}`}
-                  onClick={() => onToggle(pet.shopItemId)}
-                  disabled={isPending}
-                  className="w-full py-1.5 rounded font-fantasy text-[10px] tracking-wider transition-transform active:scale-95 disabled:opacity-50"
-                  style={{
-                    background: isActive
-                      ? "linear-gradient(135deg, rgba(139,0,0,0.5) 0%, rgba(80,0,0,0.5) 100%)"
-                      : "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
-                    border: isActive
-                      ? "1px solid rgba(200,50,50,0.4)"
-                      : "1px solid rgba(127,255,212,0.4)",
-                    color: isActive ? "#ff9999" : "#7fffd4",
-                    cursor: "pointer",
-                  }}
-                >
-                  {isActive ? "Deselect" : "Select"}
-                </button>
-              )}
+              <button
+                data-testid={`button-select-pet-${pet.shopItemId}`}
+                onClick={() => onToggle(pet.shopItemId)}
+                disabled={isPending}
+                className="w-full py-1.5 rounded font-fantasy text-[10px] tracking-wider transition-transform active:scale-95 disabled:opacity-50"
+                style={{
+                  background: isActive
+                    ? "linear-gradient(135deg, rgba(139,0,0,0.5) 0%, rgba(80,0,0,0.5) 100%)"
+                    : "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
+                  border: isActive
+                    ? "1px solid rgba(200,50,50,0.4)"
+                    : "1px solid rgba(127,255,212,0.4)",
+                  color: isActive ? "#ff9999" : "#7fffd4",
+                  cursor: "pointer",
+                }}
+              >
+                {isActive ? "Deselect" : "Select"}
+              </button>
             </div>
           </div>
         );
