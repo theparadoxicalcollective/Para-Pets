@@ -226,10 +226,17 @@ export default function MapPage({ user }: MapPageProps) {
     setDragPos(null);
   }, [dragPos, positionMutation]);
 
+  const [navigatingWorldId, setNavigatingWorldId] = useState<string | null>(null);
+
   const handleWorldClick = useCallback((w: WorldData) => {
     if (didDrag.current) return;
-    setSelectedWorldId((prev) => (prev === w.id ? null : w.id));
-  }, []);
+    if (navigatingWorldId) return;
+    setSelectedWorldId(w.id);
+    setNavigatingWorldId(w.id);
+    setTimeout(() => {
+      navigate(`/world/${w.id}`);
+    }, 800);
+  }, [navigate, navigatingWorldId]);
 
   const readFileAsDataUrl = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -496,25 +503,15 @@ export default function MapPage({ user }: MapPageProps) {
                           >
                             {w.name}
                           </span>
-                          <button
-                            data-testid={`button-travel-${w.id}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/world/${w.id}`);
-                            }}
-                            className="font-fantasy text-[9px] sm:text-[10px] tracking-widest px-4 py-1 rounded-full transition-transform active:scale-90"
-                            style={{
-                              background: `linear-gradient(135deg, rgba(10,12,25,0.85), rgba(20,24,50,0.9))`,
-                              border: `1px solid ${w.glowColor}80`,
-                              color: "#e0d8c8",
-                              cursor: "pointer",
-                              boxShadow: `0 2px 12px ${w.glowColor}30, 0 0 20px ${w.glowColor}15`,
-                              textShadow: `0 0 6px ${w.glowColor}40`,
-                              fontWeight: 600,
-                            }}
-                          >
-                            Travel
-                          </button>
+                          {navigatingWorldId === w.id && (
+                            <span
+                              className="font-fantasy text-[8px] tracking-widest animate-pulse"
+                              style={{ color: w.glowColor, textShadow: `0 0 8px ${w.glowColor}60` }}
+                              data-testid={`text-loading-${w.id}`}
+                            >
+                              Traveling...
+                            </span>
+                          )}
                         </div>
                       )}
                     </div>
