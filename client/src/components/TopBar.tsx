@@ -48,8 +48,8 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideHome }:
                 style={{
                   top: "50%",
                   left: "50%",
-                  width: "140%",
-                  height: "140%",
+                  width: "120%",
+                  height: "120%",
                   transform: "translate(-50%, -50%)",
                   objectFit: "contain",
                   filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.5))",
