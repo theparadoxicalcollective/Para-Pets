@@ -46,9 +46,11 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideHome }:
                 alt=""
                 className="absolute z-30 pointer-events-none"
                 style={{
-                  inset: "-20%",
+                  top: "50%",
+                  left: "50%",
                   width: "140%",
                   height: "140%",
+                  transform: "translate(-50%, -50%)",
                   objectFit: "contain",
                   filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.5))",
                 }}
