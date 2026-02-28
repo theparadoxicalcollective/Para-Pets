@@ -77,6 +77,15 @@ export const userRewards = pgTable("user_rewards", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
+export const coinPurchases = pgTable("coin_purchases", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  amountUsd: integer("amount_usd").notNull(),
+  coinsReceived: integer("coins_received").notNull(),
+  stripeSessionId: text("stripe_session_id").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   email: true,
@@ -113,3 +122,4 @@ export type UserInventoryItem = typeof userInventory.$inferSelect;
 export type RewardBundle = typeof rewardBundles.$inferSelect;
 export type RewardBundleItem = typeof rewardBundleItems.$inferSelect;
 export type UserReward = typeof userRewards.$inferSelect;
+export type CoinPurchase = typeof coinPurchases.$inferSelect;

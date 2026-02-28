@@ -1,6 +1,6 @@
-import { type User, type InsertUser, users, type ShopItem, type InsertShopItem, shopItems, type UserInventoryItem, userInventory, type RewardBundle, rewardBundles, type RewardBundleItem, rewardBundleItems, type UserReward, userRewards } from "@shared/schema";
+import { type User, type InsertUser, users, type ShopItem, type InsertShopItem, shopItems, type UserInventoryItem, userInventory, type RewardBundle, rewardBundles, type RewardBundleItem, rewardBundleItems, type UserReward, userRewards, coinPurchases, type CoinPurchase } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, ne } from "drizzle-orm";
+import { eq, and, ne, gte, sql } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -38,6 +38,9 @@ export interface IStorage {
   claimReward(rewardId: string): Promise<UserReward | undefined>;
   getRewardBundle(id: string): Promise<RewardBundle | undefined>;
   getAllRewardBundles(): Promise<RewardBundle[]>;
+  createCoinPurchase(userId: string, amountUsd: number, coinsReceived: number, stripeSessionId: string): Promise<CoinPurchase>;
+  getCoinPurchaseBySessionId(stripeSessionId: string): Promise<CoinPurchase | undefined>;
+  getDailyPurchaseTotal(userId: string): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -254,6 +257,25 @@ export class DatabaseStorage implements IStorage {
 
   async getAllRewardBundles(): Promise<RewardBundle[]> {
     return db.select().from(rewardBundles);
+  }
+
+  async createCoinPurchase(userId: string, amountUsd: number, coinsReceived: number, stripeSessionId: string): Promise<CoinPurchase> {
+    const [purchase] = await db.insert(coinPurchases).values({ userId, amountUsd, coinsReceived, stripeSessionId }).returning();
+    return purchase;
+  }
+
+  async getCoinPurchaseBySessionId(stripeSessionId: string): Promise<CoinPurchase | undefined> {
+    const [purchase] = await db.select().from(coinPurchases).where(eq(coinPurchases.stripeSessionId, stripeSessionId));
+    return purchase;
+  }
+
+  async getDailyPurchaseTotal(userId: string): Promise<number> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const purchases = await db.select().from(coinPurchases).where(
+      and(eq(coinPurchases.userId, userId), gte(coinPurchases.createdAt, today))
+    );
+    return purchases.reduce((sum, p) => sum + p.amountUsd, 0);
   }
 }
 

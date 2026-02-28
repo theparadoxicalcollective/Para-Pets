@@ -144,11 +144,14 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideHome }:
               </button>
             )}
           </div>
-          <div
-            className="flex items-center gap-1 px-3 py-0.5 rounded-md"
+          <button
+            data-testid="button-coin-shop"
+            onClick={() => navigate("/coins")}
+            className="flex items-center gap-1 px-3 py-0.5 rounded-md transition-transform active:scale-95"
             style={{
               background: "linear-gradient(135deg, rgba(30,15,5,0.9) 0%, rgba(60,35,10,0.9) 100%)",
               border: "1px solid rgba(212,160,23,0.4)",
+              cursor: "pointer",
             }}
           >
             <img
@@ -163,7 +166,8 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideHome }:
             >
               {user.coins}
             </span>
-          </div>
+            <span className="font-fantasy text-[#d4a017] text-[8px]">+</span>
+          </button>
         </div>
 
         {!hideHome && (

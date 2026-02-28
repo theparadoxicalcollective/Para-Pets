@@ -6,6 +6,19 @@ import crypto from "crypto";
 import { storage } from "./storage";
 import { insertUserSchema, updateUsernameSchema, insertShopItemSchema } from "@shared/schema";
 import sharp from "sharp";
+import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
+
+const COIN_PACKS = [
+  { id: "pack_100", coins: 100, priceUsd: 1, label: "100 Coins" },
+  { id: "pack_500", coins: 500, priceUsd: 5, label: "500 Coins" },
+  { id: "pack_1000", coins: 1000, priceUsd: 10, label: "1,000 Coins" },
+  { id: "pack_2500", coins: 2500, priceUsd: 25, label: "2,500 Coins" },
+  { id: "pack_5000", coins: 5000, priceUsd: 50, label: "5,000 Coins" },
+  { id: "pack_10000", coins: 10000, priceUsd: 100, label: "10,000 Coins" },
+];
+
+const MAX_PER_SESSION = 100;
+const MAX_PER_DAY = 500;
 
 function isAuthenticated(req: Request, res: Response, next: any) {
   if (!req.isAuthenticated()) return res.status(401).json({ message: "Unauthorized" });
@@ -539,6 +552,146 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Reset stats error:", err);
       return res.status(500).json({ message: "Failed to reset stats" });
+    }
+  });
+
+  app.get("/api/coins/packs", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const dailyTotal = await storage.getDailyPurchaseTotal(user.id);
+      return res.json({
+        packs: COIN_PACKS,
+        dailySpent: dailyTotal,
+        dailyLimit: MAX_PER_DAY,
+        sessionLimit: MAX_PER_SESSION,
+      });
+    } catch (err) {
+      console.error("Get coin packs error:", err);
+      return res.status(500).json({ message: "Failed to get coin packs" });
+    }
+  });
+
+  app.post("/api/coins/checkout", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { packId } = req.body;
+
+      const pack = COIN_PACKS.find(p => p.id === packId);
+      if (!pack) {
+        return res.status(400).json({ message: "Invalid coin pack" });
+      }
+
+      if (pack.priceUsd > MAX_PER_SESSION) {
+        return res.status(400).json({ message: `Maximum purchase is $${MAX_PER_SESSION} per transaction` });
+      }
+
+      const dailyTotal = await storage.getDailyPurchaseTotal(user.id);
+      if (dailyTotal + pack.priceUsd > MAX_PER_DAY) {
+        return res.status(400).json({ message: `Daily purchase limit is $${MAX_PER_DAY}. You've spent $${dailyTotal} today.` });
+      }
+
+      const stripe = await getUncachableStripeClient();
+      const baseUrl = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`;
+
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: [{
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: `${pack.label} - Para Pets`,
+              description: `Purchase ${pack.coins} coins for Para Pets`,
+            },
+            unit_amount: pack.priceUsd * 100,
+          },
+          quantity: 1,
+        }],
+        mode: 'payment',
+        success_url: `${baseUrl}/coins?success=true&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/coins?canceled=true`,
+        metadata: {
+          userId: user.id,
+          packId: pack.id,
+          coins: pack.coins.toString(),
+          amountUsd: pack.priceUsd.toString(),
+        },
+      });
+
+      return res.json({ url: session.url });
+    } catch (err) {
+      console.error("Checkout error:", err);
+      return res.status(500).json({ message: "Failed to create checkout session" });
+    }
+  });
+
+  app.post("/api/coins/verify", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { sessionId } = req.body;
+
+      if (!sessionId) {
+        return res.status(400).json({ message: "Session ID required" });
+      }
+
+      const existing = await storage.getCoinPurchaseBySessionId(sessionId);
+      if (existing) {
+        const updatedUser = await storage.getUser(user.id);
+        const { password: _, ...safeUser } = updatedUser!;
+        return res.json({ alreadyCredited: true, coins: existing.coinsReceived, user: safeUser });
+      }
+
+      const stripe = await getUncachableStripeClient();
+      const stripeSession = await stripe.checkout.sessions.retrieve(sessionId);
+
+      if (stripeSession.payment_status !== 'paid') {
+        return res.status(400).json({ message: "Payment not completed" });
+      }
+
+      if (stripeSession.metadata?.userId !== user.id) {
+        return res.status(403).json({ message: "This purchase does not belong to you" });
+      }
+
+      const coins = parseInt(stripeSession.metadata?.coins || "0");
+      const amountUsd = parseInt(stripeSession.metadata?.amountUsd || "0");
+
+      if (coins <= 0) {
+        return res.status(400).json({ message: "Invalid coin amount" });
+      }
+
+      const amountPaidCents = stripeSession.amount_total;
+      if (amountPaidCents && amountPaidCents !== amountUsd * 100) {
+        return res.status(400).json({ message: "Payment amount mismatch" });
+      }
+
+      try {
+        await storage.createCoinPurchase(user.id, amountUsd, coins, sessionId);
+        await storage.addCoins(user.id, coins);
+      } catch (err: any) {
+        if (err.code === '23505') {
+          const updatedUser = await storage.getUser(user.id);
+          const { password: _, ...safeUser } = updatedUser!;
+          return res.json({ alreadyCredited: true, coins, user: safeUser });
+        }
+        throw err;
+      }
+
+      const updatedUser = await storage.getUser(user.id);
+      const { password: _, ...safeUser } = updatedUser!;
+
+      return res.json({ credited: true, coins, user: safeUser });
+    } catch (err) {
+      console.error("Verify purchase error:", err);
+      return res.status(500).json({ message: "Failed to verify purchase" });
+    }
+  });
+
+  app.get("/api/stripe/publishable-key", isAuthenticated, async (_req, res) => {
+    try {
+      const key = await getStripePublishableKey();
+      return res.json({ publishableKey: key });
+    } catch (err) {
+      console.error("Get publishable key error:", err);
+      return res.status(500).json({ message: "Failed to get Stripe key" });
     }
   });
 

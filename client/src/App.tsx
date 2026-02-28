@@ -9,6 +9,7 @@ import HomePage from "@/pages/HomePage";
 import MapPage from "@/pages/MapPage";
 import AdminPage from "@/pages/AdminPage";
 import WorldPage from "@/pages/WorldPage";
+import CoinShopPage from "@/pages/CoinShopPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
 
 function AppRouter() {
@@ -41,6 +42,9 @@ function AppRouter() {
       </Route>
       <Route path="/world/:worldId">
         {user ? <WorldPage user={user} /> : <Redirect to="/auth" />}
+      </Route>
+      <Route path="/coins">
+        {user ? <CoinShopPage user={user} /> : <Redirect to="/auth" />}
       </Route>
       <Route path="/admin">
         {user && user.isAdmin ? <AdminPage user={user} /> : <Redirect to="/" />}

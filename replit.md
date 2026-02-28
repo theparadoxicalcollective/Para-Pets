@@ -18,6 +18,7 @@ Para Pets is a mobile-first fantasy game web app where players collect, raise, a
 3. **Map Page** (`/map`) - Parchment-style world map with 8 3D-illustrated world icons in a 2-column grid
 4. **World Page** (`/world/:worldId`) - Individual world page with world-specific shop (buy items with coins)
 5. **Admin Page** (`/admin`) - Admin-only realm administration with ranked leaderboard, ban/unban, give coins
+6. **Coin Shop** (`/coins`) - Purchase coins with Stripe ($1=100 coins, max $100/purchase, $500/day limit)
 
 ## Shared Components
 - **TopBar** - Profile pic (thin frame), player name, coin display (with coin icon), home icon (hidden on homepage via hideHome prop) — shown on all game pages
@@ -75,6 +76,12 @@ Para Pets is a mobile-first fantasy game web app where players collect, raise, a
 - `POST /api/admin/shop` - Create shop item with optional imageData (admin only)
 - `PATCH /api/admin/shop/:itemId` - Update shop item with optional imageData (admin only)
 - `DELETE /api/admin/shop/:itemId` - Delete shop item (admin only)
+
+### Coin Purchase (Stripe)
+- `GET /api/coins/packs` - Get available coin packs with daily spending info
+- `POST /api/coins/checkout` - Create Stripe checkout session for a coin pack
+- `POST /api/coins/verify` - Verify and credit coins after successful Stripe payment
+- `GET /api/stripe/publishable-key` - Get Stripe publishable key for frontend
 
 ## World Locations (8 worlds)
 Frostpeak, Sky Realm, The Lost Island, Volcanic Isle, Enchanted Grove, Scorched Desert, The Swamp, Haunted Woods
@@ -149,3 +156,5 @@ Frostpeak, Sky Realm, The Lost Island, Volcanic Isle, Enchanted Grove, Scorched 
 - connect-pg-simple must use `createTableIfMissing: false`; session table created manually via pool.query
 - No 7-day cooldown on profile picture changes
 - No automated/video testing during development
+- Stripe integration: stripe + stripe-replit-sync packages, webhook route registered BEFORE express.json(), coin_purchases table tracks spending limits
+- Coin packs: 100/$1, 500/$5, 1000/$10, 2500/$25, 5000/$50, 10000/$100; daily limit $500
