@@ -219,7 +219,7 @@ export default function MapPage({ user }: MapPageProps) {
     <div
       className="relative w-full min-h-[100dvh] overflow-hidden flex flex-col"
       style={{
-        background: "linear-gradient(160deg, #e8d5b0 0%, #dcc49a 15%, #d4b88a 30%, #c9a870 50%, #d4b88a 70%, #dcc49a 85%, #e8d5b0 100%)",
+        background: "linear-gradient(180deg, #080812 0%, #0a0d1a 15%, #0d1020 35%, #0a0e1c 55%, #0d1020 75%, #080812 100%)",
         maxWidth: "768px",
         margin: "0 auto",
       }}
@@ -228,33 +228,46 @@ export default function MapPage({ user }: MapPageProps) {
         className="absolute inset-0 z-0 pointer-events-none"
         style={{
           background:
-            "radial-gradient(ellipse at 30% 20%, rgba(180,150,100,0.25) 0%, transparent 50%), " +
-            "radial-gradient(ellipse at 70% 50%, rgba(160,130,80,0.2) 0%, transparent 45%), " +
-            "radial-gradient(ellipse at 40% 80%, rgba(170,140,90,0.2) 0%, transparent 40%), " +
-            "radial-gradient(ellipse at 60% 10%, rgba(200,170,120,0.15) 0%, transparent 35%)",
+            "radial-gradient(ellipse at 50% 15%, rgba(80,120,200,0.1) 0%, transparent 50%), " +
+            "radial-gradient(ellipse at 20% 45%, rgba(120,60,200,0.07) 0%, transparent 40%), " +
+            "radial-gradient(ellipse at 80% 35%, rgba(160,80,240,0.06) 0%, transparent 40%), " +
+            "radial-gradient(ellipse at 50% 75%, rgba(60,100,200,0.08) 0%, transparent 45%), " +
+            "radial-gradient(ellipse at 30% 90%, rgba(100,60,220,0.05) 0%, transparent 35%), " +
+            "radial-gradient(ellipse at 70% 60%, rgba(180,100,255,0.05) 0%, transparent 35%)",
         }}
       />
 
       <div
-        className="absolute inset-0 z-0 pointer-events-none"
+        className="absolute inset-0 z-0 pointer-events-none opacity-[0.04]"
         style={{
           backgroundImage: `
-            repeating-linear-gradient(0deg, transparent, transparent 40px, rgba(160,130,80,0.06) 40px, rgba(160,130,80,0.06) 41px),
-            repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(160,130,80,0.04) 40px, rgba(160,130,80,0.04) 41px)
+            radial-gradient(1px 1px at 15% 20%, rgba(200,220,255,0.8), transparent),
+            radial-gradient(1px 1px at 45% 12%, rgba(200,255,220,0.6), transparent),
+            radial-gradient(1px 1px at 72% 28%, rgba(220,200,255,0.7), transparent),
+            radial-gradient(1px 1px at 88% 42%, rgba(200,230,255,0.5), transparent),
+            radial-gradient(1px 1px at 25% 55%, rgba(180,255,220,0.6), transparent),
+            radial-gradient(1px 1px at 60% 48%, rgba(200,200,255,0.5), transparent),
+            radial-gradient(1px 1px at 35% 72%, rgba(200,240,255,0.7), transparent),
+            radial-gradient(1px 1px at 82% 65%, rgba(180,220,255,0.6), transparent),
+            radial-gradient(1px 1px at 50% 85%, rgba(200,255,240,0.5), transparent),
+            radial-gradient(1px 1px at 10% 78%, rgba(220,220,255,0.4), transparent),
+            radial-gradient(1.5px 1.5px at 55% 30%, rgba(200,240,255,0.9), transparent),
+            radial-gradient(1.5px 1.5px at 30% 42%, rgba(180,255,200,0.7), transparent)
           `,
         }}
       />
 
-      <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.08]">
-        <div className="absolute top-[8%] left-[12%] w-28 h-20 rounded-[50%]" style={{ background: "rgba(140,110,60,0.5)", filter: "blur(30px)" }} />
-        <div className="absolute top-[45%] right-[10%] w-36 h-16 rounded-[50%]" style={{ background: "rgba(150,120,70,0.4)", filter: "blur(35px)" }} />
-        <div className="absolute bottom-[15%] left-[30%] w-32 h-14 rounded-[50%]" style={{ background: "rgba(140,110,60,0.3)", filter: "blur(25px)" }} />
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        <div className="absolute top-[5%] left-[15%] w-40 h-24 rounded-[50%]" style={{ background: "rgba(60,80,180,0.06)", filter: "blur(40px)" }} />
+        <div className="absolute top-[30%] right-[8%] w-48 h-20 rounded-[50%]" style={{ background: "rgba(140,60,220,0.05)", filter: "blur(45px)" }} />
+        <div className="absolute top-[55%] left-[10%] w-36 h-28 rounded-[50%]" style={{ background: "rgba(80,60,200,0.06)", filter: "blur(40px)" }} />
+        <div className="absolute top-[75%] right-[20%] w-44 h-18 rounded-[50%]" style={{ background: "rgba(100,80,240,0.04)", filter: "blur(50px)" }} />
       </div>
 
       <div
         className="absolute inset-0 z-0 pointer-events-none"
         style={{
-          boxShadow: "inset 0 0 80px rgba(120,90,50,0.25), inset 0 0 200px rgba(100,70,30,0.1)",
+          boxShadow: "inset 0 0 100px rgba(0,10,30,0.6), inset 0 0 250px rgba(0,5,15,0.3)",
         }}
       />
 
@@ -292,8 +305,8 @@ export default function MapPage({ user }: MapPageProps) {
           <h2
             className="font-fantasy text-center text-lg tracking-[0.3em] font-bold pt-2 pb-1 uppercase relative z-10"
             style={{
-              color: "#6b4226",
-              textShadow: "0 1px 2px rgba(255,240,200,0.4), 0 0 12px rgba(160,120,50,0.2)",
+              color: "#f0c040",
+              textShadow: "0 0 20px rgba(240,192,64,0.5), 0 0 40px rgba(240,192,64,0.25), 0 0 60px rgba(240,192,64,0.1), 0 2px 4px rgba(0,0,0,0.9)",
             }}
             data-testid="text-map-title"
           >
@@ -302,7 +315,7 @@ export default function MapPage({ user }: MapPageProps) {
 
           {isLoading ? (
             <div className="flex items-center justify-center h-64">
-              <p className="font-fantasy text-[#6b4226] text-sm animate-pulse">Loading map...</p>
+              <p className="font-fantasy text-[#8090b0] text-sm animate-pulse">Loading map...</p>
             </div>
           ) : (
             <div
@@ -313,7 +326,14 @@ export default function MapPage({ user }: MapPageProps) {
               onPointerUp={handlePointerUp}
             >
               <div className="absolute inset-0">
-                <svg className="absolute inset-0 w-full h-full pointer-events-none z-[5] opacity-[0.15]">
+                <svg className="absolute inset-0 w-full h-full pointer-events-none z-[5] opacity-[0.3]">
+                  <defs>
+                    <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="rgba(120,160,255,0.6)" />
+                      <stop offset="50%" stopColor="rgba(160,120,255,0.5)" />
+                      <stop offset="100%" stopColor="rgba(120,160,255,0.6)" />
+                    </linearGradient>
+                  </defs>
                   {worldsList.length > 1 && worldsList.map((w, i) => {
                     if (i === 0) return null;
                     const prev = worldsList[i - 1];
@@ -328,7 +348,7 @@ export default function MapPage({ user }: MapPageProps) {
                         key={`path-${i}`}
                         x1={`${x1}%`} y1={`${y1}%`}
                         x2={`${x2}%`} y2={`${y2}%`}
-                        stroke="rgba(100,70,35,0.5)"
+                        stroke="url(#lineGrad)"
                         strokeWidth="1"
                         strokeDasharray="4,6"
                       />
@@ -398,8 +418,8 @@ export default function MapPage({ user }: MapPageProps) {
                             }}
                             className="absolute -top-1 -left-1 w-5 h-5 rounded-full flex items-center justify-center z-30"
                             style={{
-                              background: "rgba(80,120,50,0.9)",
-                              border: "1px solid rgba(150,200,100,0.5)",
+                              background: "rgba(60,40,140,0.9)",
+                              border: "1px solid rgba(140,100,240,0.5)",
                               cursor: "pointer",
                             }}
                           >
@@ -429,9 +449,9 @@ export default function MapPage({ user }: MapPageProps) {
                           <span
                             className="font-fantasy text-[9px] sm:text-[10px] tracking-wider font-semibold whitespace-nowrap px-2 py-0.5 rounded-full"
                             style={{
-                              color: "#4a3520",
-                              textShadow: `0 0 6px ${w.glowColor}40, 0 1px 2px rgba(255,240,200,0.5)`,
-                              background: "rgba(255,250,235,0.75)",
+                              color: "#e0d8c8",
+                              textShadow: `0 0 6px ${w.glowColor}50, 0 1px 2px rgba(0,0,0,0.6)`,
+                              background: "rgba(10,12,25,0.8)",
                               border: `1px solid ${w.glowColor}40`,
                               backdropFilter: "blur(4px)",
                             }}
@@ -447,12 +467,12 @@ export default function MapPage({ user }: MapPageProps) {
                             }}
                             className="font-fantasy text-[9px] sm:text-[10px] tracking-widest px-4 py-1 rounded-full transition-transform active:scale-90"
                             style={{
-                              background: `linear-gradient(135deg, ${w.glowColor}90, ${w.glowColor}60)`,
-                              border: `1px solid ${w.glowColor}`,
-                              color: "#2a1a08",
+                              background: `linear-gradient(135deg, rgba(10,12,25,0.85), rgba(20,24,50,0.9))`,
+                              border: `1px solid ${w.glowColor}80`,
+                              color: "#e0d8c8",
                               cursor: "pointer",
-                              boxShadow: `0 2px 10px ${w.glowColor}40`,
-                              textShadow: "0 1px 1px rgba(255,255,255,0.3)",
+                              boxShadow: `0 2px 12px ${w.glowColor}30, 0 0 20px ${w.glowColor}15`,
+                              textShadow: `0 0 6px ${w.glowColor}40`,
                               fontWeight: 600,
                             }}
                           >
@@ -474,9 +494,9 @@ export default function MapPage({ user }: MapPageProps) {
             onClick={() => setShowAddWorld(true)}
             className="fixed bottom-6 right-6 w-14 h-14 rounded-full flex items-center justify-center z-30 transition-transform active:scale-90"
             style={{
-              background: "linear-gradient(135deg, #6b8e23 0%, #556b2f 100%)",
-              border: "2px solid rgba(180,220,100,0.6)",
-              boxShadow: "0 4px 20px rgba(107,142,35,0.4), 0 0 30px rgba(107,142,35,0.2)",
+              background: "linear-gradient(135deg, #2a1850 0%, #1a1040 100%)",
+              border: "2px solid rgba(140,100,240,0.5)",
+              boxShadow: "0 4px 20px rgba(100,60,200,0.4), 0 0 30px rgba(140,100,240,0.2)",
               cursor: "pointer",
               maxWidth: "768px",
             }}
@@ -493,20 +513,20 @@ export default function MapPage({ user }: MapPageProps) {
             data-testid="modal-add-world"
             className="relative z-10 w-[90%] max-w-sm rounded-xl p-5 max-h-[85vh] overflow-y-auto"
             style={{
-              background: "linear-gradient(135deg, rgba(245,240,225,0.98) 0%, rgba(230,220,200,0.98) 100%)",
-              border: "1px solid rgba(180,150,100,0.4)",
-              boxShadow: "0 10px 40px rgba(0,0,0,0.3)",
+              background: "linear-gradient(135deg, rgba(16,18,35,0.98) 0%, rgba(22,25,50,0.98) 100%)",
+              border: "1px solid rgba(100,80,200,0.3)",
+              boxShadow: "0 10px 40px rgba(0,0,0,0.5), 0 0 30px rgba(100,60,200,0.1)",
             }}
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-fantasy text-base tracking-widest" style={{ color: "#5c3a1e" }}>
+              <h3 className="font-fantasy text-base tracking-widest" style={{ color: "#d0c8e0" }}>
                 Add New World
               </h3>
               <button
                 data-testid="button-close-add-world"
                 onClick={() => setShowAddWorld(false)}
                 className="w-7 h-7 rounded-full flex items-center justify-center"
-                style={{ background: "rgba(92,58,30,0.15)", border: "1px solid rgba(92,58,30,0.3)", cursor: "pointer", color: "#5c3a1e" }}
+                style={{ background: "rgba(140,120,200,0.15)", border: "1px solid rgba(140,120,200,0.3)", cursor: "pointer", color: "#c0b8d0" }}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -514,7 +534,7 @@ export default function MapPage({ user }: MapPageProps) {
 
             <div className="flex flex-col gap-3">
               <div>
-                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: "#8b6e4e" }}>World Name</label>
+                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: "#9088b0" }}>World Name</label>
                 <input
                   data-testid="input-world-name"
                   type="text"
@@ -523,16 +543,16 @@ export default function MapPage({ user }: MapPageProps) {
                   placeholder="Enter world name..."
                   className="w-full px-3 py-2 rounded-md font-fantasy text-sm"
                   style={{
-                    background: "rgba(255,255,255,0.7)",
-                    border: "1px solid rgba(180,150,100,0.4)",
-                    color: "#3a2510",
+                    background: "rgba(255,255,255,0.08)",
+                    border: "1px solid rgba(140,120,200,0.3)",
+                    color: "#d0c8e0",
                     outline: "none",
                   }}
                 />
               </div>
 
               <div>
-                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: "#8b6e4e" }}>Glow Color</label>
+                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: "#9088b0" }}>Glow Color</label>
                 <div className="flex items-center gap-2">
                   <input
                     data-testid="input-world-glow-color"
@@ -541,12 +561,12 @@ export default function MapPage({ user }: MapPageProps) {
                     onChange={(e) => setNewWorldGlow(e.target.value)}
                     className="w-10 h-8 rounded border-0 cursor-pointer"
                   />
-                  <span className="font-fantasy text-[11px]" style={{ color: "#8b6e4e" }}>{newWorldGlow}</span>
+                  <span className="font-fantasy text-[11px]" style={{ color: "#9088b0" }}>{newWorldGlow}</span>
                 </div>
               </div>
 
               <div>
-                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: "#8b6e4e" }}>World Icon (PNG or GIF)</label>
+                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: "#9088b0" }}>World Icon (PNG or GIF)</label>
                 <input
                   data-testid="input-world-icon"
                   type="file"
@@ -559,17 +579,17 @@ export default function MapPage({ user }: MapPageProps) {
                     }
                   }}
                   className="w-full text-xs font-fantasy"
-                  style={{ color: "#5c3a1e" }}
+                  style={{ color: "#c0b8d0" }}
                 />
                 {newWorldIcon && (
                   <div className="mt-2 flex justify-center">
-                    <img src={newWorldIcon} alt="Preview" className="w-20 h-20 object-contain rounded-lg" style={{ border: "1px solid rgba(180,150,100,0.3)" }} />
+                    <img src={newWorldIcon} alt="Preview" className="w-20 h-20 object-contain rounded-lg" style={{ border: "1px solid rgba(140,120,200,0.3)" }} />
                   </div>
                 )}
               </div>
 
               <div>
-                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: "#8b6e4e" }}>Background Image (PNG or GIF)</label>
+                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: "#9088b0" }}>Background Image (PNG or GIF)</label>
                 <input
                   data-testid="input-world-bg"
                   type="file"
@@ -582,11 +602,11 @@ export default function MapPage({ user }: MapPageProps) {
                     }
                   }}
                   className="w-full text-xs font-fantasy"
-                  style={{ color: "#5c3a1e" }}
+                  style={{ color: "#c0b8d0" }}
                 />
                 {newWorldBg && (
                   <div className="mt-2 flex justify-center">
-                    <img src={newWorldBg} alt="Preview" className="w-full h-24 object-cover rounded-lg" style={{ border: "1px solid rgba(180,150,100,0.3)" }} />
+                    <img src={newWorldBg} alt="Preview" className="w-full h-24 object-cover rounded-lg" style={{ border: "1px solid rgba(140,120,200,0.3)" }} />
                   </div>
                 )}
               </div>
@@ -605,10 +625,11 @@ export default function MapPage({ user }: MapPageProps) {
                 disabled={createWorldMutation.isPending || !newWorldName.trim()}
                 className="w-full py-2.5 rounded-md font-fantasy text-sm tracking-wider transition-transform active:scale-95 disabled:opacity-50 mt-1"
                 style={{
-                  background: "linear-gradient(135deg, #6b8e23 0%, #556b2f 100%)",
-                  border: "1px solid rgba(180,220,100,0.5)",
-                  color: "white",
+                  background: "linear-gradient(135deg, #2a1850 0%, #3a2070 100%)",
+                  border: "1px solid rgba(140,100,240,0.4)",
+                  color: "#e0d8f0",
                   cursor: "pointer",
+                  boxShadow: "0 0 15px rgba(100,60,200,0.2)",
                 }}
               >
                 {createWorldMutation.isPending ? "Creating..." : "Create World"}
@@ -625,20 +646,20 @@ export default function MapPage({ user }: MapPageProps) {
             data-testid="modal-edit-world"
             className="relative z-10 w-[90%] max-w-sm rounded-xl p-5 max-h-[85vh] overflow-y-auto"
             style={{
-              background: "linear-gradient(135deg, rgba(245,240,225,0.98) 0%, rgba(230,220,200,0.98) 100%)",
-              border: "1px solid rgba(180,150,100,0.4)",
-              boxShadow: "0 10px 40px rgba(0,0,0,0.3)",
+              background: "linear-gradient(135deg, rgba(16,18,35,0.98) 0%, rgba(22,25,50,0.98) 100%)",
+              border: "1px solid rgba(100,80,200,0.3)",
+              boxShadow: "0 10px 40px rgba(0,0,0,0.5), 0 0 30px rgba(100,60,200,0.1)",
             }}
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-fantasy text-base tracking-widest" style={{ color: "#5c3a1e" }}>
+              <h3 className="font-fantasy text-base tracking-widest" style={{ color: "#d0c8e0" }}>
                 Edit World
               </h3>
               <button
                 data-testid="button-close-edit-world"
                 onClick={() => setEditingWorld(null)}
                 className="w-7 h-7 rounded-full flex items-center justify-center"
-                style={{ background: "rgba(92,58,30,0.15)", border: "1px solid rgba(92,58,30,0.3)", cursor: "pointer", color: "#5c3a1e" }}
+                style={{ background: "rgba(140,120,200,0.15)", border: "1px solid rgba(140,120,200,0.3)", cursor: "pointer", color: "#c0b8d0" }}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -646,7 +667,7 @@ export default function MapPage({ user }: MapPageProps) {
 
             <div className="flex flex-col gap-3">
               <div>
-                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: "#8b6e4e" }}>World Name</label>
+                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: "#9088b0" }}>World Name</label>
                 <input
                   data-testid="input-edit-world-name"
                   type="text"
@@ -654,16 +675,16 @@ export default function MapPage({ user }: MapPageProps) {
                   onChange={(e) => setEditName(e.target.value)}
                   className="w-full px-3 py-2 rounded-md font-fantasy text-sm"
                   style={{
-                    background: "rgba(255,255,255,0.7)",
-                    border: "1px solid rgba(180,150,100,0.4)",
-                    color: "#3a2510",
+                    background: "rgba(255,255,255,0.08)",
+                    border: "1px solid rgba(140,120,200,0.3)",
+                    color: "#d0c8e0",
                     outline: "none",
                   }}
                 />
               </div>
 
               <div>
-                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: "#8b6e4e" }}>Glow Color</label>
+                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: "#9088b0" }}>Glow Color</label>
                 <div className="flex items-center gap-2">
                   <input
                     data-testid="input-edit-world-glow"
@@ -672,12 +693,12 @@ export default function MapPage({ user }: MapPageProps) {
                     onChange={(e) => setEditGlow(e.target.value)}
                     className="w-10 h-8 rounded border-0 cursor-pointer"
                   />
-                  <span className="font-fantasy text-[11px]" style={{ color: "#8b6e4e" }}>{editGlow}</span>
+                  <span className="font-fantasy text-[11px]" style={{ color: "#9088b0" }}>{editGlow}</span>
                 </div>
               </div>
 
               <div>
-                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: "#8b6e4e" }}>Replace Icon (PNG or GIF)</label>
+                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: "#9088b0" }}>Replace Icon (PNG or GIF)</label>
                 <input
                   data-testid="input-edit-world-icon"
                   type="file"
@@ -690,23 +711,23 @@ export default function MapPage({ user }: MapPageProps) {
                     }
                   }}
                   className="w-full text-xs font-fantasy"
-                  style={{ color: "#5c3a1e" }}
+                  style={{ color: "#c0b8d0" }}
                 />
                 {editIcon && (
                   <div className="mt-2 flex justify-center">
-                    <img src={editIcon} alt="Preview" className="w-20 h-20 object-contain rounded-lg" style={{ border: "1px solid rgba(180,150,100,0.3)" }} />
+                    <img src={editIcon} alt="Preview" className="w-20 h-20 object-contain rounded-lg" style={{ border: "1px solid rgba(140,120,200,0.3)" }} />
                   </div>
                 )}
                 {!editIcon && (getWorldIcon(editingWorld) || editingWorld.iconUrl) && (
                   <div className="mt-2 flex justify-center">
-                    <img src={getWorldIcon(editingWorld) || editingWorld.iconUrl || ""} alt="Current" className="w-16 h-16 object-contain rounded-lg opacity-60" style={{ border: "1px solid rgba(180,150,100,0.2)" }} />
-                    <span className="font-fantasy text-[9px] self-center ml-2" style={{ color: "#8b6e4e" }}>Current icon</span>
+                    <img src={getWorldIcon(editingWorld) || editingWorld.iconUrl || ""} alt="Current" className="w-16 h-16 object-contain rounded-lg opacity-60" style={{ border: "1px solid rgba(140,120,200,0.2)" }} />
+                    <span className="font-fantasy text-[9px] self-center ml-2" style={{ color: "#9088b0" }}>Current icon</span>
                   </div>
                 )}
               </div>
 
               <div>
-                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: "#8b6e4e" }}>Replace Background (PNG/GIF/JPEG)</label>
+                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: "#9088b0" }}>Replace Background (PNG/GIF/JPEG)</label>
                 <input
                   data-testid="input-edit-world-bg"
                   type="file"
@@ -719,11 +740,11 @@ export default function MapPage({ user }: MapPageProps) {
                     }
                   }}
                   className="w-full text-xs font-fantasy"
-                  style={{ color: "#5c3a1e" }}
+                  style={{ color: "#c0b8d0" }}
                 />
                 {editBg && (
                   <div className="mt-2 flex justify-center">
-                    <img src={editBg} alt="Preview" className="w-full h-24 object-cover rounded-lg" style={{ border: "1px solid rgba(180,150,100,0.3)" }} />
+                    <img src={editBg} alt="Preview" className="w-full h-24 object-cover rounded-lg" style={{ border: "1px solid rgba(140,120,200,0.3)" }} />
                   </div>
                 )}
               </div>
@@ -743,10 +764,11 @@ export default function MapPage({ user }: MapPageProps) {
                 disabled={editWorldMutation.isPending || !editName.trim()}
                 className="w-full py-2.5 rounded-md font-fantasy text-sm tracking-wider transition-transform active:scale-95 disabled:opacity-50 mt-1"
                 style={{
-                  background: "linear-gradient(135deg, #6b8e23 0%, #556b2f 100%)",
-                  border: "1px solid rgba(180,220,100,0.5)",
-                  color: "white",
+                  background: "linear-gradient(135deg, #2a1850 0%, #3a2070 100%)",
+                  border: "1px solid rgba(140,100,240,0.4)",
+                  color: "#e0d8f0",
                   cursor: "pointer",
+                  boxShadow: "0 0 15px rgba(100,60,200,0.2)",
                 }}
               >
                 {editWorldMutation.isPending ? "Saving..." : "Save Changes"}

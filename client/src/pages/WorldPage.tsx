@@ -289,7 +289,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   if (!world) {
     return (
       <div className="min-h-[100dvh] flex items-center justify-center bg-black" style={{ maxWidth: "768px", margin: "0 auto" }}>
-        <p className="font-fantasy text-[#f0c040] animate-pulse">Loading realm...</p>
+        <p className="font-fantasy text-[#f0c040] animate-pulse" style={{ textShadow: "0 0 20px rgba(240,192,64,0.5)" }}>Loading realm...</p>
       </div>
     );
   }
@@ -308,7 +308,13 @@ export default function WorldPage({ user }: WorldPageProps) {
         margin: "0 auto",
       }}
     >
-      <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/20 to-black/70 z-0 pointer-events-none" />
+      <div className="absolute inset-0 z-0 pointer-events-none" style={{
+        background: `linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.15) 30%, rgba(0,0,0,0.10) 50%, rgba(0,0,0,0.25) 70%, rgba(0,0,0,0.75) 100%)`,
+      }} />
+
+      <div className="absolute inset-0 z-0 pointer-events-none" style={{
+        background: `radial-gradient(ellipse at 50% 20%, ${accent}08 0%, transparent 60%), radial-gradient(ellipse at 80% 70%, ${accent}06 0%, transparent 50%)`,
+      }} />
 
       <style>{`
         @keyframes locFloat {
@@ -317,28 +323,70 @@ export default function WorldPage({ user }: WorldPageProps) {
         }
         @keyframes locGlow {
           0%, 100% { opacity: 0.4; }
-          50% { opacity: 0.8; }
+          50% { opacity: 0.9; }
+        }
+        @keyframes locRingPulse {
+          0%, 100% { transform: scale(1); opacity: 0.3; }
+          50% { transform: scale(1.12); opacity: 0.6; }
+        }
+        @keyframes worldMote {
+          0% { transform: translate(0, 0) scale(0.5); opacity: 0; }
+          15% { opacity: 0.8; }
+          85% { opacity: 0.6; }
+          100% { transform: translate(var(--mx), var(--my)) scale(0.2); opacity: 0; }
+        }
+        @keyframes emptyPulse {
+          0%, 100% { opacity: 0.5; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.05); }
         }
         .loc-node { transition: filter 0.2s ease; touch-action: none; }
         .loc-node:active { filter: brightness(1.15); }
       `}</style>
+
+      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+        {[
+          { left: "12%", top: "25%", mx: "30px", my: "-60px", dur: "7s", delay: "0s", size: "3px" },
+          { left: "78%", top: "40%", mx: "-40px", my: "-50px", dur: "9s", delay: "2s", size: "2px" },
+          { left: "45%", top: "65%", mx: "20px", my: "-70px", dur: "8s", delay: "1s", size: "3px" },
+          { left: "25%", top: "80%", mx: "-25px", my: "-55px", dur: "10s", delay: "3s", size: "2px" },
+          { left: "65%", top: "30%", mx: "35px", my: "-45px", dur: "6s", delay: "4s", size: "2px" },
+        ].map((mote, i) => (
+          <div
+            key={i}
+            className="absolute rounded-full"
+            style={{
+              left: mote.left,
+              top: mote.top,
+              width: mote.size,
+              height: mote.size,
+              background: accent,
+              boxShadow: `0 0 6px ${accent}80, 0 0 12px ${accent}40`,
+              animation: `worldMote ${mote.dur} ease-in-out infinite`,
+              animationDelay: mote.delay,
+              "--mx": mote.mx,
+              "--my": mote.my,
+            } as React.CSSProperties}
+          />
+        ))}
+      </div>
 
       <div className="relative z-10 flex flex-col min-h-[100dvh]" style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
 
         <div className="flex flex-col items-center px-6 pt-4 pb-2">
           <h2
-            className="font-fantasy text-3xl font-bold tracking-widest text-center mb-1"
+            className="font-fantasy text-4xl font-bold tracking-widest text-center mb-1"
             style={{
               color: accent,
-              textShadow: `0 0 25px ${accent}80, 0 0 50px ${accent}40, 0 2px 8px rgba(0,0,0,0.9)`,
+              textShadow: `0 0 30px ${accent}90, 0 0 60px ${accent}50, 0 0 100px ${accent}25, 0 2px 8px rgba(0,0,0,0.9)`,
+              letterSpacing: "0.15em",
             }}
             data-testid={`text-world-name-${worldId}`}
           >
             {world.name}
           </h2>
-          <p className="font-fantasy text-[#a89878] text-xs tracking-wider text-center mb-2"
-            style={{ textShadow: "0 1px 4px rgba(0,0,0,0.9)" }}>
+          <p className="font-fantasy text-xs tracking-[0.2em] text-center mb-2"
+            style={{ color: `${accent}88`, textShadow: `0 0 10px ${accent}30, 0 1px 4px rgba(0,0,0,0.9)` }}>
             Explore the realm...
           </p>
         </div>
@@ -346,17 +394,27 @@ export default function WorldPage({ user }: WorldPageProps) {
         <div className="flex-1 relative">
           {locationsLoading ? (
             <div className="flex items-center justify-center py-12">
-              <p className="font-fantasy text-sm animate-pulse" style={{ color: accent }}>Loading places...</p>
+              <p className="font-fantasy text-sm animate-pulse" style={{ color: accent, textShadow: `0 0 15px ${accent}60` }}>Loading places...</p>
             </div>
           ) : locations.length === 0 ? (
             <div className="flex items-center justify-center py-16 px-8">
               <div className="text-center">
-                <p className="font-fantasy text-sm tracking-wider mb-1" style={{ color: `${accent}90`, textShadow: `0 0 8px ${accent}30` }}>
-                  No places yet
+                <div
+                  className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center"
+                  style={{
+                    background: `radial-gradient(circle, ${accent}20 0%, transparent 70%)`,
+                    border: `1px solid ${accent}25`,
+                    animation: "emptyPulse 3s ease-in-out infinite",
+                  }}
+                >
+                  <MapPin className="w-7 h-7" style={{ color: `${accent}70`, filter: `drop-shadow(0 0 8px ${accent}40)` }} />
+                </div>
+                <p className="font-fantasy text-base tracking-wider mb-2" style={{ color: `${accent}aa`, textShadow: `0 0 15px ${accent}40` }}>
+                  No places discovered yet
                 </p>
                 {currentUser.isAdmin && (
-                  <p className="font-fantasy text-[10px] tracking-wider" style={{ color: "#a89878", textShadow: "0 1px 4px rgba(0,0,0,0.9)" }}>
-                    Tap + to add places to this world
+                  <p className="font-fantasy text-[10px] tracking-[0.15em]" style={{ color: `${accent}60`, textShadow: `0 0 8px ${accent}20` }}>
+                    Tap + to conjure new places
                   </p>
                 )}
               </div>
@@ -392,11 +450,19 @@ export default function WorldPage({ user }: WorldPageProps) {
                     >
                       <div className="relative w-full" style={{ aspectRatio: "1" }}>
                         <div
-                          className="absolute inset-[-15%] rounded-full pointer-events-none"
+                          className="absolute inset-[-20%] rounded-full pointer-events-none"
                           style={{
-                            background: `radial-gradient(circle, ${accent}35 0%, ${accent}15 50%, transparent 70%)`,
+                            background: `radial-gradient(circle, ${accent}45 0%, ${accent}20 40%, transparent 70%)`,
                             animation: `locGlow ${3 + (i % 2)}s ease-in-out infinite`,
                             animationDelay: `${i * 0.25}s`,
+                          }}
+                        />
+                        <div
+                          className="absolute inset-[-8%] rounded-full pointer-events-none"
+                          style={{
+                            border: `1.5px solid ${accent}30`,
+                            animation: `locRingPulse ${4 + (i % 2)}s ease-in-out infinite`,
+                            animationDelay: `${i * 0.4}s`,
                           }}
                         />
                         {loc.iconUrl ? (
@@ -406,18 +472,19 @@ export default function WorldPage({ user }: WorldPageProps) {
                             className="w-full h-full object-contain relative z-10"
                             draggable={false}
                             style={{
-                              filter: `drop-shadow(0 3px 6px rgba(0,0,0,0.5)) drop-shadow(0 0 8px ${accent}30)`,
+                              filter: `drop-shadow(0 3px 8px rgba(0,0,0,0.6)) drop-shadow(0 0 12px ${accent}40)`,
                             }}
                           />
                         ) : (
                           <div
                             className="w-full h-full rounded-full flex items-center justify-center relative z-10"
                             style={{
-                              background: `linear-gradient(135deg, ${accent}30, ${accent}15)`,
-                              border: `2px solid ${accent}50`,
+                              background: `radial-gradient(circle at 40% 35%, ${accent}35, ${accent}10)`,
+                              border: `2px solid ${accent}55`,
+                              boxShadow: `inset 0 0 15px ${accent}15, 0 0 20px ${accent}20`,
                             }}
                           >
-                            <MapPin className="w-7 h-7" style={{ color: accent, filter: `drop-shadow(0 0 6px ${accent}60)` }} />
+                            <MapPin className="w-7 h-7" style={{ color: accent, filter: `drop-shadow(0 0 8px ${accent}70)` }} />
                           </div>
                         )}
 
@@ -445,10 +512,11 @@ export default function WorldPage({ user }: WorldPageProps) {
                         className="font-fantasy text-[9px] sm:text-[10px] tracking-wider font-semibold whitespace-nowrap mt-0.5 px-2 py-0.5 rounded-full relative z-10"
                         style={{
                           color: accent,
-                          textShadow: `0 0 8px ${accent}40, 0 1px 3px rgba(0,0,0,0.9)`,
-                          background: "rgba(0,0,0,0.4)",
-                          border: `1px solid ${accent}30`,
-                          backdropFilter: "blur(4px)",
+                          textShadow: `0 0 10px ${accent}50, 0 1px 3px rgba(0,0,0,0.9)`,
+                          background: "rgba(0,0,0,0.55)",
+                          border: `1px solid ${accent}35`,
+                          backdropFilter: "blur(6px)",
+                          boxShadow: `0 0 8px ${accent}15`,
                         }}
                       >
                         {loc.name}
@@ -465,14 +533,14 @@ export default function WorldPage({ user }: WorldPageProps) {
           <button
             data-testid="button-back-to-map"
             onClick={() => navigate("/map")}
-            className="w-full py-2.5 rounded-lg font-fantasy text-sm tracking-wider transition-transform active:scale-98"
+            className="w-full py-3 rounded-lg font-fantasy text-sm tracking-[0.15em] transition-transform active:scale-98"
             style={{
-              background: "linear-gradient(135deg, rgba(30,15,5,0.85) 0%, rgba(60,35,10,0.85) 100%)",
-              border: `1px solid ${accent}60`,
+              background: `linear-gradient(135deg, rgba(10,5,15,0.9) 0%, rgba(25,15,35,0.9) 50%, rgba(10,5,15,0.9) 100%)`,
+              border: `1.5px solid ${accent}70`,
               color: accent,
               cursor: "pointer",
-              boxShadow: `0 4px 15px rgba(0,0,0,0.5), 0 0 10px ${accent}15`,
-              textShadow: `0 0 8px ${accent}40`,
+              boxShadow: `0 4px 20px rgba(0,0,0,0.6), 0 0 20px ${accent}20, inset 0 1px 0 ${accent}15`,
+              textShadow: `0 0 12px ${accent}50, 0 0 25px ${accent}25`,
             }}
           >
             Back to Map
@@ -489,7 +557,7 @@ export default function WorldPage({ user }: WorldPageProps) {
               right: "max(16px, calc((100vw - 768px) / 2 + 16px))",
               background: `linear-gradient(135deg, ${accent}cc 0%, ${accent}88 100%)`,
               border: `2px solid ${accent}`,
-              boxShadow: `0 4px 20px ${accent}50, 0 0 30px ${accent}30`,
+              boxShadow: `0 4px 25px ${accent}60, 0 0 40px ${accent}35`,
               cursor: "pointer",
             }}
           >
@@ -505,13 +573,13 @@ export default function WorldPage({ user }: WorldPageProps) {
             data-testid="modal-add-location"
             className="relative z-10 w-[85%] max-w-sm rounded-lg p-5 max-h-[85vh] overflow-y-auto"
             style={{
-              background: "linear-gradient(135deg, rgba(20,10,5,0.98) 0%, rgba(40,25,10,0.98) 100%)",
-              border: `1px solid ${accent}50`,
-              boxShadow: `0 0 30px ${accent}20`,
+              background: `linear-gradient(135deg, rgba(8,5,18,0.98) 0%, rgba(18,12,30,0.98) 50%, rgba(8,5,18,0.98) 100%)`,
+              border: `1px solid ${accent}55`,
+              boxShadow: `0 0 40px ${accent}25, 0 0 80px ${accent}10`,
             }}
           >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-fantasy text-base tracking-widest" style={{ color: accent, textShadow: `0 0 10px ${accent}40` }}>
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <h3 className="font-fantasy text-lg tracking-widest" style={{ color: accent, textShadow: `0 0 15px ${accent}50` }}>
                 Add Place
               </h3>
               <button
@@ -526,7 +594,7 @@ export default function WorldPage({ user }: WorldPageProps) {
 
             <div className="flex flex-col gap-3">
               <div>
-                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}99` }}>Name</label>
+                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>Name</label>
                 <input
                   data-testid="input-location-name"
                   type="text"
@@ -535,25 +603,25 @@ export default function WorldPage({ user }: WorldPageProps) {
                   placeholder="Place name..."
                   className="w-full px-3 py-2 rounded-md font-fantasy text-sm"
                   style={{
-                    background: "rgba(0,0,0,0.4)",
-                    border: `1px solid ${accent}30`,
-                    color: "#e0d0c0",
+                    background: "rgba(0,0,0,0.5)",
+                    border: `1px solid ${accent}35`,
+                    color: "#e8ddd0",
                     outline: "none",
                   }}
                 />
               </div>
 
               <div>
-                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}99` }}>Type</label>
+                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>Type</label>
                 <select
                   data-testid="select-location-type"
                   value={newLocType}
                   onChange={(e) => setNewLocType(e.target.value)}
                   className="w-full px-3 py-2 rounded-md font-fantasy text-sm"
                   style={{
-                    background: "rgba(0,0,0,0.4)",
-                    border: `1px solid ${accent}30`,
-                    color: "#e0d0c0",
+                    background: "rgba(0,0,0,0.5)",
+                    border: `1px solid ${accent}35`,
+                    color: "#e8ddd0",
                     outline: "none",
                   }}
                 >
@@ -568,7 +636,7 @@ export default function WorldPage({ user }: WorldPageProps) {
               </div>
 
               <div>
-                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}99` }}>Icon (PNG or GIF)</label>
+                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>Icon (PNG or GIF)</label>
                 <input
                   data-testid="input-location-icon"
                   type="file"
@@ -591,7 +659,7 @@ export default function WorldPage({ user }: WorldPageProps) {
               </div>
 
               <div>
-                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}99` }}>Background (PNG/GIF/JPEG)</label>
+                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>Background (PNG/GIF/JPEG)</label>
                 <input
                   data-testid="input-location-bg"
                   type="file"
@@ -614,7 +682,7 @@ export default function WorldPage({ user }: WorldPageProps) {
               </div>
 
               <div>
-                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}99` }}>Description (optional)</label>
+                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>Description (optional)</label>
                 <input
                   data-testid="input-location-description"
                   type="text"
@@ -623,9 +691,9 @@ export default function WorldPage({ user }: WorldPageProps) {
                   placeholder="Optional description..."
                   className="w-full px-3 py-2 rounded-md font-fantasy text-sm"
                   style={{
-                    background: "rgba(0,0,0,0.4)",
-                    border: `1px solid ${accent}30`,
-                    color: "#e0d0c0",
+                    background: "rgba(0,0,0,0.5)",
+                    border: `1px solid ${accent}35`,
+                    color: "#e8ddd0",
                     outline: "none",
                   }}
                 />
@@ -646,10 +714,12 @@ export default function WorldPage({ user }: WorldPageProps) {
                 disabled={addLocationMutation.isPending || !newLocName.trim()}
                 className="w-full py-2.5 rounded-md font-fantasy text-sm tracking-wider transition-transform active:scale-95 disabled:opacity-50 mt-1"
                 style={{
-                  background: `linear-gradient(135deg, ${accent}40 0%, ${accent}20 100%)`,
-                  border: `1px solid ${accent}60`,
+                  background: `linear-gradient(135deg, ${accent}50 0%, ${accent}25 100%)`,
+                  border: `1px solid ${accent}70`,
                   color: accent,
                   cursor: "pointer",
+                  boxShadow: `0 0 15px ${accent}20`,
+                  textShadow: `0 0 8px ${accent}40`,
                 }}
               >
                 {addLocationMutation.isPending ? "Adding..." : "Add Place"}
