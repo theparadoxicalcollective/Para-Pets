@@ -770,6 +770,67 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/world/:worldId/locations", isAuthenticated, async (req, res) => {
+    try {
+      const locations = await storage.getWorldLocations(req.params.worldId);
+      return res.json(locations);
+    } catch (err) {
+      console.error("Get world locations error:", err);
+      return res.status(500).json({ message: "Failed to get locations" });
+    }
+  });
+
+  app.post("/api/admin/world/:worldId/location", isAdmin, async (req, res) => {
+    try {
+      const { name, type, iconUrl, description, sortOrder } = req.body;
+      if (!name || typeof name !== "string" || !name.trim()) return res.status(400).json({ message: "Name is required" });
+      if (!type || typeof type !== "string") return res.status(400).json({ message: "Type is required" });
+      const validTypes = ["shop", "arena", "tavern", "sanctuary", "mine", "garden", "custom"];
+      if (!validTypes.includes(type)) return res.status(400).json({ message: "Invalid location type" });
+      const loc = await storage.createWorldLocation({
+        worldId: req.params.worldId,
+        name,
+        type,
+        iconUrl: iconUrl || null,
+        description: description || null,
+        sortOrder: sortOrder || 0,
+      });
+      return res.status(201).json(loc);
+    } catch (err) {
+      console.error("Create world location error:", err);
+      return res.status(500).json({ message: "Failed to create location" });
+    }
+  });
+
+  app.patch("/api/admin/world/location/:locationId", isAdmin, async (req, res) => {
+    try {
+      const allowedFields = ["name", "type", "iconUrl", "description", "sortOrder"];
+      const sanitized: Record<string, any> = {};
+      for (const key of allowedFields) {
+        if (req.body[key] !== undefined) sanitized[key] = req.body[key];
+      }
+      if (sanitized.type) {
+        const validTypes = ["shop", "arena", "tavern", "sanctuary", "mine", "garden", "custom"];
+        if (!validTypes.includes(sanitized.type)) return res.status(400).json({ message: "Invalid location type" });
+      }
+      const updated = await storage.updateWorldLocation(req.params.locationId, sanitized);
+      return res.json(updated);
+    } catch (err) {
+      console.error("Update world location error:", err);
+      return res.status(500).json({ message: "Failed to update location" });
+    }
+  });
+
+  app.delete("/api/admin/world/location/:locationId", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteWorldLocation(req.params.locationId);
+      return res.json({ message: "Location deleted" });
+    } catch (err) {
+      console.error("Delete world location error:", err);
+      return res.status(500).json({ message: "Failed to delete location" });
+    }
+  });
+
   app.get("/api/shop/:worldId", isAuthenticated, async (req, res) => {
     try {
       const items = await storage.getShopItemsByWorld(req.params.worldId);

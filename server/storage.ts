@@ -1,6 +1,6 @@
-import { type User, type InsertUser, users, type ShopItem, type InsertShopItem, shopItems, type UserInventoryItem, userInventory, type RewardBundle, rewardBundles, type RewardBundleItem, rewardBundleItems, type UserReward, userRewards, coinPurchases, type CoinPurchase } from "@shared/schema";
+import { type User, type InsertUser, users, type ShopItem, type InsertShopItem, shopItems, type UserInventoryItem, userInventory, type RewardBundle, rewardBundles, type RewardBundleItem, rewardBundleItems, type UserReward, userRewards, coinPurchases, type CoinPurchase, worldLocations, type WorldLocation } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, ne, gte, sql } from "drizzle-orm";
+import { eq, and, ne, gte, sql, asc } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -41,6 +41,10 @@ export interface IStorage {
   createCoinPurchase(userId: string, amountUsd: number, coinsReceived: number, stripeSessionId: string): Promise<CoinPurchase>;
   getCoinPurchaseBySessionId(stripeSessionId: string): Promise<CoinPurchase | undefined>;
   getDailyPurchaseTotal(userId: string): Promise<number>;
+  getWorldLocations(worldId: string): Promise<WorldLocation[]>;
+  createWorldLocation(data: Partial<WorldLocation> & { worldId: string; name: string; type: string }): Promise<WorldLocation>;
+  updateWorldLocation(id: string, data: Partial<WorldLocation>): Promise<WorldLocation>;
+  deleteWorldLocation(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -276,6 +280,24 @@ export class DatabaseStorage implements IStorage {
       and(eq(coinPurchases.userId, userId), gte(coinPurchases.createdAt, today))
     );
     return purchases.reduce((sum, p) => sum + p.amountUsd, 0);
+  }
+
+  async getWorldLocations(worldId: string): Promise<WorldLocation[]> {
+    return db.select().from(worldLocations).where(eq(worldLocations.worldId, worldId)).orderBy(asc(worldLocations.sortOrder));
+  }
+
+  async createWorldLocation(data: Partial<WorldLocation> & { worldId: string; name: string; type: string }): Promise<WorldLocation> {
+    const [loc] = await db.insert(worldLocations).values(data).returning();
+    return loc;
+  }
+
+  async updateWorldLocation(id: string, data: Partial<WorldLocation>): Promise<WorldLocation> {
+    const [loc] = await db.update(worldLocations).set(data).where(eq(worldLocations.id, id)).returning();
+    return loc;
+  }
+
+  async deleteWorldLocation(id: string): Promise<void> {
+    await db.delete(worldLocations).where(eq(worldLocations.id, id));
   }
 }
 

@@ -88,6 +88,14 @@ Para Pets is a mobile-first fantasy game web app where players collect, raise, a
 Frostpeak, Sky Realm, The Lost Island, Volcanic Isle, Enchanted Grove, Scorched Desert, The Swamp, Haunted Woods
 - Each world has its own page, background, shop icon, and shop inventory
 - Shop items are per-world (worldId links items to their world)
+- MapPage: dark fantasy aesthetic with themed glow effects per world (no parchment)
+- WorldPage: 3-column grid of location icons (Shop, Arena, Tavern, Sanctuary, Mine, Garden) with world-themed colors
+  - Locations fetched from DB via GET /api/world/:worldId/locations, falls back to defaults if empty
+  - Admin can add locations via "+" FAB button, delete via trash icon
+  - Clicking Shop location opens shop overlay; other locations show "Coming Soon"
+- CoinShopPage: "Enchanted Treasury" forest theme with generated coin pack PNG images (coin_pack_100-10000.png)
+- World location CRUD: POST /api/admin/world/:worldId/location, PATCH /api/admin/world/location/:id, DELETE /api/admin/world/location/:id
+- World theme colors: Frostpeak=#88ccff, Sky Realm=#ffd700, Lost Island=#20b2aa, Volcanic=#ff4500, Enchanted Grove=#7fffd4, Desert=#daa520, Swamp=#9370db, Haunted Woods=#8b008b
 
 ## Pet System
 - Pets are shop items with type "pet" that users purchase from world shops
