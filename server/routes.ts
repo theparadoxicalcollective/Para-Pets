@@ -1321,35 +1321,8 @@ export async function registerRoutes(
     }
   }
 
-  async function processShopItemImage(imageData: string): Promise<string> {
-    const mimeMatch = imageData.match(/^data:(image\/(png|gif));base64,/);
-    if (!mimeMatch) {
-      throw new Error("Invalid image format. Only PNG and GIF are supported.");
-    }
-    const mimeType = mimeMatch[1];
-    const base64Data = imageData.replace(/^data:image\/\w+;base64,/, "");
-
-    if (base64Data.length > 10 * 1024 * 1024) {
-      throw new Error("Image data too large. Max 10MB.");
-    }
-
-    const imageBuffer = Buffer.from(base64Data, "base64");
-
-    const isGif = mimeType === "image/gif";
-
-    if (isGif) {
-      const resized = await sharp(imageBuffer, { animated: true })
-        .resize(2000, 2000, { fit: "inside", withoutEnlargement: true })
-        .gif()
-        .toBuffer();
-      return `data:image/gif;base64,${resized.toString("base64")}`;
-    } else {
-      const resized = await sharp(imageBuffer)
-        .resize(2000, 2000, { fit: "inside", withoutEnlargement: true })
-        .png({ quality: 90 })
-        .toBuffer();
-      return `data:image/png;base64,${resized.toString("base64")}`;
-    }
+  function processShopItemImage(imageData: string): Promise<string> {
+    return processWorldImage(imageData, 2000);
   }
 
   app.post("/api/admin/shop", isAdmin, async (req, res) => {

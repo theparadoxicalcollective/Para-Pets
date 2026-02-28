@@ -1,4 +1,4 @@
-import { getStripeSync, getUncachableStripeClient } from './stripeClient';
+import { getStripeSync } from './stripeClient';
 import { storage } from './storage';
 
 export class WebhookHandlers {
@@ -13,7 +13,6 @@ export class WebhookHandlers {
     await sync.processWebhook(payload, signature);
 
     try {
-      const stripe = await getUncachableStripeClient();
       const event = JSON.parse(payload.toString());
 
       if (event.type === 'checkout.session.completed') {

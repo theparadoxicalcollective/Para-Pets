@@ -6,7 +6,8 @@ import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import coinIconImg from "@assets/icon_coin.png";
-import { Plus, Trash2, X, MapPin, ImageIcon, Package } from "lucide-react";
+import { Plus, Trash2, X, MapPin, Package } from "lucide-react";
+import { readFileAsDataUrl } from "@/lib/utils";
 
 import shopFrostpeak from "@assets/shop_frostpeak.png";
 import shopSkyRealm from "@assets/shop_sky_realm.png";
@@ -423,15 +424,6 @@ export default function WorldPage({ user }: WorldPageProps) {
     }
     setObjDragPos(null);
   }, [objDragPos, objPositionMutation]);
-
-  const readFileAsDataUrl = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  };
 
   if (!world) {
     return (

@@ -2,7 +2,8 @@ import { useState, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, X, ArrowLeft, Save, RotateCw, Layers } from "lucide-react";
+import { readFileAsDataUrl } from "@/lib/utils";
+import { Plus, Trash2, X, ArrowLeft, Save, Layers } from "lucide-react";
 
 interface PetTemplate {
   id: string;
@@ -202,15 +203,6 @@ export default function PetDatabasePanel() {
     }
     setDragPos(null);
   }, [dragPos, updatePartMutation]);
-
-  const readFileAsDataUrl = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  };
 
   const selectedPart = viewParts.find(p => p.id === selectedPartId);
 

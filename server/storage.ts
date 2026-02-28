@@ -1,6 +1,20 @@
-import { type User, type InsertUser, users, type ShopItem, type InsertShopItem, shopItems, type UserInventoryItem, userInventory, type RewardBundle, rewardBundles, type RewardBundleItem, rewardBundleItems, type UserReward, userRewards, coinPurchases, type CoinPurchase, worldLocations, type WorldLocation, worlds, type World, gameSettings, locationObjects, type LocationObject, petTemplates, type PetTemplate, petTemplateParts, type PetTemplatePart } from "@shared/schema";
+import {
+  type User, type InsertUser, users,
+  type ShopItem, type InsertShopItem, shopItems,
+  type UserInventoryItem, userInventory,
+  type RewardBundle, rewardBundles,
+  type RewardBundleItem, rewardBundleItems,
+  type UserReward, userRewards,
+  type CoinPurchase, coinPurchases,
+  type WorldLocation, worldLocations,
+  type World, worlds,
+  gameSettings,
+  type LocationObject, locationObjects,
+  type PetTemplate, petTemplates,
+  type PetTemplatePart, petTemplateParts,
+} from "@shared/schema";
 import { db } from "./db";
-import { eq, and, ne, gte, sql, asc } from "drizzle-orm";
+import { eq, and, ne, gte, asc } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
