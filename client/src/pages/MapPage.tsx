@@ -57,6 +57,7 @@ export default function MapPage({ user }: MapPageProps) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [selectedWorldId, setSelectedWorldId] = useState<string | null>(null);
   const [showAddWorld, setShowAddWorld] = useState(false);
   const [newWorldName, setNewWorldName] = useState("");
   const [newWorldGlow, setNewWorldGlow] = useState("#ffd700");
@@ -202,8 +203,8 @@ export default function MapPage({ user }: MapPageProps) {
 
   const handleWorldClick = useCallback((w: WorldData) => {
     if (didDrag.current) return;
-    navigate(`/world/${w.id}`);
-  }, [navigate]);
+    setSelectedWorldId((prev) => (prev === w.id ? null : w.id));
+  }, []);
 
   const readFileAsDataUrl = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -218,7 +219,7 @@ export default function MapPage({ user }: MapPageProps) {
     <div
       className="relative w-full min-h-[100dvh] overflow-hidden flex flex-col"
       style={{
-        background: "linear-gradient(180deg, #c9e8f7 0%, #a8d8ea 15%, #e8f4d8 35%, #d4e8b8 55%, #c8d8a0 70%, #b0c890 85%, #90a870 100%)",
+        background: "linear-gradient(160deg, #e8d5b0 0%, #dcc49a 15%, #d4b88a 30%, #c9a870 50%, #d4b88a 70%, #dcc49a 85%, #e8d5b0 100%)",
         maxWidth: "768px",
         margin: "0 auto",
       }}
@@ -227,18 +228,35 @@ export default function MapPage({ user }: MapPageProps) {
         className="absolute inset-0 z-0 pointer-events-none"
         style={{
           background:
-            "radial-gradient(ellipse at 50% 10%, rgba(255,240,180,0.5) 0%, transparent 50%), " +
-            "radial-gradient(ellipse at 20% 60%, rgba(180,220,160,0.3) 0%, transparent 40%), " +
-            "radial-gradient(ellipse at 80% 40%, rgba(200,230,255,0.3) 0%, transparent 40%), " +
-            "radial-gradient(ellipse at 50% 90%, rgba(160,200,120,0.3) 0%, transparent 40%)",
+            "radial-gradient(ellipse at 30% 20%, rgba(180,150,100,0.25) 0%, transparent 50%), " +
+            "radial-gradient(ellipse at 70% 50%, rgba(160,130,80,0.2) 0%, transparent 45%), " +
+            "radial-gradient(ellipse at 40% 80%, rgba(170,140,90,0.2) 0%, transparent 40%), " +
+            "radial-gradient(ellipse at 60% 10%, rgba(200,170,120,0.15) 0%, transparent 35%)",
         }}
       />
 
-      <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.15]">
-        <div className="absolute top-[5%] left-[10%] w-32 h-12 rounded-full" style={{ background: "rgba(255,255,255,0.6)", filter: "blur(20px)" }} />
-        <div className="absolute top-[8%] right-[15%] w-24 h-8 rounded-full" style={{ background: "rgba(255,255,255,0.5)", filter: "blur(15px)" }} />
-        <div className="absolute top-[2%] left-[50%] w-40 h-10 rounded-full" style={{ background: "rgba(255,255,255,0.4)", filter: "blur(25px)" }} />
+      <div
+        className="absolute inset-0 z-0 pointer-events-none"
+        style={{
+          backgroundImage: `
+            repeating-linear-gradient(0deg, transparent, transparent 40px, rgba(160,130,80,0.06) 40px, rgba(160,130,80,0.06) 41px),
+            repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(160,130,80,0.04) 40px, rgba(160,130,80,0.04) 41px)
+          `,
+        }}
+      />
+
+      <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.08]">
+        <div className="absolute top-[8%] left-[12%] w-28 h-20 rounded-[50%]" style={{ background: "rgba(140,110,60,0.5)", filter: "blur(30px)" }} />
+        <div className="absolute top-[45%] right-[10%] w-36 h-16 rounded-[50%]" style={{ background: "rgba(150,120,70,0.4)", filter: "blur(35px)" }} />
+        <div className="absolute bottom-[15%] left-[30%] w-32 h-14 rounded-[50%]" style={{ background: "rgba(140,110,60,0.3)", filter: "blur(25px)" }} />
       </div>
+
+      <div
+        className="absolute inset-0 z-0 pointer-events-none"
+        style={{
+          boxShadow: "inset 0 0 80px rgba(120,90,50,0.25), inset 0 0 200px rgba(100,70,30,0.1)",
+        }}
+      />
 
       <style>{`
         @keyframes floatWorld {
@@ -252,6 +270,10 @@ export default function MapPage({ user }: MapPageProps) {
         @keyframes sparkle {
           0%, 100% { opacity: 0; transform: scale(0.5); }
           50% { opacity: 1; transform: scale(1); }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-4px); }
+          to { opacity: 1; transform: translateY(0); }
         }
         .world-node { transition: filter 0.2s ease; touch-action: none; }
         .world-node:active { filter: brightness(1.1); }
@@ -270,8 +292,8 @@ export default function MapPage({ user }: MapPageProps) {
           <h2
             className="font-fantasy text-center text-lg tracking-[0.3em] font-bold pt-2 pb-1 uppercase relative z-10"
             style={{
-              color: "#5c3a1e",
-              textShadow: "0 1px 3px rgba(255,255,255,0.5), 0 0 15px rgba(180,140,60,0.3)",
+              color: "#6b4226",
+              textShadow: "0 1px 2px rgba(255,240,200,0.4), 0 0 12px rgba(160,120,50,0.2)",
             }}
             data-testid="text-map-title"
           >
@@ -280,7 +302,7 @@ export default function MapPage({ user }: MapPageProps) {
 
           {isLoading ? (
             <div className="flex items-center justify-center h-64">
-              <p className="font-fantasy text-[#5c3a1e] text-sm animate-pulse">Loading map...</p>
+              <p className="font-fantasy text-[#6b4226] text-sm animate-pulse">Loading map...</p>
             </div>
           ) : (
             <div
@@ -306,7 +328,7 @@ export default function MapPage({ user }: MapPageProps) {
                         key={`path-${i}`}
                         x1={`${x1}%`} y1={`${y1}%`}
                         x2={`${x2}%`} y2={`${y2}%`}
-                        stroke="rgba(120,90,50,0.4)"
+                        stroke="rgba(100,70,35,0.5)"
                         strokeWidth="1"
                         strokeDasharray="4,6"
                       />
@@ -402,19 +424,42 @@ export default function MapPage({ user }: MapPageProps) {
                           </button>
                         )}
                       </div>
-                      <span
-                        className="font-fantasy text-[9px] sm:text-[10px] tracking-wider font-semibold whitespace-nowrap mt-0.5 px-2 py-0.5 rounded-full relative z-10"
-                        style={{
-                          color: "#4a3520",
-                          textShadow: `0 0 6px ${w.glowColor}40, 0 1px 2px rgba(255,255,255,0.5)`,
-                          background: "rgba(255,255,240,0.6)",
-                          border: `1px solid ${w.glowColor}35`,
-                          backdropFilter: "blur(4px)",
-                        }}
-                        data-testid={`text-world-name-${w.id}`}
-                      >
-                        {w.name}
-                      </span>
+                      {selectedWorldId === w.id && (
+                        <div className="flex flex-col items-center gap-1 mt-0.5 relative z-10" style={{ animation: "fadeIn 0.2s ease-out" }}>
+                          <span
+                            className="font-fantasy text-[9px] sm:text-[10px] tracking-wider font-semibold whitespace-nowrap px-2 py-0.5 rounded-full"
+                            style={{
+                              color: "#4a3520",
+                              textShadow: `0 0 6px ${w.glowColor}40, 0 1px 2px rgba(255,240,200,0.5)`,
+                              background: "rgba(255,250,235,0.75)",
+                              border: `1px solid ${w.glowColor}40`,
+                              backdropFilter: "blur(4px)",
+                            }}
+                            data-testid={`text-world-name-${w.id}`}
+                          >
+                            {w.name}
+                          </span>
+                          <button
+                            data-testid={`button-travel-${w.id}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/world/${w.id}`);
+                            }}
+                            className="font-fantasy text-[9px] sm:text-[10px] tracking-widest px-4 py-1 rounded-full transition-transform active:scale-90"
+                            style={{
+                              background: `linear-gradient(135deg, ${w.glowColor}90, ${w.glowColor}60)`,
+                              border: `1px solid ${w.glowColor}`,
+                              color: "#2a1a08",
+                              cursor: "pointer",
+                              boxShadow: `0 2px 10px ${w.glowColor}40`,
+                              textShadow: "0 1px 1px rgba(255,255,255,0.3)",
+                              fontWeight: 600,
+                            }}
+                          >
+                            Travel
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

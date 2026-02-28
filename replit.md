@@ -15,7 +15,7 @@ Para Pets is a mobile-first fantasy game web app where players collect, raise, a
 ## Pages
 1. **Auth Page** (`/auth`) - Login / Sign Up with fantasy UI, crystal pill buttons, show/hide password toggle
 2. **Home Page** (`/`) - Main game screen with active pet display, quest scroll overlay, bottom nav bar (Quest scroll, Globe/Map, Battle, Pets)
-3. **Map Page** (`/map`) - Parchment-style world map with 8 3D-illustrated world icons in a 2-column grid
+3. **Map Page** (`/map`) - Parchment paper world map with 8 3D-illustrated world icons; names hidden until tapped, "Travel" button to enter
 4. **World Page** (`/world/:worldId`) - Individual world page with world-specific shop (buy items with coins)
 5. **Admin Page** (`/admin`) - Admin-only realm administration with ranked leaderboard, ban/unban, give coins
 6. **Coin Shop** (`/coins`) - Purchase coins with Stripe ($1=100 coins, max $100/purchase, $500/day limit)
@@ -88,7 +88,7 @@ Para Pets is a mobile-first fantasy game web app where players collect, raise, a
 - `worlds` table: id (varchar PK, slug), name, iconUrl (base64, nullable), bgUrl (base64, nullable), posX, posY, iconSize, glowColor, isDefault, createdAt
 - Default 8 worlds seeded on startup (isDefault=true): Frostpeak, Sky Realm, Lost Island, Volcanic Isle, Enchanted Grove, Scorched Desert, The Swamp, Haunted Woods
 - Default worlds use static asset imports for icons; custom worlds use iconUrl from DB
-- MapPage: daylight magical land background, worlds positioned organically using DB-stored posX/posY percentages
+- MapPage: parchment paper background with subtle texture and aged edges, worlds positioned organically using DB-stored posX/posY percentages
   - Admin can drag worlds to reposition (pointer events, no snapping, percentage-based for responsiveness)
   - Admin can add new worlds via "+" FAB: name, glow color, icon image (PNG/GIF), background image
   - Admin can delete custom (non-default) worlds via trash icon
