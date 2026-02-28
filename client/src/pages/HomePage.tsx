@@ -3,7 +3,31 @@ import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import bgImg from "@assets/bg_home_v2.png";
 import questIcon from "@assets/icon_quest_v5.png";
-import globeImg from "@assets/icon_globe.png";
+const mapIconSvg = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+<defs>
+<linearGradient id="mg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#e8d8b8"/><stop offset="100%" stop-color="#c4a878"/></linearGradient>
+<linearGradient id="rg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#8b6e4e"/><stop offset="100%" stop-color="#5c3a1e"/></linearGradient>
+<radialGradient id="bg" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#2d1a0a"/><stop offset="100%" stop-color="#1a0e05"/></radialGradient>
+</defs>
+<rect width="100" height="100" rx="16" fill="url(#bg)"/>
+<rect x="20" y="18" width="60" height="64" rx="4" fill="url(#mg)" opacity="0.95"/>
+<rect x="20" y="18" width="60" height="8" fill="rgba(139,110,78,0.15)"/>
+<path d="M28 40 L42 35 L58 42 L72 36" fill="none" stroke="#8b6e4e" stroke-width="1.8" stroke-linecap="round" opacity="0.5"/>
+<path d="M25 52 L38 55 L55 48 L75 54" fill="none" stroke="#8b6e4e" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+<path d="M30 65 L50 60 L70 67" fill="none" stroke="#8b6e4e" stroke-width="1.2" stroke-linecap="round" opacity="0.35"/>
+<circle cx="45" cy="42" r="3.5" fill="none" stroke="#c4363a" stroke-width="1.5" opacity="0.7"/>
+<line x1="45" y1="38.5" x2="45" y2="34" stroke="#c4363a" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>
+<circle cx="60" cy="55" r="2.5" fill="#f0c040" opacity="0.5"/>
+<circle cx="35" cy="58" r="2" fill="#f0c040" opacity="0.4"/>
+<path d="M62 28 L68 22 L64 28 L70 26" fill="none" stroke="#5c3a1e" stroke-width="1.2" stroke-linecap="round" opacity="0.4"/>
+<rect x="18" y="14" width="64" height="6" rx="3" fill="url(#rg)"/>
+<circle cx="20" cy="17" r="5" fill="#c4a030" stroke="#5c3a1e" stroke-width="1"/>
+<circle cx="80" cy="17" r="5" fill="#c4a030" stroke="#5c3a1e" stroke-width="1"/>
+<rect x="18" y="80" width="64" height="6" rx="3" fill="url(#rg)"/>
+<circle cx="20" cy="83" r="5" fill="#c4a030" stroke="#5c3a1e" stroke-width="1"/>
+<circle cx="80" cy="83" r="5" fill="#c4a030" stroke="#5c3a1e" stroke-width="1"/>
+</svg>`)}`;
+
 import swordsImg from "@assets/icon_pvp_new.png";
 import eggImg from "@assets/icon_pets.png";
 import TopBar from "@/components/TopBar";
@@ -342,11 +366,10 @@ export default function HomePage({ user }: HomePageProps) {
 
             <div className="relative z-10 flex items-center justify-evenly w-full px-6">
               <NavIcon
-                src={globeImg}
+                src={mapIconSvg}
                 alt="Map"
                 testId="button-nav-map"
                 onClick={() => navigate("/map")}
-                round
               />
               <NavIcon
                 src={questIcon}
