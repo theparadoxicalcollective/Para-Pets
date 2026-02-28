@@ -353,6 +353,7 @@ export async function registerRoutes(
             hatchedImageUrl: shopItem?.hatchedImageUrl || null,
             statBoostType: shopItem?.statBoostType || null,
             statBoostAmount: shopItem?.statBoostAmount || null,
+            petTemplateId: shopItem?.petTemplateId || null,
             hatchStartedAt: inv.hatchStartedAt,
             isHatched: inv.isHatched,
             petHealth: inv.petHealth,
@@ -1064,6 +1065,16 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Unassign item from location error:", err);
       return res.status(500).json({ message: "Failed to unassign item" });
+    }
+  });
+
+  app.get("/api/pet-template-parts/:templateId", isAuthenticated, async (req, res) => {
+    try {
+      const parts = await storage.getPetTemplateParts(req.params.templateId);
+      return res.json({ parts });
+    } catch (err) {
+      console.error("Get pet template parts error:", err);
+      return res.status(500).json({ message: "Failed to get parts" });
     }
   });
 

@@ -34,6 +34,7 @@ export const shopItems = pgTable("shop_items", {
   hatchedImageUrl: text("hatched_image_url"),
   statBoostType: text("stat_boost_type"),
   statBoostAmount: integer("stat_boost_amount"),
+  petTemplateId: varchar("pet_template_id"),
   specialSkill: text("special_skill"),
   healthRestored: integer("health_restored"),
   manaRestored: integer("mana_restored"),

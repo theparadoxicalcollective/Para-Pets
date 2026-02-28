@@ -11,6 +11,7 @@ import questLogBg from "@assets/quest_log_bg_v2.png";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import PetInventory from "@/components/PetInventory";
+import PetAnimator from "@/components/PetAnimator";
 
 interface HomePageProps {
   user: {
@@ -38,6 +39,7 @@ interface InventoryItem {
   hatchTime: number | null;
   eggImageUrl: string | null;
   hatchedImageUrl: string | null;
+  petTemplateId: string | null;
   hatchStartedAt: string | null;
   isHatched: boolean;
   petHealth: number;
@@ -152,7 +154,9 @@ export default function HomePage({ user }: HomePageProps) {
                     }}
                   >
                     {activePet.isHatched ? (
-                      (activePet.hatchedImageUrl || activePet.imageUrl) ? (
+                      activePet.petTemplateId ? (
+                        <PetAnimator petTemplateId={activePet.petTemplateId} mode="idle" view="front" size={128} />
+                      ) : (activePet.hatchedImageUrl || activePet.imageUrl) ? (
                         <img src={activePet.hatchedImageUrl || activePet.imageUrl || ""} alt={activePet.name} className="w-full h-full object-contain" />
                       ) : (
                         <span className="text-5xl">🐾</span>

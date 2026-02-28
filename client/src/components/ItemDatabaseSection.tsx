@@ -17,6 +17,7 @@ export interface ShopItemFull {
   hatchTime: number | null;
   statBoostType: string | null;
   statBoostAmount: number | null;
+  petTemplateId: string | null;
   specialSkill: string | null;
   healthRestored: number | null;
   manaRestored: number | null;
@@ -24,6 +25,12 @@ export interface ShopItemFull {
   atkBoost: number | null;
   defBoost: number | null;
   createdAt: string;
+}
+
+interface PetTemplateOption {
+  id: string;
+  name: string;
+  frontAssembled: string | null;
 }
 
 export const WORLD_OPTIONS = [
@@ -243,6 +250,12 @@ function AdminItemForm({ item, onClose, onSuccess }: { item: ShopItemFull | null
   const [rarity, setRarity] = useState(item?.rarity?.toString() || "1");
   const [hatchTime, setHatchTime] = useState(item?.hatchTime?.toString() || "1");
   const [specialSkill, setSpecialSkill] = useState(item?.specialSkill || "");
+  const [petTemplateId, setPetTemplateId] = useState(item?.petTemplateId || "");
+
+  const { data: petTemplates = [] } = useQuery<PetTemplateOption[]>({
+    queryKey: ["/api/admin/pet-templates"],
+    enabled: type === "pet",
+  });
   const [statBoostType, setStatBoostType] = useState(item?.statBoostType || "health");
   const [statBoostAmount, setStatBoostAmount] = useState(item?.statBoostAmount?.toString() || "10");
   const [healthRestored, setHealthRestored] = useState(item?.healthRestored?.toString() || "");
@@ -279,6 +292,7 @@ function AdminItemForm({ item, onClose, onSuccess }: { item: ShopItemFull | null
         payload.rarity = parseInt(rarity);
         payload.hatchTime = parseInt(hatchTime);
         payload.specialSkill = specialSkill.trim() || null;
+        payload.petTemplateId = petTemplateId || null;
         if (eggImageData) payload.eggImageData = eggImageData;
         if (hatchedImageData) payload.hatchedImageData = hatchedImageData;
       } else {
@@ -287,6 +301,7 @@ function AdminItemForm({ item, onClose, onSuccess }: { item: ShopItemFull | null
         payload.eggImageUrl = null;
         payload.hatchedImageUrl = null;
         payload.specialSkill = null;
+        payload.petTemplateId = null;
       }
 
       if (type === "item") {
@@ -412,6 +427,22 @@ function AdminItemForm({ item, onClose, onSuccess }: { item: ShopItemFull | null
                 <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Special Skill</label>
                 <input data-testid="input-special-skill" type="text" value={specialSkill} onChange={(e) => setSpecialSkill(e.target.value)} placeholder="e.g. Fire Breath, Heal Aura..." className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
                 <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">Unique ability for this pet</p>
+              </div>
+              <div>
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Animated Template (Pet DB)</label>
+                <select
+                  data-testid="select-pet-template"
+                  value={petTemplateId}
+                  onChange={(e) => setPetTemplateId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-md font-fantasy text-sm outline-none"
+                  style={inputStyle}
+                >
+                  <option value="">None (static image only)</option>
+                  {petTemplates.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}{t.frontAssembled ? " ✓" : ""}</option>
+                  ))}
+                </select>
+                <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">Link to a Pet DB template for part-based animation</p>
               </div>
               <ImageUpload
                 label="Egg Image (PNG or GIF)"
