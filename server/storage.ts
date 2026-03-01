@@ -12,9 +12,10 @@ import {
   type LocationObject, locationObjects,
   type PetTemplate, petTemplates,
   type PetTemplatePart, petTemplateParts,
+  type SupportMessage, type InsertSupportMessage, supportMessages,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, ne, gte, asc } from "drizzle-orm";
+import { eq, and, ne, gte, asc, desc } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -85,6 +86,10 @@ export interface IStorage {
   updatePetTemplatePart(id: string, data: Partial<PetTemplatePart>): Promise<PetTemplatePart>;
   deletePetTemplatePart(id: string): Promise<void>;
   deletePetTemplatePartsByTemplate(templateId: string): Promise<void>;
+  createSupportMessage(data: InsertSupportMessage): Promise<SupportMessage>;
+  getAllSupportMessages(): Promise<SupportMessage[]>;
+  markSupportMessageRead(id: string): Promise<void>;
+  deleteSupportMessage(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -494,6 +499,23 @@ export class DatabaseStorage implements IStorage {
         )
       );
     return rows.length;
+  }
+
+  async createSupportMessage(data: InsertSupportMessage): Promise<SupportMessage> {
+    const [msg] = await db.insert(supportMessages).values(data).returning();
+    return msg;
+  }
+
+  async getAllSupportMessages(): Promise<SupportMessage[]> {
+    return db.select().from(supportMessages).orderBy(desc(supportMessages.createdAt));
+  }
+
+  async markSupportMessageRead(id: string): Promise<void> {
+    await db.update(supportMessages).set({ isRead: true }).where(eq(supportMessages.id, id));
+  }
+
+  async deleteSupportMessage(id: string): Promise<void> {
+    await db.delete(supportMessages).where(eq(supportMessages.id, id));
   }
 }
 

@@ -185,27 +185,20 @@ export async function registerRoutes(
     return res.json(safeUser);
   });
 
-  app.post("/api/auth/forgot-password", async (req, res) => {
+  app.post("/api/support-message", async (req, res) => {
     try {
-      const { email } = req.body;
-      if (!email) {
-        return res.status(400).json({ message: "Email is required" });
+      const { username, email, subject, message } = req.body;
+      if (!username || !email || !subject || !message) {
+        return res.status(400).json({ message: "All fields are required" });
       }
-      const user = await storage.getUserByEmail(email);
-      if (!user) {
-        return res.json({ message: "If an account exists with that email, a reset link has been generated." });
+      if (message.length > 2000) {
+        return res.status(400).json({ message: "Message too long (max 2000 characters)" });
       }
-      const token = crypto.randomBytes(32).toString("hex");
-      const expires = new Date(Date.now() + 60 * 60 * 1000);
-      await storage.setPasswordResetToken(user.id, token, expires);
-
-      const baseUrl = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`;
-      const resetUrl = `${baseUrl}/reset-password/${token}`;
-
-      return res.json({ message: "Reset link generated. It expires in 1 hour.", resetUrl });
+      const msg = await storage.createSupportMessage({ username, email, subject, message });
+      return res.json({ message: "Your message has been sent! An admin will reach out to help you.", id: msg.id });
     } catch (err) {
-      console.error("Forgot password error:", err);
-      return res.status(500).json({ message: "Failed to process request" });
+      console.error("Support message error:", err);
+      return res.status(500).json({ message: "Failed to send message" });
     }
   });
 
@@ -739,6 +732,34 @@ export async function registerRoutes(
     if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
     return next();
   }
+
+  app.get("/api/admin/support-messages", isAdmin, async (_req, res) => {
+    try {
+      const messages = await storage.getAllSupportMessages();
+      return res.json(messages);
+    } catch (err) {
+      console.error("Get support messages error:", err);
+      return res.status(500).json({ message: "Failed to get messages" });
+    }
+  });
+
+  app.patch("/api/admin/support-messages/:id/read", isAdmin, async (req, res) => {
+    try {
+      await storage.markSupportMessageRead(req.params.id);
+      return res.json({ message: "Marked as read" });
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to update message" });
+    }
+  });
+
+  app.delete("/api/admin/support-messages/:id", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteSupportMessage(req.params.id);
+      return res.json({ message: "Message deleted" });
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to delete message" });
+    }
+  });
 
   app.get("/api/admin/users", isAdmin, async (_req, res) => {
     try {

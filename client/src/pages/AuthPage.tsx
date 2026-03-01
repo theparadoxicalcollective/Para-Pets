@@ -8,7 +8,7 @@ import bgImg from "@assets/bg_login.png";
 import signInBtn from "@assets/btn_signin_v2.png";
 import createAccountBtn from "@assets/btn_create_v2.png";
 
-type Mode = "landing" | "login" | "register" | "forgot";
+type Mode = "landing" | "login" | "register" | "support";
 
 function resizeImageTo500(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -39,9 +39,12 @@ export default function AuthPage() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [forgotEmail, setForgotEmail] = useState("");
-  const [forgotSent, setForgotSent] = useState(false);
-  const [resetUrl, setResetUrl] = useState<string | null>(null);
+  const [loginFailed, setLoginFailed] = useState(false);
+  const [supportUsername, setSupportUsername] = useState("");
+  const [supportEmail, setSupportEmail] = useState("");
+  const [supportSubject, setSupportSubject] = useState("");
+  const [supportMessage, setSupportMessage] = useState("");
+  const [supportSent, setSupportSent] = useState(false);
   const [profileImageData, setProfileImageData] = useState<string | null>(null);
   const [profilePreview, setProfilePreview] = useState<string | null>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
@@ -102,6 +105,7 @@ export default function AuthPage() {
     onError: (err: any) => {
       setIsLoading(false);
       setLoadingProgress(0);
+      setLoginFailed(true);
       const msg = err.message?.includes(":") ? err.message.split(": ").slice(1).join(": ") : err.message;
       let parsed: any = {};
       try { parsed = JSON.parse(msg); } catch {}
@@ -132,17 +136,21 @@ export default function AuthPage() {
     },
   });
 
-  const forgotMutation = useMutation({
+  const supportMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/auth/forgot-password", { email: forgotEmail });
+      const res = await apiRequest("POST", "/api/support-message", {
+        username: supportUsername,
+        email: supportEmail,
+        subject: supportSubject,
+        message: supportMessage,
+      });
       return res.json();
     },
-    onSuccess: (data: any) => {
-      setForgotSent(true);
-      if (data.resetUrl) setResetUrl(data.resetUrl);
+    onSuccess: () => {
+      setSupportSent(true);
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to process request. Please try again.", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to send message. Please try again.", variant: "destructive" });
     },
   });
 
@@ -152,7 +160,7 @@ export default function AuthPage() {
     else registerMutation.mutate();
   };
 
-  const isPending = loginMutation.isPending || registerMutation.isPending || forgotMutation.isPending;
+  const isPending = loginMutation.isPending || registerMutation.isPending || supportMutation.isPending;
 
   return (
     <div
@@ -407,7 +415,7 @@ export default function AuthPage() {
 
               <button
                 data-testid="button-back"
-                onClick={() => { setMode("landing"); setUsername(""); setEmail(""); setPassword(""); setProfileImageData(null); setProfilePreview(null); setIsLoading(false); setLoadingProgress(0); setShowPassword(false); }}
+                onClick={() => { setMode("landing"); setUsername(""); setEmail(""); setPassword(""); setProfileImageData(null); setProfilePreview(null); setIsLoading(false); setLoadingProgress(0); setShowPassword(false); setLoginFailed(false); }}
                 disabled={isPending}
                 className="font-fantasy text-[#a89878] text-xs tracking-widest hover:text-[#d4b896] transition-colors disabled:opacity-40"
               >
@@ -416,15 +424,17 @@ export default function AuthPage() {
 
               {mode === "login" && (
                 <>
-                  <button
-                    data-testid="button-forgot-password"
-                    onClick={() => { setMode("forgot"); setForgotSent(false); setForgotEmail(""); setResetUrl(null); }}
-                    disabled={isPending}
-                    className="font-fantasy text-[#d4a017] text-xs tracking-wider hover:text-[#f0c040] transition-colors"
-                    style={{ background: "none", border: "none", cursor: "pointer" }}
-                  >
-                    Forgot Password?
-                  </button>
+                  {loginFailed && (
+                    <button
+                      data-testid="button-forgot-password"
+                      onClick={() => { setMode("support"); setSupportSent(false); setSupportUsername(""); setSupportEmail(email); setSupportSubject("Password Help"); setSupportMessage(""); }}
+                      disabled={isPending}
+                      className="font-fantasy text-[#d4a017] text-xs tracking-wider hover:text-[#f0c040] transition-colors"
+                      style={{ background: "none", border: "none", cursor: "pointer" }}
+                    >
+                      Need Help? Contact Support
+                    </button>
+                  )}
                   <p className="font-fantasy text-[#a89878] text-xs tracking-wider">
                     New traveler?{" "}
                     <button
@@ -456,16 +466,16 @@ export default function AuthPage() {
           </div>
         )}
 
-        {mode === "forgot" && (
+        {mode === "support" && (
           <div className="w-full max-w-sm animate-slide-up">
             <h2 className="font-fantasy text-[#d4b896] text-center text-xl tracking-widest mb-2 drop-shadow-lg">
-              Forgot Password
+              Contact Support
             </h2>
-            <p className="font-fantasy text-[#a89878] text-xs text-center tracking-wider mb-6">
-              Enter your email to receive a reset link
+            <p className="font-fantasy text-[#a89878] text-xs text-center tracking-wider mb-5">
+              Fill out the form below and we'll help you out
             </p>
 
-            {forgotSent ? (
+            {supportSent ? (
               <div className="text-center space-y-4">
                 <div
                   className="w-16 h-16 mx-auto rounded-full flex items-center justify-center"
@@ -475,39 +485,15 @@ export default function AuthPage() {
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                 </div>
-                {resetUrl ? (
-                  <>
-                    <p className="font-fantasy text-[#7fffd4] text-sm tracking-wider" data-testid="text-forgot-sent">
-                      Reset link ready!
-                    </p>
-                    <p className="font-fantasy text-[#a89878] text-xs tracking-wider">
-                      Click below to reset your password. The link expires in 1 hour.
-                    </p>
-                    <button
-                      data-testid="button-go-to-reset"
-                      onClick={() => { window.location.href = resetUrl; }}
-                      className="w-full py-3 rounded-md font-fantasy text-sm tracking-wider transition-transform active:scale-95"
-                      style={{
-                        background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
-                        border: "1px solid rgba(127,255,212,0.4)",
-                        color: "#7fffd4",
-                        cursor: "pointer",
-                        boxShadow: "0 0 12px rgba(127,255,212,0.2)",
-                      }}
-                    >
-                      Reset My Password
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <p className="font-fantasy text-[#a89878] text-sm tracking-wider" data-testid="text-forgot-no-account">
-                      If an account exists with that email, a reset option will appear.
-                    </p>
-                  </>
-                )}
+                <p className="font-fantasy text-[#7fffd4] text-sm tracking-wider" data-testid="text-support-sent">
+                  Message Sent!
+                </p>
+                <p className="font-fantasy text-[#a89878] text-xs tracking-wider">
+                  An admin will review your message and reach out to help you directly.
+                </p>
                 <button
-                  data-testid="button-back-to-login-from-forgot"
-                  onClick={() => { setMode("login"); setForgotSent(false); setResetUrl(null); }}
+                  data-testid="button-back-to-login-from-support"
+                  onClick={() => { setMode("login"); setSupportSent(false); setLoginFailed(false); }}
                   className="font-fantasy text-[#d4a017] text-xs tracking-wider hover:text-[#f0c040] transition-colors"
                   style={{ background: "none", border: "none", cursor: "pointer" }}
                 >
@@ -515,30 +501,82 @@ export default function AuthPage() {
                 </button>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div>
-                  <label className="font-fantasy text-[#c8b896] text-xs tracking-wider block mb-1 ml-1">EMAIL</label>
+                  <label className="font-fantasy text-[#c8b896] text-xs tracking-wider block mb-1 ml-1">USERNAME</label>
                   <input
-                    data-testid="input-forgot-email"
-                    type="email"
-                    value={forgotEmail}
-                    onChange={e => setForgotEmail(e.target.value)}
-                    disabled={forgotMutation.isPending}
-                    placeholder="your@email.com"
-                    className="w-full px-4 py-3 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#8a7060] outline-none focus:ring-2 focus:ring-[#d4a017] disabled:opacity-60"
+                    data-testid="input-support-username"
+                    type="text"
+                    value={supportUsername}
+                    onChange={e => setSupportUsername(e.target.value)}
+                    disabled={supportMutation.isPending}
+                    placeholder="Your username"
+                    className="w-full px-4 py-2.5 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#8a7060] outline-none focus:ring-2 focus:ring-[#d4a017] disabled:opacity-60"
                     style={{
                       background: "linear-gradient(135deg, #f2e8d0 0%, #e8d8b0 100%)",
                       border: "2px solid #8b5e3c",
                       boxShadow: "inset 0 2px 6px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1)",
                     }}
-                    onKeyDown={e => e.key === "Enter" && forgotMutation.mutate()}
                   />
+                </div>
+                <div>
+                  <label className="font-fantasy text-[#c8b896] text-xs tracking-wider block mb-1 ml-1">EMAIL</label>
+                  <input
+                    data-testid="input-support-email"
+                    type="email"
+                    value={supportEmail}
+                    onChange={e => setSupportEmail(e.target.value)}
+                    disabled={supportMutation.isPending}
+                    placeholder="your@email.com"
+                    className="w-full px-4 py-2.5 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#8a7060] outline-none focus:ring-2 focus:ring-[#d4a017] disabled:opacity-60"
+                    style={{
+                      background: "linear-gradient(135deg, #f2e8d0 0%, #e8d8b0 100%)",
+                      border: "2px solid #8b5e3c",
+                      boxShadow: "inset 0 2px 6px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1)",
+                    }}
+                  />
+                </div>
+                <div>
+                  <label className="font-fantasy text-[#c8b896] text-xs tracking-wider block mb-1 ml-1">SUBJECT</label>
+                  <input
+                    data-testid="input-support-subject"
+                    type="text"
+                    value={supportSubject}
+                    onChange={e => setSupportSubject(e.target.value)}
+                    disabled={supportMutation.isPending}
+                    placeholder="e.g. Password Help, Account Issue..."
+                    className="w-full px-4 py-2.5 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#8a7060] outline-none focus:ring-2 focus:ring-[#d4a017] disabled:opacity-60"
+                    style={{
+                      background: "linear-gradient(135deg, #f2e8d0 0%, #e8d8b0 100%)",
+                      border: "2px solid #8b5e3c",
+                      boxShadow: "inset 0 2px 6px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1)",
+                    }}
+                  />
+                </div>
+                <div>
+                  <label className="font-fantasy text-[#c8b896] text-xs tracking-wider block mb-1 ml-1">MESSAGE</label>
+                  <textarea
+                    data-testid="input-support-message"
+                    value={supportMessage}
+                    onChange={e => setSupportMessage(e.target.value)}
+                    disabled={supportMutation.isPending}
+                    placeholder="Describe what you need help with..."
+                    rows={4}
+                    maxLength={2000}
+                    className="w-full px-4 py-2.5 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#8a7060] outline-none focus:ring-2 focus:ring-[#d4a017] disabled:opacity-60 resize-none"
+                    style={{
+                      background: "linear-gradient(135deg, #f2e8d0 0%, #e8d8b0 100%)",
+                      border: "2px solid #8b5e3c",
+                      boxShadow: "inset 0 2px 6px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1)",
+                    }}
+                  />
+                  <p className="font-fantasy text-[#6a5840] text-[9px] tracking-wider text-right mt-0.5">{supportMessage.length}/2000</p>
                 </div>
 
                 <button
-                  data-testid="button-submit-forgot"
-                  onClick={() => forgotMutation.mutate()}
-                  disabled={forgotMutation.isPending || !forgotEmail}
+                  data-testid="button-submit-support"
+                  onClick={() => supportMutation.mutate()}
+                  disabled={supportMutation.isPending || !supportUsername || !supportEmail || !supportSubject || !supportMessage}
                   className="w-full py-3 rounded-md font-fantasy text-sm tracking-wider transition-transform active:scale-95 disabled:opacity-60"
                   style={{
                     background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
@@ -548,13 +586,13 @@ export default function AuthPage() {
                     boxShadow: "0 0 12px rgba(127,255,212,0.2)",
                   }}
                 >
-                  {forgotMutation.isPending ? "Sending..." : "Send Reset Link"}
+                  {supportMutation.isPending ? "Sending..." : "Send Message"}
                 </button>
 
                 <div className="text-center">
                   <button
-                    data-testid="button-back-to-login-from-forgot-form"
-                    onClick={() => setMode("login")}
+                    data-testid="button-back-to-login-from-support"
+                    onClick={() => { setMode("login"); setLoginFailed(false); }}
                     className="font-fantasy text-[#a89878] text-xs tracking-widest hover:text-[#d4b896] transition-colors"
                     style={{ background: "none", border: "none", cursor: "pointer" }}
                   >

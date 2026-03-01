@@ -192,6 +192,20 @@ export type UserInventoryItem = typeof userInventory.$inferSelect;
 export type RewardBundle = typeof rewardBundles.$inferSelect;
 export type RewardBundleItem = typeof rewardBundleItems.$inferSelect;
 export type UserReward = typeof userRewards.$inferSelect;
+export const supportMessages = pgTable("support_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  username: text("username").notNull(),
+  email: text("email").notNull(),
+  subject: text("subject").notNull(),
+  message: text("message").notNull(),
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const insertSupportMessageSchema = createInsertSchema(supportMessages).omit({ id: true, isRead: true, createdAt: true });
+export type InsertSupportMessage = z.infer<typeof insertSupportMessageSchema>;
+export type SupportMessage = typeof supportMessages.$inferSelect;
+
 export type CoinPurchase = typeof coinPurchases.$inferSelect;
 export type WorldLocation = typeof worldLocations.$inferSelect;
 export type World = typeof worlds.$inferSelect;

@@ -39,7 +39,7 @@ export default function AdminPage({ user }: AdminPageProps) {
   const [currentUser, setCurrentUser] = useState(user);
   const [coinAmounts, setCoinAmounts] = useState<Record<string, string>>({});
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"members" | "rewards" | "items" | "pets">("members");
+  const [activeTab, setActiveTab] = useState<"members" | "rewards" | "items" | "pets" | "messages">("members");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -89,6 +89,7 @@ export default function AdminPage({ user }: AdminPageProps) {
     { key: "rewards" as const, label: "Rewards", color: "#e0d0f0", activeBg: "linear-gradient(135deg, rgba(120,80,200,0.6) 0%, rgba(80,40,160,0.6) 100%)", activeBorder: "rgba(192,132,252,0.5)" },
     { key: "items" as const, label: "Item DB", color: "#7fffd4", activeBg: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)", activeBorder: "rgba(127,255,212,0.5)" },
     { key: "pets" as const, label: "Pet DB", color: "#ffb347", activeBg: "linear-gradient(135deg, #8b4513 0%, #5c3a1e 100%)", activeBorder: "rgba(255,179,71,0.5)" },
+    { key: "messages" as const, label: "Messages", color: "#ff9999", activeBg: "linear-gradient(135deg, #8b2020 0%, #5c1010 100%)", activeBorder: "rgba(255,153,153,0.5)" },
   ];
 
   return (
@@ -293,6 +294,10 @@ export default function AdminPage({ user }: AdminPageProps) {
 
           {activeTab === "pets" && (
             <PetDatabasePanel />
+          )}
+
+          {activeTab === "messages" && (
+            <SupportMessagesSection />
           )}
         </div>
       </div>
@@ -576,6 +581,136 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
           onClose={() => setShowItemPicker(false)}
         />
       )}
+    </div>
+  );
+}
+
+interface SupportMsg {
+  id: string;
+  username: string;
+  email: string;
+  subject: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+function SupportMessagesSection() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const { data: messages = [], isLoading } = useQuery<SupportMsg[]>({
+    queryKey: ["/api/admin/support-messages"],
+  });
+
+  const markReadMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("PATCH", `/api/admin/support-messages/${id}/read`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/support-messages"] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/admin/support-messages/${id}`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/support-messages"] });
+      toast({ title: "Deleted", description: "Message removed" });
+    },
+  });
+
+  const unreadCount = messages.filter(m => !m.isRead).length;
+
+  if (isLoading) {
+    return <p className="font-fantasy text-[#a89878] text-xs text-center tracking-wider py-8">Loading messages...</p>;
+  }
+
+  if (messages.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <p className="font-fantasy text-[#6a5840] text-sm tracking-wider">No support messages yet</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {unreadCount > 0 && (
+        <p className="font-fantasy text-[#ff9999] text-xs tracking-wider text-center">
+          {unreadCount} unread message{unreadCount !== 1 ? "s" : ""}
+        </p>
+      )}
+      {messages.map(msg => {
+        const isExpanded = expandedId === msg.id;
+        const date = new Date(msg.createdAt);
+        const timeStr = date.toLocaleDateString() + " " + date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+        return (
+          <div
+            key={msg.id}
+            data-testid={`support-message-${msg.id}`}
+            className="rounded-lg overflow-hidden"
+            style={{
+              background: msg.isRead
+                ? "linear-gradient(135deg, rgba(40,30,20,0.4) 0%, rgba(30,20,10,0.4) 100%)"
+                : "linear-gradient(135deg, rgba(139,32,32,0.2) 0%, rgba(92,16,16,0.2) 100%)",
+              border: msg.isRead
+                ? "1px solid rgba(168,152,120,0.2)"
+                : "1px solid rgba(255,153,153,0.3)",
+            }}
+          >
+            <button
+              data-testid={`button-expand-message-${msg.id}`}
+              onClick={() => {
+                setExpandedId(isExpanded ? null : msg.id);
+                if (!msg.isRead) markReadMutation.mutate(msg.id);
+              }}
+              className="w-full text-left px-3 py-2.5 flex items-center gap-2"
+              style={{ background: "none", border: "none", cursor: "pointer" }}
+            >
+              {!msg.isRead && (
+                <span className="w-2 h-2 rounded-full bg-[#ff6666] flex-shrink-0" />
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-fantasy text-[#f0c040] text-xs tracking-wider truncate">{msg.username}</span>
+                  <span className="font-fantasy text-[#6a5840] text-[9px] tracking-wider flex-shrink-0">{timeStr}</span>
+                </div>
+                <p className="font-fantasy text-[#d4b896] text-[10px] tracking-wider truncate">{msg.subject}</p>
+              </div>
+              <span className="font-fantasy text-[#a89878] text-xs" style={{ transform: isExpanded ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>▼</span>
+            </button>
+
+            {isExpanded && (
+              <div className="px-3 pb-3 space-y-2">
+                <div className="rounded-md p-2.5" style={{ background: "rgba(0,0,0,0.2)" }}>
+                  <p className="font-fantasy text-[#a89878] text-[9px] tracking-wider mb-1">EMAIL</p>
+                  <p className="font-sans text-[#d4b896] text-xs break-all">{msg.email}</p>
+                </div>
+                <div className="rounded-md p-2.5" style={{ background: "rgba(0,0,0,0.2)" }}>
+                  <p className="font-fantasy text-[#a89878] text-[9px] tracking-wider mb-1">MESSAGE</p>
+                  <p className="font-sans text-[#d4b896] text-xs whitespace-pre-wrap break-words">{msg.message}</p>
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    data-testid={`button-delete-message-${msg.id}`}
+                    onClick={() => deleteMutation.mutate(msg.id)}
+                    disabled={deleteMutation.isPending}
+                    className="px-3 py-1.5 rounded-md font-fantasy text-[9px] tracking-wider"
+                    style={{ background: "rgba(139,32,32,0.3)", border: "1px solid rgba(255,100,100,0.3)", color: "#ff9999", cursor: "pointer" }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
