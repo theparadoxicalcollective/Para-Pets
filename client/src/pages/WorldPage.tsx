@@ -502,6 +502,10 @@ export default function WorldPage({ user }: WorldPageProps) {
         }
         .loc-node { transition: filter 0.2s ease; touch-action: none; }
         .loc-node:active { filter: brightness(1.15); }
+        .world-scroll::-webkit-scrollbar { width: 4px; }
+        .world-scroll::-webkit-scrollbar-track { background: transparent; }
+        .world-scroll::-webkit-scrollbar-thumb { background: ${accent}40; border-radius: 4px; }
+        .world-scroll::-webkit-scrollbar-thumb:hover { background: ${accent}70; }
       `}</style>
 
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
@@ -552,7 +556,7 @@ export default function WorldPage({ user }: WorldPageProps) {
           </p>
         </div>
 
-        <div className="flex-1 relative">
+        <div className="flex-1 relative overflow-y-auto overflow-x-hidden world-scroll">
           {locationsLoading ? (
             <div className="flex items-center justify-center py-12">
               <p className="font-fantasy text-sm animate-pulse" style={{ color: accent, textShadow: `0 0 15px ${accent}60` }}>Loading places...</p>
@@ -584,7 +588,7 @@ export default function WorldPage({ user }: WorldPageProps) {
             <div
               ref={areaRef}
               className="relative w-full"
-              style={{ paddingBottom: "100%" }}
+              style={{ paddingBottom: "120%" }}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
             >
