@@ -40,14 +40,18 @@ interface LinkedShopPet {
 }
 
 const PART_TYPES = [
-  { key: "head", label: "Head", defaultZ: 5 },
-  { key: "body", label: "Body", defaultZ: 3 },
+  { key: "head", label: "Head", defaultZ: 8 },
+  { key: "eyes", label: "Eyes", defaultZ: 9 },
+  { key: "eyes_closed", label: "Eyes (Closed)", defaultZ: 9 },
+  { key: "body", label: "Body", defaultZ: 5 },
   { key: "tail", label: "Tail", defaultZ: 1 },
   { key: "wings", label: "Wings", defaultZ: 2 },
-  { key: "legs", label: "Legs", defaultZ: 4 },
+  { key: "back_arms", label: "Back Arms", defaultZ: 3 },
+  { key: "back_legs", label: "Back Legs", defaultZ: 3 },
+  { key: "front_legs", label: "Front Legs", defaultZ: 6 },
+  { key: "front_arms", label: "Front Arms", defaultZ: 7 },
+  { key: "hands", label: "Hands", defaultZ: 10 },
   { key: "feet", label: "Feet", defaultZ: 4 },
-  { key: "arms", label: "Arms", defaultZ: 6 },
-  { key: "hands", label: "Hands", defaultZ: 7 },
 ];
 
 const CANVAS_SIZE = 500;
