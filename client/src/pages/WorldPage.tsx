@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import coinIconImg from "@assets/icon_coin.png";
-import { Plus, Trash2, X, MapPin, Package } from "lucide-react";
+import { Plus, Trash2, X, MapPin, Package, Pencil } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 
 import shopFrostpeak from "@assets/shop_frostpeak.png";
@@ -141,6 +141,13 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [newLocIcon, setNewLocIcon] = useState<string | null>(null);
   const [newLocBg, setNewLocBg] = useState<string | null>(null);
   const [newLocOwner, setNewLocOwner] = useState<string | null>(null);
+  const [editingLocation, setEditingLocation] = useState<any | null>(null);
+  const [editLocName, setEditLocName] = useState("");
+  const [editLocDesc, setEditLocDesc] = useState("");
+  const [editLocIcon, setEditLocIcon] = useState<string | null>(null);
+  const [editLocBg, setEditLocBg] = useState<string | null>(null);
+  const [editLocOwner, setEditLocOwner] = useState<string | null>(null);
+  const [editLocIsShop, setEditLocIsShop] = useState(false);
   const [activeLocationId, setActiveLocationId] = useState<string | null>(null);
   const [showLocationView, setShowLocationView] = useState(false);
   const [showItemPicker, setShowItemPicker] = useState(false);
@@ -320,6 +327,21 @@ export default function WorldPage({ user }: WorldPageProps) {
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to delete place", variant: "destructive" });
+    },
+  });
+
+  const editLocationMutation = useMutation({
+    mutationFn: async ({ locationId, data }: { locationId: string; data: Record<string, any> }) => {
+      const res = await apiRequest("PATCH", `/api/admin/world/location/${locationId}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "locations"] });
+      setEditingLocation(null);
+      toast({ title: "Updated", description: "Place updated" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update place", variant: "destructive" });
     },
   });
 
@@ -578,7 +600,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                       style={{
                         left: `${pos.x}%`,
                         top: `${pos.y}%`,
-                        width: "22%",
+                        width: "28%",
                         cursor: currentUser.isAdmin ? "grab" : "pointer",
                         zIndex: isDragging ? 50 : 10 + i,
                         animation: isDragging ? "none" : `locFloat ${3 + (i % 3) * 0.5}s ease-in-out infinite`,
@@ -594,14 +616,6 @@ export default function WorldPage({ user }: WorldPageProps) {
                             background: `radial-gradient(circle, ${accent}45 0%, ${accent}20 40%, transparent 70%)`,
                             animation: `locGlow ${3 + (i % 2)}s ease-in-out infinite`,
                             animationDelay: `${i * 0.25}s`,
-                          }}
-                        />
-                        <div
-                          className="absolute inset-[-8%] rounded-full pointer-events-none"
-                          style={{
-                            border: `1.5px solid ${accent}30`,
-                            animation: `locRingPulse ${4 + (i % 2)}s ease-in-out infinite`,
-                            animationDelay: `${i * 0.4}s`,
                           }}
                         />
                         {loc.iconUrl ? (
@@ -628,23 +642,46 @@ export default function WorldPage({ user }: WorldPageProps) {
                         )}
 
                         {currentUser.isAdmin && (
-                          <button
-                            data-testid={`button-delete-location-${loc.id}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (confirm(`Delete "${loc.name}"?`)) {
-                                deleteLocationMutation.mutate(loc.id);
-                              }
-                            }}
-                            className="absolute -top-1 -right-1 z-30 w-5 h-5 rounded-full flex items-center justify-center"
-                            style={{
-                              background: "rgba(220,38,38,0.9)",
-                              border: "1px solid rgba(255,100,100,0.5)",
-                              cursor: "pointer",
-                            }}
-                          >
-                            <Trash2 className="w-3 h-3 text-white" />
-                          </button>
+                          <>
+                            <button
+                              data-testid={`button-edit-location-${loc.id}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingLocation(loc);
+                                setEditLocName(loc.name);
+                                setEditLocDesc(loc.description || "");
+                                setEditLocIcon(null);
+                                setEditLocBg(null);
+                                setEditLocOwner(null);
+                                setEditLocIsShop(loc.isShop);
+                              }}
+                              className="absolute -top-1 -right-1 z-30 w-5 h-5 rounded-full flex items-center justify-center"
+                              style={{
+                                background: "rgba(45,106,79,0.9)",
+                                border: "1px solid rgba(127,255,212,0.5)",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <Pencil className="w-2.5 h-2.5 text-white" />
+                            </button>
+                            <button
+                              data-testid={`button-delete-location-${loc.id}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm(`Delete "${loc.name}"?`)) {
+                                  deleteLocationMutation.mutate(loc.id);
+                                }
+                              }}
+                              className="absolute -top-1 -left-1 z-30 w-5 h-5 rounded-full flex items-center justify-center"
+                              style={{
+                                background: "rgba(220,38,38,0.9)",
+                                border: "1px solid rgba(255,100,100,0.5)",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <Trash2 className="w-3 h-3 text-white" />
+                            </button>
+                          </>
                         )}
                       </div>
                       <span
@@ -888,6 +925,187 @@ export default function WorldPage({ user }: WorldPageProps) {
                 }}
               >
                 {addLocationMutation.isPending ? "Adding..." : "Add Place"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingLocation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setEditingLocation(null)} />
+          <div
+            className="relative z-10 w-[90%] max-w-sm rounded-xl p-5 max-h-[85vh] overflow-y-auto"
+            style={{
+              background: "linear-gradient(135deg, rgba(30,20,10,0.97) 0%, rgba(20,12,5,0.97) 100%)",
+              border: `1px solid ${accent}40`,
+              boxShadow: `0 0 30px ${accent}15`,
+            }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-fantasy text-sm tracking-wider" style={{ color: accent }}>Edit Place</h3>
+              <button onClick={() => setEditingLocation(null)} style={{ background: "none", border: "none", cursor: "pointer" }}>
+                <X className="w-5 h-5" style={{ color: `${accent}88` }} />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>Name</label>
+                <input
+                  data-testid="input-edit-location-name"
+                  type="text"
+                  value={editLocName}
+                  onChange={(e) => setEditLocName(e.target.value)}
+                  className="w-full px-3 py-2 rounded-md font-fantasy text-sm"
+                  style={{ background: "rgba(0,0,0,0.5)", border: `1px solid ${accent}35`, color: "#e8ddd0", outline: "none" }}
+                />
+              </div>
+
+              <div>
+                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>Description</label>
+                <input
+                  data-testid="input-edit-location-description"
+                  type="text"
+                  value={editLocDesc}
+                  onChange={(e) => setEditLocDesc(e.target.value)}
+                  placeholder="Optional description..."
+                  className="w-full px-3 py-2 rounded-md font-fantasy text-sm"
+                  style={{ background: "rgba(0,0,0,0.5)", border: `1px solid ${accent}35`, color: "#e8ddd0", outline: "none" }}
+                />
+              </div>
+
+              <div className="flex items-center gap-3">
+                <label className="font-fantasy text-[10px] tracking-wider" style={{ color: `${accent}bb` }}>Shop</label>
+                <button
+                  data-testid="toggle-edit-location-shop"
+                  type="button"
+                  onClick={() => setEditLocIsShop(!editLocIsShop)}
+                  className="w-10 h-5 rounded-full relative transition-colors"
+                  style={{
+                    background: editLocIsShop ? `${accent}80` : "rgba(255,255,255,0.1)",
+                    border: `1px solid ${editLocIsShop ? accent : "rgba(255,255,255,0.2)"}`,
+                    cursor: "pointer",
+                  }}
+                >
+                  <div
+                    className="absolute top-0.5 w-3.5 h-3.5 rounded-full transition-all"
+                    style={{
+                      left: editLocIsShop ? "calc(100% - 18px)" : "2px",
+                      background: editLocIsShop ? accent : "rgba(255,255,255,0.5)",
+                    }}
+                  />
+                </button>
+                <span className="font-fantasy text-[9px] tracking-wider" style={{ color: `${accent}88` }}>
+                  {editLocIsShop ? "This place has a shop" : "No shop"}
+                </span>
+              </div>
+
+              <div>
+                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>
+                  Replace Icon (PNG or GIF)
+                </label>
+                {editingLocation.iconUrl && !editLocIcon && (
+                  <div className="mb-2 flex items-center gap-2">
+                    <img src={editingLocation.iconUrl} alt="" className="w-12 h-12 object-contain rounded-lg" style={{ border: `1px solid ${accent}30` }} />
+                    <span className="font-fantasy text-[9px] tracking-wider" style={{ color: `${accent}66` }}>Current icon</span>
+                  </div>
+                )}
+                <input
+                  data-testid="input-edit-location-icon"
+                  type="file"
+                  accept="image/png,image/gif"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const dataUrl = await readFileAsDataUrl(file);
+                      setEditLocIcon(dataUrl);
+                    }
+                  }}
+                  className="w-full text-xs font-fantasy"
+                  style={{ color: `${accent}cc` }}
+                />
+                {editLocIcon && (
+                  <div className="mt-2 flex justify-center">
+                    <img src={editLocIcon} alt="Preview" className="w-14 h-14 object-contain rounded-lg" style={{ border: `1px solid ${accent}30` }} />
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>Replace Background</label>
+                <input
+                  data-testid="input-edit-location-bg"
+                  type="file"
+                  accept="image/png,image/gif,image/jpeg"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const dataUrl = await readFileAsDataUrl(file);
+                      setEditLocBg(dataUrl);
+                    }
+                  }}
+                  className="w-full text-xs font-fantasy"
+                  style={{ color: `${accent}cc` }}
+                />
+                {editLocBg && (
+                  <div className="mt-2 flex justify-center">
+                    <img src={editLocBg} alt="Preview" className="w-full h-16 object-cover rounded-lg" style={{ border: `1px solid ${accent}30` }} />
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>Replace Owner Character</label>
+                <input
+                  data-testid="input-edit-location-owner"
+                  type="file"
+                  accept="image/png,image/gif"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const dataUrl = await readFileAsDataUrl(file);
+                      setEditLocOwner(dataUrl);
+                    }
+                  }}
+                  className="w-full text-xs font-fantasy"
+                  style={{ color: `${accent}cc` }}
+                />
+                {editLocOwner && (
+                  <div className="mt-2 flex justify-center">
+                    <img src={editLocOwner} alt="Preview" className="w-14 h-14 object-contain rounded-lg" style={{ border: `1px solid ${accent}30` }} />
+                  </div>
+                )}
+              </div>
+
+              <button
+                data-testid="button-submit-edit-location"
+                onClick={() => {
+                  const data: Record<string, any> = {};
+                  if (editLocName.trim() && editLocName.trim() !== editingLocation.name) data.name = editLocName.trim();
+                  if (editLocDesc !== (editingLocation.description || "")) data.description = editLocDesc.trim();
+                  if (editLocIsShop !== editingLocation.isShop) data.isShop = editLocIsShop;
+                  if (editLocIcon) data.iconData = editLocIcon;
+                  if (editLocBg) data.bgData = editLocBg;
+                  if (editLocOwner) data.ownerImageData = editLocOwner;
+                  if (Object.keys(data).length === 0) {
+                    setEditingLocation(null);
+                    return;
+                  }
+                  editLocationMutation.mutate({ locationId: editingLocation.id, data });
+                }}
+                disabled={editLocationMutation.isPending}
+                className="w-full py-2.5 rounded-md font-fantasy text-sm tracking-wider transition-transform active:scale-95 disabled:opacity-50 mt-1"
+                style={{
+                  background: `linear-gradient(135deg, ${accent}50 0%, ${accent}25 100%)`,
+                  border: `1px solid ${accent}70`,
+                  color: accent,
+                  cursor: "pointer",
+                  boxShadow: `0 0 15px ${accent}20`,
+                  textShadow: `0 0 8px ${accent}40`,
+                }}
+              >
+                {editLocationMutation.isPending ? "Saving..." : "Save Changes"}
               </button>
             </div>
           </div>
