@@ -334,6 +334,10 @@ export default function MapPage({ user }: MapPageProps) {
         }
         .world-node { transition: filter 0.2s ease; touch-action: none; }
         .world-node:active { filter: brightness(1.1); }
+        .map-scroll::-webkit-scrollbar { width: 4px; }
+        .map-scroll::-webkit-scrollbar-track { background: transparent; }
+        .map-scroll::-webkit-scrollbar-thumb { background: rgba(240,192,64,0.3); border-radius: 4px; }
+        .map-scroll::-webkit-scrollbar-thumb:hover { background: rgba(240,192,64,0.6); }
       `}</style>
 
       <div
@@ -345,7 +349,7 @@ export default function MapPage({ user }: MapPageProps) {
       >
         <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
 
-        <div className="flex-1 relative">
+        <div className="flex-1 relative overflow-y-auto overflow-x-hidden map-scroll">
           <h2
             className="font-fantasy text-center text-lg tracking-[0.3em] font-bold pt-2 pb-1 uppercase relative z-10"
             style={{
