@@ -25,40 +25,50 @@ const CANVAS_SIZE = 500;
 
 const IDLE_ANIMATIONS: Record<string, string> = {
   head: "petIdleHead",
+  eyes: "petIdleEyes",
+  eyes_closed: "petIdleEyesClosed",
   body: "petIdleBody",
   tail: "petIdleTail",
   wings: "petIdleWings",
-  legs: "petIdleLegs",
-  feet: "petIdleFeet",
-  arms: "petIdleArms",
+  front_arms: "petIdleFrontArms",
+  back_arms: "petIdleBackArms",
+  front_legs: "petIdleFrontLegs",
+  back_legs: "petIdleBackLegs",
   hands: "petIdleHands",
+  feet: "petIdleFeet",
 };
 
 const WALK_ANIMATIONS: Record<string, string> = {
   head: "petWalkHead",
+  eyes: "petWalkEyes",
+  eyes_closed: "petWalkEyesClosed",
   body: "petWalkBody",
   tail: "petWalkTail",
   wings: "petWalkWings",
-  legs: "petWalkLegsLeft",
-  feet: "petWalkFeetLeft",
-  arms: "petWalkArmsLeft",
+  front_arms: "petWalkFrontArms",
+  back_arms: "petWalkBackArms",
+  front_legs: "petWalkFrontLegs",
+  back_legs: "petWalkBackLegs",
   hands: "petWalkHands",
-};
-
-const WALK_ANIMATIONS_ALT: Record<string, string> = {
-  legs: "petWalkLegsRight",
-  feet: "petWalkFeetRight",
-  arms: "petWalkArmsRight",
+  feet: "petWalkFeet",
 };
 
 const ANIMATION_STYLES = `
   @keyframes petIdleHead {
     0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-4px); }
+    50% { transform: translateY(-3px); }
+  }
+  @keyframes petIdleEyes {
+    0%, 92%, 100% { opacity: 1; }
+    95%, 97% { opacity: 0; }
+  }
+  @keyframes petIdleEyesClosed {
+    0%, 92%, 100% { opacity: 0; }
+    95%, 97% { opacity: 1; }
   }
   @keyframes petIdleBody {
     0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.015, 1.025); }
+    50% { transform: scale(1.01, 1.02); }
   }
   @keyframes petIdleTail {
     0%, 100% { transform: rotate(0deg); }
@@ -70,27 +80,43 @@ const ANIMATION_STYLES = `
     30% { transform: rotateY(8deg) scaleX(0.92); }
     60% { transform: rotateY(-5deg) scaleX(1.04); }
   }
-  @keyframes petIdleLegs {
+  @keyframes petIdleFrontLegs {
     0%, 100% { transform: translateY(0px); }
     50% { transform: translateY(1px); }
   }
-  @keyframes petIdleFeet {
+  @keyframes petIdleBackLegs {
     0%, 100% { transform: translateY(0px); }
     50% { transform: translateY(1px); }
   }
-  @keyframes petIdleArms {
+  @keyframes petIdleFrontArms {
     0%, 100% { transform: rotate(0deg); }
     50% { transform: rotate(3deg); }
+  }
+  @keyframes petIdleBackArms {
+    0%, 100% { transform: rotate(0deg); }
+    50% { transform: rotate(-2deg); }
   }
   @keyframes petIdleHands {
     0%, 100% { transform: rotate(0deg); }
     50% { transform: rotate(-2deg); }
+  }
+  @keyframes petIdleFeet {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(1px); }
   }
 
   @keyframes petWalkHead {
     0%, 100% { transform: translateY(0px); }
     25% { transform: translateY(-3px); }
     75% { transform: translateY(-3px); }
+  }
+  @keyframes petWalkEyes {
+    0%, 85%, 100% { opacity: 1; }
+    90%, 95% { opacity: 0; }
+  }
+  @keyframes petWalkEyesClosed {
+    0%, 85%, 100% { opacity: 0; }
+    90%, 95% { opacity: 1; }
   }
   @keyframes petWalkBody {
     0%, 100% { transform: translateY(0px); }
@@ -108,32 +134,22 @@ const ANIMATION_STYLES = `
     50% { transform: scaleX(1.05) translateY(2px); }
     75% { transform: scaleX(0.9) translateY(-4px); }
   }
-  @keyframes petWalkLegsLeft {
+  @keyframes petWalkFrontLegs {
     0%, 100% { transform: rotate(0deg); }
     25% { transform: rotate(15deg); }
     75% { transform: rotate(-15deg); }
   }
-  @keyframes petWalkLegsRight {
+  @keyframes petWalkBackLegs {
     0%, 100% { transform: rotate(0deg); }
     25% { transform: rotate(-15deg); }
     75% { transform: rotate(15deg); }
   }
-  @keyframes petWalkFeetLeft {
-    0%, 100% { transform: translateY(0px) rotate(0deg); }
-    25% { transform: translateY(-3px) rotate(8deg); }
-    75% { transform: translateY(1px) rotate(-8deg); }
-  }
-  @keyframes petWalkFeetRight {
-    0%, 100% { transform: translateY(0px) rotate(0deg); }
-    25% { transform: translateY(1px) rotate(-8deg); }
-    75% { transform: translateY(-3px) rotate(8deg); }
-  }
-  @keyframes petWalkArmsLeft {
+  @keyframes petWalkFrontArms {
     0%, 100% { transform: rotate(0deg); }
     25% { transform: rotate(-12deg); }
     75% { transform: rotate(12deg); }
   }
-  @keyframes petWalkArmsRight {
+  @keyframes petWalkBackArms {
     0%, 100% { transform: rotate(0deg); }
     25% { transform: rotate(12deg); }
     75% { transform: rotate(-12deg); }
@@ -143,23 +159,23 @@ const ANIMATION_STYLES = `
     25% { transform: rotate(-8deg); }
     75% { transform: rotate(8deg); }
   }
+  @keyframes petWalkFeet {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    25% { transform: translateY(-2px) rotate(5deg); }
+    75% { transform: translateY(1px) rotate(-5deg); }
+  }
 `;
 
 function getPartDuration(partType: string, mode: "idle" | "walk"): string {
   if (mode === "idle") {
     const durations: Record<string, string> = {
-      head: "3s", body: "4s", tail: "2.5s", wings: "2s",
-      legs: "4s", feet: "4s", arms: "3.5s", hands: "3.5s",
+      head: "3s", eyes: "4s", eyes_closed: "4s", body: "4s", tail: "2.5s", wings: "2s",
+      front_legs: "4s", back_legs: "4s", front_arms: "3.5s", back_arms: "3.5s",
+      hands: "3.5s", feet: "4s",
     };
     return durations[partType] || "3s";
   }
   return "0.6s";
-}
-
-let partCounter = 0;
-
-function isAlternate(partType: string): boolean {
-  return ["legs", "feet", "arms"].includes(partType);
 }
 
 export default function PetAnimator({ petTemplateId, mode, view = "front", size = 200, className = "" }: PetAnimatorProps) {
@@ -181,12 +197,6 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
 
   const scale = size / CANVAS_SIZE;
 
-  const partsByType: Record<string, PetPart[]> = {};
-  for (const p of viewParts) {
-    if (!partsByType[p.partType]) partsByType[p.partType] = [];
-    partsByType[p.partType].push(p);
-  }
-
   return (
     <div
       className={className}
@@ -196,15 +206,9 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
       <style>{ANIMATION_STYLES}</style>
       {viewParts.map((part) => {
         const animations = mode === "idle" ? IDLE_ANIMATIONS : WALK_ANIMATIONS;
-        let animName = animations[part.partType] || animations.body;
+        const animName = animations[part.partType] || animations.body;
 
-        if (mode === "walk" && isAlternate(part.partType)) {
-          const sameParts = partsByType[part.partType] || [part];
-          const idx = sameParts.indexOf(part);
-          if (idx % 2 === 1 && WALK_ANIMATIONS_ALT[part.partType]) {
-            animName = WALK_ANIMATIONS_ALT[part.partType];
-          }
-        }
+        if (!animName) return null;
 
         const duration = getPartDuration(part.partType, mode);
         const originX = part.posX + part.width / 2;
