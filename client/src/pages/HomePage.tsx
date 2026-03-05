@@ -137,7 +137,7 @@ export default function HomePage({ user }: HomePageProps) {
         <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} hideHome />
 
         <div className="flex-1 flex flex-col items-center justify-center px-2 py-0 min-h-0">
-          <div className="relative flex items-center justify-center" style={{ width: "min(100%, calc(100vh - 160px))", aspectRatio: "1/1" }}>
+          <div className="relative flex items-center justify-center" style={{ width: "min(90%, 420px)", aspectRatio: "1/1" }}>
             <div
               className="w-full h-full rounded-xl flex flex-col items-center justify-center"
               style={{
