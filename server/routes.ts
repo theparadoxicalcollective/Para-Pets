@@ -1261,7 +1261,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/pet-templates/:id/part", isAdmin, async (req, res) => {
     try {
-      const { partType, view, imageData, posX, posY, width, height, zIndex } = req.body;
+      const { partType, view, imageData, posX, posY, width, height, zIndex, pivotX, pivotY } = req.body;
       if (!partType || !view || !imageData) {
         return res.status(400).json({ message: "partType, view, and imageData are required" });
       }
@@ -1276,6 +1276,8 @@ export async function registerRoutes(
         width: typeof width === "number" ? width : 100,
         height: typeof height === "number" ? height : 100,
         zIndex: typeof zIndex === "number" ? zIndex : 0,
+        pivotX: typeof pivotX === "number" ? Math.max(0, Math.min(100, pivotX)) : 50,
+        pivotY: typeof pivotY === "number" ? Math.max(0, Math.min(100, pivotY)) : 50,
       });
       return res.status(201).json(part);
     } catch (err) {
@@ -1286,13 +1288,15 @@ export async function registerRoutes(
 
   app.patch("/api/admin/pet-template-parts/:partId", isAdmin, async (req, res) => {
     try {
-      const { posX, posY, width, height, zIndex } = req.body;
+      const { posX, posY, width, height, zIndex, pivotX, pivotY } = req.body;
       const updates: Record<string, any> = {};
       if (typeof posX === "number") updates.posX = posX;
       if (typeof posY === "number") updates.posY = posY;
       if (typeof width === "number") updates.width = width;
       if (typeof height === "number") updates.height = height;
       if (typeof zIndex === "number") updates.zIndex = zIndex;
+      if (typeof pivotX === "number") updates.pivotX = Math.max(0, Math.min(100, pivotX));
+      if (typeof pivotY === "number") updates.pivotY = Math.max(0, Math.min(100, pivotY));
       const updated = await storage.updatePetTemplatePart(req.params.partId, updates);
       return res.json(updated);
     } catch (err) {

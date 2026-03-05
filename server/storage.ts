@@ -82,7 +82,7 @@ export interface IStorage {
   updatePetTemplate(id: string, data: Partial<PetTemplate>): Promise<PetTemplate>;
   deletePetTemplate(id: string): Promise<void>;
   getPetTemplateParts(templateId: string): Promise<PetTemplatePart[]>;
-  createPetTemplatePart(data: { templateId: string; partType: string; view: string; imageUrl: string; posX?: number; posY?: number; width?: number; height?: number; zIndex?: number }): Promise<PetTemplatePart>;
+  createPetTemplatePart(data: { templateId: string; partType: string; view: string; imageUrl: string; posX?: number; posY?: number; width?: number; height?: number; zIndex?: number; pivotX?: number; pivotY?: number }): Promise<PetTemplatePart>;
   updatePetTemplatePart(id: string, data: Partial<PetTemplatePart>): Promise<PetTemplatePart>;
   deletePetTemplatePart(id: string): Promise<void>;
   deletePetTemplatePartsByTemplate(templateId: string): Promise<void>;
@@ -466,7 +466,7 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(petTemplateParts).where(eq(petTemplateParts.templateId, templateId));
   }
 
-  async createPetTemplatePart(data: { templateId: string; partType: string; view: string; imageUrl: string; posX?: number; posY?: number; width?: number; height?: number; zIndex?: number }): Promise<PetTemplatePart> {
+  async createPetTemplatePart(data: { templateId: string; partType: string; view: string; imageUrl: string; posX?: number; posY?: number; width?: number; height?: number; zIndex?: number; pivotX?: number; pivotY?: number }): Promise<PetTemplatePart> {
     const [p] = await db.insert(petTemplateParts).values({
       templateId: data.templateId,
       partType: data.partType,
@@ -477,6 +477,8 @@ export class DatabaseStorage implements IStorage {
       width: data.width ?? 100,
       height: data.height ?? 100,
       zIndex: data.zIndex ?? 0,
+      pivotX: data.pivotX ?? 50,
+      pivotY: data.pivotY ?? 50,
     }).returning();
     return p;
   }

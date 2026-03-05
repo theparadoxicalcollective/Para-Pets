@@ -120,6 +120,7 @@ Para Pets is a mobile-first fantasy game web app where players collect, raise, a
 - Users can select one active pet to display on homepage (toggle on/off)
 - Active pet persists in database (activePetId on users table)
 - Only one pet active at a time; clicking same pet deselects it
+- Homepage shows rarity stars in curved arc below TopBar, pet name/stats above bottom nav
 
 ### Hatching System
 - Pets have a rarity (1-5 stars) and hatch time (hours)

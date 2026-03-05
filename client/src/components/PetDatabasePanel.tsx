@@ -24,6 +24,8 @@ interface PetTemplatePart {
   width: number;
   height: number;
   zIndex: number;
+  pivotX: number;
+  pivotY: number;
 }
 
 interface PetTemplateWithParts extends PetTemplate {
@@ -40,18 +42,18 @@ interface LinkedShopPet {
 }
 
 const PART_TYPES = [
-  { key: "head", label: "Head", defaultZ: 8 },
-  { key: "eyes", label: "Eyes", defaultZ: 9 },
-  { key: "eyes_closed", label: "Eyes (Closed)", defaultZ: 9 },
-  { key: "body", label: "Body", defaultZ: 5 },
-  { key: "tail", label: "Tail", defaultZ: 1 },
-  { key: "wings", label: "Wings", defaultZ: 2 },
-  { key: "back_arms", label: "Back Arms", defaultZ: 3 },
-  { key: "back_legs", label: "Back Legs", defaultZ: 3 },
-  { key: "front_legs", label: "Front Legs", defaultZ: 6 },
-  { key: "front_arms", label: "Front Arms", defaultZ: 7 },
-  { key: "hands", label: "Hands", defaultZ: 10 },
-  { key: "feet", label: "Feet", defaultZ: 4 },
+  { key: "head", label: "Head", defaultZ: 8, layer: "front" as const },
+  { key: "eyes", label: "Eyes", defaultZ: 9, layer: "front" as const },
+  { key: "eyes_closed", label: "Eyes (Closed)", defaultZ: 9, layer: "front" as const },
+  { key: "body", label: "Body", defaultZ: 5, layer: "body" as const },
+  { key: "tail", label: "Tail", defaultZ: 2, layer: "back" as const, defaultPivotX: 50, defaultPivotY: 0 },
+  { key: "wings", label: "Wings", defaultZ: 7, layer: "front" as const },
+  { key: "back_arms", label: "Back Arms", defaultZ: 3, layer: "back" as const },
+  { key: "back_legs", label: "Back Legs", defaultZ: 1, layer: "back" as const },
+  { key: "front_legs", label: "Front Legs", defaultZ: 6, layer: "front" as const },
+  { key: "front_arms", label: "Front Arms", defaultZ: 10, layer: "front" as const },
+  { key: "hands", label: "Hands", defaultZ: 11, layer: "front" as const },
+  { key: "feet", label: "Feet", defaultZ: 4, layer: "back" as const },
 ];
 
 const CANVAS_SIZE = 1000;
@@ -63,6 +65,7 @@ export default function PetDatabasePanel() {
   const [activeView, setActiveView] = useState<"front" | "back">("front");
   const [uploadPartType, setUploadPartType] = useState<string | null>(null);
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
+  const [pivotMode, setPivotMode] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ partId: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
   const [dragPos, setDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
@@ -124,7 +127,7 @@ export default function PetDatabasePanel() {
   });
 
   const addPartMutation = useMutation({
-    mutationFn: async (data: { templateId: string; partType: string; view: string; imageData: string; zIndex: number }) => {
+    mutationFn: async (data: { templateId: string; partType: string; view: string; imageData: string; zIndex: number; pivotX?: number; pivotY?: number }) => {
       const res = await apiRequest("POST", `/api/admin/pet-templates/${data.templateId}/part`, {
         partType: data.partType,
         view: data.view,
@@ -134,6 +137,8 @@ export default function PetDatabasePanel() {
         width: 300,
         height: 300,
         zIndex: data.zIndex,
+        pivotX: data.pivotX ?? 50,
+        pivotY: data.pivotY ?? 50,
       });
       return res.json();
     },
@@ -148,7 +153,7 @@ export default function PetDatabasePanel() {
   });
 
   const updatePartMutation = useMutation({
-    mutationFn: async ({ partId, ...data }: { partId: string; posX?: number; posY?: number; width?: number; height?: number; zIndex?: number }) => {
+    mutationFn: async ({ partId, ...data }: { partId: string; posX?: number; posY?: number; width?: number; height?: number; zIndex?: number; pivotX?: number; pivotY?: number }) => {
       const res = await apiRequest("PATCH", `/api/admin/pet-template-parts/${partId}`, data);
       return res.json();
     },
@@ -314,12 +319,30 @@ export default function PetDatabasePanel() {
             maxWidth: "500px",
             aspectRatio: "1",
             background: "repeating-conic-gradient(rgba(255,255,255,0.03) 0% 25%, transparent 0% 50%) 0 0 / 20px 20px",
-            border: "2px solid rgba(240,192,64,0.3)",
-            boxShadow: "inset 0 0 30px rgba(0,0,0,0.5)",
+            border: pivotMode ? "2px solid rgba(255,80,80,0.6)" : "2px solid rgba(240,192,64,0.3)",
+            boxShadow: pivotMode ? "inset 0 0 30px rgba(255,80,80,0.2)" : "inset 0 0 30px rgba(0,0,0,0.5)",
             touchAction: "none",
+            cursor: pivotMode ? "crosshair" : "default",
           }}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
+          onClick={(e) => {
+            if (pivotMode && selectedPartId && canvasRef.current) {
+              const rect = canvasRef.current.getBoundingClientRect();
+              const canvasX = ((e.clientX - rect.left) / rect.width) * CANVAS_SIZE;
+              const canvasY = ((e.clientY - rect.top) / rect.height) * CANVAS_SIZE;
+              const part = viewParts.find(p => p.id === selectedPartId);
+              if (part) {
+                const relX = Math.round(((canvasX - part.posX) / part.width) * 100);
+                const relY = Math.round(((canvasY - part.posY) / part.height) * 100);
+                const clampedX = Math.max(0, Math.min(100, relX));
+                const clampedY = Math.max(0, Math.min(100, relY));
+                updatePartMutation.mutate({ partId: selectedPartId, pivotX: clampedX, pivotY: clampedY });
+                setPivotMode(false);
+                toast({ title: "Pivot Set", description: `Pivot point set to ${clampedX}%, ${clampedY}%` });
+              }
+            }
+          }}
         >
           {viewParts.map(part => {
             const pos = dragPos?.id === part.id ? { x: dragPos.x, y: dragPos.y } : { x: part.posX, y: part.posY };
@@ -336,13 +359,13 @@ export default function PetDatabasePanel() {
                   width: `${(part.width / CANVAS_SIZE) * 100}%`,
                   height: `${(part.height / CANVAS_SIZE) * 100}%`,
                   zIndex: part.zIndex + (isDragging ? 100 : 0),
-                  cursor: "grab",
+                  cursor: pivotMode && isSelected ? "crosshair" : "grab",
                   outline: isSelected ? "2px solid rgba(240,192,64,0.8)" : "none",
                   outlineOffset: "2px",
                   borderRadius: "4px",
                 }}
-                onPointerDown={(e) => handlePointerDown(e, part)}
-                onClick={(e) => { e.stopPropagation(); if (!didDrag.current) setSelectedPartId(part.id); }}
+                onPointerDown={(e) => { if (!pivotMode) handlePointerDown(e, part); }}
+                onClick={(e) => { e.stopPropagation(); if (!pivotMode && !didDrag.current) setSelectedPartId(part.id); }}
               >
                 <img
                   src={part.imageUrl}
@@ -357,6 +380,24 @@ export default function PetDatabasePanel() {
                   >
                     {part.partType}
                   </div>
+                )}
+                {isSelected && (
+                  <div
+                    className="absolute pointer-events-none"
+                    style={{
+                      left: `${part.pivotX ?? 50}%`,
+                      top: `${part.pivotY ?? 50}%`,
+                      width: "12px",
+                      height: "12px",
+                      marginLeft: "-6px",
+                      marginTop: "-6px",
+                      borderRadius: "50%",
+                      background: "radial-gradient(circle, rgba(255,80,80,1) 0%, rgba(255,80,80,0.4) 50%, transparent 70%)",
+                      border: "2px solid #fff",
+                      boxShadow: "0 0 6px rgba(255,80,80,0.8), 0 0 12px rgba(255,80,80,0.4)",
+                      zIndex: 999,
+                    }}
+                  />
                 )}
               </div>
             );
@@ -391,7 +432,19 @@ export default function PetDatabasePanel() {
             style={{ background: "rgba(240,192,64,0.08)", border: "1px solid rgba(240,192,64,0.2)" }}
           >
             <div className="flex items-center justify-between mb-2">
-              <span className="font-fantasy text-[#f0c040] text-xs tracking-wider capitalize">{selectedPart.partType}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-fantasy text-[#f0c040] text-xs tracking-wider capitalize">{selectedPart.partType}</span>
+                {(() => {
+                  const ptInfo = PART_TYPES.find(p => p.key === selectedPart.partType);
+                  const layerLabel = ptInfo?.layer === "back" ? "Behind Body" : ptInfo?.layer === "body" ? "Body Layer" : "In Front";
+                  const layerColor = ptInfo?.layer === "back" ? "#ff9966" : ptInfo?.layer === "body" ? "#7fbfb0" : "#66ccff";
+                  return (
+                    <span className="font-fantasy text-[7px] tracking-wider px-1.5 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.3)", border: `1px solid ${layerColor}40`, color: layerColor }}>
+                      {layerLabel}
+                    </span>
+                  );
+                })()}
+              </div>
               <button
                 data-testid="button-delete-selected-part"
                 onClick={() => deletePartMutation.mutate(selectedPart.id)}
@@ -444,6 +497,59 @@ export default function PetDatabasePanel() {
                   style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(240,192,64,0.2)", color: "#e8ddd0", outline: "none" }}
                 />
               </div>
+            </div>
+
+            <div className="mt-3 pt-3" style={{ borderTop: "1px solid rgba(240,192,64,0.15)" }}>
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-fantasy text-[9px] text-[#a89878] tracking-wider">Pivot Point (Rotation Anchor)</span>
+                <div
+                  className="w-3 h-3 rounded-full"
+                  style={{ background: "radial-gradient(circle, rgba(255,80,80,1) 0%, rgba(255,80,80,0.4) 60%)", border: "1.5px solid #fff", boxShadow: "0 0 4px rgba(255,80,80,0.6)" }}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                <div>
+                  <label className="font-fantasy text-[8px] text-[#a89878] block">Pivot X %</label>
+                  <input
+                    data-testid="input-part-pivot-x"
+                    type="number"
+                    value={selectedPart.pivotX ?? 50}
+                    onChange={(e) => {
+                      const val = Math.max(0, Math.min(100, parseInt(e.target.value) || 0));
+                      updatePartMutation.mutate({ partId: selectedPart.id, pivotX: val });
+                    }}
+                    className="w-full px-2 py-1 rounded text-xs font-mono"
+                    style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,80,80,0.3)", color: "#e8ddd0", outline: "none" }}
+                  />
+                </div>
+                <div>
+                  <label className="font-fantasy text-[8px] text-[#a89878] block">Pivot Y %</label>
+                  <input
+                    data-testid="input-part-pivot-y"
+                    type="number"
+                    value={selectedPart.pivotY ?? 50}
+                    onChange={(e) => {
+                      const val = Math.max(0, Math.min(100, parseInt(e.target.value) || 0));
+                      updatePartMutation.mutate({ partId: selectedPart.id, pivotY: val });
+                    }}
+                    className="w-full px-2 py-1 rounded text-xs font-mono"
+                    style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,80,80,0.3)", color: "#e8ddd0", outline: "none" }}
+                  />
+                </div>
+              </div>
+              <button
+                data-testid="button-set-pivot"
+                onClick={() => { setPivotMode(!pivotMode); }}
+                className="w-full py-1.5 rounded-md font-fantasy text-[10px] tracking-wider transition-transform active:scale-95"
+                style={{
+                  background: pivotMode ? "rgba(255,80,80,0.3)" : "rgba(255,80,80,0.1)",
+                  border: `1px solid ${pivotMode ? "rgba(255,80,80,0.6)" : "rgba(255,80,80,0.3)"}`,
+                  color: pivotMode ? "#ff6666" : "#ff9999",
+                  cursor: "pointer",
+                }}
+              >
+                {pivotMode ? "Tap on canvas to set pivot..." : "Tap to Set Pivot Point"}
+              </button>
             </div>
           </div>
         )}
@@ -537,13 +643,16 @@ export default function PetDatabasePanel() {
                     return;
                   }
                   const dataUrl = await readFileAsDataUrl(file);
-                  const defaultZ = PART_TYPES.find(p => p.key === uploadPartType)?.defaultZ || 0;
+                  const ptConfig = PART_TYPES.find(p => p.key === uploadPartType);
+                  const defaultZ = ptConfig?.defaultZ || 0;
                   addPartMutation.mutate({
                     templateId: selectedTemplateId!,
                     partType: uploadPartType!,
                     view: activeView,
                     imageData: dataUrl,
                     zIndex: defaultZ,
+                    pivotX: (ptConfig as any)?.defaultPivotX ?? 50,
+                    pivotY: (ptConfig as any)?.defaultPivotY ?? 50,
                   });
                 }}
                 className="w-full text-xs font-fantasy"

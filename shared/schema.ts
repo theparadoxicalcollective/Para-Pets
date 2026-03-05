@@ -146,6 +146,8 @@ export const petTemplateParts = pgTable("pet_template_parts", {
   width: integer("width").notNull().default(100),
   height: integer("height").notNull().default(100),
   zIndex: integer("z_index").notNull().default(0),
+  pivotX: integer("pivot_x").notNull().default(50),
+  pivotY: integer("pivot_y").notNull().default(50),
 });
 
 export const coinPurchases = pgTable("coin_purchases", {

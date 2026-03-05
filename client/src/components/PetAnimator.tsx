@@ -11,6 +11,8 @@ interface PetPart {
   width: number;
   height: number;
   zIndex: number;
+  pivotX: number;
+  pivotY: number;
 }
 
 interface PetAnimatorProps {
@@ -229,7 +231,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
               width: `${widthPct}%`,
               height: `${heightPct}%`,
               zIndex: part.zIndex,
-              transformOrigin: part.partType === "tail" ? "50% 0%" : "center center",
+              transformOrigin: `${part.pivotX ?? 50}% ${part.pivotY ?? 50}%`,
               animation: `${animName} ${duration} ease-in-out infinite`,
               imageRendering: "auto",
               pointerEvents: "none",
