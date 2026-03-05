@@ -158,11 +158,11 @@ export default function HomePage({ user }: HomePageProps) {
               ) : activePet ? (
                 <div className="flex flex-col items-center gap-3 animate-float" data-testid="display-active-pet">
                   <div
-                    className="w-32 h-32 rounded-xl flex items-center justify-center overflow-hidden"
+                    className="w-40 h-40 rounded-xl flex items-center justify-center overflow-hidden"
                     style={{
-                      background: "radial-gradient(ellipse at center, rgba(45,122,79,0.3) 0%, rgba(10,40,20,0.5) 100%)",
-                      border: activePet.isHatched ? "2px solid rgba(127,255,212,0.3)" : "2px solid rgba(240,192,64,0.3)",
-                      boxShadow: activePet.isHatched
+                      background: activePet.isHatched && activePet.petTemplateId ? "transparent" : "radial-gradient(ellipse at center, rgba(45,122,79,0.3) 0%, rgba(10,40,20,0.5) 100%)",
+                      border: activePet.isHatched && activePet.petTemplateId ? "none" : activePet.isHatched ? "2px solid rgba(127,255,212,0.3)" : "2px solid rgba(240,192,64,0.3)",
+                      boxShadow: activePet.isHatched && activePet.petTemplateId ? "none" : activePet.isHatched
                         ? "0 0 30px rgba(45,122,79,0.3), 0 8px 20px rgba(0,0,0,0.4)"
                         : undefined,
                       animation: !activePet.isHatched ? "eggGlow 3s ease-in-out infinite" : undefined,
@@ -170,7 +170,7 @@ export default function HomePage({ user }: HomePageProps) {
                   >
                     {activePet.isHatched ? (
                       activePet.petTemplateId ? (
-                        <PetAnimator petTemplateId={activePet.petTemplateId} mode="idle" view="front" size={128} />
+                        <PetAnimator petTemplateId={activePet.petTemplateId} mode="idle" view="front" size={160} />
                       ) : (activePet.hatchedImageUrl || activePet.imageUrl) ? (
                         <img src={activePet.hatchedImageUrl || activePet.imageUrl || ""} alt={activePet.name} className="w-full h-full object-contain" />
                       ) : (

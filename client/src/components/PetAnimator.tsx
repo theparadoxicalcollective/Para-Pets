@@ -21,7 +21,7 @@ interface PetAnimatorProps {
   className?: string;
 }
 
-const CANVAS_SIZE = 500;
+const CANVAS_SIZE = 1000;
 
 const IDLE_ANIMATIONS: Record<string, string> = {
   head: "petIdleHead",
@@ -56,7 +56,7 @@ const WALK_ANIMATIONS: Record<string, string> = {
 const ANIMATION_STYLES = `
   @keyframes petIdleHead {
     0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-3px); }
+    50% { transform: translateY(-1px); }
   }
   @keyframes petIdleEyes {
     0%, 92%, 100% { opacity: 1; }
