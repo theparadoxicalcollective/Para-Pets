@@ -71,9 +71,8 @@ const ANIMATION_STYLES = `
     50% { transform: scale(1.01, 1.02); }
   }
   @keyframes petIdleTail {
-    0%, 100% { transform: rotate(0deg); }
-    25% { transform: rotate(2deg); }
-    75% { transform: rotate(-2deg); }
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-2px); }
   }
   @keyframes petIdleWings {
     0%, 100% { transform: rotateY(0deg) scaleX(1); }
