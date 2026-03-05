@@ -157,9 +157,9 @@ export default function HomePage({ user }: HomePageProps) {
                   <p className="font-fantasy text-[#7fbfb0] text-xs tracking-wider">Summoning companion...</p>
                 </div>
               ) : activePet ? (
-                <div className="flex flex-col items-center gap-3 animate-float" data-testid="display-active-pet">
+                <div className="flex flex-col items-center gap-2 animate-float" data-testid="display-active-pet">
                   <div
-                    className="w-full aspect-square rounded-xl flex items-center justify-center overflow-visible"
+                    className="w-56 h-56 rounded-xl flex items-center justify-center overflow-hidden"
                     style={{
                       background: "transparent",
                       border: "none",

@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import coinIconImg from "@assets/icon_coin.png";
-import PetAnimator from "./PetAnimator";
 
 interface PetData {
   inventoryId: string;
@@ -156,9 +155,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
               }}
               data-testid="img-pet-detail"
             >
-              {pet.petTemplateId ? (
-                <PetAnimator petTemplateId={pet.petTemplateId} mode="idle" view="front" size={500} className="w-full h-full" />
-              ) : petImage ? (
+              {petImage ? (
                 <img src={petImage} alt={pet.name} className="w-full h-full object-contain" />
               ) : (
                 <span className="text-5xl">🐾</span>
