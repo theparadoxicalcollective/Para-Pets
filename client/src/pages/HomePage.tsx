@@ -137,16 +137,16 @@ export default function HomePage({ user }: HomePageProps) {
         <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} hideHome />
 
         <div className="flex-1 flex flex-col items-center justify-center px-2 py-0 min-h-0">
-          <div className="relative flex items-center justify-center" style={{ width: "min(90%, 420px)", aspectRatio: "1/1" }}>
+          <div className="relative flex items-center justify-center" style={{ width: "90%", maxWidth: "420px" }}>
             <div
-              className="w-full h-full rounded-xl flex flex-col items-center justify-center"
+              className="w-full rounded-xl flex flex-col items-center justify-center"
               style={{
                 background: "radial-gradient(ellipse at center, rgba(45,122,79,0.15) 0%, transparent 70%)",
                 border: activePet ? "none" : "1px dashed rgba(127,191,176,0.2)",
               }}
             >
               {petLoading ? (
-                <div className="flex flex-col items-center gap-3 animate-pulse">
+                <div className="flex flex-col items-center gap-3 animate-pulse py-8">
                   <div
                     className="w-20 h-20 rounded-full"
                     style={{
@@ -157,9 +157,9 @@ export default function HomePage({ user }: HomePageProps) {
                   <p className="font-fantasy text-[#7fbfb0] text-xs tracking-wider">Summoning companion...</p>
                 </div>
               ) : activePet ? (
-                <div className="relative w-full h-full animate-float" data-testid="display-active-pet">
+                <div className="relative w-full animate-float flex flex-col items-center" data-testid="display-active-pet">
                   <div
-                    className="w-full h-full rounded-xl flex items-center justify-center"
+                    className="w-full flex items-center justify-center"
                     style={{
                       background: "transparent",
                       animation: !activePet.isHatched ? "eggGlow 3s ease-in-out infinite" : undefined,
@@ -167,16 +167,16 @@ export default function HomePage({ user }: HomePageProps) {
                   >
                     {activePet.isHatched ? (
                       activePet.petTemplateId ? (
-                        <PetAnimator petTemplateId={activePet.petTemplateId} mode="idle" view="front" size={1000} className="w-full h-full" />
+                        <PetAnimator petTemplateId={activePet.petTemplateId} mode="idle" view="front" size={1000} className="w-full" style={{ aspectRatio: "1/1" }} />
                       ) : (activePet.hatchedImageUrl || activePet.imageUrl) ? (
-                        <img src={activePet.hatchedImageUrl || activePet.imageUrl || ""} alt={activePet.name} className="w-full h-full object-contain" />
+                        <img src={activePet.hatchedImageUrl || activePet.imageUrl || ""} alt={activePet.name} className="w-full max-h-[50vh] object-contain" />
                       ) : (
                         <span className="text-5xl">🐾</span>
                       )
                     ) : (
-                      <div style={{ animation: "eggWobble 2.5s ease-in-out infinite" }} className="w-full h-full flex items-center justify-center">
+                      <div style={{ animation: "eggWobble 2.5s ease-in-out infinite" }} className="w-full flex items-center justify-center">
                         {activePet.eggImageUrl ? (
-                          <img src={activePet.eggImageUrl} alt={activePet.name} className="w-full h-full object-contain" />
+                          <img src={activePet.eggImageUrl} alt={activePet.name} className="w-full max-h-[50vh] object-contain" />
                         ) : (
                           <span className="text-5xl">🥚</span>
                         )}
@@ -184,7 +184,7 @@ export default function HomePage({ user }: HomePageProps) {
                     )}
                   </div>
 
-                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-44 flex flex-col items-center gap-1" style={{ zIndex: 10 }}>
+                  <div className="w-44 flex flex-col items-center gap-1 mt-2" style={{ zIndex: 10 }}>
                     <div
                       className="w-full px-3 py-1 rounded-md"
                       style={{ background: "rgba(0,0,0,0.65)", border: "1px solid rgba(127,255,212,0.3)", backdropFilter: "blur(4px)" }}

@@ -19,6 +19,7 @@ interface PetAnimatorProps {
   view?: "front" | "back";
   size?: number;
   className?: string;
+  style?: React.CSSProperties;
 }
 
 const CANVAS_SIZE = 1000;
@@ -178,7 +179,7 @@ function getPartDuration(partType: string, mode: "idle" | "walk"): string {
   return "0.6s";
 }
 
-export default function PetAnimator({ petTemplateId, mode, view = "front", size = 200, className = "" }: PetAnimatorProps) {
+export default function PetAnimator({ petTemplateId, mode, view = "front", size = 200, className = "", style: externalStyle }: PetAnimatorProps) {
   const { data: templateData } = useQuery<{ parts: PetPart[] }>({
     queryKey: ["/api/pet-template-parts", petTemplateId],
     queryFn: async () => {
@@ -198,7 +199,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   return (
     <div
       className={className}
-      style={{ width: size, height: size, position: "relative", overflow: "hidden" }}
+      style={{ width: size, height: size, position: "relative", overflow: "visible", ...externalStyle }}
       data-testid="pet-animator"
     >
       <style>{ANIMATION_STYLES}</style>
