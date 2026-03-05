@@ -157,13 +157,11 @@ export default function HomePage({ user }: HomePageProps) {
                   <p className="font-fantasy text-[#7fbfb0] text-xs tracking-wider">Summoning companion...</p>
                 </div>
               ) : activePet ? (
-                <div className="flex flex-col items-center gap-2 animate-float" data-testid="display-active-pet">
+                <div className="relative w-full max-w-xs aspect-square animate-float" data-testid="display-active-pet">
                   <div
-                    className="w-56 h-56 rounded-xl flex items-center justify-center overflow-hidden"
+                    className="w-full h-full rounded-xl flex items-center justify-center overflow-hidden"
                     style={{
                       background: "transparent",
-                      border: "none",
-                      boxShadow: "none",
                       animation: !activePet.isHatched ? "eggGlow 3s ease-in-out infinite" : undefined,
                     }}
                   >
@@ -186,18 +184,18 @@ export default function HomePage({ user }: HomePageProps) {
                     )}
                   </div>
 
-                  <div className="w-40 flex flex-col items-center gap-1.5">
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-44 flex flex-col items-center gap-1" style={{ zIndex: 10 }}>
                     <div
-                      className="w-full px-4 py-1.5 rounded-md"
-                      style={{ background: "rgba(0,0,0,0.5)", border: "1px solid rgba(127,255,212,0.3)" }}
+                      className="w-full px-3 py-1 rounded-md"
+                      style={{ background: "rgba(0,0,0,0.65)", border: "1px solid rgba(127,255,212,0.3)", backdropFilter: "blur(4px)" }}
                     >
-                      <p className="font-fantasy text-[#7fffd4] text-sm tracking-wider font-semibold text-center" data-testid="text-active-pet-name">
+                      <p className="font-fantasy text-[#7fffd4] text-xs tracking-wider font-semibold text-center" data-testid="text-active-pet-name">
                         {activePet.petNickname || activePet.name}
                       </p>
                     </div>
 
                     {activePet.isHatched ? (
-                      <div className="w-full space-y-1">
+                      <div className="w-full space-y-0.5">
                         <HomePetBar label="HP" value={activePet.petHealth} max={5000} color="#4ade80" />
                         <HomePetBar label="LV" value={activePet.petLevel} max={100} color="#c084fc" />
                       </div>
