@@ -673,13 +673,13 @@ export default function PetDatabasePanel() {
           >
             <h4 className="font-fantasy text-[#f0c040] text-center text-sm tracking-widest mb-4">Add Pet</h4>
             <div className="mb-4">
-              <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Pet Name</label>
+              <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Species</label>
               <input
                 data-testid="input-pet-template-name"
                 type="text"
                 value={newPetName}
                 onChange={(e) => setNewPetName(e.target.value)}
-                placeholder="Enter pet name..."
+                placeholder="Enter species name..."
                 className="w-full px-3 py-2 rounded-md font-fantasy text-sm outline-none"
                 style={{ background: "rgba(242,232,208,0.9)", border: "1px solid #8b5e3c", color: "#2a1a0a" }}
               />

@@ -382,8 +382,8 @@ function AdminItemForm({ item, onClose, onSuccess }: { item: ShopItemFull | null
           />
 
           <div>
-            <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Name</label>
-            <input data-testid="input-item-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Item name" className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
+            <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">{type === "pet" ? "Species" : "Name"}</label>
+            <input data-testid="input-item-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={type === "pet" ? "Species name" : "Item name"} className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
           </div>
 
           <div>
