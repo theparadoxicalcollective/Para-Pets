@@ -38,6 +38,7 @@ interface InventoryItem {
   eggImageUrl: string | null;
   hatchedImageUrl: string | null;
   petTemplateId: string | null;
+  petNickname: string | null;
   hatchStartedAt: string | null;
   isHatched: boolean;
   petHealth: number;
@@ -191,7 +192,7 @@ export default function HomePage({ user }: HomePageProps) {
                       style={{ background: "rgba(0,0,0,0.5)", border: "1px solid rgba(127,255,212,0.3)" }}
                     >
                       <p className="font-fantasy text-[#7fffd4] text-sm tracking-wider font-semibold text-center" data-testid="text-active-pet-name">
-                        {activePet.name}
+                        {activePet.petNickname || activePet.name}
                       </p>
                     </div>
 

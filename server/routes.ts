@@ -381,6 +381,7 @@ export async function registerRoutes(
             statBoostType: shopItem?.statBoostType || null,
             statBoostAmount: shopItem?.statBoostAmount || null,
             petTemplateId: shopItem?.petTemplateId || null,
+            petNickname: inv.petNickname || null,
             hatchStartedAt: inv.hatchStartedAt,
             isHatched: inv.isHatched,
             petHealth: inv.petHealth,
@@ -395,6 +396,24 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Get inventory error:", err);
       return res.status(500).json({ message: "Failed to get inventory" });
+    }
+  });
+
+  app.patch("/api/inventory/:inventoryId/nickname", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { inventoryId } = req.params;
+      const { nickname } = req.body;
+      const trimmed = (nickname || "").trim().slice(0, 20);
+      const item = await storage.getInventoryItemById(inventoryId);
+      if (!item || item.userId !== user.id) {
+        return res.status(404).json({ message: "Item not found" });
+      }
+      const updated = await storage.updateInventoryItem(inventoryId, { petNickname: trimmed || null });
+      return res.json(updated);
+    } catch (err) {
+      console.error("Update nickname error:", err);
+      return res.status(500).json({ message: "Failed to update nickname" });
     }
   });
 

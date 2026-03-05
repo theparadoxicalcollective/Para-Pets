@@ -13,6 +13,7 @@ interface PetData {
   eggImageUrl: string | null;
   hatchedImageUrl: string | null;
   petTemplateId: string | null;
+  petNickname: string | null;
   rarity: number | null;
   petHealth: number;
   petAtk: number;
@@ -46,8 +47,26 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
   const [confirmItem, setConfirmItem] = useState<BagItem | null>(null);
   const [showSuccessAnim, setShowSuccessAnim] = useState(false);
   const [successBoostLabel, setSuccessBoostLabel] = useState("");
+  const [editingNickname, setEditingNickname] = useState(false);
+  const [nicknameInput, setNicknameInput] = useState(pet.petNickname || "");
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const nicknameMutation = useMutation({
+    mutationFn: async (nickname: string) => {
+      const res = await apiRequest("PATCH", `/api/inventory/${pet.inventoryId}/nickname`, { nickname });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      onUpdate();
+      setEditingNickname(false);
+      toast({ title: "Named!", description: "Your pet has a new name" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update name", variant: "destructive" });
+    },
+  });
 
   const { data: inventory = [] } = useQuery<BagItem[]>({
     queryKey: ["/api/inventory"],
@@ -190,8 +209,52 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
               style={{ textShadow: "0 0 10px rgba(240,192,64,0.3)" }}
               data-testid="text-pet-detail-name"
             >
-              {pet.name}
+              {pet.petNickname || pet.name}
             </h3>
+            {pet.petNickname && (
+              <p className="font-fantasy text-[#a89878] text-[10px] tracking-wider" data-testid="text-pet-species">{pet.name}</p>
+            )}
+            {editingNickname ? (
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  data-testid="input-pet-nickname"
+                  type="text"
+                  value={nicknameInput}
+                  onChange={(e) => setNicknameInput(e.target.value.slice(0, 20))}
+                  placeholder="Name your pet..."
+                  autoFocus
+                  className="px-2 py-1 rounded-md font-fantasy text-xs outline-none w-32 text-center"
+                  style={{ background: "rgba(242,232,208,0.9)", border: "1px solid #8b5e3c", color: "#2a1a0a" }}
+                  onKeyDown={(e) => { if (e.key === "Enter") nicknameMutation.mutate(nicknameInput); }}
+                />
+                <button
+                  data-testid="button-save-nickname"
+                  onClick={() => nicknameMutation.mutate(nicknameInput)}
+                  disabled={nicknameMutation.isPending}
+                  className="px-2 py-1 rounded-md font-fantasy text-[9px] tracking-wider"
+                  style={{ background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)", border: "1px solid rgba(127,255,212,0.4)", color: "#7fffd4", cursor: "pointer" }}
+                >
+                  {nicknameMutation.isPending ? "..." : "Save"}
+                </button>
+                <button
+                  data-testid="button-cancel-nickname"
+                  onClick={() => { setEditingNickname(false); setNicknameInput(pet.petNickname || ""); }}
+                  className="px-2 py-1 rounded-md font-fantasy text-[9px] tracking-wider"
+                  style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.2)", color: "#a89878", cursor: "pointer" }}
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                data-testid="button-edit-nickname"
+                onClick={() => { setEditingNickname(true); setNicknameInput(pet.petNickname || ""); }}
+                className="mt-1 px-3 py-1 rounded-md font-fantasy text-[9px] tracking-wider"
+                style={{ background: "rgba(240,192,64,0.1)", border: "1px solid rgba(240,192,64,0.25)", color: "#f0c040", cursor: "pointer" }}
+              >
+                {pet.petNickname ? "Rename" : "Name Your Pet"}
+              </button>
+            )}
 
             {rarity > 0 && (
               <div className="flex items-center gap-0.5 mt-1" data-testid="stars-pet-detail">

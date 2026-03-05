@@ -20,6 +20,7 @@ interface InventoryItem {
   eggImageUrl: string | null;
   hatchedImageUrl: string | null;
   petTemplateId: string | null;
+  petNickname: string | null;
   statBoostType: string | null;
   statBoostAmount: number | null;
   hatchStartedAt: string | null;
@@ -365,8 +366,11 @@ function PetView({
                 className="font-fantasy text-[#f0c040] text-xs font-semibold text-center truncate w-full"
                 data-testid={`text-pet-name-${pet.shopItemId}`}
               >
-                {pet.name}
+                {pet.petNickname || pet.name}
               </p>
+              {pet.petNickname && (
+                <p className="font-fantasy text-[#a89878] text-[8px] tracking-wider text-center truncate w-full">{pet.name}</p>
+              )}
 
               {pet.rarity && (
                 <div className="flex items-center gap-0.5">
