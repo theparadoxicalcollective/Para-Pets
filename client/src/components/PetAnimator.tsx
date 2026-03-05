@@ -21,7 +21,7 @@ interface PetAnimatorProps {
   className?: string;
 }
 
-const CANVAS_SIZE = 1000;
+const CANVAS_SIZE = 500;
 
 const IDLE_ANIMATIONS: Record<string, string> = {
   head: "petIdleHead",

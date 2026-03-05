@@ -54,7 +54,7 @@ const PART_TYPES = [
   { key: "feet", label: "Feet", defaultZ: 4 },
 ];
 
-const CANVAS_SIZE = 1000;
+const CANVAS_SIZE = 500;
 
 export default function PetDatabasePanel() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
