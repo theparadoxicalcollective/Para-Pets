@@ -129,10 +129,10 @@ export default function PetDatabasePanel() {
         partType: data.partType,
         view: data.view,
         imageData: data.imageData,
-        posX: Math.round(CANVAS_SIZE / 2 - 50),
-        posY: Math.round(CANVAS_SIZE / 2 - 50),
-        width: 100,
-        height: 100,
+        posX: Math.round(CANVAS_SIZE / 2 - 150),
+        posY: Math.round(CANVAS_SIZE / 2 - 150),
+        width: 300,
+        height: 300,
         zIndex: data.zIndex,
       });
       return res.json();
@@ -409,7 +409,7 @@ export default function PetDatabasePanel() {
                   type="number"
                   value={selectedPart.width}
                   onChange={(e) => {
-                    const val = Math.max(10, Math.min(500, parseInt(e.target.value) || 10));
+                    const val = Math.max(10, Math.min(1000, parseInt(e.target.value) || 10));
                     updatePartMutation.mutate({ partId: selectedPart.id, width: val });
                   }}
                   className="w-full px-2 py-1 rounded text-xs font-mono"
@@ -423,7 +423,7 @@ export default function PetDatabasePanel() {
                   type="number"
                   value={selectedPart.height}
                   onChange={(e) => {
-                    const val = Math.max(10, Math.min(500, parseInt(e.target.value) || 10));
+                    const val = Math.max(10, Math.min(1000, parseInt(e.target.value) || 10));
                     updatePartMutation.mutate({ partId: selectedPart.id, height: val });
                   }}
                   className="w-full px-2 py-1 rounded text-xs font-mono"
