@@ -194,8 +194,6 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
 
   if (viewParts.length === 0) return null;
 
-  const scale = size / CANVAS_SIZE;
-
   return (
     <div
       className={className}
@@ -210,8 +208,11 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
         if (!animName) return null;
 
         const duration = getPartDuration(part.partType, mode);
-        const originX = part.posX + part.width / 2;
-        const originY = part.posY + part.height / 2;
+
+        const leftPct = (part.posX / CANVAS_SIZE) * 100;
+        const topPct = (part.posY / CANVAS_SIZE) * 100;
+        const widthPct = (part.width / CANVAS_SIZE) * 100;
+        const heightPct = (part.height / CANVAS_SIZE) * 100;
 
         return (
           <img
@@ -221,12 +222,12 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
             draggable={false}
             style={{
               position: "absolute",
-              left: part.posX * scale,
-              top: part.posY * scale,
-              width: part.width * scale,
-              height: part.height * scale,
+              left: `${leftPct}%`,
+              top: `${topPct}%`,
+              width: `${widthPct}%`,
+              height: `${heightPct}%`,
               zIndex: part.zIndex,
-              transformOrigin: `${(originX - part.posX) * scale}px ${(originY - part.posY) * scale}px`,
+              transformOrigin: "center center",
               animation: `${animName} ${duration} ease-in-out infinite`,
               imageRendering: "auto",
               pointerEvents: "none",
