@@ -71,8 +71,9 @@ const ANIMATION_STYLES = `
     50% { transform: scale(1.01, 1.02); }
   }
   @keyframes petIdleTail {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-2px); }
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(3deg); }
+    75% { transform: rotate(-3deg); }
   }
   @keyframes petIdleWings {
     0%, 100% { transform: rotateY(0deg) scaleX(1); }
@@ -227,7 +228,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
               width: `${widthPct}%`,
               height: `${heightPct}%`,
               zIndex: part.zIndex,
-              transformOrigin: "center center",
+              transformOrigin: part.partType === "tail" ? "50% 0%" : "center center",
               animation: `${animName} ${duration} ease-in-out infinite`,
               imageRendering: "auto",
               pointerEvents: "none",

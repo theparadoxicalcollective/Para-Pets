@@ -136,7 +136,7 @@ export default function HomePage({ user }: HomePageProps) {
       <div className="relative z-10 flex flex-col h-full" style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} hideHome />
 
-        <div className="flex-1 flex flex-col items-center justify-center px-8 py-4">
+        <div className="flex-1 flex flex-col items-center justify-start px-8 pt-2 pb-0 overflow-hidden">
           <div className="relative w-full max-w-xs">
             <div
               className="w-full aspect-square rounded-xl flex flex-col items-center justify-center"
