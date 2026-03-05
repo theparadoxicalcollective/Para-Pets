@@ -136,6 +136,24 @@ export default function HomePage({ user }: HomePageProps) {
       <div className="relative z-10 flex flex-col h-full" style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} hideHome />
 
+        {activePet && activePet.rarity && activePet.rarity > 0 && (
+          <div className="relative z-10 flex justify-center mt-1 mb-0">
+            <div className="relative flex items-center justify-center">
+              <svg width="180" height="36" viewBox="0 0 180 36" fill="none" className="absolute top-0 left-1/2 -translate-x-1/2">
+                <path d="M10,35 Q90,0 170,35" stroke="rgba(212,160,23,0.4)" strokeWidth="1.5" fill="none" />
+                <path d="M15,34 Q90,2 165,34" stroke="rgba(212,160,23,0.2)" strokeWidth="0.5" fill="none" />
+              </svg>
+              <div className="flex items-center gap-1.5 pt-1" data-testid="display-pet-rarity-stars">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <svg key={i} width="18" height="18" viewBox="0 0 24 24" fill={i < (activePet.rarity || 0) ? "#f0c040" : "none"} stroke={i < (activePet.rarity || 0) ? "#d4a017" : "rgba(139,110,78,0.3)"} strokeWidth="1.5" style={{ filter: i < (activePet.rarity || 0) ? "drop-shadow(0 0 4px rgba(240,192,64,0.5))" : "none" }}>
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                  </svg>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="flex-1 flex flex-col items-center justify-center px-2 py-0 min-h-0">
           <div className="relative flex items-center justify-center" style={{ width: "90%", maxWidth: "420px" }}>
             <div
@@ -183,26 +201,6 @@ export default function HomePage({ user }: HomePageProps) {
                       </div>
                     )}
                   </div>
-
-                  <div className="w-44 flex flex-col items-center gap-1 mt-2" style={{ zIndex: 10 }}>
-                    <div
-                      className="w-full px-3 py-1 rounded-md"
-                      style={{ background: "rgba(0,0,0,0.65)", border: "1px solid rgba(127,255,212,0.3)", backdropFilter: "blur(4px)" }}
-                    >
-                      <p className="font-fantasy text-[#7fffd4] text-xs tracking-wider font-semibold text-center" data-testid="text-active-pet-name">
-                        {activePet.petNickname || activePet.name}
-                      </p>
-                    </div>
-
-                    {activePet.isHatched ? (
-                      <div className="w-full space-y-0.5">
-                        <HomePetBar label="HP" value={activePet.petHealth} max={5000} color="#4ade80" />
-                        <HomePetBar label="LV" value={activePet.petLevel} max={100} color="#c084fc" />
-                      </div>
-                    ) : activePet.hatchStartedAt && activePet.hatchTime ? (
-                      <HomeHatchBar hatchStartedAt={activePet.hatchStartedAt} hatchTime={activePet.hatchTime} />
-                    ) : null}
-                  </div>
                 </div>
               ) : (
                 <div className="text-center space-y-3 animate-float">
@@ -240,6 +238,30 @@ export default function HomePage({ user }: HomePageProps) {
             />
           </div>
         </div>
+
+        {activePet && (
+          <div className="relative z-10 flex-shrink-0 flex flex-col items-center gap-1 px-4 pb-2">
+            <div
+              className="px-5 py-1.5 rounded-lg"
+              style={{ background: "rgba(0,0,0,0.65)", border: "1px solid rgba(212,160,23,0.4)", backdropFilter: "blur(6px)", boxShadow: "0 2px 12px rgba(0,0,0,0.4)" }}
+            >
+              <p className="font-fantasy text-[#f0c040] text-sm tracking-[0.15em] font-bold text-center uppercase" data-testid="text-active-pet-name">
+                {activePet.petNickname || activePet.name}
+              </p>
+            </div>
+
+            {activePet.isHatched ? (
+              <div className="w-48 space-y-0.5">
+                <HomePetBar label="HP" value={activePet.petHealth} max={5000} color="#4ade80" />
+                <HomePetBar label="LV" value={activePet.petLevel} max={100} color="#c084fc" />
+              </div>
+            ) : activePet.hatchStartedAt && activePet.hatchTime ? (
+              <div className="w-48">
+                <HomeHatchBar hatchStartedAt={activePet.hatchStartedAt} hatchTime={activePet.hatchTime} />
+              </div>
+            ) : null}
+          </div>
+        )}
 
         <div className="relative flex-shrink-0">
           <div
