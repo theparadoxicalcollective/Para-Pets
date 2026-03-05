@@ -362,36 +362,31 @@ export async function registerRoutes(
   app.get("/api/inventory", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const inventory = await storage.getUserInventory(user.id);
-      const itemsWithDetails = await Promise.all(
-        inventory.map(async (inv) => {
-          const shopItem = await storage.getShopItem(inv.shopItemId);
-          return {
-            inventoryId: inv.id,
-            shopItemId: inv.shopItemId,
-            acquiredAt: inv.acquiredAt,
-            name: shopItem?.name || "Unknown",
-            type: shopItem?.type || "item",
-            imageUrl: shopItem?.imageUrl || null,
-            worldId: shopItem?.worldId || "",
-            rarity: shopItem?.rarity || null,
-            hatchTime: shopItem?.hatchTime || null,
-            eggImageUrl: shopItem?.eggImageUrl || null,
-            hatchedImageUrl: shopItem?.hatchedImageUrl || null,
-            statBoostType: shopItem?.statBoostType || null,
-            statBoostAmount: shopItem?.statBoostAmount || null,
-            petTemplateId: shopItem?.petTemplateId || null,
-            petNickname: inv.petNickname || null,
-            hatchStartedAt: inv.hatchStartedAt,
-            isHatched: inv.isHatched,
-            petHealth: inv.petHealth,
-            petAtk: inv.petAtk,
-            petDef: inv.petDef,
-            petLevel: inv.petLevel,
-            itemsUsedThisLevel: inv.itemsUsedThisLevel,
-          };
-        })
-      );
+      const rows = await storage.getUserInventoryWithItems(user.id);
+      const itemsWithDetails = rows.map(({ inventory: inv, shopItem }) => ({
+        inventoryId: inv.id,
+        shopItemId: inv.shopItemId,
+        acquiredAt: inv.acquiredAt,
+        name: shopItem?.name || "Unknown",
+        type: shopItem?.type || "item",
+        imageUrl: shopItem?.imageUrl || null,
+        worldId: shopItem?.worldId || "",
+        rarity: shopItem?.rarity || null,
+        hatchTime: shopItem?.hatchTime || null,
+        eggImageUrl: shopItem?.eggImageUrl || null,
+        hatchedImageUrl: shopItem?.hatchedImageUrl || null,
+        statBoostType: shopItem?.statBoostType || null,
+        statBoostAmount: shopItem?.statBoostAmount || null,
+        petTemplateId: shopItem?.petTemplateId || null,
+        petNickname: inv.petNickname || null,
+        hatchStartedAt: inv.hatchStartedAt,
+        isHatched: inv.isHatched,
+        petHealth: inv.petHealth,
+        petAtk: inv.petAtk,
+        petDef: inv.petDef,
+        petLevel: inv.petLevel,
+        itemsUsedThisLevel: inv.itemsUsedThisLevel,
+      }));
       return res.json(itemsWithDetails);
     } catch (err) {
       console.error("Get inventory error:", err);

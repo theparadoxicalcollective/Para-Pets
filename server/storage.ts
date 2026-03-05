@@ -240,6 +240,15 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(userInventory).where(eq(userInventory.userId, userId));
   }
 
+  async getUserInventoryWithItems(userId: string): Promise<{ inventory: UserInventoryItem; shopItem: ShopItem | null }[]> {
+    const rows = await db
+      .select()
+      .from(userInventory)
+      .leftJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
+      .where(eq(userInventory.userId, userId));
+    return rows.map(r => ({ inventory: r.user_inventory, shopItem: r.shop_items }));
+  }
+
   async addToInventory(userId: string, shopItemId: string): Promise<UserInventoryItem> {
     const [item] = await db.insert(userInventory).values({ userId, shopItemId }).returning();
     return item;
