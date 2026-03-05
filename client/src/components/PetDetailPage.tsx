@@ -157,7 +157,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
               data-testid="img-pet-detail"
             >
               {pet.petTemplateId ? (
-                <PetAnimator petTemplateId={pet.petTemplateId} mode="idle" view="front" size={144} className="mx-auto" />
+                <PetAnimator petTemplateId={pet.petTemplateId} mode="idle" view="front" size={200} className="mx-auto" />
               ) : petImage ? (
                 <img src={petImage} alt={pet.name} className="w-full h-full object-contain" />
               ) : (
