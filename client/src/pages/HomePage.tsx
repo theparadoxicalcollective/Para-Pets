@@ -136,10 +136,10 @@ export default function HomePage({ user }: HomePageProps) {
       <div className="relative z-10 flex flex-col h-full" style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} hideHome />
 
-        <div className="flex-1 flex flex-col items-center justify-center px-2 py-0 overflow-hidden">
-          <div className="relative w-full">
+        <div className="flex-1 flex flex-col items-center justify-center px-2 py-0 min-h-0">
+          <div className="relative flex items-center justify-center" style={{ width: "min(100%, calc(100vh - 160px))", aspectRatio: "1/1" }}>
             <div
-              className="w-full aspect-square rounded-xl flex flex-col items-center justify-center"
+              className="w-full h-full rounded-xl flex flex-col items-center justify-center"
               style={{
                 background: "radial-gradient(ellipse at center, rgba(45,122,79,0.15) 0%, transparent 70%)",
                 border: activePet ? "none" : "1px dashed rgba(127,191,176,0.2)",
@@ -157,9 +157,9 @@ export default function HomePage({ user }: HomePageProps) {
                   <p className="font-fantasy text-[#7fbfb0] text-xs tracking-wider">Summoning companion...</p>
                 </div>
               ) : activePet ? (
-                <div className="relative w-full aspect-square animate-float" data-testid="display-active-pet">
+                <div className="relative w-full h-full animate-float" data-testid="display-active-pet">
                   <div
-                    className="w-full h-full rounded-xl flex items-center justify-center overflow-hidden"
+                    className="w-full h-full rounded-xl flex items-center justify-center"
                     style={{
                       background: "transparent",
                       animation: !activePet.isHatched ? "eggGlow 3s ease-in-out infinite" : undefined,
