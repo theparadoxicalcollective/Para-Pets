@@ -159,7 +159,7 @@ export default function HomePage({ user }: HomePageProps) {
               ) : activePet ? (
                 <div className="flex flex-col items-center gap-3 animate-float" data-testid="display-active-pet">
                   <div
-                    className="w-64 h-64 rounded-xl flex items-center justify-center overflow-hidden"
+                    className="w-full max-w-xs aspect-square rounded-xl flex items-center justify-center overflow-hidden"
                     style={{
                       background: "transparent",
                       border: "none",
@@ -169,7 +169,7 @@ export default function HomePage({ user }: HomePageProps) {
                   >
                     {activePet.isHatched ? (
                       activePet.petTemplateId ? (
-                        <PetAnimator petTemplateId={activePet.petTemplateId} mode="idle" view="front" size={256} />
+                        <PetAnimator petTemplateId={activePet.petTemplateId} mode="idle" view="front" size={320} />
                       ) : (activePet.hatchedImageUrl || activePet.imageUrl) ? (
                         <img src={activePet.hatchedImageUrl || activePet.imageUrl || ""} alt={activePet.name} className="w-full h-full object-contain" />
                       ) : (

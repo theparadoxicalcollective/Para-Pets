@@ -336,7 +336,7 @@ function PetView({
                 onClick={handleClick}
               >
                 {!isEgg && pet.petTemplateId ? (
-                  <PetAnimator petTemplateId={pet.petTemplateId} mode="idle" view="front" size={160} className="mx-auto" />
+                  <PetAnimator petTemplateId={pet.petTemplateId} mode="idle" view="front" size={200} className="w-full h-full" />
                 ) : displayImage ? (
                   <img src={displayImage} alt={pet.name} className="w-full h-full object-contain rounded-md" />
                 ) : (
