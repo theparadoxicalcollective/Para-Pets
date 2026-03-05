@@ -160,11 +160,9 @@ export default function HomePage({ user }: HomePageProps) {
                   <div
                     className="w-40 h-40 rounded-xl flex items-center justify-center overflow-hidden"
                     style={{
-                      background: activePet.isHatched && activePet.petTemplateId ? "transparent" : "radial-gradient(ellipse at center, rgba(45,122,79,0.3) 0%, rgba(10,40,20,0.5) 100%)",
-                      border: activePet.isHatched && activePet.petTemplateId ? "none" : activePet.isHatched ? "2px solid rgba(127,255,212,0.3)" : "2px solid rgba(240,192,64,0.3)",
-                      boxShadow: activePet.isHatched && activePet.petTemplateId ? "none" : activePet.isHatched
-                        ? "0 0 30px rgba(45,122,79,0.3), 0 8px 20px rgba(0,0,0,0.4)"
-                        : undefined,
+                      background: "transparent",
+                      border: "none",
+                      boxShadow: "none",
                       animation: !activePet.isHatched ? "eggGlow 3s ease-in-out infinite" : undefined,
                     }}
                   >
