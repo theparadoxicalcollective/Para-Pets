@@ -73,8 +73,8 @@ const ANIMATION_STYLES = `
   }
   @keyframes petIdleTail {
     0%, 100% { transform: rotate(0deg); }
-    25% { transform: rotate(3deg); }
-    75% { transform: rotate(-3deg); }
+    25% { transform: rotate(1deg); }
+    75% { transform: rotate(-1deg); }
   }
   @keyframes petIdleWings {
     0%, 100% { transform: rotateY(0deg) scaleX(1); }
@@ -126,8 +126,8 @@ const ANIMATION_STYLES = `
   }
   @keyframes petWalkTail {
     0%, 100% { transform: rotate(0deg); }
-    25% { transform: rotate(10deg); }
-    75% { transform: rotate(-10deg); }
+    25% { transform: rotate(3deg); }
+    75% { transform: rotate(-3deg); }
   }
   @keyframes petWalkWings {
     0%, 100% { transform: scaleX(1) translateY(0px); }
