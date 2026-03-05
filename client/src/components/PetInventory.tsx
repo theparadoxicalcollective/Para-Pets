@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import coinIconImg from "@assets/icon_coin.png";
 import bagIconImg from "@assets/icon_bag.png";
 import PetDetailPage from "./PetDetailPage";
+import PetAnimator from "./PetAnimator";
 
 interface InventoryItem {
   inventoryId: string;
@@ -18,6 +19,7 @@ interface InventoryItem {
   hatchTime: number | null;
   eggImageUrl: string | null;
   hatchedImageUrl: string | null;
+  petTemplateId: string | null;
   statBoostType: string | null;
   statBoostAmount: number | null;
   hatchStartedAt: string | null;
@@ -332,7 +334,9 @@ function PetView({
                 style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.15)" }}
                 onClick={handleClick}
               >
-                {displayImage ? (
+                {!isEgg && pet.petTemplateId ? (
+                  <PetAnimator petTemplateId={pet.petTemplateId} mode="idle" view="front" size={120} className="mx-auto" />
+                ) : displayImage ? (
                   <img src={displayImage} alt={pet.name} className="w-full h-full object-contain rounded-md" />
                 ) : (
                   <span className="text-4xl">{isEgg ? "🥚" : "🐾"}</span>

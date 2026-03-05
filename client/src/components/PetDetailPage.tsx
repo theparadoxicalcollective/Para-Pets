@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import coinIconImg from "@assets/icon_coin.png";
+import PetAnimator from "./PetAnimator";
 
 interface PetData {
   inventoryId: string;
@@ -11,6 +12,7 @@ interface PetData {
   imageUrl: string | null;
   eggImageUrl: string | null;
   hatchedImageUrl: string | null;
+  petTemplateId: string | null;
   rarity: number | null;
   petHealth: number;
   petAtk: number;
@@ -135,7 +137,9 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
               }}
               data-testid="img-pet-detail"
             >
-              {petImage ? (
+              {pet.petTemplateId ? (
+                <PetAnimator petTemplateId={pet.petTemplateId} mode="idle" view="front" size={144} className="mx-auto" />
+              ) : petImage ? (
                 <img src={petImage} alt={pet.name} className="w-full h-full object-contain" />
               ) : (
                 <span className="text-5xl">🐾</span>
