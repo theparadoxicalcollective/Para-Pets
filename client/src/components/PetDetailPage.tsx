@@ -178,9 +178,9 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
         </button>
 
         <div className="p-5">
-          <div className="flex flex-col items-center mb-4 relative">
+          <div className="flex flex-col items-center mb-2 relative">
             <div
-              className="w-36 h-36 rounded-xl flex items-center justify-center overflow-hidden mb-3"
+              className="w-36 h-36 rounded-xl flex items-center justify-center overflow-hidden mb-1"
               style={{
                 background: "radial-gradient(ellipse at center, rgba(45,122,79,0.25) 0%, rgba(10,40,20,0.5) 100%)",
                 border: "2px solid rgba(127,255,212,0.3)",
@@ -235,7 +235,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
             )}
 
             <h3
-              className="font-fantasy text-[#f0c040] text-lg tracking-widest font-semibold mt-2"
+              className="font-fantasy text-[#f0c040] text-lg tracking-widest font-semibold mt-1"
               style={{ textShadow: "0 0 10px rgba(240,192,64,0.3)" }}
               data-testid="text-pet-detail-name"
             >
@@ -299,32 +299,41 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
           </div>
 
           <div
-            className="rounded-lg p-4 mb-4"
+            className="rounded-lg p-4 mb-3"
             style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.2)" }}
           >
             <div className="flex items-center justify-between mb-1">
               <span className="font-fantasy text-[#a89878] text-xs tracking-wider">LEVEL</span>
               <span className="font-fantasy text-[#f0c040] text-lg font-bold" data-testid="text-pet-level">{pet.petLevel}</span>
             </div>
-            {pet.petLevel < 100 && (
-              <div className="mb-3">
-                <div className="flex items-center justify-between mb-0.5">
-                  <span className="font-fantasy text-[#6a5840] text-[9px] tracking-wider">NEXT LEVEL</span>
-                  <span className="font-fantasy text-[#a89878] text-[9px]" data-testid="text-level-points">
-                    {pet.petLevelPoints || 0} / {50 + (pet.petLevel * 10)} pts
-                  </span>
+            {pet.petLevel < 100 && (() => {
+              const needed = 50 + (pet.petLevel * 10);
+              const current = pet.petLevelPoints || 0;
+              const pct = Math.min(100, (current / needed) * 100);
+              return (
+                <div className="mb-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-fantasy text-[#a89878] text-[10px] tracking-wider">NEXT LEVEL</span>
+                    <span className="font-fantasy text-[#f0c040] text-[10px] font-bold" data-testid="text-level-points">
+                      {current} / {needed} pts
+                    </span>
+                  </div>
+                  <div className="w-full rounded-full overflow-hidden" style={{ background: "rgba(0,0,0,0.5)", height: "10px", border: "1px solid rgba(240,192,64,0.2)" }}>
+                    <div
+                      data-testid="bar-level-progress"
+                      style={{
+                        width: `${Math.max(pct > 0 ? 3 : 0, pct)}%`,
+                        background: "linear-gradient(90deg, #d4a017, #f0c040, #ffd700)",
+                        height: "100%",
+                        borderRadius: "4px",
+                        transition: "width 0.5s ease",
+                        boxShadow: pct > 0 ? "0 0 8px rgba(240,192,64,0.5), inset 0 1px 0 rgba(255,255,255,0.3)" : "none",
+                      }}
+                    />
+                  </div>
                 </div>
-                <div className="w-full h-1.5 rounded-full" style={{ background: "rgba(0,0,0,0.4)" }}>
-                  <div style={{
-                    width: `${Math.min(100, ((pet.petLevelPoints || 0) / (50 + (pet.petLevel * 10))) * 100)}%`,
-                    background: "linear-gradient(90deg, #f0c040, #f0c04088)",
-                    height: "6px",
-                    borderRadius: "4px",
-                    transition: "width 0.5s ease",
-                  }} />
-                </div>
-              </div>
-            )}
+              );
+            })()}
 
             <StatBar label="HP" value={pet.petHealth} displayValue={pet.petHealth.toLocaleString()} color="#4ade80" testId="bar-pet-health" />
             <StatBar label="ATK" value={pet.petAtk} displayValue={pet.petAtk.toLocaleString()} color="#f87171" testId="bar-pet-atk" />
@@ -480,21 +489,29 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                   Cancel
                 </button>
               </div>
+              {(() => {
+                const needed = 50 + (pet.petLevel * 10);
+                const current = pet.petLevelPoints || 0;
+                const pct = Math.min(100, (current / needed) * 100);
+                return (
               <div className="mb-3">
-                <div className="flex items-center justify-between mb-0.5">
-                  <span className="font-fantasy text-[#a89878] text-[9px] tracking-wider">PROGRESS TO NEXT LEVEL</span>
-                  <span className="font-fantasy text-[#f0c040] text-[9px]">{pet.petLevelPoints || 0} / {50 + (pet.petLevel * 10)} pts</span>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-fantasy text-[#a89878] text-[10px] tracking-wider">PROGRESS TO NEXT LEVEL</span>
+                  <span className="font-fantasy text-[#f0c040] text-[10px] font-bold">{current} / {needed} pts</span>
                 </div>
-                <div className="w-full h-2 rounded-full" style={{ background: "rgba(0,0,0,0.4)" }}>
+                <div className="w-full rounded-full overflow-hidden" style={{ background: "rgba(0,0,0,0.5)", height: "10px", border: "1px solid rgba(240,192,64,0.2)" }}>
                   <div style={{
-                    width: `${Math.min(100, ((pet.petLevelPoints || 0) / (50 + (pet.petLevel * 10))) * 100)}%`,
-                    background: "linear-gradient(90deg, #f0c040, #f0c04088)",
-                    height: "8px",
+                    width: `${Math.max(pct > 0 ? 3 : 0, pct)}%`,
+                    background: "linear-gradient(90deg, #d4a017, #f0c040, #ffd700)",
+                    height: "100%",
                     borderRadius: "4px",
                     transition: "width 0.5s ease",
+                    boxShadow: pct > 0 ? "0 0 8px rgba(240,192,64,0.5), inset 0 1px 0 rgba(255,255,255,0.3)" : "none",
                   }} />
                 </div>
               </div>
+                );
+              })()}
               {specialItems.filter(i => i.specialType === "level").length === 0 ? (
                 <p className="font-fantasy text-[#a89878] text-xs text-center py-4">
                   No LVL items in your bag
