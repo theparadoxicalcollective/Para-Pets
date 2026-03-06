@@ -28,6 +28,8 @@ const CANVAS_SIZE = 1000;
 
 const IDLE_ANIMATIONS: Record<string, string> = {
   head: "petIdleHead",
+  left_ear: "petIdleLeftEar",
+  right_ear: "petIdleRightEar",
   eyes: "petIdleEyes",
   eyes_closed: "petIdleEyesClosed",
   body: "petIdleBody",
@@ -43,6 +45,8 @@ const IDLE_ANIMATIONS: Record<string, string> = {
 
 const WALK_ANIMATIONS: Record<string, string> = {
   head: "petWalkHead",
+  left_ear: "petWalkLeftEar",
+  right_ear: "petWalkRightEar",
   eyes: "petWalkEyes",
   eyes_closed: "petWalkEyesClosed",
   body: "petWalkBody",
@@ -73,10 +77,22 @@ const ANIMATION_STYLES = `
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.01, 1.02); }
   }
-  @keyframes petIdleTail {
+  @keyframes petIdleLeftEar {
     0%, 100% { transform: rotate(0deg); }
-    25% { transform: rotate(1deg); }
-    75% { transform: rotate(-1deg); }
+    40% { transform: rotate(-2deg); }
+    70% { transform: rotate(1deg); }
+  }
+  @keyframes petIdleRightEar {
+    0%, 100% { transform: rotate(0deg); }
+    40% { transform: rotate(2deg); }
+    70% { transform: rotate(-1deg); }
+  }
+  @keyframes petIdleTail {
+    0%, 100% { transform: translateX(0px); }
+    20% { transform: translateX(2px); }
+    40% { transform: translateX(-1px); }
+    60% { transform: translateX(1.5px); }
+    80% { transform: translateX(-0.5px); }
   }
   @keyframes petIdleWings {
     0%, 100% { transform: rotateY(0deg) scaleX(1); }
@@ -126,10 +142,22 @@ const ANIMATION_STYLES = `
     25% { transform: translateY(-4px); }
     75% { transform: translateY(-4px); }
   }
-  @keyframes petWalkTail {
+  @keyframes petWalkLeftEar {
     0%, 100% { transform: rotate(0deg); }
-    25% { transform: rotate(3deg); }
+    25% { transform: rotate(-4deg); }
+    75% { transform: rotate(3deg); }
+  }
+  @keyframes petWalkRightEar {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(4deg); }
     75% { transform: rotate(-3deg); }
+  }
+  @keyframes petWalkTail {
+    0%, 100% { transform: translateX(0px); }
+    15% { transform: translateX(3px); }
+    35% { transform: translateX(-2px); }
+    55% { transform: translateX(2px); }
+    75% { transform: translateX(-1px); }
   }
   @keyframes petWalkWings {
     0%, 100% { transform: scaleX(1) translateY(0px); }
@@ -172,7 +200,8 @@ const ANIMATION_STYLES = `
 function getPartDuration(partType: string, mode: "idle" | "walk"): string {
   if (mode === "idle") {
     const durations: Record<string, string> = {
-      head: "3s", eyes: "4s", eyes_closed: "4s", body: "4s", tail: "2.5s", wings: "2s",
+      head: "3s", left_ear: "3.5s", right_ear: "3.5s", eyes: "4s", eyes_closed: "4s",
+      body: "4s", tail: "2.5s", wings: "2s",
       front_legs: "4s", back_legs: "4s", front_arms: "3.5s", back_arms: "3.5s",
       hands: "3.5s", feet: "4s",
     };

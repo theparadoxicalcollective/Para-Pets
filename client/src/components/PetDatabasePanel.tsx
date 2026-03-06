@@ -43,6 +43,8 @@ interface LinkedShopPet {
 
 const PART_TYPES = [
   { key: "head", label: "Head", defaultZ: 8, layer: "front" as const },
+  { key: "left_ear", label: "Left Ear", defaultZ: 7, layer: "back" as const },
+  { key: "right_ear", label: "Right Ear", defaultZ: 7, layer: "back" as const },
   { key: "eyes", label: "Eyes", defaultZ: 9, layer: "front" as const },
   { key: "eyes_closed", label: "Eyes (Closed)", defaultZ: 9, layer: "front" as const },
   { key: "body", label: "Body", defaultZ: 5, layer: "body" as const },
