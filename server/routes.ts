@@ -387,6 +387,7 @@ export async function registerRoutes(
         petAtk: inv.petAtk,
         petDef: inv.petDef,
         petLevel: inv.petLevel,
+        petLevelPoints: inv.petLevelPoints,
         itemsUsedThisLevel: inv.itemsUsedThisLevel,
       }));
       return res.json(itemsWithDetails);
@@ -546,9 +547,17 @@ export async function registerRoutes(
       } else if (boostType === "def") {
         updates.petDef = petInv.petDef + boostAmount;
       } else if (boostType === "lvl") {
-        const newLevel = Math.min(100, petInv.petLevel + 1);
-        updates.petLevel = newLevel;
+        const POINTS_PER_LEVEL = 10;
+        let totalPoints = (petInv.petLevelPoints || 0) + boostAmount;
+        let newLevel = petInv.petLevel;
+        while (totalPoints >= POINTS_PER_LEVEL && newLevel < 100) {
+          totalPoints -= POINTS_PER_LEVEL;
+          newLevel++;
+        }
+        if (newLevel >= 100) totalPoints = 0;
+        updates.petLevelPoints = totalPoints;
         if (newLevel > petInv.petLevel) {
+          updates.petLevel = newLevel;
           updates.itemsUsedThisLevel = 0;
         }
       }
@@ -609,8 +618,20 @@ export async function registerRoutes(
         if (petInv.petLevel >= 100) {
           return res.status(400).json({ message: "Pet is at max level" });
         }
-        const newLevel = Math.min(100, petInv.petLevel + specialAmount);
-        await storage.updateInventoryItem(petInv.id, { petLevel: newLevel, itemsUsedThisLevel: 0 });
+        const POINTS_PER_LEVEL = 10;
+        let totalPoints = (petInv.petLevelPoints || 0) + specialAmount;
+        let newLevel = petInv.petLevel;
+        while (totalPoints >= POINTS_PER_LEVEL && newLevel < 100) {
+          totalPoints -= POINTS_PER_LEVEL;
+          newLevel++;
+        }
+        if (newLevel >= 100) totalPoints = 0;
+        const updates: any = { petLevelPoints: totalPoints };
+        if (newLevel !== petInv.petLevel) {
+          updates.petLevel = newLevel;
+          updates.itemsUsedThisLevel = 0;
+        }
+        await storage.updateInventoryItem(petInv.id, updates);
       } else {
         return res.status(400).json({ message: "Unknown special type" });
       }
@@ -652,6 +673,7 @@ export async function registerRoutes(
         petAtk: 50,
         petDef: 50,
         petLevel: 0,
+        petLevelPoints: 0,
         itemsUsedThisLevel: 0,
       });
 

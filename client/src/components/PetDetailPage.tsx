@@ -18,6 +18,7 @@ interface PetData {
   petAtk: number;
   petDef: number;
   petLevel: number;
+  petLevelPoints: number;
   itemsUsedThisLevel: number;
   isHatched: boolean;
 }
@@ -119,7 +120,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
       const item = confirmItem;
       const label = item?.specialType === "hatch_time"
         ? `-${item.specialAmount || "?"} min hatch`
-        : `+${item?.specialAmount || "?"} LVL`;
+        : `+${item?.specialAmount || "?"} LVL pts`;
       setSuccessBoostLabel(label);
       setShowSuccessAnim(true);
       setConfirmItem(null);
@@ -299,10 +300,29 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
             className="rounded-lg p-4 mb-4"
             style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.2)" }}
           >
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-1">
               <span className="font-fantasy text-[#a89878] text-xs tracking-wider">LEVEL</span>
               <span className="font-fantasy text-[#f0c040] text-lg font-bold" data-testid="text-pet-level">{pet.petLevel}</span>
             </div>
+            {pet.petLevel < 100 && (
+              <div className="mb-3">
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className="font-fantasy text-[#6a5840] text-[9px] tracking-wider">NEXT LEVEL</span>
+                  <span className="font-fantasy text-[#a89878] text-[9px]" data-testid="text-level-points">
+                    {pet.petLevelPoints || 0} / 10 pts
+                  </span>
+                </div>
+                <div className="w-full h-1.5 rounded-full" style={{ background: "rgba(0,0,0,0.4)" }}>
+                  <div style={{
+                    width: `${Math.min(100, ((pet.petLevelPoints || 0) / 10) * 100)}%`,
+                    background: "linear-gradient(90deg, #f0c040, #f0c04088)",
+                    height: "6px",
+                    borderRadius: "4px",
+                    transition: "width 0.5s ease",
+                  }} />
+                </div>
+              </div>
+            )}
 
             <StatBar label="HP" value={pet.petHealth} displayValue={pet.petHealth.toLocaleString()} color="#4ade80" testId="bar-pet-health" />
             <StatBar label="ATK" value={pet.petAtk} displayValue={pet.petAtk.toLocaleString()} color="#f87171" testId="bar-pet-atk" />
@@ -456,7 +476,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                                 color: "#f0c040",
                               }}
                             >
-                              {item.specialType === "hatch_time" ? `-${item.specialAmount || "?"}min hatch` : `+${item.specialAmount || "?"} LVL`}
+                              {item.specialType === "hatch_time" ? `-${item.specialAmount || "?"}min hatch` : `+${item.specialAmount || "?"} LVL pts`}
                             </span>
                           </button>
                         ))}
@@ -473,7 +493,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
           const isSpecial = confirmItem.type === "special";
           const isPending = isSpecial ? useSpecialMutation.isPending : powerUpMutation.isPending;
           const effectLabel = isSpecial
-            ? (confirmItem.specialType === "hatch_time" ? `-${confirmItem.specialAmount || "?"}min hatch time` : `+${confirmItem.specialAmount || "?"} LVL`)
+            ? (confirmItem.specialType === "hatch_time" ? `-${confirmItem.specialAmount || "?"}min hatch time` : `+${confirmItem.specialAmount || "?"} LVL pts`)
             : `+${confirmItem.statBoostAmount || "?"} ${confirmItem.statBoostType === "health" ? "HP" : confirmItem.statBoostType === "atk" ? "ATK" : confirmItem.statBoostType === "def" ? "DEF" : "LVL"}`;
           const effectColor = isSpecial ? "#f0c040" : (confirmItem.statBoostType === "health" ? "#4ade80" : confirmItem.statBoostType === "atk" ? "#f87171" : confirmItem.statBoostType === "def" ? "#60a5fa" : "#c084fc");
           const effectBg = isSpecial ? "rgba(240,192,64,0.2)" : (confirmItem.statBoostType === "health" ? "rgba(74,222,128,0.2)" : confirmItem.statBoostType === "atk" ? "rgba(248,113,113,0.2)" : confirmItem.statBoostType === "def" ? "rgba(96,165,250,0.2)" : "rgba(192,132,252,0.2)");

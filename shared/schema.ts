@@ -57,6 +57,7 @@ export const userInventory = pgTable("user_inventory", {
   petAtk: integer("pet_atk").notNull().default(50),
   petDef: integer("pet_def").notNull().default(50),
   petLevel: integer("pet_level").notNull().default(0),
+  petLevelPoints: integer("pet_level_points").notNull().default(0),
   itemsUsedThisLevel: integer("items_used_this_level").notNull().default(0),
   petNickname: text("pet_nickname"),
 });
