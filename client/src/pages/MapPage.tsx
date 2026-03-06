@@ -5,11 +5,11 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import worldFrostpeak from "@assets/world_frostpeak_v2.png";
 import worldSkyRealm from "@assets/world_sky_realm_v3.png";
-import worldVolcanic from "@assets/world_volcanic_v2.png";
+import worldVolcanic from "@assets/world_volcanic_v3.png";
 import worldLostIsland from "@assets/world_lost_island.png";
-import worldDesert from "@assets/world_desert_v2.png";
+import worldDesert from "@assets/world_desert_v3.png";
 import worldEnchantedGrove from "@assets/world_enchanted_grove_v2.png";
-import worldHauntedWoods from "@assets/world_haunted_woods_v2.png";
+import worldHauntedWoods from "@assets/world_haunted_woods_v3.png";
 import worldSwamp from "@assets/world_swamp_v3.png";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
@@ -358,7 +358,7 @@ export default function MapPage({ user }: MapPageProps) {
             }}
             data-testid="text-map-title"
           >
-            World Map
+            Symora
           </h2>
 
           {isLoading ? (
