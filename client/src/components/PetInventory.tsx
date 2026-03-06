@@ -89,7 +89,7 @@ export default function PetInventory({ user, onClose, onUserUpdate }: PetInvento
       <div className="fixed inset-0 z-40 flex flex-col" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
         <div className="absolute inset-0 bg-black/85 backdrop-blur-sm" onClick={onClose} />
         <div className="relative z-10 flex flex-col h-full overflow-hidden">
-          <div className="flex items-center justify-between px-4 pt-5 pb-3">
+          <div className="flex items-center justify-between px-4 pt-10 pb-3">
             <div className="flex items-center gap-3">
               <div
                 className="w-10 h-10 rounded-lg flex items-center justify-center"
