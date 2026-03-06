@@ -429,10 +429,6 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Item not found" });
       }
 
-      if (shopItem.worldId !== req.params.worldId) {
-        return res.status(400).json({ message: "Item does not belong to this world" });
-      }
-
       if (shopItem.type === "pet") {
         const existing = await storage.getInventoryItem(user.id, itemId);
         if (existing) {

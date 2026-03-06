@@ -875,28 +875,30 @@ export default function WorldPage({ user }: WorldPageProps) {
                 )}
               </div>
 
-              <div>
-                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>Background (PNG/GIF/JPEG)</label>
-                <input
-                  data-testid="input-location-bg"
-                  type="file"
-                  accept="image/png,image/gif,image/jpeg"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      const dataUrl = await readFileAsDataUrl(file);
-                      setNewLocBg(dataUrl);
-                    }
-                  }}
-                  className="w-full text-xs font-fantasy"
-                  style={{ color: `${accent}cc` }}
-                />
-                {newLocBg && (
-                  <div className="mt-2 flex justify-center">
-                    <img src={newLocBg} alt="Preview" className="w-full h-20 object-cover rounded-lg" style={{ border: `1px solid ${accent}30` }} />
-                  </div>
-                )}
-              </div>
+              {newLocType !== "shop" && (
+                <div>
+                  <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>Background (PNG/GIF/JPEG)</label>
+                  <input
+                    data-testid="input-location-bg"
+                    type="file"
+                    accept="image/png,image/gif,image/jpeg"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const dataUrl = await readFileAsDataUrl(file);
+                        setNewLocBg(dataUrl);
+                      }
+                    }}
+                    className="w-full text-xs font-fantasy"
+                    style={{ color: `${accent}cc` }}
+                  />
+                  {newLocBg && (
+                    <div className="mt-2 flex justify-center">
+                      <img src={newLocBg} alt="Preview" className="w-full h-20 object-cover rounded-lg" style={{ border: `1px solid ${accent}30` }} />
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div>
                 <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>Description (optional)</label>
@@ -1046,28 +1048,30 @@ export default function WorldPage({ user }: WorldPageProps) {
                 )}
               </div>
 
-              <div>
-                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>Replace Background</label>
-                <input
-                  data-testid="input-edit-location-bg"
-                  type="file"
-                  accept="image/png,image/gif,image/jpeg"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      const dataUrl = await readFileAsDataUrl(file);
-                      setEditLocBg(dataUrl);
-                    }
-                  }}
-                  className="w-full text-xs font-fantasy"
-                  style={{ color: `${accent}cc` }}
-                />
-                {editLocBg && (
-                  <div className="mt-2 flex justify-center">
-                    <img src={editLocBg} alt="Preview" className="w-full h-16 object-cover rounded-lg" style={{ border: `1px solid ${accent}30` }} />
-                  </div>
-                )}
-              </div>
+              {editLocType !== "shop" && (
+                <div>
+                  <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>Replace Background</label>
+                  <input
+                    data-testid="input-edit-location-bg"
+                    type="file"
+                    accept="image/png,image/gif,image/jpeg"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const dataUrl = await readFileAsDataUrl(file);
+                        setEditLocBg(dataUrl);
+                      }
+                    }}
+                    className="w-full text-xs font-fantasy"
+                    style={{ color: `${accent}cc` }}
+                  />
+                  {editLocBg && (
+                    <div className="mt-2 flex justify-center">
+                      <img src={editLocBg} alt="Preview" className="w-full h-16 object-cover rounded-lg" style={{ border: `1px solid ${accent}30` }} />
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div>
                 <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>Replace Owner Character</label>
