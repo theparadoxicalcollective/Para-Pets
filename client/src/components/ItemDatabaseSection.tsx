@@ -49,7 +49,6 @@ const ITEM_TYPES = ["pet", "item", "accessory", "potion"];
 export default function ItemDatabaseSection() {
   const [editingItem, setEditingItem] = useState<ShopItemFull | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [filterWorld, setFilterWorld] = useState<string>("all");
   const [filterType, setFilterType] = useState<string>("all");
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -73,12 +72,9 @@ export default function ItemDatabaseSection() {
   });
 
   const filtered = allItems.filter(item => {
-    if (filterWorld !== "all" && item.worldId !== filterWorld) return false;
     if (filterType !== "all" && item.type !== filterType) return false;
     return true;
   });
-
-  const worldName = (id: string) => WORLD_OPTIONS.find(w => w.id === id)?.name || id;
 
   return (
     <div className="space-y-3">
@@ -97,18 +93,6 @@ export default function ItemDatabaseSection() {
       </button>
 
       <div className="flex gap-2">
-        <select
-          data-testid="select-filter-world"
-          value={filterWorld}
-          onChange={(e) => setFilterWorld(e.target.value)}
-          className="flex-1 px-2 py-1.5 rounded-md font-fantasy text-[10px] outline-none"
-          style={{ background: "rgba(242,232,208,0.9)", border: "1px solid #8b5e3c", color: "#2a1a0a" }}
-        >
-          <option value="all">All Worlds</option>
-          {WORLD_OPTIONS.map(w => (
-            <option key={w.id} value={w.id}>{w.name}</option>
-          ))}
-        </select>
         <select
           data-testid="select-filter-type"
           value={filterType}
@@ -175,7 +159,6 @@ export default function ItemDatabaseSection() {
                       >
                         {item.type}
                       </span>
-                      <span className="font-fantasy text-[#6a5840] text-[8px]">{worldName(item.worldId)}</span>
                       <span className="font-fantasy text-[#f0c040] text-[8px]">{item.price} coins</span>
                     </div>
                     {item.type === "item" && item.statBoostType && (
@@ -246,7 +229,6 @@ function AdminItemForm({ item, onClose, onSuccess }: { item: ShopItemFull | null
   const [name, setName] = useState(item?.name || "");
   const [price, setPrice] = useState(item?.price?.toString() || "");
   const [type, setType] = useState(item?.type || "item");
-  const [worldId, setWorldId] = useState(item?.worldId || WORLD_OPTIONS[0].id);
   const [rarity, setRarity] = useState(item?.rarity?.toString() || "1");
   const [hatchTime, setHatchTime] = useState(item?.hatchTime?.toString() || "1");
   const [specialSkill, setSpecialSkill] = useState(item?.specialSkill || "");
@@ -285,7 +267,7 @@ function AdminItemForm({ item, onClose, onSuccess }: { item: ShopItemFull | null
 
     setSubmitting(true);
     try {
-      const payload: any = { name: name.trim(), price: priceNum, type, worldId };
+      const payload: any = { name: name.trim(), price: priceNum, type, worldId: "all" };
       if (imageData) payload.imageData = imageData;
 
       if (type === "pet") {
@@ -396,15 +378,6 @@ function AdminItemForm({ item, onClose, onSuccess }: { item: ShopItemFull | null
             <select data-testid="select-item-type" value={type} onChange={(e) => setType(e.target.value)} className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle}>
               {ITEM_TYPES.map((t) => (
                 <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">World</label>
-            <select data-testid="select-item-world" value={worldId} onChange={(e) => setWorldId(e.target.value)} className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle}>
-              {WORLD_OPTIONS.map((w) => (
-                <option key={w.id} value={w.id}>{w.name}</option>
               ))}
             </select>
           </div>
