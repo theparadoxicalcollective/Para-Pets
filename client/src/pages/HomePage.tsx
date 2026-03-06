@@ -322,8 +322,31 @@ export default function HomePage({ user }: HomePageProps) {
             </div>
 
             {activePet.isHatched ? (
-              <div className="w-48">
-                <HomePetBar label="LV" value={activePet.petLevel} max={100} color="#c084fc" />
+              <div className="w-52 mb-2">
+                {(() => {
+                  const needed = 50 + (activePet.petLevel * 10);
+                  const current = activePet.petLevelPoints || 0;
+                  const pct = Math.min(100, (current / needed) * 100);
+                  return (
+                    <div className="flex items-center gap-2 w-full">
+                      <span className="font-fantasy text-[#f0c040] text-[10px] tracking-wider font-bold whitespace-nowrap" data-testid="text-home-pet-level">LV {activePet.petLevel}</span>
+                      <div className="flex-1 rounded-full overflow-hidden" style={{ background: "rgba(0,0,0,0.5)", height: "8px", border: "1px solid rgba(240,192,64,0.25)" }}>
+                        <div
+                          data-testid="bar-home-level-progress"
+                          style={{
+                            width: `${Math.max(pct > 0 ? 3 : 0, pct)}%`,
+                            background: "linear-gradient(90deg, #d4a017, #f0c040, #ffd700)",
+                            height: "100%",
+                            borderRadius: "4px",
+                            transition: "width 0.5s ease",
+                            boxShadow: pct > 0 ? "0 0 6px rgba(240,192,64,0.4), inset 0 1px 0 rgba(255,255,255,0.3)" : "none",
+                          }}
+                        />
+                      </div>
+                      <span className="font-fantasy text-[#a89878] text-[8px] whitespace-nowrap">{current}/{needed}</span>
+                    </div>
+                  );
+                })()}
               </div>
             ) : activePet.hatchStartedAt && activePet.hatchTime ? (
               <div className="w-48">
