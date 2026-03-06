@@ -140,8 +140,16 @@ export async function registerRoutes(
         password: hashedPassword,
         profileImage: profileImagePath,
         isAdmin: shouldBeAdmin,
-        coins: 100,
+        coins: 0,
       });
+
+      try {
+        const welcomeBundle = await storage.createRewardBundle("Welcome to the Realm!", 100);
+        await storage.createUserReward(user.id, welcomeBundle.id);
+      } catch (rewardErr) {
+        console.error("Failed to create welcome reward, giving coins directly:", rewardErr);
+        await storage.addCoins(user.id, 100);
+      }
 
       req.login(user, (err) => {
         if (err) return res.status(500).json({ message: "Login failed after registration" });
@@ -160,12 +168,7 @@ export async function registerRoutes(
       if (!user) return res.status(401).json({ message: info?.message || "Invalid credentials" });
       req.login(user, (loginErr) => {
         if (loginErr) return next(loginErr);
-        if (req.body.rememberMe) {
-          req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000;
-        } else {
-          (req.session.cookie as any).maxAge = undefined;
-          req.session.cookie.expires = false as any;
-        }
+        req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000;
         const { password: _, ...safeUser } = user;
         return res.json(safeUser);
       });

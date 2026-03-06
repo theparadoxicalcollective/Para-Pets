@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import homeIconImg from "@assets/icon_home_new.png";
@@ -24,10 +24,18 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideHome }:
 
   const { data: pendingRewards = [] } = useQuery<any[]>({
     queryKey: ["/api/rewards/pending"],
-    refetchInterval: 30000,
+    refetchInterval: 10000,
   });
 
   const hasRewards = pendingRewards.length > 0;
+  const prevRewardCount = useRef(0);
+
+  useEffect(() => {
+    if (pendingRewards.length > 0 && prevRewardCount.current === 0) {
+      setShowRewards(true);
+    }
+    prevRewardCount.current = pendingRewards.length;
+  }, [pendingRewards.length]);
 
   return (
     <>
