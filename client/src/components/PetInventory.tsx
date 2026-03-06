@@ -169,6 +169,26 @@ export default function PetInventory({ user, onClose, onUserUpdate }: PetInvento
         </div>
       </div>
 
+      <style>{`
+        @keyframes hatchOrbBurst {
+          0% { transform: translate(0, 0) scale(0.3); opacity: 0; }
+          15% { opacity: 1; transform: translate(0, 0) scale(1); }
+          100% { transform: translate(var(--endX), var(--endY)) scale(0); opacity: 0; }
+        }
+        @keyframes hatchOrbCenter {
+          0% { transform: scale(0); opacity: 0; }
+          20% { transform: scale(1.8); opacity: 1; }
+          50% { transform: scale(1); opacity: 0.8; }
+          100% { transform: scale(2.5); opacity: 0; }
+        }
+        @keyframes hatchTextRise {
+          0% { transform: translateY(8px) scale(0.8); opacity: 0; }
+          30% { transform: translateY(0px) scale(1.1); opacity: 1; }
+          70% { transform: translateY(-4px) scale(1); opacity: 1; }
+          100% { transform: translateY(-12px) scale(0.9); opacity: 0; }
+        }
+      `}</style>
+
       {selectedPet && (
         <PetDetailPage
           pet={selectedPet}
@@ -264,6 +284,7 @@ function PetView({
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [hatchingId, setHatchingId] = useState<string | null>(null);
 
   const hatchCheckMutation = useMutation({
     mutationFn: async (inventoryId: string) => {
@@ -272,8 +293,12 @@ function PetView({
     },
     onSuccess: (data: any, inventoryId: string) => {
       if (data.isHatched) {
-        queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-        toast({ title: "🎉 Hatched!", description: "Your pet has emerged from its egg!" });
+        setHatchingId(inventoryId);
+        setTimeout(() => {
+          setHatchingId(null);
+          queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+          toast({ title: "🎉 Hatched!", description: "Your pet has emerged from its egg!" });
+        }, 2200);
       }
     },
   });
@@ -347,13 +372,64 @@ function PetView({
                     <span className="font-fantasy text-[7px] text-[#f0c040] tracking-wider">EGG</span>
                   </div>
                 )}
-                {hatchReady && (
+                {hatchReady && hatchingId !== pet.inventoryId && (
                   <div
                     className="absolute inset-0 rounded-md flex items-center justify-center animate-pulse"
                     style={{ background: "rgba(74,222,128,0.15)", border: "2px solid rgba(74,222,128,0.4)" }}
                   >
                     <span className="font-fantasy text-[#4ade80] text-xs tracking-wider font-bold" style={{ textShadow: "0 0 8px rgba(74,222,128,0.6)" }}>
                       READY!
+                    </span>
+                  </div>
+                )}
+                {hatchingId === pet.inventoryId && (
+                  <div className="absolute inset-0 rounded-md flex items-center justify-center pointer-events-none z-20 overflow-hidden">
+                    {[...Array(10)].map((_, i) => {
+                      const angle = (i / 10) * 360;
+                      const rad = (angle * Math.PI) / 180;
+                      const endX = Math.cos(rad) * 50;
+                      const endY = Math.sin(rad) * 50;
+                      const size = 6 + Math.random() * 6;
+                      const delay = i * 0.04;
+                      return (
+                        <div
+                          key={i}
+                          style={{
+                            position: "absolute",
+                            width: `${size}px`,
+                            height: `${size}px`,
+                            borderRadius: "50%",
+                            background: "radial-gradient(circle, #ffe566 0%, #f0c040 40%, rgba(240,192,64,0) 70%)",
+                            boxShadow: "0 0 10px rgba(240,192,64,0.8), 0 0 20px rgba(240,192,64,0.4)",
+                            animation: `hatchOrbBurst 1.4s ${delay}s ease-out forwards`,
+                            opacity: 0,
+                            ["--endX" as any]: `${endX}px`,
+                            ["--endY" as any]: `${endY}px`,
+                          }}
+                        />
+                      );
+                    })}
+                    <div
+                      style={{
+                        position: "absolute",
+                        width: "20px",
+                        height: "20px",
+                        borderRadius: "50%",
+                        background: "radial-gradient(circle, rgba(255,248,192,0.9) 0%, rgba(240,192,64,0.5) 40%, rgba(240,192,64,0) 70%)",
+                        boxShadow: "0 0 25px rgba(240,192,64,0.8), 0 0 50px rgba(240,192,64,0.3)",
+                        animation: "hatchOrbCenter 1.8s ease-out forwards",
+                      }}
+                    />
+                    <span
+                      className="font-fantasy text-sm font-bold tracking-widest absolute"
+                      style={{
+                        color: "#f0c040",
+                        textShadow: "0 0 12px rgba(240,192,64,0.8), 0 0 24px rgba(240,192,64,0.4)",
+                        animation: "hatchTextRise 2s 0.3s ease-out forwards",
+                        opacity: 0,
+                      }}
+                    >
+                      HATCHED!
                     </span>
                   </div>
                 )}

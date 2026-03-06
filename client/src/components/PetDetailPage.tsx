@@ -167,78 +167,27 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                 className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none"
                 style={{ animation: "powerUpFlash 2s ease-out forwards" }}
               >
-                {[...Array(8)].map((_, i) => {
-                  const angle = (i / 8) * 360;
-                  const rad = (angle * Math.PI) / 180;
-                  const endX = Math.cos(rad) * 60;
-                  const endY = Math.sin(rad) * 60;
-                  const size = 8 + Math.random() * 8;
-                  const delay = i * 0.05;
-                  return (
-                    <div
-                      key={i}
-                      style={{
-                        position: "absolute",
-                        width: `${size}px`,
-                        height: `${size}px`,
-                        borderRadius: "50%",
-                        background: "radial-gradient(circle, #ffe566 0%, #f0c040 40%, rgba(240,192,64,0) 70%)",
-                        boxShadow: "0 0 12px rgba(240,192,64,0.8), 0 0 24px rgba(240,192,64,0.4)",
-                        animation: `orbBurst 1.2s ${delay}s ease-out forwards`,
-                        opacity: 0,
-                        ["--endX" as any]: `${endX}px`,
-                        ["--endY" as any]: `${endY}px`,
-                      }}
-                    />
-                  );
-                })}
-                {[...Array(5)].map((_, i) => {
-                  const delay = 0.1 + i * 0.08;
-                  const size = 5 + Math.random() * 6;
-                  const angle = Math.random() * 360;
-                  const rad = (angle * Math.PI) / 180;
-                  const endX = Math.cos(rad) * (30 + Math.random() * 40);
-                  const endY = Math.sin(rad) * (30 + Math.random() * 40);
-                  return (
-                    <div
-                      key={`s${i}`}
-                      style={{
-                        position: "absolute",
-                        width: `${size}px`,
-                        height: `${size}px`,
-                        borderRadius: "50%",
-                        background: "radial-gradient(circle, #fff8c0 0%, #f0c040 50%, rgba(240,192,64,0) 80%)",
-                        boxShadow: "0 0 8px rgba(255,248,192,0.6)",
-                        animation: `orbBurst 1s ${delay}s ease-out forwards`,
-                        opacity: 0,
-                        ["--endX" as any]: `${endX}px`,
-                        ["--endY" as any]: `${endY}px`,
-                      }}
-                    />
-                  );
-                })}
                 <div
-                  className="absolute"
-                  style={{
-                    width: "30px",
-                    height: "30px",
-                    borderRadius: "50%",
-                    background: "radial-gradient(circle, rgba(255,248,192,0.9) 0%, rgba(240,192,64,0.6) 30%, rgba(240,192,64,0) 70%)",
-                    boxShadow: "0 0 30px rgba(240,192,64,0.8), 0 0 60px rgba(240,192,64,0.3)",
-                    animation: "orbCenter 1.5s ease-out forwards",
-                  }}
-                />
-                <span
-                  className="font-fantasy text-lg font-bold tracking-wider absolute"
-                  style={{
-                    color: "#f0c040",
-                    textShadow: "0 0 15px rgba(240,192,64,0.8), 0 0 30px rgba(240,192,64,0.4)",
-                    animation: "powerUpRise 2s ease-out forwards",
-                  }}
-                  data-testid="text-power-up-success"
+                  className="flex flex-col items-center"
+                  style={{ animation: "powerUpRise 2s ease-out forwards" }}
                 >
-                  {successBoostLabel}
-                </span>
+                  <div
+                    className="text-4xl mb-1"
+                    style={{ animation: "powerUpSpin 0.6s ease-out", filter: "drop-shadow(0 0 20px rgba(127,255,212,0.8))" }}
+                  >
+                    ⚡
+                  </div>
+                  <span
+                    className="font-fantasy text-lg font-bold tracking-wider"
+                    style={{
+                      color: "#7fffd4",
+                      textShadow: "0 0 20px rgba(127,255,212,0.8), 0 0 40px rgba(127,255,212,0.4)",
+                    }}
+                    data-testid="text-power-up-success"
+                  >
+                    {successBoostLabel}
+                  </span>
+                </div>
               </div>
             )}
 
@@ -571,21 +520,15 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
           100% { opacity: 0; }
         }
         @keyframes powerUpRise {
-          0% { transform: translateY(10px) scale(0.8); opacity: 0; }
-          20% { transform: translateY(0px) scale(1.15); opacity: 1; }
-          50% { transform: translateY(-8px) scale(1); opacity: 1; }
-          100% { transform: translateY(-25px) scale(0.9); opacity: 0; }
+          0% { transform: translateY(20px) scale(0.8); opacity: 0; }
+          20% { transform: translateY(0px) scale(1.2); opacity: 1; }
+          50% { transform: translateY(-10px) scale(1); opacity: 1; }
+          100% { transform: translateY(-30px) scale(0.9); opacity: 0; }
         }
-        @keyframes orbBurst {
-          0% { transform: translate(0, 0) scale(0.3); opacity: 0; }
-          15% { opacity: 1; transform: translate(0, 0) scale(1); }
-          100% { transform: translate(var(--endX), var(--endY)) scale(0); opacity: 0; }
-        }
-        @keyframes orbCenter {
-          0% { transform: scale(0); opacity: 0; }
-          20% { transform: scale(1.8); opacity: 1; }
-          50% { transform: scale(1); opacity: 0.8; }
-          100% { transform: scale(2.5); opacity: 0; }
+        @keyframes powerUpSpin {
+          0% { transform: rotate(0deg) scale(0.5); }
+          50% { transform: rotate(180deg) scale(1.3); }
+          100% { transform: rotate(360deg) scale(1); }
         }
       `}</style>
     </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import bgImg from "@assets/bg_home_v2.png";
 import questIcon from "@assets/icon_quest_v5.png";
 import mapIcon from "@assets/icon_map_new.png";
@@ -53,7 +54,25 @@ export default function HomePage({ user }: HomePageProps) {
   const [scrollOpen, setScrollOpen] = useState(false);
   const [showPetInventory, setShowPetInventory] = useState(false);
   const [showPvpNotice, setShowPvpNotice] = useState(false);
+  const [hatchRevealing, setHatchRevealing] = useState(false);
   const [, navigate] = useLocation();
+  const queryClient = useQueryClient();
+
+  const hatchHomeMutation = useMutation({
+    mutationFn: async (inventoryId: string) => {
+      const res = await apiRequest("POST", `/api/pet/${inventoryId}/hatch-check`);
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      if (data.isHatched) {
+        setHatchRevealing(true);
+        setTimeout(() => {
+          setHatchRevealing(false);
+          queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+        }, 3500);
+      }
+    },
+  });
 
   const { data: inventory = [], isLoading: inventoryLoading } = useQuery<InventoryItem[]>({
     queryKey: ["/api/inventory"],
@@ -186,15 +205,38 @@ export default function HomePage({ user }: HomePageProps) {
                       ) : (
                         <span className="text-5xl">🐾</span>
                       )
-                    ) : (
-                      <div style={{ animation: "eggWobble 2.5s ease-in-out infinite" }} className="w-full flex items-center justify-center">
-                        {activePet.eggImageUrl ? (
-                          <img src={activePet.eggImageUrl} alt={activePet.name} className="w-full max-h-[50vh] object-contain" />
-                        ) : (
-                          <span className="text-5xl">🥚</span>
-                        )}
-                      </div>
-                    )}
+                    ) : (() => {
+                      const eggHatchReady = activePet.hatchStartedAt && activePet.hatchTime
+                        ? (Date.now() - new Date(activePet.hatchStartedAt).getTime()) >= activePet.hatchTime * 3600000
+                        : false;
+                      return (
+                        <div
+                          style={{ animation: "eggWobble 2.5s ease-in-out infinite", cursor: eggHatchReady ? "pointer" : "default" }}
+                          className="w-full flex items-center justify-center"
+                          onClick={() => {
+                            if (eggHatchReady && !hatchHomeMutation.isPending) {
+                              hatchHomeMutation.mutate(activePet.inventoryId);
+                            }
+                          }}
+                        >
+                          {activePet.eggImageUrl ? (
+                            <img src={activePet.eggImageUrl} alt={activePet.name} className="w-full max-h-[50vh] object-contain" />
+                          ) : (
+                            <span className="text-5xl">🥚</span>
+                          )}
+                          {eggHatchReady && !hatchRevealing && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <span
+                                className="font-fantasy text-[#4ade80] text-lg tracking-widest font-bold animate-pulse"
+                                style={{ textShadow: "0 0 12px rgba(74,222,128,0.6), 0 0 24px rgba(74,222,128,0.3)" }}
+                              >
+                                TAP TO HATCH!
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               ) : (
@@ -561,6 +603,119 @@ export default function HomePage({ user }: HomePageProps) {
           }}
         />
       )}
+
+      {hatchRevealing && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+          <div
+            className="absolute inset-0"
+            style={{ animation: "hatchFlashBg 3.5s ease-out forwards" }}
+          />
+          {[...Array(14)].map((_, i) => {
+            const angle = (i / 14) * 360;
+            const rad = (angle * Math.PI) / 180;
+            const dist = 100 + Math.random() * 80;
+            const endX = Math.cos(rad) * dist;
+            const endY = Math.sin(rad) * dist;
+            const size = 10 + Math.random() * 14;
+            const delay = i * 0.04;
+            return (
+              <div
+                key={i}
+                style={{
+                  position: "absolute",
+                  width: `${size}px`,
+                  height: `${size}px`,
+                  borderRadius: "50%",
+                  background: "radial-gradient(circle, #ffe566 0%, #f0c040 40%, rgba(240,192,64,0) 70%)",
+                  boxShadow: "0 0 16px rgba(240,192,64,0.9), 0 0 32px rgba(240,192,64,0.5)",
+                  animation: `hatchOrbDramatic 2s ${delay}s ease-out forwards`,
+                  opacity: 0,
+                  ["--endX" as any]: `${endX}px`,
+                  ["--endY" as any]: `${endY}px`,
+                }}
+              />
+            );
+          })}
+          {[...Array(8)].map((_, i) => {
+            const delay = 0.2 + i * 0.06;
+            const size = 6 + Math.random() * 8;
+            const angle = Math.random() * 360;
+            const rad = (angle * Math.PI) / 180;
+            const dist = 50 + Math.random() * 60;
+            const endX = Math.cos(rad) * dist;
+            const endY = Math.sin(rad) * dist;
+            return (
+              <div
+                key={`x${i}`}
+                style={{
+                  position: "absolute",
+                  width: `${size}px`,
+                  height: `${size}px`,
+                  borderRadius: "50%",
+                  background: "radial-gradient(circle, #fff8c0 0%, #f0c040 50%, rgba(240,192,64,0) 80%)",
+                  boxShadow: "0 0 10px rgba(255,248,192,0.7)",
+                  animation: `hatchOrbDramatic 1.6s ${delay}s ease-out forwards`,
+                  opacity: 0,
+                  ["--endX" as any]: `${endX}px`,
+                  ["--endY" as any]: `${endY}px`,
+                }}
+              />
+            );
+          })}
+          <div
+            style={{
+              position: "absolute",
+              width: "50px",
+              height: "50px",
+              borderRadius: "50%",
+              background: "radial-gradient(circle, rgba(255,248,192,1) 0%, rgba(240,192,64,0.7) 30%, rgba(240,192,64,0) 70%)",
+              boxShadow: "0 0 50px rgba(240,192,64,0.9), 0 0 100px rgba(240,192,64,0.4), 0 0 150px rgba(240,192,64,0.2)",
+              animation: "hatchCenterDramatic 2.5s ease-out forwards",
+            }}
+          />
+          <span
+            className="font-fantasy text-2xl font-bold tracking-[0.2em] absolute"
+            style={{
+              color: "#f0c040",
+              textShadow: "0 0 20px rgba(240,192,64,0.9), 0 0 40px rgba(240,192,64,0.5), 0 2px 8px rgba(0,0,0,0.8)",
+              animation: "hatchRevealText 3s 0.5s ease-out forwards",
+              opacity: 0,
+            }}
+            data-testid="text-hatch-reveal"
+          >
+            HATCHED!
+          </span>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes hatchFlashBg {
+          0% { background: rgba(255,248,192,0); }
+          10% { background: rgba(255,248,192,0.7); }
+          30% { background: rgba(240,192,64,0.3); }
+          60% { background: rgba(240,192,64,0.1); }
+          100% { background: rgba(0,0,0,0); }
+        }
+        @keyframes hatchOrbDramatic {
+          0% { transform: translate(0, 0) scale(0.2); opacity: 0; }
+          10% { opacity: 1; transform: translate(0, 0) scale(1.2); }
+          100% { transform: translate(var(--endX), var(--endY)) scale(0); opacity: 0; }
+        }
+        @keyframes hatchCenterDramatic {
+          0% { transform: scale(0); opacity: 0; }
+          15% { transform: scale(2.5); opacity: 1; }
+          40% { transform: scale(1.5); opacity: 0.9; }
+          70% { transform: scale(3); opacity: 0.4; }
+          100% { transform: scale(4); opacity: 0; }
+        }
+        @keyframes hatchRevealText {
+          0% { transform: translateY(15px) scale(0.5); opacity: 0; }
+          25% { transform: translateY(0px) scale(1.3); opacity: 1; }
+          50% { transform: translateY(-5px) scale(1); opacity: 1; }
+          80% { transform: translateY(-10px) scale(1); opacity: 1; }
+          100% { transform: translateY(-20px) scale(0.9); opacity: 0; }
+        }
+      `}</style>
     </div>
   );
 }
