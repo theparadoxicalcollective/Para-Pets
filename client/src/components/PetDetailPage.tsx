@@ -311,12 +311,12 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                 <div className="flex items-center justify-between mb-0.5">
                   <span className="font-fantasy text-[#6a5840] text-[9px] tracking-wider">NEXT LEVEL</span>
                   <span className="font-fantasy text-[#a89878] text-[9px]" data-testid="text-level-points">
-                    {pet.petLevelPoints || 0} / 10 pts
+                    {pet.petLevelPoints || 0} / {50 + (pet.petLevel * 10)} pts
                   </span>
                 </div>
                 <div className="w-full h-1.5 rounded-full" style={{ background: "rgba(0,0,0,0.4)" }}>
                   <div style={{
-                    width: `${Math.min(100, ((pet.petLevelPoints || 0) / 10) * 100)}%`,
+                    width: `${Math.min(100, ((pet.petLevelPoints || 0) / (50 + (pet.petLevel * 10))) * 100)}%`,
                     background: "linear-gradient(90deg, #f0c040, #f0c04088)",
                     height: "6px",
                     borderRadius: "4px",
@@ -483,11 +483,11 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
               <div className="mb-3">
                 <div className="flex items-center justify-between mb-0.5">
                   <span className="font-fantasy text-[#a89878] text-[9px] tracking-wider">PROGRESS TO NEXT LEVEL</span>
-                  <span className="font-fantasy text-[#f0c040] text-[9px]">{pet.petLevelPoints || 0} / 10 pts</span>
+                  <span className="font-fantasy text-[#f0c040] text-[9px]">{pet.petLevelPoints || 0} / {50 + (pet.petLevel * 10)} pts</span>
                 </div>
                 <div className="w-full h-2 rounded-full" style={{ background: "rgba(0,0,0,0.4)" }}>
                   <div style={{
-                    width: `${Math.min(100, ((pet.petLevelPoints || 0) / 10) * 100)}%`,
+                    width: `${Math.min(100, ((pet.petLevelPoints || 0) / (50 + (pet.petLevel * 10))) * 100)}%`,
                     background: "linear-gradient(90deg, #f0c040, #f0c04088)",
                     height: "8px",
                     borderRadius: "4px",

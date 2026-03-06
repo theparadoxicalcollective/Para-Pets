@@ -550,11 +550,12 @@ export async function registerRoutes(
       } else if (boostType === "def") {
         updates.petDef = petInv.petDef + boostAmount;
       } else if (boostType === "lvl") {
-        const POINTS_PER_LEVEL = 10;
         let totalPoints = (petInv.petLevelPoints || 0) + boostAmount;
         let newLevel = petInv.petLevel;
-        while (totalPoints >= POINTS_PER_LEVEL && newLevel < 100) {
-          totalPoints -= POINTS_PER_LEVEL;
+        while (newLevel < 100) {
+          const needed = 50 + (newLevel * 10);
+          if (totalPoints < needed) break;
+          totalPoints -= needed;
           newLevel++;
         }
         if (newLevel >= 100) totalPoints = 0;
@@ -621,11 +622,12 @@ export async function registerRoutes(
         if (petInv.petLevel >= 100) {
           return res.status(400).json({ message: "Pet is at max level" });
         }
-        const POINTS_PER_LEVEL = 10;
         let totalPoints = (petInv.petLevelPoints || 0) + specialAmount;
         let newLevel = petInv.petLevel;
-        while (totalPoints >= POINTS_PER_LEVEL && newLevel < 100) {
-          totalPoints -= POINTS_PER_LEVEL;
+        while (newLevel < 100) {
+          const needed = 50 + (newLevel * 10);
+          if (totalPoints < needed) break;
+          totalPoints -= needed;
           newLevel++;
         }
         if (newLevel >= 100) totalPoints = 0;
@@ -1888,11 +1890,12 @@ export async function registerRoutes(
       const startingHp = Math.max(200, Math.floor(petHp * 0.6 * levelRatio * bossMult));
       const lvlPointsEarned = Math.max(1, Math.floor(startingHp * 0.05));
 
-      const POINTS_PER_LEVEL = 10;
       let totalPoints = (activePet.petLevelPoints || 0) + lvlPointsEarned;
       let newLevel = activePet.petLevel;
-      while (totalPoints >= POINTS_PER_LEVEL && newLevel < 100) {
-        totalPoints -= POINTS_PER_LEVEL;
+      while (newLevel < 100) {
+        const needed = 50 + (newLevel * 10);
+        if (totalPoints < needed) break;
+        totalPoints -= needed;
         newLevel++;
       }
       if (newLevel >= 100) {
@@ -1932,6 +1935,7 @@ export async function registerRoutes(
         lvlPointsEarned,
         newLevel,
         newLevelPoints: totalPoints,
+        pointsNeeded: 50 + (newLevel * 10),
         levelsGained: newLevel - activePet.petLevel,
         coinsAwarded,
         droppedItems,

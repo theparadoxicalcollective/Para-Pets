@@ -133,12 +133,12 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         setPhase("battle");
         battleActiveRef.current = true;
         lastEnemyAttackRef.current = Date.now();
-        const baseSpeed = 1.2;
+        const baseSpeed = 0.8;
         setEnemyPos({
           x: 50,
           y: 20,
-          vx: (Math.random() > 0.5 ? 1 : -1) * (baseSpeed + Math.random()),
-          vy: (Math.random() > 0.5 ? 1 : -1) * (baseSpeed * 0.8 + Math.random() * 0.5),
+          vx: (Math.random() > 0.5 ? 1 : -1) * (baseSpeed + Math.random() * 0.4),
+          vy: (Math.random() > 0.5 ? 1 : -1) * (baseSpeed * 0.6 + Math.random() * 0.3),
         });
       }, 1500);
       return () => clearTimeout(timer);
@@ -181,7 +181,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       setDamageNumbers(prev => [...prev, newDmg]);
       setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== newDmg.id)), 1000);
 
-      enemyPosRef.current = { ...pos, vy: -Math.abs(pos.vy) * 1.2 };
+      enemyPosRef.current = { ...pos, vy: -Math.abs(pos.vy) * 0.9, vx: pos.vx * 0.7 };
       setEnemyPos({ ...enemyPosRef.current });
 
       if (petHpRef.current <= 0) {
@@ -198,23 +198,23 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       if (!battleActiveRef.current) return;
 
       const pos = { ...enemyPosRef.current };
-      const speed = 1.0;
+      const speed = 0.6;
       pos.x += pos.vx * speed;
       pos.y += pos.vy * speed;
 
       if (pos.x < 10 || pos.x > 90) {
-        pos.vx = -pos.vx * (0.9 + Math.random() * 0.2);
+        pos.vx = -pos.vx * (0.8 + Math.random() * 0.15);
         pos.x = Math.max(10, Math.min(90, pos.x));
-        pos.vy += (Math.random() - 0.5) * 0.5;
+        pos.vy += (Math.random() - 0.5) * 0.3;
       }
-      if (pos.y < 5 || pos.y > 65) {
-        pos.vy = -pos.vy * (0.9 + Math.random() * 0.2);
-        pos.y = Math.max(5, Math.min(65, pos.y));
-        pos.vx += (Math.random() - 0.5) * 0.5;
+      if (pos.y < 5 || pos.y > 60) {
+        pos.vy = -pos.vy * (0.8 + Math.random() * 0.15);
+        pos.y = Math.max(5, Math.min(60, pos.y));
+        pos.vx += (Math.random() - 0.5) * 0.3;
       }
 
       const now = Date.now();
-      const attackInterval = 2500;
+      const attackInterval = 4500;
       if (now - lastEnemyAttackRef.current > attackInterval) {
         lastEnemyAttackRef.current = now;
         const petY = 70;
@@ -223,13 +223,13 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         const dy = petY - pos.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist > 0) {
-          const lungeSpeed = 3.5;
+          const lungeSpeed = 2.2;
           pos.vx = (dx / dist) * lungeSpeed;
           pos.vy = (dy / dist) * lungeSpeed;
         }
       }
 
-      const maxSpeed = 4;
+      const maxSpeed = 2.5;
       const spd = Math.sqrt(pos.vx * pos.vx + pos.vy * pos.vy);
       if (spd > maxSpeed) {
         pos.vx = (pos.vx / spd) * maxSpeed;
@@ -341,10 +341,14 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
     >
       <style>{`
-        @keyframes slashAnim {
-          0% { transform: scale(0) rotate(-45deg); opacity: 1; }
-          50% { transform: scale(1.5) rotate(15deg); opacity: 0.8; }
-          100% { transform: scale(2) rotate(45deg); opacity: 0; }
+        @keyframes tapHitAnim {
+          0% { transform: scale(0.3); opacity: 1; }
+          40% { transform: scale(1.2); opacity: 0.9; }
+          100% { transform: scale(1.6); opacity: 0; }
+        }
+        @keyframes tapRing {
+          0% { transform: scale(0.5); opacity: 0.8; border-width: 3px; }
+          100% { transform: scale(2); opacity: 0; border-width: 1px; }
         }
         @keyframes dmgFloat {
           0% { transform: translateY(0) scale(1); opacity: 1; }
@@ -579,11 +583,17 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
             }}
           >
             <div
-              className="w-16 h-16"
+              className="w-10 h-10 rounded-full"
               style={{
-                animation: "slashAnim 0.4s ease-out forwards",
-                background: `linear-gradient(135deg, transparent 40%, ${accent} 45%, white 50%, ${accent} 55%, transparent 60%)`,
-                borderRadius: "50%",
+                animation: "tapHitAnim 0.35s ease-out forwards",
+                background: `radial-gradient(circle, white 0%, ${accent} 40%, transparent 70%)`,
+              }}
+            />
+            <div
+              className="absolute inset-0 w-12 h-12 -m-1 rounded-full"
+              style={{
+                animation: "tapRing 0.4s ease-out forwards",
+                border: `2px solid ${accent}`,
               }}
             />
           </div>
