@@ -129,15 +129,15 @@ export default function PetDatabasePanel() {
   });
 
   const addPartMutation = useMutation({
-    mutationFn: async (data: { templateId: string; partType: string; view: string; imageData: string; zIndex: number; pivotX?: number; pivotY?: number }) => {
+    mutationFn: async (data: { templateId: string; partType: string; view: string; imageData: string; zIndex: number; pivotX?: number; pivotY?: number; posX?: number; posY?: number; width?: number; height?: number }) => {
       const res = await apiRequest("POST", `/api/admin/pet-templates/${data.templateId}/part`, {
         partType: data.partType,
         view: data.view,
         imageData: data.imageData,
-        posX: Math.round(CANVAS_SIZE / 2 - 150),
-        posY: Math.round(CANVAS_SIZE / 2 - 150),
-        width: 300,
-        height: 300,
+        posX: data.posX ?? Math.round(CANVAS_SIZE / 2 - 150),
+        posY: data.posY ?? Math.round(CANVAS_SIZE / 2 - 150),
+        width: data.width ?? 300,
+        height: data.height ?? 300,
         zIndex: data.zIndex,
         pivotX: data.pivotX ?? 50,
         pivotY: data.pivotY ?? 50,
@@ -407,7 +407,24 @@ export default function PetDatabasePanel() {
         </div>
 
         <div className="flex flex-wrap gap-1.5 justify-center">
-          {PART_TYPES.map(pt => {
+          {activeView === "back" ? (() => {
+            const hasBackFull = viewParts.some(p => p.partType === "back_full");
+            return (
+              <button
+                data-testid="button-upload-back_full"
+                onClick={() => setUploadPartType("back_full")}
+                className="px-3 py-1.5 rounded font-fantasy text-[10px] tracking-wider transition-transform active:scale-95"
+                style={{
+                  background: hasBackFull ? "rgba(127,255,212,0.15)" : "rgba(240,192,64,0.1)",
+                  border: `1px solid ${hasBackFull ? "rgba(127,255,212,0.3)" : "rgba(240,192,64,0.25)"}`,
+                  color: hasBackFull ? "#7fffd4" : "#f0c040",
+                  cursor: "pointer",
+                }}
+              >
+                {hasBackFull ? "✓ " : "+ "}Back View (Full PNG)
+              </button>
+            );
+          })() : PART_TYPES.map(pt => {
             const exists = viewParts.some(p => p.partType === pt.key);
             return (
               <button
@@ -645,16 +662,21 @@ export default function PetDatabasePanel() {
                     return;
                   }
                   const dataUrl = await readFileAsDataUrl(file);
+                  const isBackFull = uploadPartType === "back_full";
                   const ptConfig = PART_TYPES.find(p => p.key === uploadPartType);
-                  const defaultZ = ptConfig?.defaultZ || 0;
+                  const defaultZ = isBackFull ? 0 : (ptConfig?.defaultZ || 0);
                   addPartMutation.mutate({
                     templateId: selectedTemplateId!,
                     partType: uploadPartType!,
-                    view: activeView,
+                    view: isBackFull ? "back" : activeView,
                     imageData: dataUrl,
                     zIndex: defaultZ,
-                    pivotX: (ptConfig as any)?.defaultPivotX ?? 50,
-                    pivotY: (ptConfig as any)?.defaultPivotY ?? 50,
+                    pivotX: isBackFull ? 50 : ((ptConfig as any)?.defaultPivotX ?? 50),
+                    pivotY: isBackFull ? 50 : ((ptConfig as any)?.defaultPivotY ?? 50),
+                    posX: isBackFull ? 0 : undefined,
+                    posY: isBackFull ? 0 : undefined,
+                    width: isBackFull ? 1000 : undefined,
+                    height: isBackFull ? 1000 : undefined,
                   });
                 }}
                 className="w-full text-xs font-fantasy"

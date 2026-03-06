@@ -452,8 +452,11 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           75% { transform: translateX(4px); }
         }
         @keyframes hitFlash {
-          0%, 100% { filter: brightness(1); }
-          50% { filter: brightness(2.5) saturate(0); }
+          0% { filter: brightness(1); transform: translateY(0px); }
+          20% { filter: brightness(2.5) saturate(0); transform: translateY(4px); }
+          40% { filter: brightness(1.8) saturate(0.5); transform: translateY(-3px); }
+          60% { filter: brightness(1.3); transform: translateY(2px); }
+          100% { filter: brightness(1); transform: translateY(0px); }
         }
         @keyframes comboText {
           0% { transform: scale(0.5); opacity: 0; }
@@ -615,20 +618,20 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               className="absolute bottom-16 left-1/2 z-10"
               style={{
                 transform: "translateX(-50%)",
-                animation: petHit ? "hitFlash 0.2s ease-in-out" : undefined,
+                animation: petHit ? "hitFlash 0.35s ease-in-out" : undefined,
               }}
             >
               <div className="w-32 h-32 flex items-center justify-center">
-                {pet.petTemplateId ? (
+                {pet.backImageUrl ? (
+                  <img src={pet.backImageUrl} alt={pet.name} className="w-full h-full object-contain drop-shadow-lg" />
+                ) : pet.petTemplateId ? (
                   <PetAnimator
                     petTemplateId={pet.petTemplateId}
                     mode="idle"
-                    view={pet.backImageUrl ? "back" : "front"}
+                    view="front"
                     size={300}
                     className="w-full h-full"
                   />
-                ) : pet.backImageUrl ? (
-                  <img src={pet.backImageUrl} alt={pet.name} className="w-full h-full object-contain drop-shadow-lg" />
                 ) : pet.imageUrl ? (
                   <img src={pet.imageUrl} alt={pet.name} className="w-full h-full object-contain drop-shadow-lg" />
                 ) : (

@@ -1802,15 +1802,18 @@ export async function registerRoutes(
       const petAtk = activePet.petAtk || 50;
       const petDef = activePet.petDef || 50;
 
-      const shuffled = [...enemies].sort(() => Math.random() - 0.5);
-      const encounters = await Promise.all(shuffled.map(async (enemy) => {
+      const normals = enemies.filter(e => !e.isBoss).sort(() => Math.random() - 0.5);
+      const bosses = enemies.filter(e => e.isBoss).sort(() => Math.random() - 0.5);
+      const ordered = [...normals, ...bosses];
+      const encounters = await Promise.all(ordered.map(async (enemy, waveIndex) => {
+        const waveScaling = 1 + (waveIndex * 0.15);
         const maxLevelOffset = enemy.isBoss ? 5 : 2;
         const enemyLevel = Math.max(1, petLevel + Math.floor(Math.random() * (maxLevelOffset + 1)));
         const levelRatio = enemyLevel / Math.max(1, petLevel || 1);
         const bossMult = enemy.isBoss ? 1.5 : 1.0;
-        const enemyHp = Math.max(200, Math.floor(petHp * 0.6 * levelRatio * bossMult));
-        const enemyAtk = Math.max(10, Math.floor(petAtk * 0.7 * levelRatio * bossMult));
-        const enemyDef = Math.max(5, Math.floor(petDef * 0.4 * levelRatio * bossMult));
+        const enemyHp = Math.max(200, Math.floor(petHp * 0.6 * levelRatio * bossMult * waveScaling));
+        const enemyAtk = Math.max(10, Math.floor(petAtk * 0.7 * levelRatio * bossMult * waveScaling));
+        const enemyDef = Math.max(5, Math.floor(petDef * 0.4 * levelRatio * bossMult * waveScaling));
 
         const drops = await storage.getEnemyDrops(enemy.id);
         const dropDetails = await Promise.all(drops.map(async (drop) => {

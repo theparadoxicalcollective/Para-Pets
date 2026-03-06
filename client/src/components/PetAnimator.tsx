@@ -233,17 +233,38 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     >
       <style>{ANIMATION_STYLES}</style>
       {viewParts.map((part) => {
+        const leftPct = (part.posX / CANVAS_SIZE) * 100;
+        const topPct = (part.posY / CANVAS_SIZE) * 100;
+        const widthPct = (part.width / CANVAS_SIZE) * 100;
+        const heightPct = (part.height / CANVAS_SIZE) * 100;
+
+        if (part.partType === "back_full") {
+          return (
+            <img
+              key={part.id}
+              src={part.imageUrl}
+              alt={part.partType}
+              draggable={false}
+              style={{
+                position: "absolute",
+                left: `${leftPct}%`,
+                top: `${topPct}%`,
+                width: `${widthPct}%`,
+                height: `${heightPct}%`,
+                zIndex: part.zIndex,
+                imageRendering: "auto",
+                pointerEvents: "none",
+              }}
+            />
+          );
+        }
+
         const animations = mode === "idle" ? IDLE_ANIMATIONS : WALK_ANIMATIONS;
         const animName = animations[part.partType] || animations.body;
 
         if (!animName) return null;
 
         const duration = getPartDuration(part.partType, mode);
-
-        const leftPct = (part.posX / CANVAS_SIZE) * 100;
-        const topPct = (part.posY / CANVAS_SIZE) * 100;
-        const widthPct = (part.width / CANVAS_SIZE) * 100;
-        const heightPct = (part.height / CANVAS_SIZE) * 100;
 
         return (
           <img
