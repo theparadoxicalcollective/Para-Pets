@@ -15,6 +15,7 @@ interface RewardItem {
 interface PendingReward {
   rewardId: string;
   bundleName: string;
+  bundleMessage: string | null;
   coinAmount: number;
   items: RewardItem[];
   createdAt: string;
@@ -134,9 +135,19 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
                       </div>
                     )}
                     <div className="p-3">
-                      <h4 className="font-fantasy text-[#c084fc] text-xs tracking-wider font-semibold mb-2" data-testid={`text-reward-name-${reward.rewardId}`}>
+                      <h4 className="font-fantasy text-[#c084fc] text-xs tracking-wider font-semibold mb-1" data-testid={`text-reward-name-${reward.rewardId}`}>
                         {reward.bundleName}
                       </h4>
+
+                      {reward.bundleMessage && (
+                        <p
+                          data-testid={`text-reward-message-${reward.rewardId}`}
+                          className="font-sans text-[#d4c8a0] text-[11px] leading-relaxed mb-2 italic"
+                          style={{ opacity: 0.85 }}
+                        >
+                          "{reward.bundleMessage}"
+                        </p>
+                      )}
 
                       <div className="flex flex-wrap gap-2 mb-2">
                         {reward.coinAmount > 0 && (

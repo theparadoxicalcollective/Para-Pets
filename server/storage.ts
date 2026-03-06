@@ -45,7 +45,7 @@ export interface IStorage {
   getInventoryItemById(id: string): Promise<UserInventoryItem | undefined>;
   removeFromInventory(id: string): Promise<void>;
   updateInventoryItem(id: string, updates: Partial<UserInventoryItem>): Promise<UserInventoryItem>;
-  createRewardBundle(name: string, coinAmount: number): Promise<RewardBundle>;
+  createRewardBundle(name: string, coinAmount: number, message?: string | null): Promise<RewardBundle>;
   addRewardBundleItem(bundleId: string, shopItemId: string): Promise<RewardBundleItem>;
   getRewardBundleItems(bundleId: string): Promise<RewardBundleItem[]>;
   createUserReward(userId: string, bundleId: string): Promise<UserReward>;
@@ -280,8 +280,8 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async createRewardBundle(name: string, coinAmount: number): Promise<RewardBundle> {
-    const [bundle] = await db.insert(rewardBundles).values({ name, coinAmount }).returning();
+  async createRewardBundle(name: string, coinAmount: number, message?: string | null): Promise<RewardBundle> {
+    const [bundle] = await db.insert(rewardBundles).values({ name, coinAmount, message: message || null }).returning();
     return bundle;
   }
 

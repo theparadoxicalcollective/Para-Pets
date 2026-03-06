@@ -1569,12 +1569,12 @@ export async function registerRoutes(
 
   app.post("/api/admin/reward-bundle", isAdmin, async (req, res) => {
     try {
-      const { name, coinAmount, shopItemIds, targetUserIds } = req.body;
+      const { name, coinAmount, shopItemIds, targetUserIds, message } = req.body;
       if (!name || (!coinAmount && (!shopItemIds || shopItemIds.length === 0))) {
         return res.status(400).json({ message: "Bundle must have a name and at least coins or items" });
       }
 
-      const bundle = await storage.createRewardBundle(name, coinAmount || 0);
+      const bundle = await storage.createRewardBundle(name, coinAmount || 0, message || null);
 
       if (shopItemIds && shopItemIds.length > 0) {
         for (const itemId of shopItemIds) {
@@ -1615,6 +1615,7 @@ export async function registerRoutes(
         return {
           rewardId: reward.id,
           bundleName: bundle?.name || "Unknown",
+          bundleMessage: bundle?.message || null,
           coinAmount: bundle?.coinAmount || 0,
           items: itemDetails.filter(Boolean),
           createdAt: reward.createdAt,

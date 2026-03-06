@@ -65,6 +65,7 @@ export const userInventory = pgTable("user_inventory", {
 export const rewardBundles = pgTable("reward_bundles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
+  message: text("message"),
   coinAmount: integer("coin_amount").notNull().default(0),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });

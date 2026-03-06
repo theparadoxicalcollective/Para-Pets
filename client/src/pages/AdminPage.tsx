@@ -318,6 +318,7 @@ export default function AdminPage({ user }: AdminPageProps) {
 
 function RewardBundleSection({ members }: { members: MemberUser[] }) {
   const [bundleName, setBundleName] = useState("");
+  const [bundleMessage, setBundleMessage] = useState("");
   const [coinAmount, setCoinAmount] = useState("");
   const [selectedItems, setSelectedItems] = useState<ShopItemFull[]>([]);
   const [targetMode, setTargetMode] = useState<"all" | "select">("all");
@@ -334,6 +335,7 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
     mutationFn: async () => {
       const payload: any = {
         name: bundleName.trim(),
+        message: bundleMessage.trim() || undefined,
         coinAmount: parseInt(coinAmount) || 0,
         shopItemIds: selectedItems.map(i => i.id),
       };
@@ -346,6 +348,7 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
     onSuccess: (data: any) => {
       toast({ title: "Reward Sent!", description: `Bundle sent to ${data.recipientCount} user${data.recipientCount !== 1 ? "s" : ""}` });
       setBundleName("");
+      setBundleMessage("");
       setCoinAmount("");
       setSelectedItems([]);
       setSelectedUserIds([]);
@@ -409,6 +412,19 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
               onChange={(e) => setBundleName(e.target.value)}
               placeholder="e.g. Welcome Gift, Weekly Reward..."
               className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+              style={inputStyle}
+            />
+          </div>
+
+          <div>
+            <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Message (optional)</label>
+            <textarea
+              data-testid="input-bundle-message"
+              value={bundleMessage}
+              onChange={(e) => setBundleMessage(e.target.value)}
+              placeholder="e.g. Thanks for being part of the realm!"
+              rows={2}
+              className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none resize-none"
               style={inputStyle}
             />
           </div>
