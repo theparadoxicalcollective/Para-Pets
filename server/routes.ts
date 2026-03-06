@@ -1685,5 +1685,99 @@ export async function registerRoutes(
     }
   })();
 
+  app.get("/api/location/:locationId/enemies", async (req, res) => {
+    try {
+      const { locationId } = req.params;
+      const enemies = await storage.getLocationEnemies(locationId);
+      const detailed = await Promise.all(enemies.map(async (enemy) => {
+        const drops = await storage.getEnemyDrops(enemy.id);
+        const dropDetails = await Promise.all(drops.map(async (drop) => {
+          const shopItem = await storage.getShopItem(drop.shopItemId);
+          return {
+            id: drop.id,
+            dropRate: drop.dropRate,
+            shopItem: shopItem ? { id: shopItem.id, name: shopItem.name, type: shopItem.type, imageUrl: shopItem.imageUrl } : null,
+          };
+        }));
+        return { ...enemy, drops: dropDetails.filter(d => d.shopItem) };
+      }));
+      return res.json(detailed);
+    } catch (err) {
+      console.error("Get location enemies error:", err);
+      return res.status(500).json({ message: "Failed to fetch enemies" });
+    }
+  });
+
+  app.post("/api/admin/location/:locationId/enemy", isAdmin, async (req, res) => {
+    try {
+      const { locationId } = req.params;
+      const { name, imageData, coinReward } = req.body;
+      if (!name?.trim()) {
+        return res.status(400).json({ message: "Enemy name is required" });
+      }
+      let imageUrl: string | null = null;
+      if (imageData) {
+        try { imageUrl = await processWorldImage(imageData, 1000); } catch (e) { console.error("Enemy image error:", e); }
+      }
+      const enemy = await storage.createLocationEnemy({ locationId, name: name.trim(), imageUrl, coinReward: coinReward || 0 });
+      return res.status(201).json(enemy);
+    } catch (err) {
+      console.error("Create enemy error:", err);
+      return res.status(500).json({ message: "Failed to create enemy" });
+    }
+  });
+
+  app.patch("/api/admin/enemy/:enemyId", isAdmin, async (req, res) => {
+    try {
+      const { enemyId } = req.params;
+      const { name, imageData, coinReward } = req.body;
+      const updates: any = {};
+      if (name !== undefined) updates.name = name.trim();
+      if (coinReward !== undefined) updates.coinReward = coinReward;
+      if (imageData) {
+        try { updates.imageUrl = await processWorldImage(imageData, 1000); } catch (e) { console.error("Enemy image error:", e); }
+      }
+      const enemy = await storage.updateLocationEnemy(enemyId, updates);
+      return res.json(enemy);
+    } catch (err) {
+      console.error("Update enemy error:", err);
+      return res.status(500).json({ message: "Failed to update enemy" });
+    }
+  });
+
+  app.delete("/api/admin/enemy/:enemyId", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteLocationEnemy(req.params.enemyId);
+      return res.json({ success: true });
+    } catch (err) {
+      console.error("Delete enemy error:", err);
+      return res.status(500).json({ message: "Failed to delete enemy" });
+    }
+  });
+
+  app.post("/api/admin/enemy/:enemyId/drop", isAdmin, async (req, res) => {
+    try {
+      const { enemyId } = req.params;
+      const { shopItemId, dropRate } = req.body;
+      if (!shopItemId) return res.status(400).json({ message: "Item is required" });
+      const rate = Math.max(1, Math.min(100, parseInt(dropRate) || 10));
+      const drop = await storage.createEnemyDrop({ enemyId, shopItemId, dropRate: rate });
+      return res.status(201).json(drop);
+    } catch (err) {
+      console.error("Create drop error:", err);
+      return res.status(500).json({ message: "Failed to add drop" });
+    }
+  });
+
+  app.delete("/api/admin/drop/:dropId", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteEnemyDrop(req.params.dropId);
+      return res.json({ success: true });
+    } catch (err) {
+      console.error("Delete drop error:", err);
+      return res.status(500).json({ message: "Failed to delete drop" });
+    }
+  });
+
   return httpServer;
 }

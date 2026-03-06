@@ -37,9 +37,11 @@ Para Pets is a mobile-first fantasy game web app where players collect, raise, a
 - `world_locations` table: id, worldId, name, type, iconUrl, bgUrl, description, posX, posY, ownerImageUrl, isShop, shopkeeperId, shopkeeperName, shopkeeperImageUrl, sortOrder, createdAt
 - `location_objects` table: id, locationId, imageUrl, posX, posY, width, createdAt — decorative objects for non-shop locations
 - `user_inventory` table: id, userId, shopItemId, acquiredAt, hatchStartedAt (timestamp, nullable), isHatched (boolean, default false), petHealth (int, default 1000), petAtk (int, default 50), petDef (int, default 50), petLevel (int, default 0), petLevelPoints (int, default 0), itemsUsedThisLevel (int, default 0), petNickname (text, nullable)
-- `reward_bundles` table: id, name, coinAmount, createdAt
+- `reward_bundles` table: id, name, message (nullable), coinAmount, createdAt
 - `reward_bundle_items` table: id, bundleId, shopItemId
 - `user_rewards` table: id, userId, bundleId, claimed (boolean), createdAt
+- `location_enemies` table: id, locationId, name, imageUrl (base64, nullable), coinReward (int), sortOrder (int), createdAt — enemies for explore-type locations
+- `enemy_drops` table: id, enemyId, shopItemId, dropRate (1-100 percent), createdAt — items dropped by enemies
 - `game_settings` table: key (varchar PK), value (text) — key-value store for app-wide settings (e.g. map_background)
 - `session` table: managed by connect-pg-simple (created manually in async startup)
 
@@ -104,6 +106,7 @@ Para Pets is a mobile-first fantasy game web app where players collect, raise, a
   - Location icons float with animation, themed glow effects
   - isShop locations: open shop overlay with location-specific items; admin can assign/unassign items from Item DB via "+" button
   - Non-shop locations: open full-screen location view with background, decorative objects, and owner character
+  - Explore-type locations: admin settings button (⚙) opens ExploreAdminPanel with enemy management, item drops, coin rewards, and background upload
   - Decorative objects (non-shop only): admin adds PNG/GIF objects via "+", objects displayed as positioned images, admin can drag/drop to reposition
   - Owner character: floating PNG displayed at bottom-left of location view
   - Location-specific shop: items assigned per-location (locationId on shop_items), 100/day purchase limit for non-pet items

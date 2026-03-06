@@ -6,8 +6,9 @@ import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import coinIconImg from "@assets/icon_coin.png";
-import { Plus, Trash2, X, MapPin, Package, Pencil } from "lucide-react";
+import { Plus, Trash2, X, MapPin, Package, Pencil, Settings } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
+import ExploreAdminPanel from "@/components/ExploreAdminPanel";
 
 import shopFrostpeak from "@assets/shop_frostpeak.png";
 import shopSkyRealm from "@assets/shop_sky_realm.png";
@@ -153,6 +154,8 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [showItemPicker, setShowItemPicker] = useState(false);
   const [showAddObject, setShowAddObject] = useState(false);
   const [newObjectImage, setNewObjectImage] = useState<string | null>(null);
+  const [showExploreAdmin, setShowExploreAdmin] = useState(false);
+  const [bgUploading, setBgUploading] = useState(false);
   const [objDragPos, setObjDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
   const objDragRef = useRef<{ objId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const objDidDrag = useRef(false);
@@ -1502,19 +1505,36 @@ export default function WorldPage({ user }: WorldPageProps) {
               )}
 
               {currentUser.isAdmin && (
-                <button
-                  data-testid="button-add-object"
-                  onClick={() => setShowAddObject(true)}
-                  className="absolute bottom-4 right-4 z-20 w-12 h-12 rounded-full flex items-center justify-center transition-transform active:scale-90"
-                  style={{
-                    background: `linear-gradient(135deg, ${accent}cc 0%, ${accent}88 100%)`,
-                    border: `2px solid ${accent}`,
-                    boxShadow: `0 4px 20px ${accent}50`,
-                    cursor: "pointer",
-                  }}
-                >
-                  <Plus className="w-6 h-6 text-black" />
-                </button>
+                <div className="absolute bottom-4 right-4 z-20 flex flex-col gap-2">
+                  {activeLoc.type === "explore" && (
+                    <button
+                      data-testid="button-explore-admin"
+                      onClick={() => setShowExploreAdmin(true)}
+                      className="w-12 h-12 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                      style={{
+                        background: `linear-gradient(135deg, rgba(192,132,252,0.8) 0%, rgba(120,80,200,0.6) 100%)`,
+                        border: `2px solid rgba(192,132,252,0.9)`,
+                        boxShadow: `0 4px 20px rgba(192,132,252,0.4)`,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <Settings className="w-5 h-5 text-white" />
+                    </button>
+                  )}
+                  <button
+                    data-testid="button-add-object"
+                    onClick={() => setShowAddObject(true)}
+                    className="w-12 h-12 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                    style={{
+                      background: `linear-gradient(135deg, ${accent}cc 0%, ${accent}88 100%)`,
+                      border: `2px solid ${accent}`,
+                      boxShadow: `0 4px 20px ${accent}50`,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Plus className="w-6 h-6 text-black" />
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -1590,6 +1610,27 @@ export default function WorldPage({ user }: WorldPageProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {showExploreAdmin && activeLocationId && (
+        <ExploreAdminPanel
+          locationId={activeLocationId}
+          accent={accent}
+          onClose={() => setShowExploreAdmin(false)}
+          bgUploading={bgUploading}
+          onBgUpload={async (imageData: string) => {
+            setBgUploading(true);
+            try {
+              await apiRequest("PATCH", `/api/admin/world/location/${activeLocationId}`, { bgData: imageData });
+              queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "locations"] });
+              toast({ title: "Background Updated" });
+            } catch {
+              toast({ title: "Failed to upload background", variant: "destructive" });
+            } finally {
+              setBgUploading(false);
+            }
+          }}
+        />
       )}
 
       {showProfile && (

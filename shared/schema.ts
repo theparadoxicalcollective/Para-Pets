@@ -213,6 +213,24 @@ export const insertSupportMessageSchema = createInsertSchema(supportMessages).om
 export type InsertSupportMessage = z.infer<typeof insertSupportMessageSchema>;
 export type SupportMessage = typeof supportMessages.$inferSelect;
 
+export const locationEnemies = pgTable("location_enemies", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  locationId: varchar("location_id").notNull(),
+  name: text("name").notNull(),
+  imageUrl: text("image_url"),
+  coinReward: integer("coin_reward").notNull().default(0),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const enemyDrops = pgTable("enemy_drops", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  enemyId: varchar("enemy_id").notNull(),
+  shopItemId: varchar("shop_item_id").notNull(),
+  dropRate: integer("drop_rate").notNull().default(10),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
 export type CoinPurchase = typeof coinPurchases.$inferSelect;
 export type WorldLocation = typeof worldLocations.$inferSelect;
 export type World = typeof worlds.$inferSelect;
@@ -220,3 +238,5 @@ export type GameSetting = typeof gameSettings.$inferSelect;
 export type LocationObject = typeof locationObjects.$inferSelect;
 export type PetTemplate = typeof petTemplates.$inferSelect;
 export type PetTemplatePart = typeof petTemplateParts.$inferSelect;
+export type LocationEnemy = typeof locationEnemies.$inferSelect;
+export type EnemyDrop = typeof enemyDrops.$inferSelect;

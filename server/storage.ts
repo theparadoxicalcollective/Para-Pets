@@ -13,6 +13,8 @@ import {
   type PetTemplate, petTemplates,
   type PetTemplatePart, petTemplateParts,
   type SupportMessage, type InsertSupportMessage, supportMessages,
+  type LocationEnemy, locationEnemies,
+  type EnemyDrop, enemyDrops,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, ne, gte, asc, desc } from "drizzle-orm";
@@ -90,6 +92,14 @@ export interface IStorage {
   getAllSupportMessages(): Promise<SupportMessage[]>;
   markSupportMessageRead(id: string): Promise<void>;
   deleteSupportMessage(id: string): Promise<void>;
+  getLocationEnemies(locationId: string): Promise<LocationEnemy[]>;
+  getLocationEnemy(id: string): Promise<LocationEnemy | undefined>;
+  createLocationEnemy(data: { locationId: string; name: string; imageUrl?: string | null; coinReward?: number }): Promise<LocationEnemy>;
+  updateLocationEnemy(id: string, data: Partial<{ name: string; imageUrl: string | null; coinReward: number }>): Promise<LocationEnemy>;
+  deleteLocationEnemy(id: string): Promise<void>;
+  getEnemyDrops(enemyId: string): Promise<EnemyDrop[]>;
+  createEnemyDrop(data: { enemyId: string; shopItemId: string; dropRate: number }): Promise<EnemyDrop>;
+  deleteEnemyDrop(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -527,6 +537,48 @@ export class DatabaseStorage implements IStorage {
 
   async deleteSupportMessage(id: string): Promise<void> {
     await db.delete(supportMessages).where(eq(supportMessages.id, id));
+  }
+
+  async getLocationEnemies(locationId: string): Promise<LocationEnemy[]> {
+    return db.select().from(locationEnemies).where(eq(locationEnemies.locationId, locationId)).orderBy(asc(locationEnemies.sortOrder));
+  }
+
+  async getLocationEnemy(id: string): Promise<LocationEnemy | undefined> {
+    const [enemy] = await db.select().from(locationEnemies).where(eq(locationEnemies.id, id));
+    return enemy;
+  }
+
+  async createLocationEnemy(data: { locationId: string; name: string; imageUrl?: string | null; coinReward?: number }): Promise<LocationEnemy> {
+    const [enemy] = await db.insert(locationEnemies).values({
+      locationId: data.locationId,
+      name: data.name,
+      imageUrl: data.imageUrl || null,
+      coinReward: data.coinReward || 0,
+    }).returning();
+    return enemy;
+  }
+
+  async updateLocationEnemy(id: string, data: Partial<{ name: string; imageUrl: string | null; coinReward: number }>): Promise<LocationEnemy> {
+    const [updated] = await db.update(locationEnemies).set(data).where(eq(locationEnemies.id, id)).returning();
+    return updated;
+  }
+
+  async deleteLocationEnemy(id: string): Promise<void> {
+    await db.delete(enemyDrops).where(eq(enemyDrops.enemyId, id));
+    await db.delete(locationEnemies).where(eq(locationEnemies.id, id));
+  }
+
+  async getEnemyDrops(enemyId: string): Promise<EnemyDrop[]> {
+    return db.select().from(enemyDrops).where(eq(enemyDrops.enemyId, enemyId));
+  }
+
+  async createEnemyDrop(data: { enemyId: string; shopItemId: string; dropRate: number }): Promise<EnemyDrop> {
+    const [drop] = await db.insert(enemyDrops).values(data).returning();
+    return drop;
+  }
+
+  async deleteEnemyDrop(id: string): Promise<void> {
+    await db.delete(enemyDrops).where(eq(enemyDrops.id, id));
   }
 }
 
