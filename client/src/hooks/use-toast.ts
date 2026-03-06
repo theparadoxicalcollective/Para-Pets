@@ -139,8 +139,38 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">
 
+function showSuccessFlash() {
+  const el = document.createElement("div");
+  el.style.cssText = `
+    position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 99999;
+    max-width: 768px; margin: 0 auto;
+    background: linear-gradient(90deg, transparent, #4ade80, #22c55e, #4ade80, transparent);
+    opacity: 0; pointer-events: none;
+    animation: successFlashAnim 0.8s ease-out forwards;
+  `;
+  if (!document.getElementById("success-flash-style")) {
+    const style = document.createElement("style");
+    style.id = "success-flash-style";
+    style.textContent = `
+      @keyframes successFlashAnim {
+        0% { opacity: 0; transform: scaleX(0.3); }
+        20% { opacity: 1; transform: scaleX(1); }
+        100% { opacity: 0; transform: scaleX(1); }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 900);
+}
+
 function toast({ ...props }: Toast) {
   const id = genId()
+
+  if (props.variant !== "destructive") {
+    showSuccessFlash();
+    return { id, dismiss: () => {}, update: () => {} };
+  }
 
   const update = (props: ToasterToast) =>
     dispatch({
