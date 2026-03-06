@@ -382,6 +382,7 @@ export async function registerRoutes(
         statBoostAmount: shopItem?.statBoostAmount || null,
         specialType: shopItem?.specialType || null,
         specialAmount: shopItem?.specialAmount || null,
+        healthRestored: shopItem?.healthRestored || null,
         petTemplateId: shopItem?.petTemplateId || null,
         petNickname: inv.petNickname || null,
         hatchStartedAt: inv.hatchStartedAt,
@@ -1804,20 +1805,35 @@ export async function registerRoutes(
       const petHp = activePet.petHealth || 1000;
       const petAtk = activePet.petAtk || 50;
       const petDef = activePet.petDef || 50;
-      const enemy = enemies[Math.floor(Math.random() * enemies.length)];
-      const maxLevelOffset = enemy.isBoss ? 5 : 2;
-      const enemyLevel = Math.max(1, petLevel + Math.floor(Math.random() * (maxLevelOffset + 1)));
 
-      const levelRatio = enemyLevel / Math.max(1, petLevel || 1);
-      const bossMult = enemy.isBoss ? 1.5 : 1.0;
-      const enemyHp = Math.max(200, Math.floor(petHp * 0.6 * levelRatio * bossMult));
-      const enemyAtk = Math.max(10, Math.floor(petAtk * 0.7 * levelRatio * bossMult));
-      const enemyDef = Math.max(5, Math.floor(petDef * 0.4 * levelRatio * bossMult));
+      const shuffled = [...enemies].sort(() => Math.random() - 0.5);
+      const encounters = await Promise.all(shuffled.map(async (enemy) => {
+        const maxLevelOffset = enemy.isBoss ? 5 : 2;
+        const enemyLevel = Math.max(1, petLevel + Math.floor(Math.random() * (maxLevelOffset + 1)));
+        const levelRatio = enemyLevel / Math.max(1, petLevel || 1);
+        const bossMult = enemy.isBoss ? 1.5 : 1.0;
+        const enemyHp = Math.max(200, Math.floor(petHp * 0.6 * levelRatio * bossMult));
+        const enemyAtk = Math.max(10, Math.floor(petAtk * 0.7 * levelRatio * bossMult));
+        const enemyDef = Math.max(5, Math.floor(petDef * 0.4 * levelRatio * bossMult));
 
-      const drops = await storage.getEnemyDrops(enemy.id);
-      const dropDetails = await Promise.all(drops.map(async (drop) => {
-        const shopItem = await storage.getShopItem(drop.shopItemId);
-        return shopItem ? { id: drop.id, dropRate: drop.dropRate, shopItem: { id: shopItem.id, name: shopItem.name, type: shopItem.type, imageUrl: shopItem.imageUrl } } : null;
+        const drops = await storage.getEnemyDrops(enemy.id);
+        const dropDetails = await Promise.all(drops.map(async (drop) => {
+          const shopItem = await storage.getShopItem(drop.shopItemId);
+          return shopItem ? { id: drop.id, dropRate: drop.dropRate, shopItem: { id: shopItem.id, name: shopItem.name, type: shopItem.type, imageUrl: shopItem.imageUrl } } : null;
+        }));
+
+        return {
+          enemyId: enemy.id,
+          name: enemy.name,
+          imageUrl: enemy.imageUrl,
+          isBoss: enemy.isBoss,
+          level: enemyLevel,
+          hp: enemyHp,
+          atk: enemyAtk,
+          def: enemyDef,
+          coinReward: enemy.coinReward,
+          drops: dropDetails.filter(Boolean),
+        };
       }));
 
       let petImageUrl = activePet.hatchedImageUrl || activePet.imageUrl || null;
@@ -1831,18 +1847,7 @@ export async function registerRoutes(
       }
 
       return res.json({
-        encounter: {
-          enemyId: enemy.id,
-          name: enemy.name,
-          imageUrl: enemy.imageUrl,
-          isBoss: enemy.isBoss,
-          level: enemyLevel,
-          hp: enemyHp,
-          atk: enemyAtk,
-          def: enemyDef,
-          coinReward: enemy.coinReward,
-          drops: dropDetails.filter(Boolean),
-        },
+        encounters,
         pet: {
           inventoryId: activePet.id,
           name: activePet.petNickname || activePet.name || "Pet",
@@ -1944,6 +1949,44 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Defeat enemy error:", err);
       return res.status(500).json({ message: "Failed to process defeat" });
+    }
+  });
+
+  app.post("/api/explore/use-potion", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { inventoryId, petInventoryId } = req.body;
+      if (!inventoryId || !petInventoryId) {
+        return res.status(400).json({ message: "Missing inventoryId or petInventoryId" });
+      }
+
+      const userInv = await storage.getUserInventory(user.id);
+      const potionInv = userInv.find((inv: any) => inv.id === inventoryId);
+      if (!potionInv) {
+        return res.status(404).json({ message: "Potion not found in inventory" });
+      }
+
+      const shopItem = await storage.getShopItem(potionInv.shopItemId);
+      if (!shopItem || shopItem.type !== "potion") {
+        return res.status(400).json({ message: "Item is not a potion" });
+      }
+
+      const petInv = userInv.find((inv: any) => inv.id === petInventoryId);
+      if (!petInv) {
+        return res.status(404).json({ message: "Pet not found" });
+      }
+
+      const healAmount = shopItem.healthRestored || 0;
+      if (healAmount <= 0) {
+        return res.status(400).json({ message: "Potion has no healing effect" });
+      }
+
+      await storage.removeFromInventory(inventoryId);
+
+      return res.json({ healAmount, potionName: shopItem.name });
+    } catch (err) {
+      console.error("Use potion error:", err);
+      return res.status(500).json({ message: "Failed to use potion" });
     }
   });
 

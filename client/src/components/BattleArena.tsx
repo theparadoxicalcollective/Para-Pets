@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Swords, Star, Coins, X } from "lucide-react";
+import { Swords, Star, Coins, X, ChevronRight, ArrowLeft, Heart } from "lucide-react";
 import PetAnimator from "./PetAnimator";
 
 interface EncounterEnemy {
@@ -61,13 +61,23 @@ interface DamageNumber {
   isCrit?: boolean;
 }
 
-type BattlePhase = "loading" | "intro" | "battle" | "victory" | "defeat";
+interface InventoryPotion {
+  inventoryId: string;
+  shopItemId: string;
+  name: string;
+  imageUrl: string | null;
+  healthRestored: number;
+}
+
+type BattlePhase = "loading" | "intro" | "battle" | "victory" | "waveComplete" | "defeat";
 
 export default function BattleArena({ locationId, locationName, bgUrl, accent, onClose, onBattleEnd }: BattleArenaProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const [phase, setPhase] = useState<BattlePhase>("loading");
+  const [allEnemies, setAllEnemies] = useState<EncounterEnemy[]>([]);
+  const [waveIndex, setWaveIndex] = useState(0);
   const [enemy, setEnemy] = useState<EncounterEnemy | null>(null);
   const [pet, setPet] = useState<EncounterPet | null>(null);
   const [enemyHp, setEnemyHp] = useState(0);
@@ -83,11 +93,10 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const [victoryData, setVictoryData] = useState<any>(null);
   const [comboCount, setComboCount] = useState(0);
   const [lastHitTime, setLastHitTime] = useState(0);
+  const [totalRewards, setTotalRewards] = useState<{ lvlPoints: number; coins: number; items: any[]; levelsGained: number }>({ lvlPoints: 0, coins: 0, items: [], levelsGained: 0 });
 
   const animFrameRef = useRef<number>(0);
   const arenaRef = useRef<HTMLDivElement>(null);
-  const enemyRef = useRef<HTMLDivElement>(null);
-  const petAreaRef = useRef<HTMLDivElement>(null);
   const slashIdRef = useRef(0);
   const dmgIdRef = useRef(0);
   const battleActiveRef = useRef(false);
@@ -97,28 +106,37 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const lastEnemyAttackRef = useRef(0);
   const petStatsRef = useRef({ atk: 50, def: 50 });
   const enemyStatsRef = useRef({ atk: 20, def: 10 });
+  const enemyDifficultyRef = useRef(0.5);
+
+  const { data: inventory = [] } = useQuery<any[]>({ queryKey: ["/api/inventory"] });
+
+  const potions: InventoryPotion[] = inventory
+    .filter((item: any) => item.type === "potion" && item.healthRestored && item.healthRestored > 0)
+    .map((item: any) => ({
+      inventoryId: item.inventoryId,
+      shopItemId: item.shopItemId,
+      name: item.name,
+      imageUrl: item.imageUrl,
+      healthRestored: item.healthRestored,
+    }));
 
   useEffect(() => {
     const fetchEncounter = async () => {
       try {
         const res = await apiRequest("POST", `/api/explore/${locationId}/encounter`);
         const data = await res.json();
-        if (!data.encounter) {
+        if (!data.encounters || data.encounters.length === 0) {
           toast({ title: "No enemies found", description: "This area seems peaceful..." });
           onClose();
           return;
         }
-        setEnemy(data.encounter);
+        setAllEnemies(data.encounters);
         setPet(data.pet);
-        setEnemyHp(data.encounter.hp);
-        setEnemyMaxHp(data.encounter.hp);
         setPetHp(data.pet.hp);
         setPetMaxHp(data.pet.hp);
-        enemyHpRef.current = data.encounter.hp;
         petHpRef.current = data.pet.hp;
         petStatsRef.current = { atk: data.pet.atk, def: data.pet.def };
-        enemyStatsRef.current = { atk: data.encounter.atk, def: data.encounter.def };
-        setPhase("intro");
+        startWave(data.encounters[0], 0);
       } catch (err) {
         toast({ title: "Error", description: "Failed to start battle", variant: "destructive" });
         onClose();
@@ -127,18 +145,38 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     fetchEncounter();
   }, [locationId]);
 
+  const startWave = useCallback((enc: EncounterEnemy, idx: number) => {
+    setEnemy(enc);
+    setWaveIndex(idx);
+    setEnemyHp(enc.hp);
+    setEnemyMaxHp(enc.hp);
+    enemyHpRef.current = enc.hp;
+    enemyStatsRef.current = { atk: enc.atk, def: enc.def };
+    setVictoryData(null);
+    setComboCount(0);
+    setLastHitTime(0);
+    setSlashEffects([]);
+    setDamageNumbers([]);
+
+    const difficulty = 0.3 + Math.random() * 0.7;
+    enemyDifficultyRef.current = difficulty;
+
+    setPhase("intro");
+  }, []);
+
   useEffect(() => {
     if (phase === "intro") {
       const timer = setTimeout(() => {
         setPhase("battle");
         battleActiveRef.current = true;
         lastEnemyAttackRef.current = Date.now();
-        const baseSpeed = 0.8;
+        const diff = enemyDifficultyRef.current;
+        const baseSpeed = 0.5 + diff * 0.6;
         setEnemyPos({
           x: 50,
           y: 20,
-          vx: (Math.random() > 0.5 ? 1 : -1) * (baseSpeed + Math.random() * 0.4),
-          vy: (Math.random() > 0.5 ? 1 : -1) * (baseSpeed * 0.6 + Math.random() * 0.3),
+          vx: (Math.random() > 0.5 ? 1 : -1) * (baseSpeed + Math.random() * 0.3),
+          vy: (Math.random() > 0.5 ? 1 : -1) * (baseSpeed * 0.5 + Math.random() * 0.2),
         });
       }, 1500);
       return () => clearTimeout(timer);
@@ -152,11 +190,35 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     },
     onSuccess: (data) => {
       setVictoryData(data);
+      setTotalRewards(prev => ({
+        lvlPoints: prev.lvlPoints + (data.lvlPointsEarned || 0),
+        coins: prev.coins + (data.coinsAwarded || 0),
+        items: [...prev.items, ...(data.droppedItems || [])],
+        levelsGained: prev.levelsGained + (data.levelsGained || 0),
+      }));
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
     },
     onError: () => {
       setVictoryData({ error: true, lvlPointsEarned: 0, coinsAwarded: 0, droppedItems: [], levelsGained: 0 });
+    },
+  });
+
+  const potionMutation = useMutation({
+    mutationFn: async ({ inventoryId, petInventoryId }: { inventoryId: string; petInventoryId: string }) => {
+      const res = await apiRequest("POST", "/api/explore/use-potion", { inventoryId, petInventoryId });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      const healAmount = data.healAmount || 0;
+      const newHp = Math.min(petMaxHp, petHp + healAmount);
+      setPetHp(newHp);
+      petHpRef.current = newHp;
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      toast({ title: `Used ${data.potionName}`, description: `Restored ${healAmount} HP` });
+    },
+    onError: () => {
+      toast({ title: "Failed", description: "Could not use potion", variant: "destructive" });
     },
   });
 
@@ -197,8 +259,9 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     const animate = () => {
       if (!battleActiveRef.current) return;
 
+      const diff = enemyDifficultyRef.current;
       const pos = { ...enemyPosRef.current };
-      const speed = 0.6;
+      const speed = 0.4 + diff * 0.5;
       pos.x += pos.vx * speed;
       pos.y += pos.vy * speed;
 
@@ -214,7 +277,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       }
 
       const now = Date.now();
-      const attackInterval = 4500;
+      const attackInterval = 6000 - diff * 3000;
       if (now - lastEnemyAttackRef.current > attackInterval) {
         lastEnemyAttackRef.current = now;
         const petY = 70;
@@ -223,13 +286,13 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         const dy = petY - pos.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist > 0) {
-          const lungeSpeed = 2.2;
+          const lungeSpeed = 1.5 + diff * 1.5;
           pos.vx = (dx / dist) * lungeSpeed;
           pos.vy = (dy / dist) * lungeSpeed;
         }
       }
 
-      const maxSpeed = 2.5;
+      const maxSpeed = 1.5 + diff * 2;
       const spd = Math.sqrt(pos.vx * pos.vx + pos.vy * pos.vy);
       if (spd > maxSpeed) {
         pos.vx = (pos.vx / spd) * maxSpeed;
@@ -306,16 +369,29 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
 
       if (enemyHpRef.current <= 0) {
         battleActiveRef.current = false;
-        setPhase("victory");
         defeatMutation.mutate({ enemyId: enemy.enemyId, enemyLevel: enemy.level });
+        const hasMore = waveIndex + 1 < allEnemies.length;
+        setPhase(hasMore ? "waveComplete" : "victory");
       }
     }
-  }, [enemy, comboCount, lastHitTime, defeatMutation]);
+  }, [enemy, comboCount, lastHitTime, defeatMutation, waveIndex, allEnemies.length]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
     handleAttack(e.clientX, e.clientY);
   }, [handleAttack]);
+
+  const handleAdvance = useCallback(() => {
+    const nextIdx = waveIndex + 1;
+    if (nextIdx < allEnemies.length) {
+      startWave(allEnemies[nextIdx], nextIdx);
+    }
+  }, [waveIndex, allEnemies, startWave]);
+
+  const handleReturnToWorld = useCallback(() => {
+    onBattleEnd();
+    onClose();
+  }, [onBattleEnd, onClose]);
 
   const hpBarColor = (current: number, max: number) => {
     const pct = max > 0 ? current / max : 0;
@@ -379,11 +455,6 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           0%, 100% { filter: brightness(1); }
           50% { filter: brightness(2.5) saturate(0); }
         }
-        @keyframes enemyDeath {
-          0% { transform: scale(1) rotate(0deg); opacity: 1; }
-          50% { transform: scale(1.2) rotate(10deg); opacity: 0.5; filter: brightness(3); }
-          100% { transform: scale(0) rotate(45deg); opacity: 0; }
-        }
         @keyframes comboText {
           0% { transform: scale(0.5); opacity: 0; }
           50% { transform: scale(1.2); }
@@ -392,6 +463,11 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         @keyframes rewardSlide {
           0% { transform: translateY(20px); opacity: 0; }
           100% { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes healPulse {
+          0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.4); }
+          70% { box-shadow: 0 0 0 10px rgba(34,197,94,0); }
+          100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
         }
       `}</style>
 
@@ -421,6 +497,9 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                 {enemy.isBoss && <span className="ml-2 text-xs bg-red-600 text-white px-2 py-0.5 rounded-full">BOSS</span>}
                 <span className="text-gray-400 text-sm ml-2">Lv.{enemy.level}</span>
               </div>
+              {allEnemies.length > 1 && (
+                <div className="mt-1 text-gray-500 text-xs">Wave {waveIndex + 1} of {allEnemies.length}</div>
+              )}
             </div>
             <div className="text-white text-2xl font-bold animate-pulse">VS</div>
             <div style={{ animation: "petIntro 0.8s ease-out 0.3s both" }} className="flex flex-col items-center">
@@ -441,7 +520,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           </div>
         )}
 
-        {(phase === "battle" || phase === "victory" || phase === "defeat") && enemy && pet && (
+        {(phase === "battle" || phase === "victory" || phase === "waveComplete" || phase === "defeat") && enemy && pet && (
           <>
             <div className="absolute top-0 left-0 right-0 z-20 p-3">
               <div className="flex items-center justify-between gap-2 mb-2">
@@ -450,6 +529,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                     {enemy.isBoss && <span className="text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded-full font-bold">BOSS</span>}
                     <span className="text-white text-sm font-bold drop-shadow-lg truncate">{enemy.name}</span>
                     <span className="text-gray-300 text-xs">Lv.{enemy.level}</span>
+                    {allEnemies.length > 1 && <span className="text-gray-500 text-[10px]">({waveIndex + 1}/{allEnemies.length})</span>}
                   </div>
                   <div className="h-3 bg-black/60 rounded-full overflow-hidden border border-white/20">
                     <div
@@ -464,7 +544,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   <div className="text-gray-300 text-[10px] mt-0.5">{enemyHp} / {enemyMaxHp}</div>
                 </div>
                 <button
-                  onClick={onClose}
+                  onClick={handleReturnToWorld}
                   className="p-1.5 bg-black/50 rounded-full hover:bg-black/70 transition-colors"
                   data-testid="button-flee-battle"
                 >
@@ -504,9 +584,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               )}
             </div>
 
-            {phase !== "victory" && (
+            {phase === "battle" && (
               <div
-                ref={enemyRef}
                 className="absolute z-10 transition-none"
                 style={{
                   left: `${enemyPos.x}%`,
@@ -514,8 +593,6 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   transform: `translate(-50%, -50%)`,
                   animation: enemyHit
                     ? "hitFlash 0.2s ease-in-out"
-                    : phase === "defeat"
-                    ? undefined
                     : "enemyBounce 0.6s ease-in-out infinite",
                   pointerEvents: "none",
                 }}
@@ -525,7 +602,6 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                     src={enemy.imageUrl}
                     alt={enemy.name}
                     className="w-20 h-20 object-contain drop-shadow-[0_0_12px_rgba(255,0,0,0.5)]"
-                    style={{ imageRendering: "auto" }}
                   />
                 ) : (
                   <div className="w-20 h-20 bg-red-900/50 rounded-full flex items-center justify-center border-2 border-red-500">
@@ -536,7 +612,6 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
             )}
 
             <div
-              ref={petAreaRef}
               className="absolute bottom-16 left-1/2 z-10"
               style={{
                 transform: "translateX(-50%)",
@@ -608,16 +683,128 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               top: `${dmg.y}%`,
               transform: "translate(-50%, -50%)",
               animation: "dmgFloat 0.8s ease-out forwards",
-              fontSize: dmg.isCrit ? "28px" : "22px",
+              fontSize: dmg.isCrit ? "28px" : dmg.isHeal ? "24px" : "22px",
               color: dmg.isHeal ? "#22c55e" : dmg.isCrit ? "#fbbf24" : "#ef4444",
               textShadow: "0 2px 8px rgba(0,0,0,0.8), 0 0 4px rgba(0,0,0,0.5)",
             }}
             data-testid="text-damage-number"
           >
             {dmg.isCrit && "💥"}
+            {dmg.isHeal && "+"}
             {dmg.value}
           </div>
         ))}
+
+        {phase === "waveComplete" && enemy && pet && (
+          <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/60">
+            <div
+              className="bg-gray-900/95 rounded-2xl border p-5 mx-4 max-w-sm w-full max-h-[85vh] overflow-y-auto"
+              style={{ borderColor: accent + "60" }}
+              data-testid="modal-wave-complete"
+            >
+              <div className="text-center">
+                <div className="text-xl font-black mb-1" style={{ color: accent }}>Enemy Defeated!</div>
+                <div className="text-gray-400 text-sm mb-3">{enemy.name} has been vanquished!</div>
+
+                {victoryData && !victoryData.error && (
+                  <div className="space-y-2 mb-4">
+                    {victoryData.lvlPointsEarned > 0 && (
+                      <div className="flex items-center justify-center gap-2 text-yellow-400 text-sm">
+                        <Star className="w-4 h-4" />
+                        <span className="font-bold">+{victoryData.lvlPointsEarned} Level Points</span>
+                      </div>
+                    )}
+                    {victoryData.levelsGained > 0 && (
+                      <div className="text-green-400 font-bold animate-pulse">Level Up! → Lv.{victoryData.newLevel}</div>
+                    )}
+                    {victoryData.coinsAwarded > 0 && (
+                      <div className="flex items-center justify-center gap-2 text-amber-400 text-sm">
+                        <Coins className="w-4 h-4" />
+                        <span className="font-bold">+{victoryData.coinsAwarded} Coins</span>
+                      </div>
+                    )}
+                    {victoryData.droppedItems?.length > 0 && (
+                      <div className="space-y-1">
+                        {victoryData.droppedItems.map((item: any, i: number) => (
+                          <div key={i} className="flex items-center justify-center gap-2">
+                            {item.imageUrl && <img src={item.imageUrl} alt="" className="w-5 h-5 object-contain" />}
+                            <span className="text-white text-xs font-medium">{item.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="bg-black/40 rounded-xl p-3 mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-gray-400 text-xs">{pet.name}'s HP</span>
+                    <span className="text-xs font-bold" style={{ color: hpBarColor(petHp, petMaxHp) }}>{petHp} / {petMaxHp}</span>
+                  </div>
+                  <div className="h-2 bg-black/60 rounded-full overflow-hidden border border-white/10">
+                    <div className="h-full rounded-full transition-all" style={{ width: `${(petHp / petMaxHp) * 100}%`, backgroundColor: hpBarColor(petHp, petMaxHp) }} />
+                  </div>
+
+                  {potions.length > 0 && (
+                    <div className="mt-3">
+                      <div className="text-gray-500 text-[10px] uppercase tracking-wide mb-1.5">Use Potion</div>
+                      <div className="space-y-1.5">
+                        {potions.map((potion) => (
+                          <button
+                            key={potion.inventoryId}
+                            data-testid={`button-use-potion-${potion.inventoryId}`}
+                            disabled={potionMutation.isPending || petHp >= petMaxHp}
+                            onClick={() => potionMutation.mutate({ inventoryId: potion.inventoryId, petInventoryId: pet.inventoryId })}
+                            className="w-full flex items-center gap-2 p-2 rounded-lg bg-green-900/30 border border-green-700/40 hover:bg-green-800/40 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                            style={{ animation: "healPulse 2s infinite" }}
+                          >
+                            {potion.imageUrl ? (
+                              <img src={potion.imageUrl} alt="" className="w-7 h-7 object-contain" />
+                            ) : (
+                              <Heart className="w-5 h-5 text-green-400" />
+                            )}
+                            <div className="flex-1 text-left">
+                              <div className="text-white text-xs font-medium">{potion.name}</div>
+                              <div className="text-green-400 text-[10px]">+{potion.healthRestored} HP</div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="text-gray-500 text-xs mb-3">
+                  {waveIndex + 1 < allEnemies.length
+                    ? `${allEnemies.length - waveIndex - 1} more ${allEnemies.length - waveIndex - 1 === 1 ? "enemy" : "enemies"} ahead...`
+                    : "All enemies defeated!"}
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    data-testid="button-return-to-world"
+                    onClick={handleReturnToWorld}
+                    className="flex-1 py-2.5 rounded-xl font-bold text-sm text-gray-300 bg-gray-700/50 border border-gray-600/50 hover:bg-gray-600/50 transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    Return
+                  </button>
+                  {waveIndex + 1 < allEnemies.length && (
+                    <button
+                      data-testid="button-advance-wave"
+                      onClick={handleAdvance}
+                      className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-1.5"
+                      style={{ backgroundColor: accent }}
+                    >
+                      Advance
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {phase === "victory" && enemy && (
           <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/60">
@@ -628,29 +815,33 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
             >
               <div className="text-center">
                 <div className="text-3xl font-black mb-1" style={{ color: accent }}>VICTORY!</div>
-                <div className="text-gray-400 text-sm mb-4">You defeated {enemy.name}!</div>
+                <div className="text-gray-400 text-sm mb-4">
+                  {allEnemies.length > 1 ? `All ${allEnemies.length} enemies defeated!` : `You defeated ${enemy.name}!`}
+                </div>
 
-                {victoryData ? (
+                {(victoryData || totalRewards.lvlPoints > 0) ? (
                   <div className="space-y-3">
-                    <div className="flex items-center justify-center gap-2 text-yellow-400" style={{ animation: "rewardSlide 0.5s ease-out" }}>
-                      <Star className="w-5 h-5" />
-                      <span className="font-bold">+{victoryData.lvlPointsEarned} Level Points</span>
-                    </div>
-                    {victoryData.levelsGained > 0 && (
-                      <div className="text-green-400 font-bold text-lg animate-pulse" style={{ animation: "rewardSlide 0.6s ease-out" }}>
-                        Level Up! → Lv.{victoryData.newLevel}
+                    {(totalRewards.lvlPoints > 0 || victoryData?.lvlPointsEarned > 0) && (
+                      <div className="flex items-center justify-center gap-2 text-yellow-400" style={{ animation: "rewardSlide 0.5s ease-out" }}>
+                        <Star className="w-5 h-5" />
+                        <span className="font-bold">+{allEnemies.length > 1 ? totalRewards.lvlPoints : victoryData?.lvlPointsEarned} Level Points</span>
                       </div>
                     )}
-                    {victoryData.coinsAwarded > 0 && (
+                    {(totalRewards.levelsGained > 0 || victoryData?.levelsGained > 0) && (
+                      <div className="text-green-400 font-bold text-lg animate-pulse" style={{ animation: "rewardSlide 0.6s ease-out" }}>
+                        Level Up! → Lv.{victoryData?.newLevel}
+                      </div>
+                    )}
+                    {(totalRewards.coins > 0 || victoryData?.coinsAwarded > 0) && (
                       <div className="flex items-center justify-center gap-2 text-amber-400" style={{ animation: "rewardSlide 0.7s ease-out" }}>
                         <Coins className="w-5 h-5" />
-                        <span className="font-bold">+{victoryData.coinsAwarded} Coins</span>
+                        <span className="font-bold">+{allEnemies.length > 1 ? totalRewards.coins : victoryData?.coinsAwarded} Coins</span>
                       </div>
                     )}
-                    {victoryData.droppedItems?.length > 0 && (
+                    {((allEnemies.length > 1 ? totalRewards.items : victoryData?.droppedItems) || []).length > 0 && (
                       <div className="space-y-1" style={{ animation: "rewardSlide 0.8s ease-out" }}>
                         <div className="text-gray-400 text-xs uppercase tracking-wide">Items Found</div>
-                        {victoryData.droppedItems.map((item: any, i: number) => (
+                        {(allEnemies.length > 1 ? totalRewards.items : victoryData?.droppedItems || []).map((item: any, i: number) => (
                           <div key={i} className="flex items-center justify-center gap-2">
                             {item.imageUrl && <img src={item.imageUrl} alt="" className="w-6 h-6 object-contain" />}
                             <span className="text-white text-sm font-medium">{item.name}</span>
@@ -666,7 +857,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                 )}
 
                 <button
-                  onClick={() => { onBattleEnd(); onClose(); }}
+                  onClick={handleReturnToWorld}
                   className="mt-6 w-full py-3 rounded-xl font-bold text-white transition-all hover:scale-105 active:scale-95"
                   style={{ backgroundColor: accent }}
                   data-testid="button-battle-continue"
@@ -686,10 +877,30 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
             >
               <div className="text-center">
                 <div className="text-3xl font-black text-red-500 mb-1">DEFEATED</div>
-                <div className="text-gray-400 text-sm mb-4">{pet.name} couldn't hold on...</div>
-                <div className="text-gray-500 text-xs mb-4">No rewards earned this time.</div>
+                <div className="text-gray-400 text-sm mb-2">{pet.name} couldn't hold on...</div>
+
+                {totalRewards.lvlPoints > 0 || totalRewards.coins > 0 || totalRewards.items.length > 0 ? (
+                  <div className="bg-black/30 rounded-lg p-3 mb-4 space-y-1">
+                    <div className="text-gray-500 text-[10px] uppercase tracking-wide">Rewards earned before defeat</div>
+                    {totalRewards.lvlPoints > 0 && (
+                      <div className="flex items-center justify-center gap-1.5 text-yellow-400 text-sm">
+                        <Star className="w-3.5 h-3.5" />
+                        <span>+{totalRewards.lvlPoints} Level Points</span>
+                      </div>
+                    )}
+                    {totalRewards.coins > 0 && (
+                      <div className="flex items-center justify-center gap-1.5 text-amber-400 text-sm">
+                        <Coins className="w-3.5 h-3.5" />
+                        <span>+{totalRewards.coins} Coins</span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-gray-500 text-xs mb-4">No rewards earned this time.</div>
+                )}
+
                 <button
-                  onClick={onClose}
+                  onClick={handleReturnToWorld}
                   className="w-full py-3 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 transition-all hover:scale-105 active:scale-95"
                   data-testid="button-battle-retreat"
                 >
