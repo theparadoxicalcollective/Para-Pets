@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Heart, Swords, Shield, Star, Coins, X } from "lucide-react";
+import { Swords, Star, Coins, X } from "lucide-react";
 import PetAnimator from "./PetAnimator";
 
 interface EncounterEnemy {
