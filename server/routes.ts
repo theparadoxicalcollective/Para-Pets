@@ -1799,19 +1799,34 @@ export async function registerRoutes(
       }
 
       const petLevel = activePet.petLevel || 0;
+      const petHp = activePet.petHealth || 1000;
+      const petAtk = activePet.petAtk || 50;
+      const petDef = activePet.petDef || 50;
       const enemy = enemies[Math.floor(Math.random() * enemies.length)];
       const maxLevelOffset = enemy.isBoss ? 5 : 2;
       const enemyLevel = Math.max(1, petLevel + Math.floor(Math.random() * (maxLevelOffset + 1)));
-      const baseHp = 200;
-      const enemyHp = baseHp + (enemyLevel * 100);
-      const enemyAtk = 20 + (enemyLevel * 10);
-      const enemyDef = 10 + (enemyLevel * 5);
+
+      const levelRatio = enemyLevel / Math.max(1, petLevel || 1);
+      const bossMult = enemy.isBoss ? 1.5 : 1.0;
+      const enemyHp = Math.max(200, Math.floor(petHp * 0.6 * levelRatio * bossMult));
+      const enemyAtk = Math.max(10, Math.floor(petAtk * 0.7 * levelRatio * bossMult));
+      const enemyDef = Math.max(5, Math.floor(petDef * 0.4 * levelRatio * bossMult));
 
       const drops = await storage.getEnemyDrops(enemy.id);
       const dropDetails = await Promise.all(drops.map(async (drop) => {
         const shopItem = await storage.getShopItem(drop.shopItemId);
         return shopItem ? { id: drop.id, dropRate: drop.dropRate, shopItem: { id: shopItem.id, name: shopItem.name, type: shopItem.type, imageUrl: shopItem.imageUrl } } : null;
       }));
+
+      let petImageUrl = activePet.hatchedImageUrl || activePet.imageUrl || null;
+      let petBackImageUrl: string | null = null;
+      if (activePet.petTemplateId) {
+        const template = await storage.getPetTemplate(activePet.petTemplateId);
+        if (template) {
+          if (template.backAssembled) petBackImageUrl = template.backAssembled;
+          if (template.frontAssembled) petImageUrl = template.frontAssembled;
+        }
+      }
 
       return res.json({
         encounter: {
@@ -1828,11 +1843,14 @@ export async function registerRoutes(
         },
         pet: {
           inventoryId: activePet.id,
-          name: activePet.petNickname || "Pet",
+          name: activePet.petNickname || activePet.name || "Pet",
           level: activePet.petLevel,
           hp: activePet.petHealth,
           atk: activePet.petAtk,
           def: activePet.petDef,
+          petTemplateId: activePet.petTemplateId || null,
+          imageUrl: petImageUrl,
+          backImageUrl: petBackImageUrl,
         },
       });
     } catch (err) {
@@ -1861,10 +1879,13 @@ export async function registerRoutes(
       }
 
       const petLevel = activePet.petLevel || 0;
+      const petHp = activePet.petHealth || 1000;
       const maxLevelOffset = enemy.isBoss ? 5 : 2;
       const maxAllowedLevel = petLevel + maxLevelOffset;
       const enemyLevel = Math.max(1, Math.min(clientEnemyLevel || 1, maxAllowedLevel));
-      const startingHp = 200 + (enemyLevel * 100);
+      const levelRatio = enemyLevel / Math.max(1, petLevel || 1);
+      const bossMult = enemy.isBoss ? 1.5 : 1.0;
+      const startingHp = Math.max(200, Math.floor(petHp * 0.6 * levelRatio * bossMult));
       const lvlPointsEarned = Math.max(1, Math.floor(startingHp * 0.05));
 
       const POINTS_PER_LEVEL = 10;

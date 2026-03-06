@@ -9,6 +9,7 @@ import coinIconImg from "@assets/icon_coin.png";
 import { Plus, Trash2, X, MapPin, Package, Pencil, Settings, Swords } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 import ExploreAdminPanel from "@/components/ExploreAdminPanel";
+import BattleArena from "@/components/BattleArena";
 
 import shopFrostpeak from "@assets/shop_frostpeak.png";
 import shopSkyRealm from "@assets/shop_sky_realm.png";
@@ -158,6 +159,9 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [showExploreAdmin, setShowExploreAdmin] = useState(false);
   const [bgUploading, setBgUploading] = useState(false);
   const [showNoPetMessage, setShowNoPetMessage] = useState(false);
+  const [showDangerWarning, setShowDangerWarning] = useState(false);
+  const [showBattle, setShowBattle] = useState(false);
+  const [battleLocationId, setBattleLocationId] = useState<string | null>(null);
   const [objDragPos, setObjDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
   const objDragRef = useRef<{ objId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const objDidDrag = useRef(false);
@@ -410,6 +414,8 @@ export default function WorldPage({ user }: WorldPageProps) {
     if (loc.isShop) {
       setShowLocationView(false);
       setShowShop(true);
+    } else if (loc.type === "explore" && !currentUser.isAdmin) {
+      setShowDangerWarning(true);
     } else {
       setShowShop(false);
       setShowLocationView(true);
@@ -1513,19 +1519,40 @@ export default function WorldPage({ user }: WorldPageProps) {
               {currentUser.isAdmin && (
                 <div className="absolute bottom-4 right-4 z-20 flex flex-col gap-2">
                   {activeLoc.type === "explore" && (
-                    <button
-                      data-testid="button-explore-admin"
-                      onClick={() => setShowExploreAdmin(true)}
-                      className="w-12 h-12 rounded-full flex items-center justify-center transition-transform active:scale-90"
-                      style={{
-                        background: `linear-gradient(135deg, rgba(192,132,252,0.8) 0%, rgba(120,80,200,0.6) 100%)`,
-                        border: `2px solid rgba(192,132,252,0.9)`,
-                        boxShadow: `0 4px 20px rgba(192,132,252,0.4)`,
-                        cursor: "pointer",
-                      }}
-                    >
-                      <Settings className="w-5 h-5 text-white" />
-                    </button>
+                    <>
+                      <button
+                        data-testid="button-explore-admin"
+                        onClick={() => setShowExploreAdmin(true)}
+                        className="w-12 h-12 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                        style={{
+                          background: `linear-gradient(135deg, rgba(192,132,252,0.8) 0%, rgba(120,80,200,0.6) 100%)`,
+                          border: `2px solid rgba(192,132,252,0.9)`,
+                          boxShadow: `0 4px 20px rgba(192,132,252,0.4)`,
+                          cursor: "pointer",
+                        }}
+                      >
+                        <Settings className="w-5 h-5 text-white" />
+                      </button>
+                      {currentUser.activePetId && (
+                        <button
+                          data-testid="button-start-battle"
+                          onClick={() => {
+                            setBattleLocationId(activeLoc.id);
+                            setShowBattle(true);
+                            setShowLocationView(false);
+                          }}
+                          className="w-12 h-12 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                          style={{
+                            background: `linear-gradient(135deg, rgba(239,68,68,0.8) 0%, rgba(180,40,40,0.6) 100%)`,
+                            border: `2px solid rgba(239,68,68,0.9)`,
+                            boxShadow: `0 4px 20px rgba(239,68,68,0.4)`,
+                            cursor: "pointer",
+                          }}
+                        >
+                          <Swords className="w-5 h-5 text-white" />
+                        </button>
+                      )}
+                    </>
                   )}
                   <button
                     data-testid="button-add-object"
@@ -1675,6 +1702,78 @@ export default function WorldPage({ user }: WorldPageProps) {
           }}
         />
       )}
+
+      {showDangerWarning && activeLocationId && (() => {
+        const dangerLoc = locations.find(l => l.id === activeLocationId);
+        if (!dangerLoc) return null;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowDangerWarning(false)} />
+            <div
+              className="relative z-10 w-[85%] max-w-sm rounded-lg p-5 text-center"
+              style={{
+                background: "linear-gradient(135deg, rgba(8,5,18,0.98) 0%, rgba(18,12,30,0.98) 100%)",
+                border: `1px solid #ff444455`,
+                boxShadow: `0 0 40px #ff444425`,
+              }}
+              data-testid="modal-danger-warning"
+            >
+              <div className="w-16 h-16 mx-auto mb-3 rounded-full flex items-center justify-center" style={{ background: "#ff444415", border: "2px solid #ff444440" }}>
+                <Swords className="w-8 h-8 text-red-400 animate-pulse" />
+              </div>
+              <h3 className="font-fantasy text-base tracking-widest mb-2 text-red-400" style={{ textShadow: "0 0 10px #ff444440" }}>
+                Danger Ahead!
+              </h3>
+              <p className="font-fantasy text-[11px] tracking-wider leading-relaxed mb-5 text-red-300/80">
+                Wild creatures lurk in {dangerLoc.name}. Prepare for battle!
+              </p>
+              <div className="flex gap-3">
+                <button
+                  data-testid="button-danger-go-back"
+                  onClick={() => { setShowDangerWarning(false); setActiveLocationId(null); }}
+                  className="flex-1 py-2.5 rounded-md font-fantasy text-xs tracking-wider transition-transform active:scale-95 bg-gray-700/50 border border-gray-600/50 text-gray-300 hover:bg-gray-600/50"
+                >
+                  Go Back
+                </button>
+                <button
+                  data-testid="button-danger-move-forward"
+                  onClick={() => {
+                    setShowDangerWarning(false);
+                    setBattleLocationId(activeLocationId);
+                    setShowBattle(true);
+                  }}
+                  className="flex-1 py-2.5 rounded-md font-fantasy text-xs tracking-wider transition-transform active:scale-95 bg-red-600/80 border border-red-500/70 text-white hover:bg-red-500/80"
+                  style={{ boxShadow: "0 0 15px #ff444430" }}
+                >
+                  Move Forward
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {showBattle && battleLocationId && (() => {
+        const battleLoc = locations.find(l => l.id === battleLocationId);
+        if (!battleLoc) return null;
+        return (
+          <BattleArena
+            locationId={battleLocationId}
+            locationName={battleLoc.name}
+            bgUrl={battleLoc.bgUrl}
+            accent={accent}
+            onClose={() => {
+              setShowBattle(false);
+              setBattleLocationId(null);
+              setActiveLocationId(null);
+            }}
+            onBattleEnd={() => {
+              queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+              queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+            }}
+          />
+        );
+      })()}
 
       {showProfile && (
         <UserProfilePanel

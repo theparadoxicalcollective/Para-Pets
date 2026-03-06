@@ -109,9 +109,13 @@ Para Pets is a mobile-first fantasy game web app where players collect, raise, a
   - Explore-type locations: admin settings button (⚙) opens ExploreAdminPanel with enemy management (including boss toggle), item drops, coin rewards, and background upload
   - Explore requires active pet: non-admin users without an active pet see "Keepers must have a pet to explore safely" message
   - Enemy levels scale with active pet: regular enemies = petLevel to petLevel+2, bosses = petLevel to petLevel+5
-  - Enemy HP formula: 200 + (enemyLevel * 100); ATK: 20 + (level * 10); DEF: 10 + (level * 5)
-  - Defeating enemy awards 5% of enemy HP as pet level points (e.g. 2000 HP → 100 pts); coins and item drops also awarded
-  - Explore APIs: POST /api/explore/:locationId/encounter (generates scaled enemy), POST /api/explore/defeat/:enemyId (awards rewards)
+  - Enemy stats scale dynamically based on pet stats: HP = petHP * 0.6 * levelRatio * bossMult, ATK = petATK * 0.7 * levelRatio * bossMult, DEF = petDEF * 0.4 * levelRatio * bossMult (bossMult: 1.5 for bosses, 1.0 for regular)
+  - Defeating enemy awards 5% of enemy HP as pet level points; coins and item drops also awarded
+  - Battle system (BattleArena.tsx): "Danger Ahead" warning → battle arena with location background, enemy bounces/lunges, tap/click to attack with slash effects, combo system, crit hits, damage numbers, HP bars, victory/defeat screens with reward display
+  - Pet displayed at bottom of battle using back view (backAssembled) if available, otherwise front view; uses PetAnimator for template pets
+  - Encounter API returns pet image data including backAssembled from pet templates
+  - Admins can test battles via sword button in location view
+  - Explore APIs: POST /api/explore/:locationId/encounter (generates scaled enemy with pet image data), POST /api/explore/defeat/:enemyId (awards rewards, server-validated)
   - Decorative objects (non-shop only): admin adds PNG/GIF objects via "+", objects displayed as positioned images, admin can drag/drop to reposition
   - Owner character: floating PNG displayed at bottom-left of location view
   - Location-specific shop: items assigned per-location (locationId on shop_items), 100/day purchase limit for non-pet items
