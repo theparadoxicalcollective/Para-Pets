@@ -45,6 +45,7 @@ interface PetDetailPageProps {
 
 export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUserUpdate }: PetDetailPageProps) {
   const [showPowerUp, setShowPowerUp] = useState(false);
+  const [showLvlUp, setShowLvlUp] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [confirmItem, setConfirmItem] = useState<BagItem | null>(null);
   const [showSuccessAnim, setShowSuccessAnim] = useState(false);
@@ -125,6 +126,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
       setShowSuccessAnim(true);
       setConfirmItem(null);
       setShowPowerUp(false);
+      setShowLvlUp(false);
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       onUpdate();
       setTimeout(() => setShowSuccessAnim(false), 2000);
@@ -347,10 +349,10 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
             </div>
           </div>
 
-          <div className="flex gap-2 mb-3">
+          <div className="flex gap-2 mb-2">
             <button
               data-testid="button-power-up"
-              onClick={() => setShowPowerUp(true)}
+              onClick={() => { setShowPowerUp(true); setShowLvlUp(false); }}
               disabled={pet.petLevel >= 100}
               className="flex-1 py-2.5 rounded-md font-fantasy text-xs tracking-wider transition-transform active:scale-95 disabled:opacity-40"
               style={{
@@ -360,12 +362,28 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                 cursor: pet.petLevel >= 100 ? "not-allowed" : "pointer",
               }}
             >
-              {pet.petLevel >= 100 ? "MAX LEVEL" : "Power Up"}
+              {pet.petLevel >= 100 ? "MAX" : "Power Up"}
             </button>
+            <button
+              data-testid="button-lvl-up"
+              onClick={() => { setShowLvlUp(true); setShowPowerUp(false); }}
+              disabled={pet.petLevel >= 100}
+              className="flex-1 py-2.5 rounded-md font-fantasy text-xs tracking-wider transition-transform active:scale-95 disabled:opacity-40"
+              style={{
+                background: "linear-gradient(135deg, rgba(240,192,64,0.3) 0%, rgba(180,140,30,0.3) 100%)",
+                border: "1px solid rgba(240,192,64,0.4)",
+                color: "#f0c040",
+                cursor: pet.petLevel >= 100 ? "not-allowed" : "pointer",
+              }}
+            >
+              {pet.petLevel >= 100 ? "MAX" : "LVL Up"}
+            </button>
+          </div>
+          <div className="mb-3">
             <button
               data-testid="button-reset-stats"
               onClick={() => setShowResetConfirm(true)}
-              className="flex-1 py-2.5 rounded-md font-fantasy text-xs tracking-wider transition-transform active:scale-95"
+              className="w-full py-2 rounded-md font-fantasy text-[10px] tracking-wider transition-transform active:scale-95"
               style={{
                 background: "linear-gradient(135deg, rgba(139,0,0,0.4) 0%, rgba(80,0,0,0.4) 100%)",
                 border: "1px solid rgba(200,50,50,0.3)",
@@ -394,95 +412,127 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                   Cancel
                 </button>
               </div>
-              {usableItems.length === 0 && specialItems.length === 0 ? (
+              {usableItems.length === 0 ? (
                 <p className="font-fantasy text-[#a89878] text-xs text-center py-4">
-                  No usable items in your bag
+                  No power-up items in your bag
                 </p>
               ) : (
                 <>
-                  {usableItems.length > 0 && (
-                    <>
-                      <p className="font-fantasy text-[#a89878] text-[9px] tracking-wider mb-1">POWER-UP ITEMS ({itemsRemaining} uses left)</p>
-                      {itemsRemaining <= 0 && (
-                        <p className="font-fantasy text-[#ff9999] text-[8px] text-center mb-2">
-                          Limit reached this level. Use a LVL item to level up!
-                        </p>
-                      )}
-                      <div className="grid grid-cols-3 gap-2 mb-3">
-                        {usableItems.map((item) => (
-                          <button
-                            key={item.inventoryId}
-                            data-testid={`button-use-item-${item.inventoryId}`}
-                            onClick={() => setConfirmItem(item)}
-                            disabled={powerUpMutation.isPending || (item.statBoostType !== "lvl" && itemsRemaining <= 0)}
-                            className="rounded-md p-2 flex flex-col items-center gap-1 transition-transform active:scale-95 disabled:opacity-40"
-                            style={{
-                              background: "rgba(30,15,5,0.8)",
-                              border: "1px solid rgba(212,160,23,0.3)",
-                              cursor: powerUpMutation.isPending ? "wait" : "pointer",
-                            }}
-                          >
-                            <div className="w-10 h-10 rounded flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.3)" }}>
-                              {item.imageUrl ? (
-                                <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
-                              ) : (
-                                <span className="text-lg">📦</span>
-                              )}
-                            </div>
-                            <span className="font-fantasy text-[#f0c040] text-[8px] tracking-wider text-center truncate w-full">{item.name}</span>
-                            <span
-                              className="font-fantasy text-[7px] tracking-wider px-1.5 py-0.5 rounded-full"
-                              style={{
-                                background: item.statBoostType === "health" ? "rgba(74,222,128,0.15)" : item.statBoostType === "atk" ? "rgba(248,113,113,0.15)" : item.statBoostType === "def" ? "rgba(96,165,250,0.15)" : "rgba(192,132,252,0.15)",
-                                color: item.statBoostType === "health" ? "#4ade80" : item.statBoostType === "atk" ? "#f87171" : item.statBoostType === "def" ? "#60a5fa" : "#c084fc",
-                              }}
-                            >
-                              +{item.statBoostAmount || "?"} {item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "LVL"}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    </>
+                  <p className="font-fantasy text-[#a89878] text-[9px] tracking-wider mb-1">POWER-UP ITEMS ({itemsRemaining} uses left)</p>
+                  {itemsRemaining <= 0 && (
+                    <p className="font-fantasy text-[#ff9999] text-[8px] text-center mb-2">
+                      Limit reached this level. Level up first!
+                    </p>
                   )}
-                  {specialItems.length > 0 && (
-                    <>
-                      <p className="font-fantasy text-[#f0c040] text-[9px] tracking-wider mb-1">SPECIAL ITEMS (no use limit)</p>
-                      <div className="grid grid-cols-3 gap-2">
-                        {specialItems.map((item) => (
-                          <button
-                            key={item.inventoryId}
-                            data-testid={`button-use-special-${item.inventoryId}`}
-                            onClick={() => setConfirmItem(item)}
-                            disabled={useSpecialMutation.isPending}
-                            className="rounded-md p-2 flex flex-col items-center gap-1 transition-transform active:scale-95 disabled:opacity-40"
-                            style={{
-                              background: "rgba(30,15,5,0.8)",
-                              border: "1px solid rgba(240,192,64,0.3)",
-                              cursor: useSpecialMutation.isPending ? "wait" : "pointer",
-                            }}
-                          >
-                            <div className="w-10 h-10 rounded flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.3)" }}>
-                              {item.imageUrl ? (
-                                <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
-                              ) : (
-                                <span className="text-lg">✨</span>
-                              )}
-                            </div>
-                            <span className="font-fantasy text-[#f0c040] text-[8px] tracking-wider text-center truncate w-full">{item.name}</span>
-                            <span
-                              className="font-fantasy text-[7px] tracking-wider px-1.5 py-0.5 rounded-full"
-                              style={{
-                                background: "rgba(240,192,64,0.15)",
-                                color: "#f0c040",
-                              }}
-                            >
-                              {item.specialType === "hatch_time" ? `-${item.specialAmount || "?"}min hatch` : `+${item.specialAmount || "?"} LVL pts`}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
+                  <div className="grid grid-cols-3 gap-2">
+                    {usableItems.map((item) => (
+                      <button
+                        key={item.inventoryId}
+                        data-testid={`button-use-item-${item.inventoryId}`}
+                        onClick={() => setConfirmItem(item)}
+                        disabled={powerUpMutation.isPending || (item.statBoostType !== "lvl" && itemsRemaining <= 0)}
+                        className="rounded-md p-2 flex flex-col items-center gap-1 transition-transform active:scale-95 disabled:opacity-40"
+                        style={{
+                          background: "rgba(30,15,5,0.8)",
+                          border: "1px solid rgba(212,160,23,0.3)",
+                          cursor: powerUpMutation.isPending ? "wait" : "pointer",
+                        }}
+                      >
+                        <div className="w-10 h-10 rounded flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.3)" }}>
+                          {item.imageUrl ? (
+                            <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
+                          ) : (
+                            <span className="text-lg">📦</span>
+                          )}
+                        </div>
+                        <span className="font-fantasy text-[#f0c040] text-[8px] tracking-wider text-center truncate w-full">{item.name}</span>
+                        <span
+                          className="font-fantasy text-[7px] tracking-wider px-1.5 py-0.5 rounded-full"
+                          style={{
+                            background: item.statBoostType === "health" ? "rgba(74,222,128,0.15)" : item.statBoostType === "atk" ? "rgba(248,113,113,0.15)" : item.statBoostType === "def" ? "rgba(96,165,250,0.15)" : "rgba(192,132,252,0.15)",
+                            color: item.statBoostType === "health" ? "#4ade80" : item.statBoostType === "atk" ? "#f87171" : item.statBoostType === "def" ? "#60a5fa" : "#c084fc",
+                          }}
+                        >
+                          +{item.statBoostAmount || "?"} {item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "LVL"}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {showLvlUp && (
+          <div className="p-5 pt-0">
+            <div
+              className="rounded-lg p-4"
+              style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(240,192,64,0.3)" }}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-fantasy text-[#f0c040] text-xs tracking-wider">LVL UP ITEMS</h4>
+                <button
+                  onClick={() => setShowLvlUp(false)}
+                  className="font-fantasy text-[#a89878] text-[10px] tracking-wider"
+                  style={{ cursor: "pointer", background: "none", border: "none" }}
+                >
+                  Cancel
+                </button>
+              </div>
+              <div className="mb-3">
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className="font-fantasy text-[#a89878] text-[9px] tracking-wider">PROGRESS TO NEXT LEVEL</span>
+                  <span className="font-fantasy text-[#f0c040] text-[9px]">{pet.petLevelPoints || 0} / 10 pts</span>
+                </div>
+                <div className="w-full h-2 rounded-full" style={{ background: "rgba(0,0,0,0.4)" }}>
+                  <div style={{
+                    width: `${Math.min(100, ((pet.petLevelPoints || 0) / 10) * 100)}%`,
+                    background: "linear-gradient(90deg, #f0c040, #f0c04088)",
+                    height: "8px",
+                    borderRadius: "4px",
+                    transition: "width 0.5s ease",
+                  }} />
+                </div>
+              </div>
+              {specialItems.filter(i => i.specialType === "level").length === 0 ? (
+                <p className="font-fantasy text-[#a89878] text-xs text-center py-4">
+                  No LVL items in your bag
+                </p>
+              ) : (
+                <>
+                  <p className="font-fantasy text-[#a89878] text-[9px] tracking-wider mb-1">No use limit — use as many as you want!</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {specialItems.filter(i => i.specialType === "level").map((item) => (
+                      <button
+                        key={item.inventoryId}
+                        data-testid={`button-use-lvl-${item.inventoryId}`}
+                        onClick={() => setConfirmItem(item)}
+                        disabled={useSpecialMutation.isPending}
+                        className="rounded-md p-2 flex flex-col items-center gap-1 transition-transform active:scale-95 disabled:opacity-40"
+                        style={{
+                          background: "rgba(30,15,5,0.8)",
+                          border: "1px solid rgba(240,192,64,0.3)",
+                          cursor: useSpecialMutation.isPending ? "wait" : "pointer",
+                        }}
+                      >
+                        <div className="w-10 h-10 rounded flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.3)" }}>
+                          {item.imageUrl ? (
+                            <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
+                          ) : (
+                            <span className="text-lg">⚡</span>
+                          )}
+                        </div>
+                        <span className="font-fantasy text-[#f0c040] text-[8px] tracking-wider text-center truncate w-full">{item.name}</span>
+                        <span
+                          className="font-fantasy text-[7px] tracking-wider px-1.5 py-0.5 rounded-full"
+                          style={{ background: "rgba(240,192,64,0.15)", color: "#f0c040" }}
+                        >
+                          +{item.specialAmount || "?"} LVL pts
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 </>
               )}
             </div>

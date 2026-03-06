@@ -11,6 +11,7 @@ import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import PetInventory from "@/components/PetInventory";
 import PetAnimator from "@/components/PetAnimator";
+import PetDetailPage from "@/components/PetDetailPage";
 
 interface HomePageProps {
   user: {
@@ -42,10 +43,16 @@ interface InventoryItem {
   petNickname: string | null;
   hatchStartedAt: string | null;
   isHatched: boolean;
+  statBoostType: string | null;
+  statBoostAmount: number | null;
+  specialType: string | null;
+  specialAmount: number | null;
   petHealth: number;
   petAtk: number;
   petDef: number;
   petLevel: number;
+  petLevelPoints: number;
+  itemsUsedThisLevel: number;
 }
 
 export default function HomePage({ user }: HomePageProps) {
@@ -55,6 +62,8 @@ export default function HomePage({ user }: HomePageProps) {
   const [showPetInventory, setShowPetInventory] = useState(false);
   const [showPvpNotice, setShowPvpNotice] = useState(false);
   const [hatchRevealing, setHatchRevealing] = useState(false);
+  const [showPetDetail, setShowPetDetail] = useState(false);
+  const [showSpeedUp, setShowSpeedUp] = useState(false);
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
 
@@ -82,6 +91,21 @@ export default function HomePage({ user }: HomePageProps) {
   const activePet = currentUser.activePetId
     ? inventory.find((item) => item.shopItemId === currentUser.activePetId && item.type === "pet")
     : null;
+
+  const hatchTimeItems = inventory.filter(
+    (item) => item.type === "special" && item.specialType === "hatch_time"
+  );
+
+  const speedUpMutation = useMutation({
+    mutationFn: async ({ petInvId, itemInvId }: { petInvId: string; itemInvId: string }) => {
+      const res = await apiRequest("POST", `/api/pet/${petInvId}/use-special`, { itemInventoryId: itemInvId });
+      return res.json();
+    },
+    onSuccess: () => {
+      setShowSpeedUp(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+    },
+  });
 
   const petLoading = currentUser.activePetId && inventoryLoading;
 
@@ -198,24 +222,34 @@ export default function HomePage({ user }: HomePageProps) {
                     }}
                   >
                     {activePet.isHatched ? (
-                      activePet.petTemplateId ? (
-                        <PetAnimator petTemplateId={activePet.petTemplateId} mode="idle" view="front" size={1000} className="w-full" style={{ aspectRatio: "1/1" }} />
-                      ) : (activePet.hatchedImageUrl || activePet.imageUrl) ? (
-                        <img src={activePet.hatchedImageUrl || activePet.imageUrl || ""} alt={activePet.name} className="w-full max-h-[50vh] object-contain" />
-                      ) : (
-                        <span className="text-5xl">🐾</span>
-                      )
+                      <div
+                        onClick={() => setShowPetDetail(true)}
+                        style={{ cursor: "pointer" }}
+                        className="w-full flex items-center justify-center"
+                        data-testid="button-open-pet-detail"
+                      >
+                        {activePet.petTemplateId ? (
+                          <PetAnimator petTemplateId={activePet.petTemplateId} mode="idle" view="front" size={1000} className="w-full" style={{ aspectRatio: "1/1" }} />
+                        ) : (activePet.hatchedImageUrl || activePet.imageUrl) ? (
+                          <img src={activePet.hatchedImageUrl || activePet.imageUrl || ""} alt={activePet.name} className="w-full max-h-[50vh] object-contain" />
+                        ) : (
+                          <span className="text-5xl">🐾</span>
+                        )}
+                      </div>
                     ) : (() => {
                       const eggHatchReady = activePet.hatchStartedAt && activePet.hatchTime
                         ? (Date.now() - new Date(activePet.hatchStartedAt).getTime()) >= activePet.hatchTime * 3600000
                         : false;
                       return (
                         <div
-                          style={{ animation: "eggWobble 2.5s ease-in-out infinite", cursor: eggHatchReady ? "pointer" : "default" }}
+                          style={{ animation: "eggWobble 2.5s ease-in-out infinite", cursor: "pointer" }}
                           className="w-full flex items-center justify-center"
+                          data-testid="button-egg-tap"
                           onClick={() => {
                             if (eggHatchReady && !hatchHomeMutation.isPending) {
                               hatchHomeMutation.mutate(activePet.inventoryId);
+                            } else if (!eggHatchReady) {
+                              setShowSpeedUp(true);
                             }
                           }}
                         >
@@ -589,6 +623,100 @@ export default function HomePage({ user }: HomePageProps) {
         <PetInventory
           user={currentUser}
           onClose={() => setShowPetInventory(false)}
+          onUserUpdate={(updatedUser) => setCurrentUser(updatedUser)}
+        />
+      )}
+
+      {showSpeedUp && activePet && !activePet.isHatched && (
+        <div className="fixed inset-0 z-[55] flex items-end justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowSpeedUp(false)} />
+          <div
+            className="relative w-full rounded-t-2xl p-5 animate-slide-up"
+            style={{
+              background: "linear-gradient(180deg, rgba(15,8,2,0.97) 0%, rgba(10,5,1,0.99) 100%)",
+              border: "1px solid rgba(240,192,64,0.3)",
+              borderBottom: "none",
+              boxShadow: "0 -8px 40px rgba(0,0,0,0.6)",
+            }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="font-fantasy text-[#f0c040] text-sm tracking-wider">SPEED UP HATCHING</h4>
+              <button
+                onClick={() => setShowSpeedUp(false)}
+                className="font-fantasy text-[#a89878] text-xs tracking-wider"
+                style={{ cursor: "pointer", background: "none", border: "none" }}
+                data-testid="button-close-speedup"
+              >
+                Close
+              </button>
+            </div>
+            {hatchTimeItems.length === 0 ? (
+              <p className="font-fantasy text-[#a89878] text-xs text-center py-6">
+                No speed-up items in your bag. Check the shop!
+              </p>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {hatchTimeItems.map((item) => (
+                  <button
+                    key={item.inventoryId}
+                    data-testid={`button-speedup-${item.inventoryId}`}
+                    onClick={() => speedUpMutation.mutate({ petInvId: activePet.inventoryId, itemInvId: item.inventoryId })}
+                    disabled={speedUpMutation.isPending}
+                    className="rounded-md p-2 flex flex-col items-center gap-1 transition-transform active:scale-95 disabled:opacity-40"
+                    style={{
+                      background: "rgba(30,15,5,0.8)",
+                      border: "1px solid rgba(240,192,64,0.3)",
+                      cursor: speedUpMutation.isPending ? "wait" : "pointer",
+                    }}
+                  >
+                    <div className="w-12 h-12 rounded flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.3)" }}>
+                      {item.imageUrl ? (
+                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
+                      ) : (
+                        <span className="text-xl">⏩</span>
+                      )}
+                    </div>
+                    <span className="font-fantasy text-[#f0c040] text-[9px] tracking-wider text-center truncate w-full">{item.name}</span>
+                    <span
+                      className="font-fantasy text-[8px] tracking-wider px-2 py-0.5 rounded-full"
+                      style={{ background: "rgba(240,192,64,0.15)", color: "#f0c040" }}
+                    >
+                      -{item.specialAmount || "?"}min
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showPetDetail && activePet && activePet.isHatched && (
+        <PetDetailPage
+          pet={{
+            inventoryId: activePet.inventoryId,
+            shopItemId: activePet.shopItemId,
+            name: activePet.name,
+            imageUrl: activePet.imageUrl,
+            eggImageUrl: activePet.eggImageUrl,
+            hatchedImageUrl: activePet.hatchedImageUrl,
+            petTemplateId: activePet.petTemplateId,
+            petNickname: activePet.petNickname,
+            rarity: activePet.rarity,
+            petHealth: activePet.petHealth,
+            petAtk: activePet.petAtk,
+            petDef: activePet.petDef,
+            petLevel: activePet.petLevel,
+            petLevelPoints: activePet.petLevelPoints,
+            itemsUsedThisLevel: activePet.itemsUsedThisLevel,
+            isHatched: activePet.isHatched,
+          }}
+          onClose={() => setShowPetDetail(false)}
+          onUpdate={() => {
+            queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+            setShowPetDetail(false);
+          }}
+          userCoins={currentUser.coins}
           onUserUpdate={(updatedUser) => setCurrentUser(updatedUser)}
         />
       )}
