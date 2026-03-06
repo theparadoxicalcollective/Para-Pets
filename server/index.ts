@@ -204,18 +204,20 @@ app.use((req, res, next) => {
     }
   }
 
+  function loadAssetBase64(filename: string): string | null {
+    const assetPath = path.join(process.cwd(), "attached_assets", filename);
+    if (!fs.existsSync(assetPath)) return null;
+    const buf = fs.readFileSync(assetPath);
+    return `data:image/png;base64,${buf.toString("base64")}`;
+  }
+
   try {
-    const THICKET_ID = "3e20ad30-faff-4643-9e80-5e5f30010738";
     const swampLocations = await storage.getWorldLocations("swamp");
+
+    const THICKET_ID = "3e20ad30-faff-4643-9e80-5e5f30010738";
     const thicketLoc = swampLocations.find(l => l.id === THICKET_ID);
     if (thicketLoc && thicketLoc.name === "Testing") {
       console.log("Migrating Testing -> Thicket...");
-      function loadAssetBase64(filename: string): string | null {
-        const assetPath = path.join(process.cwd(), "attached_assets", filename);
-        if (!fs.existsSync(assetPath)) return null;
-        const buf = fs.readFileSync(assetPath);
-        return `data:image/png;base64,${buf.toString("base64")}`;
-      }
       const iconData = loadAssetBase64("icon_thicket.png");
       const bgData = loadAssetBase64("bg_thicket.png");
       await storage.updateWorldLocation(THICKET_ID, {
@@ -248,8 +250,21 @@ app.use((req, res, next) => {
       }
       console.log("Thicket migration complete");
     }
+
+    const SHOP_ID = "97ff55d1-376b-466a-8fe9-992b09dbaacc";
+    const shopLoc = swampLocations.find(l => l.id === SHOP_ID);
+    if (shopLoc && shopLoc.name === "Shop Test") {
+      console.log("Migrating Shop Test -> Mire Bazaar...");
+      const shopIcon = loadAssetBase64("icon_mire_bazaar.png");
+      await storage.updateWorldLocation(SHOP_ID, {
+        name: "Mire Bazaar",
+        description: "A rickety potion shop perched on stilts above the murky swamp waters.",
+        ...(shopIcon ? { iconUrl: shopIcon } : {}),
+      } as any);
+      console.log("Mire Bazaar migration complete");
+    }
   } catch (err) {
-    console.error("Thicket migration error (non-fatal):", err);
+    console.error("Swamp location migration error (non-fatal):", err);
   }
 
   await registerRoutes(httpServer, app);
