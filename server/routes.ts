@@ -1081,7 +1081,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/world/:worldId/location", isAdmin, async (req, res) => {
     try {
-      const { name, description, iconData, bgData, ownerImageData, isShop, posX, posY } = req.body;
+      const { name, description, iconData, bgData, ownerImageData, isShop, type, posX, posY } = req.body;
       if (!name || typeof name !== "string" || !name.trim()) return res.status(400).json({ message: "Name is required" });
 
       let iconUrl: string | null = null;
@@ -1100,7 +1100,7 @@ export async function registerRoutes(
       const loc = await storage.createWorldLocation({
         worldId: req.params.worldId,
         name,
-        type: isShop ? "shop" : "custom",
+        type: type || (isShop ? "shop" : "explore"),
         iconUrl,
         bgUrl,
         ownerImageUrl,
@@ -1120,13 +1120,16 @@ export async function registerRoutes(
   app.patch("/api/admin/world/location/:locationId", isAdmin, async (req, res) => {
     try {
       const sanitized: Record<string, any> = {};
-      const { name, description, iconData, bgData, ownerImageData, isShop, posX, posY } = req.body;
+      const { name, description, iconData, bgData, ownerImageData, isShop, type, posX, posY } = req.body;
 
       if (name !== undefined) sanitized.name = name;
       if (description !== undefined) sanitized.description = description;
-      if (isShop !== undefined) {
+      if (type !== undefined) {
+        sanitized.type = type;
+        sanitized.isShop = type === "shop";
+      } else if (isShop !== undefined) {
         sanitized.isShop = !!isShop;
-        sanitized.type = isShop ? "shop" : "custom";
+        sanitized.type = isShop ? "shop" : "explore";
       }
       if (iconData) {
         sanitized.iconUrl = await processWorldImage(iconData, 500);

@@ -136,7 +136,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [shopError, setShopError] = useState<string | null>(null);
   const [showAddLocation, setShowAddLocation] = useState(false);
   const [newLocName, setNewLocName] = useState("");
-  const [newLocIsShop, setNewLocIsShop] = useState(false);
+  const [newLocType, setNewLocType] = useState("explore");
   const [newLocDesc, setNewLocDesc] = useState("");
   const [newLocIcon, setNewLocIcon] = useState<string | null>(null);
   const [newLocBg, setNewLocBg] = useState<string | null>(null);
@@ -147,7 +147,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [editLocIcon, setEditLocIcon] = useState<string | null>(null);
   const [editLocBg, setEditLocBg] = useState<string | null>(null);
   const [editLocOwner, setEditLocOwner] = useState<string | null>(null);
-  const [editLocIsShop, setEditLocIsShop] = useState(false);
+  const [editLocType, setEditLocType] = useState("explore");
   const [activeLocationId, setActiveLocationId] = useState<string | null>(null);
   const [showLocationView, setShowLocationView] = useState(false);
   const [showItemPicker, setShowItemPicker] = useState(false);
@@ -230,7 +230,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   });
 
   const addLocationMutation = useMutation({
-    mutationFn: async (data: { name: string; isShop: boolean; description?: string; iconData?: string | null; bgData?: string | null; ownerImageData?: string | null }) => {
+    mutationFn: async (data: { name: string; isShop: boolean; type?: string; description?: string; iconData?: string | null; bgData?: string | null; ownerImageData?: string | null }) => {
       const res = await apiRequest("POST", `/api/admin/world/${worldId}/location`, data);
       return res.json();
     },
@@ -238,7 +238,7 @@ export default function WorldPage({ user }: WorldPageProps) {
       queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "locations"] });
       setShowAddLocation(false);
       setNewLocName("");
-      setNewLocIsShop(false);
+      setNewLocType("explore");
       setNewLocDesc("");
       setNewLocIcon(null);
       setNewLocBg(null);
@@ -657,7 +657,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                                 setEditLocIcon(null);
                                 setEditLocBg(null);
                                 setEditLocOwner(null);
-                                setEditLocIsShop(loc.isShop);
+                                setEditLocType(loc.type || (loc.isShop ? "shop" : "explore"));
                               }}
                               className="absolute -top-1 -right-1 z-30 w-5 h-5 rounded-full flex items-center justify-center"
                               style={{
@@ -814,30 +814,27 @@ export default function WorldPage({ user }: WorldPageProps) {
                 )}
               </div>
 
-              <div className="flex items-center gap-3">
-                <label className="font-fantasy text-[10px] tracking-wider" style={{ color: `${accent}bb` }}>Shop</label>
-                <button
-                  data-testid="toggle-location-shop"
-                  type="button"
-                  onClick={() => setNewLocIsShop(!newLocIsShop)}
-                  className="w-10 h-5 rounded-full relative transition-colors"
+              <div>
+                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>Place Type</label>
+                <select
+                  data-testid="select-location-type"
+                  value={newLocType}
+                  onChange={(e) => setNewLocType(e.target.value)}
+                  className="w-full px-3 py-2 rounded-md font-fantasy text-sm"
                   style={{
-                    background: newLocIsShop ? `${accent}80` : "rgba(255,255,255,0.1)",
-                    border: `1px solid ${newLocIsShop ? accent : "rgba(255,255,255,0.2)"}`,
+                    background: "rgba(0,0,0,0.5)",
+                    border: `1px solid ${accent}35`,
+                    color: "#e8ddd0",
+                    outline: "none",
                     cursor: "pointer",
                   }}
                 >
-                  <div
-                    className="absolute top-0.5 w-3.5 h-3.5 rounded-full transition-all"
-                    style={{
-                      left: newLocIsShop ? "calc(100% - 18px)" : "2px",
-                      background: newLocIsShop ? accent : "rgba(255,255,255,0.5)",
-                    }}
-                  />
-                </button>
-                <span className="font-fantasy text-[9px] tracking-wider" style={{ color: `${accent}88` }}>
-                  {newLocIsShop ? "This place has a shop" : "No shop"}
-                </span>
+                  <option value="explore">Explore</option>
+                  <option value="mini_game">Mini Game</option>
+                  <option value="shop">Shop</option>
+                  <option value="garden">Garden</option>
+                  <option value="quest">Quest</option>
+                </select>
               </div>
 
               <div>
@@ -910,7 +907,8 @@ export default function WorldPage({ user }: WorldPageProps) {
                   if (!newLocName.trim()) return;
                   addLocationMutation.mutate({
                     name: newLocName.trim(),
-                    isShop: newLocIsShop,
+                    isShop: newLocType === "shop",
+                    type: newLocType,
                     description: newLocDesc.trim() || undefined,
                     iconData: newLocIcon,
                     bgData: newLocBg,
@@ -979,30 +977,27 @@ export default function WorldPage({ user }: WorldPageProps) {
                 />
               </div>
 
-              <div className="flex items-center gap-3">
-                <label className="font-fantasy text-[10px] tracking-wider" style={{ color: `${accent}bb` }}>Shop</label>
-                <button
-                  data-testid="toggle-edit-location-shop"
-                  type="button"
-                  onClick={() => setEditLocIsShop(!editLocIsShop)}
-                  className="w-10 h-5 rounded-full relative transition-colors"
+              <div>
+                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>Place Type</label>
+                <select
+                  data-testid="select-edit-location-type"
+                  value={editLocType}
+                  onChange={(e) => setEditLocType(e.target.value)}
+                  className="w-full px-3 py-2 rounded-md font-fantasy text-sm"
                   style={{
-                    background: editLocIsShop ? `${accent}80` : "rgba(255,255,255,0.1)",
-                    border: `1px solid ${editLocIsShop ? accent : "rgba(255,255,255,0.2)"}`,
+                    background: "rgba(0,0,0,0.5)",
+                    border: `1px solid ${accent}35`,
+                    color: "#e8ddd0",
+                    outline: "none",
                     cursor: "pointer",
                   }}
                 >
-                  <div
-                    className="absolute top-0.5 w-3.5 h-3.5 rounded-full transition-all"
-                    style={{
-                      left: editLocIsShop ? "calc(100% - 18px)" : "2px",
-                      background: editLocIsShop ? accent : "rgba(255,255,255,0.5)",
-                    }}
-                  />
-                </button>
-                <span className="font-fantasy text-[9px] tracking-wider" style={{ color: `${accent}88` }}>
-                  {editLocIsShop ? "This place has a shop" : "No shop"}
-                </span>
+                  <option value="explore">Explore</option>
+                  <option value="mini_game">Mini Game</option>
+                  <option value="shop">Shop</option>
+                  <option value="garden">Garden</option>
+                  <option value="quest">Quest</option>
+                </select>
               </div>
 
               <div>
@@ -1088,7 +1083,10 @@ export default function WorldPage({ user }: WorldPageProps) {
                   const data: Record<string, any> = {};
                   if (editLocName.trim() && editLocName.trim() !== editingLocation.name) data.name = editLocName.trim();
                   if (editLocDesc !== (editingLocation.description || "")) data.description = editLocDesc.trim();
-                  if (editLocIsShop !== editingLocation.isShop) data.isShop = editLocIsShop;
+                  const editIsShop = editLocType === "shop";
+                  if (editIsShop !== editingLocation.isShop) data.isShop = editIsShop;
+                  const existingType = editingLocation.type || (editingLocation.isShop ? "shop" : "explore");
+                  if (editLocType !== existingType) data.type = editLocType;
                   if (editLocIcon) data.iconData = editLocIcon;
                   if (editLocBg) data.bgData = editLocBg;
                   if (editLocOwner) data.ownerImageData = editLocOwner;
