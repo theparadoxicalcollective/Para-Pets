@@ -41,6 +41,8 @@ export const shopItems = pgTable("shop_items", {
   petsRevived: integer("pets_revived"),
   atkBoost: integer("atk_boost"),
   defBoost: integer("def_boost"),
+  specialType: text("special_type"),
+  specialAmount: integer("special_amount"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 

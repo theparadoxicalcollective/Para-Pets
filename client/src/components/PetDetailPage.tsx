@@ -30,6 +30,8 @@ interface BagItem {
   imageUrl: string | null;
   statBoostType: string | null;
   statBoostAmount: number | null;
+  specialType: string | null;
+  specialAmount: number | null;
 }
 
 interface PetDetailPageProps {
@@ -76,6 +78,10 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
     (item) => item.type === "item" && item.statBoostType
   );
 
+  const specialItems = inventory.filter(
+    (item) => item.type === "special" && item.specialType
+  );
+
   const rarity = pet.rarity || 1;
   const maxItemsPerLevel = rarity + 2;
   const itemsRemaining = maxItemsPerLevel - pet.itemsUsedThisLevel;
@@ -101,6 +107,30 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
     onError: (err: any) => {
       setConfirmItem(null);
       toast({ title: "Failed", description: err?.message || "Could not power up", variant: "destructive" });
+    },
+  });
+
+  const useSpecialMutation = useMutation({
+    mutationFn: async (itemInventoryId: string) => {
+      const res = await apiRequest("POST", `/api/pet/${pet.inventoryId}/use-special`, { itemInventoryId });
+      return res.json();
+    },
+    onSuccess: () => {
+      const item = confirmItem;
+      const label = item?.specialType === "hatch_time"
+        ? `-${item.specialAmount || "?"} min hatch`
+        : `+${item?.specialAmount || "?"} LVL`;
+      setSuccessBoostLabel(label);
+      setShowSuccessAnim(true);
+      setConfirmItem(null);
+      setShowPowerUp(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      onUpdate();
+      setTimeout(() => setShowSuccessAnim(false), 2000);
+    },
+    onError: (err: any) => {
+      setConfirmItem(null);
+      toast({ title: "Failed", description: err?.message || "Could not use special item", variant: "destructive" });
     },
   });
 
@@ -344,55 +374,110 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                   Cancel
                 </button>
               </div>
-              {itemsRemaining <= 0 ? (
-                <p className="font-fantasy text-[#ff9999] text-xs text-center py-4">
-                  No more items can be used this level. Use a LVL item to level up!
-                </p>
-              ) : usableItems.length === 0 ? (
+              {usableItems.length === 0 && specialItems.length === 0 ? (
                 <p className="font-fantasy text-[#a89878] text-xs text-center py-4">
-                  No power-up items in your bag
+                  No usable items in your bag
                 </p>
               ) : (
-                <div className="grid grid-cols-3 gap-2">
-                  {usableItems.map((item) => (
-                    <button
-                      key={item.inventoryId}
-                      data-testid={`button-use-item-${item.inventoryId}`}
-                      onClick={() => setConfirmItem(item)}
-                      disabled={powerUpMutation.isPending || (item.statBoostType !== "lvl" && itemsRemaining <= 0)}
-                      className="rounded-md p-2 flex flex-col items-center gap-1 transition-transform active:scale-95 disabled:opacity-40"
-                      style={{
-                        background: "rgba(30,15,5,0.8)",
-                        border: "1px solid rgba(212,160,23,0.3)",
-                        cursor: powerUpMutation.isPending ? "wait" : "pointer",
-                      }}
-                    >
-                      <div className="w-10 h-10 rounded flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.3)" }}>
-                        {item.imageUrl ? (
-                          <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
-                        ) : (
-                          <span className="text-lg">📦</span>
-                        )}
+                <>
+                  {usableItems.length > 0 && (
+                    <>
+                      <p className="font-fantasy text-[#a89878] text-[9px] tracking-wider mb-1">POWER-UP ITEMS ({itemsRemaining} uses left)</p>
+                      {itemsRemaining <= 0 && (
+                        <p className="font-fantasy text-[#ff9999] text-[8px] text-center mb-2">
+                          Limit reached this level. Use a LVL item to level up!
+                        </p>
+                      )}
+                      <div className="grid grid-cols-3 gap-2 mb-3">
+                        {usableItems.map((item) => (
+                          <button
+                            key={item.inventoryId}
+                            data-testid={`button-use-item-${item.inventoryId}`}
+                            onClick={() => setConfirmItem(item)}
+                            disabled={powerUpMutation.isPending || (item.statBoostType !== "lvl" && itemsRemaining <= 0)}
+                            className="rounded-md p-2 flex flex-col items-center gap-1 transition-transform active:scale-95 disabled:opacity-40"
+                            style={{
+                              background: "rgba(30,15,5,0.8)",
+                              border: "1px solid rgba(212,160,23,0.3)",
+                              cursor: powerUpMutation.isPending ? "wait" : "pointer",
+                            }}
+                          >
+                            <div className="w-10 h-10 rounded flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.3)" }}>
+                              {item.imageUrl ? (
+                                <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
+                              ) : (
+                                <span className="text-lg">📦</span>
+                              )}
+                            </div>
+                            <span className="font-fantasy text-[#f0c040] text-[8px] tracking-wider text-center truncate w-full">{item.name}</span>
+                            <span
+                              className="font-fantasy text-[7px] tracking-wider px-1.5 py-0.5 rounded-full"
+                              style={{
+                                background: item.statBoostType === "health" ? "rgba(74,222,128,0.15)" : item.statBoostType === "atk" ? "rgba(248,113,113,0.15)" : item.statBoostType === "def" ? "rgba(96,165,250,0.15)" : "rgba(192,132,252,0.15)",
+                                color: item.statBoostType === "health" ? "#4ade80" : item.statBoostType === "atk" ? "#f87171" : item.statBoostType === "def" ? "#60a5fa" : "#c084fc",
+                              }}
+                            >
+                              +{item.statBoostAmount || "?"} {item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "LVL"}
+                            </span>
+                          </button>
+                        ))}
                       </div>
-                      <span className="font-fantasy text-[#f0c040] text-[8px] tracking-wider text-center truncate w-full">{item.name}</span>
-                      <span
-                        className="font-fantasy text-[7px] tracking-wider px-1.5 py-0.5 rounded-full"
-                        style={{
-                          background: item.statBoostType === "health" ? "rgba(74,222,128,0.15)" : item.statBoostType === "atk" ? "rgba(248,113,113,0.15)" : item.statBoostType === "def" ? "rgba(96,165,250,0.15)" : "rgba(192,132,252,0.15)",
-                          color: item.statBoostType === "health" ? "#4ade80" : item.statBoostType === "atk" ? "#f87171" : item.statBoostType === "def" ? "#60a5fa" : "#c084fc",
-                        }}
-                      >
-                        +{item.statBoostAmount || "?"} {item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "LVL"}
-                      </span>
-                    </button>
-                  ))}
-                </div>
+                    </>
+                  )}
+                  {specialItems.length > 0 && (
+                    <>
+                      <p className="font-fantasy text-[#f0c040] text-[9px] tracking-wider mb-1">SPECIAL ITEMS (no use limit)</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {specialItems.map((item) => (
+                          <button
+                            key={item.inventoryId}
+                            data-testid={`button-use-special-${item.inventoryId}`}
+                            onClick={() => setConfirmItem(item)}
+                            disabled={useSpecialMutation.isPending}
+                            className="rounded-md p-2 flex flex-col items-center gap-1 transition-transform active:scale-95 disabled:opacity-40"
+                            style={{
+                              background: "rgba(30,15,5,0.8)",
+                              border: "1px solid rgba(240,192,64,0.3)",
+                              cursor: useSpecialMutation.isPending ? "wait" : "pointer",
+                            }}
+                          >
+                            <div className="w-10 h-10 rounded flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.3)" }}>
+                              {item.imageUrl ? (
+                                <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
+                              ) : (
+                                <span className="text-lg">✨</span>
+                              )}
+                            </div>
+                            <span className="font-fantasy text-[#f0c040] text-[8px] tracking-wider text-center truncate w-full">{item.name}</span>
+                            <span
+                              className="font-fantasy text-[7px] tracking-wider px-1.5 py-0.5 rounded-full"
+                              style={{
+                                background: "rgba(240,192,64,0.15)",
+                                color: "#f0c040",
+                              }}
+                            >
+                              {item.specialType === "hatch_time" ? `-${item.specialAmount || "?"}min hatch` : `+${item.specialAmount || "?"} LVL`}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </>
               )}
             </div>
           </div>
         )}
 
-        {confirmItem && (
+        {confirmItem && (() => {
+          const isSpecial = confirmItem.type === "special";
+          const isPending = isSpecial ? useSpecialMutation.isPending : powerUpMutation.isPending;
+          const effectLabel = isSpecial
+            ? (confirmItem.specialType === "hatch_time" ? `-${confirmItem.specialAmount || "?"}min hatch time` : `+${confirmItem.specialAmount || "?"} LVL`)
+            : `+${confirmItem.statBoostAmount || "?"} ${confirmItem.statBoostType === "health" ? "HP" : confirmItem.statBoostType === "atk" ? "ATK" : confirmItem.statBoostType === "def" ? "DEF" : "LVL"}`;
+          const effectColor = isSpecial ? "#f0c040" : (confirmItem.statBoostType === "health" ? "#4ade80" : confirmItem.statBoostType === "atk" ? "#f87171" : confirmItem.statBoostType === "def" ? "#60a5fa" : "#c084fc");
+          const effectBg = isSpecial ? "rgba(240,192,64,0.2)" : (confirmItem.statBoostType === "health" ? "rgba(74,222,128,0.2)" : confirmItem.statBoostType === "atk" ? "rgba(248,113,113,0.2)" : confirmItem.statBoostType === "def" ? "rgba(96,165,250,0.2)" : "rgba(192,132,252,0.2)");
+          return (
           <div className="fixed inset-0 z-[60] flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
             <div className="absolute inset-0 bg-black/60" onClick={() => setConfirmItem(null)} />
             <div
@@ -404,27 +489,28 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
               }}
             >
               <h4 className="font-fantasy text-[#7fffd4] text-sm tracking-wider text-center mb-3" data-testid="text-confirm-use-title">
-                Use Item?
+                {isSpecial ? "Use Special Item?" : "Use Item?"}
               </h4>
               <div className="flex flex-col items-center gap-2 mb-4">
                 <div className="w-14 h-14 rounded-md flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.3)" }}>
                   {confirmItem.imageUrl ? (
                     <img src={confirmItem.imageUrl} alt={confirmItem.name} className="w-full h-full object-contain" />
                   ) : (
-                    <span className="text-2xl">📦</span>
+                    <span className="text-2xl">{isSpecial ? "✨" : "📦"}</span>
                   )}
                 </div>
                 <p className="font-fantasy text-[#f0c040] text-xs font-semibold">{confirmItem.name}</p>
                 <span
                   className="font-fantasy text-xs tracking-wider px-3 py-1 rounded-full"
-                  style={{
-                    background: confirmItem.statBoostType === "health" ? "rgba(74,222,128,0.2)" : confirmItem.statBoostType === "atk" ? "rgba(248,113,113,0.2)" : confirmItem.statBoostType === "def" ? "rgba(96,165,250,0.2)" : "rgba(192,132,252,0.2)",
-                    color: confirmItem.statBoostType === "health" ? "#4ade80" : confirmItem.statBoostType === "atk" ? "#f87171" : confirmItem.statBoostType === "def" ? "#60a5fa" : "#c084fc",
-                    border: `1px solid ${confirmItem.statBoostType === "health" ? "rgba(74,222,128,0.4)" : confirmItem.statBoostType === "atk" ? "rgba(248,113,113,0.4)" : confirmItem.statBoostType === "def" ? "rgba(96,165,250,0.4)" : "rgba(192,132,252,0.4)"}`,
-                  }}
+                  style={{ background: effectBg, color: effectColor, border: `1px solid ${effectColor}44` }}
                 >
-                  +{confirmItem.statBoostAmount || "?"} {confirmItem.statBoostType === "health" ? "HP" : confirmItem.statBoostType === "atk" ? "ATK" : confirmItem.statBoostType === "def" ? "DEF" : "LVL"}
+                  {effectLabel}
                 </span>
+                {isSpecial && (
+                  <p className="font-fantasy text-[#f0c040] text-[9px] text-center">
+                    Does NOT count toward power-up limit
+                  </p>
+                )}
                 <p className="font-fantasy text-[#a89878] text-[10px] text-center">
                   This item will be consumed and cannot be undone.
                 </p>
@@ -439,8 +525,8 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                   Cancel
                 </button>
                 <button
-                  onClick={() => powerUpMutation.mutate(confirmItem.inventoryId)}
-                  disabled={powerUpMutation.isPending}
+                  onClick={() => isSpecial ? useSpecialMutation.mutate(confirmItem.inventoryId) : powerUpMutation.mutate(confirmItem.inventoryId)}
+                  disabled={isPending}
                   className="flex-1 py-2 rounded-md font-fantasy text-xs tracking-wider disabled:opacity-50"
                   style={{
                     background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
@@ -451,12 +537,13 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                   }}
                   data-testid="button-confirm-use-item"
                 >
-                  {powerUpMutation.isPending ? "Using..." : "Use Item"}
+                  {isPending ? "Using..." : "Use Item"}
                 </button>
               </div>
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {showResetConfirm && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>

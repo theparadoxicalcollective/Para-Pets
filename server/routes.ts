@@ -377,6 +377,8 @@ export async function registerRoutes(
         hatchedImageUrl: shopItem?.hatchedImageUrl || null,
         statBoostType: shopItem?.statBoostType || null,
         statBoostAmount: shopItem?.statBoostAmount || null,
+        specialType: shopItem?.specialType || null,
+        specialAmount: shopItem?.specialAmount || null,
         petTemplateId: shopItem?.petTemplateId || null,
         petNickname: inv.petNickname || null,
         hatchStartedAt: inv.hatchStartedAt,
@@ -558,6 +560,67 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Power up error:", err);
       return res.status(500).json({ message: "Failed to power up pet" });
+    }
+  });
+
+  app.post("/api/pet/:inventoryId/use-special", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { itemInventoryId } = req.body;
+
+      const petInv = await storage.getInventoryItemById(req.params.inventoryId);
+      if (!petInv || petInv.userId !== user.id) {
+        return res.status(404).json({ message: "Pet not found" });
+      }
+
+      const petShopItem = await storage.getShopItem(petInv.shopItemId);
+      if (!petShopItem || petShopItem.type !== "pet") {
+        return res.status(400).json({ message: "Not a pet" });
+      }
+
+      const itemInv = await storage.getInventoryItemById(itemInventoryId);
+      if (!itemInv || itemInv.userId !== user.id) {
+        return res.status(404).json({ message: "Item not found in inventory" });
+      }
+
+      const itemShopItem = await storage.getShopItem(itemInv.shopItemId);
+      if (!itemShopItem || itemShopItem.type !== "special") {
+        return res.status(400).json({ message: "Not a special item" });
+      }
+
+      const specialType = itemShopItem.specialType;
+      const specialAmount = itemShopItem.specialAmount || 10;
+
+      if (specialType === "hatch_time") {
+        if (petInv.isHatched) {
+          return res.status(400).json({ message: "Pet is already hatched" });
+        }
+        if (!petInv.hatchStartedAt) {
+          return res.status(400).json({ message: "Egg has not started hatching" });
+        }
+        const currentStart = new Date(petInv.hatchStartedAt);
+        const minutesInMs = specialAmount * 60 * 1000;
+        const newStart = new Date(currentStart.getTime() - minutesInMs);
+        await storage.updateInventoryItem(petInv.id, { hatchStartedAt: newStart });
+      } else if (specialType === "level") {
+        if (!petInv.isHatched) {
+          return res.status(400).json({ message: "Pet has not hatched yet" });
+        }
+        if (petInv.petLevel >= 100) {
+          return res.status(400).json({ message: "Pet is at max level" });
+        }
+        const newLevel = Math.min(100, petInv.petLevel + specialAmount);
+        await storage.updateInventoryItem(petInv.id, { petLevel: newLevel, itemsUsedThisLevel: 0 });
+      } else {
+        return res.status(400).json({ message: "Unknown special type" });
+      }
+
+      await storage.removeFromInventory(itemInv.id);
+      const updatedPet = await storage.getInventoryItemById(petInv.id);
+      return res.json(updatedPet);
+    } catch (err) {
+      console.error("Use special error:", err);
+      return res.status(500).json({ message: "Failed to use special item" });
     }
   });
 

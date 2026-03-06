@@ -24,6 +24,8 @@ export interface ShopItemFull {
   petsRevived: number | null;
   atkBoost: number | null;
   defBoost: number | null;
+  specialType: string | null;
+  specialAmount: number | null;
   createdAt: string;
 }
 
@@ -44,7 +46,7 @@ export const WORLD_OPTIONS = [
   { id: "haunted_woods", name: "Haunted Woods" },
 ];
 
-const ITEM_TYPES = ["pet", "item", "accessory", "potion"];
+const ITEM_TYPES = ["pet", "item", "accessory", "potion", "special"];
 
 export default function ItemDatabaseSection() {
   const [editingItem, setEditingItem] = useState<ShopItemFull | null>(null);
@@ -245,6 +247,8 @@ function AdminItemForm({ item, onClose, onSuccess }: { item: ShopItemFull | null
   const [petsRevived, setPetsRevived] = useState(item?.petsRevived?.toString() || "");
   const [atkBoost, setAtkBoost] = useState(item?.atkBoost?.toString() || "");
   const [defBoost, setDefBoost] = useState(item?.defBoost?.toString() || "");
+  const [specialType, setSpecialType] = useState(item?.specialType || "hatch_time");
+  const [specialAmount, setSpecialAmount] = useState(item?.specialAmount?.toString() || "10");
   const [imageData, setImageData] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(item?.imageUrl || null);
   const [eggImageData, setEggImageData] = useState<string | null>(null);
@@ -310,6 +314,14 @@ function AdminItemForm({ item, onClose, onSuccess }: { item: ShopItemFull | null
       } else {
         payload.atkBoost = null;
         payload.defBoost = null;
+      }
+
+      if (type === "special") {
+        payload.specialType = specialType;
+        payload.specialAmount = parseInt(specialAmount) || 10;
+      } else {
+        payload.specialType = null;
+        payload.specialAmount = null;
       }
 
       if (item) {
@@ -489,6 +501,28 @@ function AdminItemForm({ item, onClose, onSuccess }: { item: ShopItemFull | null
                 <input data-testid="input-def-boost" type="number" value={defBoost} onChange={(e) => setDefBoost(e.target.value)} placeholder="0" min="0" className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
               </div>
               <p className="font-fantasy text-[#7fbfb0] text-[8px] tracking-wider text-center">Accessories are equippable - stats added when worn, removed when unequipped. Not consumed.</p>
+            </>
+          )}
+
+          {type === "special" && (
+            <>
+              <div>
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Special Effect</label>
+                <select data-testid="select-special-type" value={specialType} onChange={(e) => setSpecialType(e.target.value)} className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle}>
+                  <option value="hatch_time">Reduce Hatching Time</option>
+                  <option value="level">Level Up Points</option>
+                </select>
+              </div>
+              <div>
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">
+                  {specialType === "hatch_time" ? "Minutes Reduced" : "Level Points Added"}
+                </label>
+                <input data-testid="input-special-amount" type="number" value={specialAmount} onChange={(e) => setSpecialAmount(e.target.value)} placeholder="10" min="1" className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
+                <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">
+                  {specialType === "hatch_time" ? "1 = 1 minute off hatching time" : "1 = 1 level point towards leveling up"}
+                </p>
+              </div>
+              <p className="font-fantasy text-[#f0c040] text-[8px] tracking-wider text-center">Special items do NOT count toward a pet's limited power-up uses</p>
             </>
           )}
 
