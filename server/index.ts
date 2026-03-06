@@ -12,6 +12,8 @@ import { pool } from "./db";
 import { runMigrations } from "stripe-replit-sync";
 import { getStripeSync } from "./stripeClient";
 import { WebhookHandlers } from "./webhookHandlers";
+import fs from "fs";
+import path from "path";
 
 const app = express();
 const httpServer = createServer(app);
@@ -200,6 +202,54 @@ app.use((req, res, next) => {
     if (!existing) {
       await storage.createWorld({ ...w, isDefault: true });
     }
+  }
+
+  try {
+    const THICKET_ID = "3e20ad30-faff-4643-9e80-5e5f30010738";
+    const swampLocations = await storage.getWorldLocations("swamp");
+    const thicketLoc = swampLocations.find(l => l.id === THICKET_ID);
+    if (thicketLoc && thicketLoc.name === "Testing") {
+      console.log("Migrating Testing -> Thicket...");
+      function loadAssetBase64(filename: string): string | null {
+        const assetPath = path.join(process.cwd(), "attached_assets", filename);
+        if (!fs.existsSync(assetPath)) return null;
+        const buf = fs.readFileSync(assetPath);
+        return `data:image/png;base64,${buf.toString("base64")}`;
+      }
+      const iconData = loadAssetBase64("icon_thicket.png");
+      const bgData = loadAssetBase64("bg_thicket.png");
+      await storage.updateWorldLocation(THICKET_ID, {
+        name: "Thicket",
+        description: "A dense cluster of dark, twisted trees deep in the swamp.",
+        ...(iconData ? { iconUrl: iconData } : {}),
+        ...(bgData ? { bgUrl: bgData } : {}),
+      } as any);
+
+      const existingEnemies = await storage.getLocationEnemies(THICKET_ID);
+      for (const e of existingEnemies) {
+        await storage.deleteLocationEnemy(e.id);
+      }
+
+      const enemyData = [
+        { name: "Bog Toad", file: "enemy_bog_toad.png", isBoss: false, coinReward: 1 },
+        { name: "Mud Lurker", file: "enemy_mud_lurker.png", isBoss: false, coinReward: 1 },
+        { name: "Swamp Wisp", file: "enemy_wisp.png", isBoss: false, coinReward: 1 },
+        { name: "Elder Treant", file: "enemy_elder_treant.png", isBoss: true, coinReward: 3 },
+      ];
+      for (const ed of enemyData) {
+        const imgData = loadAssetBase64(ed.file);
+        await storage.createLocationEnemy({
+          locationId: THICKET_ID,
+          name: ed.name,
+          imageUrl: imgData,
+          isBoss: ed.isBoss,
+          coinReward: ed.coinReward,
+        });
+      }
+      console.log("Thicket migration complete");
+    }
+  } catch (err) {
+    console.error("Thicket migration error (non-fatal):", err);
   }
 
   await registerRoutes(httpServer, app);
