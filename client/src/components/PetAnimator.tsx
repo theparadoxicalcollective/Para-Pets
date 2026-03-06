@@ -88,11 +88,12 @@ const ANIMATION_STYLES = `
     70% { transform: rotate(-1deg); }
   }
   @keyframes petIdleTail {
-    0%, 100% { transform: translateX(0px); }
-    20% { transform: translateX(2px); }
-    40% { transform: translateX(-1px); }
-    60% { transform: translateX(1.5px); }
-    80% { transform: translateX(-0.5px); }
+    0%, 100% { transform: rotate(0deg) translateY(0px); }
+    15% { transform: rotate(0.8deg) translateY(-0.5px); }
+    30% { transform: rotate(-0.5deg) translateY(0px); }
+    50% { transform: rotate(0.6deg) translateY(-0.3px); }
+    70% { transform: rotate(-0.7deg) translateY(0px); }
+    85% { transform: rotate(0.3deg) translateY(-0.2px); }
   }
   @keyframes petIdleWings {
     0%, 100% { transform: rotateY(0deg) scaleX(1); }
@@ -153,11 +154,13 @@ const ANIMATION_STYLES = `
     75% { transform: rotate(-3deg); }
   }
   @keyframes petWalkTail {
-    0%, 100% { transform: translateX(0px); }
-    15% { transform: translateX(3px); }
-    35% { transform: translateX(-2px); }
-    55% { transform: translateX(2px); }
-    75% { transform: translateX(-1px); }
+    0%, 100% { transform: rotate(0deg) translateY(0px); }
+    10% { transform: rotate(1.5deg) translateY(-0.5px); }
+    25% { transform: rotate(-1deg) translateY(0px); }
+    40% { transform: rotate(1.2deg) translateY(-0.3px); }
+    55% { transform: rotate(-1.3deg) translateY(0px); }
+    70% { transform: rotate(0.8deg) translateY(-0.4px); }
+    85% { transform: rotate(-0.5deg) translateY(0px); }
   }
   @keyframes petWalkWings {
     0%, 100% { transform: scaleX(1) translateY(0px); }
