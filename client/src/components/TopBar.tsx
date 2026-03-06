@@ -31,7 +31,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideHome }:
 
   return (
     <>
-      <div className="flex items-start justify-between px-3 pt-5 gap-2">
+      <div className="flex items-start justify-between px-3 pt-5 gap-2 relative z-20">
         <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
           <button
             data-testid="button-profile"
