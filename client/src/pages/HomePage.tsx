@@ -182,9 +182,9 @@ export default function HomePage({ user }: HomePageProps) {
 
         {activePet && activePet.rarity && activePet.rarity > 0 && (
           <div className="relative z-10 flex justify-center mt-2 mb-0">
-            <div className="flex items-center gap-2.5" data-testid="display-pet-rarity-stars">
+            <div className="flex items-center gap-3" data-testid="display-pet-rarity-stars">
               {Array.from({ length: 5 }).map((_, i) => (
-                <svg key={i} width="28" height="28" viewBox="0 0 24 24" fill={i < (activePet.rarity || 0) ? "#f0c040" : "none"} stroke={i < (activePet.rarity || 0) ? "#d4a017" : "rgba(139,110,78,0.25)"} strokeWidth="1.5" style={{ filter: i < (activePet.rarity || 0) ? "drop-shadow(0 0 6px rgba(240,192,64,0.6)) drop-shadow(0 0 12px rgba(240,192,64,0.3))" : "none" }}>
+                <svg key={i} width="44" height="44" viewBox="0 0 24 24" fill={i < (activePet.rarity || 0) ? "#f0c040" : "none"} stroke={i < (activePet.rarity || 0) ? "#d4a017" : "rgba(139,110,78,0.25)"} strokeWidth="1.5" style={{ filter: i < (activePet.rarity || 0) ? "drop-shadow(0 0 8px rgba(240,192,64,0.7)) drop-shadow(0 0 16px rgba(240,192,64,0.4))" : "none" }}>
                   <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                 </svg>
               ))}
@@ -218,7 +218,6 @@ export default function HomePage({ user }: HomePageProps) {
                     className="w-full flex items-center justify-center"
                     style={{
                       background: "transparent",
-                      animation: !activePet.isHatched ? "eggGlow 3s ease-in-out infinite" : undefined,
                     }}
                   >
                     {activePet.isHatched ? (

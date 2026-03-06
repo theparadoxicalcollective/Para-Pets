@@ -75,6 +75,7 @@ interface InventoryItem {
   shopItemId: string;
   name: string;
   type: string;
+  isHatched?: boolean;
 }
 
 interface WorldLocationData {
@@ -404,9 +405,14 @@ export default function WorldPage({ user }: WorldPageProps) {
     setDragPos(null);
   }, [dragPos, positionMutation]);
 
+  const activePetInv = currentUser.activePetId
+    ? inventory.find((item) => item.shopItemId === currentUser.activePetId && item.type === "pet")
+    : null;
+  const hasHatchedActivePet = activePetInv && activePetInv.isHatched;
+
   const handleLocationClick = useCallback((loc: WorldLocationData) => {
     if (didDrag.current) return;
-    if (loc.type === "explore" && !currentUser.isAdmin && !currentUser.activePetId) {
+    if (loc.type === "explore" && !currentUser.isAdmin && (!currentUser.activePetId || !hasHatchedActivePet)) {
       setShowNoPetMessage(true);
       return;
     }
@@ -420,7 +426,7 @@ export default function WorldPage({ user }: WorldPageProps) {
       setShowShop(false);
       setShowLocationView(true);
     }
-  }, [currentUser.activePetId, currentUser.isAdmin]);
+  }, [currentUser.activePetId, currentUser.isAdmin, hasHatchedActivePet]);
 
   const handleObjPointerDown = useCallback((e: React.PointerEvent, obj: LocationObjectData) => {
     if (!currentUser.isAdmin) return;
