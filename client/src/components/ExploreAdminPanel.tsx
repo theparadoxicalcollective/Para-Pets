@@ -24,6 +24,7 @@ interface EnemyData {
   locationId: string;
   name: string;
   imageUrl: string | null;
+  isBoss: boolean;
   coinReward: number;
   sortOrder: number;
   drops: DropData[];
@@ -45,6 +46,7 @@ export default function ExploreAdminPanel({ locationId, accent, onClose, onBgUpl
   const [newEnemyName, setNewEnemyName] = useState("");
   const [newEnemyImage, setNewEnemyImage] = useState<string | null>(null);
   const [newEnemyCoinReward, setNewEnemyCoinReward] = useState("");
+  const [newEnemyIsBoss, setNewEnemyIsBoss] = useState(false);
   const [showDropPicker, setShowDropPicker] = useState<string | null>(null);
   const [dropRate, setDropRate] = useState("10");
   const [selectedDropItem, setSelectedDropItem] = useState<string>("");
@@ -53,6 +55,7 @@ export default function ExploreAdminPanel({ locationId, accent, onClose, onBgUpl
   const [editName, setEditName] = useState("");
   const [editCoinReward, setEditCoinReward] = useState("");
   const [editImage, setEditImage] = useState<string | null>(null);
+  const [editIsBoss, setEditIsBoss] = useState(false);
 
   const { data: enemies = [], isLoading } = useQuery<EnemyData[]>({
     queryKey: ["/api/location", locationId, "enemies"],
@@ -73,6 +76,7 @@ export default function ExploreAdminPanel({ locationId, accent, onClose, onBgUpl
         name: newEnemyName.trim(),
         imageData: newEnemyImage,
         coinReward: parseInt(newEnemyCoinReward) || 0,
+        isBoss: newEnemyIsBoss,
       });
       return res.json();
     },
@@ -82,6 +86,7 @@ export default function ExploreAdminPanel({ locationId, accent, onClose, onBgUpl
       setNewEnemyName("");
       setNewEnemyImage(null);
       setNewEnemyCoinReward("");
+      setNewEnemyIsBoss(false);
       toast({ title: "Enemy Added" });
     },
     onError: () => toast({ title: "Failed to add enemy", variant: "destructive" }),
@@ -150,11 +155,12 @@ export default function ExploreAdminPanel({ locationId, accent, onClose, onBgUpl
     setEditingEnemy(enemy.id);
     setEditName(enemy.name);
     setEditCoinReward(String(enemy.coinReward));
+    setEditIsBoss(enemy.isBoss);
     setEditImage(null);
   };
 
   const saveEdit = (enemyId: string) => {
-    const data: any = { name: editName.trim(), coinReward: parseInt(editCoinReward) || 0 };
+    const data: any = { name: editName.trim(), coinReward: parseInt(editCoinReward) || 0, isBoss: editIsBoss };
     if (editImage) data.imageData = editImage;
     updateEnemyMutation.mutate({ enemyId, data });
   };
@@ -265,7 +271,12 @@ export default function ExploreAdminPanel({ locationId, accent, onClose, onBgUpl
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="font-fantasy text-[11px] tracking-wider truncate" style={{ color: `${accent}dd` }}>{enemy.name}</p>
+                        <p className="font-fantasy text-[11px] tracking-wider truncate" style={{ color: `${accent}dd` }}>
+                          {enemy.name}
+                          {enemy.isBoss && (
+                            <span className="ml-1 px-1.5 py-0.5 rounded text-[7px] font-bold tracking-widest" style={{ background: "rgba(220,38,38,0.3)", border: "1px solid rgba(220,38,38,0.5)", color: "#ff6666" }}>BOSS</span>
+                          )}
+                        </p>
                         <div className="flex items-center gap-2">
                           <div className="flex items-center gap-1">
                             <img src={coinIconImg} alt="" className="w-3 h-3" />
@@ -316,6 +327,17 @@ export default function ExploreAdminPanel({ locationId, accent, onClose, onBgUpl
                                 placeholder="Coin reward"
                                 min="0"
                               />
+                            </div>
+                            <div
+                              data-testid="toggle-edit-boss"
+                              className="flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer"
+                              style={{ background: editIsBoss ? "rgba(220,38,38,0.15)" : "rgba(255,255,255,0.03)", border: editIsBoss ? "1px solid rgba(220,38,38,0.4)" : `1px solid ${accent}20` }}
+                              onClick={() => setEditIsBoss(!editIsBoss)}
+                            >
+                              <div className="w-4 h-4 rounded-sm flex items-center justify-center" style={{ background: editIsBoss ? "rgba(220,38,38,0.6)" : "transparent", border: editIsBoss ? "1px solid #ff6666" : `1px solid ${accent}40` }}>
+                                {editIsBoss && <span className="text-white text-[8px] font-bold">&#10003;</span>}
+                              </div>
+                              <span className="font-fantasy text-[9px] tracking-wider" style={{ color: editIsBoss ? "#ff6666" : `${accent}88` }}>Boss Enemy (up to 5 levels above pet)</span>
                             </div>
                             <label
                               className="block w-full py-1.5 rounded-md font-fantasy text-[9px] tracking-wider text-center"
@@ -497,6 +519,20 @@ export default function ExploreAdminPanel({ locationId, accent, onClose, onBgUpl
                     className="flex-1 px-3 py-2 rounded-md font-sans text-sm outline-none"
                     style={inputStyle}
                   />
+                </div>
+              </div>
+              <div
+                data-testid="toggle-add-boss"
+                className="flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer"
+                style={{ background: newEnemyIsBoss ? "rgba(220,38,38,0.15)" : "rgba(255,255,255,0.03)", border: newEnemyIsBoss ? "1px solid rgba(220,38,38,0.4)" : `1px solid ${accent}20` }}
+                onClick={() => setNewEnemyIsBoss(!newEnemyIsBoss)}
+              >
+                <div className="w-5 h-5 rounded-sm flex items-center justify-center" style={{ background: newEnemyIsBoss ? "rgba(220,38,38,0.6)" : "transparent", border: newEnemyIsBoss ? "1px solid #ff6666" : `1px solid ${accent}40` }}>
+                  {newEnemyIsBoss && <span className="text-white text-[10px] font-bold">&#10003;</span>}
+                </div>
+                <div>
+                  <span className="font-fantasy text-[10px] tracking-wider block" style={{ color: newEnemyIsBoss ? "#ff6666" : `${accent}bb` }}>Boss Enemy</span>
+                  <span className="font-fantasy text-[8px] tracking-wider" style={{ color: `${accent}66` }}>Can be up to 5 levels above pet (regular: 2)</span>
                 </div>
               </div>
               <button

@@ -1711,7 +1711,7 @@ export async function registerRoutes(
   app.post("/api/admin/location/:locationId/enemy", isAdmin, async (req, res) => {
     try {
       const { locationId } = req.params;
-      const { name, imageData, coinReward } = req.body;
+      const { name, imageData, coinReward, isBoss } = req.body;
       if (!name?.trim()) {
         return res.status(400).json({ message: "Enemy name is required" });
       }
@@ -1719,7 +1719,7 @@ export async function registerRoutes(
       if (imageData) {
         try { imageUrl = await processWorldImage(imageData, 1000); } catch (e) { console.error("Enemy image error:", e); }
       }
-      const enemy = await storage.createLocationEnemy({ locationId, name: name.trim(), imageUrl, coinReward: coinReward || 0 });
+      const enemy = await storage.createLocationEnemy({ locationId, name: name.trim(), imageUrl, isBoss: !!isBoss, coinReward: coinReward || 0 });
       return res.status(201).json(enemy);
     } catch (err) {
       console.error("Create enemy error:", err);
@@ -1730,10 +1730,11 @@ export async function registerRoutes(
   app.patch("/api/admin/enemy/:enemyId", isAdmin, async (req, res) => {
     try {
       const { enemyId } = req.params;
-      const { name, imageData, coinReward } = req.body;
+      const { name, imageData, coinReward, isBoss } = req.body;
       const updates: any = {};
       if (name !== undefined) updates.name = name.trim();
       if (coinReward !== undefined) updates.coinReward = coinReward;
+      if (isBoss !== undefined) updates.isBoss = !!isBoss;
       if (imageData) {
         try { updates.imageUrl = await processWorldImage(imageData, 1000); } catch (e) { console.error("Enemy image error:", e); }
       }
@@ -1776,6 +1777,148 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Delete drop error:", err);
       return res.status(500).json({ message: "Failed to delete drop" });
+    }
+  });
+
+  app.post("/api/explore/:locationId/encounter", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.activePetId) {
+        return res.status(400).json({ message: "Keepers must have a pet to explore safely" });
+      }
+      const inventory = await storage.getUserInventory(user.id);
+      const activePet = inventory.find((inv: any) => inv.shopItemId === user.activePetId && inv.isHatched);
+      if (!activePet) {
+        return res.status(400).json({ message: "Keepers must have a hatched pet to explore safely" });
+      }
+
+      const { locationId } = req.params;
+      const enemies = await storage.getLocationEnemies(locationId);
+      if (enemies.length === 0) {
+        return res.json({ encounter: null });
+      }
+
+      const petLevel = activePet.petLevel || 0;
+      const enemy = enemies[Math.floor(Math.random() * enemies.length)];
+      const maxLevelOffset = enemy.isBoss ? 5 : 2;
+      const enemyLevel = Math.max(1, petLevel + Math.floor(Math.random() * (maxLevelOffset + 1)));
+      const baseHp = 200;
+      const enemyHp = baseHp + (enemyLevel * 100);
+      const enemyAtk = 20 + (enemyLevel * 10);
+      const enemyDef = 10 + (enemyLevel * 5);
+
+      const drops = await storage.getEnemyDrops(enemy.id);
+      const dropDetails = await Promise.all(drops.map(async (drop) => {
+        const shopItem = await storage.getShopItem(drop.shopItemId);
+        return shopItem ? { id: drop.id, dropRate: drop.dropRate, shopItem: { id: shopItem.id, name: shopItem.name, type: shopItem.type, imageUrl: shopItem.imageUrl } } : null;
+      }));
+
+      return res.json({
+        encounter: {
+          enemyId: enemy.id,
+          name: enemy.name,
+          imageUrl: enemy.imageUrl,
+          isBoss: enemy.isBoss,
+          level: enemyLevel,
+          hp: enemyHp,
+          atk: enemyAtk,
+          def: enemyDef,
+          coinReward: enemy.coinReward,
+          drops: dropDetails.filter(Boolean),
+        },
+        pet: {
+          inventoryId: activePet.id,
+          name: activePet.petNickname || "Pet",
+          level: activePet.petLevel,
+          hp: activePet.petHealth,
+          atk: activePet.petAtk,
+          def: activePet.petDef,
+        },
+      });
+    } catch (err) {
+      console.error("Generate encounter error:", err);
+      return res.status(500).json({ message: "Failed to generate encounter" });
+    }
+  });
+
+  app.post("/api/explore/defeat/:enemyId", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.activePetId) {
+        return res.status(400).json({ message: "No active pet" });
+      }
+      const inventory = await storage.getUserInventory(user.id);
+      const activePet = inventory.find((inv: any) => inv.shopItemId === user.activePetId && inv.isHatched);
+      if (!activePet) {
+        return res.status(400).json({ message: "No active hatched pet" });
+      }
+
+      const { enemyId } = req.params;
+      const { enemyLevel: clientEnemyLevel } = req.body;
+      const enemy = await storage.getLocationEnemy(enemyId);
+      if (!enemy) {
+        return res.status(404).json({ message: "Enemy not found" });
+      }
+
+      const petLevel = activePet.petLevel || 0;
+      const maxLevelOffset = enemy.isBoss ? 5 : 2;
+      const maxAllowedLevel = petLevel + maxLevelOffset;
+      const enemyLevel = Math.max(1, Math.min(clientEnemyLevel || 1, maxAllowedLevel));
+      const startingHp = 200 + (enemyLevel * 100);
+      const lvlPointsEarned = Math.max(1, Math.floor(startingHp * 0.05));
+
+      const POINTS_PER_LEVEL = 10;
+      let totalPoints = (activePet.petLevelPoints || 0) + lvlPointsEarned;
+      let newLevel = activePet.petLevel;
+      while (totalPoints >= POINTS_PER_LEVEL && newLevel < 100) {
+        totalPoints -= POINTS_PER_LEVEL;
+        newLevel++;
+      }
+      if (newLevel >= 100) {
+        newLevel = 100;
+        totalPoints = 0;
+      }
+
+      await storage.updateInventoryItem(activePet.id, {
+        petLevel: newLevel,
+        petLevelPoints: totalPoints,
+      });
+
+      let coinsAwarded = enemy.coinReward || 0;
+      if (coinsAwarded > 0) {
+        await storage.addCoins(user.id, coinsAwarded);
+      }
+
+      const drops = await storage.getEnemyDrops(enemy.id);
+      const droppedItems: any[] = [];
+      for (const drop of drops) {
+        const roll = Math.random() * 100;
+        if (roll < drop.dropRate) {
+          const shopItem = await storage.getShopItem(drop.shopItemId);
+          if (shopItem) {
+            const invItem = await storage.addToInventory(user.id, shopItem.id);
+            if (shopItem.type === "pet") {
+              await storage.updateInventoryItem(invItem.id, { hatchStartedAt: new Date() });
+            }
+            droppedItems.push({ name: shopItem.name, type: shopItem.type, imageUrl: shopItem.imageUrl });
+          }
+        }
+      }
+
+      const updatedUser = await storage.getUser(user.id);
+
+      return res.json({
+        lvlPointsEarned,
+        newLevel,
+        newLevelPoints: totalPoints,
+        levelsGained: newLevel - activePet.petLevel,
+        coinsAwarded,
+        droppedItems,
+        user: updatedUser,
+      });
+    } catch (err) {
+      console.error("Defeat enemy error:", err);
+      return res.status(500).json({ message: "Failed to process defeat" });
     }
   });
 

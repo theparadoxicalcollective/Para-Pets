@@ -40,7 +40,7 @@ Para Pets is a mobile-first fantasy game web app where players collect, raise, a
 - `reward_bundles` table: id, name, message (nullable), coinAmount, createdAt
 - `reward_bundle_items` table: id, bundleId, shopItemId
 - `user_rewards` table: id, userId, bundleId, claimed (boolean), createdAt
-- `location_enemies` table: id, locationId, name, imageUrl (base64, nullable), coinReward (int), sortOrder (int), createdAt — enemies for explore-type locations
+- `location_enemies` table: id, locationId, name, imageUrl (base64, nullable), isBoss (bool), coinReward (int), sortOrder (int), createdAt — enemies for explore-type locations
 - `enemy_drops` table: id, enemyId, shopItemId, dropRate (1-100 percent), createdAt — items dropped by enemies
 - `game_settings` table: key (varchar PK), value (text) — key-value store for app-wide settings (e.g. map_background)
 - `session` table: managed by connect-pg-simple (created manually in async startup)
@@ -106,7 +106,12 @@ Para Pets is a mobile-first fantasy game web app where players collect, raise, a
   - Location icons float with animation, themed glow effects
   - isShop locations: open shop overlay with location-specific items; admin can assign/unassign items from Item DB via "+" button
   - Non-shop locations: open full-screen location view with background, decorative objects, and owner character
-  - Explore-type locations: admin settings button (⚙) opens ExploreAdminPanel with enemy management, item drops, coin rewards, and background upload
+  - Explore-type locations: admin settings button (⚙) opens ExploreAdminPanel with enemy management (including boss toggle), item drops, coin rewards, and background upload
+  - Explore requires active pet: non-admin users without an active pet see "Keepers must have a pet to explore safely" message
+  - Enemy levels scale with active pet: regular enemies = petLevel to petLevel+2, bosses = petLevel to petLevel+5
+  - Enemy HP formula: 200 + (enemyLevel * 100); ATK: 20 + (level * 10); DEF: 10 + (level * 5)
+  - Defeating enemy awards 5% of enemy HP as pet level points (e.g. 2000 HP → 100 pts); coins and item drops also awarded
+  - Explore APIs: POST /api/explore/:locationId/encounter (generates scaled enemy), POST /api/explore/defeat/:enemyId (awards rewards)
   - Decorative objects (non-shop only): admin adds PNG/GIF objects via "+", objects displayed as positioned images, admin can drag/drop to reposition
   - Owner character: floating PNG displayed at bottom-left of location view
   - Location-specific shop: items assigned per-location (locationId on shop_items), 100/day purchase limit for non-pet items

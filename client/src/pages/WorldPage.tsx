@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import coinIconImg from "@assets/icon_coin.png";
-import { Plus, Trash2, X, MapPin, Package, Pencil, Settings } from "lucide-react";
+import { Plus, Trash2, X, MapPin, Package, Pencil, Settings, Swords } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 import ExploreAdminPanel from "@/components/ExploreAdminPanel";
 
@@ -63,6 +63,7 @@ interface WorldPageProps {
     profileImage: string | null;
     coins: number;
     isAdmin: boolean;
+    activePetId: string | null;
     lastUsernameChange: string | null;
     lastProfilePicChange: string | null;
   };
@@ -156,6 +157,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [newObjectImage, setNewObjectImage] = useState<string | null>(null);
   const [showExploreAdmin, setShowExploreAdmin] = useState(false);
   const [bgUploading, setBgUploading] = useState(false);
+  const [showNoPetMessage, setShowNoPetMessage] = useState(false);
   const [objDragPos, setObjDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
   const objDragRef = useRef<{ objId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const objDidDrag = useRef(false);
@@ -400,6 +402,10 @@ export default function WorldPage({ user }: WorldPageProps) {
 
   const handleLocationClick = useCallback((loc: WorldLocationData) => {
     if (didDrag.current) return;
+    if (loc.type === "explore" && !currentUser.isAdmin && !currentUser.activePetId) {
+      setShowNoPetMessage(true);
+      return;
+    }
     setActiveLocationId(loc.id);
     if (loc.isShop) {
       setShowLocationView(false);
@@ -408,7 +414,7 @@ export default function WorldPage({ user }: WorldPageProps) {
       setShowShop(false);
       setShowLocationView(true);
     }
-  }, []);
+  }, [currentUser.activePetId, currentUser.isAdmin]);
 
   const handleObjPointerDown = useCallback((e: React.PointerEvent, obj: LocationObjectData) => {
     if (!currentUser.isAdmin) return;
@@ -1608,6 +1614,43 @@ export default function WorldPage({ user }: WorldPageProps) {
                 {addObjectMutation.isPending ? "Adding..." : "Add Object"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showNoPetMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowNoPetMessage(false)} />
+          <div
+            className="relative z-10 w-[85%] max-w-sm rounded-lg p-5 text-center"
+            style={{
+              background: "linear-gradient(135deg, rgba(8,5,18,0.98) 0%, rgba(18,12,30,0.98) 100%)",
+              border: `1px solid ${accent}55`,
+              boxShadow: `0 0 40px ${accent}25`,
+            }}
+          >
+            <div className="w-16 h-16 mx-auto mb-3 rounded-full flex items-center justify-center" style={{ background: `${accent}15`, border: `2px solid ${accent}40` }}>
+              <Swords className="w-8 h-8" style={{ color: `${accent}88` }} />
+            </div>
+            <h3 className="font-fantasy text-sm tracking-widest mb-2" style={{ color: accent, textShadow: `0 0 10px ${accent}40` }}>
+              Not Safe to Explore
+            </h3>
+            <p className="font-fantasy text-[11px] tracking-wider leading-relaxed mb-4" style={{ color: `${accent}aa` }}>
+              Keepers must have a pet to explore safely
+            </p>
+            <button
+              data-testid="button-close-no-pet"
+              onClick={() => setShowNoPetMessage(false)}
+              className="w-full py-2.5 rounded-md font-fantasy text-xs tracking-wider transition-transform active:scale-95"
+              style={{
+                background: `linear-gradient(135deg, ${accent}50 0%, ${accent}25 100%)`,
+                border: `1px solid ${accent}70`,
+                color: accent,
+                cursor: "pointer",
+              }}
+            >
+              Return
+            </button>
           </div>
         </div>
       )}

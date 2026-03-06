@@ -218,6 +218,7 @@ export const locationEnemies = pgTable("location_enemies", {
   locationId: varchar("location_id").notNull(),
   name: text("name").notNull(),
   imageUrl: text("image_url"),
+  isBoss: boolean("is_boss").notNull().default(false),
   coinReward: integer("coin_reward").notNull().default(0),
   sortOrder: integer("sort_order").notNull().default(0),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
