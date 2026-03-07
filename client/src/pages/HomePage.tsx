@@ -184,25 +184,25 @@ export default function HomePage({ user }: HomePageProps) {
         {activePet && (activePet.rarity ?? 0) > 0 && (
           <div
             className="flex justify-center pointer-events-none shrink-0"
-            style={{ zIndex: 30, paddingTop: "4px", paddingBottom: "0px" }}
+            style={{ zIndex: 30, paddingTop: "16px", paddingBottom: "0px" }}
             data-testid="display-pet-rarity-stars"
           >
             {Array.from({ length: 5 }).map((_, i) => {
               const t = (i - 2) / 2;
-              const curveY = -(1 - t * t) * 12;
+              const curveY = -(1 - t * t) * 14;
               const filled = i < (activePet.rarity || 0);
               return (
                 <svg
                   key={i}
-                  width="34"
-                  height="34"
+                  width="42"
+                  height="42"
                   viewBox="0 0 24 24"
                   fill={filled ? "#f0c040" : "none"}
                   stroke={filled ? "#d4a017" : "rgba(139,110,78,0.25)"}
                   strokeWidth="1.5"
                   style={{
                     transform: `translateY(${curveY}px)`,
-                    margin: "0 3px",
+                    margin: "0 4px",
                     filter: filled
                       ? "drop-shadow(0 0 6px rgba(240,192,64,0.7)) drop-shadow(0 0 14px rgba(240,192,64,0.4))"
                       : "none",
