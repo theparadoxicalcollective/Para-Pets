@@ -529,11 +529,11 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
             </div>
             <div className="text-white text-2xl font-bold animate-pulse">VS</div>
             <div style={{ animation: "petIntro 0.8s ease-out 0.3s both" }} className="flex flex-col items-center">
-              <div className="w-24 h-24 flex items-center justify-center">
+              <div className="w-28 flex items-center justify-center" style={{ aspectRatio: "1/1" }}>
                 {pet.petTemplateId ? (
-                  <PetAnimator petTemplateId={pet.petTemplateId} mode="idle" view="front" size={200} className="w-full h-full" />
+                  <PetAnimator petTemplateId={pet.petTemplateId} mode="idle" view="front" size={200} className="w-full h-full" style={{ aspectRatio: "1/1" }} />
                 ) : pet.imageUrl ? (
-                  <img src={pet.imageUrl} alt={pet.name} className="w-full h-full object-contain" />
+                  <img src={pet.imageUrl} alt={pet.name} className="w-full object-contain drop-shadow-lg" style={{ maxHeight: "112px" }} />
                 ) : (
                   <span className="text-5xl">🐾</span>
                 )}
