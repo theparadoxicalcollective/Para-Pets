@@ -220,8 +220,29 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     staleTime: 300000,
   });
 
+  const LAYER_ORDER: Record<string, number> = {
+    back_arms: 1,
+    back_legs: 2,
+    tail: 3,
+    wings: 4,
+    body: 5,
+    front_legs: 6,
+    front_arms: 7,
+    feet: 8,
+    head: 9,
+    left_ear: 10,
+    right_ear: 10,
+    eyes: 11,
+    eyes_closed: 11,
+    hands: 12,
+  };
+
   const allParts = templateData?.parts || [];
-  const viewParts = allParts.filter(p => p.view === view).sort((a, b) => a.zIndex - b.zIndex);
+  const viewParts = allParts.filter(p => p.view === view).sort((a, b) => {
+    const aLayer = LAYER_ORDER[a.partType] ?? a.zIndex;
+    const bLayer = LAYER_ORDER[b.partType] ?? b.zIndex;
+    return aLayer - bLayer;
+  });
 
   if (viewParts.length === 0) return null;
 
@@ -238,6 +259,8 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
         const widthPct = (part.width / CANVAS_SIZE) * 100;
         const heightPct = (part.height / CANVAS_SIZE) * 100;
 
+        const layerZ = LAYER_ORDER[part.partType] ?? part.zIndex;
+
         if (part.partType === "back_full") {
           return (
             <img
@@ -251,7 +274,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
                 top: `${topPct}%`,
                 width: `${widthPct}%`,
                 height: `${heightPct}%`,
-                zIndex: part.zIndex,
+                zIndex: layerZ,
                 imageRendering: "auto",
                 pointerEvents: "none",
               }}
@@ -278,7 +301,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
               top: `${topPct}%`,
               width: `${widthPct}%`,
               height: `${heightPct}%`,
-              zIndex: part.zIndex,
+              zIndex: layerZ,
               transformOrigin: `${part.pivotX ?? 50}% ${part.pivotY ?? 50}%`,
               animation: `${animName} ${duration} ease-in-out infinite`,
               imageRendering: "auto",
