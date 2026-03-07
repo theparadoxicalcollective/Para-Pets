@@ -22,6 +22,9 @@ interface InventoryItem {
   petNickname: string | null;
   statBoostType: string | null;
   statBoostAmount: number | null;
+  specialType: string | null;
+  specialAmount: number | null;
+  healthRestored: number | null;
   hatchStartedAt: string | null;
   isHatched: boolean;
   petHealth: number;
@@ -499,7 +502,51 @@ function PetView({
   );
 }
 
+function getItemDescription(item: InventoryItem): string {
+  const parts: string[] = [];
+  if (item.statBoostType && item.statBoostAmount) {
+    const label = item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : item.statBoostType;
+    parts.push(`Boosts ${label} by +${item.statBoostAmount} when used on a pet.`);
+  }
+  if (item.healthRestored) {
+    parts.push(`Restores ${item.healthRestored} HP to your pet.`);
+  }
+  if (item.specialType === "hatch_time" && item.specialAmount) {
+    parts.push(`Speeds up egg hatching by ${item.specialAmount} minute${item.specialAmount > 1 ? "s" : ""}.`);
+  }
+  if (item.specialType === "level" && item.specialAmount) {
+    parts.push(`Grants ${item.specialAmount} level point${item.specialAmount > 1 ? "s" : ""} to your pet.`);
+  }
+  if (parts.length === 0) {
+    if (item.type === "potion") parts.push("A mystical potion for your pet.");
+    else if (item.type === "accessory") parts.push("An accessory for your pet.");
+    else parts.push("A collectible item from Symora.");
+  }
+  return parts.join(" ");
+}
+
 function BagView({ items }: { items: InventoryItem[] }) {
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const deleteMutation = useMutation({
+    mutationFn: async (inventoryId: string) => {
+      const res = await apiRequest("DELETE", `/api/inventory/${inventoryId}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      setSelectedItem(null);
+      setConfirmDelete(false);
+      toast({ title: "Deleted", description: "Item removed from inventory" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete item", variant: "destructive" });
+    },
+  });
+
   if (items.length === 0) {
     return (
       <div className="text-center py-16">
@@ -525,58 +572,203 @@ function BagView({ items }: { items: InventoryItem[] }) {
   };
 
   return (
-    <div className="grid grid-cols-2 gap-3">
-      {items.map((item) => (
-        <div
-          key={item.inventoryId}
-          data-testid={`card-bag-item-${item.shopItemId}`}
-          className="rounded-lg overflow-hidden"
-          style={{
-            background: "linear-gradient(135deg, rgba(30,15,5,0.95) 0%, rgba(50,30,10,0.95) 100%)",
-            border: "1px solid rgba(212,160,23,0.3)",
-          }}
-        >
-          <div className="p-3 flex flex-col items-center gap-2">
-            <div
-              className="w-full aspect-square rounded-md flex items-center justify-center"
-              style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.15)" }}
-            >
-              {item.imageUrl ? (
-                <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain rounded-md" />
-              ) : (
-                <span className="text-3xl">
-                  {item.type === "potion" ? "🧪" : item.type === "accessory" ? "💍" : "📦"}
+    <>
+      <div className="grid grid-cols-2 gap-3">
+        {items.map((item) => (
+          <div
+            key={item.inventoryId}
+            data-testid={`card-bag-item-${item.shopItemId}`}
+            className="rounded-lg overflow-hidden"
+            style={{
+              background: "linear-gradient(135deg, rgba(30,15,5,0.95) 0%, rgba(50,30,10,0.95) 100%)",
+              border: "1px solid rgba(212,160,23,0.3)",
+              cursor: "pointer",
+            }}
+            onClick={() => { setSelectedItem(item); setConfirmDelete(false); }}
+          >
+            <div className="p-3 flex flex-col items-center gap-2">
+              <div
+                className="w-full aspect-square rounded-md flex items-center justify-center"
+                style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.15)" }}
+              >
+                {item.imageUrl ? (
+                  <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain rounded-md" />
+                ) : (
+                  <span className="text-3xl">
+                    {item.type === "potion" ? "🧪" : item.type === "accessory" ? "💍" : "📦"}
+                  </span>
+                )}
+              </div>
+              <p className="font-fantasy text-[#f0c040] text-xs font-semibold text-center truncate w-full" data-testid={`text-bag-item-name-${item.shopItemId}`}>
+                {item.name}
+              </p>
+              {item.statBoostType && (
+                <span
+                  className="font-fantasy text-[8px] tracking-wider px-2 py-0.5 rounded-full"
+                  style={{
+                    background: item.statBoostType === "health" ? "rgba(74,222,128,0.15)" : item.statBoostType === "atk" ? "rgba(248,113,113,0.15)" : item.statBoostType === "def" ? "rgba(96,165,250,0.15)" : "rgba(192,132,252,0.15)",
+                    color: item.statBoostType === "health" ? "#4ade80" : item.statBoostType === "atk" ? "#f87171" : item.statBoostType === "def" ? "#60a5fa" : "#c084fc",
+                    border: `1px solid ${item.statBoostType === "health" ? "rgba(74,222,128,0.3)" : item.statBoostType === "atk" ? "rgba(248,113,113,0.3)" : item.statBoostType === "def" ? "rgba(96,165,250,0.3)" : "rgba(192,132,252,0.3)"}`,
+                  }}
+                >
+                  +{item.statBoostAmount || "?"} {item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "LVL"}
                 </span>
               )}
-            </div>
-            <p className="font-fantasy text-[#f0c040] text-xs font-semibold text-center truncate w-full" data-testid={`text-bag-item-name-${item.shopItemId}`}>
-              {item.name}
-            </p>
-            {item.statBoostType && (
               <span
-                className="font-fantasy text-[8px] tracking-wider px-2 py-0.5 rounded-full"
+                className="font-fantasy text-[9px] tracking-wider px-2 py-0.5 rounded-full capitalize"
                 style={{
-                  background: item.statBoostType === "health" ? "rgba(74,222,128,0.15)" : item.statBoostType === "atk" ? "rgba(248,113,113,0.15)" : item.statBoostType === "def" ? "rgba(96,165,250,0.15)" : "rgba(192,132,252,0.15)",
-                  color: item.statBoostType === "health" ? "#4ade80" : item.statBoostType === "atk" ? "#f87171" : item.statBoostType === "def" ? "#60a5fa" : "#c084fc",
-                  border: `1px solid ${item.statBoostType === "health" ? "rgba(74,222,128,0.3)" : item.statBoostType === "atk" ? "rgba(248,113,113,0.3)" : item.statBoostType === "def" ? "rgba(96,165,250,0.3)" : "rgba(192,132,252,0.3)"}`,
+                  background: `${typeColors[item.type] || "#f0c040"}20`,
+                  color: typeColors[item.type] || "#f0c040",
+                  border: `1px solid ${typeColors[item.type] || "#f0c040"}40`,
                 }}
               >
-                +{item.statBoostAmount || "?"} {item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "LVL"}
+                {item.type}
               </span>
-            )}
-            <span
-              className="font-fantasy text-[9px] tracking-wider px-2 py-0.5 rounded-full capitalize"
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {selectedItem && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center"
+          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }}
+          onClick={() => { setSelectedItem(null); setConfirmDelete(false); }}
+        >
+          <div
+            className="relative w-[85%] max-w-sm rounded-xl overflow-hidden"
+            style={{
+              background: "linear-gradient(135deg, rgba(30,15,5,0.98) 0%, rgba(50,30,10,0.98) 100%)",
+              border: "1px solid rgba(212,160,23,0.4)",
+              boxShadow: "0 0 40px rgba(0,0,0,0.6), 0 0 15px rgba(240,192,64,0.1)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+            data-testid="modal-item-detail"
+          >
+            <button
+              className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center z-10"
               style={{
-                background: `${typeColors[item.type] || "#f0c040"}20`,
-                color: typeColors[item.type] || "#f0c040",
-                border: `1px solid ${typeColors[item.type] || "#f0c040"}40`,
+                background: "rgba(180,50,50,0.2)",
+                border: "1px solid rgba(180,50,50,0.4)",
+                cursor: "pointer",
+                color: "#e05050",
               }}
+              onClick={() => { setSelectedItem(null); setConfirmDelete(false); }}
+              data-testid="button-close-item-detail"
             >
-              {item.type}
-            </span>
+              <span className="text-sm font-bold">✕</span>
+            </button>
+
+            <div className="p-5 flex flex-col items-center gap-4">
+              <div
+                className="w-28 h-28 rounded-lg flex items-center justify-center"
+                style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.2)" }}
+              >
+                {selectedItem.imageUrl ? (
+                  <img src={selectedItem.imageUrl} alt={selectedItem.name} className="w-full h-full object-contain rounded-lg" />
+                ) : (
+                  <span className="text-4xl">
+                    {selectedItem.type === "potion" ? "🧪" : selectedItem.type === "accessory" ? "💍" : "📦"}
+                  </span>
+                )}
+              </div>
+
+              <div className="text-center">
+                <h3 className="font-fantasy text-[#f0c040] text-lg tracking-wider mb-1" data-testid="text-item-detail-name">
+                  {selectedItem.name}
+                </h3>
+                <span
+                  className="font-fantasy text-[10px] tracking-wider px-3 py-1 rounded-full capitalize inline-block"
+                  style={{
+                    background: `${typeColors[selectedItem.type] || "#f0c040"}20`,
+                    color: typeColors[selectedItem.type] || "#f0c040",
+                    border: `1px solid ${typeColors[selectedItem.type] || "#f0c040"}40`,
+                  }}
+                >
+                  {selectedItem.type}
+                </span>
+              </div>
+
+              <div
+                className="w-full rounded-lg p-3"
+                style={{ background: "rgba(0,0,0,0.25)", border: "1px solid rgba(212,160,23,0.1)" }}
+              >
+                <p className="font-fantasy text-[#c8b090] text-xs tracking-wider leading-relaxed text-center" data-testid="text-item-detail-description">
+                  {getItemDescription(selectedItem)}
+                </p>
+              </div>
+
+              {selectedItem.statBoostType && (
+                <div className="flex items-center gap-2">
+                  <span
+                    className="font-fantasy text-[10px] tracking-wider px-3 py-1 rounded-full"
+                    style={{
+                      background: selectedItem.statBoostType === "health" ? "rgba(74,222,128,0.15)" : selectedItem.statBoostType === "atk" ? "rgba(248,113,113,0.15)" : selectedItem.statBoostType === "def" ? "rgba(96,165,250,0.15)" : "rgba(192,132,252,0.15)",
+                      color: selectedItem.statBoostType === "health" ? "#4ade80" : selectedItem.statBoostType === "atk" ? "#f87171" : selectedItem.statBoostType === "def" ? "#60a5fa" : "#c084fc",
+                      border: `1px solid ${selectedItem.statBoostType === "health" ? "rgba(74,222,128,0.3)" : selectedItem.statBoostType === "atk" ? "rgba(248,113,113,0.3)" : selectedItem.statBoostType === "def" ? "rgba(96,165,250,0.3)" : "rgba(192,132,252,0.3)"}`,
+                    }}
+                  >
+                    +{selectedItem.statBoostAmount || "?"} {selectedItem.statBoostType === "health" ? "HP" : selectedItem.statBoostType === "atk" ? "ATK" : selectedItem.statBoostType === "def" ? "DEF" : "LVL"}
+                  </span>
+                </div>
+              )}
+
+              <div className="w-full pt-2 border-t" style={{ borderColor: "rgba(212,160,23,0.15)" }}>
+                {!confirmDelete ? (
+                  <button
+                    className="w-full py-2.5 rounded-lg font-fantasy text-xs tracking-wider transition-transform active:scale-95"
+                    style={{
+                      background: "rgba(180,50,50,0.15)",
+                      border: "1px solid rgba(180,50,50,0.3)",
+                      color: "#e07070",
+                      cursor: "pointer",
+                    }}
+                    onClick={() => setConfirmDelete(true)}
+                    data-testid="button-delete-item"
+                  >
+                    Discard Item
+                  </button>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <p className="font-fantasy text-[#e07070] text-xs tracking-wider text-center">
+                      Are you sure? This cannot be undone.
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        className="flex-1 py-2.5 rounded-lg font-fantasy text-xs tracking-wider transition-transform active:scale-95"
+                        style={{
+                          background: "rgba(180,50,50,0.25)",
+                          border: "1px solid rgba(180,50,50,0.5)",
+                          color: "#ff6060",
+                          cursor: "pointer",
+                        }}
+                        onClick={() => deleteMutation.mutate(selectedItem.inventoryId)}
+                        disabled={deleteMutation.isPending}
+                        data-testid="button-confirm-delete-item"
+                      >
+                        {deleteMutation.isPending ? "Deleting..." : "Yes, Discard"}
+                      </button>
+                      <button
+                        className="flex-1 py-2.5 rounded-lg font-fantasy text-xs tracking-wider transition-transform active:scale-95"
+                        style={{
+                          background: "rgba(212,160,23,0.1)",
+                          border: "1px solid rgba(212,160,23,0.3)",
+                          color: "#f0c040",
+                          cursor: "pointer",
+                        }}
+                        onClick={() => setConfirmDelete(false)}
+                        data-testid="button-cancel-delete-item"
+                      >
+                        Keep It
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
-      ))}
-    </div>
+      )}
+    </>
   );
 }

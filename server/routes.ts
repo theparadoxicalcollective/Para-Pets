@@ -401,6 +401,26 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/inventory/:inventoryId", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { inventoryId } = req.params;
+      const allInv = await storage.getUserInventory(user.id);
+      const item = allInv.find((inv) => inv.id === inventoryId);
+      if (!item) {
+        return res.status(404).json({ message: "Item not found in your inventory" });
+      }
+      if (item.shopItemId === user.activePetId) {
+        return res.status(400).json({ message: "Cannot delete your active pet" });
+      }
+      await storage.removeFromInventory(inventoryId);
+      return res.json({ success: true });
+    } catch (err) {
+      console.error("Delete inventory item error:", err);
+      return res.status(500).json({ message: "Failed to delete item" });
+    }
+  });
+
   app.patch("/api/inventory/:inventoryId/nickname", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
