@@ -5,6 +5,29 @@ import { useToast } from "@/hooks/use-toast";
 import { Swords, Star, Coins, X, ChevronRight, ArrowLeft, Heart } from "lucide-react";
 import PetAnimator from "./PetAnimator";
 
+function PetBackWithFallback({ petTemplateId, size, className }: { petTemplateId: string; size: number; className?: string }) {
+  const { data: templateData } = useQuery<{ parts: { view: string }[] }>({
+    queryKey: ["/api/pet-template-parts", petTemplateId],
+    queryFn: async () => {
+      const res = await fetch(`/api/pet-template-parts/${petTemplateId}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    enabled: !!petTemplateId,
+    staleTime: 300000,
+  });
+  const hasBackParts = (templateData?.parts || []).some(p => p.view === "back");
+  return (
+    <PetAnimator
+      petTemplateId={petTemplateId}
+      mode="idle"
+      view={hasBackParts ? "back" : "front"}
+      size={size}
+      className={className}
+    />
+  );
+}
+
 interface EncounterEnemy {
   enemyId: string;
   name: string;
@@ -625,10 +648,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                 {pet.backImageUrl ? (
                   <img src={pet.backImageUrl} alt={pet.name} className="w-full h-full object-contain drop-shadow-lg" />
                 ) : pet.petTemplateId ? (
-                  <PetAnimator
+                  <PetBackWithFallback
                     petTemplateId={pet.petTemplateId}
-                    mode="idle"
-                    view="front"
                     size={300}
                     className="w-full h-full"
                   />
