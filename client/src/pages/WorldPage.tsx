@@ -123,10 +123,13 @@ export default function WorldPage({ user }: WorldPageProps) {
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
-    enabled: !staticWorld,
   });
 
-  const world = staticWorld || (worldApiData ? {
+  const dbName = worldApiData?.name;
+  const world = staticWorld ? {
+    ...staticWorld,
+    name: dbName || staticWorld.name,
+  } : (worldApiData ? {
     name: worldApiData.name,
     shopIcon: worldApiData.iconUrl || "",
     bg: worldApiData.bgUrl || "",
@@ -507,8 +510,8 @@ export default function WorldPage({ user }: WorldPageProps) {
           50% { transform: translateY(-4px); }
         }
         @keyframes locGlow {
-          0%, 100% { opacity: 0.4; }
-          50% { opacity: 0.9; }
+          0%, 100% { opacity: 0.5; transform: scale(0.95); }
+          50% { opacity: 1; transform: scale(1.05); }
         }
         @keyframes locRingPulse {
           0%, 100% { transform: scale(1); opacity: 0.3; }
@@ -563,21 +566,39 @@ export default function WorldPage({ user }: WorldPageProps) {
         <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
 
         <div className="flex flex-col items-center px-6 pt-4 pb-2">
-          <h2
-            className="font-fantasy text-4xl font-bold tracking-widest text-center mb-1"
-            style={{
-              color: accent,
-              textShadow: `0 0 30px ${accent}90, 0 0 60px ${accent}50, 0 0 100px ${accent}25, 0 2px 8px rgba(0,0,0,0.9)`,
-              letterSpacing: "0.15em",
-            }}
+          <div
+            className="flex items-center justify-center mb-2"
             data-testid={`text-world-name-${worldId}`}
           >
-            {world.name}
-          </h2>
-          <p className="font-fantasy text-xs tracking-[0.2em] text-center mb-2"
-            style={{ color: `${accent}88`, textShadow: `0 0 10px ${accent}30, 0 1px 4px rgba(0,0,0,0.9)` }}>
-            Explore the realm...
-          </p>
+            <div
+              className="relative px-6 py-2 rounded-lg"
+              style={{
+                background: `linear-gradient(180deg, rgba(30,20,10,0.95) 0%, rgba(50,35,15,0.92) 40%, rgba(35,25,10,0.95) 100%)`,
+                border: `2px solid ${accent}60`,
+                boxShadow: `0 0 20px ${accent}30, 0 4px 12px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(0,0,0,0.3)`,
+                borderRadius: "8px",
+              }}
+            >
+              <div
+                className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-6 h-3 rounded-t-full"
+                style={{ background: `${accent}40`, boxShadow: `0 -2px 6px ${accent}30` }}
+              />
+              <div
+                className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-6 h-3 rounded-b-full"
+                style={{ background: `${accent}40`, boxShadow: `0 2px 6px ${accent}30` }}
+              />
+              <h2
+                className="font-fantasy text-2xl font-bold tracking-widest text-center"
+                style={{
+                  color: accent,
+                  textShadow: `0 0 20px ${accent}70, 0 0 40px ${accent}35, 0 1px 4px rgba(0,0,0,0.9)`,
+                  letterSpacing: "0.12em",
+                }}
+              >
+                {world.name}
+              </h2>
+            </div>
+          </div>
         </div>
 
         <div className="flex-1 relative overflow-y-auto overflow-x-hidden world-scroll">
@@ -638,9 +659,9 @@ export default function WorldPage({ user }: WorldPageProps) {
                     >
                       <div className="relative w-full" style={{ aspectRatio: "1" }}>
                         <div
-                          className="absolute inset-[-20%] rounded-full pointer-events-none"
+                          className="absolute inset-[-35%] rounded-full pointer-events-none"
                           style={{
-                            background: `radial-gradient(circle, ${glow}45 0%, ${glow}20 40%, transparent 70%)`,
+                            background: `radial-gradient(circle, ${glow}90 0%, ${glow}50 30%, ${glow}20 55%, transparent 75%)`,
                             animation: `locGlow ${3 + (i % 2)}s ease-in-out infinite`,
                             animationDelay: `${i * 0.25}s`,
                           }}
@@ -652,19 +673,19 @@ export default function WorldPage({ user }: WorldPageProps) {
                             className="w-full h-full object-contain relative z-10"
                             draggable={false}
                             style={{
-                              filter: `drop-shadow(0 3px 8px rgba(0,0,0,0.6)) drop-shadow(0 0 12px ${glow}40)`,
+                              filter: `drop-shadow(0 3px 8px rgba(0,0,0,0.6)) drop-shadow(0 0 18px ${glow}80) drop-shadow(0 0 30px ${glow}40)`,
                             }}
                           />
                         ) : (
                           <div
                             className="w-full h-full rounded-full flex items-center justify-center relative z-10"
                             style={{
-                              background: `radial-gradient(circle at 40% 35%, ${glow}35, ${glow}10)`,
-                              border: `2px solid ${glow}55`,
-                              boxShadow: `inset 0 0 15px ${glow}15, 0 0 20px ${glow}20`,
+                              background: `radial-gradient(circle at 40% 35%, ${glow}55, ${glow}20)`,
+                              border: `2px solid ${glow}70`,
+                              boxShadow: `inset 0 0 20px ${glow}30, 0 0 30px ${glow}40, 0 0 50px ${glow}15`,
                             }}
                           >
-                            <MapPin className="w-7 h-7" style={{ color: glow, filter: `drop-shadow(0 0 8px ${glow}70)` }} />
+                            <MapPin className="w-7 h-7" style={{ color: glow, filter: `drop-shadow(0 0 12px ${glow}90)` }} />
                           </div>
                         )}
 
