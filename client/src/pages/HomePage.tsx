@@ -180,20 +180,39 @@ export default function HomePage({ user }: HomePageProps) {
       <div className="relative z-10 flex flex-col h-full" style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} hideHome />
 
-        {activePet && activePet.rarity && activePet.rarity > 0 && (
-          <div className="relative z-10 flex justify-center mt-2 mb-0">
-            <div className="flex items-center gap-3" data-testid="display-pet-rarity-stars">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <svg key={i} width="44" height="44" viewBox="0 0 24 24" fill={i < (activePet.rarity || 0) ? "#f0c040" : "none"} stroke={i < (activePet.rarity || 0) ? "#d4a017" : "rgba(139,110,78,0.25)"} strokeWidth="1.5" style={{ filter: i < (activePet.rarity || 0) ? "drop-shadow(0 0 8px rgba(240,192,64,0.7)) drop-shadow(0 0 16px rgba(240,192,64,0.4))" : "none" }}>
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                </svg>
-              ))}
-            </div>
-          </div>
-        )}
-
         <div className="flex-1 flex flex-col items-center justify-center px-2 py-0 min-h-0">
           <div className="relative flex items-center justify-center" style={{ width: "90%", maxWidth: "420px" }}>
+            {activePet && activePet.rarity && activePet.rarity > 0 && activePet.isHatched && (
+              <div className="absolute top-0 left-1/2 z-30 pointer-events-none" style={{ transform: "translateX(-50%)", width: "280px", height: "70px" }} data-testid="display-pet-rarity-stars">
+                {Array.from({ length: 5 }).map((_, i) => {
+                  const angle = -Math.PI + ((i + 0.5) / 5) * Math.PI;
+                  const radiusX = 130;
+                  const radiusY = 40;
+                  const x = 140 + Math.cos(angle) * radiusX;
+                  const y = 60 + Math.sin(angle) * radiusY;
+                  const filled = i < (activePet.rarity || 0);
+                  return (
+                    <svg
+                      key={i}
+                      width="38"
+                      height="38"
+                      viewBox="0 0 24 24"
+                      fill={filled ? "#f0c040" : "none"}
+                      stroke={filled ? "#d4a017" : "rgba(139,110,78,0.25)"}
+                      strokeWidth="1.5"
+                      style={{
+                        position: "absolute",
+                        left: `${x - 19}px`,
+                        top: `${y - 19}px`,
+                        filter: filled ? "drop-shadow(0 0 8px rgba(240,192,64,0.7)) drop-shadow(0 0 16px rgba(240,192,64,0.4))" : "none",
+                      }}
+                    >
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                    </svg>
+                  );
+                })}
+              </div>
+            )}
             <div
               className="w-full rounded-xl flex flex-col items-center justify-center"
               style={{
