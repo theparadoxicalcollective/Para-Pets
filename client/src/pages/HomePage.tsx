@@ -142,6 +142,26 @@ export default function HomePage({ user }: HomePageProps) {
           0%, 100% { box-shadow: 0 0 20px rgba(240,192,64,0.15), 0 8px 20px rgba(0,0,0,0.4); }
           50% { box-shadow: 0 0 35px rgba(240,192,64,0.35), 0 0 60px rgba(240,192,64,0.15), 0 8px 20px rgba(0,0,0,0.4); }
         }
+        @keyframes eggGlowPulse {
+          0%, 100% { opacity: 0.6; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.05); }
+        }
+        @keyframes eggOrb0 {
+          0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.5; }
+          25% { transform: translate(8px, -12px) scale(1.3); opacity: 1; }
+          50% { transform: translate(-4px, -20px) scale(0.9); opacity: 0.7; }
+          75% { transform: translate(6px, -8px) scale(1.1); opacity: 0.9; }
+        }
+        @keyframes eggOrb1 {
+          0%, 100% { transform: translate(0, 0) scale(0.9); opacity: 0.4; }
+          30% { transform: translate(-10px, -15px) scale(1.2); opacity: 0.9; }
+          60% { transform: translate(5px, -25px) scale(1); opacity: 0.6; }
+        }
+        @keyframes eggOrb2 {
+          0%, 100% { transform: translate(0, 0) scale(1.1); opacity: 0.6; }
+          35% { transform: translate(12px, -10px) scale(0.8); opacity: 1; }
+          70% { transform: translate(-8px, -18px) scale(1.2); opacity: 0.5; }
+        }
         @keyframes orbFloat1 {
           0% { transform: translate(0, 0) scale(1); opacity: 0.3; }
           25% { transform: translate(15px, -30px) scale(1.2); opacity: 0.6; }
@@ -281,13 +301,30 @@ export default function HomePage({ user }: HomePageProps) {
                             <span className="text-5xl">🥚</span>
                           )}
                           {eggHatchReady && !hatchRevealing && (
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <span
-                                className="font-fantasy text-[#4ade80] text-lg tracking-widest font-bold animate-pulse"
-                                style={{ textShadow: "0 0 12px rgba(74,222,128,0.6), 0 0 24px rgba(74,222,128,0.3)" }}
-                              >
-                                TAP TO HATCH!
-                              </span>
+                            <div className="absolute inset-0 pointer-events-none" data-testid="display-egg-hatch-ready">
+                              <div
+                                className="absolute inset-0"
+                                style={{
+                                  background: "radial-gradient(ellipse at center, rgba(74,222,128,0.25) 0%, rgba(74,222,128,0.08) 40%, transparent 70%)",
+                                  animation: "eggGlowPulse 2s ease-in-out infinite",
+                                }}
+                              />
+                              {[0, 1, 2, 3, 4, 5].map((idx) => (
+                                <div
+                                  key={idx}
+                                  style={{
+                                    position: "absolute",
+                                    width: idx % 2 === 0 ? "8px" : "6px",
+                                    height: idx % 2 === 0 ? "8px" : "6px",
+                                    borderRadius: "50%",
+                                    background: `radial-gradient(circle, ${idx % 3 === 0 ? "rgba(74,222,128,0.9)" : idx % 3 === 1 ? "rgba(160,255,200,0.9)" : "rgba(255,240,180,0.9)"} 0%, transparent 70%)`,
+                                    boxShadow: `0 0 8px ${idx % 3 === 0 ? "rgba(74,222,128,0.6)" : idx % 3 === 1 ? "rgba(160,255,200,0.6)" : "rgba(255,240,180,0.6)"}, 0 0 16px ${idx % 3 === 0 ? "rgba(74,222,128,0.3)" : idx % 3 === 1 ? "rgba(160,255,200,0.3)" : "rgba(255,240,180,0.3)"}`,
+                                    left: `${50 + 30 * Math.cos((idx * Math.PI * 2) / 6)}%`,
+                                    top: `${50 + 35 * Math.sin((idx * Math.PI * 2) / 6)}%`,
+                                    animation: `eggOrb${idx % 3} ${2 + (idx % 3) * 0.5}s ease-in-out infinite ${idx * 0.4}s`,
+                                  }}
+                                />
+                              ))}
                             </div>
                           )}
                         </div>
