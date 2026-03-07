@@ -1181,7 +1181,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/world/:worldId/location", isAdmin, async (req, res) => {
     try {
-      const { name, description, iconData, bgData, ownerImageData, isShop, type, posX, posY } = req.body;
+      const { name, description, iconData, bgData, ownerImageData, isShop, type, posX, posY, glowColor } = req.body;
       if (!name || typeof name !== "string" || !name.trim()) return res.status(400).json({ message: "Name is required" });
 
       let iconUrl: string | null = null;
@@ -1206,6 +1206,7 @@ export async function registerRoutes(
         ownerImageUrl,
         isShop: !!isShop,
         description: description || null,
+        glowColor: glowColor || null,
         posX: typeof posX === "number" ? Math.max(0, Math.min(85, posX)) : 40,
         posY: typeof posY === "number" ? Math.max(0, Math.min(85, posY)) : 40,
         sortOrder: 0,
@@ -1220,7 +1221,7 @@ export async function registerRoutes(
   app.patch("/api/admin/world/location/:locationId", isAdmin, async (req, res) => {
     try {
       const sanitized: Record<string, any> = {};
-      const { name, description, iconData, bgData, ownerImageData, isShop, type, posX, posY } = req.body;
+      const { name, description, iconData, bgData, ownerImageData, isShop, type, posX, posY, glowColor } = req.body;
 
       if (name !== undefined) sanitized.name = name;
       if (description !== undefined) sanitized.description = description;
@@ -1240,6 +1241,7 @@ export async function registerRoutes(
       if (ownerImageData) {
         sanitized.ownerImageUrl = await processWorldImage(ownerImageData, 500);
       }
+      if (glowColor !== undefined) sanitized.glowColor = glowColor || null;
       if (typeof posX === "number") sanitized.posX = Math.max(0, Math.min(85, posX));
       if (typeof posY === "number") sanitized.posY = Math.max(0, Math.min(85, posY));
 

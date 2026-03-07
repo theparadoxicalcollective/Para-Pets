@@ -145,6 +145,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [newLocIcon, setNewLocIcon] = useState<string | null>(null);
   const [newLocBg, setNewLocBg] = useState<string | null>(null);
   const [newLocOwner, setNewLocOwner] = useState<string | null>(null);
+  const [newLocGlowColor, setNewLocGlowColor] = useState("");
   const [editingLocation, setEditingLocation] = useState<any | null>(null);
   const [editLocName, setEditLocName] = useState("");
   const [editLocDesc, setEditLocDesc] = useState("");
@@ -152,6 +153,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [editLocBg, setEditLocBg] = useState<string | null>(null);
   const [editLocOwner, setEditLocOwner] = useState<string | null>(null);
   const [editLocType, setEditLocType] = useState("explore");
+  const [editLocGlowColor, setEditLocGlowColor] = useState("");
   const [activeLocationId, setActiveLocationId] = useState<string | null>(null);
   const [showLocationView, setShowLocationView] = useState(false);
   const [showItemPicker, setShowItemPicker] = useState(false);
@@ -253,6 +255,7 @@ export default function WorldPage({ user }: WorldPageProps) {
       setNewLocIcon(null);
       setNewLocBg(null);
       setNewLocOwner(null);
+      setNewLocGlowColor("");
       toast({ title: "Place Added", description: "New place created" });
     },
     onError: () => {
@@ -617,6 +620,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                 {locations.map((loc, i) => {
                   const pos = dragPos?.id === loc.id ? { x: dragPos.x, y: dragPos.y } : { x: loc.posX, y: loc.posY };
                   const isDragging = dragRef.current?.locId === loc.id;
+                  const glow = loc.glowColor || accent;
                   return (
                     <div
                       key={loc.id}
@@ -628,8 +632,6 @@ export default function WorldPage({ user }: WorldPageProps) {
                         width: "28%",
                         cursor: currentUser.isAdmin ? "grab" : "pointer",
                         zIndex: isDragging ? 50 : 10 + i,
-                        animation: isDragging ? "none" : `locFloat ${3 + (i % 3) * 0.5}s ease-in-out infinite`,
-                        animationDelay: `${i * 0.3}s`,
                       }}
                       onPointerDown={(e) => handlePointerDown(e, loc)}
                       onClick={() => handleLocationClick(loc)}
@@ -638,7 +640,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                         <div
                           className="absolute inset-[-20%] rounded-full pointer-events-none"
                           style={{
-                            background: `radial-gradient(circle, ${accent}45 0%, ${accent}20 40%, transparent 70%)`,
+                            background: `radial-gradient(circle, ${glow}45 0%, ${glow}20 40%, transparent 70%)`,
                             animation: `locGlow ${3 + (i % 2)}s ease-in-out infinite`,
                             animationDelay: `${i * 0.25}s`,
                           }}
@@ -650,19 +652,19 @@ export default function WorldPage({ user }: WorldPageProps) {
                             className="w-full h-full object-contain relative z-10"
                             draggable={false}
                             style={{
-                              filter: `drop-shadow(0 3px 8px rgba(0,0,0,0.6)) drop-shadow(0 0 12px ${accent}40)`,
+                              filter: `drop-shadow(0 3px 8px rgba(0,0,0,0.6)) drop-shadow(0 0 12px ${glow}40)`,
                             }}
                           />
                         ) : (
                           <div
                             className="w-full h-full rounded-full flex items-center justify-center relative z-10"
                             style={{
-                              background: `radial-gradient(circle at 40% 35%, ${accent}35, ${accent}10)`,
-                              border: `2px solid ${accent}55`,
-                              boxShadow: `inset 0 0 15px ${accent}15, 0 0 20px ${accent}20`,
+                              background: `radial-gradient(circle at 40% 35%, ${glow}35, ${glow}10)`,
+                              border: `2px solid ${glow}55`,
+                              boxShadow: `inset 0 0 15px ${glow}15, 0 0 20px ${glow}20`,
                             }}
                           >
-                            <MapPin className="w-7 h-7" style={{ color: accent, filter: `drop-shadow(0 0 8px ${accent}70)` }} />
+                            <MapPin className="w-7 h-7" style={{ color: glow, filter: `drop-shadow(0 0 8px ${glow}70)` }} />
                           </div>
                         )}
 
@@ -679,6 +681,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                                 setEditLocBg(null);
                                 setEditLocOwner(null);
                                 setEditLocType(loc.type || (loc.isShop ? "shop" : "explore"));
+                                setEditLocGlowColor(loc.glowColor || "");
                               }}
                               className="absolute -top-1 -right-1 z-30 w-5 h-5 rounded-full flex items-center justify-center"
                               style={{
@@ -709,19 +712,6 @@ export default function WorldPage({ user }: WorldPageProps) {
                           </>
                         )}
                       </div>
-                      <span
-                        className="font-fantasy text-[9px] sm:text-[10px] tracking-wider font-semibold whitespace-nowrap mt-0.5 px-2 py-0.5 rounded-full relative z-10"
-                        style={{
-                          color: accent,
-                          textShadow: `0 0 10px ${accent}50, 0 1px 3px rgba(0,0,0,0.9)`,
-                          background: "rgba(0,0,0,0.55)",
-                          border: `1px solid ${accent}35`,
-                          backdropFilter: "blur(6px)",
-                          boxShadow: `0 0 8px ${accent}15`,
-                        }}
-                      >
-                        {loc.name}
-                      </span>
                     </div>
                   );
                 })}
@@ -924,6 +914,21 @@ export default function WorldPage({ user }: WorldPageProps) {
                 />
               </div>
 
+              <div>
+                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>Glow Color (optional)</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    data-testid="input-location-glow-color"
+                    type="color"
+                    value={newLocGlowColor || accent}
+                    onChange={(e) => setNewLocGlowColor(e.target.value)}
+                    className="w-10 h-8 rounded border-0 cursor-pointer"
+                    style={{ background: "transparent" }}
+                  />
+                  <span className="font-fantasy text-[10px]" style={{ color: `${accent}88` }}>{newLocGlowColor || "Default (world accent)"}</span>
+                </div>
+              </div>
+
               <button
                 data-testid="button-submit-add-location"
                 onClick={() => {
@@ -936,6 +941,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                     iconData: newLocIcon,
                     bgData: newLocBg,
                     ownerImageData: newLocOwner,
+                    glowColor: newLocGlowColor || undefined,
                   });
                 }}
                 disabled={addLocationMutation.isPending || !newLocName.trim()}
@@ -1102,6 +1108,30 @@ export default function WorldPage({ user }: WorldPageProps) {
                 )}
               </div>
 
+              <div>
+                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>Glow Color</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    data-testid="input-edit-location-glow-color"
+                    type="color"
+                    value={editLocGlowColor || accent}
+                    onChange={(e) => setEditLocGlowColor(e.target.value)}
+                    className="w-10 h-8 rounded border-0 cursor-pointer"
+                    style={{ background: "transparent" }}
+                  />
+                  <span className="font-fantasy text-[10px]" style={{ color: `${accent}88` }}>{editLocGlowColor || "Default (world accent)"}</span>
+                  {editLocGlowColor && (
+                    <button
+                      onClick={() => setEditLocGlowColor("")}
+                      className="font-fantasy text-[9px] px-2 py-0.5 rounded"
+                      style={{ background: `${accent}20`, color: accent, cursor: "pointer" }}
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+              </div>
+
               <button
                 data-testid="button-submit-edit-location"
                 onClick={() => {
@@ -1115,6 +1145,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                   if (editLocIcon) data.iconData = editLocIcon;
                   if (editLocBg) data.bgData = editLocBg;
                   if (editLocOwner) data.ownerImageData = editLocOwner;
+                  if (editLocGlowColor !== (editingLocation.glowColor || "")) data.glowColor = editLocGlowColor || null;
                   if (Object.keys(data).length === 0) {
                     setEditingLocation(null);
                     return;

@@ -99,6 +99,7 @@ export const worldLocations = pgTable("world_locations", {
   shopkeeperImageUrl: text("shopkeeper_image_url"),
   ownerImageUrl: text("owner_image_url"),
   isShop: boolean("is_shop").notNull().default(false),
+  glowColor: text("glow_color"),
   sortOrder: integer("sort_order").notNull().default(0),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
