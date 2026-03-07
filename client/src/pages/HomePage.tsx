@@ -182,38 +182,7 @@ export default function HomePage({ user }: HomePageProps) {
         <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} hideHome />
 
         <div className="flex-1 flex flex-col items-center justify-center px-2 py-0 min-h-0">
-          <div className="flex flex-col items-center" style={{ width: "90%", maxWidth: "420px" }}>
-            {activePet && (activePet.rarity ?? 0) > 0 && activePet.isHatched && (
-              <div
-                className="flex justify-center pointer-events-none"
-                style={{ marginBottom: "-8px", position: "relative", zIndex: 30 }}
-                data-testid="display-pet-rarity-stars"
-              >
-                {Array.from({ length: 5 }).map((_, i) => {
-                  const t = (i - 2) / 2;
-                  const curveY = -(1 - t * t) * 14;
-                  const filled = i < (activePet.rarity || 0);
-                  return (
-                    <svg
-                      key={i}
-                      width="38"
-                      height="38"
-                      viewBox="0 0 24 24"
-                      fill={filled ? "#f0c040" : "none"}
-                      stroke={filled ? "#d4a017" : "rgba(139,110,78,0.25)"}
-                      strokeWidth="1.5"
-                      style={{
-                        transform: `translateY(${curveY}px)`,
-                        margin: "0 4px",
-                        filter: filled ? "drop-shadow(0 0 8px rgba(240,192,64,0.7)) drop-shadow(0 0 16px rgba(240,192,64,0.4))" : "none",
-                      }}
-                    >
-                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                    </svg>
-                  );
-                })}
-              </div>
-            )}
+          <div className="relative flex items-center justify-center" style={{ width: "90%", maxWidth: "420px" }}>
             <div
               className="w-full rounded-xl flex flex-col items-center justify-center"
               style={{
@@ -234,6 +203,37 @@ export default function HomePage({ user }: HomePageProps) {
                 </div>
               ) : activePet ? (
                 <div className="relative w-full animate-float flex flex-col items-center" data-testid="display-active-pet">
+                  {activePet.isHatched && (activePet.rarity ?? 0) > 0 && (
+                    <div
+                      className="absolute left-0 right-0 flex justify-center pointer-events-none"
+                      style={{ top: "2px", zIndex: 30 }}
+                      data-testid="display-pet-rarity-stars"
+                    >
+                      {Array.from({ length: 5 }).map((_, i) => {
+                        const t = (i - 2) / 2;
+                        const curveY = -(1 - t * t) * 10;
+                        const filled = i < (activePet.rarity || 0);
+                        return (
+                          <svg
+                            key={i}
+                            width="32"
+                            height="32"
+                            viewBox="0 0 24 24"
+                            fill={filled ? "#f0c040" : "none"}
+                            stroke={filled ? "#d4a017" : "rgba(139,110,78,0.25)"}
+                            strokeWidth="1.5"
+                            style={{
+                              transform: `translateY(${curveY}px)`,
+                              margin: "0 3px",
+                              filter: filled ? "drop-shadow(0 0 8px rgba(240,192,64,0.7)) drop-shadow(0 0 16px rgba(240,192,64,0.4))" : "none",
+                            }}
+                          >
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                          </svg>
+                        );
+                      })}
+                    </div>
+                  )}
                   <div
                     className="w-full flex items-center justify-center"
                     style={{
