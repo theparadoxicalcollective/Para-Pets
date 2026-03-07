@@ -92,6 +92,7 @@ export default function HomePage({ user }: HomePageProps) {
     ? inventory.find((item) => item.shopItemId === currentUser.activePetId && item.type === "pet")
     : null;
 
+
   const hatchTimeItems = inventory.filter(
     (item) => item.type === "special" && item.specialType === "hatch_time"
   );
@@ -181,11 +182,11 @@ export default function HomePage({ user }: HomePageProps) {
         <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} hideHome />
 
         <div className="flex-1 flex flex-col items-center justify-center px-2 py-0 min-h-0">
-          <div className="relative flex items-center justify-center" style={{ width: "90%", maxWidth: "420px", overflow: "visible" }}>
-            {activePet && activePet.rarity != null && activePet.rarity > 0 && activePet.isHatched && (
+          <div className="flex flex-col items-center" style={{ width: "90%", maxWidth: "420px" }}>
+            {activePet && (activePet.rarity ?? 0) > 0 && activePet.isHatched && (
               <div
-                className="absolute left-1/2 z-30 pointer-events-none flex justify-center"
-                style={{ transform: "translateX(-50%)", top: "-10px" }}
+                className="flex justify-center pointer-events-none"
+                style={{ marginBottom: "-8px", position: "relative", zIndex: 30 }}
                 data-testid="display-pet-rarity-stars"
               >
                 {Array.from({ length: 5 }).map((_, i) => {
