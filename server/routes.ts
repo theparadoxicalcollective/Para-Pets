@@ -1053,7 +1053,7 @@ export async function registerRoutes(
       const world = await storage.getWorld(req.params.worldId);
       if (!world) return res.status(404).json({ message: "World not found" });
 
-      const { name, glowColor, iconData, bgData } = req.body;
+      const { name, glowColor, iconData, bgData, skyImageData, groundImageData } = req.body;
       const updates: Record<string, any> = {};
 
       if (name && typeof name === "string" && name.trim()) updates.name = name.trim();
@@ -1064,6 +1064,12 @@ export async function registerRoutes(
       }
       if (bgData) {
         updates.bgUrl = await processWorldImage(bgData, 2000);
+      }
+      if (skyImageData) {
+        updates.skyImageUrl = await processWorldImage(skyImageData, 2000);
+      }
+      if (groundImageData) {
+        updates.groundImageUrl = await processWorldImage(groundImageData, 2000);
       }
 
       if (Object.keys(updates).length === 0) {
@@ -1088,6 +1094,78 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Delete world error:", err);
       return res.status(500).json({ message: "Failed to delete world" });
+    }
+  });
+
+  app.get("/api/world/:worldId/buildings", isAuthenticated, async (req, res) => {
+    try {
+      const buildings = await storage.getWorldBuildings(req.params.worldId);
+      return res.json(buildings);
+    } catch (err) {
+      console.error("Get world buildings error:", err);
+      return res.status(500).json({ message: "Failed to get buildings" });
+    }
+  });
+
+  app.post("/api/admin/world/:worldId/building", isAdmin, async (req, res) => {
+    try {
+      const { name, imageData, side, posY, destinationPage, destinationLocationId } = req.body;
+      if (!name || !name.trim()) return res.status(400).json({ message: "Name is required" });
+
+      let imageUrl: string | null = null;
+      if (imageData) {
+        imageUrl = await processWorldImage(imageData, 1000);
+      }
+
+      const building = await storage.createWorldBuilding({
+        worldId: req.params.worldId,
+        name: name.trim(),
+        imageUrl,
+        side: side || "left",
+        posY: posY ?? 50,
+        destinationPage: destinationPage || null,
+        destinationLocationId: destinationLocationId || null,
+      });
+      return res.json(building);
+    } catch (err) {
+      console.error("Create building error:", err);
+      return res.status(500).json({ message: "Failed to create building" });
+    }
+  });
+
+  app.patch("/api/admin/world/building/:buildingId", isAdmin, async (req, res) => {
+    try {
+      const { name, imageData, side, posY, destinationPage, destinationLocationId } = req.body;
+      const updates: Record<string, any> = {};
+
+      if (name && typeof name === "string" && name.trim()) updates.name = name.trim();
+      if (side && (side === "left" || side === "right")) updates.side = side;
+      if (typeof posY === "number") updates.posY = posY;
+      if (destinationPage !== undefined) updates.destinationPage = destinationPage || null;
+      if (destinationLocationId !== undefined) updates.destinationLocationId = destinationLocationId || null;
+      if (imageData) {
+        updates.imageUrl = await processWorldImage(imageData, 1000);
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ message: "No updates provided" });
+      }
+
+      const building = await storage.updateWorldBuilding(req.params.buildingId, updates);
+      return res.json(building);
+    } catch (err) {
+      console.error("Update building error:", err);
+      return res.status(500).json({ message: "Failed to update building" });
+    }
+  });
+
+  app.delete("/api/admin/world/building/:buildingId", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteWorldBuilding(req.params.buildingId);
+      return res.json({ message: "Building deleted" });
+    } catch (err) {
+      console.error("Delete building error:", err);
+      return res.status(500).json({ message: "Failed to delete building" });
     }
   });
 

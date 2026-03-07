@@ -118,11 +118,26 @@ export const worlds = pgTable("worlds", {
   name: text("name").notNull(),
   iconUrl: text("icon_url"),
   bgUrl: text("bg_url"),
+  skyImageUrl: text("sky_image_url"),
+  groundImageUrl: text("ground_image_url"),
   posX: integer("pos_x").notNull().default(50),
   posY: integer("pos_y").notNull().default(50),
   iconSize: integer("icon_size").notNull().default(28),
   glowColor: text("glow_color").notNull().default("#ffd700"),
   isDefault: boolean("is_default").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const worldBuildings = pgTable("world_buildings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  worldId: text("world_id").notNull(),
+  name: text("name").notNull(),
+  imageUrl: text("image_url"),
+  side: text("side").notNull().default("left"),
+  posY: integer("pos_y").notNull().default(50),
+  destinationPage: text("destination_page"),
+  destinationLocationId: varchar("destination_location_id"),
+  sortOrder: integer("sort_order").notNull().default(0),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
@@ -235,6 +250,7 @@ export const enemyDrops = pgTable("enemy_drops", {
 export type CoinPurchase = typeof coinPurchases.$inferSelect;
 export type WorldLocation = typeof worldLocations.$inferSelect;
 export type World = typeof worlds.$inferSelect;
+export type WorldBuilding = typeof worldBuildings.$inferSelect;
 export type GameSetting = typeof gameSettings.$inferSelect;
 export type LocationObject = typeof locationObjects.$inferSelect;
 export type PetTemplate = typeof petTemplates.$inferSelect;

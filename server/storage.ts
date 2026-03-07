@@ -8,6 +8,7 @@ import {
   type CoinPurchase, coinPurchases,
   type WorldLocation, worldLocations,
   type World, worlds,
+  type WorldBuilding, worldBuildings,
   gameSettings,
   type LocationObject, locationObjects,
   type PetTemplate, petTemplates,
@@ -100,6 +101,10 @@ export interface IStorage {
   getEnemyDrops(enemyId: string): Promise<EnemyDrop[]>;
   createEnemyDrop(data: { enemyId: string; shopItemId: string; dropRate: number }): Promise<EnemyDrop>;
   deleteEnemyDrop(id: string): Promise<void>;
+  getWorldBuildings(worldId: string): Promise<WorldBuilding[]>;
+  createWorldBuilding(data: { worldId: string; name: string; imageUrl?: string | null; side?: string; posY?: number; destinationPage?: string | null; destinationLocationId?: string | null }): Promise<WorldBuilding>;
+  updateWorldBuilding(id: string, data: Partial<WorldBuilding>): Promise<WorldBuilding>;
+  deleteWorldBuilding(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -580,6 +585,33 @@ export class DatabaseStorage implements IStorage {
 
   async deleteEnemyDrop(id: string): Promise<void> {
     await db.delete(enemyDrops).where(eq(enemyDrops.id, id));
+  }
+
+  async getWorldBuildings(worldId: string): Promise<WorldBuilding[]> {
+    return db.select().from(worldBuildings).where(eq(worldBuildings.worldId, worldId)).orderBy(asc(worldBuildings.posY));
+  }
+
+  async createWorldBuilding(data: { worldId: string; name: string; imageUrl?: string | null; side?: string; posY?: number; destinationPage?: string | null; destinationLocationId?: string | null }): Promise<WorldBuilding> {
+    const [building] = await db.insert(worldBuildings).values({
+      worldId: data.worldId,
+      name: data.name,
+      imageUrl: data.imageUrl || null,
+      side: data.side || "left",
+      posY: data.posY ?? 50,
+      destinationPage: data.destinationPage || null,
+      destinationLocationId: data.destinationLocationId || null,
+    }).returning();
+    return building;
+  }
+
+  async updateWorldBuilding(id: string, data: Partial<WorldBuilding>): Promise<WorldBuilding> {
+    const { id: _id, createdAt: _ca, ...updateData } = data as any;
+    const [building] = await db.update(worldBuildings).set(updateData).where(eq(worldBuildings.id, id)).returning();
+    return building;
+  }
+
+  async deleteWorldBuilding(id: string): Promise<void> {
+    await db.delete(worldBuildings).where(eq(worldBuildings.id, id));
   }
 }
 

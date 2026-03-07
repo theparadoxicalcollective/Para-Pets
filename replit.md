@@ -1,205 +1,57 @@
 # Para Pets - Fantasy Pet Adventure Game
 
 ## Overview
-Para Pets is a mobile-first fantasy game web app where players collect, raise, and battle magical pets. The app is designed with a medieval fantasy aesthetic (max 768px width for tablet support, centered on desktop with dark sides).
+Para Pets is a mobile-first fantasy web application where players engage in collecting, raising, and battling magical pets within a medieval fantasy setting. The project aims to deliver an immersive game experience with a rich world system, pet mechanics, and administrative tools, targeting a broad audience of casual and dedicated mobile gamers.
 
-## Architecture
-- **Frontend**: React + Vite + TypeScript + TailwindCSS + wouter routing
-- **Backend**: Express.js + TypeScript
-- **Database**: PostgreSQL (Neon via Replit) with Drizzle ORM
-- **Auth**: Passport.js (local strategy, accepts username or email) + express-session + connect-pg-simple
-- **Image Processing**: Sharp (server-side)
-  - Profile images: resize to 500x500 JPEG, stored as base64 data URI in database
-  - Shop item images: resize to max 2000x2000 (fit inside, no enlargement), supports PNG and animated GIF, stored as base64 data URI in database
+## User Preferences
+- I prefer simple language.
+- I want iterative development.
+- Ask before making major changes.
 
-## Pages
-1. **Auth Page** (`/auth`) - Login / Sign Up with fantasy UI, crystal pill buttons, show/hide password toggle
-2. **Home Page** (`/`) - Main game screen with active pet display, quest scroll overlay, bottom nav bar (Quest scroll, Globe/Map, Battle, Pets)
-3. **Map Page** (`/map`) - Parchment paper world map with 8 3D-illustrated world icons; names hidden until tapped, "Travel" button to enter
-4. **World Page** (`/world/:worldId`) - Individual world page with world-specific shop (buy items with coins)
-5. **Admin Page** (`/admin`) - Admin-only realm administration with ranked leaderboard, ban/unban, give coins
-6. **Coin Shop** (`/coins`) - Purchase coins with Stripe ($1=100 coins, max $100/purchase, $500/day limit)
+## System Architecture
+The application is built as a monolithic web app with a clear separation of concerns between frontend, backend, and database.
 
-## Shared Components
-- **TopBar** - Profile pic (thin frame), player name, coin display (with coin icon), home icon (hidden on homepage via hideHome prop) — shown on all game pages
-- **UserProfilePanel** - Slide-up overlay for profile settings, username change, admin panel link, logout
-- **PetInventory** - Full-screen overlay opened by pets nav icon; shows owned pets with select/deselect toggle; bag sub-view for items/accessories/potions
+### UI/UX Decisions
+- **Aesthetic**: Medieval fantasy theme, mobile-first design (max 768px width), centered on desktop with dark sidebars.
+- **Components**:
+    - **TopBar**: Displays profile, coins, and navigation.
+    - **UserProfilePanel**: Slide-up overlay for user settings and admin access.
+    - **PetInventory**: Full-screen overlay for managing owned pets and items.
+- **Pages**:
+    - **Auth Page**: Login/Sign Up with fantasy-themed UI.
+    - **Home Page**: Displays active pet, quest scroll, and main navigation.
+    - **Map Page**: Interactive parchment-themed world map with 3D world icons and navigation.
+    - **World Page**: World-specific shops and exploration mechanics.
+    - **Admin Page**: Comprehensive tools for realm administration.
+    - **Coin Shop**: Integrated Stripe for in-app coin purchases.
+- **Design Tokens**: Utilizes fantasy fonts (Cinzel, Cinzel Decorative) and a defined color palette (Gold, Wood, Forest, Teal).
+- **Image Handling**: All images are stored as base64 data URIs in the database. Profile images are resized to 500x500 JPEG; shop item images (PNG/GIF) are resized to fit within 2000x2000.
 
-## Admin Account
-- Email: paradox.esctacyartistry@gmail.com is auto-promoted to admin on startup and at registration
-- Admin can access Realm Administration from profile panel
-- Admin can banish/unbanish users and give/remove coins
-- Admin can add/edit/delete shop items per world (name, price, type dropdown: pet/item/accessory/potion, image upload PNG/GIF)
+### Technical Implementations
+- **Frontend**: React, Vite, TypeScript, TailwindCSS, wouter for routing.
+- **Backend**: Express.js, TypeScript.
+- **Authentication**: Passport.js with local strategy (username or email), `express-session`, and `connect-pg-simple`.
+- **Image Processing**: Sharp library for server-side image manipulation.
+- **World System**:
+    - Features a dynamic world map with draggable, customizable worlds.
+    - Worlds contain vertical-scrolling scenes with interactive buildings.
+    - Exploration mechanics involve pet-scaled enemies, a multi-wave battle system, and potion usage.
+- **Pet System**:
+    - Pets are shop items with rarity and hatch times.
+    - Hatching system with progress bars and egg transformations.
+    - Stat-boosting items and a pet leveling system with rarity-based caps.
+    - Option to reset pet stats.
+- **Reward System**: Admin-created bundles with coins and items, delivered to users via an in-game notification system.
 
-## Database Schema
-- `users` table: id, username, email, password (bcrypt), profileImage (base64 data URI), coins, isAdmin, isBanned, activePetId, lastUsernameChange, lastProfilePicChange, createdAt
-- `shop_items` table: id, name, price, type (pet/item/accessory/potion/special), worldId, locationId (nullable, references world_locations), imageUrl (base64 data URI, PNG only), rarity (1-5 stars, nullable), hatchTime (hours, nullable), eggImageUrl (base64, PNG/GIF, nullable), hatchedImageUrl (base64, PNG/GIF, nullable), statBoostType (health/atk/def/lvl, nullable), statBoostAmount (integer, nullable), specialType (hatch_time/level, nullable), specialAmount (integer, nullable), createdAt
-- `world_locations` table: id, worldId, name, type, iconUrl, bgUrl, description, posX, posY, ownerImageUrl, isShop, shopkeeperId, shopkeeperName, shopkeeperImageUrl, sortOrder, createdAt
-- `location_objects` table: id, locationId, imageUrl, posX, posY, width, createdAt — decorative objects for non-shop locations
-- `user_inventory` table: id, userId, shopItemId, acquiredAt, hatchStartedAt (timestamp, nullable), isHatched (boolean, default false), petHealth (int, default 1000), petAtk (int, default 50), petDef (int, default 50), petLevel (int, default 0), petLevelPoints (int, default 0), itemsUsedThisLevel (int, default 0), petNickname (text, nullable)
-- `reward_bundles` table: id, name, message (nullable), coinAmount, createdAt
-- `reward_bundle_items` table: id, bundleId, shopItemId
-- `user_rewards` table: id, userId, bundleId, claimed (boolean), createdAt
-- `location_enemies` table: id, locationId, name, imageUrl (base64, nullable), isBoss (bool), coinReward (int), sortOrder (int), createdAt — enemies for explore-type locations
-- `enemy_drops` table: id, enemyId, shopItemId, dropRate (1-100 percent), createdAt — items dropped by enemies
-- `game_settings` table: key (varchar PK), value (text) — key-value store for app-wide settings (e.g. map_background)
-- `session` table: managed by connect-pg-simple (created manually in async startup)
+### Feature Specifications
+- **User Management**: User registration, login, profile updates, and admin-managed banning/unbanning.
+- **Inventory & Shop**: In-game currency-based purchasing, item management, and pet interaction.
+- **Admin Tools**: Comprehensive features for user management, shop item creation/editing, reward bundle distribution, and world/location configuration.
+- **Stripe Integration**: Secure payment processing for coin purchases with daily spending limits.
 
-## API Endpoints
-### Auth
-- `POST /api/auth/register` - Create account (optional profile image, starts with 100 coins)
-- `POST /api/auth/login` - Login (username or email)
-- `POST /api/auth/logout` - Logout
-- `GET /api/auth/me` - Get current user
-
-### User
-- `PATCH /api/user/username` - Update username (monthly limit)
-- `PATCH /api/user/profile-image` - Update profile picture (no cooldown)
-- `PATCH /api/user/active-pet` - Set or clear active pet (toggle)
-
-### Inventory & Pets
-- `GET /api/inventory` - Get current user's inventory with item details (includes rarity, hatchTime, hatch status, pet stats)
-- `POST /api/shop/:worldId/buy/:itemId` - Purchase item from shop (deducts coins, starts hatch timer for pets)
-- `POST /api/pet/:inventoryId/hatch-check` - Check if egg is ready to hatch, auto-marks as hatched
-- `POST /api/pet/:inventoryId/power-up` - Apply item to pet (validates rarity limits, LVL items bypass cap)
-- `POST /api/pet/:inventoryId/reset-stats` - Reset pet stats to base values for 300 coins
-
-### Admin
-- `GET /api/admin/users` - List all users
-- `POST /api/admin/ban/:userId` - Banish a user
-- `POST /api/admin/unban/:userId` - Unbanish a user
-- `POST /api/admin/coins/:userId` - Add/remove coins
-- `GET /api/admin/shop-items-all` - Get all shop items across worlds (for reward bundles)
-- `POST /api/admin/reward-bundle` - Create and send reward bundle to users
-
-### Rewards
-- `GET /api/rewards/pending` - Get current user's unclaimed rewards with bundle details
-- `POST /api/rewards/:rewardId/claim` - Claim a reward (atomic, prevents double-claim)
-
-### Shop
-- `GET /api/shop/:worldId` - Get shop items for a world
-- `POST /api/admin/shop` - Create shop item with optional imageData (admin only)
-- `PATCH /api/admin/shop/:itemId` - Update shop item with optional imageData (admin only)
-- `DELETE /api/admin/shop/:itemId` - Delete shop item (admin only)
-
-### Coin Purchase (Stripe)
-- `GET /api/coins/packs` - Get available coin packs with daily spending info
-- `POST /api/coins/checkout` - Create Stripe checkout session for a coin pack
-- `POST /api/coins/verify` - Verify and credit coins after successful Stripe payment
-- `GET /api/stripe/publishable-key` - Get Stripe publishable key for frontend
-
-## World System
-- `worlds` table: id (varchar PK, slug), name, iconUrl (base64, nullable), bgUrl (base64, nullable), posX, posY, iconSize, glowColor, isDefault, createdAt
-- Default 8 worlds seeded on startup (isDefault=true): Frostpeak, Sky Realm, Lost Island, Volcanic Isle, Enchanted Grove, Scorched Desert, The Swamp, Haunted Woods
-- Default worlds use static asset imports for icons; custom worlds use iconUrl from DB
-- MapPage: parchment paper background with subtle texture and aged edges, worlds positioned organically using DB-stored posX/posY percentages
-  - Admin can drag worlds to reposition (pointer events, no snapping, percentage-based for responsiveness)
-  - Admin can add new worlds via "+" FAB: name, glow color, icon image (PNG/GIF), background image
-  - Admin can delete custom (non-default) worlds via trash icon
-  - Worlds float with gentle animation, connected by dashed path lines
-- WorldPage: free-position drag-and-drop locations on world background
-  - Supports both static (default) and dynamic (custom) worlds via API fallback
-  - No hardcoded default locations — all places are admin-created via DB
-  - Locations positioned via posX/posY percentages, admin can drag to reposition
-  - Admin "+" FAB to add places: name, owner character PNG, shop toggle, icon image (PNG/GIF), background image (PNG/GIF/JPEG), description
-  - Admin delete button on each location
-  - Location icons float with animation, themed glow effects
-  - isShop locations: open shop overlay with location-specific items; admin can assign/unassign items from Item DB via "+" button
-  - Non-shop locations: open full-screen location view with background, decorative objects, and owner character
-  - Explore-type locations: admin settings button (⚙) opens ExploreAdminPanel with enemy management (including boss toggle), item drops, coin rewards, and background upload
-  - Explore requires active pet: non-admin users without an active pet see "Keepers must have a pet to explore safely" message
-  - Enemy levels scale with active pet: regular enemies = petLevel to petLevel+2, bosses = petLevel to petLevel+5
-  - Enemy stats scale dynamically based on pet stats: HP = petHP * 0.6 * levelRatio * bossMult, ATK = petATK * 0.7 * levelRatio * bossMult, DEF = petDEF * 0.4 * levelRatio * bossMult (bossMult: 1.5 for bosses, 1.0 for regular)
-  - Defeating enemy awards 5% of enemy HP as pet level points; coins and item drops also awarded
-  - Progressive leveling: level N→N+1 requires 50 + (N * 10) points (Lv0→1 = 50pts, Lv1→2 = 60pts, Lv2→3 = 70pts, etc.)
-  - Battle system (BattleArena.tsx): "Danger Ahead" warning → multi-wave battle arena with location background; all enemies in location are fought in sequence
-  - Enemy difficulty varies randomly per wave (0.3–1.0 scale affects speed, aggression, attack intervals)
-  - Between waves: "wave complete" screen shows rewards, pet HP bar, potion usage, advance/return options
-  - Potions (type="potion" with healthRestored field) can be used between waves to heal pet; consumed from inventory via POST /api/explore/use-potion
-  - Pet HP persists across waves (not reset between enemies); reset to full when returning to world
-  - Tap/click to attack with burst effects, combo system, crit hits, damage numbers, HP bars
-  - Pet displayed at bottom of battle using back view (backAssembled) if available, otherwise front view; uses PetAnimator for template pets
-  - Encounter API returns pet image data including backAssembled from pet templates
-  - Admins can test battles via sword button in location view
-  - Explore APIs: POST /api/explore/:locationId/encounter (generates scaled enemy with pet image data), POST /api/explore/defeat/:enemyId (awards rewards, server-validated)
-  - Decorative objects (non-shop only): admin adds PNG/GIF objects via "+", objects displayed as positioned images, admin can drag/drop to reposition
-  - Owner character: floating PNG displayed at bottom-left of location view
-  - Location-specific shop: items assigned per-location (locationId on shop_items), 100/day purchase limit for non-pet items
-- Location object APIs: GET /api/location/:id/objects, POST /api/admin/location/:id/object, PATCH /api/admin/location/object/:id/position, DELETE /api/admin/location/object/:id
-- Location item APIs: GET /api/location/:id/items, POST /api/admin/location/:id/assign-item/:itemId, DELETE /api/admin/location/:id/unassign-item/:itemId
-- CoinShopPage: "Enchanted Treasury" forest theme with generated coin pack PNG images (coin_pack_100-10000.png)
-- World APIs: GET /api/worlds, GET /api/worlds/:id, POST /api/admin/worlds, PATCH /api/admin/worlds/:id/position, DELETE /api/admin/worlds/:id
-- World location CRUD: POST /api/admin/world/:worldId/location, PATCH /api/admin/world/location/:id, PATCH /api/admin/world/location/:id/position, DELETE /api/admin/world/location/:id
-- World theme colors: Frostpeak=#88ccff, Sky Realm=#ffd700, Lost Island=#20b2aa, Volcanic=#ff4500, Enchanted Grove=#7fffd4, Desert=#daa520, Swamp=#9370db, Haunted Woods=#8b008b
-
-## Pet System
-- Pets are shop items with type "pet" that users purchase from world shops
-- Pet inventory shows only owned pets; bag sub-view shows items/accessories/potions
-- Users can select one active pet to display on homepage (toggle on/off)
-- Active pet persists in database (activePetId on users table)
-- Only one pet active at a time; clicking same pet deselects it
-- Homepage shows rarity stars in curved arc below TopBar, pet name/stats above bottom nav
-
-### Hatching System
-- Pets have a rarity (1-5 stars) and hatch time (hours)
-- Purchasing a pet starts the hatch timer (hatchStartedAt = now)
-- Before hatching: egg image shown with animated progress bar
-- After hatch timer completes: tap egg to hatch, reveals hatched pet image
-- Fresh hatched pets start with: 1000 HP, 50 ATK, 50 DEF, Level 0
-
-### Pet Stats & Power-Ups
-- Items with statBoostType (health/atk/def/lvl) can be used on hatched pets
-- Items per level limited by rarity: 1★=3, 2★=4, 3★=5, 4★=6, 5★=7 items
-- LVL items bypass the per-level cap and reset itemsUsedThisLevel to 0
-- Max level: 100
-- Stat reset: 300 coins, resets all stats to base values with confirmation warning
-
-### Reward Bundle System
-- Admin creates bundles with a name, optional coins, and optional shop items
-- Can target all non-admin users or select specific users
-- Recipients see a magical gift icon (🎁) bouncing next to their username in the TopBar
-- Gift icon shows count badge for pending rewards
-- Clicking gift opens RewardClaimModal showing all pending bundles with previews
-- Claiming a bundle atomically marks it claimed (preventing double-claims), adds coins, and adds items to inventory
-- Pets received via bundles auto-start hatch timer
-
-### Admin Shop Form
-- Pet type: shows rarity dropdown (1-5★), hatch time input, egg image upload, hatched pet image upload
-- Item type: shows stat boost type dropdown (health/atk/def/lvl) and boost amount input
-- Shop image: PNG only; Egg/Hatched images: PNG or animated GIF
-- Shop displays egg image for pets, rarity stars, hatch time, and boost amounts for items
-
-### Components
-- **PetDetailPage** (`client/src/components/PetDetailPage.tsx`) - Full pet stats overlay with power-up and reset functionality
-- **PetInventory** (`client/src/components/PetInventory.tsx`) - Shows eggs with progress bars, hatched pets with stats, bag items with boost badges
-- **HomePage** pet display - Active pet shows egg+hatch bar or hatched pet with HP/LV bars
-
-## Image Storage (Persistence Fix)
-- ALL images stored as base64 data URIs directly in the PostgreSQL database
-- No filesystem storage — images persist across republishes
-- Profile images: JPEG, 500x500
-- Shop item images: PNG or animated GIF, max 1000x1000 (fit inside)
-
-## Art Assets
-- World map icons v2: 3D illustrated floating islands (world_*_v2.png)
-- Nav bar icons: quest scroll, globe (map), battle swords, pets egg
-- Profile frame: thin elegant golden filigree (frame_profile_thin.png)
-- Shop icons: unique per world (ice shop, sky shop, volcanic forge, etc.)
-- Gold coin icon, bag icon for inventory
-- Parchment map background, ornate unrolled scroll for quest log
-
-## Design Tokens
-- Fantasy fonts: Cinzel (heading), Cinzel Decorative (logo)
-- Fantasy colors: Gold (#d4a017, #f0c040), Wood (#5c3a1e, #8b5e3c), Forest (#1a4a2e), Teal (#7fffd4)
-- Button images contain their own text — no overlaid text spans
-- Responsive icon sizes: 3 breakpoints (phone base, 480px+, 640px+)
-
-## Key Notes
-- Login accepts username OR email (passport strategy)
-- `apiRequest` returns Response object — call `.json()` on it
-- Mobile-first 768px max width; desktop centered with #0a0a0a sides
-- connect-pg-simple must use `createTableIfMissing: false`; session table created manually via pool.query
-- No 7-day cooldown on profile picture changes
-- No automated/video testing during development
-- Stripe integration: stripe + stripe-replit-sync packages, webhook route registered BEFORE express.json(), coin_purchases table tracks spending limits
-- Coin packs: 100/$1, 500/$5, 1000/$10, 2500/$25, 5000/$50, 10000/$100; daily limit $500
+## External Dependencies
+- **Database**: PostgreSQL (via Neon)
+- **ORM**: Drizzle ORM
+- **Authentication**: Passport.js, express-session, connect-pg-simple
+- **Payment Processing**: Stripe (stripe, stripe-replit-sync packages)
+- **Image Manipulation**: Sharp library
