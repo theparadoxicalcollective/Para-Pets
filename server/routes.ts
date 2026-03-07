@@ -1785,8 +1785,15 @@ export async function registerRoutes(
       if (!user.activePetId) {
         return res.status(400).json({ message: "Keepers must have a pet to explore safely" });
       }
-      const inventory = await storage.getUserInventory(user.id);
-      const activePet = inventory.find((inv: any) => inv.shopItemId === user.activePetId && inv.isHatched);
+      const rawInventory = await storage.getUserInventoryWithItems(user.id);
+      const inventoryJoined = rawInventory.map(({ inventory: inv, shopItem }) => ({
+        ...inv,
+        name: shopItem?.name || "Unknown",
+        imageUrl: shopItem?.imageUrl || null,
+        hatchedImageUrl: shopItem?.hatchedImageUrl || null,
+        petTemplateId: shopItem?.petTemplateId || null,
+      }));
+      const activePet = inventoryJoined.find((inv: any) => inv.shopItemId === user.activePetId && inv.isHatched);
       if (!activePet) {
         return res.status(400).json({ message: "Keepers must have a hatched pet to explore safely" });
       }
