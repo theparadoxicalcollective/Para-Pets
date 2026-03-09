@@ -49,13 +49,12 @@ const PART_TYPES = [
   { key: "eyes_closed", label: "Eyes (Closed)", defaultZ: 9, layer: "front" as const },
   { key: "body", label: "Body", defaultZ: 5, layer: "body" as const },
   { key: "tail", label: "Tail", defaultZ: 2, layer: "back" as const, defaultPivotX: 50, defaultPivotY: 0 },
-  { key: "wings", label: "Wings", defaultZ: 7, layer: "front" as const },
+  { key: "left_wing", label: "Left Wing", defaultZ: 3, layer: "back" as const },
+  { key: "right_wing", label: "Right Wing", defaultZ: 3, layer: "back" as const },
   { key: "back_arms", label: "Back Arms", defaultZ: 3, layer: "back" as const },
   { key: "back_legs", label: "Back Legs", defaultZ: 1, layer: "back" as const },
   { key: "front_legs", label: "Front Legs", defaultZ: 6, layer: "front" as const },
   { key: "front_arms", label: "Front Arms", defaultZ: 10, layer: "front" as const },
-  { key: "hands", label: "Hands", defaultZ: 11, layer: "front" as const },
-  { key: "feet", label: "Feet", defaultZ: 4, layer: "back" as const },
 ];
 
 const CANVAS_SIZE = 1000;
@@ -603,7 +602,7 @@ export default function PetDatabasePanel() {
                   <img
                     src={templateDetail.frontAssembled}
                     alt="Front"
-                    className="w-24 h-24 object-contain rounded-lg"
+                    className="w-32 h-32 object-contain rounded-lg"
                     style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(127,255,212,0.2)" }}
                     data-testid="preview-front-assembled"
                   />
@@ -615,7 +614,7 @@ export default function PetDatabasePanel() {
                   <img
                     src={templateDetail.backAssembled}
                     alt="Back"
-                    className="w-24 h-24 object-contain rounded-lg"
+                    className="w-32 h-32 object-contain rounded-lg"
                     style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(127,255,212,0.2)" }}
                     data-testid="preview-back-assembled"
                   />

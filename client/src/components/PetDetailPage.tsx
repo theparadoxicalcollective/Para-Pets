@@ -50,6 +50,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
   const [confirmItem, setConfirmItem] = useState<BagItem | null>(null);
   const [showSuccessAnim, setShowSuccessAnim] = useState(false);
   const [successBoostLabel, setSuccessBoostLabel] = useState("");
+  const [successAnimType, setSuccessAnimType] = useState<"gold" | "green">("gold");
   const [editingNickname, setEditingNickname] = useState(false);
   const [nicknameInput, setNicknameInput] = useState(pet.petNickname || "");
   const { toast } = useToast();
@@ -99,12 +100,13 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
         ? `+${item.statBoostAmount || "?"} ${item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "LVL"}`
         : "Power Up!";
       setSuccessBoostLabel(boostLabel);
+      setSuccessAnimType("green");
       setShowSuccessAnim(true);
       setConfirmItem(null);
       setShowPowerUp(false);
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       onUpdate();
-      setTimeout(() => setShowSuccessAnim(false), 2000);
+      setTimeout(() => setShowSuccessAnim(false), 2200);
     },
     onError: (err: any) => {
       setConfirmItem(null);
@@ -123,13 +125,14 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
         ? `-${item.specialAmount || "?"} min hatch`
         : `+${item?.specialAmount || "?"} LVL pts`;
       setSuccessBoostLabel(label);
+      setSuccessAnimType("gold");
       setShowSuccessAnim(true);
       setConfirmItem(null);
       setShowPowerUp(false);
       setShowLvlUp(false);
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       onUpdate();
-      setTimeout(() => setShowSuccessAnim(false), 2000);
+      setTimeout(() => setShowSuccessAnim(false), 2200);
     },
     onError: (err: any) => {
       setConfirmItem(null);
@@ -195,34 +198,67 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
               )}
             </div>
 
-            {showSuccessAnim && (
-              <div
-                className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none"
-                style={{ animation: "powerUpFlash 2s ease-out forwards" }}
-              >
+            {showSuccessAnim && (() => {
+              const isGold = successAnimType === "gold";
+              const animColor = isGold ? "rgba(255,215,0," : "rgba(80,255,120,";
+              const textColor = isGold ? "#ffd700" : "#50ff78";
+              const icon = isGold ? "⚡" : "💪";
+              return (
                 <div
-                  className="flex flex-col items-center"
-                  style={{ animation: "powerUpRise 2s ease-out forwards" }}
+                  className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none"
+                  style={{ animation: "powerUpFlash 2.2s ease-out forwards" }}
                 >
                   <div
-                    className="text-4xl mb-1"
-                    style={{ animation: "powerUpSpin 0.6s ease-out", filter: "drop-shadow(0 0 20px rgba(127,255,212,0.8))" }}
-                  >
-                    ⚡
-                  </div>
-                  <span
-                    className="font-fantasy text-lg font-bold tracking-wider"
+                    className="absolute inset-0 pointer-events-none"
                     style={{
-                      color: "#7fffd4",
-                      textShadow: "0 0 20px rgba(127,255,212,0.8), 0 0 40px rgba(127,255,212,0.4)",
+                      background: `radial-gradient(circle at 50% 50%, ${animColor}0.3) 0%, ${animColor}0.1) 40%, transparent 70%)`,
+                      animation: "powerUpPulse 0.8s ease-out",
                     }}
-                    data-testid="text-power-up-success"
+                  />
+                  {[...Array(8)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="absolute rounded-full pointer-events-none"
+                      style={{
+                        width: "6px",
+                        height: "6px",
+                        background: textColor,
+                        left: "50%",
+                        top: "50%",
+                        boxShadow: `0 0 8px ${textColor}, 0 0 16px ${textColor}`,
+                        animation: `powerUpParticle 1.2s ease-out ${i * 0.08}s forwards`,
+                        transform: `rotate(${i * 45}deg) translateY(-20px)`,
+                        opacity: 0,
+                      }}
+                    />
+                  ))}
+                  <div
+                    className="flex flex-col items-center"
+                    style={{ animation: "powerUpRise 2s ease-out forwards" }}
                   >
-                    {successBoostLabel}
-                  </span>
+                    <div
+                      className="text-5xl mb-1"
+                      style={{
+                        animation: "powerUpSpin 0.7s ease-out",
+                        filter: `drop-shadow(0 0 25px ${animColor}0.9)) drop-shadow(0 0 50px ${animColor}0.5))`,
+                      }}
+                    >
+                      {icon}
+                    </div>
+                    <span
+                      className="font-fantasy text-xl font-bold tracking-wider"
+                      style={{
+                        color: textColor,
+                        textShadow: `0 0 20px ${animColor}0.9), 0 0 40px ${animColor}0.5), 0 0 60px ${animColor}0.3)`,
+                      }}
+                      data-testid="text-power-up-success"
+                    >
+                      {successBoostLabel}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {pet.eggImageUrl && (
               <div
@@ -695,14 +731,23 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
         }
         @keyframes powerUpRise {
           0% { transform: translateY(20px) scale(0.8); opacity: 0; }
-          20% { transform: translateY(0px) scale(1.2); opacity: 1; }
-          50% { transform: translateY(-10px) scale(1); opacity: 1; }
-          100% { transform: translateY(-30px) scale(0.9); opacity: 0; }
+          15% { transform: translateY(0px) scale(1.3); opacity: 1; }
+          40% { transform: translateY(-8px) scale(1.05); opacity: 1; }
+          100% { transform: translateY(-35px) scale(0.9); opacity: 0; }
         }
         @keyframes powerUpSpin {
-          0% { transform: rotate(0deg) scale(0.5); }
-          50% { transform: rotate(180deg) scale(1.3); }
+          0% { transform: rotate(0deg) scale(0.3); }
+          40% { transform: rotate(200deg) scale(1.4); }
           100% { transform: rotate(360deg) scale(1); }
+        }
+        @keyframes powerUpPulse {
+          0% { opacity: 0; transform: scale(0.5); }
+          30% { opacity: 1; transform: scale(1); }
+          100% { opacity: 0; transform: scale(1.5); }
+        }
+        @keyframes powerUpParticle {
+          0% { opacity: 1; transform: rotate(var(--angle, 0deg)) translateY(-10px) scale(1); }
+          100% { opacity: 0; transform: rotate(var(--angle, 0deg)) translateY(-60px) scale(0.3); }
         }
       `}</style>
     </div>

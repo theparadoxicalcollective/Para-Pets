@@ -35,12 +35,12 @@ const IDLE_ANIMATIONS: Record<string, string> = {
   body: "petIdleBody",
   tail: "petIdleTail",
   wings: "petIdleWings",
+  left_wing: "petIdleLeftWing",
+  right_wing: "petIdleRightWing",
   front_arms: "petIdleFrontArms",
   back_arms: "petIdleBackArms",
   front_legs: "petIdleFrontLegs",
   back_legs: "petIdleBackLegs",
-  hands: "petIdleHands",
-  feet: "petIdleFeet",
 };
 
 const WALK_ANIMATIONS: Record<string, string> = {
@@ -52,12 +52,12 @@ const WALK_ANIMATIONS: Record<string, string> = {
   body: "petWalkBody",
   tail: "petWalkTail",
   wings: "petWalkWings",
+  left_wing: "petWalkLeftWing",
+  right_wing: "petWalkRightWing",
   front_arms: "petWalkFrontArms",
   back_arms: "petWalkBackArms",
   front_legs: "petWalkFrontLegs",
   back_legs: "petWalkBackLegs",
-  hands: "petWalkHands",
-  feet: "petWalkFeet",
 };
 
 const ANIMATION_STYLES = `
@@ -114,13 +114,15 @@ const ANIMATION_STYLES = `
     0%, 100% { transform: rotate(0deg); }
     50% { transform: rotate(-2deg); }
   }
-  @keyframes petIdleHands {
-    0%, 100% { transform: rotate(0deg); }
-    50% { transform: rotate(-2deg); }
+  @keyframes petIdleLeftWing {
+    0%, 100% { transform: rotateY(0deg) scaleX(1); }
+    30% { transform: rotateY(10deg) scaleX(0.9); }
+    60% { transform: rotateY(-6deg) scaleX(1.05); }
   }
-  @keyframes petIdleFeet {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(1px); }
+  @keyframes petIdleRightWing {
+    0%, 100% { transform: rotateY(0deg) scaleX(1); }
+    30% { transform: rotateY(-10deg) scaleX(0.9); }
+    60% { transform: rotateY(6deg) scaleX(1.05); }
   }
 
   @keyframes petWalkHead {
@@ -183,15 +185,17 @@ const ANIMATION_STYLES = `
     25% { transform: rotate(12deg); }
     75% { transform: rotate(-12deg); }
   }
-  @keyframes petWalkHands {
-    0%, 100% { transform: rotate(0deg); }
-    25% { transform: rotate(-8deg); }
-    75% { transform: rotate(8deg); }
+  @keyframes petWalkLeftWing {
+    0%, 100% { transform: scaleX(1) translateY(0px); }
+    25% { transform: scaleX(0.8) translateY(-8px); }
+    50% { transform: scaleX(1.1) translateY(3px); }
+    75% { transform: scaleX(0.85) translateY(-5px); }
   }
-  @keyframes petWalkFeet {
-    0%, 100% { transform: translateY(0px) rotate(0deg); }
-    25% { transform: translateY(-2px) rotate(5deg); }
-    75% { transform: translateY(1px) rotate(-5deg); }
+  @keyframes petWalkRightWing {
+    0%, 100% { transform: scaleX(1) translateY(0px); }
+    25% { transform: scaleX(0.8) translateY(-8px); }
+    50% { transform: scaleX(1.1) translateY(3px); }
+    75% { transform: scaleX(0.85) translateY(-5px); }
   }
 `;
 
@@ -199,9 +203,8 @@ function getPartDuration(partType: string, mode: "idle" | "walk"): string {
   if (mode === "idle") {
     const durations: Record<string, string> = {
       head: "3s", left_ear: "3.5s", right_ear: "3.5s", eyes: "4s", eyes_closed: "4s",
-      body: "4s", tail: "2.5s", wings: "2s",
+      body: "4s", tail: "2.5s", wings: "2s", left_wing: "2s", right_wing: "2.2s",
       front_legs: "4s", back_legs: "4s", front_arms: "3.5s", back_arms: "3.5s",
-      hands: "3.5s", feet: "4s",
     };
     return durations[partType] || "3s";
   }
@@ -225,16 +228,16 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     back_legs: 2,
     tail: 3,
     wings: 4,
+    left_wing: 4,
+    right_wing: 4,
     body: 5,
     front_legs: 6,
     front_arms: 7,
-    feet: 8,
     left_ear: 9,
     right_ear: 9,
     head: 10,
     eyes: 11,
     eyes_closed: 11,
-    hands: 12,
   };
 
   const allParts = templateData?.parts || [];
