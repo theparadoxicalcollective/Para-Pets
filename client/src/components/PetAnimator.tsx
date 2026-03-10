@@ -116,13 +116,13 @@ const ANIMATION_STYLES = `
   }
   @keyframes petIdleLeftWing {
     0%, 100% { transform: rotate(0deg); }
-    40% { transform: rotate(-3deg); }
-    70% { transform: rotate(1.5deg); }
+    40% { transform: rotate(-5deg); }
+    70% { transform: rotate(2.5deg); }
   }
   @keyframes petIdleRightWing {
     0%, 100% { transform: rotate(0deg); }
-    40% { transform: rotate(3deg); }
-    70% { transform: rotate(-1.5deg); }
+    40% { transform: rotate(5deg); }
+    70% { transform: rotate(-2.5deg); }
   }
   @keyframes petIdleLeftLeg {
     0%, 100% { transform: translateY(0px); }
@@ -134,9 +134,9 @@ const ANIMATION_STYLES = `
   }
   @keyframes petIdleTail {
     0%, 100% { transform: translateY(0px); }
-    25% { transform: translateY(-3px); }
+    25% { transform: translateY(-1px); }
     50% { transform: translateY(0px); }
-    75% { transform: translateY(-2px); }
+    75% { transform: translateY(-0.5px); }
   }
 
   @keyframes petWalkEyes {
@@ -187,13 +187,13 @@ const ANIMATION_STYLES = `
   }
   @keyframes petWalkLeftWing {
     0%, 100% { transform: rotate(0deg); }
-    25% { transform: rotate(-5deg); }
-    75% { transform: rotate(4deg); }
+    25% { transform: rotate(-8deg); }
+    75% { transform: rotate(6deg); }
   }
   @keyframes petWalkRightWing {
     0%, 100% { transform: rotate(0deg); }
-    25% { transform: rotate(5deg); }
-    75% { transform: rotate(-4deg); }
+    25% { transform: rotate(8deg); }
+    75% { transform: rotate(-6deg); }
   }
   @keyframes petWalkLeftLeg {
     0%, 100% { transform: rotate(0deg); }
@@ -207,9 +207,9 @@ const ANIMATION_STYLES = `
   }
   @keyframes petWalkTail {
     0%, 100% { transform: translateY(0px); }
-    25% { transform: translateY(-4px); }
+    25% { transform: translateY(-1.5px); }
     50% { transform: translateY(0px); }
-    75% { transform: translateY(-3px); }
+    75% { transform: translateY(-1px); }
   }
 `;
 
