@@ -27,44 +27,52 @@ interface PetAnimatorProps {
 const CANVAS_SIZE = 1000;
 
 const IDLE_ANIMATIONS: Record<string, string> = {
+  eyes: "petIdleEyes",
+  eyes_closed: "petIdleEyesClosed",
+  mouth: "petIdleMouth",
+  mouth_closed: "petIdleMouthClosed",
   head: "petIdleHead",
   left_ear: "petIdleLeftEar",
   right_ear: "petIdleRightEar",
-  eyes: "petIdleEyes",
-  eyes_closed: "petIdleEyesClosed",
+  left_arm: "petIdleLeftArm",
+  right_arm: "petIdleRightArm",
   body: "petIdleBody",
-  tail: "petIdleTail",
-  wings: "petIdleWings",
   left_wing: "petIdleLeftWing",
   right_wing: "petIdleRightWing",
-  front_arms: "petIdleFrontArms",
-  back_arms: "petIdleBackArms",
-  front_legs: "petIdleFrontLegs",
-  back_legs: "petIdleBackLegs",
+  left_leg: "petIdleLeftLeg",
+  right_leg: "petIdleRightLeg",
+  tail: "petIdleTail",
+  front_arms: "petIdleLeftArm",
+  back_arms: "petIdleRightArm",
+  front_legs: "petIdleLeftLeg",
+  back_legs: "petIdleRightLeg",
+  wings: "petIdleLeftWing",
 };
 
 const WALK_ANIMATIONS: Record<string, string> = {
+  eyes: "petWalkEyes",
+  eyes_closed: "petWalkEyesClosed",
+  mouth: "petWalkMouth",
+  mouth_closed: "petWalkMouthClosed",
   head: "petWalkHead",
   left_ear: "petWalkLeftEar",
   right_ear: "petWalkRightEar",
-  eyes: "petWalkEyes",
-  eyes_closed: "petWalkEyesClosed",
+  left_arm: "petWalkLeftArm",
+  right_arm: "petWalkRightArm",
   body: "petWalkBody",
-  tail: "petWalkTail",
-  wings: "petWalkWings",
   left_wing: "petWalkLeftWing",
   right_wing: "petWalkRightWing",
-  front_arms: "petWalkFrontArms",
-  back_arms: "petWalkBackArms",
-  front_legs: "petWalkFrontLegs",
-  back_legs: "petWalkBackLegs",
+  left_leg: "petWalkLeftLeg",
+  right_leg: "petWalkRightLeg",
+  tail: "petWalkTail",
+  front_arms: "petWalkLeftArm",
+  back_arms: "petWalkRightArm",
+  front_legs: "petWalkLeftLeg",
+  back_legs: "petWalkRightLeg",
+  wings: "petWalkLeftWing",
 };
 
 const ANIMATION_STYLES = `
-  @keyframes petIdleHead {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-1px); }
-  }
   @keyframes petIdleEyes {
     0%, 92%, 100% { opacity: 1; }
     95%, 97% { opacity: 0; }
@@ -73,9 +81,16 @@ const ANIMATION_STYLES = `
     0%, 92%, 100% { opacity: 0; }
     95%, 97% { opacity: 1; }
   }
-  @keyframes petIdleBody {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.01, 1.02); }
+  @keyframes petIdleMouth {
+    0%, 100% { transform: scaleY(1); }
+    50% { transform: scaleY(0.95); }
+  }
+  @keyframes petIdleMouthClosed {
+    0%, 100% { opacity: 1; }
+  }
+  @keyframes petIdleHead {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-1px); }
   }
   @keyframes petIdleLeftEar {
     0%, 100% { transform: rotate(0deg); }
@@ -87,49 +102,43 @@ const ANIMATION_STYLES = `
     40% { transform: rotate(2deg); }
     70% { transform: rotate(-1deg); }
   }
+  @keyframes petIdleLeftArm {
+    0%, 100% { transform: rotate(0deg); }
+    50% { transform: rotate(3deg); }
+  }
+  @keyframes petIdleRightArm {
+    0%, 100% { transform: rotate(0deg); }
+    50% { transform: rotate(-2deg); }
+  }
+  @keyframes petIdleBody {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.01, 1.02); }
+  }
+  @keyframes petIdleLeftWing {
+    0%, 100% { transform: rotate(0deg); }
+    40% { transform: rotate(-3deg); }
+    70% { transform: rotate(1.5deg); }
+  }
+  @keyframes petIdleRightWing {
+    0%, 100% { transform: rotate(0deg); }
+    40% { transform: rotate(3deg); }
+    70% { transform: rotate(-1.5deg); }
+  }
+  @keyframes petIdleLeftLeg {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(1px); }
+  }
+  @keyframes petIdleRightLeg {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(1px); }
+  }
   @keyframes petIdleTail {
     0%, 100% { transform: translateY(0px); }
     25% { transform: translateY(-3px); }
     50% { transform: translateY(0px); }
     75% { transform: translateY(-2px); }
   }
-  @keyframes petIdleWings {
-    0%, 100% { transform: rotateY(0deg) scaleX(1); }
-    30% { transform: rotateY(8deg) scaleX(0.92); }
-    60% { transform: rotateY(-5deg) scaleX(1.04); }
-  }
-  @keyframes petIdleFrontLegs {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(1px); }
-  }
-  @keyframes petIdleBackLegs {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(1px); }
-  }
-  @keyframes petIdleFrontArms {
-    0%, 100% { transform: rotate(0deg); }
-    50% { transform: rotate(3deg); }
-  }
-  @keyframes petIdleBackArms {
-    0%, 100% { transform: rotate(0deg); }
-    50% { transform: rotate(-2deg); }
-  }
-  @keyframes petIdleLeftWing {
-    0%, 100% { transform: rotateY(0deg) scaleX(1); }
-    30% { transform: rotateY(10deg) scaleX(0.9); }
-    60% { transform: rotateY(-6deg) scaleX(1.05); }
-  }
-  @keyframes petIdleRightWing {
-    0%, 100% { transform: rotateY(0deg) scaleX(1); }
-    30% { transform: rotateY(-10deg) scaleX(0.9); }
-    60% { transform: rotateY(6deg) scaleX(1.05); }
-  }
 
-  @keyframes petWalkHead {
-    0%, 100% { transform: translateY(0px); }
-    25% { transform: translateY(-3px); }
-    75% { transform: translateY(-3px); }
-  }
   @keyframes petWalkEyes {
     0%, 85%, 100% { opacity: 1; }
     90%, 95% { opacity: 0; }
@@ -138,10 +147,18 @@ const ANIMATION_STYLES = `
     0%, 85%, 100% { opacity: 0; }
     90%, 95% { opacity: 1; }
   }
-  @keyframes petWalkBody {
+  @keyframes petWalkMouth {
+    0%, 100% { transform: scaleY(1); }
+    30% { transform: scaleY(0.9); }
+    60% { transform: scaleY(1.05); }
+  }
+  @keyframes petWalkMouthClosed {
+    0%, 100% { opacity: 1; }
+  }
+  @keyframes petWalkHead {
     0%, 100% { transform: translateY(0px); }
-    25% { transform: translateY(-4px); }
-    75% { transform: translateY(-4px); }
+    25% { transform: translateY(-3px); }
+    75% { transform: translateY(-3px); }
   }
   @keyframes petWalkLeftEar {
     0%, 100% { transform: rotate(0deg); }
@@ -153,58 +170,60 @@ const ANIMATION_STYLES = `
     25% { transform: rotate(4deg); }
     75% { transform: rotate(-3deg); }
   }
+  @keyframes petWalkLeftArm {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-12deg); }
+    75% { transform: rotate(12deg); }
+  }
+  @keyframes petWalkRightArm {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(12deg); }
+    75% { transform: rotate(-12deg); }
+  }
+  @keyframes petWalkBody {
+    0%, 100% { transform: translateY(0px); }
+    25% { transform: translateY(-4px); }
+    75% { transform: translateY(-4px); }
+  }
+  @keyframes petWalkLeftWing {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-5deg); }
+    75% { transform: rotate(4deg); }
+  }
+  @keyframes petWalkRightWing {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(5deg); }
+    75% { transform: rotate(-4deg); }
+  }
+  @keyframes petWalkLeftLeg {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(15deg); }
+    75% { transform: rotate(-15deg); }
+  }
+  @keyframes petWalkRightLeg {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-15deg); }
+    75% { transform: rotate(15deg); }
+  }
   @keyframes petWalkTail {
     0%, 100% { transform: translateY(0px); }
     25% { transform: translateY(-4px); }
     50% { transform: translateY(0px); }
     75% { transform: translateY(-3px); }
   }
-  @keyframes petWalkWings {
-    0%, 100% { transform: scaleX(1) translateY(0px); }
-    25% { transform: scaleX(0.85) translateY(-6px); }
-    50% { transform: scaleX(1.05) translateY(2px); }
-    75% { transform: scaleX(0.9) translateY(-4px); }
-  }
-  @keyframes petWalkFrontLegs {
-    0%, 100% { transform: rotate(0deg); }
-    25% { transform: rotate(15deg); }
-    75% { transform: rotate(-15deg); }
-  }
-  @keyframes petWalkBackLegs {
-    0%, 100% { transform: rotate(0deg); }
-    25% { transform: rotate(-15deg); }
-    75% { transform: rotate(15deg); }
-  }
-  @keyframes petWalkFrontArms {
-    0%, 100% { transform: rotate(0deg); }
-    25% { transform: rotate(-12deg); }
-    75% { transform: rotate(12deg); }
-  }
-  @keyframes petWalkBackArms {
-    0%, 100% { transform: rotate(0deg); }
-    25% { transform: rotate(12deg); }
-    75% { transform: rotate(-12deg); }
-  }
-  @keyframes petWalkLeftWing {
-    0%, 100% { transform: scaleX(1) translateY(0px); }
-    25% { transform: scaleX(0.8) translateY(-8px); }
-    50% { transform: scaleX(1.1) translateY(3px); }
-    75% { transform: scaleX(0.85) translateY(-5px); }
-  }
-  @keyframes petWalkRightWing {
-    0%, 100% { transform: scaleX(1) translateY(0px); }
-    25% { transform: scaleX(0.8) translateY(-8px); }
-    50% { transform: scaleX(1.1) translateY(3px); }
-    75% { transform: scaleX(0.85) translateY(-5px); }
-  }
 `;
 
 function getPartDuration(partType: string, mode: "idle" | "walk"): string {
   if (mode === "idle") {
     const durations: Record<string, string> = {
-      head: "3s", left_ear: "3.5s", right_ear: "3.5s", eyes: "4s", eyes_closed: "4s",
-      body: "4s", tail: "2.5s", wings: "2s", left_wing: "2s", right_wing: "2.2s",
-      front_legs: "4s", back_legs: "4s", front_arms: "3.5s", back_arms: "3.5s",
+      eyes: "4s", eyes_closed: "4s", mouth: "5s", mouth_closed: "5s",
+      head: "3s", left_ear: "3.5s", right_ear: "3.5s",
+      left_arm: "3.5s", right_arm: "3.5s",
+      body: "4s",
+      left_wing: "3.5s", right_wing: "3.5s",
+      left_leg: "4s", right_leg: "4s",
+      tail: "2.5s",
+      front_arms: "3.5s", back_arms: "3.5s", front_legs: "4s", back_legs: "4s", wings: "3.5s",
     };
     return durations[partType] || "3s";
   }
@@ -224,20 +243,26 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   });
 
   const LAYER_ORDER: Record<string, number> = {
-    back_arms: 1,
+    tail: 1,
+    left_leg: 2,
+    right_leg: 2,
     back_legs: 2,
-    tail: 3,
-    wings: 4,
-    left_wing: 4,
-    right_wing: 4,
-    body: 5,
-    front_legs: 6,
-    front_arms: 7,
-    left_ear: 9,
-    right_ear: 9,
-    head: 10,
-    eyes: 11,
-    eyes_closed: 11,
+    left_wing: 3,
+    right_wing: 3,
+    wings: 3,
+    body: 4,
+    left_arm: 5,
+    right_arm: 5,
+    front_arms: 5,
+    back_arms: 5,
+    front_legs: 2,
+    left_ear: 6,
+    right_ear: 6,
+    head: 7,
+    mouth: 8,
+    mouth_closed: 8,
+    eyes: 9,
+    eyes_closed: 9,
   };
 
   const allParts = templateData?.parts || [];

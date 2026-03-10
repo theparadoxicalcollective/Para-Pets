@@ -42,19 +42,21 @@ interface LinkedShopPet {
 }
 
 const PART_TYPES = [
-  { key: "head", label: "Head", defaultZ: 8, layer: "front" as const },
-  { key: "left_ear", label: "Left Ear", defaultZ: 7, layer: "back" as const },
-  { key: "right_ear", label: "Right Ear", defaultZ: 7, layer: "back" as const },
-  { key: "eyes", label: "Eyes", defaultZ: 9, layer: "front" as const },
-  { key: "eyes_closed", label: "Eyes (Closed)", defaultZ: 9, layer: "front" as const },
-  { key: "body", label: "Body", defaultZ: 5, layer: "body" as const },
+  { key: "eyes", label: "Eyes (Open)", defaultZ: 12, layer: "front" as const },
+  { key: "eyes_closed", label: "Eyes (Closed)", defaultZ: 12, layer: "front" as const },
+  { key: "mouth", label: "Mouth (Open)", defaultZ: 11, layer: "front" as const },
+  { key: "mouth_closed", label: "Mouth (Closed)", defaultZ: 11, layer: "front" as const },
+  { key: "head", label: "Head", defaultZ: 10, layer: "front" as const },
+  { key: "left_ear", label: "Left Ear", defaultZ: 9, layer: "back" as const },
+  { key: "right_ear", label: "Right Ear", defaultZ: 9, layer: "back" as const },
+  { key: "left_arm", label: "Left Arm", defaultZ: 8, layer: "front" as const },
+  { key: "right_arm", label: "Right Arm", defaultZ: 7, layer: "front" as const },
+  { key: "body", label: "Body", defaultZ: 6, layer: "body" as const },
+  { key: "left_wing", label: "Left Wing", defaultZ: 4, layer: "back" as const },
+  { key: "right_wing", label: "Right Wing", defaultZ: 4, layer: "back" as const },
+  { key: "left_leg", label: "Left Leg", defaultZ: 3, layer: "back" as const },
+  { key: "right_leg", label: "Right Leg", defaultZ: 3, layer: "back" as const },
   { key: "tail", label: "Tail", defaultZ: 2, layer: "back" as const, defaultPivotX: 50, defaultPivotY: 0 },
-  { key: "left_wing", label: "Left Wing", defaultZ: 3, layer: "back" as const },
-  { key: "right_wing", label: "Right Wing", defaultZ: 3, layer: "back" as const },
-  { key: "back_arms", label: "Back Arms", defaultZ: 3, layer: "back" as const },
-  { key: "back_legs", label: "Back Legs", defaultZ: 1, layer: "back" as const },
-  { key: "front_legs", label: "Front Legs", defaultZ: 6, layer: "front" as const },
-  { key: "front_arms", label: "Front Arms", defaultZ: 10, layer: "front" as const },
 ];
 
 const CANVAS_SIZE = 1000;
