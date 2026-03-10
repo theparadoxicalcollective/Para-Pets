@@ -94,13 +94,13 @@ const ANIMATION_STYLES = `
   }
   @keyframes petIdleLeftEar {
     0%, 100% { transform: rotate(0deg); }
-    40% { transform: rotate(-2deg); }
-    70% { transform: rotate(1deg); }
+    40% { transform: rotate(-1deg); }
+    70% { transform: rotate(0.5deg); }
   }
   @keyframes petIdleRightEar {
     0%, 100% { transform: rotate(0deg); }
-    40% { transform: rotate(2deg); }
-    70% { transform: rotate(-1deg); }
+    40% { transform: rotate(1deg); }
+    70% { transform: rotate(-0.5deg); }
   }
   @keyframes petIdleLeftArm {
     0%, 100% { transform: rotate(0deg); }
@@ -116,13 +116,13 @@ const ANIMATION_STYLES = `
   }
   @keyframes petIdleLeftWing {
     0%, 100% { transform: rotate(0deg); }
-    40% { transform: rotate(-5deg); }
-    70% { transform: rotate(2.5deg); }
+    40% { transform: rotate(-3deg); }
+    70% { transform: rotate(1.5deg); }
   }
   @keyframes petIdleRightWing {
     0%, 100% { transform: rotate(0deg); }
-    40% { transform: rotate(5deg); }
-    70% { transform: rotate(-2.5deg); }
+    40% { transform: rotate(3deg); }
+    70% { transform: rotate(-1.5deg); }
   }
   @keyframes petIdleLeftLeg {
     0%, 100% { transform: translateY(0px); }
@@ -162,13 +162,13 @@ const ANIMATION_STYLES = `
   }
   @keyframes petWalkLeftEar {
     0%, 100% { transform: rotate(0deg); }
-    25% { transform: rotate(-4deg); }
-    75% { transform: rotate(3deg); }
+    25% { transform: rotate(-2deg); }
+    75% { transform: rotate(1.5deg); }
   }
   @keyframes petWalkRightEar {
     0%, 100% { transform: rotate(0deg); }
-    25% { transform: rotate(4deg); }
-    75% { transform: rotate(-3deg); }
+    25% { transform: rotate(2deg); }
+    75% { transform: rotate(-1.5deg); }
   }
   @keyframes petWalkLeftArm {
     0%, 100% { transform: rotate(0deg); }
@@ -187,13 +187,13 @@ const ANIMATION_STYLES = `
   }
   @keyframes petWalkLeftWing {
     0%, 100% { transform: rotate(0deg); }
-    25% { transform: rotate(-8deg); }
-    75% { transform: rotate(6deg); }
+    25% { transform: rotate(-5deg); }
+    75% { transform: rotate(4deg); }
   }
   @keyframes petWalkRightWing {
     0%, 100% { transform: rotate(0deg); }
-    25% { transform: rotate(8deg); }
-    75% { transform: rotate(-6deg); }
+    25% { transform: rotate(5deg); }
+    75% { transform: rotate(-4deg); }
   }
   @keyframes petWalkLeftLeg {
     0%, 100% { transform: rotate(0deg); }
