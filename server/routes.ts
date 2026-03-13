@@ -1360,7 +1360,7 @@ export async function registerRoutes(
       const loc = await storage.createWorldLocation({
         worldId: req.params.worldId,
         name,
-        type: type || (isShop ? "shop" : "explore"),
+        type: type || (isShop ? "shop" : "battle"),
         iconUrl,
         bgUrl,
         ownerImageUrl,
@@ -1390,7 +1390,7 @@ export async function registerRoutes(
         sanitized.isShop = type === "shop";
       } else if (isShop !== undefined) {
         sanitized.isShop = !!isShop;
-        sanitized.type = isShop ? "shop" : "explore";
+        sanitized.type = isShop ? "shop" : "battle";
       }
       if (iconData) {
         sanitized.iconUrl = await processWorldImage(iconData, 500);

@@ -143,7 +143,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [shopError, setShopError] = useState<string | null>(null);
   const [showAddLocation, setShowAddLocation] = useState(false);
   const [newLocName, setNewLocName] = useState("");
-  const [newLocType, setNewLocType] = useState("explore");
+  const [newLocType, setNewLocType] = useState("battle");
   const [newLocDesc, setNewLocDesc] = useState("");
   const [newLocIcon, setNewLocIcon] = useState<string | null>(null);
   const [newLocBg, setNewLocBg] = useState<string | null>(null);
@@ -155,7 +155,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [editLocIcon, setEditLocIcon] = useState<string | null>(null);
   const [editLocBg, setEditLocBg] = useState<string | null>(null);
   const [editLocOwner, setEditLocOwner] = useState<string | null>(null);
-  const [editLocType, setEditLocType] = useState("explore");
+  const [editLocType, setEditLocType] = useState("battle");
   const [editLocGlowColor, setEditLocGlowColor] = useState("");
   const [activeLocationId, setActiveLocationId] = useState<string | null>(null);
   const [showLocationView, setShowLocationView] = useState(false);
@@ -253,7 +253,7 @@ export default function WorldPage({ user }: WorldPageProps) {
       queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "locations"] });
       setShowAddLocation(false);
       setNewLocName("");
-      setNewLocType("explore");
+      setNewLocType("battle");
       setNewLocDesc("");
       setNewLocIcon(null);
       setNewLocBg(null);
@@ -418,7 +418,7 @@ export default function WorldPage({ user }: WorldPageProps) {
 
   const handleLocationClick = useCallback((loc: WorldLocationData) => {
     if (didDrag.current) return;
-    if (loc.type === "explore" && !currentUser.isAdmin && (!currentUser.activePetId || !hasHatchedActivePet)) {
+    if ((loc.type === "battle" || loc.type === "explore") && !currentUser.isAdmin && (!currentUser.activePetId || !hasHatchedActivePet)) {
       setShowNoPetMessage(true);
       return;
     }
@@ -426,7 +426,7 @@ export default function WorldPage({ user }: WorldPageProps) {
     if (loc.isShop) {
       setShowLocationView(false);
       setShowShop(true);
-    } else if (loc.type === "explore" && !currentUser.isAdmin) {
+    } else if ((loc.type === "battle" || loc.type === "explore") && !currentUser.isAdmin) {
       setShowDangerWarning(true);
     } else {
       setShowShop(false);
@@ -701,7 +701,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                                 setEditLocIcon(null);
                                 setEditLocBg(null);
                                 setEditLocOwner(null);
-                                setEditLocType(loc.type || (loc.isShop ? "shop" : "explore"));
+                                setEditLocType(loc.type || (loc.isShop ? "shop" : "battle"));
                                 setEditLocGlowColor(loc.glowColor || "");
                               }}
                               className="absolute -top-1 -right-1 z-30 w-5 h-5 rounded-full flex items-center justify-center"
@@ -861,7 +861,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                     cursor: "pointer",
                   }}
                 >
-                  <option value="explore">Explore</option>
+                  <option value="battle">Battle</option>
                   <option value="mini_game">Mini Game</option>
                   <option value="shop">Shop</option>
                   <option value="garden">Garden</option>
@@ -1042,7 +1042,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                     cursor: "pointer",
                   }}
                 >
-                  <option value="explore">Explore</option>
+                  <option value="battle">Battle</option>
                   <option value="mini_game">Mini Game</option>
                   <option value="shop">Shop</option>
                   <option value="garden">Garden</option>
@@ -1161,7 +1161,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                   if (editLocDesc !== (editingLocation.description || "")) data.description = editLocDesc.trim();
                   const editIsShop = editLocType === "shop";
                   if (editIsShop !== editingLocation.isShop) data.isShop = editIsShop;
-                  const existingType = editingLocation.type || (editingLocation.isShop ? "shop" : "explore");
+                  const existingType = editingLocation.type || (editingLocation.isShop ? "shop" : "battle");
                   if (editLocType !== existingType) data.type = editLocType;
                   if (editLocIcon) data.iconData = editLocIcon;
                   if (editLocBg) data.bgData = editLocBg;
@@ -1580,7 +1580,7 @@ export default function WorldPage({ user }: WorldPageProps) {
 
               {currentUser.isAdmin && (
                 <div className="absolute bottom-4 right-4 z-20 flex flex-col gap-2">
-                  {activeLoc.type === "explore" && (
+                  {(activeLoc.type === "battle" || activeLoc.type === "explore") && (
                     <>
                       <button
                         data-testid="button-explore-admin"
