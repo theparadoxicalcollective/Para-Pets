@@ -45,12 +45,12 @@ interface EdibleItem {
 }
 
 const WALK_CONFIGS = [
-  { travelPx: "140px", duration: "8s",   delay: "0s",   startPct: 4,  size: 68, bottomPx: 8  },
-  { travelPx: "110px", duration: "11s",  delay: "2.8s", startPct: 30, size: 56, bottomPx: 52 },
-  { travelPx: "150px", duration: "7s",   delay: "4.5s", startPct: 10, size: 72, bottomPx: 4  },
-  { travelPx: "100px", duration: "9s",   delay: "1.5s", startPct: 50, size: 50, bottomPx: 72 },
-  { travelPx: "130px", duration: "10s",  delay: "3.5s", startPct: 20, size: 62, bottomPx: 28 },
-  { travelPx: "120px", duration: "8.5s", delay: "6s",   startPct: 38, size: 54, bottomPx: 56 },
+  { travelPx: "140px", duration: "8s",   delay: "0s",   startPct: 4,  size: 70, bottomPx: 10,  floatDur: "2.4s", floatDelay: "0s"   },
+  { travelPx: "110px", duration: "11s",  delay: "2.8s", startPct: 28, size: 56, bottomPx: 115, floatDur: "2.9s", floatDelay: "0.8s" },
+  { travelPx: "150px", duration: "7s",   delay: "4.5s", startPct: 8,  size: 74, bottomPx: 5,   floatDur: "2.1s", floatDelay: "1.4s" },
+  { travelPx: "100px", duration: "9s",   delay: "1.5s", startPct: 48, size: 50, bottomPx: 165, floatDur: "3.1s", floatDelay: "0.4s" },
+  { travelPx: "130px", duration: "10s",  delay: "3.5s", startPct: 18, size: 62, bottomPx: 60,  floatDur: "2.7s", floatDelay: "1.9s" },
+  { travelPx: "120px", duration: "8.5s", delay: "6s",   startPct: 36, size: 54, bottomPx: 130, floatDur: "2.3s", floatDelay: "0.6s" },
 ];
 
 export default function PetHousePage({ user }: PetHousePageProps) {
@@ -141,7 +141,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           <>
             <div
               className="absolute z-10"
-              style={{ left: 0, right: 0, bottom: 0, height: "50%" }}
+              style={{ left: 0, right: 0, bottom: 0, height: "70%" }}
             >
               {hatchedPets.length === 0 ? (
                 <div className="w-full h-full flex items-center justify-center">
@@ -445,36 +445,53 @@ function WalkingPet({
         animation: `petIdleWalk ${cfg.duration} ${cfg.delay} linear infinite`,
       } as any)}
     >
+      {/* Float wrapper — up/down hover */}
       <div
         style={{
-          width: cfg.size,
-          height: cfg.size,
-          filter: "drop-shadow(0 3px 5px rgba(0,0,0,0.55))",
+          animation: `petFloat ${cfg.floatDur} ${cfg.floatDelay} ease-in-out infinite`,
         }}
       >
         {petImg ? (
           <img
             src={petImg}
             alt=""
-            className="w-full h-full object-contain pointer-events-none"
+            className="pointer-events-none"
+            style={{
+              width: cfg.size,
+              height: cfg.size,
+              objectFit: "contain",
+              filter: [
+                `drop-shadow(0 ${Math.round(cfg.size * 0.18)}px ${Math.round(cfg.size * 0.22)}px rgba(0,0,0,0.75))`,
+                `drop-shadow(0 4px 6px rgba(0,0,0,0.45))`,
+                "brightness(1.08) saturate(1.12)",
+              ].join(" "),
+            }}
           />
         ) : (
           <span
-            className="pointer-events-none flex items-center justify-center w-full h-full"
-            style={{ fontSize: cfg.size * 0.65 }}
+            className="pointer-events-none flex items-center justify-center"
+            style={{
+              width: cfg.size,
+              height: cfg.size,
+              fontSize: cfg.size * 0.65,
+              filter: `drop-shadow(0 ${Math.round(cfg.size * 0.18)}px ${Math.round(cfg.size * 0.22)}px rgba(0,0,0,0.75))`,
+            }}
           >
             🐾
           </span>
         )}
       </div>
+
+      {/* Ground shadow — shrinks/fades when pet floats up */}
       <div
         style={{
-          width: cfg.size * 0.75,
-          height: 4,
-          background: "rgba(0,0,0,0.28)",
+          width: cfg.size * 0.55,
+          height: 6,
+          background: "rgba(0,0,0,0.32)",
           borderRadius: "50%",
           margin: "0 auto",
-          filter: "blur(2px)",
+          filter: "blur(4px)",
+          animation: `petShadowFloat ${cfg.floatDur} ${cfg.floatDelay} ease-in-out infinite`,
         }}
       />
     </div>
@@ -484,39 +501,39 @@ function WalkingPet({
 function TreehouseRoom3D() {
   return (
     <div className="absolute inset-0" style={{ background: "#0a0600" }}>
-      {/* Full background image — the magical treehouse interior walls */}
+      {/* Full background image — enchanted open forest */}
       <img
         src={petHouseBg}
         alt=""
         className="absolute inset-0 w-full h-full object-cover"
-        style={{ objectPosition: "center top" }}
+        style={{ objectPosition: "center 20%" }}
         draggable={false}
       />
 
-      {/* Slight dark vignette on the upper portion to ensure TopBar readability */}
+      {/* Top gradient — ensures TopBar readability, deepens sky */}
       <div
         className="absolute top-0 left-0 right-0"
         style={{
-          height: "18%",
-          background: "linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, transparent 100%)",
+          height: "22%",
+          background: "linear-gradient(to bottom, rgba(5,8,20,0.6) 0%, transparent 100%)",
           pointerEvents: "none",
         }}
       />
 
-      {/* Floor layer — sits on top of background, bottom 52%, fades in at top */}
+      {/* Floor layer — mossy stone platform, bottom 56%, melts into background at top */}
       <div
         className="absolute"
         style={{
-          left: 0, right: 0, bottom: 0, height: "52%",
-          WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.6) 18%, black 38%)",
-          maskImage: "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.6) 18%, black 38%)",
+          left: 0, right: 0, bottom: 0, height: "56%",
+          WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.55) 14%, black 32%)",
+          maskImage: "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.55) 14%, black 32%)",
         }}
       >
         <img
           src={petHouseFloor}
           alt=""
           className="w-full h-full object-cover"
-          style={{ objectPosition: "center top" }}
+          style={{ objectPosition: "center bottom" }}
           draggable={false}
         />
       </div>
@@ -525,7 +542,7 @@ function TreehouseRoom3D() {
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: "linear-gradient(90deg, rgba(0,0,0,0.18) 0%, transparent 18%, transparent 82%, rgba(0,0,0,0.18) 100%)",
+          background: "linear-gradient(90deg, rgba(0,0,0,0.22) 0%, transparent 22%, transparent 78%, rgba(0,0,0,0.22) 100%)",
         }}
       />
     </div>

@@ -440,11 +440,21 @@
 }
 
 @keyframes petIdleWalk {
-  0%   { transform: translateX(0px) scaleX(1); }
-  44%  { transform: translateX(var(--pw-dist)) scaleX(1); }
-  50%  { transform: translateX(var(--pw-dist)) scaleX(-1); }
-  94%  { transform: translateX(0px) scaleX(-1); }
-  100% { transform: translateX(0px) scaleX(1); }
+  0%    { transform: translateX(0px) scaleX(1); }
+  47%   { transform: translateX(var(--pw-dist)) scaleX(1); }
+  50%   { transform: translateX(var(--pw-dist)) scaleX(-1); }
+  97%   { transform: translateX(0px) scaleX(-1); }
+  100%  { transform: translateX(0px) scaleX(1); }
+}
+
+@keyframes petFloat {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50%       { transform: translateY(-9px) scale(1.05); }
+}
+
+@keyframes petShadowFloat {
+  0%, 100% { transform: scaleX(1);    opacity: 0.38; }
+  50%       { transform: scaleX(0.6); opacity: 0.15; }
 }
 
 @keyframes petBob {
