@@ -46,7 +46,7 @@ export const WORLD_OPTIONS = [
   { id: "haunted_woods", name: "Haunted Woods" },
 ];
 
-const ITEM_TYPES = ["pet", "power_up", "accessory", "potion", "special", "decor", "edibles"];
+const NON_PET_TYPES = ["power_up", "accessory", "potion", "special", "decor", "edibles"];
 
 function formatTypeName(type: string): string {
   if (type === "power_up") return "Power Up";
@@ -54,6 +54,7 @@ function formatTypeName(type: string): string {
 }
 
 export default function ItemDatabaseSection() {
+  const [subSection, setSubSection] = useState<"items" | "pets">("items");
   const [editingItem, setEditingItem] = useState<ShopItemFull | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [filterType, setFilterType] = useState<string>("all");
@@ -78,53 +79,124 @@ export default function ItemDatabaseSection() {
     },
   });
 
-  const filtered = allItems.filter(item => {
+  const handleOpenForm = (item: ShopItemFull | null = null) => {
+    setEditingItem(item);
+    setShowForm(true);
+  };
+
+  const handleCloseForm = () => {
+    setShowForm(false);
+    setEditingItem(null);
+  };
+
+  const handleFormSuccess = () => {
+    setShowForm(false);
+    setEditingItem(null);
+    queryClient.invalidateQueries({ queryKey: ["/api/admin/shop-items-all"] });
+    WORLD_OPTIONS.forEach(w => {
+      queryClient.invalidateQueries({ queryKey: ["/api/shop", w.id] });
+    });
+  };
+
+  const sectionItems = allItems.filter(item =>
+    subSection === "pets" ? item.type === "pet" : item.type !== "pet"
+  );
+
+  const filtered = sectionItems.filter(item => {
     if (filterType !== "all" && item.type !== filterType) return false;
     return true;
   });
 
+  const isPetSection = subSection === "pets";
+
   return (
     <div className="space-y-3">
+      {/* Sub-section toggle */}
+      <div className="flex rounded-lg overflow-hidden" style={{ border: "1px solid rgba(212,160,23,0.3)" }}>
+        <button
+          data-testid="tab-sub-items"
+          onClick={() => { setSubSection("items"); setFilterType("all"); }}
+          className="flex-1 py-2 font-fantasy text-[11px] tracking-wider transition-all"
+          style={{
+            background: !isPetSection
+              ? "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)"
+              : "rgba(0,0,0,0.25)",
+            color: !isPetSection ? "#7fffd4" : "#a89878",
+            border: "none",
+            cursor: "pointer",
+          }}
+        >
+          Add Item
+        </button>
+        <button
+          data-testid="tab-sub-pets"
+          onClick={() => { setSubSection("pets"); setFilterType("all"); }}
+          className="flex-1 py-2 font-fantasy text-[11px] tracking-wider transition-all"
+          style={{
+            background: isPetSection
+              ? "linear-gradient(135deg, #8b4513 0%, #5c3a1e 100%)"
+              : "rgba(0,0,0,0.25)",
+            color: isPetSection ? "#ffb347" : "#a89878",
+            border: "none",
+            borderLeft: "1px solid rgba(212,160,23,0.3)",
+            cursor: "pointer",
+          }}
+        >
+          Add Pet
+        </button>
+      </div>
+
+      {/* Add button */}
       <button
-        data-testid="button-add-new-item"
-        onClick={() => { setEditingItem(null); setShowForm(true); }}
+        data-testid={isPetSection ? "button-add-new-pet" : "button-add-new-item"}
+        onClick={() => handleOpenForm(null)}
         className="w-full py-2.5 rounded-lg font-fantasy text-sm tracking-wider flex items-center justify-center gap-2 transition-transform active:scale-98"
         style={{
-          background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
-          border: "1px solid rgba(127,255,212,0.4)",
-          color: "#7fffd4",
+          background: isPetSection
+            ? "linear-gradient(135deg, #8b4513 0%, #5c3a1e 100%)"
+            : "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
+          border: isPetSection
+            ? "1px solid rgba(255,179,71,0.4)"
+            : "1px solid rgba(127,255,212,0.4)",
+          color: isPetSection ? "#ffb347" : "#7fffd4",
           cursor: "pointer",
         }}
       >
-        <span className="text-xl leading-none">+</span> Add New Item
+        <span className="text-xl leading-none">+</span>
+        {isPetSection ? "Add New Pet" : "Add New Item"}
       </button>
 
-      <div className="flex gap-2">
-        <select
-          data-testid="select-filter-type"
-          value={filterType}
-          onChange={(e) => setFilterType(e.target.value)}
-          className="flex-1 px-2 py-1.5 rounded-md font-fantasy text-[10px] outline-none"
-          style={{ background: "rgba(242,232,208,0.9)", border: "1px solid #8b5e3c", color: "#2a1a0a" }}
-        >
-          <option value="all">All Types</option>
-          {ITEM_TYPES.map(t => (
-            <option key={t} value={t}>{formatTypeName(t)}</option>
-          ))}
-        </select>
-      </div>
+      {/* Type filter — items section only */}
+      {!isPetSection && (
+        <div className="flex gap-2">
+          <select
+            data-testid="select-filter-type"
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="flex-1 px-2 py-1.5 rounded-md font-fantasy text-[10px] outline-none"
+            style={{ background: "rgba(242,232,208,0.9)", border: "1px solid #8b5e3c", color: "#2a1a0a" }}
+          >
+            <option value="all">All Types</option>
+            {NON_PET_TYPES.map(t => (
+              <option key={t} value={t}>{formatTypeName(t)}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <p className="font-fantasy text-[#6a5840] text-[10px] tracking-wider text-center">
-        {filtered.length} item{filtered.length !== 1 ? "s" : ""} in database
+        {filtered.length} {isPetSection ? "pet" : "item"}{filtered.length !== 1 ? "s" : ""} in database
       </p>
 
       {isLoading ? (
         <div className="text-center py-8">
-          <p className="font-fantasy text-[#7fbfb0] text-sm animate-pulse">Loading items...</p>
+          <p className="font-fantasy text-[#7fbfb0] text-sm animate-pulse">Loading...</p>
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-8">
-          <p className="font-fantasy text-[#a89878] text-sm tracking-wider">No items found</p>
+          <p className="font-fantasy text-[#a89878] text-sm tracking-wider">
+            No {isPetSection ? "pets" : "items"} found
+          </p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -137,7 +209,9 @@ export default function ItemDatabaseSection() {
                 className="rounded-lg overflow-hidden"
                 style={{
                   background: "linear-gradient(135deg, rgba(30,15,5,0.85) 0%, rgba(50,30,10,0.85) 100%)",
-                  border: "1px solid rgba(212,160,23,0.3)",
+                  border: item.type === "pet"
+                    ? "1px solid rgba(255,179,71,0.3)"
+                    : "1px solid rgba(212,160,23,0.3)",
                 }}
               >
                 <div className="flex items-center gap-3 p-3">
@@ -162,7 +236,11 @@ export default function ItemDatabaseSection() {
                     <div className="flex items-center gap-2 mt-0.5">
                       <span
                         className="font-fantasy text-[8px] tracking-wider px-1.5 py-0.5 rounded-full"
-                        style={{ background: "rgba(127,255,212,0.1)", color: "#7fbfb0", border: "1px solid rgba(127,255,212,0.2)" }}
+                        style={{
+                          background: item.type === "pet" ? "rgba(255,179,71,0.12)" : "rgba(127,255,212,0.1)",
+                          color: item.type === "pet" ? "#ffb347" : "#7fbfb0",
+                          border: item.type === "pet" ? "1px solid rgba(255,179,71,0.25)" : "1px solid rgba(127,255,212,0.2)",
+                        }}
                       >
                         {formatTypeName(item.type)}
                       </span>
@@ -194,7 +272,7 @@ export default function ItemDatabaseSection() {
                   <div className="flex flex-col gap-1 flex-shrink-0">
                     <button
                       data-testid={`button-edit-db-item-${item.id}`}
-                      onClick={() => { setEditingItem(item); setShowForm(true); }}
+                      onClick={() => handleOpenForm(item)}
                       className="px-2 py-1 rounded font-fantasy text-[8px] tracking-wider"
                       style={{ background: "linear-gradient(135deg, #5c3a1e 0%, #8b5e3c 100%)", border: "1px solid rgba(212,160,23,0.4)", color: "#f0c040", cursor: "pointer" }}
                     >
@@ -220,35 +298,35 @@ export default function ItemDatabaseSection() {
       {showForm && (
         <AdminItemForm
           item={editingItem}
-          onClose={() => { setShowForm(false); setEditingItem(null); }}
-          onSuccess={() => {
-            setShowForm(false);
-            setEditingItem(null);
-            queryClient.invalidateQueries({ queryKey: ["/api/admin/shop-items-all"] });
-            WORLD_OPTIONS.forEach(w => {
-              queryClient.invalidateQueries({ queryKey: ["/api/shop", w.id] });
-            });
-          }}
+          petOnly={isPetSection}
+          onClose={handleCloseForm}
+          onSuccess={handleFormSuccess}
         />
       )}
     </div>
   );
 }
 
-function AdminItemForm({ item, onClose, onSuccess }: { item: ShopItemFull | null; onClose: () => void; onSuccess: () => void }) {
+function AdminItemForm({
+  item,
+  petOnly,
+  onClose,
+  onSuccess,
+}: {
+  item: ShopItemFull | null;
+  petOnly: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const defaultType = petOnly ? "pet" : (item?.type !== "pet" ? (item?.type || "power_up") : "power_up");
   const [name, setName] = useState(item?.name || "");
   const [price, setPrice] = useState(item?.price?.toString() || "");
-  const [type, setType] = useState(item?.type || "power_up");
+  const [type, setType] = useState(defaultType);
   const [edibleLvlPoints, setEdibleLvlPoints] = useState(item?.statBoostAmount?.toString() || "5");
   const [rarity, setRarity] = useState(item?.rarity?.toString() || "1");
   const [hatchTime, setHatchTime] = useState(item?.hatchTime?.toString() || "1");
   const [specialSkill, setSpecialSkill] = useState(item?.specialSkill || "");
   const [petTemplateId, setPetTemplateId] = useState(item?.petTemplateId || "");
-
-  const { data: petTemplates = [] } = useQuery<PetTemplateOption[]>({
-    queryKey: ["/api/admin/pet-templates"],
-    enabled: type === "pet",
-  });
   const [statBoostType, setStatBoostType] = useState(item?.statBoostType || "health");
   const [statBoostAmount, setStatBoostAmount] = useState(item?.statBoostAmount?.toString() || "10");
   const [healthRestored, setHealthRestored] = useState(item?.healthRestored?.toString() || "");
@@ -267,6 +345,13 @@ function AdminItemForm({ item, onClose, onSuccess }: { item: ShopItemFull | null
   const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
 
+  const { data: petTemplates = [] } = useQuery<PetTemplateOption[]>({
+    queryKey: ["/api/admin/pet-templates"],
+    enabled: petOnly || type === "pet",
+  });
+
+  const effectiveType = petOnly ? "pet" : type;
+
   const handleSubmit = async () => {
     if (!name.trim() || !price.trim()) {
       toast({ title: "Missing fields", description: "Name and price are required", variant: "destructive" });
@@ -280,16 +365,25 @@ function AdminItemForm({ item, onClose, onSuccess }: { item: ShopItemFull | null
 
     setSubmitting(true);
     try {
-      const payload: any = { name: name.trim(), price: priceNum, type, worldId: "all" };
+      const payload: any = { name: name.trim(), price: priceNum, type: effectiveType, worldId: "all" };
       if (imageData) payload.imageData = imageData;
 
-      if (type === "pet") {
+      if (effectiveType === "pet") {
         payload.rarity = parseInt(rarity);
         payload.hatchTime = parseInt(hatchTime);
         payload.specialSkill = specialSkill.trim() || null;
         payload.petTemplateId = petTemplateId || null;
         if (eggImageData) payload.eggImageData = eggImageData;
         if (hatchedImageData) payload.hatchedImageData = hatchedImageData;
+        payload.statBoostType = null;
+        payload.statBoostAmount = null;
+        payload.healthRestored = null;
+        payload.manaRestored = null;
+        payload.petsRevived = null;
+        payload.atkBoost = null;
+        payload.defBoost = null;
+        payload.specialType = null;
+        payload.specialAmount = null;
       } else {
         payload.rarity = null;
         payload.hatchTime = null;
@@ -297,61 +391,66 @@ function AdminItemForm({ item, onClose, onSuccess }: { item: ShopItemFull | null
         payload.hatchedImageUrl = null;
         payload.specialSkill = null;
         payload.petTemplateId = null;
-      }
 
-      if (type === "power_up") {
-        payload.statBoostType = statBoostType;
-        payload.statBoostAmount = parseInt(statBoostAmount) || 10;
-      } else if (type === "edibles") {
-        payload.statBoostType = "lvl";
-        payload.statBoostAmount = parseInt(edibleLvlPoints) || 5;
-      } else {
-        payload.statBoostType = null;
-        payload.statBoostAmount = null;
-      }
+        if (effectiveType === "power_up") {
+          payload.statBoostType = statBoostType;
+          payload.statBoostAmount = parseInt(statBoostAmount) || 10;
+        } else if (effectiveType === "edibles") {
+          payload.statBoostType = "lvl";
+          payload.statBoostAmount = parseInt(edibleLvlPoints) || 5;
+        } else {
+          payload.statBoostType = null;
+          payload.statBoostAmount = null;
+        }
 
-      if (type === "potion") {
-        payload.healthRestored = parseInt(healthRestored) || null;
-        payload.manaRestored = parseInt(manaRestored) || null;
-        payload.petsRevived = parseInt(petsRevived) || null;
-      } else {
-        payload.healthRestored = null;
-        payload.manaRestored = null;
-        payload.petsRevived = null;
-      }
+        if (effectiveType === "potion") {
+          payload.healthRestored = parseInt(healthRestored) || null;
+          payload.manaRestored = parseInt(manaRestored) || null;
+          payload.petsRevived = parseInt(petsRevived) || null;
+        } else {
+          payload.healthRestored = null;
+          payload.manaRestored = null;
+          payload.petsRevived = null;
+        }
 
-      if (type === "accessory") {
-        payload.atkBoost = parseInt(atkBoost) || null;
-        payload.defBoost = parseInt(defBoost) || null;
-      } else {
-        payload.atkBoost = null;
-        payload.defBoost = null;
-      }
+        if (effectiveType === "accessory") {
+          payload.atkBoost = parseInt(atkBoost) || null;
+          payload.defBoost = parseInt(defBoost) || null;
+        } else {
+          payload.atkBoost = null;
+          payload.defBoost = null;
+        }
 
-      if (type === "special") {
-        payload.specialType = specialType;
-        payload.specialAmount = parseInt(specialAmount) || 10;
-      } else {
-        payload.specialType = null;
-        payload.specialAmount = null;
+        if (effectiveType === "special") {
+          payload.specialType = specialType;
+          payload.specialAmount = parseInt(specialAmount) || 10;
+        } else {
+          payload.specialType = null;
+          payload.specialAmount = null;
+        }
       }
 
       if (item) {
         await apiRequest("PATCH", `/api/admin/shop/${item.id}`, payload);
-        toast({ title: "Updated", description: "Item updated successfully" });
+        toast({ title: "Updated", description: `${petOnly ? "Pet" : "Item"} updated successfully` });
       } else {
         await apiRequest("POST", "/api/admin/shop", payload);
-        toast({ title: "Created", description: "Item added to game" });
+        toast({ title: "Created", description: `${petOnly ? "Pet" : "Item"} added to game` });
       }
       onSuccess();
     } catch {
-      toast({ title: "Failed", description: "Could not save item", variant: "destructive" });
+      toast({ title: "Failed", description: "Could not save", variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
   };
 
   const inputStyle = { background: "rgba(242,232,208,0.9)", border: "1px solid #8b5e3c", color: "#2a1a0a" };
+  const accentColor = petOnly ? "#ffb347" : "#7fffd4";
+  const accentBg = petOnly
+    ? "linear-gradient(135deg, #8b4513 0%, #5c3a1e 100%)"
+    : "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)";
+  const accentBorder = petOnly ? "rgba(255,179,71,0.4)" : "rgba(127,255,212,0.4)";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
@@ -360,7 +459,7 @@ function AdminItemForm({ item, onClose, onSuccess }: { item: ShopItemFull | null
         className="relative w-[90%] max-w-sm rounded-lg p-5 animate-slide-up overflow-y-auto"
         style={{
           background: "linear-gradient(135deg, rgba(30,15,5,0.97) 0%, rgba(60,35,10,0.97) 100%)",
-          border: "1px solid rgba(212,160,23,0.5)",
+          border: `1px solid ${petOnly ? "rgba(255,179,71,0.5)" : "rgba(212,160,23,0.5)"}`,
           boxShadow: "0 8px 40px rgba(0,0,0,0.7)",
           maxHeight: "85vh",
         }}
@@ -374,13 +473,13 @@ function AdminItemForm({ item, onClose, onSuccess }: { item: ShopItemFull | null
           X
         </button>
 
-        <h3 className="font-fantasy text-[#f0c040] text-center text-base tracking-widest mb-4">
-          {item ? "Edit Item" : "Add Item"}
+        <h3 className="font-fantasy text-center text-base tracking-widest mb-4" style={{ color: accentColor }}>
+          {item ? (petOnly ? "Edit Pet" : "Edit Item") : (petOnly ? "Add Pet" : "Add Item")}
         </h3>
 
         <div className="space-y-3">
           <ImageUpload
-            label="Shop Image (PNG)"
+            label={petOnly ? "Shop Image (PNG)" : "Shop Image (PNG)"}
             preview={imagePreview}
             onSelect={(d) => { setImageData(d); setImagePreview(d); }}
             onRemove={() => { setImageData(null); setImagePreview(null); }}
@@ -388,41 +487,93 @@ function AdminItemForm({ item, onClose, onSuccess }: { item: ShopItemFull | null
           />
 
           <div>
-            <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">{type === "pet" ? "Species" : "Name"}</label>
-            <input data-testid="input-item-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={type === "pet" ? "Species name" : "Item name"} className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
+            <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">
+              {petOnly ? "Species" : "Name"}
+            </label>
+            <input
+              data-testid="input-item-name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={petOnly ? "Species name" : "Item name"}
+              className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+              style={inputStyle}
+            />
           </div>
 
           <div>
             <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Price</label>
-            <input data-testid="input-item-price" type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0" min="0" className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
+            <input
+              data-testid="input-item-price"
+              type="number"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="0"
+              min="0"
+              className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+              style={inputStyle}
+            />
           </div>
 
-          <div>
-            <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Type</label>
-            <select data-testid="select-item-type" value={type} onChange={(e) => setType(e.target.value)} className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle}>
-              {ITEM_TYPES.map((t) => (
-                <option key={t} value={t}>{formatTypeName(t)}</option>
-              ))}
-            </select>
-          </div>
+          {/* Type selector — only shown in items section */}
+          {!petOnly && (
+            <div>
+              <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Type</label>
+              <select
+                data-testid="select-item-type"
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+                className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+                style={inputStyle}
+              >
+                {NON_PET_TYPES.map((t) => (
+                  <option key={t} value={t}>{formatTypeName(t)}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
-          {type === "pet" && (
+          {/* Pet-specific fields — always shown in pet section */}
+          {petOnly && (
             <>
               <div>
                 <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Rarity</label>
-                <select data-testid="select-rarity" value={rarity} onChange={(e) => setRarity(e.target.value)} className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle}>
-                  {[1,2,3,4,5].map((r) => (
+                <select
+                  data-testid="select-rarity"
+                  value={rarity}
+                  onChange={(e) => setRarity(e.target.value)}
+                  className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+                  style={inputStyle}
+                >
+                  {[1, 2, 3, 4, 5].map((r) => (
                     <option key={r} value={r}>{"★".repeat(r)} ({r} Star{r > 1 ? "s" : ""})</option>
                   ))}
                 </select>
               </div>
               <div>
                 <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Hatch Time (hours)</label>
-                <input data-testid="input-hatch-time" type="number" value={hatchTime} onChange={(e) => setHatchTime(e.target.value)} placeholder="1" min="1" className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
+                <input
+                  data-testid="input-hatch-time"
+                  type="number"
+                  value={hatchTime}
+                  onChange={(e) => setHatchTime(e.target.value)}
+                  placeholder="1"
+                  min="1"
+                  className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+                  style={inputStyle}
+                />
               </div>
               <div>
                 <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Special Skill</label>
-                <input data-testid="input-special-skill" type="text" value={specialSkill} onChange={(e) => setSpecialSkill(e.target.value)} placeholder="e.g. Fire Breath, Heal Aura..." className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
+                <input
+                  data-testid="input-special-skill"
+                  type="text"
+                  value={specialSkill}
+                  onChange={(e) => setSpecialSkill(e.target.value)}
+                  placeholder="e.g. Fire Breath, Heal Aura..."
+                  className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+                  style={inputStyle}
+                />
                 <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">Unique ability for this pet</p>
               </div>
               <div>
@@ -460,11 +611,18 @@ function AdminItemForm({ item, onClose, onSuccess }: { item: ShopItemFull | null
             </>
           )}
 
-          {type === "power_up" && (
+          {/* Item-type-specific fields */}
+          {!petOnly && effectiveType === "power_up" && (
             <>
               <div>
                 <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Stat Boost Type</label>
-                <select data-testid="select-stat-boost" value={statBoostType} onChange={(e) => setStatBoostType(e.target.value)} className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle}>
+                <select
+                  data-testid="select-stat-boost"
+                  value={statBoostType}
+                  onChange={(e) => setStatBoostType(e.target.value)}
+                  className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+                  style={inputStyle}
+                >
                   <option value="health">Health (+HP)</option>
                   <option value="atk">Attack (+ATK)</option>
                   <option value="def">Defense (+DEF)</option>
@@ -475,17 +633,26 @@ function AdminItemForm({ item, onClose, onSuccess }: { item: ShopItemFull | null
                 <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">
                   {statBoostType === "health" ? "HP Added" : statBoostType === "atk" ? "ATK Added" : statBoostType === "def" ? "DEF Added" : "Levels Added"}
                 </label>
-                <input data-testid="input-stat-boost-amount" type="number" value={statBoostAmount} onChange={(e) => setStatBoostAmount(e.target.value)} placeholder="10" min="1" className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
+                <input
+                  data-testid="input-stat-boost-amount"
+                  type="number"
+                  value={statBoostAmount}
+                  onChange={(e) => setStatBoostAmount(e.target.value)}
+                  placeholder="10"
+                  min="1"
+                  className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+                  style={inputStyle}
+                />
                 <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">Consumable - disappears after use on a pet</p>
               </div>
             </>
           )}
 
-          {type === "decor" && (
+          {!petOnly && effectiveType === "decor" && (
             <p className="font-fantasy text-[#7fbfb0] text-[8px] tracking-wider text-center">Decor items are purely cosmetic — name and price only</p>
           )}
 
-          {type === "edibles" && (
+          {!petOnly && effectiveType === "edibles" && (
             <>
               <div>
                 <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">+LVL Points when fed</label>
@@ -505,7 +672,7 @@ function AdminItemForm({ item, onClose, onSuccess }: { item: ShopItemFull | null
             </>
           )}
 
-          {type === "potion" && (
+          {!petOnly && effectiveType === "potion" && (
             <>
               <div>
                 <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Health Restored</label>
@@ -522,11 +689,11 @@ function AdminItemForm({ item, onClose, onSuccess }: { item: ShopItemFull | null
                 <input data-testid="input-pets-revived" type="number" value={petsRevived} onChange={(e) => setPetsRevived(e.target.value)} placeholder="0" min="0" className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
                 <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">Number of knocked pets revived (highest stats first)</p>
               </div>
-              <p className="font-fantasy text-[#ff9999] text-[8px] tracking-wider text-center">Potions are consumables - battle use only, not for power-ups</p>
+              <p className="font-fantasy text-[#ff9999] text-[8px] tracking-wider text-center">Potions are consumables - battle use only</p>
             </>
           )}
 
-          {type === "accessory" && (
+          {!petOnly && effectiveType === "accessory" && (
             <>
               <div>
                 <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">ATK Boost (when equipped)</label>
@@ -536,15 +703,21 @@ function AdminItemForm({ item, onClose, onSuccess }: { item: ShopItemFull | null
                 <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">DEF Boost (when equipped)</label>
                 <input data-testid="input-def-boost" type="number" value={defBoost} onChange={(e) => setDefBoost(e.target.value)} placeholder="0" min="0" className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
               </div>
-              <p className="font-fantasy text-[#7fbfb0] text-[8px] tracking-wider text-center">Accessories are equippable - stats added when worn, removed when unequipped. Not consumed.</p>
+              <p className="font-fantasy text-[#7fbfb0] text-[8px] tracking-wider text-center">Accessories are equippable — stats added when worn, removed when unequipped.</p>
             </>
           )}
 
-          {type === "special" && (
+          {!petOnly && effectiveType === "special" && (
             <>
               <div>
                 <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Special Effect</label>
-                <select data-testid="select-special-type" value={specialType} onChange={(e) => setSpecialType(e.target.value)} className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle}>
+                <select
+                  data-testid="select-special-type"
+                  value={specialType}
+                  onChange={(e) => setSpecialType(e.target.value)}
+                  className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+                  style={inputStyle}
+                >
                   <option value="hatch_time">Reduce Hatching Time</option>
                   <option value="level">Level Up Points</option>
                 </select>
@@ -553,7 +726,16 @@ function AdminItemForm({ item, onClose, onSuccess }: { item: ShopItemFull | null
                 <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">
                   {specialType === "hatch_time" ? "Minutes Reduced" : "Level Points Added"}
                 </label>
-                <input data-testid="input-special-amount" type="number" value={specialAmount} onChange={(e) => setSpecialAmount(e.target.value)} placeholder="10" min="1" className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
+                <input
+                  data-testid="input-special-amount"
+                  type="number"
+                  value={specialAmount}
+                  onChange={(e) => setSpecialAmount(e.target.value)}
+                  placeholder="10"
+                  min="1"
+                  className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+                  style={inputStyle}
+                />
                 <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">
                   {specialType === "hatch_time" ? "1 = 1 minute off hatching time" : "1 = 1 level point towards leveling up"}
                 </p>
@@ -567,9 +749,9 @@ function AdminItemForm({ item, onClose, onSuccess }: { item: ShopItemFull | null
             onClick={handleSubmit}
             disabled={submitting}
             className="w-full py-2.5 rounded-md font-fantasy text-sm tracking-wider transition-transform active:scale-98 disabled:opacity-50"
-            style={{ background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)", border: "1px solid rgba(127,255,212,0.4)", color: "#7fffd4", cursor: "pointer" }}
+            style={{ background: accentBg, border: `1px solid ${accentBorder}`, color: accentColor, cursor: "pointer" }}
           >
-            {submitting ? "Saving..." : item ? "Update Item" : "Add to Game"}
+            {submitting ? "Saving..." : item ? `Update ${petOnly ? "Pet" : "Item"}` : `Add to Game`}
           </button>
         </div>
       </div>
@@ -577,7 +759,21 @@ function AdminItemForm({ item, onClose, onSuccess }: { item: ShopItemFull | null
   );
 }
 
-function ImageUpload({ label, preview, onSelect, onRemove, inputId, allowGif = false }: { label: string; preview: string | null; onSelect: (data: string) => void; onRemove: () => void; inputId: string; allowGif?: boolean }) {
+function ImageUpload({
+  label,
+  preview,
+  onSelect,
+  onRemove,
+  inputId,
+  allowGif = false,
+}: {
+  label: string;
+  preview: string | null;
+  onSelect: (data: string) => void;
+  onRemove: () => void;
+  inputId: string;
+  allowGif?: boolean;
+}) {
   const { toast } = useToast();
   const allowedTypes = allowGif ? ["image/png", "image/gif"] : ["image/png"];
   const acceptStr = allowGif ? "image/png,image/gif" : "image/png";
@@ -640,12 +836,26 @@ function ImageUpload({ label, preview, onSelect, onRemove, inputId, allowGif = f
   );
 }
 
-export function ItemPickerModal({ items, onSelect, onClose }: { items: ShopItemFull[]; onSelect: (item: ShopItemFull) => void; onClose: () => void }) {
+export function ItemPickerModal({
+  items,
+  onSelect,
+  onClose,
+}: {
+  items: ShopItemFull[];
+  onSelect: (item: ShopItemFull) => void;
+  onClose: () => void;
+}) {
   const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState<"all" | "items" | "pets">("all");
 
-  const filtered = search
-    ? items.filter(i => i.name.toLowerCase().includes(search.toLowerCase()))
-    : items;
+  const filtered = items.filter(item => {
+    const matchesSearch = !search || item.name.toLowerCase().includes(search.toLowerCase());
+    const matchesType =
+      typeFilter === "all" ||
+      (typeFilter === "pets" && item.type === "pet") ||
+      (typeFilter === "items" && item.type !== "pet");
+    return matchesSearch && matchesType;
+  });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
@@ -656,7 +866,9 @@ export function ItemPickerModal({ items, onSelect, onClose }: { items: ShopItemF
           background: "linear-gradient(135deg, rgba(20,10,3,0.98) 0%, rgba(45,25,8,0.98) 100%)",
           border: "1px solid rgba(192,132,252,0.5)",
           boxShadow: "0 8px 40px rgba(0,0,0,0.8)",
-          maxHeight: "70vh",
+          maxHeight: "75vh",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
         <button
@@ -668,16 +880,37 @@ export function ItemPickerModal({ items, onSelect, onClose }: { items: ShopItemF
         </button>
 
         <h4 className="font-fantasy text-[#c084fc] text-xs tracking-wider text-center mb-3">Select Item</h4>
+
+        {/* Filter tabs */}
+        <div className="flex gap-1 mb-2">
+          {(["all", "items", "pets"] as const).map(f => (
+            <button
+              key={f}
+              onClick={() => setTypeFilter(f)}
+              className="flex-1 py-1 rounded font-fantasy text-[8px] tracking-wider transition-all"
+              style={{
+                background: typeFilter === f ? "rgba(192,132,252,0.25)" : "rgba(0,0,0,0.2)",
+                border: typeFilter === f ? "1px solid rgba(192,132,252,0.5)" : "1px solid rgba(212,160,23,0.15)",
+                color: typeFilter === f ? "#c084fc" : "#a89878",
+                cursor: "pointer",
+              }}
+            >
+              {f === "all" ? "All" : f === "pets" ? "Pets" : "Items"}
+            </button>
+          ))}
+        </div>
+
         <input
           data-testid="input-item-search"
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search items..."
+          placeholder="Search..."
           className="w-full px-3 py-2 rounded-md font-sans text-xs outline-none mb-3"
           style={{ background: "rgba(242,232,208,0.9)", border: "1px solid #8b5e3c", color: "#2a1a0a" }}
         />
-        <div className="overflow-y-auto space-y-1.5" style={{ maxHeight: "45vh" }}>
+
+        <div className="overflow-y-auto space-y-1.5 flex-1">
           {filtered.length === 0 ? (
             <p className="font-fantasy text-[#a89878] text-xs text-center py-4">No items found</p>
           ) : (
@@ -689,7 +922,11 @@ export function ItemPickerModal({ items, onSelect, onClose }: { items: ShopItemF
                   data-testid={`button-pick-item-${item.id}`}
                   onClick={() => onSelect(item)}
                   className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-all"
-                  style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.2)", cursor: "pointer" }}
+                  style={{
+                    background: "rgba(0,0,0,0.3)",
+                    border: item.type === "pet" ? "1px solid rgba(255,179,71,0.2)" : "1px solid rgba(212,160,23,0.2)",
+                    cursor: "pointer",
+                  }}
                 >
                   <div className="w-8 h-8 rounded flex items-center justify-center overflow-hidden flex-shrink-0" style={{ background: "rgba(0,0,0,0.3)" }}>
                     {displayImg ? (
@@ -700,7 +937,12 @@ export function ItemPickerModal({ items, onSelect, onClose }: { items: ShopItemF
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-fantasy text-[#f0c040] text-[10px] truncate">{item.name}</p>
-                    <p className="font-fantasy text-[#6a5840] text-[8px] capitalize">{item.type}</p>
+                    <p
+                      className="font-fantasy text-[8px] capitalize"
+                      style={{ color: item.type === "pet" ? "#ffb347" : "#6a5840" }}
+                    >
+                      {item.type}
+                    </p>
                   </div>
                 </button>
               );
