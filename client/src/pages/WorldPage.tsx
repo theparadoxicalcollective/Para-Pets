@@ -505,24 +505,12 @@ export default function WorldPage({ user }: WorldPageProps) {
 
   return (
     <div
-      className="relative w-full h-[100dvh] overflow-hidden flex flex-col"
+      className="relative w-full h-[100dvh] overflow-hidden"
       style={{
-        backgroundImage: `url(${world.bg})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
         maxWidth: "768px",
         margin: "0 auto",
       }}
     >
-      <div className="absolute inset-0 z-0 pointer-events-none" style={{
-        background: `linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.15) 30%, rgba(0,0,0,0.10) 50%, rgba(0,0,0,0.25) 70%, rgba(0,0,0,0.75) 100%)`,
-      }} />
-
-      <div className="absolute inset-0 z-0 pointer-events-none" style={{
-        background: `radial-gradient(ellipse at 50% 20%, ${accent}08 0%, transparent 60%), radial-gradient(ellipse at 80% 70%, ${accent}06 0%, transparent 50%)`,
-      }} />
-
       <style>{`
         @keyframes locFloat {
           0%, 100% { transform: translateY(0px); }
@@ -554,62 +542,20 @@ export default function WorldPage({ user }: WorldPageProps) {
         .world-scroll::-webkit-scrollbar-thumb:hover { background: ${accent}70; }
       `}</style>
 
-      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-        {[
-          { left: "12%", top: "25%", mx: "30px", my: "-60px", dur: "7s", delay: "0s", size: "3px" },
-          { left: "78%", top: "40%", mx: "-40px", my: "-50px", dur: "9s", delay: "2s", size: "2px" },
-          { left: "45%", top: "65%", mx: "20px", my: "-70px", dur: "8s", delay: "1s", size: "3px" },
-          { left: "25%", top: "80%", mx: "-25px", my: "-55px", dur: "10s", delay: "3s", size: "2px" },
-          { left: "65%", top: "30%", mx: "35px", my: "-45px", dur: "6s", delay: "4s", size: "2px" },
-        ].map((mote, i) => (
-          <div
-            key={i}
-            className="absolute rounded-full"
-            style={{
-              left: mote.left,
-              top: mote.top,
-              width: mote.size,
-              height: mote.size,
-              background: accent,
-              boxShadow: `0 0 6px ${accent}80, 0 0 12px ${accent}40`,
-              animation: `worldMote ${mote.dur} ease-in-out infinite`,
-              animationDelay: mote.delay,
-              "--mx": mote.mx,
-              "--my": mote.my,
-            } as React.CSSProperties}
-          />
-        ))}
+      <div
+        className="absolute top-0 left-0 right-0 z-40"
+        style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+      >
+        <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
       </div>
 
-      <div className="relative z-10 flex flex-col h-full" style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
-        <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
-
-        <div className="flex flex-col items-center px-4 pt-2 pb-1">
-          <div
-            className="flex items-center justify-center mb-1"
-            data-testid={`text-world-name-${worldId}`}
-          >
-            <h2
-              className="font-fantasy font-bold tracking-widest text-center leading-none px-5"
-              style={{
-                fontSize: "clamp(13px, 3.6vw, 19px)",
-                color: "#fff5b0",
-                textShadow: "0 0 6px #f0c040, 0 0 14px #d4a017, 0 0 28px rgba(212,160,23,0.65), 0 0 50px rgba(240,192,64,0.28), 0 1px 3px rgba(0,0,0,1)",
-                letterSpacing: "0.14em",
-              }}
-            >
-              {world.name}
-            </h2>
-          </div>
-        </div>
-
-        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden world-scroll">
+      <div ref={scrollContainerRef} className="absolute inset-0 overflow-y-auto overflow-x-hidden world-scroll">
           {locationsLoading ? (
-            <div className="flex items-center justify-center py-12">
+            <div className="flex items-center justify-center" style={{ minHeight: "100dvh" }}>
               <p className="font-fantasy text-sm animate-pulse" style={{ color: accent, textShadow: `0 0 15px ${accent}60` }}>Loading places...</p>
             </div>
           ) : locations.length === 0 ? (
-            <div className="flex items-center justify-center py-16 px-8">
+            <div className="flex items-center justify-center px-8" style={{ minHeight: "100dvh" }}>
               <div className="text-center">
                 <div
                   className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center"
@@ -649,6 +595,52 @@ export default function WorldPage({ user }: WorldPageProps) {
               <div className="absolute inset-0 pointer-events-none" style={{
                 background: `linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.08) 30%, rgba(0,0,0,0.1) 70%, rgba(0,0,0,0.65) 100%)`,
               }} />
+
+              <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                {[
+                  { left: "12%", top: "25%", mx: "30px", my: "-60px", dur: "7s", delay: "0s", size: "3px" },
+                  { left: "78%", top: "40%", mx: "-40px", my: "-50px", dur: "9s", delay: "2s", size: "2px" },
+                  { left: "45%", top: "65%", mx: "20px", my: "-70px", dur: "8s", delay: "1s", size: "3px" },
+                  { left: "25%", top: "80%", mx: "-25px", my: "-55px", dur: "10s", delay: "3s", size: "2px" },
+                  { left: "65%", top: "30%", mx: "35px", my: "-45px", dur: "6s", delay: "4s", size: "2px" },
+                ].map((mote, i) => (
+                  <div
+                    key={i}
+                    className="absolute rounded-full"
+                    style={{
+                      left: mote.left,
+                      top: mote.top,
+                      width: mote.size,
+                      height: mote.size,
+                      background: accent,
+                      boxShadow: `0 0 6px ${accent}80, 0 0 12px ${accent}40`,
+                      animation: `worldMote ${mote.dur} ease-in-out infinite`,
+                      animationDelay: mote.delay,
+                      "--mx": mote.mx,
+                      "--my": mote.my,
+                    } as React.CSSProperties}
+                  />
+                ))}
+              </div>
+
+              <div
+                className="absolute left-0 right-0 flex items-center justify-center pointer-events-none"
+                data-testid={`text-world-name-${worldId}`}
+                style={{ top: "7%", zIndex: 5 }}
+              >
+                <h2
+                  className="font-fantasy font-bold tracking-widest text-center leading-none px-5"
+                  style={{
+                    fontSize: "clamp(13px, 3.6vw, 19px)",
+                    color: "#fff5b0",
+                    textShadow: "0 0 6px #f0c040, 0 0 14px #d4a017, 0 0 28px rgba(212,160,23,0.65), 0 0 50px rgba(240,192,64,0.28), 0 1px 3px rgba(0,0,0,1)",
+                    letterSpacing: "0.14em",
+                  }}
+                >
+                  {world.name}
+                </h2>
+              </div>
+
               <div className="absolute inset-0">
                 {locations.map((loc, i) => {
                   const pos = dragPos?.id === loc.id ? { x: dragPos.x, y: dragPos.y } : { x: loc.posX, y: loc.posY };
@@ -769,42 +761,41 @@ export default function WorldPage({ user }: WorldPageProps) {
           )}
         </div>
 
-        <div className="flex-shrink-0 px-6 pb-6">
-          <button
-            data-testid="button-back-to-map"
-            onClick={() => navigate("/map")}
-            className="w-full py-3 rounded-lg font-fantasy text-sm tracking-[0.15em] transition-transform active:scale-98"
-            style={{
-              background: `linear-gradient(135deg, rgba(10,5,15,0.9) 0%, rgba(25,15,35,0.9) 50%, rgba(10,5,15,0.9) 100%)`,
-              border: `1.5px solid ${accent}70`,
-              color: accent,
-              cursor: "pointer",
-              boxShadow: `0 4px 20px rgba(0,0,0,0.6), 0 0 20px ${accent}20, inset 0 1px 0 ${accent}15`,
-              textShadow: `0 0 12px ${accent}50, 0 0 25px ${accent}25`,
-            }}
-          >
-            Back to Map
-          </button>
-        </div>
+      <button
+        data-testid="button-back-to-map"
+        onClick={() => navigate("/map")}
+        className="fixed z-30 font-fantasy text-sm tracking-[0.15em] transition-transform active:scale-95 px-4 py-2 rounded-lg"
+        style={{
+          bottom: "24px",
+          left: "max(16px, calc((100vw - 768px) / 2 + 16px))",
+          background: `linear-gradient(135deg, rgba(10,5,15,0.92) 0%, rgba(25,15,35,0.92) 50%, rgba(10,5,15,0.92) 100%)`,
+          border: `1.5px solid ${accent}70`,
+          color: accent,
+          cursor: "pointer",
+          boxShadow: `0 4px 20px rgba(0,0,0,0.7), 0 0 20px ${accent}20, inset 0 1px 0 ${accent}15`,
+          textShadow: `0 0 12px ${accent}50, 0 0 25px ${accent}25`,
+        }}
+      >
+        ← Map
+      </button>
 
-        {currentUser.isAdmin && (
-          <button
-            data-testid="button-add-location"
-            onClick={() => setShowAddLocation(true)}
-            className="fixed z-30 w-14 h-14 rounded-full flex items-center justify-center transition-transform active:scale-90"
-            style={{
-              bottom: "80px",
-              right: "max(16px, calc((100vw - 768px) / 2 + 16px))",
-              background: `linear-gradient(135deg, ${accent}cc 0%, ${accent}88 100%)`,
-              border: `2px solid ${accent}`,
-              boxShadow: `0 4px 25px ${accent}60, 0 0 40px ${accent}35`,
-              cursor: "pointer",
-            }}
-          >
-            <Plus className="w-7 h-7 text-black" />
-          </button>
-        )}
-      </div>
+      {currentUser.isAdmin && (
+        <button
+          data-testid="button-add-location"
+          onClick={() => setShowAddLocation(true)}
+          className="fixed z-30 w-14 h-14 rounded-full flex items-center justify-center transition-transform active:scale-90"
+          style={{
+            bottom: "16px",
+            right: "max(16px, calc((100vw - 768px) / 2 + 16px))",
+            background: `linear-gradient(135deg, ${accent}cc 0%, ${accent}88 100%)`,
+            border: `2px solid ${accent}`,
+            boxShadow: `0 4px 25px ${accent}60, 0 0 40px ${accent}35`,
+            cursor: "pointer",
+          }}
+        >
+          <Plus className="w-7 h-7 text-black" />
+        </button>
+      )}
 
       {showAddLocation && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
