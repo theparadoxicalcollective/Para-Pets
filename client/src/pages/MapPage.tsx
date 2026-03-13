@@ -229,15 +229,18 @@ export default function MapPage({ user }: MapPageProps) {
 
   const [navigatingWorldId, setNavigatingWorldId] = useState<string | null>(null);
 
+  const isWorldLocked = (w: WorldData) => !currentUser.isAdmin && w.id !== "swamp";
+
   const handleWorldClick = useCallback((w: WorldData) => {
     if (didDrag.current) return;
     if (navigatingWorldId) return;
+    if (isWorldLocked(w)) return;
     setSelectedWorldId(w.id);
     setNavigatingWorldId(w.id);
     setTimeout(() => {
       navigate(`/world/${w.id}`);
     }, 800);
-  }, [navigate, navigatingWorldId]);
+  }, [navigate, navigatingWorldId, currentUser.isAdmin]);
 
   const readFileAsDataUrl = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -380,6 +383,7 @@ export default function MapPage({ user }: MapPageProps) {
                   const icon = getWorldIcon(w);
                   const pos = dragPos?.id === w.id ? { x: dragPos.x, y: dragPos.y } : { x: w.posX, y: w.posY };
                   const isDragging = dragRef.current?.worldId === w.id;
+                  const locked = isWorldLocked(w);
                   return (
                     <div
                       key={w.id}
@@ -389,7 +393,7 @@ export default function MapPage({ user }: MapPageProps) {
                         left: `${pos.x}%`,
                         top: `${pos.y}%`,
                         width: "30%",
-                        cursor: currentUser.isAdmin ? "grab" : "pointer",
+                        cursor: currentUser.isAdmin ? "grab" : locked ? "default" : "pointer",
                         zIndex: isDragging ? 50 : 10 + i,
                         animation: isDragging ? "none" : `floatWorld ${3 + (i % 3) * 0.5}s ease-in-out infinite`,
                         animationDelay: `${i * 0.4}s`,
@@ -413,19 +417,48 @@ export default function MapPage({ user }: MapPageProps) {
                             className="w-full h-full object-contain relative z-10"
                             draggable={false}
                             style={{
-                              filter: `drop-shadow(0 4px 8px rgba(0,0,0,0.35)) drop-shadow(0 0 10px ${w.glowColor}25)`,
+                              filter: locked
+                                ? `drop-shadow(0 4px 8px rgba(0,0,0,0.5)) grayscale(0.6) brightness(0.45)`
+                                : `drop-shadow(0 4px 8px rgba(0,0,0,0.35)) drop-shadow(0 0 10px ${w.glowColor}25)`,
                             }}
                           />
                         ) : (
                           <div
                             className="w-full h-full rounded-full flex items-center justify-center relative z-10"
                             style={{
-                              background: `linear-gradient(135deg, ${w.glowColor}40, ${w.glowColor}20)`,
-                              border: `2px solid ${w.glowColor}60`,
+                              background: locked
+                                ? `linear-gradient(135deg, rgba(20,20,30,0.8), rgba(10,10,20,0.8))`
+                                : `linear-gradient(135deg, ${w.glowColor}40, ${w.glowColor}20)`,
+                              border: `2px solid ${locked ? "rgba(80,80,100,0.4)" : `${w.glowColor}60`}`,
                               fontSize: "28px",
+                              filter: locked ? "grayscale(0.8) brightness(0.45)" : undefined,
                             }}
                           >
                             🌍
+                          </div>
+                        )}
+
+                        {locked && (
+                          <div
+                            className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none"
+                            style={{ transform: "rotate(-20deg)" }}
+                          >
+                            <div
+                              className="px-1.5 py-0.5 font-fantasy text-center leading-tight"
+                              style={{
+                                background: "rgba(10,5,20,0.88)",
+                                border: "1px solid rgba(160,130,60,0.55)",
+                                borderRadius: "3px",
+                                color: "#c8a84a",
+                                fontSize: "clamp(5px, 1.6vw, 8px)",
+                                letterSpacing: "0.08em",
+                                textShadow: "0 0 6px rgba(200,168,74,0.5)",
+                                boxShadow: "0 0 10px rgba(0,0,0,0.6)",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              Coming Soon
+                            </div>
                           </div>
                         )}
 
