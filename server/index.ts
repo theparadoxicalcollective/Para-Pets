@@ -335,10 +335,10 @@ app.use((req, res, next) => {
 
     for (const loc of NEW_SWAMP_LOCATIONS) {
       const existing = swampLocations.find(l => l.id === loc.id);
+      const iconData = loadAssetBase64(loc.iconFile);
+      const bgData = loadAssetBase64(loc.bgFile);
       if (!existing) {
         console.log(`Creating new swamp location: ${loc.name}`);
-        const iconData = loadAssetBase64(loc.iconFile);
-        const bgData = loadAssetBase64(loc.bgFile);
         await storage.createWorldLocation({
           id: loc.id,
           worldId: "swamp",
@@ -353,6 +353,14 @@ app.use((req, res, next) => {
           ...(bgData ? { bgUrl: bgData } : {}),
         } as any);
         console.log(`${loc.name} created.`);
+      } else {
+        const updates: any = {};
+        if (iconData) updates.iconUrl = iconData;
+        if (bgData) updates.bgUrl = bgData;
+        if (Object.keys(updates).length > 0) {
+          await storage.updateWorldLocation(loc.id, updates);
+          console.log(`${loc.name} images refreshed.`);
+        }
       }
     }
   } catch (err) {
