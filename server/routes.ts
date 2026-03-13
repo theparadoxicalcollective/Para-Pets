@@ -1431,13 +1431,23 @@ export async function registerRoutes(
         return res.status(400).json({ message: "posX and posY are required numbers" });
       }
       const updated = await storage.updateWorldLocation(req.params.locationId, {
-        posX: Math.max(0, Math.min(85, Math.round(posX))),
-        posY: Math.max(0, Math.min(85, Math.round(posY))),
+        posX: Math.max(0, Math.min(95, posX)),
+        posY: Math.max(0, Math.min(90, posY)),
       });
       return res.json(updated);
     } catch (err) {
       console.error("Update location position error:", err);
       return res.status(500).json({ message: "Failed to update position" });
+    }
+  });
+
+  app.patch("/api/admin/world/location/:locationId/flip", isAdmin, async (req, res) => {
+    try {
+      const updated = await storage.flipWorldLocation(req.params.locationId);
+      return res.json(updated);
+    } catch (err) {
+      console.error("Flip location error:", err);
+      return res.status(500).json({ message: "Failed to flip location" });
     }
   });
 

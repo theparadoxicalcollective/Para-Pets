@@ -64,6 +64,7 @@ export interface IStorage {
   getWorldLocations(worldId: string): Promise<WorldLocation[]>;
   createWorldLocation(data: Partial<WorldLocation> & { worldId: string; name: string; type: string }): Promise<WorldLocation>;
   updateWorldLocation(id: string, data: Partial<WorldLocation>): Promise<WorldLocation>;
+  flipWorldLocation(id: string): Promise<WorldLocation>;
   deleteWorldLocation(id: string): Promise<void>;
   getAllWorlds(): Promise<World[]>;
   getWorld(id: string): Promise<World | undefined>;
@@ -379,6 +380,12 @@ export class DatabaseStorage implements IStorage {
 
   async updateWorldLocation(id: string, data: Partial<WorldLocation>): Promise<WorldLocation> {
     const [loc] = await db.update(worldLocations).set(data).where(eq(worldLocations.id, id)).returning();
+    return loc;
+  }
+
+  async flipWorldLocation(id: string): Promise<WorldLocation> {
+    const [current] = await db.select().from(worldLocations).where(eq(worldLocations.id, id));
+    const [loc] = await db.update(worldLocations).set({ flipped: !current.flipped }).where(eq(worldLocations.id, id)).returning();
     return loc;
   }
 

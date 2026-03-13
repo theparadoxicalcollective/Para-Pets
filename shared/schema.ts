@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, boolean, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, boolean, timestamp, integer, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -94,8 +94,9 @@ export const worldLocations = pgTable("world_locations", {
   iconUrl: text("icon_url"),
   bgUrl: text("bg_url"),
   description: text("description"),
-  posX: integer("pos_x").notNull().default(40),
-  posY: integer("pos_y").notNull().default(40),
+  posX: real("pos_x").notNull().default(40),
+  posY: real("pos_y").notNull().default(40),
+  flipped: boolean("flipped").notNull().default(false),
   shopkeeperId: varchar("shopkeeper_id"),
   shopkeeperName: text("shopkeeper_name"),
   shopkeeperImageUrl: text("shopkeeper_image_url"),

@@ -37,7 +37,8 @@ The application is built as a monolithic web app with a clear separation of conc
 - **Image Processing**: Sharp library for server-side image manipulation.
 - **World System**:
     - Features a dynamic world map with draggable, customizable worlds.
-    - Worlds contain vertical-scrolling scenes with interactive buildings.
+    - Worlds contain a horizontally scrollable panoramic canvas (200vw wide) with interactive buildings.
+    - Admin controls: free-placement drag (float precision, no grid snap), last-moved building always on top, flip (mirror) buildings left-right, horizontal scroll with background moving together.
     - Exploration mechanics involve pet-scaled enemies, a multi-wave battle system, and potion usage.
 - **Pet System**:
     - Pets are shop items with rarity and hatch times.

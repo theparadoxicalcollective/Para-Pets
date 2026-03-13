@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import coinIconImg from "@assets/icon_coin.png";
-import { Plus, Trash2, X, MapPin, Package, Pencil, Settings, Swords } from "lucide-react";
+import { Plus, Trash2, X, MapPin, Package, Pencil, Settings, Swords, FlipHorizontal } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 import ExploreAdminPanel from "@/components/ExploreAdminPanel";
 import BattleArena from "@/components/BattleArena";
@@ -88,6 +88,7 @@ interface WorldLocationData {
   description: string | null;
   posX: number;
   posY: number;
+  flipped: boolean;
   sortOrder: number;
   ownerImageUrl: string | null;
   isShop: boolean;
@@ -178,9 +179,11 @@ export default function WorldPage({ user }: WorldPageProps) {
   const queryClient = useQueryClient();
 
   const areaRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<{ locId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ locId: string; startCanvasX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const [dragPos, setDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
   const didDrag = useRef(false);
+  const [topLocId, setTopLocId] = useState<string | null>(null);
 
   const { data: locations = [], isLoading: locationsLoading } = useQuery<WorldLocationData[]>({
     queryKey: ["/api/world", worldId, "locations"],
@@ -372,15 +375,26 @@ export default function WorldPage({ user }: WorldPageProps) {
     },
   });
 
+  const flipMutation = useMutation({
+    mutationFn: async (locationId: string) => {
+      const res = await apiRequest("PATCH", `/api/admin/world/location/${locationId}/flip`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "locations"] });
+    },
+  });
+
   const handlePointerDown = useCallback((e: React.PointerEvent, loc: WorldLocationData) => {
     if (!currentUser.isAdmin) return;
     e.preventDefault();
     e.stopPropagation();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     didDrag.current = false;
+    const canvasLeft = areaRef.current ? areaRef.current.getBoundingClientRect().left : 0;
     dragRef.current = {
       locId: loc.id,
-      startX: e.clientX,
+      startCanvasX: e.clientX - canvasLeft,
       startY: e.clientY,
       origPosX: loc.posX,
       origPosY: loc.posY,
@@ -390,14 +404,17 @@ export default function WorldPage({ user }: WorldPageProps) {
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!dragRef.current || !areaRef.current) return;
     e.preventDefault();
-    const rect = areaRef.current.getBoundingClientRect();
-    const dx = e.clientX - dragRef.current.startX;
+    const canvasLeft = areaRef.current.getBoundingClientRect().left;
+    const canvasWidth = areaRef.current.offsetWidth;
+    const canvasHeight = areaRef.current.offsetHeight || areaRef.current.getBoundingClientRect().height;
+    const currentCanvasX = e.clientX - canvasLeft;
+    const dx = currentCanvasX - dragRef.current.startCanvasX;
     const dy = e.clientY - dragRef.current.startY;
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDrag.current = true;
-    const pxPerPercX = rect.width / 100;
-    const pxPerPercY = rect.height / 100;
-    const newX = Math.max(0, Math.min(85, dragRef.current.origPosX + dx / pxPerPercX));
-    const newY = Math.max(0, Math.min(85, dragRef.current.origPosY + dy / pxPerPercY));
+    const pxPerPercX = canvasWidth / 100;
+    const pxPerPercY = canvasHeight / 100;
+    const newX = Math.max(0, Math.min(95, dragRef.current.origPosX + dx / pxPerPercX));
+    const newY = Math.max(0, Math.min(90, dragRef.current.origPosY + dy / pxPerPercY));
     setDragPos({ id: dragRef.current.locId, x: newX, y: newY });
   }, []);
 
@@ -407,7 +424,8 @@ export default function WorldPage({ user }: WorldPageProps) {
     const d = dragRef.current;
     dragRef.current = null;
     if (didDrag.current && dragPos) {
-      positionMutation.mutate({ locationId: d.locId, posX: Math.round(dragPos.x), posY: Math.round(dragPos.y) });
+      setTopLocId(d.locId);
+      positionMutation.mutate({ locationId: d.locId, posX: dragPos.x, posY: dragPos.y });
     }
     setDragPos(null);
   }, [dragPos, positionMutation]);
@@ -530,7 +548,7 @@ export default function WorldPage({ user }: WorldPageProps) {
         }
         .loc-node { transition: filter 0.2s ease; touch-action: none; }
         .loc-node:active { filter: brightness(1.15); }
-        .world-scroll::-webkit-scrollbar { width: 4px; }
+        .world-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
         .world-scroll::-webkit-scrollbar-track { background: transparent; }
         .world-scroll::-webkit-scrollbar-thumb { background: ${accent}40; border-radius: 4px; }
         .world-scroll::-webkit-scrollbar-thumb:hover { background: ${accent}70; }
@@ -585,7 +603,7 @@ export default function WorldPage({ user }: WorldPageProps) {
           </div>
         </div>
 
-        <div className="flex-1 relative overflow-y-auto overflow-x-hidden world-scroll">
+        <div ref={scrollContainerRef} className="flex-1 relative overflow-y-auto overflow-x-auto world-scroll">
           {locationsLoading ? (
             <div className="flex items-center justify-center py-12">
               <p className="font-fantasy text-sm animate-pulse" style={{ color: accent, textShadow: `0 0 15px ${accent}60` }}>Loading places...</p>
@@ -616,11 +634,21 @@ export default function WorldPage({ user }: WorldPageProps) {
           ) : (
             <div
               ref={areaRef}
-              className="relative w-full"
-              style={{ paddingBottom: "120%" }}
+              style={{
+                position: "relative",
+                width: "200vw",
+                paddingBottom: "60%",
+                backgroundImage: `url(${world.bg})`,
+                backgroundSize: "cover",
+                backgroundPosition: "left center",
+                backgroundRepeat: "no-repeat",
+              }}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
             >
+              <div className="absolute inset-0 pointer-events-none" style={{
+                background: `linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.08) 30%, rgba(0,0,0,0.1) 70%, rgba(0,0,0,0.65) 100%)`,
+              }} />
               <div className="absolute inset-0">
                 {locations.map((loc, i) => {
                   const pos = dragPos?.id === loc.id ? { x: dragPos.x, y: dragPos.y } : { x: loc.posX, y: loc.posY };
@@ -634,9 +662,9 @@ export default function WorldPage({ user }: WorldPageProps) {
                       style={{
                         left: `${pos.x}%`,
                         top: `${pos.y}%`,
-                        width: "34%",
+                        width: "17%",
                         cursor: currentUser.isAdmin ? "grab" : "pointer",
-                        zIndex: isDragging ? 50 : 10 + i,
+                        zIndex: isDragging ? 60 : topLocId === loc.id ? 45 : 10 + i,
                       }}
                       onPointerDown={(e) => handlePointerDown(e, loc)}
                       onClick={() => handleLocationClick(loc)}
@@ -658,6 +686,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                             draggable={false}
                             style={{
                               filter: `drop-shadow(0 3px 8px rgba(0,0,0,0.6)) drop-shadow(0 0 18px ${glow}80) drop-shadow(0 0 30px ${glow}40)`,
+                              transform: loc.flipped ? "scaleX(-1)" : undefined,
                             }}
                           />
                         ) : (
@@ -696,6 +725,21 @@ export default function WorldPage({ user }: WorldPageProps) {
                               }}
                             >
                               <Pencil className="w-2.5 h-2.5 text-white" />
+                            </button>
+                            <button
+                              data-testid={`button-flip-location-${loc.id}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                flipMutation.mutate(loc.id);
+                              }}
+                              className="absolute -bottom-1 -right-1 z-30 w-5 h-5 rounded-full flex items-center justify-center"
+                              style={{
+                                background: "rgba(0,80,180,0.9)",
+                                border: "1px solid rgba(100,180,255,0.5)",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <FlipHorizontal className="w-2.5 h-2.5 text-white" />
                             </button>
                             <button
                               data-testid={`button-delete-location-${loc.id}`}
