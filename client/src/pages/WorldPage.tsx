@@ -572,45 +572,34 @@ export default function WorldPage({ user }: WorldPageProps) {
             data-testid={`text-world-name-${worldId}`}
           >
             <div
-              className="relative flex items-center justify-center overflow-hidden"
+              className="relative"
               style={{
-                width: "min(210px, 56vw)",
-                height: "min(72px, 19vw)",
-                borderRadius: "6px",
-                boxShadow: "0 4px 14px rgba(0,0,0,0.75), 0 1px 0 rgba(255,220,80,0.08) inset",
+                width: "min(196px, 52vw)",
+                filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.85)) drop-shadow(0 2px 6px rgba(0,0,0,0.6))",
               }}
             >
               <img
                 src={woodSignImg}
                 alt=""
-                className="absolute inset-0 w-full h-full"
+                className="w-full h-auto block"
                 style={{
-                  objectFit: "cover",
-                  objectPosition: "center center",
-                  filter: "brightness(0.78) saturate(1.15)",
+                  filter: "brightness(0.82) saturate(1.12) contrast(1.05)",
                 }}
                 draggable={false}
               />
-              <div
-                className="absolute inset-0"
-                style={{
-                  background: "linear-gradient(180deg, rgba(0,0,0,0.12) 0%, transparent 35%, transparent 65%, rgba(0,0,0,0.2) 100%)",
-                  borderRadius: "6px",
-                  border: "1px solid rgba(160,100,40,0.45)",
-                  boxShadow: "inset 0 0 16px rgba(0,0,0,0.35)",
-                }}
-              />
-              <h2
-                className="relative z-10 font-fantasy font-bold tracking-widest text-center leading-none px-4"
-                style={{
-                  fontSize: "clamp(12px, 3.4vw, 17px)",
-                  color: "#fff5b0",
-                  textShadow: "0 0 6px #f0c040, 0 0 14px #d4a017, 0 0 28px rgba(212,160,23,0.6), 0 0 50px rgba(240,192,64,0.25), 0 1px 3px rgba(0,0,0,0.98)",
-                  letterSpacing: "0.13em",
-                }}
-              >
-                {world.name}
-              </h2>
+              <div className="absolute inset-0 flex items-center justify-center" style={{ paddingBottom: "6%" }}>
+                <h2
+                  className="font-fantasy font-bold tracking-widest text-center leading-none px-5"
+                  style={{
+                    fontSize: "clamp(11px, 3.1vw, 16px)",
+                    color: "#fff5b0",
+                    textShadow: "0 0 6px #f0c040, 0 0 14px #d4a017, 0 0 28px rgba(212,160,23,0.65), 0 0 50px rgba(240,192,64,0.28), 0 1px 3px rgba(0,0,0,1)",
+                    letterSpacing: "0.12em",
+                  }}
+                >
+                  {world.name}
+                </h2>
+              </div>
             </div>
           </div>
         </div>

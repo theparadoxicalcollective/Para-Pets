@@ -44,29 +44,13 @@ interface EdibleItem {
 }
 
 const WALK_CONFIGS = [
-  { yPct: 93, startXPct: 3,  travelPx: "155px", duration: "8s",  delay: "0s",   floatDur: "2.2s", floatDelay: "0s"   },
-  { yPct: 85, startXPct: 55, travelPx: "125px", duration: "10s", delay: "2s",   floatDur: "2.6s", floatDelay: "0.8s" },
-  { yPct: 76, startXPct: 18, travelPx: "95px",  duration: "13s", delay: "4s",   floatDur: "3.0s", floatDelay: "1.5s" },
-  { yPct: 66, startXPct: 63, travelPx: "60px",  duration: "16s", delay: "1s",   floatDur: "3.4s", floatDelay: "0.4s" },
-  { yPct: 57, startXPct: 28, travelPx: "40px",  duration: "19s", delay: "5.5s", floatDur: "3.8s", floatDelay: "1.9s" },
-  { yPct: 81, startXPct: 38, travelPx: "110px", duration: "11s", delay: "3.5s", floatDur: "2.8s", floatDelay: "1.1s" },
+  { wanderIdx: 0, left: "4%",  top: "88%", size: 73, duration: "22s", delay: "0s"   },
+  { wanderIdx: 1, left: "62%", top: "83%", size: 61, duration: "25s", delay: "3s"   },
+  { wanderIdx: 2, left: "20%", top: "73%", size: 51, duration: "19s", delay: "6s"   },
+  { wanderIdx: 3, left: "55%", top: "63%", size: 41, duration: "21s", delay: "1.5s" },
+  { wanderIdx: 4, left: "38%", top: "56%", size: 32, duration: "27s", delay: "9s"   },
+  { wanderIdx: 5, left: "42%", top: "79%", size: 57, duration: "24s", delay: "4.5s" },
 ];
-
-function petSize(yPct: number): number {
-  return Math.round(26 + Math.max(0, (yPct - 55) * 1.43));
-}
-
-function petFloatAnim(yPct: number): string {
-  if (yPct >= 80) return "petFloat";
-  if (yPct >= 65) return "petFloatMid";
-  return "petFloatSmall";
-}
-
-function petOpacity(yPct: number): number {
-  if (yPct >= 78) return 1;
-  if (yPct >= 63) return 0.88;
-  return 0.72;
-}
 
 export default function PetHousePage({ user }: PetHousePageProps) {
   const [selectedPet, setSelectedPet] = useState<InventoryPet | null>(null);
@@ -441,49 +425,41 @@ function WalkingPet({
   onClick: () => void;
 }) {
   const cfg = WALK_CONFIGS[index % WALK_CONFIGS.length];
-  const size = petSize(cfg.yPct);
-  const opacity = petOpacity(cfg.yPct);
-  const floatAnim = petFloatAnim(cfg.yPct);
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
-  const shadowW = Math.round(size * 0.52);
-  const shadowH = Math.max(3, Math.round(size * 0.07));
+  const sz = cfg.size;
+  const shadowW = Math.round(sz * 0.52);
 
   return (
     <div
       data-testid={`pet-room-${pet.inventoryId}`}
       className="absolute"
       style={{
-        left: `${cfg.startXPct}%`,
-        top: `${cfg.yPct}%`,
-        marginTop: -size,
-        zIndex: Math.floor(cfg.yPct),
-        opacity,
+        left: cfg.left,
+        top: cfg.top,
+        marginTop: -sz,
+        zIndex: parseInt(cfg.top, 10),
         cursor: "pointer",
       }}
       onClick={onClick}
     >
       <div
-        style={({
-          "--pw-dist": cfg.travelPx,
-          animation: `petIdleWalk ${cfg.duration} ${cfg.delay} linear infinite`,
-        } as any)}
+        style={{
+          animation: `petWander${cfg.wanderIdx} ${cfg.duration} ${cfg.delay} ease-in-out infinite`,
+          transformOrigin: "bottom center",
+        }}
       >
-        <div
-          style={{
-            animation: `${floatAnim} ${cfg.floatDur} ${cfg.floatDelay} ease-in-out infinite`,
-          }}
-        >
+        <div style={{ animation: `petFloatSmall 3.5s ${cfg.delay} ease-in-out infinite` }}>
           {petImg ? (
             <img
               src={petImg}
               alt=""
               className="pointer-events-none"
               style={{
-                width: size,
-                height: size,
+                width: sz,
+                height: sz,
                 objectFit: "contain",
                 filter: [
-                  `drop-shadow(0 ${Math.round(size * 0.16)}px ${Math.round(size * 0.20)}px rgba(0,0,0,0.65))`,
+                  `drop-shadow(0 ${Math.round(sz * 0.15)}px ${Math.round(sz * 0.18)}px rgba(0,0,0,0.65))`,
                   "brightness(1.06) saturate(1.1)",
                 ].join(" "),
               }}
@@ -492,28 +468,27 @@ function WalkingPet({
             <span
               className="pointer-events-none flex items-center justify-center"
               style={{
-                width: size,
-                height: size,
-                fontSize: size * 0.65,
-                filter: `drop-shadow(0 ${Math.round(size * 0.16)}px ${Math.round(size * 0.20)}px rgba(0,0,0,0.65))`,
+                width: sz,
+                height: sz,
+                fontSize: sz * 0.65,
+                filter: `drop-shadow(0 ${Math.round(sz * 0.15)}px ${Math.round(sz * 0.18)}px rgba(0,0,0,0.65))`,
               }}
             >
               🐾
             </span>
           )}
-        </div>
 
-        <div
-          style={{
-            width: shadowW,
-            height: shadowH,
-            background: "rgba(0,0,0,0.28)",
-            borderRadius: "50%",
-            margin: "0 auto",
-            filter: `blur(${Math.max(2, Math.round(size * 0.05))}px)`,
-            animation: `petShadowFloat ${cfg.floatDur} ${cfg.floatDelay} ease-in-out infinite`,
-          }}
-        />
+          <div
+            style={{
+              width: shadowW,
+              height: Math.max(3, Math.round(sz * 0.06)),
+              background: "rgba(0,0,0,0.25)",
+              borderRadius: "50%",
+              margin: "0 auto",
+              filter: `blur(${Math.max(2, Math.round(sz * 0.05))}px)`,
+            }}
+          />
+        </div>
       </div>
     </div>
   );
