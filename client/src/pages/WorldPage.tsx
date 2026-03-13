@@ -91,6 +91,7 @@ interface WorldLocationData {
   sortOrder: number;
   ownerImageUrl: string | null;
   isShop: boolean;
+  glowColor: string | null;
 }
 
 interface LocationObjectData {
@@ -245,7 +246,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   });
 
   const addLocationMutation = useMutation({
-    mutationFn: async (data: { name: string; isShop: boolean; type?: string; description?: string; iconData?: string | null; bgData?: string | null; ownerImageData?: string | null }) => {
+    mutationFn: async (data: { name: string; isShop: boolean; type?: string; description?: string; iconData?: string | null; bgData?: string | null; ownerImageData?: string | null; glowColor?: string | null }) => {
       const res = await apiRequest("POST", `/api/admin/world/${worldId}/location`, data);
       return res.json();
     },

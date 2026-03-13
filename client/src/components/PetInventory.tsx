@@ -31,6 +31,7 @@ interface InventoryItem {
   petAtk: number;
   petDef: number;
   petLevel: number;
+  petLevelPoints: number;
   itemsUsedThisLevel: number;
 }
 

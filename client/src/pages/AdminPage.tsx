@@ -20,6 +20,7 @@ interface AdminPageProps {
     profileImage: string | null;
     coins: number;
     isAdmin: boolean;
+    activePetId: string | null;
     lastUsernameChange: string | null;
     lastProfilePicChange: string | null;
   };
