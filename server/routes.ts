@@ -394,6 +394,7 @@ export async function registerRoutes(
             petAtk: inv.petAtk,
             petDef: inv.petDef,
             petLevelPoints: inv.petLevelPoints,
+            petTemplateId: shopItem.petTemplateId || null,
           };
         }
       }
@@ -421,6 +422,15 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/users/:userId/badges", isAuthenticated, async (req, res) => {
+    try {
+      const badges = await storage.getUserBadges(req.params.userId);
+      return res.json(badges);
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to fetch badges" });
+    }
+  });
+
   // Public pet list for visiting another player's pet house
   app.get("/api/users/:userId/pets", isAuthenticated, async (req, res) => {
     try {
@@ -445,6 +455,7 @@ export async function registerRoutes(
           petHealth: r.inventory.petHealth,
           petAtk: r.inventory.petAtk,
           petDef: r.inventory.petDef,
+          petTemplateId: r.shopItem!.petTemplateId || null,
         }));
 
       return res.json({ username: targetUser.username, pets: hatchedPets });

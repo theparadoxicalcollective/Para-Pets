@@ -1,8 +1,8 @@
 import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
-import petHouseBg from "@assets/pethouse_bg.png";
-import petHouseFloor from "@assets/pethouse_floor.png";
+import PetAnimator from "@/components/PetAnimator";
+import petHouseBg from "@assets/pethouse_bg_new.png";
 
 interface VisitedPet {
   inventoryId: string;
@@ -17,6 +17,7 @@ interface VisitedPet {
   petHealth: number;
   petAtk: number;
   petDef: number;
+  petTemplateId: string | null;
 }
 
 interface UserPetsResponse {
@@ -25,111 +26,134 @@ interface UserPetsResponse {
 }
 
 const WALK_CONFIGS = [
-  { travelPx: "140px", duration: "8s",   delay: "0s",   startPct: 4,  size: 70, bottomPx: 10,  floatDur: "2.4s", floatDelay: "0s"   },
-  { travelPx: "110px", duration: "11s",  delay: "2.8s", startPct: 28, size: 56, bottomPx: 115, floatDur: "2.9s", floatDelay: "0.8s" },
-  { travelPx: "150px", duration: "7s",   delay: "4.5s", startPct: 8,  size: 74, bottomPx: 5,   floatDur: "2.1s", floatDelay: "1.4s" },
-  { travelPx: "100px", duration: "9s",   delay: "1.5s", startPct: 48, size: 50, bottomPx: 165, floatDur: "3.1s", floatDelay: "0.4s" },
-  { travelPx: "130px", duration: "10s",  delay: "3.5s", startPct: 18, size: 62, bottomPx: 60,  floatDur: "2.7s", floatDelay: "1.9s" },
-  { travelPx: "120px", duration: "8.5s", delay: "6s",   startPct: 36, size: 54, bottomPx: 130, floatDur: "2.3s", floatDelay: "0.6s" },
+  { wanderIdx: 0, left: "4%",  top: "88%", size: 73, duration: "22s", delay: "0s"   },
+  { wanderIdx: 1, left: "62%", top: "83%", size: 61, duration: "25s", delay: "3s"   },
+  { wanderIdx: 2, left: "20%", top: "73%", size: 51, duration: "19s", delay: "6s"   },
+  { wanderIdx: 3, left: "55%", top: "63%", size: 41, duration: "21s", delay: "1.5s" },
+  { wanderIdx: 4, left: "38%", top: "56%", size: 32, duration: "27s", delay: "9s"   },
+  { wanderIdx: 5, left: "42%", top: "79%", size: 57, duration: "24s", delay: "4.5s" },
 ];
 
 function WalkingPetView({ pet, index }: { pet: VisitedPet; index: number }) {
   const cfg = WALK_CONFIGS[index % WALK_CONFIGS.length];
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
+  const sz = cfg.size;
+  const shadowW = Math.round(sz * 0.52);
+
+  const shadow = (
+    <div
+      style={{
+        width: shadowW,
+        height: Math.max(3, Math.round(sz * 0.06)),
+        background: "rgba(0,0,0,0.25)",
+        borderRadius: "50%",
+        margin: "0 auto",
+        filter: `blur(${Math.max(2, Math.round(sz * 0.05))}px)`,
+      }}
+    />
+  );
 
   return (
     <div
       data-testid={`visit-pet-${pet.inventoryId}`}
       className="absolute"
-      style={({
-        left: `${cfg.startPct}%`,
-        bottom: cfg.bottomPx,
-        zIndex: index + 1,
-        "--pw-dist": cfg.travelPx,
-        animation: `petIdleWalk ${cfg.duration} ${cfg.delay} linear infinite`,
-      } as any)}
+      style={{
+        left: cfg.left,
+        top: cfg.top,
+        marginTop: -sz,
+        zIndex: parseInt(cfg.top, 10),
+      }}
     >
-      <div style={{ animation: `petFloat ${cfg.floatDur} ${cfg.floatDelay} ease-in-out infinite` }}>
-        {petImg ? (
-          <img
-            src={petImg}
-            alt=""
-            className="pointer-events-none"
-            style={{
-              width: cfg.size,
-              height: cfg.size,
-              objectFit: "contain",
-              filter: [
-                `drop-shadow(0 ${Math.round(cfg.size * 0.18)}px ${Math.round(cfg.size * 0.22)}px rgba(0,0,0,0.75))`,
-                `drop-shadow(0 4px 6px rgba(0,0,0,0.45))`,
-                "brightness(1.08) saturate(1.12)",
-              ].join(" "),
-            }}
-          />
-        ) : (
-          <span
-            className="pointer-events-none flex items-center justify-center"
-            style={{ width: cfg.size, height: cfg.size, fontSize: cfg.size * 0.65 }}
-          >
-            🐾
-          </span>
-        )}
-      </div>
-
-      {/* Ground shadow */}
       <div
         style={{
-          width: cfg.size * 0.55,
-          height: 6,
-          background: "rgba(0,0,0,0.32)",
-          borderRadius: "50%",
-          margin: "0 auto",
-          filter: "blur(4px)",
-          animation: `petShadowFloat ${cfg.floatDur} ${cfg.floatDelay} ease-in-out infinite`,
+          animation: `petWander${cfg.wanderIdx} ${cfg.duration} ${cfg.delay} ease-in-out infinite`,
+          transformOrigin: "bottom center",
         }}
-      />
+      >
+        {pet.petTemplateId ? (
+          <div>
+            <PetAnimator
+              petTemplateId={pet.petTemplateId}
+              mode="walk"
+              size={sz}
+              style={{
+                filter: `drop-shadow(0 ${Math.round(sz * 0.15)}px ${Math.round(sz * 0.18)}px rgba(0,0,0,0.55))`,
+              }}
+            />
+            {shadow}
+          </div>
+        ) : (
+          <div style={{ animation: `petFloatSmall 3.5s ${cfg.delay} ease-in-out infinite` }}>
+            {petImg ? (
+              <img
+                src={petImg}
+                alt=""
+                className="pointer-events-none"
+                style={{
+                  width: sz,
+                  height: sz,
+                  objectFit: "contain",
+                  filter: [
+                    `drop-shadow(0 ${Math.round(sz * 0.15)}px ${Math.round(sz * 0.18)}px rgba(0,0,0,0.65))`,
+                    "brightness(1.06) saturate(1.1)",
+                  ].join(" "),
+                }}
+              />
+            ) : (
+              <span
+                className="pointer-events-none flex items-center justify-center"
+                style={{ width: sz, height: sz, fontSize: sz * 0.65 }}
+              >
+                🐾
+              </span>
+            )}
+            {shadow}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-function TreehouseRoom() {
+function ForestRoom() {
   return (
-    <div className="absolute inset-0" style={{ background: "#0a0600" }}>
+    <div className="absolute inset-0" style={{ background: "#1a2a0a" }}>
       <img
         src={petHouseBg}
         alt=""
         className="absolute inset-0 w-full h-full object-cover"
-        style={{ objectPosition: "center 20%" }}
+        style={{ objectPosition: "center center" }}
         draggable={false}
       />
       <div
-        className="absolute top-0 left-0 right-0"
+        className="absolute top-0 left-0 right-0 pointer-events-none"
         style={{
-          height: "22%",
-          background: "linear-gradient(to bottom, rgba(5,8,20,0.6) 0%, transparent 100%)",
-          pointerEvents: "none",
+          height: "18%",
+          background: "linear-gradient(to bottom, rgba(8,14,5,0.55) 0%, transparent 100%)",
         }}
       />
       <div
-        className="absolute"
+        className="absolute pointer-events-none"
         style={{
-          left: 0, right: 0, bottom: 0, height: "56%",
-          WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.55) 14%, black 32%)",
-          maskImage: "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.55) 14%, black 32%)",
+          left: 0, right: 0,
+          top: "42%",
+          height: "14%",
+          background: "linear-gradient(to bottom, transparent 0%, rgba(180,220,140,0.06) 50%, transparent 100%)",
         }}
-      >
-        <img
-          src={petHouseFloor}
-          alt=""
-          className="w-full h-full object-cover"
-          style={{ objectPosition: "center bottom" }}
-          draggable={false}
-        />
-      </div>
+      />
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          left: 0, right: 0,
+          bottom: 0,
+          height: "30%",
+          background: "linear-gradient(to top, rgba(20,35,8,0.38) 0%, transparent 100%)",
+        }}
+      />
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: "linear-gradient(90deg, rgba(0,0,0,0.22) 0%, transparent 22%, transparent 78%, rgba(0,0,0,0.22) 100%)",
+          background: "linear-gradient(90deg, rgba(0,0,0,0.18) 0%, transparent 18%, transparent 82%, rgba(0,0,0,0.18) 100%)",
         }}
       />
     </div>
@@ -153,13 +177,12 @@ export default function VisitPetHousePage() {
   return (
     <div
       className="relative h-[100dvh] w-full overflow-hidden flex flex-col"
-      style={{ maxWidth: "768px", margin: "0 auto", background: "#0a0600" }}
+      style={{ maxWidth: "768px", margin: "0 auto", background: "#1a2a0a" }}
     >
-      {/* Top bar strip */}
       <div
         className="relative z-30 flex items-center gap-3 px-4 py-3 flex-shrink-0"
         style={{
-          background: "linear-gradient(to bottom, rgba(5,8,20,0.85) 0%, rgba(5,8,20,0.0) 100%)",
+          background: "linear-gradient(to bottom, rgba(8,14,5,0.85) 0%, rgba(8,14,5,0.0) 100%)",
         }}
       >
         <button
@@ -178,7 +201,7 @@ export default function VisitPetHousePage() {
         {data && (
           <p
             className="font-fantasy text-sm font-semibold tracking-wide"
-            style={{ color: "#f0c040" }}
+            style={{ color: "#f0c040", textShadow: "0 0 12px rgba(240,192,64,0.5)" }}
             data-testid="text-visit-house-owner"
           >
             {data.username}'s Pet House
@@ -186,9 +209,8 @@ export default function VisitPetHousePage() {
         )}
       </div>
 
-      {/* Room */}
       <div className="flex-1 relative overflow-hidden">
-        <TreehouseRoom />
+        <ForestRoom />
 
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
@@ -207,12 +229,12 @@ export default function VisitPetHousePage() {
         )}
 
         {data && (
-          <div className="absolute z-10" style={{ left: 0, right: 0, bottom: 0, height: "70%" }}>
+          <div className="absolute inset-0 z-10">
             {data.pets.length === 0 ? (
-              <div className="w-full h-full flex items-center justify-center">
+              <div className="w-full h-full flex items-end justify-center pb-16">
                 <p
                   className="font-fantasy text-[9px] tracking-wider text-center px-6"
-                  style={{ color: "rgba(139,106,62,0.5)" }}
+                  style={{ color: "rgba(200,170,100,0.55)" }}
                 >
                   {data.username} hasn't moved any pets in yet!
                 </p>

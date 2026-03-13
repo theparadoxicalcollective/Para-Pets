@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import profileFrameImg from "@assets/frame_profile.png";
-import petHouseIconImg from "@assets/icon_pet_house.png";
+import petHouseBg from "@assets/pethouse_bg_new.png";
 
 interface PlayerDetailPanelProps {
   userId: string;
@@ -23,6 +23,7 @@ interface ActivePet {
   petAtk: number;
   petDef: number;
   petLevelPoints: number;
+  petTemplateId: string | null;
 }
 
 interface Accessory {
@@ -39,6 +40,14 @@ interface PublicProfile {
   profileImage: string | null;
   activePet: ActivePet | null;
   accessories: Accessory[];
+}
+
+interface Badge {
+  id: string;
+  name: string;
+  description: string | null;
+  imageUrl: string | null;
+  awardedAt: string;
 }
 
 function RarityStars({ rarity }: { rarity: number | null }) {
@@ -74,6 +83,16 @@ export default function PlayerDetailPanel({ userId, onClose }: PlayerDetailPanel
       if (!res.ok) throw new Error("Failed to load profile");
       return res.json();
     },
+  });
+
+  const { data: badges } = useQuery<Badge[]>({
+    queryKey: ["/api/users", userId, "badges"],
+    queryFn: async () => {
+      const res = await fetch(`/api/users/${userId}/badges`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!userId,
   });
 
   const petImg = profile?.activePet?.hatchedImageUrl || profile?.activePet?.imageUrl;
@@ -160,29 +179,47 @@ export default function PlayerDetailPanel({ userId, onClose }: PlayerDetailPanel
               >
                 {profile.username}
               </p>
-
-              {/* Visit Pet House button */}
-              <button
-                data-testid="button-visit-pethouse"
-                onClick={() => {
-                  onClose();
-                  navigate(`/visit/${profile.id}`);
-                }}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl font-fantasy text-xs tracking-wider transition-all"
-                style={{
-                  background: "linear-gradient(135deg, rgba(30,50,20,0.9), rgba(15,30,10,0.9))",
-                  border: "1px solid rgba(134,239,172,0.35)",
-                  color: "#86efac",
-                  boxShadow: "0 2px 12px rgba(0,0,0,0.4)",
-                }}
-              >
-                <img src={petHouseIconImg} alt="" className="w-5 h-5 object-contain" />
-                Visit Pet House
-              </button>
             </div>
 
             {/* Divider */}
             <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(212,160,23,0.25), transparent)" }} />
+
+            {/* Pet House preview + visit button */}
+            <button
+              data-testid="button-visit-pethouse"
+              onClick={() => {
+                onClose();
+                navigate(`/visit/${profile.id}`);
+              }}
+              className="relative w-full rounded-2xl overflow-hidden flex flex-col items-start justify-end"
+              style={{
+                height: 100,
+                border: "1px solid rgba(134,239,172,0.35)",
+                boxShadow: "0 2px 16px rgba(0,0,0,0.5)",
+              }}
+            >
+              <img
+                src={petHouseBg}
+                alt=""
+                className="absolute inset-0 w-full h-full object-cover"
+                style={{ objectPosition: "center 30%" }}
+              />
+              <div
+                className="absolute inset-0"
+                style={{
+                  background: "linear-gradient(to top, rgba(5,18,3,0.82) 0%, rgba(5,18,3,0.25) 60%, transparent 100%)",
+                }}
+              />
+              <div className="relative z-10 px-4 pb-3 flex items-center gap-2">
+                <span className="text-lg">🏡</span>
+                <p
+                  className="font-fantasy text-sm font-semibold tracking-wide"
+                  style={{ color: "#86efac", textShadow: "0 1px 8px rgba(0,0,0,0.9)" }}
+                >
+                  Visit Pet House
+                </p>
+              </div>
+            </button>
 
             {/* Active pet */}
             <div className="flex flex-col gap-3">
@@ -201,7 +238,6 @@ export default function PlayerDetailPanel({ userId, onClose }: PlayerDetailPanel
                     border: "1px solid rgba(212,160,23,0.2)",
                   }}
                 >
-                  {/* Pet image */}
                   <div
                     className="flex-shrink-0 rounded-xl overflow-hidden flex items-center justify-center"
                     style={{
@@ -219,7 +255,6 @@ export default function PlayerDetailPanel({ userId, onClose }: PlayerDetailPanel
                     )}
                   </div>
 
-                  {/* Pet info */}
                   <div className="flex-1 min-w-0 flex flex-col gap-1.5">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p
@@ -278,6 +313,56 @@ export default function PlayerDetailPanel({ userId, onClose }: PlayerDetailPanel
                 </div>
               )}
             </div>
+
+            {/* Badges */}
+            {badges && badges.length > 0 && (
+              <div className="flex flex-col gap-3">
+                <p
+                  className="font-fantasy text-xs tracking-widest uppercase"
+                  style={{ color: "rgba(212,160,23,0.6)" }}
+                >
+                  Badges
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {badges.map(badge => (
+                    <div
+                      key={badge.id}
+                      data-testid={`badge-${badge.id}`}
+                      className="flex flex-col items-center gap-1"
+                      style={{ width: 56 }}
+                      title={badge.description || badge.name}
+                    >
+                      <div
+                        className="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden"
+                        style={{
+                          background: "linear-gradient(135deg, rgba(40,20,5,0.95), rgba(20,8,0,0.95))",
+                          border: "1.5px solid rgba(240,192,64,0.4)",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
+                        }}
+                      >
+                        {badge.imageUrl ? (
+                          <img src={badge.imageUrl} alt={badge.name} className="w-full h-full object-contain p-1" />
+                        ) : (
+                          <span style={{ fontSize: 24 }}>🏅</span>
+                        )}
+                      </div>
+                      <p
+                        className="font-fantasy text-[8px] text-center leading-tight"
+                        style={{
+                          color: "#a89878",
+                          maxWidth: 56,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {badge.name}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Accessories */}
             <div className="flex flex-col gap-3">

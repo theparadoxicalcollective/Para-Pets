@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
+import PetAnimator from "@/components/PetAnimator";
 import petHouseBg from "@assets/pethouse_bg_new.png";
 
 interface PetHousePageProps {
@@ -32,6 +33,7 @@ interface InventoryPet {
   petLevel: number;
   petLevelPoints: number;
   rarity: number | null;
+  petTemplateId: string | null;
 }
 
 interface EdibleItem {
@@ -160,19 +162,6 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               )}
             </div>
 
-            {hatchedPets.length > 0 && !selectedPet && (
-              <div
-                className="absolute z-10 flex justify-center pointer-events-none"
-                style={{ top: "49%", left: 0, right: 0 }}
-              >
-                <p
-                  className="font-fantasy text-[8px] tracking-[0.2em]"
-                  style={{ color: "rgba(220,180,90,0.4)" }}
-                >
-                  tap a pet to feed
-                </p>
-              </div>
-            )}
           </>
         )}
 
@@ -429,6 +418,19 @@ function WalkingPet({
   const sz = cfg.size;
   const shadowW = Math.round(sz * 0.52);
 
+  const shadow = (
+    <div
+      style={{
+        width: shadowW,
+        height: Math.max(3, Math.round(sz * 0.06)),
+        background: "rgba(0,0,0,0.25)",
+        borderRadius: "50%",
+        margin: "0 auto",
+        filter: `blur(${Math.max(2, Math.round(sz * 0.05))}px)`,
+      }}
+    />
+  );
+
   return (
     <div
       data-testid={`pet-room-${pet.inventoryId}`}
@@ -448,47 +450,51 @@ function WalkingPet({
           transformOrigin: "bottom center",
         }}
       >
-        <div style={{ animation: `petFloatSmall 3.5s ${cfg.delay} ease-in-out infinite` }}>
-          {petImg ? (
-            <img
-              src={petImg}
-              alt=""
-              className="pointer-events-none"
+        {pet.petTemplateId ? (
+          <div>
+            <PetAnimator
+              petTemplateId={pet.petTemplateId}
+              mode="walk"
+              size={sz}
               style={{
-                width: sz,
-                height: sz,
-                objectFit: "contain",
-                filter: [
-                  `drop-shadow(0 ${Math.round(sz * 0.15)}px ${Math.round(sz * 0.18)}px rgba(0,0,0,0.65))`,
-                  "brightness(1.06) saturate(1.1)",
-                ].join(" "),
+                filter: `drop-shadow(0 ${Math.round(sz * 0.15)}px ${Math.round(sz * 0.18)}px rgba(0,0,0,0.55))`,
               }}
             />
-          ) : (
-            <span
-              className="pointer-events-none flex items-center justify-center"
-              style={{
-                width: sz,
-                height: sz,
-                fontSize: sz * 0.65,
-                filter: `drop-shadow(0 ${Math.round(sz * 0.15)}px ${Math.round(sz * 0.18)}px rgba(0,0,0,0.65))`,
-              }}
-            >
-              🐾
-            </span>
-          )}
-
-          <div
-            style={{
-              width: shadowW,
-              height: Math.max(3, Math.round(sz * 0.06)),
-              background: "rgba(0,0,0,0.25)",
-              borderRadius: "50%",
-              margin: "0 auto",
-              filter: `blur(${Math.max(2, Math.round(sz * 0.05))}px)`,
-            }}
-          />
-        </div>
+            {shadow}
+          </div>
+        ) : (
+          <div style={{ animation: `petFloatSmall 3.5s ${cfg.delay} ease-in-out infinite` }}>
+            {petImg ? (
+              <img
+                src={petImg}
+                alt=""
+                className="pointer-events-none"
+                style={{
+                  width: sz,
+                  height: sz,
+                  objectFit: "contain",
+                  filter: [
+                    `drop-shadow(0 ${Math.round(sz * 0.15)}px ${Math.round(sz * 0.18)}px rgba(0,0,0,0.65))`,
+                    "brightness(1.06) saturate(1.1)",
+                  ].join(" "),
+                }}
+              />
+            ) : (
+              <span
+                className="pointer-events-none flex items-center justify-center"
+                style={{
+                  width: sz,
+                  height: sz,
+                  fontSize: sz * 0.65,
+                  filter: `drop-shadow(0 ${Math.round(sz * 0.15)}px ${Math.round(sz * 0.18)}px rgba(0,0,0,0.65))`,
+                }}
+              >
+                🐾
+              </span>
+            )}
+            {shadow}
+          </div>
+        )}
       </div>
     </div>
   );
