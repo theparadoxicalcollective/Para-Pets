@@ -46,7 +46,12 @@ export const WORLD_OPTIONS = [
   { id: "haunted_woods", name: "Haunted Woods" },
 ];
 
-const ITEM_TYPES = ["pet", "item", "accessory", "potion", "special"];
+const ITEM_TYPES = ["pet", "power_up", "accessory", "potion", "special", "decor", "edibles"];
+
+function formatTypeName(type: string): string {
+  if (type === "power_up") return "Power Up";
+  return type.charAt(0).toUpperCase() + type.slice(1);
+}
 
 export default function ItemDatabaseSection() {
   const [editingItem, setEditingItem] = useState<ShopItemFull | null>(null);
@@ -104,7 +109,7 @@ export default function ItemDatabaseSection() {
         >
           <option value="all">All Types</option>
           {ITEM_TYPES.map(t => (
-            <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+            <option key={t} value={t}>{formatTypeName(t)}</option>
           ))}
         </select>
       </div>
@@ -156,17 +161,20 @@ export default function ItemDatabaseSection() {
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span
-                        className="font-fantasy text-[8px] tracking-wider px-1.5 py-0.5 rounded-full capitalize"
+                        className="font-fantasy text-[8px] tracking-wider px-1.5 py-0.5 rounded-full"
                         style={{ background: "rgba(127,255,212,0.1)", color: "#7fbfb0", border: "1px solid rgba(127,255,212,0.2)" }}
                       >
-                        {item.type}
+                        {formatTypeName(item.type)}
                       </span>
                       <span className="font-fantasy text-[#f0c040] text-[8px]">{item.price} coins</span>
                     </div>
-                    {item.type === "item" && item.statBoostType && (
+                    {(item.type === "power_up" || item.type === "item") && item.statBoostType && (
                       <span className="font-fantasy text-[#a89878] text-[7px]">
                         +{item.statBoostAmount} {item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "LVL"}
                       </span>
+                    )}
+                    {item.type === "edibles" && item.statBoostAmount && (
+                      <span className="font-fantasy text-[#86efac] text-[7px]">+{item.statBoostAmount} LVL pts when fed</span>
                     )}
                     {item.type === "potion" && (
                       <span className="font-fantasy text-[#a89878] text-[7px]">
@@ -230,7 +238,8 @@ export default function ItemDatabaseSection() {
 function AdminItemForm({ item, onClose, onSuccess }: { item: ShopItemFull | null; onClose: () => void; onSuccess: () => void }) {
   const [name, setName] = useState(item?.name || "");
   const [price, setPrice] = useState(item?.price?.toString() || "");
-  const [type, setType] = useState(item?.type || "item");
+  const [type, setType] = useState(item?.type || "power_up");
+  const [edibleLvlPoints, setEdibleLvlPoints] = useState(item?.statBoostAmount?.toString() || "5");
   const [rarity, setRarity] = useState(item?.rarity?.toString() || "1");
   const [hatchTime, setHatchTime] = useState(item?.hatchTime?.toString() || "1");
   const [specialSkill, setSpecialSkill] = useState(item?.specialSkill || "");
@@ -290,9 +299,12 @@ function AdminItemForm({ item, onClose, onSuccess }: { item: ShopItemFull | null
         payload.petTemplateId = null;
       }
 
-      if (type === "item") {
+      if (type === "power_up") {
         payload.statBoostType = statBoostType;
         payload.statBoostAmount = parseInt(statBoostAmount) || 10;
+      } else if (type === "edibles") {
+        payload.statBoostType = "lvl";
+        payload.statBoostAmount = parseInt(edibleLvlPoints) || 5;
       } else {
         payload.statBoostType = null;
         payload.statBoostAmount = null;
@@ -389,7 +401,7 @@ function AdminItemForm({ item, onClose, onSuccess }: { item: ShopItemFull | null
             <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Type</label>
             <select data-testid="select-item-type" value={type} onChange={(e) => setType(e.target.value)} className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle}>
               {ITEM_TYPES.map((t) => (
-                <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+                <option key={t} value={t}>{formatTypeName(t)}</option>
               ))}
             </select>
           </div>
@@ -448,7 +460,7 @@ function AdminItemForm({ item, onClose, onSuccess }: { item: ShopItemFull | null
             </>
           )}
 
-          {type === "item" && (
+          {type === "power_up" && (
             <>
               <div>
                 <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Stat Boost Type</label>
@@ -466,6 +478,30 @@ function AdminItemForm({ item, onClose, onSuccess }: { item: ShopItemFull | null
                 <input data-testid="input-stat-boost-amount" type="number" value={statBoostAmount} onChange={(e) => setStatBoostAmount(e.target.value)} placeholder="10" min="1" className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
                 <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">Consumable - disappears after use on a pet</p>
               </div>
+            </>
+          )}
+
+          {type === "decor" && (
+            <p className="font-fantasy text-[#7fbfb0] text-[8px] tracking-wider text-center">Decor items are purely cosmetic — name and price only</p>
+          )}
+
+          {type === "edibles" && (
+            <>
+              <div>
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">+LVL Points when fed</label>
+                <input
+                  data-testid="input-edible-lvl-points"
+                  type="number"
+                  value={edibleLvlPoints}
+                  onChange={(e) => setEdibleLvlPoints(e.target.value)}
+                  placeholder="5"
+                  min="1"
+                  className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+                  style={inputStyle}
+                />
+                <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">Level points added to a pet when this edible is fed to them</p>
+              </div>
+              <p className="font-fantasy text-[#86efac] text-[8px] tracking-wider text-center">Edibles can be fed to pets from the Pet House page</p>
             </>
           )}
 

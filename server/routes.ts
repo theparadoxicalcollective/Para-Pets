@@ -542,8 +542,8 @@ export async function registerRoutes(
       }
 
       const itemShopItem = await storage.getShopItem(itemInv.shopItemId);
-      if (!itemShopItem || itemShopItem.type !== "item") {
-        return res.status(400).json({ message: "Not a usable item" });
+      if (!itemShopItem || (itemShopItem.type !== "power_up" && itemShopItem.type !== "item")) {
+        return res.status(400).json({ message: "Not a usable power up" });
       }
 
       const boostType = itemShopItem.statBoostType;
@@ -664,6 +664,58 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Use special error:", err);
       return res.status(500).json({ message: "Failed to use special item" });
+    }
+  });
+
+  app.post("/api/pet/:inventoryId/feed-edible", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { itemInventoryId } = req.body;
+
+      const petInv = await storage.getInventoryItemById(req.params.inventoryId);
+      if (!petInv || petInv.userId !== user.id) {
+        return res.status(404).json({ message: "Pet not found" });
+      }
+      if (!petInv.isHatched) {
+        return res.status(400).json({ message: "Pet has not hatched yet" });
+      }
+      if (petInv.petLevel >= 100) {
+        return res.status(400).json({ message: "Pet is already at max level" });
+      }
+
+      const itemInv = await storage.getInventoryItemById(itemInventoryId);
+      if (!itemInv || itemInv.userId !== user.id) {
+        return res.status(404).json({ message: "Edible not found in inventory" });
+      }
+
+      const itemShopItem = await storage.getShopItem(itemInv.shopItemId);
+      if (!itemShopItem || itemShopItem.type !== "edibles") {
+        return res.status(400).json({ message: "Not an edible item" });
+      }
+
+      const lvlPoints = itemShopItem.statBoostAmount || 5;
+      let totalPoints = (petInv.petLevelPoints || 0) + lvlPoints;
+      let newLevel = petInv.petLevel;
+      while (newLevel < 100) {
+        const needed = 50 + (newLevel * 10);
+        if (totalPoints < needed) break;
+        totalPoints -= needed;
+        newLevel++;
+      }
+      if (newLevel >= 100) totalPoints = 0;
+
+      const updates: any = { petLevelPoints: totalPoints };
+      if (newLevel > petInv.petLevel) {
+        updates.petLevel = newLevel;
+        updates.itemsUsedThisLevel = 0;
+      }
+
+      const updatedPet = await storage.updateInventoryItem(petInv.id, updates);
+      await storage.removeFromInventory(itemInv.id);
+      return res.json(updatedPet);
+    } catch (err) {
+      console.error("Feed edible error:", err);
+      return res.status(500).json({ message: "Failed to feed edible" });
     }
   });
 
