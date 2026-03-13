@@ -441,6 +441,7 @@ export default function WorldPage({ user }: WorldPageProps) {
       setShowNoPetMessage(true);
       return;
     }
+    setTopLocId(null);
     setActiveLocationId(loc.id);
     if (loc.isShop) {
       setShowLocationView(false);
