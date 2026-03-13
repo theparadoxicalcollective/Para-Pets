@@ -632,54 +632,50 @@ export default function WorldPage({ user }: WorldPageProps) {
               </div>
             </div>
           ) : (
-            <div className="px-3 pt-1 pb-4 flex flex-col gap-3">
-              {[...locations].sort((a, b) => a.sortOrder - b.sortOrder).map((loc, i) => {
-                const glow = loc.glowColor || accent;
-                const typeLabel = loc.isShop || loc.type === "shop"
-                  ? "Shop"
-                  : loc.type === "battle"
-                  ? "Battle"
-                  : loc.type === "explore"
-                  ? "Explore"
-                  : loc.type || "Place";
-                return (
-                  <div
-                    key={loc.id}
-                    data-testid={`location-${loc.id}`}
-                    className="relative rounded-xl overflow-hidden transition-transform active:scale-[0.98]"
-                    style={{
-                      height: "120px",
-                      border: `1.5px solid ${glow}55`,
-                      boxShadow: `0 4px 20px rgba(0,0,0,0.55), 0 0 28px ${glow}20`,
-                      cursor: "pointer",
-                    }}
-                    onClick={() => handleLocationClick(loc)}
-                  >
+            <div
+              ref={areaRef}
+              style={{
+                position: "relative",
+                width: "100%",
+                paddingBottom: "200%",
+                backgroundImage: `url(${world.bg})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                backgroundRepeat: "no-repeat",
+              }}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+            >
+              <div className="absolute inset-0 pointer-events-none" style={{
+                background: `linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.08) 30%, rgba(0,0,0,0.1) 70%, rgba(0,0,0,0.65) 100%)`,
+              }} />
+              <div className="absolute inset-0">
+                {locations.map((loc, i) => {
+                  const pos = dragPos?.id === loc.id ? { x: dragPos.x, y: dragPos.y } : { x: loc.posX, y: loc.posY };
+                  const isDragging = dragRef.current?.locId === loc.id;
+                  const glow = loc.glowColor || accent;
+                  return (
                     <div
-                      className="absolute inset-0"
+                      key={loc.id}
+                      data-testid={`location-${loc.id}`}
+                      className="absolute loc-node flex flex-col items-center"
                       style={{
-                        backgroundImage: loc.bgUrl ? `url(${loc.bgUrl})` : `url(${world.bg})`,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
+                        left: `${pos.x}%`,
+                        top: `${pos.y}%`,
+                        width: "17%",
+                        cursor: currentUser.isAdmin ? "grab" : "pointer",
+                        zIndex: isDragging ? 60 : topLocId === loc.id ? 45 : 10 + i,
                       }}
-                    />
-                    <div
-                      className="absolute inset-0"
-                      style={{ background: "linear-gradient(90deg, rgba(0,0,0,0.80) 0%, rgba(0,0,0,0.35) 55%, rgba(0,0,0,0.60) 100%)" }}
-                    />
-                    <div
-                      className="absolute inset-0 pointer-events-none"
-                      style={{ background: `radial-gradient(ellipse at 18% 50%, ${glow}18 0%, transparent 55%)` }}
-                    />
-
-                    <div className="relative z-10 flex items-center h-full px-4 gap-4">
-                      <div className="flex-shrink-0 w-[68px] h-[68px] relative">
+                      onPointerDown={(e) => handlePointerDown(e, loc)}
+                      onClick={() => handleLocationClick(loc)}
+                    >
+                      <div className="relative w-full" style={{ aspectRatio: "1" }}>
                         <div
-                          className="absolute inset-[-25%] rounded-full pointer-events-none"
+                          className="absolute inset-[-35%] rounded-full pointer-events-none"
                           style={{
-                            background: `radial-gradient(circle, ${glow}70 0%, ${glow}35 40%, transparent 70%)`,
+                            background: `radial-gradient(circle, ${glow}90 0%, ${glow}50 30%, ${glow}20 55%, transparent 75%)`,
                             animation: `locGlow ${3 + (i % 2)}s ease-in-out infinite`,
-                            animationDelay: `${i * 0.3}s`,
+                            animationDelay: `${i * 0.25}s`,
                           }}
                         />
                         {loc.iconUrl ? (
@@ -689,7 +685,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                             className="w-full h-full object-contain relative z-10"
                             draggable={false}
                             style={{
-                              filter: `drop-shadow(0 2px 6px rgba(0,0,0,0.7)) drop-shadow(0 0 16px ${glow}75)`,
+                              filter: `drop-shadow(0 3px 8px rgba(0,0,0,0.6)) drop-shadow(0 0 18px ${glow}80) drop-shadow(0 0 30px ${glow}40)`,
                               transform: loc.flipped ? "scaleX(-1)" : undefined,
                             }}
                           />
@@ -697,124 +693,78 @@ export default function WorldPage({ user }: WorldPageProps) {
                           <div
                             className="w-full h-full rounded-full flex items-center justify-center relative z-10"
                             style={{
-                              background: `radial-gradient(circle at 40% 35%, ${glow}50, ${glow}18)`,
-                              border: `2px solid ${glow}60`,
-                              boxShadow: `inset 0 0 14px ${glow}25, 0 0 22px ${glow}35`,
+                              background: `radial-gradient(circle at 40% 35%, ${glow}55, ${glow}20)`,
+                              border: `2px solid ${glow}70`,
+                              boxShadow: `inset 0 0 20px ${glow}30, 0 0 30px ${glow}40, 0 0 50px ${glow}15`,
                             }}
                           >
-                            <MapPin className="w-6 h-6" style={{ color: glow, filter: `drop-shadow(0 0 8px ${glow}80)` }} />
+                            <MapPin className="w-7 h-7" style={{ color: glow, filter: `drop-shadow(0 0 12px ${glow}90)` }} />
                           </div>
                         )}
-                      </div>
 
-                      <div className="flex-1 min-w-0">
-                        <p
-                          className="font-fantasy text-base tracking-wider leading-tight"
-                          style={{
-                            color: "#fff8d0",
-                            textShadow: `0 0 10px ${glow}55, 0 1px 4px rgba(0,0,0,0.9)`,
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                          }}
-                        >
-                          {loc.name}
-                        </p>
-                        <p
-                          className="font-fantasy text-[10px] tracking-[0.14em] mt-1 uppercase"
-                          style={{ color: `${glow}cc`, textShadow: `0 0 8px ${glow}40` }}
-                        >
-                          {typeLabel}
-                        </p>
-                        {loc.description && (
-                          <p
-                            className="text-[11px] mt-1.5 leading-tight"
-                            style={{
-                              color: "rgba(255,255,255,0.48)",
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                            }}
-                          >
-                            {loc.description}
-                          </p>
+                        {currentUser.isAdmin && (
+                          <>
+                            <button
+                              data-testid={`button-edit-location-${loc.id}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingLocation(loc);
+                                setEditLocName(loc.name);
+                                setEditLocDesc(loc.description || "");
+                                setEditLocIcon(null);
+                                setEditLocBg(null);
+                                setEditLocOwner(null);
+                                setEditLocType(loc.type || (loc.isShop ? "shop" : "battle"));
+                                setEditLocGlowColor(loc.glowColor || "");
+                              }}
+                              className="absolute -top-1 -right-1 z-30 w-5 h-5 rounded-full flex items-center justify-center"
+                              style={{
+                                background: "rgba(45,106,79,0.9)",
+                                border: "1px solid rgba(127,255,212,0.5)",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <Pencil className="w-2.5 h-2.5 text-white" />
+                            </button>
+                            <button
+                              data-testid={`button-flip-location-${loc.id}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                flipMutation.mutate(loc.id);
+                              }}
+                              className="absolute -bottom-1 -right-1 z-30 w-5 h-5 rounded-full flex items-center justify-center"
+                              style={{
+                                background: "rgba(0,80,180,0.9)",
+                                border: "1px solid rgba(100,180,255,0.5)",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <FlipHorizontal className="w-2.5 h-2.5 text-white" />
+                            </button>
+                            <button
+                              data-testid={`button-delete-location-${loc.id}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm(`Delete "${loc.name}"?`)) {
+                                  deleteLocationMutation.mutate(loc.id);
+                                }
+                              }}
+                              className="absolute -top-1 -left-1 z-30 w-5 h-5 rounded-full flex items-center justify-center"
+                              style={{
+                                background: "rgba(220,38,38,0.9)",
+                                border: "1px solid rgba(255,100,100,0.5)",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <Trash2 className="w-3 h-3 text-white" />
+                            </button>
+                          </>
                         )}
                       </div>
-
-                      <div
-                        className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
-                        style={{
-                          background: `${glow}20`,
-                          border: `1px solid ${glow}45`,
-                        }}
-                      >
-                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                          <path d="M3 2L7 5L3 8" stroke={glow} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </div>
                     </div>
-
-                    {currentUser.isAdmin && (
-                      <div className="absolute top-2 right-2 z-20 flex gap-1.5">
-                        <button
-                          data-testid={`button-edit-location-${loc.id}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingLocation(loc);
-                            setEditLocName(loc.name);
-                            setEditLocDesc(loc.description || "");
-                            setEditLocIcon(null);
-                            setEditLocBg(null);
-                            setEditLocOwner(null);
-                            setEditLocType(loc.type || (loc.isShop ? "shop" : "battle"));
-                            setEditLocGlowColor(loc.glowColor || "");
-                          }}
-                          className="w-6 h-6 rounded-full flex items-center justify-center"
-                          style={{
-                            background: "rgba(45,106,79,0.92)",
-                            border: "1px solid rgba(127,255,212,0.5)",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <Pencil className="w-3 h-3 text-white" />
-                        </button>
-                        <button
-                          data-testid={`button-flip-location-${loc.id}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            flipMutation.mutate(loc.id);
-                          }}
-                          className="w-6 h-6 rounded-full flex items-center justify-center"
-                          style={{
-                            background: "rgba(0,80,180,0.92)",
-                            border: "1px solid rgba(100,180,255,0.5)",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <FlipHorizontal className="w-3 h-3 text-white" />
-                        </button>
-                        <button
-                          data-testid={`button-delete-location-${loc.id}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (confirm(`Delete "${loc.name}"?`)) {
-                              deleteLocationMutation.mutate(loc.id);
-                            }
-                          }}
-                          className="w-6 h-6 rounded-full flex items-center justify-center"
-                          style={{
-                            background: "rgba(220,38,38,0.92)",
-                            border: "1px solid rgba(255,100,100,0.5)",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <Trash2 className="w-3 h-3 text-white" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
