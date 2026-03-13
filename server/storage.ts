@@ -16,6 +16,7 @@ import {
   type SupportMessage, type InsertSupportMessage, supportMessages,
   type LocationEnemy, locationEnemies,
   type EnemyDrop, enemyDrops,
+  type Badge, type UserBadge, badges, userBadges,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, ne, gte, asc, desc } from "drizzle-orm";
@@ -105,6 +106,13 @@ export interface IStorage {
   createWorldBuilding(data: { worldId: string; name: string; imageUrl?: string | null; side?: string; posY?: number; destinationPage?: string | null; destinationLocationId?: string | null }): Promise<WorldBuilding>;
   updateWorldBuilding(id: string, data: Partial<WorldBuilding>): Promise<WorldBuilding>;
   deleteWorldBuilding(id: string): Promise<void>;
+  getAllBadges(): Promise<Badge[]>;
+  createBadge(name: string, imageUrl: string): Promise<Badge>;
+  deleteBadge(id: string): Promise<void>;
+  getUserBadges(userId: string): Promise<(UserBadge & { name: string; imageUrl: string })[]>;
+  getBadgeRecipients(badgeId: string): Promise<string[]>;
+  awardBadge(userId: string, badgeId: string): Promise<UserBadge>;
+  revokeBadge(userId: string, badgeId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -612,6 +620,53 @@ export class DatabaseStorage implements IStorage {
 
   async deleteWorldBuilding(id: string): Promise<void> {
     await db.delete(worldBuildings).where(eq(worldBuildings.id, id));
+  }
+
+  async getAllBadges(): Promise<Badge[]> {
+    return db.select().from(badges).orderBy(desc(badges.createdAt));
+  }
+
+  async createBadge(name: string, imageUrl: string): Promise<Badge> {
+    const [badge] = await db.insert(badges).values({ name, imageUrl }).returning();
+    return badge;
+  }
+
+  async deleteBadge(id: string): Promise<void> {
+    await db.delete(userBadges).where(eq(userBadges.badgeId, id));
+    await db.delete(badges).where(eq(badges.id, id));
+  }
+
+  async getUserBadges(userId: string): Promise<(UserBadge & { name: string; imageUrl: string })[]> {
+    const rows = await db
+      .select({
+        id: userBadges.id,
+        userId: userBadges.userId,
+        badgeId: userBadges.badgeId,
+        awardedAt: userBadges.awardedAt,
+        name: badges.name,
+        imageUrl: badges.imageUrl,
+      })
+      .from(userBadges)
+      .innerJoin(badges, eq(userBadges.badgeId, badges.id))
+      .where(eq(userBadges.userId, userId))
+      .orderBy(desc(userBadges.awardedAt));
+    return rows;
+  }
+
+  async getBadgeRecipients(badgeId: string): Promise<string[]> {
+    const rows = await db.select({ userId: userBadges.userId }).from(userBadges).where(eq(userBadges.badgeId, badgeId));
+    return rows.map(r => r.userId);
+  }
+
+  async awardBadge(userId: string, badgeId: string): Promise<UserBadge> {
+    const existing = await db.select().from(userBadges).where(and(eq(userBadges.userId, userId), eq(userBadges.badgeId, badgeId)));
+    if (existing.length > 0) return existing[0];
+    const [row] = await db.insert(userBadges).values({ userId, badgeId }).returning();
+    return row;
+  }
+
+  async revokeBadge(userId: string, badgeId: string): Promise<void> {
+    await db.delete(userBadges).where(and(eq(userBadges.userId, userId), eq(userBadges.badgeId, badgeId)));
   }
 }
 

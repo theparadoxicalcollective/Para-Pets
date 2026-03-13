@@ -248,6 +248,20 @@ export const enemyDrops = pgTable("enemy_drops", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
+export const badges = pgTable("badges", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  imageUrl: text("image_url").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const userBadges = pgTable("user_badges", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  badgeId: varchar("badge_id").notNull(),
+  awardedAt: timestamp("awarded_at").notNull().default(sql`now()`),
+});
+
 export type CoinPurchase = typeof coinPurchases.$inferSelect;
 export type WorldLocation = typeof worldLocations.$inferSelect;
 export type World = typeof worlds.$inferSelect;
@@ -258,3 +272,5 @@ export type PetTemplate = typeof petTemplates.$inferSelect;
 export type PetTemplatePart = typeof petTemplateParts.$inferSelect;
 export type LocationEnemy = typeof locationEnemies.$inferSelect;
 export type EnemyDrop = typeof enemyDrops.$inferSelect;
+export type Badge = typeof badges.$inferSelect;
+export type UserBadge = typeof userBadges.$inferSelect;

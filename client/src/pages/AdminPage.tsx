@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Search, X, Upload, Trash2 } from "lucide-react";
 import bgImg from "@assets/bg_home.png";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
@@ -41,7 +42,7 @@ export default function AdminPage({ user }: AdminPageProps) {
   const [coinAmounts, setCoinAmounts] = useState<Record<string, string>>({});
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"members" | "rewards" | "items" | "pets" | "messages">("members");
+  const [activeTab, setActiveTab] = useState<"members" | "rewards" | "items" | "pets" | "messages" | "badges">("members");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -92,6 +93,7 @@ export default function AdminPage({ user }: AdminPageProps) {
     { key: "items" as const, label: "Item DB", color: "#7fffd4", activeBg: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)", activeBorder: "rgba(127,255,212,0.5)" },
     { key: "pets" as const, label: "Pet DB", color: "#ffb347", activeBg: "linear-gradient(135deg, #8b4513 0%, #5c3a1e 100%)", activeBorder: "rgba(255,179,71,0.5)" },
     { key: "messages" as const, label: "Messages", color: "#ff9999", activeBg: "linear-gradient(135deg, #8b2020 0%, #5c1010 100%)", activeBorder: "rgba(255,153,153,0.5)" },
+    { key: "badges" as const, label: "Badges", color: "#ffd700", activeBg: "linear-gradient(135deg, #4a3800 0%, #7a5c00 100%)", activeBorder: "rgba(255,215,0,0.6)" },
   ];
 
   return (
@@ -305,6 +307,10 @@ export default function AdminPage({ user }: AdminPageProps) {
 
           {activeTab === "messages" && (
             <SupportMessagesSection />
+          )}
+
+          {activeTab === "badges" && (
+            <BadgeDatabaseSection members={members.filter(m => !m.isAdmin)} />
           )}
         </div>
       </div>
@@ -741,6 +747,345 @@ function SupportMessagesSection() {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+interface AdminBadge {
+  id: string;
+  name: string;
+  imageUrl: string;
+  createdAt: string;
+}
+
+function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const [showUpload, setShowUpload] = useState(false);
+  const [uploadName, setUploadName] = useState("");
+  const [uploadPreview, setUploadPreview] = useState<string | null>(null);
+  const [uploadData, setUploadData] = useState<string | null>(null);
+
+  const [applyBadge, setApplyBadge] = useState<AdminBadge | null>(null);
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [originalSelected, setOriginalSelected] = useState<Set<string>>(new Set());
+
+  const { data: allBadges = [], isLoading } = useQuery<AdminBadge[]>({
+    queryKey: ["/api/badges"],
+  });
+
+  const { data: recipients = [], isLoading: recipientsLoading } = useQuery<string[]>({
+    queryKey: ["/api/admin/badges", applyBadge?.id, "recipients"],
+    enabled: !!applyBadge,
+    queryFn: async () => {
+      if (!applyBadge) return [];
+      const res = await fetch(`/api/admin/badges/${applyBadge.id}/recipients`, { credentials: "include" });
+      return res.json();
+    },
+  });
+
+  useEffect(() => {
+    if (!recipientsLoading && applyBadge) {
+      const s = new Set(recipients);
+      setSelected(s);
+      setOriginalSelected(s);
+    }
+  }, [recipients, recipientsLoading, applyBadge?.id]);
+
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      if (!uploadName.trim() || !uploadData) throw new Error("Missing data");
+      return apiRequest("POST", "/api/admin/badges", { name: uploadName.trim(), imageData: uploadData });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/badges"] });
+      setShowUpload(false);
+      setUploadName("");
+      setUploadPreview(null);
+      setUploadData(null);
+      toast({ title: "Badge created!" });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/admin/badges/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/badges"] });
+      toast({ title: "Badge deleted" });
+    },
+    onError: () => toast({ title: "Error deleting badge", variant: "destructive" }),
+  });
+
+  const applyMutation = useMutation({
+    mutationFn: async () => {
+      if (!applyBadge) return;
+      const toAward = Array.from(selected).filter(id => !originalSelected.has(id));
+      const toRevoke = Array.from(originalSelected).filter(id => !selected.has(id));
+      if (toAward.length > 0) {
+        await apiRequest("POST", `/api/admin/badges/${applyBadge.id}/award`, { userIds: toAward });
+      }
+      if (toRevoke.length > 0) {
+        await apiRequest("POST", `/api/admin/badges/${applyBadge.id}/revoke`, { userIds: toRevoke });
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/admin/badges", applyBadge?.id, "recipients"] });
+      setApplyBadge(null);
+      toast({ title: "Badge assignments saved!" });
+    },
+    onError: () => toast({ title: "Error saving assignments", variant: "destructive" }),
+  });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const data = ev.target?.result as string;
+      setUploadPreview(data);
+      setUploadData(data);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const openApply = (badge: AdminBadge) => {
+    setApplyBadge(badge);
+    setSearch("");
+    setSelected(new Set());
+    setOriginalSelected(new Set());
+  };
+
+  const filteredMembers = members.filter(m =>
+    m.username.toLowerCase().includes(search.toLowerCase()) ||
+    m.email.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="font-fantasy text-[#f0c040] text-xs tracking-wider">
+          {allBadges.length} badge{allBadges.length !== 1 ? "s" : ""} in realm
+        </p>
+        <button
+          data-testid="button-upload-badge"
+          onClick={() => setShowUpload(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-fantasy text-[10px] tracking-wider"
+          style={{ background: "linear-gradient(135deg, #4a3800, #7a5c00)", border: "1px solid rgba(255,215,0,0.4)", color: "#ffd700", cursor: "pointer" }}
+        >
+          <Upload className="w-3 h-3" />
+          Upload Badge
+        </button>
+      </div>
+
+      {showUpload && (
+        <div
+          className="rounded-xl p-4 space-y-3"
+          style={{ background: "rgba(20,12,4,0.85)", border: "1px solid rgba(255,215,0,0.3)" }}
+        >
+          <div className="flex items-center justify-between">
+            <p className="font-fantasy text-[#ffd700] text-xs tracking-wider">New Badge</p>
+            <button onClick={() => setShowUpload(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#a89878" }}>
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <input
+            data-testid="input-badge-name"
+            type="text"
+            placeholder="Badge name..."
+            value={uploadName}
+            onChange={e => setUploadName(e.target.value)}
+            className="w-full rounded-lg px-3 py-2 font-fantasy text-xs tracking-wider"
+            style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,215,0,0.25)", color: "#f0c040", outline: "none" }}
+          />
+          <div className="flex gap-3 items-center">
+            {uploadPreview && (
+              <img src={uploadPreview} alt="preview" className="w-16 h-16 rounded-full object-cover" style={{ border: "2px solid rgba(255,215,0,0.4)" }} />
+            )}
+            <button
+              data-testid="button-choose-badge-image"
+              onClick={() => fileRef.current?.click()}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-fantasy text-[10px] tracking-wider"
+              style={{ background: "rgba(0,0,0,0.3)", border: "1px dashed rgba(255,215,0,0.3)", color: "#a89878", cursor: "pointer" }}
+            >
+              <Upload className="w-3 h-3" />
+              {uploadPreview ? "Change image" : "Choose PNG"}
+            </button>
+            <input ref={fileRef} type="file" accept="image/png,image/jpeg" className="hidden" onChange={handleFileChange} />
+          </div>
+          <button
+            data-testid="button-save-badge"
+            onClick={() => createMutation.mutate()}
+            disabled={!uploadName.trim() || !uploadData || createMutation.isPending}
+            className="w-full py-2 rounded-lg font-fantasy text-xs tracking-wider"
+            style={{
+              background: !uploadName.trim() || !uploadData ? "rgba(0,0,0,0.3)" : "linear-gradient(135deg, #4a3800, #7a5c00)",
+              border: "1px solid rgba(255,215,0,0.4)",
+              color: !uploadName.trim() || !uploadData ? "#6a5840" : "#ffd700",
+              cursor: !uploadName.trim() || !uploadData ? "not-allowed" : "pointer",
+            }}
+          >
+            {createMutation.isPending ? "Saving..." : "Save Badge"}
+          </button>
+        </div>
+      )}
+
+      {isLoading ? (
+        <p className="font-fantasy text-[#7fbfb0] text-xs text-center animate-pulse py-8">Loading badges...</p>
+      ) : allBadges.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="font-fantasy text-[#a89878] text-sm tracking-wider">No badges yet</p>
+          <p className="font-fantasy text-[#6a5840] text-[10px] tracking-wide mt-1">Upload one to get started</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-3">
+          {allBadges.map(badge => (
+            <div
+              key={badge.id}
+              data-testid={`card-badge-admin-${badge.id}`}
+              className="flex flex-col items-center gap-2 rounded-xl p-3"
+              style={{ background: "rgba(20,12,4,0.6)", border: "1px solid rgba(255,215,0,0.15)" }}
+            >
+              <button
+                data-testid={`button-apply-badge-${badge.id}`}
+                onClick={() => openApply(badge)}
+                className="flex flex-col items-center gap-1.5 w-full"
+                style={{ background: "none", border: "none", cursor: "pointer" }}
+              >
+                <div
+                  className="w-16 h-16 rounded-full flex items-center justify-center"
+                  style={{ background: "rgba(255,215,0,0.08)", border: "2px solid rgba(255,215,0,0.3)", boxShadow: "0 0 12px rgba(255,215,0,0.15)" }}
+                >
+                  <img src={badge.imageUrl} alt={badge.name} className="w-12 h-12 object-contain rounded-full" />
+                </div>
+                <p className="font-fantasy text-[10px] tracking-wider text-center leading-tight" style={{ color: "#ffd700" }}>
+                  {badge.name}
+                </p>
+              </button>
+              <button
+                data-testid={`button-delete-badge-${badge.id}`}
+                onClick={() => deleteMutation.mutate(badge.id)}
+                disabled={deleteMutation.isPending}
+                className="flex items-center gap-1 px-2 py-0.5 rounded font-fantasy text-[9px] tracking-wider"
+                style={{ background: "rgba(139,32,32,0.2)", border: "1px solid rgba(255,100,100,0.2)", color: "#ff9999", cursor: "pointer" }}
+              >
+                <Trash2 className="w-2.5 h-2.5" />
+                Delete
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {applyBadge && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+          <div className="absolute inset-0 bg-black/60" onClick={() => setApplyBadge(null)} />
+          <div
+            className="relative w-full rounded-t-2xl overflow-hidden flex flex-col"
+            style={{
+              background: "linear-gradient(180deg, #1a0d02 0%, #0d0601 100%)",
+              border: "1px solid rgba(255,215,0,0.3)",
+              maxHeight: "80dvh",
+            }}
+          >
+            <div className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: "1px solid rgba(255,215,0,0.15)" }}>
+              <div className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center" style={{ background: "rgba(255,215,0,0.1)", border: "1.5px solid rgba(255,215,0,0.35)" }}>
+                <img src={applyBadge.imageUrl} alt={applyBadge.name} className="w-8 h-8 object-contain rounded-full" />
+              </div>
+              <div className="flex-1">
+                <p className="font-fantasy text-[#ffd700] text-sm tracking-wider">{applyBadge.name}</p>
+                <p className="font-fantasy text-[#a89878] text-[9px] tracking-wide">Select players to award this badge</p>
+              </div>
+              <button onClick={() => setApplyBadge(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#a89878" }}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="px-4 py-2" style={{ borderBottom: "1px solid rgba(255,215,0,0.1)" }}>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3" style={{ color: "#a89878" }} />
+                <input
+                  data-testid="input-badge-search"
+                  type="text"
+                  placeholder="Search players..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="w-full pl-8 pr-3 py-2 rounded-lg font-fantasy text-xs tracking-wider"
+                  style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,215,0,0.2)", color: "#f0c040", outline: "none" }}
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1">
+              {recipientsLoading ? (
+                <p className="text-center py-4 font-fantasy text-[#7fbfb0] text-xs animate-pulse">Loading...</p>
+              ) : filteredMembers.length === 0 ? (
+                <p className="text-center py-4 font-fantasy text-[#a89878] text-xs">No players found</p>
+              ) : filteredMembers.map(member => {
+                const has = selected.has(member.id);
+                return (
+                  <label
+                    key={member.id}
+                    data-testid={`badge-user-row-${member.id}`}
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 cursor-pointer"
+                    style={{ background: has ? "rgba(255,215,0,0.08)" : "rgba(0,0,0,0.2)", border: `1px solid ${has ? "rgba(255,215,0,0.25)" : "transparent"}` }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={has}
+                      onChange={() => {
+                        const next = new Set(selected);
+                        if (has) next.delete(member.id); else next.add(member.id);
+                        setSelected(next);
+                      }}
+                      className="w-4 h-4 rounded"
+                      style={{ accentColor: "#ffd700" }}
+                    />
+                    {member.profileImage ? (
+                      <img src={member.profileImage} alt={member.username} className="w-7 h-7 rounded-full object-cover flex-shrink-0" style={{ border: "1px solid rgba(255,215,0,0.2)" }} />
+                    ) : (
+                      <div className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center font-fantasy text-xs" style={{ background: "rgba(255,215,0,0.1)", border: "1px solid rgba(255,215,0,0.2)", color: "#ffd700" }}>
+                        {member.username[0].toUpperCase()}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-fantasy text-xs tracking-wider truncate" style={{ color: "#f0c040" }}>{member.username}</p>
+                      <p className="font-fantasy text-[9px] tracking-wide truncate" style={{ color: "#6a5840" }}>{member.email}</p>
+                    </div>
+                    {has && <span className="font-fantasy text-[9px] tracking-wider flex-shrink-0" style={{ color: "#ffd700" }}>✓</span>}
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className="px-4 py-3" style={{ borderTop: "1px solid rgba(255,215,0,0.15)" }}>
+              <div className="flex items-center justify-between mb-2">
+                <p className="font-fantasy text-[9px] tracking-wider" style={{ color: "#a89878" }}>
+                  {selected.size} player{selected.size !== 1 ? "s" : ""} selected
+                </p>
+              </div>
+              <button
+                data-testid="button-save-badge-assignments"
+                onClick={() => applyMutation.mutate()}
+                disabled={applyMutation.isPending}
+                className="w-full py-2.5 rounded-xl font-fantasy text-xs tracking-wider"
+                style={{
+                  background: "linear-gradient(135deg, #4a3800, #7a5c00)",
+                  border: "1px solid rgba(255,215,0,0.5)",
+                  color: "#ffd700",
+                  cursor: "pointer",
+                  boxShadow: "0 0 16px rgba(255,215,0,0.15)",
+                }}
+              >
+                {applyMutation.isPending ? "Saving..." : "Save Assignments"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

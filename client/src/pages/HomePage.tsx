@@ -7,6 +7,7 @@ import questIcon from "@assets/icon_quest_v5.png";
 import mapIcon from "@assets/icon_map_new.png";
 import swordsImg from "@assets/icon_pvp_new.png";
 import eggImg from "@assets/icon_pets.png";
+import badgeIcon from "@assets/icon_badges.svg";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import PetInventory from "@/components/PetInventory";
@@ -487,6 +488,12 @@ export default function HomePage({ user }: HomePageProps) {
                 alt="Pets"
                 testId="button-nav-pets"
                 onClick={() => setShowPetInventory(true)}
+              />
+              <NavIcon
+                src={badgeIcon}
+                alt="Badges"
+                testId="button-nav-badges"
+                onClick={() => navigate("/badges")}
               />
             </div>
           </div>

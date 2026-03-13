@@ -2278,5 +2278,90 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/badges", isAuthenticated, async (_req, res) => {
+    try {
+      const all = await storage.getAllBadges();
+      return res.json(all);
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to fetch badges" });
+    }
+  });
+
+  app.post("/api/admin/badges", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
+      const { name, imageData } = req.body;
+      if (!name || !imageData) return res.status(400).json({ message: "name and imageData required" });
+      const imageUrl = await processWorldImage(imageData, 1000);
+      const badge = await storage.createBadge(name, imageUrl);
+      return res.json(badge);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message || "Failed to create badge" });
+    }
+  });
+
+  app.delete("/api/admin/badges/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
+      await storage.deleteBadge(req.params.id);
+      return res.json({ ok: true });
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to delete badge" });
+    }
+  });
+
+  app.get("/api/admin/badges/:id/recipients", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
+      const recipients = await storage.getBadgeRecipients(req.params.id);
+      return res.json(recipients);
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to fetch recipients" });
+    }
+  });
+
+  app.post("/api/admin/badges/:id/award", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
+      const { userIds } = req.body;
+      if (!Array.isArray(userIds)) return res.status(400).json({ message: "userIds array required" });
+      for (const uid of userIds) {
+        await storage.awardBadge(uid, req.params.id);
+      }
+      return res.json({ ok: true });
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to award badge" });
+    }
+  });
+
+  app.post("/api/admin/badges/:id/revoke", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
+      const { userIds } = req.body;
+      if (!Array.isArray(userIds)) return res.status(400).json({ message: "userIds array required" });
+      for (const uid of userIds) {
+        await storage.revokeBadge(uid, req.params.id);
+      }
+      return res.json({ ok: true });
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to revoke badge" });
+    }
+  });
+
+  app.get("/api/user/badges", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const myBadges = await storage.getUserBadges(user.id);
+      return res.json(myBadges);
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to fetch user badges" });
+    }
+  });
+
   return httpServer;
 }
