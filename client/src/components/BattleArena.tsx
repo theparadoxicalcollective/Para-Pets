@@ -107,6 +107,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const petStatsRef = useRef({ atk: 50, def: 50 });
   const enemyStatsRef = useRef({ atk: 20, def: 10 });
   const enemyDifficultyRef = useRef(0.5);
+  const enemyHitCountRef = useRef(0);
 
   const { data: inventory = [] } = useQuery<any[]>({ queryKey: ["/api/inventory"] });
 
@@ -160,6 +161,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
 
     const difficulty = 0.3 + Math.random() * 0.7;
     enemyDifficultyRef.current = difficulty;
+    enemyHitCountRef.current = 0;
 
     setPhase("intro");
   }, []);
@@ -226,22 +228,33 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     if (!battleActiveRef.current) return;
     const pos = enemyPosRef.current;
     if (pos.y > 55) {
-      const rawDmg = enemyStatsRef.current.atk - Math.floor(petStatsRef.current.def * 0.3);
-      const dmg = Math.max(1, rawDmg + Math.floor(Math.random() * 6) - 3);
+      enemyHitCountRef.current += 1;
+      const hitCount = enemyHitCountRef.current;
+      const isCrit = hitCount > 0 && hitCount % 6 === 0;
+
+      let dmg: number;
+      if (isCrit) {
+        dmg = Math.max(1, petStatsRef.current.atk + 100 - petStatsRef.current.def);
+      } else {
+        const rawDmg = enemyStatsRef.current.atk - Math.floor(petStatsRef.current.def * 0.3);
+        dmg = Math.max(1, rawDmg + Math.floor(Math.random() * 6) - 3);
+      }
+
       petHpRef.current = Math.max(0, petHpRef.current - dmg);
       setPetHp(petHpRef.current);
       setPetHit(true);
       setShakeScreen(true);
-      setTimeout(() => { setPetHit(false); setShakeScreen(false); }, 300);
+      setTimeout(() => { setPetHit(false); setShakeScreen(false); }, isCrit ? 500 : 300);
 
       const newDmg: DamageNumber = {
         id: dmgIdRef.current++,
         x: 50 + (Math.random() * 20 - 10),
         y: 75,
         value: dmg,
+        isCrit,
       };
       setDamageNumbers(prev => [...prev, newDmg]);
-      setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== newDmg.id)), 1000);
+      setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== newDmg.id)), isCrit ? 1500 : 1000);
 
       enemyPosRef.current = { ...pos, vy: -Math.abs(pos.vy) * 0.9, vx: pos.vx * 0.7 };
       setEnemyPos({ ...enemyPosRef.current });
