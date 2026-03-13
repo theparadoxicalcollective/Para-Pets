@@ -3,7 +3,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import profileFrameImg from "@assets/frame_profile_thin.png";
 
 interface User {
   id: string;
@@ -23,30 +22,6 @@ interface Props {
   onUserUpdate: (user: User) => void;
 }
 
-function resizeImageTo500(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const size = Math.min(img.width, img.height);
-        canvas.width = 500;
-        canvas.height = 500;
-        const ctx = canvas.getContext("2d")!;
-        const sx = (img.width - size) / 2;
-        const sy = (img.height - size) / 2;
-        ctx.drawImage(img, sx, sy, size, size, 0, 0, 500, 500);
-        resolve(canvas.toDataURL("image/jpeg", 0.85));
-      };
-      img.onerror = reject;
-      img.src = e.target?.result as string;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
 function canChangeUsername(lastChange: string | null): { can: boolean; daysLeft: number } {
   if (!lastChange) return { can: true, daysLeft: 0 };
   const last = new Date(lastChange);
@@ -58,6 +33,33 @@ function canChangeUsername(lastChange: string | null): { can: boolean; daysLeft:
   return { can: false, daysLeft };
 }
 
+function cropToCanvas(src: string, offsetX: number, offsetY: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 500;
+      canvas.height = 500;
+      const ctx = canvas.getContext("2d")!;
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      let srcX: number, srcY: number, srcSize: number;
+      if (w >= h) {
+        srcSize = h;
+        srcX = ((offsetX / 100) * (w - h));
+        srcY = 0;
+      } else {
+        srcSize = w;
+        srcX = 0;
+        srcY = ((offsetY / 100) * (h - w));
+      }
+      ctx.drawImage(img, srcX, srcY, srcSize, srcSize, 0, 0, 500, 500);
+      resolve(canvas.toDataURL("image/jpeg", 0.85));
+    };
+    img.onerror = reject;
+    img.src = src;
+  });
+}
 
 export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props) {
   const [newUsername, setNewUsername] = useState(user.username);
@@ -67,6 +69,12 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [cropOffset, setCropOffset] = useState({ x: 50, y: 50 });
+  const cropDragRef = useRef<{ startX: number; startY: number; startOX: number; startOY: number } | null>(null);
+  const cropContainerRef = useRef<HTMLDivElement>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -77,14 +85,57 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    e.target.value = "";
     try {
-      const resized = await resizeImageTo500(file);
-      setProfileImageData(resized);
-      setProfilePreview(resized);
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const src = ev.target?.result as string;
+        setCropOffset({ x: 50, y: 50 });
+        setCropImageSrc(src);
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      toast({ title: "Image Error", description: "Failed to load image", variant: "destructive" });
+    }
+  }, [toast]);
+
+  const handleCropPointerDown = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    cropDragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      startOX: cropOffset.x,
+      startOY: cropOffset.y,
+    };
+  }, [cropOffset]);
+
+  const handleCropPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!cropDragRef.current || !cropContainerRef.current) return;
+    const containerSize = cropContainerRef.current.offsetWidth;
+    const dx = e.clientX - cropDragRef.current.startX;
+    const dy = e.clientY - cropDragRef.current.startY;
+    const sensitivity = 100 / containerSize;
+    const newX = Math.max(0, Math.min(100, cropDragRef.current.startOX - dx * sensitivity));
+    const newY = Math.max(0, Math.min(100, cropDragRef.current.startOY - dy * sensitivity));
+    setCropOffset({ x: newX, y: newY });
+  }, []);
+
+  const handleCropPointerUp = useCallback(() => {
+    cropDragRef.current = null;
+  }, []);
+
+  const handleApplyCrop = useCallback(async () => {
+    if (!cropImageSrc) return;
+    try {
+      const dataUrl = await cropToCanvas(cropImageSrc, cropOffset.x, cropOffset.y);
+      setProfileImageData(dataUrl);
+      setProfilePreview(dataUrl);
+      setCropImageSrc(null);
     } catch {
       toast({ title: "Image Error", description: "Failed to process image", variant: "destructive" });
     }
-  }, [toast]);
+  }, [cropImageSrc, cropOffset, toast]);
 
   const updateUsernameMutation = useMutation({
     mutationFn: async () => {
@@ -161,60 +212,58 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
   const isPending = updateUsernameMutation.isPending || updateProfilePicMutation.isPending || changePasswordMutation.isPending || logoutMutation.isPending;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
-      />
-
-      <div
-        className="relative w-full rounded-t-3xl animate-slide-up overflow-y-auto"
-        style={{
-          background: "linear-gradient(180deg, #1a0e05 0%, #2a1808 60%, #1a0e05 100%)",
-          border: "1px solid rgba(212,160,23,0.4)",
-          borderBottom: "none",
-          boxShadow: "0 -8px 40px rgba(0,0,0,0.8), inset 0 1px 0 rgba(212,160,23,0.3)",
-          maxHeight: "85vh",
-        }}
-      >
-        <div className="absolute inset-x-0 top-0 h-1 rounded-t-3xl" style={{ background: "linear-gradient(90deg, transparent, rgba(212,160,23,0.6), transparent)" }} />
-
-        <button
-          data-testid="button-close-profile"
+    <>
+      <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+        <div
+          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
           onClick={onClose}
-          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full transition-colors z-20"
+        />
+
+        <div
+          className="relative w-full rounded-t-3xl animate-slide-up overflow-y-auto"
           style={{
-            background: "rgba(212,160,23,0.15)",
+            background: "linear-gradient(180deg, #1a0e05 0%, #2a1808 60%, #1a0e05 100%)",
             border: "1px solid rgba(212,160,23,0.4)",
-            color: "#d4a017",
-            fontSize: "18px",
-            cursor: "pointer",
+            borderBottom: "none",
+            boxShadow: "0 -8px 40px rgba(0,0,0,0.8), inset 0 1px 0 rgba(212,160,23,0.3)",
+            maxHeight: "85vh",
           }}
         >
-          ✕
-        </button>
+          <div className="absolute inset-x-0 top-0 h-1 rounded-t-3xl" style={{ background: "linear-gradient(90deg, transparent, rgba(212,160,23,0.6), transparent)" }} />
 
-        <div className="px-6 pt-6 pb-10 space-y-6">
-          <h2 className="font-fantasy text-[#f0c040] text-center text-xl tracking-widest font-semibold"
-            style={{ textShadow: "0 0 20px rgba(240,192,64,0.4)" }}
+          <button
+            data-testid="button-close-profile"
+            onClick={onClose}
+            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full transition-colors z-20"
+            style={{
+              background: "rgba(212,160,23,0.15)",
+              border: "1px solid rgba(212,160,23,0.4)",
+              color: "#d4a017",
+              fontSize: "18px",
+              cursor: "pointer",
+            }}
           >
-            Adventurer Profile
-          </h2>
+            ✕
+          </button>
 
-          {/* Profile Picture Section */}
-          <div className="flex flex-col items-center gap-3">
-            <div
-              className="relative w-24 h-24 cursor-pointer transition-transform active:scale-95"
-              onClick={() => fileInputRef.current?.click()}
-              data-testid="button-profile-pic-change"
+          <div className="px-6 pt-6 pb-10 space-y-6">
+            <h2 className="font-fantasy text-[#f0c040] text-center text-xl tracking-widest font-semibold"
+              style={{ textShadow: "0 0 20px rgba(240,192,64,0.4)" }}
             >
-              <img
-                src={profileFrameImg}
-                alt="Frame"
-                className="absolute inset-0 w-full h-full object-contain z-20"
-                style={{ filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.8))" }}
-              />
-              <div className="absolute z-10 overflow-hidden rounded-sm" style={{ inset: "18px" }}>
+              Adventurer Profile
+            </h2>
+
+            {/* Profile Picture Section */}
+            <div className="flex flex-col items-center gap-3">
+              <div
+                className="relative w-24 h-24 cursor-pointer transition-transform active:scale-95 rounded-lg overflow-hidden"
+                onClick={() => fileInputRef.current?.click()}
+                data-testid="button-profile-pic-change"
+                style={{
+                  border: "2px solid #c9a030",
+                  boxShadow: "0 0 8px rgba(201,160,48,0.25), 0 2px 8px rgba(0,0,0,0.5)",
+                }}
+              >
                 {profilePreview || user.profileImage ? (
                   <img
                     data-testid="img-profile-current"
@@ -232,222 +281,313 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                     </span>
                   </div>
                 )}
+                <div className="absolute bottom-1 right-1 z-10 w-5 h-5 rounded-full flex items-center justify-center"
+                  style={{ background: "rgba(212,160,23,0.9)", border: "1px solid rgba(240,192,64,0.8)" }}
+                >
+                  <span className="text-black text-xs font-bold leading-none">+</span>
+                </div>
               </div>
 
-              <div className="absolute -bottom-1 -right-1 z-30 w-6 h-6 rounded-full flex items-center justify-center"
-                style={{ background: "rgba(212,160,23,0.9)", border: "1px solid rgba(240,192,64,0.8)" }}
-              >
-                <span className="text-black text-xs font-bold">+</span>
-              </div>
-            </div>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              className="hidden"
-              data-testid="input-profile-pic-file"
-            />
-
-            <div className="flex flex-col items-center gap-2 w-full">
-              {profileImageData && (
-                <button
-                  data-testid="button-save-profile-pic"
-                  onClick={() => updateProfilePicMutation.mutate()}
-                  disabled={isPending}
-                  className="w-full py-2.5 rounded-md font-fantasy text-sm tracking-wider transition-opacity disabled:opacity-60"
-                  style={{
-                    background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
-                    border: "1px solid rgba(45,154,100,0.6)",
-                    color: "#7fffd4",
-                    boxShadow: "0 0 12px rgba(127,255,212,0.2)",
-                    cursor: "pointer",
-                  }}
-                >
-                  {updateProfilePicMutation.isPending ? "Saving..." : "Save New Photo"}
-                </button>
-              )}
-              {!profileImageData && (
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="font-fantasy text-xs text-[#a89878] tracking-wider hover:text-[#d4a017] transition-colors"
-                  style={{ background: "none", border: "none", cursor: "pointer" }}
-                >
-                  Tap portrait to change photo
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="w-full h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(212,160,23,0.3), transparent)" }} />
-
-          {/* Username Section */}
-          <div className="space-y-2">
-            <label className="font-fantasy text-[#c8b896] text-xs tracking-wider block">
-              USERNAME
-              {!usernameStatus.can && (
-                <span className="ml-2 text-[#6a5840]">
-                  (change in {usernameStatus.daysLeft} days)
-                </span>
-              )}
-            </label>
-            <div className="flex gap-2">
               <input
-                data-testid="input-new-username"
-                type="text"
-                value={newUsername}
-                onChange={e => setNewUsername(e.target.value)}
-                disabled={!usernameStatus.can || isPending}
-                placeholder={user.username}
-                className="flex-1 px-4 py-3 rounded-md font-sans text-sm outline-none focus:ring-2 focus:ring-[#d4a017] disabled:opacity-50"
-                style={{
-                  background: usernameStatus.can
-                    ? "linear-gradient(135deg, #f2e8d0 0%, #e8d8b0 100%)"
-                    : "rgba(30,20,10,0.5)",
-                  border: "2px solid #8b5e3c",
-                  color: usernameStatus.can ? "#2a1a0a" : "#6a5840",
-                  boxShadow: "inset 0 2px 6px rgba(0,0,0,0.3)",
-                }}
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="hidden"
+                data-testid="input-profile-pic-file"
               />
-              {usernameStatus.can && (
-                <button
-                  data-testid="button-save-username"
-                  onClick={() => updateUsernameMutation.mutate()}
-                  disabled={isPending || newUsername === user.username || !newUsername.trim()}
-                  className="px-4 py-3 rounded-md font-fantasy text-xs tracking-wider transition-opacity disabled:opacity-50"
-                  style={{
-                    background: "linear-gradient(135deg, #5c3a1e 0%, #8b5e3c 100%)",
-                    border: "1px solid rgba(212,160,23,0.5)",
-                    color: "#f0c040",
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
-                  }}
-                >
-                  {updateUsernameMutation.isPending ? "..." : "Save"}
-                </button>
-              )}
-            </div>
-          </div>
 
-          <div className="w-full h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(212,160,23,0.3), transparent)" }} />
-
-          {/* Account Info */}
-          <div
-            className="px-4 py-3 rounded-md space-y-1"
-            style={{
-              background: "rgba(0,0,0,0.3)",
-              border: "1px solid rgba(139,94,60,0.3)",
-            }}
-          >
-            <p className="font-fantasy text-[#6a5840] text-xs tracking-widest">ACCOUNT INFO</p>
-            <p className="font-sans text-[#a89878] text-xs">{user.email}</p>
-            {user.isAdmin && (
-              <div className="flex items-center gap-1">
-                <span className="text-yellow-400 text-xs">&#9733;</span>
-                <span className="font-fantasy text-[#d4a017] text-xs tracking-wider">Administrator</span>
+              <div className="flex flex-col items-center gap-2 w-full">
+                {profileImageData && (
+                  <button
+                    data-testid="button-save-profile-pic"
+                    onClick={() => updateProfilePicMutation.mutate()}
+                    disabled={isPending}
+                    className="w-full py-2.5 rounded-md font-fantasy text-sm tracking-wider transition-opacity disabled:opacity-60"
+                    style={{
+                      background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
+                      border: "1px solid rgba(45,154,100,0.6)",
+                      color: "#7fffd4",
+                      boxShadow: "0 0 12px rgba(127,255,212,0.2)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {updateProfilePicMutation.isPending ? "Saving..." : "Save New Photo"}
+                  </button>
+                )}
+                {!profileImageData && (
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="font-fantasy text-xs text-[#a89878] tracking-wider hover:text-[#d4a017] transition-colors"
+                    style={{ background: "none", border: "none", cursor: "pointer" }}
+                  >
+                    Tap portrait to change photo
+                  </button>
+                )}
               </div>
-            )}
-          </div>
+            </div>
 
-          <div>
-            <button
-              data-testid="button-toggle-change-password"
-              onClick={() => setShowChangePassword(!showChangePassword)}
-              className="w-full py-2.5 rounded-md font-fantasy text-xs tracking-widest transition-all"
+            <div className="w-full h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(212,160,23,0.3), transparent)" }} />
+
+            {/* Username Section */}
+            <div className="space-y-2">
+              <label className="font-fantasy text-[#c8b896] text-xs tracking-wider block">
+                USERNAME
+                {!usernameStatus.can && (
+                  <span className="ml-2 text-[#6a5840]">
+                    (change in {usernameStatus.daysLeft} days)
+                  </span>
+                )}
+              </label>
+              <div className="flex gap-2">
+                <input
+                  data-testid="input-new-username"
+                  type="text"
+                  value={newUsername}
+                  onChange={e => setNewUsername(e.target.value)}
+                  disabled={!usernameStatus.can || isPending}
+                  placeholder={user.username}
+                  className="flex-1 px-4 py-3 rounded-md font-sans text-sm outline-none focus:ring-2 focus:ring-[#d4a017] disabled:opacity-50"
+                  style={{
+                    background: usernameStatus.can
+                      ? "linear-gradient(135deg, #f2e8d0 0%, #e8d8b0 100%)"
+                      : "rgba(30,20,10,0.5)",
+                    border: "2px solid #8b5e3c",
+                    color: usernameStatus.can ? "#2a1a0a" : "#6a5840",
+                    boxShadow: "inset 0 2px 6px rgba(0,0,0,0.3)",
+                  }}
+                />
+                {usernameStatus.can && (
+                  <button
+                    data-testid="button-save-username"
+                    onClick={() => updateUsernameMutation.mutate()}
+                    disabled={isPending || newUsername === user.username || !newUsername.trim()}
+                    className="px-4 py-3 rounded-md font-fantasy text-xs tracking-wider transition-opacity disabled:opacity-50"
+                    style={{
+                      background: "linear-gradient(135deg, #5c3a1e 0%, #8b5e3c 100%)",
+                      border: "1px solid rgba(212,160,23,0.5)",
+                      color: "#f0c040",
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+                    }}
+                  >
+                    {updateUsernameMutation.isPending ? "..." : "Save"}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="w-full h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(212,160,23,0.3), transparent)" }} />
+
+            {/* Account Info */}
+            <div
+              className="px-4 py-3 rounded-md space-y-1"
               style={{
-                background: "linear-gradient(135deg, rgba(92,58,30,0.6) 0%, rgba(58,32,16,0.6) 100%)",
-                border: "1px solid rgba(212,160,23,0.3)",
-                color: "#d4a017",
-                cursor: "pointer",
+                background: "rgba(0,0,0,0.3)",
+                border: "1px solid rgba(139,94,60,0.3)",
               }}
             >
-              {showChangePassword ? "Cancel" : "Change Password"}
+              <p className="font-fantasy text-[#6a5840] text-xs tracking-widest">ACCOUNT INFO</p>
+              <p className="font-sans text-[#a89878] text-xs">{user.email}</p>
+              {user.isAdmin && (
+                <div className="flex items-center gap-1">
+                  <span className="text-yellow-400 text-xs">&#9733;</span>
+                  <span className="font-fantasy text-[#d4a017] text-xs tracking-wider">Administrator</span>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <button
+                data-testid="button-toggle-change-password"
+                onClick={() => setShowChangePassword(!showChangePassword)}
+                className="w-full py-2.5 rounded-md font-fantasy text-xs tracking-widest transition-all"
+                style={{
+                  background: "linear-gradient(135deg, rgba(92,58,30,0.6) 0%, rgba(58,32,16,0.6) 100%)",
+                  border: "1px solid rgba(212,160,23,0.3)",
+                  color: "#d4a017",
+                  cursor: "pointer",
+                }}
+              >
+                {showChangePassword ? "Cancel" : "Change Password"}
+              </button>
+
+              {showChangePassword && (
+                <div className="mt-2 space-y-2 p-3 rounded-lg" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.15)" }}>
+                  <input
+                    data-testid="input-current-password"
+                    type="password"
+                    placeholder="Current Password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="w-full px-3 py-2 rounded font-sans text-xs"
+                    style={{
+                      background: "rgba(255,255,255,0.08)",
+                      border: "1px solid rgba(212,160,23,0.3)",
+                      color: "#e8d8b0",
+                      outline: "none",
+                    }}
+                  />
+                  <input
+                    data-testid="input-new-password"
+                    type="password"
+                    placeholder="New Password (min 6 chars)"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full px-3 py-2 rounded font-sans text-xs"
+                    style={{
+                      background: "rgba(255,255,255,0.08)",
+                      border: "1px solid rgba(212,160,23,0.3)",
+                      color: "#e8d8b0",
+                      outline: "none",
+                    }}
+                  />
+                  <input
+                    data-testid="input-confirm-password"
+                    type="password"
+                    placeholder="Confirm New Password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full px-3 py-2 rounded font-sans text-xs"
+                    style={{
+                      background: "rgba(255,255,255,0.08)",
+                      border: "1px solid rgba(212,160,23,0.3)",
+                      color: "#e8d8b0",
+                      outline: "none",
+                    }}
+                  />
+                  {newPassword && confirmPassword && newPassword !== confirmPassword && (
+                    <p className="font-fantasy text-[10px] text-red-400 tracking-wider">Passwords do not match</p>
+                  )}
+                  <button
+                    data-testid="button-save-password"
+                    onClick={() => changePasswordMutation.mutate()}
+                    disabled={isPending || !currentPassword || !newPassword || newPassword !== confirmPassword || newPassword.length < 6}
+                    className="w-full py-2 rounded font-fantasy text-xs tracking-widest transition-all disabled:opacity-50"
+                    style={{
+                      background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
+                      border: "1px solid rgba(127,255,212,0.4)",
+                      color: "#7fffd4",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {changePasswordMutation.isPending ? "Updating..." : "Update Password"}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <button
+              data-testid="button-logout"
+              onClick={() => logoutMutation.mutate()}
+              disabled={isPending}
+              className="w-full py-3 rounded-md font-fantasy text-sm tracking-widest transition-all disabled:opacity-60"
+              style={{
+                background: "linear-gradient(135deg, rgba(139,0,0,0.4) 0%, rgba(80,0,0,0.4) 100%)",
+                border: "1px solid rgba(200,50,50,0.4)",
+                color: "#ff9999",
+                cursor: "pointer",
+                boxShadow: "0 2px 12px rgba(0,0,0,0.4)",
+              }}
+            >
+              {logoutMutation.isPending ? "Departing..." : "Leave Realm"}
             </button>
-
-            {showChangePassword && (
-              <div className="mt-2 space-y-2 p-3 rounded-lg" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.15)" }}>
-                <input
-                  data-testid="input-current-password"
-                  type="password"
-                  placeholder="Current Password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="w-full px-3 py-2 rounded font-sans text-xs"
-                  style={{
-                    background: "rgba(255,255,255,0.08)",
-                    border: "1px solid rgba(212,160,23,0.3)",
-                    color: "#e8d8b0",
-                    outline: "none",
-                  }}
-                />
-                <input
-                  data-testid="input-new-password"
-                  type="password"
-                  placeholder="New Password (min 6 chars)"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full px-3 py-2 rounded font-sans text-xs"
-                  style={{
-                    background: "rgba(255,255,255,0.08)",
-                    border: "1px solid rgba(212,160,23,0.3)",
-                    color: "#e8d8b0",
-                    outline: "none",
-                  }}
-                />
-                <input
-                  data-testid="input-confirm-password"
-                  type="password"
-                  placeholder="Confirm New Password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full px-3 py-2 rounded font-sans text-xs"
-                  style={{
-                    background: "rgba(255,255,255,0.08)",
-                    border: "1px solid rgba(212,160,23,0.3)",
-                    color: "#e8d8b0",
-                    outline: "none",
-                  }}
-                />
-                {newPassword && confirmPassword && newPassword !== confirmPassword && (
-                  <p className="font-fantasy text-[10px] text-red-400 tracking-wider">Passwords do not match</p>
-                )}
-                <button
-                  data-testid="button-save-password"
-                  onClick={() => changePasswordMutation.mutate()}
-                  disabled={isPending || !currentPassword || !newPassword || newPassword !== confirmPassword || newPassword.length < 6}
-                  className="w-full py-2 rounded font-fantasy text-xs tracking-widest transition-all disabled:opacity-50"
-                  style={{
-                    background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
-                    border: "1px solid rgba(127,255,212,0.4)",
-                    color: "#7fffd4",
-                    cursor: "pointer",
-                  }}
-                >
-                  {changePasswordMutation.isPending ? "Updating..." : "Update Password"}
-                </button>
-              </div>
-            )}
           </div>
-
-          <button
-            data-testid="button-logout"
-            onClick={() => logoutMutation.mutate()}
-            disabled={isPending}
-            className="w-full py-3 rounded-md font-fantasy text-sm tracking-widest transition-all disabled:opacity-60"
-            style={{
-              background: "linear-gradient(135deg, rgba(139,0,0,0.4) 0%, rgba(80,0,0,0.4) 100%)",
-              border: "1px solid rgba(200,50,50,0.4)",
-              color: "#ff9999",
-              cursor: "pointer",
-              boxShadow: "0 2px 12px rgba(0,0,0,0.4)",
-            }}
-          >
-            {logoutMutation.isPending ? "Departing..." : "Leave Realm"}
-          </button>
         </div>
       </div>
-    </div>
+
+      {/* Crop Modal */}
+      {cropImageSrc && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center"
+          style={{ background: "rgba(0,0,0,0.88)", maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
+        >
+          <div
+            className="flex flex-col items-center gap-4 p-6 rounded-2xl mx-4"
+            style={{
+              background: "linear-gradient(180deg, #1a0e05 0%, #2a1808 100%)",
+              border: "1px solid rgba(212,160,23,0.4)",
+              boxShadow: "0 0 40px rgba(0,0,0,0.8)",
+              width: "100%",
+              maxWidth: "300px",
+            }}
+          >
+            <h3
+              className="font-fantasy text-[#f0c040] text-sm tracking-widest"
+              style={{ textShadow: "0 0 12px rgba(240,192,64,0.4)" }}
+            >
+              Position Your Photo
+            </h3>
+            <p className="font-fantasy text-[#a89878] text-[10px] tracking-wider text-center">
+              Drag to choose which part shows
+            </p>
+
+            <div
+              ref={cropContainerRef}
+              data-testid="crop-preview"
+              className="rounded-lg overflow-hidden"
+              style={{
+                width: "200px",
+                height: "200px",
+                border: "2px solid #c9a030",
+                boxShadow: "0 0 10px rgba(201,160,48,0.3)",
+                cursor: "grab",
+                touchAction: "none",
+                flexShrink: 0,
+              }}
+              onPointerDown={handleCropPointerDown}
+              onPointerMove={handleCropPointerMove}
+              onPointerUp={handleCropPointerUp}
+              onPointerCancel={handleCropPointerUp}
+            >
+              <img
+                src={cropImageSrc}
+                alt="crop preview"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  objectPosition: `${cropOffset.x}% ${cropOffset.y}%`,
+                  userSelect: "none",
+                  pointerEvents: "none",
+                  display: "block",
+                }}
+                draggable={false}
+              />
+            </div>
+
+            <div className="flex gap-3 w-full">
+              <button
+                data-testid="button-crop-cancel"
+                onClick={() => { setCropImageSrc(null); setCropOffset({ x: 50, y: 50 }); }}
+                className="flex-1 py-2.5 rounded-md font-fantasy text-xs tracking-wider transition-opacity"
+                style={{
+                  background: "rgba(139,0,0,0.25)",
+                  border: "1px solid rgba(200,50,50,0.4)",
+                  color: "#ff9999",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                data-testid="button-crop-confirm"
+                onClick={handleApplyCrop}
+                className="flex-1 py-2.5 rounded-md font-fantasy text-xs tracking-wider transition-opacity"
+                style={{
+                  background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
+                  border: "1px solid rgba(45,154,100,0.6)",
+                  color: "#7fffd4",
+                  cursor: "pointer",
+                }}
+              >
+                Use This
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
