@@ -2240,5 +2240,28 @@ export async function registerRoutes(
     }
   });
 
+  // Privacy policy — public read, admin write
+  app.get("/api/privacy-policy", async (_req, res) => {
+    try {
+      const text = await storage.getGameSetting("privacy_policy");
+      return res.json({ text: text ?? "" });
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to load privacy policy" });
+    }
+  });
+
+  app.post("/api/admin/privacy-policy", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
+      const { text } = req.body;
+      if (typeof text !== "string") return res.status(400).json({ message: "text required" });
+      await storage.setGameSetting("privacy_policy", text);
+      return res.json({ ok: true });
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to save privacy policy" });
+    }
+  });
+
   return httpServer;
 }

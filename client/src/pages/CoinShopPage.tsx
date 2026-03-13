@@ -409,6 +409,22 @@ export default function CoinShopPage({ user }: CoinShopProps) {
             Back to Home
           </button>
         </div>
+
+        <div className="flex justify-center mt-4 pb-2">
+          <button
+            data-testid="link-privacy-policy"
+            onClick={() => navigate("/privacy")}
+            className="font-fantasy text-[10px] tracking-wider underline underline-offset-2"
+            style={{
+              background: "none",
+              border: "none",
+              color: "rgba(127,255,212,0.35)",
+              cursor: "pointer",
+            }}
+          >
+            Privacy Policy
+          </button>
+        </div>
       </div>
 
       {showProfile && (

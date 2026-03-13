@@ -13,6 +13,7 @@ import CoinShopPage from "@/pages/CoinShopPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import PetHousePage from "@/pages/PetHousePage";
 import VisitPetHousePage from "@/pages/VisitPetHousePage";
+import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
 
 function AppRouter() {
   const { data: user, isLoading, isFetched } = useQuery<any>({
@@ -56,6 +57,9 @@ function AppRouter() {
       </Route>
       <Route path="/visit/:userId">
         {user ? <VisitPetHousePage /> : <Redirect to="/auth" />}
+      </Route>
+      <Route path="/privacy">
+        <PrivacyPolicyPage user={user ?? null} />
       </Route>
       <Route path="/">
         {user ? <HomePage user={user} /> : <Redirect to="/auth" />}
