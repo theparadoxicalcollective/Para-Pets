@@ -663,14 +663,6 @@ export async function registerRoutes(
     }
   });
 
-  function calcRollover(itemsUsedThisLevel: number, rarity: number): number {
-    const maxItemsPerLevel = rarity + 2;
-    const unused = Math.max(0, maxItemsPerLevel - itemsUsedThisLevel);
-    if (unused === 0) return 0;
-    // Higher rarity pets carry over more unused slots (rarity 1 → ~25%, 2 → 50%, 3 → 75%, 4+ → 100%)
-    // Capped at maxItemsPerLevel so total effective slots never exceed 2× base allowance
-    return Math.min(maxItemsPerLevel, Math.ceil(unused * rarity / 4));
-  }
 
   app.post("/api/pet/:inventoryId/power-up", isAuthenticated, async (req, res) => {
     try {
@@ -712,11 +704,13 @@ export async function registerRoutes(
 
       const rarity = petShopItem.rarity || 1;
       const maxItemsPerLevel = rarity + 2;
-      if (boostType !== "lvl" && petInv.itemsUsedThisLevel >= maxItemsPerLevel) {
-        return res.status(400).json({ message: `This pet can only use ${maxItemsPerLevel} items per level. Level up first!` });
+      const totalUsed = Math.max(0, petInv.itemsUsedThisLevel);
+      const totalAllowances = petInv.petLevel * maxItemsPerLevel;
+      if (boostType !== "lvl" && totalUsed >= totalAllowances) {
+        return res.status(400).json({ message: `No power-up slots available. Level up your pet to earn more!` });
       }
 
-      const updates: any = { itemsUsedThisLevel: petInv.itemsUsedThisLevel + 1 };
+      const updates: any = { itemsUsedThisLevel: totalUsed + 1 };
       const boostAmount = itemShopItem.statBoostAmount || 10;
 
       if (boostType === "health") {
@@ -738,9 +732,6 @@ export async function registerRoutes(
         updates.petLevelPoints = totalPoints;
         if (newLevel > petInv.petLevel) {
           updates.petLevel = newLevel;
-          const rarity = petShopItem.rarity || 1;
-          const rollover = calcRollover(petInv.itemsUsedThisLevel, rarity);
-          updates.itemsUsedThisLevel = -rollover;
         }
       }
 
@@ -812,9 +803,6 @@ export async function registerRoutes(
         const updates: any = { petLevelPoints: totalPoints };
         if (newLevel !== petInv.petLevel) {
           updates.petLevel = newLevel;
-          const rarity = petShopItem.rarity || 1;
-          const rollover = calcRollover(petInv.itemsUsedThisLevel, rarity);
-          updates.itemsUsedThisLevel = -rollover;
         }
         await storage.updateInventoryItem(petInv.id, updates);
       } else {
@@ -871,9 +859,6 @@ export async function registerRoutes(
       const updates: any = { petLevelPoints: totalPoints };
       if (newLevel > petInv.petLevel) {
         updates.petLevel = newLevel;
-        const rarity = petShopItem?.rarity || 1;
-        const rollover = calcRollover(petInv.itemsUsedThisLevel, rarity);
-        updates.itemsUsedThisLevel = -rollover;
       }
 
       const updatedPet = await storage.updateInventoryItem(petInv.id, updates);

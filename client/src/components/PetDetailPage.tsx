@@ -88,10 +88,10 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
 
   const rarity = pet.rarity || 1;
   const maxItemsPerLevel = rarity + 2;
-  const rolloverBonus = Math.max(0, -pet.itemsUsedThisLevel);
-  const effectiveMax = maxItemsPerLevel + rolloverBonus;
-  const effectiveUsed = Math.max(0, pet.itemsUsedThisLevel);
-  const itemsRemaining = effectiveMax - effectiveUsed;
+  const totalUsed = Math.max(0, pet.itemsUsedThisLevel);
+  const totalAllowances = pet.petLevel * maxItemsPerLevel;
+  const itemsRemaining = totalAllowances - totalUsed;
+  const showRemainingCount = itemsRemaining < 26;
 
   const powerUpMutation = useMutation({
     mutationFn: async (itemInventoryId: string) => {
@@ -436,10 +436,12 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                 </p>
               ) : (
                 <>
-                  <p className="font-fantasy text-[#a89878] text-[9px] tracking-wider mb-1">POWER-UP ITEMS ({itemsRemaining} uses left)</p>
+                  <p className="font-fantasy text-[#a89878] text-[9px] tracking-wider mb-1">
+                    POWER-UP ITEMS{showRemainingCount ? ` (${itemsRemaining} uses left)` : ""}
+                  </p>
                   {itemsRemaining <= 0 && (
                     <p className="font-fantasy text-[#ff9999] text-[8px] text-center mb-2">
-                      Limit reached this level. Level up first!
+                      No slots left. Level up to earn more!
                     </p>
                   )}
                   <div className="grid grid-cols-3 gap-2">
