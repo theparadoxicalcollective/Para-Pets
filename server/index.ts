@@ -263,6 +263,98 @@ app.use((req, res, next) => {
       } as any);
       console.log("Mire Bazaar migration complete");
     }
+
+    const NEW_SWAMP_LOCATIONS = [
+      {
+        id: "a1b2c3d4-0001-4000-8000-000000000001",
+        name: "Murk Cave",
+        description: "A mysterious cavern deep in the swamp, filled with glowing crystals and ancient magic.",
+        iconFile: "icon_murk_cave.png",
+        bgFile: "bg_murk_cave.png",
+        posX: 20,
+        posY: 70,
+        glowColor: "#7b4fc9",
+        sortOrder: 3,
+      },
+      {
+        id: "a1b2c3d4-0002-4000-8000-000000000002",
+        name: "Willowmere Cottage",
+        description: "A cozy little cottage perched on stilts above the swamp waters, warm and welcoming.",
+        iconFile: "icon_willowmere_cottage.png",
+        bgFile: "bg_willowmere_cottage.png",
+        posX: 60,
+        posY: 25,
+        glowColor: "#e8a44a",
+        sortOrder: 4,
+      },
+      {
+        id: "a1b2c3d4-0003-4000-8000-000000000003",
+        name: "Mosswood Lodge",
+        description: "A grand rustic lodge built around an ancient swamp tree, shelter for weary adventurers.",
+        iconFile: "icon_mosswood_lodge.png",
+        bgFile: "bg_mosswood_lodge.png",
+        posX: 75,
+        posY: 60,
+        glowColor: "#6aab5e",
+        sortOrder: 5,
+      },
+      {
+        id: "a1b2c3d4-0004-4000-8000-000000000004",
+        name: "The Tome & Toad",
+        description: "A peculiar bookstore floating above the mire, stocked with rare spells and swamp lore.",
+        iconFile: "icon_tome_toad.png",
+        bgFile: "bg_tome_toad.png",
+        posX: 40,
+        posY: 55,
+        glowColor: "#9b5de5",
+        sortOrder: 6,
+      },
+      {
+        id: "a1b2c3d4-0005-4000-8000-000000000005",
+        name: "Swamp Critters",
+        description: "A magical pet emporium brimming with exotic swamp creatures and enchanted companions.",
+        iconFile: "icon_swamp_critters.png",
+        bgFile: "bg_swamp_critters.png",
+        posX: 15,
+        posY: 35,
+        glowColor: "#3dc7a0",
+        sortOrder: 7,
+      },
+      {
+        id: "a1b2c3d4-0006-4000-8000-000000000006",
+        name: "The Mossy Cauldron",
+        description: "A beloved swamp tavern where adventurers gather, warm brews bubble, and tales are told.",
+        iconFile: "icon_mossy_cauldron.png",
+        bgFile: "bg_mossy_cauldron.png",
+        posX: 55,
+        posY: 80,
+        glowColor: "#c9a84c",
+        sortOrder: 8,
+      },
+    ];
+
+    for (const loc of NEW_SWAMP_LOCATIONS) {
+      const existing = swampLocations.find(l => l.id === loc.id);
+      if (!existing) {
+        console.log(`Creating new swamp location: ${loc.name}`);
+        const iconData = loadAssetBase64(loc.iconFile);
+        const bgData = loadAssetBase64(loc.bgFile);
+        await storage.createWorldLocation({
+          id: loc.id,
+          worldId: "swamp",
+          name: loc.name,
+          type: "none",
+          description: loc.description,
+          posX: loc.posX,
+          posY: loc.posY,
+          glowColor: loc.glowColor,
+          sortOrder: loc.sortOrder,
+          ...(iconData ? { iconUrl: iconData } : {}),
+          ...(bgData ? { bgUrl: bgData } : {}),
+        } as any);
+        console.log(`${loc.name} created.`);
+      }
+    }
   } catch (err) {
     console.error("Swamp location migration error (non-fatal):", err);
   }
