@@ -80,7 +80,7 @@ function ItemCard({ listing, isMine, user, onBuy, onCollect, onCancel }: {
         }}
       >
         <div style={{ fontSize: 40, filter: "drop-shadow(0 0 10px rgba(250,200,50,0.8))" }}>🪙</div>
-        <p style={{ color: "#f0c040", fontFamily: "fantasy", fontSize: 13, textAlign: "center", fontWeight: 700 }}>
+        <p style={{ color: "#f0c040", fontFamily: "Georgia, serif", fontSize: 13, textAlign: "center", fontWeight: 700 }}>
           +{formatCoins(listing.price)} coins
         </p>
         <p style={{ color: "rgba(200,180,100,0.7)", fontSize: 10, textAlign: "center" }}>{listing.itemName} sold!</p>
@@ -93,7 +93,7 @@ function ItemCard({ listing, isMine, user, onBuy, onCollect, onCancel }: {
             borderRadius: 8,
             padding: "6px 16px",
             color: "#1a0a00",
-            fontFamily: "fantasy",
+            fontFamily: "Georgia, serif",
             fontWeight: 700,
             fontSize: 12,
             cursor: "pointer",
@@ -132,7 +132,7 @@ function ItemCard({ listing, isMine, user, onBuy, onCollect, onCancel }: {
           </div>
         )}
       </div>
-      <p style={{ color: "#d4f0d4", fontFamily: "fantasy", fontSize: 11, textAlign: "center", lineHeight: 1.3, fontWeight: 600 }}>
+      <p style={{ color: "#d4f0d4", fontFamily: "Georgia, serif", fontSize: 11, textAlign: "center", lineHeight: 1.3, fontWeight: 600 }}>
         {listing.itemName}
       </p>
       {!isMine && (
@@ -142,7 +142,7 @@ function ItemCard({ listing, isMine, user, onBuy, onCollect, onCancel }: {
       )}
       <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: "auto" }}>
         <CoinIcon size={13} />
-        <span style={{ color: "#f0c040", fontFamily: "fantasy", fontSize: 12, fontWeight: 700 }}>{formatCoins(listing.price)}</span>
+        <span style={{ color: "#f0c040", fontFamily: "Georgia, serif", fontSize: 12, fontWeight: 700 }}>{formatCoins(listing.price)}</span>
       </div>
       {isMine ? (
         <button
@@ -154,7 +154,7 @@ function ItemCard({ listing, isMine, user, onBuy, onCollect, onCancel }: {
             borderRadius: 7,
             padding: "4px 12px",
             color: "#f87171",
-            fontFamily: "fantasy",
+            fontFamily: "Georgia, serif",
             fontSize: 10,
             cursor: "pointer",
           }}
@@ -171,7 +171,7 @@ function ItemCard({ listing, isMine, user, onBuy, onCollect, onCancel }: {
             borderRadius: 7,
             padding: "4px 12px",
             color: "#4ade80",
-            fontFamily: "fantasy",
+            fontFamily: "Georgia, serif",
             fontSize: 10,
             cursor: "pointer",
           }}
@@ -204,7 +204,7 @@ function EmptySlot({ onSell }: { onSell: () => void }) {
       }}
     >
       <span style={{ color: "rgba(74,222,128,0.6)", fontSize: 28, lineHeight: 1 }}>+</span>
-      <span style={{ color: "rgba(74,222,128,0.5)", fontFamily: "fantasy", fontSize: 10 }}>List Item</span>
+      <span style={{ color: "rgba(74,222,128,0.5)", fontFamily: "Georgia, serif", fontSize: 10 }}>List Item</span>
     </button>
   );
 }
@@ -248,14 +248,14 @@ function SellItemModal({ inventory, onClose, onSubmit, isPending }: {
         onClick={e => e.stopPropagation()}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <h2 style={{ color: "#4ade80", fontFamily: "fantasy", fontSize: 18, margin: 0 }}>List Item for Sale</h2>
+          <h2 style={{ color: "#4ade80", fontFamily: "Georgia, serif", fontSize: 18, margin: 0 }}>List Item for Sale</h2>
           <button onClick={onClose} style={{ background: "none", border: "none", color: "rgba(150,200,150,0.7)", fontSize: 20, cursor: "pointer" }}>✕</button>
         </div>
 
         <p style={{ color: "rgba(150,200,150,0.7)", fontSize: 11, marginBottom: 14 }}>Select an item from your inventory to sell. Pets cannot be listed.</p>
 
         {sellable.length === 0 ? (
-          <p style={{ color: "rgba(150,200,150,0.5)", textAlign: "center", fontFamily: "fantasy", fontSize: 13, padding: "20px 0" }}>No sellable items in inventory</p>
+          <p style={{ color: "rgba(150,200,150,0.5)", textAlign: "center", fontFamily: "Georgia, serif", fontSize: 13, padding: "20px 0" }}>No sellable items in inventory</p>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16, maxHeight: 260, overflowY: "auto" }}>
             {sellable.map(item => (
@@ -282,7 +282,7 @@ function SellItemModal({ inventory, onClose, onSubmit, isPending }: {
                     <span>📦</span>
                   </div>
                 )}
-                <span style={{ color: "#c8f0c8", fontSize: 9, fontFamily: "fantasy", textAlign: "center", lineHeight: 1.2 }}>{item.name}</span>
+                <span style={{ color: "#c8f0c8", fontSize: 9, fontFamily: "Georgia, serif", textAlign: "center", lineHeight: 1.2 }}>{item.name}</span>
               </button>
             ))}
           </div>
@@ -313,7 +313,7 @@ function SellItemModal({ inventory, onClose, onSubmit, isPending }: {
                   borderRadius: 8,
                   padding: "8px 10px",
                   color: "#d4f0d4",
-                  fontFamily: "fantasy",
+                  fontFamily: "Georgia, serif",
                   fontSize: 14,
                   outline: "none",
                 }}
@@ -336,7 +336,7 @@ function SellItemModal({ inventory, onClose, onSubmit, isPending }: {
             borderRadius: 10,
             padding: "10px",
             color: selected && priceValid ? "#4ade80" : "rgba(74,180,100,0.4)",
-            fontFamily: "fantasy",
+            fontFamily: "Georgia, serif",
             fontSize: 14,
             cursor: selected && priceValid && !isPending ? "pointer" : "not-allowed",
           }}
@@ -365,26 +365,26 @@ function ConfirmBuyModal({ listing, onClose, onConfirm, isPending, userCoins }: 
         style={{ background: "linear-gradient(135deg, rgba(10,30,15,0.98) 0%, rgba(20,50,25,0.98) 100%)", border: "2px solid rgba(74,222,128,0.45)", borderRadius: 18, padding: "24px 20px", width: "100%", maxWidth: 340, boxShadow: "0 0 40px rgba(0,0,0,0.8)" }}
         onClick={e => e.stopPropagation()}
       >
-        <h2 style={{ color: "#4ade80", fontFamily: "fantasy", fontSize: 18, margin: "0 0 12px" }}>Confirm Purchase</h2>
+        <h2 style={{ color: "#4ade80", fontFamily: "Georgia, serif", fontSize: 18, margin: "0 0 12px" }}>Confirm Purchase</h2>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
           {listing.itemImageUrl && <img src={listing.itemImageUrl} alt={listing.itemName} style={{ width: 56, height: 56, objectFit: "contain" }} />}
           <div>
-            <p style={{ color: "#d4f0d4", fontFamily: "fantasy", fontSize: 14, fontWeight: 700, margin: "0 0 4px" }}>{listing.itemName}</p>
+            <p style={{ color: "#d4f0d4", fontFamily: "Georgia, serif", fontSize: 14, fontWeight: 700, margin: "0 0 4px" }}>{listing.itemName}</p>
             <p style={{ color: "rgba(150,200,150,0.7)", fontSize: 11, margin: "0 0 4px" }}>Sold by {listing.sellerName}</p>
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <CoinIcon size={13} />
-              <span style={{ color: "#f0c040", fontFamily: "fantasy", fontSize: 14, fontWeight: 700 }}>{formatCoins(listing.price)}</span>
+              <span style={{ color: "#f0c040", fontFamily: "Georgia, serif", fontSize: 14, fontWeight: 700 }}>{formatCoins(listing.price)}</span>
             </div>
           </div>
         </div>
         {!canAfford && <p style={{ color: "#f87171", fontSize: 12, textAlign: "center", marginBottom: 12, fontFamily: "fantasy" }}>Not enough coins! You have {formatCoins(userCoins)}.</p>}
         <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={onClose} style={{ flex: 1, background: "rgba(50,80,55,0.4)", border: "1px solid rgba(74,180,100,0.2)", borderRadius: 10, padding: "10px", color: "rgba(150,200,150,0.7)", fontFamily: "fantasy", fontSize: 13, cursor: "pointer" }}>Cancel</button>
+          <button onClick={onClose} style={{ flex: 1, background: "rgba(50,80,55,0.4)", border: "1px solid rgba(74,180,100,0.2)", borderRadius: 10, padding: "10px", color: "rgba(150,200,150,0.7)", fontFamily: "Georgia, serif", fontSize: 13, cursor: "pointer" }}>Cancel</button>
           <button
             data-testid="button-confirm-buy"
             disabled={!canAfford || isPending}
             onClick={onConfirm}
-            style={{ flex: 1, background: canAfford ? "linear-gradient(135deg, rgba(74,222,128,0.4) 0%, rgba(40,160,80,0.4) 100%)" : "rgba(50,80,55,0.3)", border: `1px solid ${canAfford ? "rgba(74,222,128,0.6)" : "rgba(74,180,100,0.2)"}`, borderRadius: 10, padding: "10px", color: canAfford ? "#4ade80" : "rgba(74,180,100,0.4)", fontFamily: "fantasy", fontSize: 13, cursor: canAfford && !isPending ? "pointer" : "not-allowed" }}
+            style={{ flex: 1, background: canAfford ? "linear-gradient(135deg, rgba(74,222,128,0.4) 0%, rgba(40,160,80,0.4) 100%)" : "rgba(50,80,55,0.3)", border: `1px solid ${canAfford ? "rgba(74,222,128,0.6)" : "rgba(74,180,100,0.2)"}`, borderRadius: 10, padding: "10px", color: canAfford ? "#4ade80" : "rgba(74,180,100,0.4)", fontFamily: "Georgia, serif", fontSize: 13, cursor: canAfford && !isPending ? "pointer" : "not-allowed" }}
           >
             {isPending ? "Buying..." : "Confirm Buy"}
           </button>
@@ -526,13 +526,13 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
             <img src={homeIconImg} alt="Home" style={{ width: 22, height: 22, objectFit: "contain" }} />
           </button>
           <div style={{ textAlign: "center" }}>
-            <h1 style={{ color: accentGreen, fontFamily: "fantasy", fontSize: 20, margin: 0, textShadow: "0 0 15px rgba(74,222,128,0.5)" }}>
+            <h1 style={{ color: accentGreen, fontFamily: "Georgia, serif", fontSize: 20, margin: 0, textShadow: "0 0 15px rgba(74,222,128,0.5)" }}>
               Player Market
             </h1>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(10,30,15,0.8)", border: "1px solid rgba(212,160,23,0.4)", borderRadius: 10, padding: "6px 10px" }}>
             <CoinIcon size={14} />
-            <span style={{ color: "#f0c040", fontFamily: "fantasy", fontSize: 13, fontWeight: 700 }} data-testid="text-market-coins">
+            <span style={{ color: "#f0c040", fontFamily: "Georgia, serif", fontSize: 13, fontWeight: 700 }} data-testid="text-market-coins">
               {formatCoins(user?.coins ?? 0)}
             </span>
           </div>
@@ -548,12 +548,12 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
                 flex: 1, padding: "10px 0", border: "none", cursor: "pointer",
                 background: activeTab === tab ? "rgba(74,222,128,0.18)" : "transparent",
                 color: activeTab === tab ? accentGreen : "rgba(150,200,150,0.55)",
-                fontFamily: "fantasy", fontSize: 13, fontWeight: activeTab === tab ? 700 : 400,
+                fontFamily: "Georgia, serif", fontSize: 13, fontWeight: activeTab === tab ? 700 : 400,
                 borderBottom: activeTab === tab ? `2px solid ${accentGreen}` : "2px solid transparent",
                 transition: "all 0.15s",
               }}
             >
-              {tab === "browse" ? "🏪 Browse Market" : "🛒 My Shop"}
+              {tab === "browse" ? "🏪 Market" : "📋 List Items"}
             </button>
           ))}
         </div>
@@ -568,7 +568,7 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
               onChange={handleSearch}
               style={{
                 width: "100%", background: "rgba(10,30,15,0.85)", border: "1.5px solid rgba(74,222,128,0.3)", borderRadius: 10,
-                padding: "10px 14px", color: "#d4f0d4", fontFamily: "fantasy", fontSize: 13, outline: "none", marginBottom: 10,
+                padding: "10px 14px", color: "#d4f0d4", fontFamily: "Georgia, serif", fontSize: 13, outline: "none", marginBottom: 10,
                 boxSizing: "border-box",
               }}
             />
@@ -583,7 +583,7 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
                     background: categoryFilter === cat.value ? "rgba(74,222,128,0.25)" : "rgba(10,30,15,0.7)",
                     border: `1.5px solid ${categoryFilter === cat.value ? "rgba(74,222,128,0.7)" : "rgba(74,180,100,0.25)"}`,
                     borderRadius: 20, color: categoryFilter === cat.value ? accentGreen : "rgba(150,200,150,0.6)",
-                    fontFamily: "fantasy", fontSize: 11, cursor: "pointer", flexShrink: 0,
+                    fontFamily: "Georgia, serif", fontSize: 11, cursor: "pointer", flexShrink: 0,
                   }}
                 >
                   {cat.label}
@@ -592,9 +592,9 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
             </div>
             <div style={{ flex: 1, overflowY: "auto", paddingBottom: 16 }}>
               {marketQuery.isLoading ? (
-                <div style={{ textAlign: "center", paddingTop: 40, color: "rgba(150,200,150,0.5)", fontFamily: "fantasy", fontSize: 14 }}>Loading market...</div>
+                <div style={{ textAlign: "center", paddingTop: 40, color: "rgba(150,200,150,0.5)", fontFamily: "Georgia, serif", fontSize: 14 }}>Loading market...</div>
               ) : !marketQuery.data?.length ? (
-                <div style={{ textAlign: "center", paddingTop: 40, color: "rgba(150,200,150,0.4)", fontFamily: "fantasy", fontSize: 14 }}>
+                <div style={{ textAlign: "center", paddingTop: 40, color: "rgba(150,200,150,0.4)", fontFamily: "Georgia, serif", fontSize: 14 }}>
                   {search || categoryFilter !== "all" ? "No listings match your search." : "The market is empty. Be the first to sell!"}
                 </div>
               ) : (
@@ -636,7 +636,7 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
                   }}
                 >
                   <CoinIcon size={12} />
-                  <span style={{ color: (user?.coins ?? 0) >= 300 ? accentGreen : "rgba(74,180,100,0.4)", fontFamily: "fantasy", fontSize: 11 }}>
+                  <span style={{ color: (user?.coins ?? 0) >= 300 ? accentGreen : "rgba(74,180,100,0.4)", fontFamily: "Georgia, serif", fontSize: 11 }}>
                     +1 Slot (300)
                   </span>
                 </button>
@@ -644,7 +644,7 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
             </div>
             <div style={{ flex: 1, overflowY: "auto", paddingBottom: 16 }}>
               {myListingsQuery.isLoading ? (
-                <div style={{ textAlign: "center", paddingTop: 40, color: "rgba(150,200,150,0.5)", fontFamily: "fantasy", fontSize: 14 }}>Loading your shop...</div>
+                <div style={{ textAlign: "center", paddingTop: 40, color: "rgba(150,200,150,0.5)", fontFamily: "Georgia, serif", fontSize: 14 }}>Loading your shop...</div>
               ) : (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
                   {myListings.map(listing => (
