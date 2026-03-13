@@ -529,60 +529,53 @@
   50%       { transform: translateY(-3px); }
 }
 
+/* Gentle grazing: idle → drift → idle → drift back. translateX only, bob handles Y. */
 @keyframes petWander0 {
-  0%   { transform: translate(0px,    0px)   scaleX(1)  scale(1.00); }
-  18%  { transform: translate(70px,  -50px)  scaleX(1)  scale(0.88); }
-  35%  { transform: translate(110px, -90px)  scaleX(1)  scale(0.79); }
-  52%  { transform: translate(55px, -100px)  scaleX(-1) scale(0.76); }
-  68%  { transform: translate(-35px, -60px)  scaleX(-1) scale(0.86); }
-  82%  { transform: translate(-70px, -25px)  scaleX(-1) scale(0.94); }
-  100% { transform: translate(0px,    0px)   scaleX(1)  scale(1.00); }
+  0%, 20%  { transform: translateX(0px); }
+  40%      { transform: translateX(32px); }
+  52%, 70% { transform: translateX(32px); }
+  88%      { transform: translateX(0px); }
+  100%     { transform: translateX(0px); }
 }
 
 @keyframes petWander1 {
-  0%   { transform: translate(0px,    0px)   scaleX(1)  scale(1.00); }
-  15%  { transform: translate(-55px,  40px)  scaleX(-1) scale(1.11); }
-  32%  { transform: translate(-100px,-50px)  scaleX(-1) scale(0.88); }
-  50%  { transform: translate(-65px, -90px)  scaleX(1)  scale(0.80); }
-  68%  { transform: translate(15px,  -55px)  scaleX(1)  scale(0.89); }
-  85%  { transform: translate(10px,   20px)  scaleX(1)  scale(1.07); }
-  100% { transform: translate(0px,    0px)   scaleX(1)  scale(1.00); }
+  0%, 24%  { transform: translateX(0px); }
+  44%      { transform: translateX(-28px); }
+  57%, 75% { transform: translateX(-28px); }
+  92%      { transform: translateX(0px); }
+  100%     { transform: translateX(0px); }
 }
 
 @keyframes petWander2 {
-  0%   { transform: translate(0px,   0px)   scaleX(1)  scale(1.00); }
-  22%  { transform: translate(85px,  65px)  scaleX(1)  scale(1.25); }
-  42%  { transform: translate(115px,-15px)  scaleX(-1) scale(1.05); }
-  60%  { transform: translate(55px, -70px)  scaleX(-1) scale(0.75); }
-  78%  { transform: translate(-25px,-35px)  scaleX(1)  scale(0.87); }
-  100% { transform: translate(0px,   0px)   scaleX(1)  scale(1.00); }
+  0%, 28%  { transform: translateX(0px); }
+  48%      { transform: translateX(24px); }
+  60%, 80% { transform: translateX(24px); }
+  95%      { transform: translateX(0px); }
+  100%     { transform: translateX(0px); }
 }
 
 @keyframes petWander3 {
-  0%   { transform: translate(0px,    0px)  scaleX(1)  scale(1.00); }
-  18%  { transform: translate(-65px,  70px) scaleX(-1) scale(1.27); }
-  38%  { transform: translate(-105px, 80px) scaleX(-1) scale(1.29); }
-  58%  { transform: translate(-50px,  40px) scaleX(1)  scale(1.10); }
-  78%  { transform: translate(35px,  -40px) scaleX(1)  scale(0.70); }
-  100% { transform: translate(0px,    0px)  scaleX(1)  scale(1.00); }
+  0%, 18%  { transform: translateX(0px); }
+  38%      { transform: translateX(-34px); }
+  50%, 68% { transform: translateX(-34px); }
+  86%      { transform: translateX(0px); }
+  100%     { transform: translateX(0px); }
 }
 
 @keyframes petWander4 {
-  0%   { transform: translate(0px,    0px)   scaleX(1)  scale(1.00); }
-  20%  { transform: translate(55px,   80px)  scaleX(1)  scale(1.34); }
-  40%  { transform: translate(90px,  130px)  scaleX(-1) scale(1.56); }
-  60%  { transform: translate(30px,   80px)  scaleX(-1) scale(1.34); }
-  80%  { transform: translate(-25px,  30px)  scaleX(1)  scale(1.12); }
-  100% { transform: translate(0px,    0px)   scaleX(1)  scale(1.00); }
+  0%, 30%  { transform: translateX(0px); }
+  50%      { transform: translateX(26px); }
+  63%, 82% { transform: translateX(26px); }
+  97%      { transform: translateX(0px); }
+  100%     { transform: translateX(0px); }
 }
 
 @keyframes petWander5 {
-  0%   { transform: translate(0px,    0px)  scaleX(1)  scale(1.00); }
-  20%  { transform: translate(-75px, -50px) scaleX(-1) scale(0.87); }
-  40%  { transform: translate(-115px,-85px) scaleX(-1) scale(0.77); }
-  60%  { transform: translate(-50px, -50px) scaleX(1)  scale(0.89); }
-  80%  { transform: translate(20px,   45px) scaleX(1)  scale(1.20); }
-  100% { transform: translate(0px,    0px)  scaleX(1)  scale(1.00); }
+  0%, 22%  { transform: translateX(0px); }
+  42%      { transform: translateX(-22px); }
+  55%, 74% { transform: translateX(-22px); }
+  91%      { transform: translateX(0px); }
+  100%     { transform: translateX(0px); }
 }
 
 @keyframes glowPulse {

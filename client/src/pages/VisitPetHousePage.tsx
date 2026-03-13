@@ -26,12 +26,12 @@ interface UserPetsResponse {
 }
 
 const WALK_CONFIGS = [
-  { wanderIdx: 0, left: "4%",  top: "88%", size: 73, duration: "22s", delay: "0s"   },
-  { wanderIdx: 1, left: "62%", top: "83%", size: 61, duration: "25s", delay: "3s"   },
-  { wanderIdx: 2, left: "20%", top: "73%", size: 51, duration: "19s", delay: "6s"   },
-  { wanderIdx: 3, left: "55%", top: "63%", size: 41, duration: "21s", delay: "1.5s" },
-  { wanderIdx: 4, left: "38%", top: "56%", size: 32, duration: "27s", delay: "9s"   },
-  { wanderIdx: 5, left: "42%", top: "79%", size: 57, duration: "24s", delay: "4.5s" },
+  { wanderIdx: 0, left: "4%",  top: "88%", size: 118, duration: "38s", delay: "0s"  },
+  { wanderIdx: 1, left: "58%", top: "83%", size: 102, duration: "42s", delay: "5s"  },
+  { wanderIdx: 2, left: "20%", top: "74%", size: 88,  duration: "36s", delay: "11s" },
+  { wanderIdx: 3, left: "52%", top: "65%", size: 76,  duration: "44s", delay: "2s"  },
+  { wanderIdx: 4, left: "34%", top: "57%", size: 66,  duration: "40s", delay: "16s" },
+  { wanderIdx: 5, left: "40%", top: "79%", size: 94,  duration: "45s", delay: "8s"  },
 ];
 
 function WalkingPetView({ pet, index }: { pet: VisitedPet; index: number }) {
@@ -70,21 +70,21 @@ function WalkingPetView({ pet, index }: { pet: VisitedPet; index: number }) {
           transformOrigin: "bottom center",
         }}
       >
-        {pet.petTemplateId ? (
-          <div>
-            <PetAnimator
-              petTemplateId={pet.petTemplateId}
-              mode="walk"
-              size={sz}
-              style={{
-                filter: `drop-shadow(0 ${Math.round(sz * 0.15)}px ${Math.round(sz * 0.18)}px rgba(0,0,0,0.55))`,
-              }}
-            />
-            {shadow}
-          </div>
-        ) : (
-          <div style={{ animation: `petFloatSmall 3.5s ${cfg.delay} ease-in-out infinite` }}>
-            {petImg ? (
+        <div style={{ animation: `petFloatSmall 3.2s ${cfg.delay} ease-in-out infinite` }}>
+          {pet.petTemplateId ? (
+            <>
+              <PetAnimator
+                petTemplateId={pet.petTemplateId}
+                mode="walk"
+                size={sz}
+                style={{
+                  filter: `drop-shadow(0 ${Math.round(sz * 0.12)}px ${Math.round(sz * 0.15)}px rgba(0,0,0,0.5))`,
+                }}
+              />
+              {shadow}
+            </>
+          ) : petImg ? (
+            <>
               <img
                 src={petImg}
                 alt=""
@@ -94,22 +94,25 @@ function WalkingPetView({ pet, index }: { pet: VisitedPet; index: number }) {
                   height: sz,
                   objectFit: "contain",
                   filter: [
-                    `drop-shadow(0 ${Math.round(sz * 0.15)}px ${Math.round(sz * 0.18)}px rgba(0,0,0,0.65))`,
+                    `drop-shadow(0 ${Math.round(sz * 0.12)}px ${Math.round(sz * 0.15)}px rgba(0,0,0,0.6))`,
                     "brightness(1.06) saturate(1.1)",
                   ].join(" "),
                 }}
               />
-            ) : (
+              {shadow}
+            </>
+          ) : (
+            <>
               <span
                 className="pointer-events-none flex items-center justify-center"
                 style={{ width: sz, height: sz, fontSize: sz * 0.65 }}
               >
                 🐾
               </span>
-            )}
-            {shadow}
-          </div>
-        )}
+              {shadow}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
