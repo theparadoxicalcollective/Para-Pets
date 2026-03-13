@@ -17,6 +17,7 @@ export const users = pgTable("users", {
   lastProfilePicChange: timestamp("last_profile_pic_change"),
   passwordResetToken: text("password_reset_token"),
   passwordResetExpires: timestamp("password_reset_expires"),
+  marketExtraSlots: integer("market_extra_slots").notNull().default(0),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
@@ -60,6 +61,7 @@ export const userInventory = pgTable("user_inventory", {
   petLevelPoints: integer("pet_level_points").notNull().default(0),
   itemsUsedThisLevel: integer("items_used_this_level").notNull().default(0),
   petNickname: text("pet_nickname"),
+  isListed: boolean("is_listed").notNull().default(false),
 });
 
 export const rewardBundles = pgTable("reward_bundles", {
@@ -261,6 +263,23 @@ export const userBadges = pgTable("user_badges", {
   badgeId: varchar("badge_id").notNull(),
   awardedAt: timestamp("awarded_at").notNull().default(sql`now()`),
 });
+
+export const playerMarketListings = pgTable("player_market_listings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sellerId: varchar("seller_id").notNull(),
+  sellerName: text("seller_name").notNull(),
+  inventoryId: varchar("inventory_id").notNull(),
+  shopItemId: varchar("shop_item_id").notNull(),
+  itemName: text("item_name").notNull(),
+  itemImageUrl: text("item_image_url"),
+  itemType: text("item_type").notNull(),
+  price: integer("price").notNull(),
+  status: text("status").notNull().default("active"),
+  buyerId: varchar("buyer_id"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export type PlayerMarketListing = typeof playerMarketListings.$inferSelect;
 
 export type CoinPurchase = typeof coinPurchases.$inferSelect;
 export type WorldLocation = typeof worldLocations.$inferSelect;

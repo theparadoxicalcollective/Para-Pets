@@ -17,9 +17,10 @@ import {
   type LocationEnemy, locationEnemies,
   type EnemyDrop, enemyDrops,
   type Badge, type UserBadge, badges, userBadges,
+  type PlayerMarketListing, playerMarketListings,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, ne, gte, asc, desc } from "drizzle-orm";
+import { eq, and, ne, gte, asc, desc, ilike, or } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -113,6 +114,14 @@ export interface IStorage {
   getBadgeRecipients(badgeId: string): Promise<string[]>;
   awardBadge(userId: string, badgeId: string): Promise<UserBadge>;
   revokeBadge(userId: string, badgeId: string): Promise<void>;
+  getMarketListings(filters?: { search?: string; itemType?: string }): Promise<PlayerMarketListing[]>;
+  getMyMarketListings(sellerId: string): Promise<PlayerMarketListing[]>;
+  getMarketListing(id: string): Promise<PlayerMarketListing | undefined>;
+  createMarketListing(data: { sellerId: string; sellerName: string; inventoryId: string; shopItemId: string; itemName: string; itemImageUrl?: string | null; itemType: string; price: number }): Promise<PlayerMarketListing>;
+  buyMarketListing(listingId: string, buyerId: string): Promise<{ listing: PlayerMarketListing; price: number }>;
+  collectMarketCoins(listingId: string, sellerId: string): Promise<number>;
+  cancelMarketListing(listingId: string, sellerId: string): Promise<void>;
+  buyMarketSlot(userId: string): Promise<User>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -667,6 +676,75 @@ export class DatabaseStorage implements IStorage {
 
   async revokeBadge(userId: string, badgeId: string): Promise<void> {
     await db.delete(userBadges).where(and(eq(userBadges.userId, userId), eq(userBadges.badgeId, badgeId)));
+  }
+
+  async getMarketListings(filters?: { search?: string; itemType?: string }): Promise<PlayerMarketListing[]> {
+    let query = db.select().from(playerMarketListings).where(eq(playerMarketListings.status, "active")).$dynamic();
+    if (filters?.itemType && filters.itemType !== "all") {
+      query = query.where(and(eq(playerMarketListings.status, "active"), eq(playerMarketListings.itemType, filters.itemType)));
+    }
+    if (filters?.search) {
+      const term = `%${filters.search}%`;
+      const cond = eq(playerMarketListings.status, "active");
+      const searchCond = or(ilike(playerMarketListings.itemName, term), ilike(playerMarketListings.sellerName, term));
+      if (filters?.itemType && filters.itemType !== "all") {
+        query = query.where(and(cond, eq(playerMarketListings.itemType, filters.itemType), searchCond));
+      } else {
+        query = query.where(and(cond, searchCond));
+      }
+    }
+    return query.orderBy(desc(playerMarketListings.createdAt));
+  }
+
+  async getMyMarketListings(sellerId: string): Promise<PlayerMarketListing[]> {
+    return db.select().from(playerMarketListings)
+      .where(eq(playerMarketListings.sellerId, sellerId))
+      .orderBy(desc(playerMarketListings.createdAt));
+  }
+
+  async getMarketListing(id: string): Promise<PlayerMarketListing | undefined> {
+    const [listing] = await db.select().from(playerMarketListings).where(eq(playerMarketListings.id, id));
+    return listing;
+  }
+
+  async createMarketListing(data: { sellerId: string; sellerName: string; inventoryId: string; shopItemId: string; itemName: string; itemImageUrl?: string | null; itemType: string; price: number }): Promise<PlayerMarketListing> {
+    await db.update(userInventory).set({ isListed: true }).where(eq(userInventory.id, data.inventoryId));
+    const [listing] = await db.insert(playerMarketListings).values(data).returning();
+    return listing;
+  }
+
+  async buyMarketListing(listingId: string, buyerId: string): Promise<{ listing: PlayerMarketListing; price: number }> {
+    const [listing] = await db.select().from(playerMarketListings).where(and(eq(playerMarketListings.id, listingId), eq(playerMarketListings.status, "active")));
+    if (!listing) throw new Error("Listing not found or not active");
+    await db.update(playerMarketListings).set({ status: "sold", buyerId }).where(eq(playerMarketListings.id, listingId));
+    await db.update(userInventory).set({ userId: buyerId, isListed: false }).where(eq(userInventory.id, listing.inventoryId));
+    return { listing, price: listing.price };
+  }
+
+  async collectMarketCoins(listingId: string, sellerId: string): Promise<number> {
+    const [listing] = await db.select().from(playerMarketListings).where(and(eq(playerMarketListings.id, listingId), eq(playerMarketListings.sellerId, sellerId), eq(playerMarketListings.status, "sold")));
+    if (!listing) throw new Error("Listing not found or coins not ready");
+    await db.delete(playerMarketListings).where(eq(playerMarketListings.id, listingId));
+    return listing.price;
+  }
+
+  async cancelMarketListing(listingId: string, sellerId: string): Promise<void> {
+    const [listing] = await db.select().from(playerMarketListings).where(and(eq(playerMarketListings.id, listingId), eq(playerMarketListings.sellerId, sellerId), eq(playerMarketListings.status, "active")));
+    if (!listing) throw new Error("Listing not found or already sold");
+    await db.update(userInventory).set({ isListed: false }).where(eq(userInventory.id, listing.inventoryId));
+    await db.delete(playerMarketListings).where(eq(playerMarketListings.id, listingId));
+  }
+
+  async buyMarketSlot(userId: string): Promise<User> {
+    const user = await this.getUser(userId);
+    if (!user) throw new Error("User not found");
+    if ((user.marketExtraSlots ?? 0) >= 25) throw new Error("Maximum slot limit reached");
+    if (user.coins < 300) throw new Error("Not enough coins");
+    const [updated] = await db.update(users)
+      .set({ coins: user.coins - 300, marketExtraSlots: (user.marketExtraSlots ?? 0) + 1 })
+      .where(eq(users.id, userId))
+      .returning();
+    return updated;
   }
 }
 

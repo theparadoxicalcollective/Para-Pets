@@ -15,6 +15,7 @@ import PetHousePage from "@/pages/PetHousePage";
 import VisitPetHousePage from "@/pages/VisitPetHousePage";
 import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
 import BadgePage from "@/pages/BadgePage";
+import MarketPage from "@/pages/MarketPage";
 
 function AppRouter() {
   const { data: user, isLoading, isFetched } = useQuery<any>({
@@ -64,6 +65,9 @@ function AppRouter() {
       </Route>
       <Route path="/badges">
         {user ? <BadgePage user={user} /> : <Redirect to="/auth" />}
+      </Route>
+      <Route path="/market">
+        {user ? <MarketPage user={user} onUserUpdate={u => queryClient.setQueryData(["/api/auth/me"], u)} /> : <Redirect to="/auth" />}
       </Route>
       <Route path="/">
         {user ? <HomePage user={user} /> : <Redirect to="/auth" />}

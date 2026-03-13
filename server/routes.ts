@@ -2374,5 +2374,113 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/market", isAuthenticated, async (req, res) => {
+    try {
+      const search = req.query.search as string | undefined;
+      const itemType = req.query.itemType as string | undefined;
+      const listings = await storage.getMarketListings({ search, itemType });
+      return res.json(listings);
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to fetch market listings" });
+    }
+  });
+
+  app.get("/api/market/my-listings", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const listings = await storage.getMyMarketListings(user.id);
+      return res.json(listings);
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to fetch your listings" });
+    }
+  });
+
+  app.post("/api/market/list", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { inventoryId, price } = req.body;
+      if (!inventoryId || price == null) return res.status(400).json({ message: "inventoryId and price required" });
+      if (typeof price !== "number" || price < 1 || price > 1000000) return res.status(400).json({ message: "Price must be between 1 and 1,000,000 coins" });
+
+      const invItem = await storage.getInventoryItemById(inventoryId);
+      if (!invItem || invItem.userId !== user.id) return res.status(404).json({ message: "Item not found in your inventory" });
+      if (invItem.isListed) return res.status(400).json({ message: "Item is already listed" });
+
+      const shopItem = await storage.getShopItem(invItem.shopItemId);
+      if (!shopItem) return res.status(404).json({ message: "Item data not found" });
+      if (shopItem.type === "pet") return res.status(400).json({ message: "Pets cannot be sold on the player market" });
+
+      const myListings = await storage.getMyMarketListings(user.id);
+      const activeOrPending = myListings.filter(l => l.status === "active" || l.status === "sold");
+      const totalSlots = 25 + (user.marketExtraSlots ?? 0);
+      if (activeOrPending.length >= totalSlots) return res.status(400).json({ message: `You've reached your listing limit (${totalSlots} slots). Collect sold coins or buy more slots.` });
+
+      const listing = await storage.createMarketListing({
+        sellerId: user.id,
+        sellerName: user.username,
+        inventoryId,
+        shopItemId: shopItem.id,
+        itemName: shopItem.name,
+        itemImageUrl: shopItem.imageUrl,
+        itemType: shopItem.type,
+        price,
+      });
+      return res.json(listing);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message || "Failed to create listing" });
+    }
+  });
+
+  app.post("/api/market/:listingId/buy", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const listing = await storage.getMarketListing(req.params.listingId);
+      if (!listing) return res.status(404).json({ message: "Listing not found" });
+      if (listing.status !== "active") return res.status(400).json({ message: "This item is no longer available" });
+      if (listing.sellerId === user.id) return res.status(400).json({ message: "You cannot buy your own listing" });
+
+      const fullUser = await storage.getUser(user.id);
+      if (!fullUser || fullUser.coins < listing.price) return res.status(400).json({ message: "Not enough coins" });
+
+      await storage.addCoins(user.id, -listing.price);
+      const { price } = await storage.buyMarketListing(listing.id, user.id);
+      return res.json({ ok: true, price });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message || "Failed to buy listing" });
+    }
+  });
+
+  app.post("/api/market/:listingId/collect", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const coinsEarned = await storage.collectMarketCoins(req.params.listingId, user.id);
+      await storage.addCoins(user.id, coinsEarned);
+      const updatedUser = await storage.getUser(user.id);
+      return res.json({ ok: true, coinsEarned, newBalance: updatedUser?.coins });
+    } catch (err: any) {
+      return res.status(400).json({ message: err.message || "Failed to collect coins" });
+    }
+  });
+
+  app.delete("/api/market/:listingId", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      await storage.cancelMarketListing(req.params.listingId, user.id);
+      return res.json({ ok: true });
+    } catch (err: any) {
+      return res.status(400).json({ message: err.message || "Failed to cancel listing" });
+    }
+  });
+
+  app.post("/api/market/buy-slot", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const updatedUser = await storage.buyMarketSlot(user.id);
+      return res.json({ ok: true, marketExtraSlots: updatedUser.marketExtraSlots, coins: updatedUser.coins });
+    } catch (err: any) {
+      return res.status(400).json({ message: err.message || "Failed to purchase slot" });
+    }
+  });
+
   return httpServer;
 }
