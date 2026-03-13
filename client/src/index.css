@@ -419,6 +419,44 @@
   }
 }
 
+@keyframes powerUpFlash {
+  0%   { opacity: 0; }
+  10%  { opacity: 1; }
+  80%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes powerUpRise {
+  0%   { transform: translateY(30px) scale(0.7); opacity: 0; }
+  20%  { transform: translateY(0px)  scale(1.15); opacity: 1; }
+  50%  { transform: translateY(-8px) scale(1);    opacity: 1; }
+  100% { transform: translateY(-30px) scale(0.9); opacity: 0; }
+}
+
+@keyframes powerUpSpin {
+  0%   { transform: rotate(0deg)   scale(0.8); }
+  50%  { transform: rotate(180deg) scale(1.2); }
+  100% { transform: rotate(360deg) scale(1);   }
+}
+
+@keyframes petIdleWalk {
+  0%   { transform: translateX(0px) scaleX(1); }
+  44%  { transform: translateX(var(--pw-dist)) scaleX(1); }
+  50%  { transform: translateX(var(--pw-dist)) scaleX(-1); }
+  94%  { transform: translateX(0px) scaleX(-1); }
+  100% { transform: translateX(0px) scaleX(1); }
+}
+
+@keyframes petBob {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-3px); }
+}
+
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 12px rgba(74,222,128,0.4), 0 0 24px rgba(74,222,128,0.2); }
+  50%       { box-shadow: 0 0 24px rgba(74,222,128,0.7), 0 0 48px rgba(74,222,128,0.4); }
+}
+
 @keyframes scrollUnroll {
   0% {
     opacity: 0;

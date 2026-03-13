@@ -1,9 +1,8 @@
-import { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
-import bgImg from "@assets/bg_home_v2.png";
 
 interface PetHousePageProps {
   user: {
@@ -43,11 +42,23 @@ interface EdibleItem {
   statBoostAmount: number | null;
 }
 
+const WALK_CONFIGS = [
+  { travelPx: "150px", duration: "8s",  delay: "0s",   startPct: 4,  size: 42 },
+  { travelPx: "120px", duration: "11s", delay: "2.8s", startPct: 28, size: 38 },
+  { travelPx: "160px", duration: "7s",  delay: "4.5s", startPct: 12, size: 44 },
+  { travelPx: "110px", duration: "9s",  delay: "1.5s", startPct: 48, size: 36 },
+  { travelPx: "140px", duration: "10s", delay: "3.5s", startPct: 20, size: 40 },
+  { travelPx: "130px", duration: "8.5s",delay: "6s",   startPct: 36, size: 38 },
+];
+
 export default function PetHousePage({ user }: PetHousePageProps) {
   const [selectedPet, setSelectedPet] = useState<InventoryPet | null>(null);
-  const [pendingEdible, setPendingEdible] = useState<EdibleItem | null>(null);
-  const [successAnim, setSuccessAnim] = useState(false);
-  const [successLabel, setSuccessLabel] = useState("");
+  const [draggingEdible, setDraggingEdible] = useState<EdibleItem | null>(null);
+  const [ghostPos, setGhostPos] = useState({ x: 0, y: 0 });
+  const [isOverPet, setIsOverPet] = useState(false);
+  const [feedAnim, setFeedAnim] = useState(false);
+  const [feedLabel, setFeedLabel] = useState("");
+  const petDropRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -59,7 +70,6 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const hatchedPets: InventoryPet[] = inventory.filter(
     (item) => item.type === "pet" && item.isHatched
   );
-
   const edibles: EdibleItem[] = inventory.filter(
     (item) => item.type === "edibles"
   );
@@ -70,348 +80,573 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       return res.json();
     },
     onSuccess: (_data, variables) => {
-      const edible = edibles.find(e => e.inventoryId === variables.edibleInventoryId);
-      setSuccessLabel(`+${edible?.statBoostAmount || "?"} LVL pts`);
-      setSuccessAnim(true);
-      setPendingEdible(null);
+      const edible = edibles.find((e) => e.inventoryId === variables.edibleInventoryId);
+      setFeedLabel(`+${edible?.statBoostAmount ?? "?"} LVL`);
+      setFeedAnim(true);
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-      setTimeout(() => setSuccessAnim(false), 2200);
+      setTimeout(() => setFeedAnim(false), 2400);
     },
     onError: (err: any) => {
       toast({ title: "Can't feed", description: err?.message || "Could not feed edible", variant: "destructive" });
     },
   });
 
+  const handleEdiblePointerDown = (e: React.PointerEvent, edible: EdibleItem) => {
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    setDraggingEdible(edible);
+    setGhostPos({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleEdiblePointerMove = (e: React.PointerEvent) => {
+    if (!draggingEdible) return;
+    setGhostPos({ x: e.clientX, y: e.clientY });
+    if (petDropRef.current) {
+      const r = petDropRef.current.getBoundingClientRect();
+      setIsOverPet(
+        e.clientX >= r.left && e.clientX <= r.right &&
+        e.clientY >= r.top && e.clientY <= r.bottom
+      );
+    }
+  };
+
+  const handleEdiblePointerUp = (e: React.PointerEvent) => {
+    if (draggingEdible && isOverPet && selectedPet && !feedMutation.isPending) {
+      feedMutation.mutate({
+        petInventoryId: selectedPet.inventoryId,
+        edibleInventoryId: draggingEdible.inventoryId,
+      });
+    }
+    setDraggingEdible(null);
+    setIsOverPet(false);
+  };
+
   return (
     <div
       className="relative h-[100dvh] w-full overflow-hidden flex flex-col"
-      style={{ maxWidth: "768px", margin: "0 auto" }}
+      style={{ maxWidth: "768px", margin: "0 auto", background: "#0a0600" }}
     >
-      <div className="absolute inset-0 z-0">
-        <img src={bgImg} alt="" className="w-full h-full object-cover" />
-        <div className="absolute inset-0" style={{ background: "rgba(10,30,15,0.6)" }} />
-      </div>
+      <TopBar user={user} onProfileClick={() => {}} hideTreehouse />
 
-      <div
-        className="relative z-10 flex flex-col h-full"
-        style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
-      >
-        <TopBar user={user} onProfileClick={() => {}} hideTreehouse />
+      <div className="flex-1 relative overflow-hidden">
+        <TreehouseRoom3D />
 
-        <div className="flex-1 flex flex-col overflow-hidden px-4 pt-3 pb-4 gap-4">
-
-          <div className="flex items-center gap-3">
-            <TreehouseIconLarge />
-            <div>
-              <h1
-                className="font-fantasy text-[#f0c040] text-xl tracking-widest"
-                style={{ textShadow: "0 0 15px rgba(240,192,64,0.4)" }}
-              >
-                Pet House
-              </h1>
-              <p className="font-fantasy text-[#7fbfb0] text-[10px] tracking-wider">Feed your pets edibles to level them up</p>
-            </div>
+        {isLoading ? (
+          <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+            <p className="font-fantasy text-[#8b6a3e] text-xs animate-pulse tracking-widest">Loading...</p>
           </div>
-
-          {isLoading ? (
-            <div className="flex-1 flex items-center justify-center">
-              <p className="font-fantasy text-[#7fbfb0] text-sm animate-pulse">Loading...</p>
-            </div>
-          ) : (
-            <div className="flex-1 flex flex-col gap-4 overflow-y-auto">
-
-              <Section title="Your Pets" count={hatchedPets.length}>
-                {hatchedPets.length === 0 ? (
-                  <EmptyNote>No hatched pets yet — hatch one from your inventory!</EmptyNote>
-                ) : (
-                  <div className="space-y-2">
-                    {hatchedPets.map(pet => {
-                      const petImg = pet.hatchedImageUrl || pet.imageUrl;
-                      const isSelected = selectedPet?.inventoryId === pet.inventoryId;
-                      return (
-                        <button
-                          key={pet.inventoryId}
-                          data-testid={`button-select-pet-${pet.inventoryId}`}
-                          onClick={() => setSelectedPet(isSelected ? null : pet)}
-                          className="w-full text-left rounded-lg p-2.5 flex items-center gap-3 transition-transform active:scale-98"
-                          style={{
-                            background: isSelected
-                              ? "linear-gradient(135deg, rgba(20,60,30,0.9) 0%, rgba(10,40,20,0.9) 100%)"
-                              : "linear-gradient(135deg, rgba(20,10,3,0.8) 0%, rgba(45,25,8,0.8) 100%)",
-                            border: `1px solid ${isSelected ? "rgba(74,222,128,0.6)" : "rgba(212,160,23,0.25)"}`,
-                            cursor: "pointer",
-                            boxShadow: isSelected ? "0 0 12px rgba(74,222,128,0.2)" : "none",
-                          }}
-                        >
-                          <div
-                            className="w-11 h-11 rounded-md flex items-center justify-center overflow-hidden flex-shrink-0"
-                            style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.15)" }}
-                          >
-                            {petImg ? (
-                              <img src={petImg} alt="" className="w-full h-full object-contain" />
-                            ) : (
-                              <span className="text-xl">🐾</span>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-fantasy text-[#f0c040] text-xs truncate">
-                              {pet.petNickname || pet.name}
-                            </p>
-                            <p className="font-fantasy text-[#7fbfb0] text-[9px]">LV {pet.petLevel}</p>
-                          </div>
-                          {isSelected && (
-                            <span className="font-fantasy text-[#4ade80] text-[8px] tracking-wider flex-shrink-0">Selected ✓</span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </Section>
-
-              <Section title="Your Edibles" count={edibles.length}>
-                {edibles.length === 0 ? (
-                  <EmptyNote>No edibles in your bag — buy some from the shop!</EmptyNote>
-                ) : (
-                  <div className="space-y-2">
-                    {edibles.map(edible => (
-                      <div
-                        key={edible.inventoryId}
-                        data-testid={`card-edible-${edible.inventoryId}`}
-                        className="rounded-lg p-2.5 flex items-center gap-3"
-                        style={{
-                          background: "linear-gradient(135deg, rgba(20,10,3,0.8) 0%, rgba(45,25,8,0.8) 100%)",
-                          border: "1px solid rgba(134,239,172,0.2)",
-                        }}
-                      >
-                        <div
-                          className="w-11 h-11 rounded-md flex items-center justify-center overflow-hidden flex-shrink-0"
-                          style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(134,239,172,0.15)" }}
-                        >
-                          {edible.imageUrl ? (
-                            <img src={edible.imageUrl} alt="" className="w-full h-full object-contain" />
-                          ) : (
-                            <span className="text-xl">🍎</span>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-fantasy text-[#f0c040] text-xs truncate">{edible.name}</p>
-                          <p className="font-fantasy text-[#86efac] text-[9px]">+{edible.statBoostAmount} LVL pts</p>
-                        </div>
-                        <button
-                          data-testid={`button-feed-edible-${edible.inventoryId}`}
-                          onClick={() => {
-                            if (!selectedPet) {
-                              toast({ title: "No pet selected", description: "Select a pet above first", variant: "destructive" });
-                              return;
-                            }
-                            setPendingEdible(edible);
-                          }}
-                          disabled={feedMutation.isPending}
-                          className="px-3 py-1.5 rounded-md font-fantasy text-[9px] tracking-wider flex-shrink-0 transition-transform active:scale-95 disabled:opacity-50"
-                          style={{
-                            background: "linear-gradient(135deg, #14532d 0%, #166534 100%)",
-                            border: "1px solid rgba(74,222,128,0.4)",
-                            color: "#86efac",
-                            cursor: "pointer",
-                          }}
-                        >
-                          Feed
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </Section>
-            </div>
-          )}
-        </div>
-
-        {successAnim && (
-          <div
-            className="absolute inset-0 flex items-center justify-center z-50 pointer-events-none"
-            style={{ animation: "powerUpFlash 2.2s ease-out forwards" }}
-          >
+        ) : (
+          <>
             <div
-              className="flex flex-col items-center"
-              style={{ animation: "powerUpRise 2s ease-out forwards" }}
+              className="absolute z-10"
+              style={{ left: 0, right: 0, bottom: 0, height: "38%" }}
             >
-              <div className="text-5xl mb-1" style={{ animation: "powerUpSpin 0.7s ease-out" }}>🍀</div>
-              <span
-                className="font-fantasy text-2xl font-bold tracking-wider"
-                style={{
-                  color: "#86efac",
-                  textShadow: "0 0 20px rgba(134,239,172,0.9), 0 0 40px rgba(134,239,172,0.5)",
-                }}
-                data-testid="text-feed-success"
-              >
-                {successLabel}
-              </span>
+              {hatchedPets.length === 0 ? (
+                <div className="w-full h-full flex items-center justify-center">
+                  <p
+                    className="font-fantasy text-[9px] tracking-wider text-center px-6"
+                    style={{ color: "rgba(139,106,62,0.5)" }}
+                  >
+                    No hatched pets yet — hatch one to move them in!
+                  </p>
+                </div>
+              ) : (
+                hatchedPets.map((pet, i) => (
+                  <WalkingPet
+                    key={pet.inventoryId}
+                    pet={pet}
+                    index={i}
+                    onClick={() => setSelectedPet(pet)}
+                  />
+                ))
+              )}
             </div>
-          </div>
+
+            {hatchedPets.length > 0 && !selectedPet && (
+              <div
+                className="absolute z-10 flex justify-center pointer-events-none"
+                style={{ bottom: "40%", left: 0, right: 0 }}
+              >
+                <p
+                  className="font-fantasy text-[8px] tracking-[0.2em]"
+                  style={{ color: "rgba(139,106,62,0.45)" }}
+                >
+                  tap a pet to feed
+                </p>
+              </div>
+            )}
+          </>
+        )}
+
+        {selectedPet && (
+          <FeedView
+            pet={selectedPet}
+            edibles={edibles}
+            petDropRef={petDropRef}
+            isOverPet={isOverPet}
+            draggingEdible={draggingEdible}
+            feedAnim={feedAnim}
+            feedLabel={feedLabel}
+            isPending={feedMutation.isPending}
+            onClose={() => setSelectedPet(null)}
+            onEdiblePointerDown={handleEdiblePointerDown}
+            onEdiblePointerMove={handleEdiblePointerMove}
+            onEdiblePointerUp={handleEdiblePointerUp}
+          />
         )}
       </div>
 
-      {pendingEdible && selectedPet && (
-        <FeedConfirmModal
-          pet={selectedPet}
-          edible={pendingEdible}
-          onConfirm={() => feedMutation.mutate({ petInventoryId: selectedPet.inventoryId, edibleInventoryId: pendingEdible.inventoryId })}
-          onClose={() => setPendingEdible(null)}
-          isPending={feedMutation.isPending}
-        />
+      {draggingEdible && (
+        <div
+          className="fixed pointer-events-none z-50"
+          style={{
+            left: ghostPos.x - 28,
+            top: ghostPos.y - 32,
+            transform: "scale(1.15)",
+            filter: "drop-shadow(0 4px 14px rgba(134,239,172,0.7))",
+          }}
+        >
+          <div
+            className="w-14 h-14 rounded-xl flex items-center justify-center overflow-hidden"
+            style={{
+              background: "rgba(15,35,15,0.95)",
+              border: "2px solid rgba(134,239,172,0.85)",
+            }}
+          >
+            {draggingEdible.imageUrl ? (
+              <img src={draggingEdible.imageUrl} alt="" className="w-full h-full object-contain" />
+            ) : (
+              <span className="text-2xl">🍎</span>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
 }
 
-function FeedConfirmModal({ pet, edible, onConfirm, onClose, isPending }: {
+function FeedView({
+  pet,
+  edibles,
+  petDropRef,
+  isOverPet,
+  draggingEdible,
+  feedAnim,
+  feedLabel,
+  isPending,
+  onClose,
+  onEdiblePointerDown,
+  onEdiblePointerMove,
+  onEdiblePointerUp,
+}: {
   pet: InventoryPet;
-  edible: EdibleItem;
-  onConfirm: () => void;
-  onClose: () => void;
+  edibles: EdibleItem[];
+  petDropRef: React.RefObject<HTMLDivElement>;
+  isOverPet: boolean;
+  draggingEdible: EdibleItem | null;
+  feedAnim: boolean;
+  feedLabel: string;
   isPending: boolean;
+  onClose: () => void;
+  onEdiblePointerDown: (e: React.PointerEvent, edible: EdibleItem) => void;
+  onEdiblePointerMove: (e: React.PointerEvent) => void;
+  onEdiblePointerUp: (e: React.PointerEvent) => void;
 }) {
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-      <div
-        className="relative w-[85%] max-w-xs rounded-xl p-5 animate-slide-up flex flex-col items-center gap-4"
-        style={{
-          background: "linear-gradient(135deg, rgba(20,10,3,0.97) 0%, rgba(50,28,8,0.97) 100%)",
-          border: "1px solid rgba(134,239,172,0.4)",
-          boxShadow: "0 8px 40px rgba(0,0,0,0.7), 0 0 30px rgba(134,239,172,0.08)",
-        }}
-      >
-        <p className="font-fantasy text-[#f0c040] text-sm tracking-widest text-center">Feed Edible?</p>
 
-        <div className="flex items-center gap-4">
-          <div className="flex flex-col items-center gap-1">
-            <div
-              className="w-14 h-14 rounded-lg flex items-center justify-center overflow-hidden"
-              style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.2)" }}
-            >
-              {petImg ? <img src={petImg} alt="" className="w-full h-full object-contain" /> : <span className="text-2xl">🐾</span>}
-            </div>
-            <p className="font-fantasy text-[#a89878] text-[9px] text-center max-w-[60px] truncate">{pet.petNickname || pet.name}</p>
-          </div>
-
-          <span className="font-fantasy text-[#7fbfb0] text-lg">←</span>
-
-          <div className="flex flex-col items-center gap-1">
-            <div
-              className="w-14 h-14 rounded-lg flex items-center justify-center overflow-hidden"
-              style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(134,239,172,0.2)" }}
-            >
-              {edible.imageUrl ? <img src={edible.imageUrl} alt="" className="w-full h-full object-contain" /> : <span className="text-2xl">🍎</span>}
-            </div>
-            <p className="font-fantasy text-[#86efac] text-[9px] text-center max-w-[60px] truncate">{edible.name}</p>
-          </div>
-        </div>
-
-        <p className="font-fantasy text-[#7fbfb0] text-[10px] tracking-wider text-center">
-          {pet.petNickname || pet.name} will receive <span style={{ color: "#86efac" }}>+{edible.statBoostAmount} LVL pts</span>
-        </p>
-
-        <div className="flex gap-3 w-full">
-          <button
-            data-testid="button-cancel-feed"
-            onClick={onClose}
-            className="flex-1 py-2 rounded-lg font-fantasy text-xs tracking-wider"
-            style={{ background: "rgba(60,30,10,0.6)", border: "1px solid rgba(212,160,23,0.25)", color: "#a89878", cursor: "pointer" }}
-          >
-            Cancel
-          </button>
-          <button
-            data-testid="button-confirm-feed"
-            onClick={onConfirm}
-            disabled={isPending}
-            className="flex-1 py-2 rounded-lg font-fantasy text-xs tracking-wider disabled:opacity-50 transition-transform active:scale-95"
-            style={{
-              background: "linear-gradient(135deg, #14532d 0%, #166534 100%)",
-              border: "1px solid rgba(74,222,128,0.5)",
-              color: "#86efac",
-              cursor: "pointer",
-            }}
-          >
-            {isPending ? "Feeding..." : "Feed!"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Section({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-2">
-        <h2 className="font-fantasy text-[#a89878] text-xs tracking-widest">{title}</h2>
-        <span
-          className="font-fantasy text-[9px] px-1.5 py-0.5 rounded-full"
-          style={{ background: "rgba(127,191,176,0.1)", color: "#7fbfb0", border: "1px solid rgba(127,191,176,0.2)" }}
-        >
-          {count}
-        </span>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function EmptyNote({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className="rounded-lg px-4 py-3 text-center"
-      style={{ background: "rgba(20,10,3,0.5)", border: "1px solid rgba(212,160,23,0.1)" }}
+      className="absolute inset-0 z-20 flex flex-col animate-slide-up"
+      style={{ background: "rgba(4,12,4,0.88)", backdropFilter: "blur(3px)" }}
     >
-      <p className="font-fantasy text-[#6a5840] text-[10px] tracking-wider">{children}</p>
+      <button
+        data-testid="button-close-feed"
+        onClick={onClose}
+        className="absolute top-3 right-3 z-30 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm"
+        style={{
+          background: "rgba(60,25,5,0.85)",
+          border: "1.5px solid rgba(212,160,23,0.45)",
+          color: "#d4a017",
+          cursor: "pointer",
+        }}
+      >
+        ✕
+      </button>
+
+      <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6">
+        <p
+          className="font-fantasy text-[9px] tracking-[0.25em]"
+          style={{ color: draggingEdible ? "rgba(134,239,172,0.9)" : "rgba(168,152,120,0.65)" }}
+        >
+          {draggingEdible ? "DROP ON PET TO FEED!" : "DRAG AN EDIBLE ONTO YOUR PET"}
+        </p>
+
+        <div
+          ref={petDropRef}
+          data-testid="drop-zone-pet"
+          className="relative flex flex-col items-center justify-center"
+          style={{
+            width: 148,
+            height: 148,
+            borderRadius: "50%",
+            border: `2px dashed ${isOverPet ? "rgba(74,222,128,0.9)" : "rgba(74,222,128,0.28)"}`,
+            background: isOverPet
+              ? "radial-gradient(circle, rgba(74,222,128,0.22) 0%, transparent 75%)"
+              : "radial-gradient(circle, rgba(40,80,40,0.12) 0%, transparent 70%)",
+            transition: "all 0.15s ease",
+            animation: isOverPet ? "glowPulse 0.9s ease-in-out infinite" : undefined,
+          }}
+        >
+          {feedAnim && (
+            <div
+              className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none"
+              style={{ animation: "powerUpRise 2.2s ease-out forwards" }}
+            >
+              <span
+                className="font-fantasy text-2xl font-bold"
+                style={{
+                  color: "#86efac",
+                  textShadow: "0 0 20px rgba(134,239,172,1), 0 0 40px rgba(134,239,172,0.6)",
+                }}
+                data-testid="text-feed-success"
+              >
+                {feedLabel}
+              </span>
+            </div>
+          )}
+
+          <div
+            className="w-24 h-24"
+            data-testid="img-feed-pet"
+            style={{
+              filter: isOverPet
+                ? "drop-shadow(0 0 18px rgba(74,222,128,0.85))"
+                : "drop-shadow(0 4px 10px rgba(0,0,0,0.55))",
+              transition: "filter 0.15s ease",
+              animation: isPending ? "petBob 0.4s ease-in-out infinite" : undefined,
+            }}
+          >
+            {petImg ? (
+              <img src={petImg} alt="" className="w-full h-full object-contain" />
+            ) : (
+              <span className="text-5xl flex items-center justify-center w-full h-full">🐾</span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-col items-center gap-0.5">
+          <p className="font-fantasy text-[#f0c040] text-sm tracking-wider">
+            {pet.petNickname || pet.name}
+          </p>
+          <p className="font-fantasy text-[#7fbfb0] text-[9px] tracking-wider">LV {pet.petLevel}</p>
+        </div>
+      </div>
+
+      <div
+        className="flex-shrink-0 pb-6"
+        style={{
+          background: "linear-gradient(0deg, rgba(10,5,0,0.9) 0%, transparent 100%)",
+          paddingTop: 16,
+        }}
+      >
+        <p
+          className="font-fantasy text-[8px] tracking-[0.3em] text-center mb-3"
+          style={{ color: "rgba(107,88,64,0.7)" }}
+        >
+          YOUR EDIBLES
+        </p>
+
+        {edibles.length === 0 ? (
+          <div className="text-center py-2">
+            <p className="font-fantasy text-[9px]" style={{ color: "rgba(107,88,64,0.6)" }}>
+              No edibles — buy some from the shop!
+            </p>
+          </div>
+        ) : (
+          <div
+            className="flex gap-3 overflow-x-auto px-4 pb-1"
+            style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" }}
+          >
+            {edibles.map((edible) => {
+              const isBeingDragged = draggingEdible?.inventoryId === edible.inventoryId;
+              return (
+                <div
+                  key={edible.inventoryId}
+                  data-testid={`drag-edible-${edible.inventoryId}`}
+                  className="flex-shrink-0 flex flex-col items-center gap-1.5 select-none"
+                  style={{
+                    opacity: isBeingDragged ? 0.3 : 1,
+                    transition: "opacity 0.15s",
+                    cursor: "grab",
+                    touchAction: "none",
+                  }}
+                  onPointerDown={(e) => onEdiblePointerDown(e, edible)}
+                  onPointerMove={onEdiblePointerMove}
+                  onPointerUp={onEdiblePointerUp}
+                >
+                  <div
+                    className="w-14 h-14 rounded-xl flex items-center justify-center overflow-hidden"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(18,38,18,0.95) 0%, rgba(10,22,10,0.95) 100%)",
+                      border: "1.5px solid rgba(134,239,172,0.3)",
+                      boxShadow: "0 3px 10px rgba(0,0,0,0.45)",
+                    }}
+                  >
+                    {edible.imageUrl ? (
+                      <img src={edible.imageUrl} alt="" className="w-full h-full object-contain pointer-events-none" />
+                    ) : (
+                      <span className="text-2xl pointer-events-none">🍎</span>
+                    )}
+                  </div>
+                  <p
+                    className="font-fantasy text-[7px] text-center pointer-events-none"
+                    style={{ color: "#a89878", maxWidth: 56, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                  >
+                    {edible.name}
+                  </p>
+                  <p className="font-fantasy text-[7px] pointer-events-none" style={{ color: "#86efac" }}>
+                    +{edible.statBoostAmount} LVL
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-function TreehouseIconLarge() {
+function WalkingPet({
+  pet,
+  index,
+  onClick,
+}: {
+  pet: InventoryPet;
+  index: number;
+  onClick: () => void;
+}) {
+  const cfg = WALK_CONFIGS[index % WALK_CONFIGS.length];
+  const petImg = pet.hatchedImageUrl || pet.imageUrl;
+
   return (
-    <svg width="48" height="48" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="ph-trunk" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#6b3d1e" />
-          <stop offset="100%" stopColor="#9b5a2e" />
-        </linearGradient>
-        <linearGradient id="ph-leaf1" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#4ade80" />
-          <stop offset="100%" stopColor="#16a34a" />
-        </linearGradient>
-        <linearGradient id="ph-leaf2" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#34d399" />
-          <stop offset="100%" stopColor="#059669" />
-        </linearGradient>
-        <linearGradient id="ph-house" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#92400e" />
-          <stop offset="100%" stopColor="#78350f" />
-        </linearGradient>
-        <linearGradient id="ph-roof" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#dc2626" />
-          <stop offset="100%" stopColor="#991b1b" />
-        </linearGradient>
-      </defs>
-      <rect x="34" y="50" width="12" height="22" rx="2" fill="url(#ph-trunk)" />
-      <rect x="36" y="50" width="3" height="22" rx="1" fill="rgba(0,0,0,0.15)" />
-      <ellipse cx="40" cy="44" rx="22" ry="18" fill="url(#ph-leaf1)" />
-      <ellipse cx="40" cy="38" rx="18" ry="15" fill="url(#ph-leaf2)" />
-      <ellipse cx="40" cy="32" rx="14" ry="12" fill="#4ade80" />
-      <ellipse cx="28" cy="42" rx="9" ry="7" fill="#22c55e" opacity="0.8" />
-      <ellipse cx="52" cy="42" rx="9" ry="7" fill="#22c55e" opacity="0.8" />
-      <rect x="27" y="34" width="26" height="16" rx="2" fill="url(#ph-house)" />
-      <polygon points="25,35 40,24 55,35" fill="url(#ph-roof)" />
-      <rect x="36" y="41" width="8" height="9" rx="1" fill="#854d0e" />
-      <rect x="29" y="37" width="5" height="5" rx="0.5" fill="#bae6fd" opacity="0.7" />
-      <rect x="46" y="37" width="5" height="5" rx="0.5" fill="#bae6fd" opacity="0.7" />
-      <line x1="34" y1="44" x2="27" y2="50" stroke="#92400e" strokeWidth="2" strokeLinecap="round" />
-      <circle cx="22" cy="28" r="2" fill="#fde68a" opacity="0.85" />
-      <circle cx="58" cy="32" r="1.5" fill="#fde68a" opacity="0.65" />
-      <circle cx="18" cy="38" r="1.5" fill="#86efac" opacity="0.6" />
-    </svg>
+    <div
+      data-testid={`pet-room-${pet.inventoryId}`}
+      onClick={onClick}
+      className="absolute bottom-3"
+      style={({
+        left: `${cfg.startPct}%`,
+        zIndex: index + 1,
+        cursor: "pointer",
+        "--pw-dist": cfg.travelPx,
+        animation: `petIdleWalk ${cfg.duration} ${cfg.delay} linear infinite`,
+      } as any)}
+    >
+      <div
+        style={{
+          width: cfg.size,
+          height: cfg.size,
+          filter: "drop-shadow(0 3px 5px rgba(0,0,0,0.55))",
+        }}
+      >
+        {petImg ? (
+          <img
+            src={petImg}
+            alt=""
+            className="w-full h-full object-contain pointer-events-none"
+          />
+        ) : (
+          <span
+            className="pointer-events-none flex items-center justify-center w-full h-full"
+            style={{ fontSize: cfg.size * 0.65 }}
+          >
+            🐾
+          </span>
+        )}
+      </div>
+      <div
+        style={{
+          width: cfg.size * 0.75,
+          height: 4,
+          background: "rgba(0,0,0,0.28)",
+          borderRadius: "50%",
+          margin: "0 auto",
+          filter: "blur(2px)",
+        }}
+      />
+    </div>
+  );
+}
+
+function TreehouseRoom3D() {
+  return (
+    <div className="absolute inset-0" style={{ background: "#0f0700" }}>
+      <div
+        className="absolute"
+        style={{
+          left: "14%", right: "14%", top: 0, height: "63%",
+          backgroundImage: `
+            repeating-linear-gradient(
+              180deg,
+              transparent 0px, transparent 13px,
+              rgba(0,0,0,0.13) 13px, rgba(0,0,0,0.13) 14px
+            ),
+            repeating-linear-gradient(
+              90deg,
+              transparent 0px, transparent 30px,
+              rgba(0,0,0,0.05) 30px, rgba(0,0,0,0.05) 31px
+            ),
+            linear-gradient(180deg, #2c1600 0%, #3e1e00 55%, #4a2500 100%)
+          `,
+        }}
+      >
+        <div
+          className="absolute"
+          style={{
+            width: 72, height: 72,
+            left: "50%", top: "20%",
+            transform: "translateX(-50%)",
+            borderRadius: "50%",
+            border: "7px solid #5a2e0a",
+            background: "radial-gradient(circle at 45% 35%, #0c3a18 0%, #061a0c 60%, #020d06 100%)",
+            boxShadow: "0 0 18px rgba(30,160,70,0.2), inset 0 0 12px rgba(30,160,70,0.12)",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute", inset: 0,
+              background: "radial-gradient(ellipse at 50% 120%, #1a5c28 0%, #0a2e12 50%, #020d06 100%)",
+            }}
+          />
+          <div style={{ position: "absolute", width: 7, height: 7, borderRadius: "50%", background: "rgba(255,240,200,0.75)", top: "14%", right: "18%", boxShadow: "0 0 5px rgba(255,240,200,0.6)" }} />
+          <div style={{ position: "absolute", width: 4, height: 4, borderRadius: "50%", background: "rgba(255,240,200,0.5)", top: "28%", left: "22%", boxShadow: "0 0 3px rgba(255,240,200,0.4)" }} />
+        </div>
+
+        <div
+          style={{
+            position: "absolute", inset: 0,
+            backgroundImage: "repeating-linear-gradient(90deg, transparent 0px, transparent 28px, rgba(0,0,0,0.04) 28px, rgba(0,0,0,0.04) 29px)",
+          }}
+        />
+      </div>
+
+      <div
+        className="absolute"
+        style={{
+          left: 0, top: 0, width: "15%", height: "63%",
+          background: "#1a0900",
+          clipPath: "polygon(0% 0%, 100% 6%, 100% 96%, 0% 100%)",
+          backgroundImage: "repeating-linear-gradient(168deg, transparent 0px, transparent 20px, rgba(0,0,0,0.14) 20px, rgba(0,0,0,0.14) 21px)",
+        }}
+      />
+
+      <div
+        className="absolute"
+        style={{
+          right: 0, top: 0, width: "15%", height: "63%",
+          background: "#1a0900",
+          clipPath: "polygon(0% 6%, 100% 0%, 100% 100%, 0% 96%)",
+          backgroundImage: "repeating-linear-gradient(12deg, transparent 0px, transparent 20px, rgba(0,0,0,0.14) 20px, rgba(0,0,0,0.14) 21px)",
+        }}
+      />
+
+      <div
+        className="absolute"
+        style={{
+          left: 0, right: 0, top: 0, height: "9%",
+          background: "#0d0500",
+          backgroundImage: "repeating-linear-gradient(90deg, transparent 0px, transparent 32px, rgba(0,0,0,0.22) 32px, rgba(0,0,0,0.22) 33px)",
+        }}
+      >
+        <div
+          className="absolute"
+          style={{ left: "5%", right: "5%", bottom: "28%", height: "1.5px", background: "rgba(150,115,65,0.35)" }}
+        />
+        <div className="absolute inset-0 flex items-end justify-around pb-0.5 px-3">
+          {["#fde68a","#86efac","#fde68a","#f9a8d4","#fde68a","#86efac","#bfdbfe","#fde68a","#86efac","#fde68a"].map((col, i) => (
+            <div
+              key={i}
+              style={{
+                width: 5, height: 7,
+                borderRadius: "0 0 3px 3px",
+                background: col,
+                boxShadow: `0 0 5px ${col}`,
+                opacity: 0.9,
+              }}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div
+        className="absolute"
+        style={{
+          left: 0, right: 0, bottom: 0, height: "38%",
+          backgroundImage: `
+            repeating-linear-gradient(
+              180deg,
+              transparent 0px, transparent 10px,
+              rgba(0,0,0,0.1) 10px, rgba(0,0,0,0.1) 11px
+            ),
+            linear-gradient(180deg, #5a2d00 0%, #6e3800 40%, #7a4000 100%)
+          `,
+        }}
+      >
+        <svg
+          className="absolute inset-0 w-full h-full"
+          preserveAspectRatio="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <line x1="50%" y1="0%" x2="0%"   y2="100%" stroke="rgba(0,0,0,0.13)" strokeWidth="1" />
+          <line x1="50%" y1="0%" x2="15%"  y2="100%" stroke="rgba(0,0,0,0.10)" strokeWidth="1" />
+          <line x1="50%" y1="0%" x2="32%"  y2="100%" stroke="rgba(0,0,0,0.08)" strokeWidth="1" />
+          <line x1="50%" y1="0%" x2="68%"  y2="100%" stroke="rgba(0,0,0,0.08)" strokeWidth="1" />
+          <line x1="50%" y1="0%" x2="85%"  y2="100%" stroke="rgba(0,0,0,0.10)" strokeWidth="1" />
+          <line x1="50%" y1="0%" x2="100%" y2="100%" stroke="rgba(0,0,0,0.13)" strokeWidth="1" />
+        </svg>
+        <div
+          className="absolute inset-0"
+          style={{ background: "linear-gradient(90deg, rgba(0,0,0,0.22) 0%, transparent 22%, transparent 78%, rgba(0,0,0,0.22) 100%)" }}
+        />
+      </div>
+
+      <div
+        className="absolute"
+        style={{ left: "13.5%", top: 0, width: "1.5px", height: "63%", background: "linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0.15))" }}
+      />
+      <div
+        className="absolute"
+        style={{ right: "13.5%", top: 0, width: "1.5px", height: "63%", background: "linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0.15))" }}
+      />
+
+      <div
+        className="absolute"
+        style={{
+          left: 0, right: 0,
+          top: "calc(63% - 2px)",
+          height: "3px",
+          background: "linear-gradient(90deg, #0f0700 0%, #1e0e00 14%, #080300 50%, #1e0e00 86%, #0f0700 100%)",
+          zIndex: 2,
+        }}
+      />
+
+      <div
+        className="absolute flex justify-center"
+        style={{ top: "10%", left: 0, right: 0, zIndex: 5, pointerEvents: "none" }}
+      >
+        <div
+          className="px-3 py-0.5 rounded-sm"
+          style={{ background: "rgba(8,4,0,0.45)" }}
+        >
+          <p
+            className="font-fantasy text-[8px] tracking-[0.35em]"
+            style={{ color: "rgba(200,155,60,0.45)" }}
+          >
+            PET HOUSE
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
