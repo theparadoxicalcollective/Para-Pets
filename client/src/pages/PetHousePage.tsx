@@ -43,12 +43,12 @@ interface EdibleItem {
 }
 
 const WALK_CONFIGS = [
-  { travelPx: "150px", duration: "8s",  delay: "0s",   startPct: 4,  size: 42 },
-  { travelPx: "120px", duration: "11s", delay: "2.8s", startPct: 28, size: 38 },
-  { travelPx: "160px", duration: "7s",  delay: "4.5s", startPct: 12, size: 44 },
-  { travelPx: "110px", duration: "9s",  delay: "1.5s", startPct: 48, size: 36 },
-  { travelPx: "140px", duration: "10s", delay: "3.5s", startPct: 20, size: 40 },
-  { travelPx: "130px", duration: "8.5s",delay: "6s",   startPct: 36, size: 38 },
+  { travelPx: "140px", duration: "8s",   delay: "0s",   startPct: 4,  size: 68, bottomPx: 8  },
+  { travelPx: "110px", duration: "11s",  delay: "2.8s", startPct: 30, size: 56, bottomPx: 52 },
+  { travelPx: "150px", duration: "7s",   delay: "4.5s", startPct: 10, size: 72, bottomPx: 4  },
+  { travelPx: "100px", duration: "9s",   delay: "1.5s", startPct: 50, size: 50, bottomPx: 72 },
+  { travelPx: "130px", duration: "10s",  delay: "3.5s", startPct: 20, size: 62, bottomPx: 28 },
+  { travelPx: "120px", duration: "8.5s", delay: "6s",   startPct: 38, size: 54, bottomPx: 56 },
 ];
 
 export default function PetHousePage({ user }: PetHousePageProps) {
@@ -139,7 +139,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           <>
             <div
               className="absolute z-10"
-              style={{ left: 0, right: 0, bottom: 0, height: "38%" }}
+              style={{ left: 0, right: 0, bottom: 0, height: "50%" }}
             >
               {hatchedPets.length === 0 ? (
                 <div className="w-full h-full flex items-center justify-center">
@@ -165,7 +165,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             {hatchedPets.length > 0 && !selectedPet && (
               <div
                 className="absolute z-10 flex justify-center pointer-events-none"
-                style={{ bottom: "40%", left: 0, right: 0 }}
+                style={{ bottom: "52%", left: 0, right: 0 }}
               >
                 <p
                   className="font-fantasy text-[8px] tracking-[0.2em]"
@@ -433,9 +433,10 @@ function WalkingPet({
     <div
       data-testid={`pet-room-${pet.inventoryId}`}
       onClick={onClick}
-      className="absolute bottom-3"
+      className="absolute"
       style={({
         left: `${cfg.startPct}%`,
+        bottom: cfg.bottomPx,
         zIndex: index + 1,
         cursor: "pointer",
         "--pw-dist": cfg.travelPx,
