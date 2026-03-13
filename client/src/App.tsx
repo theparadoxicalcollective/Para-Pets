@@ -11,6 +11,7 @@ import AdminPage from "@/pages/AdminPage";
 import WorldPage from "@/pages/WorldPage";
 import CoinShopPage from "@/pages/CoinShopPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
+import PetHousePage from "@/pages/PetHousePage";
 
 function AppRouter() {
   const { data: user, isLoading, isFetched } = useQuery<any>({
@@ -48,6 +49,9 @@ function AppRouter() {
       </Route>
       <Route path="/admin">
         {user && user.isAdmin ? <AdminPage user={user} /> : <Redirect to="/" />}
+      </Route>
+      <Route path="/pet-house">
+        {user ? <PetHousePage user={user} /> : <Redirect to="/auth" />}
       </Route>
       <Route path="/">
         {user ? <HomePage user={user} /> : <Redirect to="/auth" />}

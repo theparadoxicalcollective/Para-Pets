@@ -16,9 +16,10 @@ interface TopBarProps {
   onProfileClick: () => void;
   onUserUpdate?: (user: any) => void;
   hideHome?: boolean;
+  hideTreehouse?: boolean;
 }
 
-export default function TopBar({ user, onProfileClick, onUserUpdate, hideHome }: TopBarProps) {
+export default function TopBar({ user, onProfileClick, onUserUpdate, hideHome, hideTreehouse }: TopBarProps) {
   const [, navigate] = useLocation();
   const [showRewards, setShowRewards] = useState(false);
 
@@ -172,27 +173,45 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideHome }:
           </button>
         </div>
 
-        {!hideHome && (
-          <button
-            data-testid="button-home"
-            onClick={() => navigate("/")}
-            className="topbar-icon-size flex-shrink-0 flex items-center justify-center transition-transform duration-150 active:scale-95 rounded-lg overflow-hidden"
-            style={{
-              background: "none",
-              border: "2px solid rgba(212,160,23,0.4)",
-              cursor: "pointer",
-              boxShadow: "0 2px 10px rgba(0,0,0,0.6)",
-              borderRadius: "10px",
-            }}
-          >
-            <img
-              src={homeIconImg}
-              alt="Home"
-              className="w-full h-full object-cover"
-              style={{ filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.8))" }}
-            />
-          </button>
-        )}
+        <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+          {!hideHome && (
+            <button
+              data-testid="button-home"
+              onClick={() => navigate("/")}
+              className="topbar-icon-size flex-shrink-0 flex items-center justify-center transition-transform duration-150 active:scale-95 rounded-lg overflow-hidden"
+              style={{
+                background: "none",
+                border: "2px solid rgba(212,160,23,0.4)",
+                cursor: "pointer",
+                boxShadow: "0 2px 10px rgba(0,0,0,0.6)",
+                borderRadius: "10px",
+              }}
+            >
+              <img
+                src={homeIconImg}
+                alt="Home"
+                className="w-full h-full object-cover"
+                style={{ filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.8))" }}
+              />
+            </button>
+          )}
+          {!hideTreehouse && (
+            <button
+              data-testid="button-pet-house"
+              onClick={() => navigate("/pet-house")}
+              className="w-11 h-11 flex-shrink-0 flex items-center justify-center transition-transform duration-150 active:scale-95 rounded-lg"
+              style={{
+                background: "linear-gradient(135deg, rgba(20,50,25,0.85) 0%, rgba(10,30,15,0.85) 100%)",
+                border: "2px solid rgba(74,222,128,0.4)",
+                cursor: "pointer",
+                boxShadow: "0 2px 10px rgba(0,0,0,0.6), 0 0 12px rgba(74,222,128,0.1)",
+                borderRadius: "10px",
+              }}
+            >
+              <TreehouseIcon />
+            </button>
+          )}
+        </div>
       </div>
 
       {showRewards && (
@@ -204,5 +223,49 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideHome }:
         />
       )}
     </>
+  );
+}
+
+function TreehouseIcon() {
+  return (
+    <svg width="30" height="30" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="tb-trunk" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#6b3d1e" />
+          <stop offset="100%" stopColor="#9b5a2e" />
+        </linearGradient>
+        <linearGradient id="tb-leaf1" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#4ade80" />
+          <stop offset="100%" stopColor="#16a34a" />
+        </linearGradient>
+        <linearGradient id="tb-leaf2" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#34d399" />
+          <stop offset="100%" stopColor="#059669" />
+        </linearGradient>
+        <linearGradient id="tb-house" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#92400e" />
+          <stop offset="100%" stopColor="#78350f" />
+        </linearGradient>
+        <linearGradient id="tb-roof" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#dc2626" />
+          <stop offset="100%" stopColor="#991b1b" />
+        </linearGradient>
+      </defs>
+      <rect x="34" y="50" width="12" height="22" rx="2" fill="url(#tb-trunk)" />
+      <rect x="36" y="50" width="3" height="22" rx="1" fill="rgba(0,0,0,0.15)" />
+      <ellipse cx="40" cy="44" rx="22" ry="18" fill="url(#tb-leaf1)" />
+      <ellipse cx="40" cy="38" rx="18" ry="15" fill="url(#tb-leaf2)" />
+      <ellipse cx="40" cy="32" rx="14" ry="12" fill="#4ade80" />
+      <ellipse cx="28" cy="42" rx="9" ry="7" fill="#22c55e" opacity="0.8" />
+      <ellipse cx="52" cy="42" rx="9" ry="7" fill="#22c55e" opacity="0.8" />
+      <rect x="27" y="34" width="26" height="16" rx="2" fill="url(#tb-house)" />
+      <polygon points="25,35 40,24 55,35" fill="url(#tb-roof)" />
+      <rect x="36" y="41" width="8" height="9" rx="1" fill="#854d0e" />
+      <rect x="29" y="37" width="5" height="5" rx="0.5" fill="#bae6fd" opacity="0.7" />
+      <rect x="46" y="37" width="5" height="5" rx="0.5" fill="#bae6fd" opacity="0.7" />
+      <circle cx="22" cy="28" r="2" fill="#fde68a" opacity="0.85" />
+      <circle cx="58" cy="32" r="1.5" fill="#fde68a" opacity="0.65" />
+      <circle cx="18" cy="38" r="1.5" fill="#86efac" opacity="0.6" />
+    </svg>
   );
 }
