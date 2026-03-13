@@ -509,6 +509,16 @@
   50%       { transform: translateY(-9px) scale(1.05); }
 }
 
+@keyframes petFloatMid {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50%       { transform: translateY(-5px) scale(1.025); }
+}
+
+@keyframes petFloatSmall {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-2px); }
+}
+
 @keyframes petShadowFloat {
   0%, 100% { transform: scaleX(1);    opacity: 0.38; }
   50%       { transform: scaleX(0.6); opacity: 0.15; }
