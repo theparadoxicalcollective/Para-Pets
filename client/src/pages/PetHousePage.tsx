@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
+import petHouseBg from "@assets/pethouse_bg.png";
+import petHouseFloor from "@assets/pethouse_floor.png";
 
 interface PetHousePageProps {
   user: {
@@ -481,157 +483,52 @@ function WalkingPet({
 
 function TreehouseRoom3D() {
   return (
-    <div className="absolute inset-0" style={{ background: "#0f0700" }}>
+    <div className="absolute inset-0" style={{ background: "#0a0600" }}>
+      {/* Full background image — the magical treehouse interior walls */}
+      <img
+        src={petHouseBg}
+        alt=""
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{ objectPosition: "center top" }}
+        draggable={false}
+      />
+
+      {/* Slight dark vignette on the upper portion to ensure TopBar readability */}
+      <div
+        className="absolute top-0 left-0 right-0"
+        style={{
+          height: "18%",
+          background: "linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, transparent 100%)",
+          pointerEvents: "none",
+        }}
+      />
+
+      {/* Floor layer — sits on top of background, bottom 52%, fades in at top */}
       <div
         className="absolute"
         style={{
-          left: "14%", right: "14%", top: 0, height: "63%",
-          backgroundImage: `
-            repeating-linear-gradient(
-              180deg,
-              transparent 0px, transparent 13px,
-              rgba(0,0,0,0.13) 13px, rgba(0,0,0,0.13) 14px
-            ),
-            repeating-linear-gradient(
-              90deg,
-              transparent 0px, transparent 30px,
-              rgba(0,0,0,0.05) 30px, rgba(0,0,0,0.05) 31px
-            ),
-            linear-gradient(180deg, #2c1600 0%, #3e1e00 55%, #4a2500 100%)
-          `,
+          left: 0, right: 0, bottom: 0, height: "52%",
+          WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.6) 18%, black 38%)",
+          maskImage: "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.6) 18%, black 38%)",
         }}
       >
-        <div
-          className="absolute"
-          style={{
-            width: 72, height: 72,
-            left: "50%", top: "20%",
-            transform: "translateX(-50%)",
-            borderRadius: "50%",
-            border: "7px solid #5a2e0a",
-            background: "radial-gradient(circle at 45% 35%, #0c3a18 0%, #061a0c 60%, #020d06 100%)",
-            boxShadow: "0 0 18px rgba(30,160,70,0.2), inset 0 0 12px rgba(30,160,70,0.12)",
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              position: "absolute", inset: 0,
-              background: "radial-gradient(ellipse at 50% 120%, #1a5c28 0%, #0a2e12 50%, #020d06 100%)",
-            }}
-          />
-          <div style={{ position: "absolute", width: 7, height: 7, borderRadius: "50%", background: "rgba(255,240,200,0.75)", top: "14%", right: "18%", boxShadow: "0 0 5px rgba(255,240,200,0.6)" }} />
-          <div style={{ position: "absolute", width: 4, height: 4, borderRadius: "50%", background: "rgba(255,240,200,0.5)", top: "28%", left: "22%", boxShadow: "0 0 3px rgba(255,240,200,0.4)" }} />
-        </div>
-
-        <div
-          style={{
-            position: "absolute", inset: 0,
-            backgroundImage: "repeating-linear-gradient(90deg, transparent 0px, transparent 28px, rgba(0,0,0,0.04) 28px, rgba(0,0,0,0.04) 29px)",
-          }}
+        <img
+          src={petHouseFloor}
+          alt=""
+          className="w-full h-full object-cover"
+          style={{ objectPosition: "center top" }}
+          draggable={false}
         />
       </div>
 
+      {/* Subtle side darkening for depth */}
       <div
-        className="absolute"
+        className="absolute inset-0 pointer-events-none"
         style={{
-          left: 0, top: 0, width: "15%", height: "63%",
-          background: "#1a0900",
-          clipPath: "polygon(0% 0%, 100% 6%, 100% 96%, 0% 100%)",
-          backgroundImage: "repeating-linear-gradient(168deg, transparent 0px, transparent 20px, rgba(0,0,0,0.14) 20px, rgba(0,0,0,0.14) 21px)",
+          background: "linear-gradient(90deg, rgba(0,0,0,0.18) 0%, transparent 18%, transparent 82%, rgba(0,0,0,0.18) 100%)",
         }}
       />
-
-      <div
-        className="absolute"
-        style={{
-          right: 0, top: 0, width: "15%", height: "63%",
-          background: "#1a0900",
-          clipPath: "polygon(0% 6%, 100% 0%, 100% 100%, 0% 96%)",
-          backgroundImage: "repeating-linear-gradient(12deg, transparent 0px, transparent 20px, rgba(0,0,0,0.14) 20px, rgba(0,0,0,0.14) 21px)",
-        }}
-      />
-
-      <div
-        className="absolute"
-        style={{
-          left: 0, right: 0, top: 0, height: "9%",
-          background: "#0d0500",
-          backgroundImage: "repeating-linear-gradient(90deg, transparent 0px, transparent 32px, rgba(0,0,0,0.22) 32px, rgba(0,0,0,0.22) 33px)",
-        }}
-      >
-        <div
-          className="absolute"
-          style={{ left: "5%", right: "5%", bottom: "28%", height: "1.5px", background: "rgba(150,115,65,0.35)" }}
-        />
-        <div className="absolute inset-0 flex items-end justify-around pb-0.5 px-3">
-          {["#fde68a","#86efac","#fde68a","#f9a8d4","#fde68a","#86efac","#bfdbfe","#fde68a","#86efac","#fde68a"].map((col, i) => (
-            <div
-              key={i}
-              style={{
-                width: 5, height: 7,
-                borderRadius: "0 0 3px 3px",
-                background: col,
-                boxShadow: `0 0 5px ${col}`,
-                opacity: 0.9,
-              }}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div
-        className="absolute"
-        style={{
-          left: 0, right: 0, bottom: 0, height: "38%",
-          backgroundImage: `
-            repeating-linear-gradient(
-              180deg,
-              transparent 0px, transparent 10px,
-              rgba(0,0,0,0.1) 10px, rgba(0,0,0,0.1) 11px
-            ),
-            linear-gradient(180deg, #5a2d00 0%, #6e3800 40%, #7a4000 100%)
-          `,
-        }}
-      >
-        <svg
-          className="absolute inset-0 w-full h-full"
-          preserveAspectRatio="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <line x1="50%" y1="0%" x2="0%"   y2="100%" stroke="rgba(0,0,0,0.13)" strokeWidth="1" />
-          <line x1="50%" y1="0%" x2="15%"  y2="100%" stroke="rgba(0,0,0,0.10)" strokeWidth="1" />
-          <line x1="50%" y1="0%" x2="32%"  y2="100%" stroke="rgba(0,0,0,0.08)" strokeWidth="1" />
-          <line x1="50%" y1="0%" x2="68%"  y2="100%" stroke="rgba(0,0,0,0.08)" strokeWidth="1" />
-          <line x1="50%" y1="0%" x2="85%"  y2="100%" stroke="rgba(0,0,0,0.10)" strokeWidth="1" />
-          <line x1="50%" y1="0%" x2="100%" y2="100%" stroke="rgba(0,0,0,0.13)" strokeWidth="1" />
-        </svg>
-        <div
-          className="absolute inset-0"
-          style={{ background: "linear-gradient(90deg, rgba(0,0,0,0.22) 0%, transparent 22%, transparent 78%, rgba(0,0,0,0.22) 100%)" }}
-        />
-      </div>
-
-      <div
-        className="absolute"
-        style={{ left: "13.5%", top: 0, width: "1.5px", height: "63%", background: "linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0.15))" }}
-      />
-      <div
-        className="absolute"
-        style={{ right: "13.5%", top: 0, width: "1.5px", height: "63%", background: "linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0.15))" }}
-      />
-
-      <div
-        className="absolute"
-        style={{
-          left: 0, right: 0,
-          top: "calc(63% - 2px)",
-          height: "3px",
-          background: "linear-gradient(90deg, #0f0700 0%, #1e0e00 14%, #080300 50%, #1e0e00 86%, #0f0700 100%)",
-          zIndex: 2,
-        }}
-      />
-
     </div>
   );
 }
+
