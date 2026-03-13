@@ -27,7 +27,7 @@ import bgIsland from "@assets/bg_island.png";
 import bgDesert from "@assets/bg_desert.png";
 import bgMagicalForest from "@assets/bg_magical_forest.png";
 import bgHauntedWoods from "@assets/bg_haunted_woods.png";
-import bgSwamp from "@assets/bg_swamp_v2.png";
+import bgSwamp from "@assets/bg_swamp_v3.png";
 
 const WORLD_CONFIG: Record<string, { name: string; shopIcon: string; bg: string; accent: string; bgGradient: string }> = {
   snowy_mountain: { name: "Frostpeak", shopIcon: shopFrostpeak, bg: bgSnowyMountain, accent: "#88ccff", bgGradient: "linear-gradient(180deg, rgba(20,30,60,0.7) 0%, rgba(40,80,120,0.3) 50%, rgba(10,15,30,0.7) 100%)" },
