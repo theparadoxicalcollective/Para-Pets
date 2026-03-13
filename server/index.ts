@@ -278,13 +278,13 @@ app.use((req, res, next) => {
       },
       {
         id: "a1b2c3d4-0002-4000-8000-000000000002",
-        name: "Willowmere Cottage",
-        description: "A cozy little cottage perched on stilts above the swamp waters, warm and welcoming.",
+        name: "Willowmere",
+        description: "An ancient magical swamp tree humming with old power, its twisted branches draped in glowing moss.",
         iconFile: "icon_willowmere_cottage.png",
         bgFile: "bg_willowmere_cottage.png",
-        posX: 60,
-        posY: 25,
-        glowColor: "#e8a44a",
+        posX: 82,
+        posY: 18,
+        glowColor: "#6aab5e",
         sortOrder: 4,
       },
       {
@@ -354,13 +354,17 @@ app.use((req, res, next) => {
         } as any);
         console.log(`${loc.name} created.`);
       } else {
-        const updates: any = {};
+        const updates: any = {
+          name: loc.name,
+          description: loc.description,
+          posX: loc.posX,
+          posY: loc.posY,
+          glowColor: loc.glowColor,
+        };
         if (iconData) updates.iconUrl = iconData;
         if (bgData) updates.bgUrl = bgData;
-        if (Object.keys(updates).length > 0) {
-          await storage.updateWorldLocation(loc.id, updates);
-          console.log(`${loc.name} images refreshed.`);
-        }
+        await storage.updateWorldLocation(loc.id, updates);
+        console.log(`${loc.name} refreshed.`);
       }
     }
   } catch (err) {
