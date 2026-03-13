@@ -553,7 +553,7 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
                 transition: "all 0.15s",
               }}
             >
-              {tab === "browse" ? "🏪 Market" : "📋 List Items"}
+              {tab === "browse" ? "Market" : "List Items"}
             </button>
           ))}
         </div>
