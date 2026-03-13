@@ -220,19 +220,19 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideHome, h
           <button
             data-testid="button-market"
             onClick={() => navigate("/market")}
-            className="topbar-icon-size flex-shrink-0 flex items-center justify-center transition-transform duration-150 active:scale-95 rounded-xl"
+            className="topbar-icon-size flex-shrink-0 flex items-center justify-center transition-transform duration-150 active:scale-95 rounded-xl overflow-hidden"
             style={{
-              background: "rgba(15,35,15,0.85)",
-              border: "2px solid rgba(212,160,23,0.5)",
+              background: "none",
+              border: "2px solid rgba(74,222,128,0.45)",
               cursor: "pointer",
-              boxShadow: "0 2px 10px rgba(0,0,0,0.6), 0 0 14px rgba(212,160,23,0.15)",
-              padding: 2,
+              boxShadow: "0 2px 10px rgba(0,0,0,0.6), 0 0 14px rgba(74,222,128,0.15)",
+              padding: 0,
             }}
           >
             <img
               src={marketIconImg}
               alt="Player Market"
-              className="w-full h-full object-contain"
+              className="w-full h-full object-cover"
             />
           </button>
         </div>
