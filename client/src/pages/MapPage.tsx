@@ -387,7 +387,7 @@ export default function MapPage({ user }: MapPageProps) {
                       style={{
                         left: `${pos.x}%`,
                         top: `${pos.y}%`,
-                        width: "26%",
+                        width: "30%",
                         cursor: currentUser.isAdmin ? "grab" : "pointer",
                         zIndex: isDragging ? 50 : 10 + i,
                         animation: isDragging ? "none" : `floatWorld ${3 + (i % 3) * 0.5}s ease-in-out infinite`,

@@ -11,6 +11,7 @@ import { readFileAsDataUrl } from "@/lib/utils";
 import ExploreAdminPanel from "@/components/ExploreAdminPanel";
 import BattleArena from "@/components/BattleArena";
 
+import woodSignImg from "@assets/sign_wood.png";
 import shopFrostpeak from "@assets/shop_frostpeak.png";
 import shopSkyRealm from "@assets/shop_sky_realm.png";
 import shopVolcanic from "@assets/shop_volcanic.png";
@@ -565,34 +566,47 @@ export default function WorldPage({ user }: WorldPageProps) {
       <div className="relative z-10 flex flex-col h-full" style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
 
-        <div className="flex flex-col items-center px-6 pt-4 pb-2">
+        <div className="flex flex-col items-center px-4 pt-2 pb-1">
           <div
-            className="flex items-center justify-center mb-2"
+            className="flex items-center justify-center mb-1"
             data-testid={`text-world-name-${worldId}`}
           >
             <div
-              className="relative px-6 py-2 rounded-lg"
+              className="relative flex items-center justify-center overflow-hidden"
               style={{
-                background: `linear-gradient(180deg, rgba(30,20,10,0.95) 0%, rgba(50,35,15,0.92) 40%, rgba(35,25,10,0.95) 100%)`,
-                border: `2px solid ${accent}60`,
-                boxShadow: `0 0 20px ${accent}30, 0 4px 12px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(0,0,0,0.3)`,
-                borderRadius: "8px",
+                width: "min(210px, 56vw)",
+                height: "min(72px, 19vw)",
+                borderRadius: "6px",
+                boxShadow: "0 4px 14px rgba(0,0,0,0.75), 0 1px 0 rgba(255,220,80,0.08) inset",
               }}
             >
-              <div
-                className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-6 h-3 rounded-t-full"
-                style={{ background: `${accent}40`, boxShadow: `0 -2px 6px ${accent}30` }}
+              <img
+                src={woodSignImg}
+                alt=""
+                className="absolute inset-0 w-full h-full"
+                style={{
+                  objectFit: "cover",
+                  objectPosition: "center center",
+                  filter: "brightness(0.78) saturate(1.15)",
+                }}
+                draggable={false}
               />
               <div
-                className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-6 h-3 rounded-b-full"
-                style={{ background: `${accent}40`, boxShadow: `0 2px 6px ${accent}30` }}
+                className="absolute inset-0"
+                style={{
+                  background: "linear-gradient(180deg, rgba(0,0,0,0.12) 0%, transparent 35%, transparent 65%, rgba(0,0,0,0.2) 100%)",
+                  borderRadius: "6px",
+                  border: "1px solid rgba(160,100,40,0.45)",
+                  boxShadow: "inset 0 0 16px rgba(0,0,0,0.35)",
+                }}
               />
               <h2
-                className="font-fantasy text-2xl font-bold tracking-widest text-center"
+                className="relative z-10 font-fantasy font-bold tracking-widest text-center leading-none px-4"
                 style={{
-                  color: accent,
-                  textShadow: `0 0 20px ${accent}70, 0 0 40px ${accent}35, 0 1px 4px rgba(0,0,0,0.9)`,
-                  letterSpacing: "0.12em",
+                  fontSize: "clamp(12px, 3.4vw, 17px)",
+                  color: "#fff5b0",
+                  textShadow: "0 0 6px #f0c040, 0 0 14px #d4a017, 0 0 28px rgba(212,160,23,0.6), 0 0 50px rgba(240,192,64,0.25), 0 1px 3px rgba(0,0,0,0.98)",
+                  letterSpacing: "0.13em",
                 }}
               >
                 {world.name}
@@ -650,7 +664,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                       style={{
                         left: `${pos.x}%`,
                         top: `${pos.y}%`,
-                        width: "28%",
+                        width: "34%",
                         cursor: currentUser.isAdmin ? "grab" : "pointer",
                         zIndex: isDragging ? 50 : 10 + i,
                       }}
