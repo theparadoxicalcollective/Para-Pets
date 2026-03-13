@@ -631,22 +631,6 @@ function TreehouseRoom3D() {
         }}
       />
 
-      <div
-        className="absolute flex justify-center"
-        style={{ top: "10%", left: 0, right: 0, zIndex: 5, pointerEvents: "none" }}
-      >
-        <div
-          className="px-3 py-0.5 rounded-sm"
-          style={{ background: "rgba(8,4,0,0.45)" }}
-        >
-          <p
-            className="font-fantasy text-[8px] tracking-[0.35em]"
-            style={{ color: "rgba(200,155,60,0.45)" }}
-          >
-            PET HOUSE
-          </p>
-        </div>
-      </div>
     </div>
   );
 }
