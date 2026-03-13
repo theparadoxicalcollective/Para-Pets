@@ -75,11 +75,58 @@ async function ensureAdminAccount() {
   }
 }
 
+const WORLD_BG_SEED: Record<string, string> = {
+  sky_realm: "bg_sky_realm.png",
+  snowy_mountain: "bg_snowy_mountain.png",
+  volcanic: "bg_volcanic.png",
+  haunted_woods: "bg_haunted_woods.png",
+  enchanted_grove: "bg_magical_forest.png",
+  island: "bg_island.png",
+  desert: "bg_desert.png",
+  swamp: "bg_swamp_v2.png",
+};
+
+async function seedWorldBackgrounds() {
+  try {
+    const fs = await import("fs");
+    const path = await import("path");
+    const { db } = await import("./db");
+    const { worlds } = await import("@shared/schema");
+    const { eq } = await import("drizzle-orm");
+
+    for (const [worldId, filename] of Object.entries(WORLD_BG_SEED)) {
+      const [world] = await db.select().from(worlds).where(eq(worlds.id, worldId));
+      if (!world || world.bgUrl) continue;
+
+      const imgPath = path.join(process.cwd(), "attached_assets", filename);
+      if (!fs.existsSync(imgPath)) continue;
+
+      const data = fs.readFileSync(imgPath);
+      const ext = filename.endsWith(".png") ? "png" : filename.endsWith(".gif") ? "gif" : "jpeg";
+      const dataUrl = `data:image/${ext};base64,${data.toString("base64")}`;
+
+      const base64Data = dataUrl.replace(/^data:image\/\w+;base64,/, "");
+      const imageBuffer = Buffer.from(base64Data, "base64");
+      const resized = await sharp(imageBuffer)
+        .resize(2000, 2000, { fit: "inside", withoutEnlargement: true })
+        .jpeg({ quality: 88 })
+        .toBuffer();
+      const processed = `data:image/jpeg;base64,${resized.toString("base64")}`;
+
+      await db.update(worlds).set({ bgUrl: processed }).where(eq(worlds.id, worldId));
+      console.log(`Seeded background for world: ${worldId}`);
+    }
+  } catch (err) {
+    console.error("World background seed error:", err);
+  }
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
   await ensureAdminAccount();
+  seedWorldBackgrounds();
 
   app.post("/api/auth/register", async (req, res) => {
     try {

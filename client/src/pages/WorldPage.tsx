@@ -131,6 +131,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   const world = staticWorld ? {
     ...staticWorld,
     name: dbName || staticWorld.name,
+    bg: worldApiData?.bgUrl || staticWorld.bg,
   } : (worldApiData ? {
     name: worldApiData.name,
     shopIcon: worldApiData.iconUrl || "",
@@ -551,98 +552,100 @@ export default function WorldPage({ user }: WorldPageProps) {
       </div>
 
       <div ref={scrollContainerRef} className="absolute inset-0 overflow-y-auto overflow-x-hidden world-scroll">
-          {locationsLoading ? (
-            <div className="flex items-center justify-center" style={{ minHeight: "100dvh" }}>
-              <p className="font-fantasy text-sm animate-pulse" style={{ color: accent, textShadow: `0 0 15px ${accent}60` }}>Loading places...</p>
-            </div>
-          ) : locations.length === 0 ? (
-            <div className="flex items-center justify-center px-8" style={{ minHeight: "100dvh" }}>
-              <div className="text-center">
+          <div
+            ref={areaRef}
+            style={{
+              position: "relative",
+              width: "100%",
+              paddingBottom: "200%",
+              minHeight: "100dvh",
+              backgroundImage: world.bg ? `url(${world.bg})` : undefined,
+              backgroundSize: "cover",
+              backgroundPosition: "center top",
+              backgroundRepeat: "no-repeat",
+            }}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+          >
+            <div className="absolute inset-0 pointer-events-none" style={{
+              background: `linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.08) 30%, rgba(0,0,0,0.1) 70%, rgba(0,0,0,0.65) 100%)`,
+            }} />
+
+            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+              {[
+                { left: "12%", top: "25%", mx: "30px", my: "-60px", dur: "7s", delay: "0s", size: "3px" },
+                { left: "78%", top: "40%", mx: "-40px", my: "-50px", dur: "9s", delay: "2s", size: "2px" },
+                { left: "45%", top: "65%", mx: "20px", my: "-70px", dur: "8s", delay: "1s", size: "3px" },
+                { left: "25%", top: "80%", mx: "-25px", my: "-55px", dur: "10s", delay: "3s", size: "2px" },
+                { left: "65%", top: "30%", mx: "35px", my: "-45px", dur: "6s", delay: "4s", size: "2px" },
+              ].map((mote, i) => (
                 <div
-                  className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center"
+                  key={i}
+                  className="absolute rounded-full"
                   style={{
-                    background: `radial-gradient(circle, ${accent}20 0%, transparent 70%)`,
-                    border: `1px solid ${accent}25`,
-                    animation: "emptyPulse 3s ease-in-out infinite",
-                  }}
-                >
-                  <MapPin className="w-7 h-7" style={{ color: `${accent}70`, filter: `drop-shadow(0 0 8px ${accent}40)` }} />
-                </div>
-                <p className="font-fantasy text-base tracking-wider mb-2" style={{ color: `${accent}aa`, textShadow: `0 0 15px ${accent}40` }}>
-                  No places discovered yet
-                </p>
-                {currentUser.isAdmin && (
-                  <p className="font-fantasy text-[10px] tracking-[0.15em]" style={{ color: `${accent}60`, textShadow: `0 0 8px ${accent}20` }}>
-                    Tap + to conjure new places
-                  </p>
-                )}
-              </div>
+                    left: mote.left,
+                    top: mote.top,
+                    width: mote.size,
+                    height: mote.size,
+                    background: accent,
+                    boxShadow: `0 0 6px ${accent}80, 0 0 12px ${accent}40`,
+                    animation: `worldMote ${mote.dur} ease-in-out infinite`,
+                    animationDelay: mote.delay,
+                    "--mx": mote.mx,
+                    "--my": mote.my,
+                  } as React.CSSProperties}
+                />
+              ))}
             </div>
-          ) : (
+
             <div
-              ref={areaRef}
-              style={{
-                position: "relative",
-                width: "100%",
-                paddingBottom: "200%",
-                backgroundImage: `url(${world.bg})`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-                backgroundRepeat: "no-repeat",
-              }}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
+              className="absolute left-0 right-0 flex items-center justify-center pointer-events-none"
+              data-testid={`text-world-name-${worldId}`}
+              style={{ top: "7%", zIndex: 5 }}
             >
-              <div className="absolute inset-0 pointer-events-none" style={{
-                background: `linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.08) 30%, rgba(0,0,0,0.1) 70%, rgba(0,0,0,0.65) 100%)`,
-              }} />
-
-              <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                {[
-                  { left: "12%", top: "25%", mx: "30px", my: "-60px", dur: "7s", delay: "0s", size: "3px" },
-                  { left: "78%", top: "40%", mx: "-40px", my: "-50px", dur: "9s", delay: "2s", size: "2px" },
-                  { left: "45%", top: "65%", mx: "20px", my: "-70px", dur: "8s", delay: "1s", size: "3px" },
-                  { left: "25%", top: "80%", mx: "-25px", my: "-55px", dur: "10s", delay: "3s", size: "2px" },
-                  { left: "65%", top: "30%", mx: "35px", my: "-45px", dur: "6s", delay: "4s", size: "2px" },
-                ].map((mote, i) => (
-                  <div
-                    key={i}
-                    className="absolute rounded-full"
-                    style={{
-                      left: mote.left,
-                      top: mote.top,
-                      width: mote.size,
-                      height: mote.size,
-                      background: accent,
-                      boxShadow: `0 0 6px ${accent}80, 0 0 12px ${accent}40`,
-                      animation: `worldMote ${mote.dur} ease-in-out infinite`,
-                      animationDelay: mote.delay,
-                      "--mx": mote.mx,
-                      "--my": mote.my,
-                    } as React.CSSProperties}
-                  />
-                ))}
-              </div>
-
-              <div
-                className="absolute left-0 right-0 flex items-center justify-center pointer-events-none"
-                data-testid={`text-world-name-${worldId}`}
-                style={{ top: "7%", zIndex: 5 }}
+              <h2
+                className="font-fantasy font-bold tracking-widest text-center leading-none px-5"
+                style={{
+                  fontSize: "clamp(13px, 3.6vw, 19px)",
+                  color: "#fff5b0",
+                  textShadow: "0 0 6px #f0c040, 0 0 14px #d4a017, 0 0 28px rgba(212,160,23,0.65), 0 0 50px rgba(240,192,64,0.28), 0 1px 3px rgba(0,0,0,1)",
+                  letterSpacing: "0.14em",
+                }}
               >
-                <h2
-                  className="font-fantasy font-bold tracking-widest text-center leading-none px-5"
-                  style={{
-                    fontSize: "clamp(13px, 3.6vw, 19px)",
-                    color: "#fff5b0",
-                    textShadow: "0 0 6px #f0c040, 0 0 14px #d4a017, 0 0 28px rgba(212,160,23,0.65), 0 0 50px rgba(240,192,64,0.28), 0 1px 3px rgba(0,0,0,1)",
-                    letterSpacing: "0.14em",
-                  }}
-                >
-                  {world.name}
-                </h2>
-              </div>
+                {world.name}
+              </h2>
+            </div>
 
-              <div className="absolute inset-0">
+            {locationsLoading ? (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <p className="font-fantasy text-sm animate-pulse" style={{ color: accent, textShadow: `0 0 15px ${accent}60` }}>Loading places...</p>
+              </div>
+            ) : locations.length === 0 ? (
+              <div className="absolute inset-0 flex items-center justify-center px-8">
+                <div className="text-center">
+                  <div
+                    className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center"
+                    style={{
+                      background: `radial-gradient(circle, ${accent}20 0%, transparent 70%)`,
+                      border: `1px solid ${accent}25`,
+                      animation: "emptyPulse 3s ease-in-out infinite",
+                    }}
+                  >
+                    <MapPin className="w-7 h-7" style={{ color: `${accent}70`, filter: `drop-shadow(0 0 8px ${accent}40)` }} />
+                  </div>
+                  <p className="font-fantasy text-base tracking-wider mb-2" style={{ color: `${accent}aa`, textShadow: `0 0 15px ${accent}40` }}>
+                    No places discovered yet
+                  </p>
+                  {currentUser.isAdmin && (
+                    <p className="font-fantasy text-[10px] tracking-[0.15em]" style={{ color: `${accent}60`, textShadow: `0 0 8px ${accent}20` }}>
+                      Tap + to conjure new places
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="absolute inset-0">
                 {locations.map((loc, i) => {
                   const pos = dragPos?.id === loc.id ? { x: dragPos.x, y: dragPos.y } : { x: loc.posX, y: loc.posY };
                   const isDragging = dragRef.current?.locId === loc.id;
@@ -759,7 +762,6 @@ export default function WorldPage({ user }: WorldPageProps) {
                 })}
               </div>
             </div>
-          )}
         </div>
 
       <button
