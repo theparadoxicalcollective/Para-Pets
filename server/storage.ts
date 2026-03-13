@@ -114,7 +114,7 @@ export interface IStorage {
   getBadgeRecipients(badgeId: string): Promise<string[]>;
   awardBadge(userId: string, badgeId: string): Promise<UserBadge>;
   revokeBadge(userId: string, badgeId: string): Promise<void>;
-  getMarketListings(filters?: { search?: string; itemType?: string }): Promise<PlayerMarketListing[]>;
+  getMarketListings(filters?: { search?: string; itemType?: string; orderAsc?: boolean }): Promise<PlayerMarketListing[]>;
   getMyMarketListings(sellerId: string): Promise<PlayerMarketListing[]>;
   getMarketListing(id: string): Promise<PlayerMarketListing | undefined>;
   createMarketListing(data: { sellerId: string; sellerName: string; inventoryId: string; shopItemId: string; itemName: string; itemImageUrl?: string | null; itemType: string; price: number }): Promise<PlayerMarketListing>;
@@ -678,7 +678,7 @@ export class DatabaseStorage implements IStorage {
     await db.delete(userBadges).where(and(eq(userBadges.userId, userId), eq(userBadges.badgeId, badgeId)));
   }
 
-  async getMarketListings(filters?: { search?: string; itemType?: string }): Promise<PlayerMarketListing[]> {
+  async getMarketListings(filters?: { search?: string; itemType?: string; orderAsc?: boolean }): Promise<PlayerMarketListing[]> {
     let query = db.select().from(playerMarketListings).where(eq(playerMarketListings.status, "active")).$dynamic();
     if (filters?.itemType && filters.itemType !== "all") {
       query = query.where(and(eq(playerMarketListings.status, "active"), eq(playerMarketListings.itemType, filters.itemType)));
@@ -693,13 +693,15 @@ export class DatabaseStorage implements IStorage {
         query = query.where(and(cond, searchCond));
       }
     }
-    return query.orderBy(desc(playerMarketListings.createdAt));
+    return filters?.orderAsc
+      ? query.orderBy(asc(playerMarketListings.createdAt))
+      : query.orderBy(desc(playerMarketListings.createdAt));
   }
 
   async getMyMarketListings(sellerId: string): Promise<PlayerMarketListing[]> {
     return db.select().from(playerMarketListings)
       .where(eq(playerMarketListings.sellerId, sellerId))
-      .orderBy(desc(playerMarketListings.createdAt));
+      .orderBy(asc(playerMarketListings.createdAt));
   }
 
   async getMarketListing(id: string): Promise<PlayerMarketListing | undefined> {

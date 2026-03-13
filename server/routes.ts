@@ -2378,7 +2378,8 @@ export async function registerRoutes(
     try {
       const search = req.query.search as string | undefined;
       const itemType = req.query.itemType as string | undefined;
-      const listings = await storage.getMarketListings({ search, itemType });
+      const orderAsc = !!(itemType && itemType !== "all");
+      const listings = await storage.getMarketListings({ search, itemType, orderAsc });
       return res.json(listings);
     } catch (err) {
       return res.status(500).json({ message: "Failed to fetch market listings" });
