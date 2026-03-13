@@ -418,7 +418,7 @@ export default function MapPage({ user }: MapPageProps) {
                             draggable={false}
                             style={{
                               filter: locked
-                                ? `drop-shadow(0 4px 8px rgba(0,0,0,0.5)) grayscale(0.6) brightness(0.45)`
+                                ? `grayscale(1) brightness(0.28)`
                                 : `drop-shadow(0 4px 8px rgba(0,0,0,0.35)) drop-shadow(0 0 10px ${w.glowColor}25)`,
                             }}
                           />
@@ -431,7 +431,7 @@ export default function MapPage({ user }: MapPageProps) {
                                 : `linear-gradient(135deg, ${w.glowColor}40, ${w.glowColor}20)`,
                               border: `2px solid ${locked ? "rgba(80,80,100,0.4)" : `${w.glowColor}60`}`,
                               fontSize: "28px",
-                              filter: locked ? "grayscale(0.8) brightness(0.45)" : undefined,
+                              filter: locked ? "grayscale(1) brightness(0.28)" : undefined,
                             }}
                           >
                             🌍
@@ -439,27 +439,33 @@ export default function MapPage({ user }: MapPageProps) {
                         )}
 
                         {locked && (
-                          <div
-                            className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none"
-                            style={{ transform: "rotate(-20deg)" }}
-                          >
+                          <>
                             <div
-                              className="px-1.5 py-0.5 font-fantasy text-center leading-tight"
-                              style={{
-                                background: "rgba(10,5,20,0.88)",
-                                border: "1px solid rgba(160,130,60,0.55)",
-                                borderRadius: "3px",
-                                color: "#c8a84a",
-                                fontSize: "clamp(5px, 1.6vw, 8px)",
-                                letterSpacing: "0.08em",
-                                textShadow: "0 0 6px rgba(200,168,74,0.5)",
-                                boxShadow: "0 0 10px rgba(0,0,0,0.6)",
-                                whiteSpace: "nowrap",
-                              }}
+                              className="absolute inset-0 z-20 rounded-full pointer-events-none"
+                              style={{ background: "rgba(0,0,0,0.45)" }}
+                            />
+                            <div
+                              className="absolute inset-0 z-30 flex flex-col items-center justify-center pointer-events-none gap-0.5"
                             >
-                              Coming Soon
+                              <span style={{ fontSize: "clamp(14px, 4vw, 20px)", lineHeight: 1 }}>🔒</span>
+                              <div
+                                className="font-fantasy text-center leading-tight px-1.5 py-0.5"
+                                style={{
+                                  background: "rgba(8,4,18,0.92)",
+                                  border: "1px solid rgba(160,130,60,0.6)",
+                                  borderRadius: "4px",
+                                  color: "#e0c060",
+                                  fontSize: "clamp(7px, 2vw, 10px)",
+                                  letterSpacing: "0.1em",
+                                  textShadow: "0 0 8px rgba(220,180,60,0.5)",
+                                  boxShadow: "0 0 12px rgba(0,0,0,0.8)",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                Coming Soon
+                              </div>
                             </div>
-                          </div>
+                          </>
                         )}
 
                         {currentUser.isAdmin && (
