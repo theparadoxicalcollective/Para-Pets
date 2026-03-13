@@ -200,98 +200,136 @@ export default function ItemDatabaseSection() {
         </div>
       ) : (
         <div className="space-y-2">
-          {filtered.map(item => {
-            const displayImg = item.type === "pet" && item.eggImageUrl ? item.eggImageUrl : item.imageUrl;
-            return (
-              <div
-                key={item.id}
-                data-testid={`card-db-item-${item.id}`}
-                className="rounded-lg overflow-hidden"
-                style={{
-                  background: "linear-gradient(135deg, rgba(30,15,5,0.85) 0%, rgba(50,30,10,0.85) 100%)",
-                  border: item.type === "pet"
-                    ? "1px solid rgba(255,179,71,0.3)"
-                    : "1px solid rgba(212,160,23,0.3)",
-                }}
-              >
-                <div className="flex items-center gap-3 p-3">
-                  <div
-                    className="w-12 h-12 rounded-md flex items-center justify-center overflow-hidden flex-shrink-0"
-                    style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.15)" }}
-                  >
-                    {displayImg ? (
-                      <img src={displayImg} alt="" className="w-full h-full object-contain" />
-                    ) : (
-                      <span className="font-fantasy text-[#5a4a3a] text-lg">?</span>
-                    )}
-                  </div>
+          {(() => {
+            const sorted = [...filtered].sort((a, b) => {
+              if (a.type !== b.type) {
+                const typeOrder = isPetSection ? [] : NON_PET_TYPES;
+                const ai = typeOrder.indexOf(a.type);
+                const bi = typeOrder.indexOf(b.type);
+                const aIdx = ai === -1 ? 999 : ai;
+                const bIdx = bi === -1 ? 999 : bi;
+                if (aIdx !== bIdx) return aIdx - bIdx;
+              }
+              return a.name.localeCompare(b.name);
+            });
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="font-fantasy text-[#f0c040] text-xs font-semibold truncate">{item.name}</p>
-                      {item.type === "pet" && item.rarity && (
-                        <span className="text-[8px]" style={{ color: "#f0c040" }}>{"★".repeat(item.rarity)}</span>
+            const showTypeHeaders = !isPetSection && filterType === "all";
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const elements: any[] = [];
+            let lastType = "";
+
+            sorted.forEach(item => {
+              if (showTypeHeaders && item.type !== lastType) {
+                lastType = item.type;
+                elements.push(
+                  <div
+                    key={`header-${item.type}`}
+                    className="pt-1 pb-0.5 px-1"
+                  >
+                    <p
+                      className="font-fantasy text-[9px] tracking-widest uppercase"
+                      style={{ color: "rgba(212,160,23,0.55)" }}
+                    >
+                      {formatTypeName(item.type)}
+                    </p>
+                  </div>
+                );
+              }
+
+              const displayImg = item.type === "pet" && item.eggImageUrl ? item.eggImageUrl : item.imageUrl;
+              elements.push(
+                <div
+                  key={item.id}
+                  data-testid={`card-db-item-${item.id}`}
+                  className="rounded-lg overflow-hidden"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(30,15,5,0.85) 0%, rgba(50,30,10,0.85) 100%)",
+                    border: item.type === "pet"
+                      ? "1px solid rgba(255,179,71,0.3)"
+                      : "1px solid rgba(212,160,23,0.3)",
+                  }}
+                >
+                  <div className="flex items-center gap-3 p-3">
+                    <div
+                      className="w-12 h-12 rounded-md flex items-center justify-center overflow-hidden flex-shrink-0"
+                      style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.15)" }}
+                    >
+                      {displayImg ? (
+                        <img src={displayImg} alt="" className="w-full h-full object-contain" />
+                      ) : (
+                        <span className="font-fantasy text-[#5a4a3a] text-lg">?</span>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span
-                        className="font-fantasy text-[8px] tracking-wider px-1.5 py-0.5 rounded-full"
-                        style={{
-                          background: item.type === "pet" ? "rgba(255,179,71,0.12)" : "rgba(127,255,212,0.1)",
-                          color: item.type === "pet" ? "#ffb347" : "#7fbfb0",
-                          border: item.type === "pet" ? "1px solid rgba(255,179,71,0.25)" : "1px solid rgba(127,255,212,0.2)",
-                        }}
-                      >
-                        {formatTypeName(item.type)}
-                      </span>
-                      <span className="font-fantasy text-[#f0c040] text-[8px]">{item.price} coins</span>
-                    </div>
-                    {(item.type === "power_up" || item.type === "item") && item.statBoostType && (
-                      <span className="font-fantasy text-[#a89878] text-[7px]">
-                        +{item.statBoostAmount} {item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "LVL"}
-                      </span>
-                    )}
-                    {item.type === "edibles" && item.statBoostAmount && (
-                      <span className="font-fantasy text-[#86efac] text-[7px]">+{item.statBoostAmount} LVL pts when fed</span>
-                    )}
-                    {item.type === "potion" && (
-                      <span className="font-fantasy text-[#a89878] text-[7px]">
-                        {item.healthRestored ? `+${item.healthRestored} HP` : ""}{item.manaRestored ? ` +${item.manaRestored} MP` : ""}{item.petsRevived ? ` Revive ${item.petsRevived}` : ""}
-                      </span>
-                    )}
-                    {item.type === "accessory" && (
-                      <span className="font-fantasy text-[#a89878] text-[7px]">
-                        {item.atkBoost ? `+${item.atkBoost} ATK` : ""}{item.defBoost ? ` +${item.defBoost} DEF` : ""}
-                      </span>
-                    )}
-                    {item.type === "pet" && item.specialSkill && (
-                      <span className="font-fantasy text-[#c084fc] text-[7px]">Skill: {item.specialSkill}</span>
-                    )}
-                  </div>
 
-                  <div className="flex flex-col gap-1 flex-shrink-0">
-                    <button
-                      data-testid={`button-edit-db-item-${item.id}`}
-                      onClick={() => handleOpenForm(item)}
-                      className="px-2 py-1 rounded font-fantasy text-[8px] tracking-wider"
-                      style={{ background: "linear-gradient(135deg, #5c3a1e 0%, #8b5e3c 100%)", border: "1px solid rgba(212,160,23,0.4)", color: "#f0c040", cursor: "pointer" }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      data-testid={`button-delete-db-item-${item.id}`}
-                      onClick={() => deleteMutation.mutate(item.id)}
-                      disabled={deleteMutation.isPending}
-                      className="px-2 py-1 rounded font-fantasy text-[8px] tracking-wider disabled:opacity-50"
-                      style={{ background: "rgba(139,0,0,0.4)", border: "1px solid rgba(200,50,50,0.3)", color: "#ff9999", cursor: "pointer" }}
-                    >
-                      Delete
-                    </button>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-fantasy text-[#f0c040] text-xs font-semibold truncate">{item.name}</p>
+                        {item.type === "pet" && item.rarity && (
+                          <span className="text-[8px]" style={{ color: "#f0c040" }}>{"★".repeat(item.rarity)}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span
+                          className="font-fantasy text-[8px] tracking-wider px-1.5 py-0.5 rounded-full"
+                          style={{
+                            background: item.type === "pet" ? "rgba(255,179,71,0.12)" : "rgba(127,255,212,0.1)",
+                            color: item.type === "pet" ? "#ffb347" : "#7fbfb0",
+                            border: item.type === "pet" ? "1px solid rgba(255,179,71,0.25)" : "1px solid rgba(127,255,212,0.2)",
+                          }}
+                        >
+                          {formatTypeName(item.type)}
+                        </span>
+                        <span className="font-fantasy text-[#f0c040] text-[8px]">{item.price} coins</span>
+                      </div>
+                      {(item.type === "power_up" || item.type === "item") && item.statBoostType && (
+                        <span className="font-fantasy text-[#a89878] text-[7px]">
+                          +{item.statBoostAmount} {item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "LVL"}
+                        </span>
+                      )}
+                      {item.type === "edibles" && item.statBoostAmount && (
+                        <span className="font-fantasy text-[#86efac] text-[7px]">+{item.statBoostAmount} LVL pts when fed</span>
+                      )}
+                      {item.type === "potion" && (
+                        <span className="font-fantasy text-[#a89878] text-[7px]">
+                          {item.healthRestored ? `+${item.healthRestored} HP` : ""}{item.manaRestored ? ` +${item.manaRestored} MP` : ""}{item.petsRevived ? ` Revive ${item.petsRevived}` : ""}
+                        </span>
+                      )}
+                      {item.type === "accessory" && (
+                        <span className="font-fantasy text-[#a89878] text-[7px]">
+                          {item.atkBoost ? `+${item.atkBoost} ATK` : ""}{item.defBoost ? ` +${item.defBoost} DEF` : ""}
+                        </span>
+                      )}
+                      {item.type === "pet" && item.specialSkill && (
+                        <span className="font-fantasy text-[#c084fc] text-[7px]">Skill: {item.specialSkill}</span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col gap-1 flex-shrink-0">
+                      <button
+                        data-testid={`button-edit-db-item-${item.id}`}
+                        onClick={() => handleOpenForm(item)}
+                        className="px-2 py-1 rounded font-fantasy text-[8px] tracking-wider"
+                        style={{ background: "linear-gradient(135deg, #5c3a1e 0%, #8b5e3c 100%)", border: "1px solid rgba(212,160,23,0.4)", color: "#f0c040", cursor: "pointer" }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        data-testid={`button-delete-db-item-${item.id}`}
+                        onClick={() => deleteMutation.mutate(item.id)}
+                        disabled={deleteMutation.isPending}
+                        className="px-2 py-1 rounded font-fantasy text-[8px] tracking-wider disabled:opacity-50"
+                        style={{ background: "rgba(139,0,0,0.4)", border: "1px solid rgba(200,50,50,0.3)", color: "#ff9999", cursor: "pointer" }}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            });
+
+            return elements;
+          })()}
         </div>
       )}
 
