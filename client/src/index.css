@@ -546,7 +546,12 @@
 
 @keyframes petFloatSmall {
   0%, 100% { transform: translateY(0px); }
-  50%       { transform: translateY(-7px); }
+  50%       { transform: translateY(-5px); }
+}
+
+@keyframes petGroundFloat {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-2px); }
 }
 
 @keyframes petShadowFloat {
@@ -609,6 +614,53 @@
   68%, 82% { transform: translate(-70px, -100px); }
   96%      { transform: translate(0px,    0px); }
   100%     { transform: translate(0px,    0px); }
+}
+
+/* Ground-level wander — minimal vertical movement for pets without wings */
+@keyframes petGroundWander0 {
+  0%, 14%  { transform: translate(0px,   0px); }
+  34%      { transform: translate(120px, -5px); }
+  52%, 68% { transform: translate(120px, -5px); }
+  86%      { transform: translate(0px,   0px); }
+  100%     { transform: translate(0px,   0px); }
+}
+@keyframes petGroundWander1 {
+  0%, 18%  { transform: translate(0px,    0px); }
+  36%      { transform: translate(-60px,  -4px); }
+  50%      { transform: translate(-110px, -6px); }
+  64%, 78% { transform: translate(-110px, -6px); }
+  94%      { transform: translate(0px,    0px); }
+  100%     { transform: translate(0px,    0px); }
+}
+@keyframes petGroundWander2 {
+  0%, 20%  { transform: translate(0px,  0px); }
+  40%      { transform: translate(80px, -5px); }
+  56%, 74% { transform: translate(80px, -5px); }
+  92%      { transform: translate(0px,  0px); }
+  100%     { transform: translate(0px,  0px); }
+}
+@keyframes petGroundWander3 {
+  0%, 16%  { transform: translate(0px,     0px); }
+  34%      { transform: translate(-100px, -5px); }
+  50%, 66% { transform: translate(-100px, -5px); }
+  80%      { transform: translate(-28px,   2px); }
+  94%      { transform: translate(0px,     0px); }
+  100%     { transform: translate(0px,     0px); }
+}
+@keyframes petGroundWander4 {
+  0%, 22%  { transform: translate(0px,  0px); }
+  42%      { transform: translate(90px, -4px); }
+  58%, 76% { transform: translate(90px, -4px); }
+  94%      { transform: translate(0px,  0px); }
+  100%     { transform: translate(0px,  0px); }
+}
+@keyframes petGroundWander5 {
+  0%, 20%  { transform: translate(0px,   0px); }
+  38%      { transform: translate(-70px, -5px); }
+  54%      { transform: translate(-55px, -7px); }
+  68%, 82% { transform: translate(-55px, -7px); }
+  96%      { transform: translate(0px,   0px); }
+  100%     { transform: translate(0px,   0px); }
 }
 
 @keyframes glowPulse {

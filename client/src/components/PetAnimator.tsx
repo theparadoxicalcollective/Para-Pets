@@ -90,7 +90,7 @@ const ANIMATION_STYLES = `
   }
   @keyframes petIdleHead {
     0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-1px); }
+    50% { transform: translateY(-0.4px); }
   }
   @keyframes petIdleLeftEar {
     0%, 100% { transform: rotate(0deg); }

@@ -54,6 +54,15 @@ const WALK_CONFIGS = [
   { wanderIdx: 5, left: "40%", top: "79%", size: 94,  duration: "45s", delay: "8s"   },
 ];
 
+const GROUND_WALK_CONFIGS = [
+  { wanderIdx: 0, left: "4%",  top: "91%", size: 118, duration: "38s", delay: "0s"   },
+  { wanderIdx: 1, left: "58%", top: "91%", size: 102, duration: "42s", delay: "5s"   },
+  { wanderIdx: 2, left: "20%", top: "89%", size: 88,  duration: "36s", delay: "11s"  },
+  { wanderIdx: 3, left: "52%", top: "89%", size: 76,  duration: "44s", delay: "2s"   },
+  { wanderIdx: 4, left: "34%", top: "89%", size: 66,  duration: "40s", delay: "16s"  },
+  { wanderIdx: 5, left: "40%", top: "91%", size: 94,  duration: "45s", delay: "8s"   },
+];
+
 export default function PetHousePage({ user }: PetHousePageProps) {
   const [selectedPet, setSelectedPet] = useState<InventoryPet | null>(null);
   const [draggingEdible, setDraggingEdible] = useState<EdibleItem | null>(null);
@@ -413,7 +422,28 @@ function WalkingPet({
   index: number;
   onClick: () => void;
 }) {
-  const cfg = WALK_CONFIGS[index % WALK_CONFIGS.length];
+  const { data: templateData } = useQuery<{ parts: Array<{ partType: string }> }>({
+    queryKey: ["/api/pet-template-parts", pet.petTemplateId],
+    queryFn: async () => {
+      const res = await fetch(`/api/pet-template-parts/${pet.petTemplateId}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    enabled: !!pet.petTemplateId,
+    staleTime: 300000,
+  });
+
+  const hasWings = !!(templateData?.parts?.some(
+    (p) => p.partType === "left_wing" || p.partType === "right_wing" || p.partType === "wings"
+  ));
+
+  const cfg = hasWings
+    ? WALK_CONFIGS[index % WALK_CONFIGS.length]
+    : GROUND_WALK_CONFIGS[index % GROUND_WALK_CONFIGS.length];
+
+  const floatAnim = hasWings ? "petFloatSmall" : "petGroundFloat";
+  const wanderPrefix = hasWings ? "petWander" : "petGroundWander";
+
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
   const sz = cfg.size;
   const shadowW = Math.round(sz * 0.52);
@@ -446,11 +476,11 @@ function WalkingPet({
     >
       <div
         style={{
-          animation: `petWander${cfg.wanderIdx} ${cfg.duration} ${cfg.delay} ease-in-out infinite`,
+          animation: `${wanderPrefix}${cfg.wanderIdx} ${cfg.duration} ${cfg.delay} ease-in-out infinite`,
           transformOrigin: "bottom center",
         }}
       >
-        <div style={{ animation: `petFloatSmall 3.2s ${cfg.delay} ease-in-out infinite` }}>
+        <div style={{ animation: `${floatAnim} 3.2s ${cfg.delay} ease-in-out infinite` }}>
           {pet.petTemplateId ? (
             <>
               <PetAnimator
