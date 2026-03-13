@@ -9,6 +9,7 @@ import profileFrameImg from "@assets/frame_profile.png";
 import coinIconImg from "@assets/icon_coin.png";
 import PetDatabasePanel from "@/components/PetDatabasePanel";
 import ItemDatabaseSection, { ShopItemFull, ItemPickerModal } from "@/components/ItemDatabaseSection";
+import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 
 interface AdminPageProps {
   user: {
@@ -39,6 +40,7 @@ export default function AdminPage({ user }: AdminPageProps) {
   const [currentUser, setCurrentUser] = useState(user);
   const [coinAmounts, setCoinAmounts] = useState<Record<string, string>>({});
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
+  const [viewingUserId, setViewingUserId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"members" | "rewards" | "items" | "pets" | "messages">("members");
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -181,7 +183,12 @@ export default function AdminPage({ user }: AdminPageProps) {
                           {rank}
                         </div>
 
-                        <div className="relative w-10 h-10 flex-shrink-0">
+                        <button
+                          data-testid={`button-view-player-${member.id}`}
+                          onClick={e => { e.stopPropagation(); setViewingUserId(member.id); }}
+                          className="relative w-10 h-10 flex-shrink-0 focus:outline-none"
+                          style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
+                        >
                           <img src={profileFrameImg} alt="" className="absolute inset-0 w-full h-full object-contain z-20" />
                           <div className="absolute z-10 overflow-hidden rounded-sm" style={{ inset: "6px" }}>
                             {member.profileImage ? (
@@ -192,7 +199,7 @@ export default function AdminPage({ user }: AdminPageProps) {
                               </div>
                             )}
                           </div>
-                        </div>
+                        </button>
 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
@@ -310,6 +317,13 @@ export default function AdminPage({ user }: AdminPageProps) {
             setCurrentUser(updatedUser);
             setShowProfile(false);
           }}
+        />
+      )}
+
+      {viewingUserId && (
+        <PlayerDetailPanel
+          userId={viewingUserId}
+          onClose={() => setViewingUserId(null)}
         />
       )}
     </div>

@@ -362,6 +362,98 @@ export async function registerRoutes(
     }
   });
 
+  // Public profile endpoint — accessible to any authenticated player
+  app.get("/api/users/:userId/profile", isAuthenticated, async (req, res) => {
+    try {
+      const targetUser = await storage.getUser(req.params.userId);
+      if (!targetUser || targetUser.isBanned) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const inventoryRows = await storage.getUserInventoryWithItems(targetUser.id);
+
+      let activePet = null;
+      if (targetUser.activePetId) {
+        const activePetRow = inventoryRows.find(
+          r => r.inventory.shopItemId === targetUser.activePetId && r.inventory.isHatched
+        );
+        if (activePetRow && activePetRow.shopItem) {
+          const { shopItem, inventory: inv } = activePetRow;
+          activePet = {
+            inventoryId: inv.id,
+            shopItemId: shopItem.id,
+            name: shopItem.name,
+            nickname: inv.petNickname,
+            imageUrl: shopItem.imageUrl,
+            hatchedImageUrl: shopItem.hatchedImageUrl,
+            eggImageUrl: shopItem.eggImageUrl,
+            rarity: shopItem.rarity,
+            specialSkill: shopItem.specialSkill,
+            petLevel: inv.petLevel,
+            petHealth: inv.petHealth,
+            petAtk: inv.petAtk,
+            petDef: inv.petDef,
+            petLevelPoints: inv.petLevelPoints,
+          };
+        }
+      }
+
+      const accessories = inventoryRows
+        .filter(r => r.shopItem?.type === "accessory")
+        .map(r => ({
+          inventoryId: r.inventory.id,
+          name: r.shopItem!.name,
+          imageUrl: r.shopItem!.imageUrl,
+          atkBoost: r.shopItem!.atkBoost,
+          defBoost: r.shopItem!.defBoost,
+        }));
+
+      return res.json({
+        id: targetUser.id,
+        username: targetUser.username,
+        profileImage: targetUser.profileImage,
+        activePet,
+        accessories,
+      });
+    } catch (err) {
+      console.error("Get public profile error:", err);
+      return res.status(500).json({ message: "Failed to get profile" });
+    }
+  });
+
+  // Public pet list for visiting another player's pet house
+  app.get("/api/users/:userId/pets", isAuthenticated, async (req, res) => {
+    try {
+      const targetUser = await storage.getUser(req.params.userId);
+      if (!targetUser || targetUser.isBanned) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const inventoryRows = await storage.getUserInventoryWithItems(targetUser.id);
+      const hatchedPets = inventoryRows
+        .filter(r => r.inventory.isHatched && r.shopItem?.type === "pet")
+        .map(r => ({
+          inventoryId: r.inventory.id,
+          shopItemId: r.shopItem!.id,
+          name: r.shopItem!.name,
+          nickname: r.inventory.petNickname,
+          imageUrl: r.shopItem!.imageUrl,
+          hatchedImageUrl: r.shopItem!.hatchedImageUrl,
+          eggImageUrl: r.shopItem!.eggImageUrl,
+          rarity: r.shopItem!.rarity,
+          petLevel: r.inventory.petLevel,
+          petHealth: r.inventory.petHealth,
+          petAtk: r.inventory.petAtk,
+          petDef: r.inventory.petDef,
+        }));
+
+      return res.json({ username: targetUser.username, pets: hatchedPets });
+    } catch (err) {
+      console.error("Get user pets error:", err);
+      return res.status(500).json({ message: "Failed to get pets" });
+    }
+  });
+
   app.get("/api/inventory", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
