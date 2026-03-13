@@ -11,7 +11,6 @@ import { readFileAsDataUrl } from "@/lib/utils";
 import ExploreAdminPanel from "@/components/ExploreAdminPanel";
 import BattleArena from "@/components/BattleArena";
 
-import woodSignImg from "@assets/sign_wood.png";
 import shopFrostpeak from "@assets/shop_frostpeak.png";
 import shopSkyRealm from "@assets/shop_sky_realm.png";
 import shopVolcanic from "@assets/shop_volcanic.png";
@@ -571,36 +570,17 @@ export default function WorldPage({ user }: WorldPageProps) {
             className="flex items-center justify-center mb-1"
             data-testid={`text-world-name-${worldId}`}
           >
-            <div
-              className="relative"
+            <h2
+              className="font-fantasy font-bold tracking-widest text-center leading-none px-5"
               style={{
-                width: "min(196px, 52vw)",
-                filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.85)) drop-shadow(0 2px 6px rgba(0,0,0,0.6))",
+                fontSize: "clamp(13px, 3.6vw, 19px)",
+                color: "#fff5b0",
+                textShadow: "0 0 6px #f0c040, 0 0 14px #d4a017, 0 0 28px rgba(212,160,23,0.65), 0 0 50px rgba(240,192,64,0.28), 0 1px 3px rgba(0,0,0,1)",
+                letterSpacing: "0.14em",
               }}
             >
-              <img
-                src={woodSignImg}
-                alt=""
-                className="w-full h-auto block"
-                style={{
-                  filter: "brightness(0.82) saturate(1.12) contrast(1.05)",
-                }}
-                draggable={false}
-              />
-              <div className="absolute inset-0 flex items-center justify-center" style={{ paddingBottom: "6%" }}>
-                <h2
-                  className="font-fantasy font-bold tracking-widest text-center leading-none px-5"
-                  style={{
-                    fontSize: "clamp(11px, 3.1vw, 16px)",
-                    color: "#fff5b0",
-                    textShadow: "0 0 6px #f0c040, 0 0 14px #d4a017, 0 0 28px rgba(212,160,23,0.65), 0 0 50px rgba(240,192,64,0.28), 0 1px 3px rgba(0,0,0,1)",
-                    letterSpacing: "0.12em",
-                  }}
-                >
-                  {world.name}
-                </h2>
-              </div>
-            </div>
+              {world.name}
+            </h2>
           </div>
         </div>
 
@@ -869,6 +849,8 @@ export default function WorldPage({ user }: WorldPageProps) {
                   <option value="shop">Shop</option>
                   <option value="garden">Garden</option>
                   <option value="quest">Quest</option>
+                  <option value="fishing">Fishing</option>
+                  <option value="explore">Explore</option>
                 </select>
               </div>
 
@@ -1050,6 +1032,8 @@ export default function WorldPage({ user }: WorldPageProps) {
                   <option value="shop">Shop</option>
                   <option value="garden">Garden</option>
                   <option value="quest">Quest</option>
+                  <option value="fishing">Fishing</option>
+                  <option value="explore">Explore</option>
                 </select>
               </div>
 
