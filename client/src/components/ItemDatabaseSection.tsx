@@ -352,20 +352,19 @@ function AdminItemForm({
 
   const effectiveType = petOnly ? "pet" : type;
 
+  const hasAnyPhoto = !!(imageData || imagePreview || eggImageData || eggImagePreview || hatchedImageData || hatchedImagePreview);
+
   const handleSubmit = async () => {
-    if (!name.trim() || !price.trim()) {
-      toast({ title: "Missing fields", description: "Name and price are required", variant: "destructive" });
+    if (!hasAnyPhoto) {
+      toast({ title: "Photo required", description: "Upload at least one image to continue", variant: "destructive" });
       return;
     }
-    const priceNum = parseInt(price);
-    if (isNaN(priceNum) || priceNum < 0) {
-      toast({ title: "Invalid price", description: "Price must be a positive number", variant: "destructive" });
-      return;
-    }
+    const priceNum = price.trim() ? parseInt(price) : 0;
 
     setSubmitting(true);
     try {
-      const payload: any = { name: name.trim(), price: priceNum, type: effectiveType, worldId: "all" };
+      const finalName = name.trim() || (petOnly ? "Unnamed Pet" : "Unnamed Item");
+      const payload: any = { name: finalName, price: priceNum, type: effectiveType, worldId: "all" };
       if (imageData) payload.imageData = imageData;
 
       if (effectiveType === "pet") {
@@ -744,12 +743,17 @@ function AdminItemForm({
             </>
           )}
 
+          {!hasAnyPhoto && (
+            <p className="font-fantasy text-[#a89878] text-[9px] tracking-wider text-center">
+              Upload a photo above to enable saving
+            </p>
+          )}
           <button
             data-testid="button-submit-item"
             onClick={handleSubmit}
-            disabled={submitting}
+            disabled={submitting || !hasAnyPhoto}
             className="w-full py-2.5 rounded-md font-fantasy text-sm tracking-wider transition-transform active:scale-98 disabled:opacity-50"
-            style={{ background: accentBg, border: `1px solid ${accentBorder}`, color: accentColor, cursor: "pointer" }}
+            style={{ background: accentBg, border: `1px solid ${accentBorder}`, color: accentColor, cursor: hasAnyPhoto ? "pointer" : "not-allowed" }}
           >
             {submitting ? "Saving..." : item ? `Update ${petOnly ? "Pet" : "Item"}` : `Add to Game`}
           </button>
