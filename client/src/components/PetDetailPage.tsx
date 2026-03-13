@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import coinIconImg from "@assets/icon_coin.png";
+import PowerUpOverlay, { PowerUpEffectType } from "@/components/PowerUpOverlay";
 
 interface PetData {
   inventoryId: string;
@@ -50,7 +51,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
   const [confirmItem, setConfirmItem] = useState<BagItem | null>(null);
   const [showSuccessAnim, setShowSuccessAnim] = useState(false);
   const [successBoostLabel, setSuccessBoostLabel] = useState("");
-  const [successAnimType, setSuccessAnimType] = useState<"gold" | "green">("gold");
+  const [successAnimType, setSuccessAnimType] = useState<PowerUpEffectType>("stat");
   const [editingNickname, setEditingNickname] = useState(false);
   const [nicknameInput, setNicknameInput] = useState(pet.petNickname || "");
   const { toast } = useToast();
@@ -100,13 +101,12 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
         ? `+${item.statBoostAmount || "?"} ${item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "LVL"}`
         : "Power Up!";
       setSuccessBoostLabel(boostLabel);
-      setSuccessAnimType("green");
+      setSuccessAnimType("stat");
       setShowSuccessAnim(true);
       setConfirmItem(null);
       setShowPowerUp(false);
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       onUpdate();
-      setTimeout(() => setShowSuccessAnim(false), 2200);
     },
     onError: (err: any) => {
       setConfirmItem(null);
@@ -121,18 +121,18 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
     },
     onSuccess: () => {
       const item = confirmItem;
-      const label = item?.specialType === "hatch_time"
-        ? `-${item.specialAmount || "?"} min hatch`
+      const isHatchTime = item?.specialType === "hatch_time";
+      const label = isHatchTime
+        ? `-${item.specialAmount || "?"} min`
         : `+${item?.specialAmount || "?"} LVL pts`;
       setSuccessBoostLabel(label);
-      setSuccessAnimType("gold");
+      setSuccessAnimType(isHatchTime ? "hatch" : "level");
       setShowSuccessAnim(true);
       setConfirmItem(null);
       setShowPowerUp(false);
       setShowLvlUp(false);
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       onUpdate();
-      setTimeout(() => setShowSuccessAnim(false), 2200);
     },
     onError: (err: any) => {
       setConfirmItem(null);
@@ -198,67 +198,6 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
               )}
             </div>
 
-            {showSuccessAnim && (() => {
-              const isGold = successAnimType === "gold";
-              const animColor = isGold ? "rgba(255,215,0," : "rgba(80,255,120,";
-              const textColor = isGold ? "#ffd700" : "#50ff78";
-              const icon = isGold ? "⚡" : "💪";
-              return (
-                <div
-                  className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none"
-                  style={{ animation: "powerUpFlash 2.2s ease-out forwards" }}
-                >
-                  <div
-                    className="absolute inset-0 pointer-events-none"
-                    style={{
-                      background: `radial-gradient(circle at 50% 50%, ${animColor}0.3) 0%, ${animColor}0.1) 40%, transparent 70%)`,
-                      animation: "powerUpPulse 0.8s ease-out",
-                    }}
-                  />
-                  {[...Array(8)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="absolute rounded-full pointer-events-none"
-                      style={{
-                        width: "6px",
-                        height: "6px",
-                        background: textColor,
-                        left: "50%",
-                        top: "50%",
-                        boxShadow: `0 0 8px ${textColor}, 0 0 16px ${textColor}`,
-                        animation: `powerUpParticle 1.2s ease-out ${i * 0.08}s forwards`,
-                        transform: `rotate(${i * 45}deg) translateY(-20px)`,
-                        opacity: 0,
-                      }}
-                    />
-                  ))}
-                  <div
-                    className="flex flex-col items-center"
-                    style={{ animation: "powerUpRise 2s ease-out forwards" }}
-                  >
-                    <div
-                      className="text-5xl mb-1"
-                      style={{
-                        animation: "powerUpSpin 0.7s ease-out",
-                        filter: `drop-shadow(0 0 25px ${animColor}0.9)) drop-shadow(0 0 50px ${animColor}0.5))`,
-                      }}
-                    >
-                      {icon}
-                    </div>
-                    <span
-                      className="font-fantasy text-xl font-bold tracking-wider"
-                      style={{
-                        color: textColor,
-                        textShadow: `0 0 20px ${animColor}0.9), 0 0 40px ${animColor}0.5), 0 0 60px ${animColor}0.3)`,
-                      }}
-                      data-testid="text-power-up-success"
-                    >
-                      {successBoostLabel}
-                    </span>
-                  </div>
-                </div>
-              );
-            })()}
 
             {pet.eggImageUrl && (
               <div
@@ -750,6 +689,13 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
           100% { opacity: 0; transform: rotate(var(--angle, 0deg)) translateY(-60px) scale(0.3); }
         }
       `}</style>
+
+      <PowerUpOverlay
+        visible={showSuccessAnim}
+        effectType={successAnimType}
+        label={successBoostLabel}
+        onDone={() => setShowSuccessAnim(false)}
+      />
     </div>
   );
 }

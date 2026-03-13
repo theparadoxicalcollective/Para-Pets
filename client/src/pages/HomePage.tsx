@@ -12,6 +12,7 @@ import UserProfilePanel from "@/components/UserProfilePanel";
 import PetInventory from "@/components/PetInventory";
 import PetAnimator from "@/components/PetAnimator";
 import PetDetailPage from "@/components/PetDetailPage";
+import PowerUpOverlay from "@/components/PowerUpOverlay";
 
 interface HomePageProps {
   user: {
@@ -64,6 +65,8 @@ export default function HomePage({ user }: HomePageProps) {
   const [hatchRevealing, setHatchRevealing] = useState(false);
   const [showPetDetail, setShowPetDetail] = useState(false);
   const [showSpeedUp, setShowSpeedUp] = useState(false);
+  const [showSpeedEffect, setShowSpeedEffect] = useState(false);
+  const [speedEffectLabel, setSpeedEffectLabel] = useState("");
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
 
@@ -98,12 +101,14 @@ export default function HomePage({ user }: HomePageProps) {
   );
 
   const speedUpMutation = useMutation({
-    mutationFn: async ({ petInvId, itemInvId }: { petInvId: string; itemInvId: string }) => {
+    mutationFn: async ({ petInvId, itemInvId, specialAmount }: { petInvId: string; itemInvId: string; specialAmount?: number | null }) => {
       const res = await apiRequest("POST", `/api/pet/${petInvId}/use-special`, { itemInventoryId: itemInvId });
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       setShowSpeedUp(false);
+      setSpeedEffectLabel(`-${variables.specialAmount ?? "?"} min`);
+      setShowSpeedEffect(true);
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
     },
   });
@@ -742,7 +747,7 @@ export default function HomePage({ user }: HomePageProps) {
                   <button
                     key={item.inventoryId}
                     data-testid={`button-speedup-${item.inventoryId}`}
-                    onClick={() => speedUpMutation.mutate({ petInvId: activePet.inventoryId, itemInvId: item.inventoryId })}
+                    onClick={() => speedUpMutation.mutate({ petInvId: activePet.inventoryId, itemInvId: item.inventoryId, specialAmount: item.specialAmount })}
                     disabled={speedUpMutation.isPending}
                     className="rounded-md p-2 flex flex-col items-center gap-1 transition-transform active:scale-95 disabled:opacity-40"
                     style={{
@@ -926,6 +931,13 @@ export default function HomePage({ user }: HomePageProps) {
           100% { transform: translateY(-20px) scale(0.9); opacity: 0; }
         }
       `}</style>
+
+      <PowerUpOverlay
+        visible={showSpeedEffect}
+        effectType="hatch"
+        label={speedEffectLabel}
+        onDone={() => setShowSpeedEffect(false)}
+      />
     </div>
   );
 }
