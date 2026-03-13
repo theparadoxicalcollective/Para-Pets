@@ -605,6 +605,15 @@ export async function registerRoutes(
     }
   });
 
+  function calcRollover(itemsUsedThisLevel: number, rarity: number): number {
+    const maxItemsPerLevel = rarity + 2;
+    const unused = Math.max(0, maxItemsPerLevel - itemsUsedThisLevel);
+    if (unused === 0) return 0;
+    // Higher rarity pets carry over more unused slots (rarity 1 → ~25%, 2 → 50%, 3 → 75%, 4+ → 100%)
+    // Capped at maxItemsPerLevel so total effective slots never exceed 2× base allowance
+    return Math.min(maxItemsPerLevel, Math.ceil(unused * rarity / 4));
+  }
+
   app.post("/api/pet/:inventoryId/power-up", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
@@ -671,7 +680,9 @@ export async function registerRoutes(
         updates.petLevelPoints = totalPoints;
         if (newLevel > petInv.petLevel) {
           updates.petLevel = newLevel;
-          updates.itemsUsedThisLevel = 0;
+          const rarity = petShopItem.rarity || 1;
+          const rollover = calcRollover(petInv.itemsUsedThisLevel, rarity);
+          updates.itemsUsedThisLevel = -rollover;
         }
       }
 
@@ -743,7 +754,9 @@ export async function registerRoutes(
         const updates: any = { petLevelPoints: totalPoints };
         if (newLevel !== petInv.petLevel) {
           updates.petLevel = newLevel;
-          updates.itemsUsedThisLevel = 0;
+          const rarity = petShopItem.rarity || 1;
+          const rollover = calcRollover(petInv.itemsUsedThisLevel, rarity);
+          updates.itemsUsedThisLevel = -rollover;
         }
         await storage.updateInventoryItem(petInv.id, updates);
       } else {
@@ -785,6 +798,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Not an edible item" });
       }
 
+      const petShopItem = await storage.getShopItem(petInv.shopItemId);
       const lvlPoints = itemShopItem.statBoostAmount || 5;
       let totalPoints = (petInv.petLevelPoints || 0) + lvlPoints;
       let newLevel = petInv.petLevel;
@@ -799,7 +813,9 @@ export async function registerRoutes(
       const updates: any = { petLevelPoints: totalPoints };
       if (newLevel > petInv.petLevel) {
         updates.petLevel = newLevel;
-        updates.itemsUsedThisLevel = 0;
+        const rarity = petShopItem?.rarity || 1;
+        const rollover = calcRollover(petInv.itemsUsedThisLevel, rarity);
+        updates.itemsUsedThisLevel = -rollover;
       }
 
       const updatedPet = await storage.updateInventoryItem(petInv.id, updates);

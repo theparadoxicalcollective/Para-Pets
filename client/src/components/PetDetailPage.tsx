@@ -88,7 +88,10 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
 
   const rarity = pet.rarity || 1;
   const maxItemsPerLevel = rarity + 2;
-  const itemsRemaining = maxItemsPerLevel - pet.itemsUsedThisLevel;
+  const rolloverBonus = Math.max(0, -pet.itemsUsedThisLevel);
+  const effectiveMax = maxItemsPerLevel + rolloverBonus;
+  const effectiveUsed = Math.max(0, pet.itemsUsedThisLevel);
+  const itemsRemaining = effectiveMax - effectiveUsed;
 
   const powerUpMutation = useMutation({
     mutationFn: async (itemInventoryId: string) => {
@@ -316,20 +319,51 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
 
             <div className="mt-3 pt-3" style={{ borderTop: "1px solid rgba(212,160,23,0.15)" }}>
               <div className="flex items-center justify-between">
-                <span className="font-fantasy text-[#6a5840] text-[10px] tracking-wider">ITEMS THIS LEVEL</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-fantasy text-[#6a5840] text-[10px] tracking-wider">ITEMS THIS LEVEL</span>
+                  {rolloverBonus > 0 && (
+                    <span
+                      className="font-fantasy text-[8px] tracking-wider px-1.5 py-0.5 rounded-full"
+                      style={{
+                        background: "rgba(240,192,64,0.15)",
+                        border: "1px solid rgba(240,192,64,0.35)",
+                        color: "#f0c040",
+                      }}
+                    >
+                      +{rolloverBonus} rolled over
+                    </span>
+                  )}
+                </div>
                 <span className="font-fantasy text-[#a89878] text-[10px]" data-testid="text-items-used">
-                  {pet.itemsUsedThisLevel} / {maxItemsPerLevel}
+                  {effectiveUsed} / {effectiveMax}
                 </span>
               </div>
-              <div className="w-full h-1.5 rounded-full mt-1" style={{ background: "rgba(0,0,0,0.4)" }}>
+              <div className="w-full h-1.5 rounded-full mt-1 relative" style={{ background: "rgba(0,0,0,0.4)" }}>
+                {rolloverBonus > 0 && (
+                  <div style={{
+                    position: "absolute",
+                    left: 0,
+                    top: 0,
+                    width: `${Math.min(100, (rolloverBonus / effectiveMax) * 100)}%`,
+                    background: "linear-gradient(90deg, rgba(240,192,64,0.3), rgba(240,192,64,0.15))",
+                    height: "6px",
+                    borderRadius: "4px",
+                  }} />
+                )}
                 <div style={{
-                  width: `${Math.min(100, (pet.itemsUsedThisLevel / maxItemsPerLevel) * 100)}%`,
+                  width: `${Math.min(100, (effectiveUsed / effectiveMax) * 100)}%`,
                   background: "linear-gradient(90deg, #c084fc, #c084fc88)",
                   height: "6px",
                   borderRadius: "4px",
                   transition: "width 0.5s ease",
+                  position: "relative",
                 }} />
               </div>
+              {rolloverBonus > 0 && (
+                <p className="font-fantasy text-[#f0c040] text-[8px] tracking-wider mt-1 opacity-70">
+                  ✦ {rolloverBonus} bonus slot{rolloverBonus > 1 ? "s" : ""} carried from previous level
+                </p>
+              )}
             </div>
           </div>
 
