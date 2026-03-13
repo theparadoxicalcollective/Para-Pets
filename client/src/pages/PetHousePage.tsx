@@ -455,7 +455,7 @@ function WalkingPet({
             <>
               <PetAnimator
                 petTemplateId={pet.petTemplateId}
-                mode="walk"
+                mode="idle"
                 size={sz}
                 style={{
                   filter: `drop-shadow(0 ${Math.round(sz * 0.12)}px ${Math.round(sz * 0.15)}px rgba(0,0,0,0.5))`,
