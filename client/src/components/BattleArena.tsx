@@ -236,8 +236,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       if (isCrit) {
         dmg = Math.max(1, petStatsRef.current.atk + 100 - petStatsRef.current.def);
       } else {
-        const rawDmg = enemyStatsRef.current.atk - Math.floor(petStatsRef.current.def * 0.3);
-        dmg = Math.max(1, rawDmg + Math.floor(Math.random() * 6) - 3);
+        const rawDmg = enemyStatsRef.current.atk - Math.floor(petStatsRef.current.def * 0.1);
+        dmg = Math.max(1, rawDmg + Math.floor(Math.random() * 10) - 3);
       }
 
       petHpRef.current = Math.max(0, petHpRef.current - dmg);
@@ -514,7 +514,12 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 z-30">
             <div style={{ animation: "introSlide 0.8s ease-out" }} className="flex flex-col items-center">
               {enemy.imageUrl && (
-                <img src={enemy.imageUrl} alt={enemy.name} className="w-28 h-28 object-contain drop-shadow-lg" />
+                <img
+                  src={enemy.imageUrl}
+                  alt={enemy.name}
+                  style={{ width: enemy.isBoss ? 160 : 112, height: enemy.isBoss ? 160 : 112 }}
+                  className={`object-contain ${enemy.isBoss ? "drop-shadow-[0_0_24px_rgba(255,0,0,0.9)]" : "drop-shadow-lg"}`}
+                />
               )}
               <div className="mt-2 px-4 py-2 bg-black/70 rounded-lg border border-red-500/50">
                 <span className="text-red-400 font-bold text-lg">{enemy.name}</span>
@@ -625,11 +630,23 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   <img
                     src={enemy.imageUrl}
                     alt={enemy.name}
-                    className="w-20 h-20 object-contain drop-shadow-[0_0_12px_rgba(255,0,0,0.5)]"
+                    style={{ width: enemy.isBoss ? 148 : 80, height: enemy.isBoss ? 148 : 80 }}
+                    className={`object-contain ${enemy.isBoss
+                      ? "drop-shadow-[0_0_24px_rgba(255,0,0,0.9)]"
+                      : "drop-shadow-[0_0_12px_rgba(255,0,0,0.5)]"}`}
                   />
                 ) : (
-                  <div className="w-20 h-20 bg-red-900/50 rounded-full flex items-center justify-center border-2 border-red-500">
-                    <Swords className="w-8 h-8 text-red-400" />
+                  <div
+                    className={`${enemy.isBoss ? "w-36 h-36" : "w-20 h-20"} bg-red-900/50 rounded-full flex items-center justify-center border-2 border-red-500`}
+                    style={enemy.isBoss ? { boxShadow: "0 0 32px rgba(255,0,0,0.7)" } : {}}
+                  >
+                    <Swords className={enemy.isBoss ? "w-14 h-14 text-red-400" : "w-8 h-8 text-red-400"} />
+                  </div>
+                )}
+                {enemy.isBoss && (
+                  <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-black tracking-widest text-red-400 whitespace-nowrap"
+                    style={{ textShadow: "0 0 8px rgba(255,0,0,0.8)" }}>
+                    ⚠ BOSS ⚠
                   </div>
                 )}
               </div>
@@ -638,25 +655,27 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
             <div
               className="absolute bottom-16 left-1/2 z-10"
               style={{
-                transform: "translateX(-50%)",
+                transform: petHit ? undefined : "translateX(-50%)",
                 animation: petHit ? "petHitBounce 0.4s ease-out" : undefined,
               }}
             >
-              <div className="w-32 h-32 flex items-center justify-center">
-                {pet.petTemplateId ? (
-                  <PetAnimator
-                    petTemplateId={pet.petTemplateId}
-                    mode="idle"
-                    view="front"
-                    size={300}
-                    className="w-full h-full"
-                  />
-                ) : pet.imageUrl ? (
-                  <img src={pet.imageUrl} alt={pet.name} className="w-full h-full object-contain drop-shadow-lg" />
-                ) : (
-                  <span className="text-6xl">🐾</span>
-                )}
-              </div>
+              {pet.petTemplateId ? (
+                <PetAnimator
+                  petTemplateId={pet.petTemplateId}
+                  mode="idle"
+                  view="front"
+                  size={160}
+                />
+              ) : pet.imageUrl ? (
+                <img
+                  src={pet.imageUrl}
+                  alt={pet.name}
+                  className="object-contain drop-shadow-lg"
+                  style={{ width: 160, height: 160 }}
+                />
+              ) : (
+                <span className="text-6xl">🐾</span>
+              )}
             </div>
 
             {phase === "battle" && (

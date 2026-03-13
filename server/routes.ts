@@ -2076,10 +2076,11 @@ export async function registerRoutes(
         const waveScaling = 1 + (waveIndex * 0.15);
         const maxLevelOffset = enemy.isBoss ? 5 : 2;
         const enemyLevel = Math.max(1, petLevel + Math.floor(Math.random() * (maxLevelOffset + 1)));
-        const bossMult = enemy.isBoss ? 1.5 : 1.0;
-        const enemyHp = Math.max(200, Math.floor(petHp * 2 * bossMult * waveScaling));
-        const enemyAtk = Math.max(10, Math.floor(petAtk * (2 / 3) * bossMult * waveScaling));
-        const enemyDef = Math.max(5, Math.floor(petDef * (2 / 3) * bossMult * waveScaling));
+        const bossHpMult = enemy.isBoss ? 4.0 : 1.0;
+        const bossStatMult = enemy.isBoss ? 2.5 : 1.0;
+        const enemyHp = Math.max(200, Math.floor(petHp * 2 * bossHpMult * waveScaling));
+        const enemyAtk = Math.max(10, Math.floor(petAtk * (2 / 3) * bossStatMult * waveScaling));
+        const enemyDef = Math.max(5, Math.floor(petDef * (2 / 3) * bossStatMult * waveScaling));
 
         const drops = await storage.getEnemyDrops(enemy.id);
         const dropDetails = await Promise.all(drops.map(async (drop) => {
@@ -2155,8 +2156,8 @@ export async function registerRoutes(
       const maxLevelOffset = enemy.isBoss ? 5 : 2;
       const maxAllowedLevel = petLevel + maxLevelOffset;
       const enemyLevel = Math.max(1, Math.min(clientEnemyLevel || 1, maxAllowedLevel));
-      const bossMult = enemy.isBoss ? 1.5 : 1.0;
-      const startingHp = Math.max(200, Math.floor(petHp * 2 * bossMult));
+      const bossHpMult = enemy.isBoss ? 4.0 : 1.0;
+      const startingHp = Math.max(200, Math.floor(petHp * 2 * bossHpMult));
       const lvlPointsEarned = Math.max(1, Math.floor(startingHp * 0.05));
 
       let totalPoints = (activePet.petLevelPoints || 0) + lvlPointsEarned;
