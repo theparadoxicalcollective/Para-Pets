@@ -318,52 +318,21 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
             <StatBar label="DEF" value={pet.petDef} displayValue={pet.petDef.toLocaleString()} color="#60a5fa" testId="bar-pet-def" />
 
             <div className="mt-3 pt-3" style={{ borderTop: "1px solid rgba(212,160,23,0.15)" }}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <span className="font-fantasy text-[#6a5840] text-[10px] tracking-wider">ITEMS THIS LEVEL</span>
-                  {rolloverBonus > 0 && (
-                    <span
-                      className="font-fantasy text-[8px] tracking-wider px-1.5 py-0.5 rounded-full"
-                      style={{
-                        background: "rgba(240,192,64,0.15)",
-                        border: "1px solid rgba(240,192,64,0.35)",
-                        color: "#f0c040",
-                      }}
-                    >
-                      +{rolloverBonus} rolled over
-                    </span>
-                  )}
-                </div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-fantasy text-[#6a5840] text-[10px] tracking-wider">POWER-UP SLOTS</span>
                 <span className="font-fantasy text-[#a89878] text-[10px]" data-testid="text-items-used">
-                  {effectiveUsed} / {effectiveMax}
+                  {showRemainingCount ? `${itemsRemaining} left` : "✦"}
                 </span>
               </div>
               <div className="w-full h-1.5 rounded-full mt-1 relative" style={{ background: "rgba(0,0,0,0.4)" }}>
-                {rolloverBonus > 0 && (
-                  <div style={{
-                    position: "absolute",
-                    left: 0,
-                    top: 0,
-                    width: `${Math.min(100, (rolloverBonus / effectiveMax) * 100)}%`,
-                    background: "linear-gradient(90deg, rgba(240,192,64,0.3), rgba(240,192,64,0.15))",
-                    height: "6px",
-                    borderRadius: "4px",
-                  }} />
-                )}
                 <div style={{
-                  width: `${Math.min(100, (effectiveUsed / effectiveMax) * 100)}%`,
+                  width: totalAllowances > 0 ? `${Math.min(100, (totalUsed / totalAllowances) * 100)}%` : "0%",
                   background: "linear-gradient(90deg, #c084fc, #c084fc88)",
                   height: "6px",
                   borderRadius: "4px",
                   transition: "width 0.5s ease",
-                  position: "relative",
                 }} />
               </div>
-              {rolloverBonus > 0 && (
-                <p className="font-fantasy text-[#f0c040] text-[8px] tracking-wider mt-1 opacity-70">
-                  ✦ {rolloverBonus} bonus slot{rolloverBonus > 1 ? "s" : ""} carried from previous level
-                </p>
-              )}
             </div>
           </div>
 
