@@ -296,22 +296,9 @@ export default function PetDatabasePanel() {
         )}
 
         <div className="flex justify-center gap-2 mb-1">
-          {(["front", "back"] as const).map(v => (
-            <button
-              key={v}
-              data-testid={`button-view-${v}`}
-              onClick={() => { setActiveView(v); setSelectedPartId(null); }}
-              className="px-4 py-1.5 rounded-md font-fantasy text-[10px] tracking-wider"
-              style={{
-                background: activeView === v ? "linear-gradient(135deg, #5c3a1e 0%, #8b5e3c 100%)" : "rgba(0,0,0,0.3)",
-                border: `1px solid ${activeView === v ? "rgba(212,160,23,0.6)" : "rgba(212,160,23,0.2)"}`,
-                color: activeView === v ? "#f0c040" : "#a89878",
-                cursor: "pointer",
-              }}
-            >
-              {v === "front" ? "Front View" : "Back View"}
-            </button>
-          ))}
+          <span className="px-4 py-1.5 rounded-md font-fantasy text-[10px] tracking-wider" style={{ background: "linear-gradient(135deg, #5c3a1e 0%, #8b5e3c 100%)", border: "1px solid rgba(212,160,23,0.6)", color: "#f0c040" }}>
+            Front View
+          </span>
         </div>
 
         <div
@@ -408,24 +395,7 @@ export default function PetDatabasePanel() {
         </div>
 
         <div className="flex flex-wrap gap-1.5 justify-center">
-          {activeView === "back" ? (() => {
-            const hasBackFull = viewParts.some(p => p.partType === "back_full");
-            return (
-              <button
-                data-testid="button-upload-back_full"
-                onClick={() => setUploadPartType("back_full")}
-                className="px-3 py-1.5 rounded font-fantasy text-[10px] tracking-wider transition-transform active:scale-95"
-                style={{
-                  background: hasBackFull ? "rgba(127,255,212,0.15)" : "rgba(240,192,64,0.1)",
-                  border: `1px solid ${hasBackFull ? "rgba(127,255,212,0.3)" : "rgba(240,192,64,0.25)"}`,
-                  color: hasBackFull ? "#7fffd4" : "#f0c040",
-                  cursor: "pointer",
-                }}
-              >
-                {hasBackFull ? "✓ " : "+ "}Back View (Full PNG)
-              </button>
-            );
-          })() : PART_TYPES.map(pt => {
+          {PART_TYPES.map(pt => {
             const exists = viewParts.some(p => p.partType === pt.key);
             return (
               <button
@@ -591,38 +561,24 @@ export default function PetDatabasePanel() {
             }}
           >
             <Save className="w-4 h-4" />
-            {assembleMutation.isPending ? "Assembling..." : `Save ${activeView === "front" ? "Front" : "Back"} View`}
+            {assembleMutation.isPending ? "Assembling..." : "Save Front View"}
           </button>
         </div>
 
-        {(templateDetail.frontAssembled || templateDetail.backAssembled) && (
+        {templateDetail.frontAssembled && (
           <div className="mt-1">
-            <p className="font-fantasy text-[9px] text-[#a89878] tracking-wider mb-2 text-center">Assembled Previews</p>
-            <div className="flex gap-3 justify-center">
-              {templateDetail.frontAssembled && (
-                <div className="text-center">
-                  <img
-                    src={templateDetail.frontAssembled}
-                    alt="Front"
-                    className="w-32 h-32 object-contain rounded-lg"
-                    style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(127,255,212,0.2)" }}
-                    data-testid="preview-front-assembled"
-                  />
-                  <span className="font-fantasy text-[8px] text-[#7fbfb0] tracking-wider">Front</span>
-                </div>
-              )}
-              {templateDetail.backAssembled && (
-                <div className="text-center">
-                  <img
-                    src={templateDetail.backAssembled}
-                    alt="Back"
-                    className="w-32 h-32 object-contain rounded-lg"
-                    style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(127,255,212,0.2)" }}
-                    data-testid="preview-back-assembled"
-                  />
-                  <span className="font-fantasy text-[8px] text-[#7fbfb0] tracking-wider">Back</span>
-                </div>
-              )}
+            <p className="font-fantasy text-[9px] text-[#a89878] tracking-wider mb-2 text-center">Assembled Preview</p>
+            <div className="flex justify-center">
+              <div className="text-center">
+                <img
+                  src={templateDetail.frontAssembled}
+                  alt="Front"
+                  className="w-32 h-32 object-contain rounded-lg"
+                  style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(127,255,212,0.2)" }}
+                  data-testid="preview-front-assembled"
+                />
+                <span className="font-fantasy text-[8px] text-[#7fbfb0] tracking-wider">Front</span>
+              </div>
             </div>
           </div>
         )}
@@ -774,11 +730,6 @@ export default function PetDatabasePanel() {
                     {t.frontAssembled && (
                       <span className="font-fantasy text-[7px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(127,255,212,0.1)", color: "#7fbfb0", border: "1px solid rgba(127,255,212,0.2)" }}>
                         Front ✓
-                      </span>
-                    )}
-                    {t.backAssembled && (
-                      <span className="font-fantasy text-[7px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(127,255,212,0.1)", color: "#7fbfb0", border: "1px solid rgba(127,255,212,0.2)" }}>
-                        Back ✓
                       </span>
                     )}
                     {!linked && (

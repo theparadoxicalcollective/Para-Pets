@@ -5,28 +5,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Swords, Star, Coins, X, ChevronRight, ArrowLeft, Heart } from "lucide-react";
 import PetAnimator from "./PetAnimator";
 
-function PetBackWithFallback({ petTemplateId, size, className }: { petTemplateId: string; size: number; className?: string }) {
-  const { data: templateData } = useQuery<{ parts: { view: string }[] }>({
-    queryKey: ["/api/pet-template-parts", petTemplateId],
-    queryFn: async () => {
-      const res = await fetch(`/api/pet-template-parts/${petTemplateId}`, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed");
-      return res.json();
-    },
-    enabled: !!petTemplateId,
-    staleTime: 300000,
-  });
-  const hasBackParts = (templateData?.parts || []).some(p => p.view === "back");
-  return (
-    <PetAnimator
-      petTemplateId={petTemplateId}
-      mode="idle"
-      view={hasBackParts ? "back" : "front"}
-      size={size}
-      className={className}
-    />
-  );
-}
 
 interface EncounterEnemy {
   enemyId: string;
@@ -50,7 +28,6 @@ interface EncounterPet {
   def: number;
   petTemplateId: string | null;
   imageUrl: string | null;
-  backImageUrl: string | null;
 }
 
 interface BattleArenaProps {
@@ -481,6 +458,14 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           60% { filter: brightness(1.3); transform: translateY(2px); }
           100% { filter: brightness(1); transform: translateY(0px); }
         }
+        @keyframes petHitBounce {
+          0%   { transform: translateX(-50%) translateY(0px) scaleX(1) scaleY(1); filter: brightness(1); }
+          15%  { transform: translateX(-50%) translateY(-14px) scaleX(0.92) scaleY(1.1); filter: brightness(2.2) saturate(0.2); }
+          35%  { transform: translateX(-50%) translateY(4px) scaleX(1.08) scaleY(0.92); filter: brightness(1.4); }
+          55%  { transform: translateX(-50%) translateY(-6px) scaleX(0.96) scaleY(1.05); filter: brightness(1.1); }
+          75%  { transform: translateX(-50%) translateY(2px) scaleX(1.02) scaleY(0.98); filter: brightness(1); }
+          100% { transform: translateX(-50%) translateY(0px) scaleX(1) scaleY(1); filter: brightness(1); }
+        }
         @keyframes comboText {
           0% { transform: scale(0.5); opacity: 0; }
           50% { transform: scale(1.2); }
@@ -641,15 +626,15 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               className="absolute bottom-16 left-1/2 z-10"
               style={{
                 transform: "translateX(-50%)",
-                animation: petHit ? "hitFlash 0.35s ease-in-out" : undefined,
+                animation: petHit ? "petHitBounce 0.4s ease-out" : undefined,
               }}
             >
               <div className="w-32 h-32 flex items-center justify-center">
-                {pet.backImageUrl ? (
-                  <img src={pet.backImageUrl} alt={pet.name} className="w-full h-full object-contain drop-shadow-lg" />
-                ) : pet.petTemplateId ? (
-                  <PetBackWithFallback
+                {pet.petTemplateId ? (
+                  <PetAnimator
                     petTemplateId={pet.petTemplateId}
+                    mode="idle"
+                    view="front"
                     size={300}
                     className="w-full h-full"
                   />
