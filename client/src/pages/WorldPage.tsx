@@ -853,7 +853,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                             className="w-full h-full object-contain relative z-10"
                             draggable={false}
                             style={{
-                              filter: "drop-shadow(0 0 1.5px rgba(80,255,130,1)) drop-shadow(0 0 4px rgba(50,200,90,0.6)) drop-shadow(0 3px 6px rgba(0,0,0,0.5))",
+                              filter: "drop-shadow(0 0 1.5px rgba(80,255,130,0.55)) drop-shadow(0 0 4px rgba(50,200,90,0.3)) drop-shadow(0 3px 6px rgba(0,0,0,0.5))",
                               transform: loc.flipped ? "scaleX(-1)" : undefined,
                               transition: "filter 0.15s ease, transform 0.15s ease",
                             }}
@@ -863,11 +863,11 @@ export default function WorldPage({ user }: WorldPageProps) {
                             className="w-full h-full rounded-full flex items-center justify-center relative z-10"
                             style={{
                               background: `radial-gradient(circle at 40% 35%, ${glow}40, ${glow}15)`,
-                              border: "1.5px solid rgba(80,255,130,0.9)",
-                              boxShadow: "0 0 4px rgba(50,200,90,0.7), 0 0 8px rgba(50,200,90,0.3)",
+                              border: "1.5px solid rgba(80,255,130,0.45)",
+                              boxShadow: "0 0 4px rgba(50,200,90,0.35), 0 0 8px rgba(50,200,90,0.15)",
                             }}
                           >
-                            <MapPin className="w-7 h-7" style={{ color: "#50ff82", filter: "drop-shadow(0 0 3px rgba(80,255,130,0.8))" }} />
+                            <MapPin className="w-7 h-7" style={{ color: "#50ff82", filter: "drop-shadow(0 0 3px rgba(80,255,130,0.4))" }} />
                           </div>
                         )}
 
