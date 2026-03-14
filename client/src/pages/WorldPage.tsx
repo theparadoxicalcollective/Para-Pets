@@ -1385,18 +1385,9 @@ export default function WorldPage({ user }: WorldPageProps) {
                     top: `${posY}%`,
                     width: `${item.shopWidth}px`,
                     transform: "translate(-50%, -50%)",
-                    cursor: currentUser.isAdmin ? "grab" : "pointer",
                     touchAction: "none",
                     zIndex: isDragging ? 30 : 15,
-                  }}
-                  onPointerDown={currentUser.isAdmin ? (e) => handleShopItemPointerDown(e, item) : undefined}
-                  onClick={() => {
-                    if (!currentUser.isAdmin && !shopItemDidDrag.current) {
-                      setSelectedShopItem(item);
-                      setBuyStep(1);
-                      setBuyQty(1);
-                      setBuyError(null);
-                    }
+                    pointerEvents: "none",
                   }}
                 >
                   {currentUser.isAdmin && (
@@ -1407,7 +1398,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                         if (activeLocationId) unassignItemMutation.mutate({ locationId: activeLocationId, itemId: item.id });
                       }}
                       className="absolute -top-2 -right-2 z-20 w-5 h-5 rounded-full flex items-center justify-center"
-                      style={{ background: "rgba(220,38,38,0.95)", border: "1px solid rgba(255,100,100,0.6)", cursor: "pointer" }}
+                      style={{ background: "rgba(220,38,38,0.95)", border: "1px solid rgba(255,100,100,0.6)", cursor: "pointer", pointerEvents: "auto" }}
                     >
                       <X className="w-3 h-3 text-white" />
                     </button>
@@ -1417,9 +1408,38 @@ export default function WorldPage({ user }: WorldPageProps) {
                     style={{ aspectRatio: "1/1" }}
                   >
                     {imgSrc ? (
-                      <img src={imgSrc} alt={item.name} className="w-full h-full object-contain" style={{ filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.8)) drop-shadow(0 0 8px rgba(255,200,50,0.55)) drop-shadow(0 0 18px rgba(255,170,0,0.28))" }} />
+                      <img
+                        src={imgSrc}
+                        alt={item.name}
+                        className="w-full h-full object-contain"
+                        style={{
+                          filter: "drop-shadow(0 4px 14px rgba(0,0,0,0.9)) drop-shadow(0 2px 6px rgba(0,0,0,0.7))",
+                          cursor: currentUser.isAdmin ? "grab" : "pointer",
+                          pointerEvents: "auto",
+                        }}
+                        onPointerDown={currentUser.isAdmin ? (e) => handleShopItemPointerDown(e, item) : undefined}
+                        onClick={() => {
+                          if (!currentUser.isAdmin && !shopItemDidDrag.current) {
+                            setSelectedShopItem(item);
+                            setBuyStep(1);
+                            setBuyQty(1);
+                            setBuyError(null);
+                          }
+                        }}
+                      />
                     ) : (
-                      <Package className="w-8 h-8" style={{ color: `${accent}80` }} />
+                      <Package
+                        className="w-8 h-8"
+                        style={{ color: `${accent}80`, pointerEvents: "auto", cursor: "pointer" }}
+                        onClick={() => {
+                          if (!currentUser.isAdmin && !shopItemDidDrag.current) {
+                            setSelectedShopItem(item);
+                            setBuyStep(1);
+                            setBuyQty(1);
+                            setBuyError(null);
+                          }
+                        }}
+                      />
                     )}
                   </div>
                 </div>
