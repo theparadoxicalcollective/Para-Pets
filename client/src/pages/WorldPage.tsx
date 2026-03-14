@@ -800,7 +800,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                         <div
                           className="absolute inset-[-35%] rounded-full pointer-events-none"
                           style={{
-                            background: `radial-gradient(circle, ${glow}90 0%, ${glow}50 30%, ${glow}20 55%, transparent 75%)`,
+                            background: `radial-gradient(circle, ${glow}35 0%, ${glow}18 35%, ${glow}08 60%, transparent 75%)`,
                             animation: `locGlow ${3 + (i % 2)}s ease-in-out infinite`,
                             animationDelay: `${i * 0.25}s`,
                           }}
@@ -812,7 +812,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                             className="w-full h-full object-contain relative z-10"
                             draggable={false}
                             style={{
-                              filter: `drop-shadow(0 3px 8px rgba(0,0,0,0.6)) drop-shadow(0 0 18px ${glow}80) drop-shadow(0 0 30px ${glow}40)`,
+                              filter: `drop-shadow(0 3px 8px rgba(0,0,0,0.6)) drop-shadow(0 0 8px ${glow}40) drop-shadow(0 0 16px ${glow}18)`,
                               transform: loc.flipped ? "scaleX(-1)" : undefined,
                             }}
                           />
@@ -820,12 +820,12 @@ export default function WorldPage({ user }: WorldPageProps) {
                           <div
                             className="w-full h-full rounded-full flex items-center justify-center relative z-10"
                             style={{
-                              background: `radial-gradient(circle at 40% 35%, ${glow}55, ${glow}20)`,
-                              border: `2px solid ${glow}70`,
-                              boxShadow: `inset 0 0 20px ${glow}30, 0 0 30px ${glow}40, 0 0 50px ${glow}15`,
+                              background: `radial-gradient(circle at 40% 35%, ${glow}40, ${glow}15)`,
+                              border: `2px solid ${glow}50`,
+                              boxShadow: `inset 0 0 12px ${glow}20, 0 0 14px ${glow}25, 0 0 25px ${glow}08`,
                             }}
                           >
-                            <MapPin className="w-7 h-7" style={{ color: glow, filter: `drop-shadow(0 0 12px ${glow}90)` }} />
+                            <MapPin className="w-7 h-7" style={{ color: glow, filter: `drop-shadow(0 0 5px ${glow}55)` }} />
                           </div>
                         )}
 
