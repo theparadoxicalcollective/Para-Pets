@@ -1414,6 +1414,7 @@ export default function WorldPage({ user }: WorldPageProps) {
               left: 0,
               right: 0,
               paddingBottom: shopBgNaturalRatio ? `${shopBgNaturalRatio * 100}%` : "177.78%",
+              minHeight: "100dvh",
               zIndex: 10,
             }}
             onPointerMove={handleShopItemPointerMove}
