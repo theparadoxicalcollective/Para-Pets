@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -206,6 +206,8 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [dragPos, setDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
   const didDrag = useRef(false);
   const [topLocId, setTopLocId] = useState<string | null>(null);
+  const [worldBgLoaded, setWorldBgLoaded] = useState(false);
+  const [locBgLoaded, setLocBgLoaded] = useState(false);
 
   const { data: locations = [], isLoading: locationsLoading } = useQuery<WorldLocationData[]>({
     queryKey: ["/api/world", worldId, "locations"],
@@ -457,6 +459,30 @@ export default function WorldPage({ user }: WorldPageProps) {
     },
   });
 
+  useEffect(() => {
+    setWorldBgLoaded(false);
+    if (!world?.bg) { setWorldBgLoaded(true); return; }
+    const img = new Image();
+    img.onload = () => setWorldBgLoaded(true);
+    img.onerror = () => setWorldBgLoaded(true);
+    img.src = world.bg;
+  }, [world?.bg]);
+
+  useEffect(() => {
+    setLocBgLoaded(false);
+    if (!activeLocationId) return;
+    if (!activeLocDetail) return;
+    const bgUrl = activeLocDetail.bgUrl;
+    if (!bgUrl) { setLocBgLoaded(true); return; }
+    let cancelled = false;
+    const img = new Image();
+    img.onload = () => { if (!cancelled) setLocBgLoaded(true); };
+    img.onerror = () => { if (!cancelled) setLocBgLoaded(true); };
+    img.src = bgUrl;
+    const fallback = setTimeout(() => { if (!cancelled) setLocBgLoaded(true); }, 5000);
+    return () => { cancelled = true; clearTimeout(fallback); };
+  }, [activeLocationId, activeLocDetail?.bgUrl]);
+
   const handlePointerDown = useCallback((e: React.PointerEvent, loc: WorldLocationData) => {
     if (!currentUser.isAdmin) return;
     e.preventDefault();
@@ -681,6 +707,15 @@ export default function WorldPage({ user }: WorldPageProps) {
       >
         <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
       </div>
+
+      {(!worldBgLoaded || locationsLoading) && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center" style={{ background: "rgba(8,5,20,1)" }}>
+          <div
+            className="animate-spin rounded-full"
+            style={{ width: 48, height: 48, border: `3px solid ${accent}25`, borderTopColor: accent }}
+          />
+        </div>
+      )}
 
       <div ref={scrollContainerRef} className="absolute inset-0 overflow-y-auto overflow-x-hidden world-scroll">
           <div
@@ -1307,6 +1342,12 @@ export default function WorldPage({ user }: WorldPageProps) {
           {/* Full-screen shop background — use location's own bg if available */}
           <img src={activeLocDetail?.bgUrl || bgShopMystical} alt="" className="absolute inset-0 w-full h-full object-cover" />
           <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 72%, rgba(0,0,0,0.5) 100%)" }} />
+          {/* Loading gate — covers shop until bg image is ready */}
+          {!locBgLoaded && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(8,5,20,1)" }}>
+              <div className="animate-spin rounded-full" style={{ width: 48, height: 48, border: `3px solid ${accent}25`, borderTopColor: accent }} />
+            </div>
+          )}
           {/* Header */}
           <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 pt-12 pb-3">
             <div className="flex items-center gap-2">
@@ -1818,6 +1859,12 @@ export default function WorldPage({ user }: WorldPageProps) {
             <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.2) 40%, rgba(0,0,0,0.3) 70%, rgba(0,0,0,0.7) 100%)` }} />
             <div className="absolute inset-0" style={{ background: `radial-gradient(ellipse at 50% 30%, ${accent}08 0%, transparent 60%)` }} />
           </div>
+          {/* Loading gate */}
+          {!locBgLoaded && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(8,5,20,1)" }}>
+              <div className="animate-spin rounded-full" style={{ width: 48, height: 48, border: `3px solid ${accent}25`, borderTopColor: accent }} />
+            </div>
+          )}
 
           <div className="relative z-10 flex flex-col h-full">
             <div className="flex items-center justify-between px-4 pt-5 pb-3">
