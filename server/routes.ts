@@ -2751,6 +2751,12 @@ export async function registerRoutes(
       if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
       const { shopItemId } = req.body;
       if (!shopItemId) return res.status(400).json({ message: "shopItemId required" });
+      const location = await storage.getWorldLocation(req.params.locationId);
+      if (!location || location.type !== "fishing") return res.status(400).json({ message: "Location must be a fishing-type location" });
+      const fishItem = await storage.getShopItem(shopItemId);
+      if (!fishItem || fishItem.type !== "fishing" || fishItem.fishingType !== "fish") {
+        return res.status(400).json({ message: "Item must be a fish-type fishing item" });
+      }
       const entry = await storage.addFishToPond(req.params.locationId, shopItemId);
       return res.json(entry);
     } catch (err: any) {
@@ -2866,6 +2872,9 @@ export async function registerRoutes(
       const { locationId, performanceScore } = req.body;
       if (!locationId) return res.status(400).json({ message: "locationId required" });
       const score = Math.max(0, Math.min(100, Number(performanceScore) || 0));
+
+      const location = await storage.getWorldLocation(locationId);
+      if (!location || location.type !== "fishing") return res.status(400).json({ message: "Location is not a fishing spot" });
 
       const pondEntries = await storage.getPondFish(locationId);
       if (pondEntries.length === 0) return res.json({ caught: null, reason: "empty_pond" });
