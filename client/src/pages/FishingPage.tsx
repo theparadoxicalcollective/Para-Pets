@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { X, Plus, Star, Trash2 } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
 import fishingBg from "@assets/fishing_bg_portrait.png";
+import pondOverlay from "@assets/pond_overlay.png";
 import poleIcon from "@assets/icon_fishing_pole.png";
 import baitIcon from "@assets/icon_fishing_bait.png";
 import fishInvIcon from "@assets/icon_fish_inventory.png";
@@ -66,7 +67,7 @@ type FishingPhase = "idle" | "casting" | "waiting" | "nibble" | "reeling" | "cau
 const ACCENT = "#5eead4";
 const REEL_DURATION = 4000;
 const NIBBLE_TIMEOUT = 4000;
-const GREEN_ZONE_SIZE = 0.30;
+const GREEN_ZONE_SIZE = 0.28;
 
 export default function FishingPage({ locationId, locationName, bgUrl, user, onClose }: FishingPageProps) {
   const [phase, setPhase] = useState<FishingPhase>("idle");
@@ -74,16 +75,17 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   const [showBaitPanel, setShowBaitPanel] = useState(false);
   const [showFishInv, setShowFishInv] = useState(false);
   const [showPondAdmin, setShowPondAdmin] = useState(false);
-  const [reelPos, setReelPos] = useState(0.5);
+  const [reelPos, setReelPos] = useState(0.0);
   const [greenZoneCenter, setGreenZoneCenter] = useState(0.5);
   const [caughtItem, setCaughtItem] = useState<ShopItem | null>(null);
   const [bgLoaded, setBgLoaded] = useState(false);
+  const [bgError, setBgError] = useState(false);
   const reelIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const nibbleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const castingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reelCompleteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const phaseRef = useRef<FishingPhase>("idle");
-  const reelPosRef = useRef(0.5);
+  const reelPosRef = useRef(0.0);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -129,7 +131,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   const baits = inventory.filter(i => i.type === "fishing" && i.fishingType === "bait");
 
   const equipMutation = useMutation({
-    mutationFn: async ({ inventoryId, slot }: { inventoryId: string; slot: string }) => {
+    mutationFn: async ({ inventoryId, slot }: { inventoryId: string; slot: "pole" | "bait" }) => {
       const res = await apiRequest("POST", "/api/fishing/equip", { inventoryId, slot });
       return res.json();
     },
@@ -142,12 +144,15 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   });
 
   const unequipMutation = useMutation({
-    mutationFn: async ({ slot }: { slot: string }) => {
+    mutationFn: async ({ slot }: { slot: "pole" | "bait" }) => {
       const res = await apiRequest("POST", "/api/fishing/unequip", { slot });
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/fishing/equipment"] });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Unequip failed", description: err.message, variant: "destructive" });
     },
   });
 
@@ -246,7 +251,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           }, NIBBLE_TIMEOUT);
         }
       }, waitTime);
-    }, 800);
+    }, 1000);
   }, [equipData, pondFish, toast]);
 
   const startReeling = useCallback(() => {
@@ -258,7 +263,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
 
     if (reelIntervalRef.current) clearInterval(reelIntervalRef.current);
     reelIntervalRef.current = setInterval(() => {
-      reelPosRef.current = Math.max(0, reelPosRef.current - 0.008);
+      reelPosRef.current = Math.max(0, reelPosRef.current - 0.007);
       setReelPos(reelPosRef.current);
     }, 50);
 
@@ -277,7 +282,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
 
   const handleReelTap = useCallback(() => {
     if (phase !== "reeling") return;
-    reelPosRef.current = Math.min(1, reelPosRef.current + 0.06);
+    reelPosRef.current = Math.min(1, reelPosRef.current + 0.07);
     setReelPos(reelPosRef.current);
   }, [phase]);
 
@@ -288,6 +293,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   }, [clearAllTimers]);
 
   const hasPole = !!equipData?.poleItem;
+  const effectiveBg = (!bgUrl || bgError) ? fishingBg : bgUrl;
 
   return (
     <div
@@ -296,14 +302,31 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       data-testid="fishing-page"
     >
       <img
-        src={bgUrl || fishingBg}
+        src={effectiveBg}
         alt=""
         className="absolute inset-0 w-full h-full object-cover"
         onLoad={() => setBgLoaded(true)}
+        onError={() => { setBgError(true); setBgLoaded(true); }}
       />
       <div className="absolute inset-0" style={{
         background: "linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 25%, rgba(0,0,0,0) 65%, rgba(0,0,0,0.7) 100%)",
       }} />
+
+      <img
+        src={pondOverlay}
+        alt=""
+        className="absolute w-full pointer-events-none"
+        style={{
+          bottom: "12%",
+          height: "50%",
+          objectFit: "cover",
+          objectPosition: "center bottom",
+          mixBlendMode: "screen",
+          opacity: 0.65,
+          zIndex: 2,
+          animation: "pondDrift 8s ease-in-out infinite",
+        }}
+      />
 
       {!bgLoaded && (
         <div className="absolute inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(8,5,20,1)" }}>
@@ -319,7 +342,12 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
             {locationName}
           </h3>
           <p className="font-fantasy text-[10px] tracking-wider" style={{ color: `${ACCENT}88` }}>
-            {phase === "idle" ? "Tap the water to cast" : phase === "casting" ? "Casting..." : phase === "waiting" ? "Waiting for a bite..." : phase === "nibble" ? "Something's biting!" : phase === "reeling" ? "Reel it in!" : phase === "caught" ? "Catch!" : "It got away..."}
+            {phase === "idle" ? (hasPole ? "Tap the water to cast" : "Equip a pole to fish") :
+             phase === "casting" ? "Casting..." :
+             phase === "waiting" ? "Waiting for a bite..." :
+             phase === "nibble" ? "Something's biting! Tap!" :
+             phase === "reeling" ? "Reel it in!" :
+             phase === "caught" ? "You caught something!" : "It got away..."}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -348,43 +376,70 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         if (phase === "idle" && hasPole) startCasting();
         else if (phase === "nibble") startReeling();
       }}>
-        <div className="absolute" style={{
-          bottom: "22%", left: "10%", right: "10%", height: "30%",
-          borderRadius: "50%",
-          background: "radial-gradient(ellipse, rgba(94,234,212,0.08) 0%, transparent 70%)",
-          animation: phase === "waiting" || phase === "nibble" ? "pondShimmer 3s ease-in-out infinite" : undefined,
-        }} />
-
-        {(phase === "casting" || phase === "waiting") && (
-          <div className="absolute" style={{
-            bottom: "35%", left: "50%", transform: "translate(-50%, 0)",
-            width: 24, height: 24,
-            borderRadius: "50%",
-            border: `2px solid ${ACCENT}60`,
-            animation: "ripple 1.5s ease-out infinite",
-          }} />
+        {(phase === "waiting" || phase === "casting") && (
+          <>
+            <div className="absolute" style={{
+              bottom: "32%", left: "50%", transform: "translate(-50%, 0)",
+              width: 28, height: 28,
+              borderRadius: "50%",
+              border: `2px solid ${ACCENT}60`,
+              animation: "rippleRing 2s ease-out infinite",
+            }} />
+            <div className="absolute" style={{
+              bottom: "32%", left: "50%", transform: "translate(-50%, 0)",
+              width: 12, height: 12,
+              borderRadius: "50%",
+              background: `${ACCENT}80`,
+              animation: "bobFloat 1.2s ease-in-out infinite",
+            }} />
+          </>
         )}
 
         {phase === "nibble" && (
-          <div className="absolute flex flex-col items-center" style={{
-            bottom: "38%", left: "50%", transform: "translate(-50%, 0)",
-          }}>
+          <div className="absolute flex flex-col items-center" style={{ bottom: "36%", left: "50%", transform: "translate(-50%, 0)" }}>
             <div style={{
-              width: 60, height: 30,
-              background: "rgba(0,0,0,0.7)",
+              width: 64, height: 28,
+              background: "rgba(0,0,0,0.75)",
               borderRadius: "50%",
-              filter: "blur(2px)",
-              animation: "fishSilhouette 0.6s ease-in-out infinite",
+              filter: "blur(3px)",
+              animation: "fishNibble 0.5s ease-in-out infinite",
             }} />
-            <p className="font-fantasy text-xs mt-2 animate-pulse" style={{ color: "#fbbf24", textShadow: "0 0 8px rgba(251,191,36,0.6)" }}>
+            <p className="font-fantasy text-sm mt-3 animate-bounce" style={{ color: "#fbbf24", textShadow: "0 0 10px rgba(251,191,36,0.7)" }}>
               TAP TO REEL!
             </p>
           </div>
         )}
       </div>
 
+      {phase === "casting" && equipData?.poleItem?.imageUrl && (
+        <div className="absolute pointer-events-none z-15" style={{
+          bottom: "38%", left: "28%",
+          width: 80, height: 80,
+          animation: "poleCast 1s ease-in-out forwards",
+          transformOrigin: "bottom left",
+        }}>
+          <img src={equipData.poleItem.imageUrl} alt="" className="w-full h-full object-contain" style={{
+            filter: `drop-shadow(0 0 8px ${ACCENT}80)`,
+          }} />
+        </div>
+      )}
+
+      {(phase === "waiting" || phase === "nibble") && equipData?.poleItem?.imageUrl && (
+        <div className="absolute pointer-events-none z-15" style={{
+          bottom: "42%", left: "22%",
+          width: 80, height: 80,
+          transform: "rotate(-30deg)",
+          transformOrigin: "bottom left",
+          animation: "poleHold 2s ease-in-out infinite",
+        }}>
+          <img src={equipData.poleItem.imageUrl} alt="" className="w-full h-full object-contain" style={{
+            filter: `drop-shadow(0 0 6px ${ACCENT}60)`,
+          }} />
+        </div>
+      )}
+
       {phase === "reeling" && (
-        <ReelMechanic
+        <RadialReelMechanic
           reelPos={reelPos}
           greenZoneCenter={greenZoneCenter}
           greenZoneSize={GREEN_ZONE_SIZE}
@@ -421,7 +476,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
                 ))}
               </div>
             )}
-            <p className="font-fantasy text-[10px] tracking-wider" style={{ color: `${ACCENT}88` }}>Tap anywhere to continue</p>
+            <p className="font-fantasy text-[10px] tracking-wider" style={{ color: `${ACCENT}88` }}>Tap to continue</p>
           </div>
         </div>
       )}
@@ -434,18 +489,18 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
             border: "2px solid rgba(239,115,68,0.5)",
             animation: "catchPop 0.4s ease-out",
           }}>
-            <span className="text-5xl" style={{ animation: "missWiggle 0.5s ease-in-out" }}>💨</span>
+            <span className="text-5xl" style={{ display: "block", animation: "missWiggle 0.6s ease-in-out" }}>💨</span>
             <h3 className="font-fantasy text-lg tracking-widest" style={{ color: "#ef7344" }}>
               It got away!
             </h3>
-            <p className="font-fantasy text-[10px] tracking-wider" style={{ color: "rgba(239,115,68,0.7)" }}>Tap anywhere to try again</p>
+            <p className="font-fantasy text-[10px] tracking-wider" style={{ color: "rgba(239,115,68,0.7)" }}>Tap to try again</p>
           </div>
         </div>
       )}
 
       {activePetData?.petTemplateId && (
-        <div className="absolute bottom-[140px] left-4 z-15 pointer-events-none" style={{ animation: "petBob 3s ease-in-out infinite" }}>
-          <PetAnimator petTemplateId={activePetData.petTemplateId} mode="idle" size={100} />
+        <div className="absolute bottom-[140px] left-3 pointer-events-none" style={{ zIndex: 12, animation: "petBob 3.5s ease-in-out infinite" }}>
+          <PetAnimator petTemplateId={activePetData.petTemplateId} mode="idle" size={96} />
         </div>
       )}
 
@@ -576,7 +631,7 @@ function EquipPanel({
   title: string;
   items: InventoryItem[];
   equippedInventoryId: string | null;
-  slot: string;
+  slot: "pole" | "bait";
   onEquip: (inventoryId: string) => void;
   onUnequip: () => void;
   onClose: () => void;
@@ -803,7 +858,7 @@ function PondAdminPanel({
           )}
           {allFishItems.length === 0 && pondFish.length === 0 && (
             <p className="font-fantasy text-[10px] text-center py-4" style={{ color: `${ACCENT}50` }}>
-              No fish items created yet. Create some in Admin &gt; Fishing.
+              No fish items yet. Create some in Admin &gt; Fishing.
             </p>
           )}
         </div>
@@ -812,7 +867,7 @@ function PondAdminPanel({
   );
 }
 
-function ReelMechanic({
+function RadialReelMechanic({
   reelPos, greenZoneCenter, greenZoneSize, onTap,
 }: {
   reelPos: number;
@@ -820,48 +875,109 @@ function ReelMechanic({
   greenZoneSize: number;
   onTap: () => void;
 }) {
-  const barHeight = 260;
-  const greenTop = (1 - (greenZoneCenter + greenZoneSize / 2)) * barHeight;
-  const greenH = greenZoneSize * barHeight;
-  const indicatorY = (1 - reelPos) * barHeight;
+  const R = 70;
+  const cx = 100;
+  const cy = 100;
+  const circumference = 2 * Math.PI * R;
+
+  const startAngle = -220;
+  const totalArcDeg = 260;
+
+  function polarToXY(deg: number) {
+    const rad = (deg * Math.PI) / 180;
+    return {
+      x: cx + R * Math.cos(rad),
+      y: cy + R * Math.sin(rad),
+    };
+  }
+
+  function arcPath(fromDeg: number, toDeg: number) {
+    const from = polarToXY(fromDeg);
+    const to = polarToXY(toDeg);
+    const span = toDeg - fromDeg;
+    const largeArc = Math.abs(span) > 180 ? 1 : 0;
+    const sweep = span > 0 ? 1 : 0;
+    return `M ${from.x} ${from.y} A ${R} ${R} 0 ${largeArc} ${sweep} ${to.x} ${to.y}`;
+  }
+
+  const trackFrom = startAngle;
+  const trackTo = startAngle + totalArcDeg;
+
+  const greenFrom = startAngle + (greenZoneCenter - greenZoneSize / 2) * totalArcDeg;
+  const greenTo = startAngle + (greenZoneCenter + greenZoneSize / 2) * totalArcDeg;
+
+  const indicatorAngle = startAngle + reelPos * totalArcDeg;
+  const indicatorPt = polarToXY(indicatorAngle);
+
   const inGreen = reelPos >= (greenZoneCenter - greenZoneSize / 2) && reelPos <= (greenZoneCenter + greenZoneSize / 2);
 
   return (
-    <div className="absolute right-6 z-30 flex flex-col items-center gap-2" style={{
-      top: "50%", transform: "translateY(-50%)",
-    }}>
-      <div className="relative rounded-full overflow-hidden" style={{
-        width: 28,
-        height: barHeight,
-        background: "rgba(0,0,0,0.7)",
-        border: `2px solid ${ACCENT}50`,
-      }}>
-        <div className="absolute left-0 right-0 rounded-full" style={{
-          top: greenTop,
-          height: greenH,
-          background: "rgba(74,222,128,0.4)",
-          border: "1px solid rgba(74,222,128,0.7)",
-        }} />
-        <div className="absolute left-1 right-1" style={{
-          top: indicatorY - 3,
-          height: 6,
-          borderRadius: 3,
-          background: inGreen ? "#4ade80" : "#ef4444",
-          boxShadow: inGreen ? "0 0 10px rgba(74,222,128,0.8)" : "0 0 10px rgba(239,68,68,0.8)",
-          transition: "top 0.05s linear",
-        }} />
-      </div>
+    <div
+      className="absolute flex flex-col items-center gap-3"
+      style={{ right: 12, top: "50%", transform: "translateY(-50%)", zIndex: 30 }}
+    >
+      <svg width={200} height={200} viewBox="0 0 200 200">
+        <path
+          d={arcPath(trackFrom, trackTo)}
+          fill="none"
+          stroke="rgba(0,0,0,0.6)"
+          strokeWidth={14}
+          strokeLinecap="round"
+        />
+        <path
+          d={arcPath(trackFrom, trackTo)}
+          fill="none"
+          stroke="rgba(94,234,212,0.2)"
+          strokeWidth={10}
+          strokeLinecap="round"
+        />
+        <path
+          d={arcPath(greenFrom, greenTo)}
+          fill="none"
+          stroke="rgba(74,222,128,0.7)"
+          strokeWidth={10}
+          strokeLinecap="round"
+        />
+        <circle
+          cx={indicatorPt.x}
+          cy={indicatorPt.y}
+          r={9}
+          fill={inGreen ? "#4ade80" : "#ef4444"}
+          style={{ filter: inGreen ? "drop-shadow(0 0 8px rgba(74,222,128,0.9))" : "drop-shadow(0 0 8px rgba(239,68,68,0.9))" }}
+        />
+        <text
+          x={cx}
+          y={cy - 6}
+          textAnchor="middle"
+          className="font-fantasy"
+          style={{ fontSize: 10, fill: inGreen ? "#4ade80" : "rgba(94,234,212,0.5)", fontFamily: "Cinzel, serif" }}
+        >
+          REEL
+        </text>
+        <text
+          x={cx}
+          y={cy + 10}
+          textAnchor="middle"
+          style={{ fontSize: 8, fill: "rgba(94,234,212,0.4)", fontFamily: "Cinzel, serif" }}
+        >
+          {inGreen ? "GOOD!" : "tap faster"}
+        </text>
+      </svg>
+
       <button
         data-testid="button-reel"
         onClick={onTap}
         onTouchStart={(e) => { e.preventDefault(); onTap(); }}
-        className="w-14 h-14 rounded-full flex items-center justify-center font-fantasy text-xs tracking-wider transition-transform active:scale-90"
+        className="w-16 h-16 rounded-full flex items-center justify-center font-fantasy text-xs tracking-wider transition-transform active:scale-90"
         style={{
           background: `linear-gradient(135deg, ${ACCENT}cc, ${ACCENT}88)`,
           border: `2px solid ${ACCENT}`,
           color: "#0a1a14",
           cursor: "pointer",
           boxShadow: `0 0 20px ${ACCENT}40`,
+          fontFamily: "Cinzel, serif",
+          fontSize: 11,
+          fontWeight: 700,
         }}
       >
         REEL
@@ -871,18 +987,31 @@ function ReelMechanic({
 }
 
 const FISHING_ANIMATIONS = `
-  @keyframes pondShimmer {
-    0%, 100% { opacity: 0.6; transform: scale(1); }
-    50% { opacity: 1; transform: scale(1.03); }
+  @keyframes pondDrift {
+    0%, 100% { transform: translateX(0) scale(1); opacity: 0.65; }
+    50% { transform: translateX(-8px) scale(1.02); opacity: 0.75; }
   }
-  @keyframes ripple {
-    0% { width: 10px; height: 10px; opacity: 1; }
-    100% { width: 60px; height: 60px; opacity: 0; }
+  @keyframes rippleRing {
+    0% { width: 8px; height: 8px; opacity: 1; margin-left: -4px; margin-bottom: -4px; }
+    100% { width: 80px; height: 40px; opacity: 0; margin-left: -40px; margin-bottom: -20px; }
   }
-  @keyframes fishSilhouette {
+  @keyframes bobFloat {
+    0%, 100% { transform: translate(-50%, 0) translateY(0); }
+    50% { transform: translate(-50%, 0) translateY(-5px); }
+  }
+  @keyframes fishNibble {
     0%, 100% { transform: translateX(0) scaleX(1); }
-    25% { transform: translateX(-4px) scaleX(0.95); }
-    75% { transform: translateX(4px) scaleX(1.05); }
+    30% { transform: translateX(-6px) scaleX(0.9); }
+    70% { transform: translateX(6px) scaleX(1.1); }
+  }
+  @keyframes poleCast {
+    0% { transform: rotate(40deg) translateX(0); opacity: 1; }
+    50% { transform: rotate(-20deg) translateX(30px); opacity: 1; }
+    100% { transform: rotate(-30deg) translateX(20px); opacity: 0.9; }
+  }
+  @keyframes poleHold {
+    0%, 100% { transform: rotate(-30deg) translateX(0); }
+    50% { transform: rotate(-28deg) translateX(2px); }
   }
   @keyframes catchPop {
     0% { transform: scale(0.5); opacity: 0; }
@@ -895,8 +1024,8 @@ const FISHING_ANIMATIONS = `
   }
   @keyframes missWiggle {
     0%, 100% { transform: rotate(0deg); }
-    25% { transform: rotate(-10deg); }
-    75% { transform: rotate(10deg); }
+    25% { transform: rotate(-12deg); }
+    75% { transform: rotate(12deg); }
   }
   @keyframes slideUp {
     0% { transform: translateY(20px); opacity: 0; }
@@ -904,6 +1033,6 @@ const FISHING_ANIMATIONS = `
   }
   @keyframes petBob {
     0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-5px); }
+    50% { transform: translateY(-6px); }
   }
 `;
