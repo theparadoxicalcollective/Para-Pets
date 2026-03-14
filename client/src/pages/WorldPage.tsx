@@ -11,6 +11,7 @@ import { readFileAsDataUrl } from "@/lib/utils";
 import ExploreAdminPanel from "@/components/ExploreAdminPanel";
 import BattleArena from "@/components/BattleArena";
 
+import bgShopMystical from "@assets/bg_shop_mystical.png";
 import shopFrostpeak from "@assets/shop_frostpeak.png";
 import shopSkyRealm from "@assets/shop_sky_realm.png";
 import shopVolcanic from "@assets/shop_volcanic.png";
@@ -53,6 +54,17 @@ interface ShopItem {
   hatchedImageUrl: string | null;
   statBoostType: string | null;
   statBoostAmount: number | null;
+  specialSkill: string | null;
+  healthRestored: number | null;
+  manaRestored: number | null;
+  atkBoost: number | null;
+  defBoost: number | null;
+  petsRevived: number | null;
+  specialType: string | null;
+  specialAmount: number | null;
+  shopPosX: number;
+  shopPosY: number;
+  shopWidth: number;
   createdAt: string;
 }
 
@@ -175,6 +187,15 @@ export default function WorldPage({ user }: WorldPageProps) {
   const objDragRef = useRef<{ objId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const objDidDrag = useRef(false);
   const locViewRef = useRef<HTMLDivElement>(null);
+
+  const [selectedShopItem, setSelectedShopItem] = useState<ShopItem | null>(null);
+  const [buyStep, setBuyStep] = useState<0 | 1 | 2>(0);
+  const [buyQty, setBuyQty] = useState(1);
+  const [buyError, setBuyError] = useState<string | null>(null);
+  const [shopItemDragPos, setShopItemDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
+  const shopItemDragRef = useRef<{ itemId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
+  const shopItemDidDrag = useRef(false);
+  const shopCanvasRef = useRef<HTMLDivElement>(null);
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -230,15 +251,19 @@ export default function WorldPage({ user }: WorldPageProps) {
   const ownedItemIds = new Set(inventory.map((inv) => inv.shopItemId));
 
   const buyMutation = useMutation({
-    mutationFn: async (itemId: string) => {
-      const res = await apiRequest("POST", `/api/shop/${worldId}/buy/${itemId}`);
+    mutationFn: async ({ itemId, quantity }: { itemId: string; quantity: number }) => {
+      const res = await apiRequest("POST", `/api/shop/${worldId}/buy/${itemId}`, { quantity });
       return res.json();
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       if (data.user) setCurrentUser(data.user);
-      toast({ title: "Purchased!", description: "Item added to your inventory" });
+      setBuyStep(0);
+      setBuyError(null);
+      setSelectedShopItem(null);
+      const qty = data.quantity ?? 1;
+      toast({ title: "Purchased!", description: qty > 1 ? `${qty}x added to your inventory` : "Added to your inventory" });
     },
     onError: (err: any) => {
       let msg = "Could not purchase item";
@@ -246,7 +271,17 @@ export default function WorldPage({ user }: WorldPageProps) {
         const parsed = JSON.parse(err.message.split(": ").slice(1).join(": "));
         msg = parsed.message || msg;
       } catch {}
-      setShopError(msg);
+      setBuyError(msg);
+    },
+  });
+
+  const shopItemPositionMutation = useMutation({
+    mutationFn: async ({ itemId, posX, posY, width }: { itemId: string; posX: number; posY: number; width: number }) => {
+      const res = await apiRequest("PATCH", `/api/admin/shop-item/${itemId}/position`, { posX, posY, width });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/location", activeLocationId, "items"] });
     },
   });
 
@@ -495,6 +530,66 @@ export default function WorldPage({ user }: WorldPageProps) {
     }
     setObjDragPos(null);
   }, [objDragPos, objPositionMutation]);
+
+  const handleShopItemPointerDown = useCallback((e: React.PointerEvent, item: ShopItem) => {
+    if (!currentUser.isAdmin) return;
+    e.preventDefault();
+    e.stopPropagation();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    shopItemDidDrag.current = false;
+    shopItemDragRef.current = {
+      itemId: item.id,
+      startX: e.clientX,
+      startY: e.clientY,
+      origPosX: item.shopPosX,
+      origPosY: item.shopPosY,
+    };
+  }, [currentUser.isAdmin]);
+
+  const handleShopItemPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!shopItemDragRef.current || !shopCanvasRef.current) return;
+    e.preventDefault();
+    const rect = shopCanvasRef.current.getBoundingClientRect();
+    const dx = e.clientX - shopItemDragRef.current.startX;
+    const dy = e.clientY - shopItemDragRef.current.startY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) shopItemDidDrag.current = true;
+    const newX = Math.max(5, Math.min(95, shopItemDragRef.current.origPosX + (dx / rect.width) * 100));
+    const newY = Math.max(5, Math.min(95, shopItemDragRef.current.origPosY + (dy / rect.height) * 100));
+    setShopItemDragPos({ id: shopItemDragRef.current.itemId, x: newX, y: newY });
+  }, []);
+
+  const handleShopItemPointerUp = useCallback((e: React.PointerEvent, item: ShopItem) => {
+    if (!shopItemDragRef.current) return;
+    e.preventDefault();
+    const d = shopItemDragRef.current;
+    shopItemDragRef.current = null;
+    if (shopItemDidDrag.current && shopItemDragPos) {
+      shopItemPositionMutation.mutate({ itemId: d.itemId, posX: shopItemDragPos.x, posY: shopItemDragPos.y, width: item.shopWidth });
+    }
+    setShopItemDragPos(null);
+  }, [shopItemDragPos, shopItemPositionMutation]);
+
+  const getItemDescription = (item: ShopItem): string[] => {
+    const lines: string[] = [];
+    if (item.type === "pet") {
+      if (item.rarity) lines.push(`Rarity: ${"★".repeat(item.rarity)}`);
+      if (item.hatchTime) lines.push(`Hatch time: ${item.hatchTime}h`);
+      if (item.specialSkill) lines.push(`Special: ${item.specialSkill}`);
+    } else {
+      if (item.healthRestored) lines.push(`Restores ${item.healthRestored} HP`);
+      if (item.manaRestored) lines.push(`Restores ${item.manaRestored} Mana`);
+      if (item.atkBoost) lines.push(`Boosts ATK by ${item.atkBoost}`);
+      if (item.defBoost) lines.push(`Boosts DEF by ${item.defBoost}`);
+      if (item.statBoostType && item.statBoostAmount) {
+        const label = item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : item.statBoostType === "level" ? "Level XP" : item.statBoostType;
+        lines.push(`+${item.statBoostAmount} ${label}`);
+      }
+      if (item.petsRevived) lines.push(`Revives ${item.petsRevived} pet(s)`);
+      if (item.specialSkill) lines.push(item.specialSkill);
+      if (item.specialType && item.specialAmount) lines.push(`${item.specialType}: ${item.specialAmount}`);
+    }
+    return lines;
+  };
 
   if (!world) {
     return (
@@ -1223,202 +1318,325 @@ export default function WorldPage({ user }: WorldPageProps) {
         const activeLoc = locations.find(l => l.id === activeLocationId);
         const shopName = activeLoc?.name || world.name;
         return (
-        <div className="fixed inset-0 z-40 flex flex-col" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => { setShowShop(false); setShowItemPicker(false); }} />
-          <div className="relative z-10 flex flex-col h-full overflow-hidden">
-            <div className="flex items-center justify-between px-4 pt-5 pb-3">
-              <div className="flex items-center gap-3">
-                {activeLoc?.iconUrl ? (
-                  <img src={activeLoc.iconUrl} alt="" className="w-12 h-12 rounded-lg object-cover" style={{ border: `1px solid ${accent}40` }} />
-                ) : (
-                  <img src={world.shopIcon} alt="" className="w-12 h-12 rounded-lg object-cover" style={{ border: "1px solid rgba(212,160,23,0.4)" }} />
-                )}
-                <div>
-                  <h3 className="font-fantasy text-base tracking-widest font-semibold" style={{ color: accent, textShadow: `0 0 10px ${accent}30` }}>
-                    {shopName} Shop
-                  </h3>
-                  <p className="font-fantasy text-[#a89878] text-[10px] tracking-wider">
-                    {items.length} {items.length === 1 ? "item" : "items"}
-                  </p>
+        <div className="fixed inset-0 z-40" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+          {/* Full-screen mystical shop background */}
+          <img src={bgShopMystical} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 72%, rgba(0,0,0,0.5) 100%)" }} />
+          {/* Header */}
+          <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 pt-5 pb-3">
+            <div className="flex items-center gap-2">
+              {activeLoc?.iconUrl && (
+                <img src={activeLoc.iconUrl} alt="" className="w-10 h-10 rounded-lg object-contain" style={{ border: `1px solid ${accent}40` }} />
+              )}
+              <div>
+                <h3 className="font-fantasy text-base tracking-widest font-semibold" style={{ color: accent, textShadow: `0 0 10px ${accent}40` }} data-testid="text-shop-name">
+                  {shopName}
+                </h3>
+                <div className="flex items-center gap-1">
+                  <img src={coinIconImg} alt="" className="w-3 h-3 object-contain" />
+                  <span className="font-fantasy text-[11px]" style={{ color: `${accent}cc` }}>{currentUser.coins} coins</span>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {currentUser.isAdmin && (
-                  <button
-                    data-testid="button-add-shop-item"
-                    onClick={() => setShowItemPicker(true)}
-                    className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
-                    style={{
-                      background: `linear-gradient(135deg, ${accent}40 0%, ${accent}20 100%)`,
-                      border: `2px solid ${accent}60`,
-                      color: accent,
-                      cursor: "pointer",
-                    }}
-                  >
-                    <Plus className="w-5 h-5" />
-                  </button>
-                )}
-                <button
-                  data-testid="button-close-shop"
-                  onClick={() => { setShowShop(false); setShowItemPicker(false); }}
-                  className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
-                  style={{
-                    background: "linear-gradient(135deg, #5c3a1e 0%, #3a2010 100%)",
-                    border: "2px solid rgba(212,160,23,0.6)",
-                    color: "#f0c040",
-                    cursor: "pointer",
-                    fontSize: "14px",
-                    fontWeight: "bold",
-                  }}
-                >
-                  X
-                </button>
               </div>
             </div>
-
-            {shopError && (
-              <div
-                className="mx-4 mb-2 flex items-center justify-between px-3 py-2 rounded-lg font-fantasy text-xs tracking-wider"
-                style={{
-                  background: "rgba(220,38,38,0.15)",
-                  border: "1px solid rgba(220,38,38,0.4)",
-                  color: "#fca5a5",
-                }}
-                data-testid="shop-error-message"
-              >
-                <span>{shopError}</span>
+            <div className="flex items-center gap-2">
+              {currentUser.isAdmin && (
                 <button
-                  onClick={() => setShopError(null)}
-                  className="ml-3 flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"
-                  style={{
-                    background: "rgba(220,38,38,0.3)",
-                    color: "#fca5a5",
-                    cursor: "pointer",
-                    border: "none",
-                  }}
-                  data-testid="button-close-shop-error"
+                  data-testid="button-add-shop-item"
+                  onClick={() => setShowItemPicker(true)}
+                  className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                  style={{ background: `${accent}30`, border: `2px solid ${accent}60`, color: accent, cursor: "pointer" }}
                 >
-                  ✕
+                  <Plus className="w-5 h-5" />
                 </button>
+              )}
+              <button
+                data-testid="button-close-shop"
+                onClick={() => { setShowShop(false); setShowItemPicker(false); setSelectedShopItem(null); setBuyStep(0); }}
+                className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                style={{ background: "rgba(0,0,0,0.55)", border: `1px solid ${accent}40`, color: accent, cursor: "pointer" }}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+          {/* Shop canvas — items placed freely */}
+          <div
+            ref={shopCanvasRef}
+            className="absolute inset-0 z-10"
+            onPointerMove={handleShopItemPointerMove}
+            onPointerUp={(e) => {
+              if (shopItemDragRef.current) {
+                const dragItem = items.find(i => i.id === shopItemDragRef.current!.itemId);
+                if (dragItem) handleShopItemPointerUp(e, dragItem);
+              }
+            }}
+          >
+            {itemsLoading ? (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <p className="font-fantasy text-sm animate-pulse" style={{ color: `${accent}cc`, textShadow: `0 0 10px ${accent}50` }}>Loading wares...</p>
               </div>
-            )}
-
-            {activeLoc?.ownerImageUrl && (
-              <div className="absolute bottom-4 left-4 z-20 pointer-events-none" style={{ animation: "locFloat 4s ease-in-out infinite" }}>
-                <img src={activeLoc.ownerImageUrl} alt="Owner" className="w-20 h-20 object-contain" style={{ filter: `drop-shadow(0 2px 8px rgba(0,0,0,0.6)) drop-shadow(0 0 12px ${accent}30)` }} />
-              </div>
-            )}
-
-            <div className="flex-1 overflow-y-auto px-4 pb-6">
-              {itemsLoading ? (
-                <div className="text-center py-8">
-                  <p className="font-fantasy text-sm animate-pulse" style={{ color: `${accent}cc` }}>Loading wares...</p>
-                </div>
-              ) : items.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="font-fantasy text-[#a89878] text-sm tracking-wider">No items in this shop yet.</p>
+            ) : items.length === 0 ? (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center px-8 py-5 rounded-xl" style={{ background: "rgba(0,0,0,0.6)", border: `1px solid ${accent}20` }}>
+                  <p className="font-fantasy text-[#c8b89a] text-sm tracking-wider">No wares yet.</p>
                   {currentUser.isAdmin && (
-                    <p className="font-fantasy text-[10px] tracking-wider mt-2" style={{ color: `${accent}60` }}>Tap + to assign items from the Item DB</p>
+                    <p className="font-fantasy text-[10px] tracking-wider mt-1" style={{ color: `${accent}60` }}>Tap + to add items</p>
                   )}
                 </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  {items.map((item) => (
-                    <div
-                      key={item.id}
-                      data-testid={`card-shop-item-${item.id}`}
-                      className="rounded-lg overflow-hidden relative"
-                      style={{
-                        background: "linear-gradient(135deg, rgba(30,15,5,0.95) 0%, rgba(50,30,10,0.95) 100%)",
-                        border: `1px solid ${accent}30`,
+              </div>
+            ) : items.map(item => {
+              const isDragging = shopItemDragPos?.id === item.id;
+              const posX = isDragging ? shopItemDragPos!.x : item.shopPosX;
+              const posY = isDragging ? shopItemDragPos!.y : item.shopPosY;
+              const imgSrc = item.type === "pet" ? (item.eggImageUrl || item.imageUrl) : item.imageUrl;
+              const isOwned = item.type === "pet" && ownedItemIds.has(item.id);
+              return (
+                <div
+                  key={item.id}
+                  data-testid={`card-shop-item-${item.id}`}
+                  style={{
+                    position: "absolute",
+                    left: `${posX}%`,
+                    top: `${posY}%`,
+                    width: `${item.shopWidth}px`,
+                    transform: "translate(-50%, -50%)",
+                    cursor: currentUser.isAdmin ? "grab" : "pointer",
+                    touchAction: "none",
+                    zIndex: isDragging ? 30 : 15,
+                  }}
+                  onPointerDown={currentUser.isAdmin ? (e) => handleShopItemPointerDown(e, item) : undefined}
+                  onClick={() => {
+                    if (!currentUser.isAdmin && !shopItemDidDrag.current) {
+                      setSelectedShopItem(item);
+                      setBuyStep(1);
+                      setBuyQty(1);
+                      setBuyError(null);
+                    }
+                  }}
+                >
+                  {currentUser.isAdmin && (
+                    <button
+                      data-testid={`button-unassign-item-${item.id}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (activeLocationId) unassignItemMutation.mutate({ locationId: activeLocationId, itemId: item.id });
                       }}
+                      className="absolute -top-2 -right-2 z-20 w-5 h-5 rounded-full flex items-center justify-center"
+                      style={{ background: "rgba(220,38,38,0.95)", border: "1px solid rgba(255,100,100,0.6)", cursor: "pointer" }}
                     >
-                      {currentUser.isAdmin && (
-                        <button
-                          data-testid={`button-unassign-item-${item.id}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (activeLocationId) unassignItemMutation.mutate({ locationId: activeLocationId, itemId: item.id });
-                          }}
-                          className="absolute top-1 right-1 z-20 w-5 h-5 rounded-full flex items-center justify-center"
-                          style={{ background: "rgba(220,38,38,0.9)", border: "1px solid rgba(255,100,100,0.5)", cursor: "pointer" }}
-                        >
-                          <X className="w-3 h-3 text-white" />
-                        </button>
-                      )}
-                      <div className="p-3 flex flex-col items-center gap-2">
-                        <div
-                          className="w-full aspect-square rounded-md flex items-center justify-center"
-                          style={{ background: "rgba(0,0,0,0.3)", border: `1px solid ${accent}15` }}
-                        >
-                          {item.type === "pet" && item.eggImageUrl ? (
-                            <img src={item.eggImageUrl} alt={item.name} className="w-full h-full object-contain rounded-md" />
-                          ) : item.imageUrl ? (
-                            <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain rounded-md" />
-                          ) : (
-                            <span className="font-fantasy text-2xl" style={{ color: `${accent}30` }}>?</span>
-                          )}
-                        </div>
-                        <p className="font-fantasy text-xs font-semibold text-center truncate w-full" style={{ color: accent }} data-testid={`text-item-name-${item.id}`}>
-                          {item.name}
-                        </p>
-                        <div className="flex items-center gap-1">
-                          <img src={coinIconImg} alt="" className="w-3.5 h-3.5 object-contain" />
-                          <span className="font-fantasy text-xs" style={{ color: accent }}>{item.price}</span>
-                        </div>
-                        {item.type === "pet" && item.rarity && (
-                          <div className="flex items-center gap-0.5" data-testid={`stars-${item.id}`}>
-                            {Array.from({ length: item.rarity }).map((_, i) => (
-                              <span key={i} className="text-[10px]" style={{ color: accent, textShadow: `0 0 4px ${accent}60` }}>&#9733;</span>
-                            ))}
-                          </div>
-                        )}
-                        {item.type === "pet" && item.hatchTime && (
-                          <span
-                            className="font-fantasy text-[8px] tracking-wider px-2 py-0.5 rounded-full"
-                            style={{ background: `${accent}10`, color: `${accent}cc`, border: `1px solid ${accent}20` }}
-                          >
-                            Hatch: {item.hatchTime}h
-                          </span>
-                        )}
-                        <span
-                          className="font-fantasy text-[9px] tracking-wider px-2 py-0.5 rounded-full capitalize"
-                          style={{ background: "rgba(127,255,212,0.15)", color: "#7fbfb0", border: "1px solid rgba(127,255,212,0.2)" }}
-                        >
-                          {item.type}{item.type === "item" && item.statBoostType ? ` (+${item.statBoostAmount || "?"}${item.statBoostType === "health" ? " HP" : item.statBoostType === "atk" ? " ATK" : item.statBoostType === "def" ? " DEF" : " LVL"})` : ""}
-                        </span>
-                        {item.type === "pet" && ownedItemIds.has(item.id) ? (
-                          <span
-                            className="w-full text-center py-1.5 rounded font-fantasy text-[10px] tracking-wider"
-                            style={{ background: "rgba(127,255,212,0.1)", color: "#7fbfb0", border: "1px solid rgba(127,255,212,0.2)" }}
-                            data-testid={`text-owned-${item.id}`}
-                          >
-                            Owned
-                          </span>
+                      <X className="w-3 h-3 text-white" />
+                    </button>
+                  )}
+                  <div
+                    className="w-full rounded-lg overflow-hidden flex items-center justify-center"
+                    style={{
+                      background: "rgba(10,5,2,0.6)",
+                      border: `2px solid ${isOwned ? "rgba(127,255,212,0.55)" : accent + "55"}`,
+                      boxShadow: `0 0 12px ${accent}25, 0 4px 16px rgba(0,0,0,0.55)`,
+                      aspectRatio: "1/1",
+                      padding: "6px",
+                    }}
+                  >
+                    {imgSrc ? (
+                      <img src={imgSrc} alt={item.name} className="w-full h-full object-contain" style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.7))" }} />
+                    ) : (
+                      <Package className="w-8 h-8" style={{ color: `${accent}40` }} />
+                    )}
+                  </div>
+                  <div className="mt-1 px-1 py-0.5 rounded text-center" style={{ background: "rgba(0,0,0,0.72)", border: `1px solid ${accent}22` }}>
+                    <p className="font-fantasy text-[10px] font-semibold leading-tight truncate" style={{ color: accent }} data-testid={`text-item-name-${item.id}`}>
+                      {item.name}
+                    </p>
+                    <div className="flex items-center justify-center gap-0.5 mt-0.5">
+                      <img src={coinIconImg} alt="" className="w-2.5 h-2.5 object-contain" />
+                      <span className="font-fantasy text-[9px]" style={{ color: `${accent}cc` }}>{item.price}</span>
+                    </div>
+                  </div>
+                  {isOwned && (
+                    <div
+                      className="absolute top-1 left-1 px-1.5 py-0.5 rounded-full font-fantasy text-[8px] tracking-wider"
+                      style={{ background: "rgba(0,0,0,0.8)", color: "#7fffd4", border: "1px solid rgba(127,255,212,0.4)" }}
+                      data-testid={`text-owned-${item.id}`}
+                    >
+                      Owned
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {activeLoc?.ownerImageUrl && (
+            <div className="absolute bottom-4 left-4 z-20 pointer-events-none" style={{ animation: "locFloat 4s ease-in-out infinite" }}>
+              <img src={activeLoc.ownerImageUrl} alt="Owner" className="w-20 h-20 object-contain" style={{ filter: `drop-shadow(0 2px 8px rgba(0,0,0,0.6)) drop-shadow(0 0 12px ${accent}30)` }} />
+            </div>
+          )}
+          {currentUser.isAdmin && items.length > 0 && (
+            <div className="absolute bottom-4 right-4 z-20 pointer-events-none">
+              <p className="font-fantasy text-[9px] tracking-wider px-2 py-1 rounded" style={{ background: "rgba(0,0,0,0.65)", color: `${accent}70`, border: `1px solid ${accent}20` }}>
+                Drag to reposition
+              </p>
+            </div>
+          )}
+        </div>
+        );
+      })()}
+
+      {selectedShopItem && buyStep > 0 && (() => {
+        const item = selectedShopItem;
+        const imgSrc = item.type === "pet" ? (item.eggImageUrl || item.imageUrl) : item.imageUrl;
+        const descLines = getItemDescription(item);
+        const isOwned = item.type === "pet" && ownedItemIds.has(item.id);
+        const maxQty = item.type === "pet" ? 1 : 20;
+        const totalCost = item.price * (item.type === "pet" ? 1 : buyQty);
+        const canAfford = currentUser.coins >= totalCost;
+        return (
+          <div className="fixed inset-0 z-50 flex flex-col justify-end" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+            <div className="absolute inset-0 bg-black/60" onClick={() => { setSelectedShopItem(null); setBuyStep(0); setBuyError(null); }} />
+            <div
+              className="relative z-10 rounded-t-2xl overflow-hidden"
+              style={{
+                background: "linear-gradient(180deg, rgba(8,4,2,0.99) 0%, rgba(15,8,3,0.99) 100%)",
+                border: `1px solid ${accent}30`,
+                boxShadow: `0 -4px 40px rgba(0,0,0,0.85), 0 0 20px ${accent}10`,
+              }}
+            >
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 rounded-full" style={{ background: `${accent}30` }} />
+              </div>
+              <div className="px-5 pb-8">
+                {buyStep === 1 && (
+                  <>
+                    <div className="flex gap-4 mb-5">
+                      <div
+                        className="flex-shrink-0 w-24 h-24 rounded-xl flex items-center justify-center"
+                        style={{ background: "rgba(0,0,0,0.45)", border: `2px solid ${accent}40`, boxShadow: `0 0 18px ${accent}20` }}
+                      >
+                        {imgSrc ? (
+                          <img src={imgSrc} alt={item.name} className="w-full h-full object-contain p-2" />
                         ) : (
-                          <button
-                            data-testid={`button-buy-item-${item.id}`}
-                            onClick={() => buyMutation.mutate(item.id)}
-                            disabled={buyMutation.isPending}
-                            className="w-full py-1.5 rounded font-fantasy text-[10px] tracking-wider transition-transform active:scale-95 disabled:opacity-50"
-                            style={{
-                              background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
-                              border: "1px solid rgba(127,255,212,0.4)",
-                              color: "#7fffd4",
-                              cursor: "pointer",
-                            }}
-                          >
-                            {buyMutation.isPending ? "Buying..." : "Buy"}
-                          </button>
+                          <Package className="w-10 h-10" style={{ color: `${accent}30` }} />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-fantasy text-base font-semibold tracking-wider mb-1" style={{ color: accent, textShadow: `0 0 8px ${accent}30` }} data-testid="text-detail-item-name">
+                          {item.name}
+                        </h3>
+                        <span className="font-fantasy text-[9px] tracking-wider px-2 py-0.5 rounded-full capitalize mb-2 inline-block" style={{ background: `${accent}15`, color: `${accent}cc`, border: `1px solid ${accent}25` }}>
+                          {item.type}
+                        </span>
+                        {descLines.length > 0 ? (
+                          <ul className="mt-1 flex flex-col gap-0.5">
+                            {descLines.map((line, i) => (
+                              <li key={i} className="font-fantasy text-xs flex items-center gap-1.5" style={{ color: "#c8b89a" }}>
+                                <span style={{ color: accent, fontSize: "9px" }}>◆</span> {line}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="font-fantasy text-xs mt-1" style={{ color: "#6a5a45" }}>A useful item.</p>
                         )}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                    {isOwned ? (
+                      <div className="mb-2 px-3 py-2.5 rounded-xl text-center font-fantasy text-xs tracking-wider" style={{ background: "rgba(127,255,212,0.07)", color: "#7fffd4", border: "1px solid rgba(127,255,212,0.2)" }}>
+                        You already own this pet
+                      </div>
+                    ) : (
+                      <>
+                        {item.type !== "pet" && (
+                          <div className="flex items-center justify-between mb-4">
+                            <span className="font-fantasy text-xs tracking-wider" style={{ color: "#6a5a45" }}>Quantity</span>
+                            <div className="flex items-center gap-3">
+                              <button
+                                data-testid="button-qty-minus"
+                                onClick={() => setBuyQty(q => Math.max(1, q - 1))}
+                                className="w-8 h-8 rounded-full flex items-center justify-center text-lg font-bold transition-transform active:scale-90"
+                                style={{ background: `${accent}20`, border: `1px solid ${accent}40`, color: accent, cursor: "pointer" }}
+                              >−</button>
+                              <span className="font-fantasy text-base font-semibold min-w-[2ch] text-center" style={{ color: accent }} data-testid="text-buy-quantity">{buyQty}</span>
+                              <button
+                                data-testid="button-qty-plus"
+                                onClick={() => setBuyQty(q => Math.min(maxQty, q + 1))}
+                                className="w-8 h-8 rounded-full flex items-center justify-center text-lg font-bold transition-transform active:scale-90"
+                                style={{ background: `${accent}20`, border: `1px solid ${accent}40`, color: accent, cursor: "pointer" }}
+                              >+</button>
+                            </div>
+                          </div>
+                        )}
+                        <button
+                          data-testid="button-price-buy"
+                          onClick={() => setBuyStep(2)}
+                          className="w-full py-3.5 rounded-xl font-fantasy text-sm tracking-widest font-semibold transition-transform active:scale-95"
+                          style={{
+                            background: canAfford ? `linear-gradient(135deg, ${accent}45 0%, ${accent}25 100%)` : "rgba(60,45,25,0.5)",
+                            border: `2px solid ${canAfford ? accent + "70" : "rgba(70,55,30,0.4)"}`,
+                            color: canAfford ? accent : "#5a4a35",
+                            cursor: "pointer",
+                            boxShadow: canAfford ? `0 0 18px ${accent}18` : "none",
+                          }}
+                        >
+                          <div className="flex items-center justify-center gap-2">
+                            <img src={coinIconImg} alt="" className="w-4 h-4 object-contain" />
+                            <span>{totalCost} coins</span>
+                          </div>
+                        </button>
+                        {!canAfford && (
+                          <p className="font-fantasy text-[10px] text-center mt-1.5" style={{ color: "#ef4444" }} data-testid="text-not-enough-coins">Not enough coins</p>
+                        )}
+                        <div className="flex items-center justify-center gap-1 mt-2">
+                          <img src={coinIconImg} alt="" className="w-3 h-3 object-contain opacity-40" />
+                          <span className="font-fantasy text-[10px]" style={{ color: "#4a3a25" }}>You have {currentUser.coins} coins</span>
+                        </div>
+                      </>
+                    )}
+                  </>
+                )}
+                {buyStep === 2 && (
+                  <>
+                    <div className="text-center mb-6">
+                      <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: `${accent}12`, border: `2px solid ${accent}35` }}>
+                        <img src={coinIconImg} alt="" className="w-8 h-8 object-contain" />
+                      </div>
+                      <h3 className="font-fantasy text-base tracking-wider mb-1" style={{ color: accent }}>Confirm Purchase</h3>
+                      <p className="font-fantasy text-sm" style={{ color: "#c8b89a" }}>
+                        {item.type === "pet" ? `Buy ${item.name}` : `Buy ${buyQty}x ${item.name}`}
+                      </p>
+                      <div className="flex items-center justify-center gap-1.5 mt-2">
+                        <img src={coinIconImg} alt="" className="w-4 h-4 object-contain" />
+                        <span className="font-fantasy text-lg font-semibold" style={{ color: accent }} data-testid="text-confirm-total-cost">{totalCost} coins</span>
+                      </div>
+                    </div>
+                    {buyError && (
+                      <div className="mb-4 px-3 py-2 rounded-lg font-fantasy text-xs text-center tracking-wider" style={{ background: "rgba(220,38,38,0.1)", color: "#fca5a5", border: "1px solid rgba(220,38,38,0.3)" }} data-testid="text-buy-error">
+                        {buyError}
+                      </div>
+                    )}
+                    <div className="flex gap-3">
+                      <button
+                        data-testid="button-confirm-cancel"
+                        onClick={() => { setBuyStep(1); setBuyError(null); }}
+                        className="flex-1 py-3 rounded-xl font-fantasy text-sm tracking-wider transition-transform active:scale-95"
+                        style={{ background: "rgba(60,45,25,0.5)", border: "1px solid rgba(80,60,30,0.4)", color: "#6a5a45", cursor: "pointer" }}
+                      >Cancel</button>
+                      <button
+                        data-testid="button-confirm-buy"
+                        onClick={() => buyMutation.mutate({ itemId: item.id, quantity: buyQty })}
+                        disabled={buyMutation.isPending}
+                        className="flex-1 py-3 rounded-xl font-fantasy text-sm tracking-wider font-semibold transition-transform active:scale-95 disabled:opacity-50"
+                        style={{
+                          background: `linear-gradient(135deg, ${accent}45 0%, ${accent}25 100%)`,
+                          border: `2px solid ${accent}65`,
+                          color: accent,
+                          cursor: "pointer",
+                          boxShadow: `0 0 14px ${accent}12`,
+                        }}
+                      >{buyMutation.isPending ? "Buying..." : "Buy!"}</button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
-        </div>
         );
       })()}
 
@@ -1434,9 +1652,7 @@ export default function WorldPage({ user }: WorldPageProps) {
             }}
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-fantasy text-sm tracking-widest" style={{ color: accent, textShadow: `0 0 10px ${accent}40` }}>
-                Assign Items
-              </h3>
+              <h3 className="font-fantasy text-sm tracking-widest" style={{ color: accent, textShadow: `0 0 10px ${accent}40` }}>Add Items to Shop</h3>
               <button
                 data-testid="button-close-item-picker"
                 onClick={() => setShowItemPicker(false)}
@@ -1473,25 +1689,18 @@ export default function WorldPage({ user }: WorldPageProps) {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-fantasy text-xs truncate" style={{ color: accent }}>{si.name}</p>
-                        <p className="font-fantasy text-[9px]" style={{ color: `${accent}70` }}>{si.price} coins - {si.type}</p>
+                        <p className="font-fantasy text-[9px]" style={{ color: `${accent}70` }}>{si.price} coins · {si.type}</p>
                       </div>
                       {alreadyAssigned ? (
-                        <span className="font-fantasy text-[9px] px-2 py-1 rounded-full" style={{ background: `${accent}20`, color: accent }}>Added</span>
+                        <span className="font-fantasy text-[9px] px-2 py-1 rounded-full" style={{ background: `${accent}20`, color: accent }}>In Shop</span>
                       ) : (
                         <button
                           data-testid={`button-assign-${si.id}`}
                           onClick={() => assignItemMutation.mutate({ locationId: activeLocationId, itemId: si.id })}
                           disabled={assignItemMutation.isPending}
                           className="font-fantasy text-[9px] px-3 py-1 rounded-full transition-transform active:scale-95"
-                          style={{
-                            background: `${accent}30`,
-                            border: `1px solid ${accent}50`,
-                            color: accent,
-                            cursor: "pointer",
-                          }}
-                        >
-                          Add
-                        </button>
+                          style={{ background: `${accent}30`, border: `1px solid ${accent}50`, color: accent, cursor: "pointer" }}
+                        >Add</button>
                       )}
                     </div>
                   );

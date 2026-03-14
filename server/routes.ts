@@ -595,6 +595,7 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
       const { itemId } = req.params;
+      const quantity = Math.min(Math.max(1, parseInt(req.body?.quantity ?? "1") || 1), 20);
 
       const shopItem = await storage.getShopItem(itemId);
       if (!shopItem) {
@@ -608,28 +609,33 @@ export async function registerRoutes(
         }
       } else {
         const dailyCount = await storage.getDailyItemPurchaseCount(user.id);
-        if (dailyCount >= 100) {
+        if (dailyCount + quantity > 100) {
           return res.status(400).json({ message: "Daily purchase limit reached (100 items/day)" });
         }
       }
 
+      const totalCost = shopItem.price * (shopItem.type === "pet" ? 1 : quantity);
       const currentUser = await storage.getUser(user.id);
-      if (!currentUser || currentUser.coins < shopItem.price) {
+      if (!currentUser || currentUser.coins < totalCost) {
         return res.status(400).json({ message: "Not enough coins" });
       }
 
-      await storage.addCoins(user.id, -shopItem.price);
-      let invItem = await storage.addToInventory(user.id, itemId);
+      await storage.addCoins(user.id, -totalCost);
 
-      if (shopItem.type === "pet" && shopItem.hatchTime) {
-        const updated = await storage.updateInventoryItem(invItem.id, { hatchStartedAt: new Date() });
-        if (updated) invItem = updated;
+      const purchaseCount = shopItem.type === "pet" ? 1 : quantity;
+      let invItem: any = null;
+      for (let i = 0; i < purchaseCount; i++) {
+        invItem = await storage.addToInventory(user.id, itemId);
+        if (shopItem.type === "pet" && shopItem.hatchTime) {
+          const updated = await storage.updateInventoryItem(invItem.id, { hatchStartedAt: new Date() });
+          if (updated) invItem = updated;
+        }
       }
 
       const updatedUser = await storage.getUser(user.id);
       const { password: _, ...safeUser } = updatedUser!;
 
-      return res.json({ inventory: invItem, user: safeUser });
+      return res.json({ inventory: invItem, user: safeUser, quantity: purchaseCount });
     } catch (err) {
       console.error("Buy item error:", err);
       return res.status(500).json({ message: "Failed to purchase item" });
@@ -1608,6 +1614,18 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Unassign item from location error:", err);
       return res.status(500).json({ message: "Failed to unassign item" });
+    }
+  });
+
+  app.patch("/api/admin/shop-item/:itemId/position", isAdmin, async (req, res) => {
+    try {
+      const { posX, posY, width } = req.body;
+      if (posX === undefined || posY === undefined) return res.status(400).json({ message: "posX and posY required" });
+      const updated = await storage.updateShopItemPosition(req.params.itemId, posX, posY, width ?? 72);
+      return res.json(updated);
+    } catch (err) {
+      console.error("Update shop item position error:", err);
+      return res.status(500).json({ message: "Failed to update position" });
     }
   });
 

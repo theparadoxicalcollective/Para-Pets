@@ -91,6 +91,7 @@ export interface IStorage {
   getLocationItems(locationId: string): Promise<ShopItem[]>;
   assignItemToLocation(itemId: string, locationId: string): Promise<ShopItem>;
   unassignItemFromLocation(itemId: string): Promise<ShopItem>;
+  updateShopItemPosition(itemId: string, posX: number, posY: number, width: number): Promise<ShopItem>;
   getDailyItemPurchaseCount(userId: string): Promise<number>;
   updateLocationObject(id: string, data: Partial<{ posX: number; posY: number; width: number }>): Promise<LocationObject>;
   getAllPetTemplates(): Promise<PetTemplate[]>;
@@ -484,6 +485,11 @@ export class DatabaseStorage implements IStorage {
 
   async unassignItemFromLocation(itemId: string): Promise<ShopItem> {
     const [item] = await db.update(shopItems).set({ locationId: null }).where(eq(shopItems.id, itemId)).returning();
+    return item;
+  }
+
+  async updateShopItemPosition(itemId: string, posX: number, posY: number, width: number): Promise<ShopItem> {
+    const [item] = await db.update(shopItems).set({ shopPosX: posX, shopPosY: posY, shopWidth: width }).where(eq(shopItems.id, itemId)).returning();
     return item;
   }
 

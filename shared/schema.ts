@@ -44,6 +44,9 @@ export const shopItems = pgTable("shop_items", {
   defBoost: integer("def_boost"),
   specialType: text("special_type"),
   specialAmount: integer("special_amount"),
+  shopPosX: real("shop_pos_x").notNull().default(50),
+  shopPosY: real("shop_pos_y").notNull().default(50),
+  shopWidth: integer("shop_width").notNull().default(72),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
