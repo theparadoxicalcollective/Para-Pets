@@ -1,0 +1,904 @@
+import { useState, useRef, useCallback, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { X, Plus, Star, Trash2 } from "lucide-react";
+import PetAnimator from "@/components/PetAnimator";
+import fishingBg from "@assets/fishing_bg_portrait.png";
+import poleIcon from "@assets/icon_fishing_pole.png";
+import baitIcon from "@assets/icon_fishing_bait.png";
+import fishInvIcon from "@assets/icon_fish_inventory.png";
+
+interface FishingPageProps {
+  locationId: string;
+  locationName: string;
+  bgUrl: string | null;
+  user: {
+    id: string;
+    username: string;
+    coins: number;
+    isAdmin: boolean;
+    activePetId: string | null;
+  };
+  onClose: () => void;
+}
+
+interface ShopItem {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  type: string;
+  fishingType: string | null;
+  starRarity: number | null;
+  rareCatchBoostPercent: number | null;
+  rarityBoostPercent: number | null;
+}
+
+interface EquipmentData {
+  equipment: { poleInventoryId: string | null; baitInventoryId: string | null } | null;
+  poleItem: ShopItem | null;
+  baitItem: ShopItem | null;
+}
+
+interface InventoryItem {
+  inventoryId: string;
+  shopItemId: string;
+  name: string;
+  type: string;
+  imageUrl: string | null;
+  fishingType?: string | null;
+}
+
+interface PondFishEntry {
+  id: string;
+  shopItemId: string;
+  item: ShopItem | null;
+}
+
+interface CaughtFish {
+  id: string;
+  shopItemId: string;
+  caughtAt: string;
+}
+
+type FishingPhase = "idle" | "casting" | "waiting" | "nibble" | "reeling" | "caught" | "missed";
+
+const ACCENT = "#5eead4";
+const REEL_DURATION = 4000;
+const NIBBLE_TIMEOUT = 4000;
+const GREEN_ZONE_SIZE = 0.30;
+
+export default function FishingPage({ locationId, locationName, bgUrl, user, onClose }: FishingPageProps) {
+  const [phase, setPhase] = useState<FishingPhase>("idle");
+  const [showPolePanel, setShowPolePanel] = useState(false);
+  const [showBaitPanel, setShowBaitPanel] = useState(false);
+  const [showFishInv, setShowFishInv] = useState(false);
+  const [showPondAdmin, setShowPondAdmin] = useState(false);
+  const [reelPos, setReelPos] = useState(0.5);
+  const [greenZoneCenter, setGreenZoneCenter] = useState(0.5);
+  const [caughtItem, setCaughtItem] = useState<ShopItem | null>(null);
+  const [bgLoaded, setBgLoaded] = useState(false);
+  const reelIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const nibbleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const phaseRef = useRef<FishingPhase>("idle");
+  const reelPosRef = useRef(0.5);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: equipData } = useQuery<EquipmentData>({
+    queryKey: ["/api/fishing/equipment"],
+    staleTime: 0,
+  });
+
+  const { data: inventory = [] } = useQuery<InventoryItem[]>({
+    queryKey: ["/api/inventory"],
+    staleTime: 0,
+  });
+
+  const { data: fishInventory = [] } = useQuery<CaughtFish[]>({
+    queryKey: ["/api/fishing/inventory"],
+    staleTime: 0,
+  });
+
+  const { data: pondFish = [] } = useQuery<PondFishEntry[]>({
+    queryKey: ["/api/location", locationId, "pond-fish"],
+    queryFn: async () => {
+      const res = await fetch(`/api/location/${locationId}/pond-fish`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    staleTime: 0,
+  });
+
+  const { data: activePetData } = useQuery<{ petTemplateId: string | null }>({
+    queryKey: ["/api/inventory/active-pet"],
+    queryFn: async () => {
+      if (!user.activePetId) return { petTemplateId: null };
+      const res = await fetch("/api/inventory", { credentials: "include" });
+      if (!res.ok) return { petTemplateId: null };
+      const inv = await res.json();
+      const active = inv.find((i: InventoryItem & { petTemplateId?: string }) => i.inventoryId === user.activePetId);
+      return { petTemplateId: active?.petTemplateId || null };
+    },
+    staleTime: 30000,
+  });
+
+  const poles = inventory.filter(i => i.type === "fishing" && i.fishingType === "pole");
+  const baits = inventory.filter(i => i.type === "fishing" && i.fishingType === "bait");
+
+  const equipMutation = useMutation({
+    mutationFn: async ({ inventoryId, slot }: { inventoryId: string; slot: string }) => {
+      const res = await apiRequest("POST", "/api/fishing/equip", { inventoryId, slot });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/fishing/equipment"] });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Equip failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const unequipMutation = useMutation({
+    mutationFn: async ({ slot }: { slot: string }) => {
+      const res = await apiRequest("POST", "/api/fishing/unequip", { slot });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/fishing/equipment"] });
+    },
+  });
+
+  const catchMutation = useMutation({
+    mutationFn: async (performanceScore: number) => {
+      const res = await apiRequest("POST", "/api/fishing/catch", { locationId, performanceScore });
+      return res.json();
+    },
+    onSuccess: (data: { caught: CaughtFish | null; item?: ShopItem; reason?: string }) => {
+      if (data.caught && data.item) {
+        setCaughtItem(data.item);
+        setPhase("caught");
+        queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] });
+      } else {
+        setPhase("missed");
+      }
+    },
+    onError: () => {
+      setPhase("missed");
+    },
+  });
+
+  const addPondFishMutation = useMutation({
+    mutationFn: async (shopItemId: string) => {
+      const res = await apiRequest("POST", `/api/admin/location/${locationId}/pond-fish`, { shopItemId });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/location", locationId, "pond-fish"] });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const removePondFishMutation = useMutation({
+    mutationFn: async (shopItemId: string) => {
+      const res = await apiRequest("DELETE", `/api/admin/location/${locationId}/pond-fish/${shopItemId}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/location", locationId, "pond-fish"] });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Remove failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const { data: allFishItems = [] } = useQuery<ShopItem[]>({
+    queryKey: ["/api/admin/fish-items"],
+    queryFn: async () => {
+      const res = await fetch("/api/shop-items", { credentials: "include" });
+      if (!res.ok) return [];
+      const items: ShopItem[] = await res.json();
+      return items.filter(i => i.type === "fishing" && i.fishingType === "fish");
+    },
+    enabled: user.isAdmin && showPondAdmin,
+    staleTime: 0,
+  });
+
+  useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
+
+  useEffect(() => {
+    return () => {
+      if (reelIntervalRef.current) clearInterval(reelIntervalRef.current);
+      if (nibbleTimeoutRef.current) clearTimeout(nibbleTimeoutRef.current);
+    };
+  }, []);
+
+  const startCasting = useCallback(() => {
+    if (!equipData?.poleItem) {
+      toast({ title: "No pole equipped", description: "Equip a fishing pole first!", variant: "destructive" });
+      return;
+    }
+    if (pondFish.length === 0) {
+      toast({ title: "Empty pond", description: "No fish in this pond yet.", variant: "destructive" });
+      return;
+    }
+    setPhase("casting");
+    setTimeout(() => {
+      setPhase("waiting");
+      const waitTime = 1500 + Math.random() * 2500;
+      nibbleTimeoutRef.current = setTimeout(() => {
+        if (phaseRef.current === "waiting") {
+          setPhase("nibble");
+          nibbleTimeoutRef.current = setTimeout(() => {
+            if (phaseRef.current === "nibble") {
+              setPhase("missed");
+            }
+          }, NIBBLE_TIMEOUT);
+        }
+      }, waitTime);
+    }, 800);
+  }, [equipData, pondFish, toast]);
+
+  const startReeling = useCallback(() => {
+    const center = 0.3 + Math.random() * 0.4;
+    setGreenZoneCenter(center);
+    setReelPos(0.0);
+    reelPosRef.current = 0.0;
+    setPhase("reeling");
+
+    if (reelIntervalRef.current) clearInterval(reelIntervalRef.current);
+    reelIntervalRef.current = setInterval(() => {
+      reelPosRef.current = Math.max(0, reelPosRef.current - 0.008);
+      setReelPos(reelPosRef.current);
+    }, 50);
+
+    setTimeout(() => {
+      if (reelIntervalRef.current) clearInterval(reelIntervalRef.current);
+      if (phaseRef.current === "reeling") {
+        const finalPos = reelPosRef.current;
+        const greenMin = center - GREEN_ZONE_SIZE / 2;
+        const greenMax = center + GREEN_ZONE_SIZE / 2;
+        const inGreen = finalPos >= greenMin && finalPos <= greenMax;
+        const score = inGreen ? Math.round(70 + Math.random() * 30) : Math.round(Math.random() * 30);
+        catchMutation.mutate(score);
+      }
+    }, REEL_DURATION);
+  }, [catchMutation]);
+
+  const handleReelTap = useCallback(() => {
+    if (phase !== "reeling") return;
+    reelPosRef.current = Math.min(1, reelPosRef.current + 0.06);
+    setReelPos(reelPosRef.current);
+  }, [phase]);
+
+  const resetFishing = useCallback(() => {
+    setPhase("idle");
+    setCaughtItem(null);
+    if (reelIntervalRef.current) clearInterval(reelIntervalRef.current);
+    if (nibbleTimeoutRef.current) clearTimeout(nibbleTimeoutRef.current);
+  }, []);
+
+  const hasPole = !!equipData?.poleItem;
+
+  return (
+    <div
+      className="fixed inset-0 z-40 flex flex-col"
+      style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
+      data-testid="fishing-page"
+    >
+      <img
+        src={bgUrl || fishingBg}
+        alt=""
+        className="absolute inset-0 w-full h-full object-cover"
+        onLoad={() => setBgLoaded(true)}
+      />
+      <div className="absolute inset-0" style={{
+        background: "linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 25%, rgba(0,0,0,0) 65%, rgba(0,0,0,0.7) 100%)",
+      }} />
+
+      {!bgLoaded && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(8,5,20,1)" }}>
+          <div className="animate-spin rounded-full" style={{ width: 48, height: 48, border: `3px solid ${ACCENT}25`, borderTopColor: ACCENT }} />
+        </div>
+      )}
+
+      <style>{FISHING_ANIMATIONS}</style>
+
+      <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 pt-12 pb-3">
+        <div>
+          <h3 className="font-fantasy text-base tracking-widest font-semibold" style={{ color: ACCENT, textShadow: `0 0 10px ${ACCENT}40` }} data-testid="text-fishing-location-name">
+            {locationName}
+          </h3>
+          <p className="font-fantasy text-[10px] tracking-wider" style={{ color: `${ACCENT}88` }}>
+            {phase === "idle" ? "Tap the water to cast" : phase === "casting" ? "Casting..." : phase === "waiting" ? "Waiting for a bite..." : phase === "nibble" ? "Something's biting!" : phase === "reeling" ? "Reel it in!" : phase === "caught" ? "Catch!" : "It got away..."}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {user.isAdmin && (
+            <button
+              data-testid="button-pond-admin"
+              onClick={() => setShowPondAdmin(true)}
+              className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
+              style={{ background: `${ACCENT}30`, border: `2px solid ${ACCENT}60`, color: ACCENT, cursor: "pointer" }}
+            >
+              <Plus className="w-5 h-5" />
+            </button>
+          )}
+          <button
+            data-testid="button-close-fishing"
+            onClick={onClose}
+            className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
+            style={{ background: "rgba(0,0,0,0.55)", border: `1px solid ${ACCENT}40`, color: ACCENT, cursor: "pointer" }}
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
+      <div className="absolute inset-0 z-10" onClick={() => {
+        if (phase === "idle" && hasPole) startCasting();
+        else if (phase === "nibble") startReeling();
+      }}>
+        <div className="absolute" style={{
+          bottom: "22%", left: "10%", right: "10%", height: "30%",
+          borderRadius: "50%",
+          background: "radial-gradient(ellipse, rgba(94,234,212,0.08) 0%, transparent 70%)",
+          animation: phase === "waiting" || phase === "nibble" ? "pondShimmer 3s ease-in-out infinite" : undefined,
+        }} />
+
+        {(phase === "casting" || phase === "waiting") && (
+          <div className="absolute" style={{
+            bottom: "35%", left: "50%", transform: "translate(-50%, 0)",
+            width: 24, height: 24,
+            borderRadius: "50%",
+            border: `2px solid ${ACCENT}60`,
+            animation: "ripple 1.5s ease-out infinite",
+          }} />
+        )}
+
+        {phase === "nibble" && (
+          <div className="absolute flex flex-col items-center" style={{
+            bottom: "38%", left: "50%", transform: "translate(-50%, 0)",
+          }}>
+            <div style={{
+              width: 60, height: 30,
+              background: "rgba(0,0,0,0.7)",
+              borderRadius: "50%",
+              filter: "blur(2px)",
+              animation: "fishSilhouette 0.6s ease-in-out infinite",
+            }} />
+            <p className="font-fantasy text-xs mt-2 animate-pulse" style={{ color: "#fbbf24", textShadow: "0 0 8px rgba(251,191,36,0.6)" }}>
+              TAP TO REEL!
+            </p>
+          </div>
+        )}
+      </div>
+
+      {phase === "reeling" && (
+        <ReelMechanic
+          reelPos={reelPos}
+          greenZoneCenter={greenZoneCenter}
+          greenZoneSize={GREEN_ZONE_SIZE}
+          onTap={handleReelTap}
+        />
+      )}
+
+      {phase === "caught" && caughtItem && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center" onClick={resetFishing}>
+          <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.6)" }} />
+          <div className="relative z-10 flex flex-col items-center gap-4 p-6 rounded-2xl" style={{
+            background: "linear-gradient(135deg, rgba(8,40,30,0.95), rgba(5,25,20,0.95))",
+            border: `2px solid ${ACCENT}80`,
+            boxShadow: `0 0 60px ${ACCENT}30`,
+            animation: "catchPop 0.4s ease-out",
+          }}>
+            <div className="w-24 h-24 rounded-full flex items-center justify-center" style={{
+              background: `radial-gradient(circle, ${ACCENT}20, transparent)`,
+              animation: "catchGlow 1.5s ease-in-out infinite",
+            }}>
+              {caughtItem.imageUrl ? (
+                <img src={caughtItem.imageUrl} alt="" className="w-20 h-20 object-contain" data-testid="img-caught-fish" />
+              ) : (
+                <span className="text-5xl">🐟</span>
+              )}
+            </div>
+            <h3 className="font-fantasy text-lg tracking-widest" style={{ color: ACCENT, textShadow: `0 0 12px ${ACCENT}60` }} data-testid="text-caught-fish-name">
+              {caughtItem.name}
+            </h3>
+            {caughtItem.starRarity && (
+              <div className="flex gap-0.5">
+                {Array.from({ length: caughtItem.starRarity }).map((_, i) => (
+                  <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                ))}
+              </div>
+            )}
+            <p className="font-fantasy text-[10px] tracking-wider" style={{ color: `${ACCENT}88` }}>Tap anywhere to continue</p>
+          </div>
+        </div>
+      )}
+
+      {phase === "missed" && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center" onClick={resetFishing}>
+          <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.5)" }} />
+          <div className="relative z-10 flex flex-col items-center gap-3 p-6 rounded-2xl" style={{
+            background: "linear-gradient(135deg, rgba(30,15,8,0.95), rgba(20,10,5,0.95))",
+            border: "2px solid rgba(239,115,68,0.5)",
+            animation: "catchPop 0.4s ease-out",
+          }}>
+            <span className="text-5xl" style={{ animation: "missWiggle 0.5s ease-in-out" }}>💨</span>
+            <h3 className="font-fantasy text-lg tracking-widest" style={{ color: "#ef7344" }}>
+              It got away!
+            </h3>
+            <p className="font-fantasy text-[10px] tracking-wider" style={{ color: "rgba(239,115,68,0.7)" }}>Tap anywhere to try again</p>
+          </div>
+        </div>
+      )}
+
+      {activePetData?.petTemplateId && (
+        <div className="absolute bottom-[140px] left-4 z-15 pointer-events-none" style={{ animation: "petBob 3s ease-in-out infinite" }}>
+          <PetAnimator petTemplateId={activePetData.petTemplateId} mode="idle" size={100} />
+        </div>
+      )}
+
+      <div className="absolute bottom-0 left-0 right-0 z-20" style={{
+        background: "linear-gradient(0deg, rgba(5,15,12,0.95) 0%, rgba(5,15,12,0.8) 70%, transparent 100%)",
+        paddingTop: 20,
+        paddingBottom: 24,
+      }}>
+        <div className="flex items-end justify-center gap-4 px-4">
+          <EquipSlot
+            label="Pole"
+            defaultIcon={poleIcon}
+            equippedItem={equipData?.poleItem || null}
+            isActive={showPolePanel}
+            onClick={() => { setShowPolePanel(!showPolePanel); setShowBaitPanel(false); setShowFishInv(false); }}
+            testId="button-pole-slot"
+          />
+          <EquipSlot
+            label="Bait"
+            defaultIcon={baitIcon}
+            equippedItem={equipData?.baitItem || null}
+            isActive={showBaitPanel}
+            onClick={() => { setShowBaitPanel(!showBaitPanel); setShowPolePanel(false); setShowFishInv(false); }}
+            testId="button-bait-slot"
+          />
+          <EquipSlot
+            label="Fish"
+            defaultIcon={fishInvIcon}
+            equippedItem={null}
+            badgeCount={fishInventory.length}
+            isActive={showFishInv}
+            onClick={() => { setShowFishInv(!showFishInv); setShowPolePanel(false); setShowBaitPanel(false); }}
+            testId="button-fish-inventory"
+          />
+        </div>
+      </div>
+
+      {showPolePanel && (
+        <EquipPanel
+          title="Fishing Poles"
+          items={poles}
+          equippedInventoryId={equipData?.equipment?.poleInventoryId || null}
+          slot="pole"
+          onEquip={(invId) => equipMutation.mutate({ inventoryId: invId, slot: "pole" })}
+          onUnequip={() => unequipMutation.mutate({ slot: "pole" })}
+          onClose={() => setShowPolePanel(false)}
+        />
+      )}
+      {showBaitPanel && (
+        <EquipPanel
+          title="Bait"
+          items={baits}
+          equippedInventoryId={equipData?.equipment?.baitInventoryId || null}
+          slot="bait"
+          onEquip={(invId) => equipMutation.mutate({ inventoryId: invId, slot: "bait" })}
+          onUnequip={() => unequipMutation.mutate({ slot: "bait" })}
+          onClose={() => setShowBaitPanel(false)}
+        />
+      )}
+      {showFishInv && (
+        <FishInventoryPanel
+          fishInventory={fishInventory}
+          allFishItems={allFishItems}
+          pondFish={pondFish}
+          onClose={() => setShowFishInv(false)}
+        />
+      )}
+
+      {showPondAdmin && user.isAdmin && (
+        <PondAdminPanel
+          locationId={locationId}
+          pondFish={pondFish}
+          allFishItems={allFishItems}
+          onAdd={(shopItemId) => addPondFishMutation.mutate(shopItemId)}
+          onRemove={(shopItemId) => removePondFishMutation.mutate(shopItemId)}
+          onClose={() => setShowPondAdmin(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function EquipSlot({
+  label, defaultIcon, equippedItem, isActive, onClick, badgeCount, testId,
+}: {
+  label: string;
+  defaultIcon: string;
+  equippedItem: ShopItem | null;
+  isActive: boolean;
+  onClick: () => void;
+  badgeCount?: number;
+  testId: string;
+}) {
+  const imgSrc = equippedItem?.imageUrl || defaultIcon;
+  return (
+    <button
+      data-testid={testId}
+      onClick={onClick}
+      className="flex flex-col items-center gap-1.5 transition-transform active:scale-95"
+      style={{ cursor: "pointer" }}
+    >
+      <div className="relative w-16 h-16 rounded-xl flex items-center justify-center overflow-hidden" style={{
+        background: isActive ? `${ACCENT}20` : "rgba(5,20,15,0.85)",
+        border: `2px solid ${isActive ? ACCENT : `${ACCENT}40`}`,
+        boxShadow: isActive ? `0 0 16px ${ACCENT}30` : "0 2px 8px rgba(0,0,0,0.4)",
+        transition: "all 0.15s ease",
+      }}>
+        <img src={imgSrc} alt="" className="w-12 h-12 object-contain" style={{
+          filter: equippedItem ? "none" : "brightness(0.5) saturate(0.5)",
+        }} />
+        {badgeCount !== undefined && badgeCount > 0 && (
+          <div className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold"
+            style={{ background: ACCENT, color: "#0a1a14" }}>
+            {badgeCount}
+          </div>
+        )}
+      </div>
+      <span className="font-fantasy text-[9px] tracking-wider" style={{ color: equippedItem ? ACCENT : `${ACCENT}60` }}>
+        {equippedItem ? equippedItem.name : label}
+      </span>
+    </button>
+  );
+}
+
+function EquipPanel({
+  title, items, equippedInventoryId, slot, onEquip, onUnequip, onClose,
+}: {
+  title: string;
+  items: InventoryItem[];
+  equippedInventoryId: string | null;
+  slot: string;
+  onEquip: (inventoryId: string) => void;
+  onUnequip: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="absolute bottom-[140px] left-4 right-4 z-25 rounded-xl overflow-hidden" style={{
+      background: "rgba(5,20,15,0.95)",
+      border: `1px solid ${ACCENT}40`,
+      backdropFilter: "blur(8px)",
+      maxHeight: 200,
+      animation: "slideUp 0.2s ease-out",
+    }}>
+      <div className="flex items-center justify-between px-3 py-2" style={{ borderBottom: `1px solid ${ACCENT}20` }}>
+        <h4 className="font-fantasy text-xs tracking-widest" style={{ color: ACCENT }}>{title}</h4>
+        <button onClick={onClose} className="w-6 h-6 flex items-center justify-center" style={{ color: `${ACCENT}80`, cursor: "pointer" }}>
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+      <div className="overflow-y-auto p-2" style={{ maxHeight: 150, scrollbarWidth: "thin" }}>
+        {items.length === 0 ? (
+          <p className="font-fantasy text-[10px] text-center py-4" style={{ color: `${ACCENT}50` }}>
+            No {slot}s in inventory. Buy some from a shop!
+          </p>
+        ) : (
+          <div className="grid grid-cols-4 gap-2">
+            {items.map(item => {
+              const isEquipped = item.inventoryId === equippedInventoryId;
+              return (
+                <button
+                  key={item.inventoryId}
+                  data-testid={`button-equip-${slot}-${item.inventoryId}`}
+                  onClick={() => isEquipped ? onUnequip() : onEquip(item.inventoryId)}
+                  className="flex flex-col items-center gap-1 p-1.5 rounded-lg transition-all"
+                  style={{
+                    background: isEquipped ? `${ACCENT}25` : "rgba(0,0,0,0.3)",
+                    border: `1.5px solid ${isEquipped ? ACCENT : `${ACCENT}20`}`,
+                    cursor: "pointer",
+                  }}
+                >
+                  <div className="w-10 h-10 flex items-center justify-center">
+                    {item.imageUrl ? (
+                      <img src={item.imageUrl} alt="" className="w-full h-full object-contain" />
+                    ) : (
+                      <span className="text-xl">{slot === "pole" ? "🎣" : "🪱"}</span>
+                    )}
+                  </div>
+                  <span className="font-fantasy text-[7px] text-center truncate w-full" style={{ color: isEquipped ? ACCENT : `${ACCENT}80` }}>
+                    {item.name}
+                  </span>
+                  {isEquipped && (
+                    <span className="font-fantasy text-[6px]" style={{ color: "#fbbf24" }}>EQUIPPED</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FishInventoryPanel({
+  fishInventory, allFishItems, pondFish, onClose,
+}: {
+  fishInventory: CaughtFish[];
+  allFishItems: ShopItem[];
+  pondFish: PondFishEntry[];
+  onClose: () => void;
+}) {
+  const fishItemMap = new Map<string, ShopItem>();
+  for (const pf of pondFish) {
+    if (pf.item) fishItemMap.set(pf.shopItemId, pf.item);
+  }
+  for (const fi of allFishItems) {
+    fishItemMap.set(fi.id, fi);
+  }
+
+  const grouped = new Map<string, { item: ShopItem | undefined; count: number }>();
+  for (const cf of fishInventory) {
+    const existing = grouped.get(cf.shopItemId);
+    if (existing) {
+      existing.count++;
+    } else {
+      grouped.set(cf.shopItemId, { item: fishItemMap.get(cf.shopItemId), count: 1 });
+    }
+  }
+
+  return (
+    <div className="absolute bottom-[140px] left-4 right-4 z-25 rounded-xl overflow-hidden" style={{
+      background: "rgba(5,20,15,0.95)",
+      border: `1px solid ${ACCENT}40`,
+      backdropFilter: "blur(8px)",
+      maxHeight: 240,
+      animation: "slideUp 0.2s ease-out",
+    }}>
+      <div className="flex items-center justify-between px-3 py-2" style={{ borderBottom: `1px solid ${ACCENT}20` }}>
+        <h4 className="font-fantasy text-xs tracking-widest" style={{ color: ACCENT }}>Fish Collection</h4>
+        <button onClick={onClose} className="w-6 h-6 flex items-center justify-center" style={{ color: `${ACCENT}80`, cursor: "pointer" }}>
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+      <div className="overflow-y-auto p-2" style={{ maxHeight: 190, scrollbarWidth: "thin" }}>
+        {fishInventory.length === 0 ? (
+          <p className="font-fantasy text-[10px] text-center py-4" style={{ color: `${ACCENT}50` }}>
+            No fish caught yet. Cast your line!
+          </p>
+        ) : (
+          <div className="grid grid-cols-3 gap-2">
+            {Array.from(grouped.entries()).map(([shopItemId, { item, count }]) => (
+              <div key={shopItemId} className="flex flex-col items-center gap-1 p-2 rounded-lg" style={{
+                background: "rgba(0,0,0,0.3)",
+                border: `1px solid ${ACCENT}20`,
+              }}>
+                <div className="w-12 h-12 flex items-center justify-center">
+                  {item?.imageUrl ? (
+                    <img src={item.imageUrl} alt="" className="w-full h-full object-contain" />
+                  ) : (
+                    <span className="text-2xl">🐟</span>
+                  )}
+                </div>
+                <span className="font-fantasy text-[8px] text-center truncate w-full" style={{ color: `${ACCENT}cc` }}>
+                  {item?.name || "Unknown"}
+                </span>
+                {item?.starRarity && (
+                  <div className="flex gap-px">
+                    {Array.from({ length: item.starRarity }).map((_, i) => (
+                      <Star key={i} className="w-2.5 h-2.5 fill-yellow-400 text-yellow-400" />
+                    ))}
+                  </div>
+                )}
+                <span className="font-fantasy text-[7px]" style={{ color: `${ACCENT}70` }}>x{count}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PondAdminPanel({
+  locationId, pondFish, allFishItems, onAdd, onRemove, onClose,
+}: {
+  locationId: string;
+  pondFish: PondFishEntry[];
+  allFishItems: ShopItem[];
+  onAdd: (shopItemId: string) => void;
+  onRemove: (shopItemId: string) => void;
+  onClose: () => void;
+}) {
+  const stockedIds = new Set(pondFish.map(pf => pf.shopItemId));
+  const availableToAdd = allFishItems.filter(fi => !stockedIds.has(fi.id));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 w-[90%] max-w-sm rounded-xl overflow-hidden" style={{
+        background: "linear-gradient(135deg, rgba(8,25,18,0.98), rgba(5,15,10,0.98))",
+        border: `1px solid ${ACCENT}50`,
+        maxHeight: "80vh",
+      }}>
+        <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${ACCENT}20` }}>
+          <h4 className="font-fantasy text-sm tracking-widest" style={{ color: ACCENT }}>Pond Stock</h4>
+          <button onClick={onClose} style={{ color: `${ACCENT}80`, cursor: "pointer" }}>
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="overflow-y-auto p-3" style={{ maxHeight: "65vh" }}>
+          {pondFish.length > 0 && (
+            <div className="mb-3">
+              <p className="font-fantasy text-[9px] tracking-wider mb-2" style={{ color: `${ACCENT}70` }}>CURRENT STOCK</p>
+              {pondFish.map(pf => (
+                <div key={pf.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg mb-1" style={{ background: "rgba(0,0,0,0.3)" }}>
+                  <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                    {pf.item?.imageUrl ? <img src={pf.item.imageUrl} alt="" className="w-full h-full object-contain" /> : <span>🐟</span>}
+                  </div>
+                  <span className="font-fantasy text-[10px] flex-1 truncate" style={{ color: `${ACCENT}cc` }}>{pf.item?.name || "Unknown"}</span>
+                  {pf.item?.starRarity && (
+                    <div className="flex gap-px">
+                      {Array.from({ length: pf.item.starRarity }).map((_, i) => (
+                        <Star key={i} className="w-2.5 h-2.5 fill-yellow-400 text-yellow-400" />
+                      ))}
+                    </div>
+                  )}
+                  <button
+                    data-testid={`button-remove-pond-fish-${pf.id}`}
+                    onClick={() => onRemove(pf.id)}
+                    className="w-6 h-6 flex items-center justify-center rounded-full"
+                    style={{ background: "rgba(239,68,68,0.3)", color: "#ef4444", cursor: "pointer" }}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {availableToAdd.length > 0 && (
+            <div>
+              <p className="font-fantasy text-[9px] tracking-wider mb-2" style={{ color: `${ACCENT}70` }}>ADD FISH</p>
+              {availableToAdd.map(fi => (
+                <button
+                  key={fi.id}
+                  data-testid={`button-add-pond-fish-${fi.id}`}
+                  onClick={() => onAdd(fi.id)}
+                  className="flex items-center gap-2 px-2 py-1.5 rounded-lg mb-1 w-full transition-colors"
+                  style={{ background: "rgba(0,0,0,0.2)", border: `1px solid ${ACCENT}15`, cursor: "pointer" }}
+                >
+                  <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                    {fi.imageUrl ? <img src={fi.imageUrl} alt="" className="w-full h-full object-contain" /> : <span>🐟</span>}
+                  </div>
+                  <span className="font-fantasy text-[10px] flex-1 text-left truncate" style={{ color: `${ACCENT}aa` }}>{fi.name}</span>
+                  {fi.starRarity && (
+                    <div className="flex gap-px">
+                      {Array.from({ length: fi.starRarity }).map((_, i) => (
+                        <Star key={i} className="w-2.5 h-2.5 fill-yellow-400 text-yellow-400" />
+                      ))}
+                    </div>
+                  )}
+                  <Plus className="w-4 h-4" style={{ color: ACCENT }} />
+                </button>
+              ))}
+            </div>
+          )}
+          {allFishItems.length === 0 && pondFish.length === 0 && (
+            <p className="font-fantasy text-[10px] text-center py-4" style={{ color: `${ACCENT}50` }}>
+              No fish items created yet. Create some in Admin &gt; Fishing.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReelMechanic({
+  reelPos, greenZoneCenter, greenZoneSize, onTap,
+}: {
+  reelPos: number;
+  greenZoneCenter: number;
+  greenZoneSize: number;
+  onTap: () => void;
+}) {
+  const barHeight = 260;
+  const greenTop = (1 - (greenZoneCenter + greenZoneSize / 2)) * barHeight;
+  const greenH = greenZoneSize * barHeight;
+  const indicatorY = (1 - reelPos) * barHeight;
+  const inGreen = reelPos >= (greenZoneCenter - greenZoneSize / 2) && reelPos <= (greenZoneCenter + greenZoneSize / 2);
+
+  return (
+    <div className="absolute right-6 z-30 flex flex-col items-center gap-2" style={{
+      top: "50%", transform: "translateY(-50%)",
+    }}>
+      <div className="relative rounded-full overflow-hidden" style={{
+        width: 28,
+        height: barHeight,
+        background: "rgba(0,0,0,0.7)",
+        border: `2px solid ${ACCENT}50`,
+      }}>
+        <div className="absolute left-0 right-0 rounded-full" style={{
+          top: greenTop,
+          height: greenH,
+          background: "rgba(74,222,128,0.4)",
+          border: "1px solid rgba(74,222,128,0.7)",
+        }} />
+        <div className="absolute left-1 right-1" style={{
+          top: indicatorY - 3,
+          height: 6,
+          borderRadius: 3,
+          background: inGreen ? "#4ade80" : "#ef4444",
+          boxShadow: inGreen ? "0 0 10px rgba(74,222,128,0.8)" : "0 0 10px rgba(239,68,68,0.8)",
+          transition: "top 0.05s linear",
+        }} />
+      </div>
+      <button
+        data-testid="button-reel"
+        onClick={onTap}
+        onTouchStart={(e) => { e.preventDefault(); onTap(); }}
+        className="w-14 h-14 rounded-full flex items-center justify-center font-fantasy text-xs tracking-wider transition-transform active:scale-90"
+        style={{
+          background: `linear-gradient(135deg, ${ACCENT}cc, ${ACCENT}88)`,
+          border: `2px solid ${ACCENT}`,
+          color: "#0a1a14",
+          cursor: "pointer",
+          boxShadow: `0 0 20px ${ACCENT}40`,
+        }}
+      >
+        REEL
+      </button>
+    </div>
+  );
+}
+
+const FISHING_ANIMATIONS = `
+  @keyframes pondShimmer {
+    0%, 100% { opacity: 0.6; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.03); }
+  }
+  @keyframes ripple {
+    0% { width: 10px; height: 10px; opacity: 1; }
+    100% { width: 60px; height: 60px; opacity: 0; }
+  }
+  @keyframes fishSilhouette {
+    0%, 100% { transform: translateX(0) scaleX(1); }
+    25% { transform: translateX(-4px) scaleX(0.95); }
+    75% { transform: translateX(4px) scaleX(1.05); }
+  }
+  @keyframes catchPop {
+    0% { transform: scale(0.5); opacity: 0; }
+    60% { transform: scale(1.08); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  @keyframes catchGlow {
+    0%, 100% { box-shadow: 0 0 20px rgba(94,234,212,0.3); }
+    50% { box-shadow: 0 0 40px rgba(94,234,212,0.6); }
+  }
+  @keyframes missWiggle {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-10deg); }
+    75% { transform: rotate(10deg); }
+  }
+  @keyframes slideUp {
+    0% { transform: translateY(20px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+  }
+  @keyframes petBob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+  }
+`;

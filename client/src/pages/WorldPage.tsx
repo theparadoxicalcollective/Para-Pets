@@ -10,6 +10,7 @@ import { Plus, Trash2, X, MapPin, Package, Pencil, Settings, Swords, FlipHorizon
 import { readFileAsDataUrl } from "@/lib/utils";
 import ExploreAdminPanel from "@/components/ExploreAdminPanel";
 import BattleArena from "@/components/BattleArena";
+import FishingPage from "@/pages/FishingPage";
 
 import bgShopMystical from "@assets/bg_shop_mystical.png";
 import shopFrostpeak from "@assets/shop_frostpeak.png";
@@ -184,6 +185,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [showDangerWarning, setShowDangerWarning] = useState(false);
   const [showBattle, setShowBattle] = useState(false);
   const [battleLocationId, setBattleLocationId] = useState<string | null>(null);
+  const [showFishing, setShowFishing] = useState(false);
   const [objDragPos, setObjDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
   const objDragRef = useRef<{ objId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const objDidDrag = useRef(false);
@@ -543,7 +545,11 @@ export default function WorldPage({ user }: WorldPageProps) {
     }
     setTopLocId(null);
     setActiveLocationId(loc.id);
-    if (loc.isShop) {
+    if (loc.type === "fishing") {
+      setShowLocationView(false);
+      setShowShop(false);
+      setShowFishing(true);
+    } else if (loc.isShop) {
       setShowLocationView(false);
       setShowShop(true);
     } else if ((loc.type === "battle" || loc.type === "explore") && !currentUser.isAdmin) {
@@ -2252,6 +2258,23 @@ export default function WorldPage({ user }: WorldPageProps) {
             onBattleEnd={() => {
               queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
               queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+            }}
+          />
+        );
+      })()}
+
+      {showFishing && activeLocationId && (() => {
+        const fishLoc = locations.find(l => l.id === activeLocationId);
+        if (!fishLoc) return null;
+        return (
+          <FishingPage
+            locationId={activeLocationId}
+            locationName={fishLoc.name}
+            bgUrl={activeLocDetail?.bgUrl ?? null}
+            user={currentUser}
+            onClose={() => {
+              setShowFishing(false);
+              setActiveLocationId(null);
             }}
           />
         );
