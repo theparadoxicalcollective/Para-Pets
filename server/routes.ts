@@ -83,7 +83,7 @@ const WORLD_BG_SEED: Record<string, string> = {
   enchanted_grove: "bg_magical_forest.png",
   island: "bg_island.png",
   desert: "bg_desert.png",
-  swamp: "bg_swamp_v2.png",
+  swamp: "bg_swamp_v5.png",
 };
 
 async function seedWorldBackgrounds() {
