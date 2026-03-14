@@ -274,6 +274,12 @@ app.use((req, res, next) => {
       console.log("Thicket migration complete");
     }
 
+    // Always ensure Thicket is battle type
+    if (thicketLoc && thicketLoc.type !== "battle") {
+      await storage.updateWorldLocation(THICKET_ID, { type: "battle" } as any);
+      console.log("Thicket type set to battle.");
+    }
+
     const SHOP_ID = "97ff55d1-376b-466a-8fe9-992b09dbaacc";
     const shopLoc = swampLocations.find(l => l.id === SHOP_ID);
     if (shopLoc && shopLoc.name === "Shop Test") {
