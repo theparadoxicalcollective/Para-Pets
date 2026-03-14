@@ -211,6 +211,17 @@ app.use((req, res, next) => {
     return `data:image/png;base64,${buf.toString("base64")}`;
   }
 
+  // Always refresh the swamp world background from the bundled asset
+  try {
+    const swampBgData = loadAssetBase64("bg_swamp_v4.png");
+    if (swampBgData) {
+      await storage.updateWorld("swamp", { bgUrl: swampBgData } as any);
+      console.log("Swamp background refreshed from asset.");
+    }
+  } catch (err) {
+    console.error("Swamp background refresh error (non-fatal):", err);
+  }
+
   try {
     const swampLocations = await storage.getWorldLocations("swamp");
 
