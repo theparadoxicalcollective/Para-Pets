@@ -422,6 +422,9 @@ function WalkingPet({
   index: number;
   onClick: () => void;
 }) {
+  const [isHovered, setIsHovered] = useState(false);
+  const petVisualRef = useRef<HTMLDivElement>(null);
+
   const { data: templateData } = useQuery<{ parts: Array<{ partType: string }> }>({
     queryKey: ["/api/pet-template-parts", pet.petTemplateId],
     queryFn: async () => {
@@ -448,6 +451,42 @@ function WalkingPet({
   const sz = cfg.size;
   const shadowW = Math.round(sz * 0.52);
 
+  const checkTransparent = (e: React.MouseEvent): boolean => {
+    const container = petVisualRef.current;
+    if (!container) return false;
+    const rect = container.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    if (clickX < 0 || clickY < 0 || clickX > rect.width || clickY > rect.height) return true;
+    const canvas = document.createElement("canvas");
+    canvas.width = sz;
+    canvas.height = sz;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return false;
+    const imgs = container.querySelectorAll("img");
+    imgs.forEach(img => {
+      if (!img.complete || !img.naturalWidth) return;
+      const ir = img.getBoundingClientRect();
+      const x = (ir.left - rect.left) * (sz / rect.width);
+      const y = (ir.top - rect.top) * (sz / rect.height);
+      const w = ir.width * (sz / rect.width);
+      const h = ir.height * (sz / rect.height);
+      try { ctx.drawImage(img, x, y, w, h); } catch {}
+    });
+    const px = Math.round((clickX / rect.width) * sz);
+    const py = Math.round((clickY / rect.height) * sz);
+    try {
+      return ctx.getImageData(px, py, 1, 1).data[3] < 20;
+    } catch {
+      return false;
+    }
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (checkTransparent(e)) return;
+    onClick();
+  };
+
   const shadow = (
     <div
       style={{
@@ -460,6 +499,18 @@ function WalkingPet({
       }}
     />
   );
+
+  const hoverStyle = {
+    transform: isHovered ? "scale(1.1)" : "scale(1)",
+    transition: "transform 0.15s ease",
+  };
+
+  const hoverHandlers = {
+    onMouseEnter: () => setIsHovered(true),
+    onMouseLeave: () => setIsHovered(false),
+    onTouchStart: () => setIsHovered(true),
+    onTouchEnd: () => setIsHovered(false),
+  };
 
   return (
     <div
@@ -483,8 +534,10 @@ function WalkingPet({
           {pet.petTemplateId ? (
             <>
               <div
-                style={{ width: sz, height: sz, pointerEvents: "auto", cursor: "pointer" }}
-                onClick={onClick}
+                ref={petVisualRef}
+                style={{ width: sz, height: sz, pointerEvents: "auto", cursor: "pointer", ...hoverStyle }}
+                onClick={handleClick}
+                {...hoverHandlers}
               >
                 <PetAnimator
                   petTemplateId={pet.petTemplateId}
@@ -499,22 +552,26 @@ function WalkingPet({
             </>
           ) : petImg ? (
             <>
-              <img
-                src={petImg}
-                alt=""
-                style={{
-                  width: sz,
-                  height: sz,
-                  objectFit: "contain",
-                  cursor: "pointer",
-                  pointerEvents: "auto",
-                  filter: [
-                    `drop-shadow(0 ${Math.round(sz * 0.12)}px ${Math.round(sz * 0.15)}px rgba(0,0,0,0.6))`,
-                    "brightness(1.06) saturate(1.1)",
-                  ].join(" "),
-                }}
-                onClick={onClick}
-              />
+              <div
+                ref={petVisualRef}
+                style={{ width: sz, height: sz, pointerEvents: "auto", cursor: "pointer", ...hoverStyle }}
+                onClick={handleClick}
+                {...hoverHandlers}
+              >
+                <img
+                  src={petImg}
+                  alt=""
+                  style={{
+                    width: sz,
+                    height: sz,
+                    objectFit: "contain",
+                    filter: [
+                      `drop-shadow(0 ${Math.round(sz * 0.12)}px ${Math.round(sz * 0.15)}px rgba(0,0,0,0.6))`,
+                      "brightness(1.06) saturate(1.1)",
+                    ].join(" "),
+                  }}
+                />
+              </div>
               {shadow}
             </>
           ) : (
@@ -528,8 +585,10 @@ function WalkingPet({
                   cursor: "pointer",
                   pointerEvents: "auto",
                   filter: `drop-shadow(0 ${Math.round(sz * 0.12)}px ${Math.round(sz * 0.15)}px rgba(0,0,0,0.6))`,
+                  ...hoverStyle,
                 }}
                 onClick={onClick}
+                {...hoverHandlers}
               >
                 🐾
               </span>
