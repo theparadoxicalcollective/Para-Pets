@@ -1437,15 +1437,6 @@ export default function WorldPage({ user }: WorldPageProps) {
                       <Package className="w-8 h-8" style={{ color: `${accent}80` }} />
                     )}
                   </div>
-                  {isOwned && (
-                    <div
-                      className="absolute top-1 left-1 px-1.5 py-0.5 rounded-full font-fantasy text-[8px] tracking-wider"
-                      style={{ background: "rgba(0,0,0,0.8)", color: "#7fffd4", border: "1px solid rgba(127,255,212,0.4)" }}
-                      data-testid={`text-owned-${item.id}`}
-                    >
-                      Owned
-                    </div>
-                  )}
                 </div>
               );
             })}
