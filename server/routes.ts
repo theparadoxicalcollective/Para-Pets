@@ -2677,12 +2677,17 @@ export async function registerRoutes(
     }
   });
 
+  const ALLOWED_FISH_PART_TYPES = new Set(["body", "eyes", "tail"]);
+
   app.post("/api/admin/fish-parts/:fishItemId", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
       if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
       const { partType, imageData, posX, posY, width, height, zIndex } = req.body;
       if (!partType || !imageData) return res.status(400).json({ message: "Missing fields" });
+      if (!ALLOWED_FISH_PART_TYPES.includes(partType)) {
+        return res.status(400).json({ message: `Invalid partType. Allowed: ${ALLOWED_FISH_PART_TYPES.join(", ")}` });
+      }
       const base64Data = imageData.replace(/^data:image\/\w+;base64,/, "");
       const imageBuffer = Buffer.from(base64Data, "base64");
       const resized = await sharp(imageBuffer)
@@ -2831,6 +2836,22 @@ export async function registerRoutes(
       const user = req.user as any;
       const fish = await storage.getPlayerFishInventory(user.id);
       return res.json(fish);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/fishing/inventory/add", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { shopItemId } = req.body;
+      if (!shopItemId) return res.status(400).json({ message: "shopItemId required" });
+      const item = await storage.getShopItem(shopItemId);
+      if (!item || item.type !== "fishing" || item.fishingType !== "fish") {
+        return res.status(400).json({ message: "Item must be a fish-type fishing item" });
+      }
+      const entry = await storage.addFishToPlayerInventory(user.id, shopItemId);
+      return res.status(201).json(entry);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }

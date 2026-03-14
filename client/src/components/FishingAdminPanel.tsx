@@ -34,8 +34,7 @@ const FISH_PART_TYPES = [
   { key: "body", label: "Body", defaultZ: 1 },
   { key: "eyes", label: "Eyes", defaultZ: 3 },
   { key: "tail", label: "Tail", defaultZ: 2 },
-  { key: "fins", label: "Fins", defaultZ: 2 },
-];
+] as const;
 
 const CANVAS_SIZE = 500;
 
@@ -53,9 +52,9 @@ export default function FishingAdminPanel() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: allItems = [], isLoading } = useQuery<FishingItem[]>({
+  const { data: allItems = [], isLoading } = useQuery<FishingItem[], Error, FishingItem[]>({
     queryKey: ["/api/admin/shop-items-all"],
-    select: (data: any[]) => data.filter((i: any) => i.type === "fishing"),
+    select: (data) => (data as FishingItem[]).filter((i) => i.type === "fishing"),
   });
 
   const { data: fishParts = [] } = useQuery<FishPart[]>({
@@ -475,7 +474,17 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
     }
     setSubmitting(true);
     try {
-      const payload: any = {
+      const payload: {
+        name: string;
+        price: number;
+        type: string;
+        worldId: string;
+        fishingType: string;
+        starRarity: number | null;
+        rareCatchBoostPercent: number | null;
+        rarityBoostPercent: number | null;
+        imageData?: string;
+      } = {
         name: name.trim() || "Unnamed",
         price: parseInt(price) || 0,
         type: "fishing",

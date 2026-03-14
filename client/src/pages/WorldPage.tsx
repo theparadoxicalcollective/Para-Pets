@@ -2290,6 +2290,7 @@ interface FishingShopItem {
   imageUrl: string | null;
   starRarity: number | null;
   fishingType: string | null;
+  type: string;
 }
 
 function PondAdminModal({ locationId, accent, onClose }: { locationId: string; accent: string; onClose: () => void }) {
@@ -2306,9 +2307,9 @@ function PondAdminModal({ locationId, accent, onClose }: { locationId: string; a
     },
   });
 
-  const { data: allFishItems = [] } = useQuery<FishingShopItem[]>({
+  const { data: allFishItems = [] } = useQuery<FishingShopItem[], Error, FishingShopItem[]>({
     queryKey: ["/api/admin/shop-items-all"],
-    select: (data: any[]) => data.filter((i: any) => i.type === "fishing" && i.fishingType === "fish"),
+    select: (data) => (data as FishingShopItem[]).filter((i) => i.type === "fishing" && i.fishingType === "fish"),
     enabled: showPicker,
   });
 
