@@ -214,7 +214,7 @@ export default function HomePage({ user }: HomePageProps) {
             style={{
               pointerEvents: "none",
               zIndex: 30,
-              paddingTop: "10px",
+              paddingTop: "28px",
               marginBottom: "-52px",
             }}
           >
