@@ -1454,7 +1454,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                         alt={item.name}
                         className="w-full h-full object-contain"
                         style={{
-                          filter: "drop-shadow(0 4px 14px rgba(0,0,0,0.9)) drop-shadow(0 2px 6px rgba(0,0,0,0.7))",
+                          filter: "drop-shadow(0 0 1.5px rgba(255,220,40,1)) drop-shadow(0 0 3px rgba(255,200,0,0.5))",
                           cursor: currentUser.isAdmin ? "grab" : "pointer",
                           pointerEvents: "auto",
                         }}
