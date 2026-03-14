@@ -697,14 +697,6 @@ export default function WorldPage({ user }: WorldPageProps) {
           0%, 100% { transform: translateY(0px); }
           50% { transform: translateY(-4px); }
         }
-        @keyframes locGlow {
-          0%, 100% { opacity: 0.5; transform: scale(0.95); }
-          50% { opacity: 1; transform: scale(1.05); }
-        }
-        @keyframes locRingPulse {
-          0%, 100% { transform: scale(1); opacity: 0.3; }
-          50% { transform: scale(1.12); opacity: 0.6; }
-        }
         @keyframes worldMote {
           0% { transform: translate(0, 0) scale(0.5); opacity: 0; }
           15% { opacity: 0.8; }
@@ -854,14 +846,6 @@ export default function WorldPage({ user }: WorldPageProps) {
                       onClick={() => handleLocationClick(loc)}
                     >
                       <div className="relative w-full" style={{ aspectRatio: "1" }}>
-                        <div
-                          className="absolute inset-[-35%] rounded-full pointer-events-none"
-                          style={{
-                            background: `radial-gradient(circle, ${glow}35 0%, ${glow}18 35%, ${glow}08 60%, transparent 75%)`,
-                            animation: `locGlow ${3 + (i % 2)}s ease-in-out infinite`,
-                            animationDelay: `${i * 0.25}s`,
-                          }}
-                        />
                         {loc.iconUrl ? (
                           <img
                             src={loc.iconUrl}
@@ -869,8 +853,9 @@ export default function WorldPage({ user }: WorldPageProps) {
                             className="w-full h-full object-contain relative z-10"
                             draggable={false}
                             style={{
-                              filter: `drop-shadow(0 3px 8px rgba(0,0,0,0.6)) drop-shadow(0 0 8px ${glow}40) drop-shadow(0 0 16px ${glow}18)`,
+                              filter: "drop-shadow(0 0 1.5px rgba(80,255,130,1)) drop-shadow(0 0 4px rgba(50,200,90,0.6)) drop-shadow(0 3px 6px rgba(0,0,0,0.5))",
                               transform: loc.flipped ? "scaleX(-1)" : undefined,
+                              transition: "filter 0.15s ease, transform 0.15s ease",
                             }}
                           />
                         ) : (
@@ -878,11 +863,11 @@ export default function WorldPage({ user }: WorldPageProps) {
                             className="w-full h-full rounded-full flex items-center justify-center relative z-10"
                             style={{
                               background: `radial-gradient(circle at 40% 35%, ${glow}40, ${glow}15)`,
-                              border: `2px solid ${glow}50`,
-                              boxShadow: `inset 0 0 12px ${glow}20, 0 0 14px ${glow}25, 0 0 25px ${glow}08`,
+                              border: "1.5px solid rgba(80,255,130,0.9)",
+                              boxShadow: "0 0 4px rgba(50,200,90,0.7), 0 0 8px rgba(50,200,90,0.3)",
                             }}
                           >
-                            <MapPin className="w-7 h-7" style={{ color: glow, filter: `drop-shadow(0 0 5px ${glow}55)` }} />
+                            <MapPin className="w-7 h-7" style={{ color: "#50ff82", filter: "drop-shadow(0 0 3px rgba(80,255,130,0.8))" }} />
                           </div>
                         )}
 
