@@ -32,13 +32,15 @@ interface EnemyData {
 
 interface ExploreAdminPanelProps {
   locationId: string;
+  locationType?: string;
   accent: string;
   onClose: () => void;
   onBgUpload: (imageData: string) => void;
   bgUploading: boolean;
 }
 
-export default function ExploreAdminPanel({ locationId, accent, onClose, onBgUpload, bgUploading }: ExploreAdminPanelProps) {
+export default function ExploreAdminPanel({ locationId, locationType, accent, onClose, onBgUpload, bgUploading }: ExploreAdminPanelProps) {
+  const isBattle = locationType === "battle";
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [expandedEnemy, setExpandedEnemy] = useState<string | null>(null);
@@ -167,20 +169,37 @@ export default function ExploreAdminPanel({ locationId, accent, onClose, onBgUpl
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/85 backdrop-blur-sm" onClick={onClose} />
       <div
-        className="relative z-10 w-[92%] max-w-md rounded-lg overflow-hidden"
+        className="relative z-10 rounded-xl overflow-hidden"
         style={{
-          background: "linear-gradient(135deg, rgba(8,5,18,0.98) 0%, rgba(18,12,30,0.98) 100%)",
-          border: `1px solid ${accent}55`,
-          boxShadow: `0 0 40px ${accent}25`,
-          maxHeight: "85vh",
+          width: isBattle ? "calc(100% - 24px)" : "92%",
+          maxWidth: isBattle ? "540px" : "448px",
+          background: isBattle
+            ? "linear-gradient(160deg, rgba(10,4,4,0.99) 0%, rgba(20,6,6,0.99) 50%, rgba(10,4,4,0.99) 100%)"
+            : "linear-gradient(135deg, rgba(8,5,18,0.98) 0%, rgba(18,12,30,0.98) 100%)",
+          border: isBattle ? "1px solid rgba(220,38,38,0.45)" : `1px solid ${accent}55`,
+          boxShadow: isBattle ? "0 0 50px rgba(220,38,38,0.2), 0 0 100px rgba(220,38,38,0.08)" : `0 0 40px ${accent}25`,
+          maxHeight: "90vh",
         }}
       >
-        <div className="flex items-center justify-between px-4 pt-4 pb-2">
-          <h3 className="font-fantasy text-sm tracking-widest" style={{ color: accent, textShadow: `0 0 10px ${accent}40` }}>
-            Explore Zone Setup
-          </h3>
+        {isBattle && (
+          <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 50% 0%, rgba(220,38,38,0.08) 0%, transparent 70%)" }} />
+        )}
+        <div className="flex items-center justify-between px-5 pt-5 pb-3">
+          <div className="flex items-center gap-2.5">
+            {isBattle && <Swords className="w-5 h-5" style={{ color: "#ef4444" }} />}
+            <h3
+              className="font-fantasy tracking-widest"
+              style={{
+                fontSize: isBattle ? "15px" : "13px",
+                color: isBattle ? "#ef4444" : accent,
+                textShadow: isBattle ? "0 0 14px rgba(239,68,68,0.5)" : `0 0 10px ${accent}40`,
+              }}
+            >
+              {isBattle ? "Battle Zone Setup" : "Explore Zone Setup"}
+            </h3>
+          </div>
           <button
             data-testid="button-close-explore-admin"
             onClick={onClose}
@@ -191,22 +210,25 @@ export default function ExploreAdminPanel({ locationId, accent, onClose, onBgUpl
           </button>
         </div>
 
-        <div className="overflow-y-auto px-4 pb-4 space-y-4" style={{ maxHeight: "calc(85vh - 60px)" }}>
+        <div className="overflow-y-auto pb-4 space-y-4" style={{ maxHeight: "calc(90vh - 64px)", padding: isBattle ? "0 18px 0 18px" : "0 16px 0 16px" }}>
           <div
             className="rounded-lg p-3"
-            style={{ background: `${accent}10`, border: `1px solid ${accent}25` }}
+            style={{
+              background: isBattle ? "rgba(220,38,38,0.06)" : `${accent}10`,
+              border: isBattle ? "1px solid rgba(220,38,38,0.2)" : `1px solid ${accent}25`,
+            }}
           >
             <div className="flex items-center gap-2 mb-2">
-              <Image className="w-4 h-4" style={{ color: accent }} />
-              <h4 className="font-fantasy text-xs tracking-wider" style={{ color: accent }}>Background</h4>
+              <Image className="w-4 h-4" style={{ color: isBattle ? "#ef4444" : accent }} />
+              <h4 className="font-fantasy text-xs tracking-wider" style={{ color: isBattle ? "#ef4444" : accent }}>Background</h4>
             </div>
             <label
               data-testid="button-upload-bg"
               className="block w-full py-2 rounded-md font-fantasy text-[10px] tracking-wider text-center transition-transform active:scale-95"
               style={{
-                background: `${accent}20`,
-                border: `1px dashed ${accent}50`,
-                color: `${accent}cc`,
+                background: isBattle ? "rgba(220,38,38,0.12)" : `${accent}20`,
+                border: isBattle ? "1px dashed rgba(220,38,38,0.4)" : `1px dashed ${accent}50`,
+                color: isBattle ? "rgba(239,68,68,0.9)" : `${accent}cc`,
                 cursor: bgUploading ? "wait" : "pointer",
               }}
             >
@@ -228,21 +250,39 @@ export default function ExploreAdminPanel({ locationId, accent, onClose, onBgUpl
           </div>
 
           <div
-            className="rounded-lg p-3"
-            style={{ background: `${accent}10`, border: `1px solid ${accent}25` }}
+            className="rounded-lg"
+            style={{
+              background: isBattle ? "rgba(220,38,38,0.05)" : `${accent}10`,
+              border: isBattle ? "1px solid rgba(220,38,38,0.25)" : `1px solid ${accent}25`,
+              padding: isBattle ? "14px" : "12px",
+            }}
           >
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <Swords className="w-4 h-4" style={{ color: accent }} />
-                <h4 className="font-fantasy text-xs tracking-wider" style={{ color: accent }}>Enemies ({enemies.length})</h4>
+                <Swords className="w-4 h-4" style={{ color: isBattle ? "#ef4444" : accent }} />
+                <h4
+                  className="font-fantasy tracking-wider"
+                  style={{
+                    fontSize: isBattle ? "13px" : "12px",
+                    color: isBattle ? "#ef4444" : accent,
+                  }}
+                >
+                  Enemies ({enemies.length})
+                </h4>
               </div>
               <button
                 data-testid="button-add-enemy"
                 onClick={() => setShowAddEnemy(true)}
-                className="w-7 h-7 rounded-full flex items-center justify-center"
-                style={{ background: `${accent}30`, border: `1px solid ${accent}50`, cursor: "pointer", color: accent }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full font-fantasy text-[10px] tracking-wider transition-transform active:scale-95"
+                style={{
+                  background: isBattle ? "rgba(220,38,38,0.25)" : `${accent}30`,
+                  border: isBattle ? "1px solid rgba(220,38,38,0.5)" : `1px solid ${accent}50`,
+                  cursor: "pointer",
+                  color: isBattle ? "#ff6666" : accent,
+                }}
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-3.5 h-3.5" />
+                {isBattle ? "Add Enemy" : ""}
               </button>
             </div>
 
@@ -257,32 +297,60 @@ export default function ExploreAdminPanel({ locationId, accent, onClose, onBgUpl
                     key={enemy.id}
                     data-testid={`card-enemy-${enemy.id}`}
                     className="rounded-md overflow-hidden"
-                    style={{ background: "rgba(0,0,0,0.3)", border: `1px solid ${accent}20` }}
+                    style={{
+                      background: isBattle ? "rgba(30,4,4,0.6)" : "rgba(0,0,0,0.3)",
+                      border: isBattle ? "1px solid rgba(220,38,38,0.22)" : `1px solid ${accent}20`,
+                    }}
                   >
                     <div
-                      className="flex items-center gap-2 p-2 cursor-pointer"
+                      className="flex items-center gap-3 cursor-pointer"
+                      style={{ padding: isBattle ? "10px 12px" : "8px" }}
                       onClick={() => setExpandedEnemy(expandedEnemy === enemy.id ? null : enemy.id)}
                     >
                       {enemy.imageUrl ? (
-                        <img src={enemy.imageUrl} alt="" className="w-10 h-10 rounded-md object-contain" style={{ border: `1px solid ${accent}30` }} />
+                        <img
+                          src={enemy.imageUrl}
+                          alt=""
+                          className="rounded-md object-contain flex-shrink-0"
+                          style={{
+                            width: isBattle ? 52 : 40,
+                            height: isBattle ? 52 : 40,
+                            border: isBattle ? "1px solid rgba(220,38,38,0.3)" : `1px solid ${accent}30`,
+                            background: "rgba(0,0,0,0.4)",
+                          }}
+                        />
                       ) : (
-                        <div className="w-10 h-10 rounded-md flex items-center justify-center" style={{ background: `${accent}15`, border: `1px solid ${accent}30` }}>
-                          <Swords className="w-5 h-5" style={{ color: `${accent}60` }} />
+                        <div
+                          className="rounded-md flex items-center justify-center flex-shrink-0"
+                          style={{
+                            width: isBattle ? 52 : 40,
+                            height: isBattle ? 52 : 40,
+                            background: isBattle ? "rgba(220,38,38,0.1)" : `${accent}15`,
+                            border: isBattle ? "1px solid rgba(220,38,38,0.3)" : `1px solid ${accent}30`,
+                          }}
+                        >
+                          <Swords className="w-5 h-5" style={{ color: isBattle ? "#ef4444" : `${accent}60` }} />
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="font-fantasy text-[11px] tracking-wider truncate" style={{ color: `${accent}dd` }}>
+                        <p
+                          className="font-fantasy tracking-wider truncate"
+                          style={{
+                            fontSize: isBattle ? "12px" : "11px",
+                            color: isBattle ? "#fca5a5" : `${accent}dd`,
+                          }}
+                        >
                           {enemy.name}
                           {enemy.isBoss && (
-                            <span className="ml-1 px-1.5 py-0.5 rounded text-[7px] font-bold tracking-widest" style={{ background: "rgba(220,38,38,0.3)", border: "1px solid rgba(220,38,38,0.5)", color: "#ff6666" }}>BOSS</span>
+                            <span className="ml-1.5 px-1.5 py-0.5 rounded text-[7px] font-bold tracking-widest" style={{ background: "rgba(220,38,38,0.35)", border: "1px solid rgba(220,38,38,0.55)", color: "#ff6666" }}>BOSS</span>
                           )}
                         </p>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 mt-0.5">
                           <div className="flex items-center gap-1">
                             <img src={coinIconImg} alt="" className="w-3 h-3" />
-                            <span className="font-fantasy text-[9px]" style={{ color: "#f0c040" }}>{enemy.coinReward}</span>
+                            <span className="font-fantasy text-[10px]" style={{ color: "#f0c040" }}>{enemy.coinReward}</span>
                           </div>
-                          <span className="font-fantasy text-[9px]" style={{ color: `${accent}66` }}>{enemy.drops.length} drop{enemy.drops.length !== 1 ? "s" : ""}</span>
+                          <span className="font-fantasy text-[9px]" style={{ color: isBattle ? "rgba(220,38,38,0.5)" : `${accent}66` }}>{enemy.drops.length} drop{enemy.drops.length !== 1 ? "s" : ""}</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-1">

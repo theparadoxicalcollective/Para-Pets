@@ -1802,19 +1802,21 @@ export default function WorldPage({ user }: WorldPageProps) {
                       )}
                     </>
                   )}
-                  <button
-                    data-testid="button-add-object"
-                    onClick={() => setShowAddObject(true)}
-                    className="w-12 h-12 rounded-full flex items-center justify-center transition-transform active:scale-90"
-                    style={{
-                      background: `linear-gradient(135deg, ${accent}cc 0%, ${accent}88 100%)`,
-                      border: `2px solid ${accent}`,
-                      boxShadow: `0 4px 20px ${accent}50`,
-                      cursor: "pointer",
-                    }}
-                  >
-                    <Plus className="w-6 h-6 text-black" />
-                  </button>
+                  {activeLoc.type !== "battle" && (
+                    <button
+                      data-testid="button-add-object"
+                      onClick={() => setShowAddObject(true)}
+                      className="w-12 h-12 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                      style={{
+                        background: `linear-gradient(135deg, ${accent}cc 0%, ${accent}88 100%)`,
+                        border: `2px solid ${accent}`,
+                        boxShadow: `0 4px 20px ${accent}50`,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <Plus className="w-6 h-6 text-black" />
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -1933,6 +1935,7 @@ export default function WorldPage({ user }: WorldPageProps) {
       {showExploreAdmin && activeLocationId && (
         <ExploreAdminPanel
           locationId={activeLocationId}
+          locationType={locations.find(l => l.id === activeLocationId)?.type || "explore"}
           accent={accent}
           onClose={() => setShowExploreAdmin(false)}
           bgUploading={bgUploading}
