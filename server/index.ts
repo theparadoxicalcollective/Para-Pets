@@ -16,6 +16,7 @@ import fs from "fs";
 import path from "path";
 
 const app = express();
+app.set('trust proxy', 1);
 const httpServer = createServer(app);
 const PgSession = connectPgSimple(session);
 
@@ -76,7 +77,8 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       maxAge: 30 * 24 * 60 * 60 * 1000,
     },
   })
