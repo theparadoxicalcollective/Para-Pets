@@ -60,6 +60,7 @@ interface CaughtFish {
   id: string;
   shopItemId: string;
   caughtAt: string;
+  item: ShopItem | null;
 }
 
 type FishingPhase = "idle" | "casting" | "waiting" | "nibble" | "reeling" | "caught" | "missed";
@@ -418,7 +419,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       </div>
 
       {phase === "casting" && equipData?.poleItem?.imageUrl && (
-        <div className="absolute pointer-events-none z-15" style={{
+        <div className="absolute pointer-events-none z-[15]" style={{
           bottom: "38%", left: "28%",
           width: 80, height: 80,
           animation: "poleCast 1s ease-in-out forwards",
@@ -431,7 +432,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       )}
 
       {(phase === "waiting" || phase === "nibble") && equipData?.poleItem?.imageUrl && (
-        <div className="absolute pointer-events-none z-15" style={{
+        <div className="absolute pointer-events-none z-[15]" style={{
           bottom: "42%", left: "22%",
           width: 80, height: 80,
           transform: "rotate(-30deg)",
@@ -569,8 +570,6 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       {showFishInv && (
         <FishInventoryPanel
           fishInventory={fishInventory}
-          allFishItems={allFishItems}
-          pondFish={pondFish}
           onClose={() => setShowFishInv(false)}
         />
       )}
@@ -643,7 +642,7 @@ function EquipPanel({
   onClose: () => void;
 }) {
   return (
-    <div className="absolute bottom-[140px] left-4 right-4 z-25 rounded-xl overflow-hidden" style={{
+    <div className="absolute bottom-[140px] left-4 right-4 z-[25] rounded-xl overflow-hidden" style={{
       background: "rgba(5,20,15,0.95)",
       border: `1px solid ${ACCENT}40`,
       backdropFilter: "blur(8px)",
@@ -701,33 +700,23 @@ function EquipPanel({
 }
 
 function FishInventoryPanel({
-  fishInventory, allFishItems, pondFish, onClose,
+  fishInventory, onClose,
 }: {
   fishInventory: CaughtFish[];
-  allFishItems: ShopItem[];
-  pondFish: PondFishEntry[];
   onClose: () => void;
 }) {
-  const fishItemMap = new Map<string, ShopItem>();
-  for (const pf of pondFish) {
-    if (pf.item) fishItemMap.set(pf.shopItemId, pf.item);
-  }
-  for (const fi of allFishItems) {
-    fishItemMap.set(fi.id, fi);
-  }
-
-  const grouped = new Map<string, { item: ShopItem | undefined; count: number }>();
+  const grouped = new Map<string, { item: ShopItem | null; count: number }>();
   for (const cf of fishInventory) {
     const existing = grouped.get(cf.shopItemId);
     if (existing) {
       existing.count++;
     } else {
-      grouped.set(cf.shopItemId, { item: fishItemMap.get(cf.shopItemId), count: 1 });
+      grouped.set(cf.shopItemId, { item: cf.item, count: 1 });
     }
   }
 
   return (
-    <div className="absolute bottom-[140px] left-4 right-4 z-25 rounded-xl overflow-hidden" style={{
+    <div className="absolute bottom-[140px] left-4 right-4 z-[25] rounded-xl overflow-hidden" style={{
       background: "rgba(5,20,15,0.95)",
       border: `1px solid ${ACCENT}40`,
       backdropFilter: "blur(8px)",
