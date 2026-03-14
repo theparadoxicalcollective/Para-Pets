@@ -652,7 +652,10 @@ export async function registerRoutes(
         const elapsed = Date.now() - new Date(invItem.hatchStartedAt).getTime();
         const required = shopItem.hatchTime * 3600000;
         if (elapsed >= required) {
-          await storage.updateInventoryItem(invItem.id, { isHatched: true });
+          await storage.updateInventoryItem(invItem.id, {
+            isHatched: true,
+            petLevel: Math.max(1, invItem.petLevel || 0),
+          });
           return res.json({ isHatched: true });
         }
       }
@@ -897,7 +900,7 @@ export async function registerRoutes(
         petHealth: 1000,
         petAtk: 50,
         petDef: 50,
-        petLevel: 0,
+        petLevel: 1,
         petLevelPoints: 0,
         itemsUsedThisLevel: 0,
       });
