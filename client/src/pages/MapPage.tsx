@@ -663,29 +663,6 @@ export default function MapPage({ user }: MapPageProps) {
                 )}
               </div>
 
-              <div>
-                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: "#9088b0" }}>Background Image (PNG or GIF)</label>
-                <input
-                  data-testid="input-world-bg"
-                  type="file"
-                  accept="image/png,image/gif,image/jpeg"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      const dataUrl = await readFileAsDataUrl(file);
-                      setNewWorldBg(dataUrl);
-                    }
-                  }}
-                  className="w-full text-xs font-fantasy"
-                  style={{ color: "#c0b8d0" }}
-                />
-                {newWorldBg && (
-                  <div className="mt-2 flex justify-center">
-                    <img src={newWorldBg} alt="Preview" className="w-full h-24 object-cover rounded-lg" style={{ border: "1px solid rgba(140,120,200,0.3)" }} />
-                  </div>
-                )}
-              </div>
-
               <button
                 data-testid="button-submit-add-world"
                 onClick={() => {
@@ -797,29 +774,6 @@ export default function MapPage({ user }: MapPageProps) {
                   <div className="mt-2 flex justify-center">
                     <img src={getWorldIcon(editingWorld) || editingWorld.iconUrl || ""} alt="Current" className="w-16 h-16 object-contain rounded-lg opacity-60" style={{ border: "1px solid rgba(140,120,200,0.2)" }} />
                     <span className="font-fantasy text-[9px] self-center ml-2" style={{ color: "#9088b0" }}>Current icon</span>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: "#9088b0" }}>Replace Background (PNG/GIF/JPEG)</label>
-                <input
-                  data-testid="input-edit-world-bg"
-                  type="file"
-                  accept="image/png,image/gif,image/jpeg"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      const dataUrl = await readFileAsDataUrl(file);
-                      setEditBg(dataUrl);
-                    }
-                  }}
-                  className="w-full text-xs font-fantasy"
-                  style={{ color: "#c0b8d0" }}
-                />
-                {editBg && (
-                  <div className="mt-2 flex justify-center">
-                    <img src={editBg} alt="Preview" className="w-full h-24 object-cover rounded-lg" style={{ border: "1px solid rgba(140,120,200,0.3)" }} />
                   </div>
                 )}
               </div>
