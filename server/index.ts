@@ -292,6 +292,12 @@ app.use((req, res, next) => {
       } as any);
       console.log("Mire Bazaar migration complete");
     }
+    // Always refresh Mire Bazaar background from asset
+    const mireBazaarBg = loadAssetBase64("bg_mire_bazaar.png");
+    if (mireBazaarBg) {
+      await storage.updateWorldLocation(SHOP_ID, { bgUrl: mireBazaarBg } as any);
+      console.log("Mire Bazaar background refreshed.");
+    }
 
     const NEW_SWAMP_LOCATIONS = [
       {
