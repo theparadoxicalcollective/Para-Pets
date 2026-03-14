@@ -402,6 +402,21 @@ export default function WorldPage({ user }: WorldPageProps) {
     },
   });
 
+  const resetBgMutation = useMutation({
+    mutationFn: async (locationId: string) => {
+      const res = await apiRequest("POST", `/api/admin/world/location/${locationId}/reset-bg`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "locations"] });
+      setEditingLocation(null);
+      toast({ title: "Background Reset", description: "Restored to original generated background" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to reset background", variant: "destructive" });
+    },
+  });
+
   const positionMutation = useMutation({
     mutationFn: async ({ locationId, posX, posY }: { locationId: string; posX: number; posY: number }) => {
       const res = await apiRequest("PATCH", `/api/admin/world/location/${locationId}/position`, { posX, posY });
@@ -1225,6 +1240,19 @@ export default function WorldPage({ user }: WorldPageProps) {
                       <img src={editLocBg} alt="Preview" className="w-full h-16 object-cover rounded-lg" style={{ border: `1px solid ${accent}30` }} />
                     </div>
                   )}
+                  <button
+                    data-testid="button-reset-location-bg"
+                    onClick={() => {
+                      if (confirm("Reset background to the original generated image?")) {
+                        resetBgMutation.mutate(editingLocation.id);
+                      }
+                    }}
+                    disabled={resetBgMutation.isPending}
+                    className="mt-2 w-full py-1.5 rounded-md font-fantasy text-[11px] tracking-wider transition-transform active:scale-95 disabled:opacity-50"
+                    style={{ background: "rgba(220,38,38,0.12)", border: "1px solid rgba(220,38,38,0.35)", color: "#f87171", cursor: "pointer" }}
+                  >
+                    {resetBgMutation.isPending ? "Resetting..." : "Reset to Original Background"}
+                  </button>
                 </div>
               )}
 

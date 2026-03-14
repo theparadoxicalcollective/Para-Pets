@@ -3,6 +3,8 @@ import { createServer, type Server } from "http";
 import passport from "passport";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import fs from "fs";
+import path from "path";
 import { storage } from "./storage";
 import { insertUserSchema, updateUsernameSchema, insertShopItemSchema } from "@shared/schema";
 import sharp from "sharp";
@@ -1535,6 +1537,39 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Update world location error:", err);
       return res.status(500).json({ message: "Failed to update location" });
+    }
+  });
+
+  const LOCATION_DEFAULT_BG: Record<string, string> = {
+    "a1b2c3d4-0001-4000-8000-000000000001": "bg_murk_cave.png",
+    "a1b2c3d4-0002-4000-8000-000000000002": "bg_willowmere_cottage.png",
+    "a1b2c3d4-0003-4000-8000-000000000003": "bg_mosswood_lodge.png",
+    "a1b2c3d4-0004-4000-8000-000000000004": "bg_tome_toad.png",
+    "a1b2c3d4-0005-4000-8000-000000000005": "bg_swamp_critters.png",
+    "a1b2c3d4-0006-4000-8000-000000000006": "bg_mossy_cauldron.png",
+    "a1b2c3d4-0007-4000-8000-000000000007": "bg_myst_pond.png",
+    "3e20ad30-faff-4643-9e80-5e5f30010738": "bg_thicket.png",
+  };
+
+  app.post("/api/admin/world/location/:locationId/reset-bg", isAdmin, async (req, res) => {
+    try {
+      const { locationId } = req.params;
+      const bgFile = LOCATION_DEFAULT_BG[locationId];
+      if (!bgFile) {
+        return res.status(404).json({ message: "No default background found for this location" });
+      }
+      const assetPath = path.join(process.cwd(), "attached_assets", bgFile);
+      if (!fs.existsSync(assetPath)) {
+        return res.status(404).json({ message: "Default background file not found on disk" });
+      }
+      const buf = fs.readFileSync(assetPath);
+      const dataUrl = `data:image/png;base64,${buf.toString("base64")}`;
+      const bgUrl = await processWorldImage(dataUrl, 2000);
+      const updated = await storage.updateWorldLocation(locationId, { bgUrl });
+      return res.json(updated);
+    } catch (err) {
+      console.error("Reset location bg error:", err);
+      return res.status(500).json({ message: "Failed to reset background" });
     }
   });
 
