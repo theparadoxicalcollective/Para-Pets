@@ -46,21 +46,21 @@ interface EdibleItem {
 }
 
 const WALK_CONFIGS = [
-  { wanderIdx: 0, left: "4%",  top: "88%", size: 118, duration: "38s", delay: "0s"   },
-  { wanderIdx: 1, left: "58%", top: "83%", size: 102, duration: "42s", delay: "5s"   },
-  { wanderIdx: 2, left: "20%", top: "74%", size: 88,  duration: "36s", delay: "11s"  },
-  { wanderIdx: 3, left: "52%", top: "65%", size: 76,  duration: "44s", delay: "2s"   },
-  { wanderIdx: 4, left: "34%", top: "57%", size: 66,  duration: "40s", delay: "16s"  },
-  { wanderIdx: 5, left: "40%", top: "79%", size: 94,  duration: "45s", delay: "8s"   },
+  { wanderIdx: 0, left: "4%",  top: "88%", size: 175, duration: "38s", delay: "0s"   },
+  { wanderIdx: 1, left: "58%", top: "83%", size: 152, duration: "42s", delay: "5s"   },
+  { wanderIdx: 2, left: "20%", top: "74%", size: 130, duration: "36s", delay: "11s"  },
+  { wanderIdx: 3, left: "52%", top: "65%", size: 115, duration: "44s", delay: "2s"   },
+  { wanderIdx: 4, left: "34%", top: "57%", size: 100, duration: "40s", delay: "16s"  },
+  { wanderIdx: 5, left: "40%", top: "79%", size: 140, duration: "45s", delay: "8s"   },
 ];
 
 const GROUND_WALK_CONFIGS = [
-  { wanderIdx: 0, left: "4%",  top: "91%", size: 118, duration: "38s", delay: "0s"   },
-  { wanderIdx: 1, left: "58%", top: "91%", size: 102, duration: "42s", delay: "5s"   },
-  { wanderIdx: 2, left: "20%", top: "89%", size: 88,  duration: "36s", delay: "11s"  },
-  { wanderIdx: 3, left: "52%", top: "89%", size: 76,  duration: "44s", delay: "2s"   },
-  { wanderIdx: 4, left: "34%", top: "89%", size: 66,  duration: "40s", delay: "16s"  },
-  { wanderIdx: 5, left: "40%", top: "91%", size: 94,  duration: "45s", delay: "8s"   },
+  { wanderIdx: 0, left: "4%",  top: "91%", size: 175, duration: "38s", delay: "0s"   },
+  { wanderIdx: 1, left: "58%", top: "91%", size: 152, duration: "42s", delay: "5s"   },
+  { wanderIdx: 2, left: "20%", top: "89%", size: 130, duration: "36s", delay: "11s"  },
+  { wanderIdx: 3, left: "52%", top: "89%", size: 115, duration: "44s", delay: "2s"   },
+  { wanderIdx: 4, left: "34%", top: "89%", size: 100, duration: "40s", delay: "16s"  },
+  { wanderIdx: 5, left: "40%", top: "91%", size: 140, duration: "45s", delay: "8s"   },
 ];
 
 export default function PetHousePage({ user }: PetHousePageProps) {
