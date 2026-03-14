@@ -1459,10 +1459,22 @@ export async function registerRoutes(
   app.get("/api/world/:worldId/locations", isAuthenticated, async (req, res) => {
     try {
       const locations = await storage.getWorldLocations(req.params.worldId);
-      return res.json(locations);
+      const slim = locations.map(({ bgUrl, ...rest }) => rest);
+      return res.json(slim);
     } catch (err) {
       console.error("Get world locations error:", err);
       return res.status(500).json({ message: "Failed to get locations" });
+    }
+  });
+
+  app.get("/api/location/:locationId", isAuthenticated, async (req, res) => {
+    try {
+      const loc = await storage.getWorldLocation(req.params.locationId);
+      if (!loc) return res.status(404).json({ message: "Location not found" });
+      return res.json(loc);
+    } catch (err) {
+      console.error("Get location error:", err);
+      return res.status(500).json({ message: "Failed to get location" });
     }
   });
 

@@ -73,6 +73,7 @@ export interface IStorage {
   getCoinPurchaseBySessionId(stripeSessionId: string): Promise<CoinPurchase | undefined>;
   getDailyPurchaseTotal(userId: string): Promise<number>;
   getWorldLocations(worldId: string): Promise<WorldLocation[]>;
+  getWorldLocation(id: string): Promise<WorldLocation | undefined>;
   createWorldLocation(data: Partial<WorldLocation> & { worldId: string; name: string; type: string }): Promise<WorldLocation>;
   updateWorldLocation(id: string, data: Partial<WorldLocation>): Promise<WorldLocation>;
   flipWorldLocation(id: string): Promise<WorldLocation>;
@@ -387,6 +388,11 @@ export class DatabaseStorage implements IStorage {
 
   async getWorldLocations(worldId: string): Promise<WorldLocation[]> {
     return db.select().from(worldLocations).where(eq(worldLocations.worldId, worldId)).orderBy(asc(worldLocations.sortOrder));
+  }
+
+  async getWorldLocation(id: string): Promise<WorldLocation | undefined> {
+    const [loc] = await db.select().from(worldLocations).where(eq(worldLocations.id, id));
+    return loc;
   }
 
   async createWorldLocation(data: Partial<WorldLocation> & { worldId: string; name: string; type: string }): Promise<WorldLocation> {

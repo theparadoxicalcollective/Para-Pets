@@ -216,6 +216,26 @@ export default function WorldPage({ user }: WorldPageProps) {
     },
   });
 
+  const { data: activeLocDetail } = useQuery<WorldLocationData>({
+    queryKey: ["/api/location", activeLocationId],
+    queryFn: async () => {
+      const res = await fetch(`/api/location/${activeLocationId}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch location");
+      return res.json();
+    },
+    enabled: !!activeLocationId,
+  });
+
+  const { data: battleLocDetail } = useQuery<WorldLocationData>({
+    queryKey: ["/api/location", battleLocationId],
+    queryFn: async () => {
+      const res = await fetch(`/api/location/${battleLocationId}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch location");
+      return res.json();
+    },
+    enabled: !!battleLocationId,
+  });
+
   const { data: items = [], isLoading: itemsLoading } = useQuery<ShopItem[]>({
     queryKey: ["/api/location", activeLocationId, "items"],
     queryFn: async () => {
@@ -1285,7 +1305,7 @@ export default function WorldPage({ user }: WorldPageProps) {
         return (
         <div className="fixed inset-0 z-40" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
           {/* Full-screen shop background — use location's own bg if available */}
-          <img src={activeLoc?.bgUrl || bgShopMystical} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          <img src={activeLocDetail?.bgUrl || bgShopMystical} alt="" className="absolute inset-0 w-full h-full object-cover" />
           <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 72%, rgba(0,0,0,0.5) 100%)" }} />
           {/* Header */}
           <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 pt-5 pb-3">
@@ -1662,8 +1682,8 @@ export default function WorldPage({ user }: WorldPageProps) {
             <div className="fixed inset-0 z-40 flex flex-col" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
               {/* Top banner: bg image preview */}
               <div className="relative flex-shrink-0" style={{ height: "210px" }}>
-                {activeLoc.bgUrl ? (
-                  <img src={activeLoc.bgUrl} alt="" className="w-full h-full object-cover" />
+                {activeLocDetail?.bgUrl ? (
+                  <img src={activeLocDetail.bgUrl} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full" style={{ background: "linear-gradient(180deg, rgba(20,4,4,1) 0%, rgba(40,8,8,1) 100%)" }} />
                 )}
@@ -1770,8 +1790,8 @@ export default function WorldPage({ user }: WorldPageProps) {
         return (
         <div className="fixed inset-0 z-40 flex flex-col" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
           <div className="absolute inset-0">
-            {activeLoc.bgUrl ? (
-              <img src={activeLoc.bgUrl} alt="" className="w-full h-full object-cover" />
+            {activeLocDetail?.bgUrl ? (
+              <img src={activeLocDetail.bgUrl} alt="" className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full" style={{ background: `linear-gradient(180deg, rgba(5,3,15,1) 0%, rgba(15,10,30,1) 50%, rgba(5,3,15,1) 100%)` }} />
             )}
@@ -2113,7 +2133,7 @@ export default function WorldPage({ user }: WorldPageProps) {
           <BattleArena
             locationId={battleLocationId}
             locationName={battleLoc.name}
-            bgUrl={battleLoc.bgUrl}
+            bgUrl={battleLocDetail?.bgUrl ?? null}
             accent={accent}
             onClose={() => {
               setShowBattle(false);
