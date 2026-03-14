@@ -1439,7 +1439,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                     position: "absolute",
                     left: `${posX}%`,
                     top: `${posY}%`,
-                    width: `${item.shopWidth}px`,
+                    width: `${item.shopWidth}%`,
                     transform: "translate(-50%, -50%)",
                     touchAction: "none",
                     zIndex: isDragging ? 30 : 10 + Math.round(posY),
@@ -1447,17 +1447,46 @@ export default function WorldPage({ user }: WorldPageProps) {
                   }}
                 >
                   {currentUser.isAdmin && (
-                    <button
-                      data-testid={`button-unassign-item-${item.id}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (activeLocationId) unassignItemMutation.mutate({ locationId: activeLocationId, itemId: item.id });
-                      }}
-                      className="absolute -top-2 -right-2 z-20 w-5 h-5 rounded-full flex items-center justify-center"
-                      style={{ background: "rgba(220,38,38,0.95)", border: "1px solid rgba(255,100,100,0.6)", cursor: "pointer", pointerEvents: "auto" }}
-                    >
-                      <X className="w-3 h-3 text-white" />
-                    </button>
+                    <>
+                      <button
+                        data-testid={`button-unassign-item-${item.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (activeLocationId) unassignItemMutation.mutate({ locationId: activeLocationId, itemId: item.id });
+                        }}
+                        className="absolute -top-2 -right-2 z-20 w-5 h-5 rounded-full flex items-center justify-center"
+                        style={{ background: "rgba(220,38,38,0.95)", border: "1px solid rgba(255,100,100,0.6)", cursor: "pointer", pointerEvents: "auto" }}
+                      >
+                        <X className="w-3 h-3 text-white" />
+                      </button>
+                      <div
+                        className="absolute -bottom-5 left-1/2 flex items-center gap-0.5 z-20"
+                        style={{ transform: "translateX(-50%)", pointerEvents: "auto" }}
+                      >
+                        <button
+                          data-testid={`button-shrink-item-${item.id}`}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const newWidth = Math.max(2, parseFloat((item.shopWidth - 1).toFixed(2)));
+                            shopItemPositionMutation.mutate({ itemId: item.id, posX: item.shopPosX, posY: item.shopPosY, width: newWidth });
+                          }}
+                          className="w-4 h-4 rounded-full flex items-center justify-center text-white font-bold leading-none"
+                          style={{ background: "rgba(0,0,0,0.75)", border: `1px solid ${accent}50`, fontSize: 10, cursor: "pointer" }}
+                        >−</button>
+                        <button
+                          data-testid={`button-grow-item-${item.id}`}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const newWidth = Math.min(60, parseFloat((item.shopWidth + 1).toFixed(2)));
+                            shopItemPositionMutation.mutate({ itemId: item.id, posX: item.shopPosX, posY: item.shopPosY, width: newWidth });
+                          }}
+                          className="w-4 h-4 rounded-full flex items-center justify-center text-white font-bold leading-none"
+                          style={{ background: "rgba(0,0,0,0.75)", border: `1px solid ${accent}50`, fontSize: 10, cursor: "pointer" }}
+                        >+</button>
+                      </div>
+                    </>
                   )}
                   <div
                     className="w-full flex items-center justify-center"
@@ -1519,7 +1548,7 @@ export default function WorldPage({ user }: WorldPageProps) {
           {currentUser.isAdmin && items.length > 0 && (
             <div className="absolute bottom-4 right-4 z-20 pointer-events-none">
               <p className="font-fantasy text-[9px] tracking-wider px-2 py-1 rounded" style={{ background: "rgba(0,0,0,0.65)", color: `${accent}70`, border: `1px solid ${accent}20` }}>
-                Drag to reposition
+                Drag to reposition · −/+ to resize
               </p>
             </div>
           )}

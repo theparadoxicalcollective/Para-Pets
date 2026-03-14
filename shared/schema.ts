@@ -46,7 +46,7 @@ export const shopItems = pgTable("shop_items", {
   specialAmount: integer("special_amount"),
   shopPosX: real("shop_pos_x").notNull().default(50),
   shopPosY: real("shop_pos_y").notNull().default(50),
-  shopWidth: integer("shop_width").notNull().default(72),
+  shopWidth: real("shop_width").notNull().default(9.375),
   fishingType: text("fishing_type"),
   rareCatchBoostPercent: integer("rare_catch_boost_percent"),
   rarityBoostPercent: integer("rarity_boost_percent"),
