@@ -407,7 +407,7 @@ export default function HomePage({ user }: HomePageProps) {
             {activePet.isHatched ? (
               <div className="w-52 mb-2">
                 {(() => {
-                  const needed = 50 + (activePet.petLevel * 10);
+                  const needed = Math.floor(100 + activePet.petLevel * 30 + activePet.petLevel * activePet.petLevel * 5);
                   const current = activePet.petLevelPoints || 0;
                   const pct = Math.min(100, (current / needed) * 100);
                   return (

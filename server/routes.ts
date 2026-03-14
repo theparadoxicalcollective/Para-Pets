@@ -723,7 +723,7 @@ export async function registerRoutes(
         let totalPoints = (petInv.petLevelPoints || 0) + boostAmount;
         let newLevel = petInv.petLevel;
         while (newLevel < 100) {
-          const needed = 50 + (newLevel * 10);
+          const needed = Math.floor(100 + newLevel * 30 + newLevel * newLevel * 5);
           if (totalPoints < needed) break;
           totalPoints -= needed;
           newLevel++;
@@ -794,7 +794,7 @@ export async function registerRoutes(
         let totalPoints = (petInv.petLevelPoints || 0) + specialAmount;
         let newLevel = petInv.petLevel;
         while (newLevel < 100) {
-          const needed = 50 + (newLevel * 10);
+          const needed = Math.floor(100 + newLevel * 30 + newLevel * newLevel * 5);
           if (totalPoints < needed) break;
           totalPoints -= needed;
           newLevel++;
@@ -849,7 +849,7 @@ export async function registerRoutes(
       let totalPoints = (petInv.petLevelPoints || 0) + lvlPoints;
       let newLevel = petInv.petLevel;
       while (newLevel < 100) {
-        const needed = 50 + (newLevel * 10);
+        const needed = Math.floor(100 + newLevel * 30 + newLevel * newLevel * 5);
         if (totalPoints < needed) break;
         totalPoints -= needed;
         newLevel++;
@@ -2216,7 +2216,7 @@ export async function registerRoutes(
       let totalPoints = (activePet.petLevelPoints || 0) + lvlPointsEarned;
       let newLevel = activePet.petLevel;
       while (newLevel < 100) {
-        const needed = 50 + (newLevel * 10);
+        const needed = Math.floor(100 + newLevel * 30 + newLevel * newLevel * 5);
         if (totalPoints < needed) break;
         totalPoints -= needed;
         newLevel++;
@@ -2258,7 +2258,7 @@ export async function registerRoutes(
         lvlPointsEarned,
         newLevel,
         newLevelPoints: totalPoints,
-        pointsNeeded: 50 + (newLevel * 10),
+        pointsNeeded: Math.floor(100 + newLevel * 30 + newLevel * newLevel * 5),
         levelsGained: newLevel - activePet.petLevel,
         coinsAwarded,
         droppedItems,

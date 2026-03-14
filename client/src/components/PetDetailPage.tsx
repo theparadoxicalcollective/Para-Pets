@@ -285,7 +285,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
               <span className="font-fantasy text-[#f0c040] text-lg font-bold" data-testid="text-pet-level">{pet.petLevel}</span>
             </div>
             {pet.petLevel < 100 && (() => {
-              const needed = 50 + (pet.petLevel * 10);
+              const needed = Math.floor(100 + pet.petLevel * 30 + pet.petLevel * pet.petLevel * 5);
               const current = pet.petLevelPoints || 0;
               const pct = Math.min(100, (current / needed) * 100);
               return (
@@ -470,7 +470,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                 </button>
               </div>
               {(() => {
-                const needed = 50 + (pet.petLevel * 10);
+                const needed = Math.floor(100 + pet.petLevel * 30 + pet.petLevel * pet.petLevel * 5);
                 const current = pet.petLevelPoints || 0;
                 const pct = Math.min(100, (current / needed) * 100);
                 return (
