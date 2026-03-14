@@ -121,7 +121,9 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       const res = await fetch("/api/inventory", { credentials: "include" });
       if (!res.ok) return { petTemplateId: null };
       const inv = await res.json();
-      const active = inv.find((i: InventoryItem & { petTemplateId?: string }) => i.inventoryId === user.activePetId);
+      const active = inv.find((i: InventoryItem & { petTemplateId?: string; isHatched?: boolean }) =>
+        i.shopItemId === user.activePetId && i.type === "pet"
+      );
       return { petTemplateId: active?.petTemplateId || null };
     },
     staleTime: 30000,
@@ -204,7 +206,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   const { data: allFishItems = [] } = useQuery<ShopItem[]>({
     queryKey: ["/api/admin/fish-items"],
     queryFn: async () => {
-      const res = await fetch("/api/shop-items", { credentials: "include" });
+      const res = await fetch("/api/admin/shop-items-all", { credentials: "include" });
       if (!res.ok) return [];
       const items: ShopItem[] = await res.json();
       return items.filter(i => i.type === "fishing" && i.fishingType === "fish");
@@ -274,8 +276,12 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         const greenMin = center - GREEN_ZONE_SIZE / 2;
         const greenMax = center + GREEN_ZONE_SIZE / 2;
         const inGreen = finalPos >= greenMin && finalPos <= greenMax;
-        const score = inGreen ? Math.round(70 + Math.random() * 30) : Math.round(Math.random() * 30);
-        catchMutation.mutate(score);
+        if (inGreen) {
+          const score = Math.round(70 + Math.random() * 30);
+          catchMutation.mutate(score);
+        } else {
+          setPhase("missed");
+        }
       }
     }, REEL_DURATION);
   }, [catchMutation]);
