@@ -521,9 +521,9 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
           <button
             data-testid="button-back-home"
             onClick={() => navigate("/")}
-            style={{ background: "rgba(10,30,15,0.8)", border: "1.5px solid rgba(74,222,128,0.35)", borderRadius: 10, padding: "7px 10px", cursor: "pointer" }}
+            style={{ background: "rgba(10,30,15,0.8)", border: "1.5px solid rgba(74,222,128,0.35)", borderRadius: 10, padding: "6px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
           >
-            <img src={homeIconImg} alt="Home" style={{ width: 22, height: 22, objectFit: "contain" }} />
+            <img src={homeIconImg} alt="Home" style={{ width: 30, height: 30, objectFit: "contain" }} />
           </button>
           <div style={{ textAlign: "center" }}>
             <h1 style={{ color: accentGreen, fontFamily: "Georgia, serif", fontSize: 20, margin: 0, textShadow: "0 0 15px rgba(74,222,128,0.5)" }}>
