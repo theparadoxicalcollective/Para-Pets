@@ -37,9 +37,10 @@ interface ExploreAdminPanelProps {
   onClose: () => void;
   onBgUpload: (imageData: string) => void;
   bgUploading: boolean;
+  inline?: boolean;
 }
 
-export default function ExploreAdminPanel({ locationId, locationType, accent, onClose, onBgUpload, bgUploading }: ExploreAdminPanelProps) {
+export default function ExploreAdminPanel({ locationId, locationType, accent, onClose, onBgUpload, bgUploading, inline }: ExploreAdminPanelProps) {
   const isBattle = locationType === "battle";
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -167,353 +168,313 @@ export default function ExploreAdminPanel({ locationId, locationType, accent, on
     updateEnemyMutation.mutate({ enemyId, data });
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
-      <div className="absolute inset-0 bg-black/85 backdrop-blur-sm" onClick={onClose} />
-      <div
-        className="relative z-10 rounded-xl overflow-hidden"
+  const bgSection = (
+    <div
+      className="rounded-lg p-3"
+      style={{
+        background: isBattle ? "rgba(220,38,38,0.06)" : `${accent}10`,
+        border: isBattle ? "1px solid rgba(220,38,38,0.2)" : `1px solid ${accent}25`,
+      }}
+    >
+      <div className="flex items-center gap-2 mb-2">
+        <Image className="w-4 h-4" style={{ color: isBattle ? "#ef4444" : accent }} />
+        <h4 className="font-fantasy text-xs tracking-wider" style={{ color: isBattle ? "#ef4444" : accent }}>Background</h4>
+      </div>
+      <label
+        data-testid="button-upload-bg"
+        className="block w-full py-2 rounded-md font-fantasy text-[10px] tracking-wider text-center transition-transform active:scale-95"
         style={{
-          width: isBattle ? "calc(100% - 24px)" : "92%",
-          maxWidth: isBattle ? "540px" : "448px",
-          background: isBattle
-            ? "linear-gradient(160deg, rgba(10,4,4,0.99) 0%, rgba(20,6,6,0.99) 50%, rgba(10,4,4,0.99) 100%)"
-            : "linear-gradient(135deg, rgba(8,5,18,0.98) 0%, rgba(18,12,30,0.98) 100%)",
-          border: isBattle ? "1px solid rgba(220,38,38,0.45)" : `1px solid ${accent}55`,
-          boxShadow: isBattle ? "0 0 50px rgba(220,38,38,0.2), 0 0 100px rgba(220,38,38,0.08)" : `0 0 40px ${accent}25`,
-          maxHeight: "90vh",
+          background: isBattle ? "rgba(220,38,38,0.12)" : `${accent}20`,
+          border: isBattle ? "1px dashed rgba(220,38,38,0.4)" : `1px dashed ${accent}50`,
+          color: isBattle ? "rgba(239,68,68,0.9)" : `${accent}cc`,
+          cursor: bgUploading ? "wait" : "pointer",
         }}
       >
-        {isBattle && (
-          <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 50% 0%, rgba(220,38,38,0.08) 0%, transparent 70%)" }} />
-        )}
-        <div className="flex items-center justify-between px-5 pt-5 pb-3">
-          <div className="flex items-center gap-2.5">
-            {isBattle && <Swords className="w-5 h-5" style={{ color: "#ef4444" }} />}
-            <h3
-              className="font-fantasy tracking-widest"
-              style={{
-                fontSize: isBattle ? "15px" : "13px",
-                color: isBattle ? "#ef4444" : accent,
-                textShadow: isBattle ? "0 0 14px rgba(239,68,68,0.5)" : `0 0 10px ${accent}40`,
-              }}
-            >
-              {isBattle ? "Battle Zone Setup" : "Explore Zone Setup"}
-            </h3>
-          </div>
-          <button
-            data-testid="button-close-explore-admin"
-            onClick={onClose}
-            className="w-7 h-7 rounded-full flex items-center justify-center"
-            style={{ background: `${accent}20`, border: `1px solid ${accent}40`, cursor: "pointer", color: accent }}
+        {bgUploading ? "Uploading..." : "Upload Background Image"}
+        <input
+          type="file"
+          accept="image/png,image/jpeg,image/gif"
+          className="hidden"
+          disabled={bgUploading}
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              const dataUrl = await readFileAsDataUrl(file);
+              onBgUpload(dataUrl);
+            }
+          }}
+        />
+      </label>
+    </div>
+  );
+
+  const enemiesSection = (
+    <div
+      className="rounded-lg"
+      style={{
+        background: isBattle ? "rgba(220,38,38,0.05)" : `${accent}10`,
+        border: isBattle ? "1px solid rgba(220,38,38,0.25)" : `1px solid ${accent}25`,
+        padding: isBattle ? "14px" : "12px",
+      }}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Swords className="w-4 h-4" style={{ color: isBattle ? "#ef4444" : accent }} />
+          <h4
+            className="font-fantasy tracking-wider"
+            style={{
+              fontSize: isBattle ? "13px" : "12px",
+              color: isBattle ? "#ef4444" : accent,
+            }}
           >
-            <X className="w-4 h-4" />
-          </button>
+            Enemies ({enemies.length})
+          </h4>
         </div>
+        <button
+          data-testid="button-add-enemy"
+          onClick={() => setShowAddEnemy(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full font-fantasy text-[10px] tracking-wider transition-transform active:scale-95"
+          style={{
+            background: isBattle ? "rgba(220,38,38,0.25)" : `${accent}30`,
+            border: isBattle ? "1px solid rgba(220,38,38,0.5)" : `1px solid ${accent}50`,
+            cursor: "pointer",
+            color: isBattle ? "#ff6666" : accent,
+          }}
+        >
+          <Plus className="w-3.5 h-3.5" />
+          {isBattle ? "Add Enemy" : ""}
+        </button>
+      </div>
 
-        <div className="overflow-y-auto pb-4 space-y-4" style={{ maxHeight: "calc(90vh - 64px)", padding: isBattle ? "0 18px 0 18px" : "0 16px 0 16px" }}>
-          <div
-            className="rounded-lg p-3"
-            style={{
-              background: isBattle ? "rgba(220,38,38,0.06)" : `${accent}10`,
-              border: isBattle ? "1px solid rgba(220,38,38,0.2)" : `1px solid ${accent}25`,
-            }}
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <Image className="w-4 h-4" style={{ color: isBattle ? "#ef4444" : accent }} />
-              <h4 className="font-fantasy text-xs tracking-wider" style={{ color: isBattle ? "#ef4444" : accent }}>Background</h4>
-            </div>
-            <label
-              data-testid="button-upload-bg"
-              className="block w-full py-2 rounded-md font-fantasy text-[10px] tracking-wider text-center transition-transform active:scale-95"
+      {isLoading ? (
+        <p className="font-fantasy text-[10px] tracking-wider animate-pulse text-center py-2" style={{ color: `${accent}88` }}>Loading...</p>
+      ) : enemies.length === 0 ? (
+        <p className="font-fantasy text-[10px] tracking-wider text-center py-2" style={{ color: `${accent}66` }}>No enemies added yet</p>
+      ) : (
+        <div className="space-y-2">
+          {enemies.map((enemy) => (
+            <div
+              key={enemy.id}
+              data-testid={`card-enemy-${enemy.id}`}
+              className="rounded-md overflow-hidden"
               style={{
-                background: isBattle ? "rgba(220,38,38,0.12)" : `${accent}20`,
-                border: isBattle ? "1px dashed rgba(220,38,38,0.4)" : `1px dashed ${accent}50`,
-                color: isBattle ? "rgba(239,68,68,0.9)" : `${accent}cc`,
-                cursor: bgUploading ? "wait" : "pointer",
+                background: isBattle ? "rgba(30,4,4,0.6)" : "rgba(0,0,0,0.3)",
+                border: isBattle ? "1px solid rgba(220,38,38,0.22)" : `1px solid ${accent}20`,
               }}
             >
-              {bgUploading ? "Uploading..." : "Upload Background Image"}
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/gif"
-                className="hidden"
-                disabled={bgUploading}
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    const dataUrl = await readFileAsDataUrl(file);
-                    onBgUpload(dataUrl);
-                  }
-                }}
-              />
-            </label>
-          </div>
-
-          <div
-            className="rounded-lg"
-            style={{
-              background: isBattle ? "rgba(220,38,38,0.05)" : `${accent}10`,
-              border: isBattle ? "1px solid rgba(220,38,38,0.25)" : `1px solid ${accent}25`,
-              padding: isBattle ? "14px" : "12px",
-            }}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Swords className="w-4 h-4" style={{ color: isBattle ? "#ef4444" : accent }} />
-                <h4
-                  className="font-fantasy tracking-wider"
-                  style={{
-                    fontSize: isBattle ? "13px" : "12px",
-                    color: isBattle ? "#ef4444" : accent,
-                  }}
-                >
-                  Enemies ({enemies.length})
-                </h4>
-              </div>
-              <button
-                data-testid="button-add-enemy"
-                onClick={() => setShowAddEnemy(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full font-fantasy text-[10px] tracking-wider transition-transform active:scale-95"
-                style={{
-                  background: isBattle ? "rgba(220,38,38,0.25)" : `${accent}30`,
-                  border: isBattle ? "1px solid rgba(220,38,38,0.5)" : `1px solid ${accent}50`,
-                  cursor: "pointer",
-                  color: isBattle ? "#ff6666" : accent,
-                }}
+              <div
+                className="flex items-center gap-3 cursor-pointer"
+                style={{ padding: isBattle ? "10px 12px" : "8px" }}
+                onClick={() => setExpandedEnemy(expandedEnemy === enemy.id ? null : enemy.id)}
               >
-                <Plus className="w-3.5 h-3.5" />
-                {isBattle ? "Add Enemy" : ""}
-              </button>
-            </div>
-
-            {isLoading ? (
-              <p className="font-fantasy text-[10px] tracking-wider animate-pulse text-center py-2" style={{ color: `${accent}88` }}>Loading...</p>
-            ) : enemies.length === 0 ? (
-              <p className="font-fantasy text-[10px] tracking-wider text-center py-2" style={{ color: `${accent}66` }}>No enemies added yet</p>
-            ) : (
-              <div className="space-y-2">
-                {enemies.map((enemy) => (
-                  <div
-                    key={enemy.id}
-                    data-testid={`card-enemy-${enemy.id}`}
-                    className="rounded-md overflow-hidden"
+                {enemy.imageUrl ? (
+                  <img
+                    src={enemy.imageUrl}
+                    alt=""
+                    className="rounded-md object-contain flex-shrink-0"
                     style={{
-                      background: isBattle ? "rgba(30,4,4,0.6)" : "rgba(0,0,0,0.3)",
-                      border: isBattle ? "1px solid rgba(220,38,38,0.22)" : `1px solid ${accent}20`,
+                      width: isBattle ? 52 : 40,
+                      height: isBattle ? 52 : 40,
+                      border: isBattle ? "1px solid rgba(220,38,38,0.3)" : `1px solid ${accent}30`,
+                      background: "rgba(0,0,0,0.4)",
+                    }}
+                  />
+                ) : (
+                  <div
+                    className="rounded-md flex items-center justify-center flex-shrink-0"
+                    style={{
+                      width: isBattle ? 52 : 40,
+                      height: isBattle ? 52 : 40,
+                      background: isBattle ? "rgba(220,38,38,0.1)" : `${accent}15`,
+                      border: isBattle ? "1px solid rgba(220,38,38,0.3)" : `1px solid ${accent}30`,
                     }}
                   >
-                    <div
-                      className="flex items-center gap-3 cursor-pointer"
-                      style={{ padding: isBattle ? "10px 12px" : "8px" }}
-                      onClick={() => setExpandedEnemy(expandedEnemy === enemy.id ? null : enemy.id)}
-                    >
-                      {enemy.imageUrl ? (
-                        <img
-                          src={enemy.imageUrl}
-                          alt=""
-                          className="rounded-md object-contain flex-shrink-0"
-                          style={{
-                            width: isBattle ? 52 : 40,
-                            height: isBattle ? 52 : 40,
-                            border: isBattle ? "1px solid rgba(220,38,38,0.3)" : `1px solid ${accent}30`,
-                            background: "rgba(0,0,0,0.4)",
+                    <Swords className="w-5 h-5" style={{ color: isBattle ? "#ef4444" : `${accent}60` }} />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p
+                    className="font-fantasy tracking-wider truncate"
+                    style={{
+                      fontSize: isBattle ? "12px" : "11px",
+                      color: isBattle ? "#fca5a5" : `${accent}dd`,
+                    }}
+                  >
+                    {enemy.name}
+                    {enemy.isBoss && (
+                      <span className="ml-1.5 px-1.5 py-0.5 rounded text-[7px] font-bold tracking-widest" style={{ background: "rgba(220,38,38,0.35)", border: "1px solid rgba(220,38,38,0.55)", color: "#ff6666" }}>BOSS</span>
+                    )}
+                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <div className="flex items-center gap-1">
+                      <img src={coinIconImg} alt="" className="w-3 h-3" />
+                      <span className="font-fantasy text-[10px]" style={{ color: "#f0c040" }}>{enemy.coinReward}</span>
+                    </div>
+                    <span className="font-fantasy text-[9px]" style={{ color: isBattle ? "rgba(220,38,38,0.5)" : `${accent}66` }}>{enemy.drops.length} drop{enemy.drops.length !== 1 ? "s" : ""}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    data-testid={`button-delete-enemy-${enemy.id}`}
+                    onClick={(e) => { e.stopPropagation(); deleteEnemyMutation.mutate(enemy.id); }}
+                    className="w-6 h-6 rounded-full flex items-center justify-center"
+                    style={{ background: "rgba(220,38,38,0.2)", border: "1px solid rgba(220,38,38,0.4)", cursor: "pointer" }}
+                  >
+                    <Trash2 className="w-3 h-3 text-red-400" />
+                  </button>
+                  {expandedEnemy === enemy.id ? (
+                    <ChevronUp className="w-4 h-4" style={{ color: `${accent}88` }} />
+                  ) : (
+                    <ChevronDown className="w-4 h-4" style={{ color: `${accent}88` }} />
+                  )}
+                </div>
+              </div>
+
+              {expandedEnemy === enemy.id && (
+                <div className="border-t px-2 pb-2 pt-2 space-y-2" style={{ borderColor: `${accent}20` }}>
+                  {editingEnemy === enemy.id ? (
+                    <div className="space-y-2">
+                      <input
+                        data-testid="input-edit-enemy-name"
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="w-full px-2 py-1.5 rounded-md font-sans text-xs outline-none"
+                        style={inputStyle}
+                        placeholder="Enemy name"
+                      />
+                      <div className="flex items-center gap-2">
+                        <img src={coinIconImg} alt="" className="w-4 h-4" />
+                        <input
+                          data-testid="input-edit-enemy-coins"
+                          type="number"
+                          value={editCoinReward}
+                          onChange={(e) => setEditCoinReward(e.target.value)}
+                          className="flex-1 px-2 py-1.5 rounded-md font-sans text-xs outline-none"
+                          style={inputStyle}
+                          placeholder="Coin reward"
+                          min="0"
+                        />
+                      </div>
+                      <div
+                        data-testid="toggle-edit-boss"
+                        className="flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer"
+                        style={{ background: editIsBoss ? "rgba(220,38,38,0.15)" : "rgba(255,255,255,0.03)", border: editIsBoss ? "1px solid rgba(220,38,38,0.4)" : `1px solid ${accent}20` }}
+                        onClick={() => setEditIsBoss(!editIsBoss)}
+                      >
+                        <div className="w-4 h-4 rounded-sm flex items-center justify-center" style={{ background: editIsBoss ? "rgba(220,38,38,0.6)" : "transparent", border: editIsBoss ? "1px solid #ff6666" : `1px solid ${accent}40` }}>
+                          {editIsBoss && <span className="text-white text-[8px] font-bold">&#10003;</span>}
+                        </div>
+                        <span className="font-fantasy text-[9px] tracking-wider" style={{ color: editIsBoss ? "#ff6666" : `${accent}88` }}>Boss Enemy (up to 5 levels above pet)</span>
+                      </div>
+                      <label
+                        className="block w-full py-1.5 rounded-md font-fantasy text-[9px] tracking-wider text-center"
+                        style={{ background: `${accent}15`, border: `1px dashed ${accent}40`, color: `${accent}aa`, cursor: "pointer" }}
+                      >
+                        {editImage ? "Image selected ✓" : "Change Image (optional)"}
+                        <input
+                          type="file"
+                          accept="image/png,image/gif,image/jpeg"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const dataUrl = await readFileAsDataUrl(file);
+                              setEditImage(dataUrl);
+                            }
                           }}
                         />
-                      ) : (
-                        <div
-                          className="rounded-md flex items-center justify-center flex-shrink-0"
-                          style={{
-                            width: isBattle ? 52 : 40,
-                            height: isBattle ? 52 : 40,
-                            background: isBattle ? "rgba(220,38,38,0.1)" : `${accent}15`,
-                            border: isBattle ? "1px solid rgba(220,38,38,0.3)" : `1px solid ${accent}30`,
-                          }}
-                        >
-                          <Swords className="w-5 h-5" style={{ color: isBattle ? "#ef4444" : `${accent}60` }} />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p
-                          className="font-fantasy tracking-wider truncate"
-                          style={{
-                            fontSize: isBattle ? "12px" : "11px",
-                            color: isBattle ? "#fca5a5" : `${accent}dd`,
-                          }}
-                        >
-                          {enemy.name}
-                          {enemy.isBoss && (
-                            <span className="ml-1.5 px-1.5 py-0.5 rounded text-[7px] font-bold tracking-widest" style={{ background: "rgba(220,38,38,0.35)", border: "1px solid rgba(220,38,38,0.55)", color: "#ff6666" }}>BOSS</span>
-                          )}
-                        </p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <div className="flex items-center gap-1">
-                            <img src={coinIconImg} alt="" className="w-3 h-3" />
-                            <span className="font-fantasy text-[10px]" style={{ color: "#f0c040" }}>{enemy.coinReward}</span>
-                          </div>
-                          <span className="font-fantasy text-[9px]" style={{ color: isBattle ? "rgba(220,38,38,0.5)" : `${accent}66` }}>{enemy.drops.length} drop{enemy.drops.length !== 1 ? "s" : ""}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1">
+                      </label>
+                      <div className="flex gap-2">
                         <button
-                          data-testid={`button-delete-enemy-${enemy.id}`}
-                          onClick={(e) => { e.stopPropagation(); deleteEnemyMutation.mutate(enemy.id); }}
-                          className="w-6 h-6 rounded-full flex items-center justify-center"
-                          style={{ background: "rgba(220,38,38,0.2)", border: "1px solid rgba(220,38,38,0.4)", cursor: "pointer" }}
+                          data-testid="button-cancel-edit-enemy"
+                          onClick={() => setEditingEnemy(null)}
+                          className="flex-1 py-1.5 rounded-md font-fantasy text-[9px] tracking-wider"
+                          style={{ background: "rgba(100,100,100,0.2)", border: "1px solid rgba(100,100,100,0.3)", color: "#aaa", cursor: "pointer" }}
                         >
-                          <Trash2 className="w-3 h-3 text-red-400" />
+                          Cancel
                         </button>
-                        {expandedEnemy === enemy.id ? (
-                          <ChevronUp className="w-4 h-4" style={{ color: `${accent}88` }} />
-                        ) : (
-                          <ChevronDown className="w-4 h-4" style={{ color: `${accent}88` }} />
-                        )}
+                        <button
+                          data-testid="button-save-edit-enemy"
+                          onClick={() => saveEdit(enemy.id)}
+                          disabled={updateEnemyMutation.isPending}
+                          className="flex-1 py-1.5 rounded-md font-fantasy text-[9px] tracking-wider"
+                          style={{ background: `${accent}30`, border: `1px solid ${accent}50`, color: accent, cursor: "pointer" }}
+                        >
+                          {updateEnemyMutation.isPending ? "Saving..." : "Save"}
+                        </button>
                       </div>
                     </div>
+                  ) : (
+                    <button
+                      data-testid={`button-edit-enemy-${enemy.id}`}
+                      onClick={() => startEdit(enemy)}
+                      className="w-full py-1 rounded-md font-fantasy text-[9px] tracking-wider"
+                      style={{ background: `${accent}15`, border: `1px solid ${accent}30`, color: `${accent}aa`, cursor: "pointer" }}
+                    >
+                      Edit Details
+                    </button>
+                  )}
 
-                    {expandedEnemy === enemy.id && (
-                      <div className="border-t px-2 pb-2 pt-2 space-y-2" style={{ borderColor: `${accent}20` }}>
-                        {editingEnemy === enemy.id ? (
-                          <div className="space-y-2">
-                            <input
-                              data-testid="input-edit-enemy-name"
-                              type="text"
-                              value={editName}
-                              onChange={(e) => setEditName(e.target.value)}
-                              className="w-full px-2 py-1.5 rounded-md font-sans text-xs outline-none"
-                              style={inputStyle}
-                              placeholder="Enemy name"
-                            />
-                            <div className="flex items-center gap-2">
-                              <img src={coinIconImg} alt="" className="w-4 h-4" />
-                              <input
-                                data-testid="input-edit-enemy-coins"
-                                type="number"
-                                value={editCoinReward}
-                                onChange={(e) => setEditCoinReward(e.target.value)}
-                                className="flex-1 px-2 py-1.5 rounded-md font-sans text-xs outline-none"
-                                style={inputStyle}
-                                placeholder="Coin reward"
-                                min="0"
-                              />
-                            </div>
-                            <div
-                              data-testid="toggle-edit-boss"
-                              className="flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer"
-                              style={{ background: editIsBoss ? "rgba(220,38,38,0.15)" : "rgba(255,255,255,0.03)", border: editIsBoss ? "1px solid rgba(220,38,38,0.4)" : `1px solid ${accent}20` }}
-                              onClick={() => setEditIsBoss(!editIsBoss)}
-                            >
-                              <div className="w-4 h-4 rounded-sm flex items-center justify-center" style={{ background: editIsBoss ? "rgba(220,38,38,0.6)" : "transparent", border: editIsBoss ? "1px solid #ff6666" : `1px solid ${accent}40` }}>
-                                {editIsBoss && <span className="text-white text-[8px] font-bold">&#10003;</span>}
-                              </div>
-                              <span className="font-fantasy text-[9px] tracking-wider" style={{ color: editIsBoss ? "#ff6666" : `${accent}88` }}>Boss Enemy (up to 5 levels above pet)</span>
-                            </div>
-                            <label
-                              className="block w-full py-1.5 rounded-md font-fantasy text-[9px] tracking-wider text-center"
-                              style={{ background: `${accent}15`, border: `1px dashed ${accent}40`, color: `${accent}aa`, cursor: "pointer" }}
-                            >
-                              {editImage ? "Image selected ✓" : "Change Image (optional)"}
-                              <input
-                                type="file"
-                                accept="image/png,image/gif,image/jpeg"
-                                className="hidden"
-                                onChange={async (e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) {
-                                    const dataUrl = await readFileAsDataUrl(file);
-                                    setEditImage(dataUrl);
-                                  }
-                                }}
-                              />
-                            </label>
-                            <div className="flex gap-2">
-                              <button
-                                data-testid="button-cancel-edit-enemy"
-                                onClick={() => setEditingEnemy(null)}
-                                className="flex-1 py-1.5 rounded-md font-fantasy text-[9px] tracking-wider"
-                                style={{ background: "rgba(100,100,100,0.2)", border: "1px solid rgba(100,100,100,0.3)", color: "#aaa", cursor: "pointer" }}
-                              >
-                                Cancel
-                              </button>
-                              <button
-                                data-testid="button-save-edit-enemy"
-                                onClick={() => saveEdit(enemy.id)}
-                                disabled={updateEnemyMutation.isPending}
-                                className="flex-1 py-1.5 rounded-md font-fantasy text-[9px] tracking-wider"
-                                style={{ background: `${accent}30`, border: `1px solid ${accent}50`, color: accent, cursor: "pointer" }}
-                              >
-                                {updateEnemyMutation.isPending ? "Saving..." : "Save"}
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <button
-                            data-testid={`button-edit-enemy-${enemy.id}`}
-                            onClick={() => startEdit(enemy)}
-                            className="w-full py-1 rounded-md font-fantasy text-[9px] tracking-wider"
-                            style={{ background: `${accent}15`, border: `1px solid ${accent}30`, color: `${accent}aa`, cursor: "pointer" }}
+                  <div className="mt-2">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-fantasy text-[9px] tracking-wider" style={{ color: `${accent}88` }}>Item Drops</span>
+                      <button
+                        data-testid={`button-add-drop-${enemy.id}`}
+                        onClick={() => setShowDropPicker(enemy.id)}
+                        className="px-2 py-0.5 rounded-md font-fantasy text-[8px] tracking-wider"
+                        style={{ background: `${accent}20`, border: `1px solid ${accent}40`, color: accent, cursor: "pointer" }}
+                      >
+                        + Add Drop
+                      </button>
+                    </div>
+
+                    {enemy.drops.length === 0 ? (
+                      <p className="font-fantasy text-[9px] tracking-wider text-center py-1" style={{ color: `${accent}44` }}>No drops configured</p>
+                    ) : (
+                      <div className="space-y-1">
+                        {enemy.drops.map((drop) => (
+                          <div
+                            key={drop.id}
+                            data-testid={`card-drop-${drop.id}`}
+                            className="flex items-center gap-2 px-2 py-1 rounded-md"
+                            style={{ background: "rgba(192,132,252,0.08)", border: "1px solid rgba(192,132,252,0.15)" }}
                           >
-                            Edit Details
-                          </button>
-                        )}
-
-                        <div className="mt-2">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="font-fantasy text-[9px] tracking-wider" style={{ color: `${accent}88` }}>Item Drops</span>
+                            {drop.shopItem?.imageUrl ? (
+                              <img src={drop.shopItem.imageUrl} alt="" className="w-6 h-6 object-contain rounded-sm" />
+                            ) : (
+                              <Package className="w-4 h-4" style={{ color: `${accent}66` }} />
+                            )}
+                            <span className="flex-1 font-fantasy text-[9px] tracking-wider truncate" style={{ color: "#e0d0f0" }}>
+                              {drop.shopItem?.name || "Unknown"}
+                            </span>
+                            <span className="font-fantasy text-[9px] font-bold" style={{ color: "#f0c040" }}>
+                              {drop.dropRate}%
+                            </span>
                             <button
-                              data-testid={`button-add-drop-${enemy.id}`}
-                              onClick={() => setShowDropPicker(enemy.id)}
-                              className="px-2 py-0.5 rounded-md font-fantasy text-[8px] tracking-wider"
-                              style={{ background: `${accent}20`, border: `1px solid ${accent}40`, color: accent, cursor: "pointer" }}
+                              data-testid={`button-delete-drop-${drop.id}`}
+                              onClick={() => deleteDropMutation.mutate(drop.id)}
+                              className="w-5 h-5 rounded-full flex items-center justify-center ml-1"
+                              style={{ background: "rgba(220,38,38,0.2)", cursor: "pointer" }}
                             >
-                              + Add Drop
+                              <X className="w-3 h-3 text-red-400" />
                             </button>
                           </div>
-
-                          {enemy.drops.length === 0 ? (
-                            <p className="font-fantasy text-[9px] tracking-wider text-center py-1" style={{ color: `${accent}44` }}>No drops configured</p>
-                          ) : (
-                            <div className="space-y-1">
-                              {enemy.drops.map((drop) => (
-                                <div
-                                  key={drop.id}
-                                  data-testid={`card-drop-${drop.id}`}
-                                  className="flex items-center gap-2 px-2 py-1 rounded-md"
-                                  style={{ background: "rgba(192,132,252,0.08)", border: "1px solid rgba(192,132,252,0.15)" }}
-                                >
-                                  {drop.shopItem?.imageUrl ? (
-                                    <img src={drop.shopItem.imageUrl} alt="" className="w-6 h-6 object-contain rounded-sm" />
-                                  ) : (
-                                    <Package className="w-4 h-4" style={{ color: `${accent}66` }} />
-                                  )}
-                                  <span className="flex-1 font-fantasy text-[9px] tracking-wider truncate" style={{ color: "#e0d0f0" }}>
-                                    {drop.shopItem?.name || "Unknown"}
-                                  </span>
-                                  <span className="font-fantasy text-[9px] font-bold" style={{ color: "#f0c040" }}>
-                                    {drop.dropRate}%
-                                  </span>
-                                  <button
-                                    data-testid={`button-delete-drop-${drop.id}`}
-                                    onClick={() => deleteDropMutation.mutate(drop.id)}
-                                    className="w-5 h-5 rounded-full flex items-center justify-center ml-1"
-                                    style={{ background: "rgba(220,38,38,0.2)", cursor: "pointer" }}
-                                  >
-                                    <X className="w-3 h-3 text-red-400" />
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                        ))}
                       </div>
                     )}
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
-      </div>
+      )}
+    </div>
+  );
 
+  const overlays = (
+    <>
       {showAddEnemy && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
           <div className="absolute inset-0 bg-black/70" onClick={() => setShowAddEnemy(false)} />
@@ -727,6 +688,69 @@ export default function ExploreAdminPanel({ locationId, locationType, accent, on
           </div>
         </div>
       )}
+    </>
+  );
+
+  if (inline) {
+    return (
+      <>
+        <div className="overflow-y-auto flex-1 space-y-4" style={{ padding: "0 16px 16px 16px" }}>
+          {bgSection}
+          {enemiesSection}
+        </div>
+        {overlays}
+      </>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+      <div className="absolute inset-0 bg-black/85 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="relative z-10 rounded-xl overflow-hidden"
+        style={{
+          width: isBattle ? "calc(100% - 24px)" : "92%",
+          maxWidth: isBattle ? "540px" : "448px",
+          background: isBattle
+            ? "linear-gradient(160deg, rgba(10,4,4,0.99) 0%, rgba(20,6,6,0.99) 50%, rgba(10,4,4,0.99) 100%)"
+            : "linear-gradient(135deg, rgba(8,5,18,0.98) 0%, rgba(18,12,30,0.98) 100%)",
+          border: isBattle ? "1px solid rgba(220,38,38,0.45)" : `1px solid ${accent}55`,
+          boxShadow: isBattle ? "0 0 50px rgba(220,38,38,0.2), 0 0 100px rgba(220,38,38,0.08)" : `0 0 40px ${accent}25`,
+          maxHeight: "90vh",
+        }}
+      >
+        {isBattle && (
+          <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 50% 0%, rgba(220,38,38,0.08) 0%, transparent 70%)" }} />
+        )}
+        <div className="flex items-center justify-between px-5 pt-5 pb-3">
+          <div className="flex items-center gap-2.5">
+            {isBattle && <Swords className="w-5 h-5" style={{ color: "#ef4444" }} />}
+            <h3
+              className="font-fantasy tracking-widest"
+              style={{
+                fontSize: isBattle ? "15px" : "13px",
+                color: isBattle ? "#ef4444" : accent,
+                textShadow: isBattle ? "0 0 14px rgba(239,68,68,0.5)" : `0 0 10px ${accent}40`,
+              }}
+            >
+              {isBattle ? "Battle Zone Setup" : "Explore Zone Setup"}
+            </h3>
+          </div>
+          <button
+            data-testid="button-close-explore-admin"
+            onClick={onClose}
+            className="w-7 h-7 rounded-full flex items-center justify-center"
+            style={{ background: `${accent}20`, border: `1px solid ${accent}40`, cursor: "pointer", color: accent }}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="overflow-y-auto pb-4 space-y-4" style={{ maxHeight: "calc(90vh - 64px)", padding: isBattle ? "0 18px 0 18px" : "0 16px 0 16px" }}>
+          {bgSection}
+          {enemiesSection}
+        </div>
+      </div>
+      {overlays}
     </div>
   );
 }

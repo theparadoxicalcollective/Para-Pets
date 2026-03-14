@@ -1663,6 +1663,118 @@ export default function WorldPage({ user }: WorldPageProps) {
       {showLocationView && (() => {
         const activeLoc = locations.find(l => l.id === activeLocationId);
         if (!activeLoc) return null;
+        const isBattleAdmin = activeLoc.type === "battle" && currentUser.isAdmin;
+
+        if (isBattleAdmin) {
+          return (
+            <div className="fixed inset-0 z-40 flex flex-col" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+              {/* Top banner: bg image preview */}
+              <div className="relative flex-shrink-0" style={{ height: "210px" }}>
+                {activeLoc.bgUrl ? (
+                  <img src={activeLoc.bgUrl} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full" style={{ background: "linear-gradient(180deg, rgba(20,4,4,1) 0%, rgba(40,8,8,1) 100%)" }} />
+                )}
+                <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.6) 100%)" }} />
+                <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at 50% 30%, rgba(220,38,38,0.06) 0%, transparent 70%)" }} />
+                {/* Header row */}
+                <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 pt-5 pb-3">
+                  <div className="flex items-center gap-3">
+                    {activeLoc.iconUrl && (
+                      <img src={activeLoc.iconUrl} alt="" className="w-10 h-10 rounded-lg object-contain" style={{ border: "1px solid rgba(220,38,38,0.4)", filter: "drop-shadow(0 0 8px rgba(220,38,38,0.3))" }} />
+                    )}
+                    <div>
+                      <h3 className="font-fantasy text-lg tracking-widest font-semibold" style={{ color: "#ef4444", textShadow: "0 0 15px rgba(239,68,68,0.5)" }}>
+                        {activeLoc.name}
+                      </h3>
+                      {activeLoc.description && (
+                        <p className="font-fantasy text-[10px] tracking-wider" style={{ color: "rgba(239,68,68,0.6)" }}>
+                          {activeLoc.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {currentUser.activePetId && (
+                      <button
+                        data-testid="button-start-battle"
+                        onClick={() => {
+                          setBattleLocationId(activeLoc.id);
+                          setShowBattle(true);
+                          setShowLocationView(false);
+                        }}
+                        className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                        style={{
+                          background: "linear-gradient(135deg, rgba(239,68,68,0.8) 0%, rgba(180,40,40,0.6) 100%)",
+                          border: "2px solid rgba(239,68,68,0.9)",
+                          boxShadow: "0 4px 16px rgba(239,68,68,0.4)",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <Swords className="w-4 h-4 text-white" />
+                      </button>
+                    )}
+                    <button
+                      data-testid="button-close-location-view"
+                      onClick={() => { setShowLocationView(false); setActiveLocationId(null); }}
+                      className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                      style={{
+                        background: "rgba(220,38,38,0.25)",
+                        border: "2px solid rgba(220,38,38,0.5)",
+                        color: "#ef4444",
+                        cursor: "pointer",
+                        fontSize: "14px",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      X
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom: inline battle zone setup */}
+              <div
+                className="flex-1 flex flex-col overflow-hidden"
+                style={{
+                  background: "linear-gradient(160deg, rgba(10,4,4,1) 0%, rgba(18,5,5,1) 100%)",
+                  borderTop: "2px solid rgba(220,38,38,0.35)",
+                }}
+              >
+                <div
+                  className="flex items-center gap-2.5 px-4 py-3 flex-shrink-0"
+                  style={{ borderBottom: "1px solid rgba(220,38,38,0.15)" }}
+                >
+                  <Swords className="w-4 h-4" style={{ color: "#ef4444" }} />
+                  <h4 className="font-fantasy tracking-widest" style={{ fontSize: "13px", color: "#ef4444", textShadow: "0 0 12px rgba(239,68,68,0.45)" }}>
+                    Battle Zone Setup
+                  </h4>
+                </div>
+                <ExploreAdminPanel
+                  locationId={activeLoc.id}
+                  locationType={activeLoc.type}
+                  accent={accent}
+                  inline={true}
+                  onClose={() => {}}
+                  onBgUpload={async (imageData) => {
+                    if (!activeLocationId) return;
+                    setBgUploading(true);
+                    try {
+                      await apiRequest("PATCH", `/api/admin/location/${activeLocationId}/bg`, { imageData });
+                      queryClient.invalidateQueries({ queryKey: ["/api/locations"] });
+                    } catch {
+                      /* ignore */
+                    } finally {
+                      setBgUploading(false);
+                    }
+                  }}
+                  bgUploading={bgUploading}
+                />
+              </div>
+            </div>
+          );
+        }
+
         return (
         <div className="fixed inset-0 z-40 flex flex-col" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
           <div className="absolute inset-0">
@@ -1766,41 +1878,39 @@ export default function WorldPage({ user }: WorldPageProps) {
 
               {currentUser.isAdmin && (
                 <div className="absolute bottom-4 right-4 z-20 flex flex-col gap-2">
-                  {(activeLoc.type === "battle" || activeLoc.type === "explore") && (
-                    <>
-                      <button
-                        data-testid="button-explore-admin"
-                        onClick={() => setShowExploreAdmin(true)}
-                        className="w-12 h-12 rounded-full flex items-center justify-center transition-transform active:scale-90"
-                        style={{
-                          background: `linear-gradient(135deg, rgba(192,132,252,0.8) 0%, rgba(120,80,200,0.6) 100%)`,
-                          border: `2px solid rgba(192,132,252,0.9)`,
-                          boxShadow: `0 4px 20px rgba(192,132,252,0.4)`,
-                          cursor: "pointer",
-                        }}
-                      >
-                        <Settings className="w-5 h-5 text-white" />
-                      </button>
-                      {currentUser.activePetId && (
-                        <button
-                          data-testid="button-start-battle"
-                          onClick={() => {
-                            setBattleLocationId(activeLoc.id);
-                            setShowBattle(true);
-                            setShowLocationView(false);
-                          }}
-                          className="w-12 h-12 rounded-full flex items-center justify-center transition-transform active:scale-90"
-                          style={{
-                            background: `linear-gradient(135deg, rgba(239,68,68,0.8) 0%, rgba(180,40,40,0.6) 100%)`,
-                            border: `2px solid rgba(239,68,68,0.9)`,
-                            boxShadow: `0 4px 20px rgba(239,68,68,0.4)`,
-                            cursor: "pointer",
-                          }}
-                        >
-                          <Swords className="w-5 h-5 text-white" />
-                        </button>
-                      )}
-                    </>
+                  {activeLoc.type === "explore" && (
+                    <button
+                      data-testid="button-explore-admin"
+                      onClick={() => setShowExploreAdmin(true)}
+                      className="w-12 h-12 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                      style={{
+                        background: `linear-gradient(135deg, rgba(192,132,252,0.8) 0%, rgba(120,80,200,0.6) 100%)`,
+                        border: `2px solid rgba(192,132,252,0.9)`,
+                        boxShadow: `0 4px 20px rgba(192,132,252,0.4)`,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <Settings className="w-5 h-5 text-white" />
+                    </button>
+                  )}
+                  {activeLoc.type === "explore" && currentUser.activePetId && (
+                    <button
+                      data-testid="button-start-battle"
+                      onClick={() => {
+                        setBattleLocationId(activeLoc.id);
+                        setShowBattle(true);
+                        setShowLocationView(false);
+                      }}
+                      className="w-12 h-12 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                      style={{
+                        background: `linear-gradient(135deg, rgba(239,68,68,0.8) 0%, rgba(180,40,40,0.6) 100%)`,
+                        border: `2px solid rgba(239,68,68,0.9)`,
+                        boxShadow: `0 4px 20px rgba(239,68,68,0.4)`,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <Swords className="w-5 h-5 text-white" />
+                    </button>
                   )}
                   {activeLoc.type !== "battle" && (
                     <button
