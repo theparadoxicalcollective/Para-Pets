@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Search, X, Upload, Trash2 } from "lucide-react";
+import { Search, X, Upload, Trash2, ChevronLeft } from "lucide-react";
 import bgImg from "@assets/bg_home.png";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
@@ -44,7 +44,7 @@ export default function AdminPage({ user }: AdminPageProps) {
   const [coinAmounts, setCoinAmounts] = useState<Record<string, string>>({});
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"members" | "rewards" | "items" | "pets" | "messages" | "badges" | "fishing">("members");
+  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "items" | "pets" | "messages" | "badges" | "fishing" | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -89,15 +89,17 @@ export default function AdminPage({ user }: AdminPageProps) {
     setCoinAmounts(prev => ({ ...prev, [userId]: "" }));
   };
 
-  const tabs = [
-    { key: "members" as const, label: `Members (${members.length})`, color: "#f0c040", activeBg: "linear-gradient(135deg, #5c3a1e 0%, #8b5e3c 100%)", activeBorder: "rgba(212,160,23,0.6)" },
-    { key: "rewards" as const, label: "Rewards", color: "#e0d0f0", activeBg: "linear-gradient(135deg, rgba(120,80,200,0.6) 0%, rgba(80,40,160,0.6) 100%)", activeBorder: "rgba(192,132,252,0.5)" },
-    { key: "items" as const, label: "Item DB", color: "#7fffd4", activeBg: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)", activeBorder: "rgba(127,255,212,0.5)" },
-    { key: "pets" as const, label: "Pet DB", color: "#ffb347", activeBg: "linear-gradient(135deg, #8b4513 0%, #5c3a1e 100%)", activeBorder: "rgba(255,179,71,0.5)" },
-    { key: "messages" as const, label: "Messages", color: "#ff9999", activeBg: "linear-gradient(135deg, #8b2020 0%, #5c1010 100%)", activeBorder: "rgba(255,153,153,0.5)" },
-    { key: "badges" as const, label: "Badges", color: "#ffd700", activeBg: "linear-gradient(135deg, #4a3800 0%, #7a5c00 100%)", activeBorder: "rgba(255,215,0,0.6)" },
-    { key: "fishing" as const, label: "Fishing", color: "#60a5fa", activeBg: "linear-gradient(135deg, #1e3a5f 0%, #0f2440 100%)", activeBorder: "rgba(96,165,250,0.5)" },
+  const sections = [
+    { key: "members" as const, label: "Members", count: members.length, emoji: "👥", desc: "Manage players", color: "#f0c040", bg: "linear-gradient(135deg, rgba(92,58,30,0.85) 0%, rgba(139,94,60,0.85) 100%)", border: "rgba(212,160,23,0.5)" },
+    { key: "rewards" as const, label: "Rewards", emoji: "🎁", desc: "Send bundles", color: "#c4b5fd", bg: "linear-gradient(135deg, rgba(88,28,135,0.8) 0%, rgba(59,7,100,0.8) 100%)", border: "rgba(192,132,252,0.5)" },
+    { key: "items" as const, label: "Items", emoji: "⚔️", desc: "Item database", color: "#5eead4", bg: "linear-gradient(135deg, rgba(19,78,74,0.85) 0%, rgba(8,51,46,0.85) 100%)", border: "rgba(94,234,212,0.45)" },
+    { key: "pets" as const, label: "Pets", emoji: "🐾", desc: "Pet database", color: "#fdba74", bg: "linear-gradient(135deg, rgba(120,53,15,0.85) 0%, rgba(67,20,7,0.85) 100%)", border: "rgba(251,146,60,0.45)" },
+    { key: "messages" as const, label: "Messages", emoji: "📨", desc: "Support inbox", color: "#fca5a5", bg: "linear-gradient(135deg, rgba(127,29,29,0.85) 0%, rgba(69,10,10,0.85) 100%)", border: "rgba(252,165,165,0.45)" },
+    { key: "badges" as const, label: "Badges", emoji: "🏅", desc: "Award badges", color: "#fde68a", bg: "linear-gradient(135deg, rgba(120,90,0,0.85) 0%, rgba(78,56,0,0.85) 100%)", border: "rgba(253,230,138,0.45)" },
+    { key: "fishing" as const, label: "Fishing", emoji: "🎣", desc: "Fish & ponds", color: "#93c5fd", bg: "linear-gradient(135deg, rgba(23,37,84,0.85) 0%, rgba(10,20,60,0.85) 100%)", border: "rgba(147,197,253,0.45)" },
   ];
+
+  const activeSectionMeta = activeSection ? sections.find(s => s.key === activeSection) : null;
 
   return (
     <div
@@ -117,33 +119,81 @@ export default function AdminPage({ user }: AdminPageProps) {
         <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
 
         <div className="flex-1 overflow-y-auto px-4 py-4">
-          <h2
-            className="font-fantasy text-[#f0c040] text-center text-lg tracking-widest font-semibold mb-1"
-            style={{ textShadow: "0 0 20px rgba(240,192,64,0.4)" }}
-          >
-            Realm Administration
-          </h2>
 
-          <div className="flex justify-center gap-1.5 mb-4">
-            {tabs.map((tab) => (
-              <button
-                key={tab.key}
-                data-testid={`tab-${tab.key}`}
-                onClick={() => setActiveTab(tab.key)}
-                className="px-3 py-1.5 rounded-md font-fantasy text-[10px] tracking-wider transition-all"
-                style={{
-                  background: activeTab === tab.key ? tab.activeBg : "rgba(0,0,0,0.3)",
-                  border: activeTab === tab.key ? `1px solid ${tab.activeBorder}` : "1px solid rgba(212,160,23,0.2)",
-                  color: activeTab === tab.key ? tab.color : "#a89878",
-                  cursor: "pointer",
-                }}
+          {!activeSection ? (
+            <>
+              <h2
+                className="font-fantasy text-[#f0c040] text-center text-lg tracking-widest font-semibold mb-1"
+                style={{ textShadow: "0 0 20px rgba(240,192,64,0.4)" }}
               >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+                Realm Administration
+              </h2>
+              <p className="font-fantasy text-center text-[11px] tracking-wider mb-5" style={{ color: "rgba(168,152,120,0.7)" }}>
+                Choose a section to manage
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                {sections.map((s) => (
+                  <button
+                    key={s.key}
+                    data-testid={`section-card-${s.key}`}
+                    onClick={() => setActiveSection(s.key)}
+                    className="flex flex-col items-start gap-2 p-4 rounded-xl transition-transform active:scale-95 text-left"
+                    style={{
+                      background: s.bg,
+                      border: `1.5px solid ${s.border}`,
+                      boxShadow: `0 4px 16px rgba(0,0,0,0.35)`,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <span className="text-2xl">{s.emoji}</span>
+                      {s.count !== undefined && (
+                        <span className="font-fantasy text-[10px] px-2 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.35)", color: s.color }}>
+                          {s.count}
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-fantasy text-sm tracking-wider font-semibold" style={{ color: s.color }}>
+                        {s.label}
+                      </p>
+                      <p className="font-fantasy text-[10px] mt-0.5" style={{ color: "rgba(200,185,155,0.7)" }}>
+                        {s.desc}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-3 mb-4">
+                <button
+                  data-testid="button-admin-back"
+                  onClick={() => setActiveSection(null)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all active:scale-95"
+                  style={{
+                    background: "rgba(0,0,0,0.4)",
+                    border: `1px solid ${activeSectionMeta?.border || "rgba(212,160,23,0.3)"}`,
+                    color: activeSectionMeta?.color || "#f0c040",
+                    cursor: "pointer",
+                  }}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span className="font-fantasy text-[11px] tracking-wider">Back</span>
+                </button>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{activeSectionMeta?.emoji}</span>
+                  <h2
+                    className="font-fantasy text-base tracking-widest font-semibold"
+                    style={{ color: activeSectionMeta?.color || "#f0c040", textShadow: "0 0 12px rgba(240,192,64,0.3)" }}
+                  >
+                    {activeSectionMeta?.label}
+                  </h2>
+                </div>
+              </div>
 
-          {activeTab === "members" && (
+              {activeSection === "members" && (
             isLoading ? (
               <div className="text-center py-8">
                 <p className="font-fantasy text-[#7fbfb0] text-sm animate-pulse">Summoning records...</p>
@@ -296,28 +346,30 @@ export default function AdminPage({ user }: AdminPageProps) {
             )
           )}
 
-          {activeTab === "rewards" && (
-            <RewardBundleSection members={members.filter(m => !m.isAdmin)} />
-          )}
+              {activeSection === "rewards" && (
+                <RewardBundleSection members={members.filter(m => !m.isAdmin)} />
+              )}
 
-          {activeTab === "items" && (
-            <ItemDatabaseSection />
-          )}
+              {activeSection === "items" && (
+                <ItemDatabaseSection />
+              )}
 
-          {activeTab === "pets" && (
-            <PetDatabasePanel />
-          )}
+              {activeSection === "pets" && (
+                <PetDatabasePanel />
+              )}
 
-          {activeTab === "messages" && (
-            <SupportMessagesSection />
-          )}
+              {activeSection === "messages" && (
+                <SupportMessagesSection />
+              )}
 
-          {activeTab === "badges" && (
-            <BadgeDatabaseSection members={members.filter(m => !m.isAdmin)} />
-          )}
+              {activeSection === "badges" && (
+                <BadgeDatabaseSection members={members.filter(m => !m.isAdmin)} />
+              )}
 
-          {activeTab === "fishing" && (
-            <FishingAdminPanel />
+              {activeSection === "fishing" && (
+                <FishingAdminPanel />
+              )}
+            </>
           )}
         </div>
       </div>
