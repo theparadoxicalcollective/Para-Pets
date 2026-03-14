@@ -1308,7 +1308,7 @@ export default function WorldPage({ user }: WorldPageProps) {
           <img src={activeLocDetail?.bgUrl || bgShopMystical} alt="" className="absolute inset-0 w-full h-full object-cover" />
           <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 72%, rgba(0,0,0,0.5) 100%)" }} />
           {/* Header */}
-          <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 pt-5 pb-3">
+          <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 pt-12 pb-3">
             <div className="flex items-center gap-2">
               {activeLoc?.iconUrl && (
                 <img src={activeLoc.iconUrl} alt="" className="w-10 h-10 rounded-lg object-contain" style={{ border: `1px solid ${accent}40` }} />
