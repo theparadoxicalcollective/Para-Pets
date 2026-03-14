@@ -211,15 +211,27 @@ app.use((req, res, next) => {
     return `data:image/png;base64,${buf.toString("base64")}`;
   }
 
-  // Always refresh the swamp world background from the bundled asset
-  try {
-    const swampBgData = loadAssetBase64("bg_swamp_v5.png");
-    if (swampBgData) {
-      await storage.updateWorld("swamp", { bgUrl: swampBgData } as any);
-      console.log("Swamp background refreshed from asset.");
+  // Always refresh all world backgrounds from bundled assets
+  const WORLD_BG_ASSETS: Record<string, string> = {
+    swamp: "bg_swamp_v5.png",
+    snowy_mountain: "bg_snowy_mountain_td.png",
+    sky_realm: "bg_sky_realm_td.png",
+    volcanic: "bg_volcanic_td.png",
+    haunted_woods: "bg_haunted_woods_td.png",
+    enchanted_grove: "bg_enchanted_grove_td.png",
+    island: "bg_island_td.png",
+    desert: "bg_desert_td.png",
+  };
+  for (const [worldId, filename] of Object.entries(WORLD_BG_ASSETS)) {
+    try {
+      const bgData = loadAssetBase64(filename);
+      if (bgData) {
+        await storage.updateWorld(worldId, { bgUrl: bgData } as any);
+        console.log(`${worldId} background refreshed from asset.`);
+      }
+    } catch (err) {
+      console.error(`Background refresh error for ${worldId} (non-fatal):`, err);
     }
-  } catch (err) {
-    console.error("Swamp background refresh error (non-fatal):", err);
   }
 
   try {
@@ -342,6 +354,17 @@ app.use((req, res, next) => {
         glowColor: "#c9a84c",
         sortOrder: 8,
       },
+      {
+        id: "a1b2c3d4-0007-4000-8000-000000000007",
+        name: "Myst Pond",
+        description: "A shimmering magical pond deep in the swamp, its glowing waters said to hold ancient secrets.",
+        iconFile: "icon_myst_pond.png",
+        bgFile: "bg_myst_pond.png",
+        posX: 38,
+        posY: 70,
+        glowColor: "#3dc7c0",
+        sortOrder: 9,
+      },
     ];
 
     for (const loc of NEW_SWAMP_LOCATIONS) {
@@ -368,8 +391,6 @@ app.use((req, res, next) => {
         const updates: any = {
           name: loc.name,
           description: loc.description,
-          posX: loc.posX,
-          posY: loc.posY,
           glowColor: loc.glowColor,
         };
         if (iconData) updates.iconUrl = iconData;
