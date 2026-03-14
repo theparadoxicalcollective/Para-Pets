@@ -160,6 +160,10 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [editLocOwner, setEditLocOwner] = useState<string | null>(null);
   const [editLocType, setEditLocType] = useState("battle");
   const [editLocGlowColor, setEditLocGlowColor] = useState("");
+  const [newEnemyName, setNewEnemyName] = useState("");
+  const [newEnemyImage, setNewEnemyImage] = useState<string | null>(null);
+  const [newEnemyIsBoss, setNewEnemyIsBoss] = useState(false);
+  const [newEnemyCoinReward, setNewEnemyCoinReward] = useState(1);
   const [activeLocationId, setActiveLocationId] = useState<string | null>(null);
   const [showLocationView, setShowLocationView] = useState(false);
   const [showItemPicker, setShowItemPicker] = useState(false);
@@ -224,6 +228,45 @@ export default function WorldPage({ user }: WorldPageProps) {
       return res.json();
     },
     enabled: (showLocationView || showShop) && !!activeLocationId,
+  });
+
+  const { data: editingLocationEnemies = [], refetch: refetchEditingEnemies } = useQuery<any[]>({
+    queryKey: ["/api/location", editingLocation?.id, "enemies"],
+    queryFn: async () => {
+      const res = await fetch(`/api/location/${editingLocation!.id}/enemies`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch enemies");
+      return res.json();
+    },
+    enabled: !!editingLocation && (editLocType === "battle" || editLocType === "explore"),
+    staleTime: 0,
+  });
+
+  const addEnemyMutation = useMutation({
+    mutationFn: async (data: { name: string; imageData: string | null; isBoss: boolean; coinReward: number }) => {
+      const res = await apiRequest("POST", `/api/admin/location/${editingLocation!.id}/enemy`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/location", editingLocation?.id, "enemies"] });
+      setNewEnemyName("");
+      setNewEnemyImage(null);
+      setNewEnemyIsBoss(false);
+      setNewEnemyCoinReward(1);
+      toast({ title: "Enemy added" });
+    },
+    onError: () => toast({ title: "Failed to add enemy", variant: "destructive" }),
+  });
+
+  const deleteEnemyMutation = useMutation({
+    mutationFn: async (enemyId: string) => {
+      const res = await apiRequest("DELETE", `/api/admin/enemy/${enemyId}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/location", editingLocation?.id, "enemies"] });
+      toast({ title: "Enemy removed" });
+    },
+    onError: () => toast({ title: "Failed to remove enemy", variant: "destructive" }),
   });
 
   const ownedItemIds = new Set(inventory.map((inv) => inv.shopItemId));
@@ -712,6 +755,10 @@ export default function WorldPage({ user }: WorldPageProps) {
                                 setEditLocOwner(null);
                                 setEditLocType(loc.type || (loc.isShop ? "shop" : "battle"));
                                 setEditLocGlowColor(loc.glowColor || "");
+                                setNewEnemyName("");
+                                setNewEnemyImage(null);
+                                setNewEnemyIsBoss(false);
+                                setNewEnemyCoinReward(1);
                               }}
                               className="absolute -top-1 -right-1 z-30 w-5 h-5 rounded-full flex items-center justify-center"
                               style={{
@@ -1212,6 +1259,119 @@ export default function WorldPage({ user }: WorldPageProps) {
               >
                 {editLocationMutation.isPending ? "Saving..." : "Save Changes"}
               </button>
+
+              {(editLocType === "battle" || editLocType === "explore") && (
+                <div className="mt-4 pt-4" style={{ borderTop: `1px solid ${accent}25` }}>
+                  <p className="font-fantasy text-[10px] tracking-wider mb-3" style={{ color: `${accent}bb` }}>
+                    ENEMIES ({editingLocationEnemies.length})
+                  </p>
+
+                  <div className="space-y-2 mb-3 max-h-48 overflow-y-auto">
+                    {editingLocationEnemies.length === 0 && (
+                      <p className="font-fantasy text-[9px] text-center py-2" style={{ color: `${accent}55` }}>No enemies yet</p>
+                    )}
+                    {editingLocationEnemies.map((enemy: any) => (
+                      <div
+                        key={enemy.id}
+                        className="flex items-center gap-2 px-2 py-1.5 rounded-md"
+                        style={{ background: "rgba(0,0,0,0.35)", border: `1px solid ${accent}20` }}
+                        data-testid={`enemy-row-${enemy.id}`}
+                      >
+                        <div className="w-8 h-8 rounded flex items-center justify-center overflow-hidden flex-shrink-0" style={{ background: "rgba(0,0,0,0.4)" }}>
+                          {enemy.imageUrl
+                            ? <img src={enemy.imageUrl} alt={enemy.name} className="w-full h-full object-contain" />
+                            : <span style={{ fontSize: 14 }}>👾</span>}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1">
+                            <span className="font-fantasy text-[10px] truncate" style={{ color: "#e8ddd0" }}>{enemy.name}</span>
+                            {enemy.isBoss && (
+                              <span className="font-fantasy text-[7px] px-1 rounded" style={{ background: "rgba(220,38,38,0.4)", color: "#fca5a5", border: "1px solid rgba(220,38,38,0.3)" }}>BOSS</span>
+                            )}
+                          </div>
+                          <span className="font-fantasy text-[8px]" style={{ color: `${accent}77` }}>🪙 {enemy.coinReward} coins</span>
+                        </div>
+                        <button
+                          data-testid={`button-delete-enemy-${enemy.id}`}
+                          onClick={() => deleteEnemyMutation.mutate(enemy.id)}
+                          disabled={deleteEnemyMutation.isPending}
+                          className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0 disabled:opacity-40"
+                          style={{ background: "rgba(220,38,38,0.25)", border: "1px solid rgba(220,38,38,0.35)", cursor: "pointer" }}
+                        >
+                          <Trash2 className="w-3 h-3" style={{ color: "#fca5a5" }} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="rounded-md p-2 space-y-2" style={{ background: "rgba(0,0,0,0.25)", border: `1px solid ${accent}15` }}>
+                    <p className="font-fantasy text-[9px] tracking-wider" style={{ color: `${accent}88` }}>ADD ENEMY</p>
+                    <input
+                      data-testid="input-new-enemy-name"
+                      type="text"
+                      placeholder="Enemy name..."
+                      value={newEnemyName}
+                      onChange={(e) => setNewEnemyName(e.target.value)}
+                      className="w-full px-2 py-1.5 rounded font-fantasy text-xs"
+                      style={{ background: "rgba(0,0,0,0.5)", border: `1px solid ${accent}30`, color: "#e8ddd0", outline: "none" }}
+                    />
+                    <div className="flex gap-2 items-center">
+                      <div className="flex-1">
+                        <label className="font-fantasy text-[8px] block mb-0.5" style={{ color: `${accent}77` }}>Coin Reward</label>
+                        <input
+                          data-testid="input-new-enemy-coins"
+                          type="number"
+                          min={0}
+                          value={newEnemyCoinReward}
+                          onChange={(e) => setNewEnemyCoinReward(Number(e.target.value))}
+                          className="w-full px-2 py-1 rounded font-fantasy text-xs"
+                          style={{ background: "rgba(0,0,0,0.5)", border: `1px solid ${accent}30`, color: "#e8ddd0", outline: "none" }}
+                        />
+                      </div>
+                      <div className="flex flex-col items-center gap-0.5">
+                        <label className="font-fantasy text-[8px]" style={{ color: `${accent}77` }}>Boss?</label>
+                        <button
+                          data-testid="toggle-new-enemy-boss"
+                          onClick={() => setNewEnemyIsBoss(!newEnemyIsBoss)}
+                          className="w-8 h-5 rounded-full transition-colors"
+                          style={{ background: newEnemyIsBoss ? "rgba(220,38,38,0.6)" : "rgba(0,0,0,0.4)", border: `1px solid ${newEnemyIsBoss ? "rgba(220,38,38,0.6)" : `${accent}30`}`, cursor: "pointer" }}
+                        >
+                          <span className="font-fantasy text-[7px]" style={{ color: newEnemyIsBoss ? "#fca5a5" : `${accent}66` }}>{newEnemyIsBoss ? "YES" : "NO"}</span>
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="font-fantasy text-[8px] block mb-0.5" style={{ color: `${accent}77` }}>Image (PNG/GIF)</label>
+                      <input
+                        data-testid="input-new-enemy-image"
+                        type="file"
+                        accept="image/png,image/gif"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) setNewEnemyImage(await readFileAsDataUrl(file));
+                        }}
+                        className="w-full text-[10px] font-fantasy"
+                        style={{ color: `${accent}cc` }}
+                      />
+                      {newEnemyImage && (
+                        <img src={newEnemyImage} alt="Preview" className="w-10 h-10 object-contain rounded mt-1" style={{ border: `1px solid ${accent}30` }} />
+                      )}
+                    </div>
+                    <button
+                      data-testid="button-add-enemy"
+                      onClick={() => {
+                        if (!newEnemyName.trim()) return;
+                        addEnemyMutation.mutate({ name: newEnemyName, imageData: newEnemyImage, isBoss: newEnemyIsBoss, coinReward: newEnemyCoinReward });
+                      }}
+                      disabled={addEnemyMutation.isPending || !newEnemyName.trim()}
+                      className="w-full py-1.5 rounded font-fantasy text-xs tracking-wider disabled:opacity-40"
+                      style={{ background: `linear-gradient(135deg, ${accent}40 0%, ${accent}20 100%)`, border: `1px solid ${accent}50`, color: accent, cursor: "pointer" }}
+                    >
+                      {addEnemyMutation.isPending ? "Adding..." : "+ Add Enemy"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
