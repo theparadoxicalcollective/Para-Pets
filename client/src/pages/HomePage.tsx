@@ -207,39 +207,6 @@ export default function HomePage({ user }: HomePageProps) {
       <div className="relative z-10 flex flex-col h-full" style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} hideHome />
 
-        {activePet && (activePet.rarity ?? 0) > 0 && (
-          <div
-            className="flex justify-center pointer-events-none shrink-0"
-            style={{ zIndex: 30, paddingTop: "16px", paddingBottom: "0px" }}
-            data-testid="display-pet-rarity-stars"
-          >
-            {Array.from({ length: 5 }).map((_, i) => {
-              const t = (i - 2) / 2;
-              const curveY = -(1 - t * t) * 14;
-              const filled = i < (activePet.rarity || 0);
-              return (
-                <svg
-                  key={i}
-                  width="42"
-                  height="42"
-                  viewBox="0 0 24 24"
-                  fill={filled ? "#f0c040" : "none"}
-                  stroke={filled ? "#d4a017" : "rgba(139,110,78,0.25)"}
-                  strokeWidth="1.5"
-                  style={{
-                    transform: `translateY(${curveY}px)`,
-                    margin: "0 4px",
-                    filter: filled
-                      ? "drop-shadow(0 0 6px rgba(240,192,64,0.7)) drop-shadow(0 0 14px rgba(240,192,64,0.4))"
-                      : "none",
-                  }}
-                >
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                </svg>
-              );
-            })}
-          </div>
-        )}
 
         <div className="flex-1 flex flex-col items-center justify-center px-2 py-0 min-h-0">
           <div className="relative flex items-center justify-center" style={{ width: "90%", maxWidth: "420px" }}>
@@ -263,6 +230,58 @@ export default function HomePage({ user }: HomePageProps) {
                 </div>
               ) : activePet ? (
                 <div className="relative w-full animate-float flex flex-col items-center" data-testid="display-active-pet">
+                  {(activePet.rarity ?? 0) > 0 && (
+                    <div
+                      data-testid="display-pet-rarity-stars"
+                      style={{
+                        position: "absolute",
+                        top: "6%",
+                        left: 0,
+                        right: 0,
+                        zIndex: 5,
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        pointerEvents: "none",
+                      }}
+                    >
+                      <div style={{
+                        position: "absolute",
+                        width: "85%",
+                        height: "70px",
+                        background: "radial-gradient(ellipse, rgba(240,192,64,0.45) 0%, rgba(240,160,20,0.2) 45%, transparent 70%)",
+                        filter: "blur(16px)",
+                        borderRadius: "50%",
+                      }} />
+                      {Array.from({ length: 5 }).map((_, i) => {
+                        const t = (i - 2) / 2;
+                        const curveY = -(1 - t * t) * 12;
+                        const filled = i < (activePet.rarity || 0);
+                        return (
+                          <svg
+                            key={i}
+                            width="56"
+                            height="56"
+                            viewBox="0 0 24 24"
+                            fill={filled ? "#f0c040" : "none"}
+                            stroke={filled ? "#d4a017" : "rgba(139,110,78,0.2)"}
+                            strokeWidth="1.5"
+                            style={{
+                              transform: `translateY(${curveY}px)`,
+                              margin: "0 2px",
+                              position: "relative",
+                              zIndex: 1,
+                              filter: filled
+                                ? "drop-shadow(0 0 8px rgba(240,192,64,1)) drop-shadow(0 0 20px rgba(240,192,64,0.7))"
+                                : "none",
+                            }}
+                          >
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                          </svg>
+                        );
+                      })}
+                    </div>
+                  )}
                   <div
                     className="w-full flex items-center justify-center"
                     style={{
