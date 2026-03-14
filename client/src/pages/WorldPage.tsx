@@ -1417,7 +1417,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                     style={{ aspectRatio: "1/1" }}
                   >
                     {imgSrc ? (
-                      <img src={imgSrc} alt={item.name} className="w-full h-full object-contain" style={{ filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.8))" }} />
+                      <img src={imgSrc} alt={item.name} className="w-full h-full object-contain" style={{ filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.8)) drop-shadow(0 0 8px rgba(255,200,50,0.55)) drop-shadow(0 0 18px rgba(255,170,0,0.28))" }} />
                     ) : (
                       <Package className="w-8 h-8" style={{ color: `${accent}80` }} />
                     )}
