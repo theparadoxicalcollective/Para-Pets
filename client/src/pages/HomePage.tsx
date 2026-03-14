@@ -260,7 +260,7 @@ export default function HomePage({ user }: HomePageProps) {
         )}
 
         <div className="flex-1 flex flex-col items-center justify-center px-2 py-0 min-h-0">
-          <div className="relative flex items-center justify-center" style={{ width: "90%", maxWidth: "420px" }}>
+          <div className="relative flex items-center justify-center w-[90%] max-w-[420px] md:max-w-[580px] lg:max-w-[700px]">
             <div
               className="w-full rounded-xl flex flex-col items-center justify-center"
               style={{
@@ -297,7 +297,7 @@ export default function HomePage({ user }: HomePageProps) {
                         {activePet.petTemplateId ? (
                           <PetAnimator petTemplateId={activePet.petTemplateId} mode="idle" view="front" size={1000} className="w-full" style={{ aspectRatio: "1/1" }} />
                         ) : (activePet.hatchedImageUrl || activePet.imageUrl) ? (
-                          <img src={activePet.hatchedImageUrl || activePet.imageUrl || ""} alt={activePet.name} className="w-full max-h-[50vh] object-contain" />
+                          <img src={activePet.hatchedImageUrl || activePet.imageUrl || ""} alt={activePet.name} className="w-full max-h-[50vh] md:max-h-[62vh] lg:max-h-[68vh] object-contain" />
                         ) : (
                           <span className="text-5xl">🐾</span>
                         )}
@@ -320,7 +320,7 @@ export default function HomePage({ user }: HomePageProps) {
                           }}
                         >
                           {activePet.eggImageUrl ? (
-                            <img src={activePet.eggImageUrl} alt={activePet.name} className="w-full max-h-[50vh] object-contain" />
+                            <img src={activePet.eggImageUrl} alt={activePet.name} className="w-full max-h-[50vh] md:max-h-[62vh] lg:max-h-[68vh] object-contain" />
                           ) : (
                             <span className="text-5xl">🥚</span>
                           )}
