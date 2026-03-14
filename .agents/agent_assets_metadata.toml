@@ -6,3 +6,9 @@ id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"
 type = "image"
 title = "New Pet House Background — Waterfall & Vine Archway"
+
+[[outputs]]
+id = "Iah4Ev5kFM8adxE8Dm5bn"
+uri = "file://client/public/favicon.png"
+type = "image"
+title = "ParaPets Home Screen Icon"
