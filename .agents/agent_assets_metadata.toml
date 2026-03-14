@@ -12,3 +12,9 @@ id = "Iah4Ev5kFM8adxE8Dm5bn"
 uri = "file://client/public/favicon.png"
 type = "image"
 title = "ParaPets Home Screen Icon — Clean Forest Egg"
+
+[[outputs]]
+id = "fDAlIHhnGU8Qyi2a13kZ9"
+uri = "file://attached_assets/icon_myst_pond.png"
+type = "image"
+title = "Myst Pond Icon"
