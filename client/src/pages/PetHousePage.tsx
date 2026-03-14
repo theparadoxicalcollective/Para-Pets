@@ -93,7 +93,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     },
     onSuccess: (_data, variables) => {
       const edible = edibles.find((e) => e.inventoryId === variables.edibleInventoryId);
-      setFeedLabel(`+${edible?.statBoostAmount ?? "?"} LVL`);
+      setFeedLabel(`+${edible?.statBoostAmount ?? "?"} LVL Points`);
       setFeedAnim(true);
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       setTimeout(() => setFeedAnim(false), 2400);
@@ -401,7 +401,7 @@ function FeedView({
                     {edible.name}
                   </p>
                   <p className="font-fantasy text-[7px] pointer-events-none" style={{ color: "#86efac" }}>
-                    +{edible.statBoostAmount} LVL
+                    +{edible.statBoostAmount} LVL Points
                   </p>
                 </div>
               );
