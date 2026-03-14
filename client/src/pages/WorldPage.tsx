@@ -212,6 +212,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [topLocId, setTopLocId] = useState<string | null>(null);
   const [worldBgLoaded, setWorldBgLoaded] = useState(false);
   const [locBgLoaded, setLocBgLoaded] = useState(false);
+  const [shopBgNaturalRatio, setShopBgNaturalRatio] = useState<number | null>(null);
 
   const { data: locations = [], isLoading: locationsLoading } = useQuery<WorldLocationData[]>({
     queryKey: ["/api/world", worldId, "locations"],
@@ -474,13 +475,21 @@ export default function WorldPage({ user }: WorldPageProps) {
 
   useEffect(() => {
     setLocBgLoaded(false);
+    setShopBgNaturalRatio(null);
     if (!activeLocationId) return;
     if (!activeLocDetail) return;
     const bgUrl = activeLocDetail.bgUrl;
     if (!bgUrl) { setLocBgLoaded(true); return; }
     let cancelled = false;
     const img = new Image();
-    img.onload = () => { if (!cancelled) setLocBgLoaded(true); };
+    img.onload = () => {
+      if (!cancelled) {
+        if (img.naturalWidth && img.naturalHeight) {
+          setShopBgNaturalRatio(img.naturalHeight / img.naturalWidth);
+        }
+        setLocBgLoaded(true);
+      }
+    };
     img.onerror = () => { if (!cancelled) setLocBgLoaded(true); };
     img.src = bgUrl;
     const fallback = setTimeout(() => { if (!cancelled) setLocBgLoaded(true); }, 5000);
@@ -1352,10 +1361,7 @@ export default function WorldPage({ user }: WorldPageProps) {
         const activeLoc = locations.find(l => l.id === activeLocationId);
         const shopName = activeLoc?.name || world.name;
         return (
-        <div className="fixed inset-0 z-40" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
-          {/* Full-screen shop background — use location's own bg if available */}
-          <img src={activeLocDetail?.bgUrl || bgShopMystical} alt="" className="absolute inset-0 w-full h-full object-cover" />
-          <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 72%, rgba(0,0,0,0.5) 100%)" }} />
+        <div className="fixed inset-0 z-40" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, background: "#050a08", overflow: "hidden" }}>
           {/* Loading gate — covers shop until bg image is ready */}
           {!locBgLoaded && (
             <div className="absolute inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(8,5,20,1)" }}>
@@ -1399,10 +1405,17 @@ export default function WorldPage({ user }: WorldPageProps) {
               </button>
             </div>
           </div>
-          {/* Shop canvas — items placed freely */}
+          {/* Shop canvas — fixed aspect ratio matches background image, so items stay in position on all screens */}
           <div
             ref={shopCanvasRef}
-            className="absolute inset-0 z-10"
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              paddingBottom: shopBgNaturalRatio ? `${shopBgNaturalRatio * 100}%` : "177.78%",
+              zIndex: 10,
+            }}
             onPointerMove={handleShopItemPointerMove}
             onPointerUp={(e) => {
               if (shopItemDragRef.current) {
@@ -1411,6 +1424,10 @@ export default function WorldPage({ user }: WorldPageProps) {
               }
             }}
           >
+            {/* Inner absolute fill — background + gradient + items all relative to this fixed-ratio space */}
+            <div className="absolute inset-0">
+            <img src={activeLocDetail?.bgUrl || bgShopMystical} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 72%, rgba(0,0,0,0.5) 100%)" }} />
             {itemsLoading ? (
               <div className="absolute inset-0 flex items-center justify-center">
                 <p className="font-fantasy text-sm animate-pulse" style={{ color: `${accent}cc`, textShadow: `0 0 10px ${accent}50` }}>Loading wares...</p>
@@ -1523,6 +1540,7 @@ export default function WorldPage({ user }: WorldPageProps) {
               </p>
             </div>
           )}
+          </div>
         </div>
         );
       })()}
