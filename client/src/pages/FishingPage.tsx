@@ -3,9 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { X, Plus, Star, Trash2 } from "lucide-react";
-import PetAnimator from "@/components/PetAnimator";
 import fishingBg from "@assets/fishing_bg_portrait.png";
-import pondOverlay from "@assets/pond_overlay.png";
 import poleIcon from "@assets/icon_fishing_pole.png";
 import baitIcon from "@assets/icon_fishing_bait.png";
 import fishInvIcon from "@assets/icon_fish_inventory.png";
@@ -19,7 +17,6 @@ interface FishingPageProps {
     username: string;
     coins: number;
     isAdmin: boolean;
-    activePetId: string | null;
   };
   onClose: () => void;
 }
@@ -113,21 +110,6 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       return res.json();
     },
     staleTime: 0,
-  });
-
-  const { data: activePetData } = useQuery<{ petTemplateId: string | null }>({
-    queryKey: ["/api/inventory/active-pet"],
-    queryFn: async () => {
-      if (!user.activePetId) return { petTemplateId: null };
-      const res = await fetch("/api/inventory", { credentials: "include" });
-      if (!res.ok) return { petTemplateId: null };
-      const inv = await res.json();
-      const active = inv.find((i: InventoryItem & { petTemplateId?: string; isHatched?: boolean }) =>
-        i.shopItemId === user.activePetId && i.type === "pet"
-      );
-      return { petTemplateId: active?.petTemplateId || null };
-    },
-    staleTime: 30000,
   });
 
   const poles = inventory.filter(i => i.type === "fishing" && i.fishingType === "pole");
@@ -319,21 +301,69 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         background: "linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 25%, rgba(0,0,0,0) 65%, rgba(0,0,0,0.7) 100%)",
       }} />
 
-      <img
-        src={pondOverlay}
-        alt=""
-        className="absolute w-full pointer-events-none"
+      {/* Magical pond surface — clickable cast zone */}
+      <div
+        className="absolute pointer-events-none"
         style={{
-          bottom: "12%",
-          height: "50%",
-          objectFit: "cover",
-          objectPosition: "center bottom",
-          mixBlendMode: "screen",
-          opacity: 0.65,
+          bottom: "18%",
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: "72%",
           zIndex: 2,
-          animation: "pondDrift 8s ease-in-out infinite",
         }}
-      />
+      >
+        {/* Outer glow ring */}
+        <div style={{
+          position: "absolute",
+          inset: "-12px",
+          borderRadius: "50%",
+          background: "radial-gradient(ellipse at center, rgba(94,234,212,0.12) 0%, rgba(56,189,248,0.06) 50%, transparent 75%)",
+          animation: "pondGlow 4s ease-in-out infinite",
+        }} />
+        {/* Water surface oval */}
+        <div style={{
+          width: "100%",
+          paddingBottom: "38%",
+          borderRadius: "50%",
+          background: "radial-gradient(ellipse at 40% 38%, rgba(147,210,210,0.18) 0%, rgba(56,180,180,0.10) 40%, rgba(14,90,110,0.08) 70%, transparent 100%)",
+          border: "1.5px solid rgba(94,234,212,0.22)",
+          boxShadow: "0 0 32px rgba(94,234,212,0.10), inset 0 0 24px rgba(94,234,212,0.05)",
+          animation: "pondDrift 8s ease-in-out infinite",
+          position: "relative",
+          overflow: "hidden",
+        }}>
+          {/* shimmer streaks */}
+          <div style={{
+            position: "absolute", top: "28%", left: "20%", width: "22%", height: "2px",
+            background: "rgba(200,240,240,0.25)", borderRadius: 4,
+            animation: "shimmer1 5s ease-in-out infinite",
+          }} />
+          <div style={{
+            position: "absolute", top: "52%", left: "55%", width: "14%", height: "1.5px",
+            background: "rgba(200,240,240,0.18)", borderRadius: 4,
+            animation: "shimmer2 7s ease-in-out infinite",
+          }} />
+        </div>
+        {/* Lily pad icon (decorative) */}
+        <div style={{
+          position: "absolute",
+          top: "10%", left: "62%",
+          width: 22, height: 22,
+          borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(74,200,130,0.55), rgba(34,140,80,0.30))",
+          border: "1px solid rgba(100,220,140,0.35)",
+          animation: "lilyFloat 6s ease-in-out infinite",
+        }} />
+        <div style={{
+          position: "absolute",
+          top: "38%", left: "15%",
+          width: 14, height: 14,
+          borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(74,200,130,0.45), rgba(34,140,80,0.20))",
+          border: "1px solid rgba(100,220,140,0.25)",
+          animation: "lilyFloat 8s ease-in-out infinite 1s",
+        }} />
+      </div>
 
       {!bgLoaded && (
         <div className="absolute inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(8,5,20,1)" }}>
@@ -505,12 +535,6 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         </div>
       )}
 
-      {activePetData?.petTemplateId && (
-        <div className="absolute bottom-[140px] left-3 pointer-events-none" style={{ zIndex: 12, animation: "petBob 3.5s ease-in-out infinite" }}>
-          <PetAnimator petTemplateId={activePetData.petTemplateId} mode="idle" size={96} />
-        </div>
-      )}
-
       <div className="absolute bottom-0 left-0 right-0 z-20" style={{
         background: "linear-gradient(0deg, rgba(5,15,12,0.95) 0%, rgba(5,15,12,0.8) 70%, transparent 100%)",
         paddingTop: 20,
@@ -539,6 +563,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
             equippedItem={null}
             badgeCount={fishInventory.length}
             isActive={showFishInv}
+            noDim
             onClick={() => { setShowFishInv(!showFishInv); setShowPolePanel(false); setShowBaitPanel(false); }}
             testId="button-fish-inventory"
           />
@@ -589,7 +614,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
 }
 
 function EquipSlot({
-  label, defaultIcon, equippedItem, isActive, onClick, badgeCount, testId,
+  label, defaultIcon, equippedItem, isActive, onClick, badgeCount, testId, noDim,
 }: {
   label: string;
   defaultIcon: string;
@@ -598,8 +623,10 @@ function EquipSlot({
   onClick: () => void;
   badgeCount?: number;
   testId: string;
+  noDim?: boolean;
 }) {
   const imgSrc = equippedItem?.imageUrl || defaultIcon;
+  const bright = noDim || !!equippedItem;
   return (
     <button
       data-testid={testId}
@@ -614,7 +641,7 @@ function EquipSlot({
         transition: "all 0.15s ease",
       }}>
         <img src={imgSrc} alt="" className="w-12 h-12 object-contain" style={{
-          filter: equippedItem ? "none" : "brightness(0.5) saturate(0.5)",
+          filter: bright ? "none" : "brightness(0.5) saturate(0.5)",
         }} />
         {badgeCount !== undefined && badgeCount > 0 && (
           <div className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold"
@@ -623,7 +650,7 @@ function EquipSlot({
           </div>
         )}
       </div>
-      <span className="font-fantasy text-[9px] tracking-wider" style={{ color: equippedItem ? ACCENT : `${ACCENT}60` }}>
+      <span className="font-fantasy text-[9px] tracking-wider" style={{ color: bright ? ACCENT : `${ACCENT}60` }}>
         {equippedItem ? equippedItem.name : label}
       </span>
     </button>
@@ -983,8 +1010,24 @@ function RadialReelMechanic({
 
 const FISHING_ANIMATIONS = `
   @keyframes pondDrift {
-    0%, 100% { transform: translateX(0) scale(1); opacity: 0.65; }
-    50% { transform: translateX(-8px) scale(1.02); opacity: 0.75; }
+    0%, 100% { transform: translateX(0) scale(1); }
+    50% { transform: translateX(-6px) scale(1.015); }
+  }
+  @keyframes pondGlow {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 1; }
+  }
+  @keyframes shimmer1 {
+    0%, 100% { opacity: 0.2; transform: scaleX(1); }
+    50% { opacity: 0.5; transform: scaleX(1.15); }
+  }
+  @keyframes shimmer2 {
+    0%, 100% { opacity: 0.15; transform: scaleX(1); }
+    60% { opacity: 0.4; transform: scaleX(0.85); }
+  }
+  @keyframes lilyFloat {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-3px) rotate(4deg); }
   }
   @keyframes rippleRing {
     0% { width: 8px; height: 8px; opacity: 1; margin-left: -4px; margin-bottom: -4px; }
