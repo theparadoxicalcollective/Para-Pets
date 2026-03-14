@@ -364,7 +364,7 @@ app.use((req, res, next) => {
         id: "a1b2c3d4-0007-4000-8000-000000000007",
         name: "Myst Pond",
         description: "A shimmering magical pond deep in the swamp, its glowing waters said to hold ancient secrets.",
-        iconFile: "icon_myst_pond.png",
+        iconFile: "icon_myst_pond_v2.png",
         bgFile: "bg_myst_pond.png",
         posX: 38,
         posY: 70,
