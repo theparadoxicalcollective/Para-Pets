@@ -423,7 +423,6 @@ function WalkingPet({
   onClick: () => void;
 }) {
   const [isHovered, setIsHovered] = useState(false);
-  const petVisualRef = useRef<HTMLDivElement>(null);
 
   const { data: templateData } = useQuery<{ parts: Array<{ partType: string }> }>({
     queryKey: ["/api/pet-template-parts", pet.petTemplateId],
@@ -450,42 +449,6 @@ function WalkingPet({
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
   const sz = cfg.size;
   const shadowW = Math.round(sz * 0.52);
-
-  const checkTransparent = (e: React.MouseEvent): boolean => {
-    const container = petVisualRef.current;
-    if (!container) return false;
-    const rect = container.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
-    if (clickX < 0 || clickY < 0 || clickX > rect.width || clickY > rect.height) return true;
-    const canvas = document.createElement("canvas");
-    canvas.width = sz;
-    canvas.height = sz;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return false;
-    const imgs = container.querySelectorAll("img");
-    imgs.forEach(img => {
-      if (!img.complete || !img.naturalWidth) return;
-      const ir = img.getBoundingClientRect();
-      const x = (ir.left - rect.left) * (sz / rect.width);
-      const y = (ir.top - rect.top) * (sz / rect.height);
-      const w = ir.width * (sz / rect.width);
-      const h = ir.height * (sz / rect.height);
-      try { ctx.drawImage(img, x, y, w, h); } catch {}
-    });
-    const px = Math.round((clickX / rect.width) * sz);
-    const py = Math.round((clickY / rect.height) * sz);
-    try {
-      return ctx.getImageData(px, py, 1, 1).data[3] < 20;
-    } catch {
-      return false;
-    }
-  };
-
-  const handleClick = (e: React.MouseEvent) => {
-    if (checkTransparent(e)) return;
-    onClick();
-  };
 
   const shadow = (
     <div
@@ -533,45 +496,66 @@ function WalkingPet({
         <div style={{ animation: `${floatAnim} 3.2s ${cfg.delay} ease-in-out infinite` }}>
           {pet.petTemplateId ? (
             <>
-              <div
-                ref={petVisualRef}
-                style={{ width: sz, height: sz, pointerEvents: "auto", cursor: "pointer", ...hoverStyle }}
-                onClick={handleClick}
-                {...hoverHandlers}
-              >
+              {/* PetAnimator: tight oval hit area so transparent edges don't block other pets */}
+              <div style={{ width: sz, height: sz, pointerEvents: "none", position: "relative" }}>
                 <PetAnimator
                   petTemplateId={pet.petTemplateId}
                   mode="idle"
                   size={sz}
                   style={{
                     filter: `drop-shadow(0 ${Math.round(sz * 0.12)}px ${Math.round(sz * 0.15)}px rgba(0,0,0,0.5))`,
+                    transform: isHovered ? "scale(1.1)" : "scale(1)",
+                    transition: "transform 0.15s ease",
                   }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    left: "50%",
+                    top: "45%",
+                    width: Math.round(sz * 0.62),
+                    height: Math.round(sz * 0.72),
+                    transform: "translate(-50%, -50%)",
+                    borderRadius: "50%",
+                    pointerEvents: "auto",
+                    cursor: "pointer",
+                  }}
+                  onClick={onClick}
+                  onMouseEnter={() => setIsHovered(true)}
+                  onMouseLeave={() => setIsHovered(false)}
+                  onTouchStart={() => setIsHovered(true)}
+                  onTouchEnd={() => setIsHovered(false)}
                 />
               </div>
               {shadow}
             </>
           ) : petImg ? (
             <>
-              <div
-                ref={petVisualRef}
-                style={{ width: sz, height: sz, pointerEvents: "auto", cursor: "pointer", ...hoverStyle }}
-                onClick={handleClick}
-                {...hoverHandlers}
+              {/* SVG image: pointer-events="painted" makes transparent pixels truly pass through */}
+              <svg
+                width={sz}
+                height={sz}
+                style={{ display: "block", overflow: "visible", pointerEvents: "none" }}
               >
-                <img
-                  src={petImg}
-                  alt=""
+                <image
+                  href={petImg}
+                  width={sz}
+                  height={sz}
                   style={{
-                    width: sz,
-                    height: sz,
-                    objectFit: "contain",
-                    filter: [
-                      `drop-shadow(0 ${Math.round(sz * 0.12)}px ${Math.round(sz * 0.15)}px rgba(0,0,0,0.6))`,
-                      "brightness(1.06) saturate(1.1)",
-                    ].join(" "),
+                    pointerEvents: "painted",
+                    cursor: "pointer",
+                    filter: `drop-shadow(0 ${Math.round(sz * 0.12)}px ${Math.round(sz * 0.15)}px rgba(0,0,0,0.6))`,
+                    transform: isHovered ? "scale(1.1)" : "scale(1)",
+                    transformOrigin: "center center",
+                    transition: "transform 0.15s ease",
                   }}
+                  onClick={onClick}
+                  onMouseEnter={() => setIsHovered(true)}
+                  onMouseLeave={() => setIsHovered(false)}
+                  onTouchStart={() => setIsHovered(true)}
+                  onTouchEnd={() => setIsHovered(false)}
                 />
-              </div>
+              </svg>
               {shadow}
             </>
           ) : (
@@ -588,7 +572,10 @@ function WalkingPet({
                   ...hoverStyle,
                 }}
                 onClick={onClick}
-                {...hoverHandlers}
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
+                onTouchStart={() => setIsHovered(true)}
+                onTouchEnd={() => setIsHovered(false)}
               >
                 🐾
               </span>
