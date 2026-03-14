@@ -521,21 +521,26 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
           <button
             data-testid="button-back-home"
             onClick={() => navigate("/")}
-            style={{ background: "rgba(10,30,15,0.8)", border: "1.5px solid rgba(74,222,128,0.35)", borderRadius: 10, padding: "6px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+            style={{ background: "rgba(10,30,15,0.8)", border: "1.5px solid rgba(74,222,128,0.35)", borderRadius: 10, padding: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, overflow: "hidden", flexShrink: 0 }}
           >
-            <img src={homeIconImg} alt="Home" style={{ width: 30, height: 30, objectFit: "contain" }} />
+            <img src={homeIconImg} alt="Home" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
           </button>
           <div style={{ textAlign: "center" }}>
             <h1 style={{ color: accentGreen, fontFamily: "Georgia, serif", fontSize: 20, margin: 0, textShadow: "0 0 15px rgba(74,222,128,0.5)" }}>
               Player Market
             </h1>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(10,30,15,0.8)", border: "1px solid rgba(212,160,23,0.4)", borderRadius: 10, padding: "6px 10px" }}>
+          <button
+            data-testid="button-market-coin-shop"
+            onClick={() => navigate("/coins")}
+            style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(10,30,15,0.8)", border: "1px solid rgba(212,160,23,0.4)", borderRadius: 10, padding: "6px 10px", cursor: "pointer" }}
+          >
             <CoinIcon size={14} />
             <span style={{ color: "#f0c040", fontFamily: "Georgia, serif", fontSize: 13, fontWeight: 700 }} data-testid="text-market-coins">
               {formatCoins(user?.coins ?? 0)}
             </span>
-          </div>
+            <span style={{ color: "#d4a017", fontFamily: "Georgia, serif", fontSize: 10, fontWeight: 700 }}>+</span>
+          </button>
         </div>
 
         <div style={{ display: "flex", gap: 0, margin: "14px 16px 0", background: "rgba(5,20,10,0.7)", borderRadius: 12, border: "1px solid rgba(74,222,128,0.2)", overflow: "hidden" }}>

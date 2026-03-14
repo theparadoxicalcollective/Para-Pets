@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import homeIconImg from "@assets/icon_home_new.png";
@@ -31,14 +31,6 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideHome, h
   });
 
   const hasRewards = pendingRewards.length > 0;
-  const prevRewardCount = useRef(0);
-
-  useEffect(() => {
-    if (pendingRewards.length > 0 && prevRewardCount.current === 0) {
-      setShowRewards(true);
-    }
-    prevRewardCount.current = pendingRewards.length;
-  }, [pendingRewards.length]);
 
   return (
     <>
@@ -121,6 +113,35 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideHome, h
                   {user.username}
                 </p>
               </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 self-start">
+              <button
+                data-testid="button-coin-shop"
+                onClick={() => navigate("/coins")}
+                className="flex items-center gap-1 px-2.5 py-0.5 rounded-md transition-transform active:scale-95"
+                style={{
+                  background: "linear-gradient(135deg, rgba(30,15,5,0.9) 0%, rgba(60,35,10,0.9) 100%)",
+                  border: "1px solid rgba(212,160,23,0.4)",
+                  cursor: "pointer",
+                }}
+              >
+                <img
+                  src={coinIconImg}
+                  alt="Coins"
+                  className="w-3.5 h-3.5 object-contain"
+                  style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.5))" }}
+                />
+                <span
+                  className="font-fantasy text-[#f0c040] font-semibold"
+                  style={{ fontSize: "clamp(9px, 2.5vw, 12px)" }}
+                  data-testid="text-coins"
+                >
+                  {user.coins}
+                </span>
+                <span className="font-fantasy text-[#d4a017] text-[8px]">+</span>
+              </button>
+
               {hasRewards && (
                 <button
                   data-testid="button-gift-rewards"
@@ -151,32 +172,6 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideHome, h
                 </button>
               )}
             </div>
-
-            <button
-              data-testid="button-coin-shop"
-              onClick={() => navigate("/coins")}
-              className="flex items-center gap-1 px-2.5 py-0.5 rounded-md transition-transform active:scale-95 self-start"
-              style={{
-                background: "linear-gradient(135deg, rgba(30,15,5,0.9) 0%, rgba(60,35,10,0.9) 100%)",
-                border: "1px solid rgba(212,160,23,0.4)",
-                cursor: "pointer",
-              }}
-            >
-              <img
-                src={coinIconImg}
-                alt="Coins"
-                className="w-3.5 h-3.5 object-contain"
-                style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.5))" }}
-              />
-              <span
-                className="font-fantasy text-[#f0c040] font-semibold"
-                style={{ fontSize: "clamp(9px, 2.5vw, 12px)" }}
-                data-testid="text-coins"
-              >
-                {user.coins}
-              </span>
-              <span className="font-fantasy text-[#d4a017] text-[8px]">+</span>
-            </button>
           </div>
         </div>
 
