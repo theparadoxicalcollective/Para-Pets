@@ -11,6 +11,7 @@ import coinIconImg from "@assets/icon_coin.png";
 import PetDatabasePanel from "@/components/PetDatabasePanel";
 import ItemDatabaseSection, { ShopItemFull, ItemPickerModal } from "@/components/ItemDatabaseSection";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
+import FishingAdminPanel from "@/components/FishingAdminPanel";
 
 interface AdminPageProps {
   user: {
@@ -43,7 +44,7 @@ export default function AdminPage({ user }: AdminPageProps) {
   const [coinAmounts, setCoinAmounts] = useState<Record<string, string>>({});
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"members" | "rewards" | "items" | "pets" | "messages" | "badges">("members");
+  const [activeTab, setActiveTab] = useState<"members" | "rewards" | "items" | "pets" | "messages" | "badges" | "fishing">("members");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -95,6 +96,7 @@ export default function AdminPage({ user }: AdminPageProps) {
     { key: "pets" as const, label: "Pet DB", color: "#ffb347", activeBg: "linear-gradient(135deg, #8b4513 0%, #5c3a1e 100%)", activeBorder: "rgba(255,179,71,0.5)" },
     { key: "messages" as const, label: "Messages", color: "#ff9999", activeBg: "linear-gradient(135deg, #8b2020 0%, #5c1010 100%)", activeBorder: "rgba(255,153,153,0.5)" },
     { key: "badges" as const, label: "Badges", color: "#ffd700", activeBg: "linear-gradient(135deg, #4a3800 0%, #7a5c00 100%)", activeBorder: "rgba(255,215,0,0.6)" },
+    { key: "fishing" as const, label: "Fishing", color: "#60a5fa", activeBg: "linear-gradient(135deg, #1e3a5f 0%, #0f2440 100%)", activeBorder: "rgba(96,165,250,0.5)" },
   ];
 
   return (
@@ -312,6 +314,10 @@ export default function AdminPage({ user }: AdminPageProps) {
 
           {activeTab === "badges" && (
             <BadgeDatabaseSection members={members.filter(m => !m.isAdmin)} />
+          )}
+
+          {activeTab === "fishing" && (
+            <FishingAdminPanel />
           )}
         </div>
       </div>

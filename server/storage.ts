@@ -19,6 +19,10 @@ import {
   type Badge, type UserBadge, badges, userBadges,
   type PlayerMarketListing, playerMarketListings,
   petEquippedAccessories,
+  type FishTemplatePart, fishTemplateParts,
+  type PondFish, pondFish,
+  type PlayerFishInventory, playerFishInventory,
+  type PlayerFishingEquipment, playerFishingEquipment,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, ne, gte, asc, desc, ilike, or } from "drizzle-orm";
@@ -140,6 +144,17 @@ export interface IStorage {
   equipAccessory(petInventoryId: string, accessoryInventoryId: string): Promise<EquippedAccessoryDetail>;
   unequipAccessory(petInventoryId: string, accessoryInventoryId: string): Promise<void>;
   unequipAllPetAccessories(petInventoryId: string): Promise<void>;
+  getFishTemplateParts(fishItemId: string): Promise<FishTemplatePart[]>;
+  createFishTemplatePart(data: { fishItemId: string; partType: string; imageUrl: string; posX?: number; posY?: number; width?: number; height?: number; zIndex?: number }): Promise<FishTemplatePart>;
+  updateFishTemplatePart(id: string, data: Partial<FishTemplatePart>): Promise<FishTemplatePart>;
+  deleteFishTemplatePart(id: string): Promise<void>;
+  getPondFish(locationId: string): Promise<(PondFish & { item: ShopItem | null })[]>;
+  addFishToPond(locationId: string, shopItemId: string): Promise<PondFish>;
+  removeFishFromPond(locationId: string, shopItemId: string): Promise<void>;
+  getPlayerFishInventory(userId: string): Promise<(PlayerFishInventory & { item: ShopItem | null })[]>;
+  addFishToPlayerInventory(userId: string, shopItemId: string): Promise<PlayerFishInventory>;
+  getPlayerFishingEquipment(userId: string): Promise<PlayerFishingEquipment | null>;
+  upsertPlayerFishingEquipment(userId: string, data: { poleInventoryId?: string | null; baitInventoryId?: string | null }): Promise<PlayerFishingEquipment>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -834,6 +849,85 @@ export class DatabaseStorage implements IStorage {
 
   async unequipAllPetAccessories(petInventoryId: string): Promise<void> {
     await db.delete(petEquippedAccessories).where(eq(petEquippedAccessories.petInventoryId, petInventoryId));
+  }
+
+  async getFishTemplateParts(fishItemId: string): Promise<FishTemplatePart[]> {
+    return db.select().from(fishTemplateParts).where(eq(fishTemplateParts.fishItemId, fishItemId)).orderBy(asc(fishTemplateParts.zIndex));
+  }
+
+  async createFishTemplatePart(data: { fishItemId: string; partType: string; imageUrl: string; posX?: number; posY?: number; width?: number; height?: number; zIndex?: number }): Promise<FishTemplatePart> {
+    const [part] = await db.insert(fishTemplateParts).values({
+      fishItemId: data.fishItemId,
+      partType: data.partType,
+      imageUrl: data.imageUrl,
+      posX: data.posX ?? 100,
+      posY: data.posY ?? 100,
+      width: data.width ?? 200,
+      height: data.height ?? 200,
+      zIndex: data.zIndex ?? 1,
+    }).returning();
+    return part;
+  }
+
+  async updateFishTemplatePart(id: string, data: Partial<FishTemplatePart>): Promise<FishTemplatePart> {
+    const [part] = await db.update(fishTemplateParts).set(data).where(eq(fishTemplateParts.id, id)).returning();
+    return part;
+  }
+
+  async deleteFishTemplatePart(id: string): Promise<void> {
+    await db.delete(fishTemplateParts).where(eq(fishTemplateParts.id, id));
+  }
+
+  async getPondFish(locationId: string): Promise<(PondFish & { item: ShopItem | null })[]> {
+    const rows = await db.select().from(pondFish)
+      .leftJoin(shopItems, eq(pondFish.shopItemId, shopItems.id))
+      .where(eq(pondFish.locationId, locationId))
+      .orderBy(asc(pondFish.createdAt));
+    return rows.map(r => ({ ...r.pond_fish, item: r.shop_items }));
+  }
+
+  async addFishToPond(locationId: string, shopItemId: string): Promise<PondFish> {
+    const existing = await db.select().from(pondFish).where(and(eq(pondFish.locationId, locationId), eq(pondFish.shopItemId, shopItemId)));
+    if (existing.length > 0) return existing[0];
+    const [row] = await db.insert(pondFish).values({ locationId, shopItemId }).returning();
+    return row;
+  }
+
+  async removeFishFromPond(locationId: string, shopItemId: string): Promise<void> {
+    await db.delete(pondFish).where(and(eq(pondFish.locationId, locationId), eq(pondFish.shopItemId, shopItemId)));
+  }
+
+  async getPlayerFishInventory(userId: string): Promise<(PlayerFishInventory & { item: ShopItem | null })[]> {
+    const rows = await db.select().from(playerFishInventory)
+      .leftJoin(shopItems, eq(playerFishInventory.shopItemId, shopItems.id))
+      .where(eq(playerFishInventory.userId, userId))
+      .orderBy(desc(playerFishInventory.caughtAt));
+    return rows.map(r => ({ ...r.player_fish_inventory, item: r.shop_items }));
+  }
+
+  async addFishToPlayerInventory(userId: string, shopItemId: string): Promise<PlayerFishInventory> {
+    const [row] = await db.insert(playerFishInventory).values({ userId, shopItemId }).returning();
+    return row;
+  }
+
+  async getPlayerFishingEquipment(userId: string): Promise<PlayerFishingEquipment | null> {
+    const [row] = await db.select().from(playerFishingEquipment).where(eq(playerFishingEquipment.userId, userId));
+    return row ?? null;
+  }
+
+  async upsertPlayerFishingEquipment(userId: string, data: { poleInventoryId?: string | null; baitInventoryId?: string | null }): Promise<PlayerFishingEquipment> {
+    const existing = await this.getPlayerFishingEquipment(userId);
+    if (existing) {
+      const [updated] = await db.update(playerFishingEquipment)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(playerFishingEquipment.userId, userId))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(playerFishingEquipment)
+      .values({ userId, poleInventoryId: data.poleInventoryId ?? null, baitInventoryId: data.baitInventoryId ?? null })
+      .returning();
+    return created;
   }
 }
 

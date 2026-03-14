@@ -47,6 +47,10 @@ export const shopItems = pgTable("shop_items", {
   shopPosX: real("shop_pos_x").notNull().default(50),
   shopPosY: real("shop_pos_y").notNull().default(50),
   shopWidth: integer("shop_width").notNull().default(72),
+  fishingType: text("fishing_type"),
+  rareCatchBoostPercent: integer("rare_catch_boost_percent"),
+  rarityBoostPercent: integer("rarity_boost_percent"),
+  starRarity: integer("star_rarity"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
@@ -278,6 +282,40 @@ export const userBadges = pgTable("user_badges", {
   awardedAt: timestamp("awarded_at").notNull().default(sql`now()`),
 });
 
+export const fishTemplateParts = pgTable("fish_template_parts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  fishItemId: varchar("fish_item_id").notNull(),
+  partType: text("part_type").notNull(),
+  imageUrl: text("image_url").notNull(),
+  posX: integer("pos_x").notNull().default(100),
+  posY: integer("pos_y").notNull().default(100),
+  width: integer("width").notNull().default(200),
+  height: integer("height").notNull().default(200),
+  zIndex: integer("z_index").notNull().default(1),
+});
+
+export const pondFish = pgTable("pond_fish", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  locationId: varchar("location_id").notNull(),
+  shopItemId: varchar("shop_item_id").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const playerFishInventory = pgTable("player_fish_inventory", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  shopItemId: varchar("shop_item_id").notNull(),
+  caughtAt: timestamp("caught_at").notNull().default(sql`now()`),
+});
+
+export const playerFishingEquipment = pgTable("player_fishing_equipment", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique(),
+  poleInventoryId: varchar("pole_inventory_id"),
+  baitInventoryId: varchar("bait_inventory_id"),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
 export const playerMarketListings = pgTable("player_market_listings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   sellerId: varchar("seller_id").notNull(),
@@ -307,3 +345,7 @@ export type LocationEnemy = typeof locationEnemies.$inferSelect;
 export type EnemyDrop = typeof enemyDrops.$inferSelect;
 export type Badge = typeof badges.$inferSelect;
 export type UserBadge = typeof userBadges.$inferSelect;
+export type FishTemplatePart = typeof fishTemplateParts.$inferSelect;
+export type PondFish = typeof pondFish.$inferSelect;
+export type PlayerFishInventory = typeof playerFishInventory.$inferSelect;
+export type PlayerFishingEquipment = typeof playerFishingEquipment.$inferSelect;

@@ -2666,5 +2666,230 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/admin/fish-parts/:fishItemId", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
+      const parts = await storage.getFishTemplateParts(req.params.fishItemId);
+      return res.json(parts);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/admin/fish-parts/:fishItemId", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
+      const { partType, imageData, posX, posY, width, height, zIndex } = req.body;
+      if (!partType || !imageData) return res.status(400).json({ message: "Missing fields" });
+      const base64Data = imageData.replace(/^data:image\/\w+;base64,/, "");
+      const imageBuffer = Buffer.from(base64Data, "base64");
+      const resized = await sharp(imageBuffer)
+        .resize(600, 600, { fit: "inside", withoutEnlargement: true })
+        .png()
+        .toBuffer();
+      const imageUrl = `data:image/png;base64,${resized.toString("base64")}`;
+      const part = await storage.createFishTemplatePart({
+        fishItemId: req.params.fishItemId,
+        partType,
+        imageUrl,
+        posX: posX ?? 100,
+        posY: posY ?? 100,
+        width: width ?? 200,
+        height: height ?? 200,
+        zIndex: zIndex ?? 1,
+      });
+      return res.json(part);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/admin/fish-parts/:partId", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
+      const part = await storage.updateFishTemplatePart(req.params.partId, req.body);
+      return res.json(part);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/admin/fish-parts/:partId", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
+      await storage.deleteFishTemplatePart(req.params.partId);
+      return res.json({ ok: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/admin/location/:locationId/pond-fish", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
+      const fish = await storage.getPondFish(req.params.locationId);
+      return res.json(fish);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/admin/location/:locationId/pond-fish", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
+      const { shopItemId } = req.body;
+      if (!shopItemId) return res.status(400).json({ message: "shopItemId required" });
+      const entry = await storage.addFishToPond(req.params.locationId, shopItemId);
+      return res.json(entry);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/admin/location/:locationId/pond-fish/:shopItemId", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
+      await storage.removeFishFromPond(req.params.locationId, req.params.shopItemId);
+      return res.json({ ok: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/location/:locationId/pond-fish", isAuthenticated, async (req, res) => {
+    try {
+      const fish = await storage.getPondFish(req.params.locationId);
+      return res.json(fish);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/fishing/equipment", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const equipment = await storage.getPlayerFishingEquipment(user.id);
+      let poleItem = null;
+      let baitItem = null;
+      if (equipment?.poleInventoryId) {
+        const inv = await storage.getInventoryItemById(equipment.poleInventoryId);
+        if (inv) poleItem = await storage.getShopItem(inv.shopItemId);
+      }
+      if (equipment?.baitInventoryId) {
+        const inv = await storage.getInventoryItemById(equipment.baitInventoryId);
+        if (inv) baitItem = await storage.getShopItem(inv.shopItemId);
+      }
+      return res.json({ equipment, poleItem, baitItem });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/fishing/equip", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { inventoryId, slot } = req.body;
+      if (!inventoryId || !slot) return res.status(400).json({ message: "inventoryId and slot (pole|bait) required" });
+      const inv = await storage.getInventoryItemById(inventoryId);
+      if (!inv || inv.userId !== user.id) return res.status(404).json({ message: "Inventory item not found" });
+      const item = await storage.getShopItem(inv.shopItemId);
+      if (!item || item.type !== "fishing") return res.status(400).json({ message: "Not a fishing item" });
+      if (slot === "pole" && item.fishingType !== "pole") return res.status(400).json({ message: "Item is not a fishing pole" });
+      if (slot === "bait" && item.fishingType !== "bait") return res.status(400).json({ message: "Item is not bait" });
+      const data = slot === "pole"
+        ? { poleInventoryId: inventoryId }
+        : { baitInventoryId: inventoryId };
+      const equipment = await storage.upsertPlayerFishingEquipment(user.id, data);
+      return res.json({ ok: true, equipment });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/fishing/unequip", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { slot } = req.body;
+      if (!slot) return res.status(400).json({ message: "slot (pole|bait) required" });
+      const data = slot === "pole" ? { poleInventoryId: null } : { baitInventoryId: null };
+      const equipment = await storage.upsertPlayerFishingEquipment(user.id, data);
+      return res.json({ ok: true, equipment });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/fishing/inventory", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const fish = await storage.getPlayerFishInventory(user.id);
+      return res.json(fish);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/fishing/catch", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { locationId, performanceScore } = req.body;
+      if (!locationId) return res.status(400).json({ message: "locationId required" });
+      const score = Math.max(0, Math.min(100, Number(performanceScore) || 0));
+
+      const pondEntries = await storage.getPondFish(locationId);
+      if (pondEntries.length === 0) return res.json({ caught: null, reason: "empty_pond" });
+
+      const equipment = await storage.getPlayerFishingEquipment(user.id);
+      let poleBoost = 0;
+      let baitBoost = 0;
+      if (equipment?.poleInventoryId) {
+        const inv = await storage.getInventoryItemById(equipment.poleInventoryId);
+        if (inv) {
+          const pole = await storage.getShopItem(inv.shopItemId);
+          poleBoost = pole?.rareCatchBoostPercent ?? 0;
+        }
+      }
+      if (equipment?.baitInventoryId) {
+        const inv = await storage.getInventoryItemById(equipment.baitInventoryId);
+        if (inv) {
+          const bait = await storage.getShopItem(inv.shopItemId);
+          baitBoost = bait?.rarityBoostPercent ?? 0;
+        }
+      }
+
+      const catchChance = 0.4 + (score / 100) * 0.5;
+      if (Math.random() > catchChance) return res.json({ caught: null, reason: "miss" });
+
+      const baseWeights: Record<number, number> = { 1: 60, 2: 25, 3: 10, 4: 4, 5: 1 };
+      const fishPool = pondEntries.map(entry => {
+        const star = entry.item?.starRarity ?? 1;
+        let weight = baseWeights[star] ?? 10;
+        if (star >= 3) weight += (baitBoost / 100) * weight;
+        if (star >= 4) weight += (poleBoost / 100) * weight;
+        return { entry, weight: Math.max(0.1, weight) };
+      });
+
+      const totalWeight = fishPool.reduce((sum, f) => sum + f.weight, 0);
+      let rand = Math.random() * totalWeight;
+      let chosen = fishPool[fishPool.length - 1];
+      for (const f of fishPool) {
+        rand -= f.weight;
+        if (rand <= 0) { chosen = f; break; }
+      }
+
+      const caught = await storage.addFishToPlayerInventory(user.id, chosen.entry.shopItemId);
+      return res.json({ caught, item: chosen.entry.item });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
   return httpServer;
 }

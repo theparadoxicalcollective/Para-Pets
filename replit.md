@@ -53,6 +53,15 @@ The application is built as a monolithic web app with a clear separation of conc
 - **Inventory & Shop**: In-game currency-based purchasing, item management, and pet interaction.
 - **Admin Tools**: Comprehensive features for user management, shop item creation/editing, reward bundle distribution, and world/location configuration.
 - **Stripe Integration**: Secure payment processing for coin purchases with daily spending limits.
+- **Fishing System**:
+  - Three fishing item types in the shop: `pole`, `bait`, and `fish` (all under `type="fishing"`)
+  - Fish have `starRarity` (1–5); poles have `rareCatchBoostPercent`; bait has `rarityBoostPercent`
+  - Fish visual composition via `fish_template_parts` table (body/eyes/tail/fins parts with drag-to-position canvas editor)
+  - Pond stocking: admins assign fish items to fishing-type locations via `pond_fish` table
+  - Player fishing: `POST /api/fishing/catch` runs weighted random catch with pole/bait boosts applied
+  - Player fish inventory: `player_fish_inventory` table; fishing equipment: `player_fishing_equipment` table
+  - Admin "Fishing" tab in AdminPage.tsx → FishingAdminPanel.tsx (CRUD + fish parts canvas editor)
+  - Fishing pond admin button (🎣) on fishing-type location view in WorldPage.tsx → PondAdminModal
 
 ## External Dependencies
 - **Database**: PostgreSQL (via Neon)
