@@ -12,6 +12,13 @@ import PetDatabasePanel from "@/components/PetDatabasePanel";
 import ItemDatabaseSection, { ShopItemFull, ItemPickerModal } from "@/components/ItemDatabaseSection";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import FishingAdminPanel from "@/components/FishingAdminPanel";
+import adminIconMembers from "@assets/admin_icon_members.png";
+import adminIconRewards from "@assets/admin_icon_rewards.png";
+import adminIconItems from "@assets/admin_icon_items.png";
+import adminIconPets from "@assets/admin_icon_pets.png";
+import adminIconMessages from "@assets/admin_icon_messages.png";
+import adminIconBadges from "@assets/admin_icon_badges.png";
+import adminIconFishing from "@assets/admin_icon_fishing.png";
 
 interface AdminPageProps {
   user: {
@@ -90,13 +97,13 @@ export default function AdminPage({ user }: AdminPageProps) {
   };
 
   const sections = [
-    { key: "members" as const, label: "Members", count: members.length, emoji: "👥", desc: "Manage players", color: "#f0c040", bg: "linear-gradient(135deg, rgba(92,58,30,0.85) 0%, rgba(139,94,60,0.85) 100%)", border: "rgba(212,160,23,0.5)" },
-    { key: "rewards" as const, label: "Rewards", emoji: "🎁", desc: "Send bundles", color: "#c4b5fd", bg: "linear-gradient(135deg, rgba(88,28,135,0.8) 0%, rgba(59,7,100,0.8) 100%)", border: "rgba(192,132,252,0.5)" },
-    { key: "items" as const, label: "Items", emoji: "⚔️", desc: "Item database", color: "#5eead4", bg: "linear-gradient(135deg, rgba(19,78,74,0.85) 0%, rgba(8,51,46,0.85) 100%)", border: "rgba(94,234,212,0.45)" },
-    { key: "pets" as const, label: "Pets", emoji: "🐾", desc: "Pet database", color: "#fdba74", bg: "linear-gradient(135deg, rgba(120,53,15,0.85) 0%, rgba(67,20,7,0.85) 100%)", border: "rgba(251,146,60,0.45)" },
-    { key: "messages" as const, label: "Messages", emoji: "📨", desc: "Support inbox", color: "#fca5a5", bg: "linear-gradient(135deg, rgba(127,29,29,0.85) 0%, rgba(69,10,10,0.85) 100%)", border: "rgba(252,165,165,0.45)" },
-    { key: "badges" as const, label: "Badges", emoji: "🏅", desc: "Award badges", color: "#fde68a", bg: "linear-gradient(135deg, rgba(120,90,0,0.85) 0%, rgba(78,56,0,0.85) 100%)", border: "rgba(253,230,138,0.45)" },
-    { key: "fishing" as const, label: "Fishing", emoji: "🎣", desc: "Fish & ponds", color: "#93c5fd", bg: "linear-gradient(135deg, rgba(23,37,84,0.85) 0%, rgba(10,20,60,0.85) 100%)", border: "rgba(147,197,253,0.45)" },
+    { key: "members" as const, label: "Members", count: members.length, icon: adminIconMembers, desc: "Manage players", color: "#f0c040", glow: "rgba(240,192,64,0.35)", bg: "linear-gradient(145deg, rgba(60,38,8,0.92) 0%, rgba(92,58,20,0.88) 100%)", border: "rgba(212,160,23,0.5)" },
+    { key: "rewards" as const, label: "Rewards", icon: adminIconRewards, desc: "Send bundles", color: "#c4b5fd", glow: "rgba(192,132,252,0.35)", bg: "linear-gradient(145deg, rgba(50,18,88,0.92) 0%, rgba(80,28,120,0.88) 100%)", border: "rgba(192,132,252,0.5)" },
+    { key: "items" as const, label: "Items", icon: adminIconItems, desc: "Item database", color: "#5eead4", glow: "rgba(94,234,212,0.30)", bg: "linear-gradient(145deg, rgba(8,45,42,0.92) 0%, rgba(14,70,65,0.88) 100%)", border: "rgba(94,234,212,0.45)" },
+    { key: "pets" as const, label: "Pets", icon: adminIconPets, desc: "Pet database", color: "#fdba74", glow: "rgba(251,146,60,0.30)", bg: "linear-gradient(145deg, rgba(72,32,8,0.92) 0%, rgba(110,52,12,0.88) 100%)", border: "rgba(251,146,60,0.45)" },
+    { key: "messages" as const, label: "Messages", icon: adminIconMessages, desc: "Support inbox", color: "#fca5a5", glow: "rgba(252,165,165,0.30)", bg: "linear-gradient(145deg, rgba(80,18,18,0.92) 0%, rgba(110,28,28,0.88) 100%)", border: "rgba(252,165,165,0.45)" },
+    { key: "badges" as const, label: "Badges", icon: adminIconBadges, desc: "Award badges", color: "#fde68a", glow: "rgba(253,230,138,0.30)", bg: "linear-gradient(145deg, rgba(72,54,0,0.92) 0%, rgba(108,80,0,0.88) 100%)", border: "rgba(253,230,138,0.45)" },
+    { key: "fishing" as const, label: "Fishing", icon: adminIconFishing, desc: "Fish & ponds", color: "#93c5fd", glow: "rgba(147,197,253,0.30)", bg: "linear-gradient(145deg, rgba(12,22,60,0.92) 0%, rgba(18,36,90,0.88) 100%)", border: "rgba(147,197,253,0.45)" },
   ];
 
   const activeSectionMeta = activeSection ? sections.find(s => s.key === activeSection) : null;
@@ -122,42 +129,62 @@ export default function AdminPage({ user }: AdminPageProps) {
 
           {!activeSection ? (
             <>
-              <h2
-                className="font-fantasy text-[#f0c040] text-center text-lg tracking-widest font-semibold mb-1"
-                style={{ textShadow: "0 0 20px rgba(240,192,64,0.4)" }}
-              >
-                Realm Administration
-              </h2>
-              <p className="font-fantasy text-center text-[11px] tracking-wider mb-5" style={{ color: "rgba(168,152,120,0.7)" }}>
-                Choose a section to manage
-              </p>
+              {/* Header */}
+              <div className="flex flex-col items-center mb-6 pt-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <div style={{ width: 28, height: 1, background: "linear-gradient(90deg, transparent, rgba(240,192,64,0.5))" }} />
+                  <span className="font-fantasy text-[10px] tracking-[0.3em] uppercase" style={{ color: "rgba(240,192,64,0.55)" }}>Realm</span>
+                  <div style={{ width: 28, height: 1, background: "linear-gradient(90deg, rgba(240,192,64,0.5), transparent)" }} />
+                </div>
+                <h2
+                  className="font-fantasy text-[#f0c040] text-center text-xl tracking-widest font-semibold"
+                  style={{ textShadow: "0 0 24px rgba(240,192,64,0.5), 0 0 8px rgba(240,192,64,0.2)" }}
+                >
+                  Administration
+                </h2>
+                <p className="font-fantasy text-center text-[10px] tracking-widest mt-1" style={{ color: "rgba(200,175,120,0.6)" }}>
+                  ✦ choose a section to manage ✦
+                </p>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 {sections.map((s) => (
                   <button
                     key={s.key}
                     data-testid={`section-card-${s.key}`}
                     onClick={() => setActiveSection(s.key)}
-                    className="flex flex-col items-start gap-2 p-4 rounded-xl transition-transform active:scale-95 text-left"
+                    className="flex flex-col items-start gap-3 p-4 rounded-2xl transition-all active:scale-95 text-left relative overflow-hidden"
                     style={{
                       background: s.bg,
                       border: `1.5px solid ${s.border}`,
-                      boxShadow: `0 4px 16px rgba(0,0,0,0.35)`,
+                      boxShadow: `0 4px 20px rgba(0,0,0,0.45), 0 0 12px ${s.glow}`,
                       cursor: "pointer",
                     }}
                   >
-                    <div className="flex items-center justify-between w-full">
-                      <span className="text-2xl">{s.emoji}</span>
+                    {/* Subtle inner glow top-right */}
+                    <div style={{
+                      position: "absolute", top: 0, right: 0, width: 60, height: 60,
+                      background: `radial-gradient(circle at top right, ${s.glow}, transparent 70%)`,
+                      pointerEvents: "none",
+                    }} />
+                    <div className="flex items-start justify-between w-full">
+                      <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{
+                        background: "rgba(0,0,0,0.30)",
+                        border: `1px solid ${s.border}`,
+                        boxShadow: `0 0 12px ${s.glow}`,
+                      }}>
+                        <img src={s.icon} alt={s.label} className="w-9 h-9 object-contain" style={{ filter: `drop-shadow(0 0 4px ${s.glow})` }} />
+                      </div>
                       {s.count !== undefined && (
-                        <span className="font-fantasy text-[10px] px-2 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.35)", color: s.color }}>
+                        <span className="font-fantasy text-[10px] px-2 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.40)", color: s.color, border: `1px solid ${s.border}` }}>
                           {s.count}
                         </span>
                       )}
                     </div>
                     <div>
-                      <p className="font-fantasy text-sm tracking-wider font-semibold" style={{ color: s.color }}>
+                      <p className="font-fantasy text-sm tracking-wider font-semibold" style={{ color: s.color, textShadow: `0 0 8px ${s.glow}` }}>
                         {s.label}
                       </p>
-                      <p className="font-fantasy text-[10px] mt-0.5" style={{ color: "rgba(200,185,155,0.7)" }}>
+                      <p className="font-fantasy text-[10px] mt-0.5 tracking-wide" style={{ color: "rgba(210,195,165,0.65)" }}>
                         {s.desc}
                       </p>
                     </div>
@@ -183,10 +210,12 @@ export default function AdminPage({ user }: AdminPageProps) {
                   <span className="font-fantasy text-[11px] tracking-wider">Back</span>
                 </button>
                 <div className="flex items-center gap-2">
-                  <span className="text-lg">{activeSectionMeta?.emoji}</span>
+                  {activeSectionMeta?.icon && (
+                    <img src={activeSectionMeta.icon} alt="" className="w-6 h-6 object-contain" style={{ filter: `drop-shadow(0 0 4px ${activeSectionMeta.glow})` }} />
+                  )}
                   <h2
                     className="font-fantasy text-base tracking-widest font-semibold"
-                    style={{ color: activeSectionMeta?.color || "#f0c040", textShadow: "0 0 12px rgba(240,192,64,0.3)" }}
+                    style={{ color: activeSectionMeta?.color || "#f0c040", textShadow: `0 0 12px ${activeSectionMeta?.glow || "rgba(240,192,64,0.3)"}` }}
                   >
                     {activeSectionMeta?.label}
                   </h2>
