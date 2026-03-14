@@ -354,16 +354,31 @@ export default function MapPage({ user }: MapPageProps) {
         <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
 
         <div className="flex-1 relative overflow-y-auto overflow-x-hidden map-scroll">
-          <h2
-            className="font-fantasy text-center text-lg tracking-[0.3em] font-bold pt-2 pb-1 uppercase relative z-10"
-            style={{
-              color: "#f0c040",
-              textShadow: "0 0 20px rgba(240,192,64,0.5), 0 0 40px rgba(240,192,64,0.25), 0 0 60px rgba(240,192,64,0.1), 0 2px 4px rgba(0,0,0,0.9)",
-            }}
-            data-testid="text-map-title"
-          >
-            Symora
-          </h2>
+          <div className="flex flex-col items-center pt-2 pb-1 relative z-10" data-testid="text-map-title">
+            <div className="flex items-center gap-2 mb-0.5">
+              <div style={{ width: "32px", height: "1px", background: "linear-gradient(to right, transparent, rgba(240,192,64,0.6))" }} />
+              <span className="font-fantasy text-[9px] tracking-[0.5em] uppercase" style={{ color: "rgba(220,170,50,0.65)", letterSpacing: "0.55em" }}>The World of</span>
+              <div style={{ width: "32px", height: "1px", background: "linear-gradient(to left, transparent, rgba(240,192,64,0.6))" }} />
+            </div>
+            <h2
+              className="font-fantasy text-center font-bold uppercase"
+              style={{
+                fontSize: "clamp(26px, 7.5vw, 42px)",
+                letterSpacing: "0.25em",
+                lineHeight: 1,
+                color: "#fff6c8",
+                textShadow:
+                  "0 0 8px rgba(255,220,80,0.95), 0 0 20px rgba(240,192,64,0.8), 0 0 45px rgba(240,160,40,0.55), 0 0 90px rgba(220,140,20,0.3), 0 3px 6px rgba(0,0,0,1)",
+              }}
+            >
+              Symora
+            </h2>
+            <div className="flex items-center gap-1.5 mt-1">
+              <div style={{ width: "50px", height: "1px", background: "linear-gradient(to right, transparent, rgba(240,192,64,0.45))" }} />
+              <span style={{ color: "rgba(240,192,64,0.4)", fontSize: "8px" }}>✦</span>
+              <div style={{ width: "50px", height: "1px", background: "linear-gradient(to left, transparent, rgba(240,192,64,0.45))" }} />
+            </div>
+          </div>
 
           {isLoading ? (
             <div className="flex items-center justify-center h-64">
@@ -440,10 +455,6 @@ export default function MapPage({ user }: MapPageProps) {
 
                         {locked && (
                           <>
-                            <div
-                              className="absolute inset-0 z-20 rounded-full pointer-events-none"
-                              style={{ background: "rgba(0,0,0,0.45)" }}
-                            />
                             <div
                               className="absolute inset-0 z-30 flex flex-col items-center justify-center pointer-events-none gap-0.5"
                             >
