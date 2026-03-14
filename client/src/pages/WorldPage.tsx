@@ -1319,8 +1319,8 @@ export default function WorldPage({ user }: WorldPageProps) {
         const shopName = activeLoc?.name || world.name;
         return (
         <div className="fixed inset-0 z-40" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
-          {/* Full-screen mystical shop background */}
-          <img src={bgShopMystical} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          {/* Full-screen shop background — use location's own bg if available */}
+          <img src={activeLoc?.bgUrl || bgShopMystical} alt="" className="absolute inset-0 w-full h-full object-cover" />
           <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 72%, rgba(0,0,0,0.5) 100%)" }} />
           {/* Header */}
           <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 pt-5 pb-3">
