@@ -80,6 +80,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   const [bgLoaded, setBgLoaded] = useState(false);
   const reelIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const nibbleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const castingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reelCompleteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const phaseRef = useRef<FishingPhase>("idle");
   const reelPosRef = useRef(0.5);
   const { toast } = useToast();
@@ -210,12 +212,16 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     phaseRef.current = phase;
   }, [phase]);
 
-  useEffect(() => {
-    return () => {
-      if (reelIntervalRef.current) clearInterval(reelIntervalRef.current);
-      if (nibbleTimeoutRef.current) clearTimeout(nibbleTimeoutRef.current);
-    };
+  const clearAllTimers = useCallback(() => {
+    if (reelIntervalRef.current) { clearInterval(reelIntervalRef.current); reelIntervalRef.current = null; }
+    if (nibbleTimeoutRef.current) { clearTimeout(nibbleTimeoutRef.current); nibbleTimeoutRef.current = null; }
+    if (castingTimeoutRef.current) { clearTimeout(castingTimeoutRef.current); castingTimeoutRef.current = null; }
+    if (reelCompleteTimeoutRef.current) { clearTimeout(reelCompleteTimeoutRef.current); reelCompleteTimeoutRef.current = null; }
   }, []);
+
+  useEffect(() => {
+    return clearAllTimers;
+  }, [clearAllTimers]);
 
   const startCasting = useCallback(() => {
     if (!equipData?.poleItem) {
@@ -227,7 +233,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       return;
     }
     setPhase("casting");
-    setTimeout(() => {
+    castingTimeoutRef.current = setTimeout(() => {
       setPhase("waiting");
       const waitTime = 1500 + Math.random() * 2500;
       nibbleTimeoutRef.current = setTimeout(() => {
@@ -256,8 +262,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       setReelPos(reelPosRef.current);
     }, 50);
 
-    setTimeout(() => {
-      if (reelIntervalRef.current) clearInterval(reelIntervalRef.current);
+    reelCompleteTimeoutRef.current = setTimeout(() => {
+      if (reelIntervalRef.current) { clearInterval(reelIntervalRef.current); reelIntervalRef.current = null; }
       if (phaseRef.current === "reeling") {
         const finalPos = reelPosRef.current;
         const greenMin = center - GREEN_ZONE_SIZE / 2;
@@ -278,9 +284,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   const resetFishing = useCallback(() => {
     setPhase("idle");
     setCaughtItem(null);
-    if (reelIntervalRef.current) clearInterval(reelIntervalRef.current);
-    if (nibbleTimeoutRef.current) clearTimeout(nibbleTimeoutRef.current);
-  }, []);
+    clearAllTimers();
+  }, [clearAllTimers]);
 
   const hasPole = !!equipData?.poleItem;
 
@@ -758,8 +763,8 @@ function PondAdminPanel({
                     </div>
                   )}
                   <button
-                    data-testid={`button-remove-pond-fish-${pf.id}`}
-                    onClick={() => onRemove(pf.id)}
+                    data-testid={`button-remove-pond-fish-${pf.shopItemId}`}
+                    onClick={() => onRemove(pf.shopItemId)}
                     className="w-6 h-6 flex items-center justify-center rounded-full"
                     style={{ background: "rgba(239,68,68,0.3)", color: "#ef4444", cursor: "pointer" }}
                   >

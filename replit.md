@@ -62,6 +62,19 @@ The application is built as a monolithic web app with a clear separation of conc
   - Player fish inventory: `player_fish_inventory` table; fishing equipment: `player_fishing_equipment` table
   - Admin "Fishing" tab in AdminPage.tsx → FishingAdminPanel.tsx (CRUD + fish parts canvas editor)
   - Fishing pond admin button (🎣) on fishing-type location view in WorldPage.tsx → PondAdminModal
+- **Fishing Mini-Game Page** (`FishingPage.tsx`):
+  - Opens as a full-screen overlay when clicking a `type="fishing"` location on the world map
+  - Background: generated magical swamp pond portrait art (`fishing_bg_portrait.png`) or location's own bgUrl
+  - Three equipment slots at bottom: Pole, Bait, Fish Inventory — each opens a picker panel
+  - Pole/bait equip/unequip via `POST /api/fishing/equip` and `POST /api/fishing/unequip`
+  - Fish inventory panel groups caught fish by species with star rarity display
+  - Cast → Waiting → Nibble → Reel mechanic: tap pond to cast (must have pole equipped + fish in pond), then after a random 1.5–4s delay a fish nibbles, tap again to start reeling
+  - Reel mechanic: vertical slider bar, player must tap REEL button rapidly to keep green indicator in the green zone; after 4 seconds the result resolves: score 70–100 = catch, 0–30 = miss
+  - Catch calls `POST /api/fishing/catch` with a performance score; catch/miss feedback animations
+  - Active pet shown via PetAnimator in bottom-left corner
+  - Admin "+" button → PondAdminPanel inside the fishing scene (add/remove fish from pond using public route `/api/location/:locationId/pond-fish` for reads, admin route for write/delete)
+  - All timer refs tracked and cleared on unmount/reset to prevent stale state updates
+  - WorldPage integration: `handleLocationClick` detects `type === "fishing"` → sets `showFishing = true`; rendered as `<FishingPage>` overlay parallel to shop/battle overlays
 
 ## External Dependencies
 - **Database**: PostgreSQL (via Neon)
