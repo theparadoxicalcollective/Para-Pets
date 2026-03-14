@@ -2678,6 +2678,7 @@ export async function registerRoutes(
   });
 
   const ALLOWED_FISH_PART_TYPES = new Set(["body", "eyes", "tail"]);
+  const ALLOWED_EQUIP_SLOTS = new Set(["pole", "bait"]);
 
   app.post("/api/admin/fish-parts/:fishItemId", isAuthenticated, async (req, res) => {
     try {
@@ -2685,8 +2686,8 @@ export async function registerRoutes(
       if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
       const { partType, imageData, posX, posY, width, height, zIndex } = req.body;
       if (!partType || !imageData) return res.status(400).json({ message: "Missing fields" });
-      if (!ALLOWED_FISH_PART_TYPES.includes(partType)) {
-        return res.status(400).json({ message: `Invalid partType. Allowed: ${ALLOWED_FISH_PART_TYPES.join(", ")}` });
+      if (!ALLOWED_FISH_PART_TYPES.has(partType)) {
+        return res.status(400).json({ message: `Invalid partType. Allowed: ${Array.from(ALLOWED_FISH_PART_TYPES).join(", ")}` });
       }
       const base64Data = imageData.replace(/^data:image\/\w+;base64,/, "");
       const imageBuffer = Buffer.from(base64Data, "base64");
@@ -2802,6 +2803,7 @@ export async function registerRoutes(
       const user = req.user as any;
       const { inventoryId, slot } = req.body;
       if (!inventoryId || !slot) return res.status(400).json({ message: "inventoryId and slot (pole|bait) required" });
+      if (!ALLOWED_EQUIP_SLOTS.has(slot)) return res.status(400).json({ message: `Invalid slot. Allowed: ${Array.from(ALLOWED_EQUIP_SLOTS).join(", ")}` });
       const inv = await storage.getInventoryItemById(inventoryId);
       if (!inv || inv.userId !== user.id) return res.status(404).json({ message: "Inventory item not found" });
       const item = await storage.getShopItem(inv.shopItemId);
@@ -2823,6 +2825,7 @@ export async function registerRoutes(
       const user = req.user as any;
       const { slot } = req.body;
       if (!slot) return res.status(400).json({ message: "slot (pole|bait) required" });
+      if (!ALLOWED_EQUIP_SLOTS.has(slot)) return res.status(400).json({ message: `Invalid slot. Allowed: ${Array.from(ALLOWED_EQUIP_SLOTS).join(", ")}` });
       const data = slot === "pole" ? { poleInventoryId: null } : { baitInventoryId: null };
       const equipment = await storage.upsertPlayerFishingEquipment(user.id, data);
       return res.json({ ok: true, equipment });
