@@ -18,9 +18,20 @@ import {
   type EnemyDrop, enemyDrops,
   type Badge, type UserBadge, badges, userBadges,
   type PlayerMarketListing, playerMarketListings,
+  petEquippedAccessories,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, ne, gte, asc, desc, ilike, or } from "drizzle-orm";
+
+export interface EquippedAccessoryDetail {
+  id: string;
+  slot: number;
+  accessoryInventoryId: string;
+  name: string;
+  imageUrl: string | null;
+  atkBoost: number | null;
+  defBoost: number | null;
+}
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -123,6 +134,10 @@ export interface IStorage {
   collectMarketCoins(listingId: string, sellerId: string): Promise<number>;
   cancelMarketListing(listingId: string, sellerId: string): Promise<void>;
   buyMarketSlot(userId: string): Promise<User>;
+  getPetEquippedAccessories(petInventoryId: string): Promise<EquippedAccessoryDetail[]>;
+  equipAccessory(petInventoryId: string, accessoryInventoryId: string): Promise<EquippedAccessoryDetail>;
+  unequipAccessory(petInventoryId: string, accessoryInventoryId: string): Promise<void>;
+  unequipAllPetAccessories(petInventoryId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -754,6 +769,59 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, userId))
       .returning();
     return updated;
+  }
+
+  async getPetEquippedAccessories(petInventoryId: string): Promise<EquippedAccessoryDetail[]> {
+    const rows = await db
+      .select()
+      .from(petEquippedAccessories)
+      .leftJoin(userInventory, eq(petEquippedAccessories.accessoryInventoryId, userInventory.id))
+      .leftJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
+      .where(eq(petEquippedAccessories.petInventoryId, petInventoryId))
+      .orderBy(asc(petEquippedAccessories.slot));
+    return rows.map(r => ({
+      id: r.pet_equipped_accessories.id,
+      slot: r.pet_equipped_accessories.slot,
+      accessoryInventoryId: r.pet_equipped_accessories.accessoryInventoryId,
+      name: r.shop_items?.name || "Unknown",
+      imageUrl: r.shop_items?.imageUrl || null,
+      atkBoost: r.shop_items?.atkBoost || null,
+      defBoost: r.shop_items?.defBoost || null,
+    }));
+  }
+
+  async equipAccessory(petInventoryId: string, accessoryInventoryId: string): Promise<EquippedAccessoryDetail> {
+    const equipped = await this.getPetEquippedAccessories(petInventoryId);
+    if (equipped.length >= 3) throw new Error("All 3 accessory slots are full");
+    const alreadyEquipped = equipped.find(e => e.accessoryInventoryId === accessoryInventoryId);
+    if (alreadyEquipped) throw new Error("Accessory already equipped");
+    const usedSlots = equipped.map(e => e.slot);
+    const slot = [0, 1, 2].find(s => !usedSlots.includes(s)) ?? 0;
+    const [record] = await db.insert(petEquippedAccessories).values({ petInventoryId, accessoryInventoryId, slot }).returning();
+    const [invRow] = await db.select().from(userInventory).where(eq(userInventory.id, accessoryInventoryId));
+    const [shopRow] = invRow ? await db.select().from(shopItems).where(eq(shopItems.id, invRow.shopItemId)) : [null];
+    return {
+      id: record.id,
+      slot: record.slot,
+      accessoryInventoryId: record.accessoryInventoryId,
+      name: shopRow?.name || "Unknown",
+      imageUrl: shopRow?.imageUrl || null,
+      atkBoost: shopRow?.atkBoost || null,
+      defBoost: shopRow?.defBoost || null,
+    };
+  }
+
+  async unequipAccessory(petInventoryId: string, accessoryInventoryId: string): Promise<void> {
+    await db.delete(petEquippedAccessories).where(
+      and(
+        eq(petEquippedAccessories.petInventoryId, petInventoryId),
+        eq(petEquippedAccessories.accessoryInventoryId, accessoryInventoryId),
+      )
+    );
+  }
+
+  async unequipAllPetAccessories(petInventoryId: string): Promise<void> {
+    await db.delete(petEquippedAccessories).where(eq(petEquippedAccessories.petInventoryId, petInventoryId));
   }
 }
 

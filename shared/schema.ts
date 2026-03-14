@@ -173,6 +173,16 @@ export const petTemplateParts = pgTable("pet_template_parts", {
   pivotY: integer("pivot_y").notNull().default(50),
 });
 
+export const petEquippedAccessories = pgTable("pet_equipped_accessories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  petInventoryId: varchar("pet_inventory_id").notNull(),
+  accessoryInventoryId: varchar("accessory_inventory_id").notNull(),
+  slot: integer("slot").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export type PetEquippedAccessory = typeof petEquippedAccessories.$inferSelect;
+
 export const coinPurchases = pgTable("coin_purchases", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),

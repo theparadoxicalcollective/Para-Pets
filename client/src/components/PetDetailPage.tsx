@@ -34,6 +34,18 @@ interface BagItem {
   statBoostAmount: number | null;
   specialType: string | null;
   specialAmount: number | null;
+  atkBoost: number | null;
+  defBoost: number | null;
+}
+
+interface EquippedAccessory {
+  id: string;
+  slot: number;
+  accessoryInventoryId: string;
+  name: string;
+  imageUrl: string | null;
+  atkBoost: number | null;
+  defBoost: number | null;
 }
 
 interface PetDetailPageProps {
@@ -54,6 +66,8 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
   const [successAnimType, setSuccessAnimType] = useState<PowerUpEffectType>("stat");
   const [editingNickname, setEditingNickname] = useState(false);
   const [nicknameInput, setNicknameInput] = useState(pet.petNickname || "");
+  const [showAccessoryPicker, setShowAccessoryPicker] = useState(false);
+  const [accessoryFlash, setAccessoryFlash] = useState<"equip" | "unequip" | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -76,6 +90,50 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
   const { data: inventory = [] } = useQuery<BagItem[]>({
     queryKey: ["/api/inventory"],
     staleTime: 0,
+  });
+
+  const { data: equippedAccessories = [] } = useQuery<EquippedAccessory[]>({
+    queryKey: ["/api/pet", pet.inventoryId, "accessories"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/pet/${pet.inventoryId}/accessories`);
+      return res.json();
+    },
+    staleTime: 0,
+  });
+
+  const equipMutation = useMutation({
+    mutationFn: async (accessoryInventoryId: string) => {
+      const res = await apiRequest("POST", `/api/pet/${pet.inventoryId}/equip`, { accessoryInventoryId });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pet", pet.inventoryId, "accessories"] });
+      setAccessoryFlash("equip");
+      setTimeout(() => setAccessoryFlash(null), 700);
+      setShowAccessoryPicker(false);
+      onUpdate();
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed", description: err?.message || "Could not equip accessory", variant: "destructive" });
+    },
+  });
+
+  const unequipMutation = useMutation({
+    mutationFn: async (accessoryInventoryId: string) => {
+      const res = await apiRequest("POST", `/api/pet/${pet.inventoryId}/unequip`, { accessoryInventoryId });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pet", pet.inventoryId, "accessories"] });
+      setAccessoryFlash("unequip");
+      setTimeout(() => setAccessoryFlash(null), 600);
+      onUpdate();
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed", description: err?.message || "Could not unequip accessory", variant: "destructive" });
+    },
   });
 
   const usableItems = inventory.filter(
@@ -333,6 +391,117 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                   transition: "width 0.5s ease",
                 }} />
               </div>
+            </div>
+          </div>
+
+          <div
+            className="rounded-lg p-4 mb-3"
+            style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.2)" }}
+            data-testid="section-accessories"
+          >
+            <div className="relative">
+              <div className="flex items-center justify-between mb-3">
+                <span className="font-fantasy text-[#a89878] text-xs tracking-wider">ACCESSORIES</span>
+                <span className="font-fantasy text-[#6a5840] text-[9px] tracking-wider">{equippedAccessories.length}/3 EQUIPPED</span>
+              </div>
+              {accessoryFlash && (
+                <div
+                  className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center"
+                  style={{ animation: accessoryFlash === "equip" ? "accEquipFlash 0.7s ease-out forwards" : "accUnequipFlash 0.6s ease-out forwards" }}
+                >
+                  <span style={{ fontSize: "32px" }}>{accessoryFlash === "equip" ? "✨" : "💨"}</span>
+                </div>
+              )}
+              <div className="grid grid-cols-3 gap-2">
+                {[0, 1, 2].map((slot) => {
+                  const acc = equippedAccessories.find((e) => e.slot === slot);
+                  return acc ? (
+                    <button
+                      key={slot}
+                      data-testid={`button-unequip-slot-${slot}`}
+                      onClick={() => unequipMutation.mutate(acc.accessoryInventoryId)}
+                      disabled={unequipMutation.isPending}
+                      className="w-full rounded-md p-2 flex flex-col items-center gap-1 transition-transform active:scale-95 disabled:opacity-60"
+                      style={{
+                        background: "rgba(40,20,5,0.9)",
+                        border: "1px solid rgba(212,160,23,0.55)",
+                        boxShadow: "0 0 8px rgba(212,160,23,0.15)",
+                        cursor: "pointer",
+                        minHeight: "82px",
+                      }}
+                    >
+                      <div className="w-10 h-10 rounded flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.35)" }}>
+                        {acc.imageUrl ? <img src={acc.imageUrl} alt={acc.name} className="w-full h-full object-contain" /> : <span className="text-lg">💎</span>}
+                      </div>
+                      <span className="font-fantasy text-[#f0c040] text-[7px] tracking-wider text-center truncate w-full">{acc.name}</span>
+                      <div className="flex flex-col items-center">
+                        {(acc.atkBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#f87171" }}>+{acc.atkBoost} ATK</span>}
+                        {(acc.defBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#60a5fa" }}>+{acc.defBoost} DEF</span>}
+                      </div>
+                      <span className="font-fantasy text-[5px] tracking-wider" style={{ color: "rgba(255,120,120,0.7)" }}>TAP TO REMOVE</span>
+                    </button>
+                  ) : (
+                    <button
+                      key={slot}
+                      data-testid={`button-equip-slot-${slot}`}
+                      onClick={() => setShowAccessoryPicker(true)}
+                      className="w-full rounded-md flex flex-col items-center justify-center transition-transform active:scale-95"
+                      style={{
+                        background: "rgba(0,0,0,0.15)",
+                        border: "1px dashed rgba(212,160,23,0.2)",
+                        cursor: "pointer",
+                        minHeight: "82px",
+                      }}
+                    >
+                      <span className="text-xl" style={{ color: "#4a3820" }}>+</span>
+                      <span className="font-fantasy text-[7px] tracking-wider" style={{ color: "#4a3820" }}>EMPTY</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {showAccessoryPicker && (
+                <div className="mt-3 pt-3" style={{ borderTop: "1px solid rgba(212,160,23,0.15)" }}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-fantasy text-[#a89878] text-[10px] tracking-wider">SELECT ACCESSORY</span>
+                    <button
+                      onClick={() => setShowAccessoryPicker(false)}
+                      className="font-fantasy text-[#a89878] text-[9px]"
+                      style={{ background: "none", border: "none", cursor: "pointer" }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  {(() => {
+                    const equippedIds = equippedAccessories.map((e) => e.accessoryInventoryId);
+                    const available = inventory.filter((i) => i.type === "accessory" && !equippedIds.includes(i.inventoryId));
+                    return available.length === 0 ? (
+                      <p className="font-fantasy text-[#6a5840] text-xs text-center py-3">No accessories in your bag</p>
+                    ) : (
+                      <div className="grid grid-cols-3 gap-2">
+                        {available.map((item) => (
+                          <button
+                            key={item.inventoryId}
+                            data-testid={`button-pick-accessory-${item.inventoryId}`}
+                            onClick={() => equipMutation.mutate(item.inventoryId)}
+                            disabled={equipMutation.isPending}
+                            className="rounded-md p-2 flex flex-col items-center gap-1 transition-transform active:scale-95 disabled:opacity-40"
+                            style={{ background: "rgba(30,15,5,0.8)", border: "1px solid rgba(212,160,23,0.3)", cursor: "pointer" }}
+                          >
+                            <div className="w-10 h-10 rounded flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.3)" }}>
+                              {item.imageUrl ? <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" /> : <span className="text-lg">💎</span>}
+                            </div>
+                            <span className="font-fantasy text-[#f0c040] text-[7px] tracking-wider text-center truncate w-full">{item.name}</span>
+                            <div className="flex flex-col items-center">
+                              {(item.atkBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#f87171" }}>+{item.atkBoost} ATK</span>}
+                              {(item.defBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#60a5fa" }}>+{item.defBoost} DEF</span>}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
           </div>
 
@@ -631,7 +800,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
               </p>
               <div className="text-center mb-3 space-y-1">
                 <p className="font-fantasy text-[#ff9999] text-[10px]">HP → 1,000 | ATK → 50 | DEF → 50</p>
-                <p className="font-fantasy text-[#ff9999] text-[10px]">Level → 0 | Items Used → 0</p>
+                <p className="font-fantasy text-[#ff9999] text-[10px]">Level → 1 | Accessories Removed</p>
               </div>
               <div className="flex items-center justify-center gap-1 mb-4">
                 <span className="font-fantasy text-[#ffaaaa] text-xs">Cost:</span>
@@ -692,6 +861,17 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
         @keyframes powerUpParticle {
           0% { opacity: 1; transform: rotate(var(--angle, 0deg)) translateY(-10px) scale(1); }
           100% { opacity: 0; transform: rotate(var(--angle, 0deg)) translateY(-60px) scale(0.3); }
+        }
+        @keyframes accEquipFlash {
+          0% { opacity: 0; transform: scale(0.3); }
+          25% { opacity: 1; transform: scale(1.5); }
+          70% { opacity: 1; transform: scale(1.1); }
+          100% { opacity: 0; transform: scale(0.9); }
+        }
+        @keyframes accUnequipFlash {
+          0% { opacity: 1; transform: scale(1); }
+          40% { opacity: 0.7; transform: scale(1.3); }
+          100% { opacity: 0; transform: scale(1.6); }
         }
       `}</style>
 

@@ -543,6 +543,8 @@ export async function registerRoutes(
         petLevel: inv.petLevel,
         petLevelPoints: inv.petLevelPoints,
         itemsUsedThisLevel: inv.itemsUsedThisLevel,
+        atkBoost: shopItem?.atkBoost ?? null,
+        defBoost: shopItem?.defBoost ?? null,
       }));
       return res.json(itemsWithDetails);
     } catch (err) {
@@ -663,6 +665,76 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Hatch check error:", err);
       return res.status(500).json({ message: "Failed to check hatch status" });
+    }
+  });
+
+  app.get("/api/pet/:inventoryId/accessories", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { inventoryId } = req.params;
+      const petInv = await storage.getInventoryItemById(inventoryId);
+      if (!petInv || petInv.userId !== user.id) return res.status(404).json({ message: "Pet not found" });
+      const equipped = await storage.getPetEquippedAccessories(inventoryId);
+      return res.json(equipped);
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to get accessories" });
+    }
+  });
+
+  app.post("/api/pet/:inventoryId/equip", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { inventoryId } = req.params;
+      const { accessoryInventoryId } = req.body;
+      if (!accessoryInventoryId) return res.status(400).json({ message: "Missing accessoryInventoryId" });
+      const petInv = await storage.getInventoryItemById(inventoryId);
+      if (!petInv || petInv.userId !== user.id) return res.status(404).json({ message: "Pet not found" });
+      if (!petInv.isHatched) return res.status(400).json({ message: "Pet has not hatched yet" });
+      const accInv = await storage.getInventoryItemById(accessoryInventoryId);
+      if (!accInv || accInv.userId !== user.id) return res.status(404).json({ message: "Accessory not found" });
+      const accShopItem = await storage.getShopItem(accInv.shopItemId);
+      if (!accShopItem || accShopItem.type !== "accessory") return res.status(400).json({ message: "Item is not an accessory" });
+      const currentEquipped = await storage.getPetEquippedAccessories(inventoryId);
+      if (currentEquipped.length >= 3) return res.status(400).json({ message: "All 3 accessory slots are full" });
+      if (currentEquipped.find(e => e.accessoryInventoryId === accessoryInventoryId)) return res.status(400).json({ message: "Accessory already equipped" });
+      const equipped = await storage.equipAccessory(inventoryId, accessoryInventoryId);
+      const atkGain = accShopItem.atkBoost || 0;
+      const defGain = accShopItem.defBoost || 0;
+      if (atkGain !== 0 || defGain !== 0) {
+        await storage.updateInventoryItem(inventoryId, {
+          petAtk: petInv.petAtk + atkGain,
+          petDef: petInv.petDef + defGain,
+        });
+      }
+      return res.json({ equipped, atkGain, defGain });
+    } catch (err: any) {
+      return res.status(400).json({ message: err?.message || "Failed to equip accessory" });
+    }
+  });
+
+  app.post("/api/pet/:inventoryId/unequip", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { inventoryId } = req.params;
+      const { accessoryInventoryId } = req.body;
+      if (!accessoryInventoryId) return res.status(400).json({ message: "Missing accessoryInventoryId" });
+      const petInv = await storage.getInventoryItemById(inventoryId);
+      if (!petInv || petInv.userId !== user.id) return res.status(404).json({ message: "Pet not found" });
+      const equipped = await storage.getPetEquippedAccessories(inventoryId);
+      const record = equipped.find(e => e.accessoryInventoryId === accessoryInventoryId);
+      if (!record) return res.status(404).json({ message: "Accessory not equipped" });
+      const atkLoss = record.atkBoost || 0;
+      const defLoss = record.defBoost || 0;
+      await storage.unequipAccessory(inventoryId, accessoryInventoryId);
+      if (atkLoss !== 0 || defLoss !== 0) {
+        await storage.updateInventoryItem(inventoryId, {
+          petAtk: Math.max(0, petInv.petAtk - atkLoss),
+          petDef: Math.max(0, petInv.petDef - defLoss),
+        });
+      }
+      return res.json({ success: true, atkLoss, defLoss });
+    } catch (err: any) {
+      return res.status(400).json({ message: err?.message || "Failed to unequip accessory" });
     }
   });
 
@@ -896,6 +968,7 @@ export async function registerRoutes(
       }
 
       await storage.addCoins(user.id, -300);
+      await storage.unequipAllPetAccessories(petInv.id);
       const updatedPet = await storage.updateInventoryItem(petInv.id, {
         petHealth: 1000,
         petAtk: 50,
