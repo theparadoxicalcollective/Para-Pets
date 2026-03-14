@@ -1428,29 +1428,14 @@ export default function WorldPage({ user }: WorldPageProps) {
                     </button>
                   )}
                   <div
-                    className="w-full rounded-lg overflow-hidden flex items-center justify-center"
-                    style={{
-                      background: "rgba(10,5,2,0.6)",
-                      border: `2px solid ${isOwned ? "rgba(127,255,212,0.55)" : accent + "55"}`,
-                      boxShadow: `0 0 12px ${accent}25, 0 4px 16px rgba(0,0,0,0.55)`,
-                      aspectRatio: "1/1",
-                      padding: "6px",
-                    }}
+                    className="w-full flex items-center justify-center"
+                    style={{ aspectRatio: "1/1" }}
                   >
                     {imgSrc ? (
-                      <img src={imgSrc} alt={item.name} className="w-full h-full object-contain" style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.7))" }} />
+                      <img src={imgSrc} alt={item.name} className="w-full h-full object-contain" style={{ filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.8))" }} />
                     ) : (
-                      <Package className="w-8 h-8" style={{ color: `${accent}40` }} />
+                      <Package className="w-8 h-8" style={{ color: `${accent}80` }} />
                     )}
-                  </div>
-                  <div className="mt-1 px-1 py-0.5 rounded text-center" style={{ background: "rgba(0,0,0,0.72)", border: `1px solid ${accent}22` }}>
-                    <p className="font-fantasy text-[10px] font-semibold leading-tight truncate" style={{ color: accent }} data-testid={`text-item-name-${item.id}`}>
-                      {item.name}
-                    </p>
-                    <div className="flex items-center justify-center gap-0.5 mt-0.5">
-                      <img src={coinIconImg} alt="" className="w-2.5 h-2.5 object-contain" />
-                      <span className="font-fantasy text-[9px]" style={{ color: `${accent}cc` }}>{item.price}</span>
-                    </div>
                   </div>
                   {isOwned && (
                     <div
