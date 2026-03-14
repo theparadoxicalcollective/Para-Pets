@@ -20,13 +20,13 @@ import shopEnchantedGrove from "@assets/shop_enchanted_grove_v2.png";
 import shopHauntedWoods from "@assets/shop_haunted_woods.png";
 import shopSwamp from "@assets/shop_swamp.png";
 
-import bgSnowyMountain from "@assets/bg_snowy_mountain.png";
-import bgSkyRealm from "@assets/bg_sky_realm.png";
-import bgVolcanic from "@assets/bg_volcanic.png";
-import bgIsland from "@assets/bg_island.png";
-import bgDesert from "@assets/bg_desert.png";
-import bgMagicalForest from "@assets/bg_magical_forest.png";
-import bgHauntedWoods from "@assets/bg_haunted_woods.png";
+import bgSnowyMountain from "@assets/bg_snowy_mountain_td.png";
+import bgSkyRealm from "@assets/bg_sky_realm_td.png";
+import bgVolcanic from "@assets/bg_volcanic_td.png";
+import bgIsland from "@assets/bg_island_td.png";
+import bgDesert from "@assets/bg_desert_td.png";
+import bgMagicalForest from "@assets/bg_enchanted_grove_td.png";
+import bgHauntedWoods from "@assets/bg_haunted_woods_td.png";
 import bgSwamp from "@assets/bg_swamp_v5.png";
 
 const WORLD_CONFIG: Record<string, { name: string; shopIcon: string; bg: string; accent: string; bgGradient: string }> = {

@@ -76,13 +76,13 @@ async function ensureAdminAccount() {
 }
 
 const WORLD_BG_SEED: Record<string, string> = {
-  sky_realm: "bg_sky_realm.png",
-  snowy_mountain: "bg_snowy_mountain.png",
-  volcanic: "bg_volcanic.png",
-  haunted_woods: "bg_haunted_woods.png",
-  enchanted_grove: "bg_magical_forest.png",
-  island: "bg_island.png",
-  desert: "bg_desert.png",
+  sky_realm: "bg_sky_realm_td.png",
+  snowy_mountain: "bg_snowy_mountain_td.png",
+  volcanic: "bg_volcanic_td.png",
+  haunted_woods: "bg_haunted_woods_td.png",
+  enchanted_grove: "bg_enchanted_grove_td.png",
+  island: "bg_island_td.png",
+  desert: "bg_desert_td.png",
   swamp: "bg_swamp_v5.png",
 };
 
