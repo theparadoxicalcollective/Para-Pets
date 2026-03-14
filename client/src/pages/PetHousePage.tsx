@@ -470,9 +470,8 @@ function WalkingPet({
         top: cfg.top,
         marginTop: -sz,
         zIndex: parseInt(cfg.top, 10),
-        cursor: "pointer",
+        pointerEvents: "none",
       }}
-      onClick={onClick}
     >
       <div
         style={{
@@ -483,14 +482,19 @@ function WalkingPet({
         <div style={{ animation: `${floatAnim} 3.2s ${cfg.delay} ease-in-out infinite` }}>
           {pet.petTemplateId ? (
             <>
-              <PetAnimator
-                petTemplateId={pet.petTemplateId}
-                mode="idle"
-                size={sz}
-                style={{
-                  filter: `drop-shadow(0 ${Math.round(sz * 0.12)}px ${Math.round(sz * 0.15)}px rgba(0,0,0,0.5))`,
-                }}
-              />
+              <div
+                style={{ width: sz, height: sz, pointerEvents: "auto", cursor: "pointer" }}
+                onClick={onClick}
+              >
+                <PetAnimator
+                  petTemplateId={pet.petTemplateId}
+                  mode="idle"
+                  size={sz}
+                  style={{
+                    filter: `drop-shadow(0 ${Math.round(sz * 0.12)}px ${Math.round(sz * 0.15)}px rgba(0,0,0,0.5))`,
+                  }}
+                />
+              </div>
               {shadow}
             </>
           ) : petImg ? (
@@ -498,29 +502,34 @@ function WalkingPet({
               <img
                 src={petImg}
                 alt=""
-                className="pointer-events-none"
                 style={{
                   width: sz,
                   height: sz,
                   objectFit: "contain",
+                  cursor: "pointer",
+                  pointerEvents: "auto",
                   filter: [
                     `drop-shadow(0 ${Math.round(sz * 0.12)}px ${Math.round(sz * 0.15)}px rgba(0,0,0,0.6))`,
                     "brightness(1.06) saturate(1.1)",
                   ].join(" "),
                 }}
+                onClick={onClick}
               />
               {shadow}
             </>
           ) : (
             <>
               <span
-                className="pointer-events-none flex items-center justify-center"
+                className="flex items-center justify-center"
                 style={{
                   width: sz,
                   height: sz,
                   fontSize: sz * 0.65,
+                  cursor: "pointer",
+                  pointerEvents: "auto",
                   filter: `drop-shadow(0 ${Math.round(sz * 0.12)}px ${Math.round(sz * 0.15)}px rgba(0,0,0,0.6))`,
                 }}
+                onClick={onClick}
               >
                 🐾
               </span>
