@@ -193,6 +193,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [buyQty, setBuyQty] = useState(1);
   const [buyError, setBuyError] = useState<string | null>(null);
   const [shopItemDragPos, setShopItemDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [hoveredShopItemId, setHoveredShopItemId] = useState<string | null>(null);
   const shopItemDragRef = useRef<{ itemId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const shopItemDidDrag = useRef(false);
   const shopCanvasRef = useRef<HTMLDivElement>(null);
@@ -629,6 +630,27 @@ export default function WorldPage({ user }: WorldPageProps) {
     }
     setShopItemDragPos(null);
   }, [shopItemDragPos, shopItemPositionMutation]);
+
+  const isShopItemTransparentClick = useCallback((e: React.MouseEvent<HTMLImageElement>): boolean => {
+    const img = e.currentTarget;
+    const rect = img.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    const natX = Math.round((clickX / rect.width) * img.naturalWidth);
+    const natY = Math.round((clickY / rect.height) * img.naturalHeight);
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return false;
+      ctx.drawImage(img, 0, 0);
+      const pixel = ctx.getImageData(natX, natY, 1, 1).data;
+      return pixel[3] < 20;
+    } catch {
+      return false;
+    }
+  }, []);
 
   const getItemDescription = (item: ShopItem): string[] => {
     const lines: string[] = [];
@@ -1416,6 +1438,7 @@ export default function WorldPage({ user }: WorldPageProps) {
               const posY = isDragging ? shopItemDragPos!.y : item.shopPosY;
               const imgSrc = item.type === "pet" ? (item.eggImageUrl || item.imageUrl) : item.imageUrl;
               const isOwned = item.type === "pet" && ownedItemIds.has(item.id);
+              const isHovered = hoveredShopItemId === item.id;
               return (
                 <div
                   key={item.id}
@@ -1427,7 +1450,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                     width: `${item.shopWidth}px`,
                     transform: "translate(-50%, -50%)",
                     touchAction: "none",
-                    zIndex: isDragging ? 30 : 15,
+                    zIndex: isDragging ? 30 : 10 + Math.round(posY),
                     pointerEvents: "none",
                   }}
                 >
@@ -1454,13 +1477,22 @@ export default function WorldPage({ user }: WorldPageProps) {
                         alt={item.name}
                         className="w-full h-full object-contain"
                         style={{
-                          filter: "drop-shadow(0 0 1.5px rgba(255,220,40,1)) drop-shadow(0 0 3px rgba(255,200,0,0.5))",
+                          filter: isHovered
+                            ? "drop-shadow(0 0 2px rgba(255,220,40,1)) drop-shadow(0 0 6px rgba(255,200,0,0.9)) drop-shadow(0 0 12px rgba(255,200,0,0.5))"
+                            : "drop-shadow(0 0 1.5px rgba(255,220,40,1)) drop-shadow(0 0 3px rgba(255,200,0,0.5))",
+                          transform: isHovered ? "scale(1.12)" : "scale(1)",
+                          transition: "transform 0.15s ease, filter 0.15s ease",
                           cursor: currentUser.isAdmin ? "grab" : "pointer",
                           pointerEvents: "auto",
                         }}
+                        onMouseEnter={() => setHoveredShopItemId(item.id)}
+                        onMouseLeave={() => setHoveredShopItemId(null)}
+                        onTouchStart={() => setHoveredShopItemId(item.id)}
+                        onTouchEnd={() => setHoveredShopItemId(null)}
                         onPointerDown={currentUser.isAdmin ? (e) => handleShopItemPointerDown(e, item) : undefined}
-                        onClick={() => {
+                        onClick={(e) => {
                           if (!currentUser.isAdmin && !shopItemDidDrag.current) {
+                            if (isShopItemTransparentClick(e)) return;
                             setSelectedShopItem(item);
                             setBuyStep(1);
                             setBuyQty(1);
