@@ -648,3 +648,33 @@ id = "LtHBF2QZNNh0IMQmhdDMI"
 uri = "file://attached_assets/betta_venom.png"
 type = "image"
 title = "Venom Betta (toxic neon green)"
+
+[[outputs]]
+id = "R4K9rfVliTPRUPbg0wjpX"
+uri = "file://attached_assets/pole_arcane.png"
+type = "image"
+title = "Arcane Rod (rune staff, crystal orb)"
+
+[[outputs]]
+id = "OhkvYJKeYf_g3IaL2rkBF"
+uri = "file://attached_assets/pole_nature.png"
+type = "image"
+title = "Nature Rod (bamboo, golden silk & gems)"
+
+[[outputs]]
+id = "Dh71g9P5Xb8z3H-6yLewR"
+uri = "file://attached_assets/pole_storm.png"
+type = "image"
+title = "Storm Rod (iron, crackling lightning)"
+
+[[outputs]]
+id = "c9hbnAjm-InxwpL1wCQzZ"
+uri = "file://attached_assets/pole_spirit.png"
+type = "image"
+title = "Spirit Rod (ghostly ectoplasm line)"
+
+[[outputs]]
+id = "vRwVYoy4LmRNo8hz67Jvg"
+uri = "file://attached_assets/pole_jeweled.png"
+type = "image"
+title = "Jeweled Rod (gold, gemstone studded)"
