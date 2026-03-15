@@ -135,6 +135,11 @@ export function log(message: string, source = "express") {
   console.log(`${formattedTime} [${source}] ${message}`);
 }
 
+app.use("/world-assets", express.static(path.join(process.cwd(), "attached_assets"), {
+  maxAge: "7d",
+  immutable: true,
+}));
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -214,23 +219,24 @@ app.use((req, res, next) => {
     return `data:image/png;base64,${buf.toString("base64")}`;
   }
 
-  // Always refresh all world backgrounds from bundled assets
+  // Always refresh all world backgrounds — served as static files under /world-assets/
   const WORLD_BG_ASSETS: Record<string, string> = {
-    swamp: "bg_swamp_v5.png",
-    snowy_mountain: "bg_snowy_mountain_td.png",
-    sky_realm: "bg_sky_realm_td.png",
-    volcanic: "bg_volcanic_td.png",
-    haunted_woods: "bg_haunted_woods_td.png",
-    enchanted_grove: "bg_enchanted_grove_td.png",
-    island: "bg_island_td.png",
-    desert: "bg_desert_td.png",
+    swamp: "bg_swamp_map.png",
+    snowy_mountain: "bg_snowy_mountain_map.png",
+    sky_realm: "bg_sky_realm_map.png",
+    volcanic: "bg_volcanic_map.png",
+    haunted_woods: "bg_haunted_woods_map.png",
+    enchanted_grove: "bg_enchanted_grove_map.png",
+    island: "bg_island_map.png",
+    desert: "bg_desert_map.png",
   };
   for (const [worldId, filename] of Object.entries(WORLD_BG_ASSETS)) {
     try {
-      const bgData = loadAssetBase64(filename);
-      if (bgData) {
-        await storage.updateWorld(worldId, { bgUrl: bgData } as any);
-        console.log(`${worldId} background refreshed from asset.`);
+      const assetPath = path.join(process.cwd(), "attached_assets", filename);
+      if (fs.existsSync(assetPath)) {
+        const bgUrl = `/world-assets/${filename}`;
+        await storage.updateWorld(worldId, { bgUrl } as any);
+        console.log(`${worldId} background refreshed.`);
       }
     } catch (err) {
       console.error(`Background refresh error for ${worldId} (non-fatal):`, err);

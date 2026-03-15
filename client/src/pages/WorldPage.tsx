@@ -128,6 +128,9 @@ interface WorldApiData {
   isDefault: boolean;
 }
 
+const MAP_W = 1440;
+const MAP_H = 2560;
+
 export default function WorldPage({ user }: WorldPageProps) {
   const params = useParams<{ worldId: string }>();
   const worldId = params.worldId || "";
@@ -210,13 +213,24 @@ export default function WorldPage({ user }: WorldPageProps) {
   const queryClient = useQueryClient();
 
   const areaRef = useRef<HTMLDivElement>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const vpRef = useRef<HTMLDivElement>(null);
+  // scrollContainerRef removed — map now uses pan/zoom transform
   const dragRef = useRef<{ locId: string; startCanvasX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const [dragPos, setDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
   const didDrag = useRef(false);
   const adminLocTapRef = useRef<{ id: string; timer: ReturnType<typeof setTimeout> } | null>(null);
   const [topLocId, setTopLocId] = useState<string | null>(null);
   const [worldBgLoaded, setWorldBgLoaded] = useState(false);
+
+  const mapTransformRef = useRef({ x: 0, y: 0, scale: 1 });
+  const [mapX, setMapX] = useState(0);
+  const [mapY, setMapY] = useState(0);
+  const [mapScale, setMapScale] = useState(1);
+  const mapPanPointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const mapPanStartRef = useRef<{ x: number; y: number; mapX: number; mapY: number } | null>(null);
+  const mapPinchRef = useRef<{ dist: number; midX: number; midY: number; mapX: number; mapY: number; scale: number } | null>(null);
+  const mapPanningRef = useRef(false);
+  const mapJustPannedRef = useRef(false);
   const [locBgLoaded, setLocBgLoaded] = useState(false);
   const [shopBgNaturalRatio, setShopBgNaturalRatio] = useState<number | null>(null);
 
@@ -499,6 +513,112 @@ export default function WorldPage({ user }: WorldPageProps) {
     img.src = world.bg;
   }, [world?.bg]);
 
+  const clampTransform = useCallback((x: number, y: number, sc: number) => {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const mw = MAP_W * sc;
+    const mh = MAP_H * sc;
+    const cx = mw <= vw ? (vw - mw) / 2 : Math.max(vw - mw, Math.min(0, x));
+    const cy = mh <= vh ? (vh - mh) / 2 : Math.max(vh - mh, Math.min(0, y));
+    return { x: cx, y: cy };
+  }, []);
+
+  const applyMapTransform = useCallback((x: number, y: number, sc: number) => {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const coverSc = Math.max(vw / MAP_W, vh / MAP_H);
+    const clampedSc = Math.max(coverSc, Math.min(coverSc * 3, sc));
+    const { x: cx, y: cy } = clampTransform(x, y, clampedSc);
+    mapTransformRef.current = { x: cx, y: cy, scale: clampedSc };
+    setMapX(cx);
+    setMapY(cy);
+    setMapScale(clampedSc);
+  }, [clampTransform]);
+
+  useEffect(() => {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const coverSc = Math.max(vw / MAP_W, vh / MAP_H);
+    const ix = (vw - MAP_W * coverSc) / 2;
+    mapTransformRef.current = { x: ix, y: 0, scale: coverSc };
+    setMapX(ix);
+    setMapY(0);
+    setMapScale(coverSc);
+  }, [worldId]);
+
+  const handleVpPointerDown = useCallback((e: React.PointerEvent) => {
+    if (dragRef.current || objDragRef.current || shopItemDragRef.current) return;
+    mapPanPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const ptrs = Array.from(mapPanPointersRef.current.values());
+    if (ptrs.length === 1) {
+      mapPanStartRef.current = { x: e.clientX, y: e.clientY, mapX: mapTransformRef.current.x, mapY: mapTransformRef.current.y };
+      mapPinchRef.current = null;
+      mapPanningRef.current = false;
+    } else if (ptrs.length === 2) {
+      const [p1, p2] = ptrs;
+      const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+      mapPinchRef.current = { dist, midX: (p1.x + p2.x) / 2, midY: (p1.y + p2.y) / 2, mapX: mapTransformRef.current.x, mapY: mapTransformRef.current.y, scale: mapTransformRef.current.scale };
+      mapPanStartRef.current = null;
+    }
+  }, []);
+
+  const handleVpPointerMove = useCallback((e: React.PointerEvent) => {
+    if (dragRef.current || objDragRef.current || shopItemDragRef.current) return;
+    if (!mapPanPointersRef.current.has(e.pointerId)) return;
+    mapPanPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const ptrs = Array.from(mapPanPointersRef.current.values());
+    if (ptrs.length === 1 && mapPanStartRef.current) {
+      const dx = e.clientX - mapPanStartRef.current.x;
+      const dy = e.clientY - mapPanStartRef.current.y;
+      if (!mapPanningRef.current && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) mapPanningRef.current = true;
+      if (mapPanningRef.current) applyMapTransform(mapPanStartRef.current.mapX + dx, mapPanStartRef.current.mapY + dy, mapTransformRef.current.scale);
+    } else if (ptrs.length === 2 && mapPinchRef.current) {
+      const [p1, p2] = ptrs;
+      const newDist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+      const newMidX = (p1.x + p2.x) / 2;
+      const newMidY = (p1.y + p2.y) / 2;
+      const sc = mapPinchRef.current.scale * (newDist / mapPinchRef.current.dist);
+      const newX = newMidX - (sc / mapPinchRef.current.scale) * (mapPinchRef.current.midX - mapPinchRef.current.mapX);
+      const newY = newMidY - (sc / mapPinchRef.current.scale) * (mapPinchRef.current.midY - mapPinchRef.current.mapY);
+      applyMapTransform(newX, newY, sc);
+    }
+  }, [applyMapTransform]);
+
+  const handleVpPointerUp = useCallback((e: React.PointerEvent) => {
+    mapPanPointersRef.current.delete(e.pointerId);
+    const remaining = mapPanPointersRef.current.size;
+    if (remaining === 0) {
+      if (mapPanningRef.current) { mapJustPannedRef.current = true; setTimeout(() => { mapJustPannedRef.current = false; }, 80); }
+      mapPanStartRef.current = null;
+      mapPanningRef.current = false;
+      mapPinchRef.current = null;
+    } else if (remaining === 1) {
+      mapPinchRef.current = null;
+      const [ptr] = Array.from(mapPanPointersRef.current.values());
+      mapPanStartRef.current = { x: ptr.x, y: ptr.y, mapX: mapTransformRef.current.x, mapY: mapTransformRef.current.y };
+      mapPanningRef.current = false;
+    }
+  }, []);
+
+  const handleVpWheel = useCallback((e: WheelEvent) => {
+    e.preventDefault();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const coverSc = Math.max(vw / MAP_W, vh / MAP_H);
+    const zoomF = e.deltaY < 0 ? 1.1 : 0.9;
+    const sc = Math.max(coverSc, Math.min(coverSc * 3, mapTransformRef.current.scale * zoomF));
+    const { x, y } = mapTransformRef.current;
+    const scChange = sc / mapTransformRef.current.scale;
+    applyMapTransform(e.clientX - scChange * (e.clientX - x), e.clientY - scChange * (e.clientY - y), sc);
+  }, [applyMapTransform]);
+
+  useEffect(() => {
+    const el = vpRef.current;
+    if (!el) return;
+    el.addEventListener("wheel", handleVpWheel, { passive: false });
+    return () => el.removeEventListener("wheel", handleVpWheel);
+  }, [handleVpWheel]);
+
   useEffect(() => {
     setLocBgLoaded(false);
     setShopBgNaturalRatio(null);
@@ -528,10 +648,10 @@ export default function WorldPage({ user }: WorldPageProps) {
     e.stopPropagation();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     didDrag.current = false;
-    const canvasLeft = areaRef.current ? areaRef.current.getBoundingClientRect().left : 0;
+    const rect = areaRef.current ? areaRef.current.getBoundingClientRect() : { left: 0 };
     dragRef.current = {
       locId: loc.id,
-      startCanvasX: e.clientX - canvasLeft,
+      startCanvasX: e.clientX - rect.left,
       startY: e.clientY,
       origPosX: loc.posX,
       origPosY: loc.posY,
@@ -541,15 +661,13 @@ export default function WorldPage({ user }: WorldPageProps) {
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!dragRef.current || !areaRef.current) return;
     e.preventDefault();
-    const canvasLeft = areaRef.current.getBoundingClientRect().left;
-    const canvasWidth = areaRef.current.offsetWidth;
-    const canvasHeight = areaRef.current.offsetHeight || areaRef.current.getBoundingClientRect().height;
-    const currentCanvasX = e.clientX - canvasLeft;
+    const rect = areaRef.current.getBoundingClientRect();
+    const currentCanvasX = e.clientX - rect.left;
     const dx = currentCanvasX - dragRef.current.startCanvasX;
     const dy = e.clientY - dragRef.current.startY;
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDrag.current = true;
-    const pxPerPercX = canvasWidth / 100;
-    const pxPerPercY = canvasHeight / 100;
+    const pxPerPercX = rect.width / 100;
+    const pxPerPercY = rect.height / 100;
     const newX = Math.max(0, Math.min(95, dragRef.current.origPosX + dx / pxPerPercX));
     const newY = Math.max(0, Math.min(90, dragRef.current.origPosY + dy / pxPerPercY));
     setDragPos({ id: dragRef.current.locId, x: newX, y: newY });
@@ -592,7 +710,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   }, [currentUser.isAdmin]);
 
   const handleLocationClick = useCallback((loc: WorldLocationData) => {
-    if (didDrag.current) return;
+    if (didDrag.current || mapJustPannedRef.current) return;
     if (currentUser.isAdmin) {
       if (adminLocTapRef.current?.id === loc.id) {
         clearTimeout(adminLocTapRef.current.timer);
@@ -792,17 +910,26 @@ export default function WorldPage({ user }: WorldPageProps) {
         </div>
       )}
 
-      <div ref={scrollContainerRef} className="absolute inset-0 overflow-y-auto overflow-x-hidden world-scroll">
+      <div
+        ref={vpRef}
+        className="absolute inset-0 overflow-hidden"
+        style={{ touchAction: "none" }}
+        onPointerDown={handleVpPointerDown}
+        onPointerMove={handleVpPointerMove}
+        onPointerUp={handleVpPointerUp}
+        onPointerLeave={handleVpPointerUp}
+      >
           <div
             ref={areaRef}
             style={{
-              position: "relative",
-              width: "100%",
-              paddingBottom: "200%",
-              minHeight: "100dvh",
+              position: "absolute",
+              width: MAP_W,
+              height: MAP_H,
+              transformOrigin: "0 0",
+              transform: `translate(${mapX}px, ${mapY}px) scale(${mapScale})`,
               backgroundImage: world.bg ? `url(${world.bg})` : undefined,
               backgroundSize: "cover",
-              backgroundPosition: "center top",
+              backgroundPosition: "center",
               backgroundRepeat: "no-repeat",
             }}
             onPointerMove={handlePointerMove}
