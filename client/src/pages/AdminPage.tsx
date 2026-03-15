@@ -6,7 +6,6 @@ import { Search, X, Upload, Trash2, ChevronLeft } from "lucide-react";
 import bgImg from "@assets/bg_home.png";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
-import profileFrameImg from "@assets/frame_profile.png";
 import coinIconImg from "@assets/icon_coin.png";
 import PetDatabasePanel from "@/components/PetDatabasePanel";
 import ItemDatabaseSection, { ShopItemFull, ItemPickerModal } from "@/components/ItemDatabaseSection";
@@ -270,19 +269,22 @@ export default function AdminPage({ user }: AdminPageProps) {
                         <button
                           data-testid={`button-view-player-${member.id}`}
                           onClick={e => { e.stopPropagation(); setViewingUserId(member.id); }}
-                          className="relative w-10 h-10 flex-shrink-0 focus:outline-none"
-                          style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
+                          className="relative w-10 h-10 flex-shrink-0 rounded-lg overflow-hidden focus:outline-none"
+                          style={{
+                            padding: 0,
+                            cursor: "pointer",
+                            border: "2.5px solid #c9a030",
+                            boxShadow: "0 0 8px rgba(201,160,48,0.3), 0 2px 8px rgba(0,0,0,0.5), inset 0 0 3px rgba(201,160,48,0.15)",
+                            background: "none",
+                          }}
                         >
-                          <img src={profileFrameImg} alt="" className="absolute inset-0 w-full h-full object-contain z-20" />
-                          <div className="absolute z-10 overflow-hidden rounded-sm" style={{ inset: "6px" }}>
-                            {member.profileImage ? (
-                              <img src={member.profileImage} alt="" className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center" style={{ background: "#2a1a0a" }}>
-                                <span className="font-fantasy text-[#d4a017] text-xs font-bold">{member.username.charAt(0).toUpperCase()}</span>
-                              </div>
-                            )}
-                          </div>
+                          {member.profileImage ? (
+                            <img src={member.profileImage} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center rounded-lg" style={{ background: "linear-gradient(135deg, #2a1a0a 0%, #4a2e18 100%)" }}>
+                              <span className="font-fantasy text-[#d4a017] text-xs font-bold">{member.username.charAt(0).toUpperCase()}</span>
+                            </div>
+                          )}
                         </button>
 
                         <div className="flex-1 min-w-0">
