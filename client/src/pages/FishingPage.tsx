@@ -78,6 +78,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   const [caughtItem, setCaughtItem] = useState<ShopItem | null>(null);
   const [bgLoaded, setBgLoaded] = useState(false);
   const [bgError, setBgError] = useState(false);
+  const nibbleRarityRef = useRef<number>(1);
   const reelIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const nibbleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const castingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -202,6 +203,15 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     phaseRef.current = phase;
   }, [phase]);
 
+  useEffect(() => {
+    if (phase === "nibble") {
+      const timer = setTimeout(() => {
+        if (phaseRef.current === "nibble") startReeling();
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [phase, startReeling]);
+
   const clearAllTimers = useCallback(() => {
     if (reelIntervalRef.current) { clearInterval(reelIntervalRef.current); reelIntervalRef.current = null; }
     if (nibbleTimeoutRef.current) { clearTimeout(nibbleTimeoutRef.current); nibbleTimeoutRef.current = null; }
@@ -228,6 +238,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       const waitTime = 1500 + Math.random() * 2500;
       nibbleTimeoutRef.current = setTimeout(() => {
         if (phaseRef.current === "waiting") {
+          const randomFish = pondFish[Math.floor(Math.random() * pondFish.length)];
+          nibbleRarityRef.current = randomFish?.item?.starRarity ?? 1;
           setPhase("nibble");
           nibbleTimeoutRef.current = setTimeout(() => {
             if (phaseRef.current === "nibble") {
@@ -246,9 +258,12 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     reelPosRef.current = 0.0;
     setPhase("reeling");
 
+    const rarity = Math.max(1, Math.min(5, nibbleRarityRef.current));
+    const driftSpeed = 0.009 + (rarity - 1) * 0.003;
+
     if (reelIntervalRef.current) clearInterval(reelIntervalRef.current);
     reelIntervalRef.current = setInterval(() => {
-      reelPosRef.current = Math.max(0, reelPosRef.current - 0.007);
+      reelPosRef.current = Math.max(0, reelPosRef.current - driftSpeed);
       setReelPos(reelPosRef.current);
     }, 50);
 
@@ -382,7 +397,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
             {phase === "idle" ? (hasPole ? "Tap the water to cast" : "Equip a pole to fish") :
              phase === "casting" ? "Casting..." :
              phase === "waiting" ? "Waiting for a bite..." :
-             phase === "nibble" ? "Something's biting! Tap!" :
+             phase === "nibble" ? "Something's biting!" :
              phase === "reeling" ? "Reel it in!" :
              phase === "caught" ? "You caught something!" : "It got away..."}
           </p>
@@ -411,7 +426,6 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
 
       <div className="absolute inset-0 z-10" onClick={() => {
         if (phase === "idle" && hasPole) startCasting();
-        else if (phase === "nibble") startReeling();
       }}>
         {(phase === "waiting" || phase === "casting") && (
           <>
@@ -442,7 +456,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
               animation: "fishNibble 0.5s ease-in-out infinite",
             }} />
             <p className="font-fantasy text-sm mt-3 animate-bounce" style={{ color: "#fbbf24", textShadow: "0 0 10px rgba(251,191,36,0.7)" }}>
-              TAP TO REEL!
+              Fish on!
             </p>
           </div>
         )}
@@ -561,7 +575,6 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
             label="Fish"
             defaultIcon={fishInvIcon}
             equippedItem={null}
-            badgeCount={fishInventory.length}
             isActive={showFishInv}
             noDim
             onClick={() => { setShowFishInv(!showFishInv); setShowPolePanel(false); setShowBaitPanel(false); }}
