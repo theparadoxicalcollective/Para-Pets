@@ -467,7 +467,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         </div>
       </div>
 
-      <div className="absolute inset-0 z-10">
+      <div className="absolute inset-0 z-10 pointer-events-none">
         {(phase === "waiting" || phase === "casting") && (
           <>
             <div className="absolute" style={{
