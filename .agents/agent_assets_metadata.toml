@@ -378,3 +378,63 @@ id = "Zk8gjA0R3pT2FB3P7CNhC"
 uri = "file://attached_assets/acc_wizard_pin.png"
 type = "image"
 title = "Wizard Hat Pin (tiny badge)"
+
+[[outputs]]
+id = "US6AYq83vCUy91_1SnPyf"
+uri = "file://attached_assets/weapon_arcane_sword.png"
+type = "image"
+title = "Arcane Sword (teal glow)"
+
+[[outputs]]
+id = "_2isrhQPqASEUi3fwgG3b"
+uri = "file://attached_assets/weapon_crystal_staff.png"
+type = "image"
+title = "Crystal Staff (purple orb)"
+
+[[outputs]]
+id = "0kkc_vHIQlbhJG8V7UBbF"
+uri = "file://attached_assets/weapon_shadow_dagger.png"
+type = "image"
+title = "Shadow Dagger (obsidian serpent)"
+
+[[outputs]]
+id = "zd2G62Cm9queQfM9nIlH9"
+uri = "file://attached_assets/weapon_moon_bow.png"
+type = "image"
+title = "Moon Bow (elven moonlight)"
+
+[[outputs]]
+id = "6Ah3NZQuXQ0e0rAUsn1_q"
+uri = "file://attached_assets/weapon_fire_hammer.png"
+type = "image"
+title = "Fire Hammer (molten runes)"
+
+[[outputs]]
+id = "gObFirw2KYnDRDvqOtrFH"
+uri = "file://attached_assets/weapon_spell_wand.png"
+type = "image"
+title = "Spell Wand (blue glow)"
+
+[[outputs]]
+id = "41NyZV_msp0B_dQwjCJk6"
+uri = "file://attached_assets/weapon_storm_axe.png"
+type = "image"
+title = "Storm Axe (lightning blades)"
+
+[[outputs]]
+id = "FYcjmpONwINsh_EGOo_dO"
+uri = "file://attached_assets/weapon_spirit_scythe.png"
+type = "image"
+title = "Spirit Scythe (spectral green)"
+
+[[outputs]]
+id = "GpYXnQpE9gfbJBea1Tzig"
+uri = "file://attached_assets/weapon_nature_shield.png"
+type = "image"
+title = "Nature Shield (tree of life)"
+
+[[outputs]]
+id = "-1_GYaAylQjRTk24wYiix"
+uri = "file://attached_assets/weapon_crystal_spear.png"
+type = "image"
+title = "Crystal Spear (rose-gold tip)"
