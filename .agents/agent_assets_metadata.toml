@@ -78,3 +78,63 @@ id = "DHd6iHadU_kXLk1TlHCSg"
 uri = "file://attached_assets/book_lifebloom_compendium.png"
 type = "image"
 title = "Lifebloom Compendium (Health boost)"
+
+[[outputs]]
+id = "w7tuvktc9RLnhqbXhd5iG"
+uri = "file://attached_assets/item_arcane_feather.png"
+type = "image"
+title = "Arcane Feather"
+
+[[outputs]]
+id = "c2eVBqkvQYEP5YJZaWrYd"
+uri = "file://attached_assets/item_crystal_charm.png"
+type = "image"
+title = "Crystal Charm"
+
+[[outputs]]
+id = "Xh4EZ2uxZit5b7feSvsDb"
+uri = "file://attached_assets/item_runestone.png"
+type = "image"
+title = "Runestone"
+
+[[outputs]]
+id = "JOKnfUxiLW_Mo9mpwl3Fi"
+uri = "file://attached_assets/item_glow_mushroom.png"
+type = "image"
+title = "Glow Mushroom"
+
+[[outputs]]
+id = "XwdeBn_wy_cB8mEmlXmJt"
+uri = "file://attached_assets/item_golden_acorn.png"
+type = "image"
+title = "Golden Acorn"
+
+[[outputs]]
+id = "HWaB_haqKesC82YM6rNFr"
+uri = "file://attached_assets/item_hex_doll.png"
+type = "image"
+title = "Hex Doll"
+
+[[outputs]]
+id = "aaFNuxEI47qoWDXw2c6CD"
+uri = "file://attached_assets/item_dragon_scale.png"
+type = "image"
+title = "Dragon Scale"
+
+[[outputs]]
+id = "g0FkNcS_bTdow85GooAoi"
+uri = "file://attached_assets/item_spirit_wisp.png"
+type = "image"
+title = "Spirit Wisp"
+
+[[outputs]]
+id = "WDbeJNsATc2RvT6N8uhJl"
+uri = "file://attached_assets/item_moonpetal.png"
+type = "image"
+title = "Moonpetal Flower"
+
+[[outputs]]
+id = "uMPjZnHcJvcXKuwVGNZ5v"
+uri = "file://attached_assets/item_bog_amber.png"
+type = "image"
+title = "Bog Amber"
