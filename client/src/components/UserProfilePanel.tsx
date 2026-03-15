@@ -62,7 +62,7 @@ function cropToCanvas(src: string, offsetX: number, offsetY: number): Promise<st
 }
 
 export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props) {
-  const [newUsername, setNewUsername] = useState(user.username);
+  const [newUsername, setNewUsername] = useState("");
   const [profilePreview, setProfilePreview] = useState<string | null>(null);
   const [profileImageData, setProfileImageData] = useState<string | null>(null);
   const [showChangePassword, setShowChangePassword] = useState(false);

@@ -288,8 +288,8 @@ export default function AuthPage() {
               )}
 
               <div>
-                <label className="font-fantasy text-[#c8b896] text-xs tracking-wider block mb-1 ml-1">
-                  {mode === "login" ? "USERNAME OR EMAIL" : "USERNAME"}
+                <label className="font-fantasy text-xs tracking-wider block mb-1 ml-1" style={{ color: mode === "register" ? "#7ecfcf" : "#c8b896" }}>
+                  {mode === "login" ? "USERNAME OR EMAIL" : "⚔ USERNAME"}
                 </label>
                 <input
                   data-testid="input-username"
@@ -298,17 +298,29 @@ export default function AuthPage() {
                   onChange={e => setUsername(e.target.value)}
                   disabled={isPending}
                   placeholder={mode === "login" ? "Username or email" : "HeroName123"}
-                  className="w-full px-4 py-3 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#8a7060] outline-none focus:ring-2 focus:ring-[#d4a017] disabled:opacity-60"
+                  className="w-full px-4 py-3 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#8a7060] outline-none disabled:opacity-60"
                   style={{
-                    background: "linear-gradient(135deg, #f2e8d0 0%, #e8d8b0 100%)",
-                    border: "2px solid #8b5e3c",
-                    boxShadow: "inset 0 2px 6px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1)",
+                    background: mode === "register"
+                      ? "linear-gradient(135deg, #d8f2ec 0%, #c4e8e0 100%)"
+                      : "linear-gradient(135deg, #f2e8d0 0%, #e8d8b0 100%)",
+                    border: mode === "register" ? "2px solid #2a9a8a" : "2px solid #8b5e3c",
+                    boxShadow: mode === "register"
+                      ? "inset 0 2px 6px rgba(0,0,0,0.2), 0 0 0 0 transparent"
+                      : "inset 0 2px 6px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1)",
+                    outline: "none",
                   }}
+                  onFocus={e => { e.currentTarget.style.boxShadow = mode === "register" ? "inset 0 2px 6px rgba(0,0,0,0.2), 0 0 0 2px rgba(42,154,138,0.5)" : "inset 0 2px 6px rgba(0,0,0,0.3), 0 0 0 2px rgba(212,160,23,0.5)"; }}
+                  onBlur={e => { e.currentTarget.style.boxShadow = mode === "register" ? "inset 0 2px 6px rgba(0,0,0,0.2)" : "inset 0 2px 6px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1)"; }}
                 />
+                {mode === "register" && (
+                  <p className="font-sans text-[10px] mt-1 ml-1" style={{ color: "#5aafaf" }}>Letters &amp; numbers only, 3–20 characters</p>
+                )}
               </div>
 
               <div>
-                <label className="font-fantasy text-[#c8b896] text-xs tracking-wider block mb-1 ml-1">PASSWORD</label>
+                <label className="font-fantasy text-xs tracking-wider block mb-1 ml-1" style={{ color: mode === "register" ? "#c8a8e0" : "#c8b896" }}>
+                  {mode === "register" ? "🔒 PASSWORD" : "PASSWORD"}
+                </label>
                 <div className="relative">
                   <input
                     data-testid="input-password"
@@ -317,13 +329,19 @@ export default function AuthPage() {
                     onChange={e => setPassword(e.target.value)}
                     disabled={isPending}
                     placeholder="••••••••"
-                    className="w-full px-4 py-3 pr-12 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#8a7060] outline-none focus:ring-2 focus:ring-[#d4a017] disabled:opacity-60"
+                    className="w-full px-4 py-3 pr-12 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#8a7060] outline-none disabled:opacity-60"
                     style={{
-                      background: "linear-gradient(135deg, #f2e8d0 0%, #e8d8b0 100%)",
-                      border: "2px solid #8b5e3c",
-                      boxShadow: "inset 0 2px 6px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1)",
+                      background: mode === "register"
+                        ? "linear-gradient(135deg, #ede8f5 0%, #ddd0f0 100%)"
+                        : "linear-gradient(135deg, #f2e8d0 0%, #e8d8b0 100%)",
+                      border: mode === "register" ? "2px solid #8a5aae" : "2px solid #8b5e3c",
+                      boxShadow: mode === "register"
+                        ? "inset 0 2px 6px rgba(0,0,0,0.2)"
+                        : "inset 0 2px 6px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1)",
                     }}
                     onKeyDown={e => e.key === "Enter" && handleSubmit()}
+                    onFocus={e => { e.currentTarget.style.boxShadow = mode === "register" ? "inset 0 2px 6px rgba(0,0,0,0.2), 0 0 0 2px rgba(138,90,174,0.5)" : "inset 0 2px 6px rgba(0,0,0,0.3), 0 0 0 2px rgba(212,160,23,0.5)"; }}
+                    onBlur={e => { e.currentTarget.style.boxShadow = mode === "register" ? "inset 0 2px 6px rgba(0,0,0,0.2)" : "inset 0 2px 6px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1)"; }}
                   />
                   <button
                     data-testid="button-toggle-password"
@@ -331,15 +349,18 @@ export default function AuthPage() {
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 font-fantasy text-[10px] tracking-wider px-1.5 py-0.5 rounded"
                     style={{
-                      background: "rgba(139,94,60,0.3)",
-                      border: "1px solid rgba(139,94,60,0.5)",
-                      color: "#8b5e3c",
+                      background: mode === "register" ? "rgba(138,90,174,0.25)" : "rgba(139,94,60,0.3)",
+                      border: mode === "register" ? "1px solid rgba(138,90,174,0.5)" : "1px solid rgba(139,94,60,0.5)",
+                      color: mode === "register" ? "#9b6fca" : "#8b5e3c",
                       cursor: "pointer",
                     }}
                   >
                     {showPassword ? "HIDE" : "SHOW"}
                   </button>
                 </div>
+                {mode === "register" && (
+                  <p className="font-sans text-[10px] mt-1 ml-1" style={{ color: "#9b6fca" }}>Minimum 6 characters</p>
+                )}
               </div>
 
               {mode === "login" && (
