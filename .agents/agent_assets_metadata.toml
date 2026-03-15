@@ -198,3 +198,63 @@ id = "SjEhkTVbM06UOOtjwUjnt"
 uri = "file://attached_assets/potion_earth.png"
 type = "image"
 title = "Earth Potion (amber-gold)"
+
+[[outputs]]
+id = "gU2S6mG6yv-jZJ_jJPYdL"
+uri = "file://attached_assets/germ_blob.png"
+type = "image"
+title = "Blob (neon green gooey)"
+
+[[outputs]]
+id = "wv6nfAUO3fJMiLFVCUEx6"
+uri = "file://attached_assets/germ_spiky.png"
+type = "image"
+title = "Spiky (purple virus)"
+
+[[outputs]]
+id = "bD0i-5-izEqHGy5uTXMA6"
+uri = "file://attached_assets/germ_wiggly.png"
+type = "image"
+title = "Wiggly (teal bacteria)"
+
+[[outputs]]
+id = "5_WF5TLQKZb5H-VB0LS_w"
+uri = "file://attached_assets/germ_slime.png"
+type = "image"
+title = "Slimey (glowing yellow)"
+
+[[outputs]]
+id = "fjVA7VYtJuMcbkuxJ10UA"
+uri = "file://attached_assets/germ_crown.png"
+type = "image"
+title = "Crown (red virus king)"
+
+[[outputs]]
+id = "Asjgli9E2R9ZghO9nUtw9"
+uri = "file://attached_assets/germ_jelly.png"
+type = "image"
+title = "Jelly (pink-purple jellyfish)"
+
+[[outputs]]
+id = "ZAbIe0vY4RQi6vnxVL4je"
+uri = "file://attached_assets/germ_prickle.png"
+type = "image"
+title = "Prickle (angry orange cactus)"
+
+[[outputs]]
+id = "EotWVwHt07UfEtzOIuIPS"
+uri = "file://attached_assets/germ_mossy.png"
+type = "image"
+title = "Mossy (swamp green)"
+
+[[outputs]]
+id = "YBiyROIT8zou_oKelD0mq"
+uri = "file://attached_assets/germ_fuzzy.png"
+type = "image"
+title = "Fuzzy (deceptively cute pink)"
+
+[[outputs]]
+id = "3YWAsi_cPeI4nlzZXl33k"
+uri = "file://attached_assets/germ_zappy.png"
+type = "image"
+title = "Zappy (electric blue)"
