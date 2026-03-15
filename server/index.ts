@@ -234,7 +234,9 @@ app.use((req, res, next) => {
     try {
       const assetPath = path.join(process.cwd(), "attached_assets", filename);
       if (fs.existsSync(assetPath)) {
-        const bgUrl = `/world-assets/${filename}`;
+        const mtime = fs.statSync(assetPath).mtimeMs;
+        const v = Math.floor(mtime / 1000);
+        const bgUrl = `/world-assets/${filename}?v=${v}`;
         await storage.updateWorld(worldId, { bgUrl } as any);
         console.log(`${worldId} background refreshed.`);
       }
