@@ -7,6 +7,7 @@ import fishingBg from "@assets/fishing_bg_portrait.png";
 import poleIcon from "@assets/icon_fishing_pole.png";
 import baitIcon from "@assets/icon_fishing_bait.png";
 import fishInvIcon from "@assets/icon_fish_inventory.png";
+import brokenRodIcon from "@assets/broken_rod.svg";
 
 interface FishingPageProps {
   locationId: string;
@@ -30,12 +31,14 @@ interface ShopItem {
   starRarity: number | null;
   rareCatchBoostPercent: number | null;
   rarityBoostPercent: number | null;
+  poleMaxUses?: number | null;
 }
 
 interface EquipmentData {
   equipment: { poleInventoryId: string | null; baitInventoryId: string | null } | null;
   poleItem: ShopItem | null;
   baitItem: ShopItem | null;
+  poleUsesLeft: number | null;
 }
 
 interface InventoryItem {
@@ -45,6 +48,8 @@ interface InventoryItem {
   type: string;
   imageUrl: string | null;
   fishingType?: string | null;
+  poleMaxUses?: number | null;
+  poleUsesLeft?: number | null;
 }
 
 interface PondFishEntry {
@@ -142,16 +147,32 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     },
   });
 
+  const deleteInventoryItemMutation = useMutation({
+    mutationFn: async (inventoryId: string) => {
+      await apiRequest("DELETE", `/api/inventory/${inventoryId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/fishing/equipment"] });
+      toast({ title: "Removed", description: "Broken rod removed from inventory" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Failed", description: err.message, variant: "destructive" });
+    },
+  });
+
   const catchMutation = useMutation({
     mutationFn: async (performanceScore: number) => {
       const res = await apiRequest("POST", "/api/fishing/catch", { locationId, performanceScore });
       return res.json();
     },
     onSuccess: (data: { caught: CaughtFish | null; item?: ShopItem; reason?: string }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/fishing/equipment"] });
       if (data.caught && data.item) {
         setCaughtItem(data.item);
         setPhase("caught");
         queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       } else {
         setPhase("missed");
       }
@@ -296,7 +317,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     clearAllTimers();
   }, [clearAllTimers]);
 
-  const hasPole = !!equipData?.poleItem;
+  const poleIsBroken = equipData?.poleItem != null && equipData.poleUsesLeft !== null && equipData.poleUsesLeft !== undefined && equipData.poleUsesLeft <= 0;
+  const hasPole = !!equipData?.poleItem && !poleIsBroken;
   const effectiveBg = (!bgUrl || bgError) ? fishingBg : bgUrl;
 
   return (
@@ -415,7 +437,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
             {locationName}
           </h3>
           <p className="font-fantasy text-[10px] tracking-wider" style={{ color: `${ACCENT}88` }}>
-            {phase === "idle" ? (hasPole ? "Tap the water to cast" : "Equip a pole to fish") :
+            {phase === "idle" ? (poleIsBroken ? "Your pole broke! Remove it from the slot" : hasPole ? "Tap the water to cast" : "Equip a pole to fish") :
              phase === "casting" ? "Casting..." :
              phase === "waiting" ? "Waiting for a bite..." :
              phase === "nibble" ? "Something's biting!" :
@@ -577,8 +599,11 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           <EquipSlot
             label="Pole"
             defaultIcon={poleIcon}
-            equippedItem={equipData?.poleItem || null}
+            equippedItem={poleIsBroken ? equipData!.poleItem : (equipData?.poleItem || null)}
             isActive={showPolePanel}
+            broken={poleIsBroken}
+            usesLeft={equipData?.poleUsesLeft}
+            maxUses={equipData?.poleItem?.poleMaxUses}
             onClick={() => { setShowPolePanel(!showPolePanel); setShowBaitPanel(false); setShowFishInv(false); }}
             testId="button-pole-slot"
           />
@@ -611,6 +636,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           onEquip={(invId) => equipMutation.mutate({ inventoryId: invId, slot: "pole" })}
           onUnequip={() => unequipMutation.mutate({ slot: "pole" })}
           onClose={() => setShowPolePanel(false)}
+          onDeleteItem={(invId) => deleteInventoryItemMutation.mutate(invId)}
         />
       )}
       {showBaitPanel && (
@@ -646,7 +672,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
 }
 
 function EquipSlot({
-  label, defaultIcon, equippedItem, isActive, onClick, badgeCount, testId, noDim,
+  label, defaultIcon, equippedItem, isActive, onClick, badgeCount, testId, noDim, broken, usesLeft, maxUses,
 }: {
   label: string;
   defaultIcon: string;
@@ -656,8 +682,11 @@ function EquipSlot({
   badgeCount?: number;
   testId: string;
   noDim?: boolean;
+  broken?: boolean;
+  usesLeft?: number | null;
+  maxUses?: number | null;
 }) {
-  const imgSrc = equippedItem?.imageUrl || defaultIcon;
+  const imgSrc = broken ? brokenRodIcon : (equippedItem?.imageUrl || defaultIcon);
   const bright = noDim || !!equippedItem;
   return (
     <button
@@ -667,13 +696,13 @@ function EquipSlot({
       style={{ cursor: "pointer" }}
     >
       <div className="relative w-16 h-16 rounded-xl flex items-center justify-center overflow-hidden" style={{
-        background: isActive ? `${ACCENT}20` : "rgba(5,20,15,0.85)",
-        border: `2px solid ${isActive ? ACCENT : `${ACCENT}40`}`,
-        boxShadow: isActive ? `0 0 16px ${ACCENT}30` : "0 2px 8px rgba(0,0,0,0.4)",
+        background: broken ? "rgba(60,10,10,0.85)" : isActive ? `${ACCENT}20` : "rgba(5,20,15,0.85)",
+        border: `2px solid ${broken ? "rgba(220,50,50,0.6)" : isActive ? ACCENT : `${ACCENT}40`}`,
+        boxShadow: broken ? "0 0 12px rgba(200,30,30,0.25)" : isActive ? `0 0 16px ${ACCENT}30` : "0 2px 8px rgba(0,0,0,0.4)",
         transition: "all 0.15s ease",
       }}>
         <img src={imgSrc} alt="" className="w-12 h-12 object-contain" style={{
-          filter: bright ? "none" : "brightness(0.5) saturate(0.5)",
+          filter: broken ? "none" : bright ? "none" : "brightness(0.5) saturate(0.5)",
         }} />
         {badgeCount !== undefined && badgeCount > 0 && (
           <div className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold"
@@ -681,16 +710,23 @@ function EquipSlot({
             {badgeCount}
           </div>
         )}
+        {!broken && usesLeft !== null && usesLeft !== undefined && maxUses != null && (
+          <div className="absolute bottom-0.5 left-0 right-0 flex justify-center">
+            <span className="font-fantasy text-[7px]" style={{ color: usesLeft <= 3 ? "#ff7777" : "rgba(94,234,212,0.8)" }}>
+              {usesLeft}/{maxUses}
+            </span>
+          </div>
+        )}
       </div>
-      <span className="font-fantasy text-[9px] tracking-wider" style={{ color: bright ? ACCENT : `${ACCENT}60` }}>
-        {equippedItem ? equippedItem.name : label}
+      <span className="font-fantasy text-[9px] tracking-wider" style={{ color: broken ? "rgba(220,80,80,0.9)" : bright ? ACCENT : `${ACCENT}60` }}>
+        {broken ? "BROKEN" : equippedItem ? equippedItem.name : label}
       </span>
     </button>
   );
 }
 
 function EquipPanel({
-  title, items, equippedInventoryId, slot, onEquip, onUnequip, onClose,
+  title, items, equippedInventoryId, slot, onEquip, onUnequip, onClose, onDeleteItem,
 }: {
   title: string;
   items: InventoryItem[];
@@ -699,6 +735,7 @@ function EquipPanel({
   onEquip: (inventoryId: string) => void;
   onUnequip: () => void;
   onClose: () => void;
+  onDeleteItem?: (inventoryId: string) => void;
 }) {
   return (
     <div className="absolute bottom-[140px] left-4 right-4 z-[25] rounded-xl overflow-hidden" style={{
@@ -723,32 +760,54 @@ function EquipPanel({
           <div className="grid grid-cols-4 gap-2">
             {items.map(item => {
               const isEquipped = item.inventoryId === equippedInventoryId;
+              const isBroken = slot === "pole" && item.poleUsesLeft !== null && item.poleUsesLeft !== undefined && item.poleUsesLeft <= 0;
               return (
-                <button
-                  key={item.inventoryId}
-                  data-testid={`button-equip-${slot}-${item.inventoryId}`}
-                  onClick={() => isEquipped ? onUnequip() : onEquip(item.inventoryId)}
-                  className="flex flex-col items-center gap-1 p-1.5 rounded-lg transition-all"
-                  style={{
-                    background: isEquipped ? `${ACCENT}25` : "rgba(0,0,0,0.3)",
-                    border: `1.5px solid ${isEquipped ? ACCENT : `${ACCENT}20`}`,
-                    cursor: "pointer",
-                  }}
-                >
-                  <div className="w-10 h-10 flex items-center justify-center">
-                    {item.imageUrl ? (
-                      <img src={item.imageUrl} alt="" className="w-full h-full object-contain" />
-                    ) : (
-                      <span className="text-xl">{slot === "pole" ? "🎣" : "🪱"}</span>
+                <div key={item.inventoryId} className="relative">
+                  <button
+                    data-testid={`button-equip-${slot}-${item.inventoryId}`}
+                    onClick={() => {
+                      if (isBroken) return;
+                      isEquipped ? onUnequip() : onEquip(item.inventoryId);
+                    }}
+                    className="w-full flex flex-col items-center gap-1 p-1.5 rounded-lg transition-all"
+                    style={{
+                      background: isBroken ? "rgba(50,10,10,0.6)" : isEquipped ? `${ACCENT}25` : "rgba(0,0,0,0.3)",
+                      border: `1.5px solid ${isBroken ? "rgba(200,50,50,0.5)" : isEquipped ? ACCENT : `${ACCENT}20`}`,
+                      cursor: isBroken ? "default" : "pointer",
+                    }}
+                  >
+                    <div className="w-10 h-10 flex items-center justify-center">
+                      {isBroken ? (
+                        <img src={brokenRodIcon} alt="broken" className="w-full h-full object-contain" />
+                      ) : item.imageUrl ? (
+                        <img src={item.imageUrl} alt="" className="w-full h-full object-contain" />
+                      ) : (
+                        <span className="text-xl">{slot === "pole" ? "🎣" : "🪱"}</span>
+                      )}
+                    </div>
+                    <span className="font-fantasy text-[7px] text-center truncate w-full" style={{ color: isBroken ? "rgba(220,80,80,0.9)" : isEquipped ? ACCENT : `${ACCENT}80` }}>
+                      {isBroken ? "BROKEN" : item.name}
+                    </span>
+                    {isEquipped && !isBroken && (
+                      <span className="font-fantasy text-[6px]" style={{ color: "#fbbf24" }}>EQUIPPED</span>
                     )}
-                  </div>
-                  <span className="font-fantasy text-[7px] text-center truncate w-full" style={{ color: isEquipped ? ACCENT : `${ACCENT}80` }}>
-                    {item.name}
-                  </span>
-                  {isEquipped && (
-                    <span className="font-fantasy text-[6px]" style={{ color: "#fbbf24" }}>EQUIPPED</span>
+                    {!isBroken && item.poleMaxUses != null && item.poleUsesLeft != null && (
+                      <span className="font-fantasy text-[6px]" style={{ color: item.poleUsesLeft <= 3 ? "#ff7777" : `${ACCENT}80` }}>
+                        {item.poleUsesLeft}/{item.poleMaxUses}
+                      </span>
+                    )}
+                  </button>
+                  {isBroken && onDeleteItem && (
+                    <button
+                      data-testid={`button-delete-broken-pole-${item.inventoryId}`}
+                      onClick={(e) => { e.stopPropagation(); onDeleteItem(item.inventoryId); }}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                      style={{ background: "rgba(180,20,20,0.9)", border: "1.5px solid rgba(255,80,80,0.6)", cursor: "pointer", zIndex: 10 }}
+                    >
+                      <Trash2 className="w-2.5 h-2.5" style={{ color: "#fca5a5" }} />
+                    </button>
                   )}
-                </button>
+                </div>
               );
             })}
           </div>

@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <!-- Shadow / glow base -->
+  <ellipse cx="60" cy="108" rx="28" ry="5" fill="rgba(180,60,60,0.18)" />
+
+  <!-- Lower rod piece (right side, angled down-right) -->
+  <g transform="translate(60,60) rotate(35)">
+    <rect x="-3" y="-4" width="6" height="46" rx="3"
+      fill="url(#rodGradLower)" stroke="#1a0a00" stroke-width="2.2" stroke-linejoin="round"/>
+    <!-- Cork grip -->
+    <rect x="-4.5" y="30" width="9" height="14" rx="4"
+      fill="url(#corkGrad)" stroke="#1a0a00" stroke-width="1.8"/>
+  </g>
+
+  <!-- Upper rod piece (left side, angled up-left), broken end at center -->
+  <g transform="translate(60,60) rotate(-145)">
+    <rect x="-2.5" y="-2" width="5" height="38" rx="2.5"
+      fill="url(#rodGradUpper)" stroke="#1a0a00" stroke-width="2.2" stroke-linejoin="round"/>
+    <!-- Tip glow -->
+    <circle cx="0" cy="36" r="3" fill="rgba(94,234,212,0.6)" stroke="#1a0a00" stroke-width="1"/>
+    <circle cx="0" cy="36" r="5.5" fill="none" stroke="rgba(94,234,212,0.35)" stroke-width="1.2"/>
+  </g>
+
+  <!-- Break point: jagged crack shards at center -->
+  <g transform="translate(60,60)">
+    <!-- Shard 1 -->
+    <polygon points="-6,0 -1,-8 4,0 -1,6" fill="#b05a1a" stroke="#1a0a00" stroke-width="1.4" stroke-linejoin="round"/>
+    <!-- Shard 2 -->
+    <polygon points="2,-5 8,-1 3,5 -2,1" fill="#c4703a" stroke="#1a0a00" stroke-width="1.4" stroke-linejoin="round"/>
+    <!-- Crack glow -->
+    <ellipse cx="0" cy="0" rx="9" ry="6" fill="none" stroke="rgba(255,120,40,0.5)" stroke-width="1.5"/>
+  </g>
+
+  <!-- Dangling fishing line from upper tip -->
+  <path d="M 43 26 Q 30 45 38 58 Q 46 70 36 80"
+    fill="none" stroke="rgba(200,230,255,0.55)" stroke-width="1.2" stroke-dasharray="3,2"/>
+  <!-- Tiny hook at line end -->
+  <path d="M 36 80 Q 30 84 33 89 Q 36 93 40 90"
+    fill="none" stroke="rgba(180,210,255,0.7)" stroke-width="1.8" stroke-linecap="round"/>
+
+  <!-- X marks to show broken / unusable -->
+  <g transform="translate(78,22)" opacity="0.85">
+    <line x1="-5" y1="-5" x2="5" y2="5" stroke="#ff4444" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="5" y1="-5" x2="-5" y2="5" stroke="#ff4444" stroke-width="2.5" stroke-linecap="round"/>
+  </g>
+
+  <defs>
+    <linearGradient id="rodGradLower" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#7a3d10"/>
+      <stop offset="45%" stop-color="#c4793a"/>
+      <stop offset="100%" stop-color="#6a3008"/>
+    </linearGradient>
+    <linearGradient id="rodGradUpper" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#7a3d10"/>
+      <stop offset="45%" stop-color="#b8693a"/>
+      <stop offset="100%" stop-color="#5a2808"/>
+    </linearGradient>
+    <linearGradient id="corkGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#8b6040"/>
+      <stop offset="50%" stop-color="#c49060"/>
+      <stop offset="100%" stop-color="#7a5030"/>
+    </linearGradient>
+  </defs>
+</svg>

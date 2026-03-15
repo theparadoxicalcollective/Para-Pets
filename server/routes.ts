@@ -567,6 +567,8 @@ export async function registerRoutes(
         fishingType: shopItem?.fishingType ?? null,
         rareCatchBoostPercent: shopItem?.rareCatchBoostPercent ?? null,
         rarityBoostPercent: shopItem?.rarityBoostPercent ?? null,
+        poleMaxUses: shopItem?.poleMaxUses ?? null,
+        poleUsesLeft: inv.poleUsesLeft ?? null,
       }));
       return res.json(itemsWithDetails);
     } catch (err) {
@@ -647,7 +649,11 @@ export async function registerRoutes(
       const purchaseCount = shopItem.type === "pet" ? 1 : quantity;
       let invItem: any = null;
       for (let i = 0; i < purchaseCount; i++) {
-        invItem = await storage.addToInventory(user.id, itemId);
+        const extraFields: any = {};
+        if (shopItem.fishingType === "pole" && shopItem.poleMaxUses != null) {
+          extraFields.poleUsesLeft = shopItem.poleMaxUses;
+        }
+        invItem = await storage.addToInventory(user.id, itemId, extraFields);
         if (shopItem.type === "pet" && shopItem.hatchTime) {
           const updated = await storage.updateInventoryItem(invItem.id, { hatchStartedAt: new Date() });
           if (updated) invItem = updated;
@@ -2810,15 +2816,19 @@ export async function registerRoutes(
       const equipment = await storage.getPlayerFishingEquipment(user.id);
       let poleItem = null;
       let baitItem = null;
+      let poleUsesLeft: number | null = null;
       if (equipment?.poleInventoryId) {
         const inv = await storage.getInventoryItemById(equipment.poleInventoryId);
-        if (inv) poleItem = await storage.getShopItem(inv.shopItemId);
+        if (inv) {
+          poleItem = await storage.getShopItem(inv.shopItemId);
+          poleUsesLeft = inv.poleUsesLeft ?? null;
+        }
       }
       if (equipment?.baitInventoryId) {
         const inv = await storage.getInventoryItemById(equipment.baitInventoryId);
         if (inv) baitItem = await storage.getShopItem(inv.shopItemId);
       }
-      return res.json({ equipment, poleItem, baitItem });
+      return res.json({ equipment, poleItem, baitItem, poleUsesLeft });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }
@@ -2915,6 +2925,10 @@ export async function registerRoutes(
           const bait = await storage.getShopItem(inv.shopItemId);
           baitBoost = bait?.rarityBoostPercent ?? 0;
         }
+      }
+
+      if (equipment?.poleInventoryId) {
+        await storage.decrementPoleUses(equipment.poleInventoryId);
       }
 
       const catchChance = 0.4 + (score / 100) * 0.5;

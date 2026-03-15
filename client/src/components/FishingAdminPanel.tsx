@@ -15,6 +15,7 @@ interface FishingItem {
   starRarity: number | null;
   rareCatchBoostPercent: number | null;
   rarityBoostPercent: number | null;
+  poleMaxUses: number | null;
   createdAt: string;
 }
 
@@ -388,6 +389,7 @@ export default function FishingAdminPanel() {
                   <p className="font-fantasy text-[#6a8090] text-[7px] mt-0.5">
                     {item.fishingType === "fish" && item.starRarity ? `${"★".repeat(item.starRarity)} rarity` : ""}
                     {item.fishingType === "pole" && item.rareCatchBoostPercent ? `+${item.rareCatchBoostPercent}% rare catch` : ""}
+                    {item.fishingType === "pole" && item.poleMaxUses != null ? ` · ${item.poleMaxUses} uses` : item.fishingType === "pole" ? " · ∞ uses" : ""}
                     {item.fishingType === "bait" && item.rarityBoostPercent ? `+${item.rarityBoostPercent}% rarity boost` : ""}
                   </p>
                 </div>
@@ -450,6 +452,7 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
   const [starRarity, setStarRarity] = useState(item?.starRarity?.toString() || "1");
   const [rareCatchBoostPercent, setRareCatchBoostPercent] = useState(item?.rareCatchBoostPercent?.toString() || "0");
   const [rarityBoostPercent, setRarityBoostPercent] = useState(item?.rarityBoostPercent?.toString() || "0");
+  const [poleMaxUses, setPoleMaxUses] = useState(item?.poleMaxUses?.toString() || "");
   const [imageData, setImageData] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(item?.imageUrl || null);
   const [submitting, setSubmitting] = useState(false);
@@ -483,6 +486,7 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
         starRarity: number | null;
         rareCatchBoostPercent: number | null;
         rarityBoostPercent: number | null;
+        poleMaxUses: number | null;
         imageData?: string;
       } = {
         name: name.trim() || "Unnamed",
@@ -493,6 +497,7 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
         starRarity: fishingType === "fish" ? parseInt(starRarity) || 1 : null,
         rareCatchBoostPercent: fishingType === "pole" ? parseInt(rareCatchBoostPercent) || 0 : null,
         rarityBoostPercent: fishingType === "bait" ? parseInt(rarityBoostPercent) || 0 : null,
+        poleMaxUses: fishingType === "pole" && poleMaxUses.trim() !== "" ? parseInt(poleMaxUses) || null : null,
       };
       if (imageData) payload.imageData = imageData;
 
@@ -594,10 +599,26 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
           )}
 
           {fishingType === "pole" && (
-            <div>
-              <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Rare Catch Boost (%)</label>
-              <input data-testid="input-pole-boost" type="number" value={rareCatchBoostPercent} onChange={(e) => setRareCatchBoostPercent(e.target.value)} placeholder="0" min="0" max="100" className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
-              <p className="font-fantasy text-[#6a5840] text-[8px] mt-0.5">Extra % chance to catch 4-5 star rarity fish</p>
+            <div className="space-y-3">
+              <div>
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Rare Catch Boost (%)</label>
+                <input data-testid="input-pole-boost" type="number" value={rareCatchBoostPercent} onChange={(e) => setRareCatchBoostPercent(e.target.value)} placeholder="0" min="0" max="100" className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
+                <p className="font-fantasy text-[#6a5840] text-[8px] mt-0.5">Extra % chance to catch 4-5 star rarity fish</p>
+              </div>
+              <div>
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Uses Before Breaking</label>
+                <input
+                  data-testid="input-pole-max-uses"
+                  type="number"
+                  value={poleMaxUses}
+                  onChange={(e) => setPoleMaxUses(e.target.value)}
+                  placeholder="Leave blank for unbreakable"
+                  min="1"
+                  className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+                  style={inputStyle}
+                />
+                <p className="font-fantasy text-[#6a5840] text-[8px] mt-0.5">How many fish attempts before this rod breaks. Leave blank for infinite uses.</p>
+              </div>
             </div>
           )}
 

@@ -61,11 +61,12 @@ export interface IStorage {
   updateShopItem(id: string, item: Partial<InsertShopItem>): Promise<ShopItem>;
   deleteShopItem(id: string): Promise<void>;
   getUserInventory(userId: string): Promise<UserInventoryItem[]>;
-  addToInventory(userId: string, shopItemId: string): Promise<UserInventoryItem>;
+  addToInventory(userId: string, shopItemId: string, extraFields?: Partial<UserInventoryItem>): Promise<UserInventoryItem>;
   getInventoryItem(userId: string, shopItemId: string): Promise<UserInventoryItem | undefined>;
   getInventoryItemById(id: string): Promise<UserInventoryItem | undefined>;
   removeFromInventory(id: string): Promise<void>;
   updateInventoryItem(id: string, updates: Partial<UserInventoryItem>): Promise<UserInventoryItem>;
+  decrementPoleUses(inventoryId: string): Promise<UserInventoryItem | undefined>;
   createRewardBundle(name: string, coinAmount: number, message?: string | null): Promise<RewardBundle>;
   addRewardBundleItem(bundleId: string, shopItemId: string): Promise<RewardBundleItem>;
   getRewardBundleItems(bundleId: string): Promise<RewardBundleItem[]>;
@@ -329,9 +330,21 @@ export class DatabaseStorage implements IStorage {
     return rows.map(r => ({ inventory: r.user_inventory, shopItem: r.shop_items }));
   }
 
-  async addToInventory(userId: string, shopItemId: string): Promise<UserInventoryItem> {
-    const [item] = await db.insert(userInventory).values({ userId, shopItemId }).returning();
+  async addToInventory(userId: string, shopItemId: string, extraFields?: Partial<UserInventoryItem>): Promise<UserInventoryItem> {
+    const [item] = await db.insert(userInventory).values({ userId, shopItemId, ...extraFields }).returning();
     return item;
+  }
+
+  async decrementPoleUses(inventoryId: string): Promise<UserInventoryItem | undefined> {
+    const inv = await this.getInventoryItemById(inventoryId);
+    if (!inv || inv.poleUsesLeft === null || inv.poleUsesLeft === undefined) return inv;
+    const newUses = Math.max(0, inv.poleUsesLeft - 1);
+    const [updated] = await db
+      .update(userInventory)
+      .set({ poleUsesLeft: newUses })
+      .where(eq(userInventory.id, inventoryId))
+      .returning();
+    return updated;
   }
 
   async getInventoryItem(userId: string, shopItemId: string): Promise<UserInventoryItem | undefined> {
