@@ -1574,6 +1574,7 @@ export async function registerRoutes(
       if (glowColor !== undefined) sanitized.glowColor = glowColor || null;
       if (typeof posX === "number") sanitized.posX = Math.max(0, Math.min(85, posX));
       if (typeof posY === "number") sanitized.posY = Math.max(0, Math.min(85, posY));
+      if (typeof req.body.iconSize === "number") sanitized.iconSize = Math.max(64, Math.min(300, req.body.iconSize));
 
       const updated = await storage.updateWorldLocation(req.params.locationId, sanitized);
       return res.json(updated);
@@ -1704,6 +1705,21 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Update shop item position error:", err);
       return res.status(500).json({ message: "Failed to update position" });
+    }
+  });
+
+  app.patch("/api/admin/shop-item/:itemId/size", isAdmin, async (req, res) => {
+    try {
+      const { width } = req.body;
+      if (typeof width !== "number") return res.status(400).json({ message: "width required" });
+      const clamped = Math.max(64, Math.min(300, width));
+      const item = await storage.getShopItem(req.params.itemId);
+      if (!item) return res.status(404).json({ message: "Item not found" });
+      const updated = await storage.updateShopItemPosition(req.params.itemId, item.shopPosX, item.shopPosY, clamped);
+      return res.json(updated);
+    } catch (err) {
+      console.error("Update shop item size error:", err);
+      return res.status(500).json({ message: "Failed to update size" });
     }
   });
 

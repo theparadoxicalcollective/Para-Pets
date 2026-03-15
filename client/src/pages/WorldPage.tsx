@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import coinIconImg from "@assets/icon_coin.png";
-import { Plus, Trash2, X, MapPin, Package, Pencil, Settings, Swords, FlipHorizontal } from "lucide-react";
+import { Plus, Minus, Trash2, X, MapPin, Package, Pencil, Settings, Swords, FlipHorizontal } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 import ExploreAdminPanel from "@/components/ExploreAdminPanel";
 import BattleArena from "@/components/BattleArena";
@@ -107,6 +107,7 @@ interface WorldLocationData {
   ownerImageUrl: string | null;
   isShop: boolean;
   glowColor: string | null;
+  iconSize: number;
 }
 
 interface LocationObjectData {
@@ -198,6 +199,8 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [buyError, setBuyError] = useState<string | null>(null);
   const [shopItemDragPos, setShopItemDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
   const [hoveredShopItemId, setHoveredShopItemId] = useState<string | null>(null);
+  const [selectedLocId, setSelectedLocId] = useState<string | null>(null);
+  const [selectedShopItemAdminId, setSelectedShopItemAdminId] = useState<string | null>(null);
   const shopItemDragRef = useRef<{ itemId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const shopItemDidDrag = useRef(false);
   const shopCanvasRef = useRef<HTMLDivElement>(null);
@@ -431,6 +434,26 @@ export default function WorldPage({ user }: WorldPageProps) {
     },
   });
 
+  const iconSizeMutation = useMutation({
+    mutationFn: async ({ locationId, iconSize }: { locationId: string; iconSize: number }) => {
+      const res = await apiRequest("PATCH", `/api/admin/world/location/${locationId}`, { iconSize });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "locations"] });
+    },
+  });
+
+  const shopItemSizeMutation = useMutation({
+    mutationFn: async ({ itemId, width }: { itemId: string; width: number }) => {
+      const res = await apiRequest("PATCH", `/api/admin/shop-item/${itemId}/size`, { width });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/location", activeLocationId, "items"] });
+    },
+  });
+
   const resetBgMutation = useMutation({
     mutationFn: async (locationId: string) => {
       const res = await apiRequest("POST", `/api/admin/world/location/${locationId}/reset-bg`);
@@ -550,7 +573,11 @@ export default function WorldPage({ user }: WorldPageProps) {
 
   const handleLocationClick = useCallback((loc: WorldLocationData) => {
     if (didDrag.current) return;
-    if ((loc.type === "battle" || loc.type === "explore") && !currentUser.isAdmin && (!currentUser.activePetId || !hasHatchedActivePet)) {
+    if (currentUser.isAdmin) {
+      setSelectedLocId(prev => prev === loc.id ? null : loc.id);
+      return;
+    }
+    if ((loc.type === "battle" || loc.type === "explore") && (!currentUser.activePetId || !hasHatchedActivePet)) {
       setShowNoPetMessage(true);
       return;
     }
@@ -765,6 +792,7 @@ export default function WorldPage({ user }: WorldPageProps) {
             }}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
+            onClick={() => { if (currentUser.isAdmin) setSelectedLocId(null); }}
           >
             <div className="absolute inset-0 pointer-events-none" style={{
               background: `linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.08) 30%, rgba(0,0,0,0.1) 70%, rgba(0,0,0,0.65) 100%)`,
@@ -857,9 +885,9 @@ export default function WorldPage({ user }: WorldPageProps) {
                       style={{
                         left: `${pos.x}%`,
                         top: `${pos.y}%`,
-                        width: "calc(17% + 15px)",
+                        width: `${loc.iconSize || 80}px`,
                         cursor: currentUser.isAdmin ? "grab" : "pointer",
-                        zIndex: isDragging ? 60 : topLocId === loc.id ? 45 : 10 + i,
+                        zIndex: isDragging ? 60 : topLocId === loc.id ? 45 : selectedLocId === loc.id ? 50 : 10 + i,
                       }}
                       onPointerDown={(e) => handlePointerDown(e, loc)}
                       onClick={() => handleLocationClick(loc)}
@@ -872,7 +900,9 @@ export default function WorldPage({ user }: WorldPageProps) {
                             className="w-full h-full object-contain relative z-10"
                             draggable={false}
                             style={{
-                              filter: "drop-shadow(0 0 1.5px rgba(80,255,130,0.55)) drop-shadow(0 0 4px rgba(50,200,90,0.3)) drop-shadow(0 3px 6px rgba(0,0,0,0.5))",
+                              filter: selectedLocId === loc.id
+                                ? "drop-shadow(0 0 4px rgba(255,220,40,0.9)) drop-shadow(0 0 8px rgba(255,200,0,0.6))"
+                                : "drop-shadow(0 0 1.5px rgba(80,255,130,0.55)) drop-shadow(0 0 4px rgba(50,200,90,0.3)) drop-shadow(0 3px 6px rgba(0,0,0,0.5))",
                               transform: loc.flipped ? "scaleX(-1)" : undefined,
                               transition: "filter 0.15s ease, transform 0.15s ease",
                             }}
@@ -890,7 +920,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                           </div>
                         )}
 
-                        {currentUser.isAdmin && (
+                        {currentUser.isAdmin && selectedLocId === loc.id && (
                           <>
                             <button
                               data-testid={`button-edit-location-${loc.id}`}
@@ -906,45 +936,47 @@ export default function WorldPage({ user }: WorldPageProps) {
                                 setEditLocGlowColor(loc.glowColor || "");
                               }}
                               className="absolute -top-1 -right-1 z-30 w-5 h-5 rounded-full flex items-center justify-center"
-                              style={{
-                                background: "rgba(45,106,79,0.9)",
-                                border: "1px solid rgba(127,255,212,0.5)",
-                                cursor: "pointer",
-                              }}
+                              style={{ background: "rgba(45,106,79,0.9)", border: "1px solid rgba(127,255,212,0.5)", cursor: "pointer" }}
                             >
                               <Pencil className="w-2.5 h-2.5 text-white" />
                             </button>
                             <button
                               data-testid={`button-flip-location-${loc.id}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                flipMutation.mutate(loc.id);
-                              }}
+                              onClick={(e) => { e.stopPropagation(); flipMutation.mutate(loc.id); }}
                               className="absolute -bottom-1 -right-1 z-30 w-5 h-5 rounded-full flex items-center justify-center"
-                              style={{
-                                background: "rgba(0,80,180,0.9)",
-                                border: "1px solid rgba(100,180,255,0.5)",
-                                cursor: "pointer",
-                              }}
+                              style={{ background: "rgba(0,80,180,0.9)", border: "1px solid rgba(100,180,255,0.5)", cursor: "pointer" }}
                             >
                               <FlipHorizontal className="w-2.5 h-2.5 text-white" />
                             </button>
                             <button
                               data-testid={`button-delete-location-${loc.id}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (confirm(`Delete "${loc.name}"?`)) {
-                                  deleteLocationMutation.mutate(loc.id);
-                                }
-                              }}
+                              onClick={(e) => { e.stopPropagation(); if (confirm(`Delete "${loc.name}"?`)) { deleteLocationMutation.mutate(loc.id); } }}
                               className="absolute -top-1 -left-1 z-30 w-5 h-5 rounded-full flex items-center justify-center"
-                              style={{
-                                background: "rgba(220,38,38,0.9)",
-                                border: "1px solid rgba(255,100,100,0.5)",
-                                cursor: "pointer",
-                              }}
+                              style={{ background: "rgba(220,38,38,0.9)", border: "1px solid rgba(255,100,100,0.5)", cursor: "pointer" }}
                             >
                               <Trash2 className="w-3 h-3 text-white" />
+                            </button>
+                            <button
+                              data-testid={`button-size-down-location-${loc.id}`}
+                              onClick={(e) => { e.stopPropagation(); const next = Math.max(64, (loc.iconSize || 80) - 5); iconSizeMutation.mutate({ locationId: loc.id, iconSize: next }); }}
+                              className="absolute -bottom-1 -left-1 z-30 w-5 h-5 rounded-full flex items-center justify-center"
+                              style={{ background: "rgba(80,40,0,0.9)", border: "1px solid rgba(255,160,50,0.5)", cursor: "pointer" }}
+                            >
+                              <Minus className="w-2.5 h-2.5 text-white" />
+                            </button>
+                            <div
+                              className="absolute z-30 flex items-center justify-center"
+                              style={{ bottom: "-18px", left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.75)", border: "1px solid rgba(255,200,50,0.4)", borderRadius: "4px", padding: "0 4px", pointerEvents: "none" }}
+                            >
+                              <span className="font-fantasy text-[9px] text-yellow-300">{loc.iconSize || 80}px</span>
+                            </div>
+                            <button
+                              data-testid={`button-size-up-location-${loc.id}`}
+                              onClick={(e) => { e.stopPropagation(); const next = Math.min(300, (loc.iconSize || 80) + 5); iconSizeMutation.mutate({ locationId: loc.id, iconSize: next }); }}
+                              className="absolute top-1/2 -right-6 z-30 w-5 h-5 rounded-full flex items-center justify-center"
+                              style={{ transform: "translateY(-50%)", background: "rgba(80,40,0,0.9)", border: "1px solid rgba(255,160,50,0.5)", cursor: "pointer" }}
+                            >
+                              <Plus className="w-2.5 h-2.5 text-white" />
                             </button>
                           </>
                         )}
@@ -1427,6 +1459,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                 if (dragItem) handleShopItemPointerUp(e, dragItem);
               }
             }}
+            onClick={() => { if (currentUser.isAdmin) setSelectedShopItemAdminId(null); }}
           >
             {/* Inner absolute fill — background + gradient + items all relative to this fixed-ratio space */}
             <div className="absolute inset-0">
@@ -1467,18 +1500,42 @@ export default function WorldPage({ user }: WorldPageProps) {
                     pointerEvents: "none",
                   }}
                 >
-                  {currentUser.isAdmin && (
-                    <button
-                      data-testid={`button-unassign-item-${item.id}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (activeLocationId) unassignItemMutation.mutate({ locationId: activeLocationId, itemId: item.id });
-                      }}
-                      className="absolute -top-2 -right-2 z-20 w-5 h-5 rounded-full flex items-center justify-center"
-                      style={{ background: "rgba(220,38,38,0.95)", border: "1px solid rgba(255,100,100,0.6)", cursor: "pointer", pointerEvents: "auto" }}
-                    >
-                      <X className="w-3 h-3 text-white" />
-                    </button>
+                  {currentUser.isAdmin && selectedShopItemAdminId === item.id && (
+                    <>
+                      <button
+                        data-testid={`button-unassign-item-${item.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (activeLocationId) unassignItemMutation.mutate({ locationId: activeLocationId, itemId: item.id });
+                        }}
+                        className="absolute -top-2 -right-2 z-20 w-5 h-5 rounded-full flex items-center justify-center"
+                        style={{ background: "rgba(220,38,38,0.95)", border: "1px solid rgba(255,100,100,0.6)", cursor: "pointer", pointerEvents: "auto" }}
+                      >
+                        <X className="w-3 h-3 text-white" />
+                      </button>
+                      <button
+                        data-testid={`button-size-down-item-${item.id}`}
+                        onClick={(e) => { e.stopPropagation(); const next = Math.max(64, item.shopWidth - 5); shopItemSizeMutation.mutate({ itemId: item.id, width: next }); }}
+                        className="absolute -bottom-2 -left-2 z-20 w-5 h-5 rounded-full flex items-center justify-center"
+                        style={{ background: "rgba(80,40,0,0.95)", border: "1px solid rgba(255,160,50,0.6)", cursor: "pointer", pointerEvents: "auto" }}
+                      >
+                        <Minus className="w-2.5 h-2.5 text-white" />
+                      </button>
+                      <button
+                        data-testid={`button-size-up-item-${item.id}`}
+                        onClick={(e) => { e.stopPropagation(); const next = Math.min(300, item.shopWidth + 5); shopItemSizeMutation.mutate({ itemId: item.id, width: next }); }}
+                        className="absolute -bottom-2 -right-2 z-20 w-5 h-5 rounded-full flex items-center justify-center"
+                        style={{ background: "rgba(80,40,0,0.95)", border: "1px solid rgba(255,160,50,0.6)", cursor: "pointer", pointerEvents: "auto" }}
+                      >
+                        <Plus className="w-2.5 h-2.5 text-white" />
+                      </button>
+                      <div
+                        className="absolute z-20 flex items-center justify-center"
+                        style={{ top: "-16px", left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.75)", border: "1px solid rgba(255,200,50,0.4)", borderRadius: "4px", padding: "0 4px", pointerEvents: "none" }}
+                      >
+                        <span className="font-fantasy text-[9px] text-yellow-300">{item.shopWidth}px</span>
+                      </div>
+                    </>
                   )}
                   <div
                     className="w-full flex items-center justify-center relative"
@@ -1504,7 +1561,14 @@ export default function WorldPage({ user }: WorldPageProps) {
                         onTouchEnd={() => setHoveredShopItemId(null)}
                         onPointerDown={currentUser.isAdmin ? (e) => handleShopItemPointerDown(e, item) : undefined}
                         onClick={(e) => {
-                          if (!currentUser.isAdmin && !shopItemDidDrag.current) {
+                          if (currentUser.isAdmin) {
+                            if (!shopItemDidDrag.current) {
+                              e.stopPropagation();
+                              setSelectedShopItemAdminId(prev => prev === item.id ? null : item.id);
+                            }
+                            return;
+                          }
+                          if (!shopItemDidDrag.current) {
                             if (Date.now() - shopJustOpened.current < 400) return;
                             if (isShopItemTransparentClick(e)) return;
                             setSelectedShopItem(item);
