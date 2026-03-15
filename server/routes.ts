@@ -138,8 +138,8 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Username, email, and password are required" });
       }
 
-      if (!/^[a-zA-Z0-9]+$/.test(username)) {
-        return res.status(400).json({ message: "Username can only contain letters and numbers" });
+      if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+        return res.status(400).json({ message: "Username can only contain letters, numbers, and underscores" });
       }
       if (username.length < 3 || username.length > 20) {
         return res.status(400).json({ message: "Username must be 3-20 characters" });

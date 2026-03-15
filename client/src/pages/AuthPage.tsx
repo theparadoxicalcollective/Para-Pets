@@ -313,7 +313,7 @@ export default function AuthPage() {
                   onBlur={e => { e.currentTarget.style.boxShadow = mode === "register" ? "inset 0 2px 6px rgba(0,0,0,0.2)" : "inset 0 2px 6px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1)"; }}
                 />
                 {mode === "register" && (
-                  <p className="font-sans text-[10px] mt-1 ml-1" style={{ color: "#5aafaf" }}>Letters &amp; numbers only, 3–20 characters</p>
+                  <p className="font-sans text-[10px] mt-1 ml-1" style={{ color: "#5aafaf" }}>Letters, numbers &amp; underscores, 3–20 characters</p>
                 )}
               </div>
 
