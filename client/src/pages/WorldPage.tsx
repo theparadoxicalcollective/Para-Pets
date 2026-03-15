@@ -1458,7 +1458,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                     position: "absolute",
                     left: `${posX}%`,
                     top: `${posY}%`,
-                    width: `${item.shopWidth + (item.fishingType === "pole" ? 300 : 0)}px`,
+                    width: `${item.shopWidth + (item.fishingType === "pole" ? 100 : 0)}px`,
                     transform: "translate(-50%, -50%)",
                     touchAction: "none",
                     zIndex: isDragging ? 30 : 10 + Math.round(posY),
