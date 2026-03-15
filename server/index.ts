@@ -380,6 +380,18 @@ app.use((req, res, next) => {
         glowColor: "#3dc7c0",
         sortOrder: 9,
       },
+      {
+        id: "a1b2c3d4-0008-4000-8000-000000000008",
+        name: "The Soggy Hook",
+        description: "A ramshackle fishing shack perched on stilts above the swamp, stocked with rods, bait, and all manner of magical fishing gear.",
+        iconFile: "icon_fishing_shack.png",
+        bgFile: "bg_fishing_shack.png",
+        posX: 75,
+        posY: 58,
+        glowColor: "#3dc7c0",
+        sortOrder: 10,
+        isShop: true,
+      },
     ];
 
     for (const loc of NEW_SWAMP_LOCATIONS) {
@@ -398,6 +410,7 @@ app.use((req, res, next) => {
           posY: loc.posY,
           glowColor: loc.glowColor,
           sortOrder: loc.sortOrder,
+          isShop: (loc as any).isShop ?? false,
           ...(iconData ? { iconUrl: iconData } : {}),
           ...(bgData ? { bgUrl: bgData } : {}),
         } as any);
@@ -407,6 +420,7 @@ app.use((req, res, next) => {
           name: loc.name,
           description: loc.description,
           glowColor: loc.glowColor,
+          isShop: (loc as any).isShop ?? false,
         };
         if (iconData) updates.iconUrl = iconData;
         if (bgData) updates.bgUrl = bgData;

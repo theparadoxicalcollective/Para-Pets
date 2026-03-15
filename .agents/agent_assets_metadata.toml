@@ -828,3 +828,15 @@ id = "h5ptoHMHfs5Nwa7jkipSz"
 uri = "file://attached_assets/potion_spirit.png"
 type = "image"
 title = "Spirit Potion (pale green, ghost figures)"
+
+[[outputs]]
+id = "BXPjcoY3xOP6UjgKbGVR0"
+uri = "file://attached_assets/icon_fishing_shack.png"
+type = "image"
+title = "The Soggy Hook — Map Icon"
+
+[[outputs]]
+id = "2XYHj1M-z09agjDuU9Nds"
+uri = "file://attached_assets/bg_fishing_shack.png"
+type = "image"
+title = "The Soggy Hook — Interior Background"
