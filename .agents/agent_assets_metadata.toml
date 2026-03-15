@@ -438,3 +438,93 @@ id = "-1_GYaAylQjRTk24wYiix"
 uri = "file://attached_assets/weapon_crystal_spear.png"
 type = "image"
 title = "Crystal Spear (rose-gold tip)"
+
+[[outputs]]
+id = "UFm29umQoRLb0u1Uai-m0"
+uri = "file://attached_assets/fish_lava.png"
+type = "image"
+title = "Lava Fish (molten fire scales)"
+
+[[outputs]]
+id = "8kf-X1EQXbrghcjj5EQp-"
+uri = "file://attached_assets/fish_frost.png"
+type = "image"
+title = "Frost Fish (ice crystal scales)"
+
+[[outputs]]
+id = "-4YDq5zy1GeTtmondbKZ1"
+uri = "file://attached_assets/fish_phantom.png"
+type = "image"
+title = "Phantom Fish (shadow wraith)"
+
+[[outputs]]
+id = "Tb14lmTGpgkJGMD7vRYRD"
+uri = "file://attached_assets/fish_golden.png"
+type = "image"
+title = "Golden Fish (radiant sunfish)"
+
+[[outputs]]
+id = "ntRaNDgcAVi2Imca-mf8N"
+uri = "file://attached_assets/fish_storm.png"
+type = "image"
+title = "Storm Fish (lightning scales)"
+
+[[outputs]]
+id = "E3myxww06eR_DKkz6d0r5"
+uri = "file://attached_assets/fish_deepSea.png"
+type = "image"
+title = "Deep Sea Fish (bioluminescent)"
+
+[[outputs]]
+id = "JHtnrLNUU9CldHQf_ijsu"
+uri = "file://attached_assets/fish_crystal.png"
+type = "image"
+title = "Crystal Fish (gemstone scales)"
+
+[[outputs]]
+id = "c70YTsHPRurwYOrmfHnJN"
+uri = "file://attached_assets/fish_celestial.png"
+type = "image"
+title = "Celestial Fish (stars & constellations)"
+
+[[outputs]]
+id = "Fvx-NctPY9-iTjSuFpHBi"
+uri = "file://attached_assets/fish_toxic.png"
+type = "image"
+title = "Toxic Fish (neon swamp poison)"
+
+[[outputs]]
+id = "7cI-Dd3Ym-x0BuuSk-MMT"
+uri = "file://attached_assets/fish_bloodMoon.png"
+type = "image"
+title = "Blood Moon Fish (crimson dark magic)"
+
+[[outputs]]
+id = "YaS_UH8gJZy1hqWmlB9gF"
+uri = "file://attached_assets/fish_water.png"
+type = "image"
+title = "Water Spirit Fish (living water)"
+
+[[outputs]]
+id = "oxVGbeHtAbq_RzEQVn9RD"
+uri = "file://attached_assets/fish_rainbow.png"
+type = "image"
+title = "Rainbow Fish (prismatic iridescent)"
+
+[[outputs]]
+id = "8wxoJ6lfbLTNzOg9YdkIO"
+uri = "file://attached_assets/fish_nature.png"
+type = "image"
+title = "Nature Fish (moss & flowers)"
+
+[[outputs]]
+id = "kVT-PLHrHyNPeYpf1OsZ7"
+uri = "file://attached_assets/fish_dragon.png"
+type = "image"
+title = "Dragon Fish (horns & dragon wings)"
+
+[[outputs]]
+id = "N0mYmSjXUZHYD9BY0vbxy"
+uri = "file://attached_assets/fish_koi.png"
+type = "image"
+title = "Cursed Koi (flowing golden koi)"
