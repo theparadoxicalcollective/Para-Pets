@@ -51,6 +51,7 @@ export const shopItems = pgTable("shop_items", {
   rareCatchBoostPercent: integer("rare_catch_boost_percent"),
   rarityBoostPercent: integer("rarity_boost_percent"),
   starRarity: integer("star_rarity"),
+  poleMaxUses: integer("pole_max_uses"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
@@ -69,6 +70,7 @@ export const userInventory = pgTable("user_inventory", {
   itemsUsedThisLevel: integer("items_used_this_level").notNull().default(0),
   petNickname: text("pet_nickname"),
   isListed: boolean("is_listed").notNull().default(false),
+  poleUsesLeft: integer("pole_uses_left"),
 });
 
 export const rewardBundles = pgTable("reward_bundles", {
