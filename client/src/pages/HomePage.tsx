@@ -7,7 +7,7 @@ import questIcon from "@assets/icon_quest_v5.png";
 import mapIcon from "@assets/icon_map_new.png";
 import swordsImg from "@assets/icon_pvp_new.png";
 import eggImg from "@assets/icon_pets.png";
-import badgeIcon from "@assets/icon_badges.svg";
+import badgeIcon from "@assets/icon_badges_new.png";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import PetInventory from "@/components/PetInventory";
