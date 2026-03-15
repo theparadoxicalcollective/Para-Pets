@@ -130,6 +130,11 @@ export async function registerRoutes(
   await ensureAdminAccount();
   seedWorldBackgrounds();
 
+  app.use("/api/admin", (_req, res, next) => {
+    res.set("Cache-Control", "no-store");
+    next();
+  });
+
   app.post("/api/auth/register", async (req, res) => {
     try {
       const { username, email, password, profileImageData } = req.body;
