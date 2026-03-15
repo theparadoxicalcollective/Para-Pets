@@ -149,19 +149,19 @@ title = "Forest Potion (green)"
 id = "kaIcZlAWT42sx5mJYUglu"
 uri = "file://attached_assets/potion_fire.png"
 type = "image"
-title = "Fire Potion (red-orange)"
+title = "Fire Potion (orange, burning flames inside)"
 
 [[outputs]]
 id = "PJTeK-5Ki8SweFBLVz2g1"
 uri = "file://attached_assets/potion_frost.png"
 type = "image"
-title = "Frost Potion (icy blue)"
+title = "Frost Potion (icy blue, frozen crystals)"
 
 [[outputs]]
 id = "nuKl3Rgh9tFKrVANXQuIW"
 uri = "file://attached_assets/potion_mana.png"
 type = "image"
-title = "Mana Potion (deep blue)"
+title = "Mana Potion (deep blue, arcane runes)"
 
 [[outputs]]
 id = "g-Xkx2BhNQ51O9yu2nNED"
@@ -179,7 +179,7 @@ title = "Swamp Potion (neon green)"
 id = "i3uHNzzhZYZ1crm6fTLuH"
 uri = "file://attached_assets/potion_shadow.png"
 type = "image"
-title = "Shadow Potion (dark violet)"
+title = "Shadow Potion (dark purple, void energy)"
 
 [[outputs]]
 id = "2i9ovi9fVIGziObGjRnRw"
@@ -191,7 +191,7 @@ title = "Storm Potion (electric yellow)"
 id = "goGguGV2bHkRI5UVzVBGx"
 uri = "file://attached_assets/potion_starlight.png"
 type = "image"
-title = "Starlight Potion (silver-gold)"
+title = "Starlight Potion (midnight blue, constellations)"
 
 [[outputs]]
 id = "SjEhkTVbM06UOOtjwUjnt"
@@ -738,3 +738,93 @@ id = "WmflSdiowZ8LOGVeUBbxE"
 uri = "file://attached_assets/rod_oak.png"
 type = "image"
 title = "Oak Rod (autumn leaves, brass reel)"
+
+[[outputs]]
+id = "y-7Y4wAy-tUua65flVFJg"
+uri = "file://attached_assets/potion_health.png"
+type = "image"
+title = "Health Potion (glowing red, heart charm)"
+
+[[outputs]]
+id = "v1sDJZ7yKSTeq2asuVC0K"
+uri = "file://attached_assets/potion_poison.png"
+type = "image"
+title = "Poison Potion (toxic green, skull)"
+
+[[outputs]]
+id = "i8LPIz_YfjkYaFn6tzxnO"
+uri = "file://attached_assets/potion_speed.png"
+type = "image"
+title = "Speed Elixir (golden, lightning bolts)"
+
+[[outputs]]
+id = "MEoqm2_UG6Z4ioN9b_cY5"
+uri = "file://attached_assets/potion_rainbow.png"
+type = "image"
+title = "Rainbow Potion (prismatic shifting colors)"
+
+[[outputs]]
+id = "khxwJ4FwcyIgEc2qPzT76"
+uri = "file://attached_assets/potion_love.png"
+type = "image"
+title = "Love Potion (pink, floating hearts)"
+
+[[outputs]]
+id = "gPaH-ukd8VwWB3qsbiCUA"
+uri = "file://attached_assets/potion_nature.png"
+type = "image"
+title = "Nature Potion (teal, mushrooms & leaves)"
+
+[[outputs]]
+id = "y14_gYvAiPWoJtcp8r7Cr"
+uri = "file://attached_assets/potion_invisibility.png"
+type = "image"
+title = "Invisibility Potion (ghostly silver)"
+
+[[outputs]]
+id = "yi5T80oFwB-htEMWJxSsy"
+uri = "file://attached_assets/potion_lightning.png"
+type = "image"
+title = "Lightning Potion (electric yellow)"
+
+[[outputs]]
+id = "oI_AQlqvKUGoMo68Ny5v3"
+uri = "file://attached_assets/potion_strength.png"
+type = "image"
+title = "Strength Potion (thick amber brown)"
+
+[[outputs]]
+id = "HcJseemxZA7RreHCEof70"
+uri = "file://attached_assets/potion_dream.png"
+type = "image"
+title = "Dream Potion (pastel pink & lavender)"
+
+[[outputs]]
+id = "cUnUbJTISAAHdUUP7KfC_"
+uri = "file://attached_assets/potion_curse.png"
+type = "image"
+title = "Curse Potion (dark red, bone charm)"
+
+[[outputs]]
+id = "Wx9Fp3U7APbhWO9mD-Ts5"
+uri = "file://attached_assets/potion_luck.png"
+type = "image"
+title = "Luck Potion (golden, four leaf clovers)"
+
+[[outputs]]
+id = "Y8k6aI7NwRxXyj92esSow"
+uri = "file://attached_assets/potion_ocean.png"
+type = "image"
+title = "Ocean Potion (aqua teal, sea creatures)"
+
+[[outputs]]
+id = "whtJgzM8PU9BJiIo-FRMK"
+uri = "file://attached_assets/potion_energy.png"
+type = "image"
+title = "Energy Potion (magenta, chaotic sparks)"
+
+[[outputs]]
+id = "h5ptoHMHfs5Nwa7jkipSz"
+uri = "file://attached_assets/potion_spirit.png"
+type = "image"
+title = "Spirit Potion (pale green, ghost figures)"
