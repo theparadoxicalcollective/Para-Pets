@@ -214,6 +214,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   const dragRef = useRef<{ locId: string; startCanvasX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const [dragPos, setDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
   const didDrag = useRef(false);
+  const adminLocTapRef = useRef<{ id: string; timer: ReturnType<typeof setTimeout> } | null>(null);
   const [topLocId, setTopLocId] = useState<string | null>(null);
   const [worldBgLoaded, setWorldBgLoaded] = useState(false);
   const [locBgLoaded, setLocBgLoaded] = useState(false);
@@ -571,16 +572,7 @@ export default function WorldPage({ user }: WorldPageProps) {
     : null;
   const hasHatchedActivePet = activePetInv && activePetInv.isHatched;
 
-  const handleLocationClick = useCallback((loc: WorldLocationData) => {
-    if (didDrag.current) return;
-    if (currentUser.isAdmin) {
-      setSelectedLocId(prev => prev === loc.id ? null : loc.id);
-      return;
-    }
-    if ((loc.type === "battle" || loc.type === "explore") && (!currentUser.activePetId || !hasHatchedActivePet)) {
-      setShowNoPetMessage(true);
-      return;
-    }
+  const openLocation = useCallback((loc: WorldLocationData) => {
     setTopLocId(null);
     setActiveLocationId(loc.id);
     if (loc.type === "fishing") {
@@ -597,7 +589,30 @@ export default function WorldPage({ user }: WorldPageProps) {
       setShowShop(false);
       setShowLocationView(true);
     }
-  }, [currentUser.activePetId, currentUser.isAdmin, hasHatchedActivePet]);
+  }, [currentUser.isAdmin]);
+
+  const handleLocationClick = useCallback((loc: WorldLocationData) => {
+    if (didDrag.current) return;
+    if (currentUser.isAdmin) {
+      if (adminLocTapRef.current?.id === loc.id) {
+        clearTimeout(adminLocTapRef.current.timer);
+        adminLocTapRef.current = null;
+        setSelectedLocId(null);
+        openLocation(loc);
+      } else {
+        if (adminLocTapRef.current) clearTimeout(adminLocTapRef.current.timer);
+        setSelectedLocId(loc.id);
+        const timer = setTimeout(() => { adminLocTapRef.current = null; }, 400);
+        adminLocTapRef.current = { id: loc.id, timer };
+      }
+      return;
+    }
+    if ((loc.type === "battle" || loc.type === "explore") && (!currentUser.activePetId || !hasHatchedActivePet)) {
+      setShowNoPetMessage(true);
+      return;
+    }
+    openLocation(loc);
+  }, [currentUser.activePetId, currentUser.isAdmin, hasHatchedActivePet, openLocation]);
 
   const handleObjPointerDown = useCallback((e: React.PointerEvent, obj: LocationObjectData) => {
     if (!currentUser.isAdmin) return;
@@ -792,7 +807,7 @@ export default function WorldPage({ user }: WorldPageProps) {
             }}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
-            onClick={() => { if (currentUser.isAdmin) setSelectedLocId(null); }}
+            onClick={() => { if (currentUser.isAdmin) { if (adminLocTapRef.current) { clearTimeout(adminLocTapRef.current.timer); adminLocTapRef.current = null; } setSelectedLocId(null); } }}
           >
             <div className="absolute inset-0 pointer-events-none" style={{
               background: `linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.08) 30%, rgba(0,0,0,0.1) 70%, rgba(0,0,0,0.65) 100%)`,
