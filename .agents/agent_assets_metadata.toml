@@ -258,3 +258,63 @@ id = "3YWAsi_cPeI4nlzZXl33k"
 uri = "file://attached_assets/germ_zappy.png"
 type = "image"
 title = "Zappy (electric blue)"
+
+[[outputs]]
+id = "L5VBZYEiF2Nv28ZwJvOr8"
+uri = "file://attached_assets/herb_moonleaf.png"
+type = "image"
+title = "Moonleaf (silver glowing leaves)"
+
+[[outputs]]
+id = "bWSsy9x5t35QPeAfwxAdi"
+uri = "file://attached_assets/herb_firebloom.png"
+type = "image"
+title = "Firebloom (flaming red-orange flower)"
+
+[[outputs]]
+id = "FCUkhkhwTDwuVrl7souqr"
+uri = "file://attached_assets/herb_swamp_sage.png"
+type = "image"
+title = "Swamp Sage (teal bioluminescent)"
+
+[[outputs]]
+id = "weLe1pIPM6-9VmFMGaGYW"
+uri = "file://attached_assets/herb_starwort.png"
+type = "image"
+title = "Starwort (purple star flowers)"
+
+[[outputs]]
+id = "-hkKXte3LbF7AZ4_IgXht"
+uri = "file://attached_assets/herb_frost_fern.png"
+type = "image"
+title = "Frost Fern (icy crystal fronds)"
+
+[[outputs]]
+id = "91WziRc5Tp0qCAApL-6yq"
+uri = "file://attached_assets/herb_dragons_tongue.png"
+type = "image"
+title = "Dragon's Tongue (crimson spiky)"
+
+[[outputs]]
+id = "igD34Yt7fVO-AFIxBHpm2"
+uri = "file://attached_assets/herb_shadow_thistle.png"
+type = "image"
+title = "Shadow Thistle (dark indigo thorns)"
+
+[[outputs]]
+id = "u-E6MekRcJgB7FwDAqnXv"
+uri = "file://attached_assets/herb_shimmer_moss.png"
+type = "image"
+title = "Shimmer Moss (iridescent green)"
+
+[[outputs]]
+id = "qfihYdQNJAKwrubhMG5tV"
+uri = "file://attached_assets/herb_sunpetal.png"
+type = "image"
+title = "Sunpetal (golden glowing flower)"
+
+[[outputs]]
+id = "uu0TIfFo1BbjyeiRlmoTS"
+uri = "file://attached_assets/herb_spiritbloom.png"
+type = "image"
+title = "Spiritbloom (ethereal ghost-white)"
