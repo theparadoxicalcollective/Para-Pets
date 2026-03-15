@@ -17,6 +17,7 @@ import path from "path";
 
 const app = express();
 app.set('trust proxy', 1);
+app.disable('etag');
 const httpServer = createServer(app);
 const PgSession = connectPgSimple(session);
 
