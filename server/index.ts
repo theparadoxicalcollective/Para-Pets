@@ -136,8 +136,8 @@ export function log(message: string, source = "express") {
 }
 
 app.use("/world-assets", express.static(path.join(process.cwd(), "attached_assets"), {
-  maxAge: "7d",
-  immutable: true,
+  etag: true,
+  lastModified: true,
 }));
 
 app.use((req, res, next) => {
