@@ -203,15 +203,6 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     phaseRef.current = phase;
   }, [phase]);
 
-  useEffect(() => {
-    if (phase === "nibble") {
-      const timer = setTimeout(() => {
-        if (phaseRef.current === "nibble") startReeling();
-      }, 350);
-      return () => clearTimeout(timer);
-    }
-  }, [phase, startReeling]);
-
   const clearAllTimers = useCallback(() => {
     if (reelIntervalRef.current) { clearInterval(reelIntervalRef.current); reelIntervalRef.current = null; }
     if (nibbleTimeoutRef.current) { clearTimeout(nibbleTimeoutRef.current); nibbleTimeoutRef.current = null; }
@@ -283,6 +274,15 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       }
     }, REEL_DURATION);
   }, [catchMutation]);
+
+  useEffect(() => {
+    if (phase === "nibble") {
+      const timer = setTimeout(() => {
+        if (phaseRef.current === "nibble") startReeling();
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [phase, startReeling]);
 
   const handleReelTap = useCallback(() => {
     if (phase !== "reeling") return;
