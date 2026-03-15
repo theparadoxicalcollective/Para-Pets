@@ -528,3 +528,63 @@ id = "N0mYmSjXUZHYD9BY0vbxy"
 uri = "file://attached_assets/fish_koi.png"
 type = "image"
 title = "Cursed Koi (flowing golden koi)"
+
+[[outputs]]
+id = "Bdshci1tNI1kJan5rnoj4"
+uri = "file://attached_assets/sea_jellyfish.png"
+type = "image"
+title = "Jellyfish (crystal bell, trailing sparks)"
+
+[[outputs]]
+id = "RDLyNx6-m7ryBUxjDbXQC"
+uri = "file://attached_assets/sea_octopus.png"
+type = "image"
+title = "Octopus (rune patterns, gem suckers)"
+
+[[outputs]]
+id = "Z7HgyXAXQs0tzYh3hTGCr"
+uri = "file://attached_assets/sea_seahorse.png"
+type = "image"
+title = "Seahorse (coral crown, pearl tail)"
+
+[[outputs]]
+id = "H2ZXwbj0EHY5evXkMzd7R"
+uri = "file://attached_assets/sea_turtle.png"
+type = "image"
+title = "Sea Turtle (mossy rune shell)"
+
+[[outputs]]
+id = "vRdzq_PPfVsveWdVbnO7z"
+uri = "file://attached_assets/sea_eel.png"
+type = "image"
+title = "Electric Eel (crackling lightning)"
+
+[[outputs]]
+id = "bv8CBkDtYQ8Su92ulQUcG"
+uri = "file://attached_assets/sea_manta.png"
+type = "image"
+title = "Manta Ray (galaxy starfield wings)"
+
+[[outputs]]
+id = "moGHIpRcJ_8H10bbUUfvo"
+uri = "file://attached_assets/sea_nautilus.png"
+type = "image"
+title = "Nautilus (iridescent spiral shell)"
+
+[[outputs]]
+id = "MvixLFLBHQQT8QhuZFXiS"
+uri = "file://attached_assets/sea_serpent.png"
+type = "image"
+title = "Sea Serpent (teal-purple dragon)"
+
+[[outputs]]
+id = "dbbEeVQCzrdcdk0BAmU0K"
+uri = "file://attached_assets/sea_axolotl.png"
+type = "image"
+title = "Axolotl (glowing pink gills)"
+
+[[outputs]]
+id = "8M9aYAPY1vJyMxinQ_-PH"
+uri = "file://attached_assets/sea_lobster.png"
+type = "image"
+title = "Lobster (royal rune armour)"
