@@ -663,7 +663,7 @@ function AdminItemForm({
                   <option value="health">Health (+HP)</option>
                   <option value="atk">Attack (+ATK)</option>
                   <option value="def">Defense (+DEF)</option>
-                  <option value="lvl">Level (+LVL)</option>
+                  <option value="lvl">Level (+LVL Points)</option>
                 </select>
               </div>
               <div>
