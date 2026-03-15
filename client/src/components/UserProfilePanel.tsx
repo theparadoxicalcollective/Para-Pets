@@ -59,6 +59,9 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
   const [cropOffset, setCropOffset] = useState({ x: 50, y: 50 });
   const cropDragRef = useRef<{ startX: number; startY: number; startOX: number; startOY: number } | null>(null);
@@ -197,7 +200,24 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
     },
   });
 
-  const isPending = updateUsernameMutation.isPending || updateProfilePicMutation.isPending || changePasswordMutation.isPending || logoutMutation.isPending;
+  const deleteAccountMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("DELETE", "/api/user/account", { password: deletePassword });
+      return res.json();
+    },
+    onSuccess: async () => {
+      await queryClient.clear();
+      window.location.href = "/auth";
+    },
+    onError: (err: any) => {
+      const msg = err.message?.includes(":") ? err.message.split(": ").slice(1).join(": ") : err.message;
+      let parsed: any = {};
+      try { parsed = JSON.parse(msg); } catch {}
+      toast({ title: "Deletion Failed", description: parsed.message || msg || "Failed to delete account", variant: "destructive" });
+    },
+  });
+
+  const isPending = updateUsernameMutation.isPending || updateProfilePicMutation.isPending || changePasswordMutation.isPending || logoutMutation.isPending || deleteAccountMutation.isPending;
 
   return (
     <>
@@ -471,6 +491,95 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
             >
               {logoutMutation.isPending ? "Departing..." : "Leave Realm"}
             </button>
+
+            {/* Delete Account */}
+            <div className="pt-1">
+              {!showDeleteConfirm ? (
+                <button
+                  data-testid="button-show-delete-account"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  disabled={isPending}
+                  className="w-full py-2 rounded-md font-fantasy text-xs tracking-widest transition-all disabled:opacity-60"
+                  style={{
+                    background: "transparent",
+                    border: "1px solid rgba(120,30,30,0.4)",
+                    color: "#8a4a4a",
+                    cursor: "pointer",
+                  }}
+                >
+                  Delete Account
+                </button>
+              ) : (
+                <div
+                  className="rounded-xl p-4 space-y-3"
+                  style={{
+                    background: "rgba(80,10,10,0.5)",
+                    border: "1px solid rgba(200,50,50,0.5)",
+                    boxShadow: "0 0 20px rgba(180,0,0,0.2)",
+                  }}
+                >
+                  <div className="flex items-start gap-2">
+                    <span style={{ color: "#ff6b6b", fontSize: "16px", lineHeight: 1, flexShrink: 0 }}>⚠</span>
+                    <div className="space-y-1">
+                      <p className="font-fantasy text-[#ff6b6b] text-xs tracking-wider">This cannot be undone</p>
+                      <p className="font-sans text-[#c08080] text-[11px] leading-relaxed">
+                        Your account, pets, inventory, badges, and all progress will be permanently erased from our world.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-fantasy text-[#c08080] text-[10px] tracking-wider block">CONFIRM WITH YOUR PASSWORD</label>
+                    <input
+                      data-testid="input-delete-password"
+                      type="password"
+                      value={deletePassword}
+                      onChange={e => setDeletePassword(e.target.value)}
+                      placeholder="Enter your password"
+                      disabled={deleteAccountMutation.isPending}
+                      className="w-full px-3 py-2.5 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#9a6060] outline-none disabled:opacity-60"
+                      style={{
+                        background: "linear-gradient(135deg, #f5d8d8 0%, #ecc0c0 100%)",
+                        border: "2px solid #9a4040",
+                        boxShadow: "inset 0 2px 6px rgba(0,0,0,0.3)",
+                      }}
+                      onKeyDown={e => { if (e.key === "Enter" && deletePassword) deleteAccountMutation.mutate(); }}
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      data-testid="button-cancel-delete"
+                      onClick={() => { setShowDeleteConfirm(false); setDeletePassword(""); }}
+                      disabled={deleteAccountMutation.isPending}
+                      className="flex-1 py-2 rounded-md font-fantasy text-xs tracking-wider transition-opacity disabled:opacity-50"
+                      style={{
+                        background: "rgba(60,30,10,0.6)",
+                        border: "1px solid rgba(139,94,60,0.4)",
+                        color: "#c8b896",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      data-testid="button-confirm-delete"
+                      onClick={() => deleteAccountMutation.mutate()}
+                      disabled={deleteAccountMutation.isPending || !deletePassword.trim()}
+                      className="flex-1 py-2 rounded-md font-fantasy text-xs tracking-wider transition-opacity disabled:opacity-50"
+                      style={{
+                        background: "linear-gradient(135deg, rgba(160,20,20,0.8) 0%, rgba(100,10,10,0.8) 100%)",
+                        border: "1px solid rgba(220,60,60,0.6)",
+                        color: "#ffaaaa",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {deleteAccountMutation.isPending ? "Deleting..." : "Delete Forever"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

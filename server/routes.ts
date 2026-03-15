@@ -326,6 +326,32 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/user/account", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { password } = req.body;
+      if (!password) {
+        return res.status(400).json({ message: "Password is required to delete your account" });
+      }
+      const fullUser = await storage.getUser(user.id);
+      if (!fullUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const isValid = await bcrypt.compare(password, fullUser.password);
+      if (!isValid) {
+        return res.status(400).json({ message: "Incorrect password" });
+      }
+      await storage.deleteAccount(user.id);
+      req.logout((err) => {
+        if (err) console.error("Logout after delete error:", err);
+      });
+      return res.json({ message: "Account deleted" });
+    } catch (err) {
+      console.error("Delete account error:", err);
+      return res.status(500).json({ message: "Failed to delete account" });
+    }
+  });
+
   app.patch("/api/user/username", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
