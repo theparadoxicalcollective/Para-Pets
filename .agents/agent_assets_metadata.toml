@@ -588,3 +588,63 @@ id = "8M9aYAPY1vJyMxinQ_-PH"
 uri = "file://attached_assets/sea_lobster.png"
 type = "image"
 title = "Lobster (royal rune armour)"
+
+[[outputs]]
+id = "nwRxMhg0RVJDFqft9V-Qa"
+uri = "file://attached_assets/betta_crimson.png"
+type = "image"
+title = "Crimson Betta (fire ember fins)"
+
+[[outputs]]
+id = "cRIpI6IcAM3JvVWlIxHrR"
+uri = "file://attached_assets/betta_sapphire.png"
+type = "image"
+title = "Sapphire Betta (blue-violet runes)"
+
+[[outputs]]
+id = "UMPU-C3tbfHK8gxiKxPeO"
+uri = "file://attached_assets/betta_celestial.png"
+type = "image"
+title = "Celestial Betta (white & silver divine)"
+
+[[outputs]]
+id = "s3jMRZYtW6Jg0khWd5Zdt"
+uri = "file://attached_assets/betta_jade.png"
+type = "image"
+title = "Jade Betta (nature vines & flowers)"
+
+[[outputs]]
+id = "k5o8ckWp_IVQI_Xy1KKjs"
+uri = "file://attached_assets/betta_sunset.png"
+type = "image"
+title = "Sunset Betta (orange-pink magenta)"
+
+[[outputs]]
+id = "Mq1iV0pZnJtjU5G5vcX_o"
+uri = "file://attached_assets/betta_shadow.png"
+type = "image"
+title = "Shadow Betta (dark indigo stained glass)"
+
+[[outputs]]
+id = "_2OWGmauj5bSba9C1ZG7L"
+uri = "file://attached_assets/betta_gold.png"
+type = "image"
+title = "Gold Betta (coin plated regal)"
+
+[[outputs]]
+id = "9RENFTxrgg0WrzqJrfuGs"
+uri = "file://attached_assets/betta_frost.png"
+type = "image"
+title = "Frost Betta (ice crystal fins)"
+
+[[outputs]]
+id = "38ZlFrR1GZ-oz4fjVsfCc"
+uri = "file://attached_assets/betta_galaxy.png"
+type = "image"
+title = "Galaxy Betta (nebula aurora fins)"
+
+[[outputs]]
+id = "LtHBF2QZNNh0IMQmhdDMI"
+uri = "file://attached_assets/betta_venom.png"
+type = "image"
+title = "Venom Betta (toxic neon green)"
