@@ -318,3 +318,63 @@ id = "uu0TIfFo1BbjyeiRlmoTS"
 uri = "file://attached_assets/herb_spiritbloom.png"
 type = "image"
 title = "Spiritbloom (ethereal ghost-white)"
+
+[[outputs]]
+id = "l-ZvDcMzICduBar-qklVe"
+uri = "file://attached_assets/acc_arcane_ring.png"
+type = "image"
+title = "Arcane Ring (teal gem)"
+
+[[outputs]]
+id = "SxU0qYpYMhhgr0WOT5PuG"
+uri = "file://attached_assets/acc_gem_amulet.png"
+type = "image"
+title = "Gem Amulet (purple pendant)"
+
+[[outputs]]
+id = "foQllfmZTbASprS0mtNHZ"
+uri = "file://attached_assets/acc_magic_crown.png"
+type = "image"
+title = "Magic Crown (silver & gold tiara)"
+
+[[outputs]]
+id = "qQeSPiI5w-KLsu-myUDaW"
+uri = "file://attached_assets/acc_vine_bracelet.png"
+type = "image"
+title = "Vine Bracelet (nature magic)"
+
+[[outputs]]
+id = "ix7HqnEL0ksmxxcq4PNBQ"
+uri = "file://attached_assets/acc_dragon_brooch.png"
+type = "image"
+title = "Dragon Brooch (amber eyes)"
+
+[[outputs]]
+id = "XXq-r2Stdf4vl__nTVriZ"
+uri = "file://attached_assets/acc_moon_earrings.png"
+type = "image"
+title = "Moon Earrings (crescent drops)"
+
+[[outputs]]
+id = "gQJ8_NZ83mwRYU3u3m4AH"
+uri = "file://attached_assets/acc_rune_buckle.png"
+type = "image"
+title = "Rune Buckle (belt clasp)"
+
+[[outputs]]
+id = "OF1wEprGC-4kFUA6cp5_U"
+uri = "file://attached_assets/acc_arcane_glove.png"
+type = "image"
+title = "Arcane Glove (sigil fingertips)"
+
+[[outputs]]
+id = "GZqj0JagnVG7NnA3Fe8nn"
+uri = "file://attached_assets/acc_charm_anklet.png"
+type = "image"
+title = "Charm Anklet (multi-charm chain)"
+
+[[outputs]]
+id = "Zk8gjA0R3pT2FB3P7CNhC"
+uri = "file://attached_assets/acc_wizard_pin.png"
+type = "image"
+title = "Wizard Hat Pin (tiny badge)"
