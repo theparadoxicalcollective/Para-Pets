@@ -201,6 +201,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   const shopItemDragRef = useRef<{ itemId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const shopItemDidDrag = useRef(false);
   const shopCanvasRef = useRef<HTMLDivElement>(null);
+  const shopJustOpened = useRef<number>(0);
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -562,6 +563,7 @@ export default function WorldPage({ user }: WorldPageProps) {
     } else if (loc.isShop) {
       setShowLocationView(false);
       setShowShop(true);
+      shopJustOpened.current = Date.now();
     } else if ((loc.type === "battle" || loc.type === "explore") && !currentUser.isAdmin) {
       setShowDangerWarning(true);
     } else {
@@ -1479,7 +1481,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                     </button>
                   )}
                   <div
-                    className="w-full flex items-center justify-center"
+                    className="w-full flex items-center justify-center relative"
                     style={{ aspectRatio: "1/1" }}
                   >
                     {imgSrc ? (
@@ -1494,7 +1496,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                           transform: isHovered ? "scale(1.12)" : "scale(1)",
                           transition: "transform 0.15s ease, filter 0.15s ease",
                           cursor: currentUser.isAdmin ? "grab" : "pointer",
-                          pointerEvents: "auto",
+                          pointerEvents: (!currentUser.isAdmin && item.fishingType === "pole") ? "none" : "auto",
                         }}
                         onMouseEnter={() => setHoveredShopItemId(item.id)}
                         onMouseLeave={() => setHoveredShopItemId(null)}
@@ -1503,6 +1505,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                         onPointerDown={currentUser.isAdmin ? (e) => handleShopItemPointerDown(e, item) : undefined}
                         onClick={(e) => {
                           if (!currentUser.isAdmin && !shopItemDidDrag.current) {
+                            if (Date.now() - shopJustOpened.current < 400) return;
                             if (isShopItemTransparentClick(e)) return;
                             setSelectedShopItem(item);
                             setBuyStep(1);
@@ -1517,6 +1520,29 @@ export default function WorldPage({ user }: WorldPageProps) {
                         style={{ color: `${accent}80`, pointerEvents: "auto", cursor: "pointer" }}
                         onClick={() => {
                           if (!currentUser.isAdmin && !shopItemDidDrag.current) {
+                            if (Date.now() - shopJustOpened.current < 400) return;
+                            setSelectedShopItem(item);
+                            setBuyStep(1);
+                            setBuyQty(1);
+                            setBuyError(null);
+                          }
+                        }}
+                      />
+                    )}
+                    {!currentUser.isAdmin && item.fishingType === "pole" && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: "50%",
+                          width: `${item.shopWidth}px`,
+                          height: "100%",
+                          transform: "translateX(-50%)",
+                          pointerEvents: "auto",
+                          cursor: "pointer",
+                        }}
+                        onClick={() => {
+                          if (!shopItemDidDrag.current && Date.now() - shopJustOpened.current >= 400) {
                             setSelectedShopItem(item);
                             setBuyStep(1);
                             setBuyQty(1);
