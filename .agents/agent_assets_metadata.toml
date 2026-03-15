@@ -18,3 +18,63 @@ id = "fDAlIHhnGU8Qyi2a13kZ9"
 uri = "file://attached_assets/icon_myst_pond.png"
 type = "image"
 title = "Myst Pond Icon — Isometric Style"
+
+[[outputs]]
+id = "05qd08Nhn3EovqOqkH9kT"
+uri = "file://attached_assets/book_tome_of_vitality.png"
+type = "image"
+title = "Tome of Vitality (Health boost)"
+
+[[outputs]]
+id = "TlfAtq6HPhcZ_gYuC-KSE"
+uri = "file://attached_assets/book_grimoire_of_iron_ward.png"
+type = "image"
+title = "Grimoire of Iron Ward (DEF boost)"
+
+[[outputs]]
+id = "EkVdGKgdm97KvMmoAdMtn"
+uri = "file://attached_assets/book_battlemage_codex.png"
+type = "image"
+title = "Battlemage's Codex (ATK boost)"
+
+[[outputs]]
+id = "Bn6vWiivF4E3TogHuj39c"
+uri = "file://attached_assets/book_chronicle_of_ages.png"
+type = "image"
+title = "Chronicle of Ages (LVL boost)"
+
+[[outputs]]
+id = "HrXPdSGg-Lh--UU0Dblfn"
+uri = "file://attached_assets/book_swamp_witch_spellbook.png"
+type = "image"
+title = "Swamp Witch's Spellbook (Health boost)"
+
+[[outputs]]
+id = "UgjMNFql_yaDohLKgzGUZ"
+uri = "file://attached_assets/book_war_grimoire.png"
+type = "image"
+title = "War Grimoire (ATK boost)"
+
+[[outputs]]
+id = "FBZX3ADwFwvuZRDxdnwT5"
+uri = "file://attached_assets/book_aegis_manuscript.png"
+type = "image"
+title = "Aegis Manuscript (DEF boost)"
+
+[[outputs]]
+id = "_fu2-ZDzoRzBaqLqd_kUf"
+uri = "file://attached_assets/book_shadowbound_lexicon.png"
+type = "image"
+title = "Shadowbound Lexicon (LVL boost)"
+
+[[outputs]]
+id = "wwL4KbQCXh6yahbZKLdOs"
+uri = "file://attached_assets/book_ember_rune_journal.png"
+type = "image"
+title = "Ember Rune Journal (ATK boost)"
+
+[[outputs]]
+id = "DHd6iHadU_kXLk1TlHCSg"
+uri = "file://attached_assets/book_lifebloom_compendium.png"
+type = "image"
+title = "Lifebloom Compendium (Health boost)"
