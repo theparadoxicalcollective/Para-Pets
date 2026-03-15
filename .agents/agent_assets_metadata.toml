@@ -138,3 +138,63 @@ id = "uMPjZnHcJvcXKuwVGNZ5v"
 uri = "file://attached_assets/item_bog_amber.png"
 type = "image"
 title = "Bog Amber"
+
+[[outputs]]
+id = "lbiMSxJeqVLM_cn9T_VtI"
+uri = "file://attached_assets/potion_forest.png"
+type = "image"
+title = "Forest Potion (green)"
+
+[[outputs]]
+id = "kaIcZlAWT42sx5mJYUglu"
+uri = "file://attached_assets/potion_fire.png"
+type = "image"
+title = "Fire Potion (red-orange)"
+
+[[outputs]]
+id = "PJTeK-5Ki8SweFBLVz2g1"
+uri = "file://attached_assets/potion_frost.png"
+type = "image"
+title = "Frost Potion (icy blue)"
+
+[[outputs]]
+id = "nuKl3Rgh9tFKrVANXQuIW"
+uri = "file://attached_assets/potion_mana.png"
+type = "image"
+title = "Mana Potion (deep blue)"
+
+[[outputs]]
+id = "g-Xkx2BhNQ51O9yu2nNED"
+uri = "file://attached_assets/potion_healing.png"
+type = "image"
+title = "Healing Potion (pink-red)"
+
+[[outputs]]
+id = "HjgAG10dwB-3UldnYwCDH"
+uri = "file://attached_assets/potion_swamp.png"
+type = "image"
+title = "Swamp Potion (neon green)"
+
+[[outputs]]
+id = "i3uHNzzhZYZ1crm6fTLuH"
+uri = "file://attached_assets/potion_shadow.png"
+type = "image"
+title = "Shadow Potion (dark violet)"
+
+[[outputs]]
+id = "2i9ovi9fVIGziObGjRnRw"
+uri = "file://attached_assets/potion_storm.png"
+type = "image"
+title = "Storm Potion (electric yellow)"
+
+[[outputs]]
+id = "goGguGV2bHkRI5UVzVBGx"
+uri = "file://attached_assets/potion_starlight.png"
+type = "image"
+title = "Starlight Potion (silver-gold)"
+
+[[outputs]]
+id = "SjEhkTVbM06UOOtjwUjnt"
+uri = "file://attached_assets/potion_earth.png"
+type = "image"
+title = "Earth Potion (amber-gold)"
