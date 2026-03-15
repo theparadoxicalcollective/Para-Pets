@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import profileFrameImg from "@assets/frame_profile.png";
 import petHouseBg from "@assets/pethouse_bg_new.png";
 
 interface PlayerDetailPanelProps {
@@ -149,27 +148,30 @@ export default function PlayerDetailPanel({ userId, onClose }: PlayerDetailPanel
           <div className="px-5 pb-8 pt-2 flex flex-col gap-5">
             {/* Profile header */}
             <div className="flex flex-col items-center gap-2">
-              <div className="relative w-20 h-20">
-                <img src={profileFrameImg} alt="" className="absolute inset-0 w-full h-full object-contain z-20" />
-                <div className="absolute z-10 overflow-hidden rounded-sm" style={{ inset: "11px" }}>
-                  {profile.profileImage ? (
-                    <img
-                      src={profile.profileImage}
-                      alt=""
-                      className="w-full h-full object-cover"
-                      data-testid="img-player-profile"
-                    />
-                  ) : (
-                    <div
-                      className="w-full h-full flex items-center justify-center"
-                      style={{ background: "linear-gradient(135deg, #2a1a0a, #1a0d00)" }}
-                    >
-                      <span className="font-fantasy text-[#d4a017] text-xl font-bold">
-                        {profile.username.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-                </div>
+              <div
+                className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0"
+                style={{
+                  border: "2.5px solid #c9a030",
+                  boxShadow: "0 0 8px rgba(201,160,48,0.3), 0 2px 8px rgba(0,0,0,0.5), inset 0 0 3px rgba(201,160,48,0.15)",
+                }}
+              >
+                {profile.profileImage ? (
+                  <img
+                    src={profile.profileImage}
+                    alt=""
+                    className="w-full h-full object-cover"
+                    data-testid="img-player-profile"
+                  />
+                ) : (
+                  <div
+                    className="w-full h-full flex items-center justify-center"
+                    style={{ background: "linear-gradient(135deg, #2a1a0a 0%, #4a2e18 100%)" }}
+                  >
+                    <span className="font-fantasy text-[#d4a017] text-xl font-bold">
+                      {profile.username.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <p

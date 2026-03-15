@@ -1135,9 +1135,9 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
                       style={{ accentColor: "#ffd700" }}
                     />
                     {member.profileImage ? (
-                      <img src={member.profileImage} alt={member.username} className="w-7 h-7 rounded-full object-cover flex-shrink-0" style={{ border: "1px solid rgba(255,215,0,0.2)" }} />
+                      <img src={member.profileImage} alt={member.username} className="w-7 h-7 rounded-lg object-cover flex-shrink-0" style={{ border: "2.5px solid #c9a030", boxShadow: "0 0 8px rgba(201,160,48,0.3), 0 2px 8px rgba(0,0,0,0.5), inset 0 0 3px rgba(201,160,48,0.15)" }} />
                     ) : (
-                      <div className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center font-fantasy text-xs" style={{ background: "rgba(255,215,0,0.1)", border: "1px solid rgba(255,215,0,0.2)", color: "#ffd700" }}>
+                      <div className="w-7 h-7 rounded-lg flex-shrink-0 flex items-center justify-center font-fantasy text-xs overflow-hidden" style={{ background: "linear-gradient(135deg, #2a1a0a 0%, #4a2e18 100%)", border: "2.5px solid #c9a030", boxShadow: "0 0 8px rgba(201,160,48,0.3), 0 2px 8px rgba(0,0,0,0.5), inset 0 0 3px rgba(201,160,48,0.15)", color: "#d4a017" }}>
                         {member.username[0].toUpperCase()}
                       </div>
                     )}

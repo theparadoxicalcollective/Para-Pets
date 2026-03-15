@@ -268,8 +268,8 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                 onClick={() => fileInputRef.current?.click()}
                 data-testid="button-profile-pic-change"
                 style={{
-                  border: "2px solid #c9a030",
-                  boxShadow: "0 0 8px rgba(201,160,48,0.25), 0 2px 8px rgba(0,0,0,0.5)",
+                  border: "2.5px solid #c9a030",
+                  boxShadow: "0 0 8px rgba(201,160,48,0.3), 0 2px 8px rgba(0,0,0,0.5), inset 0 0 3px rgba(201,160,48,0.15)",
                 }}
               >
                 {profilePreview || user.profileImage ? (
