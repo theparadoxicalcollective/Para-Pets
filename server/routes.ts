@@ -564,6 +564,9 @@ export async function registerRoutes(
         itemsUsedThisLevel: inv.itemsUsedThisLevel,
         atkBoost: shopItem?.atkBoost ?? null,
         defBoost: shopItem?.defBoost ?? null,
+        fishingType: shopItem?.fishingType ?? null,
+        rareCatchBoostPercent: shopItem?.rareCatchBoostPercent ?? null,
+        rarityBoostPercent: shopItem?.rarityBoostPercent ?? null,
       }));
       return res.json(itemsWithDetails);
     } catch (err) {

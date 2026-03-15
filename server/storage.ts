@@ -284,7 +284,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getShopItemsByWorld(worldId: string): Promise<ShopItem[]> {
-    return db.select().from(shopItems).where(eq(shopItems.worldId, worldId));
+    return db.select().from(shopItems).where(
+      or(eq(shopItems.worldId, worldId), eq(shopItems.worldId, "all"))
+    );
   }
 
   async getAllShopItems(): Promise<ShopItem[]> {
