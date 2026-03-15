@@ -79,15 +79,16 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideHome, h
               <button
                 data-testid="button-admin-icon"
                 onClick={() => navigate("/admin")}
-                className="w-5 h-5 rounded-full flex items-center justify-center transition-transform duration-150 active:scale-90"
+                className="topbar-icon-size-sm flex-shrink-0 flex items-center justify-center transition-transform duration-150 active:scale-90"
                 style={{
-                  background: "linear-gradient(135deg, rgba(212,160,23,0.3) 0%, rgba(180,120,10,0.3) 100%)",
-                  border: "1.5px solid rgba(212,160,23,0.6)",
+                  background: "linear-gradient(135deg, rgba(212,160,23,0.25) 0%, rgba(180,120,10,0.25) 100%)",
+                  border: "2px solid rgba(212,160,23,0.6)",
                   cursor: "pointer",
-                  boxShadow: "0 0 8px rgba(212,160,23,0.3)",
+                  boxShadow: "0 2px 10px rgba(0,0,0,0.6), 0 0 14px rgba(212,160,23,0.2)",
+                  borderRadius: "10px",
                 }}
               >
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#f0c040" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f0c040" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: "drop-shadow(0 0 4px rgba(240,192,64,0.6))" }}>
                   <path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z" fill="rgba(240,192,64,0.3)" />
                 </svg>
               </button>
