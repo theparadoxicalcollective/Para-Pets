@@ -708,3 +708,33 @@ id = "63XwfHJvXNwj8lOkjxROD"
 uri = "file://attached_assets/pole_blossom.png"
 type = "image"
 title = "Blossom Rod (sakura wood, petal line)"
+
+[[outputs]]
+id = "LjECAsc1F_sBK7VJeIRd_"
+uri = "file://attached_assets/rod_mossy.png"
+type = "image"
+title = "Mossy Rod (glowing moss & teal crystal)"
+
+[[outputs]]
+id = "FQhaWE6qtBLuY7dUgx4Yp"
+uri = "file://attached_assets/rod_bamboo.png"
+type = "image"
+title = "Bamboo Rod (firefly lanterns & leaves)"
+
+[[outputs]]
+id = "NzXvmIHrwh5-4lR2535Wd"
+uri = "file://attached_assets/rod_swamp2.png"
+type = "image"
+title = "Swamp Rod (dark wood, bioluminescent mushrooms)"
+
+[[outputs]]
+id = "yQ2hIOyimTUJnUPpFaCUV"
+uri = "file://attached_assets/rod_willow.png"
+type = "image"
+title = "Willow Rod (silver branch, white blossoms)"
+
+[[outputs]]
+id = "WmflSdiowZ8LOGVeUBbxE"
+uri = "file://attached_assets/rod_oak.png"
+type = "image"
+title = "Oak Rod (autumn leaves, brass reel)"
