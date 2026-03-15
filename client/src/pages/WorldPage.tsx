@@ -855,7 +855,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                       style={{
                         left: `${pos.x}%`,
                         top: `${pos.y}%`,
-                        width: "17%",
+                        width: "calc(17% + 15px)",
                         cursor: currentUser.isAdmin ? "grab" : "pointer",
                         zIndex: isDragging ? 60 : topLocId === loc.id ? 45 : 10 + i,
                       }}
