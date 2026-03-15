@@ -318,13 +318,14 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
 
       {/* Magical pond surface — clickable cast zone */}
       <div
-        className="absolute pointer-events-none"
+        className="absolute"
         style={{
           bottom: "18%",
           left: "50%",
           transform: "translateX(-50%)",
           width: "72%",
           zIndex: 2,
+          pointerEvents: "none",
         }}
       >
         {/* Outer glow ring */}
@@ -335,18 +336,26 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           background: "radial-gradient(ellipse at center, rgba(94,234,212,0.12) 0%, rgba(56,189,248,0.06) 50%, transparent 75%)",
           animation: "pondGlow 4s ease-in-out infinite",
         }} />
-        {/* Water surface oval */}
-        <div style={{
-          width: "100%",
-          paddingBottom: "38%",
-          borderRadius: "50%",
-          background: "radial-gradient(ellipse at 40% 38%, rgba(147,210,210,0.18) 0%, rgba(56,180,180,0.10) 40%, rgba(14,90,110,0.08) 70%, transparent 100%)",
-          border: "1.5px solid rgba(94,234,212,0.22)",
-          boxShadow: "0 0 32px rgba(94,234,212,0.10), inset 0 0 24px rgba(94,234,212,0.05)",
-          animation: "pondDrift 8s ease-in-out infinite",
-          position: "relative",
-          overflow: "hidden",
-        }}>
+        {/* Water surface oval — clickable cast target */}
+        <div
+          data-testid="button-cast-pond"
+          onClick={() => { if (phase === "idle" && hasPole) startCasting(); }}
+          style={{
+            width: "100%",
+            paddingBottom: "38%",
+            borderRadius: "50%",
+            background: "radial-gradient(ellipse at 40% 38%, rgba(147,210,210,0.18) 0%, rgba(56,180,180,0.10) 40%, rgba(14,90,110,0.08) 70%, transparent 100%)",
+            border: phase === "idle" && hasPole ? "1.5px solid rgba(94,234,212,0.55)" : "1.5px solid rgba(94,234,212,0.22)",
+            boxShadow: phase === "idle" && hasPole
+              ? "0 0 40px rgba(94,234,212,0.22), inset 0 0 24px rgba(94,234,212,0.10)"
+              : "0 0 32px rgba(94,234,212,0.10), inset 0 0 24px rgba(94,234,212,0.05)",
+            animation: "pondDrift 8s ease-in-out infinite",
+            position: "relative",
+            overflow: "hidden",
+            pointerEvents: phase === "idle" ? "auto" : "none",
+            cursor: phase === "idle" && hasPole ? "pointer" : "default",
+          }}
+        >
           {/* shimmer streaks */}
           <div style={{
             position: "absolute", top: "28%", left: "20%", width: "22%", height: "2px",
@@ -358,6 +367,18 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
             background: "rgba(200,240,240,0.18)", borderRadius: 4,
             animation: "shimmer2 7s ease-in-out infinite",
           }} />
+          {phase === "idle" && hasPole && (
+            <div style={{
+              position: "absolute", inset: 0,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <span className="font-fantasy text-[10px] tracking-widest animate-pulse" style={{
+                color: "rgba(94,234,212,0.75)",
+                textShadow: "0 0 8px rgba(94,234,212,0.5)",
+                userSelect: "none",
+              }}>TAP TO CAST</span>
+            </div>
+          )}
         </div>
         {/* Lily pad icon (decorative) */}
         <div style={{
@@ -424,9 +445,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         </div>
       </div>
 
-      <div className="absolute inset-0 z-10" onClick={() => {
-        if (phase === "idle" && hasPole) startCasting();
-      }}>
+      <div className="absolute inset-0 z-10">
         {(phase === "waiting" || phase === "casting") && (
           <>
             <div className="absolute" style={{
