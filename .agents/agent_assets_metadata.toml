@@ -678,3 +678,33 @@ id = "vRwVYoy4LmRNo8hz67Jvg"
 uri = "file://attached_assets/pole_jeweled.png"
 type = "image"
 title = "Jeweled Rod (gold, gemstone studded)"
+
+[[outputs]]
+id = "cC-7E5qjEg4nZEoYpzFLC"
+uri = "file://attached_assets/pole_dragonbone.png"
+type = "image"
+title = "Dragon Bone Rod (bone carved, fire gem)"
+
+[[outputs]]
+id = "gaQDsTGfVeyNfRy8oLOJR"
+uri = "file://attached_assets/pole_ice.png"
+type = "image"
+title = "Ice Rod (frozen crystal, snowflake patterns)"
+
+[[outputs]]
+id = "II8uok-TuzWgFrwJiA7wk"
+uri = "file://attached_assets/pole_swamp.png"
+type = "image"
+title = "Swamp Rod (mushrooms, toxic green slime line)"
+
+[[outputs]]
+id = "Oin81oLqQZZSM6Shkb1hU"
+uri = "file://attached_assets/pole_celestial.png"
+type = "image"
+title = "Celestial Rod (stars, crescent moon handle)"
+
+[[outputs]]
+id = "63XwfHJvXNwj8lOkjxROD"
+uri = "file://attached_assets/pole_blossom.png"
+type = "image"
+title = "Blossom Rod (sakura wood, petal line)"
