@@ -1369,7 +1369,7 @@ export default function WorldPage({ user }: WorldPageProps) {
             </div>
           )}
           {/* Header */}
-          <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 pt-12 pb-3">
+          <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 pb-3" style={{ paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
             <div className="flex items-center gap-2">
               {activeLoc?.iconUrl && (
                 <img src={activeLoc.iconUrl} alt="" className="w-10 h-10 rounded-lg object-contain" style={{ border: `1px solid ${accent}40` }} />
@@ -1794,7 +1794,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                 <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.6) 100%)" }} />
                 <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at 50% 30%, rgba(220,38,38,0.06) 0%, transparent 70%)" }} />
                 {/* Header row */}
-                <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 pt-5 pb-3">
+                <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 pb-3" style={{ paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
                   <div className="flex items-center gap-3">
                     {activeLoc.iconUrl && (
                       <img src={activeLoc.iconUrl} alt="" className="w-10 h-10 rounded-lg object-contain" style={{ border: "1px solid rgba(220,38,38,0.4)", filter: "drop-shadow(0 0 8px rgba(220,38,38,0.3))" }} />
@@ -1910,7 +1910,7 @@ export default function WorldPage({ user }: WorldPageProps) {
           )}
 
           <div className="relative z-10 flex flex-col h-full">
-            <div className="flex items-center justify-between px-4 pt-5 pb-3">
+            <div className="flex items-center justify-between px-4 pb-3" style={{ paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
               <div className="flex items-center gap-3">
                 {activeLoc.iconUrl && (
                   <img src={activeLoc.iconUrl} alt="" className="w-10 h-10 rounded-lg object-contain" style={{ border: `1px solid ${accent}40`, filter: `drop-shadow(0 0 8px ${accent}30)` }} />

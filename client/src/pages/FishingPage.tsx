@@ -431,7 +431,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
 
       <style>{FISHING_ANIMATIONS}</style>
 
-      <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 pt-12 pb-3">
+      <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 pb-3" style={{ paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
         <div>
           <h3 className="font-fantasy text-base tracking-widest font-semibold" style={{ color: ACCENT, textShadow: `0 0 10px ${ACCENT}40` }} data-testid="text-fishing-location-name">
             {locationName}
