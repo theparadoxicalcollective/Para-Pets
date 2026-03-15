@@ -336,15 +336,6 @@ export async function registerRoutes(
         return res.status(400).json({ message: parse.error.errors[0].message });
       }
 
-      if (user.lastUsernameChange) {
-        const lastChange = new Date(user.lastUsernameChange);
-        const oneMonthAgo = new Date();
-        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-        if (lastChange > oneMonthAgo) {
-          return res.status(400).json({ message: "You can only change your username once per month" });
-        }
-      }
-
       const existing = await storage.getUserByUsername(username);
       if (existing && existing.id !== user.id) {
         return res.status(400).json({ message: "Username already taken" });

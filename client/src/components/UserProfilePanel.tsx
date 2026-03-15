@@ -22,17 +22,6 @@ interface Props {
   onUserUpdate: (user: User) => void;
 }
 
-function canChangeUsername(lastChange: string | null): { can: boolean; daysLeft: number } {
-  if (!lastChange) return { can: true, daysLeft: 0 };
-  const last = new Date(lastChange);
-  const nextChange = new Date(last);
-  nextChange.setMonth(nextChange.getMonth() + 1);
-  const now = new Date();
-  if (now >= nextChange) return { can: true, daysLeft: 0 };
-  const daysLeft = Math.ceil((nextChange.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-  return { can: false, daysLeft };
-}
-
 function cropToCanvas(src: string, offsetX: number, offsetY: number): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -79,8 +68,6 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
-
-  const usernameStatus = canChangeUsername(user.lastUsernameChange);
 
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -145,6 +132,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
     onSuccess: async (data: any) => {
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       onUserUpdate(data);
+      setNewUsername("");
       toast({ title: "Username Updated", description: "Your username has been changed successfully" });
     },
     onError: (err: any) => {
@@ -194,6 +182,8 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
       toast({ title: "Update Failed", description: parsed.message || msg || "Failed to change password", variant: "destructive" });
     },
   });
+
+  const isPending = updateUsernameMutation.isPending || updateProfilePicMutation.isPending || changePasswordMutation.isPending;
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
@@ -333,11 +323,6 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
             <div className="space-y-2">
               <label className="font-fantasy text-[#c8b896] text-xs tracking-wider block">
                 USERNAME
-                {!usernameStatus.can && (
-                  <span className="ml-2 text-[#6a5840]">
-                    (change in {usernameStatus.daysLeft} days)
-                  </span>
-                )}
               </label>
               <div className="flex gap-2">
                 <input
@@ -345,36 +330,31 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                   type="text"
                   value={newUsername}
                   onChange={e => setNewUsername(e.target.value)}
-                  disabled={!usernameStatus.can || isPending}
+                  disabled={isPending}
                   placeholder={user.username}
-                  className="flex-1 px-4 py-3 rounded-md font-sans text-sm outline-none focus:ring-2 focus:ring-[#d4a017] disabled:opacity-50"
+                  className="flex-1 px-4 py-3 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#8a7060] outline-none focus:ring-2 focus:ring-[#d4a017] disabled:opacity-50"
                   style={{
-                    background: usernameStatus.can
-                      ? "linear-gradient(135deg, #f2e8d0 0%, #e8d8b0 100%)"
-                      : "rgba(30,20,10,0.5)",
+                    background: "linear-gradient(135deg, #f2e8d0 0%, #e8d8b0 100%)",
                     border: "2px solid #8b5e3c",
-                    color: usernameStatus.can ? "#2a1a0a" : "#6a5840",
                     boxShadow: "inset 0 2px 6px rgba(0,0,0,0.3)",
                   }}
                 />
-                {usernameStatus.can && (
-                  <button
-                    data-testid="button-save-username"
-                    onClick={() => updateUsernameMutation.mutate()}
-                    disabled={isPending || newUsername === user.username || !newUsername.trim()}
-                    className="px-4 py-3 rounded-md font-fantasy text-xs tracking-wider transition-opacity disabled:opacity-50"
-                    style={{
-                      background: "linear-gradient(135deg, #5c3a1e 0%, #8b5e3c 100%)",
-                      border: "1px solid rgba(212,160,23,0.5)",
-                      color: "#f0c040",
-                      cursor: "pointer",
-                      whiteSpace: "nowrap",
-                      boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
-                    }}
-                  >
-                    {updateUsernameMutation.isPending ? "..." : "Save"}
-                  </button>
-                )}
+                <button
+                  data-testid="button-save-username"
+                  onClick={() => updateUsernameMutation.mutate()}
+                  disabled={isPending || !newUsername.trim()}
+                  className="px-4 py-3 rounded-md font-fantasy text-xs tracking-wider transition-opacity disabled:opacity-50"
+                  style={{
+                    background: "linear-gradient(135deg, #5c3a1e 0%, #8b5e3c 100%)",
+                    border: "1px solid rgba(212,160,23,0.5)",
+                    color: "#f0c040",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+                  }}
+                >
+                  {updateUsernameMutation.isPending ? "..." : "Save"}
+                </button>
               </div>
             </div>
 
