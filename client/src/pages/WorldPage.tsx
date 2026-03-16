@@ -633,6 +633,8 @@ export default function WorldPage({ user }: WorldPageProps) {
   }, [worldId, mapH]);
 
   const handleVpPointerDown = useCallback((e: React.PointerEvent) => {
+    // Safety: clear any stale drag state that wasn't cleaned up (e.g. after pointerCancel)
+    if (dragRef.current && !mapPanPointersRef.current.size) { dragRef.current = null; setDragPos(null); }
     if (dragRef.current || objDragRef.current || shopItemDragRef.current) return;
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
     mapPanPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -738,7 +740,7 @@ export default function WorldPage({ user }: WorldPageProps) {
     e.stopPropagation();
     // Only allow dragging if this location is already selected — use ref to avoid stale closure
     if (draggableLocIdRef.current !== loc.id) return;
-    e.preventDefault();
+    // Do NOT preventDefault here — we still want click events to fire for double-tap-to-open
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     didDrag.current = false;
     const rect = areaRef.current ? areaRef.current.getBoundingClientRect() : { left: 0 };
@@ -768,10 +770,11 @@ export default function WorldPage({ user }: WorldPageProps) {
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
     if (!dragRef.current) return;
-    e.preventDefault();
     const d = dragRef.current;
     dragRef.current = null;
     if (didDrag.current && dragPos) {
+      // Only suppress the click when we actually dragged (otherwise let it fire for double-tap-to-open)
+      e.preventDefault();
       setTopLocId(d.locId);
       positionMutation.mutate({ locationId: d.locId, posX: dragPos.x, posY: dragPos.y });
     }
@@ -1026,6 +1029,7 @@ export default function WorldPage({ user }: WorldPageProps) {
             }}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
+            onPointerCancel={() => { dragRef.current = null; setDragPos(null); }}
             onClick={() => { if (currentUser.isAdmin) { if (adminLocTapRef.current) { clearTimeout(adminLocTapRef.current.timer); adminLocTapRef.current = null; } setSelectedLocId(null); } }}
           >
             <div className="absolute inset-0 pointer-events-none" style={{
