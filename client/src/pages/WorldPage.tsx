@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import coinIconImg from "@assets/icon_coin.png";
-import { Plus, Minus, Trash2, X, MapPin, Package, Pencil, Settings, Swords, FlipHorizontal } from "lucide-react";
+import { Plus, Minus, Trash2, X, MapPin, Package, Pencil, Settings, Swords, FlipHorizontal, Copy } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 import ExploreAdminPanel from "@/components/ExploreAdminPanel";
 import BattleArena from "@/components/BattleArena";
@@ -561,6 +561,16 @@ export default function WorldPage({ user }: WorldPageProps) {
       queryClient.setQueryData(["/api/world", worldId, "locations"], (old: any[]) =>
         old?.map(loc => loc.id === locationId ? { ...loc, ..._data } : loc)
       );
+    },
+  });
+
+  const duplicateLocationMutation = useMutation({
+    mutationFn: async (locationId: string) => {
+      const res = await apiRequest("POST", `/api/admin/world/location/${locationId}/duplicate`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "locations"] });
     },
   });
 
@@ -1177,6 +1187,17 @@ export default function WorldPage({ user }: WorldPageProps) {
                             >
                               <Minus className="w-5 h-5 text-white" />
                             </button>
+                            {loc.type === "fishing" && (
+                              <button
+                                data-testid={`button-duplicate-location-${loc.id}`}
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => { e.stopPropagation(); duplicateLocationMutation.mutate(loc.id); }}
+                                className="absolute top-1/2 -left-5 z-30 w-10 h-10 rounded-full flex items-center justify-center"
+                                style={{ transform: "translateY(-50%)", background: "rgba(80,0,140,0.95)", border: "2px solid rgba(180,100,255,0.8)", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}
+                              >
+                                <Copy className="w-5 h-5 text-white" />
+                              </button>
+                            )}
                             <div
                               className="absolute z-30 flex items-center justify-center"
                               style={{ bottom: "-28px", left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.85)", border: "1px solid rgba(255,200,50,0.5)", borderRadius: "6px", padding: "2px 8px", pointerEvents: "none" }}

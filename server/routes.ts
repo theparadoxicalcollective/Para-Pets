@@ -1548,6 +1548,33 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/admin/world/location/:locationId/duplicate", isAdmin, async (req, res) => {
+    try {
+      const orig = await storage.getWorldLocation(req.params.locationId);
+      if (!orig) return res.status(404).json({ message: "Location not found" });
+      const newLoc = await storage.createWorldLocation({
+        worldId: orig.worldId,
+        name: orig.name,
+        type: orig.type,
+        iconUrl: orig.iconUrl,
+        bgUrl: orig.bgUrl,
+        ownerImageUrl: orig.ownerImageUrl,
+        isShop: orig.isShop,
+        description: orig.description,
+        glowColor: orig.glowColor,
+        posX: Math.min(110, (orig.posX ?? 40) + 8),
+        posY: Math.min(110, (orig.posY ?? 40) + 8),
+        iconSize: orig.iconSize,
+        sortOrder: orig.sortOrder ?? 0,
+        flipped: orig.flipped ?? false,
+      });
+      return res.status(201).json(newLoc);
+    } catch (err) {
+      console.error("Duplicate location error:", err);
+      return res.status(500).json({ message: "Failed to duplicate location" });
+    }
+  });
+
   app.patch("/api/admin/world/location/:locationId", isAdmin, async (req, res) => {
     try {
       const sanitized: Record<string, any> = {};
