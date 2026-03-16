@@ -1088,26 +1088,26 @@ export default function WorldPage({ user }: WorldPageProps) {
                                 setEditLocType(loc.type || (loc.isShop ? "shop" : "battle"));
                                 setEditLocGlowColor(loc.glowColor || "");
                               }}
-                              className="absolute -top-1 -right-1 z-30 w-5 h-5 rounded-full flex items-center justify-center"
-                              style={{ background: "rgba(45,106,79,0.9)", border: "1px solid rgba(127,255,212,0.5)", cursor: "pointer" }}
+                              className="absolute -top-5 -right-5 z-30 w-10 h-10 rounded-full flex items-center justify-center"
+                              style={{ background: "rgba(45,106,79,0.95)", border: "2px solid rgba(127,255,212,0.7)", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}
                             >
-                              <Pencil className="w-2.5 h-2.5 text-white" />
+                              <Pencil className="w-5 h-5 text-white" />
                             </button>
                             <button
                               data-testid={`button-flip-location-${loc.id}`}
                               onClick={(e) => { e.stopPropagation(); flipMutation.mutate(loc.id); }}
-                              className="absolute -bottom-1 -right-1 z-30 w-5 h-5 rounded-full flex items-center justify-center"
-                              style={{ background: "rgba(0,80,180,0.9)", border: "1px solid rgba(100,180,255,0.5)", cursor: "pointer" }}
+                              className="absolute -bottom-5 -right-5 z-30 w-10 h-10 rounded-full flex items-center justify-center"
+                              style={{ background: "rgba(0,80,180,0.95)", border: "2px solid rgba(100,180,255,0.7)", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}
                             >
-                              <FlipHorizontal className="w-2.5 h-2.5 text-white" />
+                              <FlipHorizontal className="w-5 h-5 text-white" />
                             </button>
                             <button
                               data-testid={`button-delete-location-${loc.id}`}
                               onClick={(e) => { e.stopPropagation(); if (confirm(`Delete "${loc.name}"?`)) { deleteLocationMutation.mutate(loc.id); } }}
-                              className="absolute -top-1 -left-1 z-30 w-5 h-5 rounded-full flex items-center justify-center"
-                              style={{ background: "rgba(220,38,38,0.9)", border: "1px solid rgba(255,100,100,0.5)", cursor: "pointer" }}
+                              className="absolute -top-5 -left-5 z-30 w-10 h-10 rounded-full flex items-center justify-center"
+                              style={{ background: "rgba(220,38,38,0.95)", border: "2px solid rgba(255,100,100,0.7)", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}
                             >
-                              <Trash2 className="w-3 h-3 text-white" />
+                              <Trash2 className="w-5 h-5 text-white" />
                             </button>
                             <button
                               data-testid={`button-size-down-location-${loc.id}`}
