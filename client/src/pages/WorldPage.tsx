@@ -539,11 +539,13 @@ export default function WorldPage({ user }: WorldPageProps) {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const coverSc = Math.max(vw / MAP_W, vh / MAP_H);
-    const ix = (vw - MAP_W * coverSc) / 2;
-    mapTransformRef.current = { x: ix, y: 0, scale: coverSc };
+    const initSc = coverSc * 1.5;
+    const ix = (vw - MAP_W * initSc) / 2;
+    const iy = (vh - MAP_H * initSc) / 2;
+    mapTransformRef.current = { x: ix, y: iy, scale: initSc };
     setMapX(ix);
-    setMapY(0);
-    setMapScale(coverSc);
+    setMapY(iy);
+    setMapScale(initSc);
   }, [worldId]);
 
   const handleVpPointerDown = useCallback((e: React.PointerEvent) => {
