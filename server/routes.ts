@@ -1574,7 +1574,7 @@ export async function registerRoutes(
       if (glowColor !== undefined) sanitized.glowColor = glowColor || null;
       if (typeof posX === "number") sanitized.posX = Math.max(0, Math.min(85, posX));
       if (typeof posY === "number") sanitized.posY = Math.max(0, Math.min(85, posY));
-      if (typeof req.body.iconSize === "number") sanitized.iconSize = Math.max(64, Math.min(300, req.body.iconSize));
+      if (typeof req.body.iconSize === "number") sanitized.iconSize = Math.max(64, Math.min(500, req.body.iconSize));
 
       const updated = await storage.updateWorldLocation(req.params.locationId, sanitized);
       return res.json(updated);
