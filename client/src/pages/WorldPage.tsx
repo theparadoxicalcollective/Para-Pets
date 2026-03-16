@@ -129,7 +129,7 @@ interface WorldApiData {
 }
 
 const MAP_W = 1080;
-const MAP_H = 1920;
+const MAP_H_DEFAULT = 1920;
 
 export default function WorldPage({ user }: WorldPageProps) {
   const params = useParams<{ worldId: string }>();
@@ -226,6 +226,8 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [mapX, setMapX] = useState(0);
   const [mapY, setMapY] = useState(0);
   const [mapScale, setMapScale] = useState(1);
+  const [mapH, setMapH] = useState(MAP_H_DEFAULT);
+  const mapHRef = useRef(MAP_H_DEFAULT);
   const mapPanPointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
   const mapPanStartRef = useRef<{ x: number; y: number; mapX: number; mapY: number } | null>(null);
   const mapPinchRef = useRef<{ dist: number; midX: number; midY: number; mapX: number; mapY: number; scale: number } | null>(null);
@@ -508,7 +510,14 @@ export default function WorldPage({ user }: WorldPageProps) {
     setWorldBgLoaded(false);
     if (!world?.bg) { setWorldBgLoaded(true); return; }
     const img = new Image();
-    img.onload = () => setWorldBgLoaded(true);
+    img.onload = () => {
+      if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+        const h = Math.round(MAP_W * img.naturalHeight / img.naturalWidth);
+        mapHRef.current = h;
+        setMapH(h);
+      }
+      setWorldBgLoaded(true);
+    };
     img.onerror = () => setWorldBgLoaded(true);
     img.src = world.bg;
   }, [world?.bg]);
@@ -517,7 +526,7 @@ export default function WorldPage({ user }: WorldPageProps) {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const mw = MAP_W * sc;
-    const mh = MAP_H * sc;
+    const mh = mapHRef.current * sc;
     const cx = mw <= vw ? (vw - mw) / 2 : Math.max(vw - mw, Math.min(0, x));
     const cy = mh <= vh ? (vh - mh) / 2 : Math.max(vh - mh, Math.min(0, y));
     return { x: cx, y: cy };
@@ -526,7 +535,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   const applyMapTransform = useCallback((x: number, y: number, sc: number) => {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const coverSc = Math.max(vw / MAP_W, vh / MAP_H);
+    const coverSc = Math.max(vw / MAP_W, vh / mapHRef.current);
     const clampedSc = Math.max(coverSc, Math.min(coverSc * 3, sc));
     const { x: cx, y: cy } = clampTransform(x, y, clampedSc);
     mapTransformRef.current = { x: cx, y: cy, scale: clampedSc };
@@ -538,15 +547,15 @@ export default function WorldPage({ user }: WorldPageProps) {
   useEffect(() => {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const coverSc = Math.max(vw / MAP_W, vh / MAP_H);
+    const coverSc = Math.max(vw / MAP_W, vh / mapHRef.current);
     const initSc = coverSc * 1.5;
     const ix = (vw - MAP_W * initSc) / 2;
-    const iy = (vh - MAP_H * initSc) / 2;
+    const iy = (vh - mapHRef.current * initSc) / 2;
     mapTransformRef.current = { x: ix, y: iy, scale: initSc };
     setMapX(ix);
     setMapY(iy);
     setMapScale(initSc);
-  }, [worldId]);
+  }, [worldId, mapH]);
 
   const handleVpPointerDown = useCallback((e: React.PointerEvent) => {
     if (dragRef.current || objDragRef.current || shopItemDragRef.current) return;
@@ -607,7 +616,7 @@ export default function WorldPage({ user }: WorldPageProps) {
     e.preventDefault();
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const coverSc = Math.max(vw / MAP_W, vh / MAP_H);
+    const coverSc = Math.max(vw / MAP_W, vh / mapHRef.current);
     const zoomF = e.deltaY < 0 ? 1.1 : 0.9;
     const sc = Math.max(coverSc, Math.min(coverSc * 3, mapTransformRef.current.scale * zoomF));
     const { x, y } = mapTransformRef.current;
@@ -927,12 +936,11 @@ export default function WorldPage({ user }: WorldPageProps) {
             style={{
               position: "absolute",
               width: MAP_W,
-              height: MAP_H,
+              height: mapH,
               transformOrigin: "0 0",
               transform: `translate(${mapX}px, ${mapY}px) scale(${mapScale})`,
               backgroundImage: world.bg ? `url(${world.bg})` : undefined,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
+              backgroundSize: "100% 100%",
               backgroundRepeat: "no-repeat",
             }}
             onPointerMove={handlePointerMove}
