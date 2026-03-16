@@ -321,7 +321,7 @@ app.use((req, res, next) => {
     }
     const mireBazaarIcon = loadAssetBase64("icon_mire_bazaar.png");
     if (mireBazaarIcon) {
-      await storage.updateWorldLocation(SHOP_ID, { iconUrl: mireBazaarIcon } as any);
+      await storage.updateWorldLocation(SHOP_ID, { iconUrl: mireBazaarIcon, iconSize: 350 } as any);
       console.log("Mire Bazaar icon refreshed.");
     }
 
