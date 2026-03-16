@@ -1247,6 +1247,69 @@ export default function WorldPage({ user }: WorldPageProps) {
               </div>
             ) : null}
 
+            {decorPlacements.map(p => {
+              const dpos = decorDragPos?.id === p.id ? { x: decorDragPos.x, y: decorDragPos.y } : { x: p.posX, y: p.posY };
+              return (
+                <div
+                  key={p.id}
+                  className="absolute"
+                  style={{
+                    left: `${dpos.x}%`,
+                    top: `${dpos.y}%`,
+                    width: `${p.size}px`,
+                    height: `${p.size}px`,
+                    transform: "translate(-50%, -50%)",
+                    zIndex: 8,
+                    cursor: currentUser.isAdmin ? "grab" : "default",
+                    touchAction: "none",
+                  }}
+                  onPointerDown={(e) => handleDecorPointerDown(e, p)}
+                  onPointerMove={handleDecorPointerMove}
+                  onPointerUp={handleDecorPointerUp}
+                  onPointerCancel={() => { decorDragRef.current = null; decorDidDrag.current = false; setDecorDragPos(null); }}
+                >
+                  <img
+                    src={p.imageUrl}
+                    alt={p.name}
+                    draggable={false}
+                    style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none" }}
+                  />
+                  {currentUser.isAdmin && (
+                    <button
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => { e.stopPropagation(); deleteDecorPlacementMutation.mutate(p.id); }}
+                      style={{
+                        position: "absolute", top: -8, right: -8,
+                        width: 20, height: 20, borderRadius: "50%",
+                        background: "rgba(220,38,38,0.92)",
+                        border: "1.5px solid rgba(255,100,100,0.8)",
+                        cursor: "pointer", display: "flex",
+                        alignItems: "center", justifyContent: "center",
+                        fontSize: 11, color: "white", fontWeight: "bold",
+                        lineHeight: 1,
+                      }}
+                    >✕</button>
+                  )}
+                </div>
+              );
+            })}
+
+            {pendingDecorPlacement && (
+              <div
+                className="absolute inset-0"
+                style={{ zIndex: 25, cursor: "crosshair", touchAction: "none" }}
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  if (!areaRef.current) return;
+                  const rect = areaRef.current.getBoundingClientRect();
+                  const x = ((e.clientX - rect.left) / rect.width) * 100;
+                  const y = ((e.clientY - rect.top) / rect.height) * 100;
+                  addDecorPlacementMutation.mutate({ item: pendingDecorPlacement, posX: x, posY: y });
+                  setPendingDecorPlacement(null);
+                }}
+              />
+            )}
+
             <div className="absolute inset-0">
                 {[...locations].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map((loc, i) => {
                   const pos = dragPos?.id === loc.id ? { x: dragPos.x, y: dragPos.y } : { x: loc.posX, y: loc.posY };
@@ -1404,6 +1467,20 @@ export default function WorldPage({ user }: WorldPageProps) {
         <div className="fixed z-30 flex items-center gap-2"
           style={{ bottom: "16px", right: "max(16px, calc((100vw - 768px) / 2 + 16px))" }}
         >
+          <button
+            data-testid="button-world-decor"
+            onClick={() => { setShowDecorPanel(true); setPendingDecorPlacement(null); }}
+            className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
+            style={{
+              background: "linear-gradient(135deg, #9b5de5cc 0%, #9b5de588 100%)",
+              border: "2px solid #9b5de5",
+              boxShadow: "0 4px 20px #9b5de560, 0 0 30px #9b5de535",
+              cursor: "pointer",
+            }}
+            title="World Decor"
+          >
+            <Palette className="w-4 h-4 text-white" />
+          </button>
           <button
             data-testid="button-add-fishing-spot"
             onClick={() => addFishingSpotMutation.mutate()}
@@ -1597,6 +1674,190 @@ export default function WorldPage({ user }: WorldPageProps) {
                 {addLocationMutation.isPending ? "Adding..." : "Add Place"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pending decor placement banner */}
+      {pendingDecorPlacement && (
+        <div
+          className="fixed z-40 flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl font-fantasy text-sm"
+          style={{
+            bottom: "80px",
+            left: "max(16px, calc((100vw - 768px) / 2 + 16px))",
+            right: "max(16px, calc((100vw - 768px) / 2 + 16px))",
+            background: "linear-gradient(135deg, rgba(155,93,229,0.92) 0%, rgba(100,50,180,0.92) 100%)",
+            border: "1.5px solid #9b5de5",
+            boxShadow: "0 0 30px #9b5de560",
+            color: "#fff",
+            textShadow: "0 0 10px rgba(255,255,255,0.4)",
+          }}
+        >
+          <span>Tap the map to place <strong>{pendingDecorPlacement.name}</strong></span>
+          <button
+            onClick={() => setPendingDecorPlacement(null)}
+            style={{ background: "none", border: "none", cursor: "pointer", lineHeight: 1 }}
+          >
+            <X className="w-4 h-4 text-white/80" />
+          </button>
+        </div>
+      )}
+
+      {/* World Decor Panel */}
+      {showDecorPanel && (
+        <div
+          className="fixed z-40 flex flex-col"
+          style={{
+            bottom: 0,
+            left: "max(0px, calc((100vw - 768px) / 2))",
+            right: "max(0px, calc((100vw - 768px) / 2))",
+            maxHeight: "60vh",
+            background: "linear-gradient(180deg, rgba(8,5,18,0.97) 0%, rgba(15,8,28,0.99) 100%)",
+            borderTop: `1.5px solid ${accent}50`,
+            borderLeft: `1.5px solid ${accent}30`,
+            borderRight: `1.5px solid ${accent}30`,
+            borderRadius: "16px 16px 0 0",
+            boxShadow: `0 -8px 40px rgba(0,0,0,0.7), 0 0 40px ${accent}15`,
+          }}
+        >
+          {/* Panel header */}
+          <div className="flex items-center justify-between px-4 py-3 shrink-0" style={{ borderBottom: `1px solid ${accent}25` }}>
+            <span className="font-fantasy text-sm tracking-widest" style={{ color: accent, textShadow: `0 0 12px ${accent}50` }}>
+              World Decor
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                data-testid="button-add-decor-item"
+                onClick={() => setShowAddDecorForm(true)}
+                className="w-7 h-7 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                style={{
+                  background: `linear-gradient(135deg, ${accent}50 0%, ${accent}30 100%)`,
+                  border: `1.5px solid ${accent}80`,
+                  cursor: "pointer",
+                }}
+                title="Add decor item"
+              >
+                <Plus className="w-4 h-4" style={{ color: accent }} />
+              </button>
+              <button
+                onClick={() => { setShowDecorPanel(false); setShowAddDecorForm(false); }}
+                style={{ background: "none", border: "none", cursor: "pointer", lineHeight: 1 }}
+              >
+                <X className="w-5 h-5" style={{ color: `${accent}88` }} />
+              </button>
+            </div>
+          </div>
+
+          {/* Add decor form */}
+          {showAddDecorForm && (
+            <div className="px-4 py-3 shrink-0" style={{ borderBottom: `1px solid ${accent}20` }}>
+              <p className="font-fantasy text-[10px] tracking-wider mb-2" style={{ color: `${accent}aa` }}>New Decor Item</p>
+              <div className="flex gap-2 mb-2">
+                <input
+                  data-testid="input-decor-item-name"
+                  type="text"
+                  placeholder="Name..."
+                  value={newDecorName}
+                  onChange={(e) => setNewDecorName(e.target.value)}
+                  className="flex-1 px-2.5 py-1.5 rounded-md font-fantasy text-xs"
+                  style={{
+                    background: "rgba(0,0,0,0.5)",
+                    border: `1px solid ${accent}35`,
+                    color: "#e8ddd0",
+                    outline: "none",
+                  }}
+                />
+              </div>
+              <input
+                data-testid="input-decor-item-image"
+                type="file"
+                accept="image/png,image/gif,image/webp"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const dataUrl = await readFileAsDataUrl(file);
+                    setNewDecorImage(dataUrl);
+                  }
+                }}
+                className="w-full text-xs font-fantasy mb-2"
+                style={{ color: `${accent}cc` }}
+              />
+              {newDecorImage && (
+                <div className="mb-2 flex justify-center">
+                  <img src={newDecorImage} alt="Preview" className="w-14 h-14 object-contain rounded-lg" style={{ border: `1px solid ${accent}30` }} />
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setShowAddDecorForm(false); setNewDecorName(""); setNewDecorImage(""); }}
+                  className="flex-1 py-1.5 rounded-md font-fantasy text-xs"
+                  style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${accent}25`, color: `${accent}88`, cursor: "pointer" }}
+                >Cancel</button>
+                <button
+                  data-testid="button-save-decor-item"
+                  onClick={() => {
+                    if (!newDecorName.trim() || !newDecorImage) return;
+                    addDecorItemMutation.mutate({ name: newDecorName.trim(), imageUrl: newDecorImage });
+                  }}
+                  disabled={!newDecorName.trim() || !newDecorImage || addDecorItemMutation.isPending}
+                  className="flex-1 py-1.5 rounded-md font-fantasy text-xs tracking-wider transition-transform active:scale-95 disabled:opacity-50"
+                  style={{
+                    background: `linear-gradient(135deg, ${accent}40 0%, ${accent}20 100%)`,
+                    border: `1px solid ${accent}60`,
+                    color: accent,
+                    cursor: "pointer",
+                  }}
+                >
+                  {addDecorItemMutation.isPending ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Decor item grid */}
+          <div className="flex-1 overflow-y-auto p-3">
+            {decorItems.length === 0 ? (
+              <p className="text-center font-fantasy text-xs py-6" style={{ color: `${accent}55` }}>
+                No decor items yet.<br />Tap + to add one.
+              </p>
+            ) : (
+              <div className="grid grid-cols-3 gap-3">
+                {decorItems.map(item => (
+                  <div
+                    key={item.id}
+                    className="relative flex flex-col items-center gap-1 rounded-lg p-2 cursor-pointer transition-transform active:scale-95"
+                    style={{
+                      background: "rgba(255,255,255,0.04)",
+                      border: `1px solid ${accent}25`,
+                    }}
+                    onClick={() => {
+                      setPendingDecorPlacement(item);
+                      setShowDecorPanel(false);
+                      setShowAddDecorForm(false);
+                    }}
+                  >
+                    <img src={item.imageUrl} alt={item.name} className="w-14 h-14 object-contain" />
+                    <span className="font-fantasy text-[9px] tracking-wider text-center leading-tight" style={{ color: `${accent}cc` }}>
+                      {item.name}
+                    </span>
+                    <button
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => { e.stopPropagation(); deleteDecorItemMutation.mutate(item.id); }}
+                      style={{
+                        position: "absolute", top: 4, right: 4,
+                        width: 16, height: 16, borderRadius: "50%",
+                        background: "rgba(220,38,38,0.85)",
+                        border: "1px solid rgba(255,100,100,0.7)",
+                        cursor: "pointer", display: "flex",
+                        alignItems: "center", justifyContent: "center",
+                        fontSize: 9, color: "white", fontWeight: "bold",
+                        lineHeight: 1,
+                      }}
+                    >✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
