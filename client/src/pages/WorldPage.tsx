@@ -730,10 +730,11 @@ export default function WorldPage({ user }: WorldPageProps) {
 
   const handlePointerDown = useCallback((e: React.PointerEvent, loc: WorldLocationData) => {
     if (!currentUser.isAdmin) return;
-    // Require a prior click to select the location before dragging is allowed
+    // Always stop propagation so the map pan handler doesn't engage
+    e.stopPropagation();
+    // Only allow dragging if the location is already selected (first tap selects, second tap+drag moves)
     if (selectedLocId !== loc.id) return;
     e.preventDefault();
-    e.stopPropagation();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     didDrag.current = false;
     const rect = areaRef.current ? areaRef.current.getBoundingClientRect() : { left: 0 };
