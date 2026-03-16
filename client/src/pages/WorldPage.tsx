@@ -130,6 +130,7 @@ interface WorldApiData {
 
 const MAP_W = 1080;
 const MAP_H_DEFAULT = 1920;
+const isMobilePhone = () => window.innerWidth < 768;
 
 export default function WorldPage({ user }: WorldPageProps) {
   const params = useParams<{ worldId: string }>();
@@ -707,7 +708,8 @@ export default function WorldPage({ user }: WorldPageProps) {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const coverSc = Math.max(vw / MAP_W, vh / mapHRef.current);
-    const clampedSc = Math.max(coverSc, Math.min(coverSc * 3, sc));
+    const maxSc = isMobilePhone() ? coverSc * 3 : coverSc;
+    const clampedSc = Math.max(coverSc, Math.min(maxSc, sc));
     const { x: cx, y: cy } = clampTransform(x, y, clampedSc);
     mapTransformRef.current = { x: cx, y: cy, scale: clampedSc };
     setMapX(cx);
@@ -719,7 +721,7 @@ export default function WorldPage({ user }: WorldPageProps) {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const coverSc = Math.max(vw / MAP_W, vh / mapHRef.current);
-    const initSc = coverSc * 1.5;
+    const initSc = isMobilePhone() ? coverSc * 1.5 : coverSc;
     const ix = (vw - MAP_W * initSc) / 2;
     const iy = (vh - mapHRef.current * initSc) / 2;
     mapTransformRef.current = { x: ix, y: iy, scale: initSc };
@@ -739,7 +741,7 @@ export default function WorldPage({ user }: WorldPageProps) {
       mapPanStartRef.current = { x: e.clientX, y: e.clientY, mapX: mapTransformRef.current.x, mapY: mapTransformRef.current.y };
       mapPinchRef.current = null;
       mapPanningRef.current = false;
-    } else if (ptrs.length === 2) {
+    } else if (ptrs.length === 2 && isMobilePhone()) {
       const [p1, p2] = ptrs;
       const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
       mapPinchRef.current = { dist, midX: (p1.x + p2.x) / 2, midY: (p1.y + p2.y) / 2, mapX: mapTransformRef.current.x, mapY: mapTransformRef.current.y, scale: mapTransformRef.current.scale };
@@ -757,7 +759,7 @@ export default function WorldPage({ user }: WorldPageProps) {
       const dy = e.clientY - mapPanStartRef.current.y;
       if (!mapPanningRef.current && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) mapPanningRef.current = true;
       if (mapPanningRef.current) applyMapTransform(mapPanStartRef.current.mapX + dx, mapPanStartRef.current.mapY + dy, mapTransformRef.current.scale);
-    } else if (ptrs.length === 2 && mapPinchRef.current) {
+    } else if (ptrs.length === 2 && mapPinchRef.current && isMobilePhone()) {
       const [p1, p2] = ptrs;
       const newDist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
       const newMidX = (p1.x + p2.x) / 2;
@@ -787,6 +789,7 @@ export default function WorldPage({ user }: WorldPageProps) {
 
   const handleVpWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();
+    if (!isMobilePhone()) return;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const coverSc = Math.max(vw / MAP_W, vh / mapHRef.current);
