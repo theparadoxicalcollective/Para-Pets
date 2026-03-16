@@ -394,7 +394,9 @@ export default function WorldPage({ user }: WorldPageProps) {
     queryKey: ["/api/world", worldId, "decor", "items"],
     queryFn: async () => {
       const res = await fetch(`/api/world/${worldId}/decor/items`, { credentials: "include" });
-      return res.json();
+      if (!res.ok) throw new Error("Failed to fetch decor items");
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
     },
     enabled: !!worldId,
   });
@@ -403,7 +405,9 @@ export default function WorldPage({ user }: WorldPageProps) {
     queryKey: ["/api/world", worldId, "decor", "placements"],
     queryFn: async () => {
       const res = await fetch(`/api/world/${worldId}/decor/placements`, { credentials: "include" });
-      return res.json();
+      if (!res.ok) throw new Error("Failed to fetch decor placements");
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
     },
     enabled: !!worldId,
   });
