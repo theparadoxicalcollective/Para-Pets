@@ -329,9 +329,18 @@ export default function WorldPage({ user }: WorldPageProps) {
       const res = await apiRequest("PATCH", `/api/admin/shop-item/${itemId}/position`, { posX, posY, width });
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/location", activeLocationId, "items"] });
+    onMutate: async ({ itemId, posX, posY, width }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/location", activeLocationId, "items"] });
+      const previous = queryClient.getQueryData(["/api/location", activeLocationId, "items"]);
+      queryClient.setQueryData(["/api/location", activeLocationId, "items"], (old: any[]) =>
+        old?.map(item => item.id === itemId ? { ...item, shopPosX: posX, shopPosY: posY, shopWidth: width } : item)
+      );
+      return { previous };
     },
+    onError: (_err: any, _vars: any, ctx: any) => {
+      if (ctx?.previous) queryClient.setQueryData(["/api/location", activeLocationId, "items"], ctx.previous);
+    },
+    onSuccess: () => {},
   });
 
   const addLocationMutation = useMutation({
@@ -418,9 +427,18 @@ export default function WorldPage({ user }: WorldPageProps) {
       const res = await apiRequest("PATCH", `/api/admin/location/object/${objectId}/position`, { posX, posY });
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/location", activeLocationId, "objects"] });
+    onMutate: async ({ objectId, posX, posY }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/location", activeLocationId, "objects"] });
+      const previous = queryClient.getQueryData(["/api/location", activeLocationId, "objects"]);
+      queryClient.setQueryData(["/api/location", activeLocationId, "objects"], (old: any[]) =>
+        old?.map(obj => obj.id === objectId ? { ...obj, posX, posY } : obj)
+      );
+      return { previous };
     },
+    onError: (_err: any, _vars: any, ctx: any) => {
+      if (ctx?.previous) queryClient.setQueryData(["/api/location", activeLocationId, "objects"], ctx.previous);
+    },
+    onSuccess: () => {},
   });
 
   const deleteLocationMutation = useMutation({
@@ -456,9 +474,18 @@ export default function WorldPage({ user }: WorldPageProps) {
       const res = await apiRequest("PATCH", `/api/admin/world/location/${locationId}`, { iconSize });
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "locations"] });
+    onMutate: async ({ locationId, iconSize }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/world", worldId, "locations"] });
+      const previous = queryClient.getQueryData(["/api/world", worldId, "locations"]);
+      queryClient.setQueryData(["/api/world", worldId, "locations"], (old: any[]) =>
+        old?.map(loc => loc.id === locationId ? { ...loc, iconSize } : loc)
+      );
+      return { previous };
     },
+    onError: (_err: any, _vars: any, ctx: any) => {
+      if (ctx?.previous) queryClient.setQueryData(["/api/world", worldId, "locations"], ctx.previous);
+    },
+    onSuccess: () => {},
   });
 
   const shopItemSizeMutation = useMutation({
@@ -466,9 +493,18 @@ export default function WorldPage({ user }: WorldPageProps) {
       const res = await apiRequest("PATCH", `/api/admin/shop-item/${itemId}/size`, { width });
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/location", activeLocationId, "items"] });
+    onMutate: async ({ itemId, width }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/location", activeLocationId, "items"] });
+      const previous = queryClient.getQueryData(["/api/location", activeLocationId, "items"]);
+      queryClient.setQueryData(["/api/location", activeLocationId, "items"], (old: any[]) =>
+        old?.map(item => item.id === itemId ? { ...item, shopWidth: width } : item)
+      );
+      return { previous };
     },
+    onError: (_err: any, _vars: any, ctx: any) => {
+      if (ctx?.previous) queryClient.setQueryData(["/api/location", activeLocationId, "items"], ctx.previous);
+    },
+    onSuccess: () => {},
   });
 
   const resetBgMutation = useMutation({
@@ -491,9 +527,18 @@ export default function WorldPage({ user }: WorldPageProps) {
       const res = await apiRequest("PATCH", `/api/admin/world/location/${locationId}/position`, { posX, posY });
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "locations"] });
+    onMutate: async ({ locationId, posX, posY }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/world", worldId, "locations"] });
+      const previous = queryClient.getQueryData(["/api/world", worldId, "locations"]);
+      queryClient.setQueryData(["/api/world", worldId, "locations"], (old: any[]) =>
+        old?.map(loc => loc.id === locationId ? { ...loc, posX, posY } : loc)
+      );
+      return { previous };
     },
+    onError: (_err: any, _vars: any, ctx: any) => {
+      if (ctx?.previous) queryClient.setQueryData(["/api/world", worldId, "locations"], ctx.previous);
+    },
+    onSuccess: () => {},
   });
 
   const flipMutation = useMutation({
@@ -501,8 +546,21 @@ export default function WorldPage({ user }: WorldPageProps) {
       const res = await apiRequest("PATCH", `/api/admin/world/location/${locationId}/flip`, {});
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "locations"] });
+    onMutate: async (locationId) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/world", worldId, "locations"] });
+      const previous = queryClient.getQueryData(["/api/world", worldId, "locations"]);
+      queryClient.setQueryData(["/api/world", worldId, "locations"], (old: any[]) =>
+        old?.map(loc => loc.id === locationId ? { ...loc, flipped: !loc.flipped } : loc)
+      );
+      return { previous };
+    },
+    onError: (_err: any, _vars: any, ctx: any) => {
+      if (ctx?.previous) queryClient.setQueryData(["/api/world", worldId, "locations"], ctx.previous);
+    },
+    onSuccess: (_data: any, locationId: string) => {
+      queryClient.setQueryData(["/api/world", worldId, "locations"], (old: any[]) =>
+        old?.map(loc => loc.id === locationId ? { ...loc, ..._data } : loc)
+      );
     },
   });
 
