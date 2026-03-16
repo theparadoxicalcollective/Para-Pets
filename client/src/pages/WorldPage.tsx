@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import coinIconImg from "@assets/icon_coin.png";
-import { Plus, Minus, Trash2, X, MapPin, Package, Pencil, Settings, Swords, FlipHorizontal, Copy, Waves, Palette, Image } from "lucide-react";
+import { Plus, Minus, Trash2, X, MapPin, Package, Pencil, Settings, Swords, FlipHorizontal, Copy, Waves, Palette } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 import ExploreAdminPanel from "@/components/ExploreAdminPanel";
 import BattleArena from "@/components/BattleArena";
@@ -200,7 +200,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [showAddDecorForm, setShowAddDecorForm] = useState(false);
   const [newDecorName, setNewDecorName] = useState("");
   const [newDecorImage, setNewDecorImage] = useState<string | null>(null);
-  const [pendingDecorPlacement, setPendingDecorPlacement] = useState<{ id: string; worldId: string; name: string; imageUrl: string; createdAt: Date } | null>(null);
+  const [pendingDecorPlacement, setPendingDecorPlacement] = useState<{ id: string; worldId: string; name: string; imageUrl: string; createdAt: string } | null>(null);
   const [decorDragPos, setDecorDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
   const decorDragRef = useRef<{ placementId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const decorDidDrag = useRef(false);
