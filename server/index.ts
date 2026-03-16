@@ -384,7 +384,7 @@ app.use((req, res, next) => {
       },
       {
         id: "a1b2c3d4-0007-4000-8000-000000000007",
-        name: "Myst Pond",
+        name: "FishingRipples",
         description: "A shimmering magical pond deep in the swamp, its glowing waters said to hold ancient secrets.",
         iconFile: "icon_myst_pond_v2.png",
         bgFile: "bg_myst_pond.png",
@@ -392,6 +392,7 @@ app.use((req, res, next) => {
         posY: 70,
         glowColor: "#3dc7c0",
         sortOrder: 9,
+        type: "fishing",
       },
       {
         id: "a1b2c3d4-0008-4000-8000-000000000008",
@@ -439,6 +440,7 @@ app.use((req, res, next) => {
           description: loc.description,
           glowColor: loc.glowColor,
           isShop: (loc as any).isShop ?? false,
+          ...(( loc as any).type ? { type: (loc as any).type } : {}),
         };
         if (iconData) updates.iconUrl = iconData;
         if (bgData) updates.bgUrl = bgData;
