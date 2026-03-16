@@ -550,6 +550,7 @@ export default function WorldPage({ user }: WorldPageProps) {
 
   const handleVpPointerDown = useCallback((e: React.PointerEvent) => {
     if (dragRef.current || objDragRef.current || shopItemDragRef.current) return;
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
     mapPanPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     const ptrs = Array.from(mapPanPointersRef.current.values());
     if (ptrs.length === 1) {
@@ -919,7 +920,7 @@ export default function WorldPage({ user }: WorldPageProps) {
         onPointerDown={handleVpPointerDown}
         onPointerMove={handleVpPointerMove}
         onPointerUp={handleVpPointerUp}
-        onPointerLeave={handleVpPointerUp}
+        onPointerCancel={handleVpPointerUp}
       >
           <div
             ref={areaRef}
