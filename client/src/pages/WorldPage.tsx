@@ -1135,7 +1135,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                         {loc.iconUrl ? (
                           <div
                             className="w-full h-full"
-                            style={loc.type === "fishing" ? { animation: "float 3.5s ease-in-out infinite" } : undefined}
+                            style={loc.type === "fishing" ? { animation: "breathe 3s ease-in-out infinite" } : undefined}
                           >
                           <img
                             src={loc.iconUrl}
