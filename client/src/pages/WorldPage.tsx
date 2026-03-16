@@ -530,15 +530,21 @@ export default function WorldPage({ user }: WorldPageProps) {
     onMutate: async ({ locationId, posX, posY }) => {
       await queryClient.cancelQueries({ queryKey: ["/api/world", worldId, "locations"] });
       const previous = queryClient.getQueryData(["/api/world", worldId, "locations"]);
-      queryClient.setQueryData(["/api/world", worldId, "locations"], (old: any[]) =>
-        old?.map(loc => loc.id === locationId ? { ...loc, posX, posY } : loc)
-      );
+      queryClient.setQueryData(["/api/world", worldId, "locations"], (old: any[]) => {
+        if (!old) return old;
+        const maxOrder = old.reduce((m: number, l: any) => Math.max(m, l.sortOrder ?? 0), 0);
+        return old.map((loc: any) => loc.id === locationId ? { ...loc, posX, posY, sortOrder: maxOrder + 1 } : loc);
+      });
       return { previous };
     },
     onError: (_err: any, _vars: any, ctx: any) => {
       if (ctx?.previous) queryClient.setQueryData(["/api/world", worldId, "locations"], ctx.previous);
     },
-    onSuccess: () => {},
+    onSuccess: (data: any) => {
+      queryClient.setQueryData(["/api/world", worldId, "locations"], (old: any[]) =>
+        old?.map(loc => loc.id === data.id ? { ...loc, ...data } : loc)
+      );
+    },
   });
 
   const flipMutation = useMutation({
@@ -1094,7 +1100,7 @@ export default function WorldPage({ user }: WorldPageProps) {
             ) : null}
 
             <div className="absolute inset-0">
-                {locations.map((loc, i) => {
+                {[...locations].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map((loc, i) => {
                   const pos = dragPos?.id === loc.id ? { x: dragPos.x, y: dragPos.y } : { x: loc.posX, y: loc.posY };
                   const isDragging = dragRef.current?.locId === loc.id;
                   const glow = loc.glowColor || accent;
@@ -1108,7 +1114,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                         top: `${pos.y}%`,
                         width: `${loc.iconSize || 300}px`,
                         cursor: currentUser.isAdmin ? "grab" : "pointer",
-                        zIndex: isDragging ? 60 : topLocId === loc.id ? 45 : selectedLocId === loc.id ? 50 : 10 + i,
+                        zIndex: isDragging ? 60 : selectedLocId === loc.id ? 55 : 10 + i,
                       }}
                       onPointerDown={(e) => handlePointerDown(e, loc)}
                       onClick={(e) => { e.stopPropagation(); handleLocationClick(loc); }}

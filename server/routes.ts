@@ -1650,9 +1650,17 @@ export async function registerRoutes(
       if (typeof posX !== "number" || typeof posY !== "number") {
         return res.status(400).json({ message: "posX and posY are required numbers" });
       }
+      const loc = await storage.getWorldLocation(req.params.locationId);
+      let nextSortOrder = 0;
+      if (loc) {
+        const siblings = await storage.getWorldLocations(loc.worldId);
+        const maxOrder = siblings.reduce((m, l) => Math.max(m, l.sortOrder ?? 0), 0);
+        nextSortOrder = maxOrder + 1;
+      }
       const updated = await storage.updateWorldLocation(req.params.locationId, {
         posX: Math.max(-10, Math.min(110, posX)),
         posY: Math.max(-10, Math.min(110, posY)),
+        sortOrder: nextSortOrder,
       });
       return res.json(updated);
     } catch (err) {
@@ -1673,7 +1681,15 @@ export async function registerRoutes(
 
   app.delete("/api/admin/world/location/:locationId", isAdmin, async (req, res) => {
     try {
-      await storage.deleteWorldLocation(req.params.locationId);
+      const locationId = req.params.locationId;
+      await storage.deleteWorldLocation(locationId);
+      // Persist deletion so startup script doesn't recreate seed locations
+      const raw = await storage.getGameSetting("deleted_seed_location_ids");
+      const deletedIds: string[] = raw ? JSON.parse(raw) : [];
+      if (!deletedIds.includes(locationId)) {
+        deletedIds.push(locationId);
+        await storage.setGameSetting("deleted_seed_location_ids", JSON.stringify(deletedIds));
+      }
       return res.json({ message: "Location deleted" });
     } catch (err) {
       console.error("Delete world location error:", err);

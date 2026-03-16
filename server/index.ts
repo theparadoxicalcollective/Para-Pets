@@ -418,7 +418,11 @@ app.use((req, res, next) => {
       },
     ];
 
+    const deletedRaw = await storage.getGameSetting("deleted_seed_location_ids");
+    const deletedSeedIds: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
+
     for (const loc of NEW_SWAMP_LOCATIONS) {
+      if (deletedSeedIds.includes(loc.id)) continue;
       const existing = swampLocations.find(l => l.id === loc.id);
       const iconData = loadAssetBase64(loc.iconFile);
       const bgData = loadAssetBase64(loc.bgFile);
