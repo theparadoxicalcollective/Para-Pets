@@ -419,6 +419,7 @@ app.use((req, res, next) => {
           glowColor: loc.glowColor,
           sortOrder: loc.sortOrder,
           isShop: (loc as any).isShop ?? false,
+          iconSize: 350,
           ...(iconData ? { iconUrl: iconData } : {}),
           ...(bgData ? { bgUrl: bgData } : {}),
         } as any);
@@ -432,6 +433,7 @@ app.use((req, res, next) => {
         };
         if (iconData) updates.iconUrl = iconData;
         if (bgData) updates.bgUrl = bgData;
+        if (!existing.iconSize || existing.iconSize < 300) updates.iconSize = 350;
         await storage.updateWorldLocation(loc.id, updates);
         console.log(`${loc.name} refreshed.`);
       }
