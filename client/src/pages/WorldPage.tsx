@@ -730,6 +730,8 @@ export default function WorldPage({ user }: WorldPageProps) {
 
   const handlePointerDown = useCallback((e: React.PointerEvent, loc: WorldLocationData) => {
     if (!currentUser.isAdmin) return;
+    // Require a prior click to select the location before dragging is allowed
+    if (selectedLocId !== loc.id) return;
     e.preventDefault();
     e.stopPropagation();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
@@ -742,7 +744,7 @@ export default function WorldPage({ user }: WorldPageProps) {
       origPosX: loc.posX,
       origPosY: loc.posY,
     };
-  }, [currentUser.isAdmin]);
+  }, [currentUser.isAdmin, selectedLocId]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!dragRef.current || !areaRef.current) return;
