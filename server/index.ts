@@ -350,17 +350,6 @@ app.use((req, res, next) => {
         sortOrder: 4,
       },
       {
-        id: "a1b2c3d4-0003-4000-8000-000000000003",
-        name: "Mosswood Lodge",
-        description: "A grand rustic lodge built around an ancient swamp tree, shelter for weary adventurers.",
-        iconFile: "icon_mosswood_lodge.png",
-        bgFile: "bg_mosswood_lodge.png",
-        posX: 62,
-        posY: 45,
-        glowColor: "#6aab5e",
-        sortOrder: 5,
-      },
-      {
         id: "a1b2c3d4-0004-4000-8000-000000000004",
         name: "The Tome & Toad",
         description: "A peculiar bookstore floating above the mire, stocked with rare spells and swamp lore.",

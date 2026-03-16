@@ -203,6 +203,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [shopItemDragPos, setShopItemDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
   const [hoveredShopItemId, setHoveredShopItemId] = useState<string | null>(null);
   const [selectedLocId, setSelectedLocId] = useState<string | null>(null);
+  const draggableLocIdRef = useRef<string | null>(null);
   const [selectedShopItemAdminId, setSelectedShopItemAdminId] = useState<string | null>(null);
   const shopItemDragRef = useRef<{ itemId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const shopItemDidDrag = useRef(false);
@@ -728,12 +729,15 @@ export default function WorldPage({ user }: WorldPageProps) {
     return () => { cancelled = true; clearTimeout(fallback); };
   }, [activeLocationId, activeLocDetail?.bgUrl]);
 
+  // Keep ref in sync so handlePointerDown never sees stale state
+  useEffect(() => { draggableLocIdRef.current = selectedLocId; }, [selectedLocId]);
+
   const handlePointerDown = useCallback((e: React.PointerEvent, loc: WorldLocationData) => {
     if (!currentUser.isAdmin) return;
-    // Always stop propagation so the map pan handler doesn't engage
+    // Always stop propagation so the map pan handler doesn't engage on location touches
     e.stopPropagation();
-    // Only allow dragging if the location is already selected (first tap selects, second tap+drag moves)
-    if (selectedLocId !== loc.id) return;
+    // Only allow dragging if this location is already selected — use ref to avoid stale closure
+    if (draggableLocIdRef.current !== loc.id) return;
     e.preventDefault();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     didDrag.current = false;
@@ -745,7 +749,7 @@ export default function WorldPage({ user }: WorldPageProps) {
       origPosX: loc.posX,
       origPosY: loc.posY,
     };
-  }, [currentUser.isAdmin, selectedLocId]);
+  }, [currentUser.isAdmin]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!dragRef.current || !areaRef.current) return;
