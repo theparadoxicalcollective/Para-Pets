@@ -39,7 +39,7 @@ const WORLD_CONFIG: Record<string, { name: string; shopIcon: string; bg: string;
   desert: { name: "Scorched Desert", shopIcon: shopDesert, bg: bgDesert, accent: "#daa520", bgGradient: "linear-gradient(180deg, rgba(40,25,5,0.7) 0%, rgba(80,50,10,0.3) 50%, rgba(20,12,3,0.7) 100%)" },
   enchanted_grove: { name: "Enchanted Grove", shopIcon: shopEnchantedGrove, bg: bgMagicalForest, accent: "#7fffd4", bgGradient: "linear-gradient(180deg, rgba(5,30,20,0.7) 0%, rgba(10,60,40,0.3) 50%, rgba(5,15,10,0.7) 100%)" },
   haunted_woods: { name: "Haunted Woods", shopIcon: shopHauntedWoods, bg: bgHauntedWoods, accent: "#8b008b", bgGradient: "linear-gradient(180deg, rgba(30,5,30,0.7) 0%, rgba(60,10,60,0.3) 50%, rgba(15,3,15,0.7) 100%)" },
-  swamp: { name: "The Swamp", shopIcon: shopSwamp, bg: bgSwamp, accent: "#9370db", bgGradient: "linear-gradient(180deg, rgba(20,15,35,0.7) 0%, rgba(40,30,70,0.3) 50%, rgba(10,8,18,0.7) 100%)" },
+  swamp: { name: "Elysian Swamplands", shopIcon: shopSwamp, bg: bgSwamp, accent: "#9370db", bgGradient: "linear-gradient(180deg, rgba(20,15,35,0.7) 0%, rgba(40,30,70,0.3) 50%, rgba(10,8,18,0.7) 100%)" },
 };
 
 interface ShopItem {
@@ -214,7 +214,7 @@ export default function WorldPage({ user }: WorldPageProps) {
 
   const areaRef = useRef<HTMLDivElement>(null);
   const vpRef = useRef<HTMLDivElement>(null);
-  // scrollContainerRef removed — map now uses pan/zoom transform
+
   const dragRef = useRef<{ locId: string; startCanvasX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const [dragPos, setDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
   const didDrag = useRef(false);
@@ -1055,7 +1055,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                             style={{
                               filter: selectedLocId === loc.id
                                 ? "drop-shadow(0 0 4px rgba(255,220,40,0.9)) drop-shadow(0 0 8px rgba(255,200,0,0.6))"
-                                : "drop-shadow(0 0 1.5px rgba(80,255,130,0.55)) drop-shadow(0 0 4px rgba(50,200,90,0.3)) drop-shadow(0 3px 6px rgba(0,0,0,0.5))",
+                                : `drop-shadow(0 0 2px ${glow}cc) drop-shadow(0 0 6px ${glow}66) drop-shadow(0 3px 6px rgba(0,0,0,0.5))`,
                               transform: loc.flipped ? "scaleX(-1)" : undefined,
                               transition: "filter 0.15s ease, transform 0.15s ease",
                             }}
@@ -1065,11 +1065,11 @@ export default function WorldPage({ user }: WorldPageProps) {
                             className="w-full h-full rounded-full flex items-center justify-center relative z-10"
                             style={{
                               background: `radial-gradient(circle at 40% 35%, ${glow}40, ${glow}15)`,
-                              border: "1.5px solid rgba(80,255,130,0.45)",
-                              boxShadow: "0 0 4px rgba(50,200,90,0.35), 0 0 8px rgba(50,200,90,0.15)",
+                              border: `1.5px solid ${glow}70`,
+                              boxShadow: `0 0 4px ${glow}55, 0 0 8px ${glow}25`,
                             }}
                           >
-                            <MapPin className="w-7 h-7" style={{ color: "#50ff82", filter: "drop-shadow(0 0 3px rgba(80,255,130,0.4))" }} />
+                            <MapPin className="w-7 h-7" style={{ color: glow, filter: `drop-shadow(0 0 3px ${glow}66)` }} />
                           </div>
                         )}
 
@@ -2088,11 +2088,9 @@ export default function WorldPage({ user }: WorldPageProps) {
                         border: "2px solid rgba(220,38,38,0.5)",
                         color: "#ef4444",
                         cursor: "pointer",
-                        fontSize: "14px",
-                        fontWeight: "bold",
                       }}
                     >
-                      X
+                      <X className="w-5 h-5" />
                     </button>
                   </div>
                 </div>

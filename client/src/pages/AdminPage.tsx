@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Search, X, Upload, Trash2, ChevronLeft } from "lucide-react";
-import bgImg from "@assets/bg_home.png";
+import bgImg from "@assets/bg_home_v2.png";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import coinIconImg from "@assets/icon_coin.png";
