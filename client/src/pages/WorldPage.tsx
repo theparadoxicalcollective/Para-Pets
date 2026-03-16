@@ -1029,7 +1029,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                       style={{
                         left: `${pos.x}%`,
                         top: `${pos.y}%`,
-                        width: `${loc.iconSize || 80}px`,
+                        width: `${loc.iconSize || 200}px`,
                         cursor: currentUser.isAdmin ? "grab" : "pointer",
                         zIndex: isDragging ? 60 : topLocId === loc.id ? 45 : selectedLocId === loc.id ? 50 : 10 + i,
                       }}
@@ -1102,7 +1102,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                             </button>
                             <button
                               data-testid={`button-size-down-location-${loc.id}`}
-                              onClick={(e) => { e.stopPropagation(); const next = Math.max(64, (loc.iconSize || 80) - 5); iconSizeMutation.mutate({ locationId: loc.id, iconSize: next }); }}
+                              onClick={(e) => { e.stopPropagation(); const next = Math.max(64, (loc.iconSize || 200) - 5); iconSizeMutation.mutate({ locationId: loc.id, iconSize: next }); }}
                               className="absolute -bottom-1 -left-1 z-30 w-5 h-5 rounded-full flex items-center justify-center"
                               style={{ background: "rgba(80,40,0,0.9)", border: "1px solid rgba(255,160,50,0.5)", cursor: "pointer" }}
                             >
@@ -1112,11 +1112,11 @@ export default function WorldPage({ user }: WorldPageProps) {
                               className="absolute z-30 flex items-center justify-center"
                               style={{ bottom: "-18px", left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.75)", border: "1px solid rgba(255,200,50,0.4)", borderRadius: "4px", padding: "0 4px", pointerEvents: "none" }}
                             >
-                              <span className="font-fantasy text-[9px] text-yellow-300">{loc.iconSize || 80}px</span>
+                              <span className="font-fantasy text-[9px] text-yellow-300">{loc.iconSize || 200}px</span>
                             </div>
                             <button
                               data-testid={`button-size-up-location-${loc.id}`}
-                              onClick={(e) => { e.stopPropagation(); const next = Math.min(300, (loc.iconSize || 80) + 5); iconSizeMutation.mutate({ locationId: loc.id, iconSize: next }); }}
+                              onClick={(e) => { e.stopPropagation(); const next = Math.min(300, (loc.iconSize || 200) + 5); iconSizeMutation.mutate({ locationId: loc.id, iconSize: next }); }}
                               className="absolute top-1/2 -right-6 z-30 w-5 h-5 rounded-full flex items-center justify-center"
                               style={{ transform: "translateY(-50%)", background: "rgba(80,40,0,0.9)", border: "1px solid rgba(255,160,50,0.5)", cursor: "pointer" }}
                             >
