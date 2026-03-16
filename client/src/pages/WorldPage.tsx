@@ -1077,6 +1077,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                           <>
                             <button
                               data-testid={`button-edit-location-${loc.id}`}
+                              onPointerDown={(e) => e.stopPropagation()}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setEditingLocation(loc);
@@ -1095,6 +1096,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                             </button>
                             <button
                               data-testid={`button-flip-location-${loc.id}`}
+                              onPointerDown={(e) => e.stopPropagation()}
                               onClick={(e) => { e.stopPropagation(); flipMutation.mutate(loc.id); }}
                               className="absolute -bottom-5 -right-5 z-30 w-10 h-10 rounded-full flex items-center justify-center"
                               style={{ background: "rgba(0,80,180,0.95)", border: "2px solid rgba(100,180,255,0.7)", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}
@@ -1103,6 +1105,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                             </button>
                             <button
                               data-testid={`button-delete-location-${loc.id}`}
+                              onPointerDown={(e) => e.stopPropagation()}
                               onClick={(e) => { e.stopPropagation(); if (confirm(`Delete "${loc.name}"?`)) { deleteLocationMutation.mutate(loc.id); } }}
                               className="absolute -top-5 -left-5 z-30 w-10 h-10 rounded-full flex items-center justify-center"
                               style={{ background: "rgba(220,38,38,0.95)", border: "2px solid rgba(255,100,100,0.7)", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}
@@ -1111,6 +1114,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                             </button>
                             <button
                               data-testid={`button-size-down-location-${loc.id}`}
+                              onPointerDown={(e) => e.stopPropagation()}
                               onClick={(e) => { e.stopPropagation(); const next = Math.max(64, (loc.iconSize || 300) - 10); iconSizeMutation.mutate({ locationId: loc.id, iconSize: next }); }}
                               className="absolute -bottom-5 -left-5 z-30 w-10 h-10 rounded-full flex items-center justify-center"
                               style={{ background: "rgba(80,40,0,0.95)", border: "2px solid rgba(255,160,50,0.7)", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}
@@ -1125,6 +1129,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                             </div>
                             <button
                               data-testid={`button-size-up-location-${loc.id}`}
+                              onPointerDown={(e) => e.stopPropagation()}
                               onClick={(e) => { e.stopPropagation(); const next = Math.min(500, (loc.iconSize || 300) + 10); iconSizeMutation.mutate({ locationId: loc.id, iconSize: next }); }}
                               className="absolute top-1/2 -right-5 z-30 w-10 h-10 rounded-full flex items-center justify-center"
                               style={{ transform: "translateY(-50%)", background: "rgba(80,40,0,0.95)", border: "2px solid rgba(255,160,50,0.7)", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}

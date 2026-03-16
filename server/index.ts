@@ -292,6 +292,14 @@ app.use((req, res, next) => {
       await storage.updateWorldLocation(THICKET_ID, { type: "battle" } as any);
       console.log("Thicket type set to battle.");
     }
+    // Always refresh Thicket icon from file so trimmed version is used
+    if (thicketLoc) {
+      const thicketIcon = loadAssetBase64("icon_thicket.png");
+      if (thicketIcon) {
+        await storage.updateWorldLocation(THICKET_ID, { iconUrl: thicketIcon } as any);
+        console.log("Thicket icon refreshed.");
+      }
+    }
 
     const SHOP_ID = "97ff55d1-376b-466a-8fe9-992b09dbaacc";
     const shopLoc = swampLocations.find(l => l.id === SHOP_ID);
@@ -305,11 +313,16 @@ app.use((req, res, next) => {
       } as any);
       console.log("Mire Bazaar migration complete");
     }
-    // Always refresh Mire Bazaar background from asset
+    // Always refresh Mire Bazaar background and icon from assets
     const mireBazaarBg = loadAssetBase64("bg_mire_bazaar.png");
     if (mireBazaarBg) {
       await storage.updateWorldLocation(SHOP_ID, { bgUrl: mireBazaarBg } as any);
       console.log("Mire Bazaar background refreshed.");
+    }
+    const mireBazaarIcon = loadAssetBase64("icon_mire_bazaar.png");
+    if (mireBazaarIcon) {
+      await storage.updateWorldLocation(SHOP_ID, { iconUrl: mireBazaarIcon } as any);
+      console.log("Mire Bazaar icon refreshed.");
     }
 
     const NEW_SWAMP_LOCATIONS = [
