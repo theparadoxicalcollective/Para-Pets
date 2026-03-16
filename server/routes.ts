@@ -1548,6 +1548,81 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/world/:worldId/decor/items", async (req, res) => {
+    try {
+      const items = await storage.getWorldDecorItems(req.params.worldId);
+      return res.json(items);
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to get decor items" });
+    }
+  });
+
+  app.post("/api/admin/world/:worldId/decor/items", isAdmin, async (req, res) => {
+    try {
+      const { name, imageUrl } = req.body;
+      if (!name || !imageUrl) return res.status(400).json({ message: "name and imageUrl required" });
+      const item = await storage.createWorldDecorItem({ worldId: req.params.worldId, name, imageUrl });
+      return res.status(201).json(item);
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to create decor item" });
+    }
+  });
+
+  app.delete("/api/admin/world/decor/items/:itemId", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteWorldDecorItem(req.params.itemId);
+      return res.json({ ok: true });
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to delete decor item" });
+    }
+  });
+
+  app.get("/api/world/:worldId/decor/placements", async (req, res) => {
+    try {
+      const placements = await storage.getWorldDecorPlacements(req.params.worldId);
+      return res.json(placements);
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to get decor placements" });
+    }
+  });
+
+  app.post("/api/admin/world/:worldId/decor/placements", isAdmin, async (req, res) => {
+    try {
+      const { decorItemId, name, imageUrl, posX, posY } = req.body;
+      if (!decorItemId || !name || !imageUrl) return res.status(400).json({ message: "decorItemId, name, imageUrl required" });
+      const placement = await storage.createWorldDecorPlacement({
+        worldId: req.params.worldId,
+        decorItemId,
+        name,
+        imageUrl,
+        posX: posX ?? 45,
+        posY: posY ?? 45,
+      });
+      return res.status(201).json(placement);
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to create decor placement" });
+    }
+  });
+
+  app.patch("/api/admin/world/decor/placements/:placementId", isAdmin, async (req, res) => {
+    try {
+      const { posX, posY } = req.body;
+      const placement = await storage.updateWorldDecorPlacement(req.params.placementId, { posX, posY });
+      return res.json(placement);
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to update decor placement" });
+    }
+  });
+
+  app.delete("/api/admin/world/decor/placements/:placementId", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteWorldDecorPlacement(req.params.placementId);
+      return res.json({ ok: true });
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to delete decor placement" });
+    }
+  });
+
   app.post("/api/admin/world/:worldId/fishing-spot", isAdmin, async (req, res) => {
     try {
       const assetPath = path.join(process.cwd(), "attached_assets", "icon_myst_pond_v2.png");

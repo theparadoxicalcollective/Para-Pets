@@ -336,6 +336,26 @@ export const playerMarketListings = pgTable("player_market_listings", {
 
 export type PlayerMarketListing = typeof playerMarketListings.$inferSelect;
 
+export const worldDecorItems = pgTable("world_decor_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  worldId: text("world_id").notNull(),
+  name: text("name").notNull(),
+  imageUrl: text("image_url").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const worldDecorPlacements = pgTable("world_decor_placements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  worldId: text("world_id").notNull(),
+  decorItemId: varchar("decor_item_id").notNull(),
+  name: text("name").notNull(),
+  imageUrl: text("image_url").notNull(),
+  posX: real("pos_x").notNull().default(45),
+  posY: real("pos_y").notNull().default(45),
+  size: integer("size").notNull().default(100),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
 export type CoinPurchase = typeof coinPurchases.$inferSelect;
 export type WorldLocation = typeof worldLocations.$inferSelect;
 export type World = typeof worlds.$inferSelect;
@@ -352,3 +372,5 @@ export type FishTemplatePart = typeof fishTemplateParts.$inferSelect;
 export type PondFish = typeof pondFish.$inferSelect;
 export type PlayerFishInventory = typeof playerFishInventory.$inferSelect;
 export type PlayerFishingEquipment = typeof playerFishingEquipment.$inferSelect;
+export type WorldDecorItem = typeof worldDecorItems.$inferSelect;
+export type WorldDecorPlacement = typeof worldDecorPlacements.$inferSelect;

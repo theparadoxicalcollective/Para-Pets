@@ -23,6 +23,8 @@ import {
   type PondFish, pondFish,
   type PlayerFishInventory, playerFishInventory,
   type PlayerFishingEquipment, playerFishingEquipment,
+  type WorldDecorItem, worldDecorItems,
+  type WorldDecorPlacement, worldDecorPlacements,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, ne, gte, asc, desc, ilike, or } from "drizzle-orm";
@@ -157,6 +159,13 @@ export interface IStorage {
   addFishToPlayerInventory(userId: string, shopItemId: string): Promise<PlayerFishInventory>;
   getPlayerFishingEquipment(userId: string): Promise<PlayerFishingEquipment | null>;
   upsertPlayerFishingEquipment(userId: string, data: { poleInventoryId?: string | null; baitInventoryId?: string | null }): Promise<PlayerFishingEquipment>;
+  getWorldDecorItems(worldId: string): Promise<WorldDecorItem[]>;
+  createWorldDecorItem(data: { worldId: string; name: string; imageUrl: string }): Promise<WorldDecorItem>;
+  deleteWorldDecorItem(id: string): Promise<void>;
+  getWorldDecorPlacements(worldId: string): Promise<WorldDecorPlacement[]>;
+  createWorldDecorPlacement(data: { worldId: string; decorItemId: string; name: string; imageUrl: string; posX: number; posY: number }): Promise<WorldDecorPlacement>;
+  updateWorldDecorPlacement(id: string, data: { posX: number; posY: number }): Promise<WorldDecorPlacement>;
+  deleteWorldDecorPlacement(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -956,6 +965,38 @@ export class DatabaseStorage implements IStorage {
       .values({ userId, poleInventoryId: data.poleInventoryId ?? null, baitInventoryId: data.baitInventoryId ?? null })
       .returning();
     return created;
+  }
+
+  async getWorldDecorItems(worldId: string): Promise<WorldDecorItem[]> {
+    return db.select().from(worldDecorItems).where(eq(worldDecorItems.worldId, worldId)).orderBy(asc(worldDecorItems.createdAt));
+  }
+
+  async createWorldDecorItem(data: { worldId: string; name: string; imageUrl: string }): Promise<WorldDecorItem> {
+    const [item] = await db.insert(worldDecorItems).values(data).returning();
+    return item;
+  }
+
+  async deleteWorldDecorItem(id: string): Promise<void> {
+    await db.delete(worldDecorPlacements).where(eq(worldDecorPlacements.decorItemId, id));
+    await db.delete(worldDecorItems).where(eq(worldDecorItems.id, id));
+  }
+
+  async getWorldDecorPlacements(worldId: string): Promise<WorldDecorPlacement[]> {
+    return db.select().from(worldDecorPlacements).where(eq(worldDecorPlacements.worldId, worldId)).orderBy(asc(worldDecorPlacements.createdAt));
+  }
+
+  async createWorldDecorPlacement(data: { worldId: string; decorItemId: string; name: string; imageUrl: string; posX: number; posY: number }): Promise<WorldDecorPlacement> {
+    const [placement] = await db.insert(worldDecorPlacements).values({ ...data, size: 100 }).returning();
+    return placement;
+  }
+
+  async updateWorldDecorPlacement(id: string, data: { posX: number; posY: number }): Promise<WorldDecorPlacement> {
+    const [placement] = await db.update(worldDecorPlacements).set(data).where(eq(worldDecorPlacements.id, id)).returning();
+    return placement;
+  }
+
+  async deleteWorldDecorPlacement(id: string): Promise<void> {
+    await db.delete(worldDecorPlacements).where(eq(worldDecorPlacements.id, id));
   }
 }
 

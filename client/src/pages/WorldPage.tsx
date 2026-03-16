@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import coinIconImg from "@assets/icon_coin.png";
-import { Plus, Minus, Trash2, X, MapPin, Package, Pencil, Settings, Swords, FlipHorizontal, Copy, Waves } from "lucide-react";
+import { Plus, Minus, Trash2, X, MapPin, Package, Pencil, Settings, Swords, FlipHorizontal, Copy, Waves, Palette, Image } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 import ExploreAdminPanel from "@/components/ExploreAdminPanel";
 import BattleArena from "@/components/BattleArena";
@@ -194,6 +194,15 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [objDragPos, setObjDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
   const objDragRef = useRef<{ objId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const objDidDrag = useRef(false);
+
+  const [showDecorPanel, setShowDecorPanel] = useState(false);
+  const [showAddDecorForm, setShowAddDecorForm] = useState(false);
+  const [newDecorName, setNewDecorName] = useState("");
+  const [newDecorImage, setNewDecorImage] = useState<string | null>(null);
+  const [pendingDecorPlacement, setPendingDecorPlacement] = useState<{ id: string; worldId: string; name: string; imageUrl: string; createdAt: Date } | null>(null);
+  const [decorDragPos, setDecorDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
+  const decorDragRef = useRef<{ placementId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
+  const decorDidDrag = useRef(false);
   const locViewRef = useRef<HTMLDivElement>(null);
 
   const [selectedShopItem, setSelectedShopItem] = useState<ShopItem | null>(null);
@@ -378,6 +387,79 @@ export default function WorldPage({ user }: WorldPageProps) {
     onError: () => {
       toast({ title: "Error", description: "Failed to add fishing spot", variant: "destructive" });
     },
+  });
+
+  const { data: decorItems = [] } = useQuery<{ id: string; worldId: string; name: string; imageUrl: string; createdAt: string }[]>({
+    queryKey: ["/api/world", worldId, "decor", "items"],
+    queryFn: async () => {
+      const res = await fetch(`/api/world/${worldId}/decor/items`, { credentials: "include" });
+      return res.json();
+    },
+    enabled: !!worldId,
+  });
+
+  const { data: decorPlacements = [] } = useQuery<{ id: string; worldId: string; decorItemId: string; name: string; imageUrl: string; posX: number; posY: number; size: number; createdAt: string }[]>({
+    queryKey: ["/api/world", worldId, "decor", "placements"],
+    queryFn: async () => {
+      const res = await fetch(`/api/world/${worldId}/decor/placements`, { credentials: "include" });
+      return res.json();
+    },
+    enabled: !!worldId,
+  });
+
+  const addDecorItemMutation = useMutation({
+    mutationFn: async (data: { name: string; imageUrl: string }) => {
+      const res = await apiRequest("POST", `/api/admin/world/${worldId}/decor/items`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "decor", "items"] });
+      setShowAddDecorForm(false);
+      setNewDecorName("");
+      setNewDecorImage(null);
+      toast({ title: "Decor Added" });
+    },
+    onError: () => toast({ title: "Error", description: "Failed to add decor", variant: "destructive" }),
+  });
+
+  const deleteDecorItemMutation = useMutation({
+    mutationFn: async (itemId: string) => {
+      await apiRequest("DELETE", `/api/admin/world/decor/items/${itemId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "decor", "items"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "decor", "placements"] });
+    },
+  });
+
+  const addDecorPlacementMutation = useMutation({
+    mutationFn: async (data: { item: { id: string; name: string; imageUrl: string }; posX: number; posY: number }) => {
+      const res = await apiRequest("POST", `/api/admin/world/${worldId}/decor/placements`, {
+        decorItemId: data.item.id,
+        name: data.item.name,
+        imageUrl: data.item.imageUrl,
+        posX: data.posX,
+        posY: data.posY,
+      });
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "decor", "placements"] }),
+    onError: () => toast({ title: "Error", description: "Failed to place decor", variant: "destructive" }),
+  });
+
+  const moveDecorPlacementMutation = useMutation({
+    mutationFn: async ({ id, posX, posY }: { id: string; posX: number; posY: number }) => {
+      const res = await apiRequest("PATCH", `/api/admin/world/decor/placements/${id}`, { posX, posY });
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "decor", "placements"] }),
+  });
+
+  const deleteDecorPlacementMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/admin/world/decor/placements/${id}`);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "decor", "placements"] }),
   });
 
   const assignItemMutation = useMutation({
@@ -882,6 +964,46 @@ export default function WorldPage({ user }: WorldPageProps) {
     }
     setObjDragPos(null);
   }, [objDragPos, objPositionMutation]);
+
+  const handleDecorPointerDown = useCallback((e: React.PointerEvent, placement: { id: string; posX: number; posY: number }) => {
+    if (!currentUser.isAdmin) return;
+    e.preventDefault();
+    e.stopPropagation();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    decorDidDrag.current = false;
+    decorDragRef.current = {
+      placementId: placement.id,
+      startX: e.clientX,
+      startY: e.clientY,
+      origPosX: placement.posX,
+      origPosY: placement.posY,
+    };
+  }, [currentUser.isAdmin]);
+
+  const handleDecorPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!decorDragRef.current || !areaRef.current) return;
+    e.preventDefault();
+    const rect = areaRef.current.getBoundingClientRect();
+    const dx = e.clientX - decorDragRef.current.startX;
+    const dy = e.clientY - decorDragRef.current.startY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) decorDidDrag.current = true;
+    const pxPerPercX = rect.width / 100;
+    const pxPerPercY = rect.height / 100;
+    const newX = Math.max(0, Math.min(100, decorDragRef.current.origPosX + dx / pxPerPercX));
+    const newY = Math.max(0, Math.min(100, decorDragRef.current.origPosY + dy / pxPerPercY));
+    setDecorDragPos({ id: decorDragRef.current.placementId, x: newX, y: newY });
+  }, []);
+
+  const handleDecorPointerUp = useCallback(() => {
+    if (!decorDragRef.current) return;
+    const d = decorDragRef.current;
+    decorDragRef.current = null;
+    if (decorDidDrag.current && decorDragPos) {
+      moveDecorPlacementMutation.mutate({ id: d.placementId, posX: decorDragPos.x, posY: decorDragPos.y });
+    }
+    decorDidDrag.current = false;
+    setDecorDragPos(null);
+  }, [decorDragPos, moveDecorPlacementMutation]);
 
   const handleShopItemPointerDown = useCallback((e: React.PointerEvent, item: ShopItem) => {
     if (!currentUser.isAdmin) return;
