@@ -304,25 +304,26 @@ app.use((req, res, next) => {
     const SHOP_ID = "97ff55d1-376b-466a-8fe9-992b09dbaacc";
     const shopLoc = swampLocations.find(l => l.id === SHOP_ID);
     if (shopLoc && shopLoc.name === "Shop Test") {
-      console.log("Migrating Shop Test -> Mire Bazaar...");
+      console.log("Migrating Shop Test -> General Shop...");
       const shopIcon = loadAssetBase64("icon_mire_bazaar.png");
       await storage.updateWorldLocation(SHOP_ID, {
-        name: "Mire Bazaar",
+        name: "General Shop",
         description: "A rickety potion shop perched on stilts above the murky swamp waters.",
         ...(shopIcon ? { iconUrl: shopIcon } : {}),
       } as any);
-      console.log("Mire Bazaar migration complete");
+      console.log("General Shop migration complete");
     }
-    // Always refresh Mire Bazaar background and icon from assets
+    // Always refresh General Shop name, background and icon from assets
+    await storage.updateWorldLocation(SHOP_ID, { name: "General Shop" } as any);
     const mireBazaarBg = loadAssetBase64("bg_mire_bazaar.png");
     if (mireBazaarBg) {
       await storage.updateWorldLocation(SHOP_ID, { bgUrl: mireBazaarBg } as any);
-      console.log("Mire Bazaar background refreshed.");
+      console.log("General Shop background refreshed.");
     }
     const mireBazaarIcon = loadAssetBase64("icon_mire_bazaar.png");
     if (mireBazaarIcon) {
       await storage.updateWorldLocation(SHOP_ID, { iconUrl: mireBazaarIcon, iconSize: 350 } as any);
-      console.log("Mire Bazaar icon refreshed.");
+      console.log("General Shop icon refreshed.");
     }
 
     const NEW_SWAMP_LOCATIONS = [
