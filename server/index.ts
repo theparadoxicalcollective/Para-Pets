@@ -202,7 +202,7 @@ app.use((req, res, next) => {
     { id: "island", name: "Lost Island", posX: 3, posY: 38, glowColor: "#20b2aa" },
     { id: "volcanic", name: "Volcanic Isle", posX: 56, posY: 40, glowColor: "#ff4500" },
     { id: "desert", name: "Scorched Desert", posX: 25, posY: 54, glowColor: "#daa520" },
-    { id: "swamp", name: "Elysian Swamplands", posX: 62, posY: 62, glowColor: "#9370db" },
+    { id: "swamp", name: "Elysian Bayou", posX: 62, posY: 62, glowColor: "#9370db" },
     { id: "haunted_woods", name: "Haunted Woods", posX: 15, posY: 74, glowColor: "#8b008b" },
   ];
   for (const w of DEFAULT_WORLDS) {
