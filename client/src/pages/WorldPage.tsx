@@ -1111,9 +1111,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                             className="w-full h-full object-contain relative z-10"
                             draggable={false}
                             style={{
-                              filter: selectedLocId === loc.id
-                                ? "drop-shadow(0 0 4px rgba(255,220,40,0.9)) drop-shadow(0 0 8px rgba(255,200,0,0.6))"
-                                : `drop-shadow(0 0 2px ${glow}cc) drop-shadow(0 0 6px ${glow}66) drop-shadow(0 3px 6px rgba(0,0,0,0.5))`,
+                              filter: "drop-shadow(0 3px 6px rgba(0,0,0,0.5))",
                               transform: loc.flipped ? "scaleX(-1)" : undefined,
                               transition: "filter 0.15s ease, transform 0.15s ease",
                             }}
@@ -1374,21 +1372,6 @@ export default function WorldPage({ user }: WorldPageProps) {
                 />
               </div>
 
-              <div>
-                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>Glow Color (optional)</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    data-testid="input-location-glow-color"
-                    type="color"
-                    value={newLocGlowColor || accent}
-                    onChange={(e) => setNewLocGlowColor(e.target.value)}
-                    className="w-10 h-8 rounded border-0 cursor-pointer"
-                    style={{ background: "transparent" }}
-                  />
-                  <span className="font-fantasy text-[10px]" style={{ color: `${accent}88` }}>{newLocGlowColor || "Default (world accent)"}</span>
-                </div>
-              </div>
-
               <button
                 data-testid="button-submit-add-location"
                 onClick={() => {
@@ -1543,30 +1526,6 @@ export default function WorldPage({ user }: WorldPageProps) {
                     <img src={editLocOwner} alt="Preview" className="w-14 h-14 object-contain rounded-lg" style={{ border: `1px solid ${accent}30` }} />
                   </div>
                 )}
-              </div>
-
-              <div>
-                <label className="font-fantasy text-[10px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>Glow Color</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    data-testid="input-edit-location-glow-color"
-                    type="color"
-                    value={editLocGlowColor || accent}
-                    onChange={(e) => setEditLocGlowColor(e.target.value)}
-                    className="w-10 h-8 rounded border-0 cursor-pointer"
-                    style={{ background: "transparent" }}
-                  />
-                  <span className="font-fantasy text-[10px]" style={{ color: `${accent}88` }}>{editLocGlowColor || "Default (world accent)"}</span>
-                  {editLocGlowColor && (
-                    <button
-                      onClick={() => setEditLocGlowColor("")}
-                      className="font-fantasy text-[9px] px-2 py-0.5 rounded"
-                      style={{ background: `${accent}20`, color: accent, cursor: "pointer" }}
-                    >
-                      Reset
-                    </button>
-                  )}
-                </div>
               </div>
 
               <button
