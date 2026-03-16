@@ -128,8 +128,8 @@ interface WorldApiData {
   isDefault: boolean;
 }
 
-const MAP_W = 3240;
-const MAP_H = 5760;
+const MAP_W = 1080;
+const MAP_H = 1920;
 
 export default function WorldPage({ user }: WorldPageProps) {
   const params = useParams<{ worldId: string }>();
