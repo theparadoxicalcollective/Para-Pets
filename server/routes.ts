@@ -1548,6 +1548,35 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/admin/world/:worldId/fishing-spot", isAdmin, async (req, res) => {
+    try {
+      const assetPath = path.join(process.cwd(), "attached_assets", "icon_myst_pond_v2.png");
+      let iconUrl: string | null = null;
+      if (fs.existsSync(assetPath)) {
+        const buf = fs.readFileSync(assetPath);
+        iconUrl = `data:image/png;base64,${buf.toString("base64")}`;
+      }
+      const loc = await storage.createWorldLocation({
+        worldId: req.params.worldId,
+        name: "Fishing Spot",
+        type: "fishing",
+        iconUrl,
+        bgUrl: null,
+        ownerImageUrl: null,
+        isShop: false,
+        description: "A mystical fishing spot in the bayou.",
+        glowColor: "#3dc7c0",
+        posX: 45,
+        posY: 45,
+        sortOrder: 0,
+      });
+      return res.status(201).json(loc);
+    } catch (err) {
+      console.error("Create fishing spot error:", err);
+      return res.status(500).json({ message: "Failed to create fishing spot" });
+    }
+  });
+
   app.post("/api/admin/world/location/:locationId/duplicate", isAdmin, async (req, res) => {
     try {
       const orig = await storage.getWorldLocation(req.params.locationId);

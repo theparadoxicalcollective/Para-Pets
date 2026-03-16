@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import coinIconImg from "@assets/icon_coin.png";
-import { Plus, Minus, Trash2, X, MapPin, Package, Pencil, Settings, Swords, FlipHorizontal, Copy } from "lucide-react";
+import { Plus, Minus, Trash2, X, MapPin, Package, Pencil, Settings, Swords, FlipHorizontal, Copy, Waves } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 import ExploreAdminPanel from "@/components/ExploreAdminPanel";
 import BattleArena from "@/components/BattleArena";
@@ -363,6 +363,20 @@ export default function WorldPage({ user }: WorldPageProps) {
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to add place", variant: "destructive" });
+    },
+  });
+
+  const addFishingSpotMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/admin/world/${worldId}/fishing-spot`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "locations"] });
+      toast({ title: "Fishing Spot Added", description: "Drag it to where you want it on the map" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to add fishing spot", variant: "destructive" });
     },
   });
 
@@ -1265,21 +1279,38 @@ export default function WorldPage({ user }: WorldPageProps) {
       </button>
 
       {currentUser.isAdmin && (
-        <button
-          data-testid="button-add-location"
-          onClick={() => setShowAddLocation(true)}
-          className="fixed z-30 w-14 h-14 rounded-full flex items-center justify-center transition-transform active:scale-90"
-          style={{
-            bottom: "16px",
-            right: "max(16px, calc((100vw - 768px) / 2 + 16px))",
-            background: `linear-gradient(135deg, ${accent}cc 0%, ${accent}88 100%)`,
-            border: `2px solid ${accent}`,
-            boxShadow: `0 4px 25px ${accent}60, 0 0 40px ${accent}35`,
-            cursor: "pointer",
-          }}
+        <div className="fixed z-30 flex items-center gap-2"
+          style={{ bottom: "16px", right: "max(16px, calc((100vw - 768px) / 2 + 16px))" }}
         >
-          <Plus className="w-7 h-7 text-black" />
-        </button>
+          <button
+            data-testid="button-add-fishing-spot"
+            onClick={() => addFishingSpotMutation.mutate()}
+            disabled={addFishingSpotMutation.isPending}
+            className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
+            style={{
+              background: "linear-gradient(135deg, #3dc7c0cc 0%, #3dc7c088 100%)",
+              border: "2px solid #3dc7c0",
+              boxShadow: "0 4px 20px #3dc7c060, 0 0 30px #3dc7c035",
+              cursor: "pointer",
+            }}
+            title="Add fishing spot"
+          >
+            <Waves className="w-4 h-4 text-black" />
+          </button>
+          <button
+            data-testid="button-add-location"
+            onClick={() => setShowAddLocation(true)}
+            className="w-14 h-14 rounded-full flex items-center justify-center transition-transform active:scale-90"
+            style={{
+              background: `linear-gradient(135deg, ${accent}cc 0%, ${accent}88 100%)`,
+              border: `2px solid ${accent}`,
+              boxShadow: `0 4px 25px ${accent}60, 0 0 40px ${accent}35`,
+              cursor: "pointer",
+            }}
+          >
+            <Plus className="w-7 h-7 text-black" />
+          </button>
+        </div>
       )}
 
       {showAddLocation && (
@@ -1370,7 +1401,6 @@ export default function WorldPage({ user }: WorldPageProps) {
                   <option value="shop">Shop</option>
                   <option value="garden">Garden</option>
                   <option value="quest">Quest</option>
-                  <option value="fishing">Fishing</option>
                   <option value="explore">Explore</option>
                 </select>
               </div>
@@ -1513,7 +1543,6 @@ export default function WorldPage({ user }: WorldPageProps) {
                   <option value="shop">Shop</option>
                   <option value="garden">Garden</option>
                   <option value="quest">Quest</option>
-                  <option value="fishing">Fishing</option>
                   <option value="explore">Explore</option>
                 </select>
               </div>
