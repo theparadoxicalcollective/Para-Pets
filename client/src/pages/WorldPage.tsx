@@ -778,6 +778,7 @@ export default function WorldPage({ user }: WorldPageProps) {
       setTopLocId(d.locId);
       positionMutation.mutate({ locationId: d.locId, posX: dragPos.x, posY: dragPos.y });
     }
+    didDrag.current = false;
     setDragPos(null);
   }, [dragPos, positionMutation]);
 
@@ -1029,7 +1030,7 @@ export default function WorldPage({ user }: WorldPageProps) {
             }}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
-            onPointerCancel={() => { dragRef.current = null; setDragPos(null); }}
+            onPointerCancel={() => { dragRef.current = null; didDrag.current = false; setDragPos(null); }}
             onClick={() => { if (currentUser.isAdmin) { if (adminLocTapRef.current) { clearTimeout(adminLocTapRef.current.timer); adminLocTapRef.current = null; } setSelectedLocId(null); } }}
           >
             <div className="absolute inset-0 pointer-events-none" style={{
