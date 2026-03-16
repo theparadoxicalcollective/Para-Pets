@@ -738,8 +738,8 @@ export default function WorldPage({ user }: WorldPageProps) {
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDrag.current = true;
     const pxPerPercX = rect.width / 100;
     const pxPerPercY = rect.height / 100;
-    const newX = Math.max(0, Math.min(95, dragRef.current.origPosX + dx / pxPerPercX));
-    const newY = Math.max(0, Math.min(90, dragRef.current.origPosY + dy / pxPerPercY));
+    const newX = Math.max(-10, Math.min(110, dragRef.current.origPosX + dx / pxPerPercX));
+    const newY = Math.max(-10, Math.min(110, dragRef.current.origPosY + dy / pxPerPercY));
     setDragPos({ id: dragRef.current.locId, x: newX, y: newY });
   }, []);
 
@@ -826,8 +826,8 @@ export default function WorldPage({ user }: WorldPageProps) {
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) objDidDrag.current = true;
     const pxPerPercX = rect.width / 100;
     const pxPerPercY = rect.height / 100;
-    const newX = Math.max(0, Math.min(95, objDragRef.current.origPosX + dx / pxPerPercX));
-    const newY = Math.max(0, Math.min(95, objDragRef.current.origPosY + dy / pxPerPercY));
+    const newX = Math.max(-10, Math.min(110, objDragRef.current.origPosX + dx / pxPerPercX));
+    const newY = Math.max(-10, Math.min(110, objDragRef.current.origPosY + dy / pxPerPercY));
     setObjDragPos({ id: objDragRef.current.objId, x: newX, y: newY });
   }, []);
 

@@ -1318,7 +1318,7 @@ export async function registerRoutes(
       if (typeof posX !== "number" || typeof posY !== "number") {
         return res.status(400).json({ message: "posX and posY are required numbers" });
       }
-      const clamped = { posX: Math.max(0, Math.min(85, Math.round(posX))), posY: Math.max(0, Math.min(90, Math.round(posY))) };
+      const clamped = { posX: Math.max(-10, Math.min(110, Math.round(posX))), posY: Math.max(-10, Math.min(110, Math.round(posY))) };
       const updated = await storage.updateWorldPosition(req.params.worldId, clamped.posX, clamped.posY);
       return res.json(updated);
     } catch (err) {
@@ -1624,8 +1624,8 @@ export async function registerRoutes(
         return res.status(400).json({ message: "posX and posY are required numbers" });
       }
       const updated = await storage.updateWorldLocation(req.params.locationId, {
-        posX: Math.max(0, Math.min(95, posX)),
-        posY: Math.max(0, Math.min(90, posY)),
+        posX: Math.max(-10, Math.min(110, posX)),
+        posY: Math.max(-10, Math.min(110, posY)),
       });
       return res.json(updated);
     } catch (err) {
