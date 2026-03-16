@@ -1115,6 +1115,10 @@ export default function WorldPage({ user }: WorldPageProps) {
                     >
                       <div className="relative w-full" style={{ aspectRatio: "1" }}>
                         {loc.iconUrl ? (
+                          <div
+                            className="w-full h-full"
+                            style={loc.type === "fishing" ? { animation: "float 3.5s ease-in-out infinite" } : undefined}
+                          >
                           <img
                             src={loc.iconUrl}
                             alt={loc.name}
@@ -1126,6 +1130,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                               transition: "filter 0.15s ease, transform 0.15s ease",
                             }}
                           />
+                          </div>
                         ) : (
                           <div
                             className="w-full h-full rounded-full flex items-center justify-center relative z-10"
