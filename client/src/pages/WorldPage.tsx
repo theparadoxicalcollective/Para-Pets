@@ -1102,25 +1102,25 @@ export default function WorldPage({ user }: WorldPageProps) {
                             </button>
                             <button
                               data-testid={`button-size-down-location-${loc.id}`}
-                              onClick={(e) => { e.stopPropagation(); const next = Math.max(64, (loc.iconSize || 300) - 5); iconSizeMutation.mutate({ locationId: loc.id, iconSize: next }); }}
-                              className="absolute -bottom-1 -left-1 z-30 w-5 h-5 rounded-full flex items-center justify-center"
-                              style={{ background: "rgba(80,40,0,0.9)", border: "1px solid rgba(255,160,50,0.5)", cursor: "pointer" }}
+                              onClick={(e) => { e.stopPropagation(); const next = Math.max(64, (loc.iconSize || 300) - 10); iconSizeMutation.mutate({ locationId: loc.id, iconSize: next }); }}
+                              className="absolute -bottom-5 -left-5 z-30 w-10 h-10 rounded-full flex items-center justify-center"
+                              style={{ background: "rgba(80,40,0,0.95)", border: "2px solid rgba(255,160,50,0.7)", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}
                             >
-                              <Minus className="w-2.5 h-2.5 text-white" />
+                              <Minus className="w-5 h-5 text-white" />
                             </button>
                             <div
                               className="absolute z-30 flex items-center justify-center"
-                              style={{ bottom: "-18px", left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.75)", border: "1px solid rgba(255,200,50,0.4)", borderRadius: "4px", padding: "0 4px", pointerEvents: "none" }}
+                              style={{ bottom: "-28px", left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.85)", border: "1px solid rgba(255,200,50,0.5)", borderRadius: "6px", padding: "2px 8px", pointerEvents: "none" }}
                             >
-                              <span className="font-fantasy text-[9px] text-yellow-300">{loc.iconSize || 300}px</span>
+                              <span className="font-fantasy text-xs text-yellow-300">{loc.iconSize || 300}px</span>
                             </div>
                             <button
                               data-testid={`button-size-up-location-${loc.id}`}
-                              onClick={(e) => { e.stopPropagation(); const next = Math.min(500, (loc.iconSize || 300) + 5); iconSizeMutation.mutate({ locationId: loc.id, iconSize: next }); }}
-                              className="absolute top-1/2 -right-6 z-30 w-5 h-5 rounded-full flex items-center justify-center"
-                              style={{ transform: "translateY(-50%)", background: "rgba(80,40,0,0.9)", border: "1px solid rgba(255,160,50,0.5)", cursor: "pointer" }}
+                              onClick={(e) => { e.stopPropagation(); const next = Math.min(500, (loc.iconSize || 300) + 10); iconSizeMutation.mutate({ locationId: loc.id, iconSize: next }); }}
+                              className="absolute top-1/2 -right-5 z-30 w-10 h-10 rounded-full flex items-center justify-center"
+                              style={{ transform: "translateY(-50%)", background: "rgba(80,40,0,0.95)", border: "2px solid rgba(255,160,50,0.7)", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}
                             >
-                              <Plus className="w-2.5 h-2.5 text-white" />
+                              <Plus className="w-5 h-5 text-white" />
                             </button>
                           </>
                         )}
