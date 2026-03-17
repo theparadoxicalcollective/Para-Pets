@@ -704,7 +704,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       <div className="absolute inset-0 z-10 pointer-events-none">
         {phase === "waiting" && (
           <div className="absolute" style={{
-            bottom: "28%", left: "50%", transform: "translate(-50%, 0)",
+            bottom: "20%", left: "50%", transform: "translate(-50%, 0)",
             width: 28, height: 28,
             borderRadius: "50%",
             border: `2px solid ${ACCENT}60`,
@@ -722,7 +722,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           preserveAspectRatio="none"
         >
           <path
-            d="M 31 51 Q 41 65 50 72"
+            d="M 31 51 Q 41 68 50 80"
             fill="none"
             stroke="rgba(255,255,255,0.85)"
             strokeWidth="0.2"
@@ -734,13 +734,13 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       {/* Bobber — waiting phase: gentle float (z-15, in front of line) */}
       {phase === "waiting" && (
         <div className="absolute pointer-events-none z-[15]" style={{
-          bottom: "28%", left: "50%",
+          bottom: "20%", left: "50%",
           animation: "bobFloat 1.2s ease-in-out infinite",
           transform: "translate(-50%, 0)",
           background: "transparent",
         }}>
           <img src={bobberIcon} alt="" style={{
-            width: 34, height: 34,
+            width: 44, height: 44,
             display: "block",
             background: "transparent",
             filter: "drop-shadow(0 0 6px rgba(94,234,212,0.7))",
@@ -750,7 +750,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
 
       {/* Bobber — nibble phase: aggressive dip with ripples (z-15, in front of line) */}
       {phase === "nibble" && (
-        <div className="absolute pointer-events-none z-[15]" style={{ bottom: "28%", left: "50%", background: "transparent" }}>
+        <div className="absolute pointer-events-none z-[15]" style={{ bottom: "20%", left: "50%", background: "transparent" }}>
           {/* Expanding ripple rings */}
           <div style={{
             position: "absolute", width: 20, height: 10,
@@ -768,7 +768,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           }} />
           {/* Bobber dipping */}
           <img src={bobberIcon} alt="" style={{
-            width: 34, height: 34,
+            width: 44, height: 44,
             display: "block",
             background: "transparent",
             transform: "translate(-50%, 0)",
