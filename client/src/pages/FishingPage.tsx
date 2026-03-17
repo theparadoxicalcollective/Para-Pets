@@ -1068,10 +1068,10 @@ function EquipPanel({
                     <button
                       data-testid={`button-delete-broken-pole-${item.inventoryId}`}
                       onClick={(e) => { e.stopPropagation(); onDeleteItem(item.inventoryId); }}
-                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center transition-transform active:scale-90"
-                      style={{ background: "rgba(180,20,20,0.9)", border: "1.5px solid rgba(255,80,80,0.6)", cursor: "pointer", zIndex: 10 }}
+                      className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                      style={{ background: "rgba(200,30,30,0.95)", border: "2px solid rgba(255,100,100,0.8)", cursor: "pointer", zIndex: 10, boxShadow: "0 0 6px rgba(200,30,30,0.5)" }}
                     >
-                      <Trash2 className="w-2.5 h-2.5" style={{ color: "#fca5a5" }} />
+                      <X className="w-3.5 h-3.5" style={{ color: "#fff" }} />
                     </button>
                   )}
                 </div>
