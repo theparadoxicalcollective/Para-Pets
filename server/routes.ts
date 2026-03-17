@@ -3030,8 +3030,12 @@ export async function registerRoutes(
         await storage.decrementPoleUses(equipment.poleInventoryId);
       }
 
-      const catchChance = 0.4 + (score / 100) * 0.5;
-      if (Math.random() > catchChance) return res.json({ caught: null, reason: "miss" });
+      // If the player completed the reel mini-game (score 100) they always catch.
+      // For any other path (legacy / future use) apply a partial chance.
+      if (score < 100) {
+        const catchChance = 0.4 + (score / 100) * 0.5;
+        if (Math.random() > catchChance) return res.json({ caught: null, reason: "miss" });
+      }
 
       const baseWeights: Record<number, number> = { 1: 60, 2: 25, 3: 10, 4: 4, 5: 1 };
       const fishPool = pondEntries.map(entry => {

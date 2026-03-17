@@ -350,10 +350,10 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
 
     // Per-rarity tuning — each star level is meaningfully harder
     //                         1★     2★     3★     4★     5★
-    const speedByRarity   = [0.003, 0.005, 0.009, 0.014, 0.020];
-    const fillByRarity    = [0.007, 0.005, 0.004, 0.0032, 0.0025];
-    const drainByRarity   = [0.005, 0.009, 0.012, 0.016, 0.021];
-    const zoneByRarity    = [0.22,  0.18,  0.155, 0.13,  0.11];
+    const speedByRarity   = [0.003, 0.005, 0.008, 0.012, 0.017];
+    const fillByRarity    = [0.009, 0.007, 0.006, 0.005, 0.004];
+    const drainByRarity   = [0.004, 0.007, 0.010, 0.013, 0.017];
+    const zoneByRarity    = [0.26,  0.22,  0.19,  0.16,  0.14];
 
     const baseSpeed  = speedByRarity[rarity - 1];
     const fillRate   = fillByRarity[rarity - 1];
@@ -369,7 +369,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     let surging = false;
     let surgeTimer = 0;
     let dirChangeTimer = 30;
-    let graceFrames = 55; // ~0.9s before the meter can reach 0 and fail
+    let graceFrames = 80; // ~1.3s before the meter can reach 0 and fail
 
     // Set ref directly so the first RAF tick sees "reeling" before the useEffect updates it
     phaseRef.current = "reeling";
@@ -405,8 +405,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       if (surging && surgeTimer <= 0) surging = false;
 
       // Catch zone physics: each tap gives an upward impulse, gravity pulls it back down
-      const GRAVITY = 0.003;
-      catchZoneVelRef.current = Math.max(catchZoneVelRef.current - GRAVITY, -0.022);
+      const GRAVITY = 0.0022;
+      catchZoneVelRef.current = Math.max(catchZoneVelRef.current - GRAVITY, -0.018);
       catchZonePos = Math.max(0, Math.min(1 - czSize, catchZonePos - catchZoneVelRef.current));
 
       // Overlap detection
@@ -739,7 +739,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           isOverlap={reelBarState.isOverlap}
           isSurging={reelBarState.isSurging}
           catchZoneSize={reelBarState.catchZoneSize}
-          onTap={() => { catchZoneVelRef.current = 0.021; }}
+          onTap={() => { catchZoneVelRef.current = 0.028; }}
         />
       )}
 
