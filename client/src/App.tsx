@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { playClick } from "@/lib/sounds";
+import { playClick, unlockAudio } from "@/lib/sounds";
 import AuthPage from "@/pages/AuthPage";
 import HomePage from "@/pages/HomePage";
 import MapPage from "@/pages/MapPage";
@@ -83,13 +83,24 @@ function AppRouter() {
 
 function App() {
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
+    let unlocked = false;
+
+    const handler = (e: PointerEvent) => {
+      // Unlock the AudioContext on the very first user gesture (required by
+      // browsers / iOS Safari before any sound can play).
+      if (!unlocked) {
+        unlocked = true;
+        unlockAudio();
+      }
       const target = e.target as Element;
       const interactive = target.closest('button, [role="button"], [data-testid^="button-"]');
       if (interactive) playClick();
     };
-    document.addEventListener("click", handler, true);
-    return () => document.removeEventListener("click", handler, true);
+
+    // pointerdown fires immediately on both mouse-press and touch-tap with no
+    // 300 ms mobile delay and no double-fire, replacing the previous click listener.
+    document.addEventListener("pointerdown", handler, true);
+    return () => document.removeEventListener("pointerdown", handler, true);
   }, []);
 
   return (

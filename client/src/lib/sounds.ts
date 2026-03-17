@@ -5,10 +5,29 @@ function getCtx(): AudioContext | null {
     if (!ctx) {
       ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
+    // Browsers (especially iOS/Safari) suspend the context until a user gesture.
+    // Resume every time so sounds never silently fail after the first interaction.
+    if (ctx.state === "suspended") {
+      ctx.resume().catch(() => {});
+    }
     return ctx;
   } catch {
     return null;
   }
+}
+
+/** Call once on the very first user gesture to pre-unlock the audio context. */
+export function unlockAudio() {
+  const c = getCtx();
+  if (!c) return;
+  // Play a silent buffer so iOS fully unlocks the context.
+  try {
+    const buf = c.createBuffer(1, 1, 22050);
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    src.connect(c.destination);
+    src.start(0);
+  } catch {}
 }
 
 export function playClick() {
