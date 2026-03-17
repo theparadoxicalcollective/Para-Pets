@@ -695,7 +695,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       <div className="absolute inset-0 z-10 pointer-events-none">
         {phase === "waiting" && (
           <div className="absolute" style={{
-            bottom: "32%", left: "50%", transform: "translate(-50%, 0)",
+            bottom: "28%", left: "50%", transform: "translate(-50%, 0)",
             width: 28, height: 28,
             borderRadius: "50%",
             border: `2px solid ${ACCENT}60`,
@@ -713,7 +713,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           preserveAspectRatio="none"
         >
           <path
-            d="M 31 51 Q 41 63 50 68"
+            d="M 31 51 Q 41 65 50 72"
             fill="none"
             stroke="rgba(255,255,255,0.85)"
             strokeWidth="0.2"
@@ -725,7 +725,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       {/* Bobber — waiting phase: gentle float (z-15, in front of line) */}
       {phase === "waiting" && (
         <div className="absolute pointer-events-none z-[15]" style={{
-          bottom: "32%", left: "50%",
+          bottom: "28%", left: "50%",
           animation: "bobFloat 1.2s ease-in-out infinite",
           transform: "translate(-50%, 0)",
           background: "transparent",
@@ -741,7 +741,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
 
       {/* Bobber — nibble phase: aggressive dip with ripples (z-15, in front of line) */}
       {phase === "nibble" && (
-        <div className="absolute pointer-events-none z-[15]" style={{ bottom: "32%", left: "50%", background: "transparent" }}>
+        <div className="absolute pointer-events-none z-[15]" style={{ bottom: "28%", left: "50%", background: "transparent" }}>
           {/* Expanding ripple rings */}
           <div style={{
             position: "absolute", width: 20, height: 10,
