@@ -653,14 +653,15 @@ const AQ_TEAL = "#5eead4";
 
 function makeSwimmer(entry: AqFishEntry, x?: number, y?: number): SwimmingFish {
   const speed = 0.022 + Math.random() * 0.028;
+  const startsRight = entry.facingDirection !== "left";
   return {
     ...entry,
-    x: x ?? (Math.random() * 90),
+    x: x ?? (Math.random() * 80),
     y: y ?? (20 + Math.random() * 50),
-    vx: speed,
+    vx: startsRight ? speed : -speed,
     vy: 0,
     wobble: Math.random() * Math.PI * 2,
-    facingRight: true,
+    facingRight: startsRight,
   };
 }
 
@@ -711,14 +712,17 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
         const sineY = Math.sin(wobble) * 0.012;
         let x = f.x + f.vx;
         let y = f.y + sineY;
+        let vx = f.vx;
+        let facingRight = f.facingRight;
 
-        // Wrap around: reappear on the left when crossing the right edge
-        if (x > 100) x = -6;
+        // Bounce off edges, flipping direction
+        if (x < 5)  { x = 5;  vx = Math.abs(vx);  facingRight = true; }
+        if (x > 91) { x = 91; vx = -Math.abs(vx); facingRight = false; }
 
         // Clamp vertical within aquarium bounds
         y = Math.max(14, Math.min(80, y));
 
-        return { ...f, x, y, wobble, facingRight: true };
+        return { ...f, x, y, vx, wobble, facingRight };
       }));
     }, 20);
     return () => clearInterval(id);
@@ -819,7 +823,7 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
           }}
         >
           {f.imageUrl
-            ? <img src={f.imageUrl} alt={f.name} style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none", userSelect: "none", transform: f.facingDirection === "left" ? "scaleX(-1)" : undefined }} draggable={false} />
+            ? <img src={f.imageUrl} alt={f.name} style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none", userSelect: "none", transform: ((f.facingDirection !== "left") !== f.facingRight) ? "scaleX(-1)" : undefined }} draggable={false} />
             : <span style={{ fontSize: 34, lineHeight: 1 }}>🐟</span>}
         </button>
       ))}
