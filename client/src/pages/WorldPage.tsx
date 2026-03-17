@@ -3193,6 +3193,7 @@ export default function WorldPage({ user }: WorldPageProps) {
           user={currentUser}
           worldId={worldId}
           onClose={() => setShowSellFish(false)}
+          onUserUpdate={(u) => setCurrentUser(u)}
         />
       )}
 

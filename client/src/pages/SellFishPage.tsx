@@ -29,6 +29,7 @@ interface SellFishPageProps {
   user: { id: string; username: string; coins: number; isAdmin: boolean };
   worldId: string;
   onClose: () => void;
+  onUserUpdate?: (user: any) => void;
 }
 
 function RarityStars({ rarity }: { rarity: number | null }) {
@@ -40,7 +41,7 @@ function RarityStars({ rarity }: { rarity: number | null }) {
   );
 }
 
-export default function SellFishPage({ user, worldId, onClose }: SellFishPageProps) {
+export default function SellFishPage({ user, worldId, onClose, onUserUpdate }: SellFishPageProps) {
   const [cartIds, setCartIds] = useState<Set<string>>(new Set());
   const [dragOverSell, setDragOverSell] = useState(false);
   const [draggingFish, setDraggingFish] = useState<CaughtFish | null>(null);
@@ -61,7 +62,8 @@ export default function SellFishPage({ user, worldId, onClose }: SellFishPagePro
     },
     onSuccess: (data: { sold: number; coinsEarned: number; newBalance: number }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      if (onUserUpdate) onUserUpdate({ ...user, coins: data.newBalance });
       setCartIds(new Set());
       playChime();
       toast({
