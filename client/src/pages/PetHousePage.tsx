@@ -780,21 +780,33 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
           return { ...f, x, y, vx, wobble, facingRight, baseSpeed, state, stateTimer, chaseTargetId };
         });
 
-        // Proximity check — trigger chase between different species
-        for (let i = 0; i < updated.length; i++) {
-          if (updated[i].state !== "normal") continue;
-          for (let j = i + 1; j < updated.length; j++) {
-            if (updated[j].state !== "normal") continue;
-            if (updated[i].shopItemId === updated[j].shopItemId) continue;
-            const dx = updated[i].x - updated[j].x;
-            const dy = (updated[i].y - updated[j].y) * 1.5; // weight y less
-            if (Math.hypot(dx, dy) < 14) {
-              const chaseTimer = 55 + Math.floor(Math.random() * 55);
-              // Randomly assign who chases whom
-              const [chaser, fleeer] = Math.random() > 0.5 ? [i, j] : [j, i];
-              updated[chaser] = { ...updated[chaser], state: "chasing", chaseTargetId: updated[fleeer].id, stateTimer: chaseTimer };
-              updated[fleeer] = { ...updated[fleeer], state: "fleeing",  chaseTargetId: updated[chaser].id, stateTimer: chaseTimer };
-              break; // one chase trigger per fish per tick
+        // Rarity-based aggression — only triggers occasionally even when fish are in range
+        // Cap at 2 simultaneous chases so the tank stays calm with many fish
+        const activeChasers = updated.filter(f => f.state === "chasing").length;
+        if (activeChasers < 2) {
+          for (let i = 0; i < updated.length; i++) {
+            if (updated[i].state !== "normal") continue;
+            const iRarity = updated[i].starRarity ?? 1;
+            // Only 3★+ can start a chase
+            if (iRarity < 3) continue;
+
+            for (let j = 0; j < updated.length; j++) {
+              if (i === j || updated[j].state !== "normal") continue;
+              const jRarity = updated[j].starRarity ?? 1;
+              // 3★ only chases 1★ and 2★; 4★+ chases anyone
+              if (iRarity === 3 && jRarity >= 3) continue;
+
+              const dx = updated[i].x - updated[j].x;
+              const dy = (updated[i].y - updated[j].y) * 1.5;
+              if (Math.hypot(dx, dy) < 14) {
+                // Low probability per tick (~4s average before triggering while in range)
+                if (Math.random() < 0.005) {
+                  const chaseTimer = 50 + Math.floor(Math.random() * 60);
+                  updated[i] = { ...updated[i], state: "chasing", chaseTargetId: updated[j].id, stateTimer: chaseTimer };
+                  updated[j] = { ...updated[j], state: "fleeing",  chaseTargetId: updated[i].id, stateTimer: chaseTimer };
+                }
+                break; // one check per potential aggressor per tick
+              }
             }
           }
         }
