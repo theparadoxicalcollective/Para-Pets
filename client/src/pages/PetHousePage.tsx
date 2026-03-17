@@ -651,16 +651,15 @@ const AQ_MAX = 30;
 const AQ_TEAL = "#5eead4";
 
 function makeSwimmer(entry: AqFishEntry, x?: number, y?: number): SwimmingFish {
-  const speed = 0.04 + Math.random() * 0.045;
-  const angle = Math.random() * Math.PI * 2;
+  const speed = 0.022 + Math.random() * 0.028;
   return {
     ...entry,
-    x: x ?? (8 + Math.random() * 78),
-    y: y ?? (18 + Math.random() * 52),
-    vx: Math.cos(angle) * speed,
-    vy: Math.sin(angle) * speed * 0.35,
+    x: x ?? (Math.random() * 90),
+    y: y ?? (20 + Math.random() * 50),
+    vx: speed,
+    vy: 0,
     wobble: Math.random() * Math.PI * 2,
-    facingRight: Math.cos(angle) >= 0,
+    facingRight: true,
   };
 }
 
@@ -707,23 +706,18 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
   useEffect(() => {
     const id = setInterval(() => {
       setSwimmers(prev => prev.map(f => {
-        const wobble = (f.wobble + 0.045) % (Math.PI * 2);
-        const sineY = Math.sin(wobble) * 0.018;
+        const wobble = (f.wobble + 0.022) % (Math.PI * 2);
+        const sineY = Math.sin(wobble) * 0.012;
         let x = f.x + f.vx;
-        let y = f.y + f.vy + sineY;
-        let vx = f.vx;
-        let vy = f.vy;
-        let facingRight = f.facingRight;
+        let y = f.y + sineY;
 
-        if (x < 5) { x = 5; vx = Math.abs(vx) * (0.9 + Math.random() * 0.2); facingRight = true; }
-        if (x > 91) { x = 91; vx = -Math.abs(vx) * (0.9 + Math.random() * 0.2); facingRight = false; }
-        if (y < 14) { y = 14; vy = Math.abs(vy) + Math.random() * 0.005; }
-        if (y > 80) { y = 80; vy = -(Math.abs(vy) + Math.random() * 0.005); }
+        // Wrap around: reappear on the left when crossing the right edge
+        if (x > 100) x = -6;
 
-        vx = Math.max(-0.11, Math.min(0.11, vx));
-        vy = Math.max(-0.045, Math.min(0.045, vy));
+        // Clamp vertical within aquarium bounds
+        y = Math.max(14, Math.min(80, y));
 
-        return { ...f, x, y, vx, vy, wobble, facingRight };
+        return { ...f, x, y, wobble, facingRight: true };
       }));
     }, 20);
     return () => clearInterval(id);
@@ -824,8 +818,8 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
           }}
         >
           {f.imageUrl
-            ? <img src={f.imageUrl} alt={f.name} style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none", userSelect: "none", mixBlendMode: "multiply", filter: "brightness(1.6) drop-shadow(0 2px 10px rgba(94,234,212,0.5))" }} draggable={false} />
-            : <span style={{ fontSize: 34, lineHeight: 1, filter: "drop-shadow(0 2px 10px rgba(94,234,212,0.45))" }}>🐟</span>}
+            ? <img src={f.imageUrl} alt={f.name} style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none", userSelect: "none" }} draggable={false} />
+            : <span style={{ fontSize: 34, lineHeight: 1 }}>🐟</span>}
         </button>
       ))}
 
