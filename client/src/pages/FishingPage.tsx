@@ -351,10 +351,10 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
 
     // Per-rarity tuning — each star level is meaningfully harder
     //                         1★     2★     3★     4★     5★
-    const speedByRarity   = [0.003, 0.005, 0.008, 0.012, 0.017];
-    const fillByRarity    = [0.009, 0.007, 0.006, 0.005, 0.004];
-    const drainByRarity   = [0.004, 0.007, 0.010, 0.013, 0.017];
-    const zoneByRarity    = [0.26,  0.22,  0.19,  0.16,  0.14];
+    const speedByRarity   = [0.002, 0.003, 0.005, 0.008, 0.012];
+    const fillByRarity    = [0.010, 0.008, 0.007, 0.006, 0.005];
+    const drainByRarity   = [0.002, 0.003, 0.005, 0.007, 0.010];
+    const zoneByRarity    = [0.28,  0.24,  0.21,  0.18,  0.15];
 
     const baseSpeed  = speedByRarity[rarity - 1];
     const fillRate   = fillByRarity[rarity - 1];
@@ -368,12 +368,12 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     let fishDir = Math.random() > 0.5 ? 1 : -1;
     // Start catch zone aligned with the fish so there's instant overlap during grace
     let catchZonePos = Math.max(0, Math.min(1 - zoneByRarity[rarity - 1], fishPos));
-    let catchMeter = 0.0;
+    let catchMeter = 0.25;
     let surging = false;
     let surgeTimer = 0;
     // Longer, more predictable direction windows — less chaotic
-    let dirChangeTimer = 55;
-    let graceFrames = 90; // ~1.5s before the meter can reach 0 and fail
+    let dirChangeTimer = 70;
+    let graceFrames = 120; // ~2s before the meter can reach 0 and fail
 
     // Set ref directly so the first RAF tick sees "reeling" before the useEffect updates it
     phaseRef.current = "reeling";
