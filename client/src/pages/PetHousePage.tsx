@@ -65,6 +65,7 @@ const GROUND_WALK_CONFIGS = [
 
 export default function PetHousePage({ user }: PetHousePageProps) {
   const [selectedPet, setSelectedPet] = useState<InventoryPet | null>(null);
+  const [showAquarium, setShowAquarium] = useState(false);
   const [draggingEdible, setDraggingEdible] = useState<EdibleItem | null>(null);
   const [ghostPos, setGhostPos] = useState({ x: 0, y: 0 });
   const [isOverPet, setIsOverPet] = useState(false);
@@ -209,7 +210,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             paddingBottom: "max(14px, env(safe-area-inset-bottom, 14px))",
           }}
         >
-          <HouseNavButton testId="button-nav-aquarium" onClick={() => {}} label="Aquarium">
+          <HouseNavButton testId="button-nav-aquarium" onClick={() => setShowAquarium(true)} label="Aquarium">
             <FishbowlIcon />
           </HouseNavButton>
           <HouseNavButton testId="button-nav-forest-den" onClick={() => {}} label="Forest Den">
@@ -217,6 +218,10 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           </HouseNavButton>
         </div>
       </div>
+
+      {showAquarium && (
+        <AquariumPage onClose={() => setShowAquarium(false)} />
+      )}
 
       {draggingEdible && (
         <div
@@ -610,6 +615,383 @@ function WalkingPet({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function AquariumPage({ onClose }: { onClose: () => void }) {
+  return (
+    <div
+      className="absolute inset-0 z-40 overflow-hidden"
+      style={{ background: "#020914" }}
+    >
+      <style>{`
+        @keyframes aqBubbleRise {
+          0%   { transform: translateY(0) scale(1);   opacity: 0.7; }
+          80%  { opacity: 0.4; }
+          100% { transform: translateY(-110vh) scale(0.6); opacity: 0; }
+        }
+        @keyframes aqDrift {
+          0%, 100% { transform: translateX(0); }
+          50%       { transform: translateX(18px); }
+        }
+        @keyframes aqDriftR {
+          0%, 100% { transform: translateX(0); }
+          50%       { transform: translateX(-14px); }
+        }
+        @keyframes aqWave {
+          0%, 100% { transform-origin: bottom center; transform: rotate(-6deg); }
+          50%       { transform-origin: bottom center; transform: rotate(6deg);  }
+        }
+        @keyframes aqWaveR {
+          0%, 100% { transform-origin: bottom center; transform: rotate(5deg); }
+          50%       { transform-origin: bottom center; transform: rotate(-7deg); }
+        }
+        @keyframes aqJellyBob {
+          0%, 100% { transform: translateY(0); }
+          50%       { transform: translateY(-16px); }
+        }
+        @keyframes aqJellyTent {
+          0%, 100% { transform: skewX(-4deg); }
+          50%       { transform: skewX(4deg); }
+        }
+        @keyframes aqRayPulse {
+          0%, 100% { opacity: 0.04; }
+          50%       { opacity: 0.10; }
+        }
+        @keyframes aqGlowPulse {
+          0%, 100% { opacity: 0.55; filter: blur(1px) brightness(1);   }
+          50%       { opacity: 1;    filter: blur(0px) brightness(1.4); }
+        }
+        @keyframes aqFishSwim {
+          0%   { transform: translateX(-120px) scaleX(1); opacity: 0; }
+          8%   { opacity: 1; }
+          45%  { transform: translateX(calc(100vw + 60px)) scaleX(1); opacity: 1; }
+          46%  { transform: translateX(calc(100vw + 60px)) scaleX(-1); opacity: 0; }
+          55%  { opacity: 1; }
+          95%  { transform: translateX(-80px) scaleX(-1); opacity: 1; }
+          100% { opacity: 0; }
+        }
+        @keyframes aqFishSwim2 {
+          0%   { transform: translateX(calc(100vw + 80px)) scaleX(-1); opacity: 0; }
+          8%   { opacity: 0.9; }
+          48%  { transform: translateX(-100px) scaleX(-1); opacity: 0.9; }
+          49%  { transform: translateX(-100px) scaleX(1); opacity: 0; }
+          57%  { opacity: 0.9; }
+          95%  { transform: translateX(calc(100vw + 60px)) scaleX(1); opacity: 0.9; }
+          100% { opacity: 0; }
+        }
+        @keyframes aqParticle {
+          0%   { transform: translate(0,0) scale(1);     opacity: 0.8; }
+          50%  { transform: translate(8px,-30px) scale(0.8); opacity: 0.5; }
+          100% { transform: translate(-4px,-60px) scale(0.5); opacity: 0; }
+        }
+        @keyframes aqSlideUp {
+          from { transform: translateY(40px); opacity: 0; }
+          to   { transform: translateY(0);    opacity: 1; }
+        }
+        @keyframes aqCaustic {
+          0%, 100% { transform: scale(1) rotate(0deg);   opacity: 0.06; }
+          50%       { transform: scale(1.08) rotate(3deg); opacity: 0.11; }
+        }
+      `}</style>
+
+      {/* Deep ocean gradient */}
+      <div className="absolute inset-0" style={{
+        background: "radial-gradient(ellipse at 50% 20%, #071a3a 0%, #030d24 40%, #020914 100%)",
+      }} />
+
+      {/* Caustic light pattern */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: "repeating-conic-gradient(from 0deg at 50% 0%, rgba(94,234,212,0.04) 0deg 10deg, transparent 10deg 30deg)",
+        animation: "aqCaustic 8s ease-in-out infinite",
+      }} />
+
+      {/* Light rays from surface */}
+      {[
+        { left: "12%",  width: 60,  delay: "0s",   dur: "6s"  },
+        { left: "30%",  width: 90,  delay: "1.5s", dur: "7s"  },
+        { left: "52%",  width: 50,  delay: "0.8s", dur: "5.5s"},
+        { left: "70%",  width: 80,  delay: "2.2s", dur: "8s"  },
+        { left: "86%",  width: 40,  delay: "0.3s", dur: "6.5s"},
+      ].map((r, i) => (
+        <div key={i} className="absolute pointer-events-none" style={{
+          left: r.left, top: 0,
+          width: r.width, height: "70%",
+          background: "linear-gradient(180deg, rgba(94,234,212,0.18) 0%, rgba(56,189,248,0.06) 50%, transparent 100%)",
+          clipPath: `polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%)`,
+          animation: `aqRayPulse ${r.dur} ${r.delay} ease-in-out infinite`,
+          transformOrigin: "top center",
+        }} />
+      ))}
+
+      {/* Bioluminescent floating particles */}
+      {Array.from({ length: 22 }).map((_, i) => {
+        const colors = ["#5eead4", "#818cf8", "#34d399", "#a78bfa", "#38bdf8"];
+        const col = colors[i % colors.length];
+        return (
+          <div key={i} className="absolute rounded-full pointer-events-none" style={{
+            left: `${(i * 4.3 + 3) % 95}%`,
+            top: `${20 + (i * 7.1) % 65}%`,
+            width: i % 3 === 0 ? 3 : 2,
+            height: i % 3 === 0 ? 3 : 2,
+            background: col,
+            boxShadow: `0 0 ${i % 3 === 0 ? 6 : 4}px ${col}`,
+            animation: `aqParticle ${4 + (i % 5)}s ${(i * 0.6) % 4}s ease-in-out infinite`,
+          }} />
+        );
+      })}
+
+      {/* Bubbles */}
+      {Array.from({ length: 14 }).map((_, i) => (
+        <div key={i} className="absolute rounded-full pointer-events-none" style={{
+          left: `${(i * 6.8 + 5) % 90}%`,
+          bottom: `${(i * 11) % 30}%`,
+          width: 4 + (i % 4) * 2,
+          height: 4 + (i % 4) * 2,
+          border: "1px solid rgba(94,234,212,0.5)",
+          background: "rgba(94,234,212,0.06)",
+          animation: `aqBubbleRise ${5 + (i % 6)}s ${(i * 0.9) % 5}s linear infinite`,
+        }} />
+      ))}
+
+      {/* Jellyfish 1 */}
+      <div className="absolute pointer-events-none" style={{
+        left: "22%", top: "18%",
+        animation: "aqJellyBob 5s 0s ease-in-out infinite",
+      }}>
+        <svg width="52" height="72" viewBox="0 0 52 72" fill="none">
+          <defs>
+            <radialGradient id="jg1" cx="50%" cy="40%" r="55%">
+              <stop offset="0%" stopColor="#a78bfa" stopOpacity="0.9"/>
+              <stop offset="100%" stopColor="#5b21b6" stopOpacity="0.4"/>
+            </radialGradient>
+          </defs>
+          <ellipse cx="26" cy="20" rx="22" ry="18" fill="url(#jg1)" />
+          <ellipse cx="26" cy="20" rx="22" ry="18" fill="none" stroke="#c4b5fd" strokeWidth="0.8" opacity="0.6"/>
+          <ellipse cx="26" cy="16" rx="14" ry="8" fill="rgba(196,181,253,0.2)" />
+          {/* Tentacles */}
+          {[10,16,22,28,34,40].map((x, i) => (
+            <path key={i}
+              d={`M${x},36 Q${x + (i%2===0?-5:5)},50 ${x},62 Q${x+(i%2===0?4:-4)},72 ${x},72`}
+              stroke={i%3===0?"#a78bfa":i%3===1?"#818cf8":"#c4b5fd"}
+              strokeWidth="1.2" fill="none" opacity="0.6"
+              style={{ animation: `aqJellyTent ${2.5+i*0.3}s ${i*0.2}s ease-in-out infinite` }}
+            />
+          ))}
+          <ellipse cx="26" cy="20" rx="8" ry="5" fill="rgba(167,139,250,0.25)" />
+        </svg>
+        <div style={{
+          position:"absolute", left:"50%", top:"50%",
+          transform:"translate(-50%,-50%)",
+          width:44, height:36, borderRadius:"50%",
+          background:"rgba(167,139,250,0.12)",
+          filter:"blur(8px)",
+          animation:"aqGlowPulse 3s ease-in-out infinite",
+        }}/>
+      </div>
+
+      {/* Jellyfish 2 */}
+      <div className="absolute pointer-events-none" style={{
+        right: "16%", top: "28%",
+        animation: "aqJellyBob 6.5s 2s ease-in-out infinite",
+      }}>
+        <svg width="38" height="54" viewBox="0 0 38 54" fill="none">
+          <defs>
+            <radialGradient id="jg2" cx="50%" cy="40%" r="55%">
+              <stop offset="0%" stopColor="#5eead4" stopOpacity="0.85"/>
+              <stop offset="100%" stopColor="#0f766e" stopOpacity="0.35"/>
+            </radialGradient>
+          </defs>
+          <ellipse cx="19" cy="14" rx="16" ry="13" fill="url(#jg2)" />
+          <ellipse cx="19" cy="14" rx="16" ry="13" fill="none" stroke="#99f6e4" strokeWidth="0.8" opacity="0.55"/>
+          <ellipse cx="19" cy="10" rx="9" ry="5" fill="rgba(153,246,228,0.2)" />
+          {[7,12,17,22,27].map((x, i) => (
+            <path key={i}
+              d={`M${x},26 Q${x+(i%2===0?-4:4)},37 ${x},46`}
+              stroke={i%2===0?"#5eead4":"#99f6e4"}
+              strokeWidth="1" fill="none" opacity="0.55"
+              style={{ animation: `aqJellyTent ${2+i*0.4}s ${i*0.25}s ease-in-out infinite` }}
+            />
+          ))}
+        </svg>
+        <div style={{
+          position:"absolute", left:"50%", top:"40%",
+          transform:"translate(-50%,-50%)",
+          width:32, height:26, borderRadius:"50%",
+          background:"rgba(94,234,212,0.15)",
+          filter:"blur(6px)",
+          animation:"aqGlowPulse 4s 1s ease-in-out infinite",
+        }}/>
+      </div>
+
+      {/* Fish 1 - slow swimming orange fish */}
+      <div className="absolute pointer-events-none" style={{
+        top: "42%", left: 0,
+        animation: "aqFishSwim 22s 2s linear infinite",
+      }}>
+        <svg width="46" height="26" viewBox="0 0 46 26" fill="none">
+          <ellipse cx="24" cy="13" rx="16" ry="9" fill="#f97316" opacity="0.9"/>
+          <path d="M8,13 L1,5 L1,21 Z" fill="#fb923c" opacity="0.9"/>
+          <ellipse cx="28" cy="11" rx="3.5" ry="3.5" fill="rgba(255,255,255,0.9)"/>
+          <circle cx="29" cy="11" r="1.8" fill="#1e3a5f"/>
+          <path d="M20,6 Q24,3 28,6" fill="#fb923c" stroke="#f97316" strokeWidth="0.5" opacity="0.8"/>
+        </svg>
+      </div>
+
+      {/* Fish 2 - small blue fish */}
+      <div className="absolute pointer-events-none" style={{
+        top: "58%", left: 0,
+        animation: "aqFishSwim2 28s 8s linear infinite",
+      }}>
+        <svg width="32" height="20" viewBox="0 0 32 20" fill="none">
+          <ellipse cx="17" cy="10" rx="11" ry="7" fill="#38bdf8" opacity="0.85"/>
+          <path d="M6,10 L1,4 L1,16 Z" fill="#7dd3fc" opacity="0.85"/>
+          <ellipse cx="21" cy="8.5" rx="2.5" ry="2.5" fill="rgba(255,255,255,0.9)"/>
+          <circle cx="22" cy="8.5" r="1.2" fill="#1e3a5f"/>
+        </svg>
+      </div>
+
+      {/* Seaweed cluster left */}
+      <div className="absolute pointer-events-none" style={{ left: "6%", bottom: "12%" }}>
+        {[0,1,2].map(i => (
+          <div key={i} className="absolute" style={{
+            left: i * 14, bottom: 0,
+            animation: `${i%2===0?"aqWave":"aqWaveR"} ${2.8+i*0.5}s ${i*0.6}s ease-in-out infinite`,
+          }}>
+            <svg width="12" height={60+i*18} viewBox={`0 0 12 ${60+i*18}`} fill="none">
+              <path d={`M6,${60+i*18} Q2,${45+i*14} 6,${30+i*9} Q10,${18+i*6} 6,4`}
+                stroke={i===1?"#4ade80":"#22c55e"} strokeWidth="2.5" strokeLinecap="round" fill="none"/>
+            </svg>
+          </div>
+        ))}
+      </div>
+
+      {/* Seaweed cluster right */}
+      <div className="absolute pointer-events-none" style={{ right: "8%", bottom: "10%" }}>
+        {[0,1].map(i => (
+          <div key={i} className="absolute" style={{
+            right: i * 16, bottom: 0,
+            animation: `${i%2===0?"aqWaveR":"aqWave"} ${3.2+i*0.7}s ${i*0.9}s ease-in-out infinite`,
+          }}>
+            <svg width="12" height={50+i*22} viewBox={`0 0 12 ${50+i*22}`} fill="none">
+              <path d={`M6,${50+i*22} Q10,${38+i*16} 6,${26+i*8} Q2,${14+i*4} 6,2`}
+                stroke={i===0?"#4ade80":"#16a34a"} strokeWidth="2.2" strokeLinecap="round" fill="none"/>
+            </svg>
+          </div>
+        ))}
+      </div>
+
+      {/* Coral formations */}
+      <div className="absolute bottom-0 left-0 right-0 pointer-events-none" style={{ height: "22%" }}>
+        {/* Coral 1 — teal branching */}
+        <svg className="absolute" style={{ left: "3%", bottom: 0 }} width="70" height="90" viewBox="0 0 70 90" fill="none">
+          <path d="M35,90 L35,55" stroke="#0f766e" strokeWidth="4" strokeLinecap="round"/>
+          <path d="M35,70 Q22,58 18,44" stroke="#0f766e" strokeWidth="3" strokeLinecap="round"/>
+          <path d="M35,60 Q48,48 52,36" stroke="#0f766e" strokeWidth="3" strokeLinecap="round"/>
+          <path d="M35,55 Q28,40 24,28" stroke="#14b8a6" strokeWidth="2.5" strokeLinecap="round"/>
+          <circle cx="18" cy="44" r="5" fill="#5eead4" opacity="0.85"/>
+          <circle cx="52" cy="36" r="4.5" fill="#2dd4bf" opacity="0.85"/>
+          <circle cx="24" cy="28" r="3.5" fill="#5eead4" opacity="0.8"/>
+          <circle cx="35" cy="55" r="4" fill="#14b8a6" opacity="0.7"/>
+          {[18,52,24,35].map((cx, i) => {
+            const cy = [44,36,28,55][i];
+            const r = [5,4.5,3.5,4][i];
+            return <circle key={i} cx={cx} cy={cy} r={r+2} fill="#5eead4" opacity="0.18" style={{ animation: "aqGlowPulse 3s ease-in-out infinite" }}/>;
+          })}
+        </svg>
+
+        {/* Coral 2 — purple fan */}
+        <svg className="absolute" style={{ left: "28%", bottom: 0 }} width="55" height="70" viewBox="0 0 55 70" fill="none">
+          <path d="M28,70 L28,45" stroke="#7c3aed" strokeWidth="3.5" strokeLinecap="round"/>
+          <path d="M28,55 Q16,44 10,30" stroke="#7c3aed" strokeWidth="2.5" strokeLinecap="round"/>
+          <path d="M28,55 Q40,44 46,30" stroke="#7c3aed" strokeWidth="2.5" strokeLinecap="round"/>
+          <path d="M28,48 L28,20" stroke="#8b5cf6" strokeWidth="2" strokeLinecap="round"/>
+          <circle cx="10" cy="30" r="4" fill="#a78bfa" opacity="0.9"/>
+          <circle cx="46" cy="30" r="4" fill="#a78bfa" opacity="0.9"/>
+          <circle cx="28" cy="20" r="5" fill="#c4b5fd" opacity="0.9"/>
+          <circle cx="28" cy="20" r="8" fill="#a78bfa" opacity="0.12" style={{ animation: "aqGlowPulse 4s 1s ease-in-out infinite" }}/>
+        </svg>
+
+        {/* Coral 3 — pink/red branching */}
+        <svg className="absolute" style={{ right: "25%", bottom: 0 }} width="48" height="65" viewBox="0 0 48 65" fill="none">
+          <path d="M24,65 L24,38" stroke="#be185d" strokeWidth="3.5" strokeLinecap="round"/>
+          <path d="M24,50 Q14,40 8,26" stroke="#be185d" strokeWidth="2.5" strokeLinecap="round"/>
+          <path d="M24,44 Q34,34 40,22" stroke="#db2777" strokeWidth="2.5" strokeLinecap="round"/>
+          <circle cx="8" cy="26" r="4" fill="#f472b6" opacity="0.9"/>
+          <circle cx="40" cy="22" r="3.5" fill="#ec4899" opacity="0.9"/>
+          <circle cx="24" cy="38" r="4.5" fill="#f9a8d4" opacity="0.8"/>
+          <circle cx="8" cy="26" r="7" fill="#f472b6" opacity="0.1" style={{ animation: "aqGlowPulse 3.5s 0.5s ease-in-out infinite" }}/>
+        </svg>
+
+        {/* Coral 4 — teal right */}
+        <svg className="absolute" style={{ right: "5%", bottom: 0 }} width="60" height="80" viewBox="0 0 60 80" fill="none">
+          <path d="M30,80 L30,50" stroke="#0e7490" strokeWidth="4" strokeLinecap="round"/>
+          <path d="M30,65 Q20,52 14,40" stroke="#0891b2" strokeWidth="3" strokeLinecap="round"/>
+          <path d="M30,60 Q42,48 46,36" stroke="#0891b2" strokeWidth="3" strokeLinecap="round"/>
+          <path d="M30,50 Q22,38 18,26" stroke="#22d3ee" strokeWidth="2" strokeLinecap="round"/>
+          <circle cx="14" cy="40" r="5" fill="#22d3ee" opacity="0.85"/>
+          <circle cx="46" cy="36" r="4" fill="#67e8f9" opacity="0.85"/>
+          <circle cx="18" cy="26" r="3.5" fill="#22d3ee" opacity="0.8"/>
+          <circle cx="14" cy="40" r="8" fill="#22d3ee" opacity="0.12" style={{ animation: "aqGlowPulse 4s 2s ease-in-out infinite" }}/>
+        </svg>
+
+        {/* Sandy ground */}
+        <div className="absolute bottom-0 left-0 right-0" style={{
+          height: 28,
+          background: "linear-gradient(180deg, rgba(8,28,55,0) 0%, rgba(4,20,44,0.8) 40%, #030f26 100%)",
+        }}/>
+        {/* Pebbles/rocks */}
+        <div className="absolute bottom-0 left-0 right-0" style={{ height: 12, opacity: 0.5 }}>
+          {[5,14,22,35,44,54,66,76,85,91].map((l, i) => (
+            <div key={i} className="absolute bottom-1 rounded-full" style={{
+              left: `${l}%`, width: 8+i%3*4, height: 5+i%2*3,
+              background: `rgba(${20+i*3},${40+i*5},${80+i*4},0.8)`,
+            }}/>
+          ))}
+        </div>
+      </div>
+
+      {/* Surface ripple at top */}
+      <div className="absolute top-0 left-0 right-0 pointer-events-none" style={{ height: 6 }}>
+        <div style={{
+          width: "100%", height: "100%",
+          background: "linear-gradient(180deg, rgba(56,189,248,0.35) 0%, transparent 100%)",
+          animation: "aqDrift 4s ease-in-out infinite",
+        }}/>
+      </div>
+
+      {/* Vignette */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: "radial-gradient(ellipse at 50% 50%, transparent 45%, rgba(2,9,20,0.75) 100%)",
+      }}/>
+
+      {/* Title */}
+      <div className="absolute top-0 left-0 right-0 flex flex-col items-center pointer-events-none"
+        style={{ paddingTop: "env(safe-area-inset-top, 16px)", marginTop: 16, animation: "aqSlideUp 0.5s ease-out" }}>
+        <h2 className="font-fantasy text-base tracking-[0.3em]" style={{
+          color: "#5eead4",
+          textShadow: "0 0 16px rgba(94,234,212,0.7), 0 0 32px rgba(94,234,212,0.3)",
+        }}>AQUARIUM</h2>
+        <div style={{ height: 1, width: 80, marginTop: 4, background: "linear-gradient(90deg, transparent, rgba(94,234,212,0.5), transparent)" }}/>
+      </div>
+
+      {/* Close button */}
+      <button
+        data-testid="button-close-aquarium"
+        onClick={onClose}
+        className="absolute top-3 right-3 z-50 w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm transition-transform active:scale-90"
+        style={{
+          background: "rgba(2,9,20,0.85)",
+          border: "1.5px solid rgba(94,234,212,0.45)",
+          color: "#5eead4",
+          cursor: "pointer",
+          marginTop: "env(safe-area-inset-top, 0px)",
+          boxShadow: "0 0 10px rgba(94,234,212,0.2)",
+        }}
+      >
+        ✕
+      </button>
     </div>
   );
 }
