@@ -69,10 +69,7 @@ type FishingPhase = "idle" | "casting" | "waiting" | "nibble" | "reeling" | "cau
 
 const ACCENT = "#5eead4";
 const NIBBLE_TIMEOUT = 3500;
-const CATCH_ZONE_SIZE = 0.18;
 const FISH_ZONE_SIZE = 0.13;
-const CATCH_FILL_RATE = 0.005;
-const CATCH_DRAIN_RATE = 0.009;
 
 export default function FishingPage({ locationId, locationName, bgUrl, user, onClose }: FishingPageProps) {
   const [phase, setPhase] = useState<FishingPhase>("idle");
@@ -87,6 +84,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     catchMeter: number;
     isOverlap: boolean;
     isSurging: boolean;
+    catchZoneSize: number;
   } | null>(null);
   const [caughtItem, setCaughtItem] = useState<ShopItem | null>(null);
   const [bgLoaded, setBgLoaded] = useState(false);
@@ -334,9 +332,18 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
 
   const startReeling = useCallback(() => {
     const rarity = Math.max(1, Math.min(5, nibbleRarityRef.current));
-    // Slower for common fish, faster for rares — curve: 1★=0.003 2★=0.005 3★=0.009 4★=0.014 5★=0.020
-    const speedByRarity = [0.003, 0.005, 0.009, 0.014, 0.020];
-    const baseSpeed = speedByRarity[rarity - 1];
+
+    // Per-rarity tuning — each star level is meaningfully harder
+    //                         1★     2★     3★     4★     5★
+    const speedByRarity   = [0.003, 0.005, 0.009, 0.014, 0.020];
+    const fillByRarity    = [0.007, 0.005, 0.004, 0.0032, 0.0025];
+    const drainByRarity   = [0.005, 0.009, 0.012, 0.016, 0.021];
+    const zoneByRarity    = [0.22,  0.18,  0.155, 0.13,  0.11];
+
+    const baseSpeed  = speedByRarity[rarity - 1];
+    const fillRate   = fillByRarity[rarity - 1];
+    const drainRate  = drainByRarity[rarity - 1];
+    const czSize     = zoneByRarity[rarity - 1];
 
     catchZoneVelRef.current = 0;
 
@@ -351,7 +358,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     // Set ref directly so the first RAF tick sees "reeling" before the useEffect updates it
     phaseRef.current = "reeling";
     setPhase("reeling");
-    setReelBarState({ fishPos, catchZonePos, catchMeter, isOverlap: false, isSurging: false });
+    setReelBarState({ fishPos, catchZonePos, catchMeter, isOverlap: false, isSurging: false, catchZoneSize: czSize });
 
     const tick = () => {
       if (phaseRef.current !== "reeling") return;
@@ -384,21 +391,21 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       // Catch zone physics: each tap gives an upward impulse, gravity pulls it back down
       const GRAVITY = 0.003;
       catchZoneVelRef.current = Math.max(catchZoneVelRef.current - GRAVITY, -0.022);
-      catchZonePos = Math.max(0, Math.min(1 - CATCH_ZONE_SIZE, catchZonePos - catchZoneVelRef.current));
+      catchZonePos = Math.max(0, Math.min(1 - czSize, catchZonePos - catchZoneVelRef.current));
 
       // Overlap detection
       const overlap =
-        fishPos < catchZonePos + CATCH_ZONE_SIZE &&
+        fishPos < catchZonePos + czSize &&
         fishPos + FISH_ZONE_SIZE > catchZonePos;
 
       // Catch meter fills on overlap, drains when fish escapes
       if (overlap) {
-        catchMeter = Math.min(1, catchMeter + CATCH_FILL_RATE);
+        catchMeter = Math.min(1, catchMeter + fillRate);
       } else {
-        catchMeter = Math.max(0, catchMeter - CATCH_DRAIN_RATE);
+        catchMeter = Math.max(0, catchMeter - drainRate);
       }
 
-      setReelBarState({ fishPos, catchZonePos, catchMeter, isOverlap: overlap, isSurging: surging });
+      setReelBarState({ fishPos, catchZonePos, catchMeter, isOverlap: overlap, isSurging: surging, catchZoneSize: czSize });
 
       if (catchMeter >= 1) {
         setReelBarState(null);
@@ -691,6 +698,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           catchMeter={reelBarState.catchMeter}
           isOverlap={reelBarState.isOverlap}
           isSurging={reelBarState.isSurging}
+          catchZoneSize={reelBarState.catchZoneSize}
           onTap={() => { catchZoneVelRef.current = 0.021; }}
         />
       )}
@@ -1199,20 +1207,21 @@ function PondAdminPanel({
 }
 
 function ReelBar({
-  fishPos, catchZonePos, catchMeter, isOverlap, isSurging, onTap,
+  fishPos, catchZonePos, catchMeter, isOverlap, isSurging, catchZoneSize, onTap,
 }: {
   fishPos: number;
   catchZonePos: number;
   catchMeter: number;
   isOverlap: boolean;
   isSurging: boolean;
+  catchZoneSize: number;
   onTap: () => void;
 }) {
   const BAR_H = 260;
   const BAR_W = 52;
 
   const czTop = catchZonePos * BAR_H;
-  const czH = CATCH_ZONE_SIZE * BAR_H;
+  const czH = catchZoneSize * BAR_H;
   const fishTop = fishPos * BAR_H;
   const fishH = FISH_ZONE_SIZE * BAR_H;
 
