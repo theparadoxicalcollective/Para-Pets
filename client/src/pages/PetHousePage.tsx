@@ -812,7 +812,7 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
             top: `${f.y}%`,
             width: 54,
             height: 54,
-            transform: `translate(-50%,-50%) scaleX(${f.facingRight ? 1 : -1})`,
+            transform: `translate(-50%,-50%)`,
             background: "none",
             border: "none",
             outline: "none",
