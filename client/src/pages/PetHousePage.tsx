@@ -528,7 +528,7 @@ function WalkingPet({
           transformOrigin: "bottom center",
         }}
       >
-        <div style={{ animation: `${floatAnim} 3.2s ${cfg.delay} ease-in-out infinite` }}>
+        <div style={{ animation: `${floatAnim} ${hasWings ? "3.2s" : "2.4s"} ${cfg.delay} ${hasWings ? "ease-in-out" : "ease"} infinite` }}>
           {pet.petTemplateId ? (
             <>
               {/* PetAnimator: tight oval hit area so transparent edges don't block other pets */}
