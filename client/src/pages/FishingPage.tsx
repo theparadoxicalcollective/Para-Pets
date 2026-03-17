@@ -353,7 +353,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     // Per-rarity tuning — each star level is meaningfully harder
     //                         1★     2★     3★     4★     5★
     const speedByRarity   = [0.003, 0.005, 0.007, 0.010, 0.014];
-    const fillByRarity    = [0.005, 0.004, 0.0033, 0.0027, 0.002];
+    const fillByRarity    = [0.008, 0.007, 0.006,  0.005,  0.004];
     const drainByRarity   = [0.002, 0.003, 0.004,  0.006,  0.008];
     const zoneByRarity    = [0.26,  0.22,  0.19,   0.16,   0.14];
 
@@ -1369,18 +1369,17 @@ function ReelBar({
       </div>
 
       {/* Catch meter */}
-      <div style={{ width: BAR_W, height: 8, borderRadius: 4, background: "rgba(0,0,0,0.5)", border: "1px solid rgba(94,234,212,0.3)", overflow: "hidden" }}>
+      <div style={{ width: BAR_W, height: 10, borderRadius: 5, background: "rgba(0,0,0,0.6)", border: "1px solid rgba(94,234,212,0.35)", overflow: "hidden" }}>
         <div style={{
           height: "100%",
           width: `${catchMeter * 100}%`,
-          borderRadius: 4,
+          borderRadius: 5,
           background: catchMeter > 0.6
             ? "linear-gradient(90deg, #4ade80, #22c55e)"
             : catchMeter > 0.3
             ? "linear-gradient(90deg, #facc15, #eab308)"
             : "linear-gradient(90deg, #ef4444, #dc2626)",
-          transition: "width 0.05s linear, background 0.2s ease",
-          boxShadow: catchMeter > 0.6 ? "0 0 8px rgba(74,222,128,0.6)" : undefined,
+          boxShadow: catchMeter > 0.6 ? "0 0 8px rgba(74,222,128,0.7)" : catchMeter > 0.3 ? "0 0 6px rgba(250,204,21,0.5)" : "0 0 6px rgba(239,68,68,0.4)",
         }} />
       </div>
 
