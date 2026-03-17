@@ -17,15 +17,17 @@ export function playClick() {
     if (!c) return;
     const osc = c.createOscillator();
     const gain = c.createGain();
+    const compressor = c.createDynamicsCompressor();
     osc.connect(gain);
-    gain.connect(c.destination);
+    gain.connect(compressor);
+    compressor.connect(c.destination);
     osc.type = "triangle";
     osc.frequency.setValueAtTime(520, c.currentTime);
     osc.frequency.exponentialRampToValueAtTime(260, c.currentTime + 0.022);
-    gain.gain.setValueAtTime(0.13, c.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.03);
+    gain.gain.setValueAtTime(0.55, c.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.04);
     osc.start(c.currentTime);
-    osc.stop(c.currentTime + 0.035);
+    osc.stop(c.currentTime + 0.045);
   } catch {}
 }
 
@@ -33,28 +35,31 @@ export function playTick() {
   try {
     const c = getCtx();
     if (!c) return;
+    const compressor = c.createDynamicsCompressor();
+    compressor.connect(c.destination);
+
     const osc = c.createOscillator();
     const gain = c.createGain();
     osc.connect(gain);
-    gain.connect(c.destination);
+    gain.connect(compressor);
     osc.type = "sine";
     osc.frequency.setValueAtTime(1800, c.currentTime);
     osc.frequency.exponentialRampToValueAtTime(900, c.currentTime + 0.018);
-    gain.gain.setValueAtTime(0.09, c.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.022);
+    gain.gain.setValueAtTime(0.5, c.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.025);
     osc.start(c.currentTime);
-    osc.stop(c.currentTime + 0.025);
+    osc.stop(c.currentTime + 0.03);
 
     const osc2 = c.createOscillator();
     const gain2 = c.createGain();
     osc2.connect(gain2);
-    gain2.connect(c.destination);
+    gain2.connect(compressor);
     osc2.type = "square";
     osc2.frequency.setValueAtTime(3600, c.currentTime);
-    gain2.gain.setValueAtTime(0.025, c.currentTime);
-    gain2.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.01);
+    gain2.gain.setValueAtTime(0.15, c.currentTime);
+    gain2.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.012);
     osc2.start(c.currentTime);
-    osc2.stop(c.currentTime + 0.012);
+    osc2.stop(c.currentTime + 0.015);
   } catch {}
 }
 

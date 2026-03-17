@@ -2245,10 +2245,24 @@ export async function registerRoutes(
         await storage.addCoins(user.id, bundle.coinAmount);
       }
 
+      const DUP_PET_COINS: Record<number, number> = { 1: 100, 2: 150, 3: 250, 4: 1000, 5: 2000 };
+
       const bundleItems = await storage.getRewardBundleItems(bundle.id);
+      const duplicatePets: { name: string; coinsAwarded: number }[] = [];
+
       for (const bi of bundleItems) {
         const shopItem = await storage.getShopItem(bi.shopItemId);
         if (shopItem) {
+          if (shopItem.type === "pet") {
+            const existing = await storage.getInventoryItem(user.id, bi.shopItemId);
+            if (existing) {
+              const rarity = shopItem.starRarity ?? 1;
+              const coins = DUP_PET_COINS[rarity] ?? 100;
+              await storage.addCoins(user.id, coins);
+              duplicatePets.push({ name: shopItem.name, coinsAwarded: coins });
+              continue;
+            }
+          }
           const invItem = await storage.addToInventory(user.id, bi.shopItemId);
           if (shopItem.type === "pet" && shopItem.hatchTime) {
             await storage.updateInventoryItem(invItem.id, { hatchStartedAt: new Date() });
@@ -2259,7 +2273,7 @@ export async function registerRoutes(
       const updatedUser = await storage.getUser(user.id);
       const { password: _, ...safeUser } = updatedUser!;
 
-      return res.json({ user: safeUser });
+      return res.json({ user: safeUser, duplicatePets });
     } catch (err) {
       console.error("Claim reward error:", err);
       return res.status(500).json({ message: "Failed to claim reward" });

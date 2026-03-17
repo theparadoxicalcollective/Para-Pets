@@ -49,7 +49,19 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
         queryClient.invalidateQueries({ queryKey: ["/api/rewards/pending"] });
         queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
         queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-        toast({ title: "Reward Claimed!", description: "Items and coins have been added to your account" });
+
+        const dups: { name: string; coinsAwarded: number }[] = data.duplicatePets ?? [];
+        if (dups.length > 0) {
+          dups.forEach(dup => {
+            toast({
+              title: `Duplicate Pet: ${dup.name}`,
+              description: `You already own this pet! Converted to ${dup.coinsAwarded} coins instead.`,
+            });
+          });
+          toast({ title: "Reward Claimed!", description: "Duplicate pets converted to coins. Check your wallet!" });
+        } else {
+          toast({ title: "Reward Claimed!", description: "Items and coins have been added to your account" });
+        }
         setClaimingId(null);
       }, 800);
     },
