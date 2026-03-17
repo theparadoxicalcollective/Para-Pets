@@ -214,6 +214,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [hoveredShopItemId, setHoveredShopItemId] = useState<string | null>(null);
   const [selectedLocId, setSelectedLocId] = useState<string | null>(null);
   const draggableLocIdRef = useRef<string | null>(null);
+  const draggableShopItemIdRef = useRef<string | null>(null);
   const [selectedShopItemAdminId, setSelectedShopItemAdminId] = useState<string | null>(null);
   const shopItemDragRef = useRef<{ itemId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const shopItemDidDrag = useRef(false);
@@ -836,6 +837,7 @@ export default function WorldPage({ user }: WorldPageProps) {
 
   // Keep ref in sync so handlePointerDown never sees stale state
   useEffect(() => { draggableLocIdRef.current = selectedLocId; }, [selectedLocId]);
+  useEffect(() => { draggableShopItemIdRef.current = selectedShopItemAdminId; }, [selectedShopItemAdminId]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent, loc: WorldLocationData) => {
     if (!currentUser.isAdmin) return;
@@ -1014,6 +1016,8 @@ export default function WorldPage({ user }: WorldPageProps) {
 
   const handleShopItemPointerDown = useCallback((e: React.PointerEvent, item: ShopItem) => {
     if (!currentUser.isAdmin) return;
+    // Only allow dragging if this item is already selected — prevents accidental drags when tapping to select
+    if (draggableShopItemIdRef.current !== item.id) return;
     e.preventDefault();
     e.stopPropagation();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
@@ -2089,6 +2093,7 @@ export default function WorldPage({ user }: WorldPageProps) {
               paddingBottom: shopBgNaturalRatio ? `${shopBgNaturalRatio * 100}%` : "177.78%",
               minHeight: "100dvh",
               zIndex: 10,
+              touchAction: "none",
             }}
             onPointerMove={handleShopItemPointerMove}
             onPointerUp={(e) => {
@@ -2190,7 +2195,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                             : "drop-shadow(0 0 1.5px rgba(255,220,40,1)) drop-shadow(0 0 3px rgba(255,200,0,0.5))",
                           transform: isHovered ? "scale(1.12)" : "scale(1)",
                           transition: "transform 0.15s ease, filter 0.15s ease",
-                          cursor: currentUser.isAdmin ? "grab" : "pointer",
+                          cursor: currentUser.isAdmin ? (selectedShopItemAdminId === item.id ? "grab" : "pointer") : "pointer",
                           pointerEvents: (!currentUser.isAdmin && item.fishingType === "pole") ? "none" : "auto",
                         }}
                         onMouseEnter={() => setHoveredShopItemId(item.id)}

@@ -322,7 +322,10 @@ app.use((req, res, next) => {
     }
     const mireBazaarIcon = loadAssetBase64("icon_mire_bazaar.png");
     if (mireBazaarIcon) {
-      await storage.updateWorldLocation(SHOP_ID, { iconUrl: mireBazaarIcon, iconSize: 350 } as any);
+      const shopLocFresh = swampLocations.find(l => l.id === SHOP_ID);
+      const iconUpdate: any = { iconUrl: mireBazaarIcon };
+      if (!shopLocFresh?.iconSize || shopLocFresh.iconSize < 300) iconUpdate.iconSize = 350;
+      await storage.updateWorldLocation(SHOP_ID, iconUpdate as any);
       console.log("General Shop icon refreshed.");
     }
 
