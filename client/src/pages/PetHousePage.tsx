@@ -627,7 +627,7 @@ interface AqCaughtFish {
   id: string;
   shopItemId: string;
   caughtAt: string;
-  item: { id: string; name: string; imageUrl: string | null; starRarity: number | null } | null;
+  item: { id: string; name: string; imageUrl: string | null; starRarity: number | null; facingDirection: string | null } | null;
 }
 
 interface AqFishEntry {
@@ -636,6 +636,7 @@ interface AqFishEntry {
   name: string;
   imageUrl: string | null;
   starRarity: number | null;
+  facingDirection: string | null;
 }
 
 interface SwimmingFish extends AqFishEntry {
@@ -818,7 +819,7 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
           }}
         >
           {f.imageUrl
-            ? <img src={f.imageUrl} alt={f.name} style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none", userSelect: "none" }} draggable={false} />
+            ? <img src={f.imageUrl} alt={f.name} style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none", userSelect: "none", transform: f.facingDirection === "left" ? "scaleX(-1)" : undefined }} draggable={false} />
             : <span style={{ fontSize: 34, lineHeight: 1 }}>🐟</span>}
         </button>
       ))}
@@ -921,8 +922,8 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
                         touchAction: "none",
                         cursor: canAdd ? "grab" : "default",
                       }}
-                      onPointerDown={canAdd ? (e) => onFishPointerDown(e, { shopItemId, name: item?.name || "Fish", imageUrl: item?.imageUrl || null, starRarity: item?.starRarity || null }) : undefined}
-                      onClick={canAdd ? () => addFish({ shopItemId, name: item?.name || "Fish", imageUrl: item?.imageUrl || null, starRarity: item?.starRarity || null }) : undefined}
+                      onPointerDown={canAdd ? (e) => onFishPointerDown(e, { shopItemId, name: item?.name || "Fish", imageUrl: item?.imageUrl || null, starRarity: item?.starRarity || null, facingDirection: item?.facingDirection || null }) : undefined}
+                      onClick={canAdd ? () => addFish({ shopItemId, name: item?.name || "Fish", imageUrl: item?.imageUrl || null, starRarity: item?.starRarity || null, facingDirection: item?.facingDirection || null }) : undefined}
                     >
                       <div style={{ width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
                         {item?.imageUrl

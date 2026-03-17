@@ -52,6 +52,7 @@ export const shopItems = pgTable("shop_items", {
   rarityBoostPercent: integer("rarity_boost_percent"),
   starRarity: integer("star_rarity"),
   poleMaxUses: integer("pole_max_uses"),
+  facingDirection: text("facing_direction"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 

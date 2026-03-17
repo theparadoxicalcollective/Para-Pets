@@ -16,6 +16,7 @@ interface FishingItem {
   rareCatchBoostPercent: number | null;
   rarityBoostPercent: number | null;
   poleMaxUses: number | null;
+  facingDirection: string | null;
   createdAt: string;
 }
 
@@ -453,6 +454,9 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
   const [rareCatchBoostPercent, setRareCatchBoostPercent] = useState(item?.rareCatchBoostPercent?.toString() || "0");
   const [rarityBoostPercent, setRarityBoostPercent] = useState(item?.rarityBoostPercent?.toString() || "0");
   const [poleMaxUses, setPoleMaxUses] = useState(item?.poleMaxUses?.toString() || "");
+  const [facingDirection, setFacingDirection] = useState<"right" | "left">(
+    (item?.facingDirection as "right" | "left") || "right"
+  );
   const [imageData, setImageData] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(item?.imageUrl || null);
   const [submitting, setSubmitting] = useState(false);
@@ -495,6 +499,7 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
         worldId: "all",
         fishingType,
         starRarity: fishingType === "fish" ? parseInt(starRarity) || 1 : null,
+        facingDirection: fishingType === "fish" ? facingDirection : null,
         rareCatchBoostPercent: fishingType === "pole" ? parseInt(rareCatchBoostPercent) || 0 : null,
         rarityBoostPercent: fishingType === "bait" ? parseInt(rarityBoostPercent) || 0 : null,
         poleMaxUses: fishingType === "pole" && poleMaxUses.trim() !== "" ? parseInt(poleMaxUses) || null : null,
@@ -589,12 +594,37 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
           </div>
 
           {fishingType === "fish" && (
-            <div>
-              <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Rarity (Stars)</label>
-              <select data-testid="select-fish-star-rarity" value={starRarity} onChange={(e) => setStarRarity(e.target.value)} className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle}>
-                {[1, 2, 3, 4, 5].map(r => <option key={r} value={r}>{"★".repeat(r)} ({r} Star{r > 1 ? "s" : ""})</option>)}
-              </select>
-              <p className="font-fantasy text-[#6a5840] text-[8px] mt-0.5">Higher rarity = less likely to catch. Upload parts after saving to animate the fish.</p>
+            <div className="space-y-3">
+              <div>
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Rarity (Stars)</label>
+                <select data-testid="select-fish-star-rarity" value={starRarity} onChange={(e) => setStarRarity(e.target.value)} className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle}>
+                  {[1, 2, 3, 4, 5].map(r => <option key={r} value={r}>{"★".repeat(r)} ({r} Star{r > 1 ? "s" : ""})</option>)}
+                </select>
+                <p className="font-fantasy text-[#6a5840] text-[8px] mt-0.5">Higher rarity = less likely to catch. Upload parts after saving to animate the fish.</p>
+              </div>
+              <div>
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Sprite Facing Direction</label>
+                <div className="flex gap-2">
+                  {(["right", "left"] as const).map(dir => (
+                    <button
+                      key={dir}
+                      data-testid={`button-facing-${dir}`}
+                      type="button"
+                      onClick={() => setFacingDirection(dir)}
+                      className="flex-1 py-2 rounded-md font-fantasy text-[10px] tracking-wider"
+                      style={{
+                        background: facingDirection === dir ? "rgba(96,165,250,0.25)" : "rgba(0,0,0,0.2)",
+                        border: facingDirection === dir ? "1px solid rgba(96,165,250,0.6)" : "1px solid rgba(96,165,250,0.15)",
+                        color: facingDirection === dir ? "#60a5fa" : "#6a8090",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {dir === "right" ? "▶ Faces Right" : "◀ Faces Left"}
+                    </button>
+                  ))}
+                </div>
+                <p className="font-fantasy text-[#6a5840] text-[8px] mt-0.5">Which way the fish sprite is naturally facing. Fish swim left-to-right in the aquarium — choose the opposite to flip it.</p>
+              </div>
             </div>
           )}
 
