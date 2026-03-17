@@ -381,8 +381,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       if (surging && surgeTimer <= 0) surging = false;
 
       // Catch zone physics: each tap gives an upward impulse, gravity pulls it back down
-      const GRAVITY = 0.014;
-      catchZoneVelRef.current = Math.max(catchZoneVelRef.current - GRAVITY, -0.04);
+      const GRAVITY = 0.0022;
+      catchZoneVelRef.current = Math.max(catchZoneVelRef.current - GRAVITY, -0.018);
       catchZonePos = Math.max(0, Math.min(1 - CATCH_ZONE_SIZE, catchZonePos - catchZoneVelRef.current));
 
       // Overlap detection
@@ -688,7 +688,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           catchMeter={reelBarState.catchMeter}
           isOverlap={reelBarState.isOverlap}
           isSurging={reelBarState.isSurging}
-          onTap={() => { catchZoneVelRef.current = 0.032; }}
+          onTap={() => { catchZoneVelRef.current = 0.042; }}
         />
       )}
 
