@@ -198,7 +198,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       </div>
 
       {/* Bottom Toolbar */}
-      <div className="relative flex-shrink-0" style={{ zIndex: 30 }}>
+      <div className="absolute bottom-0 left-0 right-0" style={{ zIndex: 30 }}>
         <div
           className="absolute top-0 left-0 right-0 h-[2px]"
           style={{
@@ -211,7 +211,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           style={{
             background: "linear-gradient(180deg, rgba(6,14,3,0) 0%, rgba(6,14,3,0.82) 30%, rgba(4,10,2,0.95) 100%)",
             paddingTop: 10,
-            paddingBottom: "max(14px, env(safe-area-inset-bottom, 14px))",
+            paddingBottom: "max(env(safe-area-inset-bottom, 0px) + 10px, 14px)",
           }}
         >
           <HouseNavButton testId="button-nav-aquarium" onClick={() => setShowAquarium(true)} label="Aquarium">
@@ -863,7 +863,7 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
 
       {/* Fish bag button */}
       <div className="absolute bottom-0 left-0 right-0 flex justify-center z-30"
-        style={{ paddingBottom: "max(calc(env(safe-area-inset-bottom, 0px) + 12px), 20px)", paddingTop: 12 }}>
+        style={{ paddingBottom: "max(env(safe-area-inset-bottom, 0px), 8px)", paddingTop: 8 }}>
         <button
           data-testid="button-aquarium-fish-bag"
           onClick={() => setShowPanel(p => !p)}
