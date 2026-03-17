@@ -95,7 +95,6 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   const castingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const phaseRef = useRef<FishingPhase>("idle");
   const rafRef = useRef<number | null>(null);
-  const isHoldingRef = useRef(false);
   const catchZoneVelRef = useRef(0);
   const poleSlotRef = useRef<HTMLDivElement>(null);
   const baitSlotRef = useRef<HTMLDivElement>(null);
@@ -242,7 +241,6 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     if (nibbleTimeoutRef.current) { clearTimeout(nibbleTimeoutRef.current); nibbleTimeoutRef.current = null; }
     if (castingTimeoutRef.current) { clearTimeout(castingTimeoutRef.current); castingTimeoutRef.current = null; }
     if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
-    isHoldingRef.current = false;
   }, []);
 
   const equipMutateRef = useRef(equipMutation.mutate);
@@ -335,9 +333,10 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
 
   const startReeling = useCallback(() => {
     const rarity = Math.max(1, Math.min(5, nibbleRarityRef.current));
-    const baseSpeed = 0.006 + (rarity - 1) * 0.0035;
+    // Slower for common fish, faster for rares — curve: 1★=0.003 2★=0.005 3★=0.009 4★=0.014 5★=0.020
+    const speedByRarity = [0.003, 0.005, 0.009, 0.014, 0.020];
+    const baseSpeed = speedByRarity[rarity - 1];
 
-    isHoldingRef.current = false;
     catchZoneVelRef.current = 0;
 
     let fishPos = 0.25 + Math.random() * 0.5;
@@ -381,14 +380,9 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       }
       if (surging && surgeTimer <= 0) surging = false;
 
-      // Catch zone physics: hold button → zone floats UP (lower pos value); release → falls DOWN
-      const GRAVITY = 0.016;
-      const HOLD_LIFT = 0.026;
-      if (isHoldingRef.current) {
-        catchZoneVelRef.current = Math.min(catchZoneVelRef.current + 0.004, HOLD_LIFT);
-      } else {
-        catchZoneVelRef.current = Math.max(catchZoneVelRef.current - 0.003, -GRAVITY);
-      }
+      // Catch zone physics: each tap gives an upward impulse, gravity pulls it back down
+      const GRAVITY = 0.014;
+      catchZoneVelRef.current = Math.max(catchZoneVelRef.current - GRAVITY, -0.04);
       catchZonePos = Math.max(0, Math.min(1 - CATCH_ZONE_SIZE, catchZonePos - catchZoneVelRef.current));
 
       // Overlap detection
@@ -694,8 +688,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           catchMeter={reelBarState.catchMeter}
           isOverlap={reelBarState.isOverlap}
           isSurging={reelBarState.isSurging}
-          onHoldStart={() => { isHoldingRef.current = true; }}
-          onHoldEnd={() => { isHoldingRef.current = false; }}
+          onTap={() => { catchZoneVelRef.current = 0.032; }}
         />
       )}
 
@@ -1198,15 +1191,14 @@ function PondAdminPanel({
 }
 
 function ReelBar({
-  fishPos, catchZonePos, catchMeter, isOverlap, isSurging, onHoldStart, onHoldEnd,
+  fishPos, catchZonePos, catchMeter, isOverlap, isSurging, onTap,
 }: {
   fishPos: number;
   catchZonePos: number;
   catchMeter: number;
   isOverlap: boolean;
   isSurging: boolean;
-  onHoldStart: () => void;
-  onHoldEnd: () => void;
+  onTap: () => void;
 }) {
   const BAR_H = 260;
   const BAR_W = 52;
@@ -1323,14 +1315,12 @@ function ReelBar({
         </div>
       </div>
 
-      {/* Hold button */}
+      {/* Tap button */}
       <button
         data-testid="button-reel"
-        onPointerDown={(e) => { e.preventDefault(); onHoldStart(); }}
-        onPointerUp={(e) => { e.preventDefault(); onHoldEnd(); }}
-        onPointerLeave={() => onHoldEnd()}
-        onPointerCancel={() => onHoldEnd()}
-        className="w-16 h-16 rounded-full flex flex-col items-center justify-center gap-0.5 transition-transform active:scale-95"
+        onPointerDown={(e) => { e.preventDefault(); onTap(); }}
+        onTouchStart={(e) => { e.preventDefault(); onTap(); }}
+        className="w-16 h-16 rounded-full flex flex-col items-center justify-center gap-0.5 transition-transform active:scale-90"
         style={{
           background: `linear-gradient(135deg, ${ACCENT}dd, ${ACCENT}99)`,
           border: `2px solid ${ACCENT}`,
@@ -1342,7 +1332,7 @@ function ReelBar({
           userSelect: "none",
         }}
       >
-        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em" }}>HOLD</span>
+        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em" }}>TAP</span>
         <span style={{ fontSize: 14 }}>🎣</span>
       </button>
     </div>
