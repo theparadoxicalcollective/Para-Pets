@@ -90,6 +90,13 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   const reelCompleteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const phaseRef = useRef<FishingPhase>("idle");
   const reelPosRef = useRef(0.0);
+  const poleSlotRef = useRef<HTMLDivElement>(null);
+  const baitSlotRef = useRef<HTMLDivElement>(null);
+  const pendingDragRef = useRef<{ item: InventoryItem; slot: "pole" | "bait"; startX: number; startY: number } | null>(null);
+  const dragItemRef = useRef<{ item: InventoryItem; slot: "pole" | "bait" } | null>(null);
+  const dropTargetRef = useRef<"pole" | "bait" | null>(null);
+  const [ghostPos, setGhostPos] = useState<{ x: number; y: number; item: InventoryItem } | null>(null);
+  const [dropTarget, setDropTarget] = useState<"pole" | "bait" | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -229,6 +236,59 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     if (nibbleTimeoutRef.current) { clearTimeout(nibbleTimeoutRef.current); nibbleTimeoutRef.current = null; }
     if (castingTimeoutRef.current) { clearTimeout(castingTimeoutRef.current); castingTimeoutRef.current = null; }
     if (reelCompleteTimeoutRef.current) { clearTimeout(reelCompleteTimeoutRef.current); reelCompleteTimeoutRef.current = null; }
+  }, []);
+
+  const equipMutateRef = useRef(equipMutation.mutate);
+  useEffect(() => { equipMutateRef.current = equipMutation.mutate; });
+
+  const startItemDrag = useCallback((item: InventoryItem, slot: "pole" | "bait", startX: number, startY: number) => {
+    pendingDragRef.current = { item, slot, startX, startY };
+  }, []);
+
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      const pending = pendingDragRef.current;
+      if (pending && !dragItemRef.current) {
+        const dist = Math.hypot(e.clientX - pending.startX, e.clientY - pending.startY);
+        if (dist > 8) {
+          dragItemRef.current = { item: pending.item, slot: pending.slot };
+          pendingDragRef.current = null;
+          setGhostPos({ x: e.clientX, y: e.clientY, item: pending.item });
+        }
+      }
+      if (dragItemRef.current) {
+        setGhostPos(prev => prev ? { ...prev, x: e.clientX, y: e.clientY } : null);
+        let target: "pole" | "bait" | null = null;
+        if (poleSlotRef.current) {
+          const r = poleSlotRef.current.getBoundingClientRect();
+          if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) target = "pole";
+        }
+        if (baitSlotRef.current) {
+          const r = baitSlotRef.current.getBoundingClientRect();
+          if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) target = "bait";
+        }
+        dropTargetRef.current = target;
+        setDropTarget(target);
+      }
+    };
+    const onUp = () => {
+      const drag = dragItemRef.current;
+      const target = dropTargetRef.current;
+      if (drag && target && target === drag.slot) {
+        equipMutateRef.current({ inventoryId: drag.item.inventoryId, slot: target });
+      }
+      pendingDragRef.current = null;
+      dragItemRef.current = null;
+      dropTargetRef.current = null;
+      setGhostPos(null);
+      setDropTarget(null);
+    };
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+    return () => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+    };
   }, []);
 
   useEffect(() => {
@@ -632,25 +692,49 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         paddingBottom: 24,
       }}>
         <div className="flex items-end justify-center gap-4 px-4">
-          <EquipSlot
-            label="Pole"
-            defaultIcon={poleIcon}
-            equippedItem={poleIsBroken ? equipData!.poleItem : (equipData?.poleItem || null)}
-            isActive={showPolePanel}
-            broken={poleIsBroken}
-            usesLeft={equipData?.poleUsesLeft}
-            maxUses={equipData?.poleItem?.poleMaxUses}
-            onClick={() => { setShowPolePanel(!showPolePanel); setShowBaitPanel(false); setShowFishInv(false); }}
-            testId="button-pole-slot"
-          />
-          <EquipSlot
-            label="Bait"
-            defaultIcon={baitIcon}
-            equippedItem={equipData?.baitItem || null}
-            isActive={showBaitPanel}
-            onClick={() => { setShowBaitPanel(!showBaitPanel); setShowPolePanel(false); setShowFishInv(false); }}
-            testId="button-bait-slot"
-          />
+          <div ref={poleSlotRef}>
+            <EquipSlot
+              label="Pole"
+              defaultIcon={poleIcon}
+              equippedItem={poleIsBroken ? equipData!.poleItem : (equipData?.poleItem || null)}
+              isActive={showPolePanel}
+              broken={poleIsBroken}
+              usesLeft={equipData?.poleUsesLeft}
+              maxUses={equipData?.poleItem?.poleMaxUses}
+              isDropTarget={dropTarget === "pole"}
+              onClick={() => {
+                if (equipData?.poleItem && !poleIsBroken) {
+                  unequipMutation.mutate({ slot: "pole" });
+                  setShowPolePanel(false);
+                } else {
+                  setShowPolePanel(p => !p);
+                  setShowBaitPanel(false);
+                  setShowFishInv(false);
+                }
+              }}
+              testId="button-pole-slot"
+            />
+          </div>
+          <div ref={baitSlotRef}>
+            <EquipSlot
+              label="Bait"
+              defaultIcon={baitIcon}
+              equippedItem={equipData?.baitItem || null}
+              isActive={showBaitPanel}
+              isDropTarget={dropTarget === "bait"}
+              onClick={() => {
+                if (equipData?.baitItem) {
+                  unequipMutation.mutate({ slot: "bait" });
+                  setShowBaitPanel(false);
+                } else {
+                  setShowBaitPanel(p => !p);
+                  setShowPolePanel(false);
+                  setShowFishInv(false);
+                }
+              }}
+              testId="button-bait-slot"
+            />
+          </div>
           <EquipSlot
             label="Fish"
             defaultIcon={fishInvIcon}
@@ -673,6 +757,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           onUnequip={() => unequipMutation.mutate({ slot: "pole" })}
           onClose={() => setShowPolePanel(false)}
           onDeleteItem={(invId) => deleteInventoryItemMutation.mutate(invId)}
+          onItemPointerDown={startItemDrag}
         />
       )}
       {showBaitPanel && (
@@ -684,6 +769,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           onEquip={(invId) => equipMutation.mutate({ inventoryId: invId, slot: "bait" })}
           onUnequip={() => unequipMutation.mutate({ slot: "bait" })}
           onClose={() => setShowBaitPanel(false)}
+          onItemPointerDown={startItemDrag}
         />
       )}
       {showFishInv && (
@@ -703,12 +789,34 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           onClose={() => setShowPondAdmin(false)}
         />
       )}
+
+      {ghostPos && (
+        <div
+          className="fixed pointer-events-none z-[9999] flex items-center justify-center rounded-xl"
+          style={{
+            left: ghostPos.x - 28,
+            top: ghostPos.y - 28,
+            width: 56,
+            height: 56,
+            background: "rgba(5,20,15,0.92)",
+            border: `2px solid ${ACCENT}`,
+            boxShadow: `0 0 18px ${ACCENT}60`,
+            opacity: 0.9,
+          }}
+        >
+          {ghostPos.item.imageUrl ? (
+            <img src={ghostPos.item.imageUrl} alt="" className="w-10 h-10 object-contain" />
+          ) : (
+            <span className="text-2xl">{ghostPos.item.fishingType === "pole" ? "🎣" : "🪱"}</span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
 function EquipSlot({
-  label, defaultIcon, equippedItem, isActive, onClick, badgeCount, testId, noDim, broken, usesLeft, maxUses,
+  label, defaultIcon, equippedItem, isActive, onClick, badgeCount, testId, noDim, broken, usesLeft, maxUses, isDropTarget,
 }: {
   label: string;
   defaultIcon: string;
@@ -721,6 +829,7 @@ function EquipSlot({
   broken?: boolean;
   usesLeft?: number | null;
   maxUses?: number | null;
+  isDropTarget?: boolean;
 }) {
   const imgSrc = broken ? brokenRodIcon : (equippedItem?.imageUrl || defaultIcon);
   const bright = noDim || !!equippedItem;
@@ -732,10 +841,11 @@ function EquipSlot({
       style={{ cursor: "pointer" }}
     >
       <div className="relative w-16 h-16 rounded-xl flex items-center justify-center overflow-hidden" style={{
-        background: broken ? "rgba(60,10,10,0.85)" : isActive ? `${ACCENT}20` : "rgba(5,20,15,0.85)",
-        border: `2px solid ${broken ? "rgba(220,50,50,0.6)" : isActive ? ACCENT : `${ACCENT}40`}`,
-        boxShadow: broken ? "0 0 12px rgba(200,30,30,0.25)" : isActive ? `0 0 16px ${ACCENT}30` : "0 2px 8px rgba(0,0,0,0.4)",
-        transition: "all 0.15s ease",
+        background: broken ? "rgba(60,10,10,0.85)" : isDropTarget ? `${ACCENT}35` : isActive ? `${ACCENT}20` : "rgba(5,20,15,0.85)",
+        border: `2px solid ${broken ? "rgba(220,50,50,0.6)" : isDropTarget ? "#ffffff" : isActive ? ACCENT : `${ACCENT}40`}`,
+        boxShadow: broken ? "0 0 12px rgba(200,30,30,0.25)" : isDropTarget ? `0 0 24px ${ACCENT}80, 0 0 8px #fff4` : isActive ? `0 0 16px ${ACCENT}30` : "0 2px 8px rgba(0,0,0,0.4)",
+        transition: "all 0.12s ease",
+        transform: isDropTarget ? "scale(1.1)" : "scale(1)",
       }}>
         <img src={imgSrc} alt="" className="w-12 h-12 object-contain" style={{
           filter: broken ? "none" : bright ? "none" : "brightness(0.5) saturate(0.5)",
@@ -762,7 +872,7 @@ function EquipSlot({
 }
 
 function EquipPanel({
-  title, items, equippedInventoryId, slot, onEquip, onUnequip, onClose, onDeleteItem,
+  title, items, equippedInventoryId, slot, onEquip, onUnequip, onClose, onDeleteItem, onItemPointerDown,
 }: {
   title: string;
   items: InventoryItem[];
@@ -772,6 +882,7 @@ function EquipPanel({
   onUnequip: () => void;
   onClose: () => void;
   onDeleteItem?: (inventoryId: string) => void;
+  onItemPointerDown?: (item: InventoryItem, slot: "pole" | "bait", x: number, y: number) => void;
 }) {
   return (
     <div className="absolute bottom-[140px] left-4 right-4 z-[25] rounded-xl overflow-hidden" style={{
@@ -805,11 +916,17 @@ function EquipPanel({
                       if (isBroken) return;
                       isEquipped ? onUnequip() : onEquip(item.inventoryId);
                     }}
+                    onPointerDown={(e) => {
+                      if (isBroken) return;
+                      e.currentTarget.releasePointerCapture(e.pointerId);
+                      onItemPointerDown?.(item, slot, e.clientX, e.clientY);
+                    }}
                     className="w-full flex flex-col items-center gap-1 p-1.5 rounded-lg transition-all"
                     style={{
                       background: isBroken ? "rgba(50,10,10,0.6)" : isEquipped ? `${ACCENT}25` : "rgba(0,0,0,0.3)",
                       border: `1.5px solid ${isBroken ? "rgba(200,50,50,0.5)" : isEquipped ? ACCENT : `${ACCENT}20`}`,
-                      cursor: isBroken ? "default" : "pointer",
+                      cursor: isBroken ? "default" : "grab",
+                      touchAction: "none",
                     }}
                   >
                     <div className="w-10 h-10 flex items-center justify-center">
