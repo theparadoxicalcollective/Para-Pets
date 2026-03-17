@@ -824,7 +824,7 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
           }}
         >
           {f.imageUrl
-            ? <img src={f.imageUrl} alt={f.name} style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none", userSelect: "none", filter: "drop-shadow(0 2px 10px rgba(94,234,212,0.45))" }} draggable={false} />
+            ? <img src={f.imageUrl} alt={f.name} style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none", userSelect: "none", mixBlendMode: "multiply", filter: "brightness(1.6) drop-shadow(0 2px 10px rgba(94,234,212,0.5))" }} draggable={false} />
             : <span style={{ fontSize: 34, lineHeight: 1, filter: "drop-shadow(0 2px 10px rgba(94,234,212,0.45))" }}>🐟</span>}
         </button>
       ))}
