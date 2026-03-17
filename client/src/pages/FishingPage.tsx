@@ -763,14 +763,9 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
               maxUses={equipData?.poleItem?.poleMaxUses}
               isDropTarget={dropTarget === "pole"}
               onClick={() => {
-                if (equipData?.poleItem && !poleIsBroken) {
-                  unequipMutation.mutate({ slot: "pole" });
-                  setShowPolePanel(false);
-                } else {
-                  setShowPolePanel(p => !p);
-                  setShowBaitPanel(false);
-                  setShowFishInv(false);
-                }
+                setShowPolePanel(p => !p);
+                setShowBaitPanel(false);
+                setShowFishInv(false);
               }}
               testId="button-pole-slot"
             />
@@ -1002,23 +997,23 @@ function EquipPanel({
                         <span className="text-xl">{slot === "pole" ? "🎣" : "🪱"}</span>
                       )}
                     </div>
+                    {slot === "pole" && !isBroken && item.poleMaxUses != null && item.poleUsesLeft != null && (() => {
+                      const pct = Math.max(0, item.poleUsesLeft / item.poleMaxUses);
+                      const barColor = pct > 0.5 ? "#22c55e" : pct > 0.25 ? "#eab308" : "#ef4444";
+                      return (
+                        <div className="w-full px-0.5">
+                          <div style={{ width: "100%", height: 4, borderRadius: 2, background: "rgba(0,0,0,0.5)" }}>
+                            <div style={{ width: `${pct * 100}%`, height: "100%", borderRadius: 2, background: barColor }} />
+                          </div>
+                        </div>
+                      );
+                    })()}
                     <span className="font-fantasy text-[7px] text-center truncate w-full" style={{ color: isBroken ? "rgba(220,80,80,0.9)" : isEquipped ? ACCENT : `${ACCENT}80` }}>
                       {isBroken ? "BROKEN" : item.name}
                     </span>
                     {isEquipped && !isBroken && (
                       <span className="font-fantasy text-[6px]" style={{ color: "#fbbf24" }}>EQUIPPED</span>
                     )}
-                    {!isBroken && item.poleMaxUses != null && item.poleUsesLeft != null && (() => {
-                      const pct = Math.max(0, item.poleUsesLeft / item.poleMaxUses);
-                      const barColor = pct > 0.5 ? "#22c55e" : pct > 0.25 ? "#eab308" : "#ef4444";
-                      return (
-                        <div className="w-full px-0.5" style={{ marginTop: 1 }}>
-                          <div style={{ width: "100%", height: 3, borderRadius: 2, background: "rgba(0,0,0,0.4)" }}>
-                            <div style={{ width: `${pct * 100}%`, height: "100%", borderRadius: 2, background: barColor, transition: "width 0.3s ease" }} />
-                          </div>
-                        </div>
-                      );
-                    })()}
                   </button>
                   {isBroken && onDeleteItem && (
                     <button
