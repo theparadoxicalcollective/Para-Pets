@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -224,7 +224,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       </div>
 
       {showAquarium && (
-        <AquariumPage onClose={() => setShowAquarium(false)} />
+        <AquariumPage onClose={() => setShowAquarium(false)} userId={user.id} />
       )}
 
       {draggingEdible && (
@@ -623,59 +623,347 @@ function WalkingPet({
   );
 }
 
-function AquariumPage({ onClose }: { onClose: () => void }) {
+interface AqCaughtFish {
+  id: string;
+  shopItemId: string;
+  caughtAt: string;
+  item: { id: string; name: string; imageUrl: string | null; starRarity: number | null } | null;
+}
+
+interface AqFishEntry {
+  id: string;
+  shopItemId: string;
+  name: string;
+  imageUrl: string | null;
+}
+
+interface SwimmingFish extends AqFishEntry {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  wobble: number;
+  facingRight: boolean;
+}
+
+const AQ_MAX = 10;
+const AQ_TEAL = "#5eead4";
+
+function makeSwimmer(entry: AqFishEntry, x?: number, y?: number): SwimmingFish {
+  const speed = 0.04 + Math.random() * 0.045;
+  const angle = Math.random() * Math.PI * 2;
+  return {
+    ...entry,
+    x: x ?? (8 + Math.random() * 78),
+    y: y ?? (18 + Math.random() * 52),
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed * 0.35,
+    wobble: Math.random() * Math.PI * 2,
+    facingRight: Math.cos(angle) >= 0,
+  };
+}
+
+function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string }) {
+  const STORAGE_KEY = `aq_fish_${userId}`;
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const [aquariumFish, setAquariumFish] = useState<AqFishEntry[]>(() => {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch { return []; }
+  });
+
+  const [swimmers, setSwimmers] = useState<SwimmingFish[]>(() =>
+    ((): AqFishEntry[] => {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch { return []; }
+    })().map(f => makeSwimmer(f))
+  );
+
+  const [showPanel, setShowPanel] = useState(false);
+  const [dragging, setDragging] = useState<{ fish: AqFishEntry; gx: number; gy: number } | null>(null);
+  const draggingRef = useRef<typeof dragging>(null);
+  draggingRef.current = dragging;
+
+  const { data: fishInventory = [] } = useQuery<AqCaughtFish[]>({
+    queryKey: ["/api/fishing/inventory"],
+    staleTime: 30000,
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(aquariumFish)); } catch {}
+  }, [aquariumFish, STORAGE_KEY]);
+
+  useEffect(() => {
+    setSwimmers(prev => {
+      const existingMap = new Map(prev.map(s => [s.id, s]));
+      const aquariumIds = new Set(aquariumFish.map(f => f.id));
+      const result: SwimmingFish[] = aquariumFish.map(f =>
+        existingMap.get(f.id) ?? makeSwimmer(f)
+      );
+      return result.filter(s => aquariumIds.has(s.id));
+    });
+  }, [aquariumFish]);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setSwimmers(prev => prev.map(f => {
+        const wobble = (f.wobble + 0.045) % (Math.PI * 2);
+        const sineY = Math.sin(wobble) * 0.018;
+        let x = f.x + f.vx;
+        let y = f.y + f.vy + sineY;
+        let vx = f.vx;
+        let vy = f.vy;
+        let facingRight = f.facingRight;
+
+        if (x < 5) { x = 5; vx = Math.abs(vx) * (0.9 + Math.random() * 0.2); facingRight = true; }
+        if (x > 91) { x = 91; vx = -Math.abs(vx) * (0.9 + Math.random() * 0.2); facingRight = false; }
+        if (y < 14) { y = 14; vy = Math.abs(vy) + Math.random() * 0.005; }
+        if (y > 80) { y = 80; vy = -(Math.abs(vy) + Math.random() * 0.005); }
+
+        vx = Math.max(-0.11, Math.min(0.11, vx));
+        vy = Math.max(-0.045, Math.min(0.045, vy));
+
+        return { ...f, x, y, vx, vy, wobble, facingRight };
+      }));
+    }, 20);
+    return () => clearInterval(id);
+  }, []);
+
+  const addFish = useCallback((fish: Omit<AqFishEntry, "id">, px?: number, py?: number) => {
+    const newId = `${fish.shopItemId}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const newEntry: AqFishEntry = { ...fish, id: newId };
+    let added = false;
+    setAquariumFish(prev => {
+      if (prev.length >= AQ_MAX) return prev;
+      if (prev.filter(f => f.shopItemId === fish.shopItemId).length >= 2) return prev;
+      added = true;
+      return [...prev, newEntry];
+    });
+    setSwimmers(s => {
+      if (!added || s.some(sw => sw.id === newId)) return s;
+      return [...s, makeSwimmer(newEntry, px, py)];
+    });
+  }, []);
+
+  const removeFish = useCallback((id: string) => {
+    setAquariumFish(prev => prev.filter(f => f.id !== id));
+  }, []);
+
+  const onFishPointerDown = useCallback((e: React.PointerEvent, fish: Omit<AqFishEntry, "id">) => {
+    e.preventDefault();
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    setDragging({ fish: { ...fish, id: "drag" }, gx: e.clientX, gy: e.clientY });
+  }, []);
+
+  const onContainerPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!draggingRef.current) return;
+    setDragging(d => d ? { ...d, gx: e.clientX, gy: e.clientY } : null);
+  }, []);
+
+  const onContainerPointerUp = useCallback((e: React.PointerEvent) => {
+    const d = draggingRef.current;
+    if (!d) return;
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (rect) {
+      const px = ((e.clientX - rect.left) / rect.width) * 100;
+      const py = ((e.clientY - rect.top) / rect.height) * 100;
+      if (py < 78) addFish(d.fish, px, py);
+    }
+    setDragging(null);
+  }, [addFish]);
+
+  const grouped = React.useMemo(() => {
+    const map = new Map<string, { item: AqCaughtFish["item"]; count: number }>();
+    for (const cf of fishInventory) {
+      const ex = map.get(cf.shopItemId);
+      if (ex) ex.count++; else map.set(cf.shopItemId, { item: cf.item, count: 1 });
+    }
+    return Array.from(map.entries());
+  }, [fishInventory]);
+
   return (
     <div
+      ref={containerRef}
       className="absolute inset-0 z-40 overflow-hidden"
-      style={{ background: "#010810" }}
+      style={{ background: "#010810", touchAction: "none" }}
+      onPointerMove={onContainerPointerMove}
+      onPointerUp={onContainerPointerUp}
     >
       <style>{`
-        @keyframes aqSlideIn {
-          from { opacity: 0; transform: translateY(20px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes aqSlideIn { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes aqPanelUp { from { transform:translateY(100%); opacity:0; } to { transform:translateY(0); opacity:1; } }
       `}</style>
 
-      {/* Background image */}
-      <img
-        src={aquariumBg}
-        alt=""
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{ objectPosition: "center center" }}
-        draggable={false}
-      />
+      <img src={aquariumBg} alt="" className="absolute inset-0 w-full h-full object-cover" draggable={false} />
 
-      {/* Subtle dark gradient overlay — top and bottom for legibility */}
       <div className="absolute inset-0 pointer-events-none" style={{
-        background: "linear-gradient(180deg, rgba(1,8,16,0.55) 0%, transparent 25%, transparent 72%, rgba(1,8,16,0.6) 100%)",
+        background: "linear-gradient(180deg,rgba(1,8,16,0.55) 0%,transparent 25%,transparent 72%,rgba(1,8,16,0.65) 100%)",
       }}/>
+
+      {/* Swimming fish */}
+      {swimmers.map(f => (
+        <button
+          key={f.id}
+          onClick={() => removeFish(f.id)}
+          title="Tap to remove"
+          style={{
+            position: "absolute",
+            left: `${f.x}%`,
+            top: `${f.y}%`,
+            width: 54,
+            height: 54,
+            transform: `translate(-50%,-50%) scaleX(${f.facingRight ? 1 : -1})`,
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: 0,
+            filter: "drop-shadow(0 2px 10px rgba(94,234,212,0.45))",
+            zIndex: 10,
+          }}
+        >
+          {f.imageUrl
+            ? <img src={f.imageUrl} alt={f.name} style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none", userSelect: "none" }} draggable={false} />
+            : <span style={{ fontSize: 34, lineHeight: 1 }}>🐟</span>}
+        </button>
+      ))}
 
       {/* Title */}
       <div className="absolute top-0 left-0 right-0 flex flex-col items-center pointer-events-none"
         style={{ paddingTop: "env(safe-area-inset-top, 16px)", marginTop: 16, animation: "aqSlideIn 0.5s ease-out" }}>
-        <h2 className="font-fantasy text-base tracking-[0.3em]" style={{
-          color: "#5eead4",
-          textShadow: "0 0 16px rgba(94,234,212,0.7), 0 0 32px rgba(94,234,212,0.3)",
-        }}>AQUARIUM</h2>
-        <div style={{ height: 1, width: 80, marginTop: 4, background: "linear-gradient(90deg, transparent, rgba(94,234,212,0.5), transparent)" }}/>
+        <h2 className="font-fantasy text-base tracking-[0.3em]" style={{ color: AQ_TEAL, textShadow: "0 0 16px rgba(94,234,212,0.7),0 0 32px rgba(94,234,212,0.3)" }}>AQUARIUM</h2>
+        <div style={{ height: 1, width: 80, marginTop: 4, background: "linear-gradient(90deg,transparent,rgba(94,234,212,0.5),transparent)" }}/>
       </div>
 
-      {/* Close button */}
+      {/* Close */}
       <button
         data-testid="button-close-aquarium"
         onClick={onClose}
-        className="absolute top-3 right-3 z-50 w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm transition-transform active:scale-90"
-        style={{
-          background: "rgba(2,9,20,0.85)",
-          border: "1.5px solid rgba(94,234,212,0.45)",
-          color: "#5eead4",
-          cursor: "pointer",
-          marginTop: "env(safe-area-inset-top, 0px)",
-          boxShadow: "0 0 10px rgba(94,234,212,0.2)",
-        }}
-      >
-        ✕
-      </button>
+        className="absolute z-50 w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm active:scale-90 transition-transform"
+        style={{ top: "calc(env(safe-area-inset-top, 0px) + 12px)", right: 12, background: "rgba(2,9,20,0.85)", border: `1.5px solid rgba(94,234,212,0.45)`, color: AQ_TEAL, cursor: "pointer", boxShadow: "0 0 10px rgba(94,234,212,0.2)" }}
+      >✕</button>
+
+      {/* Hint when empty */}
+      {aquariumFish.length === 0 && !showPanel && (
+        <div className="absolute left-0 right-0 flex justify-center pointer-events-none" style={{ top: "48%" }}>
+          <p className="font-fantasy text-xs text-center tracking-wider px-8 leading-relaxed" style={{ color: "rgba(94,234,212,0.4)" }}>
+            Open your fish bag and drag or tap a fish to add it to your aquarium
+          </p>
+        </div>
+      )}
+
+      {/* Fish count */}
+      {aquariumFish.length > 0 && (
+        <div className="absolute pointer-events-none" style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 88px)", left: 0, right: 0, display: "flex", justifyContent: "center" }}>
+          <span className="font-fantasy text-[9px] tracking-widest" style={{ color: "rgba(94,234,212,0.45)" }}>
+            {aquariumFish.length}/{AQ_MAX} fish · tap a fish to release it
+          </span>
+        </div>
+      )}
+
+      {/* Fish bag button */}
+      <div className="absolute bottom-0 left-0 right-0 flex justify-center z-30"
+        style={{ paddingBottom: "max(calc(env(safe-area-inset-bottom, 0px) + 12px), 20px)", paddingTop: 12 }}>
+        <button
+          data-testid="button-aquarium-fish-bag"
+          onClick={() => setShowPanel(p => !p)}
+          className="flex flex-col items-center gap-1 active:scale-90 transition-transform"
+          style={{ background: "none", border: "none", cursor: "pointer" }}
+        >
+          <div className="w-14 h-14 rounded-xl flex items-center justify-center" style={{
+            background: showPanel ? "rgba(94,234,212,0.18)" : "rgba(1,12,30,0.88)",
+            border: `2px solid ${showPanel ? "rgba(94,234,212,0.75)" : "rgba(94,234,212,0.38)"}`,
+            boxShadow: showPanel ? "0 0 14px rgba(94,234,212,0.35)" : "0 2px 10px rgba(0,0,0,0.6)",
+          }}>
+            <span style={{ fontSize: 28 }}>🐠</span>
+          </div>
+          <span className="font-fantasy text-[9px] tracking-widest" style={{ color: "rgba(94,234,212,0.7)" }}>FISH BAG</span>
+        </button>
+      </div>
+
+      {/* Fish inventory panel */}
+      {showPanel && (
+        <div
+          className="absolute left-0 right-0 z-40 rounded-t-2xl"
+          style={{
+            bottom: "max(calc(env(safe-area-inset-bottom, 0px) + 80px), 88px)",
+            background: "rgba(2,10,24,0.97)",
+            border: "1px solid rgba(94,234,212,0.28)",
+            backdropFilter: "blur(14px)",
+            animation: "aqPanelUp 0.25s ease-out",
+            maxHeight: "46vh",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <div className="flex items-center justify-between px-4 py-3 flex-shrink-0" style={{ borderBottom: "1px solid rgba(94,234,212,0.18)" }}>
+            <div>
+              <h4 className="font-fantasy text-xs tracking-widest" style={{ color: AQ_TEAL }}>Fish Collection</h4>
+              <p className="font-fantasy text-[9px] mt-0.5" style={{ color: "rgba(94,234,212,0.42)" }}>
+                {aquariumFish.length}/{AQ_MAX} in aquarium · drag or tap to place
+              </p>
+            </div>
+            <button onClick={() => setShowPanel(false)} style={{ color: "rgba(94,234,212,0.55)", background: "none", border: "none", cursor: "pointer", fontSize: 20, lineHeight: 1, padding: 4 }}>✕</button>
+          </div>
+          <div className="overflow-y-auto p-3" style={{ scrollbarWidth: "thin" }}>
+            {grouped.length === 0 ? (
+              <p className="font-fantasy text-[10px] text-center py-6" style={{ color: "rgba(94,234,212,0.38)" }}>
+                No fish caught yet — cast your line!
+              </p>
+            ) : (
+              <div className="grid grid-cols-4 gap-2">
+                {grouped.map(([shopItemId, { item, count }]) => {
+                  const inTank = aquariumFish.filter(f => f.shopItemId === shopItemId).length;
+                  const canAdd = aquariumFish.length < AQ_MAX && inTank < 2;
+                  return (
+                    <div
+                      key={shopItemId}
+                      className="flex flex-col items-center gap-1 p-2 rounded-xl select-none"
+                      style={{
+                        background: inTank > 0 ? "rgba(94,234,212,0.1)" : "rgba(0,0,0,0.28)",
+                        border: `1.5px solid ${inTank > 0 ? "rgba(94,234,212,0.45)" : "rgba(94,234,212,0.14)"}`,
+                        opacity: canAdd ? 1 : 0.4,
+                        touchAction: "none",
+                        cursor: canAdd ? "grab" : "default",
+                      }}
+                      onPointerDown={canAdd ? (e) => onFishPointerDown(e, { shopItemId, name: item?.name || "Fish", imageUrl: item?.imageUrl || null }) : undefined}
+                      onClick={canAdd ? () => addFish({ shopItemId, name: item?.name || "Fish", imageUrl: item?.imageUrl || null }) : undefined}
+                    >
+                      <div style={{ width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+                        {item?.imageUrl
+                          ? <img src={item.imageUrl} alt="" draggable={false} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                          : <span style={{ fontSize: 26 }}>🐟</span>}
+                      </div>
+                      <span className="font-fantasy text-[8px] text-center leading-tight w-full truncate" style={{ color: "rgba(94,234,212,0.82)" }}>{item?.name || "Unknown"}</span>
+                      <div className="flex items-center gap-1">
+                        <span className="font-fantasy text-[7px]" style={{ color: "rgba(94,234,212,0.48)" }}>×{count}</span>
+                        {inTank > 0 && <span style={{ fontSize: 9 }}>🌊</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Drag ghost */}
+      {dragging && (
+        <div className="fixed pointer-events-none" style={{
+          zIndex: 9999,
+          left: dragging.gx - 27,
+          top: dragging.gy - 27,
+          width: 54, height: 54,
+          background: "rgba(1,12,30,0.92)",
+          border: "2px solid rgba(94,234,212,0.7)",
+          borderRadius: 12,
+          boxShadow: "0 0 18px rgba(94,234,212,0.4)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          {dragging.fish.imageUrl
+            ? <img src={dragging.fish.imageUrl} alt="" style={{ width: 40, height: 40, objectFit: "contain" }} draggable={false} />
+            : <span style={{ fontSize: 28 }}>🐟</span>}
+        </div>
+      )}
     </div>
   );
 }
