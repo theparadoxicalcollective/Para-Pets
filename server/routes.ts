@@ -543,6 +543,15 @@ export async function registerRoutes(
       const user = req.user as any;
       const rows = await storage.getUserInventoryWithItems(user.id);
       const filteredRows = user.isAdmin ? rows : rows.filter(({ inventory: inv }) => inv.shopItemId !== ADMIN_POLE_SHOP_ID);
+
+      // Backfill poleUsesLeft for poles that gained a use-limit after being purchased
+      await Promise.all(filteredRows.map(async ({ inventory: inv, shopItem }) => {
+        if (shopItem?.fishingType === "pole" && shopItem.poleMaxUses != null && inv.poleUsesLeft == null) {
+          await storage.updateInventoryItem(inv.id, { poleUsesLeft: shopItem.poleMaxUses });
+          inv.poleUsesLeft = shopItem.poleMaxUses;
+        }
+      }));
+
       const itemsWithDetails = filteredRows.map(({ inventory: inv, shopItem }) => ({
         inventoryId: inv.id,
         shopItemId: inv.shopItemId,
