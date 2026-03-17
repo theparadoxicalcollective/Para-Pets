@@ -192,6 +192,32 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         )}
       </div>
 
+      {/* Bottom Toolbar */}
+      <div className="relative flex-shrink-0" style={{ zIndex: 30 }}>
+        <div
+          className="absolute top-0 left-0 right-0 h-[2px]"
+          style={{
+            background: "linear-gradient(90deg, transparent 0%, rgba(180,140,40,0.5) 20%, rgba(212,160,23,0.75) 50%, rgba(180,140,40,0.5) 80%, transparent 100%)",
+            boxShadow: "0 0 8px rgba(212,160,23,0.25)",
+          }}
+        />
+        <div
+          className="w-full flex items-center justify-evenly px-6"
+          style={{
+            background: "linear-gradient(180deg, rgba(6,14,3,0) 0%, rgba(6,14,3,0.82) 30%, rgba(4,10,2,0.95) 100%)",
+            paddingTop: 10,
+            paddingBottom: "max(14px, env(safe-area-inset-bottom, 14px))",
+          }}
+        >
+          <HouseNavButton testId="button-nav-aquarium" onClick={() => {}} label="Aquarium">
+            <FishbowlIcon />
+          </HouseNavButton>
+          <HouseNavButton testId="button-nav-forest-den" onClick={() => {}} label="Forest Den">
+            <ForestHomeIcon />
+          </HouseNavButton>
+        </div>
+      </div>
+
       {draggingEdible && (
         <div
           className="fixed pointer-events-none z-50"
@@ -585,6 +611,137 @@ function WalkingPet({
         </div>
       </div>
     </div>
+  );
+}
+
+function HouseNavButton({ testId, onClick, label, children }: { testId: string; onClick: () => void; label: string; children: React.ReactNode }) {
+  const [tapped, setTapped] = useState(false);
+  return (
+    <button
+      data-testid={testId}
+      onClick={() => { setTapped(true); setTimeout(() => setTapped(false), 200); onClick(); }}
+      className="flex flex-col items-center gap-1.5"
+      style={{ background: "none", border: "none", cursor: "pointer" }}
+    >
+      <div
+        className="w-14 h-14 rounded-xl flex items-center justify-center overflow-hidden transition-transform duration-150"
+        style={{
+          transform: tapped ? "scale(0.88)" : "scale(1)",
+          background: "rgba(8,18,4,0.75)",
+          border: "2px solid rgba(212,160,23,0.38)",
+          boxShadow: "0 3px 12px rgba(0,0,0,0.75), inset 0 1px 0 rgba(255,255,255,0.05)",
+          filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.7))",
+        }}
+      >
+        {children}
+      </div>
+      <span
+        className="font-fantasy text-[8px] tracking-wider"
+        style={{ color: "rgba(212,160,23,0.65)" }}
+      >
+        {label}
+      </span>
+    </button>
+  );
+}
+
+function FishbowlIcon() {
+  return (
+    <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" width="40" height="40">
+      {/* Glass bowl glow */}
+      <circle cx="22" cy="21" r="14" fill="url(#bowlGlow)" opacity="0.18" />
+      {/* Bowl glass outline */}
+      <circle cx="22" cy="21" r="13" fill="none" stroke="#7dd3fc" strokeWidth="1.2" opacity="0.5" />
+      {/* Water fill */}
+      <clipPath id="bowlClip"><circle cx="22" cy="21" r="12.5" /></clipPath>
+      <rect x="9.5" y="23" width="25" height="11" fill="#0c3a5a" clipPath="url(#bowlClip)" opacity="0.85" />
+      <rect x="9.5" y="21" width="25" height="3" fill="#0e4f78" clipPath="url(#bowlClip)" opacity="0.7" />
+      {/* Water shimmer */}
+      <ellipse cx="22" cy="22.5" rx="10" ry="1.5" fill="#38bdf8" opacity="0.18" clipPath="url(#bowlClip)" />
+      {/* Fish body */}
+      <ellipse cx="21" cy="27" rx="4.5" ry="2.8" fill="#f97316" opacity="0.95" />
+      {/* Fish tail */}
+      <path d="M16.5,27 L13.5,24.5 L13.5,29.5 Z" fill="#fb923c" opacity="0.95" />
+      {/* Fish eye */}
+      <circle cx="24" cy="26.2" r="1.1" fill="white" opacity="0.95" />
+      <circle cx="24.3" cy="26.2" r="0.5" fill="#1e3a5f" />
+      {/* Fish fin */}
+      <path d="M20,24.5 Q22,22.5 24,24.5" fill="#fb923c" stroke="#f97316" strokeWidth="0.5" opacity="0.8" />
+      {/* Bubbles */}
+      <circle cx="27" cy="22" r="1.3" fill="none" stroke="#93c5fd" strokeWidth="0.8" opacity="0.7" />
+      <circle cx="20" cy="17" r="0.9" fill="none" stroke="#bae6fd" strokeWidth="0.7" opacity="0.5" />
+      <circle cx="25" cy="16" r="0.6" fill="none" stroke="#bae6fd" strokeWidth="0.6" opacity="0.4" />
+      {/* Seaweed */}
+      <path d="M15,34 Q13,31 15,29 Q17,27 15,25" fill="none" stroke="#4ade80" strokeWidth="1.2" strokeLinecap="round" opacity="0.7" clipPath="url(#bowlClip)" />
+      {/* Bowl base */}
+      <path d="M16,34 Q22,36.5 28,34" fill="none" stroke="#5eead4" strokeWidth="1.2" strokeLinecap="round" opacity="0.55" />
+      <ellipse cx="22" cy="34.5" rx="6" ry="1.5" fill="#0c3a5a" opacity="0.5" />
+      {/* Magic sparkles */}
+      <path d="M34,9 L35,7 L36,9 L34,9 Z" fill="#f0c040" opacity="0.9" />
+      <path d="M35,6 L35,12" stroke="#f0c040" strokeWidth="0.6" opacity="0.7" />
+      <circle cx="9" cy="12" r="1" fill="#a78bfa" opacity="0.7" />
+      <circle cx="10" cy="10" r="0.5" fill="#c4b5fd" opacity="0.5" />
+      {/* Glass glint */}
+      <path d="M13,13 Q15,10 18,12" fill="none" stroke="white" strokeWidth="0.8" opacity="0.3" strokeLinecap="round" />
+      <defs>
+        <radialGradient id="bowlGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#38bdf8" />
+          <stop offset="100%" stopColor="#0284c7" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+    </svg>
+  );
+}
+
+function ForestHomeIcon() {
+  return (
+    <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" width="40" height="40">
+      {/* Magical glow behind house */}
+      <ellipse cx="22" cy="38" rx="12" ry="3" fill="#166534" opacity="0.35" />
+      {/* House body */}
+      <rect x="11" y="24" width="22" height="14" rx="1" fill="#6b3a1f" />
+      {/* Wood plank lines */}
+      <line x1="11" y1="28" x2="33" y2="28" stroke="#5a3018" strokeWidth="0.7" opacity="0.6" />
+      <line x1="11" y1="32" x2="33" y2="32" stroke="#5a3018" strokeWidth="0.7" opacity="0.6" />
+      {/* Door */}
+      <rect x="19" y="30" width="6" height="8" rx="3" fill="#3d1f0d" />
+      <circle cx="24.2" cy="34" r="0.6" fill="#f0c040" opacity="0.8" />
+      {/* Left window */}
+      <rect x="13" y="26" width="5" height="4" rx="0.8" fill="#0c2a4a" />
+      <line x1="15.5" y1="26" x2="15.5" y2="30" stroke="#1e4d7a" strokeWidth="0.6" />
+      <line x1="13" y1="28" x2="18" y2="28" stroke="#1e4d7a" strokeWidth="0.6" />
+      <rect x="13" y="26" width="5" height="4" rx="0.8" fill="none" stroke="#8b6a3e" strokeWidth="0.7" />
+      {/* Right window */}
+      <rect x="26" y="26" width="5" height="4" rx="0.8" fill="#0c2a4a" />
+      <line x1="28.5" y1="26" x2="28.5" y2="30" stroke="#1e4d7a" strokeWidth="0.6" />
+      <line x1="26" y1="28" x2="31" y2="28" stroke="#1e4d7a" strokeWidth="0.6" />
+      <rect x="26" y="26" width="5" height="4" rx="0.8" fill="none" stroke="#8b6a3e" strokeWidth="0.7" />
+      {/* Candlelight glow in windows */}
+      <rect x="13" y="26" width="5" height="4" rx="0.8" fill="#f59e0b" opacity="0.12" />
+      <rect x="26" y="26" width="5" height="4" rx="0.8" fill="#f59e0b" opacity="0.12" />
+      {/* Roof */}
+      <path d="M8,25 L22,10 L36,25 Z" fill="#1a4d1a" />
+      {/* Roof shading */}
+      <path d="M22,10 L36,25 L31,25 L22,14 Z" fill="#0f3a0f" opacity="0.5" />
+      {/* Roof outline */}
+      <path d="M8,25 L22,10 L36,25" fill="none" stroke="#2d6e2d" strokeWidth="1" />
+      {/* Moss/vine on roof */}
+      <path d="M10,24 Q14,21 18,23" fill="none" stroke="#4ade80" strokeWidth="1.2" strokeLinecap="round" opacity="0.6" />
+      <path d="M26,23 Q30,20 33,22" fill="none" stroke="#4ade80" strokeWidth="1.2" strokeLinecap="round" opacity="0.5" />
+      {/* Chimney */}
+      <rect x="26" y="12" width="4" height="7" fill="#4a2810" />
+      <rect x="25.5" y="11.5" width="5" height="2" rx="0.5" fill="#5a3018" />
+      {/* Smoke */}
+      <path d="M28,11 Q27,8 29,6 Q28,4 30,3" fill="none" stroke="rgba(200,200,200,0.35)" strokeWidth="1.2" strokeLinecap="round" />
+      {/* Magic star */}
+      <path d="M7,13 L7.8,11 L8.6,13 L7,13 Z M7.8,10.5 L7.8,13.5" stroke="#f0c040" strokeWidth="0.7" opacity="0.85" />
+      {/* Tiny mushroom left */}
+      <ellipse cx="10" cy="38" rx="2.5" ry="1.2" fill="#dc2626" opacity="0.7" />
+      <rect x="9.5" y="36.8" width="1" height="1.5" fill="#fde68a" opacity="0.7" />
+      {/* Tiny tree right */}
+      <path d="M34,37 L37,30 L40,37 Z" fill="#166534" opacity="0.65" />
+      <rect x="35.8" y="37" width="2.5" height="2" fill="#6b3a1f" opacity="0.6" />
+    </svg>
   );
 }
 
