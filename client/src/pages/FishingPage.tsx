@@ -8,6 +8,7 @@ import poleIcon from "@assets/icon_fishing_pole.png";
 import baitIcon from "@assets/icon_fishing_bait.png";
 import fishInvIcon from "@assets/icon_fish_inventory.png";
 import brokenRodIcon from "@assets/broken_rod.svg";
+import bobberIcon from "@assets/fishing_bobber.png";
 
 interface FishingPageProps {
   locationId: string;
@@ -703,14 +704,13 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           <div className="absolute" style={{
             bottom: "32%", left: "50%",
             animation: "bobFloat 1.2s ease-in-out infinite",
+            transform: "translate(-50%, 0)",
           }}>
-            <div style={{
-              width: 14, height: 14,
-              borderRadius: "50%",
-              background: "linear-gradient(180deg, #5eead4 50%, #6d28d9 50%)",
-              border: "2px solid rgba(0,0,0,0.6)",
-              transform: "translate(-50%, 0)",
-              boxShadow: "0 0 8px rgba(94,234,212,0.6)",
+            <img src={bobberIcon} alt="" style={{
+              width: 22, height: 22,
+              objectFit: "contain",
+              filter: "drop-shadow(0 0 6px rgba(94,234,212,0.7))",
+              display: "block",
             }} />
           </div>
         )}
@@ -734,14 +734,13 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
               left: "50%", top: "50%", marginLeft: -10, marginTop: -5,
             }} />
             {/* Bobber dipping */}
-            <div style={{
-              width: 14, height: 14,
-              borderRadius: "50%",
-              background: "linear-gradient(180deg, #5eead4 50%, #6d28d9 50%)",
-              border: "2px solid rgba(0,0,0,0.6)",
+            <img src={bobberIcon} alt="" style={{
+              width: 22, height: 22,
+              objectFit: "contain",
               transform: "translate(-50%, 0)",
               animation: "nibbleDip 0.9s ease-in-out infinite",
-              boxShadow: "0 0 12px rgba(94,234,212,0.8), 0 0 20px rgba(109,40,217,0.4)",
+              filter: "drop-shadow(0 0 8px rgba(94,234,212,0.9)) drop-shadow(0 0 12px rgba(109,40,217,0.5))",
+              display: "block",
             }} />
           </div>
         )}
@@ -758,8 +757,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           <path
             d="M 31 51 Q 41 63 50 68"
             fill="none"
-            stroke="rgba(200,180,140,0.85)"
-            strokeWidth="0.4"
+            stroke="rgba(200,180,140,0.75)"
+            strokeWidth="0.2"
             strokeLinecap="round"
           />
         </svg>
