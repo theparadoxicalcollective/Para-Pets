@@ -142,11 +142,12 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       className="relative h-[100dvh] w-full overflow-hidden flex flex-col"
       style={{ maxWidth: "768px", margin: "0 auto", background: "#0a0600" }}
     >
+      {/* Background covers the full screen, behind TopBar too */}
+      <ForestRoom />
+
       <TopBar user={user} onProfileClick={() => {}} hideTreehouse />
 
       <div className="flex-1 relative overflow-hidden">
-        <ForestRoom />
-
         {isLoading ? (
           <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
             <p className="font-fantasy text-[#8b6a3e] text-xs animate-pulse tracking-widest">Loading...</p>
