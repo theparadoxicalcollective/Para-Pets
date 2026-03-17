@@ -1016,12 +1016,13 @@ export default function WorldPage({ user }: WorldPageProps) {
 
   const handleShopItemPointerDown = useCallback((e: React.PointerEvent, item: ShopItem) => {
     if (!currentUser.isAdmin) return;
+    // Always reset drag flag on any pointer down so stale state never blocks a subsequent click
+    shopItemDidDrag.current = false;
     // Only allow dragging if this item is already selected — prevents accidental drags when tapping to select
     if (draggableShopItemIdRef.current !== item.id) return;
     e.preventDefault();
     e.stopPropagation();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    shopItemDidDrag.current = false;
     shopItemDragRef.current = {
       itemId: item.id,
       startX: e.clientX,
@@ -2206,6 +2207,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                         onClick={(e) => {
                           if (currentUser.isAdmin) {
                             if (!shopItemDidDrag.current) {
+                              if (isShopItemTransparentClick(e)) return;
                               e.stopPropagation();
                               setSelectedShopItemAdminId(prev => prev === item.id ? null : item.id);
                             }
