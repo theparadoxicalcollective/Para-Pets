@@ -678,6 +678,7 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
   );
 
   const [showPanel, setShowPanel] = useState(false);
+  const [pendingRemove, setPendingRemove] = useState<AqFishEntry | null>(null);
   const [dragging, setDragging] = useState<{ fish: AqFishEntry; gx: number; gy: number } | null>(null);
   const draggingRef = useRef<typeof dragging>(null);
   draggingRef.current = dragging;
@@ -803,8 +804,8 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
       {swimmers.map(f => (
         <button
           key={f.id}
-          onClick={() => removeFish(f.id)}
-          title="Tap to remove"
+          onClick={() => setPendingRemove(f)}
+          title="Tap fish"
           style={{
             position: "absolute",
             left: `${f.x}%`,
@@ -942,6 +943,70 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
                 })}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Return-to-bag confirmation popup */}
+      {pendingRemove && (
+        <div
+          className="absolute inset-0 z-50 flex items-center justify-center"
+          style={{ background: "rgba(1,8,16,0.55)", backdropFilter: "blur(3px)" }}
+          onClick={() => setPendingRemove(null)}
+        >
+          <div
+            className="rounded-2xl overflow-hidden flex flex-col items-center"
+            style={{
+              background: "linear-gradient(160deg, rgba(3,14,32,0.98), rgba(2,10,24,0.98))",
+              border: "1.5px solid rgba(94,234,212,0.35)",
+              boxShadow: "0 0 32px rgba(94,234,212,0.15), 0 8px 32px rgba(0,0,0,0.7)",
+              width: 220,
+              padding: "22px 20px 18px",
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Fish preview */}
+            <div style={{ width: 60, height: 60, marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "center",
+              filter: "drop-shadow(0 0 10px rgba(94,234,212,0.5))" }}>
+              {pendingRemove.imageUrl
+                ? <img src={pendingRemove.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} draggable={false} />
+                : <span style={{ fontSize: 40 }}>🐟</span>}
+            </div>
+
+            <p className="font-fantasy text-[11px] tracking-wider text-center mb-1" style={{ color: AQ_TEAL }}>
+              {pendingRemove.name}
+            </p>
+            <p className="font-fantasy text-[9px] tracking-widest text-center mb-5" style={{ color: "rgba(94,234,212,0.45)" }}>
+              Return this fish to your bag?
+            </p>
+
+            <button
+              data-testid="button-return-fish-to-bag"
+              onClick={() => { removeFish(pendingRemove.id); setPendingRemove(null); }}
+              className="w-full rounded-xl py-2.5 font-fantasy text-xs tracking-widest transition-transform active:scale-95 mb-2"
+              style={{
+                background: "linear-gradient(135deg, rgba(94,234,212,0.22), rgba(56,189,248,0.18))",
+                border: "1.5px solid rgba(94,234,212,0.55)",
+                color: AQ_TEAL,
+                cursor: "pointer",
+                boxShadow: "0 0 12px rgba(94,234,212,0.2)",
+              }}
+            >
+              Return to Bag
+            </button>
+            <button
+              data-testid="button-keep-fish-in-aquarium"
+              onClick={() => setPendingRemove(null)}
+              className="w-full rounded-xl py-2 font-fantasy text-xs tracking-widest transition-transform active:scale-95"
+              style={{
+                background: "transparent",
+                border: "1px solid rgba(94,234,212,0.18)",
+                color: "rgba(94,234,212,0.45)",
+                cursor: "pointer",
+              }}
+            >
+              Keep Swimming
+            </button>
           </div>
         </div>
       )}
