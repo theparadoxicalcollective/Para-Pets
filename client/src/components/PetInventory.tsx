@@ -33,6 +33,7 @@ interface InventoryItem {
   petLevel: number;
   petLevelPoints: number;
   itemsUsedThisLevel: number;
+  fishingType: string | null;
 }
 
 interface PetInventoryProps {
@@ -77,8 +78,7 @@ export default function PetInventory({ user, onClose, onUserUpdate }: PetInvento
   });
 
   const pets = inventory.filter((item) => item.type === "pet");
-  const bagTypes = ["item", "accessory", "potion"];
-  const bagItems = inventory.filter((item) => bagTypes.includes(item.type));
+  const bagItems = inventory.filter((item) => item.type !== "pet" && item.fishingType !== "fish");
 
   const handlePetToggle = (shopItemId: string) => {
     if (user.activePetId === shopItemId) {

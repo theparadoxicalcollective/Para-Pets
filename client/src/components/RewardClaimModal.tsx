@@ -21,6 +21,11 @@ interface PendingReward {
   createdAt: string;
 }
 
+interface DuplicateNotice {
+  petName: string;
+  coinsAwarded: number;
+}
+
 interface RewardClaimModalProps {
   onClose: () => void;
   onUserUpdate: (user: any) => void;
@@ -31,6 +36,7 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
   const queryClient = useQueryClient();
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const [showSparkle, setShowSparkle] = useState<string | null>(null);
+  const [duplicateNotices, setDuplicateNotices] = useState<DuplicateNotice[]>([]);
 
   const { data: rewards = [], isLoading } = useQuery<PendingReward[]>({
     queryKey: ["/api/rewards/pending"],
@@ -52,13 +58,11 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
 
         const dups: { name: string; coinsAwarded: number }[] = data.duplicatePets ?? [];
         if (dups.length > 0) {
-          dups.forEach(dup => {
-            toast({
-              title: `Duplicate Pet: ${dup.name}`,
-              description: `You already own this pet! Converted to ${dup.coinsAwarded} coins instead.`,
-            });
+          setDuplicateNotices(dups.map(d => ({ petName: d.name, coinsAwarded: d.coinsAwarded })));
+          toast({
+            title: "Reward Claimed!",
+            description: `${dups.length} duplicate pet${dups.length > 1 ? "s" : ""} converted to coins — check below for details.`,
           });
-          toast({ title: "Reward Claimed!", description: "Duplicate pets converted to coins. Check your wallet!" });
         } else {
           toast({ title: "Reward Claimed!", description: "Items and coins have been added to your account" });
         }
@@ -73,6 +77,7 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
 
   const handleClaim = (rewardId: string) => {
     setClaimingId(rewardId);
+    setDuplicateNotices([]);
     claimMutation.mutate(rewardId);
   };
 
@@ -119,6 +124,34 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
               {rewards.length} {rewards.length === 1 ? "reward" : "rewards"} waiting
             </p>
           </div>
+
+          {/* Duplicate pet notice banner */}
+          {duplicateNotices.length > 0 && (
+            <div
+              className="mb-3 rounded-lg p-3"
+              style={{
+                background: "linear-gradient(135deg, rgba(251,191,36,0.12) 0%, rgba(180,120,10,0.12) 100%)",
+                border: "1.5px solid rgba(251,191,36,0.45)",
+              }}
+            >
+              <p className="font-fantasy text-[#fbbf24] text-[10px] tracking-wider font-semibold mb-1.5">
+                🔄 Duplicate Pets Converted
+              </p>
+              <div className="space-y-1">
+                {duplicateNotices.map((n, i) => (
+                  <div key={i} className="flex items-center justify-between">
+                    <span className="font-fantasy text-[#e5d08a] text-[10px]">
+                      Already own: <span className="font-semibold">{n.petName}</span>
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <img src={coinIconImg} alt="" className="w-3 h-3 object-contain" />
+                      <span className="font-fantasy text-[#fbbf24] text-[10px] font-bold">+{n.coinsAwarded}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="overflow-y-auto" style={{ maxHeight: "50vh" }}>
             {isLoading ? (
