@@ -691,8 +691,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         </div>
       </div>
 
+      {/* Ripple ring — waiting only (behind line) */}
       <div className="absolute inset-0 z-10 pointer-events-none">
-        {/* Ripple ring — waiting only */}
         {phase === "waiting" && (
           <div className="absolute" style={{
             bottom: "32%", left: "50%", transform: "translate(-50%, 0)",
@@ -702,55 +702,9 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
             animation: "rippleRing 2s ease-out infinite",
           }} />
         )}
-
-        {/* Bobber — waiting phase: gentle float */}
-        {phase === "waiting" && (
-          <div className="absolute" style={{
-            bottom: "32%", left: "50%",
-            animation: "bobFloat 1.2s ease-in-out infinite",
-            transform: "translate(-50%, 0)",
-          }}>
-            <img src={bobberIcon} alt="" style={{
-              width: 22, height: 22,
-              objectFit: "contain",
-              filter: "drop-shadow(0 0 6px rgba(94,234,212,0.7))",
-              display: "block",
-            }} />
-          </div>
-        )}
-
-        {/* Bobber — nibble phase: aggressive dip with ripples */}
-        {phase === "nibble" && (
-          <div className="absolute" style={{ bottom: "32%", left: "50%" }}>
-            {/* Expanding ripple rings */}
-            <div style={{
-              position: "absolute", width: 20, height: 10,
-              borderRadius: "50%",
-              border: `2px solid ${ACCENT}80`,
-              animation: "nibbleRippleOut 0.7s ease-out infinite",
-              left: "50%", top: "50%", marginLeft: -10, marginTop: -5,
-            }} />
-            <div style={{
-              position: "absolute", width: 20, height: 10,
-              borderRadius: "50%",
-              border: `2px solid ${ACCENT}50`,
-              animation: "nibbleRippleOut 0.7s ease-out infinite 0.35s",
-              left: "50%", top: "50%", marginLeft: -10, marginTop: -5,
-            }} />
-            {/* Bobber dipping */}
-            <img src={bobberIcon} alt="" style={{
-              width: 22, height: 22,
-              objectFit: "contain",
-              transform: "translate(-50%, 0)",
-              animation: "nibbleDip 0.9s ease-in-out infinite",
-              filter: "drop-shadow(0 0 8px rgba(94,234,212,0.9)) drop-shadow(0 0 12px rgba(109,40,217,0.5))",
-              display: "block",
-            }} />
-          </div>
-        )}
       </div>
 
-      {/* SVG fishing line — pole tip to bobber */}
+      {/* SVG fishing line — pole tip to bobber (z-14) */}
       {(phase === "waiting" || phase === "nibble") && hasPole && (
         <svg
           className="absolute inset-0 pointer-events-none z-[14]"
@@ -766,6 +720,53 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
             strokeLinecap="round"
           />
         </svg>
+      )}
+
+      {/* Bobber — waiting phase: gentle float (z-15, in front of line) */}
+      {phase === "waiting" && (
+        <div className="absolute pointer-events-none z-[15]" style={{
+          bottom: "32%", left: "50%",
+          animation: "bobFloat 1.2s ease-in-out infinite",
+          transform: "translate(-50%, 0)",
+          background: "transparent",
+        }}>
+          <img src={bobberIcon} alt="" style={{
+            width: 34, height: 34,
+            display: "block",
+            background: "transparent",
+            filter: "drop-shadow(0 0 6px rgba(94,234,212,0.7))",
+          }} />
+        </div>
+      )}
+
+      {/* Bobber — nibble phase: aggressive dip with ripples (z-15, in front of line) */}
+      {phase === "nibble" && (
+        <div className="absolute pointer-events-none z-[15]" style={{ bottom: "32%", left: "50%", background: "transparent" }}>
+          {/* Expanding ripple rings */}
+          <div style={{
+            position: "absolute", width: 20, height: 10,
+            borderRadius: "50%",
+            border: `2px solid ${ACCENT}80`,
+            animation: "nibbleRippleOut 0.7s ease-out infinite",
+            left: "50%", top: "50%", marginLeft: -10, marginTop: -5,
+          }} />
+          <div style={{
+            position: "absolute", width: 20, height: 10,
+            borderRadius: "50%",
+            border: `2px solid ${ACCENT}50`,
+            animation: "nibbleRippleOut 0.7s ease-out infinite 0.35s",
+            left: "50%", top: "50%", marginLeft: -10, marginTop: -5,
+          }} />
+          {/* Bobber dipping */}
+          <img src={bobberIcon} alt="" style={{
+            width: 34, height: 34,
+            display: "block",
+            background: "transparent",
+            transform: "translate(-50%, 0)",
+            animation: "nibbleDip 0.9s ease-in-out infinite",
+            filter: "drop-shadow(0 0 8px rgba(94,234,212,0.9)) drop-shadow(0 0 12px rgba(109,40,217,0.5))",
+          }} />
+        </div>
       )}
 
       {phase === "casting" && equipData?.poleItem?.imageUrl && (
