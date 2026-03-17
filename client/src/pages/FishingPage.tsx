@@ -248,6 +248,9 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   const equipMutateRef = useRef(equipMutation.mutate);
   useEffect(() => { equipMutateRef.current = equipMutation.mutate; });
 
+  const catchMutateRef = useRef(catchMutation.mutate);
+  useEffect(() => { catchMutateRef.current = catchMutation.mutate; });
+
   const startItemDrag = useCallback((item: InventoryItem, slot: "pole" | "bait", startX: number, startY: number) => {
     pendingDragRef.current = { item, slot, startX, startY };
   }, []);
@@ -345,6 +348,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     let surgeTimer = 0;
     let dirChangeTimer = 30;
 
+    // Set ref directly so the first RAF tick sees "reeling" before the useEffect updates it
+    phaseRef.current = "reeling";
     setPhase("reeling");
     setReelBarState({ fishPos, catchZonePos, catchMeter, isOverlap: false, isSurging: false });
 
@@ -402,11 +407,12 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
 
       if (catchMeter >= 1) {
         setReelBarState(null);
-        catchMutation.mutate(100);
+        catchMutateRef.current(100);
         return;
       }
       if (catchMeter <= 0) {
         setReelBarState(null);
+        phaseRef.current = "missed";
         setPhase("missed");
         return;
       }
@@ -415,7 +421,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     };
 
     rafRef.current = requestAnimationFrame(tick);
-  }, [catchMutation]);
+  }, []);
 
   useEffect(() => {
     if (phase === "nibble") {
