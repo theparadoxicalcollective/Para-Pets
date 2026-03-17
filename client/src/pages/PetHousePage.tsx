@@ -658,10 +658,10 @@ function makeSwimmer(entry: AqFishEntry, x?: number, y?: number): SwimmingFish {
   // Assign a random speed tier: ~33% slow, ~33% normal, ~33% fast
   const tier = Math.random();
   const baseSpeed = tier < 0.33
-    ? 0.022 + Math.random() * 0.010   // slow
+    ? 0.050 + Math.random() * 0.020   // slow
     : tier < 0.67
-    ? 0.038 + Math.random() * 0.014   // normal
-    : 0.058 + Math.random() * 0.016;  // fast
+    ? 0.085 + Math.random() * 0.030   // normal
+    : 0.130 + Math.random() * 0.035;  // fast
   const startsRight = entry.facingDirection !== "left";
   return {
     ...entry,
@@ -770,7 +770,7 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
           }
 
           // Sine wave vertical drift
-          wobble = (wobble + 0.022) % (Math.PI * 2);
+          wobble = (wobble + 0.032) % (Math.PI * 2);
           const sineY = Math.sin(wobble) * 0.012;
           x += vx;
           y = Math.max(14, Math.min(80, y + sineY));

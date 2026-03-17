@@ -238,6 +238,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   const didDrag = useRef(false);
   const adminLocTapRef = useRef<{ id: string; timer: ReturnType<typeof setTimeout> } | null>(null);
   const [worldBgLoaded, setWorldBgLoaded] = useState(false);
+  const [committedWorldBg, setCommittedWorldBg] = useState<string>("");
 
   const mapTransformRef = useRef({ x: 0, y: 0, scale: 1 });
   const [mapX, setMapX] = useState(0);
@@ -251,6 +252,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   const mapPanningRef = useRef(false);
   const mapJustPannedRef = useRef(false);
   const [locBgLoaded, setLocBgLoaded] = useState(false);
+  const [committedLocBgUrl, setCommittedLocBgUrl] = useState<string | null>(null);
   const [shopBgNaturalRatio, setShopBgNaturalRatio] = useState<number | null>(null);
 
   const { data: locations = [], isLoading: locationsLoading } = useQuery<WorldLocationData[]>({
@@ -734,9 +736,10 @@ export default function WorldPage({ user }: WorldPageProps) {
         mapHRef.current = h;
         setMapH(h);
       }
+      setCommittedWorldBg(world.bg);
       setWorldBgLoaded(true);
     };
-    img.onerror = () => setWorldBgLoaded(true);
+    img.onerror = () => { setCommittedWorldBg(world.bg); setWorldBgLoaded(true); };
     img.src = world.bg;
   }, [world?.bg]);
 
@@ -859,7 +862,7 @@ export default function WorldPage({ user }: WorldPageProps) {
     if (!activeLocationId) return;
     if (!activeLocDetail) return;
     const bgUrl = activeLocDetail.bgUrl;
-    if (!bgUrl) { setLocBgLoaded(true); return; }
+    if (!bgUrl) { setCommittedLocBgUrl(null); setLocBgLoaded(true); return; }
     let cancelled = false;
     const img = new Image();
     img.onload = () => {
@@ -867,12 +870,13 @@ export default function WorldPage({ user }: WorldPageProps) {
         if (img.naturalWidth && img.naturalHeight) {
           setShopBgNaturalRatio(img.naturalHeight / img.naturalWidth);
         }
+        setCommittedLocBgUrl(bgUrl);
         setLocBgLoaded(true);
       }
     };
-    img.onerror = () => { if (!cancelled) setLocBgLoaded(true); };
+    img.onerror = () => { if (!cancelled) { setCommittedLocBgUrl(bgUrl); setLocBgLoaded(true); } };
     img.src = bgUrl;
-    const fallback = setTimeout(() => { if (!cancelled) setLocBgLoaded(true); }, 5000);
+    const fallback = setTimeout(() => { if (!cancelled) { setCommittedLocBgUrl(bgUrl); setLocBgLoaded(true); } }, 5000);
     return () => { cancelled = true; clearTimeout(fallback); };
   }, [activeLocationId, activeLocDetail?.bgUrl]);
 
@@ -1242,7 +1246,7 @@ export default function WorldPage({ user }: WorldPageProps) {
               height: mapH,
               transformOrigin: "0 0",
               transform: `translate(${mapX}px, ${mapY}px) scale(${mapScale})`,
-              backgroundImage: world.bg ? `url(${world.bg})` : undefined,
+              backgroundImage: committedWorldBg ? `url(${committedWorldBg})` : undefined,
               backgroundSize: "100% 100%",
               backgroundRepeat: "no-repeat",
             }}
@@ -2259,7 +2263,7 @@ export default function WorldPage({ user }: WorldPageProps) {
           >
             {/* Inner absolute fill — background + gradient + items all relative to this fixed-ratio space */}
             <div className="absolute inset-0">
-            <img src={activeLocDetail?.bgUrl || bgShopMystical} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            <img src={committedLocBgUrl || bgShopMystical} alt="" className="absolute inset-0 w-full h-full object-cover" />
             <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 72%, rgba(0,0,0,0.5) 100%)" }} />
             {itemsLoading ? (
               <div className="absolute inset-0 flex items-center justify-center">
@@ -2676,8 +2680,8 @@ export default function WorldPage({ user }: WorldPageProps) {
             <div className="fixed inset-0 z-40 flex flex-col" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
               {/* Top banner: bg image preview */}
               <div className="relative flex-shrink-0" style={{ height: "210px" }}>
-                {activeLocDetail?.bgUrl ? (
-                  <img src={activeLocDetail.bgUrl} alt="" className="w-full h-full object-cover" />
+                {committedLocBgUrl ? (
+                  <img src={committedLocBgUrl} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full" style={{ background: "linear-gradient(180deg, rgba(20,4,4,1) 0%, rgba(40,8,8,1) 100%)" }} />
                 )}
@@ -2782,8 +2786,8 @@ export default function WorldPage({ user }: WorldPageProps) {
         return (
         <div className="fixed inset-0 z-40 flex flex-col" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
           <div className="absolute inset-0">
-            {activeLocDetail?.bgUrl ? (
-              <img src={activeLocDetail.bgUrl} alt="" className="w-full h-full object-cover" />
+            {committedLocBgUrl ? (
+              <img src={committedLocBgUrl} alt="" className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full" style={{ background: `linear-gradient(180deg, rgba(5,3,15,1) 0%, rgba(15,10,30,1) 50%, rgba(5,3,15,1) 100%)` }} />
             )}
