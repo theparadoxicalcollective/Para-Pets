@@ -453,6 +453,38 @@ app.use((req, res, next) => {
     console.error("Swamp location migration error (non-fatal):", err);
   }
 
+  // Ensure admin always has an unbreakable test fishing pole
+  try {
+    const ADMIN_POLE_ID = "00000000-0000-0000-0000-admin0000pole";
+    const adminUser = await storage.getUserByUsername("Paradox");
+    if (adminUser) {
+      const existingPole = await storage.getShopItem(ADMIN_POLE_ID);
+      if (!existingPole) {
+        const poleImg = loadAssetBase64("icon_fishing_pole.png");
+        await storage.createShopItem({
+          id: ADMIN_POLE_ID,
+          name: "Admin Test Pole",
+          price: 0,
+          type: "fishing",
+          worldId: "swamp",
+          fishingType: "pole",
+          poleMaxUses: null,
+          imageUrl: poleImg ?? "",
+          rarity: 5,
+        } as any);
+        console.log("Admin Test Pole shop item created.");
+      }
+      const adminInv = await storage.getUserInventory(adminUser.id);
+      const alreadyHas = adminInv.some(i => i.shopItemId === ADMIN_POLE_ID);
+      if (!alreadyHas) {
+        await storage.addToInventory(adminUser.id, ADMIN_POLE_ID, { poleUsesLeft: null } as any);
+        console.log("Admin Test Pole added to Paradox inventory.");
+      }
+    }
+  } catch (err) {
+    console.error("Admin pole seed error (non-fatal):", err);
+  }
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
