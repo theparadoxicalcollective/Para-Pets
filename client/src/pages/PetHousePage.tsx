@@ -641,25 +641,36 @@ interface SwimmingFish extends AqFishEntry {
   x: number;
   y: number;
   vx: number;
-  vy: number;
   wobble: number;
   facingRight: boolean;
+  baseSpeed: number;
+  state: "normal" | "fast" | "chasing" | "fleeing";
+  stateTimer: number;
+  chaseTargetId?: string;
 }
 
 const AQ_MAX = 30;
 const AQ_TEAL = "#5eead4";
 
 function makeSwimmer(entry: AqFishEntry, x?: number, y?: number): SwimmingFish {
-  const speed = 0.022 + Math.random() * 0.028;
+  // Assign a random speed tier: ~33% slow, ~33% normal, ~33% fast
+  const tier = Math.random();
+  const baseSpeed = tier < 0.33
+    ? 0.010 + Math.random() * 0.006   // slow
+    : tier < 0.67
+    ? 0.022 + Math.random() * 0.010   // normal
+    : 0.038 + Math.random() * 0.012;  // fast
   const startsRight = entry.facingDirection !== "left";
   return {
     ...entry,
     x: x ?? (Math.random() * 80),
     y: y ?? (20 + Math.random() * 50),
-    vx: startsRight ? speed : -speed,
-    vy: 0,
+    vx: startsRight ? baseSpeed : -baseSpeed,
     wobble: Math.random() * Math.PI * 2,
     facingRight: startsRight,
+    baseSpeed,
+    state: "normal",
+    stateTimer: 60 + Math.floor(Math.random() * 120),
   };
 }
 
@@ -705,23 +716,91 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
 
   useEffect(() => {
     const id = setInterval(() => {
-      setSwimmers(prev => prev.map(f => {
-        const wobble = (f.wobble + 0.022) % (Math.PI * 2);
-        const sineY = Math.sin(wobble) * 0.012;
-        let x = f.x + f.vx;
-        let y = f.y + sineY;
-        let vx = f.vx;
-        let facingRight = f.facingRight;
+      setSwimmers(prev => {
+        // Build position map for chase steering
+        const posMap = new Map(prev.map(f => [f.id, { x: f.x, y: f.y }]));
 
-        // Bounce off edges, flipping direction
-        if (x < 5)  { x = 5;  vx = Math.abs(vx);  facingRight = true; }
-        if (x > 91) { x = 91; vx = -Math.abs(vx); facingRight = false; }
+        // Update every fish position and state
+        let updated = prev.map(f => {
+          let { x, y, vx, wobble, facingRight, baseSpeed, state, stateTimer, chaseTargetId } = f;
 
-        // Clamp vertical within aquarium bounds
-        y = Math.max(14, Math.min(80, y));
+          // Tick state timer down
+          stateTimer = Math.max(0, stateTimer - 1);
 
-        return { ...f, x, y, vx, wobble, facingRight };
-      }));
+          // State transitions when timer expires
+          if (stateTimer === 0) {
+            if (state !== "normal") {
+              // Return to normal cruise after chase/fast burst
+              state = "normal";
+              chaseTargetId = undefined;
+              vx = (facingRight ? 1 : -1) * baseSpeed;
+              stateTimer = 80 + Math.floor(Math.random() * 140);
+            } else {
+              // Normal: 25% chance of a brief fast burst
+              if (Math.random() < 0.25) {
+                state = "fast";
+                vx = (facingRight ? 1 : -1) * baseSpeed * 1.9;
+                stateTimer = 25 + Math.floor(Math.random() * 45);
+              } else {
+                stateTimer = 90 + Math.floor(Math.random() * 150);
+              }
+            }
+          }
+
+          // Chasing: steer toward target
+          if (state === "chasing" && chaseTargetId) {
+            const target = posMap.get(chaseTargetId);
+            if (target) {
+              const chaseSpeed = baseSpeed * 2.4;
+              if (target.x > x) { vx = chaseSpeed;  facingRight = true; }
+              else               { vx = -chaseSpeed; facingRight = false; }
+            }
+          }
+
+          // Fleeing: dart away from chaser
+          if (state === "fleeing" && chaseTargetId) {
+            const target = posMap.get(chaseTargetId);
+            if (target) {
+              const fleeSpeed = baseSpeed * 2.0;
+              if (target.x > x) { vx = -fleeSpeed; facingRight = false; }
+              else               { vx = fleeSpeed;  facingRight = true; }
+            }
+          }
+
+          // Sine wave vertical drift
+          wobble = (wobble + 0.022) % (Math.PI * 2);
+          const sineY = Math.sin(wobble) * 0.012;
+          x += vx;
+          y = Math.max(14, Math.min(80, y + sineY));
+
+          // Bounce off edges
+          if (x < 5)  { x = 5;  vx = Math.abs(vx);  facingRight = true; }
+          if (x > 91) { x = 91; vx = -Math.abs(vx); facingRight = false; }
+
+          return { ...f, x, y, vx, wobble, facingRight, baseSpeed, state, stateTimer, chaseTargetId };
+        });
+
+        // Proximity check — trigger chase between different species
+        for (let i = 0; i < updated.length; i++) {
+          if (updated[i].state !== "normal") continue;
+          for (let j = i + 1; j < updated.length; j++) {
+            if (updated[j].state !== "normal") continue;
+            if (updated[i].shopItemId === updated[j].shopItemId) continue;
+            const dx = updated[i].x - updated[j].x;
+            const dy = (updated[i].y - updated[j].y) * 1.5; // weight y less
+            if (Math.hypot(dx, dy) < 14) {
+              const chaseTimer = 55 + Math.floor(Math.random() * 55);
+              // Randomly assign who chases whom
+              const [chaser, fleeer] = Math.random() > 0.5 ? [i, j] : [j, i];
+              updated[chaser] = { ...updated[chaser], state: "chasing", chaseTargetId: updated[fleeer].id, stateTimer: chaseTimer };
+              updated[fleeer] = { ...updated[fleeer], state: "fleeing",  chaseTargetId: updated[chaser].id, stateTimer: chaseTimer };
+              break; // one chase trigger per fish per tick
+            }
+          }
+        }
+
+        return updated;
+      });
     }, 20);
     return () => clearInterval(id);
   }, []);
