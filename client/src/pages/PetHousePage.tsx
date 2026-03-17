@@ -656,10 +656,10 @@ function makeSwimmer(entry: AqFishEntry, x?: number, y?: number): SwimmingFish {
   // Assign a random speed tier: ~33% slow, ~33% normal, ~33% fast
   const tier = Math.random();
   const baseSpeed = tier < 0.33
-    ? 0.010 + Math.random() * 0.006   // slow
+    ? 0.022 + Math.random() * 0.010   // slow
     : tier < 0.67
-    ? 0.022 + Math.random() * 0.010   // normal
-    : 0.038 + Math.random() * 0.012;  // fast
+    ? 0.038 + Math.random() * 0.014   // normal
+    : 0.058 + Math.random() * 0.016;  // fast
   const startsRight = entry.facingDirection !== "left";
   return {
     ...entry,
