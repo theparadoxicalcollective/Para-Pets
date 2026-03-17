@@ -635,6 +635,7 @@ interface AqFishEntry {
   shopItemId: string;
   name: string;
   imageUrl: string | null;
+  starRarity: number | null;
 }
 
 interface SwimmingFish extends AqFishEntry {
@@ -925,8 +926,8 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
                         touchAction: "none",
                         cursor: canAdd ? "grab" : "default",
                       }}
-                      onPointerDown={canAdd ? (e) => onFishPointerDown(e, { shopItemId, name: item?.name || "Fish", imageUrl: item?.imageUrl || null }) : undefined}
-                      onClick={canAdd ? () => addFish({ shopItemId, name: item?.name || "Fish", imageUrl: item?.imageUrl || null }) : undefined}
+                      onPointerDown={canAdd ? (e) => onFishPointerDown(e, { shopItemId, name: item?.name || "Fish", imageUrl: item?.imageUrl || null, starRarity: item?.starRarity || null }) : undefined}
+                      onClick={canAdd ? () => addFish({ shopItemId, name: item?.name || "Fish", imageUrl: item?.imageUrl || null, starRarity: item?.starRarity || null }) : undefined}
                     >
                       <div style={{ width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
                         {item?.imageUrl
@@ -976,6 +977,13 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
             <p className="font-fantasy text-[11px] tracking-wider text-center mb-1" style={{ color: AQ_TEAL }}>
               {pendingRemove.name}
             </p>
+            {pendingRemove.starRarity && pendingRemove.starRarity > 0 && (
+              <div className="flex gap-0.5 mb-2">
+                {Array.from({ length: pendingRemove.starRarity }).map((_, i) => (
+                  <span key={i} style={{ fontSize: 12, color: "#f0c040", textShadow: "0 0 6px rgba(240,192,64,0.7)" }}>★</span>
+                ))}
+              </div>
+            )}
             <p className="font-fantasy text-[9px] tracking-widest text-center mb-5" style={{ color: "rgba(94,234,212,0.45)" }}>
               Return this fish to your bag?
             </p>
