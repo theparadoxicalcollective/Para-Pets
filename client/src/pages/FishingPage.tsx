@@ -710,41 +710,22 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         }}>
           <img src={equipData.poleItem.imageUrl} alt="" className="w-full h-full object-contain" style={{
             filter: `drop-shadow(0 0 8px ${ACCENT}80)`,
-            clipPath: "inset(0 0 28% 0)",
           }} />
         </div>
       )}
 
       {(phase === "waiting" || phase === "nibble") && equipData?.poleItem?.imageUrl && (
-        <>
-          {/* Fishing line SVG — from pole tip down to water surface */}
-          <svg
-            className="absolute pointer-events-none z-[14]"
-            style={{ inset: 0, width: "100%", height: "100%" }}
-            viewBox="0 0 100 100"
-            preserveAspectRatio="none"
-          >
-            <path
-              d="M 41 50 Q 47 63 50 75"
-              stroke="rgba(210,230,230,0.55)"
-              strokeWidth="0.35"
-              fill="none"
-              strokeLinecap="round"
-            />
-          </svg>
-          <div className="absolute pointer-events-none z-[15]" style={{
-            bottom: "42%", left: "22%",
-            width: 80, height: 80,
-            transform: "rotate(-30deg)",
-            transformOrigin: "bottom left",
-            animation: "poleHold 2s ease-in-out infinite",
-          }}>
-            <img src={equipData.poleItem.imageUrl} alt="" className="w-full h-full object-contain" style={{
-              filter: `drop-shadow(0 0 6px ${ACCENT}60)`,
-              clipPath: "inset(0 0 28% 0)",
-            }} />
-          </div>
-        </>
+        <div className="absolute pointer-events-none z-[15]" style={{
+          bottom: "42%", left: "22%",
+          width: 80, height: 80,
+          transform: "rotate(-30deg)",
+          transformOrigin: "bottom left",
+          animation: "poleHold 2s ease-in-out infinite",
+        }}>
+          <img src={equipData.poleItem.imageUrl} alt="" className="w-full h-full object-contain" style={{
+            filter: `drop-shadow(0 0 6px ${ACCENT}60)`,
+          }} />
+        </div>
       )}
 
       {phase === "reeling" && reelBarState && (
