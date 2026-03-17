@@ -145,7 +145,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       {/* Background covers the full screen, behind TopBar too */}
       <ForestRoom />
 
-      <TopBar user={user} onProfileClick={() => {}} hideTreehouse />
+      <div style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
+        <TopBar user={user} onProfileClick={() => {}} hideTreehouse />
+      </div>
 
       <div className="flex-1 relative overflow-hidden">
         {isLoading ? (
