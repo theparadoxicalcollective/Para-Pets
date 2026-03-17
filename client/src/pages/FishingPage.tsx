@@ -357,7 +357,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     //                         1★     2★     3★     4★     5★
     const speedByRarity   = [0.003, 0.005, 0.007, 0.010, 0.014];
     const fillByRarity    = [0.003, 0.0025, 0.002, 0.0017, 0.0013];
-    const drainByRarity   = [0.002, 0.003, 0.004,  0.006,  0.008];
+    const drainByRarity   = [0.006, 0.009, 0.013,  0.018,  0.024];
     const zoneByRarity    = [0.26,  0.22,  0.19,   0.16,   0.14];
 
     const REEL_TIMEOUT_MS = 30000;
@@ -759,9 +759,9 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           preserveAspectRatio="none"
         >
           <path
-            d="M 33 39 Q 42 54 50 68"
+            d="M 31 51 Q 41 63 50 68"
             fill="none"
-            stroke="rgba(0,0,0,0.85)"
+            stroke="rgba(255,255,255,0.85)"
             strokeWidth="0.2"
             strokeLinecap="round"
           />
