@@ -80,6 +80,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   const [showBaitPanel, setShowBaitPanel] = useState(false);
   const [showFishInv, setShowFishInv] = useState(false);
   const [showPondAdmin, setShowPondAdmin] = useState(false);
+  const [showNoPoleModal, setShowNoPoleModal] = useState(false);
   const [reelBarState, setReelBarState] = useState<{
     fishPos: number;
     catchZonePos: number;
@@ -304,8 +305,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   }, [clearAllTimers]);
 
   const startCasting = useCallback(() => {
-    if (!equipData?.poleItem) {
-      toast({ title: "No pole equipped", description: "Equip a fishing pole first!", variant: "destructive" });
+    if (!equipData?.poleItem || poleIsBroken) {
+      setShowNoPoleModal(true);
       return;
     }
     if (pondFish.length === 0) {
@@ -544,8 +545,9 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         </div>
       )}
 
-      {equipData !== undefined && !equipData.poleItem && !user.isAdmin && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(4,2,12,0.82)", backdropFilter: "blur(6px)" }}>
+      {showNoPoleModal && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(4,2,12,0.75)", backdropFilter: "blur(6px)" }}
+          onClick={() => setShowNoPoleModal(false)}>
           <div
             className="flex flex-col items-center gap-5 rounded-2xl px-8 py-8 mx-6 text-center"
             style={{
@@ -553,19 +555,20 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
               border: `1.5px solid ${ACCENT}40`,
               boxShadow: `0 8px 40px rgba(0,0,0,0.8), 0 0 30px ${ACCENT}15`,
             }}
+            onClick={(e) => e.stopPropagation()}
           >
             <img src={poleIcon} alt="Fishing Pole" className="w-16 h-16 object-contain opacity-80" />
             <div>
               <p className="font-fantasy text-lg tracking-widest font-semibold mb-1" style={{ color: ACCENT, textShadow: `0 0 12px ${ACCENT}50` }}>
-                No Pole Equipped
+                {poleIsBroken ? "Pole is Broken" : "No Pole Equipped"}
               </p>
               <p className="font-fantasy text-sm tracking-wide" style={{ color: `${ACCENT}99` }}>
-                Equip a Fishing Pole to Fish
+                {poleIsBroken ? "Remove your broken pole and equip a new one" : "Equip a fishing pole to start fishing"}
               </p>
             </div>
             <button
-              data-testid="button-no-pole-back"
-              onClick={onClose}
+              data-testid="button-no-pole-close"
+              onClick={() => setShowNoPoleModal(false)}
               className="font-fantasy text-sm tracking-[0.15em] px-6 py-2.5 rounded-xl transition-transform active:scale-95"
               style={{
                 background: `linear-gradient(135deg, rgba(10,5,20,0.9) 0%, rgba(20,10,40,0.9) 100%)`,
@@ -574,7 +577,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
                 boxShadow: `0 4px 16px rgba(0,0,0,0.5), 0 0 16px ${ACCENT}20`,
               }}
             >
-              ← Back to World
+              Got it
             </button>
           </div>
         </div>
@@ -688,7 +691,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           catchMeter={reelBarState.catchMeter}
           isOverlap={reelBarState.isOverlap}
           isSurging={reelBarState.isSurging}
-          onTap={() => { catchZoneVelRef.current = 0.042; }}
+          onTap={() => { catchZoneVelRef.current = 0.024; }}
         />
       )}
 
@@ -913,13 +916,17 @@ function EquipSlot({
             {badgeCount}
           </div>
         )}
-        {!broken && usesLeft !== null && usesLeft !== undefined && maxUses != null && (
-          <div className="absolute bottom-0.5 left-0 right-0 flex justify-center">
-            <span className="font-fantasy text-[7px]" style={{ color: usesLeft <= 3 ? "#ff7777" : "rgba(94,234,212,0.8)" }}>
-              {usesLeft}/{maxUses}
-            </span>
-          </div>
-        )}
+        {!broken && usesLeft !== null && usesLeft !== undefined && maxUses != null && (() => {
+          const pct = Math.max(0, usesLeft / maxUses);
+          const barColor = pct > 0.5 ? "#22c55e" : pct > 0.25 ? "#eab308" : "#ef4444";
+          return (
+            <div className="absolute bottom-0 left-0 right-0 px-1 pb-0.5">
+              <div style={{ width: "100%", height: 4, borderRadius: 2, background: "rgba(0,0,0,0.5)" }}>
+                <div style={{ width: `${pct * 100}%`, height: "100%", borderRadius: 2, background: barColor, transition: "width 0.3s ease" }} />
+              </div>
+            </div>
+          );
+        })()}
       </div>
       <span className="font-fantasy text-[9px] tracking-wider" style={{ color: broken ? "rgba(220,80,80,0.9)" : bright ? ACCENT : `${ACCENT}60` }}>
         {broken ? "BROKEN" : equippedItem ? equippedItem.name : label}
@@ -1001,11 +1008,17 @@ function EquipPanel({
                     {isEquipped && !isBroken && (
                       <span className="font-fantasy text-[6px]" style={{ color: "#fbbf24" }}>EQUIPPED</span>
                     )}
-                    {!isBroken && item.poleMaxUses != null && item.poleUsesLeft != null && (
-                      <span className="font-fantasy text-[6px]" style={{ color: item.poleUsesLeft <= 3 ? "#ff7777" : `${ACCENT}80` }}>
-                        {item.poleUsesLeft}/{item.poleMaxUses}
-                      </span>
-                    )}
+                    {!isBroken && item.poleMaxUses != null && item.poleUsesLeft != null && (() => {
+                      const pct = Math.max(0, item.poleUsesLeft / item.poleMaxUses);
+                      const barColor = pct > 0.5 ? "#22c55e" : pct > 0.25 ? "#eab308" : "#ef4444";
+                      return (
+                        <div className="w-full px-0.5" style={{ marginTop: 1 }}>
+                          <div style={{ width: "100%", height: 3, borderRadius: 2, background: "rgba(0,0,0,0.4)" }}>
+                            <div style={{ width: `${pct * 100}%`, height: "100%", borderRadius: 2, background: barColor, transition: "width 0.3s ease" }} />
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </button>
                   {isBroken && onDeleteItem && (
                     <button
