@@ -646,7 +646,7 @@ interface SwimmingFish extends AqFishEntry {
   facingRight: boolean;
 }
 
-const AQ_MAX = 10;
+const AQ_MAX = 30;
 const AQ_TEAL = "#5eead4";
 
 function makeSwimmer(entry: AqFishEntry, x?: number, y?: number): SwimmingFish {
