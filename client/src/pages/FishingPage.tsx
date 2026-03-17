@@ -663,44 +663,82 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       </div>
 
       <div className="absolute inset-0 z-10 pointer-events-none">
-        {(phase === "waiting" || phase === "casting") && (
-          <>
-            <div className="absolute" style={{
-              bottom: "32%", left: "50%", transform: "translate(-50%, 0)",
-              width: 28, height: 28,
-              borderRadius: "50%",
-              border: `2px solid ${ACCENT}60`,
-              animation: "rippleRing 2s ease-out infinite",
-            }} />
-            <div className="absolute" style={{
-              bottom: "32%", left: "50%", transform: "translate(-50%, 0)",
-              width: 12, height: 12,
-              borderRadius: "50%",
-              background: `${ACCENT}80`,
-              animation: "bobFloat 1.2s ease-in-out infinite",
-            }} />
-          </>
+        {/* Ripple ring — waiting only */}
+        {phase === "waiting" && (
+          <div className="absolute" style={{
+            bottom: "32%", left: "50%", transform: "translate(-50%, 0)",
+            width: 28, height: 28,
+            borderRadius: "50%",
+            border: `2px solid ${ACCENT}60`,
+            animation: "rippleRing 2s ease-out infinite",
+          }} />
         )}
 
-        {phase === "nibble" && (
-          <div
-            className="absolute flex flex-col items-center gap-2"
-            style={{ bottom: "40%", left: "50%", transform: "translate(-50%, 0)", zIndex: 10, pointerEvents: "none" }}
-          >
-            {/* Bobber splash */}
+        {/* Bobber — waiting phase: gentle float */}
+        {phase === "waiting" && (
+          <div className="absolute" style={{
+            bottom: "32%", left: "50%",
+            animation: "bobFloat 1.2s ease-in-out infinite",
+          }}>
             <div style={{
-              width: 64, height: 28,
-              background: "rgba(0,0,0,0.75)",
+              width: 14, height: 14,
               borderRadius: "50%",
-              filter: "blur(3px)",
-              animation: "fishNibble 0.5s ease-in-out infinite",
+              background: "linear-gradient(180deg, #5eead4 50%, #6d28d9 50%)",
+              border: "2px solid rgba(0,0,0,0.6)",
+              transform: "translate(-50%, 0)",
+              boxShadow: "0 0 8px rgba(94,234,212,0.6)",
             }} />
-            <p className="font-fantasy text-base animate-bounce" style={{ color: "#fbbf24", textShadow: "0 0 12px rgba(251,191,36,0.8)" }}>
-              TAP!
-            </p>
+          </div>
+        )}
+
+        {/* Bobber — nibble phase: aggressive dip with ripples */}
+        {phase === "nibble" && (
+          <div className="absolute" style={{ bottom: "32%", left: "50%" }}>
+            {/* Expanding ripple rings */}
+            <div style={{
+              position: "absolute", width: 20, height: 10,
+              borderRadius: "50%",
+              border: `2px solid ${ACCENT}80`,
+              animation: "nibbleRippleOut 0.7s ease-out infinite",
+              left: "50%", top: "50%", marginLeft: -10, marginTop: -5,
+            }} />
+            <div style={{
+              position: "absolute", width: 20, height: 10,
+              borderRadius: "50%",
+              border: `2px solid ${ACCENT}50`,
+              animation: "nibbleRippleOut 0.7s ease-out infinite 0.35s",
+              left: "50%", top: "50%", marginLeft: -10, marginTop: -5,
+            }} />
+            {/* Bobber dipping */}
+            <div style={{
+              width: 14, height: 14,
+              borderRadius: "50%",
+              background: "linear-gradient(180deg, #5eead4 50%, #6d28d9 50%)",
+              border: "2px solid rgba(0,0,0,0.6)",
+              transform: "translate(-50%, 0)",
+              animation: "nibbleDip 0.9s ease-in-out infinite",
+              boxShadow: "0 0 12px rgba(94,234,212,0.8), 0 0 20px rgba(109,40,217,0.4)",
+            }} />
           </div>
         )}
       </div>
+
+      {/* SVG fishing line — pole tip to bobber */}
+      {(phase === "waiting" || phase === "nibble") && equipData?.poleItem?.imageUrl && (
+        <svg
+          className="absolute inset-0 pointer-events-none z-[14]"
+          width="100%" height="100%"
+          preserveAspectRatio="none"
+        >
+          <path
+            d="M 31% 51% Q 41% 63% 50% 68%"
+            fill="none"
+            stroke="rgba(200,180,140,0.7)"
+            strokeWidth="1.2"
+            strokeLinecap="round"
+          />
+        </svg>
+      )}
 
       {phase === "casting" && equipData?.poleItem?.imageUrl && (
         <div className="absolute pointer-events-none z-[15]" style={{
@@ -1461,6 +1499,18 @@ const FISHING_ANIMATIONS = `
   @keyframes petBob {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-6px); }
+  }
+  @keyframes nibbleDip {
+    0%   { transform: translate(-50%, 0); }
+    20%  { transform: translate(-50%, 10px); }
+    38%  { transform: translate(-50%, -4px); }
+    55%  { transform: translate(-50%, 8px); }
+    72%  { transform: translate(-50%, 0); }
+    100% { transform: translate(-50%, 0); }
+  }
+  @keyframes nibbleRippleOut {
+    0%   { transform: scale(1); opacity: 1; }
+    100% { transform: scale(3.5); opacity: 0; }
   }
   @keyframes surgeFlash {
     0%, 100% { opacity: 1; transform: scale(1); }
