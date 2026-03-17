@@ -324,7 +324,16 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       const waitTime = 1500 + Math.random() * 2500;
       nibbleTimeoutRef.current = setTimeout(() => {
         if (phaseRef.current === "waiting") {
-          const randomFish = pondFish[Math.floor(Math.random() * pondFish.length)];
+          // Weighted selection — higher rarity fish appear less often
+          const rarityWeights: Record<number, number> = { 1: 40, 2: 25, 3: 15, 4: 7, 5: 3 };
+          const weights = pondFish.map(f => rarityWeights[f?.item?.starRarity ?? 1] ?? 20);
+          const totalWeight = weights.reduce((a, b) => a + b, 0);
+          let roll = Math.random() * totalWeight;
+          let randomFish = pondFish[pondFish.length - 1];
+          for (let i = 0; i < pondFish.length; i++) {
+            roll -= weights[i];
+            if (roll <= 0) { randomFish = pondFish[i]; break; }
+          }
           nibbleRarityRef.current = randomFish?.item?.starRarity ?? 1;
           // Start 3-nibble sequence
           nibbleCountRef.current = 1;
@@ -356,8 +365,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     // Per-rarity tuning — each star level is meaningfully harder
     //                         1★     2★     3★     4★     5★
     const speedByRarity   = [0.003, 0.005, 0.007, 0.010, 0.014];
-    const fillByRarity    = [0.003, 0.0025, 0.002, 0.0017, 0.0013];
-    const drainByRarity   = [0.006, 0.009, 0.013,  0.018,  0.024];
+    const fillByRarity    = [0.003, 0.0026, 0.0022, 0.0019, 0.0016];
+    const drainByRarity   = [0.006, 0.008, 0.010,  0.013,  0.016];
     const zoneByRarity    = [0.26,  0.22,  0.19,   0.16,   0.14];
 
     const REEL_TIMEOUT_MS = 30000;
