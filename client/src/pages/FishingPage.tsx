@@ -8,7 +8,7 @@ import poleIcon from "@assets/icon_fishing_pole.png";
 import baitIcon from "@assets/icon_fishing_bait.png";
 import fishInvIcon from "@assets/icon_fish_inventory.png";
 import brokenRodIcon from "@assets/broken_rod.svg";
-import bobberIcon from "@assets/fishing_bobber.png";
+import bobberIcon from "@assets/Photoroom_20260317_35839_PM_1773781228635.png";
 import { playPlop, playCatch } from "@/lib/sounds";
 
 interface FishingPageProps {
@@ -759,7 +759,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           preserveAspectRatio="none"
         >
           <path
-            d="M 31 51 Q 41 63 50 68"
+            d="M 33 39 Q 42 54 50 68"
             fill="none"
             stroke="rgba(0,0,0,0.85)"
             strokeWidth="0.2"
