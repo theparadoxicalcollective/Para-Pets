@@ -213,9 +213,11 @@ export default function VisitPetHousePage() {
       style={{ maxWidth: "768px", margin: "0 auto", background: "#1a2a0a" }}
     >
       <div
-        className="relative z-30 flex items-center gap-3 px-4 py-3 flex-shrink-0"
+        className="relative z-30 flex items-center gap-3 px-4 flex-shrink-0"
         style={{
           background: "linear-gradient(to bottom, rgba(8,14,5,0.85) 0%, rgba(8,14,5,0.0) 100%)",
+          paddingTop: "max(env(safe-area-inset-top, 0px) + 10px, 48px)",
+          paddingBottom: 12,
         }}
       >
         <button

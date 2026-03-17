@@ -140,8 +140,8 @@ export default function SellFishPage({ user, worldId, onClose }: SellFishPagePro
     >
       {/* Header */}
       <div
-        className="flex items-center justify-between px-4 py-3 shrink-0"
-        style={{ borderBottom: `1px solid ${ACCENT}25` }}
+        className="flex items-center justify-between px-4 shrink-0"
+        style={{ borderBottom: `1px solid ${ACCENT}25`, paddingTop: "max(env(safe-area-inset-top, 0px) + 10px, 48px)", paddingBottom: 12 }}
       >
         <div className="flex items-center gap-2">
           <span className="text-2xl">🪣</span>

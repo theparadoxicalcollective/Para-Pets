@@ -245,7 +245,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
         />
       ))}
 
-      <div style={{ position: "relative", zIndex: 3 }}>
+      <div style={{ position: "relative", zIndex: 3, paddingTop: "env(safe-area-inset-top, 0px)" }}>
         <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} />
       </div>
 
