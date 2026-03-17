@@ -439,7 +439,7 @@ export default function HomePage({ user }: HomePageProps) {
           </div>
         )}
 
-        <div className="relative flex-shrink-0" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)", background: "rgba(15,8,2,0.8)" }}>
+        <div className="relative flex-shrink-0">
           <div
             className="relative w-full nav-bar-height flex items-center justify-center"
             style={{
