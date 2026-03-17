@@ -2635,13 +2635,12 @@ export default function WorldPage({ user }: WorldPageProps) {
                       }}
                     >
                       <div className="w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: "rgba(0,0,0,0.3)" }}>
-                        {si.imageUrl ? (
-                          <img src={si.imageUrl} alt="" className="w-full h-full object-contain rounded-md" />
-                        ) : si.eggImageUrl ? (
-                          <img src={si.eggImageUrl} alt="" className="w-full h-full object-contain rounded-md" />
-                        ) : (
-                          <Package className="w-5 h-5" style={{ color: `${accent}40` }} />
-                        )}
+                        {(() => {
+                          const pickerImg = si.type === "pet" ? (si.eggImageUrl || si.imageUrl) : si.imageUrl;
+                          return pickerImg
+                            ? <img src={pickerImg} alt="" className="w-full h-full object-contain rounded-md" />
+                            : <Package className="w-5 h-5" style={{ color: `${accent}40` }} />;
+                        })()}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-fantasy text-xs truncate" style={{ color: accent }}>{si.name}</p>
