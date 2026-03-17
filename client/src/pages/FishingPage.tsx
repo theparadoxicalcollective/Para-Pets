@@ -429,6 +429,42 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         </div>
       )}
 
+      {equipData !== undefined && !equipData.poleItem && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(4,2,12,0.82)", backdropFilter: "blur(6px)" }}>
+          <div
+            className="flex flex-col items-center gap-5 rounded-2xl px-8 py-8 mx-6 text-center"
+            style={{
+              background: "linear-gradient(145deg, rgba(10,5,20,0.97) 0%, rgba(18,8,35,0.97) 100%)",
+              border: `1.5px solid ${ACCENT}40`,
+              boxShadow: `0 8px 40px rgba(0,0,0,0.8), 0 0 30px ${ACCENT}15`,
+            }}
+          >
+            <img src={poleIcon} alt="Fishing Pole" className="w-16 h-16 object-contain opacity-80" />
+            <div>
+              <p className="font-fantasy text-lg tracking-widest font-semibold mb-1" style={{ color: ACCENT, textShadow: `0 0 12px ${ACCENT}50` }}>
+                No Pole Equipped
+              </p>
+              <p className="font-fantasy text-sm tracking-wide" style={{ color: `${ACCENT}99` }}>
+                Equip a Fishing Pole to Fish
+              </p>
+            </div>
+            <button
+              data-testid="button-no-pole-back"
+              onClick={onClose}
+              className="font-fantasy text-sm tracking-[0.15em] px-6 py-2.5 rounded-xl transition-transform active:scale-95"
+              style={{
+                background: `linear-gradient(135deg, rgba(10,5,20,0.9) 0%, rgba(20,10,40,0.9) 100%)`,
+                border: `1.5px solid ${ACCENT}60`,
+                color: ACCENT,
+                boxShadow: `0 4px 16px rgba(0,0,0,0.5), 0 0 16px ${ACCENT}20`,
+              }}
+            >
+              ← Back to World
+            </button>
+          </div>
+        </div>
+      )}
+
       <style>{FISHING_ANIMATIONS}</style>
 
       <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 pb-3" style={{ paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
