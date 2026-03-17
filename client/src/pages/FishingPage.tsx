@@ -68,9 +68,11 @@ interface CaughtFish {
 type FishingPhase = "idle" | "casting" | "waiting" | "nibble" | "reeling" | "caught" | "missed";
 
 const ACCENT = "#5eead4";
-const REEL_DURATION = 4000;
 const NIBBLE_TIMEOUT = 4000;
-const GREEN_ZONE_SIZE = 0.28;
+const CATCH_ZONE_SIZE = 0.22;
+const FISH_ZONE_SIZE = 0.13;
+const CATCH_FILL_RATE = 0.007;
+const CATCH_DRAIN_RATE = 0.0045;
 
 export default function FishingPage({ locationId, locationName, bgUrl, user, onClose }: FishingPageProps) {
   const [phase, setPhase] = useState<FishingPhase>("idle");
@@ -78,18 +80,23 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   const [showBaitPanel, setShowBaitPanel] = useState(false);
   const [showFishInv, setShowFishInv] = useState(false);
   const [showPondAdmin, setShowPondAdmin] = useState(false);
-  const [reelPos, setReelPos] = useState(0.0);
-  const [greenZoneCenter, setGreenZoneCenter] = useState(0.5);
+  const [reelBarState, setReelBarState] = useState<{
+    fishPos: number;
+    catchZonePos: number;
+    catchMeter: number;
+    isOverlap: boolean;
+    isSurging: boolean;
+  } | null>(null);
   const [caughtItem, setCaughtItem] = useState<ShopItem | null>(null);
   const [bgLoaded, setBgLoaded] = useState(false);
   const [bgError, setBgError] = useState(false);
   const nibbleRarityRef = useRef<number>(1);
-  const reelIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const nibbleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const castingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const reelCompleteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const phaseRef = useRef<FishingPhase>("idle");
-  const reelPosRef = useRef(0.0);
+  const rafRef = useRef<number | null>(null);
+  const isHoldingRef = useRef(false);
+  const catchZoneVelRef = useRef(0);
   const poleSlotRef = useRef<HTMLDivElement>(null);
   const baitSlotRef = useRef<HTMLDivElement>(null);
   const pendingDragRef = useRef<{ item: InventoryItem; slot: "pole" | "bait"; startX: number; startY: number } | null>(null);
@@ -232,10 +239,10 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   }, [phase]);
 
   const clearAllTimers = useCallback(() => {
-    if (reelIntervalRef.current) { clearInterval(reelIntervalRef.current); reelIntervalRef.current = null; }
     if (nibbleTimeoutRef.current) { clearTimeout(nibbleTimeoutRef.current); nibbleTimeoutRef.current = null; }
     if (castingTimeoutRef.current) { clearTimeout(castingTimeoutRef.current); castingTimeoutRef.current = null; }
-    if (reelCompleteTimeoutRef.current) { clearTimeout(reelCompleteTimeoutRef.current); reelCompleteTimeoutRef.current = null; }
+    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+    isHoldingRef.current = false;
   }, []);
 
   const equipMutateRef = useRef(equipMutation.mutate);
@@ -324,36 +331,90 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   }, [equipData, pondFish, toast]);
 
   const startReeling = useCallback(() => {
-    const center = 0.3 + Math.random() * 0.4;
-    setGreenZoneCenter(center);
-    setReelPos(0.0);
-    reelPosRef.current = 0.0;
-    setPhase("reeling");
-
     const rarity = Math.max(1, Math.min(5, nibbleRarityRef.current));
-    const driftSpeed = 0.009 + (rarity - 1) * 0.003;
+    const baseSpeed = 0.006 + (rarity - 1) * 0.0035;
 
-    if (reelIntervalRef.current) clearInterval(reelIntervalRef.current);
-    reelIntervalRef.current = setInterval(() => {
-      reelPosRef.current = Math.max(0, reelPosRef.current - driftSpeed);
-      setReelPos(reelPosRef.current);
-    }, 50);
+    isHoldingRef.current = false;
+    catchZoneVelRef.current = 0;
 
-    reelCompleteTimeoutRef.current = setTimeout(() => {
-      if (reelIntervalRef.current) { clearInterval(reelIntervalRef.current); reelIntervalRef.current = null; }
-      if (phaseRef.current === "reeling") {
-        const finalPos = reelPosRef.current;
-        const greenMin = center - GREEN_ZONE_SIZE / 2;
-        const greenMax = center + GREEN_ZONE_SIZE / 2;
-        const inGreen = finalPos >= greenMin && finalPos <= greenMax;
-        if (inGreen) {
-          const score = Math.round(70 + Math.random() * 30);
-          catchMutation.mutate(score);
+    let fishPos = 0.25 + Math.random() * 0.5;
+    let fishDir = Math.random() > 0.5 ? 1 : -1;
+    let catchZonePos = 0.4;
+    let catchMeter = 0.4;
+    let surging = false;
+    let surgeTimer = 0;
+    let dirChangeTimer = 30;
+
+    setPhase("reeling");
+    setReelBarState({ fishPos, catchZonePos, catchMeter, isOverlap: false, isSurging: false });
+
+    const tick = () => {
+      if (phaseRef.current !== "reeling") return;
+
+      // Fish movement — surges move faster
+      const fishSpeed = surging ? baseSpeed * 2.8 : baseSpeed;
+      fishPos += fishDir * fishSpeed;
+      if (fishPos <= 0) { fishPos = 0; fishDir = 1; surging = false; }
+      if (fishPos >= 1 - FISH_ZONE_SIZE) { fishPos = 1 - FISH_ZONE_SIZE; fishDir = -1; surging = false; }
+
+      // Random direction flips — more frequent at higher rarity
+      dirChangeTimer--;
+      if (dirChangeTimer <= 0) {
+        if (Math.random() < 0.18 + (rarity - 1) * 0.06) fishDir *= -1;
+        dirChangeTimer = 18 + Math.floor(Math.random() * 35);
+      }
+
+      // Surge logic — higher rarity surges more often
+      surgeTimer--;
+      if (!surging && surgeTimer <= 0) {
+        if (Math.random() < 0.012 + (rarity - 1) * 0.005) {
+          surging = true;
+          surgeTimer = 28 + Math.floor(Math.random() * 28);
         } else {
-          setPhase("missed");
+          surgeTimer = 15;
         }
       }
-    }, REEL_DURATION);
+      if (surging && surgeTimer <= 0) surging = false;
+
+      // Catch zone physics: hold button → zone floats UP (lower pos value); release → falls DOWN
+      const GRAVITY = 0.016;
+      const HOLD_LIFT = 0.026;
+      if (isHoldingRef.current) {
+        catchZoneVelRef.current = Math.min(catchZoneVelRef.current + 0.004, HOLD_LIFT);
+      } else {
+        catchZoneVelRef.current = Math.max(catchZoneVelRef.current - 0.003, -GRAVITY);
+      }
+      catchZonePos = Math.max(0, Math.min(1 - CATCH_ZONE_SIZE, catchZonePos - catchZoneVelRef.current));
+
+      // Overlap detection
+      const overlap =
+        fishPos < catchZonePos + CATCH_ZONE_SIZE &&
+        fishPos + FISH_ZONE_SIZE > catchZonePos;
+
+      // Catch meter fills on overlap, drains when fish escapes
+      if (overlap) {
+        catchMeter = Math.min(1, catchMeter + CATCH_FILL_RATE);
+      } else {
+        catchMeter = Math.max(0, catchMeter - CATCH_DRAIN_RATE);
+      }
+
+      setReelBarState({ fishPos, catchZonePos, catchMeter, isOverlap: overlap, isSurging: surging });
+
+      if (catchMeter >= 1) {
+        setReelBarState(null);
+        catchMutation.mutate(100);
+        return;
+      }
+      if (catchMeter <= 0) {
+        setReelBarState(null);
+        setPhase("missed");
+        return;
+      }
+
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
   }, [catchMutation]);
 
   useEffect(() => {
@@ -364,12 +425,6 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       return () => clearTimeout(timer);
     }
   }, [phase, startReeling]);
-
-  const handleReelTap = useCallback(() => {
-    if (phase !== "reeling") return;
-    reelPosRef.current = Math.min(1, reelPosRef.current + 0.07);
-    setReelPos(reelPosRef.current);
-  }, [phase]);
 
   const resetFishing = useCallback(() => {
     setPhase("idle");
@@ -626,12 +681,15 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         </div>
       )}
 
-      {phase === "reeling" && (
-        <RadialReelMechanic
-          reelPos={reelPos}
-          greenZoneCenter={greenZoneCenter}
-          greenZoneSize={GREEN_ZONE_SIZE}
-          onTap={handleReelTap}
+      {phase === "reeling" && reelBarState && (
+        <ReelBar
+          fishPos={reelBarState.fishPos}
+          catchZonePos={reelBarState.catchZonePos}
+          catchMeter={reelBarState.catchMeter}
+          isOverlap={reelBarState.isOverlap}
+          isSurging={reelBarState.isSurging}
+          onHoldStart={() => { isHoldingRef.current = true; }}
+          onHoldEnd={() => { isHoldingRef.current = false; }}
         />
       )}
 
@@ -1133,120 +1191,153 @@ function PondAdminPanel({
   );
 }
 
-function RadialReelMechanic({
-  reelPos, greenZoneCenter, greenZoneSize, onTap,
+function ReelBar({
+  fishPos, catchZonePos, catchMeter, isOverlap, isSurging, onHoldStart, onHoldEnd,
 }: {
-  reelPos: number;
-  greenZoneCenter: number;
-  greenZoneSize: number;
-  onTap: () => void;
+  fishPos: number;
+  catchZonePos: number;
+  catchMeter: number;
+  isOverlap: boolean;
+  isSurging: boolean;
+  onHoldStart: () => void;
+  onHoldEnd: () => void;
 }) {
-  const R = 70;
-  const cx = 100;
-  const cy = 100;
-  const circumference = 2 * Math.PI * R;
+  const BAR_H = 260;
+  const BAR_W = 52;
 
-  const startAngle = -220;
-  const totalArcDeg = 260;
-
-  function polarToXY(deg: number) {
-    const rad = (deg * Math.PI) / 180;
-    return {
-      x: cx + R * Math.cos(rad),
-      y: cy + R * Math.sin(rad),
-    };
-  }
-
-  function arcPath(fromDeg: number, toDeg: number) {
-    const from = polarToXY(fromDeg);
-    const to = polarToXY(toDeg);
-    const span = toDeg - fromDeg;
-    const largeArc = Math.abs(span) > 180 ? 1 : 0;
-    const sweep = span > 0 ? 1 : 0;
-    return `M ${from.x} ${from.y} A ${R} ${R} 0 ${largeArc} ${sweep} ${to.x} ${to.y}`;
-  }
-
-  const trackFrom = startAngle;
-  const trackTo = startAngle + totalArcDeg;
-
-  const greenFrom = startAngle + (greenZoneCenter - greenZoneSize / 2) * totalArcDeg;
-  const greenTo = startAngle + (greenZoneCenter + greenZoneSize / 2) * totalArcDeg;
-
-  const indicatorAngle = startAngle + reelPos * totalArcDeg;
-  const indicatorPt = polarToXY(indicatorAngle);
-
-  const inGreen = reelPos >= (greenZoneCenter - greenZoneSize / 2) && reelPos <= (greenZoneCenter + greenZoneSize / 2);
+  const czTop = catchZonePos * BAR_H;
+  const czH = CATCH_ZONE_SIZE * BAR_H;
+  const fishTop = fishPos * BAR_H;
+  const fishH = FISH_ZONE_SIZE * BAR_H;
 
   return (
     <div
       className="absolute flex flex-col items-center gap-3"
-      style={{ right: 12, top: "50%", transform: "translateY(-50%)", zIndex: 30 }}
+      style={{ right: 14, top: "50%", transform: "translateY(-55%)", zIndex: 30, userSelect: "none" }}
     >
-      <svg width={200} height={200} viewBox="0 0 200 200">
-        <path
-          d={arcPath(trackFrom, trackTo)}
-          fill="none"
-          stroke="rgba(0,0,0,0.6)"
-          strokeWidth={14}
-          strokeLinecap="round"
-        />
-        <path
-          d={arcPath(trackFrom, trackTo)}
-          fill="none"
-          stroke="rgba(94,234,212,0.2)"
-          strokeWidth={10}
-          strokeLinecap="round"
-        />
-        <path
-          d={arcPath(greenFrom, greenTo)}
-          fill="none"
-          stroke="rgba(74,222,128,0.7)"
-          strokeWidth={10}
-          strokeLinecap="round"
-        />
-        <circle
-          cx={indicatorPt.x}
-          cy={indicatorPt.y}
-          r={9}
-          fill={inGreen ? "#4ade80" : "#ef4444"}
-          style={{ filter: inGreen ? "drop-shadow(0 0 8px rgba(74,222,128,0.9))" : "drop-shadow(0 0 8px rgba(239,68,68,0.9))" }}
-        />
-        <text
-          x={cx}
-          y={cy - 6}
-          textAnchor="middle"
-          className="font-fantasy"
-          style={{ fontSize: 10, fill: inGreen ? "#4ade80" : "rgba(94,234,212,0.5)", fontFamily: "Cinzel, serif" }}
-        >
-          REEL
-        </text>
-        <text
-          x={cx}
-          y={cy + 10}
-          textAnchor="middle"
-          style={{ fontSize: 8, fill: "rgba(94,234,212,0.4)", fontFamily: "Cinzel, serif" }}
-        >
-          {inGreen ? "GOOD!" : "tap faster"}
-        </text>
-      </svg>
+      {/* Surge warning */}
+      <div style={{
+        height: 18,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}>
+        {isSurging && (
+          <span
+            className="font-fantasy text-[10px] tracking-widest"
+            style={{ color: "#f97316", textShadow: "0 0 10px rgba(249,115,22,0.9)", animation: "surgeFlash 0.4s ease-in-out infinite" }}
+          >
+            SURGE!
+          </span>
+        )}
+      </div>
 
+      {/* Catch meter */}
+      <div style={{ width: BAR_W, height: 8, borderRadius: 4, background: "rgba(0,0,0,0.5)", border: "1px solid rgba(94,234,212,0.3)", overflow: "hidden" }}>
+        <div style={{
+          height: "100%",
+          width: `${catchMeter * 100}%`,
+          borderRadius: 4,
+          background: catchMeter > 0.6
+            ? "linear-gradient(90deg, #4ade80, #22c55e)"
+            : catchMeter > 0.3
+            ? "linear-gradient(90deg, #facc15, #eab308)"
+            : "linear-gradient(90deg, #ef4444, #dc2626)",
+          transition: "width 0.05s linear, background 0.2s ease",
+          boxShadow: catchMeter > 0.6 ? "0 0 8px rgba(74,222,128,0.6)" : undefined,
+        }} />
+      </div>
+
+      {/* Main reel bar */}
+      <div style={{
+        width: BAR_W,
+        height: BAR_H,
+        borderRadius: 12,
+        background: "rgba(0,0,0,0.75)",
+        border: `1.5px solid ${isOverlap ? "rgba(74,222,128,0.6)" : "rgba(94,234,212,0.25)"}`,
+        boxShadow: isOverlap
+          ? "0 0 18px rgba(74,222,128,0.35), inset 0 0 10px rgba(74,222,128,0.1)"
+          : isSurging
+          ? "0 0 18px rgba(249,115,22,0.35)"
+          : "0 2px 12px rgba(0,0,0,0.6)",
+        position: "relative",
+        overflow: "hidden",
+        transition: "border-color 0.1s ease, box-shadow 0.1s ease",
+        animation: isSurging ? "surgeShake 0.15s ease-in-out infinite" : undefined,
+      }}>
+        {/* Subtle track lines */}
+        {[0.25, 0.5, 0.75].map(p => (
+          <div key={p} style={{
+            position: "absolute",
+            top: p * BAR_H,
+            left: 6,
+            right: 6,
+            height: 1,
+            background: "rgba(94,234,212,0.08)",
+          }} />
+        ))}
+
+        {/* Catch zone (player-controlled) */}
+        <div style={{
+          position: "absolute",
+          top: czTop,
+          left: 5,
+          right: 5,
+          height: czH,
+          borderRadius: 8,
+          background: isOverlap
+            ? "rgba(74,222,128,0.35)"
+            : "rgba(94,234,212,0.2)",
+          border: `1.5px solid ${isOverlap ? "rgba(74,222,128,0.8)" : "rgba(94,234,212,0.5)"}`,
+          boxShadow: isOverlap ? "0 0 12px rgba(74,222,128,0.5)" : undefined,
+          transition: "background 0.08s ease, border-color 0.08s ease",
+        }} />
+
+        {/* Fish indicator */}
+        <div style={{
+          position: "absolute",
+          top: fishTop,
+          left: 8,
+          right: 8,
+          height: fishH,
+          borderRadius: 6,
+          background: isSurging
+            ? "linear-gradient(180deg, rgba(249,115,22,0.9), rgba(239,68,68,0.8))"
+            : "linear-gradient(180deg, rgba(251,191,36,0.9), rgba(245,158,11,0.8))",
+          boxShadow: isSurging
+            ? "0 0 14px rgba(249,115,22,0.8)"
+            : "0 0 10px rgba(251,191,36,0.7)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 13,
+          transition: "background 0.1s ease",
+        }}>
+          🐟
+        </div>
+      </div>
+
+      {/* Hold button */}
       <button
         data-testid="button-reel"
-        onClick={onTap}
-        onTouchStart={(e) => { e.preventDefault(); onTap(); }}
-        className="w-16 h-16 rounded-full flex items-center justify-center font-fantasy text-xs tracking-wider transition-transform active:scale-90"
+        onPointerDown={(e) => { e.preventDefault(); onHoldStart(); }}
+        onPointerUp={(e) => { e.preventDefault(); onHoldEnd(); }}
+        onPointerLeave={() => onHoldEnd()}
+        onPointerCancel={() => onHoldEnd()}
+        className="w-16 h-16 rounded-full flex flex-col items-center justify-center gap-0.5 transition-transform active:scale-95"
         style={{
-          background: `linear-gradient(135deg, ${ACCENT}cc, ${ACCENT}88)`,
+          background: `linear-gradient(135deg, ${ACCENT}dd, ${ACCENT}99)`,
           border: `2px solid ${ACCENT}`,
           color: "#0a1a14",
           cursor: "pointer",
-          boxShadow: `0 0 20px ${ACCENT}40`,
+          boxShadow: `0 0 20px ${ACCENT}50`,
           fontFamily: "Cinzel, serif",
-          fontSize: 11,
-          fontWeight: 700,
+          touchAction: "none",
+          userSelect: "none",
         }}
       >
-        REEL
+        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em" }}>HOLD</span>
+        <span style={{ fontSize: 14 }}>🎣</span>
       </button>
     </div>
   );
@@ -1316,5 +1407,14 @@ const FISHING_ANIMATIONS = `
   @keyframes petBob {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-6px); }
+  }
+  @keyframes surgeFlash {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.1); }
+  }
+  @keyframes surgeShake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-2px); }
+    75% { transform: translateX(2px); }
   }
 `;
