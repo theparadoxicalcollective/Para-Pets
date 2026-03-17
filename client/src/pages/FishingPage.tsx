@@ -468,6 +468,15 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
       data-testid="fishing-page"
     >
+      {/* Full-screen tap layer — active only during nibble so player can tap anywhere */}
+      {phase === "nibble" && (
+        <div
+          className="absolute inset-0"
+          style={{ zIndex: 50, cursor: "pointer" }}
+          onClick={handleNibbleTap}
+        />
+      )}
+
       <img
         src={effectiveBg}
         alt=""
@@ -622,7 +631,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
             {phase === "idle" ? (poleIsBroken ? "Your pole broke! Remove it from the slot" : hasPole ? "Tap the water to cast" : "Equip a pole to fish") :
              phase === "casting" ? "Casting..." :
              phase === "waiting" ? "Waiting for a bite..." :
-             phase === "nibble" ? `Nibble ${nibbleCount}/3 — tap to reel!` :
+             phase === "nibble" ? "Something's biting — tap anywhere!" :
              phase === "reeling" ? "Reel it in!" :
              phase === "caught" ? "You caught something!" : "It got away..."}
           </p>
@@ -671,9 +680,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
 
         {phase === "nibble" && (
           <div
-            className="absolute flex flex-col items-center gap-3"
-            style={{ bottom: "40%", left: "50%", transform: "translate(-50%, 0)", zIndex: 10, pointerEvents: "auto", cursor: "pointer" }}
-            onClick={handleNibbleTap}
+            className="absolute flex flex-col items-center gap-2"
+            style={{ bottom: "40%", left: "50%", transform: "translate(-50%, 0)", zIndex: 10, pointerEvents: "none" }}
           >
             {/* Bobber splash */}
             <div style={{
@@ -683,20 +691,6 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
               filter: "blur(3px)",
               animation: "fishNibble 0.5s ease-in-out infinite",
             }} />
-            {/* 3 nibble dots */}
-            <div className="flex gap-2 items-center">
-              {[1, 2, 3].map(n => (
-                <div key={n} style={{
-                  width: 12, height: 12,
-                  borderRadius: "50%",
-                  background: n <= nibbleCount ? "#fbbf24" : "rgba(251,191,36,0.2)",
-                  border: "1.5px solid rgba(251,191,36,0.7)",
-                  boxShadow: n === nibbleCount ? "0 0 10px rgba(251,191,36,0.9)" : "none",
-                  transform: n === nibbleCount ? "scale(1.3)" : "scale(1)",
-                  transition: "all 0.2s ease",
-                }} />
-              ))}
-            </div>
             <p className="font-fantasy text-base animate-bounce" style={{ color: "#fbbf24", textShadow: "0 0 12px rgba(251,191,36,0.8)" }}>
               TAP!
             </p>
