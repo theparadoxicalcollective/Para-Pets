@@ -166,12 +166,6 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Bind the port immediately so deployment health checks pass even if DB init is slow
-  const port = parseInt(process.env.PORT || "5000", 10);
-  httpServer.listen({ port, host: "0.0.0.0" }, () => { log(`serving on port ${port}`); });
-
-  console.log(`Starting server on port ${port}...`);
-
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS "session" (
@@ -182,7 +176,6 @@ app.use((req, res, next) => {
       ) WITH (OIDS=FALSE);
       CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
     `);
-    console.log("Session table ready.");
   } catch (err) {
     console.error("Session table setup error (non-fatal):", err);
   }
@@ -513,4 +506,6 @@ app.use((req, res, next) => {
     await setupVite(httpServer, app);
   }
 
+  const port = parseInt(process.env.PORT || "5000", 10);
+  httpServer.listen({ port, host: "0.0.0.0" }, () => { log(`serving on port ${port}`); });
 })();
