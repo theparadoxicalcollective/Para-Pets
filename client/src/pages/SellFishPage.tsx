@@ -76,7 +76,7 @@ export default function SellFishPage({ user, worldId, onClose }: SellFishPagePro
 
   const cartFish = fishInventory.filter(f => cartIds.has(f.id));
   const inventoryFish = fishInventory.filter(f => !cartIds.has(f.id));
-  const totalCoins = cartFish.reduce((sum, f) => sum + (SELL_PRICES[f.item?.rarity ?? 0] ?? 0), 0);
+  const totalCoins = cartFish.reduce((sum, f) => sum + (SELL_PRICES[f.item?.starRarity ?? 1] ?? 5), 0);
 
   const toggleCart = useCallback((fish: CaughtFish) => {
     setCartIds(prev => {
@@ -214,7 +214,7 @@ export default function SellFishPage({ user, worldId, onClose }: SellFishPagePro
                       : <span className="text-xl">🐟</span>
                     }
                   </div>
-                  <RarityStars rarity={fish.item?.rarity ?? null} />
+                  <RarityStars rarity={fish.item?.starRarity ?? null} />
                 </button>
                 <div
                   className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center"
@@ -277,7 +277,7 @@ export default function SellFishPage({ user, worldId, onClose }: SellFishPagePro
         ) : (
           <div className="grid grid-cols-4 gap-2.5">
             {inventoryFish.map(fish => {
-              const rarity = fish.item?.rarity ?? 1;
+              const rarity = fish.item?.starRarity ?? 1;
               const price = SELL_PRICES[rarity] ?? 5;
               return (
                 <div

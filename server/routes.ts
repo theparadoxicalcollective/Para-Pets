@@ -3155,7 +3155,7 @@ export async function registerRoutes(
 
       let totalCoins = 0;
       for (const fish of toSell) {
-        const rarity = fish.item?.rarity ?? 1;
+        const rarity = fish.item?.starRarity ?? 1;
         totalCoins += FISH_SELL_PRICES[rarity] ?? 5;
       }
 
