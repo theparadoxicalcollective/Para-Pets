@@ -162,7 +162,6 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [showProfile, setShowProfile] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
   const [showShop, setShowShop] = useState(false);
-  const [shopError, setShopError] = useState<string | null>(null);
   const [showAddLocation, setShowAddLocation] = useState(false);
   const [newLocName, setNewLocName] = useState("");
   const [newLocType, setNewLocType] = useState("battle");
@@ -231,7 +230,6 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [dragPos, setDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
   const didDrag = useRef(false);
   const adminLocTapRef = useRef<{ id: string; timer: ReturnType<typeof setTimeout> } | null>(null);
-  const [topLocId, setTopLocId] = useState<string | null>(null);
   const [worldBgLoaded, setWorldBgLoaded] = useState(false);
 
   const mapTransformRef = useRef({ x: 0, y: 0, scale: 1 });
@@ -880,7 +878,6 @@ export default function WorldPage({ user }: WorldPageProps) {
     if (didDrag.current && dragPos) {
       // Only suppress the click when we actually dragged (otherwise let it fire for double-tap-to-open)
       e.preventDefault();
-      setTopLocId(d.locId);
       positionMutation.mutate({ locationId: d.locId, posX: dragPos.x, posY: dragPos.y });
     }
     didDrag.current = false;
@@ -893,7 +890,6 @@ export default function WorldPage({ user }: WorldPageProps) {
   const hasHatchedActivePet = activePetInv && activePetInv.isHatched;
 
   const openLocation = useCallback((loc: WorldLocationData) => {
-    setTopLocId(null);
     setActiveLocationId(loc.id);
     if (loc.type === "fishing") {
       setShowLocationView(false);
