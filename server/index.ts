@@ -456,30 +456,27 @@ app.use((req, res, next) => {
   // Ensure admin always has an unbreakable test fishing pole
   try {
     const ADMIN_POLE_ID = "00000000-0000-0000-0000-admin0000pole";
-    const adminUser = await storage.getUserByUsername("Paradox");
+    const adminRow = await pool.query(`SELECT id, username FROM users WHERE is_admin = true ORDER BY created_at ASC LIMIT 1`);
+    const adminUser = adminRow.rows[0];
     if (adminUser) {
-      const existingPole = await storage.getShopItem(ADMIN_POLE_ID);
-      if (!existingPole) {
-        const poleImg = loadAssetBase64("icon_fishing_pole.png");
-        await storage.createShopItem({
-          id: ADMIN_POLE_ID,
-          name: "Admin Test Pole",
-          price: 0,
-          type: "fishing",
-          worldId: "swamp",
-          fishingType: "pole",
-          poleMaxUses: null,
-          imageUrl: poleImg ?? "",
-          rarity: 5,
-        } as any);
-        console.log("Admin Test Pole shop item created.");
+      const poleImg = loadAssetBase64("icon_fishing_pole.png");
+      await pool.query(
+        `INSERT INTO shop_items (id, name, price, type, world_id, fishing_type, pole_max_uses, image_url, rarity)
+         VALUES ($1, 'Admin Test Pole', 0, 'fishing', 'swamp', 'pole', NULL, $2, 5)
+         ON CONFLICT (id) DO NOTHING`,
+        [ADMIN_POLE_ID, poleImg ?? ""]
+      );
+      const existing = await pool.query(
+        `SELECT id FROM user_inventory WHERE user_id = $1 AND shop_item_id = $2 LIMIT 1`,
+        [adminUser.id, ADMIN_POLE_ID]
+      );
+      if (existing.rowCount === 0) {
+        await pool.query(
+          `INSERT INTO user_inventory (user_id, shop_item_id, pole_uses_left) VALUES ($1, $2, NULL)`,
+          [adminUser.id, ADMIN_POLE_ID]
+        );
       }
-      const adminInv = await storage.getUserInventory(adminUser.id);
-      const alreadyHas = adminInv.some(i => i.shopItemId === ADMIN_POLE_ID);
-      if (!alreadyHas) {
-        await storage.addToInventory(adminUser.id, ADMIN_POLE_ID, { poleUsesLeft: null } as any);
-        console.log("Admin Test Pole added to Paradox inventory.");
-      }
+      console.log(`Admin Test Pole ensured for ${adminUser.username}.`);
     }
   } catch (err) {
     console.error("Admin pole seed error (non-fatal):", err);

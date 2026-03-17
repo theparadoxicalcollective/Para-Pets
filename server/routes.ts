@@ -536,11 +536,14 @@ export async function registerRoutes(
     }
   });
 
+  const ADMIN_POLE_SHOP_ID = "00000000-0000-0000-0000-admin0000pole";
+
   app.get("/api/inventory", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
       const rows = await storage.getUserInventoryWithItems(user.id);
-      const itemsWithDetails = rows.map(({ inventory: inv, shopItem }) => ({
+      const filteredRows = user.isAdmin ? rows : rows.filter(({ inventory: inv }) => inv.shopItemId !== ADMIN_POLE_SHOP_ID);
+      const itemsWithDetails = filteredRows.map(({ inventory: inv, shopItem }) => ({
         inventoryId: inv.id,
         shopItemId: inv.shopItemId,
         acquiredAt: inv.acquiredAt,
