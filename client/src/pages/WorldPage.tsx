@@ -12,6 +12,7 @@ import ExploreAdminPanel from "@/components/ExploreAdminPanel";
 import BattleArena from "@/components/BattleArena";
 import FishingPage from "@/pages/FishingPage";
 import SellFishPage from "@/pages/SellFishPage";
+import fishBarrelImg from "@assets/fish_barrel.png";
 
 import bgShopMystical from "@assets/bg_shop_mystical.png";
 import shopFrostpeak from "@assets/shop_frostpeak.png";
@@ -1400,7 +1401,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                     top: `${bpos.y}%`,
                     width: sz,
                     transform: "translate(-50%, -50%)",
-                    zIndex: 15,
+                    zIndex: 80,
                     cursor: currentUser.isAdmin ? "grab" : "pointer",
                     touchAction: "none",
                   }}
@@ -1417,45 +1418,31 @@ export default function WorldPage({ user }: WorldPageProps) {
                   }}
                   data-testid="button-fish-barrel"
                 >
-                  <div
-                    className="flex items-center justify-center rounded-full"
+                  <img
+                    src={fishBarrelImg}
+                    alt="Fish Market"
+                    draggable={false}
                     style={{
                       width: sz,
                       height: sz,
-                      background: "radial-gradient(circle at 40% 35%, rgba(160,100,40,0.5), rgba(100,60,20,0.3))",
-                      border: "2px solid rgba(200,140,60,0.5)",
-                      boxShadow: "0 0 12px rgba(200,140,60,0.3), 0 4px 12px rgba(0,0,0,0.5)",
-                      fontSize: sz * 0.52,
-                      lineHeight: 1,
+                      objectFit: "contain",
+                      filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.6))",
+                      transition: "filter 0.15s ease",
                     }}
-                  >
-                    🪣
-                  </div>
-                  <span
-                    className="font-fantasy text-center mt-1"
-                    style={{
-                      fontSize: Math.max(9, sz * 0.16),
-                      color: "#fbbf24",
-                      textShadow: "0 0 6px rgba(251,191,36,0.6), 0 1px 3px rgba(0,0,0,1)",
-                      letterSpacing: "0.08em",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    Fish Market
-                  </span>
+                  />
                   {currentUser.isAdmin && (
                     <div className="flex gap-1 mt-1" onPointerDown={(e) => e.stopPropagation()}>
                       <button
                         data-testid="button-barrel-shrink"
-                        onClick={(e) => { e.stopPropagation(); updateBarrelMutation.mutate({ size: Math.max(40, sz - 10) }); }}
+                        onClick={(e) => { e.stopPropagation(); updateBarrelMutation.mutate({ size: Math.max(50, sz - 10) }); }}
                         className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold text-xs"
-                        style={{ background: "rgba(0,0,0,0.7)", border: "1px solid rgba(255,255,255,0.3)" }}
+                        style={{ background: "rgba(0,0,0,0.75)", border: "1px solid rgba(255,255,255,0.3)" }}
                       >−</button>
                       <button
                         data-testid="button-barrel-grow"
-                        onClick={(e) => { e.stopPropagation(); updateBarrelMutation.mutate({ size: Math.min(160, sz + 10) }); }}
+                        onClick={(e) => { e.stopPropagation(); updateBarrelMutation.mutate({ size: Math.min(220, sz + 10) }); }}
                         className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold text-xs"
-                        style={{ background: "rgba(0,0,0,0.7)", border: "1px solid rgba(255,255,255,0.3)" }}
+                        style={{ background: "rgba(0,0,0,0.75)", border: "1px solid rgba(255,255,255,0.3)" }}
                       >+</button>
                       <button
                         data-testid="button-barrel-delete"
