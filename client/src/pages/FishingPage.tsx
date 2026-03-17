@@ -360,16 +360,19 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     const drainRate  = drainByRarity[rarity - 1];
     const czSize     = zoneByRarity[rarity - 1];
 
-    catchZoneVelRef.current = 0;
+    // Start with a gentle upward kick so the zone floats for a moment
+    catchZoneVelRef.current = 0.012;
 
     let fishPos = 0.25 + Math.random() * 0.5;
     let fishDir = Math.random() > 0.5 ? 1 : -1;
-    let catchZonePos = 0.4;
+    // Start catch zone aligned with the fish so there's instant overlap during grace
+    let catchZonePos = Math.max(0, Math.min(1 - zoneByRarity[rarity - 1], fishPos));
     let catchMeter = 0.0;
     let surging = false;
     let surgeTimer = 0;
-    let dirChangeTimer = 30;
-    let graceFrames = 80; // ~1.3s before the meter can reach 0 and fail
+    // Longer, more predictable direction windows — less chaotic
+    let dirChangeTimer = 55;
+    let graceFrames = 90; // ~1.5s before the meter can reach 0 and fail
 
     // Set ref directly so the first RAF tick sees "reeling" before the useEffect updates it
     phaseRef.current = "reeling";
@@ -388,8 +391,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       // Random direction flips — more frequent at higher rarity
       dirChangeTimer--;
       if (dirChangeTimer <= 0) {
-        if (Math.random() < 0.18 + (rarity - 1) * 0.06) fishDir *= -1;
-        dirChangeTimer = 18 + Math.floor(Math.random() * 35);
+        if (Math.random() < 0.14 + (rarity - 1) * 0.04) fishDir *= -1;
+        dirChangeTimer = 35 + Math.floor(Math.random() * 40);
       }
 
       // Surge logic — higher rarity surges more often
@@ -707,22 +710,41 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         }}>
           <img src={equipData.poleItem.imageUrl} alt="" className="w-full h-full object-contain" style={{
             filter: `drop-shadow(0 0 8px ${ACCENT}80)`,
+            clipPath: "inset(0 0 28% 0)",
           }} />
         </div>
       )}
 
       {(phase === "waiting" || phase === "nibble") && equipData?.poleItem?.imageUrl && (
-        <div className="absolute pointer-events-none z-[15]" style={{
-          bottom: "42%", left: "22%",
-          width: 80, height: 80,
-          transform: "rotate(-30deg)",
-          transformOrigin: "bottom left",
-          animation: "poleHold 2s ease-in-out infinite",
-        }}>
-          <img src={equipData.poleItem.imageUrl} alt="" className="w-full h-full object-contain" style={{
-            filter: `drop-shadow(0 0 6px ${ACCENT}60)`,
-          }} />
-        </div>
+        <>
+          {/* Fishing line SVG — from pole tip down to water surface */}
+          <svg
+            className="absolute pointer-events-none z-[14]"
+            style={{ inset: 0, width: "100%", height: "100%" }}
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+          >
+            <path
+              d="M 41 50 Q 47 63 50 75"
+              stroke="rgba(210,230,230,0.55)"
+              strokeWidth="0.35"
+              fill="none"
+              strokeLinecap="round"
+            />
+          </svg>
+          <div className="absolute pointer-events-none z-[15]" style={{
+            bottom: "42%", left: "22%",
+            width: 80, height: 80,
+            transform: "rotate(-30deg)",
+            transformOrigin: "bottom left",
+            animation: "poleHold 2s ease-in-out infinite",
+          }}>
+            <img src={equipData.poleItem.imageUrl} alt="" className="w-full h-full object-contain" style={{
+              filter: `drop-shadow(0 0 6px ${ACCENT}60)`,
+              clipPath: "inset(0 0 28% 0)",
+            }} />
+          </div>
+        </>
       )}
 
       {phase === "reeling" && reelBarState && (
