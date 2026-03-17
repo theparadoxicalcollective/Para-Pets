@@ -429,7 +429,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         </div>
       )}
 
-      {equipData !== undefined && !equipData.poleItem && (
+      {equipData !== undefined && !equipData.poleItem && !user.isAdmin && (
         <div className="absolute inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(4,2,12,0.82)", backdropFilter: "blur(6px)" }}>
           <div
             className="flex flex-col items-center gap-5 rounded-2xl px-8 py-8 mx-6 text-center"
