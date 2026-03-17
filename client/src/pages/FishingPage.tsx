@@ -68,7 +68,7 @@ interface CaughtFish {
 type FishingPhase = "idle" | "casting" | "waiting" | "nibble" | "reeling" | "caught" | "missed";
 
 const ACCENT = "#5eead4";
-const NIBBLE_TIMEOUT = 3500;
+const NIBBLE_TIMEOUT = 1200; // ms per nibble pulse (3 pulses = 3.6s total)
 const FISH_ZONE_SIZE = 0.13;
 
 export default function FishingPage({ locationId, locationName, bgUrl, user, onClose }: FishingPageProps) {
@@ -90,6 +90,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   const [bgLoaded, setBgLoaded] = useState(false);
   const [bgError, setBgError] = useState(false);
   const nibbleRarityRef = useRef<number>(1);
+  const [nibbleCount, setNibbleCount] = useState(0);
+  const nibbleCountRef = useRef(0);
   const nibbleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const castingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const phaseRef = useRef<FishingPhase>("idle");
@@ -319,12 +321,25 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         if (phaseRef.current === "waiting") {
           const randomFish = pondFish[Math.floor(Math.random() * pondFish.length)];
           nibbleRarityRef.current = randomFish?.item?.starRarity ?? 1;
+          // Start 3-nibble sequence
+          nibbleCountRef.current = 1;
+          setNibbleCount(1);
           setPhase("nibble");
-          nibbleTimeoutRef.current = setTimeout(() => {
-            if (phaseRef.current === "nibble") {
-              setPhase("missed");
-            }
-          }, NIBBLE_TIMEOUT);
+          // Each nibble lasts 1.2s; after all 3 pass the fish escapes
+          const scheduleNibble = () => {
+            nibbleTimeoutRef.current = setTimeout(() => {
+              if (phaseRef.current !== "nibble") return;
+              const next = nibbleCountRef.current + 1;
+              if (next > 3) {
+                setPhase("missed");
+                return;
+              }
+              nibbleCountRef.current = next;
+              setNibbleCount(next);
+              scheduleNibble();
+            }, NIBBLE_TIMEOUT);
+          };
+          scheduleNibble();
         }
       }, waitTime);
     }, 1000);
@@ -354,6 +369,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     let surging = false;
     let surgeTimer = 0;
     let dirChangeTimer = 30;
+    let graceFrames = 55; // ~0.9s before the meter can reach 0 and fail
 
     // Set ref directly so the first RAF tick sees "reeling" before the useEffect updates it
     phaseRef.current = "reeling";
@@ -398,10 +414,13 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         fishPos < catchZonePos + czSize &&
         fishPos + FISH_ZONE_SIZE > catchZonePos;
 
-      // Catch meter fills on overlap, drains when fish escapes
+      // Grace period — no draining for the first ~0.9s so the player can orient
+      if (graceFrames > 0) graceFrames--;
+
+      // Catch meter fills on overlap, drains when fish escapes (drain suppressed during grace)
       if (overlap) {
         catchMeter = Math.min(1, catchMeter + fillRate);
-      } else {
+      } else if (graceFrames === 0) {
         catchMeter = Math.max(0, catchMeter - drainRate);
       }
 
@@ -412,7 +431,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         catchMutateRef.current(100);
         return;
       }
-      if (catchMeter <= 0) {
+      if (catchMeter <= 0 && graceFrames === 0) {
         setReelBarState(null);
         phaseRef.current = "missed";
         setPhase("missed");
@@ -425,18 +444,17 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     rafRef.current = requestAnimationFrame(tick);
   }, []);
 
-  useEffect(() => {
-    if (phase === "nibble") {
-      const timer = setTimeout(() => {
-        if (phaseRef.current === "nibble") startReeling();
-      }, 350);
-      return () => clearTimeout(timer);
-    }
-  }, [phase, startReeling]);
+  const handleNibbleTap = useCallback(() => {
+    if (phaseRef.current !== "nibble") return;
+    clearAllTimers();
+    startReeling();
+  }, [clearAllTimers, startReeling]);
 
   const resetFishing = useCallback(() => {
     setPhase("idle");
     setCaughtItem(null);
+    setNibbleCount(0);
+    nibbleCountRef.current = 0;
     clearAllTimers();
   }, [clearAllTimers]);
 
@@ -484,7 +502,10 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         {/* Water surface oval — clickable cast target */}
         <div
           data-testid="button-cast-pond"
-          onClick={() => { if (phase === "idle" && hasPole) startCasting(); }}
+          onClick={() => {
+            if (phase === "idle" && hasPole) startCasting();
+            else if (phase === "nibble") handleNibbleTap();
+          }}
           style={{
             width: "100%",
             paddingBottom: "38%",
@@ -497,8 +518,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
             animation: "pondDrift 8s ease-in-out infinite",
             position: "relative",
             overflow: "hidden",
-            pointerEvents: phase === "idle" ? "auto" : "none",
-            cursor: phase === "idle" && hasPole ? "pointer" : "default",
+            pointerEvents: (phase === "idle" || phase === "nibble") ? "auto" : "none",
+            cursor: (phase === "idle" && hasPole) || phase === "nibble" ? "pointer" : "default",
           }}
         >
           {/* shimmer streaks */}
@@ -601,7 +622,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
             {phase === "idle" ? (poleIsBroken ? "Your pole broke! Remove it from the slot" : hasPole ? "Tap the water to cast" : "Equip a pole to fish") :
              phase === "casting" ? "Casting..." :
              phase === "waiting" ? "Waiting for a bite..." :
-             phase === "nibble" ? "Something's biting!" :
+             phase === "nibble" ? `Nibble ${nibbleCount}/3 — tap to reel!` :
              phase === "reeling" ? "Reel it in!" :
              phase === "caught" ? "You caught something!" : "It got away..."}
           </p>
@@ -649,7 +670,12 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         )}
 
         {phase === "nibble" && (
-          <div className="absolute flex flex-col items-center" style={{ bottom: "36%", left: "50%", transform: "translate(-50%, 0)" }}>
+          <div
+            className="absolute flex flex-col items-center gap-3"
+            style={{ bottom: "40%", left: "50%", transform: "translate(-50%, 0)", zIndex: 10, pointerEvents: "auto", cursor: "pointer" }}
+            onClick={handleNibbleTap}
+          >
+            {/* Bobber splash */}
             <div style={{
               width: 64, height: 28,
               background: "rgba(0,0,0,0.75)",
@@ -657,8 +683,22 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
               filter: "blur(3px)",
               animation: "fishNibble 0.5s ease-in-out infinite",
             }} />
-            <p className="font-fantasy text-sm mt-3 animate-bounce" style={{ color: "#fbbf24", textShadow: "0 0 10px rgba(251,191,36,0.7)" }}>
-              Fish on!
+            {/* 3 nibble dots */}
+            <div className="flex gap-2 items-center">
+              {[1, 2, 3].map(n => (
+                <div key={n} style={{
+                  width: 12, height: 12,
+                  borderRadius: "50%",
+                  background: n <= nibbleCount ? "#fbbf24" : "rgba(251,191,36,0.2)",
+                  border: "1.5px solid rgba(251,191,36,0.7)",
+                  boxShadow: n === nibbleCount ? "0 0 10px rgba(251,191,36,0.9)" : "none",
+                  transform: n === nibbleCount ? "scale(1.3)" : "scale(1)",
+                  transition: "all 0.2s ease",
+                }} />
+              ))}
+            </div>
+            <p className="font-fantasy text-base animate-bounce" style={{ color: "#fbbf24", textShadow: "0 0 12px rgba(251,191,36,0.8)" }}>
+              TAP!
             </p>
           </div>
         )}
