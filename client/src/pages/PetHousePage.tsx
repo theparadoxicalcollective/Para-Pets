@@ -198,7 +198,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       </div>
 
       {/* Bottom Toolbar */}
-      <div className="absolute bottom-0 left-0 right-0" style={{ zIndex: 30 }}>
+      <div className="relative flex-shrink-0 z-30">
         <div
           className="absolute top-0 left-0 right-0 h-[2px]"
           style={{
@@ -207,11 +207,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           }}
         />
         <div
-          className="w-full flex items-center justify-evenly px-6"
+          className="relative w-full nav-bar-height flex items-center justify-evenly px-6"
           style={{
             background: "linear-gradient(180deg, rgba(6,14,3,0) 0%, rgba(6,14,3,0.82) 30%, rgba(4,10,2,0.95) 100%)",
-            paddingTop: 10,
-            paddingBottom: "max(env(safe-area-inset-bottom, 0px) + 10px, 14px)",
           }}
         >
           <HouseNavButton testId="button-nav-aquarium" onClick={() => setShowAquarium(true)} label="Aquarium">
