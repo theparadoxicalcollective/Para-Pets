@@ -86,6 +86,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     isOverlap: boolean;
     isSurging: boolean;
     catchZoneSize: number;
+    timeLeft: number;
   } | null>(null);
   const [caughtItem, setCaughtItem] = useState<ShopItem | null>(null);
   const [bgLoaded, setBgLoaded] = useState(false);
@@ -353,8 +354,10 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     //                         1★     2★     3★     4★     5★
     const speedByRarity   = [0.003, 0.005, 0.007, 0.010, 0.014];
     const fillByRarity    = [0.005, 0.004, 0.0033, 0.0027, 0.002];
-    const drainByRarity   = [0.003, 0.005, 0.007,  0.009,  0.012];
+    const drainByRarity   = [0.002, 0.003, 0.004,  0.006,  0.008];
     const zoneByRarity    = [0.26,  0.22,  0.19,   0.16,   0.14];
+
+    const REEL_TIMEOUT_MS = 30000;
 
     const baseSpeed  = speedByRarity[rarity - 1];
     const fillRate   = fillByRarity[rarity - 1];
@@ -375,13 +378,32 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     let dirChangeTimer = 70;
     let graceFrames = 120; // ~2s before the meter can reach 0 and fail
 
+    const startTime = Date.now();
+
     // Set ref directly so the first RAF tick sees "reeling" before the useEffect updates it
     phaseRef.current = "reeling";
     setPhase("reeling");
-    setReelBarState({ fishPos, catchZonePos, catchMeter, isOverlap: false, isSurging: false, catchZoneSize: czSize });
+    setReelBarState({ fishPos, catchZonePos, catchMeter, isOverlap: false, isSurging: false, catchZoneSize: czSize, timeLeft: 30 });
 
     const tick = () => {
       if (phaseRef.current !== "reeling") return;
+
+      const elapsed = Date.now() - startTime;
+      const timeLeft = Math.max(0, (REEL_TIMEOUT_MS - elapsed) / 1000);
+
+      // 30-second timeout resolution
+      if (timeLeft <= 0) {
+        setReelBarState(null);
+        if (catchMeter > 0.6) {
+          // Meter is in the green — reward the player
+          catchMutateRef.current(100);
+        } else {
+          // Meter is red or yellow — fish escapes
+          phaseRef.current = "missed";
+          setPhase("missed");
+        }
+        return;
+      }
 
       // Fish movement — surges move faster
       const fishSpeed = surging ? baseSpeed * 2.8 : baseSpeed;
@@ -421,20 +443,22 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       // Grace period — no draining for the first ~0.9s so the player can orient
       if (graceFrames > 0) graceFrames--;
 
-      // Catch meter fills on overlap, drains when fish escapes (drain suppressed during grace)
+      // Catch meter fills on overlap (green), drains slowly when not overlapping (red/yellow)
       if (overlap) {
         catchMeter = Math.min(1, catchMeter + fillRate);
       } else if (graceFrames === 0) {
         catchMeter = Math.max(0, catchMeter - drainRate);
       }
 
-      setReelBarState({ fishPos, catchZonePos, catchMeter, isOverlap: overlap, isSurging: surging, catchZoneSize: czSize });
+      setReelBarState({ fishPos, catchZonePos, catchMeter, isOverlap: overlap, isSurging: surging, catchZoneSize: czSize, timeLeft });
 
+      // Instant win: meter fully filled
       if (catchMeter >= 1) {
         setReelBarState(null);
         catchMutateRef.current(100);
         return;
       }
+      // Instant loss: meter fully drained
       if (catchMeter <= 0 && graceFrames === 0) {
         setReelBarState(null);
         phaseRef.current = "missed";
@@ -779,6 +803,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           isOverlap={reelBarState.isOverlap}
           isSurging={reelBarState.isSurging}
           catchZoneSize={reelBarState.catchZoneSize}
+          timeLeft={reelBarState.timeLeft}
           onTap={() => { catchZoneVelRef.current = 0.028; }}
         />
       )}
@@ -1287,7 +1312,7 @@ function PondAdminPanel({
 }
 
 function ReelBar({
-  fishPos, catchZonePos, catchMeter, isOverlap, isSurging, catchZoneSize, onTap,
+  fishPos, catchZonePos, catchMeter, isOverlap, isSurging, catchZoneSize, timeLeft, onTap,
 }: {
   fishPos: number;
   catchZonePos: number;
@@ -1295,6 +1320,7 @@ function ReelBar({
   isOverlap: boolean;
   isSurging: boolean;
   catchZoneSize: number;
+  timeLeft: number;
   onTap: () => void;
 }) {
   const BAR_H = 260;
@@ -1305,26 +1331,41 @@ function ReelBar({
   const fishTop = fishPos * BAR_H;
   const fishH = FISH_ZONE_SIZE * BAR_H;
 
+  const showTimer = timeLeft <= 10;
+  const timerSecs = Math.ceil(timeLeft);
+  const timerUrgent = timeLeft <= 5;
+
   return (
     <div
       className="absolute flex flex-col items-center gap-3"
       style={{ right: 14, top: "50%", transform: "translateY(-55%)", zIndex: 30, userSelect: "none" }}
     >
-      {/* Surge warning */}
+      {/* Surge warning / countdown timer */}
       <div style={{
         height: 18,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
       }}>
-        {isSurging && (
+        {isSurging ? (
           <span
             className="font-fantasy text-[10px] tracking-widest"
             style={{ color: "#f97316", textShadow: "0 0 10px rgba(249,115,22,0.9)", animation: "surgeFlash 0.4s ease-in-out infinite" }}
           >
             SURGE!
           </span>
-        )}
+        ) : showTimer ? (
+          <span
+            className="font-fantasy text-[11px] tracking-widest font-bold"
+            style={{
+              color: timerUrgent ? "#ef4444" : "#facc15",
+              textShadow: timerUrgent ? "0 0 10px rgba(239,68,68,0.9)" : "0 0 8px rgba(250,204,21,0.7)",
+              animation: timerUrgent ? "surgeFlash 0.4s ease-in-out infinite" : undefined,
+            }}
+          >
+            {timerSecs}s
+          </span>
+        ) : null}
       </div>
 
       {/* Catch meter */}
