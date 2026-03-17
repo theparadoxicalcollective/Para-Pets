@@ -19,13 +19,68 @@ export function playClick() {
     const gain = c.createGain();
     osc.connect(gain);
     gain.connect(c.destination);
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(1100, c.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(700, c.currentTime + 0.035);
-    gain.gain.setValueAtTime(0.07, c.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.045);
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(520, c.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(260, c.currentTime + 0.022);
+    gain.gain.setValueAtTime(0.13, c.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.03);
     osc.start(c.currentTime);
-    osc.stop(c.currentTime + 0.05);
+    osc.stop(c.currentTime + 0.035);
+  } catch {}
+}
+
+export function playTick() {
+  try {
+    const c = getCtx();
+    if (!c) return;
+    const osc = c.createOscillator();
+    const gain = c.createGain();
+    osc.connect(gain);
+    gain.connect(c.destination);
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(1800, c.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(900, c.currentTime + 0.018);
+    gain.gain.setValueAtTime(0.09, c.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.022);
+    osc.start(c.currentTime);
+    osc.stop(c.currentTime + 0.025);
+
+    const osc2 = c.createOscillator();
+    const gain2 = c.createGain();
+    osc2.connect(gain2);
+    gain2.connect(c.destination);
+    osc2.type = "square";
+    osc2.frequency.setValueAtTime(3600, c.currentTime);
+    gain2.gain.setValueAtTime(0.025, c.currentTime);
+    gain2.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.01);
+    osc2.start(c.currentTime);
+    osc2.stop(c.currentTime + 0.012);
+  } catch {}
+}
+
+export function playShopBell() {
+  try {
+    const c = getCtx();
+    if (!c) return;
+    const pairs = [
+      { freq: 880, vol: 0.22, decay: 1.3 },
+      { freq: 1108.7, vol: 0.16, decay: 1.0 },
+      { freq: 1760, vol: 0.09, decay: 0.6 },
+    ];
+    pairs.forEach(({ freq, vol, decay }, i) => {
+      const osc = c.createOscillator();
+      const gain = c.createGain();
+      osc.connect(gain);
+      gain.connect(c.destination);
+      osc.type = "sine";
+      const t = c.currentTime + i * 0.03;
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(0.0, t);
+      gain.gain.linearRampToValueAtTime(vol, t + 0.006);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + decay);
+      osc.start(t);
+      osc.stop(t + decay + 0.05);
+    });
   } catch {}
 }
 

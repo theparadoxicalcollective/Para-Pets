@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { playChime } from "@/lib/sounds";
+import { playChime, playTick, playShopBell } from "@/lib/sounds";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -942,6 +942,7 @@ export default function WorldPage({ user }: WorldPageProps) {
       setShowLocationView(false);
       setShowShop(true);
       shopJustOpened.current = Date.now();
+      playShopBell();
     } else if ((loc.type === "battle" || loc.type === "explore") && !currentUser.isAdmin) {
       setShowDangerWarning(true);
     } else {
@@ -2367,6 +2368,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                           if (!shopItemDidDrag.current) {
                             if (Date.now() - shopJustOpened.current < 400) return;
                             if (isShopItemTransparentClick(e)) return;
+                            playTick();
                             setSelectedShopItem(item);
                             setBuyStep(1);
                             setBuyQty(1);
@@ -2381,6 +2383,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                         onClick={() => {
                           if (!currentUser.isAdmin && !shopItemDidDrag.current) {
                             if (Date.now() - shopJustOpened.current < 400) return;
+                            playTick();
                             setSelectedShopItem(item);
                             setBuyStep(1);
                             setBuyQty(1);
@@ -2403,6 +2406,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                         }}
                         onClick={() => {
                           if (!shopItemDidDrag.current && Date.now() - shopJustOpened.current >= 400) {
+                            playTick();
                             setSelectedShopItem(item);
                             setBuyStep(1);
                             setBuyQty(1);
