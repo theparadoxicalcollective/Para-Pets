@@ -623,352 +623,230 @@ function AquariumPage({ onClose }: { onClose: () => void }) {
   return (
     <div
       className="absolute inset-0 z-40 overflow-hidden"
-      style={{ background: "#020914" }}
+      style={{ background: "#010810" }}
     >
       <style>{`
-        @keyframes aqBubbleRise {
-          0%   { transform: translateY(0) scale(1);   opacity: 0.7; }
-          80%  { opacity: 0.4; }
-          100% { transform: translateY(-110vh) scale(0.6); opacity: 0; }
+        @keyframes aqRayBreath {
+          0%, 100% { opacity: 0.05; }
+          50%       { opacity: 0.13; }
         }
-        @keyframes aqDrift {
-          0%, 100% { transform: translateX(0); }
-          50%       { transform: translateX(18px); }
+        @keyframes aqFloat {
+          0%        { transform: translateY(0px) translateX(0px);  opacity: 0.7; }
+          33%       { transform: translateY(-18px) translateX(6px); opacity: 1;   }
+          66%       { transform: translateY(-8px) translateX(-4px); opacity: 0.6; }
+          100%      { transform: translateY(0px) translateX(0px);  opacity: 0.7; }
         }
-        @keyframes aqDriftR {
-          0%, 100% { transform: translateX(0); }
-          50%       { transform: translateX(-14px); }
+        @keyframes aqGlow {
+          0%, 100% { opacity: 0.4; }
+          50%       { opacity: 0.85; }
         }
-        @keyframes aqWave {
-          0%, 100% { transform-origin: bottom center; transform: rotate(-6deg); }
-          50%       { transform-origin: bottom center; transform: rotate(6deg);  }
+        @keyframes aqWeedSway {
+          0%, 100% { transform-origin: bottom center; transform: rotate(-5deg); }
+          50%       { transform-origin: bottom center; transform: rotate(5deg);  }
         }
-        @keyframes aqWaveR {
-          0%, 100% { transform-origin: bottom center; transform: rotate(5deg); }
-          50%       { transform-origin: bottom center; transform: rotate(-7deg); }
+        @keyframes aqWeedSwayR {
+          0%, 100% { transform-origin: bottom center; transform: rotate(4deg); }
+          50%       { transform-origin: bottom center; transform: rotate(-6deg); }
         }
-        @keyframes aqJellyBob {
-          0%, 100% { transform: translateY(0); }
-          50%       { transform: translateY(-16px); }
+        @keyframes aqSlideIn {
+          from { opacity: 0; transform: translateY(20px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
-        @keyframes aqJellyTent {
-          0%, 100% { transform: skewX(-4deg); }
-          50%       { transform: skewX(4deg); }
-        }
-        @keyframes aqRayPulse {
-          0%, 100% { opacity: 0.04; }
-          50%       { opacity: 0.10; }
-        }
-        @keyframes aqGlowPulse {
-          0%, 100% { opacity: 0.55; filter: blur(1px) brightness(1);   }
-          50%       { opacity: 1;    filter: blur(0px) brightness(1.4); }
-        }
-        @keyframes aqFishSwim {
-          0%   { transform: translateX(-120px) scaleX(1); opacity: 0; }
-          8%   { opacity: 1; }
-          45%  { transform: translateX(calc(100vw + 60px)) scaleX(1); opacity: 1; }
-          46%  { transform: translateX(calc(100vw + 60px)) scaleX(-1); opacity: 0; }
-          55%  { opacity: 1; }
-          95%  { transform: translateX(-80px) scaleX(-1); opacity: 1; }
-          100% { opacity: 0; }
-        }
-        @keyframes aqFishSwim2 {
-          0%   { transform: translateX(calc(100vw + 80px)) scaleX(-1); opacity: 0; }
-          8%   { opacity: 0.9; }
-          48%  { transform: translateX(-100px) scaleX(-1); opacity: 0.9; }
-          49%  { transform: translateX(-100px) scaleX(1); opacity: 0; }
-          57%  { opacity: 0.9; }
-          95%  { transform: translateX(calc(100vw + 60px)) scaleX(1); opacity: 0.9; }
-          100% { opacity: 0; }
-        }
-        @keyframes aqParticle {
-          0%   { transform: translate(0,0) scale(1);     opacity: 0.8; }
-          50%  { transform: translate(8px,-30px) scale(0.8); opacity: 0.5; }
-          100% { transform: translate(-4px,-60px) scale(0.5); opacity: 0; }
-        }
-        @keyframes aqSlideUp {
-          from { transform: translateY(40px); opacity: 0; }
-          to   { transform: translateY(0);    opacity: 1; }
-        }
-        @keyframes aqCaustic {
-          0%, 100% { transform: scale(1) rotate(0deg);   opacity: 0.06; }
-          50%       { transform: scale(1.08) rotate(3deg); opacity: 0.11; }
+        @keyframes aqMistDrift {
+          0%, 100% { transform: translateX(0); opacity: 0.18; }
+          50%       { transform: translateX(12px); opacity: 0.28; }
         }
       `}</style>
 
-      {/* Deep ocean gradient */}
+      {/* Deep ocean layered gradient */}
       <div className="absolute inset-0" style={{
-        background: "radial-gradient(ellipse at 50% 20%, #071a3a 0%, #030d24 40%, #020914 100%)",
+        background: "linear-gradient(180deg, #010c1f 0%, #020f2b 18%, #031540 35%, #041a50 55%, #031240 75%, #020b28 100%)",
+      }} />
+      <div className="absolute inset-0" style={{
+        background: "radial-gradient(ellipse at 50% 15%, rgba(14,60,120,0.55) 0%, transparent 65%)",
+      }} />
+      <div className="absolute inset-0" style={{
+        background: "radial-gradient(ellipse at 30% 60%, rgba(30,20,80,0.3) 0%, transparent 55%)",
+      }} />
+      <div className="absolute inset-0" style={{
+        background: "radial-gradient(ellipse at 75% 55%, rgba(0,50,80,0.25) 0%, transparent 50%)",
       }} />
 
-      {/* Caustic light pattern */}
-      <div className="absolute inset-0 pointer-events-none" style={{
-        background: "repeating-conic-gradient(from 0deg at 50% 0%, rgba(94,234,212,0.04) 0deg 10deg, transparent 10deg 30deg)",
-        animation: "aqCaustic 8s ease-in-out infinite",
-      }} />
-
-      {/* Light rays from surface */}
+      {/* Soft light rays from surface */}
       {[
-        { left: "12%",  width: 60,  delay: "0s",   dur: "6s"  },
-        { left: "30%",  width: 90,  delay: "1.5s", dur: "7s"  },
-        { left: "52%",  width: 50,  delay: "0.8s", dur: "5.5s"},
-        { left: "70%",  width: 80,  delay: "2.2s", dur: "8s"  },
-        { left: "86%",  width: 40,  delay: "0.3s", dur: "6.5s"},
+        { left: "10%",  width: 55,  delay: "0s",    dur: "9s"  },
+        { left: "28%",  width: 80,  delay: "2s",    dur: "11s" },
+        { left: "50%",  width: 45,  delay: "1s",    dur: "8s"  },
+        { left: "68%",  width: 70,  delay: "3.5s",  dur: "12s" },
+        { left: "84%",  width: 38,  delay: "0.5s",  dur: "10s" },
       ].map((r, i) => (
         <div key={i} className="absolute pointer-events-none" style={{
           left: r.left, top: 0,
-          width: r.width, height: "70%",
-          background: "linear-gradient(180deg, rgba(94,234,212,0.18) 0%, rgba(56,189,248,0.06) 50%, transparent 100%)",
-          clipPath: `polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%)`,
-          animation: `aqRayPulse ${r.dur} ${r.delay} ease-in-out infinite`,
-          transformOrigin: "top center",
+          width: r.width, height: "75%",
+          background: "linear-gradient(180deg, rgba(56,130,220,0.22) 0%, rgba(30,80,160,0.08) 55%, transparent 100%)",
+          clipPath: "polygon(18% 0%, 82% 0%, 100% 100%, 0% 100%)",
+          animation: `aqRayBreath ${r.dur} ${r.delay} ease-in-out infinite`,
         }} />
       ))}
 
-      {/* Bioluminescent floating particles */}
-      {Array.from({ length: 22 }).map((_, i) => {
-        const colors = ["#5eead4", "#818cf8", "#34d399", "#a78bfa", "#38bdf8"];
-        const col = colors[i % colors.length];
+      {/* Mid-distance depth haze */}
+      <div className="absolute left-0 right-0 pointer-events-none" style={{
+        top: "30%", height: "25%",
+        background: "linear-gradient(180deg, transparent 0%, rgba(10,40,100,0.18) 40%, rgba(15,50,110,0.22) 60%, transparent 100%)",
+        animation: "aqMistDrift 14s ease-in-out infinite",
+      }} />
+      <div className="absolute left-0 right-0 pointer-events-none" style={{
+        top: "55%", height: "18%",
+        background: "linear-gradient(180deg, transparent 0%, rgba(30,20,80,0.15) 50%, transparent 100%)",
+        animation: "aqMistDrift 18s 4s ease-in-out infinite",
+      }} />
+
+      {/* Distant glowing orbs — depth suggestion */}
+      <div className="absolute pointer-events-none" style={{
+        left: "18%", top: "38%", width: 90, height: 60,
+        borderRadius: "50%",
+        background: "radial-gradient(ellipse, rgba(94,234,212,0.12) 0%, transparent 70%)",
+        filter: "blur(12px)",
+        animation: "aqGlow 8s 0s ease-in-out infinite",
+      }} />
+      <div className="absolute pointer-events-none" style={{
+        right: "14%", top: "28%", width: 70, height: 50,
+        borderRadius: "50%",
+        background: "radial-gradient(ellipse, rgba(139,92,246,0.14) 0%, transparent 70%)",
+        filter: "blur(10px)",
+        animation: "aqGlow 11s 3s ease-in-out infinite",
+      }} />
+      <div className="absolute pointer-events-none" style={{
+        left: "48%", top: "50%", width: 55, height: 40,
+        borderRadius: "50%",
+        background: "radial-gradient(ellipse, rgba(56,189,248,0.1) 0%, transparent 70%)",
+        filter: "blur(10px)",
+        animation: "aqGlow 9s 6s ease-in-out infinite",
+      }} />
+
+      {/* Bioluminescent particles — slow, dreamy float */}
+      {Array.from({ length: 18 }).map((_, i) => {
+        const cols = ["#5eead4","#818cf8","#67e8f9","#a78bfa","#34d399","#38bdf8"];
+        const col = cols[i % cols.length];
+        const sz = i % 4 === 0 ? 3 : 2;
         return (
           <div key={i} className="absolute rounded-full pointer-events-none" style={{
-            left: `${(i * 4.3 + 3) % 95}%`,
-            top: `${20 + (i * 7.1) % 65}%`,
-            width: i % 3 === 0 ? 3 : 2,
-            height: i % 3 === 0 ? 3 : 2,
+            left: `${(i * 5.2 + 4) % 92}%`,
+            top: `${15 + (i * 4.7) % 68}%`,
+            width: sz, height: sz,
             background: col,
-            boxShadow: `0 0 ${i % 3 === 0 ? 6 : 4}px ${col}`,
-            animation: `aqParticle ${4 + (i % 5)}s ${(i * 0.6) % 4}s ease-in-out infinite`,
+            boxShadow: `0 0 ${sz * 3}px ${col}`,
+            animation: `aqFloat ${12 + (i % 7)}s ${(i * 1.3) % 8}s ease-in-out infinite`,
           }} />
         );
       })}
 
-      {/* Bubbles */}
-      {Array.from({ length: 14 }).map((_, i) => (
-        <div key={i} className="absolute rounded-full pointer-events-none" style={{
-          left: `${(i * 6.8 + 5) % 90}%`,
-          bottom: `${(i * 11) % 30}%`,
-          width: 4 + (i % 4) * 2,
-          height: 4 + (i % 4) * 2,
-          border: "1px solid rgba(94,234,212,0.5)",
-          background: "rgba(94,234,212,0.06)",
-          animation: `aqBubbleRise ${5 + (i % 6)}s ${(i * 0.9) % 5}s linear infinite`,
-        }} />
-      ))}
-
-      {/* Jellyfish 1 */}
-      <div className="absolute pointer-events-none" style={{
-        left: "22%", top: "18%",
-        animation: "aqJellyBob 5s 0s ease-in-out infinite",
-      }}>
-        <svg width="52" height="72" viewBox="0 0 52 72" fill="none">
-          <defs>
-            <radialGradient id="jg1" cx="50%" cy="40%" r="55%">
-              <stop offset="0%" stopColor="#a78bfa" stopOpacity="0.9"/>
-              <stop offset="100%" stopColor="#5b21b6" stopOpacity="0.4"/>
-            </radialGradient>
-          </defs>
-          <ellipse cx="26" cy="20" rx="22" ry="18" fill="url(#jg1)" />
-          <ellipse cx="26" cy="20" rx="22" ry="18" fill="none" stroke="#c4b5fd" strokeWidth="0.8" opacity="0.6"/>
-          <ellipse cx="26" cy="16" rx="14" ry="8" fill="rgba(196,181,253,0.2)" />
-          {/* Tentacles */}
-          {[10,16,22,28,34,40].map((x, i) => (
-            <path key={i}
-              d={`M${x},36 Q${x + (i%2===0?-5:5)},50 ${x},62 Q${x+(i%2===0?4:-4)},72 ${x},72`}
-              stroke={i%3===0?"#a78bfa":i%3===1?"#818cf8":"#c4b5fd"}
-              strokeWidth="1.2" fill="none" opacity="0.6"
-              style={{ animation: `aqJellyTent ${2.5+i*0.3}s ${i*0.2}s ease-in-out infinite` }}
-            />
-          ))}
-          <ellipse cx="26" cy="20" rx="8" ry="5" fill="rgba(167,139,250,0.25)" />
-        </svg>
-        <div style={{
-          position:"absolute", left:"50%", top:"50%",
-          transform:"translate(-50%,-50%)",
-          width:44, height:36, borderRadius:"50%",
-          background:"rgba(167,139,250,0.12)",
-          filter:"blur(8px)",
-          animation:"aqGlowPulse 3s ease-in-out infinite",
-        }}/>
-      </div>
-
-      {/* Jellyfish 2 */}
-      <div className="absolute pointer-events-none" style={{
-        right: "16%", top: "28%",
-        animation: "aqJellyBob 6.5s 2s ease-in-out infinite",
-      }}>
-        <svg width="38" height="54" viewBox="0 0 38 54" fill="none">
-          <defs>
-            <radialGradient id="jg2" cx="50%" cy="40%" r="55%">
-              <stop offset="0%" stopColor="#5eead4" stopOpacity="0.85"/>
-              <stop offset="100%" stopColor="#0f766e" stopOpacity="0.35"/>
-            </radialGradient>
-          </defs>
-          <ellipse cx="19" cy="14" rx="16" ry="13" fill="url(#jg2)" />
-          <ellipse cx="19" cy="14" rx="16" ry="13" fill="none" stroke="#99f6e4" strokeWidth="0.8" opacity="0.55"/>
-          <ellipse cx="19" cy="10" rx="9" ry="5" fill="rgba(153,246,228,0.2)" />
-          {[7,12,17,22,27].map((x, i) => (
-            <path key={i}
-              d={`M${x},26 Q${x+(i%2===0?-4:4)},37 ${x},46`}
-              stroke={i%2===0?"#5eead4":"#99f6e4"}
-              strokeWidth="1" fill="none" opacity="0.55"
-              style={{ animation: `aqJellyTent ${2+i*0.4}s ${i*0.25}s ease-in-out infinite` }}
-            />
-          ))}
-        </svg>
-        <div style={{
-          position:"absolute", left:"50%", top:"40%",
-          transform:"translate(-50%,-50%)",
-          width:32, height:26, borderRadius:"50%",
-          background:"rgba(94,234,212,0.15)",
-          filter:"blur(6px)",
-          animation:"aqGlowPulse 4s 1s ease-in-out infinite",
-        }}/>
-      </div>
-
-      {/* Fish 1 - slow swimming orange fish */}
-      <div className="absolute pointer-events-none" style={{
-        top: "42%", left: 0,
-        animation: "aqFishSwim 22s 2s linear infinite",
-      }}>
-        <svg width="46" height="26" viewBox="0 0 46 26" fill="none">
-          <ellipse cx="24" cy="13" rx="16" ry="9" fill="#f97316" opacity="0.9"/>
-          <path d="M8,13 L1,5 L1,21 Z" fill="#fb923c" opacity="0.9"/>
-          <ellipse cx="28" cy="11" rx="3.5" ry="3.5" fill="rgba(255,255,255,0.9)"/>
-          <circle cx="29" cy="11" r="1.8" fill="#1e3a5f"/>
-          <path d="M20,6 Q24,3 28,6" fill="#fb923c" stroke="#f97316" strokeWidth="0.5" opacity="0.8"/>
-        </svg>
-      </div>
-
-      {/* Fish 2 - small blue fish */}
-      <div className="absolute pointer-events-none" style={{
-        top: "58%", left: 0,
-        animation: "aqFishSwim2 28s 8s linear infinite",
-      }}>
-        <svg width="32" height="20" viewBox="0 0 32 20" fill="none">
-          <ellipse cx="17" cy="10" rx="11" ry="7" fill="#38bdf8" opacity="0.85"/>
-          <path d="M6,10 L1,4 L1,16 Z" fill="#7dd3fc" opacity="0.85"/>
-          <ellipse cx="21" cy="8.5" rx="2.5" ry="2.5" fill="rgba(255,255,255,0.9)"/>
-          <circle cx="22" cy="8.5" r="1.2" fill="#1e3a5f"/>
-        </svg>
-      </div>
-
-      {/* Seaweed cluster left */}
-      <div className="absolute pointer-events-none" style={{ left: "6%", bottom: "12%" }}>
+      {/* Seaweed — slow sway */}
+      <div className="absolute pointer-events-none" style={{ left: "5%", bottom: "15%" }}>
         {[0,1,2].map(i => (
           <div key={i} className="absolute" style={{
-            left: i * 14, bottom: 0,
-            animation: `${i%2===0?"aqWave":"aqWaveR"} ${2.8+i*0.5}s ${i*0.6}s ease-in-out infinite`,
+            left: i * 16, bottom: 0,
+            animation: `${i%2===0?"aqWeedSway":"aqWeedSwayR"} ${5+i*1.2}s ${i*1.4}s ease-in-out infinite`,
           }}>
-            <svg width="12" height={60+i*18} viewBox={`0 0 12 ${60+i*18}`} fill="none">
-              <path d={`M6,${60+i*18} Q2,${45+i*14} 6,${30+i*9} Q10,${18+i*6} 6,4`}
-                stroke={i===1?"#4ade80":"#22c55e"} strokeWidth="2.5" strokeLinecap="round" fill="none"/>
+            <svg width="14" height={65+i*20} viewBox={`0 0 14 ${65+i*20}`} fill="none">
+              <path d={`M7,${65+i*20} Q3,${50+i*15} 7,${35+i*10} Q11,${20+i*5} 7,5`}
+                stroke={i===1?"#4ade80":"#22c55e"} strokeWidth="2.8" strokeLinecap="round" fill="none"/>
             </svg>
           </div>
         ))}
       </div>
-
-      {/* Seaweed cluster right */}
-      <div className="absolute pointer-events-none" style={{ right: "8%", bottom: "10%" }}>
+      <div className="absolute pointer-events-none" style={{ right: "7%", bottom: "12%" }}>
         {[0,1].map(i => (
           <div key={i} className="absolute" style={{
-            right: i * 16, bottom: 0,
-            animation: `${i%2===0?"aqWaveR":"aqWave"} ${3.2+i*0.7}s ${i*0.9}s ease-in-out infinite`,
+            right: i * 18, bottom: 0,
+            animation: `${i%2===0?"aqWeedSwayR":"aqWeedSway"} ${5.5+i*1.5}s ${i*2}s ease-in-out infinite`,
           }}>
-            <svg width="12" height={50+i*22} viewBox={`0 0 12 ${50+i*22}`} fill="none">
-              <path d={`M6,${50+i*22} Q10,${38+i*16} 6,${26+i*8} Q2,${14+i*4} 6,2`}
-                stroke={i===0?"#4ade80":"#16a34a"} strokeWidth="2.2" strokeLinecap="round" fill="none"/>
+            <svg width="14" height={55+i*24} viewBox={`0 0 14 ${55+i*24}`} fill="none">
+              <path d={`M7,${55+i*24} Q11,${42+i*18} 7,${28+i*9} Q3,${15+i*4} 7,3`}
+                stroke={i===0?"#4ade80":"#16a34a"} strokeWidth="2.4" strokeLinecap="round" fill="none"/>
+            </svg>
+          </div>
+        ))}
+      </div>
+      <div className="absolute pointer-events-none" style={{ left: "46%", bottom: "18%" }}>
+        {[0,1].map(i => (
+          <div key={i} className="absolute" style={{
+            left: i * 14, bottom: 0,
+            animation: `${i%2===0?"aqWeedSway":"aqWeedSwayR"} ${6+i}s ${i*0.8}s ease-in-out infinite`,
+          }}>
+            <svg width="12" height={45+i*15} viewBox={`0 0 12 ${45+i*15}`} fill="none">
+              <path d={`M6,${45+i*15} Q2,${34+i*10} 6,${22+i*7} Q10,${11+i*3} 6,3`}
+                stroke="#22c55e" strokeWidth="2.2" strokeLinecap="round" fill="none"/>
             </svg>
           </div>
         ))}
       </div>
 
-      {/* Coral formations */}
-      <div className="absolute bottom-0 left-0 right-0 pointer-events-none" style={{ height: "22%" }}>
-        {/* Coral 1 — teal branching */}
-        <svg className="absolute" style={{ left: "3%", bottom: 0 }} width="70" height="90" viewBox="0 0 70 90" fill="none">
-          <path d="M35,90 L35,55" stroke="#0f766e" strokeWidth="4" strokeLinecap="round"/>
-          <path d="M35,70 Q22,58 18,44" stroke="#0f766e" strokeWidth="3" strokeLinecap="round"/>
-          <path d="M35,60 Q48,48 52,36" stroke="#0f766e" strokeWidth="3" strokeLinecap="round"/>
-          <path d="M35,55 Q28,40 24,28" stroke="#14b8a6" strokeWidth="2.5" strokeLinecap="round"/>
-          <circle cx="18" cy="44" r="5" fill="#5eead4" opacity="0.85"/>
-          <circle cx="52" cy="36" r="4.5" fill="#2dd4bf" opacity="0.85"/>
-          <circle cx="24" cy="28" r="3.5" fill="#5eead4" opacity="0.8"/>
-          <circle cx="35" cy="55" r="4" fill="#14b8a6" opacity="0.7"/>
-          {[18,52,24,35].map((cx, i) => {
-            const cy = [44,36,28,55][i];
-            const r = [5,4.5,3.5,4][i];
-            return <circle key={i} cx={cx} cy={cy} r={r+2} fill="#5eead4" opacity="0.18" style={{ animation: "aqGlowPulse 3s ease-in-out infinite" }}/>;
-          })}
+      {/* Coral and seafloor */}
+      <div className="absolute bottom-0 left-0 right-0 pointer-events-none" style={{ height: "26%" }}>
+        {/* Teal branching coral — left */}
+        <svg className="absolute" style={{ left: "2%", bottom: 0 }} width="72" height="100" viewBox="0 0 72 100" fill="none">
+          <path d="M36,100 L36,62" stroke="#0d6e68" strokeWidth="5" strokeLinecap="round"/>
+          <path d="M36,78 Q22,64 16,48" stroke="#0f766e" strokeWidth="3.5" strokeLinecap="round"/>
+          <path d="M36,68 Q50,54 56,40" stroke="#0f766e" strokeWidth="3.5" strokeLinecap="round"/>
+          <path d="M36,62 Q28,46 22,32" stroke="#14b8a6" strokeWidth="2.5" strokeLinecap="round"/>
+          <circle cx="16" cy="48" r="6" fill="#5eead4" opacity="0.9"/>
+          <circle cx="56" cy="40" r="5" fill="#2dd4bf" opacity="0.9"/>
+          <circle cx="22" cy="32" r="4" fill="#5eead4" opacity="0.85"/>
+          <circle cx="16" cy="48" r="11" fill="#5eead4" opacity="0.12" style={{ animation: "aqGlow 5s ease-in-out infinite" }}/>
+          <circle cx="56" cy="40" r="9" fill="#2dd4bf" opacity="0.1" style={{ animation: "aqGlow 7s 2s ease-in-out infinite" }}/>
         </svg>
 
-        {/* Coral 2 — purple fan */}
-        <svg className="absolute" style={{ left: "28%", bottom: 0 }} width="55" height="70" viewBox="0 0 55 70" fill="none">
-          <path d="M28,70 L28,45" stroke="#7c3aed" strokeWidth="3.5" strokeLinecap="round"/>
-          <path d="M28,55 Q16,44 10,30" stroke="#7c3aed" strokeWidth="2.5" strokeLinecap="round"/>
-          <path d="M28,55 Q40,44 46,30" stroke="#7c3aed" strokeWidth="2.5" strokeLinecap="round"/>
-          <path d="M28,48 L28,20" stroke="#8b5cf6" strokeWidth="2" strokeLinecap="round"/>
-          <circle cx="10" cy="30" r="4" fill="#a78bfa" opacity="0.9"/>
-          <circle cx="46" cy="30" r="4" fill="#a78bfa" opacity="0.9"/>
-          <circle cx="28" cy="20" r="5" fill="#c4b5fd" opacity="0.9"/>
-          <circle cx="28" cy="20" r="8" fill="#a78bfa" opacity="0.12" style={{ animation: "aqGlowPulse 4s 1s ease-in-out infinite" }}/>
+        {/* Purple fan coral — left-center */}
+        <svg className="absolute" style={{ left: "26%", bottom: 0 }} width="58" height="80" viewBox="0 0 58 80" fill="none">
+          <path d="M29,80 L29,52" stroke="#7c3aed" strokeWidth="4" strokeLinecap="round"/>
+          <path d="M29,62 Q15,50 8,34" stroke="#8b5cf6" strokeWidth="3" strokeLinecap="round"/>
+          <path d="M29,62 Q43,50 50,34" stroke="#8b5cf6" strokeWidth="3" strokeLinecap="round"/>
+          <path d="M29,55 L29,22" stroke="#a78bfa" strokeWidth="2.2" strokeLinecap="round"/>
+          <circle cx="8" cy="34" r="5" fill="#a78bfa" opacity="0.9"/>
+          <circle cx="50" cy="34" r="4.5" fill="#a78bfa" opacity="0.9"/>
+          <circle cx="29" cy="22" r="6" fill="#c4b5fd" opacity="0.9"/>
+          <circle cx="29" cy="22" r="11" fill="#a78bfa" opacity="0.1" style={{ animation: "aqGlow 6s 1s ease-in-out infinite" }}/>
         </svg>
 
-        {/* Coral 3 — pink/red branching */}
-        <svg className="absolute" style={{ right: "25%", bottom: 0 }} width="48" height="65" viewBox="0 0 48 65" fill="none">
-          <path d="M24,65 L24,38" stroke="#be185d" strokeWidth="3.5" strokeLinecap="round"/>
-          <path d="M24,50 Q14,40 8,26" stroke="#be185d" strokeWidth="2.5" strokeLinecap="round"/>
-          <path d="M24,44 Q34,34 40,22" stroke="#db2777" strokeWidth="2.5" strokeLinecap="round"/>
-          <circle cx="8" cy="26" r="4" fill="#f472b6" opacity="0.9"/>
-          <circle cx="40" cy="22" r="3.5" fill="#ec4899" opacity="0.9"/>
-          <circle cx="24" cy="38" r="4.5" fill="#f9a8d4" opacity="0.8"/>
-          <circle cx="8" cy="26" r="7" fill="#f472b6" opacity="0.1" style={{ animation: "aqGlowPulse 3.5s 0.5s ease-in-out infinite" }}/>
+        {/* Pink coral — right-center */}
+        <svg className="absolute" style={{ right: "24%", bottom: 0 }} width="52" height="72" viewBox="0 0 52 72" fill="none">
+          <path d="M26,72 L26,44" stroke="#be185d" strokeWidth="4" strokeLinecap="round"/>
+          <path d="M26,56 Q14,44 8,30" stroke="#db2777" strokeWidth="3" strokeLinecap="round"/>
+          <path d="M26,50 Q38,38 44,26" stroke="#db2777" strokeWidth="3" strokeLinecap="round"/>
+          <circle cx="8" cy="30" r="5" fill="#f472b6" opacity="0.9"/>
+          <circle cx="44" cy="26" r="4.5" fill="#ec4899" opacity="0.9"/>
+          <circle cx="26" cy="44" r="5" fill="#f9a8d4" opacity="0.85"/>
+          <circle cx="8" cy="30" r="9" fill="#f472b6" opacity="0.1" style={{ animation: "aqGlow 8s 3s ease-in-out infinite" }}/>
         </svg>
 
-        {/* Coral 4 — teal right */}
-        <svg className="absolute" style={{ right: "5%", bottom: 0 }} width="60" height="80" viewBox="0 0 60 80" fill="none">
-          <path d="M30,80 L30,50" stroke="#0e7490" strokeWidth="4" strokeLinecap="round"/>
-          <path d="M30,65 Q20,52 14,40" stroke="#0891b2" strokeWidth="3" strokeLinecap="round"/>
-          <path d="M30,60 Q42,48 46,36" stroke="#0891b2" strokeWidth="3" strokeLinecap="round"/>
-          <path d="M30,50 Q22,38 18,26" stroke="#22d3ee" strokeWidth="2" strokeLinecap="round"/>
-          <circle cx="14" cy="40" r="5" fill="#22d3ee" opacity="0.85"/>
-          <circle cx="46" cy="36" r="4" fill="#67e8f9" opacity="0.85"/>
-          <circle cx="18" cy="26" r="3.5" fill="#22d3ee" opacity="0.8"/>
-          <circle cx="14" cy="40" r="8" fill="#22d3ee" opacity="0.12" style={{ animation: "aqGlowPulse 4s 2s ease-in-out infinite" }}/>
+        {/* Cyan branching coral — right */}
+        <svg className="absolute" style={{ right: "3%", bottom: 0 }} width="64" height="88" viewBox="0 0 64 88" fill="none">
+          <path d="M32,88 L32,56" stroke="#0e7490" strokeWidth="5" strokeLinecap="round"/>
+          <path d="M32,72 Q20,58 14,44" stroke="#0891b2" strokeWidth="3.5" strokeLinecap="round"/>
+          <path d="M32,64 Q44,50 50,38" stroke="#0891b2" strokeWidth="3.5" strokeLinecap="round"/>
+          <path d="M32,56 Q24,42 20,30" stroke="#22d3ee" strokeWidth="2.5" strokeLinecap="round"/>
+          <circle cx="14" cy="44" r="6" fill="#22d3ee" opacity="0.9"/>
+          <circle cx="50" cy="38" r="5" fill="#67e8f9" opacity="0.9"/>
+          <circle cx="20" cy="30" r="4" fill="#22d3ee" opacity="0.85"/>
+          <circle cx="14" cy="44" r="10" fill="#22d3ee" opacity="0.1" style={{ animation: "aqGlow 6s 4s ease-in-out infinite" }}/>
         </svg>
 
-        {/* Sandy ground */}
+        {/* Seafloor gradient */}
         <div className="absolute bottom-0 left-0 right-0" style={{
-          height: 28,
-          background: "linear-gradient(180deg, rgba(8,28,55,0) 0%, rgba(4,20,44,0.8) 40%, #030f26 100%)",
-        }}/>
-        {/* Pebbles/rocks */}
-        <div className="absolute bottom-0 left-0 right-0" style={{ height: 12, opacity: 0.5 }}>
-          {[5,14,22,35,44,54,66,76,85,91].map((l, i) => (
-            <div key={i} className="absolute bottom-1 rounded-full" style={{
-              left: `${l}%`, width: 8+i%3*4, height: 5+i%2*3,
-              background: `rgba(${20+i*3},${40+i*5},${80+i*4},0.8)`,
-            }}/>
-          ))}
-        </div>
-      </div>
-
-      {/* Surface ripple at top */}
-      <div className="absolute top-0 left-0 right-0 pointer-events-none" style={{ height: 6 }}>
-        <div style={{
-          width: "100%", height: "100%",
-          background: "linear-gradient(180deg, rgba(56,189,248,0.35) 0%, transparent 100%)",
-          animation: "aqDrift 4s ease-in-out infinite",
+          height: 32,
+          background: "linear-gradient(180deg, transparent 0%, rgba(3,15,40,0.85) 50%, #010810 100%)",
         }}/>
       </div>
 
       {/* Vignette */}
       <div className="absolute inset-0 pointer-events-none" style={{
-        background: "radial-gradient(ellipse at 50% 50%, transparent 45%, rgba(2,9,20,0.75) 100%)",
+        background: "radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(1,8,16,0.8) 100%)",
       }}/>
 
       {/* Title */}
       <div className="absolute top-0 left-0 right-0 flex flex-col items-center pointer-events-none"
-        style={{ paddingTop: "env(safe-area-inset-top, 16px)", marginTop: 16, animation: "aqSlideUp 0.5s ease-out" }}>
+        style={{ paddingTop: "env(safe-area-inset-top, 16px)", marginTop: 16, animation: "aqSlideIn 0.5s ease-out" }}>
         <h2 className="font-fantasy text-base tracking-[0.3em]" style={{
           color: "#5eead4",
           textShadow: "0 0 16px rgba(94,234,212,0.7), 0 0 32px rgba(94,234,212,0.3)",
@@ -1029,100 +907,132 @@ function HouseNavButton({ testId, onClick, label, children }: { testId: string; 
 
 function FishbowlIcon() {
   return (
-    <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" width="40" height="40">
-      {/* Glass bowl glow */}
-      <circle cx="22" cy="21" r="14" fill="url(#bowlGlow)" opacity="0.18" />
-      {/* Bowl glass outline */}
-      <circle cx="22" cy="21" r="13" fill="none" stroke="#7dd3fc" strokeWidth="1.2" opacity="0.5" />
-      {/* Water fill */}
-      <clipPath id="bowlClip"><circle cx="22" cy="21" r="12.5" /></clipPath>
-      <rect x="9.5" y="23" width="25" height="11" fill="#0c3a5a" clipPath="url(#bowlClip)" opacity="0.85" />
-      <rect x="9.5" y="21" width="25" height="3" fill="#0e4f78" clipPath="url(#bowlClip)" opacity="0.7" />
-      {/* Water shimmer */}
-      <ellipse cx="22" cy="22.5" rx="10" ry="1.5" fill="#38bdf8" opacity="0.18" clipPath="url(#bowlClip)" />
-      {/* Fish body */}
-      <ellipse cx="21" cy="27" rx="4.5" ry="2.8" fill="#f97316" opacity="0.95" />
-      {/* Fish tail */}
-      <path d="M16.5,27 L13.5,24.5 L13.5,29.5 Z" fill="#fb923c" opacity="0.95" />
-      {/* Fish eye */}
-      <circle cx="24" cy="26.2" r="1.1" fill="white" opacity="0.95" />
-      <circle cx="24.3" cy="26.2" r="0.5" fill="#1e3a5f" />
-      {/* Fish fin */}
-      <path d="M20,24.5 Q22,22.5 24,24.5" fill="#fb923c" stroke="#f97316" strokeWidth="0.5" opacity="0.8" />
-      {/* Bubbles */}
-      <circle cx="27" cy="22" r="1.3" fill="none" stroke="#93c5fd" strokeWidth="0.8" opacity="0.7" />
-      <circle cx="20" cy="17" r="0.9" fill="none" stroke="#bae6fd" strokeWidth="0.7" opacity="0.5" />
-      <circle cx="25" cy="16" r="0.6" fill="none" stroke="#bae6fd" strokeWidth="0.6" opacity="0.4" />
-      {/* Seaweed */}
-      <path d="M15,34 Q13,31 15,29 Q17,27 15,25" fill="none" stroke="#4ade80" strokeWidth="1.2" strokeLinecap="round" opacity="0.7" clipPath="url(#bowlClip)" />
-      {/* Bowl base */}
-      <path d="M16,34 Q22,36.5 28,34" fill="none" stroke="#5eead4" strokeWidth="1.2" strokeLinecap="round" opacity="0.55" />
-      <ellipse cx="22" cy="34.5" rx="6" ry="1.5" fill="#0c3a5a" opacity="0.5" />
-      {/* Magic sparkles */}
-      <path d="M34,9 L35,7 L36,9 L34,9 Z" fill="#f0c040" opacity="0.9" />
-      <path d="M35,6 L35,12" stroke="#f0c040" strokeWidth="0.6" opacity="0.7" />
-      <circle cx="9" cy="12" r="1" fill="#a78bfa" opacity="0.7" />
-      <circle cx="10" cy="10" r="0.5" fill="#c4b5fd" opacity="0.5" />
-      {/* Glass glint */}
-      <path d="M13,13 Q15,10 18,12" fill="none" stroke="white" strokeWidth="0.8" opacity="0.3" strokeLinecap="round" />
+    <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" width="36" height="36">
       <defs>
-        <radialGradient id="bowlGlow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#38bdf8" />
-          <stop offset="100%" stopColor="#0284c7" stopOpacity="0" />
+        <radialGradient id="bwlWater" cx="50%" cy="60%" r="50%">
+          <stop offset="0%" stopColor="#0e4d78"/>
+          <stop offset="100%" stopColor="#071f3a"/>
         </radialGradient>
+        <radialGradient id="bwlGlassGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.18"/>
+          <stop offset="100%" stopColor="#38bdf8" stopOpacity="0"/>
+        </radialGradient>
+        <clipPath id="bwlClip">
+          <circle cx="22" cy="20" r="13"/>
+        </clipPath>
       </defs>
+
+      {/* Outer glow */}
+      <circle cx="22" cy="20" r="15" fill="url(#bwlGlassGlow)"/>
+
+      {/* Bowl body — water fill */}
+      <circle cx="22" cy="20" r="13" fill="url(#bwlWater)"/>
+
+      {/* Water surface shimmer */}
+      <ellipse cx="22" cy="20" rx="13" ry="2.5" fill="#1a6fa0" opacity="0.5" clipPath="url(#bwlClip)"/>
+
+      {/* Seaweed */}
+      <path d="M15,33 Q13,29 15,26 Q17,23 15,20" fill="none" stroke="#22c55e" strokeWidth="1.6" strokeLinecap="round" clipPath="url(#bwlClip)"/>
+
+      {/* Fish body */}
+      <ellipse cx="23" cy="25" rx="5" ry="3.2" fill="#f97316" clipPath="url(#bwlClip)"/>
+      {/* Fish tail */}
+      <path d="M18,25 L14.5,22 L14.5,28 Z" fill="#fb923c" clipPath="url(#bwlClip)"/>
+      {/* Fish eye */}
+      <circle cx="26.5" cy="23.8" r="1.2" fill="white" clipPath="url(#bwlClip)"/>
+      <circle cx="26.8" cy="23.8" r="0.6" fill="#1a2e44" clipPath="url(#bwlClip)"/>
+
+      {/* Bubbles */}
+      <circle cx="28" cy="18" r="1.4" fill="none" stroke="#7dd3fc" strokeWidth="0.9" opacity="0.8"/>
+      <circle cx="25" cy="13" r="0.9" fill="none" stroke="#bae6fd" strokeWidth="0.7" opacity="0.6"/>
+
+      {/* Glass rim */}
+      <circle cx="22" cy="20" r="13" fill="none" stroke="#7dd3fc" strokeWidth="1.5" opacity="0.65"/>
+      {/* Glass highlight */}
+      <path d="M13,12 Q16,8 21,9" fill="none" stroke="white" strokeWidth="1.2" strokeLinecap="round" opacity="0.35"/>
+
+      {/* Bowl neck */}
+      <path d="M17,33 L17.8,36 L26.2,36 L27,33" fill="#0a2a44" stroke="#1a4f78" strokeWidth="0.8"/>
+      {/* Bowl base plate */}
+      <rect x="15" y="36" width="14" height="2.5" rx="1.2" fill="#0a2a44" stroke="#1a5080" strokeWidth="0.8"/>
+
+      {/* Sparkle */}
+      <path d="M35,8 L36,5.5 L37,8 L35,8 Z" fill="#f0c040" opacity="0.95"/>
+      <path d="M36,5 L36,11" stroke="#f0c040" strokeWidth="0.7" opacity="0.75"/>
+      <path d="M33,8 L39,8" stroke="#f0c040" strokeWidth="0.7" opacity="0.5"/>
     </svg>
   );
 }
 
 function ForestHomeIcon() {
   return (
-    <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" width="40" height="40">
-      {/* Magical glow behind house */}
-      <ellipse cx="22" cy="38" rx="12" ry="3" fill="#166534" opacity="0.35" />
+    <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" width="36" height="36">
+      <defs>
+        <radialGradient id="fhWinGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#fbbf24" stopOpacity="0.9"/>
+          <stop offset="100%" stopColor="#f59e0b" stopOpacity="0"/>
+        </radialGradient>
+      </defs>
+
+      {/* Ground shadow */}
+      <ellipse cx="22" cy="40" rx="13" ry="2" fill="#0a1f08" opacity="0.55"/>
+
+      {/* Left pine tree */}
+      <path d="M7,38 L10.5,28 L14,38 Z" fill="#14532d"/>
+      <path d="M8,34 L10.5,26 L13,34 Z" fill="#166534"/>
+      <rect x="9.8" y="38" width="1.5" height="2" rx="0.5" fill="#5a3018"/>
+
+      {/* Right pine tree */}
+      <path d="M30,38 L33.5,28 L37,38 Z" fill="#14532d"/>
+      <path d="M31,34 L33.5,26 L36,34 Z" fill="#166534"/>
+      <rect x="32.8" y="38" width="1.5" height="2" rx="0.5" fill="#5a3018"/>
+
       {/* House body */}
-      <rect x="11" y="24" width="22" height="14" rx="1" fill="#6b3a1f" />
-      {/* Wood plank lines */}
-      <line x1="11" y1="28" x2="33" y2="28" stroke="#5a3018" strokeWidth="0.7" opacity="0.6" />
-      <line x1="11" y1="32" x2="33" y2="32" stroke="#5a3018" strokeWidth="0.7" opacity="0.6" />
+      <rect x="12" y="25" width="20" height="15" rx="1.2" fill="#7c4a1e"/>
+      {/* Wood grain lines */}
+      <line x1="12" y1="29.5" x2="32" y2="29.5" stroke="#6b3a14" strokeWidth="0.8" opacity="0.5"/>
+      <line x1="12" y1="33.5" x2="32" y2="33.5" stroke="#6b3a14" strokeWidth="0.8" opacity="0.5"/>
+
       {/* Door */}
-      <rect x="19" y="30" width="6" height="8" rx="3" fill="#3d1f0d" />
-      <circle cx="24.2" cy="34" r="0.6" fill="#f0c040" opacity="0.8" />
-      {/* Left window */}
-      <rect x="13" y="26" width="5" height="4" rx="0.8" fill="#0c2a4a" />
-      <line x1="15.5" y1="26" x2="15.5" y2="30" stroke="#1e4d7a" strokeWidth="0.6" />
-      <line x1="13" y1="28" x2="18" y2="28" stroke="#1e4d7a" strokeWidth="0.6" />
-      <rect x="13" y="26" width="5" height="4" rx="0.8" fill="none" stroke="#8b6a3e" strokeWidth="0.7" />
-      {/* Right window */}
-      <rect x="26" y="26" width="5" height="4" rx="0.8" fill="#0c2a4a" />
-      <line x1="28.5" y1="26" x2="28.5" y2="30" stroke="#1e4d7a" strokeWidth="0.6" />
-      <line x1="26" y1="28" x2="31" y2="28" stroke="#1e4d7a" strokeWidth="0.6" />
-      <rect x="26" y="26" width="5" height="4" rx="0.8" fill="none" stroke="#8b6a3e" strokeWidth="0.7" />
-      {/* Candlelight glow in windows */}
-      <rect x="13" y="26" width="5" height="4" rx="0.8" fill="#f59e0b" opacity="0.12" />
-      <rect x="26" y="26" width="5" height="4" rx="0.8" fill="#f59e0b" opacity="0.12" />
-      {/* Roof */}
-      <path d="M8,25 L22,10 L36,25 Z" fill="#1a4d1a" />
-      {/* Roof shading */}
-      <path d="M22,10 L36,25 L31,25 L22,14 Z" fill="#0f3a0f" opacity="0.5" />
-      {/* Roof outline */}
-      <path d="M8,25 L22,10 L36,25" fill="none" stroke="#2d6e2d" strokeWidth="1" />
-      {/* Moss/vine on roof */}
-      <path d="M10,24 Q14,21 18,23" fill="none" stroke="#4ade80" strokeWidth="1.2" strokeLinecap="round" opacity="0.6" />
-      <path d="M26,23 Q30,20 33,22" fill="none" stroke="#4ade80" strokeWidth="1.2" strokeLinecap="round" opacity="0.5" />
+      <rect x="19.5" y="31" width="5" height="9" rx="2.5" fill="#4a2810"/>
+      <circle cx="23.8" cy="36" r="0.7" fill="#f0c040" opacity="0.9"/>
+
+      {/* Left window glow */}
+      <rect x="13.5" y="26.5" width="5" height="4.5" rx="1" fill="#f59e0b" opacity="0.22"/>
+      <rect x="13.5" y="26.5" width="5" height="4.5" rx="1" fill="none" stroke="#a16207" strokeWidth="0.8"/>
+      <line x1="16" y1="26.5" x2="16" y2="31" stroke="#a16207" strokeWidth="0.6"/>
+      <line x1="13.5" y1="28.8" x2="18.5" y2="28.8" stroke="#a16207" strokeWidth="0.6"/>
+
+      {/* Right window glow */}
+      <rect x="25.5" y="26.5" width="5" height="4.5" rx="1" fill="#f59e0b" opacity="0.22"/>
+      <rect x="25.5" y="26.5" width="5" height="4.5" rx="1" fill="none" stroke="#a16207" strokeWidth="0.8"/>
+      <line x1="28" y1="26.5" x2="28" y2="31" stroke="#a16207" strokeWidth="0.6"/>
+      <line x1="25.5" y1="28.8" x2="30.5" y2="28.8" stroke="#a16207" strokeWidth="0.6"/>
+
       {/* Chimney */}
-      <rect x="26" y="12" width="4" height="7" fill="#4a2810" />
-      <rect x="25.5" y="11.5" width="5" height="2" rx="0.5" fill="#5a3018" />
-      {/* Smoke */}
-      <path d="M28,11 Q27,8 29,6 Q28,4 30,3" fill="none" stroke="rgba(200,200,200,0.35)" strokeWidth="1.2" strokeLinecap="round" />
-      {/* Magic star */}
-      <path d="M7,13 L7.8,11 L8.6,13 L7,13 Z M7.8,10.5 L7.8,13.5" stroke="#f0c040" strokeWidth="0.7" opacity="0.85" />
-      {/* Tiny mushroom left */}
-      <ellipse cx="10" cy="38" rx="2.5" ry="1.2" fill="#dc2626" opacity="0.7" />
-      <rect x="9.5" y="36.8" width="1" height="1.5" fill="#fde68a" opacity="0.7" />
-      {/* Tiny tree right */}
-      <path d="M34,37 L37,30 L40,37 Z" fill="#166534" opacity="0.65" />
-      <rect x="35.8" y="37" width="2.5" height="2" fill="#6b3a1f" opacity="0.6" />
+      <rect x="25" y="13" width="4.5" height="8" rx="0.5" fill="#5a3018"/>
+      <rect x="24.5" y="12" width="5.5" height="2.5" rx="0.8" fill="#6b3a1f"/>
+      {/* Smoke wisps */}
+      <path d="M27.2,11.5 Q26,9 27.5,7 Q26.5,5 28,3.5" fill="none" stroke="rgba(220,220,200,0.4)" strokeWidth="1.3" strokeLinecap="round"/>
+
+      {/* Roof */}
+      <path d="M9,26 L22,9 L35,26 Z" fill="#1c5c1c"/>
+      <path d="M22,9 L35,26 L29,26 L22,13 Z" fill="#0f3d0f" opacity="0.45"/>
+      <path d="M9,26 L22,9 L35,26" fill="none" stroke="#2d7a2d" strokeWidth="1.2"/>
+      {/* Moss on roof edge */}
+      <path d="M11,25 Q15,22 19,24.5" fill="none" stroke="#4ade80" strokeWidth="1.5" strokeLinecap="round" opacity="0.7"/>
+      <path d="M25,24.5 Q29,22 33,25" fill="none" stroke="#4ade80" strokeWidth="1.5" strokeLinecap="round" opacity="0.55"/>
+
+      {/* Magic sparkle top */}
+      <path d="M5,10 L5.8,7.5 L6.6,10 Z" fill="#f0c040" opacity="0.9"/>
+      <path d="M5.8,7 L5.8,10.5" stroke="#f0c040" strokeWidth="0.8" opacity="0.7"/>
+      <path d="M4,8.8 L7.6,8.8" stroke="#f0c040" strokeWidth="0.7" opacity="0.5"/>
+
+      {/* Small glowing mushroom */}
+      <ellipse cx="10" cy="39.5" rx="2.8" ry="1.4" fill="#dc2626" opacity="0.8"/>
+      <rect x="9.4" y="38" width="1.2" height="1.8" rx="0.3" fill="#fef3c7" opacity="0.85"/>
+      <circle cx="9.5" cy="39" r="0.4" fill="white" opacity="0.6"/>
+      <circle cx="11" cy="38.7" r="0.3" fill="white" opacity="0.5"/>
     </svg>
   );
 }
