@@ -24,6 +24,7 @@ import {
   type PlayerFishingEquipment, playerFishingEquipment,
   type WorldDecorItem, worldDecorItems,
   type WorldDecorPlacement, worldDecorPlacements,
+  type FishBarrel, fishBarrels,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, ne, gte, asc, desc, ilike, or } from "drizzle-orm";
@@ -161,6 +162,11 @@ export interface IStorage {
   createWorldDecorPlacement(data: { worldId: string; decorItemId: string; name: string; imageUrl: string; posX: number; posY: number }): Promise<WorldDecorPlacement>;
   updateWorldDecorPlacement(id: string, data: { posX: number; posY: number }): Promise<WorldDecorPlacement>;
   deleteWorldDecorPlacement(id: string): Promise<void>;
+  getFishBarrelByWorld(worldId: string): Promise<FishBarrel | undefined>;
+  createFishBarrel(worldId: string): Promise<FishBarrel>;
+  updateFishBarrel(id: string, data: Partial<FishBarrel>): Promise<FishBarrel>;
+  deleteFishBarrel(id: string): Promise<void>;
+  deleteFishInventoryItems(fishIds: string[]): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -965,6 +971,32 @@ export class DatabaseStorage implements IStorage {
 
   async deleteWorldDecorPlacement(id: string): Promise<void> {
     await db.delete(worldDecorPlacements).where(eq(worldDecorPlacements.id, id));
+  }
+
+  async getFishBarrelByWorld(worldId: string): Promise<FishBarrel | undefined> {
+    const [barrel] = await db.select().from(fishBarrels).where(eq(fishBarrels.worldId, worldId));
+    return barrel;
+  }
+
+  async createFishBarrel(worldId: string): Promise<FishBarrel> {
+    const [barrel] = await db.insert(fishBarrels).values({ worldId }).returning();
+    return barrel;
+  }
+
+  async updateFishBarrel(id: string, data: Partial<FishBarrel>): Promise<FishBarrel> {
+    const [barrel] = await db.update(fishBarrels).set(data).where(eq(fishBarrels.id, id)).returning();
+    return barrel;
+  }
+
+  async deleteFishBarrel(id: string): Promise<void> {
+    await db.delete(fishBarrels).where(eq(fishBarrels.id, id));
+  }
+
+  async deleteFishInventoryItems(fishIds: string[]): Promise<void> {
+    if (fishIds.length === 0) return;
+    for (const id of fishIds) {
+      await db.delete(playerFishInventory).where(eq(playerFishInventory.id, id));
+    }
   }
 }
 

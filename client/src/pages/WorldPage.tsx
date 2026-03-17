@@ -11,6 +11,7 @@ import { readFileAsDataUrl } from "@/lib/utils";
 import ExploreAdminPanel from "@/components/ExploreAdminPanel";
 import BattleArena from "@/components/BattleArena";
 import FishingPage from "@/pages/FishingPage";
+import SellFishPage from "@/pages/SellFishPage";
 
 import bgShopMystical from "@assets/bg_shop_mystical.png";
 import shopFrostpeak from "@assets/shop_frostpeak.png";
@@ -191,6 +192,10 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [showBattle, setShowBattle] = useState(false);
   const [battleLocationId, setBattleLocationId] = useState<string | null>(null);
   const [showFishing, setShowFishing] = useState(false);
+  const [showSellFish, setShowSellFish] = useState(false);
+  const [barrelDragPos, setBarrelDragPos] = useState<{ x: number; y: number } | null>(null);
+  const barrelDragRef = useRef<{ startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
+  const barrelDidDrag = useRef(false);
   const [objDragPos, setObjDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
   const objDragRef = useRef<{ objId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const objDidDrag = useRef(false);
@@ -409,6 +414,41 @@ export default function WorldPage({ user }: WorldPageProps) {
       return Array.isArray(data) ? data : [];
     },
     enabled: !!worldId,
+  });
+
+  const { data: fishBarrel, refetch: refetchBarrel } = useQuery<{ id: string; worldId: string; posX: number; posY: number; size: number } | null>({
+    queryKey: ["/api/world", worldId, "fish-barrel"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/world/${worldId}/fish-barrel`);
+      const data = await res.json();
+      return data || null;
+    },
+    enabled: !!worldId,
+  });
+
+  const createBarrelMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/admin/world/${worldId}/fish-barrel`, {});
+      return res.json();
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "fish-barrel"] }); },
+  });
+
+  const updateBarrelMutation = useMutation({
+    mutationFn: async (data: { posX?: number; posY?: number; size?: number }) => {
+      if (!fishBarrel) return;
+      const res = await apiRequest("PATCH", `/api/admin/fish-barrel/${fishBarrel.id}`, data);
+      return res.json();
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "fish-barrel"] }); },
+  });
+
+  const deleteBarrelMutation = useMutation({
+    mutationFn: async () => {
+      if (!fishBarrel) return;
+      await apiRequest("DELETE", `/api/admin/fish-barrel/${fishBarrel.id}`);
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "fish-barrel"] }); },
   });
 
   const addDecorItemMutation = useMutation({
@@ -1010,6 +1050,36 @@ export default function WorldPage({ user }: WorldPageProps) {
     setDecorDragPos(null);
   }, [decorDragPos, moveDecorPlacementMutation]);
 
+  const handleBarrelPointerDown = useCallback((e: React.PointerEvent) => {
+    if (!currentUser.isAdmin || !fishBarrel) return;
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    barrelDidDrag.current = false;
+    barrelDragRef.current = { startX: e.clientX, startY: e.clientY, origPosX: fishBarrel.posX, origPosY: fishBarrel.posY };
+  }, [currentUser.isAdmin, fishBarrel]);
+
+  const handleBarrelPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!barrelDragRef.current || !areaRef.current) return;
+    e.preventDefault();
+    const rect = areaRef.current.getBoundingClientRect();
+    const dx = e.clientX - barrelDragRef.current.startX;
+    const dy = e.clientY - barrelDragRef.current.startY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) barrelDidDrag.current = true;
+    const newX = Math.max(0, Math.min(100, barrelDragRef.current.origPosX + (dx / rect.width) * 100));
+    const newY = Math.max(0, Math.min(100, barrelDragRef.current.origPosY + (dy / rect.height) * 100));
+    setBarrelDragPos({ x: newX, y: newY });
+  }, []);
+
+  const handleBarrelPointerUp = useCallback(() => {
+    if (!barrelDragRef.current) return;
+    barrelDragRef.current = null;
+    if (barrelDidDrag.current && barrelDragPos) {
+      updateBarrelMutation.mutate({ posX: barrelDragPos.x, posY: barrelDragPos.y });
+    }
+    barrelDidDrag.current = false;
+    setBarrelDragPos(null);
+  }, [barrelDragPos, updateBarrelMutation]);
+
   const handleShopItemPointerDown = useCallback((e: React.PointerEvent, item: ShopItem) => {
     if (!currentUser.isAdmin) return;
     // Always reset drag flag on any pointer down so stale state never blocks a subsequent click
@@ -1318,6 +1388,87 @@ export default function WorldPage({ user }: WorldPageProps) {
               />
             )}
 
+            {/* Fish Barrel */}
+            {fishBarrel && (() => {
+              const bpos = barrelDragPos ? barrelDragPos : { x: fishBarrel.posX, y: fishBarrel.posY };
+              const sz = fishBarrel.size;
+              return (
+                <div
+                  className="absolute flex flex-col items-center"
+                  style={{
+                    left: `${bpos.x}%`,
+                    top: `${bpos.y}%`,
+                    width: sz,
+                    transform: "translate(-50%, -50%)",
+                    zIndex: 15,
+                    cursor: currentUser.isAdmin ? "grab" : "pointer",
+                    touchAction: "none",
+                  }}
+                  onPointerDown={handleBarrelPointerDown}
+                  onPointerMove={handleBarrelPointerMove}
+                  onPointerUp={handleBarrelPointerUp}
+                  onPointerCancel={() => { barrelDragRef.current = null; barrelDidDrag.current = false; setBarrelDragPos(null); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (barrelDidDrag.current) return;
+                    if (!currentUser.isAdmin) {
+                      setShowSellFish(true);
+                    }
+                  }}
+                  data-testid="button-fish-barrel"
+                >
+                  <div
+                    className="flex items-center justify-center rounded-full"
+                    style={{
+                      width: sz,
+                      height: sz,
+                      background: "radial-gradient(circle at 40% 35%, rgba(160,100,40,0.5), rgba(100,60,20,0.3))",
+                      border: "2px solid rgba(200,140,60,0.5)",
+                      boxShadow: "0 0 12px rgba(200,140,60,0.3), 0 4px 12px rgba(0,0,0,0.5)",
+                      fontSize: sz * 0.52,
+                      lineHeight: 1,
+                    }}
+                  >
+                    🪣
+                  </div>
+                  <span
+                    className="font-fantasy text-center mt-1"
+                    style={{
+                      fontSize: Math.max(9, sz * 0.16),
+                      color: "#fbbf24",
+                      textShadow: "0 0 6px rgba(251,191,36,0.6), 0 1px 3px rgba(0,0,0,1)",
+                      letterSpacing: "0.08em",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Fish Market
+                  </span>
+                  {currentUser.isAdmin && (
+                    <div className="flex gap-1 mt-1" onPointerDown={(e) => e.stopPropagation()}>
+                      <button
+                        data-testid="button-barrel-shrink"
+                        onClick={(e) => { e.stopPropagation(); updateBarrelMutation.mutate({ size: Math.max(40, sz - 10) }); }}
+                        className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold text-xs"
+                        style={{ background: "rgba(0,0,0,0.7)", border: "1px solid rgba(255,255,255,0.3)" }}
+                      >−</button>
+                      <button
+                        data-testid="button-barrel-grow"
+                        onClick={(e) => { e.stopPropagation(); updateBarrelMutation.mutate({ size: Math.min(160, sz + 10) }); }}
+                        className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold text-xs"
+                        style={{ background: "rgba(0,0,0,0.7)", border: "1px solid rgba(255,255,255,0.3)" }}
+                      >+</button>
+                      <button
+                        data-testid="button-barrel-delete"
+                        onClick={(e) => { e.stopPropagation(); deleteBarrelMutation.mutate(); }}
+                        className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold text-xs"
+                        style={{ background: "rgba(180,20,20,0.85)", border: "1px solid rgba(255,80,80,0.5)" }}
+                      >✕</button>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             <div className="absolute inset-0">
                 {[...locations].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map((loc, i) => {
                   const pos = dragPos?.id === loc.id ? { x: dragPos.x, y: dragPos.y } : { x: loc.posX, y: loc.posY };
@@ -1503,6 +1654,21 @@ export default function WorldPage({ user }: WorldPageProps) {
             title="Add fishing spot"
           >
             <Waves className="w-4 h-4 text-black" />
+          </button>
+          <button
+            data-testid="button-toggle-fish-barrel"
+            onClick={() => fishBarrel ? deleteBarrelMutation.mutate() : createBarrelMutation.mutate()}
+            disabled={createBarrelMutation.isPending || deleteBarrelMutation.isPending}
+            className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90 text-base"
+            style={{
+              background: fishBarrel ? "linear-gradient(135deg, rgba(180,20,20,0.85), rgba(120,10,10,0.85))" : "linear-gradient(135deg, rgba(180,130,40,0.85), rgba(140,90,20,0.85))",
+              border: fishBarrel ? "2px solid rgba(255,80,80,0.6)" : "2px solid rgba(220,160,50,0.6)",
+              boxShadow: fishBarrel ? "0 4px 12px rgba(200,20,20,0.4)" : "0 4px 12px rgba(200,150,40,0.4)",
+              cursor: "pointer",
+            }}
+            title={fishBarrel ? "Remove Fish Market" : "Add Fish Market"}
+          >
+            🪣
           </button>
           <button
             data-testid="button-add-location"
@@ -3028,6 +3194,14 @@ export default function WorldPage({ user }: WorldPageProps) {
           />
         );
       })()}
+
+      {showSellFish && (
+        <SellFishPage
+          user={currentUser}
+          worldId={worldId}
+          onClose={() => setShowSellFish(false)}
+        />
+      )}
 
       {showProfile && (
         <UserProfilePanel

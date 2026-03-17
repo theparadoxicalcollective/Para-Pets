@@ -3078,5 +3078,80 @@ export async function registerRoutes(
     }
   });
 
+  // Fish barrel routes
+  app.get("/api/world/:worldId/fish-barrel", isAuthenticated, async (req, res) => {
+    try {
+      const barrel = await storage.getFishBarrelByWorld(req.params.worldId);
+      return res.json(barrel || null);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/admin/world/:worldId/fish-barrel", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Admin only" });
+      const existing = await storage.getFishBarrelByWorld(req.params.worldId);
+      if (existing) return res.status(400).json({ message: "Barrel already exists" });
+      const barrel = await storage.createFishBarrel(req.params.worldId);
+      return res.status(201).json(barrel);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/admin/fish-barrel/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Admin only" });
+      const { posX, posY, size } = req.body;
+      const barrel = await storage.updateFishBarrel(req.params.id, { posX, posY, size });
+      return res.json(barrel);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/admin/fish-barrel/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Admin only" });
+      await storage.deleteFishBarrel(req.params.id);
+      return res.json({ ok: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Sell fish
+  const FISH_SELL_PRICES: Record<number, number> = { 1: 5, 2: 10, 3: 15, 4: 25, 5: 30 };
+
+  app.post("/api/fishing/sell", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { fishIds } = req.body;
+      if (!Array.isArray(fishIds) || fishIds.length === 0) {
+        return res.status(400).json({ message: "fishIds array required" });
+      }
+      const fishInventory = await storage.getPlayerFishInventory(user.id);
+      const ownedIds = new Set(fishInventory.map(f => f.id));
+      const toSell = fishInventory.filter(f => fishIds.includes(f.id) && ownedIds.has(f.id));
+      if (toSell.length === 0) return res.status(400).json({ message: "No valid fish to sell" });
+
+      let totalCoins = 0;
+      for (const fish of toSell) {
+        const rarity = fish.item?.rarity ?? 1;
+        totalCoins += FISH_SELL_PRICES[rarity] ?? 5;
+      }
+
+      await storage.deleteFishInventoryItems(toSell.map(f => f.id));
+      const updatedUser = await storage.addCoins(user.id, totalCoins);
+      return res.json({ sold: toSell.length, coinsEarned: totalCoins, newBalance: updatedUser.coins });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
   return httpServer;
 }

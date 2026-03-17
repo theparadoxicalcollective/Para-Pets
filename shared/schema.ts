@@ -358,6 +358,15 @@ export const worldDecorPlacements = pgTable("world_decor_placements", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
+export const fishBarrels = pgTable("fish_barrels", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  worldId: text("world_id").notNull(),
+  posX: real("pos_x").notNull().default(50),
+  posY: real("pos_y").notNull().default(50),
+  size: integer("size").notNull().default(80),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
 export type CoinPurchase = typeof coinPurchases.$inferSelect;
 export type WorldLocation = typeof worldLocations.$inferSelect;
 export type World = typeof worlds.$inferSelect;
@@ -376,3 +385,4 @@ export type PlayerFishInventory = typeof playerFishInventory.$inferSelect;
 export type PlayerFishingEquipment = typeof playerFishingEquipment.$inferSelect;
 export type WorldDecorItem = typeof worldDecorItems.$inferSelect;
 export type WorldDecorPlacement = typeof worldDecorPlacements.$inferSelect;
+export type FishBarrel = typeof fishBarrels.$inferSelect;
