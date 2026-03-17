@@ -486,24 +486,21 @@ app.use((req, res, next) => {
   // Ensure admin always has an unbreakable test fishing pole
   try {
     const ADMIN_POLE_ID = "00000000-0000-0000-0000-admin0000pole";
-    const adminRow = await pool.query(`SELECT id, username FROM users WHERE is_admin = true ORDER BY created_at ASC LIMIT 1`);
+    const adminRow = await db.execute(sql`SELECT id, username FROM users WHERE is_admin = true ORDER BY created_at ASC LIMIT 1`);
     const adminUser = adminRow.rows[0];
     if (adminUser) {
       const poleImg = loadAssetBase64("icon_fishing_pole.png");
-      await pool.query(
-        `INSERT INTO shop_items (id, name, price, type, world_id, fishing_type, pole_max_uses, image_url, rarity)
-         VALUES ($1, 'Admin Test Pole', 0, 'fishing', 'swamp', 'pole', NULL, $2, 5)
-         ON CONFLICT (id) DO NOTHING`,
-        [ADMIN_POLE_ID, poleImg ?? ""]
+      await db.execute(
+        sql`INSERT INTO shop_items (id, name, price, type, world_id, fishing_type, pole_max_uses, image_url, rarity)
+         VALUES (${ADMIN_POLE_ID}, 'Admin Test Pole', 0, 'fishing', 'swamp', 'pole', NULL, ${poleImg ?? ""}, 5)
+         ON CONFLICT (id) DO NOTHING`
       );
-      const existing = await pool.query(
-        `SELECT id FROM user_inventory WHERE user_id = $1 AND shop_item_id = $2 LIMIT 1`,
-        [adminUser.id, ADMIN_POLE_ID]
+      const existing = await db.execute(
+        sql`SELECT id FROM user_inventory WHERE user_id = ${adminUser.id} AND shop_item_id = ${ADMIN_POLE_ID} LIMIT 1`
       );
       if (existing.rowCount === 0) {
-        await pool.query(
-          `INSERT INTO user_inventory (user_id, shop_item_id, pole_uses_left) VALUES ($1, $2, NULL)`,
-          [adminUser.id, ADMIN_POLE_ID]
+        await db.execute(
+          sql`INSERT INTO user_inventory (user_id, shop_item_id, pole_uses_left) VALUES (${adminUser.id}, ${ADMIN_POLE_ID}, NULL)`
         );
       }
       console.log(`Admin Test Pole ensured for ${adminUser.username}.`);
