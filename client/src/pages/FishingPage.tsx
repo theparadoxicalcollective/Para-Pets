@@ -68,11 +68,11 @@ interface CaughtFish {
 type FishingPhase = "idle" | "casting" | "waiting" | "nibble" | "reeling" | "caught" | "missed";
 
 const ACCENT = "#5eead4";
-const NIBBLE_TIMEOUT = 4000;
-const CATCH_ZONE_SIZE = 0.22;
+const NIBBLE_TIMEOUT = 3500;
+const CATCH_ZONE_SIZE = 0.18;
 const FISH_ZONE_SIZE = 0.13;
-const CATCH_FILL_RATE = 0.007;
-const CATCH_DRAIN_RATE = 0.0045;
+const CATCH_FILL_RATE = 0.005;
+const CATCH_DRAIN_RATE = 0.009;
 
 export default function FishingPage({ locationId, locationName, bgUrl, user, onClose }: FishingPageProps) {
   const [phase, setPhase] = useState<FishingPhase>("idle");
@@ -343,7 +343,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     let fishPos = 0.25 + Math.random() * 0.5;
     let fishDir = Math.random() > 0.5 ? 1 : -1;
     let catchZonePos = 0.4;
-    let catchMeter = 0.4;
+    let catchMeter = 0.0;
     let surging = false;
     let surgeTimer = 0;
     let dirChangeTimer = 30;
@@ -382,8 +382,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       if (surging && surgeTimer <= 0) surging = false;
 
       // Catch zone physics: each tap gives an upward impulse, gravity pulls it back down
-      const GRAVITY = 0.0022;
-      catchZoneVelRef.current = Math.max(catchZoneVelRef.current - GRAVITY, -0.018);
+      const GRAVITY = 0.003;
+      catchZoneVelRef.current = Math.max(catchZoneVelRef.current - GRAVITY, -0.022);
       catchZonePos = Math.max(0, Math.min(1 - CATCH_ZONE_SIZE, catchZonePos - catchZoneVelRef.current));
 
       // Overlap detection
@@ -691,7 +691,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           catchMeter={reelBarState.catchMeter}
           isOverlap={reelBarState.isOverlap}
           isSurging={reelBarState.isSurging}
-          onTap={() => { catchZoneVelRef.current = 0.024; }}
+          onTap={() => { catchZoneVelRef.current = 0.021; }}
         />
       )}
 
