@@ -9,6 +9,7 @@ import baitIcon from "@assets/icon_fishing_bait.png";
 import fishInvIcon from "@assets/icon_fish_inventory.png";
 import brokenRodIcon from "@assets/broken_rod.svg";
 import bobberIcon from "@assets/fishing_bobber.png";
+import { playPlop, playCatch } from "@/lib/sounds";
 
 interface FishingPageProps {
   locationId: string;
@@ -316,6 +317,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       toast({ title: "Empty pond", description: "No fish in this pond yet.", variant: "destructive" });
       return;
     }
+    playPlop();
     setPhase("casting");
     castingTimeoutRef.current = setTimeout(() => {
       setPhase("waiting");
@@ -397,6 +399,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         setReelBarState(null);
         if (catchMeter > 0.6) {
           // Meter is in the green — reward the player
+          playCatch();
           catchMutateRef.current(100);
         } else {
           // Meter is red or yellow — fish escapes
@@ -456,6 +459,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       // Instant win: meter fully filled
       if (catchMeter >= 1) {
         setReelBarState(null);
+        playCatch();
         catchMutateRef.current(100);
         return;
       }

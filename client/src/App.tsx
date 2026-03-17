@@ -4,6 +4,8 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { playClick } from "@/lib/sounds";
 import AuthPage from "@/pages/AuthPage";
 import HomePage from "@/pages/HomePage";
 import MapPage from "@/pages/MapPage";
@@ -80,6 +82,16 @@ function AppRouter() {
 }
 
 function App() {
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Element;
+      const interactive = target.closest('button, [role="button"], [data-testid^="button-"]');
+      if (interactive) playClick();
+    };
+    document.addEventListener("click", handler, true);
+    return () => document.removeEventListener("click", handler, true);
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import { playChime } from "@/lib/sounds";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -62,6 +63,7 @@ export default function SellFishPage({ user, worldId, onClose }: SellFishPagePro
       queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       setCartIds(new Set());
+      playChime();
       toast({
         title: "Fish sold!",
         description: `Sold ${data.sold} fish for ${data.coinsEarned} coins.`,

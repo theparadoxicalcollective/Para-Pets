@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { playChime } from "@/lib/sounds";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { queryClient } from "@/lib/queryClient";
@@ -444,6 +445,7 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       const updatedUser = await fetch("/api/auth/me").then(r => r.json());
       onUserUpdate?.(updatedUser);
+      playChime();
       toast({ title: "Item purchased!", description: "Check your inventory." });
     },
     onError: (e: any) => toast({ title: "Purchase failed", description: e.message, variant: "destructive" }),

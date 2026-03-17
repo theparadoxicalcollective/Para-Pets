@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { playChime } from "@/lib/sounds";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -327,6 +328,7 @@ export default function WorldPage({ user }: WorldPageProps) {
       setBuyStep(0);
       setBuyError(null);
       setSelectedShopItem(null);
+      playChime();
       const qty = data.quantity ?? 1;
       toast({ title: "Purchased!", description: qty > 1 ? `${qty}x added to your inventory` : "Added to your inventory" });
     },
