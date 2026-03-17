@@ -683,6 +683,13 @@ html, body {
   -webkit-touch-callout: none;
   overscroll-behavior: none;
   overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+input, textarea, [contenteditable] {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 #root {

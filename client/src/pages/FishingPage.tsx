@@ -469,7 +469,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   return (
     <div
       className="fixed inset-0 z-40 flex flex-col"
-      style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
+      style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, userSelect: "none", WebkitUserSelect: "none" }}
       data-testid="fishing-page"
     >
       {/* Full-screen tap layer — active only during nibble so player can tap anywhere */}
@@ -724,17 +724,18 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       </div>
 
       {/* SVG fishing line — pole tip to bobber */}
-      {(phase === "waiting" || phase === "nibble") && equipData?.poleItem?.imageUrl && (
+      {(phase === "waiting" || phase === "nibble") && hasPole && (
         <svg
           className="absolute inset-0 pointer-events-none z-[14]"
           width="100%" height="100%"
+          viewBox="0 0 100 100"
           preserveAspectRatio="none"
         >
           <path
-            d="M 31% 51% Q 41% 63% 50% 68%"
+            d="M 31 51 Q 41 63 50 68"
             fill="none"
-            stroke="rgba(200,180,140,0.7)"
-            strokeWidth="1.2"
+            stroke="rgba(200,180,140,0.85)"
+            strokeWidth="0.4"
             strokeLinecap="round"
           />
         </svg>
