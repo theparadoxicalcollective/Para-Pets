@@ -846,3 +846,9 @@ id = "H5iP5YVibNG2dEzndKERE"
 uri = "file://attached_assets/bg_swamp_critters.png"
 type = "image"
 title = "Swamp Critters — Reference Background"
+
+[[outputs]]
+id = "0r8Q7TrNmvG1108P4PJ66"
+uri = "file://attached_assets/admin_pole.png"
+type = "image"
+title = "Admin Test Pole"
