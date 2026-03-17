@@ -26,6 +26,7 @@ interface ShopItem {
   id: string;
   name: string;
   imageUrl: string | null;
+  hooklessImageUrl?: string | null;
   type: string;
   fishingType: string | null;
   starRarity: number | null;
@@ -722,9 +723,12 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           transformOrigin: "bottom left",
           animation: "poleHold 2s ease-in-out infinite",
         }}>
-          <img src={equipData.poleItem.imageUrl} alt="" className="w-full h-full object-contain" style={{
-            filter: `drop-shadow(0 0 6px ${ACCENT}60)`,
-          }} />
+          <img
+            src={equipData.poleItem.hooklessImageUrl || equipData.poleItem.imageUrl}
+            alt=""
+            className="w-full h-full object-contain"
+            style={{ filter: `drop-shadow(0 0 6px ${ACCENT}60)` }}
+          />
         </div>
       )}
 

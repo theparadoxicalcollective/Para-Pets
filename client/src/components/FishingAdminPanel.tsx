@@ -12,6 +12,7 @@ interface FishingItem {
   type: string;
   fishingType: string | null;
   imageUrl: string | null;
+  hooklessImageUrl: string | null;
   starRarity: number | null;
   rareCatchBoostPercent: number | null;
   rarityBoostPercent: number | null;
@@ -459,6 +460,8 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
   );
   const [imageData, setImageData] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(item?.imageUrl || null);
+  const [hooklessImageData, setHooklessImageData] = useState<string | null>(null);
+  const [hooklessImagePreview, setHooklessImagePreview] = useState<string | null>(item?.hooklessImageUrl || null);
   const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
 
@@ -472,6 +475,18 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
     const dataUrl = await readFileAsDataUrl(file);
     setImageData(dataUrl);
     setImagePreview(dataUrl);
+  };
+
+  const handleHooklessFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!["image/png", "image/gif"].includes(file.type)) {
+      toast({ title: "Invalid format", description: "PNG or GIF only", variant: "destructive" });
+      return;
+    }
+    const dataUrl = await readFileAsDataUrl(file);
+    setHooklessImageData(dataUrl);
+    setHooklessImagePreview(dataUrl);
   };
 
   const handleSubmit = async () => {
@@ -505,6 +520,7 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
         poleMaxUses: fishingType === "pole" && poleMaxUses.trim() !== "" ? parseInt(poleMaxUses) || null : null,
       };
       if (imageData) payload.imageData = imageData;
+      if (hooklessImageData) (payload as any).hooklessImageData = hooklessImageData;
 
       if (item) {
         await apiRequest("PATCH", `/api/admin/shop/${item.id}`, payload);
@@ -648,6 +664,43 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
                   style={inputStyle}
                 />
                 <p className="font-fantasy text-[#6a5840] text-[8px] mt-0.5">How many fish attempts before this rod breaks. Leave blank for infinite uses.</p>
+              </div>
+              <div>
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Hookless Image (PNG or GIF)</label>
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-16 h-16 rounded-md flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer"
+                    style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(96,165,250,0.3)" }}
+                    onClick={() => document.getElementById("fishing-hookless-img-input")?.click()}
+                  >
+                    {hooklessImagePreview
+                      ? <img src={hooklessImagePreview} alt="" className="w-full h-full object-contain" />
+                      : <span className="text-2xl opacity-40">🎣</span>}
+                  </div>
+                  <input id="fishing-hookless-img-input" type="file" accept="image/png,image/gif" onChange={handleHooklessFile} className="hidden" />
+                  <div className="flex-1 space-y-1">
+                    <button
+                      type="button"
+                      data-testid="button-upload-hookless-image"
+                      onClick={() => document.getElementById("fishing-hookless-img-input")?.click()}
+                      className="w-full py-1.5 rounded-md font-fantasy text-[9px] tracking-wider"
+                      style={{ background: "linear-gradient(135deg, #5c3a1e 0%, #8b5e3c 100%)", border: "1px solid rgba(212,160,23,0.4)", color: "#f0c040", cursor: "pointer" }}
+                    >
+                      {hooklessImagePreview ? "Change" : "Upload"}
+                    </button>
+                    {hooklessImagePreview && (
+                      <button
+                        type="button"
+                        onClick={() => { setHooklessImageData(null); setHooklessImagePreview(null); }}
+                        className="w-full py-1 rounded-md font-fantasy text-[8px] tracking-wider"
+                        style={{ background: "rgba(180,30,30,0.2)", border: "1px solid rgba(180,30,30,0.4)", color: "#f87171", cursor: "pointer" }}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <p className="font-fantasy text-[#6a5840] text-[8px] mt-1">Version of the pole without a hook — used on the fishing page while waiting for a bite.</p>
               </div>
             </div>
           )}

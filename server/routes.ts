@@ -2075,7 +2075,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/shop", isAdmin, async (req, res) => {
     try {
-      const { imageData, eggImageData, hatchedImageData, ...itemData } = req.body;
+      const { imageData, eggImageData, hatchedImageData, hooklessImageData, ...itemData } = req.body;
       const parse = insertShopItemSchema.safeParse(itemData);
       if (!parse.success) {
         return res.status(400).json({ message: parse.error.errors[0].message });
@@ -2096,7 +2096,12 @@ export async function registerRoutes(
         try { hatchedImageUrl = await processShopItemImage(hatchedImageData); } catch (e) { console.error("Hatched image error:", e); }
       }
 
-      const item = await storage.createShopItem({ ...parse.data, imageUrl, eggImageUrl, hatchedImageUrl });
+      let hooklessImageUrl: string | null = null;
+      if (hooklessImageData) {
+        try { hooklessImageUrl = await processShopItemImage(hooklessImageData); } catch (e) { console.error("Hookless image error:", e); }
+      }
+
+      const item = await storage.createShopItem({ ...parse.data, imageUrl, eggImageUrl, hatchedImageUrl, hooklessImageUrl });
       return res.status(201).json(item);
     } catch (err) {
       console.error("Create shop item error:", err);
@@ -2106,7 +2111,7 @@ export async function registerRoutes(
 
   app.patch("/api/admin/shop/:itemId", isAdmin, async (req, res) => {
     try {
-      const { imageData, eggImageData, hatchedImageData, ...updateData } = req.body;
+      const { imageData, eggImageData, hatchedImageData, hooklessImageData, ...updateData } = req.body;
 
       if (imageData) {
         try { updateData.imageUrl = await processShopItemImage(imageData); } catch (e) { console.error("Image error:", e); }
@@ -2116,6 +2121,9 @@ export async function registerRoutes(
       }
       if (hatchedImageData) {
         try { updateData.hatchedImageUrl = await processShopItemImage(hatchedImageData); } catch (e) { console.error("Hatched image error:", e); }
+      }
+      if (hooklessImageData) {
+        try { updateData.hooklessImageUrl = await processShopItemImage(hooklessImageData); } catch (e) { console.error("Hookless image error:", e); }
       }
 
       const updated = await storage.updateShopItem(req.params.itemId, updateData);

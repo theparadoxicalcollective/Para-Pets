@@ -48,6 +48,7 @@ export const shopItems = pgTable("shop_items", {
   shopPosY: real("shop_pos_y").notNull().default(50),
   shopWidth: integer("shop_width").notNull().default(72),
   fishingType: text("fishing_type"),
+  hooklessImageUrl: text("hookless_image_url"),
   rareCatchBoostPercent: integer("rare_catch_boost_percent"),
   rarityBoostPercent: integer("rarity_boost_percent"),
   starRarity: integer("star_rarity"),
