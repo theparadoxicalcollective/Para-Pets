@@ -716,9 +716,15 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
     setSwimmers(prev => {
       const existingMap = new Map(prev.map(s => [s.id, s]));
       const aquariumIds = new Set(aquariumFish.map(f => f.id));
-      const result: SwimmingFish[] = aquariumFish.map(f =>
-        existingMap.get(f.id) ?? makeSwimmer(f)
-      );
+      const result: SwimmingFish[] = aquariumFish.map(f => {
+        const existing = existingMap.get(f.id);
+        if (!existing) return makeSwimmer(f);
+        // Clamp Y into the visible tank band in case it drifted out of bounds
+        const isBottom = (existing.fishSwimZone ?? f.fishSwimZone) === "bottom";
+        const yMin = isBottom ? 61 : 22;
+        const yMax = isBottom ? 78 : 71;
+        return { ...existing, y: Math.max(yMin, Math.min(yMax, existing.y)) };
+      });
       return result.filter(s => aquariumIds.has(s.id));
     });
   }, [aquariumFish]);
@@ -792,8 +798,10 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
           wobble = (wobble + 0.032) % (Math.PI * 2);
           const sineY = Math.sin(wobble) * 0.012;
           x += vx;
-          const yMin = f.fishSwimZone === "bottom" ? 62 : 14;
-          const yMax = f.fishSwimZone === "bottom" ? 84 : 84;
+          // Keep fish in the clearly lit band of the tank
+          // Gradient overlay: dark 0–25%, clear 25–72%, dark 72–100%
+          const yMin = f.fishSwimZone === "bottom" ? 61 : 22;
+          const yMax = f.fishSwimZone === "bottom" ? 78 : 71;
           y = Math.max(yMin, Math.min(yMax, y + sineY));
 
           // Bounce off edges
