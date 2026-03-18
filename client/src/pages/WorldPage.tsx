@@ -35,6 +35,29 @@ import bgHauntedWoods from "@assets/bg_haunted_woods_td.png";
 import bgSwamp from "@assets/bg_swamp_v5.png";
 
 const LIGHT_ORB_SENTINEL = "__light_orb__";
+const LIGHT_ORB_BLUE_SENTINEL = "__light_orb_blue__";
+const LIGHT_ORB_GREEN_SENTINEL = "__light_orb_green__";
+const LIGHT_ORB_PURPLE_SENTINEL = "__light_orb_purple__";
+const FIREFLIES_SENTINEL = "__fireflies__";
+const PASS_THROUGH_SENTINELS = new Set([LIGHT_ORB_SENTINEL, LIGHT_ORB_BLUE_SENTINEL, LIGHT_ORB_GREEN_SENTINEL, LIGHT_ORB_PURPLE_SENTINEL, FIREFLIES_SENTINEL]);
+
+function getOrbGradient(sentinel: string): string {
+  if (sentinel === LIGHT_ORB_BLUE_SENTINEL)
+    return "radial-gradient(circle, rgba(150,200,255,0.48) 0%, rgba(90,155,255,0.28) 20%, rgba(60,110,255,0.14) 45%, rgba(40,80,220,0.05) 65%, transparent 80%)";
+  if (sentinel === LIGHT_ORB_GREEN_SENTINEL)
+    return "radial-gradient(circle, rgba(150,255,190,0.48) 0%, rgba(80,230,130,0.28) 20%, rgba(50,190,90,0.14) 45%, rgba(40,160,70,0.05) 65%, transparent 80%)";
+  if (sentinel === LIGHT_ORB_PURPLE_SENTINEL)
+    return "radial-gradient(circle, rgba(220,150,255,0.48) 0%, rgba(175,95,252,0.28) 20%, rgba(140,65,225,0.14) 45%, rgba(110,45,205,0.05) 65%, transparent 80%)";
+  return "radial-gradient(circle, rgba(255,235,150,0.48) 0%, rgba(255,200,70,0.28) 20%, rgba(255,145,10,0.14) 45%, rgba(255,110,0,0.05) 65%, transparent 80%)";
+}
+
+function seededRand(seed: string, n: number): number {
+  let h = (n + 1) * 2654435761;
+  for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 0x9e3779b9);
+  h = Math.imul(h ^ (h >>> 16), 0x45d9f3b);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967295;
+}
 
 const WORLD_CONFIG: Record<string, { name: string; shopIcon: string; bg: string; accent: string; bgGradient: string }> = {
   snowy_mountain: { name: "Frostpeak", shopIcon: shopFrostpeak, bg: bgSnowyMountain, accent: "#88ccff", bgGradient: "linear-gradient(180deg, rgba(20,30,60,0.7) 0%, rgba(40,80,120,0.3) 50%, rgba(10,15,30,0.7) 100%)" },
@@ -213,6 +236,8 @@ export default function WorldPage({ user }: WorldPageProps) {
   const decorDidDrag = useRef(false);
   const panelDragRef = useRef<{ item: { id: string; name: string; imageUrl: string } } | null>(null);
   const [panelDragGhost, setPanelDragGhost] = useState<{ clientX: number; clientY: number; item: { id: string; name: string; imageUrl: string } } | null>(null);
+  const [showDecorMsg, setShowDecorMsg] = useState<{ text: string; clientX: number; clientY: number } | null>(null);
+  const [decorMsgInput, setDecorMsgInput] = useState("");
   const locViewRef = useRef<HTMLDivElement>(null);
 
   const [selectedShopItem, setSelectedShopItem] = useState<ShopItem | null>(null);
@@ -415,7 +440,7 @@ export default function WorldPage({ user }: WorldPageProps) {
     enabled: !!worldId,
   });
 
-  const { data: decorPlacements = [] } = useQuery<{ id: string; worldId: string; decorItemId: string; name: string; imageUrl: string; posX: number; posY: number; size: number; flipped: boolean; createdAt: string }[]>({
+  const { data: decorPlacements = [] } = useQuery<{ id: string; worldId: string; decorItemId: string; name: string; imageUrl: string; posX: number; posY: number; size: number; flipped: boolean; message: string | null; createdAt: string }[]>({
     queryKey: ["/api/world", worldId, "decor", "placements"],
     queryFn: async () => {
       const res = await fetch(`/api/world/${worldId}/decor/placements`, { credentials: "include" });
@@ -502,7 +527,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   });
 
   const updateDecorPlacementMutation = useMutation({
-    mutationFn: async ({ id, ...data }: { id: string; posX?: number; posY?: number; size?: number; flipped?: boolean }) => {
+    mutationFn: async ({ id, ...data }: { id: string; posX?: number; posY?: number; size?: number; flipped?: boolean; message?: string | null }) => {
       const res = await apiRequest("PATCH", `/api/admin/world/decor/placements/${id}`, data);
       return res.json();
     },
@@ -1023,6 +1048,16 @@ export default function WorldPage({ user }: WorldPageProps) {
     setObjDragPos(null);
   }, [objDragPos, objPositionMutation]);
 
+  // Sync message input when a decor placement is selected
+  useEffect(() => {
+    if (selectedDecorId) {
+      const p = decorPlacements.find(x => x.id === selectedDecorId);
+      setDecorMsgInput(p?.message ?? "");
+    } else {
+      setDecorMsgInput("");
+    }
+  }, [selectedDecorId]);
+
   // Panel drag: subscribe to document events while dragging a decor item from the inventory panel
   useEffect(() => {
     if (!panelDragGhost) return;
@@ -1243,6 +1278,22 @@ export default function WorldPage({ user }: WorldPageProps) {
           0%, 100% { opacity: 0.5; transform: scale(1); }
           50% { opacity: 1; transform: scale(1.05); }
         }
+        @keyframes ffloat0 {
+          0%,100% { transform: translate(0,0) scale(1); opacity: 0.7; }
+          25% { transform: translate(5px,-9px) scale(1.15); opacity: 1; }
+          50% { transform: translate(-4px,-14px) scale(0.85); opacity: 0.75; }
+          75% { transform: translate(-8px,-4px) scale(1.08); opacity: 0.9; }
+        }
+        @keyframes ffloat1 {
+          0%,100% { transform: translate(0,0) scale(0.88); opacity: 0.55; }
+          33% { transform: translate(-8px,-12px) scale(1.18); opacity: 1; }
+          66% { transform: translate(6px,-7px) scale(0.92); opacity: 0.7; }
+        }
+        @keyframes ffloat2 {
+          0%,100% { transform: translate(0,0) scale(1); opacity: 0.65; }
+          40% { transform: translate(10px,-8px) scale(1.2); opacity: 1; }
+          72% { transform: translate(2px,-16px) scale(0.85); opacity: 0.6; }
+        }
         @keyframes lightOrbPulse {
           0%, 100% { opacity: 0.72; transform: scale(1); }
           50% { opacity: 1; transform: scale(1.1); }
@@ -1377,7 +1428,11 @@ export default function WorldPage({ user }: WorldPageProps) {
 
             {decorPlacements.map(p => {
               const dpos = decorDragPos?.id === p.id ? { x: decorDragPos.x, y: decorDragPos.y } : { x: p.posX, y: p.posY };
-              const isLightOrb = p.imageUrl === LIGHT_ORB_SENTINEL;
+              const isPassThrough = PASS_THROUGH_SENTINELS.has(p.imageUrl);
+              const isGlowOrb = isPassThrough && p.imageUrl !== FIREFLIES_SENTINEL;
+              const isFireflies = p.imageUrl === FIREFLIES_SENTINEL;
+              const FF_COUNT = 7;
+              const FF_ANIMS = ["ffloat0", "ffloat1", "ffloat2"];
               return (
                 <div
                   key={p.id}
@@ -1388,38 +1443,63 @@ export default function WorldPage({ user }: WorldPageProps) {
                     width: `${p.size}px`,
                     height: `${p.size}px`,
                     transform: "translate(-50%, -50%)",
-                    zIndex: isLightOrb ? 300 : (decorDragPos?.id === p.id ? 200 : 8),
-                    cursor: currentUser.isAdmin ? "grab" : "default",
+                    zIndex: isPassThrough ? 300 : (decorDragPos?.id === p.id ? 200 : 8),
+                    cursor: currentUser.isAdmin ? "grab" : (p.message && !isPassThrough ? "pointer" : "default"),
                     touchAction: currentUser.isAdmin ? "none" : "auto",
-                    // Non-admins: clicks pass straight through light orbs
-                    pointerEvents: (!currentUser.isAdmin && isLightOrb) ? "none" : "auto",
+                    pointerEvents: (!currentUser.isAdmin && isPassThrough) ? "none" : "auto",
                   }}
                   onPointerDown={(e) => { handleDecorPointerDown(e, p); setSelectedLocId(null); setBarrelSelected(false); }}
                   onPointerMove={handleDecorPointerMove}
                   onPointerUp={handleDecorPointerUp}
                   onPointerCancel={() => { decorDragRef.current = null; decorDidDrag.current = false; setDecorDragPos(null); }}
+                  onClick={(e) => {
+                    if (!currentUser.isAdmin && p.message && !isPassThrough) {
+                      e.stopPropagation();
+                      setShowDecorMsg({ text: p.message, clientX: e.clientX, clientY: e.clientY });
+                    }
+                  }}
                 >
-                  {/* Selection ring — only visible when this item is selected by admin */}
+                  {/* Selection ring */}
                   {currentUser.isAdmin && selectedDecorId === p.id && (
                     <div style={{
-                      position: "absolute", inset: -4, borderRadius: 6,
+                      position: "absolute", inset: -4, borderRadius: isGlowOrb || isFireflies ? "50%" : 6,
                       border: "2px dashed rgba(255,255,255,0.6)",
                       pointerEvents: "none",
                       boxShadow: "0 0 8px rgba(255,255,255,0.25)",
                     }} />
                   )}
-                  {isLightOrb ? (
-                    <div
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        borderRadius: "50%",
-                        background: "radial-gradient(circle, rgba(255,230,140,0.28) 0%, rgba(255,190,60,0.16) 22%, rgba(255,140,0,0.08) 48%, rgba(255,100,0,0.03) 68%, transparent 80%)",
-                        mixBlendMode: "screen",
-                        animation: "lightOrbPulse 2.4s ease-in-out infinite",
-                        pointerEvents: "none",
-                      }}
-                    />
+
+                  {isGlowOrb ? (
+                    <div style={{
+                      width: "100%", height: "100%", borderRadius: "50%",
+                      background: getOrbGradient(p.imageUrl),
+                      mixBlendMode: "screen",
+                      animation: "lightOrbPulse 2.4s ease-in-out infinite",
+                      pointerEvents: "none",
+                    }} />
+                  ) : isFireflies ? (
+                    <div style={{ width: "100%", height: "100%", position: "relative", pointerEvents: "none" }}>
+                      {Array.from({ length: FF_COUNT }, (_, i) => {
+                        const fx = seededRand(p.id, i * 3) * 80 + 10;
+                        const fy = seededRand(p.id, i * 3 + 1) * 80 + 10;
+                        const fsz = 8 + seededRand(p.id, i * 3 + 2) * 6;
+                        const dur = 2.8 + seededRand(p.id, i * 7 + 3) * 2.4;
+                        const delay = -(seededRand(p.id, i * 11 + 5) * 3);
+                        const green = Math.round(220 + seededRand(p.id, i * 5) * 35);
+                        return (
+                          <div key={i} style={{
+                            position: "absolute",
+                            left: `${fx}%`, top: `${fy}%`,
+                            width: fsz, height: fsz,
+                            borderRadius: "50%",
+                            background: `radial-gradient(circle, rgba(255,${green},80,0.98) 0%, rgba(200,255,60,0.6) 45%, transparent 75%)`,
+                            boxShadow: `0 0 ${fsz * 0.9}px ${fsz * 0.55}px rgba(210,255,80,0.38)`,
+                            mixBlendMode: "screen",
+                            animation: `${FF_ANIMS[i % 3]} ${dur}s ease-in-out ${delay}s infinite`,
+                          }} />
+                        );
+                      })}
+                    </div>
                   ) : (
                     <img
                       src={p.imageUrl}
@@ -1428,47 +1508,57 @@ export default function WorldPage({ user }: WorldPageProps) {
                       style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none", transform: p.flipped ? "scaleX(-1)" : undefined }}
                     />
                   )}
+
                   {currentUser.isAdmin && selectedDecorId === p.id && (
                     <div
                       onPointerDown={(e) => e.stopPropagation()}
                       style={{
                         position: "absolute",
-                        bottom: "calc(100% + 6px)",
+                        bottom: "calc(100% + 8px)",
                         left: "50%",
                         transform: "translateX(-50%)",
                         display: "flex",
-                        gap: 3,
-                        background: "rgba(0,0,0,0.82)",
-                        borderRadius: 8,
-                        padding: "4px 6px",
+                        flexDirection: "column",
+                        gap: 4,
+                        background: "rgba(0,0,0,0.88)",
+                        borderRadius: 9,
+                        padding: "5px 7px",
                         border: "1px solid rgba(255,255,255,0.18)",
-                        boxShadow: "0 2px 12px rgba(0,0,0,0.6)",
-                        whiteSpace: "nowrap",
+                        boxShadow: "0 2px 16px rgba(0,0,0,0.7)",
                         zIndex: 1,
+                        minWidth: 140,
                       }}
                     >
-                      <button
-                        onClick={(e) => { e.stopPropagation(); updateDecorPlacementMutation.mutate({ id: p.id, size: Math.max(20, p.size - 10) }); }}
-                        style={{ background: "rgba(255,255,255,0.12)", border: "none", color: "white", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "3px 7px", borderRadius: 5, fontWeight: "bold" }}
-                        title="Shrink"
-                      >−</button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); updateDecorPlacementMutation.mutate({ id: p.id, size: Math.min(500, p.size + 10) }); }}
-                        style={{ background: "rgba(255,255,255,0.12)", border: "none", color: "white", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "3px 7px", borderRadius: 5, fontWeight: "bold" }}
-                        title="Grow"
-                      >+</button>
-                      {!isLightOrb && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); updateDecorPlacementMutation.mutate({ id: p.id, flipped: !p.flipped }); }}
-                          style={{ background: "rgba(255,255,255,0.12)", border: "none", color: "white", cursor: "pointer", fontSize: 12, lineHeight: 1, padding: "3px 7px", borderRadius: 5 }}
-                          title="Flip"
-                        >↔</button>
+                      {/* Size / Flip / Delete row */}
+                      <div style={{ display: "flex", gap: 3, alignItems: "center" }}>
+                        <button onClick={(e) => { e.stopPropagation(); updateDecorPlacementMutation.mutate({ id: p.id, size: Math.max(20, p.size - 10) }); }}
+                          style={{ background: "rgba(255,255,255,0.13)", border: "none", color: "white", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "3px 8px", borderRadius: 5, fontWeight: "bold" }} title="Shrink">−</button>
+                        <button onClick={(e) => { e.stopPropagation(); updateDecorPlacementMutation.mutate({ id: p.id, size: Math.min(500, p.size + 10) }); }}
+                          style={{ background: "rgba(255,255,255,0.13)", border: "none", color: "white", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "3px 8px", borderRadius: 5, fontWeight: "bold" }} title="Grow">+</button>
+                        {!isPassThrough && (
+                          <button onClick={(e) => { e.stopPropagation(); updateDecorPlacementMutation.mutate({ id: p.id, flipped: !p.flipped }); }}
+                            style={{ background: "rgba(255,255,255,0.13)", border: "none", color: "white", cursor: "pointer", fontSize: 12, lineHeight: 1, padding: "3px 8px", borderRadius: 5 }} title="Flip">↔</button>
+                        )}
+                        <button onClick={(e) => { e.stopPropagation(); deleteDecorPlacementMutation.mutate(p.id); setSelectedDecorId(null); }}
+                          style={{ background: "rgba(200,30,30,0.85)", border: "none", color: "white", cursor: "pointer", fontSize: 11, lineHeight: 1, padding: "3px 8px", borderRadius: 5, fontWeight: "bold", marginLeft: "auto" }} title="Delete">✕</button>
+                      </div>
+                      {/* Message row — only for items players can click */}
+                      {!isPassThrough && (
+                        <div style={{ display: "flex", gap: 3, alignItems: "center" }}>
+                          <input
+                            value={decorMsgInput}
+                            onChange={(e) => { e.stopPropagation(); setDecorMsgInput(e.target.value); }}
+                            onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                            onBlur={() => updateDecorPlacementMutation.mutate({ id: p.id, message: decorMsgInput.trim() || null })}
+                            placeholder="Click message for players..."
+                            style={{
+                              flex: 1, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)",
+                              borderRadius: 5, color: "white", fontSize: 10, padding: "3px 6px", outline: "none",
+                              fontFamily: "inherit", whiteSpace: "nowrap",
+                            }}
+                          />
+                        </div>
                       )}
-                      <button
-                        onClick={(e) => { e.stopPropagation(); deleteDecorPlacementMutation.mutate(p.id); setSelectedDecorId(null); }}
-                        style={{ background: "rgba(200,30,30,0.85)", border: "none", color: "white", cursor: "pointer", fontSize: 11, lineHeight: 1, padding: "3px 7px", borderRadius: 5, fontWeight: "bold" }}
-                        title="Delete"
-                      >✕</button>
                     </div>
                   )}
                 </div>
@@ -1959,11 +2049,22 @@ export default function WorldPage({ user }: WorldPageProps) {
             transform: "scale(1.1)",
           }}
         >
-          {panelDragGhost.item.imageUrl === LIGHT_ORB_SENTINEL ? (
-            <div style={{
-              width: "100%", height: "100%", borderRadius: "50%",
-              background: "radial-gradient(circle, rgba(255,230,140,0.55) 0%, rgba(255,180,50,0.3) 40%, transparent 75%)",
-            }} />
+          {PASS_THROUGH_SENTINELS.has(panelDragGhost.item.imageUrl) ? (
+            panelDragGhost.item.imageUrl === FIREFLIES_SENTINEL ? (
+              <div style={{ width: "100%", height: "100%", position: "relative" }}>
+                {[0,1,2,3].map(i => (
+                  <div key={i} style={{
+                    position: "absolute",
+                    left: `${[20,55,35,70][i]}%`, top: `${[35,20,65,50][i]}%`,
+                    width: 9, height: 9, borderRadius: "50%",
+                    background: "radial-gradient(circle, rgba(255,255,120,0.95) 0%, transparent 75%)",
+                    boxShadow: "0 0 6px 3px rgba(210,255,80,0.4)",
+                  }} />
+                ))}
+              </div>
+            ) : (
+              <div style={{ width: "100%", height: "100%", borderRadius: "50%", background: getOrbGradient(panelDragGhost.item.imageUrl) }} />
+            )
           ) : (
             <img src={panelDragGhost.item.imageUrl} alt={panelDragGhost.item.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
           )}
@@ -1994,17 +2095,6 @@ export default function WorldPage({ user }: WorldPageProps) {
             </span>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => addDecorItemMutation.mutate({ name: "Light Orb", imageUrl: LIGHT_ORB_SENTINEL })}
-                className="w-7 h-7 rounded-full flex items-center justify-center transition-transform active:scale-90"
-                style={{
-                  background: "radial-gradient(circle, rgba(255,220,80,0.5) 0%, rgba(255,140,0,0.3) 60%, transparent 90%)",
-                  border: "1.5px solid rgba(255,200,80,0.7)",
-                  cursor: "pointer",
-                  fontSize: 15,
-                }}
-                title="Add a glow light orb (click-through for players)"
-              >💡</button>
-              <button
                 data-testid="button-add-decor-item"
                 onClick={() => setShowAddDecorForm(true)}
                 className="w-7 h-7 rounded-full flex items-center justify-center transition-transform active:scale-90"
@@ -2013,7 +2103,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                   border: `1.5px solid ${accent}80`,
                   cursor: "pointer",
                 }}
-                title="Add decor item"
+                title="Add custom decor item"
               >
                 <Plus className="w-4 h-4" style={{ color: accent }} />
               </button>
@@ -2024,6 +2114,44 @@ export default function WorldPage({ user }: WorldPageProps) {
                 <X className="w-5 h-5" style={{ color: `${accent}88` }} />
               </button>
             </div>
+          </div>
+          {/* Light decor quick-add row */}
+          <div className="flex items-center gap-2 px-4 py-2 shrink-0" style={{ borderBottom: `1px solid ${accent}18` }}>
+            <span className="font-fantasy text-[9px] tracking-wider shrink-0" style={{ color: `${accent}66` }}>Light:</span>
+            {([
+              { label: "Warm", sentinel: LIGHT_ORB_SENTINEL, bg: "radial-gradient(circle, rgba(255,220,100,0.75) 0%, rgba(255,150,0,0.4) 55%, transparent 80%)", border: "rgba(255,200,80,0.7)" },
+              { label: "Blue", sentinel: LIGHT_ORB_BLUE_SENTINEL, bg: "radial-gradient(circle, rgba(120,190,255,0.75) 0%, rgba(60,120,255,0.4) 55%, transparent 80%)", border: "rgba(100,170,255,0.7)" },
+              { label: "Green", sentinel: LIGHT_ORB_GREEN_SENTINEL, bg: "radial-gradient(circle, rgba(120,255,170,0.75) 0%, rgba(50,200,90,0.4) 55%, transparent 80%)", border: "rgba(80,230,130,0.7)" },
+              { label: "Purple", sentinel: LIGHT_ORB_PURPLE_SENTINEL, bg: "radial-gradient(circle, rgba(210,130,255,0.75) 0%, rgba(150,60,230,0.4) 55%, transparent 80%)", border: "rgba(190,100,255,0.7)" },
+            ] as const).map(({ label, sentinel, bg, border }) => (
+              <button
+                key={sentinel}
+                onClick={() => addDecorItemMutation.mutate({ name: `${label} Orb`, imageUrl: sentinel })}
+                className="transition-transform active:scale-90"
+                style={{ width: 26, height: 26, borderRadius: "50%", background: bg, border: `1.5px solid ${border}`, cursor: "pointer", flexShrink: 0 }}
+                title={`Add ${label} light orb`}
+              />
+            ))}
+            <button
+              onClick={() => addDecorItemMutation.mutate({ name: "Fireflies", imageUrl: FIREFLIES_SENTINEL })}
+              className="transition-transform active:scale-90"
+              style={{
+                width: 36, height: 26, borderRadius: 8,
+                background: "rgba(30,50,15,0.85)", border: "1.5px solid rgba(200,255,80,0.5)",
+                cursor: "pointer", flexShrink: 0, position: "relative", display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+              title="Add fireflies cluster"
+            >
+              {[0,1,2].map(i => (
+                <div key={i} style={{
+                  position: "absolute",
+                  left: `${[28,52,38][i]}%`, top: `${[40,25,62][i]}%`,
+                  width: 4, height: 4, borderRadius: "50%",
+                  background: "rgba(240,255,100,0.95)",
+                  boxShadow: "0 0 4px 2px rgba(200,255,60,0.5)",
+                }} />
+              ))}
+            </button>
           </div>
 
           {/* Add decor form */}
@@ -2116,12 +2244,22 @@ export default function WorldPage({ user }: WorldPageProps) {
                       setPanelDragGhost({ clientX: e.clientX, clientY: e.clientY, item: { id: item.id, name: item.name, imageUrl: item.imageUrl } });
                     }}
                   >
-                    {item.imageUrl === LIGHT_ORB_SENTINEL ? (
-                      <div style={{
-                        width: 56, height: 56, borderRadius: "50%",
-                        background: "radial-gradient(circle, rgba(255,220,120,0.7) 0%, rgba(255,170,40,0.4) 35%, rgba(255,120,0,0.15) 60%, transparent 80%)",
-                        flexShrink: 0,
-                      }} />
+                    {PASS_THROUGH_SENTINELS.has(item.imageUrl) ? (
+                      item.imageUrl === FIREFLIES_SENTINEL ? (
+                        <div style={{ width: 56, height: 56, background: "rgba(20,40,10,0.7)", borderRadius: 8, position: "relative", flexShrink: 0 }}>
+                          {[0,1,2,3,4].map(i => (
+                            <div key={i} style={{
+                              position: "absolute",
+                              left: `${[22,50,30,65,42][i]}%`, top: `${[38,20,60,45,75][i]}%`,
+                              width: 5, height: 5, borderRadius: "50%",
+                              background: "rgba(240,255,100,0.92)",
+                              boxShadow: "0 0 5px 2px rgba(200,255,60,0.45)",
+                            }} />
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ width: 56, height: 56, borderRadius: "50%", background: getOrbGradient(item.imageUrl), flexShrink: 0 }} />
+                      )
                     ) : (
                       <img src={item.imageUrl} alt={item.name} className="w-14 h-14 object-contain" draggable={false} />
                     )}
@@ -3525,6 +3663,36 @@ function PondAdminModal({ locationId, accent, onClose }: { locationId: string; a
           )}
         </div>
       </div>
+
+      {/* Player decor message popup */}
+      {showDecorMsg && (
+        <div
+          className="fixed z-50"
+          style={{ inset: 0, display: "flex", alignItems: "flex-end", justifyContent: "center", paddingBottom: "90px" }}
+          onClick={() => setShowDecorMsg(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="font-fantasy text-sm text-center px-5 py-3 rounded-2xl"
+            style={{
+              maxWidth: 300,
+              background: "linear-gradient(135deg, rgba(20,10,40,0.97) 0%, rgba(35,15,60,0.97) 100%)",
+              border: `1.5px solid ${accent}60`,
+              boxShadow: `0 0 30px ${accent}30, 0 8px 32px rgba(0,0,0,0.7)`,
+              color: "#e8ddd0",
+              textShadow: "0 0 10px rgba(255,255,255,0.15)",
+              lineHeight: 1.5,
+            }}
+          >
+            <p style={{ marginBottom: 8 }}>{showDecorMsg.text}</p>
+            <button
+              onClick={() => setShowDecorMsg(null)}
+              className="font-fantasy text-[10px] tracking-wider"
+              style={{ background: "none", border: "none", color: `${accent}88`, cursor: "pointer" }}
+            >[ dismiss ]</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

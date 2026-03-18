@@ -1550,12 +1550,13 @@ export async function registerRoutes(
 
   app.patch("/api/admin/world/decor/placements/:placementId", isAdmin, async (req, res) => {
     try {
-      const { posX, posY, size, flipped } = req.body;
-      const update: { posX?: number; posY?: number; size?: number; flipped?: boolean } = {};
+      const { posX, posY, size, flipped, message } = req.body;
+      const update: { posX?: number; posY?: number; size?: number; flipped?: boolean; message?: string | null } = {};
       if (posX !== undefined) update.posX = posX;
       if (posY !== undefined) update.posY = posY;
       if (size !== undefined) update.size = size;
       if (flipped !== undefined) update.flipped = flipped;
+      if (message !== undefined) update.message = message || null;
       const placement = await storage.updateWorldDecorPlacement(req.params.placementId, update);
       return res.json(placement);
     } catch (err) {

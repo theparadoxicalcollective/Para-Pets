@@ -360,6 +360,7 @@ export const worldDecorPlacements = pgTable("world_decor_placements", {
   posY: real("pos_y").notNull().default(45),
   size: integer("size").notNull().default(100),
   flipped: boolean("flipped").notNull().default(false),
+  message: text("message"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 

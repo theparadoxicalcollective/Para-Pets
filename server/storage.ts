@@ -159,8 +159,8 @@ export interface IStorage {
   createWorldDecorItem(data: { worldId: string; name: string; imageUrl: string }): Promise<WorldDecorItem>;
   deleteWorldDecorItem(id: string): Promise<void>;
   getWorldDecorPlacements(worldId: string): Promise<WorldDecorPlacement[]>;
-  createWorldDecorPlacement(data: { worldId: string; decorItemId: string; name: string; imageUrl: string; posX: number; posY: number }): Promise<WorldDecorPlacement>;
-  updateWorldDecorPlacement(id: string, data: { posX?: number; posY?: number; size?: number; flipped?: boolean }): Promise<WorldDecorPlacement>;
+  createWorldDecorPlacement(data: { worldId: string; decorItemId: string; name: string; imageUrl: string; posX: number; posY: number; message?: string | null }): Promise<WorldDecorPlacement>;
+  updateWorldDecorPlacement(id: string, data: { posX?: number; posY?: number; size?: number; flipped?: boolean; message?: string | null }): Promise<WorldDecorPlacement>;
   deleteWorldDecorPlacement(id: string): Promise<void>;
   getFishBarrelByWorld(worldId: string): Promise<FishBarrel | undefined>;
   createFishBarrel(worldId: string): Promise<FishBarrel>;
@@ -959,12 +959,12 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(worldDecorPlacements).where(eq(worldDecorPlacements.worldId, worldId)).orderBy(asc(worldDecorPlacements.createdAt));
   }
 
-  async createWorldDecorPlacement(data: { worldId: string; decorItemId: string; name: string; imageUrl: string; posX: number; posY: number }): Promise<WorldDecorPlacement> {
+  async createWorldDecorPlacement(data: { worldId: string; decorItemId: string; name: string; imageUrl: string; posX: number; posY: number; message?: string | null }): Promise<WorldDecorPlacement> {
     const [placement] = await db.insert(worldDecorPlacements).values({ ...data, size: 100 }).returning();
     return placement;
   }
 
-  async updateWorldDecorPlacement(id: string, data: { posX?: number; posY?: number; size?: number; flipped?: boolean }): Promise<WorldDecorPlacement> {
+  async updateWorldDecorPlacement(id: string, data: { posX?: number; posY?: number; size?: number; flipped?: boolean; message?: string | null }): Promise<WorldDecorPlacement> {
     const [placement] = await db.update(worldDecorPlacements).set(data).where(eq(worldDecorPlacements.id, id)).returning();
     return placement;
   }
