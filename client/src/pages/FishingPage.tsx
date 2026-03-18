@@ -726,23 +726,6 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         )}
       </div>
 
-      {/* SVG fishing line — pole tip to bobber (z-14) */}
-      {(phase === "waiting" || phase === "nibble") && hasPole && (
-        <svg
-          className="absolute inset-0 pointer-events-none z-[14]"
-          width="100%" height="100%"
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-        >
-          <path
-            d="M 31 51 Q 37 68 43 80"
-            fill="none"
-            stroke="rgba(255,255,255,0.85)"
-            strokeWidth="0.2"
-            strokeLinecap="round"
-          />
-        </svg>
-      )}
 
       {/* Bobber — waiting phase: gentle float (z-15, in front of line) */}
       {phase === "waiting" && (
@@ -793,8 +776,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
 
       {phase === "casting" && equipData?.poleItem?.imageUrl && (
         <div className="absolute pointer-events-none z-[15]" style={{
-          bottom: "38%", left: "28%",
-          width: 80, height: 80,
+          bottom: "24%", left: "2%",
+          width: 130, height: 130,
           animation: "poleCast 1s ease-in-out forwards",
           transformOrigin: "bottom left",
         }}>
@@ -806,9 +789,9 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
 
       {(phase === "waiting" || phase === "nibble") && equipData?.poleItem?.imageUrl && (
         <div className="absolute pointer-events-none z-[15]" style={{
-          bottom: "42%", left: "22%",
-          width: 80, height: 80,
-          transform: "rotate(-30deg)",
+          bottom: "24%", left: "2%",
+          width: 130, height: 130,
+          transform: "rotate(-52deg)",
           transformOrigin: "bottom left",
           animation: "poleHold 2s ease-in-out infinite",
         }}>
@@ -816,7 +799,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
             src={equipData.poleItem.hooklessImageUrl || equipData.poleItem.imageUrl}
             alt=""
             className="w-full h-full object-contain"
-            style={{ filter: `drop-shadow(0 0 6px ${ACCENT}60)` }}
+            style={{ filter: `drop-shadow(0 0 8px ${ACCENT}70)` }}
           />
         </div>
       )}
