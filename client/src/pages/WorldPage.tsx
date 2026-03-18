@@ -221,6 +221,8 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [shopItemDragPos, setShopItemDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
   const [hoveredShopItemId, setHoveredShopItemId] = useState<string | null>(null);
   const [selectedLocId, setSelectedLocId] = useState<string | null>(null);
+  const [selectedDecorId, setSelectedDecorId] = useState<string | null>(null);
+  const [barrelSelected, setBarrelSelected] = useState(false);
   const draggableLocIdRef = useRef<string | null>(null);
   const draggableShopItemIdRef = useRef<string | null>(null);
   const [selectedShopItemAdminId, setSelectedShopItemAdminId] = useState<string | null>(null);
@@ -1055,6 +1057,10 @@ export default function WorldPage({ user }: WorldPageProps) {
     decorDragRef.current = null;
     if (decorDidDrag.current && decorDragPos) {
       moveDecorPlacementMutation.mutate({ id: d.placementId, posX: decorDragPos.x, posY: decorDragPos.y });
+    } else {
+      // Tap (no drag) — toggle selection
+      setSelectedDecorId(prev => prev === d.placementId ? null : d.placementId);
+      setBarrelSelected(false);
     }
     decorDidDrag.current = false;
     setDecorDragPos(null);
@@ -1259,7 +1265,7 @@ export default function WorldPage({ user }: WorldPageProps) {
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerCancel={() => { dragRef.current = null; didDrag.current = false; setDragPos(null); }}
-            onClick={() => { if (currentUser.isAdmin) { if (adminLocTapRef.current) { clearTimeout(adminLocTapRef.current.timer); adminLocTapRef.current = null; } setSelectedLocId(null); } }}
+            onClick={() => { if (currentUser.isAdmin) { if (adminLocTapRef.current) { clearTimeout(adminLocTapRef.current.timer); adminLocTapRef.current = null; } setSelectedLocId(null); setSelectedDecorId(null); setBarrelSelected(false); } }}
           >
             <div className="absolute inset-0 pointer-events-none" style={{
               background: `linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.08) 30%, rgba(0,0,0,0.1) 70%, rgba(0,0,0,0.65) 100%)`,
@@ -1358,11 +1364,20 @@ export default function WorldPage({ user }: WorldPageProps) {
                     // Non-admins: clicks pass straight through light orbs
                     pointerEvents: (!currentUser.isAdmin && isLightOrb) ? "none" : "auto",
                   }}
-                  onPointerDown={(e) => handleDecorPointerDown(e, p)}
+                  onPointerDown={(e) => { handleDecorPointerDown(e, p); setSelectedLocId(null); setBarrelSelected(false); }}
                   onPointerMove={handleDecorPointerMove}
                   onPointerUp={handleDecorPointerUp}
                   onPointerCancel={() => { decorDragRef.current = null; decorDidDrag.current = false; setDecorDragPos(null); }}
                 >
+                  {/* Selection ring — only visible when this item is selected by admin */}
+                  {currentUser.isAdmin && selectedDecorId === p.id && (
+                    <div style={{
+                      position: "absolute", inset: -4, borderRadius: 6,
+                      border: "2px dashed rgba(255,255,255,0.6)",
+                      pointerEvents: "none",
+                      boxShadow: "0 0 8px rgba(255,255,255,0.25)",
+                    }} />
+                  )}
                   {isLightOrb ? (
                     <div
                       style={{
@@ -1383,10 +1398,10 @@ export default function WorldPage({ user }: WorldPageProps) {
                       style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none" }}
                     />
                   )}
-                  {currentUser.isAdmin && (
+                  {currentUser.isAdmin && selectedDecorId === p.id && (
                     <button
                       onPointerDown={(e) => e.stopPropagation()}
-                      onClick={(e) => { e.stopPropagation(); deleteDecorPlacementMutation.mutate(p.id); }}
+                      onClick={(e) => { e.stopPropagation(); deleteDecorPlacementMutation.mutate(p.id); setSelectedDecorId(null); }}
                       style={{
                         position: "absolute", top: -8, right: -8,
                         width: 20, height: 20, borderRadius: "50%",
@@ -1442,7 +1457,11 @@ export default function WorldPage({ user }: WorldPageProps) {
                   onClick={(e) => {
                     e.stopPropagation();
                     if (barrelDidDrag.current) return;
-                    if (!currentUser.isAdmin) {
+                    if (currentUser.isAdmin) {
+                      setBarrelSelected(prev => !prev);
+                      setSelectedDecorId(null);
+                      setSelectedLocId(null);
+                    } else {
                       setShowSellFish(true);
                     }
                   }}
@@ -1456,11 +1475,13 @@ export default function WorldPage({ user }: WorldPageProps) {
                       width: sz,
                       height: sz,
                       objectFit: "contain",
-                      filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.6))",
+                      filter: currentUser.isAdmin && barrelSelected
+                        ? "drop-shadow(0 4px 12px rgba(0,0,0,0.6)) drop-shadow(0 0 8px rgba(255,255,255,0.5))"
+                        : "drop-shadow(0 4px 12px rgba(0,0,0,0.6))",
                       transition: "filter 0.15s ease",
                     }}
                   />
-                  {currentUser.isAdmin && (
+                  {currentUser.isAdmin && barrelSelected && (
                     <div className="flex gap-1 mt-1" onPointerDown={(e) => e.stopPropagation()}>
                       <button
                         data-testid="button-barrel-shrink"
@@ -1476,7 +1497,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                       >+</button>
                       <button
                         data-testid="button-barrel-delete"
-                        onClick={(e) => { e.stopPropagation(); deleteBarrelMutation.mutate(); }}
+                        onClick={(e) => { e.stopPropagation(); deleteBarrelMutation.mutate(); setBarrelSelected(false); }}
                         className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold text-xs"
                         style={{ background: "rgba(180,20,20,0.85)", border: "1px solid rgba(255,80,80,0.5)" }}
                       >✕</button>
