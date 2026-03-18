@@ -519,23 +519,26 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                   }}
                 >
                   <div className="flex items-start gap-2">
-                    <span style={{ color: "#ff6b6b", fontSize: "16px", lineHeight: 1, flexShrink: 0 }}>⚠</span>
-                    <div className="space-y-1">
-                      <p className="font-fantasy text-[#ff6b6b] text-xs tracking-wider">This cannot be undone</p>
+                    <span style={{ color: "#ff6b6b", fontSize: "18px", lineHeight: 1, flexShrink: 0 }}>⚠</span>
+                    <div className="space-y-1.5">
+                      <p className="font-fantasy text-[#ff6b6b] text-xs tracking-wider">This is irreversible</p>
                       <p className="font-sans text-[#c08080] text-[11px] leading-relaxed">
-                        Your account, pets, inventory, badges, and all progress will be permanently erased from our world.
+                        Your account, pets, items, coins, badges, and all progress will be <span style={{ color: "#ff8888", fontWeight: 600 }}>permanently and completely erased</span>. This action cannot be undone by anyone, including support.
+                      </p>
+                      <p className="font-sans text-[#c08080] text-[11px] leading-relaxed">
+                        Your username and email will be freed up for a new account once deleted.
                       </p>
                     </div>
                   </div>
 
                   <div className="space-y-1">
-                    <label className="font-fantasy text-[#c08080] text-[10px] tracking-wider block">CONFIRM WITH YOUR PASSWORD</label>
+                    <label className="font-fantasy text-[#c08080] text-[10px] tracking-wider block">ENTER YOUR PASSWORD TO CONFIRM</label>
                     <input
                       data-testid="input-delete-password"
                       type="password"
                       value={deletePassword}
                       onChange={e => setDeletePassword(e.target.value)}
-                      placeholder="Enter your password"
+                      placeholder="Your current password"
                       disabled={deleteAccountMutation.isPending}
                       className="w-full px-3 py-2.5 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#9a6060] outline-none disabled:opacity-60"
                       style={{
@@ -543,7 +546,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                         border: "2px solid #9a4040",
                         boxShadow: "inset 0 2px 6px rgba(0,0,0,0.3)",
                       }}
-                      onKeyDown={e => { if (e.key === "Enter" && deletePassword) deleteAccountMutation.mutate(); }}
+                      onKeyDown={e => { if (e.key === "Enter" && deletePassword.trim()) deleteAccountMutation.mutate(); }}
                     />
                   </div>
 
@@ -574,7 +577,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                         cursor: "pointer",
                       }}
                     >
-                      {deleteAccountMutation.isPending ? "Deleting..." : "Delete Forever"}
+                      {deleteAccountMutation.isPending ? "Deleting..." : "Confirm"}
                     </button>
                   </div>
                 </div>

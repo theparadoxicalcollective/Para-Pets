@@ -357,10 +357,14 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Incorrect password" });
       }
       await storage.deleteAccount(user.id);
-      req.logout((err) => {
-        if (err) console.error("Logout after delete error:", err);
+      req.logout((logoutErr) => {
+        if (logoutErr) console.error("Logout after delete error:", logoutErr);
+        req.session.destroy((destroyErr) => {
+          if (destroyErr) console.error("Session destroy after delete error:", destroyErr);
+          res.clearCookie("connect.sid");
+          return res.json({ message: "Account deleted" });
+        });
       });
-      return res.json({ message: "Account deleted" });
     } catch (err) {
       console.error("Delete account error:", err);
       return res.status(500).json({ message: "Failed to delete account" });
