@@ -380,7 +380,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       0.014 * slowdownFactor(poleItem?.poleSlowdown4),
       0.019 * slowdownFactor(poleItem?.poleSlowdown5),
     ];
-    const fillByRarity    = [0.009,  0.008,  0.007,  0.006,  0.005];
+    const fillByRarity    = [0.006,  0.006,  0.007,  0.006,  0.005];
     const drainByRarity   = [0.003,  0.004,  0.005,  0.006,  0.007];
     const zoneByRarity    = [0.30,   0.25,   0.21,   0.17,   0.14];
     // Surge frequency scales with rarity
