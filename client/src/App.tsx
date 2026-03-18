@@ -4,7 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { playClick, unlockAudio } from "@/lib/sounds";
 import AuthPage from "@/pages/AuthPage";
 import HomePage from "@/pages/HomePage";
@@ -18,12 +18,25 @@ import VisitPetHousePage from "@/pages/VisitPetHousePage";
 import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
 import BadgePage from "@/pages/BadgePage";
 import MarketPage from "@/pages/MarketPage";
+import WelcomeGiftScreen from "@/components/WelcomeGiftScreen";
 
 function AppRouter() {
-  const { data: user, isLoading, isFetched } = useQuery<any>({
+  const { data: user, isLoading } = useQuery<any>({
     queryKey: ["/api/auth/me"],
     retry: false,
   });
+
+  const [showWelcome, setShowWelcome] = useState(() =>
+    localStorage.getItem("para_pets_just_registered") === "true"
+  );
+
+  const handleWelcomeComplete = (updatedUser: any) => {
+    setShowWelcome(false);
+    if (updatedUser) {
+      queryClient.setQueryData(["/api/auth/me"], updatedUser);
+    }
+    queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+  };
 
   if (isLoading) {
     return (
@@ -38,6 +51,10 @@ function AppRouter() {
         </div>
       </div>
     );
+  }
+
+  if (showWelcome && user) {
+    return <WelcomeGiftScreen user={user} onComplete={handleWelcomeComplete} />;
   }
 
   return (

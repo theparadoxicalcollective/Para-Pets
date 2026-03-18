@@ -121,6 +121,7 @@ export default function AuthPage() {
     },
     onSuccess: async () => {
       setLoadingProgress(100);
+      localStorage.setItem("para_pets_just_registered", "true");
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       setTimeout(() => {
         setLocation("/");
