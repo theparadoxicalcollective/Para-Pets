@@ -731,39 +731,51 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
 
           // State transitions when timer expires
           if (stateTimer === 0) {
-            if (state !== "normal") {
-              // Return to normal cruise after chase/fast burst
+            if (state === "chasing") {
+              // Chaser turns around and cruises back the way it came
+              facingRight = !facingRight;
+              vx = (facingRight ? 1 : -1) * baseSpeed;
               state = "normal";
               chaseTargetId = undefined;
+              stateTimer = 80 + Math.floor(Math.random() * 120);
+            } else if (state === "fleeing") {
+              // Prey slows to normal, keeps going same direction
+              vx = (facingRight ? 1 : -1) * baseSpeed;
+              state = "normal";
+              chaseTargetId = undefined;
+              stateTimer = 80 + Math.floor(Math.random() * 120);
+            } else if (state === "fast") {
+              state = "normal";
               vx = (facingRight ? 1 : -1) * baseSpeed;
               stateTimer = 80 + Math.floor(Math.random() * 140);
             } else {
-              // Normal: 25% chance of a brief fast burst
-              if (Math.random() < 0.25) {
+              // Normal: 20% chance of a brief fast burst
+              if (Math.random() < 0.20) {
                 state = "fast";
-                vx = (facingRight ? 1 : -1) * baseSpeed * 1.9;
-                stateTimer = 25 + Math.floor(Math.random() * 45);
+                vx = (facingRight ? 1 : -1) * baseSpeed * 1.8;
+                stateTimer = 20 + Math.floor(Math.random() * 35);
               } else {
-                stateTimer = 90 + Math.floor(Math.random() * 150);
+                stateTimer = 100 + Math.floor(Math.random() * 160);
               }
             }
           }
 
-          // Chasing: steer toward target
+          // Chasing: steady pace in the direction of the prey — recalc facing each tick
+          // but keep speed constant (no acceleration)
           if (state === "chasing" && chaseTargetId) {
             const target = posMap.get(chaseTargetId);
             if (target) {
-              const chaseSpeed = baseSpeed * 2.4;
+              const chaseSpeed = baseSpeed * 1.8;
               if (target.x > x) { vx = chaseSpeed;  facingRight = true; }
               else               { vx = -chaseSpeed; facingRight = false; }
             }
           }
 
-          // Fleeing: dart away from chaser
+          // Fleeing: prey darts away much faster than the chaser can follow
           if (state === "fleeing" && chaseTargetId) {
             const target = posMap.get(chaseTargetId);
             if (target) {
-              const fleeSpeed = baseSpeed * 2.0;
+              const fleeSpeed = baseSpeed * 3.4;
               if (target.x > x) { vx = -fleeSpeed; facingRight = false; }
               else               { vx = fleeSpeed;  facingRight = true; }
             }
@@ -804,7 +816,8 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
               if (Math.hypot(dx, dy) < 12) {
                 // ~0.2% per tick ≈ roughly 10s average while fish stay in range (was 0.5% = ~4s)
                 if (Math.random() < 0.002) {
-                  const chaseTimer = 60 + Math.floor(Math.random() * 60);
+                  // Chase lasts 3–5 seconds (150–250 ticks at 20ms each)
+                  const chaseTimer = 150 + Math.floor(Math.random() * 100);
                   updated[i] = { ...updated[i], state: "chasing", chaseTargetId: updated[j].id, stateTimer: chaseTimer };
                   updated[j] = { ...updated[j], state: "fleeing",  chaseTargetId: updated[i].id, stateTimer: chaseTimer };
                 }
