@@ -101,6 +101,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   const phaseRef = useRef<FishingPhase>("idle");
   const rafRef = useRef<number | null>(null);
   const catchZoneVelRef = useRef(0);
+  const isHoldingRef = useRef(false);
   const poleSlotRef = useRef<HTMLDivElement>(null);
   const baitSlotRef = useRef<HTMLDivElement>(null);
   const pendingDragRef = useRef<{ item: InventoryItem; slot: "pole" | "bait"; startX: number; startY: number } | null>(null);
@@ -362,12 +363,16 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   const startReeling = useCallback(() => {
     const rarity = Math.max(1, Math.min(5, nibbleRarityRef.current));
 
-    // Per-rarity tuning — each star level is meaningfully harder
-    //                         1★     2★     3★     4★     5★
-    const speedByRarity   = [0.003, 0.005, 0.007, 0.010, 0.014];
-    const fillByRarity    = [0.003, 0.0026, 0.0022, 0.0019, 0.0016];
-    const drainByRarity   = [0.006, 0.008, 0.010,  0.013,  0.016];
-    const zoneByRarity    = [0.26,  0.22,  0.19,   0.16,   0.14];
+    // Per-rarity tuning — hold-to-rise mechanic; higher stars = faster fish + smaller zone
+    //                         1★      2★      3★      4★      5★
+    const speedByRarity   = [0.003,  0.006,  0.010,  0.014,  0.019];
+    const fillByRarity    = [0.005,  0.004,  0.0030, 0.0024, 0.0018];
+    const drainByRarity   = [0.004,  0.006,  0.009,  0.012,  0.016];
+    const zoneByRarity    = [0.30,   0.25,   0.21,   0.17,   0.14];
+    // Surge frequency scales with rarity
+    const surgeChance     = 0.006 + (rarity - 1) * 0.007;
+    // Direction-change window (frames): wider = slower, narrower = more chaotic
+    const dirBaseTimer    = Math.round(100 - (rarity - 1) * 16);
 
     const REEL_TIMEOUT_MS = 30000;
 
@@ -376,19 +381,19 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     const drainRate  = drainByRarity[rarity - 1];
     const czSize     = zoneByRarity[rarity - 1];
 
-    // Start with a gentle upward kick so the zone floats for a moment
-    catchZoneVelRef.current = 0.012;
+    // Zone starts at rest at the bottom; player holds to rise
+    catchZoneVelRef.current = 0;
+    isHoldingRef.current = false;
 
     let fishPos = 0.25 + Math.random() * 0.5;
     let fishDir = Math.random() > 0.5 ? 1 : -1;
-    // Start catch zone aligned with the fish so there's instant overlap during grace
-    let catchZonePos = Math.max(0, Math.min(1 - zoneByRarity[rarity - 1], fishPos));
+    // Start catch zone near the bottom so there's room to hold-up into the fish
+    let catchZonePos = Math.min(1 - czSize, 0.75);
     let catchMeter = 0.0;
     let surging = false;
     let surgeTimer = 0;
-    // Longer, more predictable direction windows — less chaotic
-    let dirChangeTimer = 70;
-    let graceFrames = 120; // ~2s before the meter can reach 0 and fail
+    let dirChangeTimer = dirBaseTimer + Math.floor(Math.random() * 40);
+    let graceFrames = 90; // ~1.5s orientation window before drain starts
 
     const startTime = Date.now();
 
@@ -424,28 +429,36 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       if (fishPos <= 0) { fishPos = 0; fishDir = 1; surging = false; }
       if (fishPos >= 1 - FISH_ZONE_SIZE) { fishPos = 1 - FISH_ZONE_SIZE; fishDir = -1; surging = false; }
 
-      // Random direction flips — more frequent at higher rarity
+      // Direction flips — more frequent at higher rarity
       dirChangeTimer--;
       if (dirChangeTimer <= 0) {
-        if (Math.random() < 0.14 + (rarity - 1) * 0.04) fishDir *= -1;
-        dirChangeTimer = 35 + Math.floor(Math.random() * 40);
+        fishDir *= -1;
+        dirChangeTimer = dirBaseTimer + Math.floor(Math.random() * 40);
       }
 
-      // Surge logic — higher rarity surges more often
+      // Surge logic — scales with rarity
       surgeTimer--;
       if (!surging && surgeTimer <= 0) {
-        if (Math.random() < 0.012 + (rarity - 1) * 0.005) {
+        if (Math.random() < surgeChance) {
           surging = true;
-          surgeTimer = 28 + Math.floor(Math.random() * 28);
+          surgeTimer = 20 + Math.floor(Math.random() * 25);
         } else {
-          surgeTimer = 15;
+          surgeTimer = 10 + Math.floor(Math.random() * 15);
         }
       }
       if (surging && surgeTimer <= 0) surging = false;
 
-      // Catch zone physics: each tap gives an upward impulse, gravity pulls it back down
-      const GRAVITY = 0.0022;
-      catchZoneVelRef.current = Math.max(catchZoneVelRef.current - GRAVITY, -0.018);
+      // Catch zone physics — HOLD-TO-RISE mechanic:
+      // Holding lifts the zone up; releasing lets gravity pull it down.
+      const GRAVITY   = 0.003;
+      const LIFT      = 0.004;
+      const MAX_RISE  = 0.022;
+      const MAX_FALL  = 0.020;
+      if (isHoldingRef.current) {
+        catchZoneVelRef.current = Math.min(catchZoneVelRef.current + LIFT, MAX_RISE);
+      } else {
+        catchZoneVelRef.current = Math.max(catchZoneVelRef.current - GRAVITY, -MAX_FALL);
+      }
       catchZonePos = Math.max(0, Math.min(1 - czSize, catchZonePos - catchZoneVelRef.current));
 
       // Overlap detection
@@ -674,7 +687,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
              phase === "casting" ? "Casting..." :
              phase === "waiting" ? "Waiting for a bite..." :
              phase === "nibble" ? "Something's biting — tap anywhere!" :
-             phase === "reeling" ? "Reel it in!" :
+             phase === "reeling" ? "Hold to reel it in!" :
              phase === "caught" ? "You caught something!" : "It got away..."}
           </p>
         </div>
@@ -817,7 +830,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           isSurging={reelBarState.isSurging}
           catchZoneSize={reelBarState.catchZoneSize}
           timeLeft={reelBarState.timeLeft}
-          onTap={() => { catchZoneVelRef.current = 0.028; }}
+          onHoldChange={(holding) => { isHoldingRef.current = holding; }}
         />
       )}
 
@@ -1325,7 +1338,7 @@ function PondAdminPanel({
 }
 
 function ReelBar({
-  fishPos, catchZonePos, catchMeter, isOverlap, isSurging, catchZoneSize, timeLeft, onTap,
+  fishPos, catchZonePos, catchMeter, isOverlap, isSurging, catchZoneSize, timeLeft, onHoldChange,
 }: {
   fishPos: number;
   catchZonePos: number;
@@ -1334,10 +1347,21 @@ function ReelBar({
   isSurging: boolean;
   catchZoneSize: number;
   timeLeft: number;
-  onTap: () => void;
+  onHoldChange: (holding: boolean) => void;
 }) {
+  const [held, setHeld] = useState(false);
   const BAR_H = 260;
   const BAR_W = 52;
+
+  const startHold = (e: React.PointerEvent) => {
+    e.preventDefault();
+    setHeld(true);
+    onHoldChange(true);
+  };
+  const endHold = () => {
+    setHeld(false);
+    onHoldChange(false);
+  };
 
   const czTop = catchZonePos * BAR_H;
   const czH = catchZoneSize * BAR_H;
@@ -1465,24 +1489,34 @@ function ReelBar({
         </div>
       </div>
 
-      {/* Tap button */}
+      {/* Hold button */}
       <button
         data-testid="button-reel"
-        onPointerDown={(e) => { e.preventDefault(); onTap(); }}
-        onTouchStart={(e) => { e.preventDefault(); onTap(); }}
-        className="w-16 h-16 rounded-full flex flex-col items-center justify-center gap-0.5 transition-transform active:scale-90"
+        onPointerDown={startHold}
+        onPointerUp={endHold}
+        onPointerLeave={endHold}
+        onPointerCancel={endHold}
+        className="w-16 h-16 rounded-full flex flex-col items-center justify-center gap-0.5"
         style={{
-          background: `linear-gradient(135deg, ${ACCENT}dd, ${ACCENT}99)`,
-          border: `2px solid ${ACCENT}`,
+          background: held
+            ? `radial-gradient(circle, ${ACCENT}ff, ${ACCENT}cc)`
+            : `linear-gradient(135deg, ${ACCENT}cc, ${ACCENT}88)`,
+          border: `2px solid ${held ? ACCENT : ACCENT + "99"}`,
           color: "#0a1a14",
           cursor: "pointer",
-          boxShadow: `0 0 20px ${ACCENT}50`,
+          boxShadow: held
+            ? `0 0 32px ${ACCENT}90, 0 0 12px ${ACCENT}60`
+            : `0 0 14px ${ACCENT}40`,
           fontFamily: "Cinzel, serif",
           touchAction: "none",
           userSelect: "none",
+          transform: held ? "scale(0.92)" : "scale(1)",
+          transition: "transform 0.08s ease, box-shadow 0.1s ease, background 0.1s ease",
         }}
       >
-        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em" }}>TAP</span>
+        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em" }}>
+          {held ? "↑↑↑" : "HOLD"}
+        </span>
         <span style={{ fontSize: 14 }}>🎣</span>
       </button>
     </div>
