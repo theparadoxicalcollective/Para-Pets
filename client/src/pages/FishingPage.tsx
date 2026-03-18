@@ -380,8 +380,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       0.014 * slowdownFactor(poleItem?.poleSlowdown4),
       0.019 * slowdownFactor(poleItem?.poleSlowdown5),
     ];
-    const fillByRarity    = [0.004,  0.004,  0.005,  0.006,  0.005];
-    const drainByRarity   = [0.002,  0.003,  0.004,  0.006,  0.007];
+    const fillByRarity    = [0.0025, 0.0025, 0.003,  0.0032, 0.003 ];
+    const drainByRarity   = [0.0006, 0.001,  0.0015, 0.002,  0.003 ];
     const zoneByRarity    = [0.30,   0.25,   0.21,   0.17,   0.14];
     // Surge frequency scales with rarity
     const surgeChance     = 0.006 + (rarity - 1) * 0.007;
@@ -403,11 +403,11 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     let fishDir = Math.random() > 0.5 ? 1 : -1;
     // Start catch zone near the bottom so there's room to hold-up into the fish
     let catchZonePos = Math.min(1 - czSize, 0.75);
-    let catchMeter = 0.55;
+    // Meter starts empty — fill it to win, or just be in the green when time runs out
+    let catchMeter = 0;
     let surging = false;
     let surgeTimer = 0;
     let dirChangeTimer = dirBaseTimer + Math.floor(Math.random() * 40);
-    let graceFrames = 90; // ~1.5s orientation window before drain starts
 
     const startTime = Date.now();
 
@@ -416,21 +416,21 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     setPhase("reeling");
     setReelBarState({ fishPos, catchZonePos, catchMeter, isOverlap: false, isSurging: false, catchZoneSize: czSize, timeLeft: 30 });
 
+    const GREEN_THRESHOLD = 0.6; // meter must be at least this to count as "in the green"
+
     const tick = () => {
       if (phaseRef.current !== "reeling") return;
 
       const elapsed = Date.now() - startTime;
       const timeLeft = Math.max(0, (REEL_TIMEOUT_MS - elapsed) / 1000);
 
-      // 30-second timeout resolution
+      // 30-second timeout resolution — win if meter is in the green, lose otherwise
       if (timeLeft <= 0) {
         setReelBarState(null);
-        if (catchMeter > 0.6) {
-          // Meter is in the green — reward the player
+        if (catchMeter >= GREEN_THRESHOLD) {
           playCatch();
           catchMutateRef.current(100);
         } else {
-          // Meter is red or yellow — fish escapes
           phaseRef.current = "missed";
           setPhase("missed");
         }
@@ -480,30 +480,20 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         fishPos < catchZonePos + czSize &&
         fishPos + FISH_ZONE_SIZE > catchZonePos;
 
-      // Grace period — no draining for the first ~0.9s so the player can orient
-      if (graceFrames > 0) graceFrames--;
-
-      // Catch meter fills on overlap (green), drains slowly when not overlapping (red/yellow)
+      // Meter fills when overlapping, drains slowly when not — but hitting 0 is NOT a loss
       if (overlap) {
         catchMeter = Math.min(1, catchMeter + fillRate);
-      } else if (graceFrames === 0) {
+      } else {
         catchMeter = Math.max(0, catchMeter - drainRate);
       }
 
       setReelBarState({ fishPos, catchZonePos, catchMeter, isOverlap: overlap, isSurging: surging, catchZoneSize: czSize, timeLeft });
 
-      // Instant win: meter fully filled
+      // Instant win: meter fully filled before time runs out
       if (catchMeter >= 1) {
         setReelBarState(null);
         playCatch();
         catchMutateRef.current(100);
-        return;
-      }
-      // Instant loss: meter fully drained
-      if (catchMeter <= 0 && graceFrames === 0) {
-        setReelBarState(null);
-        phaseRef.current = "missed";
-        setPhase("missed");
         return;
       }
 
