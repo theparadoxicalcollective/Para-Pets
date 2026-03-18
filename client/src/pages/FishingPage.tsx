@@ -374,14 +374,14 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     const slowdownFactor = (pct: number | null | undefined) => pct != null ? Math.max(0, 1 - pct / 100) : 1;
     //                         1★      2★      3★      4★      5★
     const speedByRarity   = [
-      0.003,
-      0.006,
-      0.010 * slowdownFactor(poleItem?.poleSlowdown3),
+      0.007,
+      0.010,
+      0.013 * slowdownFactor(poleItem?.poleSlowdown3),
       0.014 * slowdownFactor(poleItem?.poleSlowdown4),
       0.019 * slowdownFactor(poleItem?.poleSlowdown5),
     ];
-    const fillByRarity    = [0.006,  0.006,  0.007,  0.006,  0.005];
-    const drainByRarity   = [0.003,  0.004,  0.005,  0.006,  0.007];
+    const fillByRarity    = [0.004,  0.004,  0.005,  0.006,  0.005];
+    const drainByRarity   = [0.002,  0.003,  0.004,  0.006,  0.007];
     const zoneByRarity    = [0.30,   0.25,   0.21,   0.17,   0.14];
     // Surge frequency scales with rarity
     const surgeChance     = 0.006 + (rarity - 1) * 0.007;
@@ -1402,7 +1402,7 @@ function ReelBar({
       </div>
 
       {/* Catch meter */}
-      <div style={{ width: BAR_W, height: 10, borderRadius: 5, background: "rgba(0,0,0,0.6)", border: "1px solid rgba(94,234,212,0.35)", overflow: "hidden" }}>
+      <div style={{ width: 80, height: 16, borderRadius: 8, background: "rgba(0,0,0,0.6)", border: "1px solid rgba(94,234,212,0.35)", overflow: "hidden" }}>
         <div style={{
           height: "100%",
           width: `${catchMeter * 100}%`,
