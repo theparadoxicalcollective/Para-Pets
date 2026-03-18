@@ -160,7 +160,7 @@ export interface IStorage {
   deleteWorldDecorItem(id: string): Promise<void>;
   getWorldDecorPlacements(worldId: string): Promise<WorldDecorPlacement[]>;
   createWorldDecorPlacement(data: { worldId: string; decorItemId: string; name: string; imageUrl: string; posX: number; posY: number }): Promise<WorldDecorPlacement>;
-  updateWorldDecorPlacement(id: string, data: { posX: number; posY: number }): Promise<WorldDecorPlacement>;
+  updateWorldDecorPlacement(id: string, data: { posX?: number; posY?: number; size?: number; flipped?: boolean }): Promise<WorldDecorPlacement>;
   deleteWorldDecorPlacement(id: string): Promise<void>;
   getFishBarrelByWorld(worldId: string): Promise<FishBarrel | undefined>;
   createFishBarrel(worldId: string): Promise<FishBarrel>;
@@ -964,7 +964,7 @@ export class DatabaseStorage implements IStorage {
     return placement;
   }
 
-  async updateWorldDecorPlacement(id: string, data: { posX: number; posY: number }): Promise<WorldDecorPlacement> {
+  async updateWorldDecorPlacement(id: string, data: { posX?: number; posY?: number; size?: number; flipped?: boolean }): Promise<WorldDecorPlacement> {
     const [placement] = await db.update(worldDecorPlacements).set(data).where(eq(worldDecorPlacements.id, id)).returning();
     return placement;
   }

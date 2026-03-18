@@ -1550,8 +1550,13 @@ export async function registerRoutes(
 
   app.patch("/api/admin/world/decor/placements/:placementId", isAdmin, async (req, res) => {
     try {
-      const { posX, posY } = req.body;
-      const placement = await storage.updateWorldDecorPlacement(req.params.placementId, { posX, posY });
+      const { posX, posY, size, flipped } = req.body;
+      const update: { posX?: number; posY?: number; size?: number; flipped?: boolean } = {};
+      if (posX !== undefined) update.posX = posX;
+      if (posY !== undefined) update.posY = posY;
+      if (size !== undefined) update.size = size;
+      if (flipped !== undefined) update.flipped = flipped;
+      const placement = await storage.updateWorldDecorPlacement(req.params.placementId, update);
       return res.json(placement);
     } catch (err) {
       return res.status(500).json({ message: "Failed to update decor placement" });
