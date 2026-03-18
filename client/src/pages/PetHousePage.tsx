@@ -668,8 +668,8 @@ function makeSwimmer(entry: AqFishEntry, x?: number, y?: number): SwimmingFish {
   // Swim zone: "bottom" = lower quarter of tank (65-82%), "full" = whole tank (14-82%)
   const isBottom = entry.fishSwimZone === "bottom";
   const defaultY = isBottom
-    ? 65 + Math.random() * 17
-    : 14 + Math.random() * 55;
+    ? 64 + Math.random() * 12   // bottom zone: 64–76%
+    : 26 + Math.random() * 44;  // full zone:   26–70% (clear of title gradient + bottom gradient)
   return {
     ...entry,
     x: x ?? (Math.random() * 80),
