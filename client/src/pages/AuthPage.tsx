@@ -628,7 +628,7 @@ export default function AuthPage() {
 
         <div className="absolute bottom-4 left-0 right-0 text-center">
           <p className="font-fantasy text-[#6a5840] text-xs tracking-widest">
-            PARA PETS &copy; 2025
+            PARA PETS &copy; 2026
           </p>
         </div>
       </div>
