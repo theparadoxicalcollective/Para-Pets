@@ -34,6 +34,8 @@ import bgMagicalForest from "@assets/bg_enchanted_grove_td.png";
 import bgHauntedWoods from "@assets/bg_haunted_woods_td.png";
 import bgSwamp from "@assets/bg_swamp_v5.png";
 
+const LIGHT_ORB_SENTINEL = "__light_orb__";
+
 const WORLD_CONFIG: Record<string, { name: string; shopIcon: string; bg: string; accent: string; bgGradient: string }> = {
   snowy_mountain: { name: "Frostpeak", shopIcon: shopFrostpeak, bg: bgSnowyMountain, accent: "#88ccff", bgGradient: "linear-gradient(180deg, rgba(20,30,60,0.7) 0%, rgba(40,80,120,0.3) 50%, rgba(10,15,30,0.7) 100%)" },
   sky_realm: { name: "Sky Realm", shopIcon: shopSkyRealm, bg: bgSkyRealm, accent: "#ffd700", bgGradient: "linear-gradient(180deg, rgba(40,30,10,0.7) 0%, rgba(80,60,20,0.3) 50%, rgba(20,15,5,0.7) 100%)" },
@@ -1205,6 +1207,10 @@ export default function WorldPage({ user }: WorldPageProps) {
           0%, 100% { opacity: 0.5; transform: scale(1); }
           50% { opacity: 1; transform: scale(1.05); }
         }
+        @keyframes lightOrbPulse {
+          0%, 100% { opacity: 0.72; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.1); }
+        }
         .loc-node { transition: filter 0.2s ease; touch-action: none; }
         .loc-node:active { filter: brightness(1.15); }
         .world-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
@@ -1335,6 +1341,7 @@ export default function WorldPage({ user }: WorldPageProps) {
 
             {decorPlacements.map(p => {
               const dpos = decorDragPos?.id === p.id ? { x: decorDragPos.x, y: decorDragPos.y } : { x: p.posX, y: p.posY };
+              const isLightOrb = p.imageUrl === LIGHT_ORB_SENTINEL;
               return (
                 <div
                   key={p.id}
@@ -1347,19 +1354,35 @@ export default function WorldPage({ user }: WorldPageProps) {
                     transform: "translate(-50%, -50%)",
                     zIndex: 8,
                     cursor: currentUser.isAdmin ? "grab" : "default",
-                    touchAction: "none",
+                    touchAction: currentUser.isAdmin ? "none" : "auto",
+                    // Non-admins: clicks pass straight through light orbs
+                    pointerEvents: (!currentUser.isAdmin && isLightOrb) ? "none" : "auto",
                   }}
                   onPointerDown={(e) => handleDecorPointerDown(e, p)}
                   onPointerMove={handleDecorPointerMove}
                   onPointerUp={handleDecorPointerUp}
                   onPointerCancel={() => { decorDragRef.current = null; decorDidDrag.current = false; setDecorDragPos(null); }}
                 >
-                  <img
-                    src={p.imageUrl}
-                    alt={p.name}
-                    draggable={false}
-                    style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none" }}
-                  />
+                  {isLightOrb ? (
+                    <div
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        borderRadius: "50%",
+                        background: "radial-gradient(circle, rgba(255,245,200,1) 0%, rgba(255,210,80,0.85) 14%, rgba(255,165,30,0.55) 36%, rgba(255,120,0,0.22) 60%, transparent 80%)",
+                        mixBlendMode: "screen",
+                        animation: "lightOrbPulse 2.4s ease-in-out infinite",
+                        pointerEvents: "none",
+                      }}
+                    />
+                  ) : (
+                    <img
+                      src={p.imageUrl}
+                      alt={p.name}
+                      draggable={false}
+                      style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none" }}
+                    />
+                  )}
                   {currentUser.isAdmin && (
                     <button
                       onPointerDown={(e) => e.stopPropagation()}
@@ -1906,6 +1929,17 @@ export default function WorldPage({ user }: WorldPageProps) {
             </span>
             <div className="flex items-center gap-2">
               <button
+                onClick={() => addDecorItemMutation.mutate({ name: "Light Orb", imageUrl: LIGHT_ORB_SENTINEL })}
+                className="w-7 h-7 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                style={{
+                  background: "radial-gradient(circle, rgba(255,220,80,0.5) 0%, rgba(255,140,0,0.3) 60%, transparent 90%)",
+                  border: "1.5px solid rgba(255,200,80,0.7)",
+                  cursor: "pointer",
+                  fontSize: 15,
+                }}
+                title="Add a glow light orb (click-through for players)"
+              >💡</button>
+              <button
                 data-testid="button-add-decor-item"
                 onClick={() => setShowAddDecorForm(true)}
                 className="w-7 h-7 rounded-full flex items-center justify-center transition-transform active:scale-90"
@@ -2015,7 +2049,15 @@ export default function WorldPage({ user }: WorldPageProps) {
                       setShowAddDecorForm(false);
                     }}
                   >
-                    <img src={item.imageUrl} alt={item.name} className="w-14 h-14 object-contain" />
+                    {item.imageUrl === LIGHT_ORB_SENTINEL ? (
+                      <div style={{
+                        width: 56, height: 56, borderRadius: "50%",
+                        background: "radial-gradient(circle, rgba(255,245,200,1) 0%, rgba(255,210,80,0.85) 18%, rgba(255,140,0,0.5) 50%, transparent 80%)",
+                        flexShrink: 0,
+                      }} />
+                    ) : (
+                      <img src={item.imageUrl} alt={item.name} className="w-14 h-14 object-contain" />
+                    )}
                     <span className="font-fantasy text-[9px] tracking-wider text-center leading-tight" style={{ color: `${accent}cc` }}>
                       {item.name}
                     </span>

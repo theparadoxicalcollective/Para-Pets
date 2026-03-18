@@ -1500,6 +1500,7 @@ function ReelBar({
           userSelect: "none",
           WebkitUserSelect: "none",
           WebkitTapHighlightColor: "transparent",
+          WebkitTouchCallout: "none",
           outline: "none",
           transform: held ? "scale(0.92)" : "scale(1)",
           transition: "transform 0.08s ease, box-shadow 0.1s ease, background 0.1s ease",
