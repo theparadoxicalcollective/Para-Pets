@@ -782,32 +782,33 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
           return { ...f, x, y, vx, wobble, facingRight, baseSpeed, state, stateTimer, chaseTargetId };
         });
 
-        // Rarity-based aggression — only triggers occasionally even when fish are in range
-        // Cap at 2 simultaneous chases so the tank stays calm with many fish
+        // Rarity-based aggression — higher rarity chases lower; equal rarity: random one chases the other
+        // Cap at 1 simultaneous chase so the tank stays calm
         const activeChasers = updated.filter(f => f.state === "chasing").length;
-        if (activeChasers < 2) {
+        if (activeChasers < 1) {
           for (let i = 0; i < updated.length; i++) {
             if (updated[i].state !== "normal") continue;
             const iRarity = updated[i].starRarity ?? 1;
-            // Only 3★+ can start a chase
+            // Only 3★+ can initiate a chase
             if (iRarity < 3) continue;
 
             for (let j = 0; j < updated.length; j++) {
               if (i === j || updated[j].state !== "normal") continue;
               const jRarity = updated[j].starRarity ?? 1;
-              // 3★ only chases 1★ and 2★; 4★+ chases anyone
-              if (iRarity === 3 && jRarity >= 3) continue;
+              // Higher rarity always chases lower; equal rarity: 50% chance of chasing
+              if (iRarity < jRarity) continue;
+              if (iRarity === jRarity && Math.random() < 0.5) continue;
 
               const dx = updated[i].x - updated[j].x;
               const dy = (updated[i].y - updated[j].y) * 1.5;
-              if (Math.hypot(dx, dy) < 14) {
-                // Low probability per tick (~4s average before triggering while in range)
-                if (Math.random() < 0.005) {
-                  const chaseTimer = 50 + Math.floor(Math.random() * 60);
+              if (Math.hypot(dx, dy) < 12) {
+                // ~0.2% per tick ≈ roughly 10s average while fish stay in range (was 0.5% = ~4s)
+                if (Math.random() < 0.002) {
+                  const chaseTimer = 60 + Math.floor(Math.random() * 60);
                   updated[i] = { ...updated[i], state: "chasing", chaseTargetId: updated[j].id, stateTimer: chaseTimer };
                   updated[j] = { ...updated[j], state: "fleeing",  chaseTargetId: updated[i].id, stateTimer: chaseTimer };
                 }
-                break; // one check per potential aggressor per tick
+                break;
               }
             }
           }

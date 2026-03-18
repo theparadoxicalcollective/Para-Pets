@@ -371,7 +371,7 @@ export default function MapPage({ user }: MapPageProps) {
                   "0 0 8px rgba(255,220,80,0.95), 0 0 20px rgba(240,192,64,0.8), 0 0 45px rgba(240,160,40,0.55), 0 0 90px rgba(220,140,20,0.3), 0 3px 6px rgba(0,0,0,1)",
               }}
             >
-              Symora
+              Veridia
             </h2>
             <div className="flex items-center gap-1.5 mt-1">
               <div style={{ width: "50px", height: "1px", background: "linear-gradient(to right, transparent, rgba(240,192,64,0.45))" }} />

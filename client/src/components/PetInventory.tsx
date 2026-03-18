@@ -521,7 +521,7 @@ function getItemDescription(item: InventoryItem): string {
   if (parts.length === 0) {
     if (item.type === "potion") parts.push("A mystical potion for your pet.");
     else if (item.type === "accessory") parts.push("An accessory for your pet.");
-    else parts.push("A collectible item from Symora.");
+    else parts.push("A collectible item from Veridia.");
   }
   return parts.join(" ");
 }

@@ -1481,9 +1481,10 @@ export default function WorldPage({ user }: WorldPageProps) {
                         zIndex: isDragging ? 60 : selectedLocId === loc.id ? 55 : 10 + i,
                       }}
                       onPointerDown={(e) => handlePointerDown(e, loc)}
-                      onClick={(e) => { e.stopPropagation(); handleLocationClick(loc); }}
                     >
-                      <div className="relative w-full" style={{ aspectRatio: "1" }}>
+                      <div className="relative w-full" style={{ aspectRatio: "1" }}
+                        onClick={(e) => { e.stopPropagation(); handleLocationClick(loc); }}
+                      >
                         {loc.iconUrl ? (
                           <div
                             className="w-full h-full"

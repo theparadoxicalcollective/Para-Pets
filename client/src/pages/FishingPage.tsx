@@ -367,7 +367,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     //                         1★      2★      3★      4★      5★
     const speedByRarity   = [0.003,  0.006,  0.010,  0.014,  0.019];
     const fillByRarity    = [0.005,  0.004,  0.0030, 0.0024, 0.0018];
-    const drainByRarity   = [0.004,  0.006,  0.009,  0.012,  0.016];
+    const drainByRarity   = [0.004,  0.006,  0.007,  0.009,  0.011];
     const zoneByRarity    = [0.30,   0.25,   0.21,   0.17,   0.14];
     // Surge frequency scales with rarity
     const surgeChance     = 0.006 + (rarity - 1) * 0.007;
@@ -389,7 +389,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     let fishDir = Math.random() > 0.5 ? 1 : -1;
     // Start catch zone near the bottom so there's room to hold-up into the fish
     let catchZonePos = Math.min(1 - czSize, 0.75);
-    let catchMeter = 0.0;
+    let catchMeter = 0.55;
     let surging = false;
     let surgeTimer = 0;
     let dirChangeTimer = dirBaseTimer + Math.floor(Math.random() * 40);
@@ -735,7 +735,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           preserveAspectRatio="none"
         >
           <path
-            d="M 31 51 Q 41 68 50 80"
+            d="M 31 51 Q 37 68 43 80"
             fill="none"
             stroke="rgba(255,255,255,0.85)"
             strokeWidth="0.2"
@@ -747,13 +747,13 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       {/* Bobber — waiting phase: gentle float (z-15, in front of line) */}
       {phase === "waiting" && (
         <div className="absolute pointer-events-none z-[15]" style={{
-          bottom: "20%", left: "50%",
+          bottom: "20%", left: "43%",
           animation: "bobFloat 1.2s ease-in-out infinite",
           transform: "translate(-50%, 0)",
           background: "transparent",
         }}>
           <img src={bobberIcon} alt="" style={{
-            width: 44, height: 44,
+            width: 53, height: 53,
             display: "block",
             background: "transparent",
             filter: "drop-shadow(0 0 6px rgba(94,234,212,0.7))",
@@ -763,7 +763,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
 
       {/* Bobber — nibble phase: aggressive dip with ripples (z-15, in front of line) */}
       {phase === "nibble" && (
-        <div className="absolute pointer-events-none z-[15]" style={{ bottom: "20%", left: "50%", background: "transparent" }}>
+        <div className="absolute pointer-events-none z-[15]" style={{ bottom: "20%", left: "43%", background: "transparent" }}>
           {/* Expanding ripple rings */}
           <div style={{
             position: "absolute", width: 20, height: 10,
@@ -781,7 +781,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           }} />
           {/* Bobber dipping */}
           <img src={bobberIcon} alt="" style={{
-            width: 44, height: 44,
+            width: 53, height: 53,
             display: "block",
             background: "transparent",
             transform: "translate(-50%, 0)",
@@ -1496,7 +1496,9 @@ function ReelBar({
         onPointerUp={endHold}
         onPointerLeave={endHold}
         onPointerCancel={endHold}
-        className="w-16 h-16 rounded-full flex flex-col items-center justify-center gap-0.5"
+        onContextMenu={(e) => e.preventDefault()}
+        draggable={false}
+        className="w-16 h-16 rounded-full flex flex-col items-center justify-center gap-0.5 select-none"
         style={{
           background: held
             ? `radial-gradient(circle, ${ACCENT}ff, ${ACCENT}cc)`
@@ -1510,14 +1512,17 @@ function ReelBar({
           fontFamily: "Cinzel, serif",
           touchAction: "none",
           userSelect: "none",
+          WebkitUserSelect: "none",
+          WebkitTapHighlightColor: "transparent",
+          outline: "none",
           transform: held ? "scale(0.92)" : "scale(1)",
           transition: "transform 0.08s ease, box-shadow 0.1s ease, background 0.1s ease",
         }}
       >
-        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em" }}>
+        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", pointerEvents: "none" }}>
           {held ? "↑↑↑" : "HOLD"}
         </span>
-        <span style={{ fontSize: 14 }}>🎣</span>
+        <span style={{ fontSize: 14, pointerEvents: "none" }}>🎣</span>
       </button>
     </div>
   );
