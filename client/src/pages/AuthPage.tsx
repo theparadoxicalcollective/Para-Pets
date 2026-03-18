@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -388,15 +389,11 @@ export default function AuthPage() {
                     data-testid="button-toggle-password"
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 font-fantasy text-[10px] tracking-wider px-1.5 py-0.5 rounded"
-                    style={{
-                      background: mode === "register" ? "rgba(138,90,174,0.25)" : "rgba(139,94,60,0.3)",
-                      border: mode === "register" ? "1px solid rgba(138,90,174,0.5)" : "1px solid rgba(139,94,60,0.5)",
-                      color: mode === "register" ? "#9b6fca" : "#8b5e3c",
-                      cursor: "pointer",
-                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded opacity-60 hover:opacity-100 transition-opacity"
+                    style={{ color: mode === "register" ? "#9b6fca" : "#8b5e3c" }}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
                   >
-                    {showPassword ? "HIDE" : "SHOW"}
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
                 {mode === "register" && fieldErrors.password ? (
