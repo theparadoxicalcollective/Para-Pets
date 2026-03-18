@@ -2622,11 +2622,13 @@ export default function WorldPage({ user }: WorldPageProps) {
                 <X className="w-4 h-4" />
               </button>
             </div>
-            {allShopItems.length === 0 ? (
-              <p className="font-fantasy text-[#a89878] text-xs text-center py-6">No items in the database yet.</p>
-            ) : (
+            {(() => {
+              const pickable = allShopItems.filter(si => si.fishingType !== "fish");
+              return pickable.length === 0 ? (
+                <p className="font-fantasy text-[#a89878] text-xs text-center py-6">No items in the database yet.</p>
+              ) : (
               <div className="flex flex-col gap-2">
-                {allShopItems.map((si) => {
+                {pickable.map((si) => {
                   const alreadyAssigned = items.some(it => it.id === si.id);
                   return (
                     <div
@@ -2665,7 +2667,8 @@ export default function WorldPage({ user }: WorldPageProps) {
                   );
                 })}
               </div>
-            )}
+              );
+            })()}
           </div>
         </div>
       )}
