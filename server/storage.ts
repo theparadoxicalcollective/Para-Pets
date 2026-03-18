@@ -42,6 +42,7 @@ export interface EquippedAccessoryDetail {
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByUsernameCaseInsensitive(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUsername(id: string, username: string): Promise<User>;
@@ -180,8 +181,13 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async getUserByUsernameCaseInsensitive(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(ilike(users.username, username));
+    return user;
+  }
+
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email));
+    const [user] = await db.select().from(users).where(ilike(users.email, email));
     return user;
   }
 

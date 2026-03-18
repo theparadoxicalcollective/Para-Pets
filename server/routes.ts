@@ -144,29 +144,29 @@ export async function registerRoutes(
       }
 
       if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-        return res.status(400).json({ message: "Username can only contain letters, numbers, and underscores" });
+        return res.status(400).json({ field: "username", message: "Username can only contain letters, numbers, and underscores" });
       }
       if (username.length < 3 || username.length > 20) {
-        return res.status(400).json({ message: "Username must be 3-20 characters" });
+        return res.status(400).json({ field: "username", message: "Username must be between 3 and 20 characters" });
       }
 
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
-        return res.status(400).json({ message: "Invalid email address" });
+        return res.status(400).json({ field: "email", message: "Please enter a valid email address" });
       }
 
       if (password.length < 6) {
-        return res.status(400).json({ message: "Password must be at least 6 characters" });
+        return res.status(400).json({ field: "password", message: "Password must be at least 6 characters" });
       }
 
-      const existingUsername = await storage.getUserByUsername(username);
+      const existingUsername = await storage.getUserByUsernameCaseInsensitive(username);
       if (existingUsername) {
-        return res.status(400).json({ message: "Username already taken" });
+        return res.status(400).json({ field: "username", message: "That username is already taken. Please choose another." });
       }
 
       const existingEmail = await storage.getUserByEmail(email);
       if (existingEmail) {
-        return res.status(400).json({ message: "Email already registered" });
+        return res.status(400).json({ field: "email", message: "That email is already registered. Try logging in instead." });
       }
 
       let profileImagePath: string | null = null;

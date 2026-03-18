@@ -51,6 +51,7 @@ export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<{ username?: string; email?: string; password?: string; general?: string }>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
@@ -121,6 +122,7 @@ export default function AuthPage() {
     },
     onSuccess: async () => {
       setLoadingProgress(100);
+      setFieldErrors({});
       localStorage.setItem("para_pets_just_registered", "true");
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       setTimeout(() => {
@@ -130,10 +132,22 @@ export default function AuthPage() {
     onError: (err: any) => {
       setIsLoading(false);
       setLoadingProgress(0);
-      const msg = err.message?.includes(":") ? err.message.split(": ").slice(1).join(": ") : err.message;
-      let parsed: any = {};
-      try { parsed = JSON.parse(msg); } catch {}
-      toast({ title: "Registration Failed", description: parsed.message || msg || "Registration failed", variant: "destructive" });
+      const raw = err.message ?? "";
+      const bodyStr = raw.includes(":") ? raw.split(": ").slice(1).join(": ") : raw;
+      let parsed: { field?: string; message?: string } = {};
+      try { parsed = JSON.parse(bodyStr); } catch {}
+      const serverMsg = parsed.message || bodyStr || "Registration failed. Please try again.";
+      const serverField = parsed.field;
+      if (serverField === "username") {
+        setFieldErrors({ username: serverMsg });
+      } else if (serverField === "email") {
+        setFieldErrors({ email: serverMsg });
+      } else if (serverField === "password") {
+        setFieldErrors({ password: serverMsg });
+      } else {
+        setFieldErrors({ general: serverMsg });
+        toast({ title: "Registration Failed", description: serverMsg, variant: "destructive" });
+      }
     },
   });
 
@@ -157,8 +171,21 @@ export default function AuthPage() {
 
   const handleSubmit = () => {
     if (isLoading) return;
-    if (mode === "login") loginMutation.mutate();
-    else registerMutation.mutate();
+    if (mode === "login") {
+      loginMutation.mutate();
+    } else {
+      const errs: typeof fieldErrors = {};
+      if (!email.trim()) errs.email = "Email is required";
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = "Please enter a valid email address";
+      if (!username.trim()) errs.username = "Username is required";
+      else if (!/^[a-zA-Z0-9_]+$/.test(username)) errs.username = "Letters, numbers and underscores only";
+      else if (username.length < 3 || username.length > 20) errs.username = "Must be between 3 and 20 characters";
+      if (!password) errs.password = "Password is required";
+      else if (password.length < 6) errs.password = "Must be at least 6 characters";
+      if (Object.keys(errs).length > 0) { setFieldErrors(errs); return; }
+      setFieldErrors({});
+      registerMutation.mutate();
+    }
   };
 
   const isPending = loginMutation.isPending || registerMutation.isPending || supportMutation.isPending;
@@ -230,16 +257,21 @@ export default function AuthPage() {
                       data-testid="input-email"
                       type="email"
                       value={email}
-                      onChange={e => setEmail(e.target.value)}
+                      onChange={e => { setEmail(e.target.value); setFieldErrors(prev => ({ ...prev, email: undefined })); }}
                       disabled={isPending}
                       placeholder="your@email.com"
                       className="w-full px-4 py-3 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#8a7060] outline-none focus:ring-2 focus:ring-[#d4a017] disabled:opacity-60"
                       style={{
                         background: "linear-gradient(135deg, #f2e8d0 0%, #e8d8b0 100%)",
-                        border: "2px solid #8b5e3c",
-                        boxShadow: "inset 0 2px 6px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1)",
+                        border: fieldErrors.email ? "2px solid #e05555" : "2px solid #8b5e3c",
+                        boxShadow: fieldErrors.email ? "inset 0 2px 6px rgba(0,0,0,0.3), 0 0 0 2px rgba(220,60,60,0.25)" : "inset 0 2px 6px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1)",
                       }}
                     />
+                    {fieldErrors.email && (
+                      <p data-testid="error-email" className="font-sans text-[11px] mt-1.5 ml-1 flex items-center gap-1" style={{ color: "#ff7070" }}>
+                        <span>⚠</span> {fieldErrors.email}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -296,7 +328,7 @@ export default function AuthPage() {
                   data-testid="input-username"
                   type="text"
                   value={username}
-                  onChange={e => setUsername(e.target.value)}
+                  onChange={e => { setUsername(e.target.value); setFieldErrors(prev => ({ ...prev, username: undefined })); }}
                   disabled={isPending}
                   placeholder={mode === "login" ? "Username or email" : "HeroName123"}
                   className="w-full px-4 py-3 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#8a7060] outline-none disabled:opacity-60"
@@ -304,18 +336,24 @@ export default function AuthPage() {
                     background: mode === "register"
                       ? "linear-gradient(135deg, #d8f2ec 0%, #c4e8e0 100%)"
                       : "linear-gradient(135deg, #f2e8d0 0%, #e8d8b0 100%)",
-                    border: mode === "register" ? "2px solid #2a9a8a" : "2px solid #8b5e3c",
-                    boxShadow: mode === "register"
-                      ? "inset 0 2px 6px rgba(0,0,0,0.2), 0 0 0 0 transparent"
-                      : "inset 0 2px 6px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1)",
+                    border: fieldErrors.username
+                      ? "2px solid #e05555"
+                      : mode === "register" ? "2px solid #2a9a8a" : "2px solid #8b5e3c",
+                    boxShadow: fieldErrors.username
+                      ? "inset 0 2px 6px rgba(0,0,0,0.2), 0 0 0 2px rgba(220,60,60,0.25)"
+                      : mode === "register"
+                        ? "inset 0 2px 6px rgba(0,0,0,0.2), 0 0 0 0 transparent"
+                        : "inset 0 2px 6px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1)",
                     outline: "none",
                   }}
-                  onFocus={e => { e.currentTarget.style.boxShadow = mode === "register" ? "inset 0 2px 6px rgba(0,0,0,0.2), 0 0 0 2px rgba(42,154,138,0.5)" : "inset 0 2px 6px rgba(0,0,0,0.3), 0 0 0 2px rgba(212,160,23,0.5)"; }}
-                  onBlur={e => { e.currentTarget.style.boxShadow = mode === "register" ? "inset 0 2px 6px rgba(0,0,0,0.2)" : "inset 0 2px 6px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1)"; }}
                 />
-                {mode === "register" && (
+                {mode === "register" && fieldErrors.username ? (
+                  <p data-testid="error-username" className="font-sans text-[11px] mt-1.5 ml-1 flex items-center gap-1" style={{ color: "#ff7070" }}>
+                    <span>⚠</span> {fieldErrors.username}
+                  </p>
+                ) : mode === "register" ? (
                   <p className="font-sans text-[10px] mt-1 ml-1" style={{ color: "#5aafaf" }}>Letters, numbers &amp; underscores, 3–20 characters</p>
-                )}
+                ) : null}
               </div>
 
               <div>
@@ -327,7 +365,7 @@ export default function AuthPage() {
                     data-testid="input-password"
                     type={showPassword ? "text" : "password"}
                     value={password}
-                    onChange={e => setPassword(e.target.value)}
+                    onChange={e => { setPassword(e.target.value); setFieldErrors(prev => ({ ...prev, password: undefined })); }}
                     disabled={isPending}
                     placeholder="••••••••"
                     className="w-full px-4 py-3 pr-12 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#8a7060] outline-none disabled:opacity-60"
@@ -335,14 +373,16 @@ export default function AuthPage() {
                       background: mode === "register"
                         ? "linear-gradient(135deg, #ede8f5 0%, #ddd0f0 100%)"
                         : "linear-gradient(135deg, #f2e8d0 0%, #e8d8b0 100%)",
-                      border: mode === "register" ? "2px solid #8a5aae" : "2px solid #8b5e3c",
-                      boxShadow: mode === "register"
-                        ? "inset 0 2px 6px rgba(0,0,0,0.2)"
-                        : "inset 0 2px 6px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1)",
+                      border: fieldErrors.password
+                        ? "2px solid #e05555"
+                        : mode === "register" ? "2px solid #8a5aae" : "2px solid #8b5e3c",
+                      boxShadow: fieldErrors.password
+                        ? "inset 0 2px 6px rgba(0,0,0,0.2), 0 0 0 2px rgba(220,60,60,0.25)"
+                        : mode === "register"
+                          ? "inset 0 2px 6px rgba(0,0,0,0.2)"
+                          : "inset 0 2px 6px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1)",
                     }}
                     onKeyDown={e => e.key === "Enter" && handleSubmit()}
-                    onFocus={e => { e.currentTarget.style.boxShadow = mode === "register" ? "inset 0 2px 6px rgba(0,0,0,0.2), 0 0 0 2px rgba(138,90,174,0.5)" : "inset 0 2px 6px rgba(0,0,0,0.3), 0 0 0 2px rgba(212,160,23,0.5)"; }}
-                    onBlur={e => { e.currentTarget.style.boxShadow = mode === "register" ? "inset 0 2px 6px rgba(0,0,0,0.2)" : "inset 0 2px 6px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1)"; }}
                   />
                   <button
                     data-testid="button-toggle-password"
@@ -359,9 +399,13 @@ export default function AuthPage() {
                     {showPassword ? "HIDE" : "SHOW"}
                   </button>
                 </div>
-                {mode === "register" && (
+                {mode === "register" && fieldErrors.password ? (
+                  <p data-testid="error-password" className="font-sans text-[11px] mt-1.5 ml-1 flex items-center gap-1" style={{ color: "#ff7070" }}>
+                    <span>⚠</span> {fieldErrors.password}
+                  </p>
+                ) : mode === "register" ? (
                   <p className="font-sans text-[10px] mt-1 ml-1" style={{ color: "#9b6fca" }}>Minimum 6 characters</p>
-                )}
+                ) : null}
               </div>
 
               {mode === "login" && (
