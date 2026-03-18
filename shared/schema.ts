@@ -54,6 +54,10 @@ export const shopItems = pgTable("shop_items", {
   starRarity: integer("star_rarity"),
   poleMaxUses: integer("pole_max_uses"),
   facingDirection: text("facing_direction"),
+  poleSlowdown3: real("pole_slowdown_3"),
+  poleSlowdown4: real("pole_slowdown_4"),
+  poleSlowdown5: real("pole_slowdown_5"),
+  fishSwimZone: text("fish_swim_zone"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 

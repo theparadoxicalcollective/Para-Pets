@@ -627,7 +627,7 @@ interface AqCaughtFish {
   id: string;
   shopItemId: string;
   caughtAt: string;
-  item: { id: string; name: string; imageUrl: string | null; starRarity: number | null; facingDirection: string | null } | null;
+  item: { id: string; name: string; imageUrl: string | null; starRarity: number | null; facingDirection: string | null; fishSwimZone?: string | null } | null;
 }
 
 interface AqFishEntry {
@@ -637,6 +637,7 @@ interface AqFishEntry {
   imageUrl: string | null;
   starRarity: number | null;
   facingDirection: string | null;
+  fishSwimZone?: string | null;
 }
 
 interface SwimmingFish extends AqFishEntry {
@@ -663,10 +664,15 @@ function makeSwimmer(entry: AqFishEntry, x?: number, y?: number): SwimmingFish {
     ? 0.085 + Math.random() * 0.030   // normal
     : 0.130 + Math.random() * 0.035;  // fast
   const startsRight = entry.facingDirection !== "left";
+  // Swim zone: "bottom" = lower quarter of tank (65-82%), "full" = whole tank (14-82%)
+  const isBottom = entry.fishSwimZone === "bottom";
+  const defaultY = isBottom
+    ? 65 + Math.random() * 17
+    : 14 + Math.random() * 55;
   return {
     ...entry,
     x: x ?? (Math.random() * 80),
-    y: y ?? (20 + Math.random() * 50),
+    y: y ?? defaultY,
     vx: startsRight ? baseSpeed : -baseSpeed,
     wobble: Math.random() * Math.PI * 2,
     facingRight: startsRight,
@@ -781,11 +787,13 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
             }
           }
 
-          // Sine wave vertical drift
+          // Sine wave vertical drift — bottom fish stay near the floor
           wobble = (wobble + 0.032) % (Math.PI * 2);
           const sineY = Math.sin(wobble) * 0.012;
           x += vx;
-          y = Math.max(14, Math.min(80, y + sineY));
+          const yMin = f.fishSwimZone === "bottom" ? 62 : 14;
+          const yMax = f.fishSwimZone === "bottom" ? 84 : 84;
+          y = Math.max(yMin, Math.min(yMax, y + sineY));
 
           // Bounce off edges
           if (x < 5)  { x = 5;  vx = Math.abs(vx);  facingRight = true; }
@@ -1031,8 +1039,8 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
                         touchAction: "none",
                         cursor: canAdd ? "grab" : "default",
                       }}
-                      onPointerDown={canAdd ? (e) => onFishPointerDown(e, { shopItemId, name: item?.name || "Fish", imageUrl: item?.imageUrl || null, starRarity: item?.starRarity || null, facingDirection: item?.facingDirection || null }) : undefined}
-                      onClick={canAdd ? () => addFish({ shopItemId, name: item?.name || "Fish", imageUrl: item?.imageUrl || null, starRarity: item?.starRarity || null, facingDirection: item?.facingDirection || null }) : undefined}
+                      onPointerDown={canAdd ? (e) => onFishPointerDown(e, { shopItemId, name: item?.name || "Fish", imageUrl: item?.imageUrl || null, starRarity: item?.starRarity || null, facingDirection: item?.facingDirection || null, fishSwimZone: item?.fishSwimZone ?? null }) : undefined}
+                      onClick={canAdd ? () => addFish({ shopItemId, name: item?.name || "Fish", imageUrl: item?.imageUrl || null, starRarity: item?.starRarity || null, facingDirection: item?.facingDirection || null, fishSwimZone: item?.fishSwimZone ?? null }) : undefined}
                     >
                       <div style={{ width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
                         {item?.imageUrl

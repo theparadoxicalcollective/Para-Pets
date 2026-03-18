@@ -35,6 +35,9 @@ interface ShopItem {
   rareCatchBoostPercent: number | null;
   rarityBoostPercent: number | null;
   poleMaxUses?: number | null;
+  poleSlowdown3?: number | null;
+  poleSlowdown4?: number | null;
+  poleSlowdown5?: number | null;
 }
 
 interface EquipmentData {
@@ -116,6 +119,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     queryKey: ["/api/fishing/equipment"],
     staleTime: 0,
   });
+  const equipDataRef = useRef<EquipmentData | undefined>(undefined);
+  equipDataRef.current = equipData;
 
   const { data: inventory = [] } = useQuery<InventoryItem[]>({
     queryKey: ["/api/inventory"],
@@ -364,8 +369,17 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     const rarity = Math.max(1, Math.min(5, nibbleRarityRef.current));
 
     // Per-rarity tuning — hold-to-rise mechanic; higher stars = faster fish + smaller zone
+    // Apply any pole-specific slowdowns (stored as % reduction, e.g. 20 = 20% slower)
+    const poleItem = equipDataRef.current?.poleItem;
+    const slowdownFactor = (pct: number | null | undefined) => pct != null ? Math.max(0, 1 - pct / 100) : 1;
     //                         1★      2★      3★      4★      5★
-    const speedByRarity   = [0.003,  0.006,  0.010,  0.014,  0.019];
+    const speedByRarity   = [
+      0.003,
+      0.006,
+      0.010 * slowdownFactor(poleItem?.poleSlowdown3),
+      0.014 * slowdownFactor(poleItem?.poleSlowdown4),
+      0.019 * slowdownFactor(poleItem?.poleSlowdown5),
+    ];
     const fillByRarity    = [0.009,  0.008,  0.007,  0.006,  0.005];
     const drainByRarity   = [0.003,  0.004,  0.005,  0.006,  0.007];
     const zoneByRarity    = [0.30,   0.25,   0.21,   0.17,   0.14];

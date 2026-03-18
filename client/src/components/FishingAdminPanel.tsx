@@ -18,6 +18,10 @@ interface FishingItem {
   rarityBoostPercent: number | null;
   poleMaxUses: number | null;
   facingDirection: string | null;
+  poleSlowdown3: number | null;
+  poleSlowdown4: number | null;
+  poleSlowdown5: number | null;
+  fishSwimZone: string | null;
   createdAt: string;
 }
 
@@ -455,6 +459,10 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
   const [rareCatchBoostPercent, setRareCatchBoostPercent] = useState(item?.rareCatchBoostPercent?.toString() || "0");
   const [rarityBoostPercent, setRarityBoostPercent] = useState(item?.rarityBoostPercent?.toString() || "0");
   const [poleMaxUses, setPoleMaxUses] = useState(item?.poleMaxUses?.toString() || "");
+  const [poleSlowdown3, setPoleSlowdown3] = useState(item?.poleSlowdown3 != null ? item.poleSlowdown3.toString() : "");
+  const [poleSlowdown4, setPoleSlowdown4] = useState(item?.poleSlowdown4 != null ? item.poleSlowdown4.toString() : "");
+  const [poleSlowdown5, setPoleSlowdown5] = useState(item?.poleSlowdown5 != null ? item.poleSlowdown5.toString() : "");
+  const [fishSwimZone, setFishSwimZone] = useState<"full" | "bottom">((item?.fishSwimZone as "full" | "bottom") || "full");
   const [facingDirection, setFacingDirection] = useState<"right" | "left">(
     (item?.facingDirection as "right" | "left") || "right"
   );
@@ -496,18 +504,7 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
     }
     setSubmitting(true);
     try {
-      const payload: {
-        name: string;
-        price: number;
-        type: string;
-        worldId: string;
-        fishingType: string;
-        starRarity: number | null;
-        rareCatchBoostPercent: number | null;
-        rarityBoostPercent: number | null;
-        poleMaxUses: number | null;
-        imageData?: string;
-      } = {
+      const payload: Record<string, unknown> = {
         name: name.trim() || "Unnamed",
         price: parseInt(price) || 0,
         type: "fishing",
@@ -515,9 +512,13 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
         fishingType,
         starRarity: fishingType === "fish" ? parseInt(starRarity) || 1 : null,
         facingDirection: fishingType === "fish" ? facingDirection : null,
+        fishSwimZone: fishingType === "fish" ? fishSwimZone : null,
         rareCatchBoostPercent: fishingType === "pole" ? parseInt(rareCatchBoostPercent) || 0 : null,
         rarityBoostPercent: fishingType === "bait" ? parseInt(rarityBoostPercent) || 0 : null,
         poleMaxUses: fishingType === "pole" && poleMaxUses.trim() !== "" ? parseInt(poleMaxUses) || null : null,
+        poleSlowdown3: fishingType === "pole" && poleSlowdown3.trim() !== "" ? parseFloat(poleSlowdown3) : null,
+        poleSlowdown4: fishingType === "pole" && poleSlowdown4.trim() !== "" ? parseFloat(poleSlowdown4) : null,
+        poleSlowdown5: fishingType === "pole" && poleSlowdown5.trim() !== "" ? parseFloat(poleSlowdown5) : null,
       };
       if (imageData) payload.imageData = imageData;
       if (hooklessImageData) (payload as any).hooklessImageData = hooklessImageData;
@@ -641,6 +642,29 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
                 </div>
                 <p className="font-fantasy text-[#6a5840] text-[8px] mt-0.5">Which way the fish sprite is naturally facing. Fish swim left-to-right in the aquarium — choose the opposite to flip it.</p>
               </div>
+              <div>
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Aquarium Swim Zone</label>
+                <div className="flex gap-2">
+                  {(["full", "bottom"] as const).map(zone => (
+                    <button
+                      key={zone}
+                      type="button"
+                      data-testid={`button-swim-zone-${zone}`}
+                      onClick={() => setFishSwimZone(zone)}
+                      className="flex-1 py-2 rounded-md font-fantasy text-[10px] tracking-wider capitalize"
+                      style={{
+                        background: fishSwimZone === zone ? "rgba(96,165,250,0.25)" : "rgba(0,0,0,0.2)",
+                        border: fishSwimZone === zone ? "1px solid rgba(96,165,250,0.6)" : "1px solid rgba(96,165,250,0.15)",
+                        color: fishSwimZone === zone ? "#60a5fa" : "#6a8090",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {zone === "full" ? "🌊 Full Page" : "🪨 Bottom"}
+                    </button>
+                  ))}
+                </div>
+                <p className="font-fantasy text-[#6a5840] text-[8px] mt-0.5">Full: fish roams entire aquarium. Bottom: fish stays near the floor with a little swim room.</p>
+              </div>
             </div>
           )}
 
@@ -701,6 +725,32 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
                   </div>
                 </div>
                 <p className="font-fantasy text-[#6a5840] text-[8px] mt-1">Version of the pole without a hook — used on the fishing page while waiting for a bite.</p>
+              </div>
+              <div>
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Fish Slowdown by Rarity (%)</label>
+                <p className="font-fantasy text-[#6a5840] text-[8px] mb-2">How much to slow down 3★, 4★ and 5★ fish while reeling. Leave blank to use the default speed. e.g. 30 = 30% slower.</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { label: "3★ Slow %", value: poleSlowdown3, set: setPoleSlowdown3, testId: "input-pole-slowdown-3" },
+                    { label: "4★ Slow %", value: poleSlowdown4, set: setPoleSlowdown4, testId: "input-pole-slowdown-4" },
+                    { label: "5★ Slow %", value: poleSlowdown5, set: setPoleSlowdown5, testId: "input-pole-slowdown-5" },
+                  ] as const).map(({ label, value, set, testId }) => (
+                    <div key={testId}>
+                      <label className="font-fantasy text-[#a89878] text-[8px] block mb-0.5">{label}</label>
+                      <input
+                        data-testid={testId}
+                        type="number"
+                        value={value}
+                        onChange={(e) => set(e.target.value)}
+                        placeholder="—"
+                        min="0"
+                        max="90"
+                        className="w-full px-2 py-1.5 rounded-md font-sans text-xs outline-none"
+                        style={{ background: "rgba(242,232,208,0.9)", border: "1px solid #8b5e3c", color: "#2a1a0a" }}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}

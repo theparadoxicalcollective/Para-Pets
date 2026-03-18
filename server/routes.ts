@@ -586,6 +586,10 @@ export async function registerRoutes(
         rarityBoostPercent: shopItem?.rarityBoostPercent ?? null,
         poleMaxUses: shopItem?.poleMaxUses ?? null,
         poleUsesLeft: inv.poleUsesLeft ?? null,
+        poleSlowdown3: shopItem?.poleSlowdown3 ?? null,
+        poleSlowdown4: shopItem?.poleSlowdown4 ?? null,
+        poleSlowdown5: shopItem?.poleSlowdown5 ?? null,
+        fishSwimZone: shopItem?.fishSwimZone ?? null,
       }));
       return res.json(itemsWithDetails);
     } catch (err) {
