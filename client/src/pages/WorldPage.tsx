@@ -1482,9 +1482,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                       }}
                       onPointerDown={(e) => handlePointerDown(e, loc)}
                     >
-                      <div className="relative w-full" style={{ aspectRatio: "1" }}
-                        onClick={(e) => { e.stopPropagation(); handleLocationClick(loc); }}
-                      >
+                      <div className="relative w-full" style={{ aspectRatio: "1", pointerEvents: "none" }}>
                         {loc.iconUrl ? (
                           <div
                             className="w-full h-full"
@@ -1514,9 +1512,21 @@ export default function WorldPage({ user }: WorldPageProps) {
                             <MapPin className="w-7 h-7" style={{ color: glow, filter: `drop-shadow(0 0 3px ${glow}66)` }} />
                           </div>
                         )}
+                        {/* Tight circular hit-zone — only the visible centre of the icon fires clicks */}
+                        <div
+                          onClick={(e) => { e.stopPropagation(); handleLocationClick(loc); }}
+                          style={{
+                            position: "absolute",
+                            top: "20%", left: "20%", right: "20%", bottom: "20%",
+                            borderRadius: "50%",
+                            pointerEvents: "auto",
+                            cursor: currentUser.isAdmin ? "grab" : "pointer",
+                            zIndex: 20,
+                          }}
+                        />
 
                         {currentUser.isAdmin && selectedLocId === loc.id && (
-                          <>
+                          <div style={{ pointerEvents: "auto" }}>
                             <button
                               data-testid={`button-edit-location-${loc.id}`}
                               onPointerDown={(e) => e.stopPropagation()}
@@ -1589,7 +1599,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                             >
                               <Plus className="w-5 h-5 text-white" />
                             </button>
-                          </>
+                          </div>
                         )}
                       </div>
                     </div>
