@@ -1478,7 +1478,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                         top: `${pos.y}%`,
                         width: `${loc.iconSize || 300}px`,
                         cursor: currentUser.isAdmin ? "grab" : "pointer",
-                        zIndex: isDragging ? 60 : selectedLocId === loc.id ? 55 : 10 + i,
+                        zIndex: isDragging ? 200 : selectedLocId === loc.id ? 150 : (loc.type === "fishing" ? 100 + i : 10 + i),
                       }}
                       onPointerDown={(e) => handlePointerDown(e, loc)}
                     >
