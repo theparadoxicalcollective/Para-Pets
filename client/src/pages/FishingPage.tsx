@@ -366,8 +366,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     // Per-rarity tuning — hold-to-rise mechanic; higher stars = faster fish + smaller zone
     //                         1★      2★      3★      4★      5★
     const speedByRarity   = [0.003,  0.006,  0.010,  0.014,  0.019];
-    const fillByRarity    = [0.005,  0.004,  0.0030, 0.0024, 0.0018];
-    const drainByRarity   = [0.004,  0.006,  0.007,  0.009,  0.011];
+    const fillByRarity    = [0.009,  0.008,  0.007,  0.006,  0.005];
+    const drainByRarity   = [0.003,  0.004,  0.005,  0.006,  0.007];
     const zoneByRarity    = [0.30,   0.25,   0.21,   0.17,   0.14];
     // Surge frequency scales with rarity
     const surgeChance     = 0.006 + (rarity - 1) * 0.007;
@@ -713,12 +713,12 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         </div>
       </div>
 
-      {/* Ripple ring — waiting only (behind line) */}
+      {/* Ripple ring — waiting only, sized to match bobber */}
       <div className="absolute inset-0 z-10 pointer-events-none">
         {phase === "waiting" && (
           <div className="absolute" style={{
-            bottom: "20%", left: "50%", transform: "translate(-50%, 0)",
-            width: 28, height: 28,
+            bottom: "20%", left: "50%", transform: "translate(-50%, 50%)",
+            width: 72, height: 36,
             borderRadius: "50%",
             border: `2px solid ${ACCENT}60`,
             animation: "rippleRing 2s ease-out infinite",
@@ -726,71 +726,70 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         )}
       </div>
 
-
-      {/* Bobber — waiting phase: gentle float (z-15, in front of line) */}
+      {/* Bobber — waiting phase: gentle float, centered on ripple ring */}
       {phase === "waiting" && (
         <div className="absolute pointer-events-none z-[15]" style={{
-          bottom: "20%", left: "43%",
+          bottom: "20%", left: "50%",
           animation: "bobFloat 1.2s ease-in-out infinite",
           transform: "translate(-50%, 0)",
           background: "transparent",
         }}>
           <img src={bobberIcon} alt="" style={{
-            width: 53, height: 53,
+            width: 70, height: 70,
             display: "block",
             background: "transparent",
-            filter: "drop-shadow(0 0 6px rgba(94,234,212,0.7))",
+            filter: "drop-shadow(0 0 8px rgba(94,234,212,0.85))",
           }} />
         </div>
       )}
 
-      {/* Bobber — nibble phase: aggressive dip with ripples (z-15, in front of line) */}
+      {/* Bobber — nibble phase: aggressive dip with ripples */}
       {phase === "nibble" && (
-        <div className="absolute pointer-events-none z-[15]" style={{ bottom: "20%", left: "43%", background: "transparent" }}>
+        <div className="absolute pointer-events-none z-[15]" style={{ bottom: "20%", left: "50%", background: "transparent" }}>
           {/* Expanding ripple rings */}
           <div style={{
-            position: "absolute", width: 20, height: 10,
+            position: "absolute", width: 40, height: 20,
             borderRadius: "50%",
             border: `2px solid ${ACCENT}80`,
             animation: "nibbleRippleOut 0.7s ease-out infinite",
-            left: "50%", top: "50%", marginLeft: -10, marginTop: -5,
+            left: "50%", top: "50%", marginLeft: -20, marginTop: -10,
           }} />
           <div style={{
-            position: "absolute", width: 20, height: 10,
+            position: "absolute", width: 40, height: 20,
             borderRadius: "50%",
             border: `2px solid ${ACCENT}50`,
             animation: "nibbleRippleOut 0.7s ease-out infinite 0.35s",
-            left: "50%", top: "50%", marginLeft: -10, marginTop: -5,
+            left: "50%", top: "50%", marginLeft: -20, marginTop: -10,
           }} />
           {/* Bobber dipping */}
           <img src={bobberIcon} alt="" style={{
-            width: 53, height: 53,
+            width: 70, height: 70,
             display: "block",
             background: "transparent",
             transform: "translate(-50%, 0)",
             animation: "nibbleDip 0.9s ease-in-out infinite",
-            filter: "drop-shadow(0 0 8px rgba(94,234,212,0.9)) drop-shadow(0 0 12px rgba(109,40,217,0.5))",
+            filter: "drop-shadow(0 0 10px rgba(94,234,212,0.9)) drop-shadow(0 0 16px rgba(109,40,217,0.5))",
           }} />
         </div>
       )}
 
       {phase === "casting" && equipData?.poleItem?.imageUrl && (
         <div className="absolute pointer-events-none z-[15]" style={{
-          bottom: "24%", left: "2%",
-          width: 130, height: 130,
+          bottom: "20%", left: "0%",
+          width: 160, height: 160,
           animation: "poleCast 1s ease-in-out forwards",
           transformOrigin: "bottom left",
         }}>
           <img src={equipData.poleItem.imageUrl} alt="" className="w-full h-full object-contain" style={{
-            filter: `drop-shadow(0 0 8px ${ACCENT}80)`,
+            filter: `drop-shadow(0 0 10px ${ACCENT}80)`,
           }} />
         </div>
       )}
 
       {(phase === "waiting" || phase === "nibble") && equipData?.poleItem?.imageUrl && (
         <div className="absolute pointer-events-none z-[15]" style={{
-          bottom: "24%", left: "2%",
-          width: 130, height: 130,
+          bottom: "20%", left: "0%",
+          width: 160, height: 160,
           transform: "rotate(-52deg)",
           transformOrigin: "bottom left",
           animation: "poleHold 2s ease-in-out infinite",
@@ -799,7 +798,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
             src={equipData.poleItem.hooklessImageUrl || equipData.poleItem.imageUrl}
             alt=""
             className="w-full h-full object-contain"
-            style={{ filter: `drop-shadow(0 0 8px ${ACCENT}70)` }}
+            style={{ filter: `drop-shadow(0 0 10px ${ACCENT}70)` }}
           />
         </div>
       )}
