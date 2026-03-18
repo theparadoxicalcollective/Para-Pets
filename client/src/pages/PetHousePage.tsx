@@ -349,8 +349,8 @@ function FeedView({
           <div
             data-testid="img-feed-pet"
             style={{
-              width: 200,
-              height: 200,
+              width: 350,
+              height: 350,
               filter: isOverPet
                 ? "drop-shadow(0 0 18px rgba(74,222,128,0.85))"
                 : "drop-shadow(0 4px 10px rgba(0,0,0,0.55))",
