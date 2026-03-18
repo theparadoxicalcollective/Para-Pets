@@ -1001,7 +1001,7 @@ export default function WorldPage({ user }: WorldPageProps) {
       }
       return;
     }
-    if ((loc.type === "battle" || loc.type === "explore") && (!currentUser.activePetId || !hasHatchedActivePet)) {
+    if (!loc.isShop && loc.type !== "fishing" && (loc.type === "battle" || loc.type === "explore") && (!currentUser.activePetId || !hasHatchedActivePet)) {
       setShowNoPetMessage(true);
       return;
     }
@@ -1714,7 +1714,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                                 setEditLocIcon(null);
                                 setEditLocBg(null);
                                 setEditLocOwner(null);
-                                setEditLocType(loc.type || (loc.isShop ? "shop" : "battle"));
+                                setEditLocType(loc.isShop ? "shop" : (loc.type || "battle"));
                                 setEditLocGlowColor(loc.glowColor || "");
                               }}
                               className="absolute -top-5 -right-5 z-30 w-10 h-10 rounded-full flex items-center justify-center"

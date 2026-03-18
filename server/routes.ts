@@ -1650,12 +1650,10 @@ export async function registerRoutes(
 
       if (name !== undefined) sanitized.name = name;
       if (description !== undefined) sanitized.description = description;
-      if (type !== undefined) {
-        sanitized.type = type;
+      if (type !== undefined) sanitized.type = type;
+      if (isShop !== undefined) sanitized.isShop = !!isShop;
+      if (type !== undefined && isShop === undefined) {
         sanitized.isShop = type === "shop";
-      } else if (isShop !== undefined) {
-        sanitized.isShop = !!isShop;
-        sanitized.type = isShop ? "shop" : "battle";
       }
       if (iconData) {
         sanitized.iconUrl = await processWorldImage(iconData, 500);
