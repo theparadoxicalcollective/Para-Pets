@@ -133,16 +133,11 @@ export default function HomePage({ user }: HomePageProps) {
 
       <style>{`
         @keyframes eggWobble {
-          0%, 100% { transform: rotate(0deg) translateY(0px); }
-          10% { transform: rotate(3deg) translateY(-1px); }
-          20% { transform: rotate(-3deg) translateY(0px); }
-          30% { transform: rotate(4deg) translateY(-2px); }
-          40% { transform: rotate(-2deg) translateY(0px); }
-          50% { transform: rotate(0deg) translateY(-1px); }
-          60% { transform: rotate(2deg) translateY(-2px); }
-          70% { transform: rotate(-4deg) translateY(-1px); }
-          80% { transform: rotate(3deg) translateY(0px); }
-          90% { transform: rotate(-2deg) translateY(-1px); }
+          0%, 18%, 100% { transform: rotate(0deg) translateY(0px); }
+          4%  { transform: rotate(4deg) translateY(-2px); }
+          8%  { transform: rotate(-4deg) translateY(0px); }
+          12% { transform: rotate(3deg) translateY(-1px); }
+          16% { transform: rotate(-2deg) translateY(0px); }
         }
         @keyframes eggGlow {
           0%, 100% { box-shadow: 0 0 20px rgba(240,192,64,0.15), 0 8px 20px rgba(0,0,0,0.4); }
@@ -308,7 +303,7 @@ export default function HomePage({ user }: HomePageProps) {
                         : false;
                       return (
                         <div
-                          style={{ animation: "eggWobble 2.5s ease-in-out infinite", cursor: "pointer" }}
+                          style={{ animation: "eggWobble 5s ease-in-out infinite", cursor: "pointer" }}
                           className="w-full flex items-center justify-center"
                           data-testid="button-egg-tap"
                           onClick={() => {
