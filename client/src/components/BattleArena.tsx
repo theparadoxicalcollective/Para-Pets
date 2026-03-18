@@ -52,6 +52,13 @@ interface SlashEffect {
   y: number;
 }
 
+interface SlashLine {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
 interface DamageNumber {
   id: number;
   x: number;
@@ -95,10 +102,14 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const [lastHitTime, setLastHitTime] = useState(0);
   const [totalRewards, setTotalRewards] = useState<{ lvlPoints: number; coins: number; items: any[]; levelsGained: number }>({ lvlPoints: 0, coins: 0, items: [], levelsGained: 0 });
 
+  const [slashLine, setSlashLine] = useState<SlashLine | null>(null);
+
   const animFrameRef = useRef<number>(0);
   const arenaRef = useRef<HTMLDivElement>(null);
   const slashIdRef = useRef(0);
   const dmgIdRef = useRef(0);
+  const slashStartRef = useRef<{ x: number; y: number } | null>(null);
+  const isSlashingRef = useRef(false);
   const battleActiveRef = useRef(false);
   const enemyPosRef = useRef(enemyPos);
   const enemyHpRef = useRef(0);
@@ -323,27 +334,36 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     return () => cancelAnimationFrame(animFrameRef.current);
   }, [phase, checkCollision]);
 
-  const handleAttack = useCallback((clientX: number, clientY: number) => {
-    if (!battleActiveRef.current || !arenaRef.current || !enemy) return;
+  // Returns distance from point P to segment AB
+  const segmentPointDist = (ax: number, ay: number, bx: number, by: number, px: number, py: number) => {
+    const dx = bx - ax, dy = by - ay;
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq === 0) return Math.hypot(px - ax, py - ay);
+    const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq));
+    return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+  };
 
-    const rect = arenaRef.current.getBoundingClientRect();
-    const tapX = ((clientX - rect.left) / rect.width) * 100;
-    const tapY = ((clientY - rect.top) / rect.height) * 100;
+  const getArenaPos = (clientX: number, clientY: number) => {
+    const rect = arenaRef.current!.getBoundingClientRect();
+    return {
+      x: ((clientX - rect.left) / rect.width) * 100,
+      y: ((clientY - rect.top) / rect.height) * 100,
+    };
+  };
 
-    const slash: SlashEffect = { id: slashIdRef.current++, x: tapX, y: tapY };
-    setSlashEffects(prev => [...prev, slash]);
-    setTimeout(() => setSlashEffects(prev => prev.filter(s => s.id !== slash.id)), 500);
+  const resolveSlash = useCallback((x1: number, y1: number, x2: number, y2: number) => {
+    if (!battleActiveRef.current || !enemy) return;
+    const slashLen = Math.hypot(x2 - x1, y2 - y1);
+    if (slashLen < 8) return; // too short — must be a real drag
 
     const ePos = enemyPosRef.current;
-    const dx = tapX - ePos.x;
-    const dy = tapY - ePos.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
+    const dist = segmentPointDist(x1, y1, x2, y2, ePos.x, ePos.y);
     const hitRadius = 18;
 
     if (dist < hitRadius) {
       const now = Date.now();
       let combo = comboCount;
-      if (now - lastHitTime < 1200) {
+      if (now - lastHitTime < 1400) {
         combo += 1;
       } else {
         combo = 1;
@@ -360,14 +380,20 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       enemyHpRef.current = Math.max(0, enemyHpRef.current - dmg);
       setEnemyHp(enemyHpRef.current);
       setEnemyHit(true);
-      setTimeout(() => setEnemyHit(false), 200);
+      setTimeout(() => setEnemyHit(false), 220);
 
-      const knockX = (dx / dist) * -2;
-      const knockY = (dy / dist) * -2;
+      // Slash mark effect at enemy position
+      const slashMark: SlashEffect = { id: slashIdRef.current++, x: ePos.x, y: ePos.y };
+      setSlashEffects(prev => [...prev, slashMark]);
+      setTimeout(() => setSlashEffects(prev => prev.filter(s => s.id !== slashMark.id)), 500);
+
+      // Knockback in the slash direction
+      const sdx = x2 - x1, sdy = y2 - y1;
+      const sLen = Math.hypot(sdx, sdy) || 1;
       enemyPosRef.current = {
-        ...enemyPosRef.current,
-        vx: knockX + (Math.random() - 0.5),
-        vy: knockY + (Math.random() - 0.5),
+        ...ePos,
+        vx: (sdx / sLen) * 2.5 + (Math.random() - 0.5),
+        vy: (sdy / sLen) * 2.5 + (Math.random() - 0.5),
       };
 
       const dmgNum: DamageNumber = {
@@ -389,10 +415,32 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     }
   }, [enemy, comboCount, lastHitTime, defeatMutation, waveIndex, allEnemies.length]);
 
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+  const handleSlashStart = useCallback((e: React.PointerEvent) => {
+    if (!battleActiveRef.current) return;
     e.preventDefault();
-    handleAttack(e.clientX, e.clientY);
-  }, [handleAttack]);
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    const pos = getArenaPos(e.clientX, e.clientY);
+    slashStartRef.current = pos;
+    isSlashingRef.current = true;
+    setSlashLine({ x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y });
+  }, []);
+
+  const handleSlashMove = useCallback((e: React.PointerEvent) => {
+    if (!isSlashingRef.current || !slashStartRef.current) return;
+    const pos = getArenaPos(e.clientX, e.clientY);
+    setSlashLine({ x1: slashStartRef.current.x, y1: slashStartRef.current.y, x2: pos.x, y2: pos.y });
+  }, []);
+
+  const handleSlashEnd = useCallback((e: React.PointerEvent) => {
+    if (!isSlashingRef.current || !slashStartRef.current) return;
+    isSlashingRef.current = false;
+    const pos = getArenaPos(e.clientX, e.clientY);
+    const start = slashStartRef.current;
+    slashStartRef.current = null;
+    resolveSlash(start.x, start.y, pos.x, pos.y);
+    // Keep the line briefly then fade
+    setTimeout(() => setSlashLine(null), 250);
+  }, [resolveSlash]);
 
   const handleAdvance = useCallback(() => {
     const nextIdx = waveIndex + 1;
@@ -430,14 +478,18 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
     >
       <style>{`
-        @keyframes tapHitAnim {
-          0% { transform: scale(0.3); opacity: 1; }
-          40% { transform: scale(1.2); opacity: 0.9; }
-          100% { transform: scale(1.6); opacity: 0; }
+        @keyframes slashMarkAnim {
+          0%   { transform: scale(0.4) rotate(-20deg); opacity: 1; }
+          50%  { transform: scale(1.3) rotate(8deg);  opacity: 0.9; }
+          100% { transform: scale(1.8) rotate(15deg); opacity: 0; }
         }
-        @keyframes tapRing {
-          0% { transform: scale(0.5); opacity: 0.8; border-width: 3px; }
-          100% { transform: scale(2); opacity: 0; border-width: 1px; }
+        @keyframes slashRingAnim {
+          0%   { transform: scale(0.5); opacity: 0.9; }
+          100% { transform: scale(2.2); opacity: 0; }
+        }
+        @keyframes slashLineAnim {
+          0%   { opacity: 0.95; }
+          100% { opacity: 0; }
         }
         @keyframes dmgFloat {
           0% { transform: translateY(0) scale(1); opacity: 1; }
@@ -499,7 +551,10 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         ref={arenaRef}
         className="relative w-full h-full"
         style={{ animation: shakeScreen ? "screenShake 0.15s ease-in-out" : undefined }}
-        onPointerDown={phase === "battle" ? handlePointerDown : undefined}
+        onPointerDown={phase === "battle" ? handleSlashStart : undefined}
+        onPointerMove={phase === "battle" ? handleSlashMove : undefined}
+        onPointerUp={phase === "battle" ? handleSlashEnd : undefined}
+        onPointerCancel={phase === "battle" ? handleSlashEnd : undefined}
       >
         <div className="absolute inset-0">
           {bgUrl ? (
@@ -680,38 +735,77 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
 
             {phase === "battle" && (
               <div className="absolute inset-0 z-15 pointer-events-none">
-                <div className="absolute bottom-36 left-1/2 -translate-x-1/2 text-white/30 text-xs font-medium animate-pulse">
-                  TAP to attack!
+                <div className="absolute bottom-36 left-1/2 -translate-x-1/2 text-white/30 text-xs font-medium animate-pulse tracking-wider">
+                  SLASH across the enemy!
                 </div>
               </div>
             )}
           </>
         )}
 
+        {/* Live slash line — drawn while dragging */}
+        {slashLine && (
+          <svg
+            className="absolute inset-0 pointer-events-none z-30"
+            style={{ width: "100%", height: "100%", overflow: "visible" }}
+          >
+            <defs>
+              <linearGradient id="slashGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="white" stopOpacity="0.1" />
+                <stop offset="50%" stopColor={accent} stopOpacity="0.95" />
+                <stop offset="100%" stopColor="white" stopOpacity="0.8" />
+              </linearGradient>
+              <filter id="slashGlow">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+              </filter>
+            </defs>
+            {/* Glow layer */}
+            <line
+              x1={`${slashLine.x1}%`} y1={`${slashLine.y1}%`}
+              x2={`${slashLine.x2}%`} y2={`${slashLine.y2}%`}
+              stroke={accent} strokeWidth="10" strokeLinecap="round"
+              opacity="0.25" filter="url(#slashGlow)"
+            />
+            {/* Core line */}
+            <line
+              x1={`${slashLine.x1}%`} y1={`${slashLine.y1}%`}
+              x2={`${slashLine.x2}%`} y2={`${slashLine.y2}%`}
+              stroke="url(#slashGrad)" strokeWidth="3.5" strokeLinecap="round"
+              opacity="0.95"
+            />
+            {/* Bright center highlight */}
+            <line
+              x1={`${slashLine.x1}%`} y1={`${slashLine.y1}%`}
+              x2={`${slashLine.x2}%`} y2={`${slashLine.y2}%`}
+              stroke="white" strokeWidth="1.2" strokeLinecap="round"
+              opacity="0.6"
+            />
+          </svg>
+        )}
+
+        {/* Slash hit marks on enemy */}
         {slashEffects.map(slash => (
           <div
             key={slash.id}
             className="absolute z-30 pointer-events-none"
-            style={{
-              left: `${slash.x}%`,
-              top: `${slash.y}%`,
-              transform: "translate(-50%, -50%)",
-            }}
+            style={{ left: `${slash.x}%`, top: `${slash.y}%`, transform: "translate(-50%, -50%)" }}
           >
-            <div
-              className="w-10 h-10 rounded-full"
-              style={{
-                animation: "tapHitAnim 0.35s ease-out forwards",
-                background: `radial-gradient(circle, white 0%, ${accent} 40%, transparent 70%)`,
-              }}
-            />
-            <div
-              className="absolute inset-0 w-12 h-12 -m-1 rounded-full"
-              style={{
-                animation: "tapRing 0.4s ease-out forwards",
-                border: `2px solid ${accent}`,
-              }}
-            />
+            {/* X slash marks */}
+            <div style={{
+              animation: "slashMarkAnim 0.45s ease-out forwards",
+              fontSize: 38,
+              lineHeight: 1,
+              color: accent,
+              textShadow: `0 0 18px ${accent}, 0 0 8px white`,
+              fontWeight: 900,
+            }}>✕</div>
+            {/* Expanding ring */}
+            <div className="absolute inset-0 w-14 h-14 -m-3 rounded-full" style={{
+              animation: "slashRingAnim 0.4s ease-out forwards",
+              border: `2px solid ${accent}`,
+              boxShadow: `0 0 12px ${accent}`,
+            }} />
           </div>
         ))}
 
