@@ -1524,6 +1524,16 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/admin/world/decor/items/:itemId", isAdmin, async (req, res) => {
+    try {
+      const { name, imageUrl, message } = req.body;
+      await storage.updateWorldDecorItem(req.params.itemId, { name, imageUrl, message });
+      return res.json({ ok: true });
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to update decor item" });
+    }
+  });
+
   app.delete("/api/admin/world/decor/items/:itemId", isAdmin, async (req, res) => {
     try {
       await storage.deleteWorldDecorItem(req.params.itemId);

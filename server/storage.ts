@@ -159,6 +159,7 @@ export interface IStorage {
   upsertPlayerFishingEquipment(userId: string, data: { poleInventoryId?: string | null; baitInventoryId?: string | null }): Promise<PlayerFishingEquipment>;
   getWorldDecorItems(worldId: string): Promise<WorldDecorItem[]>;
   createWorldDecorItem(data: { worldId: string; name: string; imageUrl: string }): Promise<WorldDecorItem>;
+  updateWorldDecorItem(id: string, data: { name?: string; imageUrl?: string; message?: string | null }): Promise<void>;
   deleteWorldDecorItem(id: string): Promise<void>;
   getWorldDecorPlacements(worldId: string): Promise<WorldDecorPlacement[]>;
   createWorldDecorPlacement(data: { worldId: string; decorItemId: string; name: string; imageUrl: string; posX: number; posY: number; message?: string | null }): Promise<WorldDecorPlacement>;
@@ -960,6 +961,21 @@ export class DatabaseStorage implements IStorage {
   async createWorldDecorItem(data: { worldId: string; name: string; imageUrl: string }): Promise<WorldDecorItem> {
     const [item] = await db.insert(worldDecorItems).values(data).returning();
     return item;
+  }
+
+  async updateWorldDecorItem(id: string, data: { name?: string; imageUrl?: string; message?: string | null }): Promise<void> {
+    const itemUpdate: Partial<{ name: string; imageUrl: string }> = {};
+    if (data.name !== undefined) itemUpdate.name = data.name;
+    if (data.imageUrl !== undefined) itemUpdate.imageUrl = data.imageUrl;
+    if (Object.keys(itemUpdate).length > 0) {
+      await db.update(worldDecorItems).set(itemUpdate).where(eq(worldDecorItems.id, id));
+      // Cascade name/imageUrl changes to all placements of this item
+      await db.update(worldDecorPlacements).set(itemUpdate).where(eq(worldDecorPlacements.decorItemId, id));
+    }
+    // Update message on every placement of this item
+    if (data.message !== undefined) {
+      await db.update(worldDecorPlacements).set({ message: data.message ?? null }).where(eq(worldDecorPlacements.decorItemId, id));
+    }
   }
 
   async deleteWorldDecorItem(id: string): Promise<void> {

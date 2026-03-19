@@ -231,13 +231,16 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [showAddDecorForm, setShowAddDecorForm] = useState(false);
   const [newDecorName, setNewDecorName] = useState("");
   const [newDecorImage, setNewDecorImage] = useState<string | null>(null);
+  const [editingDecorItem, setEditingDecorItem] = useState<{ id: string; name: string; imageUrl: string } | null>(null);
+  const [editDecorName, setEditDecorName] = useState("");
+  const [editDecorMessage, setEditDecorMessage] = useState("");
+  const [editDecorImage, setEditDecorImage] = useState<string | null>(null);
   const [decorDragPos, setDecorDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
   const decorDragRef = useRef<{ placementId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const decorDidDrag = useRef(false);
   const panelDragRef = useRef<{ item: { id: string; name: string; imageUrl: string } } | null>(null);
   const [panelDragGhost, setPanelDragGhost] = useState<{ clientX: number; clientY: number; item: { id: string; name: string; imageUrl: string } } | null>(null);
   const [showDecorMsg, setShowDecorMsg] = useState<{ text: string; clientX: number; clientY: number } | null>(null);
-  const [decorMsgInput, setDecorMsgInput] = useState("");
   const locViewRef = useRef<HTMLDivElement>(null);
 
   const [selectedShopItem, setSelectedShopItem] = useState<ShopItem | null>(null);
@@ -499,6 +502,18 @@ export default function WorldPage({ user }: WorldPageProps) {
       toast({ title: "Decor Added" });
     },
     onError: () => toast({ title: "Error", description: "Failed to add decor", variant: "destructive" }),
+  });
+
+  const updateDecorItemMutation = useMutation({
+    mutationFn: async ({ id, name, imageUrl, message }: { id: string; name?: string; imageUrl?: string; message?: string | null }) => {
+      await apiRequest("PATCH", `/api/admin/world/decor/items/${id}`, { name, imageUrl, message });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "decor", "items"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "decor", "placements"] });
+      setEditingDecorItem(null);
+    },
+    onError: () => toast({ title: "Error", description: "Failed to update decor item", variant: "destructive" }),
   });
 
   const deleteDecorItemMutation = useMutation({
@@ -1048,15 +1063,6 @@ export default function WorldPage({ user }: WorldPageProps) {
     setObjDragPos(null);
   }, [objDragPos, objPositionMutation]);
 
-  // Sync message input when a decor placement is selected
-  useEffect(() => {
-    if (selectedDecorId) {
-      const p = decorPlacements.find(x => x.id === selectedDecorId);
-      setDecorMsgInput(p?.message ?? "");
-    } else {
-      setDecorMsgInput("");
-    }
-  }, [selectedDecorId]);
 
   // Panel drag: subscribe to document events while dragging a decor item from the inventory panel
   useEffect(() => {
@@ -1459,15 +1465,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                     }
                   }}
                 >
-                  {/* Selection ring */}
-                  {currentUser.isAdmin && selectedDecorId === p.id && (
-                    <div style={{
-                      position: "absolute", inset: -4, borderRadius: isGlowOrb || isFireflies ? "50%" : 6,
-                      border: "2px dashed rgba(255,255,255,0.6)",
-                      pointerEvents: "none",
-                      boxShadow: "0 0 8px rgba(255,255,255,0.25)",
-                    }} />
-                  )}
+                  {/* No selection ring — controls appear as circular buttons around the item */}
 
                   {isGlowOrb ? (
                     <div style={{
@@ -1510,55 +1508,50 @@ export default function WorldPage({ user }: WorldPageProps) {
                   )}
 
                   {currentUser.isAdmin && selectedDecorId === p.id && (
-                    <div
-                      onPointerDown={(e) => e.stopPropagation()}
-                      style={{
-                        position: "absolute",
-                        bottom: "calc(100% + 8px)",
-                        left: "50%",
-                        transform: "translateX(-50%)",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 4,
-                        background: "rgba(0,0,0,0.88)",
-                        borderRadius: 9,
-                        padding: "5px 7px",
-                        border: "1px solid rgba(255,255,255,0.18)",
-                        boxShadow: "0 2px 16px rgba(0,0,0,0.7)",
-                        zIndex: 1,
-                        minWidth: 140,
-                      }}
-                    >
-                      {/* Size / Flip / Delete row */}
-                      <div style={{ display: "flex", gap: 3, alignItems: "center" }}>
-                        <button onClick={(e) => { e.stopPropagation(); updateDecorPlacementMutation.mutate({ id: p.id, size: Math.max(20, p.size - 10) }); }}
-                          style={{ background: "rgba(255,255,255,0.13)", border: "none", color: "white", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "3px 8px", borderRadius: 5, fontWeight: "bold" }} title="Shrink">−</button>
-                        <button onClick={(e) => { e.stopPropagation(); updateDecorPlacementMutation.mutate({ id: p.id, size: Math.min(500, p.size + 10) }); }}
-                          style={{ background: "rgba(255,255,255,0.13)", border: "none", color: "white", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "3px 8px", borderRadius: 5, fontWeight: "bold" }} title="Grow">+</button>
-                        {!isPassThrough && (
-                          <button onClick={(e) => { e.stopPropagation(); updateDecorPlacementMutation.mutate({ id: p.id, flipped: !p.flipped }); }}
-                            style={{ background: "rgba(255,255,255,0.13)", border: "none", color: "white", cursor: "pointer", fontSize: 12, lineHeight: 1, padding: "3px 8px", borderRadius: 5 }} title="Flip">↔</button>
-                        )}
-                        <button onClick={(e) => { e.stopPropagation(); deleteDecorPlacementMutation.mutate(p.id); setSelectedDecorId(null); }}
-                          style={{ background: "rgba(200,30,30,0.85)", border: "none", color: "white", cursor: "pointer", fontSize: 11, lineHeight: 1, padding: "3px 8px", borderRadius: 5, fontWeight: "bold", marginLeft: "auto" }} title="Delete">✕</button>
-                      </div>
-                      {/* Message row — only for items players can click */}
+                    <div onPointerDown={(e) => e.stopPropagation()} style={{ pointerEvents: "auto" }}>
+                      {/* Delete — top-left */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); deleteDecorPlacementMutation.mutate(p.id); setSelectedDecorId(null); }}
+                        className="absolute z-30 w-8 h-8 rounded-full flex items-center justify-center"
+                        style={{ top: -16, left: -16, background: "rgba(220,38,38,0.95)", border: "2px solid rgba(255,100,100,0.7)", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}
+                        title="Delete placement"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-white" />
+                      </button>
+                      {/* Flip — top-right (non-pass-through only) */}
                       {!isPassThrough && (
-                        <div style={{ display: "flex", gap: 3, alignItems: "center" }}>
-                          <input
-                            value={decorMsgInput}
-                            onChange={(e) => { e.stopPropagation(); setDecorMsgInput(e.target.value); }}
-                            onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-                            onBlur={() => updateDecorPlacementMutation.mutate({ id: p.id, message: decorMsgInput.trim() || null })}
-                            placeholder="Click message for players..."
-                            style={{
-                              flex: 1, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)",
-                              borderRadius: 5, color: "white", fontSize: 10, padding: "3px 6px", outline: "none",
-                              fontFamily: "inherit", whiteSpace: "nowrap",
-                            }}
-                          />
-                        </div>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); updateDecorPlacementMutation.mutate({ id: p.id, flipped: !p.flipped }); }}
+                          className="absolute z-30 w-8 h-8 rounded-full flex items-center justify-center"
+                          style={{ top: -16, right: -16, background: "rgba(0,80,180,0.95)", border: "2px solid rgba(100,180,255,0.7)", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}
+                          title="Flip"
+                        >
+                          <FlipHorizontal className="w-3.5 h-3.5 text-white" />
+                        </button>
                       )}
+                      {/* Shrink — bottom-left */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); updateDecorPlacementMutation.mutate({ id: p.id, size: Math.max(20, p.size - 10) }); }}
+                        className="absolute z-30 w-8 h-8 rounded-full flex items-center justify-center"
+                        style={{ bottom: -16, left: -16, background: "rgba(80,40,0,0.95)", border: "2px solid rgba(255,160,50,0.7)", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}
+                        title="Shrink"
+                      >
+                        <Minus className="w-3.5 h-3.5 text-white" />
+                      </button>
+                      {/* Grow — bottom-right */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); updateDecorPlacementMutation.mutate({ id: p.id, size: Math.min(500, p.size + 10) }); }}
+                        className="absolute z-30 w-8 h-8 rounded-full flex items-center justify-center"
+                        style={{ bottom: -16, right: -16, background: "rgba(80,40,0,0.95)", border: "2px solid rgba(255,160,50,0.7)", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}
+                        title="Grow"
+                      >
+                        <Plus className="w-3.5 h-3.5 text-white" />
+                      </button>
+                      {/* Size label — center-bottom */}
+                      <div className="absolute z-30 flex items-center justify-center"
+                        style={{ bottom: -22, left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.8)", border: "1px solid rgba(255,200,50,0.4)", borderRadius: 5, padding: "1px 7px", pointerEvents: "none" }}>
+                        <span className="font-fantasy text-[9px] text-yellow-300">{p.size}px</span>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -2154,7 +2147,80 @@ export default function WorldPage({ user }: WorldPageProps) {
             </button>
           </div>
 
-          {/* Add decor form */}
+          {/* Edit decor item form */}
+          {editingDecorItem && (
+            <div className="px-4 py-3 shrink-0" style={{ borderBottom: `1px solid ${accent}20`, background: "rgba(0,0,0,0.55)" }}>
+              <p className="font-fantasy text-[10px] tracking-wider mb-2" style={{ color: `${accent}aa` }}>Edit Decor Item</p>
+              <div className="flex gap-3 mb-2 items-center">
+                <img
+                  src={editDecorImage ?? editingDecorItem.imageUrl}
+                  alt="Preview"
+                  className="w-12 h-12 object-contain rounded-lg shrink-0"
+                  style={{ border: `1px solid ${accent}30` }}
+                />
+                <div className="flex flex-col gap-1.5 flex-1">
+                  <input
+                    type="text"
+                    placeholder="Name..."
+                    value={editDecorName}
+                    onChange={(e) => setEditDecorName(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-md font-fantasy text-xs"
+                    style={{ background: "rgba(0,0,0,0.5)", border: `1px solid ${accent}35`, color: "#e8ddd0", outline: "none" }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Click message for players... (optional)"
+                    value={editDecorMessage}
+                    onChange={(e) => setEditDecorMessage(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-md font-fantasy text-xs"
+                    style={{ background: "rgba(0,0,0,0.5)", border: `1px solid ${accent}35`, color: "#e8ddd0", outline: "none" }}
+                  />
+                </div>
+              </div>
+              <label className="flex items-center gap-2 mb-2 cursor-pointer">
+                <span className="font-fantasy text-[9px]" style={{ color: `${accent}88` }}>Replace Photo:</span>
+                <input
+                  type="file"
+                  accept="image/png,image/gif,image/webp"
+                  className="text-xs font-fantasy"
+                  style={{ color: `${accent}cc` }}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) { const dataUrl = await readFileAsDataUrl(file); setEditDecorImage(dataUrl); }
+                  }}
+                />
+              </label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setEditingDecorItem(null); setEditDecorName(""); setEditDecorMessage(""); setEditDecorImage(null); }}
+                  className="flex-1 py-1.5 rounded-md font-fantasy text-xs"
+                  style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${accent}25`, color: `${accent}88`, cursor: "pointer" }}
+                >Cancel</button>
+                <button
+                  onClick={() => {
+                    if (!editDecorName.trim()) return;
+                    updateDecorItemMutation.mutate({
+                      id: editingDecorItem.id,
+                      name: editDecorName.trim(),
+                      imageUrl: editDecorImage ?? undefined,
+                      message: editDecorMessage.trim() || null,
+                    });
+                  }}
+                  disabled={!editDecorName.trim() || updateDecorItemMutation.isPending}
+                  className="flex-1 py-1.5 rounded-md font-fantasy text-xs tracking-wider transition-transform active:scale-95 disabled:opacity-50"
+                  style={{
+                    background: `linear-gradient(135deg, ${accent}40 0%, ${accent}20 100%)`,
+                    border: `1px solid ${accent}60`,
+                    color: accent,
+                    cursor: "pointer",
+                  }}
+                >
+                  {updateDecorItemMutation.isPending ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </div>
+          )}
+
           {showAddDecorForm && (
             <div className="px-4 py-3 shrink-0" style={{ borderBottom: `1px solid ${accent}20` }}>
               <p className="font-fantasy text-[10px] tracking-wider mb-2" style={{ color: `${accent}aa` }}>New Decor Item</p>
@@ -2267,6 +2333,30 @@ export default function WorldPage({ user }: WorldPageProps) {
                       {item.name}
                     </span>
                     <span className="font-fantasy text-[8px]" style={{ color: `${accent}55` }}>drag to place</span>
+                    {/* Edit button — top-left */}
+                    <button
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingDecorItem({ id: item.id, name: item.name, imageUrl: item.imageUrl });
+                        setEditDecorName(item.name);
+                        setEditDecorMessage("");
+                        setEditDecorImage(null);
+                      }}
+                      style={{
+                        position: "absolute", top: 4, left: 4,
+                        width: 16, height: 16, borderRadius: "50%",
+                        background: "rgba(20,120,60,0.9)",
+                        border: "1px solid rgba(80,200,100,0.7)",
+                        cursor: "pointer", display: "flex",
+                        alignItems: "center", justifyContent: "center",
+                        lineHeight: 1,
+                      }}
+                      title="Edit decor item"
+                    >
+                      <Pencil style={{ width: 8, height: 8, color: "white" }} />
+                    </button>
+                    {/* Delete button — top-right */}
                     <button
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={(e) => { e.stopPropagation(); deleteDecorItemMutation.mutate(item.id); }}
