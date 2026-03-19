@@ -212,7 +212,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideHome, h
             >
               <img
                 src={petHouseIconImg}
-                alt="Pet House"
+                alt="Pet World"
                 className="w-full h-full object-cover"
               />
             </button>

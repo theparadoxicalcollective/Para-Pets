@@ -2,7 +2,7 @@ import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
-import petHouseBg from "@assets/pethouse_bg_new.png";
+import petHouseBg from "@assets/generated_images/pet_world_bg.png";
 
 interface VisitedPet {
   inventoryId: string;
@@ -239,7 +239,7 @@ export default function VisitPetHousePage() {
             style={{ color: "#f0c040", textShadow: "0 0 12px rgba(240,192,64,0.5)" }}
             data-testid="text-visit-house-owner"
           >
-            {data.username}'s Pet House
+            {data.username}'s Pet World
           </p>
         )}
       </div>
@@ -258,7 +258,7 @@ export default function VisitPetHousePage() {
         {isError && (
           <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
             <p className="font-fantasy text-[#ff6666] text-xs tracking-widest">
-              Could not enter pet house
+              Could not enter pet world
             </p>
           </div>
         )}

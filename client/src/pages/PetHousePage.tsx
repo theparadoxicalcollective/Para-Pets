@@ -4,7 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import PetAnimator from "@/components/PetAnimator";
-import petHouseBg from "@assets/pethouse_bg_new.png";
+import petHouseBg from "@assets/generated_images/pet_world_bg.png";
 import aquariumBg from "@assets/bg_aquarium.png";
 import fishbowlIconImg from "@assets/icon_fishbowl.png";
 import forestHomeIconImg from "@assets/icon_forest_home.png";
@@ -49,12 +49,12 @@ interface EdibleItem {
 }
 
 const WALK_CONFIGS = [
-  { wanderIdx: 0, left: "4%",  top: "88%", size: 220, duration: "38s", delay: "0s"   },
-  { wanderIdx: 1, left: "58%", top: "83%", size: 220, duration: "42s", delay: "5s"   },
-  { wanderIdx: 2, left: "20%", top: "74%", size: 220, duration: "36s", delay: "11s"  },
-  { wanderIdx: 3, left: "52%", top: "65%", size: 220, duration: "44s", delay: "2s"   },
-  { wanderIdx: 4, left: "34%", top: "57%", size: 220, duration: "40s", delay: "16s"  },
-  { wanderIdx: 5, left: "40%", top: "79%", size: 220, duration: "45s", delay: "8s"   },
+  { wanderIdx: 0, left: "8%",  top: "60%", size: 200, duration: "38s", delay: "0s"   },
+  { wanderIdx: 1, left: "55%", top: "52%", size: 190, duration: "42s", delay: "5s"   },
+  { wanderIdx: 2, left: "22%", top: "40%", size: 180, duration: "36s", delay: "11s"  },
+  { wanderIdx: 3, left: "50%", top: "30%", size: 170, duration: "44s", delay: "2s"   },
+  { wanderIdx: 4, left: "32%", top: "22%", size: 160, duration: "40s", delay: "16s"  },
+  { wanderIdx: 5, left: "40%", top: "47%", size: 185, duration: "45s", delay: "8s"   },
 ];
 
 const GROUND_WALK_CONFIGS = [
@@ -217,7 +217,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           <HouseNavButton testId="button-nav-aquarium" onClick={() => setShowAquarium(true)} label="Aquarium">
             <FishbowlIcon />
           </HouseNavButton>
-          <HouseNavButton testId="button-nav-forest-den" onClick={() => {}} label="Forest Den">
+          <HouseNavButton testId="button-nav-forest-den" onClick={() => {}} label="Pet World">
             <ForestHomeIcon />
           </HouseNavButton>
         </div>
@@ -459,6 +459,9 @@ function WalkingPet({
   onClick: () => void;
 }) {
   const [isHovered, setIsHovered] = useState(false);
+  const [isZooming, setIsZooming] = useState(false);
+  const [zoomDir, setZoomDir] = useState<"R" | "L">("R");
+  const zoomTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data: templateData } = useQuery<{ parts: Array<{ partType: string }> }>({
     queryKey: ["/api/pet-template-parts", pet.petTemplateId],
@@ -481,6 +484,24 @@ function WalkingPet({
 
   const floatAnim = hasWings ? "petFloatSmall" : "petGroundFloat";
   const wanderPrefix = hasWings ? "petWander" : "petGroundWander";
+
+  // Winged pets occasionally zoom across the screen
+  useEffect(() => {
+    if (!hasWings) return;
+    const schedule = () => {
+      const delay = 14000 + Math.random() * 22000; // 14-36 seconds between zooms
+      zoomTimerRef.current = setTimeout(() => {
+        setZoomDir(Math.random() > 0.5 ? "R" : "L");
+        setIsZooming(true);
+        zoomTimerRef.current = setTimeout(() => {
+          setIsZooming(false);
+          schedule();
+        }, 3800);
+      }, delay);
+    };
+    schedule();
+    return () => { if (zoomTimerRef.current) clearTimeout(zoomTimerRef.current); };
+  }, [hasWings]);
 
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
   const sz = cfg.size;
@@ -523,6 +544,12 @@ function WalkingPet({
         pointerEvents: "none",
       }}
     >
+      <div
+        style={{
+          animation: isZooming ? `petZoom${zoomDir} 3.8s ease-in-out` : undefined,
+          transformOrigin: "center center",
+        }}
+      >
       <div
         style={{
           animation: `${wanderPrefix}${cfg.wanderIdx} ${cfg.duration} ${cfg.delay} ease-in-out infinite`,
@@ -619,6 +646,7 @@ function WalkingPet({
             </>
           )}
         </div>
+      </div>
       </div>
     </div>
   );
@@ -1299,47 +1327,63 @@ function _ForestHomeIconOld() {
 
 function ForestRoom() {
   return (
-    <div className="absolute inset-0" style={{ background: "#1a2a0a" }}>
+    <div className="absolute inset-0" style={{ background: "#0e1a06" }}>
+      {/* Main background scene */}
       <img
         src={petHouseBg}
         alt=""
         className="absolute inset-0 w-full h-full object-cover"
-        style={{ objectPosition: "center center" }}
+        style={{ objectPosition: "center top" }}
         draggable={false}
       />
 
+      {/* Top atmospheric haze */}
       <div
         className="absolute top-0 left-0 right-0 pointer-events-none"
         style={{
-          height: "18%",
-          background: "linear-gradient(to bottom, rgba(8,14,5,0.55) 0%, transparent 100%)",
+          height: "20%",
+          background: "linear-gradient(to bottom, rgba(6,10,3,0.45) 0%, transparent 100%)",
         }}
       />
 
+      {/* Mid-depth atmospheric light band */}
       <div
         className="absolute pointer-events-none"
         style={{
           left: 0, right: 0,
-          top: "42%",
-          height: "14%",
-          background: "linear-gradient(to bottom, transparent 0%, rgba(180,220,140,0.06) 50%, transparent 100%)",
+          top: "38%",
+          height: "16%",
+          background: "linear-gradient(to bottom, transparent 0%, rgba(160,220,100,0.04) 50%, transparent 100%)",
         }}
       />
 
+      {/* Foreground depth: bottom ground shadow to push pets "into" the scene */}
       <div
         className="absolute pointer-events-none"
         style={{
           left: 0, right: 0,
           bottom: 0,
-          height: "30%",
-          background: "linear-gradient(to top, rgba(20,35,8,0.38) 0%, transparent 100%)",
+          height: "28%",
+          background: "linear-gradient(to top, rgba(8,18,3,0.6) 0%, rgba(10,20,4,0.2) 50%, transparent 100%)",
         }}
       />
 
+      {/* Foreground left tree-trunk vignette */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: "linear-gradient(90deg, rgba(0,0,0,0.18) 0%, transparent 18%, transparent 82%, rgba(0,0,0,0.18) 100%)",
+          background: "linear-gradient(90deg, rgba(4,10,2,0.35) 0%, rgba(4,10,2,0.08) 12%, transparent 26%, transparent 74%, rgba(4,10,2,0.08) 88%, rgba(4,10,2,0.35) 100%)",
+        }}
+      />
+
+      {/* Foreground ground-level grass overlay strip */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          left: 0, right: 0,
+          bottom: 0,
+          height: "9%",
+          background: "linear-gradient(to top, rgba(14,28,6,0.72) 0%, rgba(20,40,8,0.38) 50%, transparent 100%)",
         }}
       />
     </div>

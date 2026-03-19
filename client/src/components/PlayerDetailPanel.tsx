@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import petHouseBg from "@assets/pethouse_bg_new.png";
+import petHouseBg from "@assets/generated_images/pet_world_bg.png";
 
 interface PlayerDetailPanelProps {
   userId: string;
@@ -218,7 +218,7 @@ export default function PlayerDetailPanel({ userId, onClose }: PlayerDetailPanel
                   className="font-fantasy text-sm font-semibold tracking-wide"
                   style={{ color: "#86efac", textShadow: "0 1px 8px rgba(0,0,0,0.9)" }}
                 >
-                  Visit Pet House
+                  Visit Pet World
                 </p>
               </div>
             </button>

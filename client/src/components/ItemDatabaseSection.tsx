@@ -705,7 +705,7 @@ function AdminItemForm({
                 />
                 <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">Level points added to a pet when this edible is fed to them</p>
               </div>
-              <p className="font-fantasy text-[#86efac] text-[8px] tracking-wider text-center">Edibles can be fed to pets from the Pet House page</p>
+              <p className="font-fantasy text-[#86efac] text-[8px] tracking-wider text-center">Edibles can be fed to pets from the Pet World page</p>
             </>
           )}
 

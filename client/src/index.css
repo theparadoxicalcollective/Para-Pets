@@ -654,6 +654,22 @@
   81%, 100%{ transform: translate(0px,     0px); }
 }
 
+/* Winged pet zoom-burst across the scene */
+@keyframes petZoomR {
+  0%   { transform: translate(0px, 0px); }
+  10%  { transform: translate(18px, -22px); }
+  48%  { transform: translate(240px, -55px); }
+  80%  { transform: translate(18px, -15px); }
+  100% { transform: translate(0px, 0px); }
+}
+@keyframes petZoomL {
+  0%   { transform: translate(0px, 0px); }
+  10%  { transform: translate(-18px, -22px); }
+  48%  { transform: translate(-240px, -55px); }
+  80%  { transform: translate(-18px, -15px); }
+  100% { transform: translate(0px, 0px); }
+}
+
 @keyframes glowPulse {
   0%, 100% { box-shadow: 0 0 12px rgba(74,222,128,0.4), 0 0 24px rgba(74,222,128,0.2); }
   50%       { box-shadow: 0 0 24px rgba(74,222,128,0.7), 0 0 48px rgba(74,222,128,0.4); }
