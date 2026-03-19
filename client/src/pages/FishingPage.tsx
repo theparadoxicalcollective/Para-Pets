@@ -74,7 +74,9 @@ interface CaughtFish {
 type FishingPhase = "idle" | "casting" | "waiting" | "nibble" | "reeling" | "caught" | "missed";
 
 const ACCENT = "#5eead4";
-const NIBBLE_TIMEOUT = 1200; // ms per nibble pulse (3 pulses = 3.6s total)
+// Per-rarity nibble config — higher rarity fish give fewer bites and a tighter window
+const NIBBLE_MAX_BY_RARITY   = [3, 3, 2, 2, 1];   // max nibble pulses before fish escapes
+const NIBBLE_TIMEOUT_BY_RARITY = [1200, 1050, 900, 720, 580]; // ms per nibble pulse
 
 export default function FishingPage({ locationId, locationName, bgUrl, user, onClose }: FishingPageProps) {
   const [phase, setPhase] = useState<FishingPhase>("idle");
@@ -337,23 +339,25 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
             if (roll <= 0) { randomFish = pondFish[i]; break; }
           }
           nibbleRarityRef.current = randomFish?.item?.starRarity ?? 1;
-          // Start 3-nibble sequence
+          const nibbleRarity = Math.max(1, Math.min(5, nibbleRarityRef.current));
+          const maxNibbles   = NIBBLE_MAX_BY_RARITY[nibbleRarity - 1];
+          const nibbleMs     = NIBBLE_TIMEOUT_BY_RARITY[nibbleRarity - 1];
+          // Start nibble sequence — fewer pulses and tighter window for rarer fish
           nibbleCountRef.current = 1;
           setNibbleCount(1);
           setPhase("nibble");
-          // Each nibble lasts 1.2s; after all 3 pass the fish escapes
           const scheduleNibble = () => {
             nibbleTimeoutRef.current = setTimeout(() => {
               if (phaseRef.current !== "nibble") return;
               const next = nibbleCountRef.current + 1;
-              if (next > 3) {
+              if (next > maxNibbles) {
                 setPhase("missed");
                 return;
               }
               nibbleCountRef.current = next;
               setNibbleCount(next);
               scheduleNibble();
-            }, NIBBLE_TIMEOUT);
+            }, nibbleMs);
           };
           scheduleNibble();
         }
@@ -368,10 +372,10 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     const poleItem = equipDataRef.current?.poleItem;
     const slowdownFactor = (pct: number | null | undefined) => pct != null ? Math.max(0, 1 - pct / 100) : 1;
 
-    // Rate of catch progress gain per frame while holding
-    const reelRates       = [0.0090, 0.0075, 0.0062, 0.0050, 0.0040];
+    // Rate of catch progress gain per frame while holding (slower for rarer fish)
+    const reelRates       = [0.0090, 0.0072, 0.0056, 0.0042, 0.0030];
     // Rate of tension rise per frame while holding (pole slowdowns reduce tension for high-rarity fish)
-    const tensionRiseBase = [0.0055, 0.0075, 0.0095, 0.0120, 0.0150];
+    const tensionRiseBase = [0.0050, 0.0072, 0.0100, 0.0135, 0.0175];
     const tensionRise     = [
       tensionRiseBase[0],
       tensionRiseBase[1],
@@ -379,16 +383,16 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       tensionRiseBase[3] * slowdownFactor(poleItem?.poleSlowdown4),
       tensionRiseBase[4] * slowdownFactor(poleItem?.poleSlowdown5),
     ];
-    // Rate of tension fall per frame while NOT holding
-    const tensionFalls    = [0.0110, 0.0095, 0.0080, 0.0065, 0.0050];
-    // Rate catch progress drains per frame while NOT holding (fish pulling back)
-    const progressDrags   = [0.0018, 0.0026, 0.0036, 0.0048, 0.0062];
-    // Probability per frame a surge begins
-    const surgeChances    = [0.0030, 0.0045, 0.0060, 0.0080, 0.0105];
+    // Rate of tension fall per frame while NOT holding (falls slower for rarer fish)
+    const tensionFalls    = [0.0120, 0.0095, 0.0075, 0.0055, 0.0038];
+    // Rate catch progress drains per frame while NOT holding (fish pulls back harder at higher rarity)
+    const progressDrags   = [0.0015, 0.0025, 0.0038, 0.0055, 0.0076];
+    // Probability per frame a surge begins (rarer fish surge much more often)
+    const surgeChances    = [0.0025, 0.0042, 0.0062, 0.0088, 0.0120];
     // Instant tension spike on surge
-    const surgeTSpikes    = [0.10,   0.14,   0.18,   0.23,   0.29  ];
+    const surgeTSpikes    = [0.09,   0.13,   0.19,   0.26,   0.34  ];
     // Instant progress drop on surge
-    const surgePDrops     = [0.05,   0.08,   0.11,   0.15,   0.20  ];
+    const surgePDrops     = [0.04,   0.08,   0.12,   0.17,   0.24  ];
 
     const reelRate     = reelRates[rarity - 1];
     const tRise        = tensionRise[rarity - 1];
