@@ -116,6 +116,20 @@ function App() {
     return () => document.removeEventListener("pointerdown", handler, true);
   }, []);
 
+  useEffect(() => {
+    // Block the browser's native swipe-back/forward gesture on mobile.
+    // Touches starting within 20px of either edge are prevented so iOS Safari
+    // and Chrome Android never start the back-navigation swipe.
+    const blockEdgeSwipe = (e: TouchEvent) => {
+      const x = e.touches[0].clientX;
+      if (x < 20 || x > window.innerWidth - 20) {
+        e.preventDefault();
+      }
+    };
+    document.addEventListener("touchstart", blockEdgeSwipe, { passive: false });
+    return () => document.removeEventListener("touchstart", blockEdgeSwipe);
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

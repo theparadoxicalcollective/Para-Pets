@@ -692,6 +692,7 @@ html, body {
   overflow: hidden;
   user-select: none;
   -webkit-user-select: none;
+  touch-action: pan-y;
 }
 
 input, textarea, [contenteditable] {
@@ -703,4 +704,5 @@ input, textarea, [contenteditable] {
   position: fixed;
   inset: 0;
   overflow: hidden;
+  touch-action: pan-y;
 }
