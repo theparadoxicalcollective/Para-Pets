@@ -388,6 +388,7 @@ app.use((req, res, next) => {
         posY: 48,
         glowColor: "#9b5de5",
         sortOrder: 6,
+        isShop: true,
       },
       {
         id: "a1b2c3d4-0005-4000-8000-000000000005",
@@ -442,7 +443,7 @@ app.use((req, res, next) => {
     const deletedSeedIds: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
 
     // One-time migration: fix seed locations whose isShop/type defaults were wrong before this fix
-    const isShopMigrationDone = await storage.getGameSetting("seed_isShop_migration_v1");
+    const isShopMigrationDone = await storage.getGameSetting("seed_isShop_migration_v2");
     if (!isShopMigrationDone) {
       for (const loc of NEW_SWAMP_LOCATIONS) {
         if (deletedSeedIds.includes(loc.id)) continue;
@@ -457,7 +458,7 @@ app.use((req, res, next) => {
           }
         }
       }
-      await storage.setGameSetting("seed_isShop_migration_v1", "done");
+      await storage.setGameSetting("seed_isShop_migration_v2", "done");
     }
 
     for (const loc of NEW_SWAMP_LOCATIONS) {
