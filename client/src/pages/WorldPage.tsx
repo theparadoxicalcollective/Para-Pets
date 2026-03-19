@@ -1483,15 +1483,14 @@ export default function WorldPage({ user }: WorldPageProps) {
                         const fsz = 8 + seededRand(p.id, i * 3 + 2) * 6;
                         const dur = 2.8 + seededRand(p.id, i * 7 + 3) * 2.4;
                         const delay = -(seededRand(p.id, i * 11 + 5) * 3);
-                        const green = Math.round(220 + seededRand(p.id, i * 5) * 35);
                         return (
                           <div key={i} style={{
                             position: "absolute",
                             left: `${fx}%`, top: `${fy}%`,
                             width: fsz, height: fsz,
                             borderRadius: "50%",
-                            background: `radial-gradient(circle, rgba(255,${green},80,0.98) 0%, rgba(200,255,60,0.6) 45%, transparent 75%)`,
-                            boxShadow: `0 0 ${fsz * 0.9}px ${fsz * 0.55}px rgba(210,255,80,0.38)`,
+                            background: `radial-gradient(circle, rgba(255,230,30,0.48) 0%, rgba(255,210,0,0.1) 52%, transparent 72%)`,
+                            boxShadow: `0 0 ${fsz}px ${fsz * 0.5}px rgba(255,215,0,0.2)`,
                             mixBlendMode: "screen",
                             animation: `${FF_ANIMS[i % 3]} ${dur}s ease-in-out ${delay}s infinite`,
                           }} />
@@ -2050,8 +2049,8 @@ export default function WorldPage({ user }: WorldPageProps) {
                     position: "absolute",
                     left: `${[20,55,35,70][i]}%`, top: `${[35,20,65,50][i]}%`,
                     width: 9, height: 9, borderRadius: "50%",
-                    background: "radial-gradient(circle, rgba(255,255,120,0.95) 0%, transparent 75%)",
-                    boxShadow: "0 0 6px 3px rgba(210,255,80,0.4)",
+                    background: "radial-gradient(circle, rgba(255,230,30,0.48) 0%, rgba(255,210,0,0.1) 52%, transparent 72%)",
+                    boxShadow: "0 0 6px 3px rgba(255,215,0,0.22)",
                   }} />
                 ))}
               </div>
@@ -2130,7 +2129,7 @@ export default function WorldPage({ user }: WorldPageProps) {
               className="transition-transform active:scale-90"
               style={{
                 width: 36, height: 26, borderRadius: 8,
-                background: "rgba(30,50,15,0.85)", border: "1.5px solid rgba(200,255,80,0.5)",
+                background: "rgba(30,30,10,0.85)", border: "1.5px solid rgba(255,220,0,0.45)",
                 cursor: "pointer", flexShrink: 0, position: "relative", display: "flex", alignItems: "center", justifyContent: "center",
               }}
               title="Add fireflies cluster"
@@ -2140,8 +2139,8 @@ export default function WorldPage({ user }: WorldPageProps) {
                   position: "absolute",
                   left: `${[28,52,38][i]}%`, top: `${[40,25,62][i]}%`,
                   width: 4, height: 4, borderRadius: "50%",
-                  background: "rgba(240,255,100,0.95)",
-                  boxShadow: "0 0 4px 2px rgba(200,255,60,0.5)",
+                  background: "rgba(255,228,30,0.52)",
+                  boxShadow: "0 0 4px 2px rgba(255,210,0,0.3)",
                 }} />
               ))}
             </button>
@@ -2312,14 +2311,14 @@ export default function WorldPage({ user }: WorldPageProps) {
                   >
                     {PASS_THROUGH_SENTINELS.has(item.imageUrl) ? (
                       item.imageUrl === FIREFLIES_SENTINEL ? (
-                        <div style={{ width: 56, height: 56, background: "rgba(20,40,10,0.7)", borderRadius: 8, position: "relative", flexShrink: 0 }}>
+                        <div style={{ width: 56, height: 56, background: "rgba(10,10,10,0.75)", borderRadius: 8, position: "relative", flexShrink: 0 }}>
                           {[0,1,2,3,4].map(i => (
                             <div key={i} style={{
                               position: "absolute",
                               left: `${[22,50,30,65,42][i]}%`, top: `${[38,20,60,45,75][i]}%`,
                               width: 5, height: 5, borderRadius: "50%",
-                              background: "rgba(240,255,100,0.92)",
-                              boxShadow: "0 0 5px 2px rgba(200,255,60,0.45)",
+                              background: "rgba(255,228,30,0.52)",
+                              boxShadow: "0 0 5px 2px rgba(255,210,0,0.28)",
                             }} />
                           ))}
                         </div>
