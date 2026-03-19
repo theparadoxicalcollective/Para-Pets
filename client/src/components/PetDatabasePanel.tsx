@@ -41,23 +41,75 @@ interface LinkedShopPet {
   rarity: number | null;
 }
 
-const PART_TYPES = [
-  { key: "eyes", label: "Eyes (Open)", defaultZ: 12, layer: "front" as const },
-  { key: "eyes_closed", label: "Eyes (Closed)", defaultZ: 12, layer: "front" as const },
-  { key: "mouth", label: "Mouth (Open)", defaultZ: 11, layer: "front" as const },
-  { key: "mouth_closed", label: "Mouth (Closed)", defaultZ: 11, layer: "front" as const },
-  { key: "head", label: "Head", defaultZ: 10, layer: "front" as const },
-  { key: "left_ear", label: "Left Ear", defaultZ: 9, layer: "back" as const },
-  { key: "right_ear", label: "Right Ear", defaultZ: 9, layer: "back" as const },
-  { key: "left_arm", label: "Left Arm", defaultZ: 8, layer: "front" as const },
-  { key: "right_arm", label: "Right Arm", defaultZ: 7, layer: "front" as const },
-  { key: "body", label: "Body", defaultZ: 6, layer: "body" as const },
-  { key: "left_wing", label: "Left Wing", defaultZ: 4, layer: "back" as const },
-  { key: "right_wing", label: "Right Wing", defaultZ: 4, layer: "back" as const },
-  { key: "left_leg", label: "Left Leg", defaultZ: 3, layer: "back" as const },
-  { key: "right_leg", label: "Right Leg", defaultZ: 3, layer: "back" as const },
-  { key: "tail", label: "Tail", defaultZ: 2, layer: "back" as const, defaultPivotX: 50, defaultPivotY: 0 },
+type PartLayer = "front" | "back" | "body";
+interface PartDef { key: string; label: string; defaultZ: number; layer: PartLayer; animOnly?: boolean; defaultPivotX?: number; defaultPivotY?: number; }
+
+const FRONT_PART_GROUPS: { group: string; parts: PartDef[] }[] = [
+  { group: "Face", parts: [
+    { key: "eyes",         label: "Eyes (Open)",   defaultZ: 14, layer: "front" },
+    { key: "eyes_closed",  label: "Eyes (Closed)", defaultZ: 13, layer: "front", animOnly: true },
+    { key: "mouth_closed", label: "Mouth (Closed)",defaultZ: 12, layer: "front" },
+    { key: "mouth",        label: "Mouth (Open)",  defaultZ: 11, layer: "front", animOnly: true },
+  ]},
+  { group: "Head & Ears", parts: [
+    { key: "head",       label: "Head",      defaultZ: 10, layer: "front" },
+    { key: "left_ear",   label: "Left Ear",  defaultZ: 9,  layer: "back" },
+    { key: "right_ear",  label: "Right Ear", defaultZ: 9,  layer: "back" },
+  ]},
+  { group: "Arms", parts: [
+    { key: "left_arm",  label: "Left Arm",  defaultZ: 8, layer: "front" },
+    { key: "right_arm", label: "Right Arm", defaultZ: 7, layer: "front" },
+  ]},
+  { group: "Body", parts: [
+    { key: "body", label: "Body", defaultZ: 6, layer: "body" },
+  ]},
+  { group: "Wings", parts: [
+    { key: "left_wing",  label: "Left Wing",  defaultZ: 4, layer: "back" },
+    { key: "right_wing", label: "Right Wing", defaultZ: 4, layer: "back" },
+  ]},
+  { group: "Legs", parts: [
+    { key: "left_leg",  label: "Left Leg",  defaultZ: 3, layer: "back" },
+    { key: "right_leg", label: "Right Leg", defaultZ: 3, layer: "back" },
+  ]},
+  { group: "Tail", parts: [
+    { key: "tail", label: "Tail", defaultZ: 2, layer: "back", defaultPivotX: 50, defaultPivotY: 0 },
+  ]},
 ];
+
+const SIDE_PART_GROUPS: { group: string; parts: PartDef[] }[] = [
+  { group: "Face", parts: [
+    { key: "eyes",         label: "Eyes (Open)",   defaultZ: 14, layer: "front" },
+    { key: "eyes_closed",  label: "Eyes (Closed)", defaultZ: 13, layer: "front", animOnly: true },
+    { key: "mouth_closed", label: "Mouth (Closed)",defaultZ: 12, layer: "front" },
+    { key: "mouth",        label: "Mouth (Open)",  defaultZ: 11, layer: "front", animOnly: true },
+  ]},
+  { group: "Head & Ears", parts: [
+    { key: "head",      label: "Head",      defaultZ: 10, layer: "front" },
+    { key: "left_ear",  label: "Left Ear",  defaultZ: 9,  layer: "front" },
+    { key: "right_ear", label: "Right Ear", defaultZ: 9,  layer: "back" },
+  ]},
+  { group: "Front Layer", parts: [
+    { key: "front_arm",  label: "Front Arm",  defaultZ: 8, layer: "front" },
+    { key: "front_leg",  label: "Front Leg",  defaultZ: 7, layer: "front" },
+    { key: "front_wing", label: "Front Wing", defaultZ: 6, layer: "front" },
+  ]},
+  { group: "Body", parts: [
+    { key: "body", label: "Body", defaultZ: 5, layer: "body" },
+  ]},
+  { group: "Back Layer", parts: [
+    { key: "back_arm",  label: "Back Arm",  defaultZ: 4, layer: "back" },
+    { key: "back_leg",  label: "Back Leg",  defaultZ: 3, layer: "back" },
+    { key: "back_wing", label: "Back Wing", defaultZ: 2, layer: "back" },
+  ]},
+  { group: "Tail", parts: [
+    { key: "tail", label: "Tail", defaultZ: 1, layer: "back", defaultPivotX: 50, defaultPivotY: 0 },
+  ]},
+];
+
+const ALL_PART_DEFS: PartDef[] = [
+  ...FRONT_PART_GROUPS.flatMap(g => g.parts),
+  ...SIDE_PART_GROUPS.flatMap(g => g.parts),
+].filter((v, i, a) => a.findIndex(x => x.key === v.key) === i);
 
 const CANVAS_SIZE = 1000;
 
@@ -69,6 +121,8 @@ export default function PetDatabasePanel() {
   const [uploadPartType, setUploadPartType] = useState<string | null>(null);
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
   const [pivotMode, setPivotMode] = useState(false);
+  const [facingMode, setFacingMode] = useState<"front" | "side">("front");
+  const [sideFacingDir, setSideFacingDir] = useState<"left" | "right">("left");
   const canvasRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ partId: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
   const [dragPos, setDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
@@ -394,26 +448,91 @@ export default function PetDatabasePanel() {
           })}
         </div>
 
-        <div className="flex flex-wrap gap-1.5 justify-center">
-          {PART_TYPES.map(pt => {
-            const exists = viewParts.some(p => p.partType === pt.key);
-            return (
+        {/* Facing direction selector */}
+        <div className="rounded-lg overflow-hidden" style={{ border: "1px solid rgba(240,192,64,0.25)" }}>
+          <div className="flex">
+            <button
+              data-testid="button-facing-front"
+              onClick={() => setFacingMode("front")}
+              className="flex-1 py-2 font-fantasy text-[10px] tracking-wider transition-colors"
+              style={{
+                background: facingMode === "front" ? "rgba(240,192,64,0.2)" : "rgba(0,0,0,0.2)",
+                color: facingMode === "front" ? "#f0c040" : "#6a5840",
+                borderRight: "1px solid rgba(240,192,64,0.2)",
+              }}
+            >
+              Front Facing
+            </button>
+            <button
+              data-testid="button-facing-side"
+              onClick={() => setFacingMode("side")}
+              className="flex-1 py-2 font-fantasy text-[10px] tracking-wider transition-colors"
+              style={{
+                background: facingMode === "side" ? "rgba(240,192,64,0.2)" : "rgba(0,0,0,0.2)",
+                color: facingMode === "side" ? "#f0c040" : "#6a5840",
+              }}
+            >
+              Side Facing
+            </button>
+          </div>
+          {facingMode === "side" && (
+            <div className="flex border-t" style={{ borderColor: "rgba(240,192,64,0.15)" }}>
               <button
-                key={pt.key}
-                data-testid={`button-upload-${pt.key}`}
-                onClick={() => setUploadPartType(pt.key)}
-                className="px-2 py-1 rounded font-fantasy text-[9px] tracking-wider transition-transform active:scale-95"
+                data-testid="button-side-left"
+                onClick={() => setSideFacingDir("left")}
+                className="flex-1 py-1.5 font-fantasy text-[9px] tracking-wider transition-colors"
                 style={{
-                  background: exists ? "rgba(127,255,212,0.15)" : "rgba(240,192,64,0.1)",
-                  border: `1px solid ${exists ? "rgba(127,255,212,0.3)" : "rgba(240,192,64,0.25)"}`,
-                  color: exists ? "#7fffd4" : "#f0c040",
-                  cursor: "pointer",
+                  background: sideFacingDir === "left" ? "rgba(127,255,212,0.12)" : "transparent",
+                  color: sideFacingDir === "left" ? "#7fffd4" : "#6a5840",
+                  borderRight: "1px solid rgba(240,192,64,0.15)",
                 }}
               >
-                {exists ? "✓ " : "+ "}{pt.label}
+                ← Left Facing
               </button>
-            );
-          })}
+              <button
+                data-testid="button-side-right"
+                onClick={() => setSideFacingDir("right")}
+                className="flex-1 py-1.5 font-fantasy text-[9px] tracking-wider transition-colors"
+                style={{
+                  background: sideFacingDir === "right" ? "rgba(127,255,212,0.12)" : "transparent",
+                  color: sideFacingDir === "right" ? "#7fffd4" : "#6a5840",
+                }}
+              >
+                Right Facing →
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Part type groups */}
+        <div className="flex flex-col gap-2">
+          {(facingMode === "front" ? FRONT_PART_GROUPS : SIDE_PART_GROUPS).map(group => (
+            <div key={group.group}>
+              <p className="font-fantasy text-[8px] text-[#6a5840] tracking-widest uppercase mb-1 pl-0.5">{group.group}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {group.parts.map(pt => {
+                  const exists = viewParts.some(p => p.partType === pt.key);
+                  return (
+                    <button
+                      key={pt.key}
+                      data-testid={`button-upload-${pt.key}`}
+                      onClick={() => setUploadPartType(pt.key)}
+                      className="px-2 py-1 rounded font-fantasy text-[9px] tracking-wider transition-transform active:scale-95 flex items-center gap-1"
+                      style={{
+                        background: exists ? "rgba(127,255,212,0.15)" : "rgba(240,192,64,0.08)",
+                        border: `1px solid ${exists ? "rgba(127,255,212,0.3)" : "rgba(240,192,64,0.2)"}`,
+                        color: exists ? "#7fffd4" : "#f0c040",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {exists ? "✓" : "+"} {pt.label}
+                      {pt.animOnly && <span style={{ color: "#a89878", fontSize: "7px" }}>anim</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
 
         {selectedPart && (
@@ -425,7 +544,7 @@ export default function PetDatabasePanel() {
               <div className="flex items-center gap-2">
                 <span className="font-fantasy text-[#f0c040] text-xs tracking-wider capitalize">{selectedPart.partType}</span>
                 {(() => {
-                  const ptInfo = PART_TYPES.find(p => p.key === selectedPart.partType);
+                  const ptInfo = ALL_PART_DEFS.find(p => p.key === selectedPart.partType);
                   const layerLabel = ptInfo?.layer === "back" ? "Behind Body" : ptInfo?.layer === "body" ? "Body Layer" : "In Front";
                   const layerColor = ptInfo?.layer === "back" ? "#ff9966" : ptInfo?.layer === "body" ? "#7fbfb0" : "#66ccff";
                   return (
@@ -620,7 +739,7 @@ export default function PetDatabasePanel() {
                   }
                   const dataUrl = await readFileAsDataUrl(file);
                   const isBackFull = uploadPartType === "back_full";
-                  const ptConfig = PART_TYPES.find(p => p.key === uploadPartType);
+                  const ptConfig = ALL_PART_DEFS.find(p => p.key === uploadPartType);
                   const defaultZ = isBackFull ? 0 : (ptConfig?.defaultZ || 0);
                   addPartMutation.mutate({
                     templateId: selectedTemplateId!,

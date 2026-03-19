@@ -56,7 +56,7 @@ function WalkingPetView({ pet, index }: { pet: VisitedPet; index: number }) {
   });
 
   const hasWings = !!(templateData?.parts?.some(
-    (p) => p.partType === "left_wing" || p.partType === "right_wing" || p.partType === "wings"
+    (p) => p.partType === "left_wing" || p.partType === "right_wing" || p.partType === "wings" || p.partType === "front_wing" || p.partType === "back_wing"
   ));
 
   const cfg = hasWings
