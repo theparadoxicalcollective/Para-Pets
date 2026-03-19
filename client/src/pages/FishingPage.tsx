@@ -1344,43 +1344,43 @@ function TensionReel({
   const timerSecs = Math.ceil(timeLeft);
   const timerUrgent = timeLeft <= 5;
 
-  // Tension color: green → amber → red
-  const tensionColor = tension > 0.75
-    ? "#ef4444"
-    : tension > 0.45
-    ? "#f59e0b"
-    : "#4ade80";
-  const tensionGlow = tension > 0.75
-    ? "0 0 16px rgba(239,68,68,0.8)"
-    : tension > 0.45
-    ? "0 0 12px rgba(245,158,11,0.6)"
-    : "0 0 10px rgba(74,222,128,0.5)";
+  const tensionPct = Math.round(tension * 100);
+  const progressPct = Math.round(catchProgress * 100);
 
-  // Progress color
-  const progressGlow = "0 0 14px rgba(94,234,212,0.7)";
+  const tensionColor = tension > 0.75 ? "#ef4444" : tension > 0.45 ? "#f59e0b" : "#4ade80";
+  const tensionBg = tension > 0.75
+    ? "linear-gradient(90deg, #7f1d1d, #dc2626, #ef4444)"
+    : tension > 0.45
+    ? "linear-gradient(90deg, #78350f, #d97706, #f59e0b)"
+    : "linear-gradient(90deg, #14532d, #16a34a, #4ade80)";
+  const tensionGlow = tension > 0.75
+    ? "0 0 16px rgba(239,68,68,0.9)"
+    : tension > 0.45
+    ? "0 0 12px rgba(245,158,11,0.7)"
+    : "0 0 8px rgba(74,222,128,0.5)";
 
   return (
     <div
       className="absolute inset-0 flex flex-col items-center justify-end pointer-events-none"
       style={{
         zIndex: 30,
-        paddingBottom: 136,
+        paddingBottom: 148,
         animation: snapEffect ? "snapShake 0.5s ease-in-out" : (isSurging ? "surgeShake 0.15s ease-in-out infinite" : undefined),
       }}
     >
       <div
-        className="flex flex-col items-center gap-3 w-full px-6"
-        style={{ maxWidth: 340, userSelect: "none" }}
+        className="flex flex-col items-center gap-2 w-full px-5"
+        style={{ maxWidth: 320, userSelect: "none" }}
       >
-        {/* Status label */}
-        <div style={{ height: 20, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        {/* Alert / timer strip */}
+        <div style={{ height: 22, display: "flex", alignItems: "center", justifyContent: "center" }}>
           {snapEffect ? (
             <span className="font-fantasy text-sm tracking-widest" style={{ color: "#ef4444", textShadow: "0 0 12px rgba(239,68,68,1)", animation: "surgeFlash 0.2s ease-in-out infinite" }}>
-              LINE SNAPPED!
+              💥 LINE SNAPPED!
             </span>
           ) : isSurging ? (
-            <span className="font-fantasy text-[11px] tracking-widest" style={{ color: "#f97316", textShadow: "0 0 10px rgba(249,115,22,0.9)", animation: "surgeFlash 0.4s ease-in-out infinite" }}>
-              ⚡ SURGE! EASE OFF! ⚡
+            <span className="font-fantasy text-xs tracking-widest" style={{ color: "#f97316", textShadow: "0 0 10px rgba(249,115,22,0.9)", animation: "surgeFlash 0.35s ease-in-out infinite" }}>
+              ⚡ SURGE — RELEASE NOW! ⚡
             </span>
           ) : showTimer ? (
             <span className="font-fantasy text-[11px] tracking-widest font-bold" style={{
@@ -1388,109 +1388,132 @@ function TensionReel({
               textShadow: timerUrgent ? "0 0 10px rgba(239,68,68,0.9)" : "0 0 8px rgba(250,204,21,0.7)",
               animation: timerUrgent ? "surgeFlash 0.4s ease-in-out infinite" : undefined,
             }}>
-              {timerSecs}s
+              {timerSecs}s left
             </span>
-          ) : null}
+          ) : (
+            <span className="font-fantasy text-[9px] tracking-wider" style={{ color: "rgba(94,234,212,0.55)" }}>
+              {held ? "Reeling…" : "Hold the button to reel"}
+            </span>
+          )}
         </div>
 
-        {/* Tension vine / root meter */}
+        {/* ── TENSION BAR ── */}
         <div style={{ width: "100%" }}>
           <div className="flex items-center justify-between mb-1">
-            <span className="font-fantasy text-[8px] tracking-widest" style={{ color: "rgba(160,120,60,0.8)" }}>LINE TENSION</span>
-            <span className="font-fantasy text-[8px]" style={{ color: tensionColor }}>{Math.round(tension * 100)}%</span>
+            <div className="flex items-center gap-1">
+              <span style={{ fontSize: 10 }}>🌿</span>
+              <span className="font-fantasy text-[9px] tracking-widest" style={{ color: "rgba(200,150,70,0.9)" }}>LINE TENSION</span>
+              <span className="font-fantasy text-[8px]" style={{ color: "rgba(200,150,70,0.55)" }}>— keep this low!</span>
+            </div>
+            <span className="font-fantasy text-[9px] font-bold" style={{ color: tensionColor, textShadow: tension > 0.6 ? `0 0 8px ${tensionColor}` : undefined }}>
+              {tensionPct}%
+            </span>
           </div>
-          {/* Vine track */}
+          {/* Track */}
           <div style={{
-            width: "100%", height: 18, borderRadius: 10,
-            background: "linear-gradient(90deg, rgba(20,12,5,0.95), rgba(30,18,8,0.95))",
-            border: "1.5px solid rgba(80,50,20,0.7)",
-            boxShadow: "inset 0 2px 6px rgba(0,0,0,0.6)",
+            width: "100%", height: 20, borderRadius: 10,
+            background: "rgba(15,8,3,0.92)",
+            border: tension > 0.75 ? "1.5px solid rgba(239,68,68,0.7)" : "1.5px solid rgba(80,50,20,0.65)",
+            boxShadow: tension > 0.75 ? "0 0 12px rgba(239,68,68,0.3)" : "inset 0 2px 6px rgba(0,0,0,0.5)",
             position: "relative", overflow: "hidden",
+            transition: "border-color 0.3s ease, box-shadow 0.3s ease",
           }}>
-            {/* Root/vine fill */}
+            {/* Fill — no negative-width calc, just direct % */}
             <div style={{
-              position: "absolute", top: 2, left: 2, bottom: 2,
-              width: `calc(${tension * 100}% - 4px)`,
-              borderRadius: 8,
-              background: tension > 0.75
-                ? "linear-gradient(90deg, #7f1d1d, #dc2626, #ef4444)"
-                : tension > 0.45
-                ? "linear-gradient(90deg, #78350f, #d97706, #f59e0b)"
-                : "linear-gradient(90deg, #14532d, #16a34a, #4ade80)",
+              height: "100%",
+              width: `${tensionPct}%`,
+              borderRadius: 10,
+              background: tensionBg,
               boxShadow: tensionGlow,
-              transition: "width 0.06s ease, background 0.3s ease, box-shadow 0.3s ease",
+              transition: "width 0.06s ease, background 0.25s ease",
+              position: "relative",
             }}>
               {/* Vine knot bumps */}
-              {[0.25, 0.5, 0.75].map((p) => (
-                <div key={p} style={{
-                  position: "absolute", top: "50%", left: `${p * 100}%`,
-                  transform: "translate(-50%, -50%)",
-                  width: 8, height: 8, borderRadius: "50%",
-                  background: "rgba(255,255,255,0.15)",
-                  boxShadow: "0 0 4px rgba(255,255,255,0.2)",
-                  pointerEvents: "none",
-                }} />
-              ))}
+              {tensionPct > 25 && (
+                <div style={{ position: "absolute", top: "50%", left: "25%", transform: "translateY(-50%)", width: 7, height: 7, borderRadius: "50%", background: "rgba(255,255,255,0.18)" }} />
+              )}
+              {tensionPct > 50 && (
+                <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translateY(-50%)", width: 7, height: 7, borderRadius: "50%", background: "rgba(255,255,255,0.18)" }} />
+              )}
+              {tensionPct > 75 && (
+                <div style={{ position: "absolute", top: "50%", left: "75%", transform: "translateY(-50%)", width: 7, height: 7, borderRadius: "50%", background: "rgba(255,255,255,0.18)" }} />
+              )}
             </div>
-            {/* Pulsing glow overlay when tense */}
+            {/* Danger zone marker at 80% */}
+            <div style={{
+              position: "absolute", top: 0, bottom: 0, left: "80%", width: 2,
+              background: "rgba(239,68,68,0.5)",
+              boxShadow: "0 0 6px rgba(239,68,68,0.4)",
+            }} />
+            {/* Pulsing overlay at high tension */}
             {tension > 0.6 && (
               <div style={{
                 position: "absolute", inset: 0, borderRadius: 10,
-                background: `radial-gradient(ellipse at ${tension * 100}% 50%, ${tensionColor}22 0%, transparent 70%)`,
+                background: "linear-gradient(90deg, transparent 60%, rgba(239,68,68,0.2) 100%)",
                 animation: "tensionPulse 0.5s ease-in-out infinite",
-                pointerEvents: "none",
               }} />
             )}
           </div>
         </div>
 
-        {/* Catch progress — magical spirit line */}
+        {/* ── CATCH PROGRESS BAR ── */}
         <div style={{ width: "100%" }}>
           <div className="flex items-center justify-between mb-1">
-            <span className="font-fantasy text-[8px] tracking-widest" style={{ color: "rgba(94,200,180,0.8)" }}>CATCH PROGRESS</span>
-            <span className="font-fantasy text-[8px]" style={{ color: ACCENT }}>{Math.round(catchProgress * 100)}%</span>
-          </div>
-          {/* Spirit line track */}
-          <div style={{
-            width: "100%", height: 18, borderRadius: 10,
-            background: "linear-gradient(90deg, rgba(5,18,20,0.95), rgba(8,25,28,0.95))",
-            border: `1.5px solid rgba(94,234,212,0.3)`,
-            boxShadow: "inset 0 2px 6px rgba(0,0,0,0.6)",
-            position: "relative", overflow: "hidden",
-          }}>
-            {/* Magical energy fill */}
-            <div style={{
-              position: "absolute", top: 2, left: 2, bottom: 2,
-              width: `calc(${catchProgress * 100}% - 4px)`,
-              borderRadius: 8,
-              background: "linear-gradient(90deg, #0d4a3a, #0e9f85, #5eead4)",
-              boxShadow: progressGlow,
-              transition: "width 0.06s ease",
-            }}>
-              {/* Flowing energy particles */}
-              <div style={{
-                position: "absolute", inset: 0, borderRadius: 8,
-                background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.18) 50%, transparent 100%)",
-                animation: "energyFlow 1.2s linear infinite",
-              }} />
+            <div className="flex items-center gap-1">
+              <span style={{ fontSize: 10 }}>✨</span>
+              <span className="font-fantasy text-[9px] tracking-widest" style={{ color: "rgba(94,210,190,0.9)" }}>CATCH PROGRESS</span>
+              <span className="font-fantasy text-[8px]" style={{ color: "rgba(94,210,190,0.55)" }}>— fill to 100%!</span>
             </div>
-            {/* Glowing tip sparkle */}
-            {catchProgress > 0.05 && (
+            <span className="font-fantasy text-[9px] font-bold" style={{ color: ACCENT, textShadow: catchProgress > 0.6 ? `0 0 8px ${ACCENT}` : undefined }}>
+              {progressPct}%
+            </span>
+          </div>
+          {/* Track */}
+          <div style={{
+            width: "100%", height: 20, borderRadius: 10,
+            background: "rgba(4,14,16,0.92)",
+            border: `1.5px solid rgba(94,234,212,0.3)`,
+            boxShadow: catchProgress > 0.7 ? "0 0 14px rgba(94,234,212,0.35)" : "inset 0 2px 6px rgba(0,0,0,0.5)",
+            position: "relative", overflow: "hidden",
+            transition: "box-shadow 0.3s ease",
+          }}>
+            {/* Fill */}
+            <div style={{
+              height: "100%",
+              width: `${progressPct}%`,
+              borderRadius: 10,
+              background: "linear-gradient(90deg, #0d4a3a, #0db889, #5eead4)",
+              boxShadow: "0 0 14px rgba(94,234,212,0.7)",
+              transition: "width 0.06s ease",
+              position: "relative",
+              overflow: "hidden",
+            }}>
+              {/* Shimmer flow */}
+              {progressPct > 5 && (
+                <div style={{
+                  position: "absolute", inset: 0,
+                  background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.22) 50%, transparent 100%)",
+                  animation: "energyFlow 1.1s linear infinite",
+                }} />
+              )}
+            </div>
+            {/* Glowing leading edge orb */}
+            {progressPct > 3 && progressPct < 100 && (
               <div style={{
                 position: "absolute", top: "50%",
-                left: `calc(${catchProgress * 100}% - 6px)`,
-                transform: "translateY(-50%)",
-                width: 12, height: 12, borderRadius: "50%",
+                left: `${Math.min(progressPct, 97)}%`,
+                transform: "translate(-50%, -50%)",
+                width: 14, height: 14, borderRadius: "50%",
                 background: "#5eead4",
-                boxShadow: "0 0 12px rgba(94,234,212,1), 0 0 24px rgba(94,234,212,0.6)",
-                animation: "sparkleOrb 0.8s ease-in-out infinite",
+                boxShadow: "0 0 14px rgba(94,234,212,1), 0 0 28px rgba(94,234,212,0.6)",
+                animation: "sparkleOrb 0.75s ease-in-out infinite",
                 pointerEvents: "none",
               }} />
             )}
           </div>
         </div>
 
-        {/* Rune Reel Button */}
+        {/* ── REEL BUTTON ── */}
         <button
           data-testid="button-reel"
           onPointerDown={startHold}
@@ -1501,53 +1524,41 @@ function TensionReel({
           draggable={false}
           className="pointer-events-auto select-none"
           style={{
-            width: 80, height: 80, borderRadius: "50%",
+            marginTop: 4,
+            width: 88, height: 88, borderRadius: "50%",
             position: "relative",
             background: held
               ? "radial-gradient(circle at 40% 35%, #7a5230, #3d2512)"
               : "radial-gradient(circle at 40% 35%, #5c3d1e, #2a1a0a)",
             border: held
-              ? `3px solid rgba(94,234,212,0.9)`
-              : `3px solid rgba(120,85,40,0.8)`,
+              ? "3px solid rgba(94,234,212,0.95)"
+              : "3px solid rgba(130,90,40,0.85)",
             boxShadow: held
-              ? `0 0 32px rgba(94,234,212,0.7), 0 0 60px rgba(94,234,212,0.3), inset 0 0 20px rgba(94,234,212,0.15)`
-              : `0 4px 16px rgba(0,0,0,0.7), inset 0 1px 3px rgba(255,200,100,0.1)`,
+              ? "0 0 36px rgba(94,234,212,0.75), 0 0 64px rgba(94,234,212,0.3), inset 0 0 20px rgba(94,234,212,0.15)"
+              : "0 4px 18px rgba(0,0,0,0.75), inset 0 1px 3px rgba(255,200,100,0.1)",
             cursor: "pointer",
             touchAction: "none",
             WebkitTapHighlightColor: "transparent",
             WebkitTouchCallout: "none",
             outline: "none",
-            transform: held ? "scale(0.90)" : "scale(1)",
+            transform: held ? "scale(0.88)" : "scale(1)",
             transition: "transform 0.08s ease, box-shadow 0.12s ease, border-color 0.12s ease",
-            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2,
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1,
           }}
         >
           {/* Rune ring */}
-          <div style={{
-            position: "absolute", inset: 6, borderRadius: "50%",
-            border: held ? "1px solid rgba(94,234,212,0.5)" : "1px solid rgba(160,110,50,0.4)",
-            pointerEvents: "none",
-          }} />
-          {/* Inner rune mark */}
-          <div style={{
-            position: "absolute", inset: 14, borderRadius: "50%",
-            border: held ? "1px dashed rgba(94,234,212,0.3)" : "1px dashed rgba(120,80,30,0.3)",
-            pointerEvents: "none",
-            animation: held ? "runeRotate 2s linear infinite" : undefined,
-          }} />
-          <span style={{
-            fontSize: 9, fontWeight: 700, letterSpacing: "0.12em",
-            color: held ? "#5eead4" : "rgba(200,160,80,0.9)",
-            fontFamily: "Cinzel, serif",
-            textShadow: held ? "0 0 8px rgba(94,234,212,0.8)" : "0 1px 2px rgba(0,0,0,0.8)",
-            pointerEvents: "none",
-          }}>
-            {held ? "REEL" : "HOLD"}
+          <div style={{ position: "absolute", inset: 7, borderRadius: "50%", border: held ? "1px solid rgba(94,234,212,0.5)" : "1px solid rgba(160,110,50,0.4)", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", inset: 15, borderRadius: "50%", border: held ? "1px dashed rgba(94,234,212,0.35)" : "1px dashed rgba(120,80,30,0.3)", pointerEvents: "none", animation: held ? "runeRotate 2s linear infinite" : undefined }} />
+          <span style={{ fontSize: held ? 11 : 9, fontWeight: 700, letterSpacing: "0.12em", color: held ? "#5eead4" : "rgba(200,160,80,0.9)", fontFamily: "Cinzel, serif", textShadow: held ? "0 0 8px rgba(94,234,212,0.9)" : "0 1px 2px rgba(0,0,0,0.8)", pointerEvents: "none", transition: "font-size 0.1s ease" }}>
+            {held ? "REELING" : "HOLD"}
           </span>
-          <span style={{ fontSize: 18, pointerEvents: "none", filter: held ? "drop-shadow(0 0 6px rgba(94,234,212,0.8))" : undefined }}>
-            🎣
-          </span>
+          <span style={{ fontSize: 20, pointerEvents: "none", filter: held ? "drop-shadow(0 0 8px rgba(94,234,212,0.9))" : undefined, transition: "filter 0.1s ease" }}>🎣</span>
         </button>
+
+        {/* Hint label below button */}
+        <span className="font-fantasy text-[8px] tracking-wider" style={{ color: "rgba(94,234,212,0.4)", marginTop: -2 }}>
+          {held ? "release if tension gets high" : "hold & release to reel in"}
+        </span>
       </div>
     </div>
   );
