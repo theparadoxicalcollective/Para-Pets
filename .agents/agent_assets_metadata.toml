@@ -852,3 +852,9 @@ id = "0r8Q7TrNmvG1108P4PJ66"
 uri = "file://attached_assets/admin_pole.png"
 type = "image"
 title = "Admin Test Pole"
+
+[[outputs]]
+id = "RE-ozt5kSFcq-6AoD1WYH"
+uri = "file://attached_assets/generated_images/gift_icon_forest.png"
+type = "image"
+title = "Fantasy Forest Gift Icon"
