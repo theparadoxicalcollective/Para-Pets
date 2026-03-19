@@ -1421,6 +1421,8 @@ function TensionReel({
     ? "0 0 12px rgba(245,158,11,0.7)"
     : "0 0 8px rgba(74,222,128,0.5)";
 
+  const fishPulling = !held && !snapEffect && catchProgress > 0;
+
   return (
     <div
       className="absolute inset-0 flex flex-col items-center justify-end pointer-events-none"
@@ -1438,11 +1440,11 @@ function TensionReel({
         <div style={{ height: 22, display: "flex", alignItems: "center", justifyContent: "center" }}>
           {snapEffect ? (
             <span className="font-fantasy text-sm tracking-widest" style={{ color: "#ef4444", textShadow: "0 0 12px rgba(239,68,68,1)", animation: "surgeFlash 0.2s ease-in-out infinite" }}>
-              💥 LINE SNAPPED!
+              LINE SNAPPED!
             </span>
           ) : isSurging ? (
             <span className="font-fantasy text-xs tracking-widest" style={{ color: "#f97316", textShadow: "0 0 10px rgba(249,115,22,0.9)", animation: "surgeFlash 0.35s ease-in-out infinite" }}>
-              ⚡ SURGE — RELEASE NOW! ⚡
+              SURGE — RELEASE!
             </span>
           ) : showTimer ? (
             <span className="font-fantasy text-[11px] tracking-widest font-bold" style={{
@@ -1450,47 +1452,44 @@ function TensionReel({
               textShadow: timerUrgent ? "0 0 10px rgba(239,68,68,0.9)" : "0 0 8px rgba(250,204,21,0.7)",
               animation: timerUrgent ? "surgeFlash 0.4s ease-in-out infinite" : undefined,
             }}>
-              {timerSecs}s left
+              {timerSecs}s
             </span>
-          ) : (
-            <span className="font-fantasy text-[9px] tracking-wider" style={{ color: "rgba(94,234,212,0.55)" }}>
-              {held ? "Reeling…" : "Hold the button to reel"}
-            </span>
-          )}
+          ) : null}
+        </div>
+
+        {/* Fish-fight indicator — shows the fish actively resisting when not holding */}
+        <div style={{ height: 20, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: fishPulling ? 1 : 0, transition: "opacity 0.2s ease" }}>
+          <span style={{ fontSize: 12, animation: fishPulling ? "fishFightWiggle 0.35s ease-in-out infinite" : undefined }}>←</span>
+          <span className="font-fantasy text-[10px] tracking-widest" style={{ color: "rgba(239,115,68,0.95)", textShadow: "0 0 8px rgba(239,115,68,0.6)" }}>
+            FISH PULLING
+          </span>
+          <span style={{ fontSize: 12, animation: fishPulling ? "fishFightWiggle 0.35s ease-in-out infinite 0.1s" : undefined }}>←</span>
         </div>
 
         {/* ── TENSION BAR ── */}
-        <div style={{ width: "100%" }}>
-          <div className="flex items-center justify-between mb-1">
-            <div className="flex items-center gap-1">
-              <span style={{ fontSize: 10 }}>🌿</span>
-              <span className="font-fantasy text-[9px] tracking-widest" style={{ color: "rgba(200,150,70,0.9)" }}>LINE TENSION</span>
-              <span className="font-fantasy text-[8px]" style={{ color: "rgba(200,150,70,0.55)" }}>— keep this low!</span>
-            </div>
-            <span className="font-fantasy text-[9px] font-bold" style={{ color: tensionColor, textShadow: tension > 0.6 ? `0 0 8px ${tensionColor}` : undefined }}>
-              {tensionPct}%
-            </span>
+        <div style={{ width: "100%", display: "flex", alignItems: "center", gap: 7 }}>
+          {/* Rope icon */}
+          <div style={{ width: 14, height: 28, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0, gap: 2 }}>
+            <div style={{ width: 3, height: 28, borderRadius: 2, background: tension > 0.75 ? "#ef4444" : tension > 0.45 ? "#f59e0b" : "rgba(160,120,60,0.8)", boxShadow: tension > 0.6 ? `0 0 6px ${tensionColor}` : undefined, transition: "background 0.3s ease" }} />
           </div>
           {/* Track */}
           <div style={{
-            width: "100%", height: 20, borderRadius: 10,
+            flex: 1, height: 22, borderRadius: 11,
             background: "rgba(15,8,3,0.92)",
             border: tension > 0.75 ? "1.5px solid rgba(239,68,68,0.7)" : "1.5px solid rgba(80,50,20,0.65)",
             boxShadow: tension > 0.75 ? "0 0 12px rgba(239,68,68,0.3)" : "inset 0 2px 6px rgba(0,0,0,0.5)",
             position: "relative", overflow: "hidden",
             transition: "border-color 0.3s ease, box-shadow 0.3s ease",
           }}>
-            {/* Fill — no negative-width calc, just direct % */}
             <div style={{
               height: "100%",
               width: `${tensionPct}%`,
-              borderRadius: 10,
+              borderRadius: 11,
               background: tensionBg,
               boxShadow: tensionGlow,
               transition: "width 0.06s ease, background 0.25s ease",
               position: "relative",
             }}>
-              {/* Vine knot bumps */}
               {tensionPct > 25 && (
                 <div style={{ position: "absolute", top: "50%", left: "25%", transform: "translateY(-50%)", width: 7, height: 7, borderRadius: "50%", background: "rgba(255,255,255,0.18)" }} />
               )}
@@ -1501,16 +1500,14 @@ function TensionReel({
                 <div style={{ position: "absolute", top: "50%", left: "75%", transform: "translateY(-50%)", width: 7, height: 7, borderRadius: "50%", background: "rgba(255,255,255,0.18)" }} />
               )}
             </div>
-            {/* Danger zone marker at 80% */}
             <div style={{
               position: "absolute", top: 0, bottom: 0, left: "80%", width: 2,
               background: "rgba(239,68,68,0.5)",
               boxShadow: "0 0 6px rgba(239,68,68,0.4)",
             }} />
-            {/* Pulsing overlay at high tension */}
             {tension > 0.6 && (
               <div style={{
-                position: "absolute", inset: 0, borderRadius: 10,
+                position: "absolute", inset: 0, borderRadius: 11,
                 background: "linear-gradient(90deg, transparent 60%, rgba(239,68,68,0.2) 100%)",
                 animation: "tensionPulse 0.5s ease-in-out infinite",
               }} />
@@ -1519,38 +1516,30 @@ function TensionReel({
         </div>
 
         {/* ── CATCH PROGRESS BAR ── */}
-        <div style={{ width: "100%" }}>
-          <div className="flex items-center justify-between mb-1">
-            <div className="flex items-center gap-1">
-              <span style={{ fontSize: 10 }}>✨</span>
-              <span className="font-fantasy text-[9px] tracking-widest" style={{ color: "rgba(94,210,190,0.9)" }}>CATCH PROGRESS</span>
-              <span className="font-fantasy text-[8px]" style={{ color: "rgba(94,210,190,0.55)" }}>— fill to 100%!</span>
-            </div>
-            <span className="font-fantasy text-[9px] font-bold" style={{ color: ACCENT, textShadow: catchProgress > 0.6 ? `0 0 8px ${ACCENT}` : undefined }}>
-              {progressPct}%
-            </span>
+        <div style={{ width: "100%", display: "flex", alignItems: "center", gap: 7 }}>
+          {/* Fish silhouette icon */}
+          <div style={{ width: 14, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontSize: 13, lineHeight: 1, filter: catchProgress > 0.6 ? `drop-shadow(0 0 4px ${ACCENT})` : undefined, transition: "filter 0.3s ease", animation: fishPulling && catchProgress > 0 ? "fishFightWiggle 0.5s ease-in-out infinite" : undefined }}>🐟</span>
           </div>
           {/* Track */}
           <div style={{
-            width: "100%", height: 20, borderRadius: 10,
+            flex: 1, height: 22, borderRadius: 11,
             background: "rgba(4,14,16,0.92)",
             border: `1.5px solid rgba(94,234,212,0.3)`,
             boxShadow: catchProgress > 0.7 ? "0 0 14px rgba(94,234,212,0.35)" : "inset 0 2px 6px rgba(0,0,0,0.5)",
             position: "relative", overflow: "hidden",
             transition: "box-shadow 0.3s ease",
           }}>
-            {/* Fill */}
             <div style={{
               height: "100%",
               width: `${progressPct}%`,
-              borderRadius: 10,
+              borderRadius: 11,
               background: "linear-gradient(90deg, #0d4a3a, #0db889, #5eead4)",
               boxShadow: "0 0 14px rgba(94,234,212,0.7)",
               transition: "width 0.06s ease",
               position: "relative",
               overflow: "hidden",
             }}>
-              {/* Shimmer flow */}
               {progressPct > 5 && (
                 <div style={{
                   position: "absolute", inset: 0,
@@ -1559,7 +1548,6 @@ function TensionReel({
                 }} />
               )}
             </div>
-            {/* Glowing leading edge orb */}
             {progressPct > 3 && progressPct < 100 && (
               <div style={{
                 position: "absolute", top: "50%",
@@ -1570,6 +1558,14 @@ function TensionReel({
                 boxShadow: "0 0 14px rgba(94,234,212,1), 0 0 28px rgba(94,234,212,0.6)",
                 animation: "sparkleOrb 0.75s ease-in-out infinite",
                 pointerEvents: "none",
+              }} />
+            )}
+            {/* Progress drain ripple when fish is pulling */}
+            {fishPulling && progressPct > 0 && (
+              <div style={{
+                position: "absolute", inset: 0, borderRadius: 11,
+                background: "linear-gradient(270deg, transparent 40%, rgba(239,115,68,0.15) 100%)",
+                animation: "tensionPulse 0.4s ease-in-out infinite",
               }} />
             )}
           </div>
@@ -1586,7 +1582,7 @@ function TensionReel({
           draggable={false}
           className="pointer-events-auto select-none"
           style={{
-            marginTop: 4,
+            marginTop: 6,
             width: 88, height: 88, borderRadius: "50%",
             position: "relative",
             background: held
@@ -1606,6 +1602,7 @@ function TensionReel({
             transform: held ? "scale(0.88)" : "scale(1)",
             transition: "transform 0.08s ease, box-shadow 0.12s ease, border-color 0.12s ease",
             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1,
+            animation: !held ? "buttonIdlePulse 1.4s ease-in-out infinite" : undefined,
           }}
         >
           {/* Rune ring */}
@@ -1616,11 +1613,6 @@ function TensionReel({
           </span>
           <span style={{ fontSize: 20, pointerEvents: "none", filter: held ? "drop-shadow(0 0 8px rgba(94,234,212,0.9))" : undefined, transition: "filter 0.1s ease" }}>🎣</span>
         </button>
-
-        {/* Hint label below button */}
-        <span className="font-fantasy text-[8px] tracking-wider" style={{ color: "rgba(94,234,212,0.4)", marginTop: -2 }}>
-          {held ? "release if tension gets high" : "hold & release to reel in"}
-        </span>
       </div>
     </div>
   );
@@ -1747,5 +1739,14 @@ const FISHING_ANIMATIONS = `
   @keyframes runeRotate {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+  }
+  @keyframes fishFightWiggle {
+    0%, 100% { transform: translateX(0); }
+    30% { transform: translateX(-4px); }
+    70% { transform: translateX(2px); }
+  }
+  @keyframes buttonIdlePulse {
+    0%, 100% { box-shadow: 0 4px 18px rgba(0,0,0,0.75), inset 0 1px 3px rgba(255,200,100,0.1); }
+    50% { box-shadow: 0 4px 28px rgba(0,0,0,0.75), 0 0 20px rgba(200,160,80,0.35), inset 0 1px 3px rgba(255,200,100,0.1); }
   }
 `;
