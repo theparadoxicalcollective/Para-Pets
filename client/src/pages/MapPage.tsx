@@ -189,8 +189,6 @@ export default function MapPage({ user }: MapPageProps) {
 
   const handlePointerDown = useCallback((e: React.PointerEvent, w: WorldData) => {
     if (!currentUser.isAdmin) return;
-    e.preventDefault();
-    e.stopPropagation();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     didDrag.current = false;
     dragRef.current = {
@@ -204,11 +202,12 @@ export default function MapPage({ user }: MapPageProps) {
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!dragRef.current || !mapRef.current) return;
-    e.preventDefault();
     const rect = mapRef.current.getBoundingClientRect();
     const dx = e.clientX - dragRef.current.startX;
     const dy = e.clientY - dragRef.current.startY;
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDrag.current = true;
+    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) didDrag.current = true;
+    if (!didDrag.current) return;
+    e.preventDefault();
     const pxPerPercX = rect.width / 100;
     const pxPerPercY = rect.height / 100;
     const newX = Math.max(0, Math.min(85, dragRef.current.origPosX + dx / pxPerPercX));
@@ -218,7 +217,6 @@ export default function MapPage({ user }: MapPageProps) {
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
     if (!dragRef.current) return;
-    e.preventDefault();
     const d = dragRef.current;
     dragRef.current = null;
     if (didDrag.current && dragPos) {
