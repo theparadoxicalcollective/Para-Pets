@@ -75,7 +75,6 @@ type FishingPhase = "idle" | "casting" | "waiting" | "nibble" | "reeling" | "cau
 
 const ACCENT = "#5eead4";
 const NIBBLE_TIMEOUT = 1200; // ms per nibble pulse (3 pulses = 3.6s total)
-const FISH_ZONE_SIZE = 0.13;
 
 export default function FishingPage({ locationId, locationName, bgUrl, user, onClose }: FishingPageProps) {
   const [phase, setPhase] = useState<FishingPhase>("idle");
@@ -84,14 +83,12 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   const [showFishInv, setShowFishInv] = useState(false);
   const [showPondAdmin, setShowPondAdmin] = useState(false);
   const [showNoPoleModal, setShowNoPoleModal] = useState(false);
-  const [reelBarState, setReelBarState] = useState<{
-    fishPos: number;
-    catchZonePos: number;
-    catchMeter: number;
-    isOverlap: boolean;
+  const [tensionState, setTensionState] = useState<{
+    catchProgress: number;
+    tension: number;
     isSurging: boolean;
-    catchZoneSize: number;
     timeLeft: number;
+    snapEffect: boolean;
   } | null>(null);
   const [caughtItem, setCaughtItem] = useState<ShopItem | null>(null);
   const [bgLoaded, setBgLoaded] = useState(false);
@@ -103,7 +100,6 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   const castingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const phaseRef = useRef<FishingPhase>("idle");
   const rafRef = useRef<number | null>(null);
-  const catchZoneVelRef = useRef(0);
   const isHoldingRef = useRef(false);
   const poleSlotRef = useRef<HTMLDivElement>(null);
   const baitSlotRef = useRef<HTMLDivElement>(null);
@@ -368,55 +364,53 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   const startReeling = useCallback(() => {
     const rarity = Math.max(1, Math.min(5, nibbleRarityRef.current));
 
-    // Per-rarity tuning — hold-to-rise mechanic; higher stars = faster fish + smaller zone
-    // Apply any pole-specific slowdowns (stored as % reduction, e.g. 20 = 20% slower)
+    // Per-rarity tuning for tension/reeling mechanic
     const poleItem = equipDataRef.current?.poleItem;
     const slowdownFactor = (pct: number | null | undefined) => pct != null ? Math.max(0, 1 - pct / 100) : 1;
-    //                         1★      2★      3★      4★      5★
-    const speedByRarity   = [
-      0.007,
-      0.010,
-      0.013 * slowdownFactor(poleItem?.poleSlowdown3),
-      0.014 * slowdownFactor(poleItem?.poleSlowdown4),
-      0.019 * slowdownFactor(poleItem?.poleSlowdown5),
+
+    // Rate of catch progress gain per frame while holding
+    const reelRates       = [0.0090, 0.0075, 0.0062, 0.0050, 0.0040];
+    // Rate of tension rise per frame while holding (pole slowdowns reduce tension for high-rarity fish)
+    const tensionRiseBase = [0.0055, 0.0075, 0.0095, 0.0120, 0.0150];
+    const tensionRise     = [
+      tensionRiseBase[0],
+      tensionRiseBase[1],
+      tensionRiseBase[2] * slowdownFactor(poleItem?.poleSlowdown3),
+      tensionRiseBase[3] * slowdownFactor(poleItem?.poleSlowdown4),
+      tensionRiseBase[4] * slowdownFactor(poleItem?.poleSlowdown5),
     ];
-    const fillByRarity    = [0.0025, 0.0025, 0.003,  0.0032, 0.003 ];
-    const drainByRarity   = [0.0006, 0.001,  0.0015, 0.002,  0.003 ];
-    const zoneByRarity    = [0.30,   0.25,   0.21,   0.17,   0.14];
-    // Surge frequency scales with rarity
-    const surgeChance     = 0.006 + (rarity - 1) * 0.007;
-    // Direction-change window (frames): wider = slower, narrower = more chaotic
-    const dirBaseTimer    = Math.round(100 - (rarity - 1) * 16);
+    // Rate of tension fall per frame while NOT holding
+    const tensionFalls    = [0.0110, 0.0095, 0.0080, 0.0065, 0.0050];
+    // Rate catch progress drains per frame while NOT holding (fish pulling back)
+    const progressDrags   = [0.0018, 0.0026, 0.0036, 0.0048, 0.0062];
+    // Probability per frame a surge begins
+    const surgeChances    = [0.0030, 0.0045, 0.0060, 0.0080, 0.0105];
+    // Instant tension spike on surge
+    const surgeTSpikes    = [0.10,   0.14,   0.18,   0.23,   0.29  ];
+    // Instant progress drop on surge
+    const surgePDrops     = [0.05,   0.08,   0.11,   0.15,   0.20  ];
+
+    const reelRate     = reelRates[rarity - 1];
+    const tRise        = tensionRise[rarity - 1];
+    const tFall        = tensionFalls[rarity - 1];
+    const pDrag        = progressDrags[rarity - 1];
+    const surgeChance  = surgeChances[rarity - 1];
+    const surgeTSpike  = surgeTSpikes[rarity - 1];
+    const surgePDrop   = surgePDrops[rarity - 1];
 
     const REEL_TIMEOUT_MS = 30000;
 
-    const baseSpeed  = speedByRarity[rarity - 1];
-    const fillRate   = fillByRarity[rarity - 1];
-    const drainRate  = drainByRarity[rarity - 1];
-    const czSize     = zoneByRarity[rarity - 1];
-
-    // Zone starts at rest at the bottom; player holds to rise
-    catchZoneVelRef.current = 0;
     isHoldingRef.current = false;
 
-    let fishPos = 0.25 + Math.random() * 0.5;
-    let fishDir = Math.random() > 0.5 ? 1 : -1;
-    // Start catch zone near the bottom so there's room to hold-up into the fish
-    let catchZonePos = Math.min(1 - czSize, 0.75);
-    // Meter starts empty — fill it to win, or just be in the green when time runs out
-    let catchMeter = 0;
-    let surging = false;
-    let surgeTimer = 0;
-    let dirChangeTimer = dirBaseTimer + Math.floor(Math.random() * 40);
+    let catchProgress = 0;
+    let tension       = 0;
+    let surging       = false;
+    let surgeTimer    = 0;
+    const startTime   = Date.now();
 
-    const startTime = Date.now();
-
-    // Set ref directly so the first RAF tick sees "reeling" before the useEffect updates it
     phaseRef.current = "reeling";
     setPhase("reeling");
-    setReelBarState({ fishPos, catchZonePos, catchMeter, isOverlap: false, isSurging: false, catchZoneSize: czSize, timeLeft: 30 });
-
-    const GREEN_THRESHOLD = 0.6; // meter must be at least this to count as "in the green"
+    setTensionState({ catchProgress, tension, isSurging: false, timeLeft: 30, snapEffect: false });
 
     const tick = () => {
       if (phaseRef.current !== "reeling") return;
@@ -424,10 +418,9 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       const elapsed = Date.now() - startTime;
       const timeLeft = Math.max(0, (REEL_TIMEOUT_MS - elapsed) / 1000);
 
-      // 30-second timeout resolution — win if meter is in the green, lose otherwise
       if (timeLeft <= 0) {
-        setReelBarState(null);
-        if (catchMeter >= GREEN_THRESHOLD) {
+        setTensionState(null);
+        if (catchProgress >= 0.5) {
           playCatch();
           catchMutateRef.current(100);
         } else {
@@ -437,61 +430,46 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         return;
       }
 
-      // Fish movement — surges move faster
-      const fishSpeed = surging ? baseSpeed * 2.8 : baseSpeed;
-      fishPos += fishDir * fishSpeed;
-      if (fishPos <= 0) { fishPos = 0; fishDir = 1; surging = false; }
-      if (fishPos >= 1 - FISH_ZONE_SIZE) { fishPos = 1 - FISH_ZONE_SIZE; fishDir = -1; surging = false; }
-
-      // Direction flips — more frequent at higher rarity
-      dirChangeTimer--;
-      if (dirChangeTimer <= 0) {
-        fishDir *= -1;
-        dirChangeTimer = dirBaseTimer + Math.floor(Math.random() * 40);
+      if (isHoldingRef.current) {
+        // Reeling: progress fills, tension rises
+        catchProgress = Math.min(1, catchProgress + reelRate);
+        tension       = Math.min(1, tension + tRise);
+      } else {
+        // Resting: tension drops, fish drags progress back
+        tension       = Math.max(0, tension - tFall);
+        catchProgress = Math.max(0, catchProgress - pDrag);
       }
 
-      // Surge logic — scales with rarity
+      // Surge logic — random fish resistance
       surgeTimer--;
       if (!surging && surgeTimer <= 0) {
         if (Math.random() < surgeChance) {
           surging = true;
-          surgeTimer = 20 + Math.floor(Math.random() * 25);
+          tension       = Math.min(1, tension + surgeTSpike);
+          catchProgress = Math.max(0, catchProgress - surgePDrop);
+          surgeTimer    = 22 + Math.floor(Math.random() * 18);
         } else {
-          surgeTimer = 10 + Math.floor(Math.random() * 15);
+          surgeTimer = 12 + Math.floor(Math.random() * 18);
         }
       }
       if (surging && surgeTimer <= 0) surging = false;
 
-      // Catch zone physics — HOLD-TO-RISE mechanic:
-      // Holding lifts the zone up; releasing lets gravity pull it down.
-      const GRAVITY   = 0.003;
-      const LIFT      = 0.004;
-      const MAX_RISE  = 0.022;
-      const MAX_FALL  = 0.020;
-      if (isHoldingRef.current) {
-        catchZoneVelRef.current = Math.min(catchZoneVelRef.current + LIFT, MAX_RISE);
-      } else {
-        catchZoneVelRef.current = Math.max(catchZoneVelRef.current - GRAVITY, -MAX_FALL);
-      }
-      catchZonePos = Math.max(0, Math.min(1 - czSize, catchZonePos - catchZoneVelRef.current));
+      setTensionState({ catchProgress, tension, isSurging: surging, timeLeft, snapEffect: false });
 
-      // Overlap detection
-      const overlap =
-        fishPos < catchZonePos + czSize &&
-        fishPos + FISH_ZONE_SIZE > catchZonePos;
-
-      // Meter fills when overlapping, drains slowly when not — but hitting 0 is NOT a loss
-      if (overlap) {
-        catchMeter = Math.min(1, catchMeter + fillRate);
-      } else {
-        catchMeter = Math.max(0, catchMeter - drainRate);
+      // Line snap — tension maxed
+      if (tension >= 1) {
+        setTensionState({ catchProgress, tension: 1, isSurging: false, timeLeft, snapEffect: true });
+        setTimeout(() => {
+          setTensionState(null);
+          phaseRef.current = "missed";
+          setPhase("missed");
+        }, 600);
+        return;
       }
 
-      setReelBarState({ fishPos, catchZonePos, catchMeter, isOverlap: overlap, isSurging: surging, catchZoneSize: czSize, timeLeft });
-
-      // Instant win: meter fully filled before time runs out
-      if (catchMeter >= 1) {
-        setReelBarState(null);
+      // Win — progress filled
+      if (catchProgress >= 1) {
+        setTensionState(null);
         playCatch();
         catchMutateRef.current(100);
         return;
@@ -512,6 +490,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   const resetFishing = useCallback(() => {
     setPhase("idle");
     setCaughtItem(null);
+    setTensionState(null);
     setNibbleCount(0);
     nibbleCountRef.current = 0;
     clearAllTimers();
@@ -691,7 +670,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
              phase === "casting" ? "Casting..." :
              phase === "waiting" ? "Waiting for a bite..." :
              phase === "nibble" ? "Something's biting — tap anywhere!" :
-             phase === "reeling" ? "Hold to reel it in!" :
+             phase === "reeling" ? (tensionState?.isSurging ? "It's surging — ease off!" : tensionState && tensionState.tension > 0.7 ? "Tension critical — release!" : "Hold to reel, ease off if line tightens!") :
              phase === "caught" ? "You caught something!" : "It got away..."}
           </p>
         </div>
@@ -807,15 +786,31 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         </div>
       )}
 
-      {phase === "reeling" && reelBarState && (
-        <ReelBar
-          fishPos={reelBarState.fishPos}
-          catchZonePos={reelBarState.catchZonePos}
-          catchMeter={reelBarState.catchMeter}
-          isOverlap={reelBarState.isOverlap}
-          isSurging={reelBarState.isSurging}
-          catchZoneSize={reelBarState.catchZoneSize}
-          timeLeft={reelBarState.timeLeft}
+      {phase === "reeling" && equipData?.poleItem?.imageUrl && (
+        <div className="absolute pointer-events-none z-[15]" style={{
+          bottom: "20%", left: "0%",
+          width: 160, height: 160,
+          transformOrigin: "bottom left",
+          animation: tensionState && tensionState.tension > 0.6
+            ? "poleBendHigh 0.3s ease-in-out infinite"
+            : "poleBendLow 1.5s ease-in-out infinite",
+        }}>
+          <img
+            src={equipData.poleItem.hooklessImageUrl || equipData.poleItem.imageUrl}
+            alt=""
+            className="w-full h-full object-contain"
+            style={{ filter: `drop-shadow(0 0 ${tensionState && tensionState.tension > 0.6 ? "16px rgba(239,68,68,0.8)" : "10px rgba(94,234,212,0.7)"})` }}
+          />
+        </div>
+      )}
+
+      {phase === "reeling" && tensionState && (
+        <TensionReel
+          catchProgress={tensionState.catchProgress}
+          tension={tensionState.tension}
+          isSurging={tensionState.isSurging}
+          timeLeft={tensionState.timeLeft}
+          snapEffect={tensionState.snapEffect}
           onHoldChange={(holding) => { isHoldingRef.current = holding; }}
         />
       )}
@@ -1323,21 +1318,17 @@ function PondAdminPanel({
   );
 }
 
-function ReelBar({
-  fishPos, catchZonePos, catchMeter, isOverlap, isSurging, catchZoneSize, timeLeft, onHoldChange,
+function TensionReel({
+  catchProgress, tension, isSurging, timeLeft, snapEffect, onHoldChange,
 }: {
-  fishPos: number;
-  catchZonePos: number;
-  catchMeter: number;
-  isOverlap: boolean;
+  catchProgress: number;
+  tension: number;
   isSurging: boolean;
-  catchZoneSize: number;
   timeLeft: number;
+  snapEffect: boolean;
   onHoldChange: (holding: boolean) => void;
 }) {
   const [held, setHeld] = useState(false);
-  const BAR_H = 260;
-  const BAR_W = 52;
 
   const startHold = (e: React.PointerEvent) => {
     e.preventDefault();
@@ -1349,168 +1340,215 @@ function ReelBar({
     onHoldChange(false);
   };
 
-  const czTop = catchZonePos * BAR_H;
-  const czH = catchZoneSize * BAR_H;
-  const fishTop = fishPos * BAR_H;
-  const fishH = FISH_ZONE_SIZE * BAR_H;
-
   const showTimer = timeLeft <= 10;
   const timerSecs = Math.ceil(timeLeft);
   const timerUrgent = timeLeft <= 5;
 
+  // Tension color: green → amber → red
+  const tensionColor = tension > 0.75
+    ? "#ef4444"
+    : tension > 0.45
+    ? "#f59e0b"
+    : "#4ade80";
+  const tensionGlow = tension > 0.75
+    ? "0 0 16px rgba(239,68,68,0.8)"
+    : tension > 0.45
+    ? "0 0 12px rgba(245,158,11,0.6)"
+    : "0 0 10px rgba(74,222,128,0.5)";
+
+  // Progress color
+  const progressGlow = "0 0 14px rgba(94,234,212,0.7)";
+
   return (
     <div
-      className="absolute flex flex-col items-center gap-3"
-      style={{ right: 14, top: "50%", transform: "translateY(-55%)", zIndex: 30, userSelect: "none" }}
+      className="absolute inset-0 flex flex-col items-center justify-end pointer-events-none"
+      style={{
+        zIndex: 30,
+        paddingBottom: 136,
+        animation: snapEffect ? "snapShake 0.5s ease-in-out" : (isSurging ? "surgeShake 0.15s ease-in-out infinite" : undefined),
+      }}
     >
-      {/* Surge warning / countdown timer */}
-      <div style={{
-        height: 18,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}>
-        {isSurging ? (
-          <span
-            className="font-fantasy text-[10px] tracking-widest"
-            style={{ color: "#f97316", textShadow: "0 0 10px rgba(249,115,22,0.9)", animation: "surgeFlash 0.4s ease-in-out infinite" }}
-          >
-            SURGE!
-          </span>
-        ) : showTimer ? (
-          <span
-            className="font-fantasy text-[11px] tracking-widest font-bold"
-            style={{
+      <div
+        className="flex flex-col items-center gap-3 w-full px-6"
+        style={{ maxWidth: 340, userSelect: "none" }}
+      >
+        {/* Status label */}
+        <div style={{ height: 20, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          {snapEffect ? (
+            <span className="font-fantasy text-sm tracking-widest" style={{ color: "#ef4444", textShadow: "0 0 12px rgba(239,68,68,1)", animation: "surgeFlash 0.2s ease-in-out infinite" }}>
+              LINE SNAPPED!
+            </span>
+          ) : isSurging ? (
+            <span className="font-fantasy text-[11px] tracking-widest" style={{ color: "#f97316", textShadow: "0 0 10px rgba(249,115,22,0.9)", animation: "surgeFlash 0.4s ease-in-out infinite" }}>
+              ⚡ SURGE! EASE OFF! ⚡
+            </span>
+          ) : showTimer ? (
+            <span className="font-fantasy text-[11px] tracking-widest font-bold" style={{
               color: timerUrgent ? "#ef4444" : "#facc15",
               textShadow: timerUrgent ? "0 0 10px rgba(239,68,68,0.9)" : "0 0 8px rgba(250,204,21,0.7)",
               animation: timerUrgent ? "surgeFlash 0.4s ease-in-out infinite" : undefined,
-            }}
-          >
-            {timerSecs}s
-          </span>
-        ) : null}
-      </div>
-
-      {/* Catch meter */}
-      <div style={{ width: 80, height: 16, borderRadius: 8, background: "rgba(0,0,0,0.6)", border: "1px solid rgba(94,234,212,0.35)", overflow: "hidden" }}>
-        <div style={{
-          height: "100%",
-          width: `${catchMeter * 100}%`,
-          borderRadius: 5,
-          background: catchMeter > 0.6
-            ? "linear-gradient(90deg, #4ade80, #22c55e)"
-            : catchMeter > 0.3
-            ? "linear-gradient(90deg, #facc15, #eab308)"
-            : "linear-gradient(90deg, #ef4444, #dc2626)",
-          boxShadow: catchMeter > 0.6 ? "0 0 8px rgba(74,222,128,0.7)" : catchMeter > 0.3 ? "0 0 6px rgba(250,204,21,0.5)" : "0 0 6px rgba(239,68,68,0.4)",
-        }} />
-      </div>
-
-      {/* Main reel bar */}
-      <div style={{
-        width: BAR_W,
-        height: BAR_H,
-        borderRadius: 12,
-        background: "rgba(0,0,0,0.75)",
-        border: `1.5px solid ${isOverlap ? "rgba(74,222,128,0.6)" : "rgba(94,234,212,0.25)"}`,
-        boxShadow: isOverlap
-          ? "0 0 18px rgba(74,222,128,0.35), inset 0 0 10px rgba(74,222,128,0.1)"
-          : isSurging
-          ? "0 0 18px rgba(249,115,22,0.35)"
-          : "0 2px 12px rgba(0,0,0,0.6)",
-        position: "relative",
-        overflow: "hidden",
-        transition: "border-color 0.1s ease, box-shadow 0.1s ease",
-        animation: isSurging ? "surgeShake 0.15s ease-in-out infinite" : undefined,
-      }}>
-        {/* Subtle track lines */}
-        {[0.25, 0.5, 0.75].map(p => (
-          <div key={p} style={{
-            position: "absolute",
-            top: p * BAR_H,
-            left: 6,
-            right: 6,
-            height: 1,
-            background: "rgba(94,234,212,0.08)",
-          }} />
-        ))}
-
-        {/* Catch zone (player-controlled) */}
-        <div style={{
-          position: "absolute",
-          top: czTop,
-          left: 5,
-          right: 5,
-          height: czH,
-          borderRadius: 8,
-          background: isOverlap
-            ? "rgba(74,222,128,0.35)"
-            : "rgba(94,234,212,0.2)",
-          border: `1.5px solid ${isOverlap ? "rgba(74,222,128,0.8)" : "rgba(94,234,212,0.5)"}`,
-          boxShadow: isOverlap ? "0 0 12px rgba(74,222,128,0.5)" : undefined,
-          transition: "background 0.08s ease, border-color 0.08s ease",
-        }} />
-
-        {/* Fish indicator */}
-        <div style={{
-          position: "absolute",
-          top: fishTop,
-          left: 8,
-          right: 8,
-          height: fishH,
-          borderRadius: 6,
-          background: isSurging
-            ? "linear-gradient(180deg, rgba(249,115,22,0.9), rgba(239,68,68,0.8))"
-            : "linear-gradient(180deg, rgba(251,191,36,0.9), rgba(245,158,11,0.8))",
-          boxShadow: isSurging
-            ? "0 0 14px rgba(249,115,22,0.8)"
-            : "0 0 10px rgba(251,191,36,0.7)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 13,
-          transition: "background 0.1s ease",
-        }}>
-          🐟
+            }}>
+              {timerSecs}s
+            </span>
+          ) : null}
         </div>
-      </div>
 
-      {/* Hold button */}
-      <button
-        data-testid="button-reel"
-        onPointerDown={startHold}
-        onPointerUp={endHold}
-        onPointerLeave={endHold}
-        onPointerCancel={endHold}
-        onContextMenu={(e) => e.preventDefault()}
-        draggable={false}
-        className="w-16 h-16 rounded-full flex flex-col items-center justify-center gap-0.5 select-none"
-        style={{
-          background: held
-            ? `radial-gradient(circle, ${ACCENT}ff, ${ACCENT}cc)`
-            : `linear-gradient(135deg, ${ACCENT}cc, ${ACCENT}88)`,
-          border: `2px solid ${held ? ACCENT : ACCENT + "99"}`,
-          color: "#0a1a14",
-          cursor: "pointer",
-          boxShadow: held
-            ? `0 0 32px ${ACCENT}90, 0 0 12px ${ACCENT}60`
-            : `0 0 14px ${ACCENT}40`,
-          fontFamily: "Cinzel, serif",
-          touchAction: "none",
-          userSelect: "none",
-          WebkitUserSelect: "none",
-          WebkitTapHighlightColor: "transparent",
-          WebkitTouchCallout: "none",
-          outline: "none",
-          transform: held ? "scale(0.92)" : "scale(1)",
-          transition: "transform 0.08s ease, box-shadow 0.1s ease, background 0.1s ease",
-        }}
-      >
-        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", pointerEvents: "none" }}>
-          {held ? "↑↑↑" : "HOLD"}
-        </span>
-        <span style={{ fontSize: 14, pointerEvents: "none" }}>🎣</span>
-      </button>
+        {/* Tension vine / root meter */}
+        <div style={{ width: "100%" }}>
+          <div className="flex items-center justify-between mb-1">
+            <span className="font-fantasy text-[8px] tracking-widest" style={{ color: "rgba(160,120,60,0.8)" }}>LINE TENSION</span>
+            <span className="font-fantasy text-[8px]" style={{ color: tensionColor }}>{Math.round(tension * 100)}%</span>
+          </div>
+          {/* Vine track */}
+          <div style={{
+            width: "100%", height: 18, borderRadius: 10,
+            background: "linear-gradient(90deg, rgba(20,12,5,0.95), rgba(30,18,8,0.95))",
+            border: "1.5px solid rgba(80,50,20,0.7)",
+            boxShadow: "inset 0 2px 6px rgba(0,0,0,0.6)",
+            position: "relative", overflow: "hidden",
+          }}>
+            {/* Root/vine fill */}
+            <div style={{
+              position: "absolute", top: 2, left: 2, bottom: 2,
+              width: `calc(${tension * 100}% - 4px)`,
+              borderRadius: 8,
+              background: tension > 0.75
+                ? "linear-gradient(90deg, #7f1d1d, #dc2626, #ef4444)"
+                : tension > 0.45
+                ? "linear-gradient(90deg, #78350f, #d97706, #f59e0b)"
+                : "linear-gradient(90deg, #14532d, #16a34a, #4ade80)",
+              boxShadow: tensionGlow,
+              transition: "width 0.06s ease, background 0.3s ease, box-shadow 0.3s ease",
+            }}>
+              {/* Vine knot bumps */}
+              {[0.25, 0.5, 0.75].map((p) => (
+                <div key={p} style={{
+                  position: "absolute", top: "50%", left: `${p * 100}%`,
+                  transform: "translate(-50%, -50%)",
+                  width: 8, height: 8, borderRadius: "50%",
+                  background: "rgba(255,255,255,0.15)",
+                  boxShadow: "0 0 4px rgba(255,255,255,0.2)",
+                  pointerEvents: "none",
+                }} />
+              ))}
+            </div>
+            {/* Pulsing glow overlay when tense */}
+            {tension > 0.6 && (
+              <div style={{
+                position: "absolute", inset: 0, borderRadius: 10,
+                background: `radial-gradient(ellipse at ${tension * 100}% 50%, ${tensionColor}22 0%, transparent 70%)`,
+                animation: "tensionPulse 0.5s ease-in-out infinite",
+                pointerEvents: "none",
+              }} />
+            )}
+          </div>
+        </div>
+
+        {/* Catch progress — magical spirit line */}
+        <div style={{ width: "100%" }}>
+          <div className="flex items-center justify-between mb-1">
+            <span className="font-fantasy text-[8px] tracking-widest" style={{ color: "rgba(94,200,180,0.8)" }}>CATCH PROGRESS</span>
+            <span className="font-fantasy text-[8px]" style={{ color: ACCENT }}>{Math.round(catchProgress * 100)}%</span>
+          </div>
+          {/* Spirit line track */}
+          <div style={{
+            width: "100%", height: 18, borderRadius: 10,
+            background: "linear-gradient(90deg, rgba(5,18,20,0.95), rgba(8,25,28,0.95))",
+            border: `1.5px solid rgba(94,234,212,0.3)`,
+            boxShadow: "inset 0 2px 6px rgba(0,0,0,0.6)",
+            position: "relative", overflow: "hidden",
+          }}>
+            {/* Magical energy fill */}
+            <div style={{
+              position: "absolute", top: 2, left: 2, bottom: 2,
+              width: `calc(${catchProgress * 100}% - 4px)`,
+              borderRadius: 8,
+              background: "linear-gradient(90deg, #0d4a3a, #0e9f85, #5eead4)",
+              boxShadow: progressGlow,
+              transition: "width 0.06s ease",
+            }}>
+              {/* Flowing energy particles */}
+              <div style={{
+                position: "absolute", inset: 0, borderRadius: 8,
+                background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.18) 50%, transparent 100%)",
+                animation: "energyFlow 1.2s linear infinite",
+              }} />
+            </div>
+            {/* Glowing tip sparkle */}
+            {catchProgress > 0.05 && (
+              <div style={{
+                position: "absolute", top: "50%",
+                left: `calc(${catchProgress * 100}% - 6px)`,
+                transform: "translateY(-50%)",
+                width: 12, height: 12, borderRadius: "50%",
+                background: "#5eead4",
+                boxShadow: "0 0 12px rgba(94,234,212,1), 0 0 24px rgba(94,234,212,0.6)",
+                animation: "sparkleOrb 0.8s ease-in-out infinite",
+                pointerEvents: "none",
+              }} />
+            )}
+          </div>
+        </div>
+
+        {/* Rune Reel Button */}
+        <button
+          data-testid="button-reel"
+          onPointerDown={startHold}
+          onPointerUp={endHold}
+          onPointerLeave={endHold}
+          onPointerCancel={endHold}
+          onContextMenu={(e) => e.preventDefault()}
+          draggable={false}
+          className="pointer-events-auto select-none"
+          style={{
+            width: 80, height: 80, borderRadius: "50%",
+            position: "relative",
+            background: held
+              ? "radial-gradient(circle at 40% 35%, #7a5230, #3d2512)"
+              : "radial-gradient(circle at 40% 35%, #5c3d1e, #2a1a0a)",
+            border: held
+              ? `3px solid rgba(94,234,212,0.9)`
+              : `3px solid rgba(120,85,40,0.8)`,
+            boxShadow: held
+              ? `0 0 32px rgba(94,234,212,0.7), 0 0 60px rgba(94,234,212,0.3), inset 0 0 20px rgba(94,234,212,0.15)`
+              : `0 4px 16px rgba(0,0,0,0.7), inset 0 1px 3px rgba(255,200,100,0.1)`,
+            cursor: "pointer",
+            touchAction: "none",
+            WebkitTapHighlightColor: "transparent",
+            WebkitTouchCallout: "none",
+            outline: "none",
+            transform: held ? "scale(0.90)" : "scale(1)",
+            transition: "transform 0.08s ease, box-shadow 0.12s ease, border-color 0.12s ease",
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2,
+          }}
+        >
+          {/* Rune ring */}
+          <div style={{
+            position: "absolute", inset: 6, borderRadius: "50%",
+            border: held ? "1px solid rgba(94,234,212,0.5)" : "1px solid rgba(160,110,50,0.4)",
+            pointerEvents: "none",
+          }} />
+          {/* Inner rune mark */}
+          <div style={{
+            position: "absolute", inset: 14, borderRadius: "50%",
+            border: held ? "1px dashed rgba(94,234,212,0.3)" : "1px dashed rgba(120,80,30,0.3)",
+            pointerEvents: "none",
+            animation: held ? "runeRotate 2s linear infinite" : undefined,
+          }} />
+          <span style={{
+            fontSize: 9, fontWeight: 700, letterSpacing: "0.12em",
+            color: held ? "#5eead4" : "rgba(200,160,80,0.9)",
+            fontFamily: "Cinzel, serif",
+            textShadow: held ? "0 0 8px rgba(94,234,212,0.8)" : "0 1px 2px rgba(0,0,0,0.8)",
+            pointerEvents: "none",
+          }}>
+            {held ? "REEL" : "HOLD"}
+          </span>
+          <span style={{ fontSize: 18, pointerEvents: "none", filter: held ? "drop-shadow(0 0 6px rgba(94,234,212,0.8))" : undefined }}>
+            🎣
+          </span>
+        </button>
+      </div>
     </div>
   );
 }
@@ -1558,6 +1596,14 @@ const FISHING_ANIMATIONS = `
     0%, 100% { transform: rotate(-30deg) translateX(0); }
     50% { transform: rotate(-28deg) translateX(2px); }
   }
+  @keyframes poleBendLow {
+    0%, 100% { transform: rotate(-42deg) skewY(-2deg); }
+    50% { transform: rotate(-40deg) skewY(-4deg); }
+  }
+  @keyframes poleBendHigh {
+    0%, 100% { transform: rotate(-50deg) skewY(-8deg); }
+    50% { transform: rotate(-47deg) skewY(-10deg); }
+  }
   @keyframes catchPop {
     0% { transform: scale(0.5); opacity: 0; }
     60% { transform: scale(1.08); }
@@ -1598,7 +1644,35 @@ const FISHING_ANIMATIONS = `
   }
   @keyframes surgeShake {
     0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-2px); }
-    75% { transform: translateX(2px); }
+    25% { transform: translateX(-3px) translateY(-1px); }
+    75% { transform: translateX(3px) translateY(1px); }
+  }
+  @keyframes snapShake {
+    0%  { transform: translateX(0) scale(1); }
+    10% { transform: translateX(-8px) scale(1.02); }
+    20% { transform: translateX(8px) scale(0.98); }
+    30% { transform: translateX(-6px); }
+    40% { transform: translateX(6px); }
+    50% { transform: translateX(-4px); }
+    60% { transform: translateX(4px); }
+    70% { transform: translateX(-2px); }
+    85% { transform: translateX(2px); }
+    100% { transform: translateX(0) scale(1); }
+  }
+  @keyframes tensionPulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.9; }
+  }
+  @keyframes energyFlow {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(200%); }
+  }
+  @keyframes sparkleOrb {
+    0%, 100% { transform: translateY(-50%) scale(1); opacity: 1; }
+    50% { transform: translateY(-50%) scale(1.4); opacity: 0.7; }
+  }
+  @keyframes runeRotate {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
   }
 `;

@@ -1,0 +1,46 @@
+Update my fishing system to use a real-time tension/reeling mechanic, and redesign the visuals to match a fantasy forest / magical swamp game theme.
+
+MECHANICS:
+	•	When a fish is hooked, start a continuous reeling phase.
+	•	Player holds or taps a reel button to pull the fish in.
+	•	Add a tension meter that increases while reeling.
+	•	If tension is too high, the line can snap or fish escapes.
+	•	If the player stops reeling, tension decreases but fish pulls away (lose progress).
+	•	Add a visible catch progress bar.
+	•	Fish should resist dynamically (random pulls, tension spikes).
+
+REMOVE:
+	•	The current Stardew-style “follow the fish” bar mechanic.
+
+VISUAL + ART STYLE (IMPORTANT):
+Generate or replace all fishing UI and elements to match a fantasy forest / magical swamp aesthetic.
+
+Style guidelines:
+	•	Use a 2D stylized fantasy game art style (not realistic).
+	•	Colors: deep greens, mossy browns, glowing accents (teal, purple, soft yellow).
+	•	Lighting: soft glow, bioluminescent effects, magical atmosphere.
+
+Replace standard UI with themed elements:
+	•	Tension meter → a glowing vine or root that tightens and pulses with light as tension increases.
+	•	Progress bar → a magical energy flow or spirit line filling toward the player.
+	•	Fishing line → a glowing enchanted thread instead of a normal rope.
+	•	Fish → slightly fantastical creatures (glowing eyes, subtle magic effects).
+	•	Reel button → a wooden or rune-carved button with glow feedback when pressed.
+
+Add feedback:
+	•	Subtle particle effects (sparkles, spores, glowing dust).
+	•	Rod bending animation when tension is high.
+	•	Screen shake or pulse on strong fish resistance.
+
+GRAPHICS REQUIREMENTS:
+	•	Generate assets with transparent backgrounds where needed.
+	•	Keep UI readable on mobile screens.
+	•	Match an existing fantasy game style (soft shading, clean outlines, slightly exaggerated shapes).
+	•	Optimize for performance (lightweight assets).
+
+STRUCTURE:
+	•	Keep visuals modular so I can swap assets easily.
+	•	Separate logic (mechanics) from rendering (graphics).
+
+GOAL:
+Make the fishing feel immersive, magical, and alive—like the player is battling a mystical creature in a glowing swamp, not using a generic UI system.
