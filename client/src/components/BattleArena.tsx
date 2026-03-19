@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Swords, Star, Coins, X, ChevronRight, ArrowLeft, Heart } from "lucide-react";
+import { Swords, Star, Coins, X, ChevronRight, ArrowLeft, Heart, HelpCircle } from "lucide-react";
 import PetAnimator from "./PetAnimator";
 
 
@@ -125,6 +125,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const [slashTrail, setSlashTrail] = useState<{x: number; y: number}[]>([]);
   const [trailFading, setTrailFading] = useState(false);
   const [sparkParticles, setSparkParticles] = useState<SparkParticle[]>([]);
+  const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem("battleTutorialSeen"));
 
   const animFrameRef = useRef<number>(0);
   const arenaRef = useRef<HTMLDivElement>(null);
@@ -703,13 +704,23 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   </div>
                   <div className="text-gray-300 text-[10px] mt-0.5">{enemyHp} / {enemyMaxHp}</div>
                 </div>
-                <button
-                  onClick={handleReturnToWorld}
-                  className="p-1.5 bg-black/50 rounded-full hover:bg-black/70 transition-colors"
-                  data-testid="button-flee-battle"
-                >
-                  <X className="w-4 h-4 text-white" />
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setShowTutorial(true)}
+                    className="p-1.5 bg-black/50 rounded-full hover:bg-black/70 transition-colors"
+                    data-testid="button-battle-help"
+                    style={{ border: `1px solid ${accent}40`, color: `${accent}cc` }}
+                  >
+                    <HelpCircle className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={handleReturnToWorld}
+                    className="p-1.5 bg-black/50 rounded-full hover:bg-black/70 transition-colors"
+                    data-testid="button-flee-battle"
+                  >
+                    <X className="w-4 h-4 text-white" />
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1098,6 +1109,94 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   Continue
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Battle tutorial modal */}
+        {showTutorial && (
+          <div
+            className="absolute inset-0 z-50 flex items-center justify-center"
+            style={{ background: "rgba(0,0,0,0.82)", backdropFilter: "blur(8px)" }}
+          >
+            <div
+              className="flex flex-col gap-5 rounded-2xl px-7 py-7 mx-5 w-full"
+              style={{
+                background: "linear-gradient(145deg, rgba(8,4,18,0.98) 0%, rgba(20,6,6,0.98) 100%)",
+                border: `1.5px solid ${accent}45`,
+                boxShadow: `0 8px 48px rgba(0,0,0,0.85), 0 0 32px ${accent}12`,
+                maxWidth: 340,
+              }}
+            >
+              {/* Header */}
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ background: `${accent}22`, border: `1.5px solid ${accent}55` }}
+                >
+                  <Swords className="w-5 h-5" style={{ color: accent }} />
+                </div>
+                <p className="font-fantasy text-lg tracking-widest font-semibold" style={{ color: accent, textShadow: `0 0 14px ${accent}55` }}>
+                  How to Battle
+                </p>
+              </div>
+
+              {/* Steps */}
+              <div className="flex flex-col gap-4">
+                {[
+                  {
+                    num: "1",
+                    title: "Swipe to Slash",
+                    desc: "Drag your finger across the screen — your blade follows the exact path. Short taps do nothing, so commit to a full swipe.",
+                  },
+                  {
+                    num: "2",
+                    title: "Cut Through the Enemy",
+                    desc: "Your slash hits when it crosses the enemy. One clean swipe lands one hit — the blade doesn't multi-hit on the same pass.",
+                  },
+                  {
+                    num: "3",
+                    title: "Build Combos",
+                    desc: "Hit the enemy within 1.4 seconds of your last strike to stack a combo. Higher combos deal bonus damage.",
+                  },
+                  {
+                    num: "4",
+                    title: "Dodge & Survive",
+                    desc: "When the enemy lunges at your pet, it takes damage. Watch the HP bars — if your pet falls, the battle is lost.",
+                  },
+                ].map(({ num, title, desc }) => (
+                  <div key={num} className="flex gap-3 items-start">
+                    <div
+                      className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold font-fantasy mt-0.5"
+                      style={{ background: `${accent}22`, border: `1px solid ${accent}55`, color: accent }}
+                    >
+                      {num}
+                    </div>
+                    <div>
+                      <p className="font-fantasy text-sm font-semibold tracking-wide mb-0.5" style={{ color: accent }}>{title}</p>
+                      <p className="font-fantasy text-xs tracking-wide leading-relaxed" style={{ color: `${accent}99` }}>{desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Close button */}
+              <button
+                data-testid="button-battle-tutorial-close"
+                onClick={() => {
+                  localStorage.setItem("battleTutorialSeen", "1");
+                  setShowTutorial(false);
+                }}
+                className="font-fantasy text-sm tracking-[0.15em] px-6 py-2.5 rounded-xl transition-transform active:scale-95 self-center mt-1"
+                style={{
+                  background: `linear-gradient(135deg, rgba(10,4,20,0.9) 0%, rgba(24,8,8,0.9) 100%)`,
+                  border: `1.5px solid ${accent}60`,
+                  color: accent,
+                  boxShadow: `0 4px 16px rgba(0,0,0,0.5), 0 0 16px ${accent}20`,
+                }}
+              >
+                Ready — let's fight!
+              </button>
             </div>
           </div>
         )}
