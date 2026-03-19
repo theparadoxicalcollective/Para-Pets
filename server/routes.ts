@@ -550,13 +550,11 @@ export async function registerRoutes(
     }
   });
 
-  const ADMIN_POLE_SHOP_ID = "00000000-0000-0000-0000-admin0000pole";
-
   app.get("/api/inventory", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
       const rows = await storage.getUserInventoryWithItems(user.id);
-      const filteredRows = user.isAdmin ? rows : rows.filter(({ inventory: inv }) => inv.shopItemId !== ADMIN_POLE_SHOP_ID);
+      const filteredRows = rows;
 
       // Backfill poleUsesLeft for poles that gained a use-limit after being purchased
       await Promise.all(filteredRows.map(async ({ inventory: inv, shopItem }) => {
