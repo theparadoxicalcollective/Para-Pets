@@ -1,0 +1,44 @@
+I want to change my current slash battle system so it feels more like the swipe/slash mechanic in Fruit Ninja.
+
+Main goal:
+Make slashing feel smooth, fast, direct, and finger-driven instead of like a slow attack animation or tap-based hit.
+
+Desired behavior:
+- The slash should track the player’s finger movement in real time.
+- A swipe should create a visible trailing slash line that follows the exact drag path.
+- Damage should happen when the swipe path intersects an enemy or hitbox.
+- A single swipe should be able to hit multiple enemies if the slash path crosses them.
+- The system should prioritize responsiveness and immediate feedback.
+- Slashes should feel quick and clean, not delayed or heavy.
+
+Important mechanic details:
+- Detect continuous swipe motion, not just tap start and end.
+- Sample the swipe path across multiple points so fast swipes still register properly.
+- Use line or trail collision detection between swipe points to determine hits.
+- Prevent one enemy from being hit multiple times by the same slash unless explicitly intended.
+- Add minimum swipe speed and/or minimum swipe distance so tiny accidental touches do not count as attacks.
+- End the slash when the finger is lifted.
+- The slash trail should fade out quickly after the swipe ends.
+
+Visual feel:
+- Add a smooth curved slash trail.
+- Trail should feel juicy and polished, with light interpolation/smoothing.
+- Add hit sparks, slice effects, small screen shake, or damage pop when an enemy is hit.
+- Optionally vary slash thickness slightly based on swipe speed.
+
+Gameplay feel:
+- Fast swipes should feel more powerful and satisfying.
+- The mechanic should reward clean, deliberate swipes.
+- Input latency should be as low as possible.
+- The slash should feel like the finger is the blade.
+
+Please help me refactor my current slash system to work this way.
+Explain what parts of my current code need to change, then implement:
+1. finger path tracking
+2. slash trail rendering
+3. line-segment hit detection
+4. multi-hit handling for one swipe
+5. swipe validation rules
+6. polish effects for impact feedback
+
+Make my slash system finger-traced instead of animation-based. I want the slash to follow the exact swipe path in real time, render a trailing blade effect, and deal damage to enemies whose hitboxes intersect the swipe line. One swipe can hit multiple enemies, but each enemy should only be hit once per swipe. Add minimum swipe distance/speed checks, responsive hit effects, and quick trail fadeout so the mechanic feels smooth and satisfying like a fruit-slicing game.

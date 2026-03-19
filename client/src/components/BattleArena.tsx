@@ -52,11 +52,13 @@ interface SlashEffect {
   y: number;
 }
 
-interface SlashLine {
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
+interface SparkParticle {
+  id: number;
+  x: number;
+  y: number;
+  dx: number;
+  dy: number;
+  color: string;
 }
 
 interface DamageNumber {
@@ -77,6 +79,24 @@ interface InventoryPotion {
 }
 
 type BattlePhase = "loading" | "intro" | "battle" | "victory" | "waveComplete" | "defeat";
+
+function buildSlashPath(pts: {x: number; y: number}[]): string {
+  if (pts.length < 2) return "";
+  if (pts.length === 2) return `M${pts[0].x},${pts[0].y} L${pts[1].x},${pts[1].y}`;
+  let d = `M${pts[0].x},${pts[0].y}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[Math.min(pts.length - 1, i + 2)];
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = p1.y + (p2.y - p0.y) / 6;
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = p2.y - (p3.y - p1.y) / 6;
+    d += ` C${cp1x.toFixed(2)},${cp1y.toFixed(2)} ${cp2x.toFixed(2)},${cp2y.toFixed(2)} ${p2.x},${p2.y}`;
+  }
+  return d;
+}
 
 export default function BattleArena({ locationId, locationName, bgUrl, accent, onClose, onBattleEnd }: BattleArenaProps) {
   const { toast } = useToast();
@@ -102,13 +122,17 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const [lastHitTime, setLastHitTime] = useState(0);
   const [totalRewards, setTotalRewards] = useState<{ lvlPoints: number; coins: number; items: any[]; levelsGained: number }>({ lvlPoints: 0, coins: 0, items: [], levelsGained: 0 });
 
-  const [slashLine, setSlashLine] = useState<SlashLine | null>(null);
+  const [slashTrail, setSlashTrail] = useState<{x: number; y: number}[]>([]);
+  const [trailFading, setTrailFading] = useState(false);
+  const [sparkParticles, setSparkParticles] = useState<SparkParticle[]>([]);
 
   const animFrameRef = useRef<number>(0);
   const arenaRef = useRef<HTMLDivElement>(null);
   const slashIdRef = useRef(0);
   const dmgIdRef = useRef(0);
-  const slashStartRef = useRef<{ x: number; y: number } | null>(null);
+  const swipePathRef = useRef<{x: number; y: number}[]>([]);
+  const lastSwipePointRef = useRef<{x: number; y: number} | null>(null);
+  const hitEnemiesRef = useRef<Set<string>>(new Set());
   const isSlashingRef = useRef(false);
   const battleActiveRef = useRef(false);
   const enemyPosRef = useRef(enemyPos);
@@ -351,96 +375,147 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     };
   };
 
-  const resolveSlash = useCallback((x1: number, y1: number, x2: number, y2: number) => {
+  // Per-segment hit check called in real-time during finger drag
+  const checkSegmentHit = useCallback((ax: number, ay: number, bx: number, by: number) => {
     if (!battleActiveRef.current || !enemy) return;
-    const slashLen = Math.hypot(x2 - x1, y2 - y1);
-    if (slashLen < 8) return; // too short — must be a real drag
+
+    // Skip if this enemy was already hit during this swipe
+    if (hitEnemiesRef.current.has(enemy.enemyId)) return;
+
+    // Minimum swipe path before any hit can register (prevents accidental taps)
+    const totalPathLen = swipePathRef.current.reduce((acc, p, i) => {
+      if (i === 0) return 0;
+      const prev = swipePathRef.current[i - 1];
+      return acc + Math.hypot(p.x - prev.x, p.y - prev.y);
+    }, 0);
+    if (totalPathLen < 5) return;
 
     const ePos = enemyPosRef.current;
-    const dist = segmentPointDist(x1, y1, x2, y2, ePos.x, ePos.y);
-    const hitRadius = 18;
+    const dist = segmentPointDist(ax, ay, bx, by, ePos.x, ePos.y);
+    const hitRadius = enemy.isBoss ? 22 : 16;
+    if (dist >= hitRadius) return;
 
-    if (dist < hitRadius) {
-      const now = Date.now();
-      let combo = comboCount;
-      if (now - lastHitTime < 1400) {
-        combo += 1;
-      } else {
-        combo = 1;
-      }
-      setComboCount(combo);
-      setLastHitTime(now);
+    // Register hit — enemy can only be struck once per swipe
+    hitEnemiesRef.current.add(enemy.enemyId);
 
-      const comboMult = 1 + Math.min(combo * 0.1, 0.5);
-      const isCrit = Math.random() < 0.15;
-      const critMult = isCrit ? 1.8 : 1;
-      const rawDmg = petStatsRef.current.atk - Math.floor(enemyStatsRef.current.def * 0.3);
-      const dmg = Math.max(1, Math.floor((rawDmg + Math.floor(Math.random() * 8) - 4) * comboMult * critMult));
+    const now = Date.now();
+    let combo = comboCount;
+    if (now - lastHitTime < 1400) combo += 1; else combo = 1;
+    setComboCount(combo);
+    setLastHitTime(now);
 
-      enemyHpRef.current = Math.max(0, enemyHpRef.current - dmg);
-      setEnemyHp(enemyHpRef.current);
-      setEnemyHit(true);
-      setTimeout(() => setEnemyHit(false), 220);
+    const comboMult = 1 + Math.min(combo * 0.1, 0.5);
+    const isCrit = Math.random() < 0.15;
+    const critMult = isCrit ? 1.8 : 1;
+    const rawDmg = petStatsRef.current.atk - Math.floor(enemyStatsRef.current.def * 0.3);
+    const dmg = Math.max(1, Math.floor((rawDmg + Math.floor(Math.random() * 8) - 4) * comboMult * critMult));
 
-      // Slash mark effect at enemy position
-      const slashMark: SlashEffect = { id: slashIdRef.current++, x: ePos.x, y: ePos.y };
-      setSlashEffects(prev => [...prev, slashMark]);
-      setTimeout(() => setSlashEffects(prev => prev.filter(s => s.id !== slashMark.id)), 500);
+    enemyHpRef.current = Math.max(0, enemyHpRef.current - dmg);
+    setEnemyHp(enemyHpRef.current);
+    setEnemyHit(true);
+    setShakeScreen(true);
+    setTimeout(() => { setEnemyHit(false); setShakeScreen(false); }, 200);
 
-      // Knockback in the slash direction
-      const sdx = x2 - x1, sdy = y2 - y1;
-      const sLen = Math.hypot(sdx, sdy) || 1;
-      enemyPosRef.current = {
-        ...ePos,
-        vx: (sdx / sLen) * 2.5 + (Math.random() - 0.5),
-        vy: (sdy / sLen) * 2.5 + (Math.random() - 0.5),
+    // Slash mark at enemy position
+    const markId = slashIdRef.current++;
+    const slashMark: SlashEffect = { id: markId, x: ePos.x, y: ePos.y };
+    setSlashEffects(prev => [...prev, slashMark]);
+    setTimeout(() => setSlashEffects(prev => prev.filter(s => s.id !== markId)), 500);
+
+    // Spark burst — 8 particles radiating outward from hit point
+    const sparkColor = isCrit ? "#fbbf24" : accent;
+    const newSparks: SparkParticle[] = Array.from({ length: 10 }, (_, i) => {
+      const angle = (i / 10) * Math.PI * 2 + Math.random() * 0.4;
+      const speed = 1.8 + Math.random() * 2.8;
+      return {
+        id: slashIdRef.current++,
+        x: ePos.x,
+        y: ePos.y,
+        dx: Math.cos(angle) * speed,
+        dy: Math.sin(angle) * speed,
+        color: sparkColor,
       };
+    });
+    setSparkParticles(prev => [...prev, ...newSparks]);
+    const sparkIds = new Set(newSparks.map(s => s.id));
+    setTimeout(() => setSparkParticles(prev => prev.filter(s => !sparkIds.has(s.id))), 480);
 
-      const dmgNum: DamageNumber = {
-        id: dmgIdRef.current++,
-        x: ePos.x + (Math.random() * 10 - 5),
-        y: ePos.y - 5,
-        value: dmg,
-        isCrit,
-      };
-      setDamageNumbers(prev => [...prev, dmgNum]);
-      setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== dmgNum.id)), 1000);
+    // Knockback in the slash direction
+    const sdx = bx - ax, sdy = by - ay;
+    const sLen = Math.hypot(sdx, sdy) || 1;
+    enemyPosRef.current = {
+      ...ePos,
+      vx: (sdx / sLen) * 3 + (Math.random() - 0.5),
+      vy: (sdy / sLen) * 3 + (Math.random() - 0.5),
+    };
 
-      if (enemyHpRef.current <= 0) {
-        battleActiveRef.current = false;
-        defeatMutation.mutate({ enemyId: enemy.enemyId, enemyLevel: enemy.level });
-        const hasMore = waveIndex + 1 < allEnemies.length;
-        setPhase(hasMore ? "waveComplete" : "victory");
-      }
+    // Damage number
+    const dmgNum: DamageNumber = {
+      id: dmgIdRef.current++,
+      x: ePos.x + (Math.random() * 10 - 5),
+      y: ePos.y - 5,
+      value: dmg,
+      isCrit,
+    };
+    setDamageNumbers(prev => [...prev, dmgNum]);
+    setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== dmgNum.id)), 1000);
+
+    if (enemyHpRef.current <= 0) {
+      battleActiveRef.current = false;
+      defeatMutation.mutate({ enemyId: enemy.enemyId, enemyLevel: enemy.level });
+      const hasMore = waveIndex + 1 < allEnemies.length;
+      setPhase(hasMore ? "waveComplete" : "victory");
     }
-  }, [enemy, comboCount, lastHitTime, defeatMutation, waveIndex, allEnemies.length]);
+  }, [enemy, comboCount, lastHitTime, defeatMutation, waveIndex, allEnemies.length, accent]);
 
   const handleSlashStart = useCallback((e: React.PointerEvent) => {
     if (!battleActiveRef.current) return;
     e.preventDefault();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     const pos = getArenaPos(e.clientX, e.clientY);
-    slashStartRef.current = pos;
+    swipePathRef.current = [pos];
+    lastSwipePointRef.current = pos;
+    hitEnemiesRef.current = new Set();
     isSlashingRef.current = true;
-    setSlashLine({ x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y });
+    setTrailFading(false);
+    setSlashTrail([pos]);
   }, []);
 
   const handleSlashMove = useCallback((e: React.PointerEvent) => {
-    if (!isSlashingRef.current || !slashStartRef.current) return;
+    if (!isSlashingRef.current || !lastSwipePointRef.current) return;
     const pos = getArenaPos(e.clientX, e.clientY);
-    setSlashLine({ x1: slashStartRef.current.x, y1: slashStartRef.current.y, x2: pos.x, y2: pos.y });
-  }, []);
+    const last = lastSwipePointRef.current;
+    const dist = Math.hypot(pos.x - last.x, pos.y - last.y);
 
-  const handleSlashEnd = useCallback((e: React.PointerEvent) => {
-    if (!isSlashingRef.current || !slashStartRef.current) return;
+    // Throttle: only add a point when finger has moved enough (prevents jitter noise)
+    if (dist < 0.6) return;
+
+    swipePathRef.current.push(pos);
+    lastSwipePointRef.current = pos;
+    setSlashTrail([...swipePathRef.current]);
+
+    // Real-time hit detection on this new segment
+    const path = swipePathRef.current;
+    if (path.length >= 2) {
+      const prev = path[path.length - 2];
+      checkSegmentHit(prev.x, prev.y, pos.x, pos.y);
+    }
+  }, [checkSegmentHit]);
+
+  const handleSlashEnd = useCallback((_e: React.PointerEvent) => {
+    if (!isSlashingRef.current) return;
     isSlashingRef.current = false;
-    const pos = getArenaPos(e.clientX, e.clientY);
-    const start = slashStartRef.current;
-    slashStartRef.current = null;
-    resolveSlash(start.x, start.y, pos.x, pos.y);
-    // Keep the line briefly then fade
-    setTimeout(() => setSlashLine(null), 250);
-  }, [resolveSlash]);
+    // Fade then clear
+    if (swipePathRef.current.length >= 2) {
+      setTrailFading(true);
+    }
+    setTimeout(() => {
+      setSlashTrail([]);
+      setTrailFading(false);
+    }, 320);
+    swipePathRef.current = [];
+    lastSwipePointRef.current = null;
+  }, []);
 
   const handleAdvance = useCallback(() => {
     const nextIdx = waveIndex + 1;
@@ -487,9 +562,10 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           0%   { transform: scale(0.5); opacity: 0.9; }
           100% { transform: scale(2.2); opacity: 0; }
         }
-        @keyframes slashLineAnim {
-          0%   { opacity: 0.95; }
-          100% { opacity: 0; }
+        @keyframes sparkFly {
+          0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+          60%  { opacity: 0.8; }
+          100% { transform: translate(var(--spark-dx), var(--spark-dy)) scale(0.2); opacity: 0; }
         }
         @keyframes dmgFloat {
           0% { transform: translateY(0) scale(1); opacity: 1; }
@@ -743,46 +819,68 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           </>
         )}
 
-        {/* Live slash line — drawn while dragging */}
-        {slashLine && (
+        {/* Finger-traced slash trail — smooth Catmull-Rom curve through all drag points */}
+        {slashTrail.length >= 2 && (
           <svg
             className="absolute inset-0 pointer-events-none z-30"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
             style={{ width: "100%", height: "100%", overflow: "visible" }}
           >
             <defs>
-              <linearGradient id="slashGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="white" stopOpacity="0.1" />
-                <stop offset="50%" stopColor={accent} stopOpacity="0.95" />
-                <stop offset="100%" stopColor="white" stopOpacity="0.8" />
-              </linearGradient>
               <filter id="slashGlow">
-                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feGaussianBlur stdDeviation="1.8" result="blur" />
                 <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
               </filter>
             </defs>
-            {/* Glow layer */}
-            <line
-              x1={`${slashLine.x1}%`} y1={`${slashLine.y1}%`}
-              x2={`${slashLine.x2}%`} y2={`${slashLine.y2}%`}
-              stroke={accent} strokeWidth="10" strokeLinecap="round"
-              opacity="0.25" filter="url(#slashGlow)"
+            {/* Wide glow halo */}
+            <path
+              d={buildSlashPath(slashTrail)}
+              stroke={accent} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"
+              fill="none"
+              opacity={trailFading ? 0 : 0.35}
+              filter="url(#slashGlow)"
+              style={{ transition: trailFading ? "opacity 0.32s ease-out" : undefined }}
             />
-            {/* Core line */}
-            <line
-              x1={`${slashLine.x1}%`} y1={`${slashLine.y1}%`}
-              x2={`${slashLine.x2}%`} y2={`${slashLine.y2}%`}
-              stroke="url(#slashGrad)" strokeWidth="3.5" strokeLinecap="round"
-              opacity="0.95"
+            {/* Core colored blade */}
+            <path
+              d={buildSlashPath(slashTrail)}
+              stroke={accent} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+              fill="none"
+              opacity={trailFading ? 0 : 0.95}
+              style={{ transition: trailFading ? "opacity 0.32s ease-out" : undefined }}
             />
-            {/* Bright center highlight */}
-            <line
-              x1={`${slashLine.x1}%`} y1={`${slashLine.y1}%`}
-              x2={`${slashLine.x2}%`} y2={`${slashLine.y2}%`}
-              stroke="white" strokeWidth="1.2" strokeLinecap="round"
-              opacity="0.6"
+            {/* White edge highlight */}
+            <path
+              d={buildSlashPath(slashTrail)}
+              stroke="white" strokeWidth="0.9" strokeLinecap="round" strokeLinejoin="round"
+              fill="none"
+              opacity={trailFading ? 0 : 0.6}
+              style={{ transition: trailFading ? "opacity 0.32s ease-out" : undefined }}
             />
           </svg>
         )}
+
+        {/* Spark particles on hit */}
+        {sparkParticles.map(spark => (
+          <div
+            key={spark.id}
+            className="absolute pointer-events-none rounded-full z-35"
+            style={{
+              left: `${spark.x}%`,
+              top: `${spark.y}%`,
+              width: 6,
+              height: 6,
+              marginLeft: -3,
+              marginTop: -3,
+              background: spark.color,
+              boxShadow: `0 0 8px ${spark.color}, 0 0 3px white`,
+              animation: "sparkFly 0.45s ease-out forwards",
+              ["--spark-dx" as any]: `${spark.dx * 12}px`,
+              ["--spark-dy" as any]: `${spark.dy * 12}px`,
+            }}
+          />
+        ))}
 
         {/* Slash hit marks on enemy */}
         {slashEffects.map(slash => (
