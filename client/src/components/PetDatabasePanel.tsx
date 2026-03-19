@@ -360,7 +360,7 @@ export default function PetDatabasePanel() {
           className="relative mx-auto rounded-lg overflow-hidden"
           style={{
             width: "100%",
-            maxWidth: "500px",
+            maxWidth: "800px",
             aspectRatio: "1",
             background: "repeating-conic-gradient(rgba(255,255,255,0.03) 0% 25%, transparent 0% 50%) 0 0 / 20px 20px",
             border: pivotMode ? "2px solid rgba(255,80,80,0.6)" : "2px solid rgba(240,192,64,0.3)",
