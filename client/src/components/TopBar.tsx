@@ -5,6 +5,7 @@ import homeIconImg from "@assets/icon_home_new.png";
 import coinIconImg from "@assets/icon_coin.png";
 import petHouseIconImg from "@assets/icon_pet_house.png";
 import marketIconImg from "@assets/icon_market.png";
+import giftIconImg from "@assets/generated_images/gift_icon_forest.png";
 import RewardClaimModal from "./RewardClaimModal";
 
 interface TopBarProps {
@@ -143,23 +144,19 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideHome, h
                 <span className="font-fantasy text-[#d4a017] text-[8px]">+</span>
               </button>
 
-              <button
-                data-testid="button-gift-rewards"
-                onClick={() => setShowRewards(true)}
-                className={`relative flex-shrink-0 transition-transform active:scale-90 ${hasRewards ? "animate-bounce" : ""}`}
-                style={{ background: "none", border: "none", cursor: "pointer", animationDuration: "2s" }}
-              >
-                <div
-                  className="w-9 h-9 rounded-full flex items-center justify-center"
-                  style={{
-                    background: "radial-gradient(ellipse at center, rgba(192,132,252,0.4) 0%, rgba(120,80,200,0.2) 100%)",
-                    border: "2px solid rgba(192,132,252,0.6)",
-                    boxShadow: hasRewards ? "0 0 15px rgba(192,132,252,0.5), 0 0 30px rgba(192,132,252,0.2)" : "0 0 6px rgba(192,132,252,0.2)",
-                  }}
+              {hasRewards && (
+                <button
+                  data-testid="button-gift-rewards"
+                  onClick={() => setShowRewards(true)}
+                  className="relative flex-shrink-0 transition-transform active:scale-90 animate-bounce"
+                  style={{ background: "none", border: "none", cursor: "pointer", animationDuration: "2s" }}
                 >
-                  <span className="text-xl" style={{ filter: "drop-shadow(0 0 6px rgba(192,132,252,0.8))" }}>🎁</span>
-                </div>
-                {hasRewards && (
+                  <img
+                    src={giftIconImg}
+                    alt="Gifts"
+                    className="w-10 h-10 object-contain"
+                    style={{ filter: "drop-shadow(0 0 8px rgba(120,200,80,0.7)) drop-shadow(0 0 16px rgba(192,132,252,0.4))" }}
+                  />
                   <div
                     className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
                     style={{
@@ -170,8 +167,8 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideHome, h
                   >
                     <span className="font-bold text-[8px] text-white leading-none">{pendingRewards.length}</span>
                   </div>
-                )}
-              </button>
+                </button>
+              )}
             </div>
           </div>
         </div>

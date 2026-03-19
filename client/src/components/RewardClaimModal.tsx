@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import coinIconImg from "@assets/icon_coin.png";
+import giftIconImg from "@assets/generated_images/gift_icon_forest.png";
 
 interface RewardItem {
   id: string;
@@ -138,15 +139,13 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
 
         <div className="p-5">
           <div className="flex flex-col items-center mb-4">
-            <div
-              className="w-16 h-16 rounded-full flex items-center justify-center mb-2"
-              style={{
-                background: "radial-gradient(ellipse at center, rgba(192,132,252,0.3) 0%, rgba(120,80,200,0.1) 100%)",
-                border: "2px solid rgba(192,132,252,0.4)",
-                boxShadow: "0 0 30px rgba(192,132,252,0.3)",
-              }}
-            >
-              <span className="text-3xl" style={{ filter: "drop-shadow(0 0 8px rgba(192,132,252,0.8))" }}>🎁</span>
+            <div className="w-16 h-16 flex items-center justify-center mb-2">
+              <img
+                src={giftIconImg}
+                alt="Gifts"
+                className="w-16 h-16 object-contain"
+                style={{ filter: "drop-shadow(0 0 10px rgba(120,200,80,0.6)) drop-shadow(0 0 20px rgba(192,132,252,0.35))" }}
+              />
             </div>
             <h3
               className="font-fantasy text-[#c084fc] text-base tracking-widest font-semibold"
