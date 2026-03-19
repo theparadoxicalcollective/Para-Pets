@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { X, Plus, Star, Trash2 } from "lucide-react";
+import { X, Plus, Star, Trash2, HelpCircle } from "lucide-react";
 import fishingBg from "@assets/fishing_bg_portrait.png";
 import poleIcon from "@assets/icon_fishing_pole.png";
 import baitIcon from "@assets/icon_fishing_bait.png";
@@ -85,6 +85,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   const [showFishInv, setShowFishInv] = useState(false);
   const [showPondAdmin, setShowPondAdmin] = useState(false);
   const [showNoPoleModal, setShowNoPoleModal] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem("fishingTutorialSeen"));
   const [tensionState, setTensionState] = useState<{
     catchProgress: number;
     tension: number;
@@ -662,6 +663,63 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         </div>
       )}
 
+      {/* Fishing tutorial modal — shown on first ever visit */}
+      {showTutorial && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(4,2,12,0.82)", backdropFilter: "blur(8px)" }}>
+          <div
+            className="flex flex-col gap-5 rounded-2xl px-7 py-7 mx-5"
+            style={{
+              background: "linear-gradient(145deg, rgba(10,5,22,0.98) 0%, rgba(18,8,38,0.98) 100%)",
+              border: `1.5px solid ${ACCENT}45`,
+              boxShadow: `0 8px 48px rgba(0,0,0,0.85), 0 0 32px ${ACCENT}12`,
+              maxWidth: 340,
+            }}
+          >
+            <div className="flex items-center gap-3">
+              <img src={bobberIcon} alt="" className="w-10 h-10 object-contain" style={{ filter: `drop-shadow(0 0 8px ${ACCENT}70)` }} />
+              <p className="font-fantasy text-lg tracking-widest font-semibold" style={{ color: ACCENT, textShadow: `0 0 14px ${ACCENT}55` }}>
+                How to Fish
+              </p>
+            </div>
+            <div className="flex flex-col gap-4">
+              {[
+                { num: "1", title: "Cast", desc: "Tap anywhere on the water to cast your line." },
+                { num: "2", title: "Wait for a Bite", desc: "Watch the bobber — when it dips, a fish is biting!" },
+                { num: "3", title: "Hook It!", desc: "Tap anywhere the moment it dips to hook the fish. Rare fish bite faster and fewer times, so act quickly." },
+                { num: "4", title: "Reel In", desc: "Hold the screen to reel. When the tension bar turns red, release — let it settle, then reel again. If tension maxes out, the line snaps!" },
+              ].map(({ num, title, desc }) => (
+                <div key={num} className="flex gap-3 items-start">
+                  <div className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold font-fantasy mt-0.5"
+                    style={{ background: `${ACCENT}22`, border: `1px solid ${ACCENT}55`, color: ACCENT }}>
+                    {num}
+                  </div>
+                  <div>
+                    <p className="font-fantasy text-sm font-semibold tracking-wide mb-0.5" style={{ color: ACCENT }}>{title}</p>
+                    <p className="font-fantasy text-xs tracking-wide leading-relaxed" style={{ color: `${ACCENT}99` }}>{desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button
+              data-testid="button-tutorial-close"
+              onClick={() => {
+                localStorage.setItem("fishingTutorialSeen", "1");
+                setShowTutorial(false);
+              }}
+              className="font-fantasy text-sm tracking-[0.15em] px-6 py-2.5 rounded-xl transition-transform active:scale-95 self-center mt-1"
+              style={{
+                background: `linear-gradient(135deg, rgba(10,5,20,0.9) 0%, rgba(20,10,40,0.9) 100%)`,
+                border: `1.5px solid ${ACCENT}60`,
+                color: ACCENT,
+                boxShadow: `0 4px 16px rgba(0,0,0,0.5), 0 0 16px ${ACCENT}20`,
+              }}
+            >
+              Got it — let's fish!
+            </button>
+          </div>
+        </div>
+      )}
+
       <style>{FISHING_ANIMATIONS}</style>
 
       <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 pb-3" style={{ paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
@@ -669,16 +727,16 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           <h3 className="font-fantasy text-base tracking-widest font-semibold" style={{ color: ACCENT, textShadow: `0 0 10px ${ACCENT}40` }} data-testid="text-fishing-location-name">
             {locationName}
           </h3>
-          <p className="font-fantasy text-[10px] tracking-wider" style={{ color: `${ACCENT}88` }}>
-            {phase === "idle" ? (poleIsBroken ? "Your pole broke! Remove it from the slot" : hasPole ? "Tap the water to cast" : "Equip a pole to fish") :
-             phase === "casting" ? "Casting..." :
-             phase === "waiting" ? "Waiting for a bite..." :
-             phase === "nibble" ? "Something's biting — tap anywhere!" :
-             phase === "reeling" ? (tensionState?.isSurging ? "It's surging — ease off!" : tensionState && tensionState.tension > 0.7 ? "Tension critical — release!" : "Hold to reel, ease off if line tightens!") :
-             phase === "caught" ? "You caught something!" : "It got away..."}
-          </p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            data-testid="button-fishing-help"
+            onClick={() => setShowTutorial(true)}
+            className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
+            style={{ background: "rgba(0,0,0,0.45)", border: `1px solid ${ACCENT}40`, color: `${ACCENT}cc`, cursor: "pointer" }}
+          >
+            <HelpCircle className="w-5 h-5" />
+          </button>
           {user.isAdmin && (
             <button
               data-testid="button-pond-admin"
