@@ -50,7 +50,7 @@ interface PetInventoryProps {
 
 export default function PetInventory({ user, onClose, onUserUpdate }: PetInventoryProps) {
   const [showBag, setShowBag] = useState(false);
-  const [selectedPet, setSelectedPet] = useState<InventoryItem | null>(null);
+  const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -79,6 +79,7 @@ export default function PetInventory({ user, onClose, onUserUpdate }: PetInvento
 
   const pets = inventory.filter((item) => item.type === "pet");
   const bagItems = inventory.filter((item) => item.type !== "pet" && item.fishingType !== "fish");
+  const selectedPet = selectedPetId ? (inventory.find((item) => item.inventoryId === selectedPetId) ?? null) : null;
 
   const handlePetToggle = (shopItemId: string) => {
     if (user.activePetId === shopItemId) {
@@ -165,7 +166,7 @@ export default function PetInventory({ user, onClose, onUserUpdate }: PetInvento
                 pets={pets}
                 activePetId={user.activePetId}
                 onToggle={handlePetToggle}
-                onPetClick={(pet) => pet.isHatched && setSelectedPet(pet)}
+                onPetClick={(pet) => pet.isHatched && setSelectedPetId(pet.inventoryId)}
                 isPending={setActivePetMutation.isPending}
               />
             )}
@@ -196,10 +197,9 @@ export default function PetInventory({ user, onClose, onUserUpdate }: PetInvento
       {selectedPet && (
         <PetDetailPage
           pet={selectedPet}
-          onClose={() => setSelectedPet(null)}
+          onClose={() => setSelectedPetId(null)}
           onUpdate={() => {
             queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-            setSelectedPet(null);
           }}
           userCoins={user.coins}
           onUserUpdate={onUserUpdate}

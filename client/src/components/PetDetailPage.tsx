@@ -165,7 +165,6 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
       setSuccessAnimType("stat");
       setShowSuccessAnim(true);
       setConfirmItem(null);
-      setShowPowerUp(false);
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       onUpdate();
     },
@@ -190,8 +189,6 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
       setSuccessAnimType(isHatchTime ? "hatch" : "level");
       setShowSuccessAnim(true);
       setConfirmItem(null);
-      setShowPowerUp(false);
-      setShowLvlUp(false);
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       onUpdate();
     },
