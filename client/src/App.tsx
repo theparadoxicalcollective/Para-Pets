@@ -103,8 +103,6 @@ function App() {
     let unlocked = false;
 
     const handler = (e: PointerEvent) => {
-      // Unlock the AudioContext on the very first user gesture (required by
-      // browsers / iOS Safari before any sound can play).
       if (!unlocked) {
         unlocked = true;
         unlockAudio();
@@ -114,8 +112,6 @@ function App() {
       if (interactive) playClick();
     };
 
-    // pointerdown fires immediately on both mouse-press and touch-tap with no
-    // 300 ms mobile delay and no double-fire, replacing the previous click listener.
     document.addEventListener("pointerdown", handler, true);
     return () => document.removeEventListener("pointerdown", handler, true);
   }, []);
@@ -124,7 +120,20 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-        <AppRouter />
+        {/* Mobile: full screen as normal */}
+        {/* Desktop: centered phone-sized frame with themed background */}
+        <div className="w-full h-[100dvh] md:flex md:items-center md:justify-center md:bg-[#07090f]"
+          style={{
+            backgroundImage: "radial-gradient(ellipse at 30% 60%, rgba(58,30,90,0.45) 0%, transparent 60%), radial-gradient(ellipse at 75% 30%, rgba(20,70,55,0.35) 0%, transparent 55%)",
+          }}
+        >
+          <div
+            className="w-full h-full md:w-[390px] md:max-h-[90vh] md:h-[844px] md:rounded-[2.5rem] md:overflow-hidden md:shadow-[0_0_0_1px_rgba(255,255,255,0.07),0_32px_80px_rgba(0,0,0,0.85)]"
+            style={{ isolation: "isolate" }}
+          >
+            <AppRouter />
+          </div>
+        </div>
       </TooltipProvider>
     </QueryClientProvider>
   );
