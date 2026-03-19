@@ -31,10 +31,19 @@ interface RewardClaimModalProps {
   onUserUpdate: (user: any) => void;
 }
 
+interface StackedReward {
+  bundleId: string;
+  bundleName: string;
+  bundleMessage: string | null;
+  coinAmount: number;
+  items: RewardItem[];
+  rewardIds: string[];
+}
+
 export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [claimingId, setClaimingId] = useState<string | null>(null);
+  const [claimingBundleId, setClaimingBundleId] = useState<string | null>(null);
   const [showSparkle, setShowSparkle] = useState<string | null>(null);
   const [duplicateNotices, setDuplicateNotices] = useState<DuplicateNotice[]>([]);
 
@@ -42,13 +51,38 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
     queryKey: ["/api/rewards/pending"],
   });
 
+  const stackedRewards: StackedReward[] = rewards.reduce<StackedReward[]>((acc, reward) => {
+    const bundleKey = reward.bundleName + (reward.bundleMessage ?? "");
+    const existing = acc.find(s => s.bundleName === reward.bundleName && s.bundleMessage === reward.bundleMessage);
+    if (existing) {
+      existing.rewardIds.push(reward.rewardId);
+    } else {
+      acc.push({
+        bundleId: bundleKey,
+        bundleName: reward.bundleName,
+        bundleMessage: reward.bundleMessage,
+        coinAmount: reward.coinAmount,
+        items: reward.items,
+        rewardIds: [reward.rewardId],
+      });
+    }
+    return acc;
+  }, []);
+
   const claimMutation = useMutation({
-    mutationFn: async (rewardId: string) => {
-      const res = await apiRequest("POST", `/api/rewards/${rewardId}/claim`);
-      return res.json();
+    mutationFn: async (rewardIds: string[]) => {
+      let lastUser = null;
+      const allDups: { name: string; coinsAwarded: number }[] = [];
+      for (const rewardId of rewardIds) {
+        const res = await apiRequest("POST", `/api/rewards/${rewardId}/claim`);
+        const data = await res.json();
+        lastUser = data.user;
+        if (data.duplicatePets) allDups.push(...data.duplicatePets);
+      }
+      return { user: lastUser, duplicatePets: allDups };
     },
-    onSuccess: (data: any, rewardId: string) => {
-      setShowSparkle(rewardId);
+    onSuccess: (data: any, rewardIds: string[]) => {
+      setShowSparkle(rewardIds[0]);
       setTimeout(() => {
         setShowSparkle(null);
         if (data.user) onUserUpdate(data.user);
@@ -66,19 +100,19 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
         } else {
           toast({ title: "Reward Claimed!", description: "Items and coins have been added to your account" });
         }
-        setClaimingId(null);
+        setClaimingBundleId(null);
       }, 800);
     },
     onError: (err: any) => {
       toast({ title: "Failed", description: err?.message || "Could not claim reward", variant: "destructive" });
-      setClaimingId(null);
+      setClaimingBundleId(null);
     },
   });
 
-  const handleClaim = (rewardId: string) => {
-    setClaimingId(rewardId);
+  const handleClaim = (stacked: StackedReward) => {
+    setClaimingBundleId(stacked.bundleId);
     setDuplicateNotices([]);
-    claimMutation.mutate(rewardId);
+    claimMutation.mutate(stacked.rewardIds);
   };
 
   return (
@@ -121,7 +155,7 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
               Magical Gifts
             </h3>
             <p className="font-fantasy text-[#a89878] text-[10px] tracking-wider">
-              {rewards.length} {rewards.length === 1 ? "reward" : "rewards"} waiting
+              {rewards.length} {rewards.length === 1 ? "bundle" : "bundles"} waiting
             </p>
           </div>
 
@@ -158,54 +192,66 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
               <div className="text-center py-8">
                 <p className="font-fantasy text-[#c084fc] text-sm animate-pulse">Revealing gifts...</p>
               </div>
-            ) : rewards.length === 0 ? (
+            ) : stackedRewards.length === 0 ? (
               <div className="text-center py-8">
                 <p className="font-fantasy text-[#a89878] text-sm">No pending rewards</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {rewards.map((reward) => (
+                {stackedRewards.map((stacked) => (
                   <div
-                    key={reward.rewardId}
-                    data-testid={`card-reward-${reward.rewardId}`}
+                    key={stacked.bundleId}
+                    data-testid={`card-reward-${stacked.bundleId}`}
                     className="rounded-lg overflow-hidden relative"
                     style={{
                       background: "linear-gradient(135deg, rgba(40,20,60,0.6) 0%, rgba(25,10,40,0.6) 100%)",
                       border: "1px solid rgba(192,132,252,0.3)",
                     }}
                   >
-                    {showSparkle === reward.rewardId && (
+                    {showSparkle === stacked.rewardIds[0] && (
                       <div className="absolute inset-0 z-10 flex items-center justify-center animate-pulse" style={{ background: "rgba(192,132,252,0.2)" }}>
                         <span className="text-4xl" style={{ filter: "drop-shadow(0 0 20px rgba(192,132,252,0.8))" }}>✨</span>
                       </div>
                     )}
                     <div className="p-3">
-                      <h4 className="font-fantasy text-[#c084fc] text-xs tracking-wider font-semibold mb-1" data-testid={`text-reward-name-${reward.rewardId}`}>
-                        {reward.bundleName}
-                      </h4>
+                      <div className="flex items-center justify-between mb-1">
+                        <h4 className="font-fantasy text-[#c084fc] text-xs tracking-wider font-semibold" data-testid={`text-reward-name-${stacked.bundleId}`}>
+                          {stacked.bundleName}
+                        </h4>
+                        {stacked.rewardIds.length > 1 && (
+                          <div
+                            className="flex items-center gap-1 px-2 py-0.5 rounded-full"
+                            style={{ background: "rgba(192,132,252,0.2)", border: "1px solid rgba(192,132,252,0.4)" }}
+                          >
+                            <span className="font-fantasy text-[#c084fc] text-[9px] font-bold">×{stacked.rewardIds.length}</span>
+                          </div>
+                        )}
+                      </div>
 
-                      {reward.bundleMessage && (
+                      {stacked.bundleMessage && (
                         <p
-                          data-testid={`text-reward-message-${reward.rewardId}`}
+                          data-testid={`text-reward-message-${stacked.bundleId}`}
                           className="font-sans text-[#d4c8a0] text-[11px] leading-relaxed mb-2 italic"
                           style={{ opacity: 0.85 }}
                         >
-                          "{reward.bundleMessage}"
+                          "{stacked.bundleMessage}"
                         </p>
                       )}
 
                       <div className="flex flex-wrap gap-2 mb-2">
-                        {reward.coinAmount > 0 && (
+                        {stacked.coinAmount > 0 && (
                           <div
                             className="flex items-center gap-1 px-2 py-1 rounded-md"
                             style={{ background: "rgba(240,192,64,0.1)", border: "1px solid rgba(240,192,64,0.3)" }}
                           >
                             <img src={coinIconImg} alt="" className="w-3.5 h-3.5" />
-                            <span className="font-fantasy text-[#f0c040] text-[10px] font-bold">{reward.coinAmount}</span>
+                            <span className="font-fantasy text-[#f0c040] text-[10px] font-bold">
+                              {stacked.rewardIds.length > 1 ? `${stacked.coinAmount} ×${stacked.rewardIds.length}` : stacked.coinAmount}
+                            </span>
                           </div>
                         )}
 
-                        {reward.items.map((item, idx) => {
+                        {stacked.items.map((item, idx) => {
                           const displayImg = item.type === "pet" && item.eggImageUrl ? item.eggImageUrl : item.imageUrl;
                           return (
                             <div
@@ -225,8 +271,8 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
                       </div>
 
                       <button
-                        data-testid={`button-claim-${reward.rewardId}`}
-                        onClick={() => handleClaim(reward.rewardId)}
+                        data-testid={`button-claim-${stacked.bundleId}`}
+                        onClick={() => handleClaim(stacked)}
                         disabled={claimMutation.isPending}
                         className="w-full py-2 rounded-md font-fantasy text-xs tracking-wider transition-transform active:scale-95 disabled:opacity-50"
                         style={{
@@ -237,7 +283,11 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
                           boxShadow: "0 0 12px rgba(192,132,252,0.2)",
                         }}
                       >
-                        {claimingId === reward.rewardId ? "Claiming..." : "Claim Reward"}
+                        {claimingBundleId === stacked.bundleId
+                          ? "Claiming..."
+                          : stacked.rewardIds.length > 1
+                            ? `Claim All (×${stacked.rewardIds.length})`
+                            : "Claim Reward"}
                       </button>
                     </div>
                   </div>

@@ -74,6 +74,7 @@ export interface IStorage {
   addRewardBundleItem(bundleId: string, shopItemId: string): Promise<RewardBundleItem>;
   getRewardBundleItems(bundleId: string): Promise<RewardBundleItem[]>;
   createUserReward(userId: string, bundleId: string): Promise<UserReward>;
+  getUserReward(id: string): Promise<UserReward | undefined>;
   getUnclaimedRewards(userId: string): Promise<UserReward[]>;
   claimReward(rewardId: string): Promise<UserReward | undefined>;
   getRewardBundle(id: string): Promise<RewardBundle | undefined>;
@@ -405,6 +406,11 @@ export class DatabaseStorage implements IStorage {
 
   async createUserReward(userId: string, bundleId: string): Promise<UserReward> {
     const [reward] = await db.insert(userRewards).values({ userId, bundleId }).returning();
+    return reward;
+  }
+
+  async getUserReward(id: string): Promise<UserReward | undefined> {
+    const [reward] = await db.select().from(userRewards).where(eq(userRewards.id, id));
     return reward;
   }
 

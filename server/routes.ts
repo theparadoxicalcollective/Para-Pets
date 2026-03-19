@@ -2249,13 +2249,20 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
 
+      const existing = await storage.getUserReward(req.params.rewardId);
+      if (!existing) {
+        return res.status(404).json({ message: "Reward not found" });
+      }
+      if (existing.claimed) {
+        return res.status(404).json({ message: "Reward already claimed" });
+      }
+      if (existing.userId !== user.id) {
+        return res.status(403).json({ message: "This reward is not yours" });
+      }
+
       const claimed = await storage.claimReward(req.params.rewardId);
       if (!claimed) {
         return res.status(404).json({ message: "Reward not found or already claimed" });
-      }
-
-      if (claimed.userId !== user.id) {
-        return res.status(403).json({ message: "This reward is not yours" });
       }
 
       const bundle = await storage.getRewardBundle(claimed.bundleId);

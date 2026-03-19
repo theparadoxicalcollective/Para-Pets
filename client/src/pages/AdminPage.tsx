@@ -431,7 +431,7 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
   const [bundleMessage, setBundleMessage] = useState("");
   const [coinAmount, setCoinAmount] = useState("");
   const [selectedItems, setSelectedItems] = useState<ShopItemFull[]>([]);
-  const [targetMode, setTargetMode] = useState<"all" | "select">("all");
+  const [targetMode, setTargetMode] = useState<"all" | "select">("select");
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [userSearch, setUserSearch] = useState("");
   const [showItemPicker, setShowItemPicker] = useState(false);

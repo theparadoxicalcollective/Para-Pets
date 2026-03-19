@@ -143,35 +143,35 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideHome, h
                 <span className="font-fantasy text-[#d4a017] text-[8px]">+</span>
               </button>
 
-              {hasRewards && (
-                <button
-                  data-testid="button-gift-rewards"
-                  onClick={() => setShowRewards(true)}
-                  className="relative flex-shrink-0 transition-transform active:scale-90 animate-bounce"
-                  style={{ background: "none", border: "none", cursor: "pointer", animationDuration: "2s" }}
+              <button
+                data-testid="button-gift-rewards"
+                onClick={() => setShowRewards(true)}
+                className={`relative flex-shrink-0 transition-transform active:scale-90 ${hasRewards ? "animate-bounce" : ""}`}
+                style={{ background: "none", border: "none", cursor: "pointer", animationDuration: "2s" }}
+              >
+                <div
+                  className="w-9 h-9 rounded-full flex items-center justify-center"
+                  style={{
+                    background: "radial-gradient(ellipse at center, rgba(192,132,252,0.4) 0%, rgba(120,80,200,0.2) 100%)",
+                    border: "2px solid rgba(192,132,252,0.6)",
+                    boxShadow: hasRewards ? "0 0 15px rgba(192,132,252,0.5), 0 0 30px rgba(192,132,252,0.2)" : "0 0 6px rgba(192,132,252,0.2)",
+                  }}
                 >
+                  <span className="text-xl" style={{ filter: "drop-shadow(0 0 6px rgba(192,132,252,0.8))" }}>🎁</span>
+                </div>
+                {hasRewards && (
                   <div
-                    className="w-6 h-6 rounded-full flex items-center justify-center"
-                    style={{
-                      background: "radial-gradient(ellipse at center, rgba(192,132,252,0.4) 0%, rgba(120,80,200,0.2) 100%)",
-                      border: "2px solid rgba(192,132,252,0.6)",
-                      boxShadow: "0 0 15px rgba(192,132,252,0.5), 0 0 30px rgba(192,132,252,0.2)",
-                    }}
-                  >
-                    <span className="text-sm" style={{ filter: "drop-shadow(0 0 6px rgba(192,132,252,0.8))" }}>🎁</span>
-                  </div>
-                  <div
-                    className="absolute -top-1 -right-1 w-3 h-3 rounded-full flex items-center justify-center"
+                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
                     style={{
                       background: "radial-gradient(circle, #f87171 0%, #dc2626 100%)",
                       border: "1.5px solid rgba(30,15,5,0.8)",
                       boxShadow: "0 0 6px rgba(248,113,113,0.6)",
                     }}
                   >
-                    <span className="font-bold text-[7px] text-white leading-none">{pendingRewards.length}</span>
+                    <span className="font-bold text-[8px] text-white leading-none">{pendingRewards.length}</span>
                   </div>
-                </button>
-              )}
+                )}
+              </button>
             </div>
           </div>
         </div>
