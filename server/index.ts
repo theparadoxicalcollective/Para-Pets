@@ -496,6 +496,30 @@ app.use((req, res, next) => {
         console.log(`${loc.name} refreshed.`);
       }
     }
+
+    // Seed Murk Cave enemies (one-time)
+    const murkEnemiesDone = await storage.getGameSetting("murk_cave_enemies_v1");
+    if (!murkEnemiesDone) {
+      const MURK_CAVE_ID = "a1b2c3d4-0001-4000-8000-000000000001";
+      const murkEnemyData = [
+        { name: "Hex Frog",          file: "generated_images/enemy_hex_frog.png",          isBoss: false, coinReward: 2 },
+        { name: "Bayou Wraith",      file: "generated_images/enemy_bayou_wraith.png",       isBoss: false, coinReward: 2 },
+        { name: "Cave Wisp",         file: "generated_images/enemy_cave_wisp.png",          isBoss: false, coinReward: 2 },
+        { name: "Bog Serpent Queen", file: "generated_images/enemy_bog_serpent_queen.png",  isBoss: true,  coinReward: 5 },
+      ];
+      for (const ed of murkEnemyData) {
+        const imgData = loadAssetBase64(ed.file);
+        await storage.createLocationEnemy({
+          locationId: MURK_CAVE_ID,
+          name: ed.name,
+          imageUrl: imgData,
+          isBoss: ed.isBoss,
+          coinReward: ed.coinReward,
+        });
+      }
+      await storage.setGameSetting("murk_cave_enemies_v1", "done");
+      console.log("Murk Cave enemies seeded.");
+    }
   } catch (err) {
     console.error("Swamp location migration error (non-fatal):", err);
   }
