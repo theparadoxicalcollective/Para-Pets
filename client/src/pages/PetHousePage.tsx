@@ -773,24 +773,28 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
             }
           }
 
-          // Chasing: steady pace in the direction of the prey — recalc facing each tick
-          // but keep speed constant (no acceleration)
+          // Chasing: steer toward prey, but only flip direction when clearly on the other side
+          // Dead zone of 2 units prevents oscillation when the two fish are right next to each other
           if (state === "chasing" && chaseTargetId) {
             const target = posMap.get(chaseTargetId);
             if (target) {
               const chaseSpeed = baseSpeed * 1.8;
-              if (target.x > x) { vx = chaseSpeed;  facingRight = true; }
-              else               { vx = -chaseSpeed; facingRight = false; }
+              const dx = target.x - x;
+              if (dx > 2)       { vx = chaseSpeed;  facingRight = true; }
+              else if (dx < -2) { vx = -chaseSpeed; facingRight = false; }
+              // Within the dead zone: keep current velocity / direction unchanged
             }
           }
 
-          // Fleeing: prey darts away much faster than the chaser can follow
+          // Fleeing: dart away from the chaser, only update when chaser is clearly to one side
           if (state === "fleeing" && chaseTargetId) {
             const target = posMap.get(chaseTargetId);
             if (target) {
               const fleeSpeed = baseSpeed * 3.4;
-              if (target.x > x) { vx = -fleeSpeed; facingRight = false; }
-              else               { vx = fleeSpeed;  facingRight = true; }
+              const dx = target.x - x;
+              if (dx > 2)       { vx = -fleeSpeed; facingRight = false; }
+              else if (dx < -2) { vx = fleeSpeed;  facingRight = true; }
+              // Within the dead zone: keep running in current direction
             }
           }
 
