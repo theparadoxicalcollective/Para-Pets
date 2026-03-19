@@ -137,7 +137,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
   });
 
   const usableItems = inventory.filter(
-    (item) => item.type === "item" && item.statBoostType
+    (item) => (item.type === "item" || item.type === "power_up") && item.statBoostType
   );
 
   const specialItems = inventory.filter(
