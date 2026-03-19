@@ -340,8 +340,7 @@ app.use((req, res, next) => {
       } as any);
       console.log("General Shop migration complete");
     }
-    // Always refresh General Shop name, background and icon from assets
-    await storage.updateWorldLocation(SHOP_ID, { name: "General Shop" } as any);
+    // Refresh General Shop background and icon from assets (do not overwrite admin-editable name)
     const mireBazaarBg = loadAssetBase64("bg_mire_bazaar.png");
     if (mireBazaarBg) {
       await storage.updateWorldLocation(SHOP_ID, { bgUrl: mireBazaarBg } as any);
@@ -400,6 +399,7 @@ app.use((req, res, next) => {
         posY: 60,
         glowColor: "#3dc7a0",
         sortOrder: 7,
+        isShop: true,
       },
       {
         id: "a1b2c3d4-0006-4000-8000-000000000006",
@@ -441,6 +441,25 @@ app.use((req, res, next) => {
     const deletedRaw = await storage.getGameSetting("deleted_seed_location_ids");
     const deletedSeedIds: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
 
+    // One-time migration: fix seed locations whose isShop/type defaults were wrong before this fix
+    const isShopMigrationDone = await storage.getGameSetting("seed_isShop_migration_v1");
+    if (!isShopMigrationDone) {
+      for (const loc of NEW_SWAMP_LOCATIONS) {
+        if (deletedSeedIds.includes(loc.id)) continue;
+        const existing = swampLocations.find(l => l.id === loc.id);
+        if (existing) {
+          const patch: any = {};
+          if ((loc as any).isShop === true && !existing.isShop) patch.isShop = true;
+          if ((loc as any).type && (existing as any).type !== (loc as any).type) patch.type = (loc as any).type;
+          if (Object.keys(patch).length > 0) {
+            await storage.updateWorldLocation(loc.id, patch);
+            console.log(`${loc.name} seed defaults corrected:`, patch);
+          }
+        }
+      }
+      await storage.setGameSetting("seed_isShop_migration_v1", "done");
+    }
+
     for (const loc of NEW_SWAMP_LOCATIONS) {
       if (deletedSeedIds.includes(loc.id)) continue;
       const existing = swampLocations.find(l => l.id === loc.id);
@@ -465,17 +484,14 @@ app.use((req, res, next) => {
         } as any);
         console.log(`${loc.name} created.`);
       } else {
-        const updates: any = {
-          name: loc.name,
-          description: loc.description,
-          glowColor: loc.glowColor,
-          isShop: (loc as any).isShop ?? false,
-          ...(( loc as any).type ? { type: (loc as any).type } : {}),
-        };
+        // Only refresh asset files — never overwrite admin-editable fields (name, description, type, isShop, glowColor)
+        const updates: any = {};
         if (iconData) updates.iconUrl = iconData;
         if (bgData) updates.bgUrl = bgData;
         if (!existing.iconSize || existing.iconSize < 300) updates.iconSize = 350;
-        await storage.updateWorldLocation(loc.id, updates);
+        if (Object.keys(updates).length > 0) {
+          await storage.updateWorldLocation(loc.id, updates);
+        }
         console.log(`${loc.name} refreshed.`);
       }
     }
