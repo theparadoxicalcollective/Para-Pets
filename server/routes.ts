@@ -581,7 +581,9 @@ export async function registerRoutes(
         statBoostAmount: shopItem?.statBoostAmount || null,
         specialType: shopItem?.specialType || null,
         specialAmount: shopItem?.specialAmount || null,
-        healthRestored: shopItem?.healthRestored || null,
+        healthRestored: shopItem?.healthRestored ?? null,
+        manaRestored: shopItem?.manaRestored ?? null,
+        petsRevived: shopItem?.petsRevived ?? null,
         petTemplateId: shopItem?.petTemplateId || null,
         petNickname: inv.petNickname || null,
         hatchStartedAt: inv.hatchStartedAt,
@@ -2445,6 +2447,8 @@ export async function registerRoutes(
         imageUrl: shopItem?.imageUrl || null,
         hatchedImageUrl: shopItem?.hatchedImageUrl || null,
         petTemplateId: shopItem?.petTemplateId || null,
+        specialSkill: shopItem?.specialSkill || null,
+        skillDamagePercent: shopItem?.skillDamagePercent ?? null,
       }));
       const activePet = inventoryJoined.find((inv: any) => inv.shopItemId === user.activePetId && inv.isHatched);
       if (!activePet) {
@@ -2518,6 +2522,7 @@ export async function registerRoutes(
           imageUrl: petImageUrl,
           backImageUrl: petBackImageUrl,
           specialSkill: activePet.specialSkill || null,
+          skillDamagePercent: activePet.skillDamagePercent ?? null,
         },
       });
     } catch (err) {

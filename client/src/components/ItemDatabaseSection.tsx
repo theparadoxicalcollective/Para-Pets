@@ -365,6 +365,7 @@ function AdminItemForm({
   const [rarity, setRarity] = useState(item?.rarity?.toString() || "1");
   const [hatchTime, setHatchTime] = useState(item?.hatchTime?.toString() || "1");
   const [specialSkill, setSpecialSkill] = useState(item?.specialSkill || "");
+  const [skillDamagePercent, setSkillDamagePercent] = useState(item?.skillDamagePercent?.toString() || "");
   const [petTemplateId, setPetTemplateId] = useState(item?.petTemplateId || "");
   const [statBoostType, setStatBoostType] = useState(item?.statBoostType || "health");
   const [statBoostAmount, setStatBoostAmount] = useState(item?.statBoostAmount?.toString() || "10");
@@ -411,6 +412,7 @@ function AdminItemForm({
         payload.rarity = parseInt(rarity);
         payload.hatchTime = parseInt(hatchTime);
         payload.specialSkill = specialSkill.trim() || null;
+        payload.skillDamagePercent = skillDamagePercent.trim() ? parseFloat(skillDamagePercent) : null;
         payload.petTemplateId = petTemplateId || null;
         if (eggImageData) payload.eggImageData = eggImageData;
         if (hatchedImageData) payload.hatchedImageData = hatchedImageData;
@@ -429,6 +431,7 @@ function AdminItemForm({
         payload.eggImageUrl = null;
         payload.hatchedImageUrl = null;
         payload.specialSkill = null;
+        payload.skillDamagePercent = null;
         payload.petTemplateId = null;
 
         if (effectiveType === "power_up") {
@@ -630,6 +633,23 @@ function AdminItemForm({
                   style={inputStyle}
                 />
                 <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">Pick from the list or type a custom skill name</p>
+              </div>
+              <div>
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Skill Damage %</label>
+                <input
+                  data-testid="input-skill-damage-percent"
+                  type="number"
+                  value={skillDamagePercent}
+                  onChange={(e) => setSkillDamagePercent(e.target.value)}
+                  placeholder="e.g. 250 (= 2.5× ATK for Lazer), 30 (= 30% heal), 5 (= 5% poison/tick)"
+                  min="0"
+                  step="0.5"
+                  className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+                  style={inputStyle}
+                />
+                <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">
+                  Number stored as %. Lazer/Bubble: % of ATK. Heal: % of maxHP. Poison: % of enemy maxHP per tick.
+                </p>
               </div>
               <div>
                 <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Animated Template (Pet DB)</label>

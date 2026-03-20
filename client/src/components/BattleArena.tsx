@@ -29,6 +29,16 @@ interface EncounterPet {
   petTemplateId: string | null;
   imageUrl: string | null;
   specialSkill: string | null;
+  skillDamagePercent: number | null;
+}
+
+export interface BattlePotionSlot {
+  shopItemId: string;
+  inventoryIds: string[];
+  name: string;
+  imageUrl: string | null;
+  healthRestored: number | null;
+  manaRestored: number | null;
 }
 
 interface BattleArenaProps {
@@ -38,6 +48,7 @@ interface BattleArenaProps {
   accent: string;
   onClose: () => void;
   onBattleEnd: () => void;
+  battlePotionSlots?: BattlePotionSlot[];
 }
 
 interface EnemyPosition {
@@ -107,7 +118,7 @@ function buildSlashPath(pts: {x: number; y: number}[]): string {
   return d;
 }
 
-export default function BattleArena({ locationId, locationName, bgUrl, accent, onClose, onBattleEnd }: BattleArenaProps) {
+export default function BattleArena({ locationId, locationName, bgUrl, accent, onClose, onBattleEnd, battlePotionSlots = [] }: BattleArenaProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -165,12 +176,20 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   // Mana & special skill
   const [mana, setMana] = useState(0);
   const manaRef = useRef(0);
+  const manaTickRef = useRef(0);
   const [skillCooldown, setSkillCooldown] = useState(false);
   const [skillEffect, setSkillEffect] = useState<string | null>(null);
   const [poisonActive, setPoisonActive] = useState(false);
   const poisonTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const MAX_MANA = 100;
   const handleEnemyDeathRef = useRef<() => void>(() => {});
+
+  // Battle potion slots (5 slots max, with consumable inventory IDs)
+  const [activeSlots, setActiveSlots] = useState<(BattlePotionSlot & { remaining: string[] })[]>([]);
+  const activeSlotsRef = useRef<(BattlePotionSlot & { remaining: string[] })[]>([]);
+
+  // Track enemy max HP (for Poison % calculation)
+  const enemyMaxHpRef = useRef(0);
 
   const animFrameRef = useRef<number>(0);
   const arenaRef = useRef<HTMLDivElement>(null);
@@ -220,6 +239,10 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         setPetMaxHp(data.pet.hp);
         petHpRef.current = data.pet.hp;
         petStatsRef.current = { atk: data.pet.atk, def: data.pet.def, maxHp: data.pet.hp };
+        // Initialise battle potion slots from pre-battle loadout
+        const slots = battlePotionSlots.map(s => ({ ...s, remaining: [...s.inventoryIds] }));
+        activeSlotsRef.current = slots;
+        setActiveSlots(slots);
         startWave(data.encounters[0], 0);
       } catch (err) {
         toast({ title: "Error", description: "Failed to start battle", variant: "destructive" });
@@ -235,6 +258,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     setEnemyHp(enc.hp);
     setEnemyMaxHp(enc.hp);
     enemyHpRef.current = enc.hp;
+    enemyMaxHpRef.current = enc.hp;
     enemyStatsRef.current = { atk: enc.atk, def: enc.def };
     setVictoryData(null);
     setComboCount(0);
@@ -380,6 +404,11 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       setPetHit(true);
       setShakeScreen(true);
       setTimeout(() => { setPetHit(false); setShakeScreen(false); }, isCrit ? 500 : 300);
+      // Mana gain on being hit
+      if (pet?.specialSkill) {
+        manaRef.current = Math.min(MAX_MANA, manaRef.current + 12);
+        setMana(Math.floor(manaRef.current));
+      }
 
       // Hit particles burst on pet
       const particleColors = ["#c084fc", "#a855f7", "#818cf8", "#f472b6", "#60a5fa"];
@@ -585,6 +614,16 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
 
       enemyPosRef.current = pos;
       setEnemyPos({ ...pos });
+
+      // Passive mana gain: +1 every ~2 seconds (120 frames at 60fps)
+      if (pet?.specialSkill) {
+        manaTickRef.current++;
+        if (manaTickRef.current >= 120) {
+          manaTickRef.current = 0;
+          manaRef.current = Math.min(MAX_MANA, manaRef.current + 1);
+          setMana(Math.floor(manaRef.current));
+        }
+      }
 
       checkCollision();
       animFrameRef.current = requestAnimationFrame(animate);
@@ -830,10 +869,12 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     setTimeout(() => setSkillEffect(null), 1200);
     setTimeout(() => setSkillCooldown(false), 3000);
 
+    const pct = (pet as any)?.skillDamagePercent ?? null;
+
     if (skill === "Lazer") {
-      // Heavy single-hit beam on enemy current position
       const ePos = enemyPosRef.current;
-      const dmg = Math.floor(petStatsRef.current.atk * 2.5);
+      const mult = pct !== null ? pct / 100 : 2.5;
+      const dmg = Math.floor(petStatsRef.current.atk * mult);
       enemyHpRef.current = Math.max(0, enemyHpRef.current - dmg);
       setEnemyHp(enemyHpRef.current);
       setEnemyHit(true);
@@ -844,12 +885,12 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       if (enemyHpRef.current <= 0) handleEnemyDeathRef.current();
 
     } else if (skill === "Bubble") {
-      // Fire 3 orbs — each deals damage after a brief delay
       const ePos = enemyPosRef.current;
+      const mult = pct !== null ? pct / 100 : 0.9;
       [0, 1, 2].forEach((i) => {
         setTimeout(() => {
           if (!battleActiveRef.current) return;
-          const dmg = Math.floor(petStatsRef.current.atk * 0.9 + Math.random() * 10);
+          const dmg = Math.floor(petStatsRef.current.atk * mult + Math.random() * 10);
           enemyHpRef.current = Math.max(0, enemyHpRef.current - dmg);
           setEnemyHp(enemyHpRef.current);
           setEnemyHit(true);
@@ -863,7 +904,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
 
     } else if (skill === "Heal Self" || skill === "Heal Party") {
       const maxHp = (petStatsRef.current as any).maxHp || petMaxHp;
-      const healAmt = Math.floor(maxHp * 0.3);
+      const healPct = pct !== null ? pct / 100 : 0.3;
+      const healAmt = Math.floor(maxHp * healPct);
       petHpRef.current = Math.min(maxHp, petHpRef.current + healAmt);
       setPetHp(petHpRef.current);
       const nd: DamageNumber = { id: dmgIdRef.current++, x: petPosRef.current.x, y: petPosRef.current.y - 14, value: healAmt, isHeal: true };
@@ -874,7 +916,10 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       if (poisonActive) return;
       setPoisonActive(true);
       let ticks = 0;
-      const tickDmg = Math.floor(petStatsRef.current.atk * 0.18);
+      // Poison: pct% of enemy MAX HP per tick, 5 ticks. Default 5%.
+      const poisonPct = pct !== null ? pct / 100 : 0.05;
+      const enemyMaxHp = enemyMaxHpRef.current || 200;
+      const tickDmg = Math.max(1, Math.floor(enemyMaxHp * poisonPct));
       const timer = setInterval(() => {
         if (!battleActiveRef.current) { clearInterval(timer); setPoisonActive(false); return; }
         ticks++;
@@ -884,7 +929,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         const nd: DamageNumber = { id: dmgIdRef.current++, x: ePos.x + (Math.random() * 14 - 7), y: ePos.y - 10, value: tickDmg };
         setDamageNumbers(prev => [...prev, nd]);
         setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== nd.id)), 900);
-        if (ticks >= 6 || enemyHpRef.current <= 0) {
+        if (ticks >= 5 || enemyHpRef.current <= 0) {
           clearInterval(timer);
           setPoisonActive(false);
           poisonTimerRef.current = null;
@@ -921,6 +966,46 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     onBattleEnd();
     onClose();
   }, [onBattleEnd, onClose]);
+
+  // ── Use a battle potion slot ──────────────────────────────────────────────
+  const usePotion = useCallback((slotIndex: number) => {
+    const slot = activeSlotsRef.current[slotIndex];
+    if (!slot || slot.remaining.length === 0) return;
+    if (!battleActiveRef.current) return;
+
+    const inventoryId = slot.remaining[0];
+    const isHealPotion = (slot.healthRestored ?? 0) > 0;
+    const isManaPotion = (slot.manaRestored ?? 0) > 0;
+
+    if (isHealPotion && petHpRef.current >= (petStatsRef.current as any).maxHp) return; // already full
+    if (isManaPotion && manaRef.current >= MAX_MANA) return; // already full mana
+
+    // Apply locally
+    if (isHealPotion) {
+      const maxHp = (petStatsRef.current as any).maxHp || petMaxHp;
+      const healAmt = slot.healthRestored!;
+      petHpRef.current = Math.min(maxHp, petHpRef.current + healAmt);
+      setPetHp(petHpRef.current);
+      const nd: DamageNumber = { id: dmgIdRef.current++, x: petPosRef.current.x, y: petPosRef.current.y - 14, value: healAmt, isHeal: true };
+      setDamageNumbers(prev => [...prev, nd]);
+      setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== nd.id)), 1200);
+    }
+    if (isManaPotion) {
+      const manaAmt = slot.manaRestored!;
+      manaRef.current = Math.min(MAX_MANA, manaRef.current + manaAmt);
+      setMana(Math.floor(manaRef.current));
+    }
+
+    // Consume from slot
+    const updated = activeSlotsRef.current.map((s, i) =>
+      i === slotIndex ? { ...s, remaining: s.remaining.slice(1) } : s
+    );
+    activeSlotsRef.current = updated;
+    setActiveSlots([...updated]);
+
+    // Consume from server inventory
+    potionMutation.mutate({ inventoryId, petInventoryId: pet?.inventoryId ?? "" });
+  }, [petMaxHp, pet?.inventoryId]);
 
   const hpBarColor = (current: number, max: number) => {
     const pct = max > 0 ? current / max : 0;
@@ -1078,6 +1163,16 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           0%, 100% { opacity: 0.5; }
           50%       { opacity: 1; }
         }
+        @keyframes manaGlow {
+          0%   { filter: drop-shadow(0 0 10px rgba(167,139,250,0.7)) drop-shadow(0 0 4px rgba(124,58,237,0.5)); }
+          50%  { filter: drop-shadow(0 0 22px rgba(167,139,250,1.0)) drop-shadow(0 0 10px rgba(124,58,237,0.8)); }
+          100% { filter: drop-shadow(0 0 10px rgba(167,139,250,0.7)) drop-shadow(0 0 4px rgba(124,58,237,0.5)); }
+        }
+        @keyframes manaAura {
+          0%   { transform: translate(-50%,-50%) scale(1);   opacity: 0.25; }
+          50%  { transform: translate(-50%,-50%) scale(1.18); opacity: 0.5; }
+          100% { transform: translate(-50%,-50%) scale(1);   opacity: 0.25; }
+        }
       `}</style>
 
       <div
@@ -1180,81 +1275,140 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               </div>
             </div>
 
-            <div className="absolute bottom-0 left-0 right-0 z-20 p-3">
-              <div className="flex items-center gap-2">
-                <div className="flex-1">
-                  <div className="flex items-center gap-1 mb-1">
-                    <span className="text-sm font-bold drop-shadow-lg truncate" style={{ color: accent }}>{pet.name}</span>
-                    <span className="text-gray-300 text-xs">Lv.{pet.level}</span>
-                  </div>
-                  <div className="h-3 bg-black/60 rounded-full overflow-hidden border border-white/20">
-                    <div
-                      className="h-full rounded-full transition-all duration-200"
-                      style={{
-                        width: `${Math.max(0, (petHp / petMaxHp) * 100)}%`,
-                        backgroundColor: hpBarColor(petHp, petMaxHp),
-                        boxShadow: `0 0 8px ${hpBarColor(petHp, petMaxHp)}80`,
-                      }}
-                    />
-                  </div>
-                  <div className="text-gray-300 text-[10px] mt-0.5">{petHp} / {petMaxHp}</div>
+            {/* ── Bottom Toolbar ── */}
+            <div className="absolute bottom-0 left-0 right-0 z-20"
+              style={{ background: "linear-gradient(0deg, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.55) 70%, transparent 100%)", padding: "10px 12px 12px" }}>
 
-                  {/* Mana bar — only shown if pet has a special skill */}
-                  {pet.specialSkill && (
-                    <div className="mt-1.5">
-                      <div className="flex items-center justify-between mb-0.5">
-                        <span className="text-[9px] font-fantasy tracking-widest" style={{ color: "#a78bfa" }}>MANA</span>
-                        <span className="text-[9px] text-white/40">{mana}/{MAX_MANA}</span>
-                      </div>
-                      <div className="h-2 bg-black/60 rounded-full overflow-hidden border border-purple-900/60">
-                        <div
-                          className="h-full rounded-full transition-all duration-300"
-                          style={{
-                            width: `${(mana / MAX_MANA) * 100}%`,
-                            background: mana >= MAX_MANA
-                              ? "linear-gradient(90deg, #7c3aed, #a78bfa, #c4b5fd)"
-                              : "linear-gradient(90deg, #4c1d95, #7c3aed)",
-                            boxShadow: mana >= MAX_MANA ? "0 0 10px rgba(167,139,250,0.8)" : undefined,
-                            animation: mana >= MAX_MANA ? "tensionPulse 0.8s ease-in-out infinite" : undefined,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
+              {/* Row 1: Name + Level + Skill button */}
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-bold drop-shadow-lg truncate" style={{ color: accent }}>{pet.name}</span>
+                  <span className="text-gray-400 text-xs">Lv.{pet.level}</span>
                 </div>
-
-                {/* Special skill button — shown when pet has a skill */}
                 {pet.specialSkill && phase === "battle" && (
                   <button
                     data-testid="button-use-skill"
                     onClick={useSpecialSkill}
                     disabled={mana < MAX_MANA || skillCooldown}
-                    className="flex-shrink-0 flex flex-col items-center justify-center rounded-xl border transition-all"
+                    className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1 rounded-full border transition-all"
                     style={{
-                      width: 56, height: 56,
                       background: mana >= MAX_MANA && !skillCooldown
                         ? "linear-gradient(135deg, #4c1d95, #7c3aed)"
                         : "rgba(0,0,0,0.5)",
                       borderColor: mana >= MAX_MANA && !skillCooldown ? "#a78bfa" : "rgba(255,255,255,0.1)",
-                      boxShadow: mana >= MAX_MANA && !skillCooldown ? "0 0 18px rgba(167,139,250,0.7)" : undefined,
+                      boxShadow: mana >= MAX_MANA && !skillCooldown ? "0 0 16px rgba(167,139,250,0.7)" : undefined,
                       opacity: skillCooldown ? 0.5 : 1,
                       animation: mana >= MAX_MANA && !skillCooldown ? "tensionPulse 0.7s ease-in-out infinite" : undefined,
                       cursor: mana >= MAX_MANA && !skillCooldown ? "pointer" : "not-allowed",
                     }}
                   >
-                    <span style={{ fontSize: 22, lineHeight: 1 }}>
+                    <span style={{ fontSize: 16, lineHeight: 1 }}>
                       {pet.specialSkill === "Lazer" ? "⚡" :
                        pet.specialSkill === "Bubble" ? "🫧" :
                        pet.specialSkill === "Heal Self" || pet.specialSkill === "Heal Party" ? "💚" :
                        pet.specialSkill === "Poison" ? "☠️" : "✨"}
                     </span>
-                    <span className="text-[7px] font-fantasy tracking-wider mt-0.5 text-center leading-tight px-0.5"
+                    <span className="text-[9px] font-fantasy tracking-wider"
                       style={{ color: mana >= MAX_MANA && !skillCooldown ? "#e9d5ff" : "#6b7280" }}>
                       {skillCooldown ? "CD" : mana >= MAX_MANA ? "READY!" : pet.specialSkill.split(" ")[0].toUpperCase()}
                     </span>
                   </button>
                 )}
               </div>
+
+              {/* Row 2: HP bar */}
+              <div className="mb-1">
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className="text-[9px] font-fantasy tracking-widest text-gray-400">HP</span>
+                  <span className="text-[9px] font-bold" style={{ color: hpBarColor(petHp, petMaxHp) }}>{petHp} / {petMaxHp}</span>
+                </div>
+                <div className="h-3 bg-black/60 rounded-full overflow-hidden border border-white/15">
+                  <div className="h-full rounded-full transition-all duration-200"
+                    style={{
+                      width: `${Math.max(0, (petHp / petMaxHp) * 100)}%`,
+                      backgroundColor: hpBarColor(petHp, petMaxHp),
+                      boxShadow: `0 0 8px ${hpBarColor(petHp, petMaxHp)}80`,
+                    }} />
+                </div>
+              </div>
+
+              {/* Row 3: Mana bar (only if pet has a skill) */}
+              {pet.specialSkill && (
+                <div className="mb-2">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-[9px] font-fantasy tracking-widest" style={{ color: "#a78bfa" }}>MANA</span>
+                    <span className="text-[9px] text-white/40">{mana} / {MAX_MANA}</span>
+                  </div>
+                  <div className="h-2 bg-black/60 rounded-full overflow-hidden border border-purple-900/50">
+                    <div className="h-full rounded-full transition-all duration-300"
+                      style={{
+                        width: `${(mana / MAX_MANA) * 100}%`,
+                        background: mana >= MAX_MANA
+                          ? "linear-gradient(90deg, #7c3aed, #a78bfa, #c4b5fd)"
+                          : "linear-gradient(90deg, #4c1d95, #7c3aed)",
+                        boxShadow: mana >= MAX_MANA ? "0 0 10px rgba(167,139,250,0.8)" : undefined,
+                        animation: mana >= MAX_MANA ? "tensionPulse 0.8s ease-in-out infinite" : undefined,
+                      }} />
+                  </div>
+                </div>
+              )}
+
+              {/* Row 4: 5 Potion slots */}
+              <div className="flex gap-2 justify-start items-center">
+                {Array.from({ length: 5 }, (_, i) => {
+                  const slot = activeSlots[i];
+                  const qty = slot?.remaining.length ?? 0;
+                  const isEmpty = !slot || qty === 0;
+                  const isHeal = slot && (slot.healthRestored ?? 0) > 0;
+                  const isMana = slot && (slot.manaRestored ?? 0) > 0;
+                  return (
+                    <button
+                      key={i}
+                      data-testid={`button-potion-slot-${i}`}
+                      onClick={() => usePotion(i)}
+                      disabled={isEmpty}
+                      className="relative flex items-center justify-center rounded-full border transition-all active:scale-90"
+                      style={{
+                        width: 44, height: 44,
+                        background: isEmpty
+                          ? "rgba(0,0,0,0.4)"
+                          : isMana
+                            ? "rgba(76,29,149,0.5)"
+                            : "rgba(20,80,30,0.5)",
+                        borderColor: isEmpty
+                          ? "rgba(255,255,255,0.1)"
+                          : isMana
+                            ? "rgba(167,139,250,0.5)"
+                            : "rgba(34,197,94,0.45)",
+                        boxShadow: isEmpty ? undefined : isMana
+                          ? "0 0 8px rgba(124,58,237,0.4)"
+                          : "0 0 8px rgba(34,197,94,0.3)",
+                        opacity: isEmpty ? 0.35 : 1,
+                        cursor: isEmpty ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {isEmpty ? (
+                        <span className="text-white/20 text-lg">+</span>
+                      ) : slot.imageUrl ? (
+                        <img src={slot.imageUrl} alt={slot.name} className="w-7 h-7 object-contain" />
+                      ) : (
+                        <span className="text-lg">{isHeal ? "❤️" : isMana ? "💧" : "🧪"}</span>
+                      )}
+                      {!isEmpty && qty > 0 && (
+                        <div className="absolute -bottom-0.5 -right-0.5 rounded-full text-[8px] font-bold px-1 min-w-[14px] text-center leading-none py-0.5"
+                          style={{
+                            background: isMana ? "#7c3aed" : "#16a34a",
+                            color: "white",
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.5)",
+                          }}>
+                          {qty}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
               {comboCount > 1 && phase === "battle" && (
                 <div
                   className="absolute -top-8 right-4 text-yellow-400 font-black text-lg drop-shadow-lg"
@@ -1368,28 +1522,49 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                 top: `${petPos.y}%`,
                 transform: "translate(-50%, -50%)",
                 animation: petHit ? "petHitBounce 0.4s ease-out" : undefined,
-                filter: petHit ? "drop-shadow(0 0 14px rgba(239,68,68,0.9))" : undefined,
+                filter: petHit
+                  ? "drop-shadow(0 0 14px rgba(239,68,68,0.9))"
+                  : (mana >= MAX_MANA && !skillCooldown && pet.specialSkill)
+                    ? undefined
+                    : undefined,
                 transition: petDraggingRef.current ? undefined : "left 0.08s, top 0.08s",
                 userSelect: "none",
                 pointerEvents: "none",
               }}
             >
+              {/* Mana-ready aura ring around pet */}
+              {mana >= MAX_MANA && !skillCooldown && pet.specialSkill && (
+                <div style={{
+                  position: "absolute",
+                  left: "50%", top: "50%",
+                  width: 230, height: 230,
+                  borderRadius: "50%",
+                  border: "2.5px solid rgba(167,139,250,0.75)",
+                  boxShadow: "0 0 20px rgba(124,58,237,0.6), inset 0 0 20px rgba(167,139,250,0.15)",
+                  animation: "manaAura 1s ease-in-out infinite",
+                  pointerEvents: "none",
+                }} />
+              )}
               {pet.petTemplateId ? (
                 <PetAnimator
                   petTemplateId={pet.petTemplateId}
                   mode="idle"
                   view="front"
                   size={220}
+                  style={mana >= MAX_MANA && !skillCooldown ? { animation: "manaGlow 1s ease-in-out infinite" } : undefined}
                 />
               ) : pet.imageUrl ? (
                 <img
                   src={pet.imageUrl}
                   alt={pet.name}
                   className="object-contain drop-shadow-lg"
-                  style={{ width: 220, height: 220 }}
+                  style={{
+                    width: 220, height: 220,
+                    animation: mana >= MAX_MANA && !skillCooldown ? "manaGlow 1s ease-in-out infinite" : undefined,
+                  }}
                 />
               ) : (
-                <span className="text-6xl">🐾</span>
+                <span className="text-6xl" style={{ animation: mana >= MAX_MANA && !skillCooldown ? "manaGlow 1s ease-in-out infinite" : undefined }}>🐾</span>
               )}
 
               {/* Small centered grab zone — requires a direct tap to drag */}
@@ -1735,31 +1910,9 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                     <div className="h-full rounded-full transition-all" style={{ width: `${(petHp / petMaxHp) * 100}%`, backgroundColor: hpBarColor(petHp, petMaxHp) }} />
                   </div>
 
-                  {potions.length > 0 && (
-                    <div className="mt-3">
-                      <div className="text-gray-500 text-[10px] uppercase tracking-wide mb-1.5">Use Potion</div>
-                      <div className="space-y-1.5">
-                        {potions.map((potion) => (
-                          <button
-                            key={potion.inventoryId}
-                            data-testid={`button-use-potion-${potion.inventoryId}`}
-                            disabled={potionMutation.isPending || petHp >= petMaxHp}
-                            onClick={() => potionMutation.mutate({ inventoryId: potion.inventoryId, petInventoryId: pet.inventoryId })}
-                            className="w-full flex items-center gap-2 p-2 rounded-lg bg-green-900/30 border border-green-700/40 hover:bg-green-800/40 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                            style={{ animation: "healPulse 2s infinite" }}
-                          >
-                            {potion.imageUrl ? (
-                              <img src={potion.imageUrl} alt="" className="w-7 h-7 object-contain" />
-                            ) : (
-                              <Heart className="w-5 h-5 text-green-400" />
-                            )}
-                            <div className="flex-1 text-left">
-                              <div className="text-white text-xs font-medium">{potion.name}</div>
-                              <div className="text-green-400 text-[10px]">+{potion.healthRestored} HP</div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
+                  {activeSlots.some(s => s && s.remaining.length > 0) && (
+                    <div className="mt-3 text-gray-500 text-[10px] text-center tracking-wide">
+                      Use potions from the battle toolbar
                     </div>
                   )}
                 </div>

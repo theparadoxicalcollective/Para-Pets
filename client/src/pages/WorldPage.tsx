@@ -10,7 +10,7 @@ import coinIconImg from "@assets/icon_coin.png";
 import { Plus, Minus, Trash2, X, MapPin, Package, Pencil, Settings, Swords, FlipHorizontal, Copy, Waves, Palette } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 import ExploreAdminPanel from "@/components/ExploreAdminPanel";
-import BattleArena from "@/components/BattleArena";
+import BattleArena, { BattlePotionSlot } from "@/components/BattleArena";
 import FishingPage from "@/pages/FishingPage";
 import SellFishPage from "@/pages/SellFishPage";
 import fishBarrelImg from "@assets/fish_barrel.png";
@@ -119,6 +119,9 @@ interface InventoryItem {
   name: string;
   type: string;
   isHatched?: boolean;
+  imageUrl?: string | null;
+  healthRestored?: number | null;
+  manaRestored?: number | null;
 }
 
 interface WorldLocationData {
@@ -226,8 +229,10 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [bgUploading, setBgUploading] = useState(false);
   const [showNoPetMessage, setShowNoPetMessage] = useState(false);
   const [showDangerWarning, setShowDangerWarning] = useState(false);
+  const [showBattlePrep, setShowBattlePrep] = useState(false);
   const [showBattle, setShowBattle] = useState(false);
   const [battleLocationId, setBattleLocationId] = useState<string | null>(null);
+  const [battlePotionSlots, setBattlePotionSlots] = useState<(BattlePotionSlot | null)[]>([null, null, null, null, null]);
   const [showFishing, setShowFishing] = useState(false);
   const [showSellFish, setShowSellFish] = useState(false);
   const [barrelDragPos, setBarrelDragPos] = useState<{ x: number; y: number } | null>(null);
@@ -3103,7 +3108,8 @@ export default function WorldPage({ user }: WorldPageProps) {
                         data-testid="button-start-battle"
                         onClick={() => {
                           setBattleLocationId(activeLoc.id);
-                          setShowBattle(true);
+                          setBattlePotionSlots([null, null, null, null, null]);
+                          setShowBattlePrep(true);
                           setShowLocationView(false);
                         }}
                         className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
@@ -3321,7 +3327,8 @@ export default function WorldPage({ user }: WorldPageProps) {
                       data-testid="button-start-battle"
                       onClick={() => {
                         setBattleLocationId(activeLoc.id);
-                        setShowBattle(true);
+                        setBattlePotionSlots([null, null, null, null, null]);
+                        setShowBattlePrep(true);
                         setShowLocationView(false);
                       }}
                       className="w-12 h-12 rounded-full flex items-center justify-center transition-transform active:scale-90"
@@ -3532,12 +3539,210 @@ export default function WorldPage({ user }: WorldPageProps) {
                   onClick={() => {
                     setShowDangerWarning(false);
                     setBattleLocationId(activeLocationId);
-                    setShowBattle(true);
+                    setBattlePotionSlots([null, null, null, null, null]);
+                    setShowBattlePrep(true);
                   }}
                   className="flex-1 py-2.5 rounded-md font-fantasy text-xs tracking-wider transition-transform active:scale-95 bg-red-600/80 border border-red-500/70 text-white hover:bg-red-500/80"
                   style={{ boxShadow: "0 0 15px #ff444430" }}
                 >
                   Move Forward
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {showBattlePrep && battleLocationId && (() => {
+        const battleLoc = locations.find(l => l.id === battleLocationId);
+        if (!battleLoc) return null;
+        const potions = inventory.filter(i => i.type === "potion" && ((i.healthRestored ?? 0) > 0 || (i.manaRestored ?? 0) > 0));
+        const groupedPotions: Record<string, { shopItemId: string; name: string; imageUrl?: string | null; healthRestored?: number | null; manaRestored?: number | null; items: InventoryItem[] }> = {};
+        for (const p of potions) {
+          if (!groupedPotions[p.shopItemId]) {
+            groupedPotions[p.shopItemId] = { shopItemId: p.shopItemId, name: p.name, imageUrl: p.imageUrl, healthRestored: p.healthRestored, manaRestored: p.manaRestored, items: [] };
+          }
+          groupedPotions[p.shopItemId].items.push(p);
+        }
+        const potionGroups = Object.values(groupedPotions);
+
+        const assignPotion = (group: typeof potionGroups[0]) => {
+          const existingSlotIdx = battlePotionSlots.findIndex(s => s?.shopItemId === group.shopItemId);
+          if (existingSlotIdx !== -1) {
+            // Stack into existing slot
+            const updated = [...battlePotionSlots] as (BattlePotionSlot | null)[];
+            const slot = updated[existingSlotIdx]!;
+            const newIds = group.items.map(i => i.inventoryId).filter(id => !slot.inventoryIds.includes(id));
+            if (newIds.length === 0) return;
+            const nextId = newIds[0];
+            updated[existingSlotIdx] = { ...slot, inventoryIds: [...slot.inventoryIds, nextId], remaining: [...slot.remaining, nextId] };
+            setBattlePotionSlots(updated);
+          } else {
+            // Assign to first empty slot
+            const emptyIdx = battlePotionSlots.findIndex(s => s === null);
+            if (emptyIdx === -1) return;
+            const updated = [...battlePotionSlots] as (BattlePotionSlot | null)[];
+            const firstId = group.items[0].inventoryId;
+            updated[emptyIdx] = {
+              shopItemId: group.shopItemId,
+              inventoryIds: [firstId],
+              name: group.name,
+              imageUrl: group.imageUrl ?? null,
+              healthRestored: group.healthRestored ?? null,
+              manaRestored: group.manaRestored ?? null,
+              remaining: [firstId],
+            };
+            setBattlePotionSlots(updated);
+          }
+        };
+
+        const removeFromSlot = (slotIdx: number) => {
+          const updated = [...battlePotionSlots] as (BattlePotionSlot | null)[];
+          const slot = updated[slotIdx]!;
+          if (slot.inventoryIds.length <= 1) {
+            updated[slotIdx] = null;
+          } else {
+            const newIds = slot.inventoryIds.slice(0, -1);
+            updated[slotIdx] = { ...slot, inventoryIds: newIds, remaining: newIds };
+          }
+          setBattlePotionSlots(updated);
+        };
+
+        return (
+          <div className="absolute inset-0 z-50 flex items-end justify-center"
+            style={{ background: "rgba(0,0,0,0.85)", backdropFilter: "blur(4px)" }}>
+            <div className="w-full max-w-sm mx-auto rounded-t-3xl overflow-hidden"
+              style={{ background: "linear-gradient(180deg, #1a0a2e 0%, #0f0a1a 100%)", border: "1px solid rgba(167,139,250,0.2)", borderBottom: "none", maxHeight: "88vh" }}>
+              
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 pt-5 pb-3">
+                <div>
+                  <h2 className="font-fantasy text-lg text-white tracking-widest">PREPARE</h2>
+                  <p className="font-fantasy text-[10px] tracking-wider" style={{ color: "#a78bfa" }}>{battleLoc.name}</p>
+                </div>
+                <button
+                  data-testid="button-cancel-battle-prep"
+                  onClick={() => { setShowBattlePrep(false); setBattleLocationId(null); }}
+                  className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 transition-colors"
+                >
+                  <X className="w-4 h-4 text-white/60" />
+                </button>
+              </div>
+
+              {/* Potion slots */}
+              <div className="px-5 pb-3">
+                <p className="font-fantasy text-[9px] tracking-widest text-white/40 mb-2">POTION SLOTS (up to 5)</p>
+                <div className="flex gap-2 mb-4">
+                  {Array.from({ length: 5 }, (_, i) => {
+                    const slot = battlePotionSlots[i];
+                    const qty = slot?.inventoryIds.length ?? 0;
+                    const isHeal = slot && (slot.healthRestored ?? 0) > 0;
+                    const isMana = slot && (slot.manaRestored ?? 0) > 0;
+                    return (
+                      <button
+                        key={i}
+                        data-testid={`button-prep-slot-${i}`}
+                        onClick={() => slot && removeFromSlot(i)}
+                        className="relative flex items-center justify-center rounded-full border transition-all active:scale-90"
+                        style={{
+                          width: 50, height: 50, flexShrink: 0,
+                          background: slot ? (isMana ? "rgba(76,29,149,0.5)" : "rgba(20,80,30,0.5)") : "rgba(0,0,0,0.3)",
+                          borderColor: slot ? (isMana ? "rgba(167,139,250,0.6)" : "rgba(34,197,94,0.5)") : "rgba(255,255,255,0.1)",
+                          boxShadow: slot ? (isMana ? "0 0 10px rgba(124,58,237,0.4)" : "0 0 10px rgba(34,197,94,0.3)") : undefined,
+                          cursor: slot ? "pointer" : "default",
+                        }}
+                      >
+                        {slot ? (
+                          slot.imageUrl ? (
+                            <img src={slot.imageUrl} alt={slot.name} className="w-8 h-8 object-contain" />
+                          ) : (
+                            <span className="text-lg">{isHeal ? "❤️" : "💧"}</span>
+                          )
+                        ) : (
+                          <span className="text-white/20 text-xl">+</span>
+                        )}
+                        {slot && qty > 0 && (
+                          <div className="absolute -bottom-0.5 -right-0.5 rounded-full text-[8px] font-bold px-1 min-w-[14px] text-center py-0.5"
+                            style={{ background: isMana ? "#7c3aed" : "#16a34a", color: "white" }}>
+                            {qty}
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="font-fantasy text-[8px] tracking-wider text-white/25 mb-4">Tap a filled slot to remove one potion</p>
+              </div>
+
+              {/* Available potions */}
+              <div className="px-5 overflow-y-auto" style={{ maxHeight: 200 }}>
+                {potionGroups.length === 0 ? (
+                  <div className="text-center py-6">
+                    <p className="font-fantasy text-[10px] tracking-wider text-white/30">No potions in inventory</p>
+                    <p className="font-fantasy text-[8px] tracking-wider text-white/20 mt-1">Visit a shop to stock up!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 mb-4">
+                    <p className="font-fantasy text-[9px] tracking-widest text-white/40 mb-1">YOUR POTIONS</p>
+                    {potionGroups.map(group => {
+                      const assignedCount = battlePotionSlots.reduce((acc, s) => s?.shopItemId === group.shopItemId ? acc + s.inventoryIds.length : acc, 0);
+                      const availableCount = group.items.length - assignedCount;
+                      const isHeal = (group.healthRestored ?? 0) > 0;
+                      const isMana = (group.manaRestored ?? 0) > 0;
+                      return (
+                        <button
+                          key={group.shopItemId}
+                          data-testid={`button-assign-potion-${group.shopItemId}`}
+                          onClick={() => availableCount > 0 && assignPotion(group)}
+                          disabled={availableCount <= 0 || battlePotionSlots.every((s, _) => s !== null && s.shopItemId !== group.shopItemId)}
+                          className="w-full flex items-center gap-3 p-2.5 rounded-xl border transition-all active:scale-98 disabled:opacity-40"
+                          style={{
+                            background: isHeal ? "rgba(20,80,30,0.3)" : "rgba(60,20,120,0.3)",
+                            borderColor: isHeal ? "rgba(34,197,94,0.3)" : "rgba(124,58,237,0.3)",
+                          }}
+                        >
+                          {group.imageUrl ? (
+                            <img src={group.imageUrl} alt={group.name} className="w-9 h-9 object-contain flex-shrink-0" />
+                          ) : (
+                            <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                              style={{ background: isHeal ? "rgba(20,80,30,0.5)" : "rgba(76,29,149,0.5)" }}>
+                              <span className="text-lg">{isHeal ? "❤️" : "💧"}</span>
+                            </div>
+                          )}
+                          <div className="flex-1 text-left">
+                            <div className="text-white text-xs font-medium">{group.name}</div>
+                            <div className="text-[10px]" style={{ color: isHeal ? "#4ade80" : "#a78bfa" }}>
+                              {isHeal ? `+${group.healthRestored} HP` : `+${group.manaRestored} Mana`}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-white/60 text-xs">{availableCount} left</div>
+                            <div className="font-fantasy text-[8px] tracking-wider" style={{ color: isHeal ? "#4ade80" : "#a78bfa" }}>TAP TO ADD</div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Begin battle button */}
+              <div className="px-5 pb-8 pt-3">
+                <button
+                  data-testid="button-begin-battle"
+                  onClick={() => {
+                    setShowBattlePrep(false);
+                    setShowBattle(true);
+                    setShowLocationView(false);
+                  }}
+                  className="w-full py-3.5 rounded-2xl font-fantasy text-sm tracking-widest text-white transition-all active:scale-95 hover:scale-[1.02]"
+                  style={{
+                    background: "linear-gradient(135deg, #7f1d1d 0%, #dc2626 50%, #7f1d1d 100%)",
+                    border: "2px solid rgba(239,68,68,0.7)",
+                    boxShadow: "0 4px 24px rgba(239,68,68,0.4)",
+                  }}
+                >
+                  ⚔ BEGIN BATTLE
                 </button>
               </div>
             </div>
@@ -3555,6 +3760,7 @@ export default function WorldPage({ user }: WorldPageProps) {
               locationName={battleLoc.name}
               bgUrl={battleLocDetail?.bgUrl ?? null}
               accent={accent}
+              battlePotionSlots={battlePotionSlots}
               onClose={() => {
                 setShowBattle(false);
                 setBattleLocationId(null);
