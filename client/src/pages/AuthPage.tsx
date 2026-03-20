@@ -193,7 +193,7 @@ export default function AuthPage() {
 
   return (
     <div
-      className="relative h-[100dvh] w-full overflow-hidden flex flex-col items-center"
+      className="relative h-screen-frame w-full overflow-hidden flex flex-col items-center"
       style={{
         backgroundImage: `url(${bgImg})`,
         backgroundSize: "cover",

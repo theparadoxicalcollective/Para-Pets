@@ -108,6 +108,30 @@ function AppRouter() {
 }
 
 function App() {
+  // On desktop, scale the phone frame down so it always fits in the viewport
+  // without clipping any content (exactly like a device emulator).
+  // On mobile the frame is full-screen so scale stays 1.
+  const [frameScale, setFrameScale] = useState(1);
+  useEffect(() => {
+    const compute = () => {
+      if (window.innerWidth < 768) {
+        // Mobile: full-screen, no scale needed
+        setFrameScale(1);
+        document.documentElement.style.setProperty("--fh", "100dvh");
+        return;
+      }
+      // Desktop: shrink frame to fit viewport while keeping 390×844 proportions
+      const scaleByH = (window.innerHeight * 0.92) / 844;
+      const scaleByW = (window.innerWidth * 0.96) / 390;
+      setFrameScale(Math.min(1, scaleByH, scaleByW));
+      // Pages use var(--fh) so they always fill exactly the 844px frame height
+      document.documentElement.style.setProperty("--fh", "844px");
+    };
+    compute();
+    window.addEventListener("resize", compute);
+    return () => window.removeEventListener("resize", compute);
+  }, []);
+
   useEffect(() => {
     let unlocked = false;
 
@@ -161,22 +185,28 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-        {/* Mobile: full screen | Desktop: centered phone frame with gold border */}
+        {/* Mobile: full-screen  |  Desktop: phone emulator centered on dark background */}
         <div
-          className="w-full h-[100dvh] md:flex md:items-center md:justify-center md:bg-[#07090f]"
+          className="w-full h-[100dvh] md:flex md:items-center md:justify-center md:overflow-hidden md:bg-[#07090f]"
           style={{
             backgroundImage: "radial-gradient(ellipse at 30% 60%, rgba(58,30,90,0.45) 0%, transparent 60%), radial-gradient(ellipse at 75% 30%, rgba(20,70,55,0.35) 0%, transparent 55%)",
           }}
         >
           <div
-            className="w-full h-full md:w-[390px] md:h-[min(844px,92dvh)] md:rounded-[2.5rem] md:overflow-hidden"
+            className="w-full h-full md:w-[390px] md:h-[844px] md:rounded-[2.5rem] md:overflow-hidden md:flex-shrink-0"
             style={{
               isolation: "isolate",
-              /* transform creates a new containing block so position:fixed children
-                 stay inside this frame instead of escaping to the viewport */
-              transform: "translateZ(0)",
-              /* gold decorative ring — invisible on mobile (full-screen = off-edge),
-                 visible on desktop as the device frame border */
+              /*
+               * translateZ(0)  → creates a new containing block so every
+               *   position:fixed child stays INSIDE this frame on desktop.
+               * scale(frameScale) → uniformly shrinks the 390×844 frame to fit
+               *   any viewport without clipping the bottom — exactly like
+               *   Chrome DevTools device emulation.
+               * On mobile frameScale is always 1, so there's no visual change.
+               */
+              transform: `translateZ(0) scale(${frameScale})`,
+              transformOrigin: "center center",
+              /* gold decorative ring — invisible on mobile (full-screen = off-edge) */
               boxShadow: [
                 "0 0 0 3px rgba(212,175,55,0.88)",
                 "0 0 0 6px rgba(160,110,0,0.32)",

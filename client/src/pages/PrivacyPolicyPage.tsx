@@ -55,7 +55,7 @@ export default function PrivacyPolicyPage({ user }: PrivacyPolicyPageProps) {
 
   return (
     <div
-      className="h-[100dvh] flex flex-col relative overflow-hidden"
+      className="h-screen-frame flex flex-col relative overflow-hidden"
       style={{ maxWidth: "768px", margin: "0 auto", background: "linear-gradient(180deg, #040a04 0%, #061508 30%, #0a1e0d 60%, #040a04 100%)" }}
     >
       {/* Top bar */}

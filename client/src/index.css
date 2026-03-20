@@ -212,6 +212,16 @@
  */
 @layer utilities {
 
+  /*
+   * h-screen-frame: use --fh (set by App.tsx) instead of 100dvh.
+   * On desktop: --fh = 844px (the phone frame height) so pages fill
+   * the frame exactly and fixed nav buttons land at the frame bottom.
+   * On mobile: --fh = 100dvh so behavior is identical to before.
+   */
+  .h-screen-frame {
+    height: var(--fh, 100dvh);
+  }
+
   /* Hide ugly search cancel button in Chrome until we can style it properly */
   input[type="search"]::-webkit-search-cancel-button {
     @apply hidden;

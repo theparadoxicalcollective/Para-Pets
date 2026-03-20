@@ -209,7 +209,7 @@ export default function VisitPetHousePage() {
 
   return (
     <div
-      className="relative h-[100dvh] w-full overflow-hidden flex flex-col"
+      className="relative h-screen-frame w-full overflow-hidden flex flex-col"
       style={{ maxWidth: "768px", margin: "0 auto", background: "#1a2a0a" }}
     >
       <div

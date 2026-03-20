@@ -1256,7 +1256,7 @@ export default function WorldPage({ user }: WorldPageProps) {
 
   if (!world) {
     return (
-      <div className="h-[100dvh] flex items-center justify-center bg-black" style={{ maxWidth: "768px", margin: "0 auto" }}>
+      <div className="h-screen-frame flex items-center justify-center bg-black" style={{ maxWidth: "768px", margin: "0 auto" }}>
         <p className="font-fantasy text-[#f0c040] animate-pulse" style={{ textShadow: "0 0 20px rgba(240,192,64,0.5)" }}>Loading realm...</p>
       </div>
     );
@@ -1266,7 +1266,7 @@ export default function WorldPage({ user }: WorldPageProps) {
 
   return (
     <div
-      className="relative w-full h-[100dvh] overflow-hidden"
+      className="relative w-full h-screen-frame overflow-hidden"
       style={{
         maxWidth: "768px",
         margin: "0 auto",

@@ -146,7 +146,7 @@ export default function PetHousePage({ user: initialUser }: PetHousePageProps) {
 
   return (
     <div
-      className="relative h-[100dvh] w-full overflow-hidden flex flex-col"
+      className="relative h-screen-frame w-full overflow-hidden flex flex-col"
       style={{ maxWidth: "768px", margin: "0 auto", background: "#0a0600" }}
     >
       {/* Background covers the full screen, behind TopBar too */}

@@ -35,7 +35,7 @@ export default function BadgePage({ user }: BadgePageProps) {
 
   return (
     <div
-      className="relative w-full h-[100dvh] overflow-hidden flex flex-col"
+      className="relative w-full h-screen-frame overflow-hidden flex flex-col"
       style={{
         backgroundImage: `url(${bgImg})`,
         backgroundSize: "cover",
