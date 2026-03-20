@@ -439,15 +439,29 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         pos.x = Math.max(10, Math.min(90, pos.x));
         pos.vy += (Math.random() - 0.5) * 0.3;
       }
-      if (pos.y < 5 || pos.y > 60) {
+      if (pos.y < 5 || pos.y > 82) {
         pos.vy = -pos.vy * (0.8 + Math.random() * 0.15);
-        pos.y = Math.max(5, Math.min(60, pos.y));
+        pos.y = Math.max(5, Math.min(82, pos.y));
         pos.vx += (Math.random() - 0.5) * 0.3;
       }
 
       const now = Date.now();
       const petX = petPosRef.current.x;
       const petY = petPosRef.current.y;
+
+      // Gentle homing toward pet so enemy can reach it regardless of position
+      const homeDx = petX - pos.x;
+      const homeDy = petY - pos.y;
+      const homeDist = Math.hypot(homeDx, homeDy) || 1;
+      if (homeDist > 18) {
+        const homeStrength = enemy?.isBoss ? 0.04 : 0.055;
+        pos.vx += (homeDx / homeDist) * homeStrength;
+        pos.vy += (homeDy / homeDist) * homeStrength;
+      }
+      // Clamp velocity so homing doesn't make it too fast
+      const maxV = 2.2 + diff * 0.6;
+      const vMag = Math.hypot(pos.vx, pos.vy) || 1;
+      if (vMag > maxV) { pos.vx = (pos.vx / vMag) * maxV; pos.vy = (pos.vy / vMag) * maxV; }
 
       // ── Boss special attack scheduler ──
       if (enemy?.isBoss && bossAttackModeRef.current === "basic" && now > nextBossAttackRef.current && nextBossAttackRef.current > 0) {
@@ -612,16 +626,10 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
 
     const now = Date.now();
 
-    if (enemy.isBoss) {
-      // Skip if boss is immune after breaking free
-      if (now < bossImmuneUntilRef.current) return;
-      // 300ms cooldown between hits — allows rapid multi-pass combo
-      if (now - lastBossHitTimeRef.current < 300) return;
-      lastBossHitTimeRef.current = now;
-    } else {
-      // Regular enemies: only one hit per full swipe gesture
-      if (hitEnemiesRef.current.has(enemy.enemyId)) return;
-    }
+    // Both boss and regular enemies: one hit per swipe gesture
+    if (hitEnemiesRef.current.has(enemy.enemyId)) return;
+    // Boss: skip if immune after breaking free
+    if (enemy.isBoss && now < bossImmuneUntilRef.current) return;
 
     // Minimum swipe path before any hit can register (prevents single-point taps)
     // Boss has a huge hit radius so only need a tiny movement — regular enemies need more
@@ -774,9 +782,9 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     if (dist < 0.6) return;
 
     swipePathRef.current.push(pos);
-    // Keep only the last 18 points so the trail has a fixed short length
-    if (swipePathRef.current.length > 18) {
-      swipePathRef.current = swipePathRef.current.slice(-18);
+    // Keep only the last 6 points — short blade flash, not a persistent drawn line
+    if (swipePathRef.current.length > 6) {
+      swipePathRef.current = swipePathRef.current.slice(-6);
     }
     lastSwipePointRef.current = pos;
     setSlashTrail([...swipePathRef.current]);
