@@ -76,9 +76,9 @@ interface CaughtFish {
 type FishingPhase = "idle" | "casting" | "waiting" | "nibble" | "reeling" | "caught" | "missed";
 
 const ACCENT = "#5eead4";
-// Per-rarity nibble config — higher rarity fish give fewer bites and a tighter window
-const NIBBLE_MAX_BY_RARITY     = [3, 3, 1, 1, 1];           // 3★+ only ONE tap window before escape
-const NIBBLE_TIMEOUT_BY_RARITY = [1200, 1000, 480, 360, 260]; // ms window — 3★+ extremely tight
+// Per-rarity nibble config — 1★ and 2★ are equally easy; 3★+ progressively tighter
+const NIBBLE_MAX_BY_RARITY     = [3, 3, 1, 1, 1];            // 3★+ only ONE tap window before escape
+const NIBBLE_TIMEOUT_BY_RARITY = [1400, 1400, 550, 380, 260]; // ms window — 1★=2★ both generous
 
 export default function FishingPage({ locationId, locationName, bgUrl, user, onClose }: FishingPageProps) {
   const [phase, setPhase] = useState<FishingPhase>("idle");
@@ -389,18 +389,14 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     const poleItem = equipDataRef.current?.poleItem;
     const slowdownFactor = (pct: number | null | undefined) => pct != null ? Math.max(0, 1 - pct / 100) : 1;
 
-    // Starting catch progress — rarer fish start with a nearly empty bar
-    const startProgress   = [0.42,  0.32,  0.05,  0.03,  0.01 ];
+    // Starting catch progress — 1★ and 2★ start at same comfortable level; rarer = almost empty
+    const startProgress   = [0.50,  0.48,  0.15,  0.08,  0.03 ];
 
-    // Catch progress gain per second while holding.
-    // Must be high enough to create a visible back-and-forth "fight" but
-    // balanced against progressDrags so the overall session is still hard.
-    const reelRates       = [0.375, 0.300, 0.130, 0.095, 0.068];
+    // Catch progress gain per second while holding — 1★ and 2★ nearly identical
+    const reelRates       = [0.340, 0.325, 0.140, 0.100, 0.070];
 
-    // Tension rise per second while holding.
-    // Lower than before for 3-5★ so the player has meaningful hold time
-    // and the fight feels active rather than instantly snapping.
-    const tensionRiseBase = [0.75,  0.93,  1.10,  1.38,  1.72 ];
+    // Tension rise per second while holding — 1★ and 2★ rise slowly (forgiving)
+    const tensionRiseBase = [0.52,  0.60,  1.10,  1.42,  1.78 ];
     const tensionRise     = [
       tensionRiseBase[0],
       tensionRiseBase[1],
@@ -409,22 +405,19 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       tensionRiseBase[4] * slowdownFactor(poleItem?.poleSlowdown5),
     ];
 
-    // Tension fall per second while NOT holding.
-    // Higher for 3-5★ than before — faster recovery means the player gets
-    // more hold-release cycles, making the tension feel more dynamic.
-    const tensionFalls    = [1.30,  1.08,  1.00,  0.88,  0.76 ];
+    // Tension fall per second while NOT holding — fast for easy fish so releasing is very safe
+    const tensionFalls    = [1.80,  1.65,  1.10,  0.90,  0.75 ];
 
-    // Catch progress drain per second while NOT holding.
-    // Kept proportional to reelRates (~2-3× for 3★, up to ~6× for 5★)
-    // so releasing always costs something but doesn't instantly erase progress.
-    const progressDrags   = [0.108, 0.192, 0.310, 0.420, 0.540];
+    // Catch progress drain per second while NOT holding — gentle for 1-2★
+    const progressDrags   = [0.060, 0.075, 0.260, 0.380, 0.520];
 
-    // Probability per second a surge begins — surges create the dramatic spikes
-    const surgeChances    = [0.41,  0.60,  0.90,  1.20,  1.60 ];
+    // Surge probability per second — much rarer for 1-2★ so easy fish feel fair
+    const surgeChances    = [0.18,  0.25,  0.80,  1.20,  1.60 ];
     // Extra tension per second DURING a surge
-    const surgeTPerSec    = [0.48,  0.66,  0.88,  1.10,  1.45 ];
+    const surgeTPerSec    = [0.30,  0.40,  0.85,  1.10,  1.45 ];
     // Extra progress drain per second DURING a surge
-    const surgePPerSec    = [0.18,  0.36,  0.55,  0.78,  1.05 ];
+    // NOTE: this is ONLY applied when NOT holding — holding during a surge only costs tension
+    const surgePPerSec    = [0.10,  0.15,  0.50,  0.70,  0.95 ];
 
     const baitCatchBoost = equipDataRef.current?.baitItem?.baitCatchBoost ?? 0;
     const reelRate       = reelRates[rarity - 1] * (1 + baitCatchBoost / 100);
@@ -496,8 +489,12 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         }
       }
       if (surging) {
-        tension       = Math.min(1, tension + surgeTPS * dt);
-        catchProgress = Math.max(0, catchProgress - surgePPS * dt);
+        tension = Math.min(1, tension + surgeTPS * dt);
+        // Only drain catch progress during a surge if the player is NOT holding.
+        // Holding during a surge only costs tension — prevents surprise escapes.
+        if (!isHoldingRef.current) {
+          catchProgress = Math.max(0, catchProgress - surgePPS * dt);
+        }
       }
       if (surging && surgeTimerSec <= 0) surging = false;
 
