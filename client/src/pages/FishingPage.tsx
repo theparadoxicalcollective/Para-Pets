@@ -132,14 +132,15 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     staleTime: 0,
   });
 
-  const { data: pondFish = [] } = useQuery<PondFishEntry[]>({
+  const { data: pondFish = [], isLoading: isPondLoading, isError: isPondError } = useQuery<PondFishEntry[]>({
     queryKey: ["/api/location", locationId, "pond-fish"],
     queryFn: async () => {
       const res = await fetch(`/api/location/${locationId}/pond-fish`, { credentials: "include" });
-      if (!res.ok) return [];
+      if (!res.ok) throw new Error(`Failed to load pond fish: ${res.status}`);
       return res.json();
     },
     staleTime: 0,
+    retry: 2,
   });
 
   const poles = inventory.filter(i => i.type === "fishing" && i.fishingType === "pole");
@@ -319,6 +320,14 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       setShowNoPoleModal(true);
       return;
     }
+    if (isPondLoading) {
+      toast({ title: "Loading pond…", description: "Checking for fish, try again in a moment." });
+      return;
+    }
+    if (isPondError) {
+      toast({ title: "Pond error", description: "Couldn't load fish from this pond. Try closing and reopening.", variant: "destructive" });
+      return;
+    }
     if (pondFish.length === 0) {
       toast({ title: "Empty pond", description: "No fish in this pond yet.", variant: "destructive" });
       return;
@@ -369,7 +378,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         }
       }, waitTime);
     }, 1000);
-  }, [equipData, pondFish, toast]);
+  }, [equipData, pondFish, isPondLoading, isPondError, toast]);
 
   const startReeling = useCallback(() => {
     const rarity = Math.max(1, Math.min(5, nibbleRarityRef.current));
@@ -603,13 +612,20 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           {phase === "idle" && hasPole && (
             <div style={{
               position: "absolute", inset: 0,
-              display: "flex", alignItems: "center", justifyContent: "center",
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4,
             }}>
               <span className="font-fantasy text-[10px] tracking-widest animate-pulse" style={{
-                color: "rgba(94,234,212,0.75)",
+                color: isPondError ? "rgba(239,68,68,0.8)" : isPondLoading ? "rgba(94,234,212,0.45)" : "rgba(94,234,212,0.75)",
                 textShadow: "0 0 8px rgba(94,234,212,0.5)",
                 userSelect: "none",
-              }}>TAP TO CAST</span>
+              }}>
+                {isPondError ? "POND ERROR — CLOSE & REOPEN" : isPondLoading ? "LOADING POND…" : "TAP TO CAST"}
+              </span>
+              {!isPondLoading && !isPondError && pondFish.length > 0 && (
+                <span className="font-fantasy text-[8px] tracking-wider" style={{ color: "rgba(94,234,212,0.45)", userSelect: "none" }}>
+                  {pondFish.length} fish in pond
+                </span>
+              )}
             </div>
           )}
         </div>
