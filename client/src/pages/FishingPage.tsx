@@ -387,12 +387,12 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     const poleItem = equipDataRef.current?.poleItem;
     const slowdownFactor = (pct: number | null | undefined) => pct != null ? Math.max(0, 1 - pct / 100) : 1;
 
-    // Starting catch progress — 3★+ fish start nearly escaped (player must reel urgently)
-    const startProgress   = [0.50,   0.38,   0.14,   0.09,   0.06  ];
-    // Rate of catch progress gain per frame while holding (slower for rarer fish)
-    const reelRates       = [0.0090, 0.0068, 0.0024, 0.0014, 0.0009];
-    // Rate of tension rise per frame while holding (pole slowdowns reduce tension for high-rarity fish)
-    const tensionRiseBase = [0.0050, 0.0075, 0.0230, 0.0310, 0.0390];
+    // Starting catch progress — starts just below halfway so even 1★ needs real effort
+    const startProgress   = [0.42,   0.32,   0.12,   0.08,   0.05  ];
+    // Rate of catch progress gain per frame while holding (slower across the board)
+    const reelRates       = [0.0062, 0.0050, 0.0022, 0.0013, 0.0009];
+    // Rate of tension rise per frame while holding — 1★/2★ are now noticeably tense
+    const tensionRiseBase = [0.0125, 0.0155, 0.0230, 0.0310, 0.0390];
     const tensionRise     = [
       tensionRiseBase[0],
       tensionRiseBase[1],
@@ -400,12 +400,12 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       tensionRiseBase[3] * slowdownFactor(poleItem?.poleSlowdown4),
       tensionRiseBase[4] * slowdownFactor(poleItem?.poleSlowdown5),
     ];
-    // Rate of tension fall per frame while NOT holding (barely drops for rare fish)
-    const tensionFalls    = [0.0120, 0.0090, 0.0036, 0.0022, 0.0013];
-    // Rate catch progress drains per frame while NOT holding (fish sprints away at high rarity)
-    const progressDrags   = [0.0015, 0.0028, 0.0105, 0.0160, 0.0220];
-    // Probability per frame a surge begins (3★+ surges relentlessly)
-    const surgeChances    = [0.0025, 0.0045, 0.0165, 0.0240, 0.0320];
+    // Rate of tension fall per frame while NOT holding — slower recovery for all
+    const tensionFalls    = [0.0080, 0.0062, 0.0036, 0.0022, 0.0013];
+    // Rate catch progress drains per frame while NOT holding
+    const progressDrags   = [0.0018, 0.0032, 0.0105, 0.0160, 0.0220];
+    // Probability per frame a surge begins — 1★/2★ surge more often now
+    const surgeChances    = [0.0068, 0.0100, 0.0165, 0.0240, 0.0320];
     // Instant tension spike on surge
     const surgeTSpikes    = [0.09,   0.14,   0.46,   0.62,   0.76  ];
     // Instant progress drop on surge
@@ -1505,7 +1505,7 @@ function TensionReel({
           </div>
           {/* Track */}
           <div style={{
-            flex: 1, height: 22, borderRadius: 11,
+            flex: 1, height: 28, borderRadius: 14,
             background: "rgba(15,8,3,0.92)",
             border: tension > 0.75 ? "1.5px solid rgba(239,68,68,0.7)" : "1.5px solid rgba(80,50,20,0.65)",
             boxShadow: tension > 0.75 ? "0 0 12px rgba(239,68,68,0.3)" : "inset 0 2px 6px rgba(0,0,0,0.5)",
@@ -1515,10 +1515,10 @@ function TensionReel({
             <div style={{
               height: "100%",
               width: `${tensionPct}%`,
-              borderRadius: 11,
+              borderRadius: 14,
               background: tensionBg,
               boxShadow: tensionGlow,
-              transition: "width 0.06s ease, background 0.25s ease",
+              transition: "width 0.09s linear, background 0.25s ease",
               position: "relative",
             }}>
               {tensionPct > 25 && (
@@ -1599,7 +1599,7 @@ function TensionReel({
 
           {/* Green fill track bar */}
           <div style={{
-            flex: 1, height: 22, borderRadius: 11,
+            flex: 1, height: 28, borderRadius: 14,
             background: "rgba(4,14,16,0.92)",
             border: `1.5px solid rgba(94,234,212,0.3)`,
             boxShadow: progressPct > 70 ? "0 0 14px rgba(94,234,212,0.35)" : "inset 0 2px 6px rgba(0,0,0,0.5)",
@@ -1609,10 +1609,10 @@ function TensionReel({
             <div style={{
               height: "100%",
               width: `${progressPct}%`,
-              borderRadius: 11,
+              borderRadius: 14,
               background: "linear-gradient(90deg, #0d4a3a, #0db889, #5eead4)",
               boxShadow: "0 0 14px rgba(94,234,212,0.7)",
-              transition: "width 0.07s linear",
+              transition: "width 0.09s linear",
               position: "relative", overflow: "hidden",
             }}>
               {progressPct > 5 && (
