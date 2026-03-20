@@ -396,7 +396,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     const reelRates       = [0.340, 0.325, 0.140, 0.100, 0.070];
 
     // Tension rise per second while holding — 1★ and 2★ rise slowly (forgiving)
-    const tensionRiseBase = [0.52,  0.60,  1.10,  1.42,  1.78 ];
+    const tensionRiseBase = [0.68,  0.78,  1.38,  1.72,  2.10 ];
     const tensionRise     = [
       tensionRiseBase[0],
       tensionRiseBase[1],
