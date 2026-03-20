@@ -22,6 +22,7 @@ interface CaughtFish {
   id: string;
   shopItemId: string;
   caughtAt: string;
+  inAquarium: boolean;
   item: ShopItem | null;
 }
 
@@ -76,9 +77,12 @@ export default function SellFishPage({ user, worldId, onClose, onUserUpdate }: S
     },
   });
 
-  const cartFish = fishInventory.filter(f => cartIds.has(f.id));
-  const inventoryFish = fishInventory.filter(f => !cartIds.has(f.id));
+  // Fish in the aquarium cannot be sold — only show bag fish
+  const bagFish = fishInventory.filter(f => !f.inAquarium);
+  const cartFish = bagFish.filter(f => cartIds.has(f.id));
+  const inventoryFish = bagFish.filter(f => !cartIds.has(f.id));
   const totalCoins = cartFish.reduce((sum, f) => sum + (SELL_PRICES[f.item?.starRarity ?? 1] ?? 5), 0);
+  const aquariumCount = fishInventory.filter(f => f.inAquarium).length;
 
   const toggleCart = useCallback((fish: CaughtFish) => {
     setCartIds(prev => {
@@ -266,6 +270,9 @@ export default function SellFishPage({ user, worldId, onClose, onUserUpdate }: S
       <div className="flex-1 overflow-y-auto px-4 pb-4" style={{ scrollbarWidth: "thin" }}>
         <p className="font-fantasy text-[10px] mb-2" style={{ color: `${ACCENT}50` }}>
           Your Fish ({inventoryFish.length})
+          {aquariumCount > 0 && (
+            <span style={{ color: `${ACCENT}35`, marginLeft: 6 }}>· {aquariumCount} in aquarium (not for sale)</span>
+          )}
         </p>
         {isLoading ? (
           <p className="font-fantasy text-xs text-center py-8" style={{ color: `${ACCENT}50` }}>Loading...</p>
@@ -273,7 +280,11 @@ export default function SellFishPage({ user, worldId, onClose, onUserUpdate }: S
           <div className="flex flex-col items-center justify-center py-10 gap-3">
             <span className="text-5xl">🎣</span>
             <p className="font-fantasy text-sm" style={{ color: `${ACCENT}60` }}>
-              {fishInventory.length === 0 ? "No fish to sell. Go fishing!" : "All fish queued for sale!"}
+              {bagFish.length === 0 && aquariumCount > 0
+                ? "All your fish are in the aquarium!"
+                : bagFish.length === 0
+                ? "No fish to sell. Go fishing!"
+                : "All fish queued for sale!"}
             </p>
           </div>
         ) : (

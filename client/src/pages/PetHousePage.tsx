@@ -660,6 +660,7 @@ interface AqCaughtFish {
   id: string;
   shopItemId: string;
   caughtAt: string;
+  inAquarium: boolean;
   item: { id: string; name: string; imageUrl: string | null; starRarity: number | null; facingDirection: string | null; fishSwimZone?: string | null } | null;
 }
 
@@ -735,13 +736,34 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
   const draggingRef = useRef<typeof dragging>(null);
   draggingRef.current = dragging;
 
+  const queryClient = useQueryClient();
+
   const { data: fishInventory = [] } = useQuery<AqCaughtFish[]>({
     queryKey: ["/api/fishing/inventory"],
     staleTime: 30000,
   });
 
+  const syncAquariumMutation = useMutation({
+    mutationFn: async (counts: { shopItemId: string; count: number }[]) => {
+      const res = await apiRequest("POST", "/api/fishing/aquarium/sync", { counts });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] });
+    },
+  });
+
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(aquariumFish)); } catch {}
+    // Sync aquarium state to DB so fish bag / sell page reflect correctly
+    const counts: { shopItemId: string; count: number }[] = [];
+    const countMap = new Map<string, number>();
+    for (const f of aquariumFish) {
+      countMap.set(f.shopItemId, (countMap.get(f.shopItemId) ?? 0) + 1);
+    }
+    countMap.forEach((count, shopItemId) => counts.push({ shopItemId, count }));
+    syncAquariumMutation.mutate(counts);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aquariumFish, STORAGE_KEY]);
 
   useEffect(() => {
@@ -932,7 +954,9 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
 
   const grouped = React.useMemo(() => {
     const map = new Map<string, { item: AqCaughtFish["item"]; count: number }>();
+    // Only show fish that are NOT currently in the aquarium (available to add)
     for (const cf of fishInventory) {
+      if (cf.inAquarium) continue;
       const ex = map.get(cf.shopItemId);
       if (ex) ex.count++; else map.set(cf.shopItemId, { item: cf.item, count: 1 });
     }

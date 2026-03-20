@@ -315,6 +315,7 @@ export const playerFishInventory = pgTable("player_fish_inventory", {
   userId: varchar("user_id").notNull(),
   shopItemId: varchar("shop_item_id").notNull(),
   caughtAt: timestamp("caught_at").notNull().default(sql`now()`),
+  inAquarium: boolean("in_aquarium").notNull().default(false),
 });
 
 export const playerFishingEquipment = pgTable("player_fishing_equipment", {

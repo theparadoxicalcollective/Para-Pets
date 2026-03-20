@@ -29,7 +29,7 @@ import {
   pvpBattleGroups,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, ne, gte, asc, desc, ilike, or, sql } from "drizzle-orm";
+import { eq, and, ne, gte, asc, desc, ilike, or, sql, inArray } from "drizzle-orm";
 
 export interface EquippedAccessoryDetail {
   id: string;
@@ -157,6 +157,7 @@ export interface IStorage {
   removeFishFromPond(locationId: string, shopItemId: string): Promise<void>;
   getPlayerFishInventory(userId: string): Promise<(PlayerFishInventory & { item: ShopItem | null })[]>;
   addFishToPlayerInventory(userId: string, shopItemId: string): Promise<PlayerFishInventory>;
+  syncAquariumFish(userId: string, counts: { shopItemId: string; count: number }[]): Promise<void>;
   getPlayerFishingEquipment(userId: string): Promise<PlayerFishingEquipment | null>;
   upsertPlayerFishingEquipment(userId: string, data: { poleInventoryId?: string | null; baitInventoryId?: string | null }): Promise<PlayerFishingEquipment>;
   getWorldDecorItems(worldId: string): Promise<WorldDecorItem[]>;
@@ -948,6 +949,30 @@ export class DatabaseStorage implements IStorage {
   async addFishToPlayerInventory(userId: string, shopItemId: string): Promise<PlayerFishInventory> {
     const [row] = await db.insert(playerFishInventory).values({ userId, shopItemId }).returning();
     return row;
+  }
+
+  async syncAquariumFish(userId: string, counts: { shopItemId: string; count: number }[]): Promise<void> {
+    // Reset all aquarium flags for this user
+    await db.update(playerFishInventory)
+      .set({ inAquarium: false })
+      .where(eq(playerFishInventory.userId, userId));
+
+    // Mark exactly `count` fish per shopItemId as inAquarium
+    for (const { shopItemId, count } of counts) {
+      if (count <= 0) continue;
+      const fish = await db.select({ id: playerFishInventory.id })
+        .from(playerFishInventory)
+        .where(and(
+          eq(playerFishInventory.userId, userId),
+          eq(playerFishInventory.shopItemId, shopItemId)
+        ))
+        .limit(count);
+      if (fish.length > 0) {
+        await db.update(playerFishInventory)
+          .set({ inAquarium: true })
+          .where(inArray(playerFishInventory.id, fish.map(f => f.id)));
+      }
+    }
   }
 
   async getPlayerFishingEquipment(userId: string): Promise<PlayerFishingEquipment | null> {

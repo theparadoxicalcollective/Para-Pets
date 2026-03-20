@@ -3178,6 +3178,19 @@ export async function registerRoutes(
     }
   });
 
+  // Sync aquarium fish — marks exactly `count` fish per shopItemId as inAquarium
+  app.post("/api/fishing/aquarium/sync", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { counts } = req.body;
+      if (!Array.isArray(counts)) return res.status(400).json({ message: "counts array required" });
+      await storage.syncAquariumFish(user.id, counts);
+      return res.json({ ok: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
   // Sell fish
   const FISH_SELL_PRICES: Record<number, number> = { 1: 5, 2: 10, 3: 15, 4: 25, 5: 30 };
 
@@ -3190,7 +3203,7 @@ export async function registerRoutes(
       }
       const fishInventory = await storage.getPlayerFishInventory(user.id);
       const ownedIds = new Set(fishInventory.map(f => f.id));
-      const toSell = fishInventory.filter(f => fishIds.includes(f.id) && ownedIds.has(f.id));
+      const toSell = fishInventory.filter(f => fishIds.includes(f.id) && ownedIds.has(f.id) && !f.inAquarium);
       if (toSell.length === 0) return res.status(400).json({ message: "No valid fish to sell" });
 
       let totalCoins = 0;
