@@ -159,7 +159,15 @@ interface WorldApiData {
 
 const MAP_W = 1080;
 const MAP_H_DEFAULT = 1920;
-const isMobilePhone = () => window.innerWidth < 768;
+
+// The game always renders inside a 390×844 phone frame (on both mobile and
+// desktop). Using these constants instead of window.innerWidth/Height ensures
+// the map scale and item positions are identical to iPhone 12 on every device.
+const FRAME_W = 390;
+const FRAME_H = 844;
+// Always treat as phone: enables pinch/scroll zoom and correct init scale
+// regardless of the actual device viewport width.
+const isMobilePhone = () => true;
 
 export default function WorldPage({ user }: WorldPageProps) {
   const params = useParams<{ worldId: string }>();
@@ -791,19 +799,15 @@ export default function WorldPage({ user }: WorldPageProps) {
   }, [world?.bg]);
 
   const clampTransform = useCallback((x: number, y: number, sc: number) => {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
     const mw = MAP_W * sc;
     const mh = mapHRef.current * sc;
-    const cx = mw <= vw ? (vw - mw) / 2 : Math.max(vw - mw, Math.min(0, x));
-    const cy = mh <= vh ? (vh - mh) / 2 : Math.max(vh - mh, Math.min(0, y));
+    const cx = mw <= FRAME_W ? (FRAME_W - mw) / 2 : Math.max(FRAME_W - mw, Math.min(0, x));
+    const cy = mh <= FRAME_H ? (FRAME_H - mh) / 2 : Math.max(FRAME_H - mh, Math.min(0, y));
     return { x: cx, y: cy };
   }, []);
 
   const applyMapTransform = useCallback((x: number, y: number, sc: number) => {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const coverSc = Math.max(vw / MAP_W, vh / mapHRef.current);
+    const coverSc = Math.max(FRAME_W / MAP_W, FRAME_H / mapHRef.current);
     const maxSc = isMobilePhone() ? coverSc * 3 : coverSc;
     const clampedSc = Math.max(coverSc, Math.min(maxSc, sc));
     const { x: cx, y: cy } = clampTransform(x, y, clampedSc);
@@ -814,12 +818,10 @@ export default function WorldPage({ user }: WorldPageProps) {
   }, [clampTransform]);
 
   useEffect(() => {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const coverSc = Math.max(vw / MAP_W, vh / mapHRef.current);
+    const coverSc = Math.max(FRAME_W / MAP_W, FRAME_H / mapHRef.current);
     const initSc = isMobilePhone() ? coverSc * 1.5 : coverSc;
-    const ix = (vw - MAP_W * initSc) / 2;
-    const iy = (vh - mapHRef.current * initSc) / 2;
+    const ix = (FRAME_W - MAP_W * initSc) / 2;
+    const iy = (FRAME_H - mapHRef.current * initSc) / 2;
     mapTransformRef.current = { x: ix, y: iy, scale: initSc };
     setMapX(ix);
     setMapY(iy);
@@ -885,10 +887,7 @@ export default function WorldPage({ user }: WorldPageProps) {
 
   const handleVpWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();
-    if (!isMobilePhone()) return;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const coverSc = Math.max(vw / MAP_W, vh / mapHRef.current);
+    const coverSc = Math.max(FRAME_W / MAP_W, FRAME_H / mapHRef.current);
     const zoomF = e.deltaY < 0 ? 1.1 : 0.9;
     const sc = Math.max(coverSc, Math.min(coverSc * 3, mapTransformRef.current.scale * zoomF));
     const { x, y } = mapTransformRef.current;

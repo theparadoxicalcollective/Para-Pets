@@ -11,6 +11,11 @@ const ACCENT = "#7fffd4";
 const MAP_W = 1080;
 const MAP_H_DEFAULT = 1920;
 
+// The game always renders inside a 390×844 phone frame. Use these constants
+// instead of window.innerWidth/Height so map scaling matches iPhone 12 exactly.
+const FRAME_W = 390;
+const FRAME_H = 844;
+
 const LIGHT_ORB_SENTINEL        = "__light_orb__";
 const LIGHT_ORB_BLUE_SENTINEL   = "__light_orb_blue__";
 const LIGHT_ORB_GREEN_SENTINEL  = "__light_orb_green__";
@@ -163,26 +168,22 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
 
   // ── initial centering on mount / mapH change ───────────────────────────────
   useEffect(() => {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const coverSc = Math.max(vw / MAP_W, vh / mapHRef.current);
+    const coverSc = Math.max(FRAME_W / MAP_W, FRAME_H / mapHRef.current);
     const initSc  = coverSc * 1.4;
-    const ix = (vw - MAP_W * initSc) / 2;
-    const iy = (vh - mapHRef.current * initSc) / 2;
+    const ix = (FRAME_W - MAP_W * initSc) / 2;
+    const iy = (FRAME_H - mapHRef.current * initSc) / 2;
     mapTransformRef.current = { x: ix, y: iy, scale: initSc };
     setMapX(ix); setMapY(iy); setMapScale(initSc);
   }, [mapH]);
 
   // ── clamp + apply ──────────────────────────────────────────────────────────
   const applyMapTransform = useCallback((x: number, y: number, sc: number) => {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const coverSc  = Math.max(vw / MAP_W, vh / mapHRef.current);
+    const coverSc  = Math.max(FRAME_W / MAP_W, FRAME_H / mapHRef.current);
     const clampedSc = Math.max(coverSc, Math.min(coverSc * 4, sc));
     const mw = MAP_W * clampedSc;
     const mh = mapHRef.current * clampedSc;
-    const cx = mw <= vw ? (vw - mw) / 2 : Math.max(vw - mw, Math.min(0, x));
-    const cy = mh <= vh ? (vh - mh) / 2 : Math.max(vh - mh, Math.min(0, y));
+    const cx = mw <= FRAME_W ? (FRAME_W - mw) / 2 : Math.max(FRAME_W - mw, Math.min(0, x));
+    const cy = mh <= FRAME_H ? (FRAME_H - mh) / 2 : Math.max(FRAME_H - mh, Math.min(0, y));
     mapTransformRef.current = { x: cx, y: cy, scale: clampedSc };
     setMapX(cx); setMapY(cy); setMapScale(clampedSc);
   }, []);
