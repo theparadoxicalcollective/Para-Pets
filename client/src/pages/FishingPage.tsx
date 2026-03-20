@@ -323,6 +323,10 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       toast({ title: "Empty pond", description: "No fish in this pond yet.", variant: "destructive" });
       return;
     }
+    // Close all inventory panels before casting
+    setShowPolePanel(false);
+    setShowBaitPanel(false);
+    setShowFishInv(false);
     playPlop();
     setPhase("casting");
     castingTimeoutRef.current = setTimeout(() => {
@@ -1137,7 +1141,7 @@ function EquipPanel({
   onItemPointerDown?: (item: InventoryItem, slot: "pole" | "bait", x: number, y: number) => void;
 }) {
   return (
-    <div className="absolute bottom-[140px] left-4 right-4 z-[25] rounded-xl overflow-hidden" style={{
+    <div className="absolute bottom-[140px] left-4 right-4 z-[35] rounded-xl overflow-hidden" style={{
       background: "rgba(5,20,15,0.95)",
       border: `1px solid ${ACCENT}40`,
       backdropFilter: "blur(8px)",
@@ -1245,7 +1249,7 @@ function FishInventoryPanel({
   }
 
   return (
-    <div className="absolute bottom-[140px] left-4 right-4 z-[25] rounded-xl overflow-hidden" style={{
+    <div className="absolute bottom-[140px] left-4 right-4 z-[35] rounded-xl overflow-hidden" style={{
       background: "rgba(5,20,15,0.95)",
       border: `1px solid ${ACCENT}40`,
       backdropFilter: "blur(8px)",
