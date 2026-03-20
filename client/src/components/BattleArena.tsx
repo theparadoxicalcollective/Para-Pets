@@ -145,16 +145,14 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   // Boss special attacks
   const [bossOrbs, setBossOrbs] = useState<BossOrb[]>([]);
   const bossOrbsRef = useRef<BossOrb[]>([]);
-  const [laserActive, setLaserActive] = useState(false);
-  const [laserWarning, setLaserWarning] = useState(false);
-  const [laserFireX, setLaserFireX] = useState<number | null>(null);
   const [bossEnlarged, setBossEnlarged] = useState(false);
-  const bossAttackModeRef = useRef<"basic" | "bubble" | "laser">("basic");
+  const [bossBurstActive, setBossBurstActive] = useState(false);
+  const bossAttackModeRef = useRef<"rain" | "burst" | "focused">("rain");
   const nextBossAttackRef = useRef(0);
   const bossOrbIdRef = useRef(1000);
   const orbSpawnTimerRef = useRef(0);
   const orbSpawnEndRef = useRef(0);
-  const petFrozenRef = useRef(false);
+  const bossOscTimeRef = useRef(0);
   const lastBossHitTimeRef = useRef(0);
   // Consecutive boss hits in the current hold gesture (for break-free mechanic)
   const consecutiveBossHitsRef = useRef(0);
@@ -268,15 +266,14 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         const initPet = { x: 50, y: 76 };
         petPosRef.current = initPet;
         setPetPos(initPet);
-        petFrozenRef.current = false;
         petDraggingRef.current = false;
-        bossAttackModeRef.current = "basic";
+        bossAttackModeRef.current = "rain";
         nextBossAttackRef.current = 0;
+        bossOscTimeRef.current = 0;
         bossOrbsRef.current = [];
         setBossOrbs([]);
-        setLaserActive(false);
-        setLaserWarning(false);
         setBossEnlarged(false);
+        setBossBurstActive(false);
         lastBossHitTimeRef.current = 0;
         lastCollisionDmgRef.current = 0;
         consecutiveBossHitsRef.current = 0;
@@ -430,123 +427,131 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       if (!battleActiveRef.current) return;
 
       const diff = enemyDifficultyRef.current;
-      const pos = { ...enemyPosRef.current };
-      const speed = 0.4 + diff * 0.5;
-      pos.x += pos.vx * speed;
-      pos.y += pos.vy * speed;
-
-      if (pos.x < 10 || pos.x > 90) {
-        pos.vx = -pos.vx * (0.8 + Math.random() * 0.15);
-        pos.x = Math.max(10, Math.min(90, pos.x));
-        pos.vy += (Math.random() - 0.5) * 0.3;
-      }
-      if (pos.y < 5 || pos.y > 82) {
-        pos.vy = -pos.vy * (0.8 + Math.random() * 0.15);
-        pos.y = Math.max(5, Math.min(82, pos.y));
-        pos.vx += (Math.random() - 0.5) * 0.3;
-      }
-
       const now = Date.now();
       const petX = petPosRef.current.x;
       const petY = petPosRef.current.y;
+      const pos = { ...enemyPosRef.current };
 
-      // Gentle homing toward pet so enemy can reach it regardless of position
-      const homeDx = petX - pos.x;
-      const homeDy = petY - pos.y;
-      const homeDist = Math.hypot(homeDx, homeDy) || 1;
-      if (homeDist > 18) {
-        const homeStrength = enemy?.isBoss ? 0.04 : 0.055;
-        pos.vx += (homeDx / homeDist) * homeStrength;
-        pos.vy += (homeDy / homeDist) * homeStrength;
-      }
-      // Clamp velocity so homing doesn't make it too fast
-      const maxV = 2.2 + diff * 0.6;
-      const vMag = Math.hypot(pos.vx, pos.vy) || 1;
-      if (vMag > maxV) { pos.vx = (pos.vx / vMag) * maxV; pos.vy = (pos.vy / vMag) * maxV; }
+      if (enemy?.isBoss) {
+        // ── Boss: floats at the top, oscillates side-to-side, fires particles ──
+        bossOscTimeRef.current += 0.018;
+        pos.x = 50 + Math.sin(bossOscTimeRef.current * 0.55) * 26;
+        pos.y = 12;
+        pos.vx = 0;
+        pos.vy = 0;
 
-      // ── Boss special attack scheduler ──
-      if (enemy?.isBoss && bossAttackModeRef.current === "basic" && now > nextBossAttackRef.current && nextBossAttackRef.current > 0) {
-        const attackType = Math.random() < 0.38 ? "laser" : "bubble";
-        if (attackType === "bubble") {
-          bossAttackModeRef.current = "bubble";
-          orbSpawnEndRef.current = now + 4000;
-          orbSpawnTimerRef.current = 0;
-        } else {
-          bossAttackModeRef.current = "laser";
-          setLaserWarning(true);
-          // Move boss toward top center
-          pos.vx = (50 - pos.x) * 0.08;
-          pos.vy = (10 - pos.y) * 0.08;
-          setTimeout(() => {
-            if (!battleActiveRef.current) return;
-            setLaserWarning(false);
-            setLaserActive(true);
-            setBossEnlarged(true);
-            // Capture beam X at fire moment — pet had full warning window to dodge sideways
-            const fireX = enemyPosRef.current.x;
-            setLaserFireX(fireX);
-            // Only hit if pet is still under the beam (within ~13% horizontal)
-            const laserHit = Math.abs(petPosRef.current.x - fireX) < 13;
-            if (laserHit) petFrozenRef.current = true;
-            // Damage ticks only apply if the laser connected
-            let ticks = 0;
-            const laserTick = setInterval(() => {
-              if (!battleActiveRef.current) { clearInterval(laserTick); return; }
-              ticks++;
-              if (laserHit) {
-                const rawDmg = enemyStatsRef.current.atk * 1.5 - Math.floor(petStatsRef.current.def * 0.1);
-                const dmg = Math.max(2, Math.floor(rawDmg + Math.random() * 6));
-                petHpRef.current = Math.max(0, petHpRef.current - dmg);
-                setPetHp(petHpRef.current);
-                setPetHit(true);
-                setTimeout(() => setPetHit(false), 300);
-                const newDmg: DamageNumber = {
-                  id: dmgIdRef.current++,
-                  x: petPosRef.current.x + (Math.random() * 10 - 5),
-                  y: petPosRef.current.y - 10,
-                  value: dmg, isCrit: false,
-                };
-                setDamageNumbers(prev => [...prev, newDmg]);
-                setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== newDmg.id)), 1000);
-              }
-              if (ticks >= 3 || petHpRef.current <= 0) {
-                clearInterval(laserTick);
-                setTimeout(() => {
-                  setLaserActive(false);
-                  setBossEnlarged(false);
-                  setLaserFireX(null);
-                  petFrozenRef.current = false;
-                  bossAttackModeRef.current = "basic";
-                  nextBossAttackRef.current = Date.now() + 10000 + Math.random() * 6000;
-                  if (petHpRef.current <= 0) { battleActiveRef.current = false; setPhase("defeat"); }
-                }, 600);
-              }
-            }, 700);
-          }, 1800);
+        // Initialise first scheduled attack on battle start
+        if (nextBossAttackRef.current === 0) {
+          nextBossAttackRef.current = now + 8000 + Math.random() * 4000;
+          orbSpawnTimerRef.current = now + 700;
         }
-      }
 
-      // Bubble mode: orb spawning
-      if (enemy?.isBoss && bossAttackModeRef.current === "bubble") {
-        if (now > orbSpawnEndRef.current) {
-          bossAttackModeRef.current = "basic";
-          nextBossAttackRef.current = now + 8000 + Math.random() * 6000;
-        } else if (now > orbSpawnTimerRef.current) {
-          orbSpawnTimerRef.current = now + 900;
-          const angle = Math.atan2(petY - pos.y, petX - pos.x) + (Math.random() - 0.5) * 0.8;
-          const speed = 0.6 + Math.random() * 0.5;
-          const newOrb: BossOrb = {
-            id: bossOrbIdRef.current++,
-            x: pos.x, y: pos.y,
-            vx: Math.cos(angle) * speed,
-            vy: Math.sin(angle) * speed,
-          };
-          bossOrbsRef.current = [...bossOrbsRef.current, newOrb];
+        // Rain mode: continuously fire 1 particle toward pet
+        // Focused mode: rapid-fire tight cluster toward pet
+        if (bossAttackModeRef.current !== "burst" && now > orbSpawnTimerRef.current) {
+          const isFocused = bossAttackModeRef.current === "focused";
+          orbSpawnTimerRef.current = now + (isFocused ? 180 : 680);
+          const count = isFocused ? 3 : 1;
+          const newOrbs: BossOrb[] = [];
+          for (let i = 0; i < count; i++) {
+            const spread = isFocused ? 0.3 : 1.1;
+            const baseAngle = Math.atan2(petY - pos.y, petX - pos.x);
+            const angle = baseAngle + (Math.random() - 0.5) * spread;
+            const speed = isFocused ? (2.2 + Math.random() * 1.0) : (0.8 + Math.random() * 0.65);
+            newOrbs.push({
+              id: bossOrbIdRef.current++,
+              x: pos.x + (Math.random() - 0.5) * 10,
+              y: pos.y + 7,
+              vx: Math.cos(angle) * speed,
+              vy: Math.sin(angle) * speed,
+            });
+          }
+          bossOrbsRef.current = [...bossOrbsRef.current, ...newOrbs];
           setBossOrbs([...bossOrbsRef.current]);
         }
+
+        // Trigger a burst or focused-stream attack periodically
+        if (bossAttackModeRef.current === "rain" && now > nextBossAttackRef.current) {
+          const mode = Math.random() < 0.5 ? "burst" : "focused";
+          bossAttackModeRef.current = mode;
+          if (mode === "burst") {
+            setBossEnlarged(true);
+            setBossBurstActive(true);
+            // Fire a ring of 14 particles outward in all directions
+            const burstOrbs: BossOrb[] = Array.from({ length: 14 }, (_, i) => {
+              const angle = (i / 14) * Math.PI * 2;
+              const speed = 1.3 + Math.random() * 0.9;
+              return { id: bossOrbIdRef.current++, x: pos.x, y: pos.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed };
+            });
+            bossOrbsRef.current = [...bossOrbsRef.current, ...burstOrbs];
+            setBossOrbs([...bossOrbsRef.current]);
+            setTimeout(() => {
+              if (!battleActiveRef.current) return;
+              bossAttackModeRef.current = "rain";
+              setBossEnlarged(false);
+              setBossBurstActive(false);
+              nextBossAttackRef.current = Date.now() + 9000 + Math.random() * 5000;
+            }, 1000);
+          } else {
+            // Focused rapid-fire stream for 2.5s
+            orbSpawnTimerRef.current = 0;
+            orbSpawnEndRef.current = now + 2500;
+          }
+        }
+
+        // End focused mode, return to rain
+        if (bossAttackModeRef.current === "focused" && now > orbSpawnEndRef.current) {
+          bossAttackModeRef.current = "rain";
+          nextBossAttackRef.current = Date.now() + 8000 + Math.random() * 5000;
+        }
+
+      } else {
+        // ── Regular enemy: bounce off walls, home toward pet, periodic lunge ──
+        const speed = 0.4 + diff * 0.5;
+        pos.x += pos.vx * speed;
+        pos.y += pos.vy * speed;
+
+        if (pos.x < 10 || pos.x > 90) {
+          pos.vx = -pos.vx * (0.8 + Math.random() * 0.15);
+          pos.x = Math.max(10, Math.min(90, pos.x));
+          pos.vy += (Math.random() - 0.5) * 0.3;
+        }
+        if (pos.y < 5 || pos.y > 82) {
+          pos.vy = -pos.vy * (0.8 + Math.random() * 0.15);
+          pos.y = Math.max(5, Math.min(82, pos.y));
+          pos.vx += (Math.random() - 0.5) * 0.3;
+        }
+
+        // Gentle homing toward pet
+        const homeDx = petX - pos.x;
+        const homeDy = petY - pos.y;
+        const homeDist = Math.hypot(homeDx, homeDy) || 1;
+        if (homeDist > 18) {
+          pos.vx += (homeDx / homeDist) * 0.055;
+          pos.vy += (homeDy / homeDist) * 0.055;
+        }
+        const maxV = 2.2 + diff * 0.6;
+        const vMag = Math.hypot(pos.vx, pos.vy) || 1;
+        if (vMag > maxV) { pos.vx = (pos.vx / vMag) * maxV; pos.vy = (pos.vy / vMag) * maxV; }
+
+        // Periodic lunge toward pet
+        const attackInterval = 6000 - diff * 3000;
+        if (now - lastEnemyAttackRef.current > attackInterval) {
+          lastEnemyAttackRef.current = now;
+          const dx = petX - pos.x;
+          const dy = petY - pos.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > 0) {
+            pos.vx = (dx / dist) * (1.5 + diff * 1.5);
+            pos.vy = (dy / dist) * (1.5 + diff * 1.5);
+          }
+        }
+        const maxSpeed = 1.5 + diff * 2;
+        const spd = Math.sqrt(pos.vx * pos.vx + pos.vy * pos.vy);
+        if (spd > maxSpeed) { pos.vx = (pos.vx / spd) * maxSpeed; pos.vy = (pos.vy / spd) * maxSpeed; }
       }
 
-      // Update orb positions + check orb-pet collision
+      // ── Particle movement + collision (boss only) ──
       if (bossOrbsRef.current.length > 0) {
         const updated: BossOrb[] = [];
         let orbHit = false;
@@ -576,29 +581,6 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         } else {
           bossOrbsRef.current = updated;
         }
-      }
-
-      const attackInterval = 6000 - diff * 3000;
-      if (now - lastEnemyAttackRef.current > attackInterval && bossAttackModeRef.current === "basic") {
-        lastEnemyAttackRef.current = now;
-        if (enemy?.isBoss && nextBossAttackRef.current === 0) {
-          nextBossAttackRef.current = now + 12000 + Math.random() * 6000;
-        }
-        const dx = petX - pos.x;
-        const dy = petY - pos.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist > 0) {
-          const lungeSpeed = 1.5 + diff * 1.5;
-          pos.vx = (dx / dist) * lungeSpeed;
-          pos.vy = (dy / dist) * lungeSpeed;
-        }
-      }
-
-      const maxSpeed = bossAttackModeRef.current === "bubble" ? (1.8 + diff * 2.2) : (1.5 + diff * 2);
-      const spd = Math.sqrt(pos.vx * pos.vx + pos.vy * pos.vy);
-      if (spd > maxSpeed) {
-        pos.vx = (pos.vx / spd) * maxSpeed;
-        pos.vy = (pos.vy / spd) * maxSpeed;
       }
 
       enemyPosRef.current = pos;
@@ -812,7 +794,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
 
   // ── Pet drag handlers ────────────────────────────────────────────────────
   const handlePetPointerDown = useCallback((e: React.PointerEvent) => {
-    if (!battleActiveRef.current || petFrozenRef.current) return;
+    if (!battleActiveRef.current) return;
     e.stopPropagation();
     e.preventDefault();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -1067,6 +1049,35 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           70% { box-shadow: 0 0 0 10px rgba(34,197,94,0); }
           100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
         }
+        @keyframes bossFloat {
+          0%   { transform: translate(-50%, -50%) translateY(0px) scale(1); }
+          50%  { transform: translate(-50%, -50%) translateY(-8px) scale(1.02); }
+          100% { transform: translate(-50%, -50%) translateY(0px) scale(1); }
+        }
+        @keyframes bossGlowPulse {
+          0%   { filter: drop-shadow(0 0 18px rgba(255,40,40,0.85)) drop-shadow(0 0 40px rgba(200,0,0,0.4)); }
+          50%  { filter: drop-shadow(0 0 32px rgba(255,80,40,1)) drop-shadow(0 0 60px rgba(255,40,0,0.6)); }
+          100% { filter: drop-shadow(0 0 18px rgba(255,40,40,0.85)) drop-shadow(0 0 40px rgba(200,0,0,0.4)); }
+        }
+        @keyframes bossBurstGlow {
+          0%   { filter: drop-shadow(0 0 40px rgba(255,120,40,1)) drop-shadow(0 0 80px rgba(255,60,0,0.8)); }
+          50%  { filter: drop-shadow(0 0 60px rgba(255,200,60,1)) drop-shadow(0 0 100px rgba(255,140,0,0.9)); }
+          100% { filter: drop-shadow(0 0 40px rgba(255,120,40,1)) drop-shadow(0 0 80px rgba(255,60,0,0.8)); }
+        }
+        @keyframes bossParticle {
+          0%   { transform: translate(-50%, -50%) scale(1);   opacity: 1; }
+          70%  { opacity: 0.85; }
+          100% { transform: translate(-50%, -50%) scale(0.3); opacity: 0; }
+        }
+        @keyframes bossAuraPulse {
+          0%   { transform: translate(-50%,-50%) scale(1);   opacity: 0.18; }
+          50%  { transform: translate(-50%,-50%) scale(1.25); opacity: 0.35; }
+          100% { transform: translate(-50%,-50%) scale(1);   opacity: 0.18; }
+        }
+        @keyframes focusedStreamWarn {
+          0%, 100% { opacity: 0.5; }
+          50%       { opacity: 1; }
+        }
       `}</style>
 
       <div
@@ -1261,37 +1272,75 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                 style={{
                   left: `${enemyPos.x}%`,
                   top: `${enemyPos.y}%`,
-                  transform: `translate(-50%, -50%) scale(${bossEnlarged ? 1.9 : 1})`,
-                  transition: bossEnlarged ? "transform 0.35s ease-out" : "transform 0.5s ease",
-                  animation: enemyHit
-                    ? "hitFlash 0.2s ease-in-out"
-                    : "enemyBounce 0.6s ease-in-out infinite",
                   pointerEvents: "none",
+                  animation: enemy.isBoss
+                    ? "bossFloat 2.8s ease-in-out infinite"
+                    : enemyHit
+                      ? "hitFlash 0.2s ease-in-out"
+                      : "enemyBounce 0.6s ease-in-out infinite",
+                  transform: enemy.isBoss
+                    ? `translate(-50%, -50%) scale(${bossEnlarged ? 1.5 : 1})`
+                    : "translate(-50%, -50%)",
+                  transition: enemy.isBoss ? "transform 0.4s ease-out" : undefined,
                 }}
               >
+                {/* Boss pulsing aura underneath */}
+                {enemy.isBoss && (
+                  <div style={{
+                    position: "absolute",
+                    left: "50%", top: "50%",
+                    width: bossEnlarged ? 220 : 180,
+                    height: bossEnlarged ? 220 : 180,
+                    borderRadius: "50%",
+                    background: bossBurstActive
+                      ? "radial-gradient(circle, rgba(255,140,40,0.35) 0%, rgba(255,60,0,0.18) 50%, transparent 75%)"
+                      : "radial-gradient(circle, rgba(255,40,40,0.22) 0%, rgba(180,0,0,0.10) 55%, transparent 78%)",
+                    animation: "bossAuraPulse 1.8s ease-in-out infinite",
+                    transition: "width 0.4s, height 0.4s, background 0.3s",
+                    pointerEvents: "none",
+                  }} />
+                )}
+
                 {enemy.imageUrl ? (
                   <img
                     src={enemy.imageUrl}
                     alt={enemy.name}
-                    style={{ width: enemy.isBoss ? 148 : 80, height: enemy.isBoss ? 148 : 80 }}
-                    className={`object-contain ${enemy.isBoss
-                      ? "drop-shadow-[0_0_24px_rgba(255,0,0,0.9)]"
-                      : "drop-shadow-[0_0_12px_rgba(255,0,0,0.5)]"}`}
+                    style={{
+                      width: enemy.isBoss ? 148 : 80,
+                      height: enemy.isBoss ? 148 : 80,
+                      animation: enemy.isBoss
+                        ? (bossBurstActive ? "bossBurstGlow 0.4s ease-in-out infinite" : "bossGlowPulse 1.8s ease-in-out infinite")
+                        : (enemyHit ? "hitFlash 0.2s ease-in-out" : undefined),
+                    }}
+                    className="object-contain"
                   />
                 ) : (
                   <div
                     className={`${enemy.isBoss ? "w-36 h-36" : "w-20 h-20"} bg-red-900/50 rounded-full flex items-center justify-center border-2 border-red-500`}
-                    style={enemy.isBoss ? { boxShadow: "0 0 32px rgba(255,0,0,0.7)" } : {}}
+                    style={enemy.isBoss ? {
+                      boxShadow: bossBurstActive
+                        ? "0 0 50px rgba(255,140,40,0.9), 0 0 20px rgba(255,80,0,0.7)"
+                        : "0 0 32px rgba(255,0,0,0.7), 0 0 12px rgba(200,0,0,0.5)",
+                      animation: "bossAuraPulse 1.8s ease-in-out infinite",
+                    } : {}}
                   >
                     <Swords className={enemy.isBoss ? "w-14 h-14 text-red-400" : "w-8 h-8 text-red-400"} />
                   </div>
                 )}
+
                 {enemy.isBoss && (
-                  <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-black tracking-widest text-red-400 whitespace-nowrap"
-                    style={{ textShadow: "0 0 8px rgba(255,0,0,0.8)" }}>
-                    ⚠ BOSS ⚠
+                  <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[9px] font-black tracking-widest whitespace-nowrap"
+                    style={{
+                      color: bossBurstActive ? "#ffaa40" : "#ff4444",
+                      textShadow: bossBurstActive
+                        ? "0 0 14px rgba(255,160,40,0.9), 0 0 6px rgba(255,100,0,0.7)"
+                        : "0 0 10px rgba(255,0,0,0.8)",
+                      animation: bossBurstActive ? "tensionPulse 0.35s ease-in-out infinite" : undefined,
+                    }}>
+                    {bossBurstActive ? "💥 BURST! 💥" : "⚠ BOSS ⚠"}
                   </div>
                 )}
+
                 {enemy.isBoss && bossHitStreak > 0 && !breakFreeEffect && (
                   <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 flex gap-1 items-center">
                     {Array.from({ length: 6 }).map((_, i) => (
@@ -1299,8 +1348,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                         key={i}
                         className="rounded-full"
                         style={{
-                          width: 7,
-                          height: 7,
+                          width: 7, height: 7,
                           background: i < bossHitStreak ? "#ff4444" : "rgba(255,255,255,0.2)",
                           boxShadow: i < bossHitStreak ? "0 0 6px rgba(255,60,60,0.9)" : undefined,
                           transition: "background 0.1s, box-shadow 0.1s",
@@ -1465,7 +1513,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           />
         ))}
 
-        {/* Boss orbs (Bubble attack) */}
+        {/* Boss energy particles */}
         {bossOrbs.map(orb => (
           <div
             key={orb.id}
@@ -1474,50 +1522,36 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               left: `${orb.x}%`,
               top: `${orb.y}%`,
               transform: "translate(-50%, -50%)",
-              width: 22,
-              height: 22,
+              width: bossBurstActive ? 18 : 14,
+              height: bossBurstActive ? 18 : 14,
               borderRadius: "50%",
-              background: "radial-gradient(circle at 35% 30%, rgba(200,240,255,0.9), rgba(100,200,255,0.3) 60%, rgba(50,150,220,0.15))",
-              border: "1.5px solid rgba(160,220,255,0.8)",
-              boxShadow: "0 0 12px rgba(100,200,255,0.6), inset 0 0 6px rgba(255,255,255,0.4)",
-              animation: "orbFloat 1.2s ease-in-out infinite alternate",
+              background: bossBurstActive
+                ? "radial-gradient(circle at 35% 30%, rgba(255,220,60,0.98), rgba(255,140,20,0.7) 55%, rgba(255,60,0,0.2))"
+                : "radial-gradient(circle at 35% 30%, rgba(255,160,60,0.98), rgba(255,80,20,0.7) 55%, rgba(200,30,0,0.2))",
+              border: bossBurstActive ? "1.5px solid rgba(255,220,60,0.9)" : "1.5px solid rgba(255,120,40,0.8)",
+              boxShadow: bossBurstActive
+                ? "0 0 16px rgba(255,200,40,0.8), 0 0 6px rgba(255,120,0,0.6)"
+                : "0 0 10px rgba(255,100,20,0.7), 0 0 4px rgba(255,60,0,0.5)",
             }}
           />
         ))}
 
-        {/* Boss laser warning — targeting reticle + text */}
-        {laserWarning && (
-          <>
-            {/* Thin targeting beam showing exactly where the laser will land */}
-            <div
-              className="absolute pointer-events-none z-38"
-              style={{
-                left: `${enemyPos.x}%`,
-                top: `${enemyPos.y + 6}%`,
-                transform: "translateX(-50%)",
-                width: 4,
-                height: `${94 - enemyPos.y}%`,
-                background: "linear-gradient(180deg, rgba(255,60,60,0.55) 0%, rgba(255,100,60,0.25) 70%, transparent 100%)",
-                borderRadius: 2,
-                animation: "tensionPulse 0.35s ease-in-out infinite",
-              }}
-            />
-            {/* Warning text */}
-            <div
-              className="absolute inset-0 z-40 pointer-events-none flex items-start justify-center pt-4"
-              style={{ animation: "tensionPulse 0.4s ease-in-out infinite" }}
-            >
-              <div style={{
-                fontFamily: "Cinzel, serif",
-                fontSize: 13,
-                fontWeight: 700,
-                color: "#ff4444",
-                textShadow: "0 0 18px #ff0000, 0 0 8px rgba(255,0,0,0.8)",
-                letterSpacing: "0.15em",
-                animation: "tensionPulse 0.4s ease-in-out infinite",
-              }}>⚠ DODGE THE LASER ⚠</div>
-            </div>
-          </>
+        {/* Boss focused-stream warning */}
+        {enemy?.isBoss && bossAttackModeRef.current === "focused" && (
+          <div
+            className="absolute inset-0 z-40 pointer-events-none flex items-start justify-center"
+            style={{ paddingTop: "22%" }}
+          >
+            <div style={{
+              fontFamily: "Cinzel, serif",
+              fontSize: 12,
+              fontWeight: 700,
+              color: "#ff6a20",
+              textShadow: "0 0 16px rgba(255,100,20,0.9), 0 0 6px rgba(255,60,0,0.7)",
+              letterSpacing: "0.15em",
+              animation: "focusedStreamWarn 0.45s ease-in-out infinite",
+            }}>⚡ FOCUSED ASSAULT ⚡</div>
+          </div>
         )}
 
         {/* Boss break-free flash */}
@@ -1594,20 +1628,13 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           }} />
         )}
 
-        {/* Boss laser beam — fires from the X where boss was when laser triggered */}
-        {laserActive && laserFireX !== null && (
+        {/* Boss burst screen flash */}
+        {bossBurstActive && (
           <div
-            className="absolute pointer-events-none z-38"
+            className="absolute inset-0 pointer-events-none z-5"
             style={{
-              left: `${laserFireX}%`,
-              top: `${enemyPos.y}%`,
-              transform: "translateX(-50%)",
-              width: 8,
-              height: `${100 - enemyPos.y}%`,
-              background: "linear-gradient(180deg, rgba(255,60,60,0.95) 0%, rgba(255,120,80,0.8) 50%, rgba(255,200,100,0.4) 85%, transparent 100%)",
-              boxShadow: "0 0 18px rgba(255,50,50,0.8), 0 0 6px white",
-              borderRadius: 4,
-              animation: "laserPulse 0.15s ease-in-out infinite alternate",
+              background: "radial-gradient(ellipse at 50% 15%, rgba(255,120,30,0.18) 0%, transparent 55%)",
+              animation: "bossAuraPulse 0.4s ease-in-out infinite",
             }}
           />
         )}
