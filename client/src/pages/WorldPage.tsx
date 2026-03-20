@@ -209,6 +209,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [activeLocationId, setActiveLocationId] = useState<string | null>(null);
   const [showLocationView, setShowLocationView] = useState(false);
   const [showItemPicker, setShowItemPicker] = useState(false);
+  const [pickerFilter, setPickerFilter] = useState("all");
   const [showAddObject, setShowAddObject] = useState(false);
   const [newObjectImage, setNewObjectImage] = useState<string | null>(null);
   const [showExploreAdmin, setShowExploreAdmin] = useState(false);
@@ -2952,14 +2953,15 @@ export default function WorldPage({ user }: WorldPageProps) {
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowItemPicker(false)} />
           <div
-            className="relative z-10 w-[90%] max-w-sm rounded-lg p-4 max-h-[80vh] overflow-y-auto"
+            className="relative z-10 w-[90%] max-w-sm rounded-lg max-h-[82vh] flex flex-col"
             style={{
               background: `linear-gradient(135deg, rgba(8,5,18,0.98) 0%, rgba(18,12,30,0.98) 100%)`,
               border: `1px solid ${accent}55`,
               boxShadow: `0 0 40px ${accent}25`,
             }}
           >
-            <div className="flex items-center justify-between mb-4">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 pt-4 pb-3 flex-shrink-0">
               <h3 className="font-fantasy text-sm tracking-widest" style={{ color: accent, textShadow: `0 0 10px ${accent}40` }}>Add Items to Shop</h3>
               <button
                 data-testid="button-close-item-picker"
@@ -2970,53 +2972,92 @@ export default function WorldPage({ user }: WorldPageProps) {
                 <X className="w-4 h-4" />
               </button>
             </div>
-            {(() => {
-              const pickable = allShopItems.filter(si => si.fishingType !== "fish");
-              return pickable.length === 0 ? (
-                <p className="font-fantasy text-[#a89878] text-xs text-center py-6">No items in the database yet.</p>
-              ) : (
-              <div className="flex flex-col gap-2">
-                {pickable.map((si) => {
-                  const alreadyAssigned = items.some(it => it.id === si.id);
-                  return (
-                    <div
-                      key={si.id}
-                      data-testid={`picker-item-${si.id}`}
-                      className="flex items-center gap-3 p-2 rounded-lg"
-                      style={{
-                        background: alreadyAssigned ? `${accent}15` : "rgba(255,255,255,0.03)",
-                        border: `1px solid ${alreadyAssigned ? accent + "40" : "rgba(255,255,255,0.08)"}`,
-                      }}
-                    >
-                      <div className="w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: "rgba(0,0,0,0.3)" }}>
-                        {(() => {
-                          const pickerImg = si.type === "pet" ? (si.eggImageUrl || si.imageUrl) : si.imageUrl;
-                          return pickerImg
-                            ? <img src={pickerImg} alt="" className="w-full h-full object-contain rounded-md" />
-                            : <Package className="w-5 h-5" style={{ color: `${accent}40` }} />;
-                        })()}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-fantasy text-xs truncate" style={{ color: accent }}>{si.name}</p>
-                        <p className="font-fantasy text-[9px]" style={{ color: `${accent}70` }}>{si.price} coins · {si.type}</p>
-                      </div>
-                      {alreadyAssigned ? (
-                        <span className="font-fantasy text-[9px] px-2 py-1 rounded-full" style={{ background: `${accent}20`, color: accent }}>In Shop</span>
-                      ) : (
-                        <button
-                          data-testid={`button-assign-${si.id}`}
-                          onClick={() => assignItemMutation.mutate({ locationId: activeLocationId, itemId: si.id })}
-                          disabled={assignItemMutation.isPending}
-                          className="font-fantasy text-[9px] px-3 py-1 rounded-full transition-transform active:scale-95"
-                          style={{ background: `${accent}30`, border: `1px solid ${accent}50`, color: accent, cursor: "pointer" }}
-                        >Add</button>
-                      )}
-                    </div>
-                  );
-                })}
+
+            {/* Filter tabs */}
+            <div className="flex-shrink-0 px-3 pb-2">
+              <div className="flex flex-wrap gap-1">
+                {[
+                  { label: "All", value: "all" },
+                  { label: "Potions", value: "potion" },
+                  { label: "Power-Ups", value: "power_up" },
+                  { label: "Special", value: "special" },
+                  { label: "Accessories", value: "accessory" },
+                  { label: "Pets", value: "pet" },
+                  { label: "Fishing", value: "fishing" },
+                ].map(f => (
+                  <button
+                    key={f.value}
+                    data-testid={`button-picker-filter-${f.value}`}
+                    onClick={() => setPickerFilter(f.value)}
+                    className="font-fantasy text-[9px] px-2 py-1 rounded-full transition-all"
+                    style={{
+                      background: pickerFilter === f.value ? `${accent}35` : "rgba(255,255,255,0.05)",
+                      border: `1px solid ${pickerFilter === f.value ? accent + "70" : "rgba(255,255,255,0.1)"}`,
+                      color: pickerFilter === f.value ? accent : `${accent}70`,
+                      cursor: "pointer",
+                    }}
+                  >{f.label}</button>
+                ))}
               </div>
-              );
-            })()}
+            </div>
+
+            {/* Item list */}
+            <div className="flex-1 overflow-y-auto px-4 pb-4">
+              {(() => {
+                const pickable = allShopItems.filter(si => {
+                  if (si.fishingType === "fish") return false;
+                  if (pickerFilter === "all") return true;
+                  if (pickerFilter === "fishing") return si.type === "fishing";
+                  return si.type === pickerFilter;
+                });
+                return pickable.length === 0 ? (
+                  <p className="font-fantasy text-[#a89878] text-xs text-center py-6">No items match this filter.</p>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {pickable.map((si) => {
+                      const alreadyAssigned = items.some(it => it.id === si.id);
+                      return (
+                        <div
+                          key={si.id}
+                          data-testid={`picker-item-${si.id}`}
+                          className="flex items-center gap-3 p-2 rounded-lg"
+                          style={{
+                            background: alreadyAssigned ? `${accent}15` : "rgba(255,255,255,0.03)",
+                            border: `1px solid ${alreadyAssigned ? accent + "40" : "rgba(255,255,255,0.08)"}`,
+                          }}
+                        >
+                          <div className="w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: "rgba(0,0,0,0.3)" }}>
+                            {(() => {
+                              const pickerImg = si.type === "pet" ? (si.eggImageUrl || si.imageUrl) : si.imageUrl;
+                              return pickerImg
+                                ? <img src={pickerImg} alt="" className="w-full h-full object-contain rounded-md" />
+                                : <Package className="w-5 h-5" style={{ color: `${accent}40` }} />;
+                            })()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-fantasy text-xs truncate" style={{ color: accent }}>{si.name}</p>
+                            <p className="font-fantasy text-[9px]" style={{ color: `${accent}70` }}>
+                              {si.price} coins · {si.fishingType ?? si.type}
+                            </p>
+                          </div>
+                          {alreadyAssigned ? (
+                            <span className="font-fantasy text-[9px] px-2 py-1 rounded-full" style={{ background: `${accent}20`, color: accent }}>In Shop</span>
+                          ) : (
+                            <button
+                              data-testid={`button-assign-${si.id}`}
+                              onClick={() => assignItemMutation.mutate({ locationId: activeLocationId, itemId: si.id })}
+                              disabled={assignItemMutation.isPending}
+                              className="font-fantasy text-[9px] px-3 py-1 rounded-full transition-transform active:scale-95"
+                              style={{ background: `${accent}30`, border: `1px solid ${accent}50`, color: accent, cursor: "pointer" }}
+                            >Add</button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
           </div>
         </div>
       )}
