@@ -602,16 +602,30 @@ function AdminItemForm({
               </div>
               <div>
                 <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Special Skill</label>
+                <select
+                  data-testid="select-special-skill-type"
+                  value={["Lazer","Bubble","Heal Self","Heal Party","Poison"].includes(specialSkill) ? specialSkill : "__custom__"}
+                  onChange={(e) => { if (e.target.value !== "__custom__") setSpecialSkill(e.target.value); }}
+                  className="w-full px-3 py-2 rounded-md font-fantasy text-sm outline-none mb-1"
+                  style={inputStyle}
+                >
+                  <option value="__custom__">— Custom / None —</option>
+                  <option value="Lazer">⚡ Lazer</option>
+                  <option value="Bubble">🫧 Bubble</option>
+                  <option value="Heal Self">💚 Heal Self</option>
+                  <option value="Heal Party">💚 Heal Party</option>
+                  <option value="Poison">☠️ Poison</option>
+                </select>
                 <input
                   data-testid="input-special-skill"
                   type="text"
                   value={specialSkill}
                   onChange={(e) => setSpecialSkill(e.target.value)}
-                  placeholder="e.g. Fire Breath, Heal Aura..."
+                  placeholder="Or type a custom skill name..."
                   className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
                   style={inputStyle}
                 />
-                <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">Unique ability for this pet</p>
+                <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">Pick from the list or type a custom skill name</p>
               </div>
               <div>
                 <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Animated Template (Pet DB)</label>

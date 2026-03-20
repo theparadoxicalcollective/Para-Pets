@@ -70,6 +70,14 @@ interface DamageNumber {
   isCrit?: boolean;
 }
 
+interface BossOrb {
+  id: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+}
+
 interface InventoryPotion {
   inventoryId: string;
   shopItemId: string;
@@ -126,6 +134,26 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const [trailFading, setTrailFading] = useState(false);
   const [sparkParticles, setSparkParticles] = useState<SparkParticle[]>([]);
   const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem("battleTutorialSeen"));
+
+  // Pet dragging
+  const [petPos, setPetPos] = useState({ x: 50, y: 76 });
+  const petPosRef = useRef({ x: 50, y: 76 });
+  const petDraggingRef = useRef(false);
+  const [petHitParticles, setPetHitParticles] = useState<SparkParticle[]>([]);
+
+  // Boss special attacks
+  const [bossOrbs, setBossOrbs] = useState<BossOrb[]>([]);
+  const bossOrbsRef = useRef<BossOrb[]>([]);
+  const [laserActive, setLaserActive] = useState(false);
+  const [laserWarning, setLaserWarning] = useState(false);
+  const [bossEnlarged, setBossEnlarged] = useState(false);
+  const bossAttackModeRef = useRef<"basic" | "bubble" | "laser">("basic");
+  const nextBossAttackRef = useRef(0);
+  const bossOrbIdRef = useRef(1000);
+  const orbSpawnTimerRef = useRef(0);
+  const orbSpawnEndRef = useRef(0);
+  const petFrozenRef = useRef(false);
+  const lastBossHitTimeRef = useRef(0);
 
   const animFrameRef = useRef<number>(0);
   const arenaRef = useRef<HTMLDivElement>(null);
@@ -208,6 +236,20 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         setPhase("battle");
         battleActiveRef.current = true;
         lastEnemyAttackRef.current = Date.now();
+        // Reset pet position + boss state
+        const initPet = { x: 50, y: 76 };
+        petPosRef.current = initPet;
+        setPetPos(initPet);
+        petFrozenRef.current = false;
+        petDraggingRef.current = false;
+        bossAttackModeRef.current = "basic";
+        nextBossAttackRef.current = 0;
+        bossOrbsRef.current = [];
+        setBossOrbs([]);
+        setLaserActive(false);
+        setLaserWarning(false);
+        setBossEnlarged(false);
+        lastBossHitTimeRef.current = 0;
         const diff = enemyDifficultyRef.current;
         const baseSpeed = 0.5 + diff * 0.6;
         setEnemyPos({
@@ -263,7 +305,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const checkCollision = useCallback(() => {
     if (!battleActiveRef.current) return;
     const pos = enemyPosRef.current;
-    if (pos.y > 55) {
+    const petDist = Math.hypot(pos.x - petPosRef.current.x, pos.y - petPosRef.current.y);
+    if (petDist < 13) {
       enemyHitCountRef.current += 1;
       const hitCount = enemyHitCountRef.current;
       const isCrit = hitCount > 0 && hitCount % 6 === 0;
@@ -282,10 +325,28 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       setShakeScreen(true);
       setTimeout(() => { setPetHit(false); setShakeScreen(false); }, isCrit ? 500 : 300);
 
+      // Hit particles burst on pet
+      const particleColors = ["#c084fc", "#a855f7", "#818cf8", "#f472b6", "#60a5fa"];
+      const newPetParticles: SparkParticle[] = Array.from({ length: 8 }, (_, i) => {
+        const angle = (i / 8) * Math.PI * 2 + Math.random() * 0.5;
+        const speed = 1.4 + Math.random() * 2.2;
+        return {
+          id: slashIdRef.current++,
+          x: petPosRef.current.x + (Math.random() * 6 - 3),
+          y: petPosRef.current.y + (Math.random() * 6 - 3),
+          dx: Math.cos(angle) * speed,
+          dy: Math.sin(angle) * speed,
+          color: particleColors[Math.floor(Math.random() * particleColors.length)],
+        };
+      });
+      setPetHitParticles(prev => [...prev, ...newPetParticles]);
+      const pids = new Set(newPetParticles.map(p => p.id));
+      setTimeout(() => setPetHitParticles(prev => prev.filter(p => !pids.has(p.id))), 520);
+
       const newDmg: DamageNumber = {
         id: dmgIdRef.current++,
-        x: 50 + (Math.random() * 20 - 10),
-        y: 75,
+        x: petPosRef.current.x + (Math.random() * 14 - 7),
+        y: petPosRef.current.y - 8,
         value: dmg,
         isCrit,
       };
@@ -326,11 +387,121 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       }
 
       const now = Date.now();
+      const petX = petPosRef.current.x;
+      const petY = petPosRef.current.y;
+
+      // ── Boss special attack scheduler ──
+      if (enemy?.isBoss && bossAttackModeRef.current === "basic" && now > nextBossAttackRef.current && nextBossAttackRef.current > 0) {
+        const attackType = Math.random() < 0.38 ? "laser" : "bubble";
+        if (attackType === "bubble") {
+          bossAttackModeRef.current = "bubble";
+          orbSpawnEndRef.current = now + 4000;
+          orbSpawnTimerRef.current = 0;
+        } else {
+          bossAttackModeRef.current = "laser";
+          setLaserWarning(true);
+          // Move boss toward top center
+          pos.vx = (50 - pos.x) * 0.08;
+          pos.vy = (10 - pos.y) * 0.08;
+          setTimeout(() => {
+            if (!battleActiveRef.current) return;
+            setLaserWarning(false);
+            setLaserActive(true);
+            setBossEnlarged(true);
+            petFrozenRef.current = true;
+            // 3 damage ticks
+            let ticks = 0;
+            const laserTick = setInterval(() => {
+              if (!battleActiveRef.current) { clearInterval(laserTick); return; }
+              ticks++;
+              const rawDmg = enemyStatsRef.current.atk * 1.5 - Math.floor(petStatsRef.current.def * 0.1);
+              const dmg = Math.max(2, Math.floor(rawDmg + Math.random() * 6));
+              petHpRef.current = Math.max(0, petHpRef.current - dmg);
+              setPetHp(petHpRef.current);
+              setPetHit(true);
+              setTimeout(() => setPetHit(false), 300);
+              const newDmg: DamageNumber = {
+                id: dmgIdRef.current++,
+                x: petPosRef.current.x + (Math.random() * 10 - 5),
+                y: petPosRef.current.y - 10,
+                value: dmg, isCrit: false,
+              };
+              setDamageNumbers(prev => [...prev, newDmg]);
+              setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== newDmg.id)), 1000);
+              if (ticks >= 3 || petHpRef.current <= 0) {
+                clearInterval(laserTick);
+                setTimeout(() => {
+                  setLaserActive(false);
+                  setBossEnlarged(false);
+                  petFrozenRef.current = false;
+                  bossAttackModeRef.current = "basic";
+                  nextBossAttackRef.current = Date.now() + 10000 + Math.random() * 6000;
+                  if (petHpRef.current <= 0) { battleActiveRef.current = false; setPhase("defeat"); }
+                }, 600);
+              }
+            }, 700);
+          }, 1800);
+        }
+      }
+
+      // Bubble mode: orb spawning
+      if (enemy?.isBoss && bossAttackModeRef.current === "bubble") {
+        if (now > orbSpawnEndRef.current) {
+          bossAttackModeRef.current = "basic";
+          nextBossAttackRef.current = now + 8000 + Math.random() * 6000;
+        } else if (now > orbSpawnTimerRef.current) {
+          orbSpawnTimerRef.current = now + 900;
+          const angle = Math.atan2(petY - pos.y, petX - pos.x) + (Math.random() - 0.5) * 0.8;
+          const speed = 0.6 + Math.random() * 0.5;
+          const newOrb: BossOrb = {
+            id: bossOrbIdRef.current++,
+            x: pos.x, y: pos.y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+          };
+          bossOrbsRef.current = [...bossOrbsRef.current, newOrb];
+          setBossOrbs([...bossOrbsRef.current]);
+        }
+      }
+
+      // Update orb positions + check orb-pet collision
+      if (bossOrbsRef.current.length > 0) {
+        const updated: BossOrb[] = [];
+        let orbHit = false;
+        for (const orb of bossOrbsRef.current) {
+          const nx = orb.x + orb.vx;
+          const ny = orb.y + orb.vy;
+          const dist = Math.hypot(nx - petX, ny - petY);
+          if (dist < 10) {
+            const rawDmg = enemyStatsRef.current.atk * 0.7;
+            const dmg = Math.max(1, Math.floor(rawDmg + Math.random() * 4));
+            petHpRef.current = Math.max(0, petHpRef.current - dmg);
+            setPetHp(petHpRef.current);
+            setPetHit(true);
+            setTimeout(() => setPetHit(false), 250);
+            const newDmg: DamageNumber = { id: dmgIdRef.current++, x: petX, y: petY - 8, value: dmg, isCrit: false };
+            setDamageNumbers(prev => [...prev, newDmg]);
+            setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== newDmg.id)), 800);
+            orbHit = true;
+            if (petHpRef.current <= 0) { battleActiveRef.current = false; setPhase("defeat"); }
+          } else if (nx >= -5 && nx <= 105 && ny >= -5 && ny <= 105) {
+            updated.push({ ...orb, x: nx, y: ny });
+          }
+        }
+        if (orbHit || updated.length !== bossOrbsRef.current.length) {
+          bossOrbsRef.current = updated;
+          setBossOrbs([...updated]);
+        } else {
+          bossOrbsRef.current = updated;
+        }
+      }
+
       const attackInterval = 6000 - diff * 3000;
-      if (now - lastEnemyAttackRef.current > attackInterval) {
+      if (now - lastEnemyAttackRef.current > attackInterval && bossAttackModeRef.current === "basic") {
         lastEnemyAttackRef.current = now;
-        const petY = 70;
-        const petX = 50;
+        if (enemy?.isBoss && nextBossAttackRef.current === 0) {
+          nextBossAttackRef.current = now + 12000 + Math.random() * 6000;
+        }
         const dx = petX - pos.x;
         const dy = petY - pos.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
@@ -341,7 +512,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         }
       }
 
-      const maxSpeed = 1.5 + diff * 2;
+      const maxSpeed = bossAttackModeRef.current === "bubble" ? (1.8 + diff * 2.2) : (1.5 + diff * 2);
       const spd = Math.sqrt(pos.vx * pos.vx + pos.vy * pos.vy);
       if (spd > maxSpeed) {
         pos.vx = (pos.vx / spd) * maxSpeed;
@@ -380,8 +551,15 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const checkSegmentHit = useCallback((ax: number, ay: number, bx: number, by: number) => {
     if (!battleActiveRef.current || !enemy) return;
 
-    // Skip if this enemy was already hit during this swipe
-    if (hitEnemiesRef.current.has(enemy.enemyId)) return;
+    // For bosses: allow multi-swipe hits (one hit per 350ms cooldown)
+    // For regular enemies: only one hit per full swipe gesture
+    if (enemy.isBoss) {
+      const now = Date.now();
+      if (now - lastBossHitTimeRef.current < 350) return;
+      lastBossHitTimeRef.current = now;
+    } else {
+      if (hitEnemiesRef.current.has(enemy.enemyId)) return;
+    }
 
     // Minimum swipe path before any hit can register (prevents accidental taps)
     const totalPathLen = swipePathRef.current.reduce((acc, p, i) => {
@@ -507,6 +685,31 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     }
   }, [checkSegmentHit]);
 
+  // ── Pet drag handlers ────────────────────────────────────────────────────
+  const handlePetPointerDown = useCallback((e: React.PointerEvent) => {
+    if (!battleActiveRef.current || petFrozenRef.current) return;
+    e.stopPropagation();
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    petDraggingRef.current = true;
+  }, []);
+
+  const handlePetPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!petDraggingRef.current || !arenaRef.current) return;
+    e.stopPropagation();
+    const arena = arenaRef.current.getBoundingClientRect();
+    const x = Math.max(8, Math.min(92, ((e.clientX - arena.left) / arena.width) * 100));
+    const y = Math.max(52, Math.min(92, ((e.clientY - arena.top) / arena.height) * 100));
+    petPosRef.current = { x, y };
+    setPetPos({ x, y });
+  }, []);
+
+  const handlePetPointerUp = useCallback((e: React.PointerEvent) => {
+    if (!petDraggingRef.current) return;
+    e.stopPropagation();
+    petDraggingRef.current = false;
+  }, []);
+
   const handleSlashEnd = useCallback((_e: React.PointerEvent) => {
     if (!isSlashingRef.current) return;
     isSlashingRef.current = false;
@@ -605,12 +808,25 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           100% { filter: brightness(1); transform: translateY(0px); }
         }
         @keyframes petHitBounce {
-          0%   { transform: translateX(-50%) translateY(0px) scaleX(1) scaleY(1); filter: brightness(1); }
-          15%  { transform: translateX(-50%) translateY(-14px) scaleX(0.92) scaleY(1.1); filter: brightness(2.2) saturate(0.2); }
-          35%  { transform: translateX(-50%) translateY(4px) scaleX(1.08) scaleY(0.92); filter: brightness(1.4); }
-          55%  { transform: translateX(-50%) translateY(-6px) scaleX(0.96) scaleY(1.05); filter: brightness(1.1); }
-          75%  { transform: translateX(-50%) translateY(2px) scaleX(1.02) scaleY(0.98); filter: brightness(1); }
-          100% { transform: translateX(-50%) translateY(0px) scaleX(1) scaleY(1); filter: brightness(1); }
+          0%   { transform: translate(-50%, -50%) translateY(0px) scaleX(1) scaleY(1); filter: brightness(1); }
+          15%  { transform: translate(-50%, -50%) translateY(-14px) scaleX(0.92) scaleY(1.1); filter: brightness(2.2) saturate(0.2); }
+          35%  { transform: translate(-50%, -50%) translateY(4px) scaleX(1.08) scaleY(0.92); filter: brightness(1.4); }
+          55%  { transform: translate(-50%, -50%) translateY(-6px) scaleX(0.96) scaleY(1.05); filter: brightness(1.1); }
+          75%  { transform: translate(-50%, -50%) translateY(2px) scaleX(1.02) scaleY(0.98); filter: brightness(1); }
+          100% { transform: translate(-50%, -50%) translateY(0px) scaleX(1) scaleY(1); filter: brightness(1); }
+        }
+        @keyframes orbFloat {
+          0%   { transform: translate(-50%, -50%) translateY(0px) scale(1); }
+          100% { transform: translate(-50%, -50%) translateY(-5px) scale(1.08); }
+        }
+        @keyframes laserPulse {
+          0%   { opacity: 0.8; box-shadow: 0 0 18px rgba(255,50,50,0.8), 0 0 6px white; }
+          100% { opacity: 1;   box-shadow: 0 0 32px rgba(255,100,50,1),  0 0 12px white; }
+        }
+        @keyframes tensionPulse {
+          0%   { opacity: 0.6; }
+          50%  { opacity: 1; }
+          100% { opacity: 0.6; }
         }
         @keyframes comboText {
           0% { transform: scale(0.5); opacity: 0; }
@@ -761,11 +977,12 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
 
             {phase === "battle" && (
               <div
-                className="absolute z-10 transition-none"
+                className="absolute z-10"
                 style={{
                   left: `${enemyPos.x}%`,
                   top: `${enemyPos.y}%`,
-                  transform: `translate(-50%, -50%)`,
+                  transform: `translate(-50%, -50%) scale(${bossEnlarged ? 1.9 : 1})`,
+                  transition: bossEnlarged ? "transform 0.35s ease-out" : "transform 0.5s ease",
                   animation: enemyHit
                     ? "hitFlash 0.2s ease-in-out"
                     : "enemyBounce 0.6s ease-in-out infinite",
@@ -798,12 +1015,24 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               </div>
             )}
 
+            {/* Pet — draggable */}
             <div
-              className="absolute bottom-16 left-1/2 z-10"
+              className="absolute z-10"
               style={{
-                transform: petHit ? undefined : "translateX(-50%)",
+                left: `${petPos.x}%`,
+                top: `${petPos.y}%`,
+                transform: "translate(-50%, -50%)",
                 animation: petHit ? "petHitBounce 0.4s ease-out" : undefined,
+                cursor: phase === "battle" ? (petDraggingRef.current ? "grabbing" : "grab") : "default",
+                touchAction: "none",
+                userSelect: "none",
+                filter: petHit ? "drop-shadow(0 0 14px rgba(239,68,68,0.9))" : undefined,
+                transition: petDraggingRef.current ? undefined : "left 0.05s, top 0.05s",
               }}
+              onPointerDown={phase === "battle" ? handlePetPointerDown : undefined}
+              onPointerMove={phase === "battle" ? handlePetPointerMove : undefined}
+              onPointerUp={phase === "battle" ? handlePetPointerUp : undefined}
+              onPointerCancel={phase === "battle" ? handlePetPointerUp : undefined}
             >
               {pet.petTemplateId ? (
                 <PetAnimator
@@ -826,8 +1055,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
 
             {phase === "battle" && (
               <div className="absolute inset-0 z-15 pointer-events-none">
-                <div className="absolute bottom-36 left-1/2 -translate-x-1/2 text-white/30 text-xs font-medium animate-pulse tracking-wider">
-                  SLASH across the enemy!
+                <div className="absolute bottom-36 left-1/2 -translate-x-1/2 text-white/25 text-[10px] font-medium animate-pulse tracking-widest text-center whitespace-nowrap">
+                  Slash enemy · Drag pet to dodge
                 </div>
               </div>
             )}
@@ -876,7 +1105,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           </svg>
         )}
 
-        {/* Spark particles on hit */}
+        {/* Spark particles on hit (enemy) */}
         {sparkParticles.map(spark => (
           <div
             key={spark.id}
@@ -896,6 +1125,83 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
             }}
           />
         ))}
+
+        {/* Pet hit particles */}
+        {petHitParticles.map(spark => (
+          <div
+            key={spark.id}
+            className="absolute pointer-events-none rounded-full z-35"
+            style={{
+              left: `${spark.x}%`,
+              top: `${spark.y}%`,
+              width: 7,
+              height: 7,
+              marginLeft: -3.5,
+              marginTop: -3.5,
+              background: spark.color,
+              boxShadow: `0 0 10px ${spark.color}, 0 0 4px white`,
+              animation: "sparkFly 0.5s ease-out forwards",
+              ["--spark-dx" as any]: `${spark.dx * 14}px`,
+              ["--spark-dy" as any]: `${spark.dy * 14}px`,
+            }}
+          />
+        ))}
+
+        {/* Boss orbs (Bubble attack) */}
+        {bossOrbs.map(orb => (
+          <div
+            key={orb.id}
+            className="absolute pointer-events-none z-25"
+            style={{
+              left: `${orb.x}%`,
+              top: `${orb.y}%`,
+              transform: "translate(-50%, -50%)",
+              width: 22,
+              height: 22,
+              borderRadius: "50%",
+              background: "radial-gradient(circle at 35% 30%, rgba(200,240,255,0.9), rgba(100,200,255,0.3) 60%, rgba(50,150,220,0.15))",
+              border: "1.5px solid rgba(160,220,255,0.8)",
+              boxShadow: "0 0 12px rgba(100,200,255,0.6), inset 0 0 6px rgba(255,255,255,0.4)",
+              animation: "orbFloat 1.2s ease-in-out infinite alternate",
+            }}
+          />
+        ))}
+
+        {/* Boss laser warning flash */}
+        {laserWarning && (
+          <div
+            className="absolute inset-0 z-40 pointer-events-none flex items-start justify-center pt-4"
+            style={{ animation: "tensionPulse 0.4s ease-in-out infinite" }}
+          >
+            <div style={{
+              fontFamily: "Cinzel, serif",
+              fontSize: 14,
+              fontWeight: 700,
+              color: "#ff4444",
+              textShadow: "0 0 18px #ff0000, 0 0 8px rgba(255,0,0,0.8)",
+              letterSpacing: "0.15em",
+              animation: "tensionPulse 0.4s ease-in-out infinite",
+            }}>⚠ LASER INCOMING ⚠</div>
+          </div>
+        )}
+
+        {/* Boss laser beam */}
+        {laserActive && petPos.y > enemyPos.y && (
+          <div
+            className="absolute pointer-events-none z-38"
+            style={{
+              left: `${enemyPos.x}%`,
+              top: `${enemyPos.y}%`,
+              transform: "translateX(-50%)",
+              width: 8,
+              height: `${petPos.y - enemyPos.y}%`,
+              background: "linear-gradient(180deg, rgba(255,60,60,0.9) 0%, rgba(255,120,80,0.7) 60%, rgba(255,200,100,0.3) 100%)",
+              boxShadow: "0 0 18px rgba(255,50,50,0.8), 0 0 6px white",
+              borderRadius: 4,
+              animation: "laserPulse 0.15s ease-in-out infinite alternate",
+            }}
+          />
+        )}
 
         {/* Slash hit marks on enemy */}
         {slashEffects.map(slash => (
