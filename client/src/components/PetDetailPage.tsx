@@ -59,6 +59,7 @@ interface PetDetailPageProps {
 
 export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUserUpdate }: PetDetailPageProps) {
   const [showPowerUpModal, setShowPowerUpModal] = useState(false);
+  const [powerUpModalMode, setPowerUpModalMode] = useState<"powerup" | "lvlup">("powerup");
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [confirmItem, setConfirmItem] = useState<BagItem | null>(null);
   const [showSuccessAnim, setShowSuccessAnim] = useState(false);
@@ -217,8 +218,9 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
     },
   });
 
-  // Combined items list for the power-up modal
-  const allPowerUpItems: PowerUpItem[] = [...usableItems, ...specialItems];
+  // Items shown in each modal mode
+  const powerUpModalItems: PowerUpItem[] = usableItems;
+  const lvlUpModalItems: PowerUpItem[] = specialItems.filter(i => i.specialType === "level");
 
   // Handler called by PetPowerUpModal when an item is dragged/tapped onto the pet
   const handlePowerUpModalUse = (item: PowerUpItem) => {
@@ -521,7 +523,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
           <div className="flex gap-2 mb-2">
             <button
               data-testid="button-power-up"
-              onClick={() => setShowPowerUpModal(true)}
+              onClick={() => { setPowerUpModalMode("powerup"); setShowPowerUpModal(true); }}
               disabled={pet.petLevel >= 100}
               className="flex-1 py-2.5 rounded-md font-fantasy text-xs tracking-wider transition-transform active:scale-95 disabled:opacity-40"
               style={{
@@ -535,7 +537,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
             </button>
             <button
               data-testid="button-lvl-up"
-              onClick={() => setShowPowerUpModal(true)}
+              onClick={() => { setPowerUpModalMode("lvlup"); setShowPowerUpModal(true); }}
               disabled={pet.petLevel >= 100}
               className="flex-1 py-2.5 rounded-md font-fantasy text-xs tracking-wider transition-transform active:scale-95 disabled:opacity-40"
               style={{
@@ -750,8 +752,10 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
           petTemplateId={pet.petTemplateId}
           rarity={pet.rarity || 1}
           petLevel={pet.petLevel}
-          itemsRemaining={itemsRemaining}
-          items={allPowerUpItems}
+          itemsRemaining={powerUpModalMode === "lvlup" ? Infinity : itemsRemaining}
+          items={powerUpModalMode === "lvlup" ? lvlUpModalItems : powerUpModalItems}
+          title={powerUpModalMode === "lvlup" ? "LVL UP" : "POWER UP"}
+          subtitle={powerUpModalMode === "lvlup" ? "Drag a level-up item onto your pet · or tap to use" : undefined}
           isPending={powerUpMutation.isPending || useSpecialMutation.isPending}
           onUseItem={handlePowerUpModalUse}
           onClose={() => setShowPowerUpModal(false)}

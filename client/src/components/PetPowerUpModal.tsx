@@ -22,6 +22,8 @@ interface PetPowerUpModalProps {
   itemsRemaining: number;
   items: PowerUpItem[];
   isPending: boolean;
+  title?: string;
+  subtitle?: string;
   onUseItem: (item: PowerUpItem) => void;
   onClose: () => void;
 }
@@ -109,6 +111,7 @@ function itemSoundType(item: PowerUpItem): "stat" | "level" | "hatch" {
 export default function PetPowerUpModal({
   petName, petImage, petTemplateId, rarity,
   petLevel, itemsRemaining, items, isPending,
+  title = "POWER UP", subtitle,
   onUseItem, onClose,
 }: PetPowerUpModalProps) {
   const petZoneRef    = useRef<HTMLDivElement>(null);
@@ -226,9 +229,9 @@ export default function PetPowerUpModal({
       {/* Header */}
       <div className="flex items-center justify-between px-5 pt-5 pb-3 flex-shrink-0">
         <div>
-          <h2 className="font-fantasy text-[#f0c040] text-base tracking-widest">POWER UP</h2>
+          <h2 className="font-fantasy text-[#f0c040] text-base tracking-widest">{title}</h2>
           <p className="font-fantasy text-[#a89878] text-[10px] tracking-wider mt-0.5">
-            Drag an item onto {petName} · or tap to use
+            {subtitle ?? `Drag an item onto ${petName} · or tap to use`}
           </p>
         </div>
         <button
@@ -245,8 +248,16 @@ export default function PetPowerUpModal({
       <div className="flex flex-col items-center flex-shrink-0 pb-3 relative">
         {/* Slots remaining */}
         <div className="mb-2 px-3 py-1 rounded-full font-fantasy text-[10px] tracking-wider"
-          style={{ background: itemsRemaining > 0 ? "rgba(74,222,128,0.12)" : "rgba(248,113,113,0.12)", border: `1px solid ${itemsRemaining > 0 ? "rgba(74,222,128,0.3)" : "rgba(248,113,113,0.3)"}`, color: itemsRemaining > 0 ? "#4ade80" : "#f87171" }}>
-          {itemsRemaining > 0 ? `${itemsRemaining} power-up slot${itemsRemaining === 1 ? "" : "s"} remaining` : "No slots — level up first!"}
+          style={{
+            background: itemsRemaining === Infinity ? "rgba(240,192,64,0.12)" : itemsRemaining > 0 ? "rgba(74,222,128,0.12)" : "rgba(248,113,113,0.12)",
+            border: `1px solid ${itemsRemaining === Infinity ? "rgba(240,192,64,0.3)" : itemsRemaining > 0 ? "rgba(74,222,128,0.3)" : "rgba(248,113,113,0.3)"}`,
+            color: itemsRemaining === Infinity ? "#f0c040" : itemsRemaining > 0 ? "#4ade80" : "#f87171",
+          }}>
+          {itemsRemaining === Infinity
+            ? "No use limit — use as many as you want!"
+            : itemsRemaining > 0
+              ? `${itemsRemaining} power-up slot${itemsRemaining === 1 ? "" : "s"} remaining`
+              : "No slots — level up first!"}
         </div>
 
         {/* Pet zone — the drop target */}
@@ -328,7 +339,7 @@ export default function PetPowerUpModal({
                 const color   = itemColor(item);
                 const label   = itemLabel(item);
                 const isSlotItem = item.type !== "special" && item.statBoostType !== "lvl";
-                const locked  = isSlotItem && itemsRemaining <= 0;
+                const locked  = isSlotItem && itemsRemaining !== Infinity && itemsRemaining <= 0;
                 return (
                   <div
                     key={item.inventoryId}
