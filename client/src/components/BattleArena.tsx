@@ -623,13 +623,15 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       if (hitEnemiesRef.current.has(enemy.enemyId)) return;
     }
 
-    // Minimum swipe path before any hit can register (prevents accidental taps)
+    // Minimum swipe path before any hit can register (prevents single-point taps)
+    // Boss has a huge hit radius so only need a tiny movement — regular enemies need more
     const totalPathLen = swipePathRef.current.reduce((acc, p, i) => {
       if (i === 0) return 0;
       const prev = swipePathRef.current[i - 1];
       return acc + Math.hypot(p.x - prev.x, p.y - prev.y);
     }, 0);
-    if (totalPathLen < 5) return;
+    const minPathLen = enemy.isBoss ? 1.5 : 5;
+    if (totalPathLen < minPathLen) return;
 
     const ePos = enemyPosRef.current;
     const dist = segmentPointDist(ax, ay, bx, by, ePos.x, ePos.y);
@@ -687,6 +689,10 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
 
     // ── Boss consecutive hit tracking & break-free ────────────────────────
     if (enemy.isBoss) {
+      // Expire streak if the combo window has lapsed (same 1.4s window as combo counter)
+      if (now - lastHitTime > 1400) {
+        consecutiveBossHitsRef.current = 0;
+      }
       consecutiveBossHitsRef.current += 1;
       setBossHitStreak(consecutiveBossHitsRef.current);
       if (consecutiveBossHitsRef.current >= 6) {
@@ -750,8 +756,9 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     swipePathRef.current = [pos];
     lastSwipePointRef.current = pos;
     hitEnemiesRef.current = new Set();
-    consecutiveBossHitsRef.current = 0;
-    setBossHitStreak(0);
+    // Reset 300ms cooldown so every new swipe can immediately land its first hit
+    lastBossHitTimeRef.current = 0;
+    // Don't reset streak here — combo persists across swipes if within the time window
     isSlashingRef.current = true;
     setTrailFading(false);
     setSlashTrail([pos]);
