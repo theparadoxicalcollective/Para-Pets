@@ -3548,21 +3548,23 @@ export default function WorldPage({ user }: WorldPageProps) {
         const battleLoc = locations.find(l => l.id === battleLocationId);
         if (!battleLoc) return null;
         return (
-          <BattleArena
-            locationId={battleLocationId}
-            locationName={battleLoc.name}
-            bgUrl={battleLocDetail?.bgUrl ?? null}
-            accent={accent}
-            onClose={() => {
-              setShowBattle(false);
-              setBattleLocationId(null);
-              setActiveLocationId(null);
-            }}
-            onBattleEnd={() => {
-              queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-              queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-            }}
-          />
+          <div className="absolute inset-0 z-50">
+            <BattleArena
+              locationId={battleLocationId}
+              locationName={battleLoc.name}
+              bgUrl={battleLocDetail?.bgUrl ?? null}
+              accent={accent}
+              onClose={() => {
+                setShowBattle(false);
+                setBattleLocationId(null);
+                setActiveLocationId(null);
+              }}
+              onBattleEnd={() => {
+                queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+                queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+              }}
+            />
+          </div>
         );
       })()}
 

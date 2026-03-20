@@ -1111,7 +1111,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
 
         {(phase === "battle" || phase === "victory" || phase === "waveComplete" || phase === "defeat") && enemy && pet && (
           <>
-            <div className="absolute top-0 left-0 right-0 z-20 p-3">
+            <div className="absolute top-0 left-0 right-0 z-20 px-3 pb-3" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}>
               <div className="flex items-center justify-between gap-2 mb-2">
                 <div className="flex-1">
                   <div className="flex items-center gap-1 mb-1">
