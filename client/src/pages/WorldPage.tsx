@@ -354,7 +354,8 @@ export default function WorldPage({ user }: WorldPageProps) {
 
   const { data: allShopItems = [] } = useQuery<ShopItem[]>({
     queryKey: ["/api/admin/shop-items-all"],
-    enabled: showItemPicker && currentUser.isAdmin,
+    enabled: currentUser.isAdmin,
+    staleTime: 0,
   });
 
   const { data: locationObjects = [] } = useQuery<LocationObjectData[]>({
