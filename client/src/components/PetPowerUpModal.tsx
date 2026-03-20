@@ -415,7 +415,7 @@ export default function PetPowerUpModal({
           data-testid="zone-pet-drop"
           className="relative flex items-center justify-center rounded-2xl transition-all duration-200"
           style={{
-            width: 240, height: 240,
+            width: 300, height: 300,
             background: dragOverPet
               ? `radial-gradient(ellipse at center, rgba(${dragging ? itemColor(dragging.item).replace("#","") : "240,192,64"},0.25) 0%, rgba(0,0,0,0.6) 100%)`
               : "radial-gradient(ellipse at center, rgba(45,122,79,0.18) 0%, rgba(0,0,0,0.5) 100%)",
@@ -439,9 +439,9 @@ export default function PetPowerUpModal({
             }}
           >
             {petTemplateId ? (
-              <PetAnimator petTemplateId={petTemplateId} mode="idle" view="front" size={230} />
+              <PetAnimator petTemplateId={petTemplateId} mode="idle" view="front" size={290} />
             ) : petImage ? (
-              <img src={petImage} alt={petName} style={{ width: 220, height: 220, objectFit: "contain" }} />
+              <img src={petImage} alt={petName} style={{ width: 280, height: 280, objectFit: "contain" }} />
             ) : (
               <img src={petPawIcon} alt="" style={{ width: 130, height: 130, objectFit: "contain", filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.6))" }} />
             )}
@@ -474,7 +474,7 @@ export default function PetPowerUpModal({
       <div className="flex-1 overflow-y-auto px-4 pb-6" style={{ scrollbarWidth: "thin" }}>
         {items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 gap-3">
-            <img src={powerupBagIcon} alt="" style={{ width: 80, height: 80, objectFit: "contain", filter: "drop-shadow(0 0 12px rgba(240,192,64,0.5))" }} />
+            <img src={powerupBagIcon} alt="" style={{ width: 80, height: 80, objectFit: "contain" }} />
             <p className="font-fantasy text-[#a89878] text-sm text-center">No power-up items in your bag</p>
             <p className="font-fantasy text-[#6a5840] text-[10px] text-center">Visit the shop to stock up!</p>
           </div>
@@ -516,7 +516,7 @@ export default function PetPowerUpModal({
                     >
                       {/* Item image */}
                       <div className="w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden"
-                        style={{ background: `${color}18`, border: `1px solid ${color}30` }}>
+                        style={item.imageUrl ? { background: `${color}18`, border: `1px solid ${color}30` } : {}}>
                         {item.imageUrl
                           ? <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
                           : <img src={powerupBagIcon} alt="" className="w-full h-full object-contain" />
