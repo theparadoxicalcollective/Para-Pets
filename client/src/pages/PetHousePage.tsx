@@ -4,6 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
+import PetWorldPage from "@/pages/PetWorldPage";
 import PetAnimator from "@/components/PetAnimator";
 import petHouseBg from "@assets/generated_images/pet_world_bg.png";
 import aquariumBg from "@assets/bg_aquarium.png";
@@ -72,6 +73,7 @@ export default function PetHousePage({ user: initialUser }: PetHousePageProps) {
   const [currentUser, setCurrentUser] = useState(initialUser);
   const user = currentUser;
   const [showProfile, setShowProfile] = useState(false);
+  const [showPetWorld, setShowPetWorld] = useState(false);
   const [selectedPet, setSelectedPet] = useState<InventoryPet | null>(null);
   const [showAquarium, setShowAquarium] = useState(false);
   const [draggingEdible, setDraggingEdible] = useState<EdibleItem | null>(null);
@@ -225,7 +227,7 @@ export default function PetHousePage({ user: initialUser }: PetHousePageProps) {
           <HouseNavButton testId="button-nav-pet-house" onClick={() => {}} label="Pet House">
             <PetHouseNavIcon />
           </HouseNavButton>
-          <HouseNavButton testId="button-nav-forest-den" onClick={() => {}} label="Pet World">
+          <HouseNavButton testId="button-nav-forest-den" onClick={() => setShowPetWorld(true)} label="Pet World">
             <ForestHomeIcon />
           </HouseNavButton>
         </div>
@@ -233,6 +235,10 @@ export default function PetHousePage({ user: initialUser }: PetHousePageProps) {
 
       {showAquarium && (
         <AquariumPage onClose={() => setShowAquarium(false)} userId={user.id} />
+      )}
+
+      {showPetWorld && (
+        <PetWorldPage user={user} onClose={() => setShowPetWorld(false)} />
       )}
 
       {showProfile && (
