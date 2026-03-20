@@ -631,13 +631,13 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       </div>
 
       {!bgLoaded && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(8,5,20,1)" }}>
+        <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 70, background: "rgba(8,5,20,1)" }}>
           <div className="animate-spin rounded-full" style={{ width: 48, height: 48, border: `3px solid ${ACCENT}25`, borderTopColor: ACCENT }} />
         </div>
       )}
 
       {showNoPoleModal && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(4,2,12,0.75)", backdropFilter: "blur(6px)" }}
+        <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 70, background: "rgba(4,2,12,0.75)", backdropFilter: "blur(6px)" }}
           onClick={() => setShowNoPoleModal(false)}>
           <div
             className="flex flex-col items-center gap-5 rounded-2xl px-8 py-8 mx-6 text-center"
@@ -676,7 +676,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
 
       {/* Fishing tutorial modal — shown on first ever visit */}
       {showTutorial && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(4,2,12,0.82)", backdropFilter: "blur(8px)" }}>
+        <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 70, background: "rgba(4,2,12,0.82)", backdropFilter: "blur(8px)" }}>
           <div
             className="flex flex-col gap-5 rounded-2xl px-7 py-7 mx-5"
             style={{
@@ -733,7 +733,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
 
       <style>{FISHING_ANIMATIONS}</style>
 
-      <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 pb-3" style={{ paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
+      <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 pb-3" style={{ zIndex: 60, paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
         <div>
           <h3 className="font-fantasy text-base tracking-widest font-semibold" style={{ color: ACCENT, textShadow: `0 0 10px ${ACCENT}40` }} data-testid="text-fishing-location-name">
             {locationName}
@@ -1311,7 +1311,7 @@ function PondAdminPanel({
   const availableToAdd = allFishItems.filter(fi => !stockedIds.has(fi.id));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+    <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: 70, maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <div className="relative z-10 w-[90%] max-w-sm rounded-xl overflow-hidden" style={{
         background: "linear-gradient(135deg, rgba(8,25,18,0.98), rgba(5,15,10,0.98))",
