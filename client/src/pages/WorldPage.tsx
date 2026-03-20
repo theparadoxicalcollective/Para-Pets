@@ -2696,11 +2696,11 @@ export default function WorldPage({ user }: WorldPageProps) {
                         alt={item.name}
                         className="w-full h-full object-contain"
                         style={{
-                          filter: isHovered
-                            ? "drop-shadow(0 0 0px rgba(0,0,0,0)) drop-shadow(0 1px 2px rgba(0,0,0,0.6)) drop-shadow(0 0 1px rgba(255,255,255,0.25))"
-                            : "drop-shadow(0 1px 1px rgba(0,0,0,0.5)) drop-shadow(0 0 1px rgba(255,255,255,0.15))",
-                          transform: isHovered ? "scale(1.12)" : "scale(1)",
-                          transition: "transform 0.15s ease, filter 0.15s ease",
+                          filter: (isHovered && !(currentUser.isAdmin && (isDragging || selectedShopItemAdminId === item.id)))
+                            ? `drop-shadow(0 0 9px rgba(255,210,120,0.65)) drop-shadow(0 1px 2px rgba(0,0,0,0.65)) drop-shadow(0 0 2px rgba(255,255,255,0.3))`
+                            : `drop-shadow(0 0 5px rgba(255,200,100,0.32)) drop-shadow(0 1px 2px rgba(0,0,0,0.55)) drop-shadow(0 0 1px rgba(255,255,255,0.18))`,
+                          transform: (isHovered && !(currentUser.isAdmin && (isDragging || selectedShopItemAdminId === item.id))) ? "scale(1.12)" : "scale(1)",
+                          transition: isDragging ? "none" : "transform 0.15s ease, filter 0.15s ease",
                           cursor: currentUser.isAdmin ? (selectedShopItemAdminId === item.id ? "grab" : "pointer") : "pointer",
                           pointerEvents: (!currentUser.isAdmin && item.fishingType === "pole") ? "none" : "auto",
                         }}
