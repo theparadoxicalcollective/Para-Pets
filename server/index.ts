@@ -524,6 +524,12 @@ app.use((req, res, next) => {
     console.error("Swamp location migration error (non-fatal):", err);
   }
 
+  // One-time cleanup: remove the admin test pole if it still exists
+  try {
+    await storage.deleteShopItem("00000000-0000-0000-0000-admin0000pole");
+    console.log("Admin test pole removed.");
+  } catch (_) { /* already gone */ }
+
   console.log("Background initialization complete.");
   })().catch(err => console.error("Background init error:", err));
 })();
