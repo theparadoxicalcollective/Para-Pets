@@ -762,15 +762,22 @@ export class DatabaseStorage implements IStorage {
 
   async getMarketListings(filters?: { search?: string; itemType?: string; orderAsc?: boolean }): Promise<PlayerMarketListing[]> {
     let query = db.select().from(playerMarketListings).where(eq(playerMarketListings.status, "active")).$dynamic();
+
+    // When filtering by "fish", also match legacy listings stored as "fishing"
+    const buildTypeCond = (t: string) =>
+      t === "fish"
+        ? or(eq(playerMarketListings.itemType, "fish"), eq(playerMarketListings.itemType, "fishing"))
+        : eq(playerMarketListings.itemType, t);
+
     if (filters?.itemType && filters.itemType !== "all") {
-      query = query.where(and(eq(playerMarketListings.status, "active"), eq(playerMarketListings.itemType, filters.itemType)));
+      query = query.where(and(eq(playerMarketListings.status, "active"), buildTypeCond(filters.itemType)));
     }
     if (filters?.search) {
       const term = `%${filters.search}%`;
       const cond = eq(playerMarketListings.status, "active");
       const searchCond = or(ilike(playerMarketListings.itemName, term), ilike(playerMarketListings.sellerName, term));
       if (filters?.itemType && filters.itemType !== "all") {
-        query = query.where(and(cond, eq(playerMarketListings.itemType, filters.itemType), searchCond));
+        query = query.where(and(cond, buildTypeCond(filters.itemType), searchCond));
       } else {
         query = query.where(and(cond, searchCond));
       }

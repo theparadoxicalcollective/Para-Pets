@@ -2800,7 +2800,9 @@ export async function registerRoutes(
         shopItemId: shopItem.id,
         itemName: shopItem.name,
         itemImageUrl: shopItem.imageUrl,
-        itemType: shopItem.type,
+        // For fishing items, use the more specific fishingType ("fish", "pole", "bait")
+        // so market filters can distinguish fish from poles
+        itemType: (shopItem.type === "fishing" && shopItem.fishingType) ? shopItem.fishingType : shopItem.type,
         price,
       });
       return res.json(listing);

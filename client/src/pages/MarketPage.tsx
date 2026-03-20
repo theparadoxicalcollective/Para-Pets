@@ -17,6 +17,7 @@ const ITEM_CATEGORIES = [
   { label: "Special", value: "special" },
   { label: "Accessories", value: "accessory" },
   { label: "Potions", value: "potion" },
+  { label: "Fish", value: "fish" },
 ];
 
 interface Listing {
