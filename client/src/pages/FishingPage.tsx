@@ -875,7 +875,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       {phase === "casting" && equipData?.poleItem?.imageUrl && (
         <div className="absolute pointer-events-none z-[15]" style={{
           bottom: "20%", left: "0%",
-          width: 160, height: 160,
+          width: 210, height: 210,
           animation: "poleCast 1s ease-in-out forwards",
           transformOrigin: "bottom left",
         }}>
@@ -888,7 +888,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       {(phase === "waiting" || phase === "nibble") && equipData?.poleItem?.imageUrl && (
         <div className="absolute pointer-events-none z-[15]" style={{
           bottom: "20%", left: "0%",
-          width: 160, height: 160,
+          width: 210, height: 210,
           transform: "rotate(-52deg)",
           transformOrigin: "bottom left",
           animation: "poleHold 2s ease-in-out infinite",
@@ -905,7 +905,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       {phase === "reeling" && equipData?.poleItem?.imageUrl && (
         <div className="absolute pointer-events-none z-[15]" style={{
           bottom: "20%", left: "0%",
-          width: 160, height: 160,
+          width: 210, height: 210,
           transformOrigin: "bottom left",
           animation: tensionState && tensionState.tension > 0.6
             ? "poleBendHigh 0.3s ease-in-out infinite"
