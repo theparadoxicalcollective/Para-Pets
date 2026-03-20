@@ -7,7 +7,7 @@ import PetAnimator from "@/components/PetAnimator";
 import petHouseBg from "@assets/generated_images/pet_world_bg.png";
 import aquariumBg from "@assets/bg_aquarium.png";
 import fishbowlIconImg from "@assets/icon_fishbowl.png";
-import forestHomeIconImg from "@assets/icon_forest_home.png";
+import globeWorldIconImg from "@assets/icon_globe_world.png";
 
 interface PetHousePageProps {
   user: {
@@ -1242,8 +1242,8 @@ function FishbowlIcon() {
 function ForestHomeIcon() {
   return (
     <img
-      src={forestHomeIconImg}
-      alt="Forest Den"
+      src={globeWorldIconImg}
+      alt="Pet World"
       width={46}
       height={46}
       style={{ objectFit: "contain", imageRendering: "auto" }}
