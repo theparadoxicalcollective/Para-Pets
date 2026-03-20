@@ -3106,7 +3106,7 @@ export async function registerRoutes(
         if (Math.random() > catchChance) return res.json({ caught: null, reason: "miss" });
       }
 
-      const baseWeights: Record<number, number> = { 1: 40, 2: 30, 3: 20, 4: 7, 5: 3 };
+      const baseWeights: Record<number, number> = { 1: 55, 2: 28, 3: 10, 4: 4, 5: 1 };
       const fishPool = pondEntries.map(entry => {
         const star = entry.item?.starRarity ?? 1;
         let weight = baseWeights[star] ?? 10;
