@@ -383,16 +383,16 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   const startReeling = useCallback(() => {
     const rarity = Math.max(1, Math.min(5, nibbleRarityRef.current));
 
-    // Per-rarity tuning for tension/reeling mechanic
+    // Per-rarity tuning — all rates are per-second, scaled by delta-time each frame
     const poleItem = equipDataRef.current?.poleItem;
     const slowdownFactor = (pct: number | null | undefined) => pct != null ? Math.max(0, 1 - pct / 100) : 1;
 
-    // Starting catch progress — starts just below halfway so even 1★ needs real effort
-    const startProgress   = [0.42,   0.32,   0.12,   0.08,   0.05  ];
-    // Rate of catch progress gain per frame while holding (slower across the board)
-    const reelRates       = [0.0062, 0.0050, 0.0022, 0.0013, 0.0009];
-    // Rate of tension rise per frame while holding — 1★/2★ are now noticeably tense
-    const tensionRiseBase = [0.0125, 0.0155, 0.0230, 0.0310, 0.0390];
+    // Starting catch progress
+    const startProgress   = [0.42,  0.32,  0.12,  0.08,  0.05 ];
+    // Catch progress gain per second while holding
+    const reelRates       = [0.375, 0.300, 0.132, 0.078, 0.054];
+    // Tension rise per second while holding
+    const tensionRiseBase = [0.75,  0.93,  1.38,  1.86,  2.34 ];
     const tensionRise     = [
       tensionRiseBase[0],
       tensionRiseBase[1],
@@ -400,35 +400,36 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       tensionRiseBase[3] * slowdownFactor(poleItem?.poleSlowdown4),
       tensionRiseBase[4] * slowdownFactor(poleItem?.poleSlowdown5),
     ];
-    // Rate of tension fall per frame while NOT holding — slower recovery for all
-    const tensionFalls    = [0.0080, 0.0062, 0.0036, 0.0022, 0.0013];
-    // Rate catch progress drains per frame while NOT holding
-    const progressDrags   = [0.0018, 0.0032, 0.0105, 0.0160, 0.0220];
-    // Probability per frame a surge begins — 1★/2★ surge more often now
-    const surgeChances    = [0.0068, 0.0100, 0.0165, 0.0240, 0.0320];
-    // Extra tension added per frame DURING a surge (replaces old instant spike)
-    // Spread over ~30 frames so the player can see the bar rising and react
-    const surgeTPerFrames = [0.008,  0.011,  0.016,  0.022,  0.030 ];
-    // Extra progress drained per frame DURING a surge
-    const surgePPerFrames = [0.003,  0.006,  0.014,  0.019,  0.025 ];
+    // Tension fall per second while NOT holding — fast enough to feel responsive
+    const tensionFalls    = [1.30,  1.08,  0.90,  0.72,  0.54 ];
+    // Catch progress drain per second while NOT holding
+    const progressDrags   = [0.108, 0.192, 0.630, 0.960, 1.320];
+    // Probability per second a surge begins
+    const surgeChances    = [0.41,  0.60,  0.99,  1.44,  1.92 ];
+    // Extra tension per second DURING a surge
+    const surgeTPerSec    = [0.48,  0.66,  0.96,  1.32,  1.80 ];
+    // Extra progress drain per second DURING a surge
+    const surgePPerSec    = [0.18,  0.36,  0.84,  1.14,  1.50 ];
 
-    const reelRate      = reelRates[rarity - 1];
-    const tRise         = tensionRise[rarity - 1];
-    const tFall         = tensionFalls[rarity - 1];
-    const pDrag         = progressDrags[rarity - 1];
-    const surgeChance   = surgeChances[rarity - 1];
-    const surgeTPerFrame = surgeTPerFrames[rarity - 1];
-    const surgePPerFrame = surgePPerFrames[rarity - 1];
+    const reelRate       = reelRates[rarity - 1];
+    const tRise          = tensionRise[rarity - 1];
+    const tFall          = tensionFalls[rarity - 1];
+    const pDrag          = progressDrags[rarity - 1];
+    const surgeChancePS  = surgeChances[rarity - 1];
+    const surgeTPS       = surgeTPerSec[rarity - 1];
+    const surgePPS       = surgePPerSec[rarity - 1];
 
     const REEL_TIMEOUT_MS = 30000;
 
     isHoldingRef.current = false;
 
-    let catchProgress = startProgress[rarity - 1]; // 3★+ fish start nearly escaped
+    let catchProgress = startProgress[rarity - 1];
     let tension       = 0;
     let surging       = false;
-    let surgeTimer    = 15 + Math.floor(Math.random() * 20); // initial delay so no instant surge on frame 1
+    // Initial delay before first surge: 0.5-0.8s
+    let surgeTimerSec = 0.5 + Math.random() * 0.3;
     const startTime   = Date.now();
+    let lastFrameMs   = Date.now();
 
     phaseRef.current = "reeling";
     setPhase("reeling");
@@ -437,7 +438,12 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     const tick = () => {
       if (phaseRef.current !== "reeling") return;
 
-      const elapsed = Date.now() - startTime;
+      // Delta-time: how many seconds elapsed since last frame (capped at 2 frames max)
+      const now = Date.now();
+      const dt  = Math.min((now - lastFrameMs) / 1000, 2 / 60);
+      lastFrameMs = now;
+
+      const elapsed  = now - startTime;
       const timeLeft = Math.max(0, (REEL_TIMEOUT_MS - elapsed) / 1000);
 
       if (timeLeft <= 0) {
@@ -453,35 +459,35 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       }
 
       if (isHoldingRef.current) {
-        // Reeling: progress fills, tension rises
-        catchProgress = Math.min(1, catchProgress + reelRate);
-        tension       = Math.min(1, tension + tRise);
+        // Holding: progress fills, tension climbs
+        catchProgress = Math.min(1, catchProgress + reelRate * dt);
+        tension       = Math.min(1, tension + tRise   * dt);
       } else {
-        // Resting: tension drops, fish drags progress back
-        tension       = Math.max(0, tension - tFall);
-        catchProgress = Math.max(0, catchProgress - pDrag);
+        // Released: tension drops quickly, fish drags progress back
+        tension       = Math.max(0, tension - tFall * dt);
+        catchProgress = Math.max(0, catchProgress - pDrag * dt);
       }
 
-      // Surge logic — fish resistance builds over time (no instant spike)
-      surgeTimer--;
-      if (!surging && surgeTimer <= 0) {
-        if (Math.random() < surgeChance) {
-          surging    = true;
-          surgeTimer = 25 + Math.floor(Math.random() * 20); // 25-44 frames (~0.4-0.7s)
+      // Surge logic — timer counts in seconds
+      surgeTimerSec -= dt;
+      if (!surging && surgeTimerSec <= 0) {
+        // Each frame after timer expires has a per-second chance to surge
+        if (Math.random() < surgeChancePS * dt) {
+          surging       = true;
+          surgeTimerSec = 0.4 + Math.random() * 0.35; // 0.4-0.75s surge
         } else {
-          surgeTimer = 12 + Math.floor(Math.random() * 18);
+          surgeTimerSec = 0.18 + Math.random() * 0.22; // 0.18-0.40s between checks
         }
       }
-      // During surge: extra tension and progress drain spread over surge duration
       if (surging) {
-        tension       = Math.min(1, tension + surgeTPerFrame);
-        catchProgress = Math.max(0, catchProgress - surgePPerFrame);
+        tension       = Math.min(1, tension + surgeTPS * dt);
+        catchProgress = Math.max(0, catchProgress - surgePPS * dt);
       }
-      if (surging && surgeTimer <= 0) surging = false;
+      if (surging && surgeTimerSec <= 0) surging = false;
 
       setTensionState({ catchProgress, tension, isSurging: surging, timeLeft, snapEffect: false });
 
-      // Fish escaped — pulled all the way to the left
+      // Fish escaped
       if (catchProgress <= 0) {
         setTensionState(null);
         phaseRef.current = "missed";
@@ -489,7 +495,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         return;
       }
 
-      // Line snap — tension maxed
+      // Line snap
       if (tension >= 1) {
         setTensionState({ catchProgress, tension: 1, isSurging: false, timeLeft, snapEffect: true });
         setTimeout(() => {
@@ -1522,7 +1528,7 @@ function TensionReel({
               borderRadius: 14,
               background: tensionBg,
               boxShadow: tensionGlow,
-              transition: "width 0.09s linear, background 0.25s ease",
+              transition: "background 0.25s ease",
               position: "relative",
             }}>
               {tensionPct > 25 && (
@@ -1572,7 +1578,6 @@ function TensionReel({
               bottom: 0,
               transform: "translateX(-50%)",
               display: "flex", flexDirection: "column", alignItems: "center",
-              transition: "left 0.07s linear",
               pointerEvents: "none",
             }}>
               {/* Connector dot */}
@@ -1616,7 +1621,6 @@ function TensionReel({
               borderRadius: 14,
               background: "linear-gradient(90deg, #0d4a3a, #0db889, #5eead4)",
               boxShadow: "0 0 14px rgba(94,234,212,0.7)",
-              transition: "width 0.09s linear",
               position: "relative", overflow: "hidden",
             }}>
               {progressPct > 5 && (
