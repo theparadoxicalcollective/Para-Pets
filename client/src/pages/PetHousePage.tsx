@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
+import UserProfilePanel from "@/components/UserProfilePanel";
 import PetAnimator from "@/components/PetAnimator";
 import petHouseBg from "@assets/generated_images/pet_world_bg.png";
 import aquariumBg from "@assets/bg_aquarium.png";
@@ -67,7 +68,10 @@ const GROUND_WALK_CONFIGS = [
   { wanderIdx: 5, left: "40%", top: "91%", size: 220, duration: "45s", delay: "8s"   },
 ];
 
-export default function PetHousePage({ user }: PetHousePageProps) {
+export default function PetHousePage({ user: initialUser }: PetHousePageProps) {
+  const [currentUser, setCurrentUser] = useState(initialUser);
+  const user = currentUser;
+  const [showProfile, setShowProfile] = useState(false);
   const [selectedPet, setSelectedPet] = useState<InventoryPet | null>(null);
   const [showAquarium, setShowAquarium] = useState(false);
   const [draggingEdible, setDraggingEdible] = useState<EdibleItem | null>(null);
@@ -147,7 +151,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       <ForestRoom />
 
       <div style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
-        <TopBar user={user} onProfileClick={() => {}} hideTreehouse />
+        <TopBar user={user} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} hideTreehouse />
       </div>
 
       <div className="flex-1 relative overflow-hidden">
@@ -229,6 +233,17 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
       {showAquarium && (
         <AquariumPage onClose={() => setShowAquarium(false)} userId={user.id} />
+      )}
+
+      {showProfile && (
+        <UserProfilePanel
+          user={user}
+          onClose={() => setShowProfile(false)}
+          onUserUpdate={(updatedUser) => {
+            setCurrentUser(updatedUser);
+            setShowProfile(false);
+          }}
+        />
       )}
 
       {draggingEdible && (
