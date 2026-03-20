@@ -407,7 +407,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
 
     isHoldingRef.current = false;
 
-    let catchProgress = 0;
+    let catchProgress = 0.5; // fish starts in the middle
     let tension       = 0;
     let surging       = false;
     let surgeTimer    = 0;
@@ -460,6 +460,14 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       if (surging && surgeTimer <= 0) surging = false;
 
       setTensionState({ catchProgress, tension, isSurging: surging, timeLeft, snapEffect: false });
+
+      // Fish escaped — pulled all the way to the left
+      if (catchProgress <= 0) {
+        setTensionState(null);
+        phaseRef.current = "missed";
+        setPhase("missed");
+        return;
+      }
 
       // Line snap — tension maxed
       if (tension >= 1) {
@@ -1515,59 +1523,68 @@ function TensionReel({
           </div>
         </div>
 
-        {/* ── CATCH PROGRESS BAR ── */}
-        <div style={{ width: "100%", display: "flex", alignItems: "center", gap: 7 }}>
-          {/* Fish silhouette icon */}
-          <div style={{ width: 14, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ fontSize: 13, lineHeight: 1, filter: catchProgress > 0.6 ? `drop-shadow(0 0 4px ${ACCENT})` : undefined, transition: "filter 0.3s ease", animation: fishPulling && catchProgress > 0 ? "fishFightWiggle 0.5s ease-in-out infinite" : undefined }}>🐟</span>
+        {/* ── CATCH BAR — fish silhouette slides along track ── */}
+        <div style={{ width: "100%", position: "relative" }}>
+          {/* Zone labels */}
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+            <span style={{ fontFamily: "Cinzel, serif", fontSize: 8, color: "rgba(239,68,68,0.7)", letterSpacing: "0.1em" }}>ESCAPE</span>
+            <span style={{ fontFamily: "Cinzel, serif", fontSize: 8, color: "rgba(94,234,212,0.7)", letterSpacing: "0.1em" }}>CATCH</span>
           </div>
           {/* Track */}
           <div style={{
-            flex: 1, height: 22, borderRadius: 11,
+            width: "100%", height: 28, borderRadius: 14, position: "relative", overflow: "hidden",
             background: "rgba(4,14,16,0.92)",
-            border: `1.5px solid rgba(94,234,212,0.3)`,
-            boxShadow: catchProgress > 0.7 ? "0 0 14px rgba(94,234,212,0.35)" : "inset 0 2px 6px rgba(0,0,0,0.5)",
-            position: "relative", overflow: "hidden",
-            transition: "box-shadow 0.3s ease",
+            border: `1.5px solid rgba(94,234,212,0.25)`,
+            boxShadow: "inset 0 2px 6px rgba(0,0,0,0.6)",
           }}>
+            {/* Left danger zone tint */}
             <div style={{
-              height: "100%",
-              width: `${progressPct}%`,
-              borderRadius: 11,
-              background: "linear-gradient(90deg, #0d4a3a, #0db889, #5eead4)",
-              boxShadow: "0 0 14px rgba(94,234,212,0.7)",
-              transition: "width 0.06s ease",
-              position: "relative",
-              overflow: "hidden",
+              position: "absolute", left: 0, top: 0, bottom: 0, width: "22%", borderRadius: "14px 0 0 14px",
+              background: "linear-gradient(90deg, rgba(239,68,68,0.35) 0%, transparent 100%)",
+            }} />
+            {/* Right catch zone tint */}
+            <div style={{
+              position: "absolute", right: 0, top: 0, bottom: 0, width: "22%", borderRadius: "0 14px 14px 0",
+              background: "linear-gradient(270deg, rgba(94,234,212,0.25) 0%, transparent 100%)",
+            }} />
+            {/* Center guide line */}
+            <div style={{ position: "absolute", left: "50%", top: "15%", bottom: "15%", width: 1, background: "rgba(255,255,255,0.08)" }} />
+            {/* Shimmer when reeling */}
+            {held && (
+              <div style={{
+                position: "absolute", inset: 0,
+                background: "linear-gradient(90deg, transparent 0%, rgba(94,234,212,0.08) 50%, transparent 100%)",
+                animation: "energyFlow 1s linear infinite",
+              }} />
+            )}
+            {/* Fish silhouette — moves along track */}
+            <div style={{
+              position: "absolute", top: "50%",
+              left: `clamp(14px, calc(${progressPct}% ), calc(100% - 14px))`,
+              transform: `translate(-50%, -50%) scaleX(${fishPulling ? -1 : 1})`,
+              transition: "left 0.06s linear, transform 0.15s ease",
+              width: 28, height: 28,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              filter: fishPulling
+                ? "drop-shadow(0 0 5px rgba(239,115,68,0.9))"
+                : held
+                ? `drop-shadow(0 0 6px ${ACCENT})`
+                : "drop-shadow(0 0 3px rgba(255,255,255,0.3))",
+              animation: fishPulling ? "fishFightWiggle 0.35s ease-in-out infinite" : undefined,
+              pointerEvents: "none",
             }}>
-              {progressPct > 5 && (
-                <div style={{
-                  position: "absolute", inset: 0,
-                  background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.22) 50%, transparent 100%)",
-                  animation: "energyFlow 1.1s linear infinite",
-                }} />
-              )}
+              <svg viewBox="0 0 32 22" width="22" height="22" style={{ display: "block" }}>
+                {/* tail fin */}
+                <polygon points="5,4 0,0 0,22 5,18" fill={fishPulling ? "#f97316" : held ? "#5eead4" : "#a0b8b4"} opacity="0.9" />
+                {/* body */}
+                <ellipse cx="18" cy="11" rx="12" ry="7.5" fill={fishPulling ? "#f97316" : held ? "#5eead4" : "#a0b8b4"} opacity="0.95" />
+                {/* top fin */}
+                <polygon points="14,4 20,4 18,11" fill={fishPulling ? "#fb923c" : held ? "#7fffd4" : "#b8cccb"} opacity="0.8" />
+                {/* eye */}
+                <circle cx="25" cy="9.5" r="2" fill="rgba(0,0,0,0.55)" />
+                <circle cx="25.6" cy="9" r="0.7" fill="rgba(255,255,255,0.6)" />
+              </svg>
             </div>
-            {progressPct > 3 && progressPct < 100 && (
-              <div style={{
-                position: "absolute", top: "50%",
-                left: `${Math.min(progressPct, 97)}%`,
-                transform: "translate(-50%, -50%)",
-                width: 14, height: 14, borderRadius: "50%",
-                background: "#5eead4",
-                boxShadow: "0 0 14px rgba(94,234,212,1), 0 0 28px rgba(94,234,212,0.6)",
-                animation: "sparkleOrb 0.75s ease-in-out infinite",
-                pointerEvents: "none",
-              }} />
-            )}
-            {/* Progress drain ripple when fish is pulling */}
-            {fishPulling && progressPct > 0 && (
-              <div style={{
-                position: "absolute", inset: 0, borderRadius: 11,
-                background: "linear-gradient(270deg, transparent 40%, rgba(239,115,68,0.15) 100%)",
-                animation: "tensionPulse 0.4s ease-in-out infinite",
-              }} />
-            )}
           </div>
         </div>
 

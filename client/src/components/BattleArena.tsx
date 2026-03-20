@@ -492,6 +492,10 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     if (dist < 0.6) return;
 
     swipePathRef.current.push(pos);
+    // Keep only the last 18 points so the trail has a fixed short length
+    if (swipePathRef.current.length > 18) {
+      swipePathRef.current = swipePathRef.current.slice(-18);
+    }
     lastSwipePointRef.current = pos;
     setSlashTrail([...swipePathRef.current]);
 

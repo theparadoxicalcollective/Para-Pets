@@ -117,17 +117,35 @@ function App() {
   }, []);
 
   useEffect(() => {
-    // Block the browser's native swipe-back/forward gesture on mobile.
-    // Touches starting within 20px of either edge are prevented so iOS Safari
-    // and Chrome Android never start the back-navigation swipe.
+    let touchStartX = 0;
+    let touchStartY = 0;
+
     const blockEdgeSwipe = (e: TouchEvent) => {
       const x = e.touches[0].clientX;
-      if (x < 20 || x > window.innerWidth - 20) {
+      touchStartX = x;
+      touchStartY = e.touches[0].clientY;
+      // Widen edge zone to 44px to catch more swipe-back attempts
+      if (x < 44 || x > window.innerWidth - 44) {
         e.preventDefault();
       }
     };
+
+    const blockHorizontalSwipe = (e: TouchEvent) => {
+      const adx = Math.abs(e.touches[0].clientX - touchStartX);
+      const ady = Math.abs(e.touches[0].clientY - touchStartY);
+      // If the gesture started near an edge and is moving predominantly horizontal, block it
+      const fromEdge = touchStartX < 60 || touchStartX > window.innerWidth - 60;
+      if (fromEdge && adx > ady && adx > 10) {
+        e.preventDefault();
+      }
+    };
+
     document.addEventListener("touchstart", blockEdgeSwipe, { passive: false });
-    return () => document.removeEventListener("touchstart", blockEdgeSwipe);
+    document.addEventListener("touchmove", blockHorizontalSwipe, { passive: false });
+    return () => {
+      document.removeEventListener("touchstart", blockEdgeSwipe);
+      document.removeEventListener("touchmove", blockHorizontalSwipe);
+    };
   }, []);
 
   return (
