@@ -129,32 +129,30 @@ function App() {
     let touchStartX = 0;
     let touchStartY = 0;
 
-    const blockEdgeSwipe = (e: TouchEvent) => {
-      const x = e.touches[0].clientX;
-      touchStartX = x;
+    // Track where a touch started so touchmove can detect horizontal swipes.
+    // Do NOT call preventDefault on touchstart — it silently kills click events
+    // on any button near an edge (back arrows, X buttons, etc.).
+    const trackTouchStart = (e: TouchEvent) => {
+      touchStartX = e.touches[0].clientX;
       touchStartY = e.touches[0].clientY;
-      // Only block the LEFT edge (iOS swipe-back gesture).
-      // Do NOT block the right edge — close buttons (X) live there and
-      // preventDefault on touchstart silently cancels their click events.
-      if (x < 20) {
-        e.preventDefault();
-      }
     };
 
+    // Block iOS swipe-back / swipe-forward gestures that start near either edge
+    // and move predominantly horizontal. Only touchmove prevention is safe here
+    // because it fires after intent is clear and doesn't cancel tap/click events.
     const blockHorizontalSwipe = (e: TouchEvent) => {
       const adx = Math.abs(e.touches[0].clientX - touchStartX);
       const ady = Math.abs(e.touches[0].clientY - touchStartY);
-      // If the gesture started near an edge and is moving predominantly horizontal, block it
       const fromEdge = touchStartX < 60 || touchStartX > window.innerWidth - 60;
       if (fromEdge && adx > ady && adx > 10) {
         e.preventDefault();
       }
     };
 
-    document.addEventListener("touchstart", blockEdgeSwipe, { passive: false });
+    document.addEventListener("touchstart", trackTouchStart, { passive: true });
     document.addEventListener("touchmove", blockHorizontalSwipe, { passive: false });
     return () => {
-      document.removeEventListener("touchstart", blockEdgeSwipe);
+      document.removeEventListener("touchstart", trackTouchStart);
       document.removeEventListener("touchmove", blockHorizontalSwipe);
     };
   }, []);

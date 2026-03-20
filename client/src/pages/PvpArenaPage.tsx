@@ -107,7 +107,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
 
       {/* ── Simplified Header ─────────────────────────────────────── */}
       <div className="relative z-10 flex items-center gap-3 px-4 pt-safe pt-3 pb-2.5 shrink-0" style={{ background: "rgba(5,8,15,0.7)", borderBottom: "1px solid rgba(167,139,250,0.12)" }}>
-        <button onClick={onClose} className="text-white/50 hover:text-white/80 transition-colors shrink-0">
+        <button onClick={onClose} data-testid="button-close-pvp" className="w-10 h-10 flex items-center justify-center rounded-lg text-white/50 hover:text-white/80 transition-colors shrink-0 active:scale-90" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
           <ArrowLeft size={20} />
         </button>
         {/* Profile pic */}
@@ -228,7 +228,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
       {tab === "group" && (
         <div className="absolute inset-0 z-20 flex flex-col" style={{ background: "rgba(5,8,15,0.97)" }}>
           <div className="flex items-center gap-3 px-4 pt-safe pt-4 pb-3 border-b border-white/8 shrink-0">
-            <button onClick={() => setTab("lobby")} className="text-white/50 hover:text-white/80">
+            <button onClick={() => setTab("lobby")} className="w-10 h-10 flex items-center justify-center rounded-lg text-white/50 hover:text-white/80 active:scale-90 shrink-0" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
               <ArrowLeft size={18} />
             </button>
             <div className="flex-1 text-sm tracking-[0.2em] text-purple-300 font-bold">BATTLE GROUP</div>
@@ -304,7 +304,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
       {tab === "opponents" && (
         <div className="absolute inset-0 z-20 flex flex-col" style={{ background: "rgba(5,8,15,0.97)" }}>
           <div className="flex items-center gap-3 px-4 pt-safe pt-4 pb-3 border-b border-white/8 shrink-0">
-            <button onClick={() => setTab("lobby")} className="text-white/50 hover:text-white/80">
+            <button onClick={() => setTab("lobby")} className="w-10 h-10 flex items-center justify-center rounded-lg text-white/50 hover:text-white/80 active:scale-90 shrink-0" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
               <ArrowLeft size={18} />
             </button>
             <div className="flex-1 text-sm tracking-[0.2em] text-red-300 font-bold">CHOOSE OPPONENT</div>
