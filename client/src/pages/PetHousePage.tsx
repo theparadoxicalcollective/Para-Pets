@@ -1055,7 +1055,9 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
       }}/>
 
       {/* Swimming fish */}
-      {swimmers.map(f => (
+      {swimmers.map(f => {
+        const fishSize = (f.starRarity ?? 1) >= 4 ? 65 : 54;
+        return (
         <button
           key={f.id}
           onClick={() => setPendingRemove(f)}
@@ -1064,8 +1066,8 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
             position: "absolute",
             left: `${f.x}%`,
             top: `${f.y}%`,
-            width: 54,
-            height: 54,
+            width: fishSize,
+            height: fishSize,
             transform: `translate(-50%,-50%)`,
             background: "none",
             border: "none",
@@ -1080,7 +1082,8 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
             ? <img src={f.imageUrl} alt={f.name} style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none", userSelect: "none", transform: ((f.facingDirection !== "left") !== f.facingRight) ? "scaleX(-1)" : undefined }} draggable={false} />
             : <span style={{ fontSize: 34, lineHeight: 1 }}>🐟</span>}
         </button>
-      ))}
+        );
+      })}
 
       {/* Title */}
       <div className="absolute top-0 left-0 right-0 flex flex-col items-center pointer-events-none"
