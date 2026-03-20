@@ -37,6 +37,7 @@ interface BagItem {
   specialAmount: number | null;
   atkBoost: number | null;
   defBoost: number | null;
+  healthBoost: number | null;
 }
 
 interface EquippedAccessory {
@@ -47,6 +48,7 @@ interface EquippedAccessory {
   imageUrl: string | null;
   atkBoost: number | null;
   defBoost: number | null;
+  healthBoost: number | null;
 }
 
 interface PetDetailPageProps {
@@ -452,6 +454,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                       <div className="flex flex-col items-center">
                         {(acc.atkBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#f87171" }}>+{acc.atkBoost} ATK</span>}
                         {(acc.defBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#60a5fa" }}>+{acc.defBoost} DEF</span>}
+                        {(acc.healthBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#4ade80" }}>+{acc.healthBoost} HP</span>}
                       </div>
                       <span className="font-fantasy text-[5px] tracking-wider" style={{ color: "rgba(255,120,120,0.7)" }}>TAP TO REMOVE</span>
                     </button>
@@ -509,6 +512,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                             <div className="flex flex-col items-center">
                               {(item.atkBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#f87171" }}>+{item.atkBoost} ATK</span>}
                               {(item.defBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#60a5fa" }}>+{item.defBoost} DEF</span>}
+                              {(item.healthBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#4ade80" }}>+{item.healthBoost} HP</span>}
                             </div>
                           </button>
                         ))}

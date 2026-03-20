@@ -31,6 +31,7 @@ interface Accessory {
   imageUrl: string | null;
   atkBoost: number | null;
   defBoost: number | null;
+  healthBoost: number | null;
 }
 
 interface PublicProfile {
@@ -415,9 +416,9 @@ export default function PlayerDetailPanel({ userId, onClose }: PlayerDetailPanel
                       >
                         {acc.name}
                       </p>
-                      {(acc.atkBoost || acc.defBoost) && (
+                      {(acc.atkBoost || acc.defBoost || acc.healthBoost) && (
                         <p className="font-fantasy text-[7px]" style={{ color: "#86efac" }}>
-                          {acc.atkBoost ? `+${acc.atkBoost}ATK` : ""}{acc.atkBoost && acc.defBoost ? " " : ""}{acc.defBoost ? `+${acc.defBoost}DEF` : ""}
+                          {acc.atkBoost ? `+${acc.atkBoost}ATK` : ""}{acc.atkBoost && acc.defBoost ? " " : ""}{acc.defBoost ? `+${acc.defBoost}DEF` : ""}{(acc.atkBoost || acc.defBoost) && acc.healthBoost ? " " : ""}{acc.healthBoost ? `+${acc.healthBoost}HP` : ""}
                         </p>
                       )}
                     </div>

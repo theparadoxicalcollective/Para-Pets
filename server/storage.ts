@@ -39,6 +39,7 @@ export interface EquippedAccessoryDetail {
   imageUrl: string | null;
   atkBoost: number | null;
   defBoost: number | null;
+  healthBoost: number | null;
 }
 
 export interface IStorage {
@@ -855,6 +856,7 @@ export class DatabaseStorage implements IStorage {
       imageUrl: r.shop_items?.imageUrl || null,
       atkBoost: r.shop_items?.atkBoost || null,
       defBoost: r.shop_items?.defBoost || null,
+      healthBoost: r.shop_items?.healthBoost || null,
     }));
   }
 
@@ -876,6 +878,7 @@ export class DatabaseStorage implements IStorage {
       imageUrl: shopRow?.imageUrl || null,
       atkBoost: shopRow?.atkBoost || null,
       defBoost: shopRow?.defBoost || null,
+      healthBoost: shopRow?.healthBoost || null,
     };
   }
 

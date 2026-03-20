@@ -88,6 +88,7 @@ interface ShopItem {
   manaRestored: number | null;
   atkBoost: number | null;
   defBoost: number | null;
+  healthBoost: number | null;
   petsRevived: number | null;
   specialType: string | null;
   specialAmount: number | null;
@@ -1241,6 +1242,7 @@ export default function WorldPage({ user }: WorldPageProps) {
       if (item.manaRestored) lines.push(`Restores ${item.manaRestored} Mana`);
       if (item.atkBoost) lines.push(`Boosts ATK by ${item.atkBoost}`);
       if (item.defBoost) lines.push(`Boosts DEF by ${item.defBoost}`);
+      if (item.healthBoost) lines.push(`Boosts HP by ${item.healthBoost}`);
       if (item.statBoostType && item.statBoostAmount) {
         const label = item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : item.statBoostType === "level" ? "Level Points" : item.statBoostType;
         lines.push(`+${item.statBoostAmount} ${label}`);

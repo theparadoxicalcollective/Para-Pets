@@ -42,6 +42,7 @@ export const shopItems = pgTable("shop_items", {
   petsRevived: integer("pets_revived"),
   atkBoost: integer("atk_boost"),
   defBoost: integer("def_boost"),
+  healthBoost: integer("health_boost"),
   specialType: text("special_type"),
   specialAmount: integer("special_amount"),
   shopPosX: real("shop_pos_x").notNull().default(50),

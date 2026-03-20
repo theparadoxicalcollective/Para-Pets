@@ -24,6 +24,7 @@ export interface ShopItemFull {
   petsRevived: number | null;
   atkBoost: number | null;
   defBoost: number | null;
+  healthBoost: number | null;
   specialType: string | null;
   specialAmount: number | null;
   createdAt: string;
@@ -296,7 +297,7 @@ export default function ItemDatabaseSection() {
                       )}
                       {item.type === "accessory" && (
                         <span className="font-fantasy text-[#a89878] text-[7px]">
-                          {item.atkBoost ? `+${item.atkBoost} ATK` : ""}{item.defBoost ? ` +${item.defBoost} DEF` : ""}
+                          {item.atkBoost ? `+${item.atkBoost} ATK` : ""}{item.defBoost ? ` +${item.defBoost} DEF` : ""}{item.healthBoost ? ` +${item.healthBoost} HP` : ""}
                         </span>
                       )}
                       {item.type === "pet" && item.specialSkill && (
@@ -372,6 +373,7 @@ function AdminItemForm({
   const [petsRevived, setPetsRevived] = useState(item?.petsRevived?.toString() || "");
   const [atkBoost, setAtkBoost] = useState(item?.atkBoost?.toString() || "");
   const [defBoost, setDefBoost] = useState(item?.defBoost?.toString() || "");
+  const [healthBoost, setHealthBoost] = useState(item?.healthBoost?.toString() || "");
   const [specialType, setSpecialType] = useState(item?.specialType || "hatch_time");
   const [specialAmount, setSpecialAmount] = useState(item?.specialAmount?.toString() || "10");
   const [imageData, setImageData] = useState<string | null>(null);
@@ -451,11 +453,13 @@ function AdminItemForm({
         }
 
         if (effectiveType === "accessory") {
-          payload.atkBoost = parseInt(atkBoost) || null;
-          payload.defBoost = parseInt(defBoost) || null;
+          payload.atkBoost    = parseInt(atkBoost)    || null;
+          payload.defBoost    = parseInt(defBoost)    || null;
+          payload.healthBoost = parseInt(healthBoost) || null;
         } else {
-          payload.atkBoost = null;
-          payload.defBoost = null;
+          payload.atkBoost    = null;
+          payload.defBoost    = null;
+          payload.healthBoost = null;
         }
 
         if (effectiveType === "special") {
@@ -753,6 +757,10 @@ function AdminItemForm({
               <div>
                 <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">DEF Boost (when equipped)</label>
                 <input data-testid="input-def-boost" type="number" value={defBoost} onChange={(e) => setDefBoost(e.target.value)} placeholder="0" min="0" className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
+              </div>
+              <div>
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Health Boost (when equipped)</label>
+                <input data-testid="input-health-boost" type="number" value={healthBoost} onChange={(e) => setHealthBoost(e.target.value)} placeholder="0" min="0" className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
               </div>
               <p className="font-fantasy text-[#7fbfb0] text-[8px] tracking-wider text-center">Accessories are equippable — stats added when worn, removed when unequipped.</p>
             </>

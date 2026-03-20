@@ -492,6 +492,7 @@ export async function registerRoutes(
           imageUrl: r.shopItem!.imageUrl,
           atkBoost: r.shopItem!.atkBoost,
           defBoost: r.shopItem!.defBoost,
+          healthBoost: r.shopItem!.healthBoost,
         }));
 
       return res.json({
@@ -593,6 +594,7 @@ export async function registerRoutes(
         itemsUsedThisLevel: inv.itemsUsedThisLevel,
         atkBoost: shopItem?.atkBoost ?? null,
         defBoost: shopItem?.defBoost ?? null,
+        healthBoost: shopItem?.healthBoost ?? null,
         fishingType: shopItem?.fishingType ?? null,
         rareCatchBoostPercent: shopItem?.rareCatchBoostPercent ?? null,
         rarityBoostPercent: shopItem?.rarityBoostPercent ?? null,
@@ -765,15 +767,17 @@ export async function registerRoutes(
       if (currentEquipped.length >= 3) return res.status(400).json({ message: "All 3 accessory slots are full" });
       if (currentEquipped.find(e => e.accessoryInventoryId === accessoryInventoryId)) return res.status(400).json({ message: "Accessory already equipped" });
       const equipped = await storage.equipAccessory(inventoryId, accessoryInventoryId);
-      const atkGain = accShopItem.atkBoost || 0;
-      const defGain = accShopItem.defBoost || 0;
-      if (atkGain !== 0 || defGain !== 0) {
+      const atkGain    = accShopItem.atkBoost    || 0;
+      const defGain    = accShopItem.defBoost    || 0;
+      const healthGain = accShopItem.healthBoost || 0;
+      if (atkGain !== 0 || defGain !== 0 || healthGain !== 0) {
         await storage.updateInventoryItem(inventoryId, {
-          petAtk: petInv.petAtk + atkGain,
-          petDef: petInv.petDef + defGain,
+          petAtk:    petInv.petAtk    + atkGain,
+          petDef:    petInv.petDef    + defGain,
+          petHealth: petInv.petHealth + healthGain,
         });
       }
-      return res.json({ equipped, atkGain, defGain });
+      return res.json({ equipped, atkGain, defGain, healthGain });
     } catch (err: any) {
       return res.status(400).json({ message: err?.message || "Failed to equip accessory" });
     }
@@ -790,16 +794,18 @@ export async function registerRoutes(
       const equipped = await storage.getPetEquippedAccessories(inventoryId);
       const record = equipped.find(e => e.accessoryInventoryId === accessoryInventoryId);
       if (!record) return res.status(404).json({ message: "Accessory not equipped" });
-      const atkLoss = record.atkBoost || 0;
-      const defLoss = record.defBoost || 0;
+      const atkLoss    = record.atkBoost    || 0;
+      const defLoss    = record.defBoost    || 0;
+      const healthLoss = record.healthBoost || 0;
       await storage.unequipAccessory(inventoryId, accessoryInventoryId);
-      if (atkLoss !== 0 || defLoss !== 0) {
+      if (atkLoss !== 0 || defLoss !== 0 || healthLoss !== 0) {
         await storage.updateInventoryItem(inventoryId, {
-          petAtk: Math.max(0, petInv.petAtk - atkLoss),
-          petDef: Math.max(0, petInv.petDef - defLoss),
+          petAtk:    Math.max(0, petInv.petAtk    - atkLoss),
+          petDef:    Math.max(0, petInv.petDef    - defLoss),
+          petHealth: Math.max(0, petInv.petHealth - healthLoss),
         });
       }
-      return res.json({ success: true, atkLoss, defLoss });
+      return res.json({ success: true, atkLoss, defLoss, healthLoss });
     } catch (err: any) {
       return res.status(400).json({ message: err?.message || "Failed to unequip accessory" });
     }
