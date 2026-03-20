@@ -140,6 +140,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       if (!res.ok) throw new Error(`Failed to load pond fish: ${res.status}`);
       return res.json();
     },
+    enabled: !!locationId,
     staleTime: 0,
     retry: 2,
   });

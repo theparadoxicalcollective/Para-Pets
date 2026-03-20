@@ -19,6 +19,7 @@ export interface ShopItemFull {
   statBoostAmount: number | null;
   petTemplateId: string | null;
   specialSkill: string | null;
+  skillDamagePercent: number | null;
   healthRestored: number | null;
   manaRestored: number | null;
   petsRevived: number | null;
@@ -27,6 +28,10 @@ export interface ShopItemFull {
   healthBoost: number | null;
   specialType: string | null;
   specialAmount: number | null;
+  fishingType: string | null;
+  starRarity: number | null;
+  baitCatchBoost: number | null;
+  poleMaxUses: number | null;
   createdAt: string;
 }
 
@@ -47,7 +52,7 @@ export const WORLD_OPTIONS = [
   { id: "haunted_woods", name: "Haunted Woods" },
 ];
 
-const NON_PET_TYPES = ["power_up", "accessory", "potion", "special", "decor", "edibles"];
+const NON_PET_TYPES = ["power_up", "accessory", "potion", "special", "decor", "edibles", "fishing"];
 
 function formatTypeName(type: string): string {
   if (type === "power_up") return "Power Up";
@@ -300,6 +305,17 @@ export default function ItemDatabaseSection() {
                           {item.atkBoost ? `+${item.atkBoost} ATK` : ""}{item.defBoost ? ` +${item.defBoost} DEF` : ""}{item.healthBoost ? ` +${item.healthBoost} HP` : ""}
                         </span>
                       )}
+                      {item.type === "fishing" && (
+                        <span className="font-fantasy text-[#7fd4f0] text-[7px]">
+                          {item.fishingType === "fish"
+                            ? `${"★".repeat(item.starRarity ?? 1)} Fish (${["Common","Uncommon","Rare","Epic","Legendary"][(item.starRarity ?? 1) - 1]})`
+                            : item.fishingType === "pole"
+                            ? `Pole${item.poleMaxUses ? ` · ${item.poleMaxUses} uses` : " · Unlimited"}`
+                            : item.fishingType === "bait"
+                            ? `Bait${item.baitCatchBoost ? ` · +${item.baitCatchBoost}% rare boost` : ""}`
+                            : (item.fishingType ?? "fishing")}
+                        </span>
+                      )}
                       {item.type === "pet" && item.specialSkill && (
                         <span className="font-fantasy text-[#c084fc] text-[7px]">Skill: {item.specialSkill}</span>
                       )}
@@ -362,6 +378,10 @@ function AdminItemForm({
   const [price, setPrice] = useState(item?.price?.toString() || "");
   const [type, setType] = useState(defaultType);
   const [edibleLvlPoints, setEdibleLvlPoints] = useState(item?.statBoostAmount?.toString() || "5");
+  const [fishingType, setFishingType] = useState(item?.fishingType || "fish");
+  const [starRarity, setStarRarity] = useState(item?.starRarity?.toString() || "1");
+  const [baitCatchBoost, setBaitCatchBoost] = useState(item?.baitCatchBoost?.toString() || "");
+  const [poleMaxUses, setPoleMaxUses] = useState(item?.poleMaxUses?.toString() || "");
   const [rarity, setRarity] = useState(item?.rarity?.toString() || "1");
   const [hatchTime, setHatchTime] = useState(item?.hatchTime?.toString() || "1");
   const [specialSkill, setSpecialSkill] = useState(item?.specialSkill || "");
@@ -471,6 +491,28 @@ function AdminItemForm({
         } else {
           payload.specialType = null;
           payload.specialAmount = null;
+        }
+
+        if (effectiveType === "fishing") {
+          payload.fishingType = fishingType;
+          if (fishingType === "fish") {
+            payload.starRarity = parseInt(starRarity) || 1;
+            payload.baitCatchBoost = null;
+            payload.poleMaxUses = null;
+          } else if (fishingType === "bait") {
+            payload.starRarity = null;
+            payload.baitCatchBoost = parseInt(baitCatchBoost) || null;
+            payload.poleMaxUses = null;
+          } else if (fishingType === "pole") {
+            payload.starRarity = null;
+            payload.baitCatchBoost = null;
+            payload.poleMaxUses = parseInt(poleMaxUses) || null;
+          }
+        } else {
+          payload.fishingType = null;
+          payload.starRarity = null;
+          payload.baitCatchBoost = null;
+          payload.poleMaxUses = null;
         }
       }
 
@@ -820,6 +862,81 @@ function AdminItemForm({
                 </p>
               </div>
               <p className="font-fantasy text-[#f0c040] text-[8px] tracking-wider text-center">Special items do NOT count toward a pet's limited power-up uses</p>
+            </>
+          )}
+
+          {!petOnly && effectiveType === "fishing" && (
+            <>
+              <div>
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Fishing Item Type</label>
+                <select
+                  data-testid="select-fishing-type"
+                  value={fishingType}
+                  onChange={(e) => setFishingType(e.target.value)}
+                  className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+                  style={inputStyle}
+                >
+                  <option value="fish">Fish (catchable in ponds)</option>
+                  <option value="pole">Fishing Pole</option>
+                  <option value="bait">Bait</option>
+                </select>
+              </div>
+              {fishingType === "fish" && (
+                <div>
+                  <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Star Rarity (1–5)</label>
+                  <select
+                    data-testid="select-star-rarity"
+                    value={starRarity}
+                    onChange={(e) => setStarRarity(e.target.value)}
+                    className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+                    style={inputStyle}
+                  >
+                    <option value="1">★ (1 Star — Common, 60% weight)</option>
+                    <option value="2">★★ (2 Stars — Uncommon, 24% weight)</option>
+                    <option value="3">★★★ (3 Stars — Rare, 10% weight)</option>
+                    <option value="4">★★★★ (4 Stars — Epic, 4% weight)</option>
+                    <option value="5">★★★★★ (5 Stars — Legendary, 2% weight)</option>
+                  </select>
+                  <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">Higher rarity = harder to catch. Weights: 1★ 60%, 2★ 24%, 3★ 10%, 4★ 4%, 5★ 2%</p>
+                </div>
+              )}
+              {fishingType === "bait" && (
+                <div>
+                  <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Rare Catch Boost (%)</label>
+                  <input
+                    data-testid="input-bait-catch-boost"
+                    type="number"
+                    value={baitCatchBoost}
+                    onChange={(e) => setBaitCatchBoost(e.target.value)}
+                    placeholder="e.g. 20"
+                    min="0"
+                    className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+                    style={inputStyle}
+                  />
+                  <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">% boost to rare fish catch chance when this bait is equipped</p>
+                </div>
+              )}
+              {fishingType === "pole" && (
+                <div>
+                  <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Max Uses (0 = unlimited)</label>
+                  <input
+                    data-testid="input-pole-max-uses"
+                    type="number"
+                    value={poleMaxUses}
+                    onChange={(e) => setPoleMaxUses(e.target.value)}
+                    placeholder="e.g. 50"
+                    min="0"
+                    className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+                    style={inputStyle}
+                  />
+                  <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">How many catches before this pole breaks. Leave blank for unlimited.</p>
+                </div>
+              )}
+              <p className="font-fantasy text-[#7fd4f0] text-[8px] tracking-wider text-center">
+                {fishingType === "fish" ? "Fish are added to pond locations by admins and caught by players." :
+                 fishingType === "pole" ? "Poles are sold in shops and equipped by players to go fishing." :
+                 "Bait is sold in shops and boosts rare fish catch chance when equipped."}
+              </p>
             </>
           )}
 
