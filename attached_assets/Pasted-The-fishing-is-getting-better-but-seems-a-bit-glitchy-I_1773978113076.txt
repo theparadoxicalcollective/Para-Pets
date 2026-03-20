@@ -1,0 +1,41 @@
+The fishing is getting better but seems a bit glitchy. Instead of using a basic fish icon can you generate one that actually matches the aesthetic of the game? Also have it on the outside of the bar, not the inside of the bar. I liked the green color of the last bar before the last update. Maybe check everything else to see best way to make it less glitchy?
+
+Read this and think of the best way to implicate these updates please:
+
+On the battle pages, can we make it to where player can drag and drop the active pet around the screen to help dodge some attacks.
+(And maybe give it an animation with a flying particle effect when the active pet gets hit.)
+
+When fighting a boss only- When doing the swipe attack let it do multiple swipes of damage to the enemy if player swipes across the enemy multiple times without lifting off their screen. (It shouldn't stop the boss from attacking)
+
+let every boss have a set of special attacks that are used randomly as the battle goes on.
+
+-the Basic attack is the main one all enemies use and the most frequent
+-the 'Bubble' attack should be more powerful than basic. Boss bounces around the screen and shoots out glowing bubble like orbs that does damage each orb that hits the active pet.
+-the 'Lazer' attack should be the most damaging attack and should show the boss going to the top center of the page, double in size, and then release a lazer effect that hits the active pet for 3 hits of damage before going back to its basic attack and regular size. Give some sort of effect to warn user when a lazer attack is about to used used so they have a quick chance to move active pet from center of screen. If lazer hits active pet, pet cannot move until after the lazer attack completes.
+
+PvP Battle arena :
+
+Leaving the battle arena blocked for all users except the admin, can we set that up now?
+The background should look like it's in the middle of a mystical fantasy forest. Need it to fit the aesthetic of the overall game please.
+Have the main page icons as (profile pic, player name, coin balance, and active pet home page icon- hide the rest that usually show on all pages)
+I want there to be a battle leaderboard in the center that shows players in order of the highest battle points to lowest. Let it scroll to show any players who have been battling. Should show the players profile pic, their name, and their battle points.
+
+There should be a button under the leaderboard that says 'Battle Group' where players can select up to 5 of their pets to use for battles.
+
+There should be a a button next to that one with a sword (generate an actual image please not a basic icon) that says 'Battle' which should open up a list of different players who have their Battle Group set up. It won't be live battles, just automated on the opponents side using the pets they have selected but active for the actual player. The player should be able to move (drag and drop) any of their own pets where they want to on screen. The pets should be automatically moving around anyway like the opponents pets using their basic attacks on the enemy. Each pet should have a mana bar. When that pet's mana bar is full it should make the pet glow showing it's ready to be used. If it's an attack or heal that only targets one target, let the player click the glowing pet first-then then enemy they want to attack/ pet to heal. Heals only work on teammates and attacks only work on enemies. If it's a group attack let the player click the ready pet and automatically set the skill off.
+
+When the health of a pet runs out completely show some sort of ko'd effect and remove them from the battlefield. Whoever loses all pets first loses the fight.
+
+Come up with a fair point system for calculating wins and losses that can be reflected on the leaderboard
+
+(we can change up and add to this all later)
+
+In the Add Pet and Edit Pet form where it has 'special skill' turn it into where admin can still type the name but add a drop down that has the options of
+
+•Lazer (same attack effects as the boss one)
+•Bubble (same attack effects as the boss one)
+•Heal Self (make some sort of animation that shows green particles and glow around the pet being healed)
+•Heal Party (use same effects as 'heal self' but for entire battle pet party)
+•Poisen (throws a purple orb at active target and makes it glow subtly purple and does several small amounts of damage over time
+
+(we can add more later.. these will be used in PvP battles)
