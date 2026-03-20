@@ -21,6 +21,7 @@ interface FishingItem {
   poleSlowdown3: number | null;
   poleSlowdown4: number | null;
   poleSlowdown5: number | null;
+  baitCatchBoost: number | null;
   fishSwimZone: string | null;
   createdAt: string;
 }
@@ -193,7 +194,7 @@ export default function FishingAdminPanel() {
             <p className="font-fantasy text-[#a89878] text-[9px]">
               {selectedFish.fishingType === "pole"
                 ? `Rare catch boost: +${selectedFish.rareCatchBoostPercent || 0}%`
-                : `Rarity boost: +${selectedFish.rarityBoostPercent || 0}%`}
+                : `Rarity boost: +${selectedFish.rarityBoostPercent || 0}% · Catch boost: +${selectedFish.baitCatchBoost || 0}%`}
             </p>
             <p className="font-fantasy text-[#6a5840] text-[8px] mt-2">Fish parts only apply to fish-type items</p>
           </div>
@@ -396,7 +397,7 @@ export default function FishingAdminPanel() {
                     {item.fishingType === "fish" && item.starRarity ? `${"★".repeat(item.starRarity)} rarity` : ""}
                     {item.fishingType === "pole" && item.rareCatchBoostPercent ? `+${item.rareCatchBoostPercent}% rare catch` : ""}
                     {item.fishingType === "pole" && item.poleMaxUses != null ? ` · ${item.poleMaxUses} uses` : item.fishingType === "pole" ? " · ∞ uses" : ""}
-                    {item.fishingType === "bait" && item.rarityBoostPercent ? `+${item.rarityBoostPercent}% rarity boost` : ""}
+                    {item.fishingType === "bait" ? [item.rarityBoostPercent ? `+${item.rarityBoostPercent}% rarity` : "", item.baitCatchBoost ? `+${item.baitCatchBoost}% catch` : ""].filter(Boolean).join(" · ") : ""}
                   </p>
                 </div>
                 <div className="flex flex-col gap-1 flex-shrink-0">
@@ -458,6 +459,7 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
   const [starRarity, setStarRarity] = useState(item?.starRarity?.toString() || "1");
   const [rareCatchBoostPercent, setRareCatchBoostPercent] = useState(item?.rareCatchBoostPercent?.toString() || "0");
   const [rarityBoostPercent, setRarityBoostPercent] = useState(item?.rarityBoostPercent?.toString() || "0");
+  const [baitCatchBoost, setBaitCatchBoost] = useState(item?.baitCatchBoost?.toString() || "0");
   const [poleMaxUses, setPoleMaxUses] = useState(item?.poleMaxUses?.toString() || "");
   const [poleSlowdown3, setPoleSlowdown3] = useState(item?.poleSlowdown3 != null ? item.poleSlowdown3.toString() : "");
   const [poleSlowdown4, setPoleSlowdown4] = useState(item?.poleSlowdown4 != null ? item.poleSlowdown4.toString() : "");
@@ -515,6 +517,7 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
         fishSwimZone: fishingType === "fish" ? fishSwimZone : null,
         rareCatchBoostPercent: fishingType === "pole" ? parseInt(rareCatchBoostPercent) || 0 : null,
         rarityBoostPercent: fishingType === "bait" ? parseInt(rarityBoostPercent) || 0 : null,
+        baitCatchBoost: fishingType === "bait" ? parseInt(baitCatchBoost) || 0 : null,
         poleMaxUses: fishingType === "pole" && poleMaxUses.trim() !== "" ? parseInt(poleMaxUses) || null : null,
         poleSlowdown3: fishingType === "pole" && poleSlowdown3.trim() !== "" ? parseFloat(poleSlowdown3) : null,
         poleSlowdown4: fishingType === "pole" && poleSlowdown4.trim() !== "" ? parseFloat(poleSlowdown4) : null,
@@ -756,10 +759,17 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
           )}
 
           {fishingType === "bait" && (
-            <div>
-              <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Rarity Boost (%)</label>
-              <input data-testid="input-bait-boost" type="number" value={rarityBoostPercent} onChange={(e) => setRarityBoostPercent(e.target.value)} placeholder="0" min="0" max="100" className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
-              <p className="font-fantasy text-[#6a5840] text-[8px] mt-0.5">Extra % chance to reel in higher-rarity fish from a pond</p>
+            <div className="flex flex-col gap-3">
+              <div>
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Rarity Boost (%)</label>
+                <input data-testid="input-bait-boost" type="number" value={rarityBoostPercent} onChange={(e) => setRarityBoostPercent(e.target.value)} placeholder="0" min="0" max="100" className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
+                <p className="font-fantasy text-[#6a5840] text-[8px] mt-0.5">Extra % chance for 3★+ fish to appear when this bait is used</p>
+              </div>
+              <div>
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Catch Boost (%)</label>
+                <input data-testid="input-bait-catch-boost" type="number" value={baitCatchBoost} onChange={(e) => setBaitCatchBoost(e.target.value)} placeholder="0" min="0" max="100" className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
+                <p className="font-fantasy text-[#6a5840] text-[8px] mt-0.5">% faster reel-in speed — makes the catch bar fill more quickly</p>
+              </div>
             </div>
           )}
 

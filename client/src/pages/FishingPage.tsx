@@ -39,6 +39,7 @@ interface ShopItem {
   poleSlowdown3?: number | null;
   poleSlowdown4?: number | null;
   poleSlowdown5?: number | null;
+  baitCatchBoost?: number | null;
 }
 
 interface EquipmentData {
@@ -424,7 +425,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     // Extra progress drain per second DURING a surge
     const surgePPerSec    = [0.18,  0.36,  0.55,  0.78,  1.05 ];
 
-    const reelRate       = reelRates[rarity - 1];
+    const baitCatchBoost = equipDataRef.current?.baitItem?.baitCatchBoost ?? 0;
+    const reelRate       = reelRates[rarity - 1] * (1 + baitCatchBoost / 100);
     const tRise          = tensionRise[rarity - 1];
     const tFall          = tensionFalls[rarity - 1];
     const pDrag          = progressDrags[rarity - 1];
