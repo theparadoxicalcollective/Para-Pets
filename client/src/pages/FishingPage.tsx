@@ -387,13 +387,18 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     const poleItem = equipDataRef.current?.poleItem;
     const slowdownFactor = (pct: number | null | undefined) => pct != null ? Math.max(0, 1 - pct / 100) : 1;
 
-    // Starting catch progress
+    // Starting catch progress — rarer fish start with a nearly empty bar
     const startProgress   = [0.42,  0.32,  0.05,  0.03,  0.01 ];
-    // Catch progress gain per second while holding
-    // 3★-5★ fill much slower so rare fish feel genuinely hard to land
-    const reelRates       = [0.375, 0.300, 0.062, 0.036, 0.020];
-    // Tension rise per second while holding
-    const tensionRiseBase = [0.75,  0.93,  1.38,  1.86,  2.34 ];
+
+    // Catch progress gain per second while holding.
+    // Must be high enough to create a visible back-and-forth "fight" but
+    // balanced against progressDrags so the overall session is still hard.
+    const reelRates       = [0.375, 0.300, 0.130, 0.095, 0.068];
+
+    // Tension rise per second while holding.
+    // Lower than before for 3-5★ so the player has meaningful hold time
+    // and the fight feels active rather than instantly snapping.
+    const tensionRiseBase = [0.75,  0.93,  1.10,  1.38,  1.72 ];
     const tensionRise     = [
       tensionRiseBase[0],
       tensionRiseBase[1],
@@ -401,16 +406,23 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       tensionRiseBase[3] * slowdownFactor(poleItem?.poleSlowdown4),
       tensionRiseBase[4] * slowdownFactor(poleItem?.poleSlowdown5),
     ];
-    // Tension fall per second while NOT holding — fast enough to feel responsive
-    const tensionFalls    = [1.30,  1.08,  0.90,  0.72,  0.54 ];
-    // Catch progress drain per second while NOT holding
-    const progressDrags   = [0.108, 0.192, 0.630, 0.960, 1.320];
-    // Probability per second a surge begins
-    const surgeChances    = [0.41,  0.60,  0.99,  1.44,  1.92 ];
+
+    // Tension fall per second while NOT holding.
+    // Higher for 3-5★ than before — faster recovery means the player gets
+    // more hold-release cycles, making the tension feel more dynamic.
+    const tensionFalls    = [1.30,  1.08,  1.00,  0.88,  0.76 ];
+
+    // Catch progress drain per second while NOT holding.
+    // Kept proportional to reelRates (~2-3× for 3★, up to ~6× for 5★)
+    // so releasing always costs something but doesn't instantly erase progress.
+    const progressDrags   = [0.108, 0.192, 0.310, 0.420, 0.540];
+
+    // Probability per second a surge begins — surges create the dramatic spikes
+    const surgeChances    = [0.41,  0.60,  0.90,  1.20,  1.60 ];
     // Extra tension per second DURING a surge
-    const surgeTPerSec    = [0.48,  0.66,  0.96,  1.32,  1.80 ];
+    const surgeTPerSec    = [0.48,  0.66,  0.88,  1.10,  1.45 ];
     // Extra progress drain per second DURING a surge
-    const surgePPerSec    = [0.18,  0.36,  0.84,  1.14,  1.50 ];
+    const surgePPerSec    = [0.18,  0.36,  0.55,  0.78,  1.05 ];
 
     const reelRate       = reelRates[rarity - 1];
     const tRise          = tensionRise[rarity - 1];
