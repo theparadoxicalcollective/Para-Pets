@@ -76,8 +76,8 @@ type FishingPhase = "idle" | "casting" | "waiting" | "nibble" | "reeling" | "cau
 
 const ACCENT = "#5eead4";
 // Per-rarity nibble config — higher rarity fish give fewer bites and a tighter window
-const NIBBLE_MAX_BY_RARITY   = [3, 3, 2, 2, 1];   // max nibble pulses before fish escapes
-const NIBBLE_TIMEOUT_BY_RARITY = [1200, 1050, 900, 720, 580]; // ms per nibble pulse
+const NIBBLE_MAX_BY_RARITY   = [3, 3, 1, 1, 1];     // 3★+ only one tap window before escape
+const NIBBLE_TIMEOUT_BY_RARITY = [1200, 1050, 650, 500, 380]; // ms before fish escapes (3★+ very tight)
 
 export default function FishingPage({ locationId, locationName, bgUrl, user, onClose }: FishingPageProps) {
   const [phase, setPhase] = useState<FishingPhase>("idle");
@@ -375,9 +375,9 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     const slowdownFactor = (pct: number | null | undefined) => pct != null ? Math.max(0, 1 - pct / 100) : 1;
 
     // Rate of catch progress gain per frame while holding (slower for rarer fish)
-    const reelRates       = [0.0090, 0.0072, 0.0056, 0.0042, 0.0030];
+    const reelRates       = [0.0090, 0.0072, 0.0036, 0.0022, 0.0014];
     // Rate of tension rise per frame while holding (pole slowdowns reduce tension for high-rarity fish)
-    const tensionRiseBase = [0.0050, 0.0072, 0.0100, 0.0135, 0.0175];
+    const tensionRiseBase = [0.0050, 0.0072, 0.0160, 0.0220, 0.0285];
     const tensionRise     = [
       tensionRiseBase[0],
       tensionRiseBase[1],
@@ -385,16 +385,16 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       tensionRiseBase[3] * slowdownFactor(poleItem?.poleSlowdown4),
       tensionRiseBase[4] * slowdownFactor(poleItem?.poleSlowdown5),
     ];
-    // Rate of tension fall per frame while NOT holding (falls slower for rarer fish)
-    const tensionFalls    = [0.0120, 0.0095, 0.0075, 0.0055, 0.0038];
-    // Rate catch progress drains per frame while NOT holding (fish pulls back harder at higher rarity)
-    const progressDrags   = [0.0015, 0.0025, 0.0038, 0.0055, 0.0076];
-    // Probability per frame a surge begins (rarer fish surge much more often)
-    const surgeChances    = [0.0025, 0.0042, 0.0062, 0.0088, 0.0120];
+    // Rate of tension fall per frame while NOT holding (falls much slower for rarer fish)
+    const tensionFalls    = [0.0120, 0.0095, 0.0048, 0.0032, 0.0020];
+    // Rate catch progress drains per frame while NOT holding (fish pulls back much harder at higher rarity)
+    const progressDrags   = [0.0015, 0.0025, 0.0072, 0.0110, 0.0155];
+    // Probability per frame a surge begins (3★+ surge very frequently)
+    const surgeChances    = [0.0025, 0.0042, 0.0110, 0.0165, 0.0225];
     // Instant tension spike on surge
-    const surgeTSpikes    = [0.09,   0.13,   0.19,   0.26,   0.34  ];
+    const surgeTSpikes    = [0.09,   0.13,   0.33,   0.46,   0.58  ];
     // Instant progress drop on surge
-    const surgePDrops     = [0.04,   0.08,   0.12,   0.17,   0.24  ];
+    const surgePDrops     = [0.04,   0.08,   0.26,   0.38,   0.50  ];
 
     const reelRate     = reelRates[rarity - 1];
     const tRise        = tensionRise[rarity - 1];
@@ -694,8 +694,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
               {[
                 { num: "1", title: "Cast", desc: "Tap anywhere on the water to cast your line." },
                 { num: "2", title: "Wait for a Bite", desc: "Watch the bobber — when it dips, a fish is biting!" },
-                { num: "3", title: "Hook It!", desc: "Tap anywhere the moment it dips to hook the fish. Rare fish bite faster and fewer times, so act quickly." },
-                { num: "4", title: "Reel In", desc: "Hold the screen to reel. When the tension bar turns red, release — let it settle, then reel again. If tension maxes out, the line snaps!" },
+                { num: "3", title: "Hook It!", desc: "Tap the moment it dips! 3★+ fish give only ONE dip before escaping — and the window is very short. Act fast!" },
+                { num: "4", title: "Reel In", desc: "Hold to reel, release when tension goes red. 3★+ fish surge hard and drag your progress back — short bursts are key. If tension maxes, the line snaps!" },
               ].map(({ num, title, desc }) => (
                 <div key={num} className="flex gap-3 items-start">
                   <div className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold font-fantasy mt-0.5"
