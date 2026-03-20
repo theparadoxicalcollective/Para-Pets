@@ -550,7 +550,7 @@ function WalkingPet({
     >
       <div
         style={{
-          animation: isZooming ? `petZoom${zoomDir} 3.8s ease-in-out` : undefined,
+          animation: isZooming ? `petZoom${zoomDir} 5.5s ease-in-out` : undefined,
           transformOrigin: "center center",
         }}
       >
@@ -567,7 +567,7 @@ function WalkingPet({
               <div style={{ width: sz, height: sz, pointerEvents: "none", position: "relative" }}>
                 <PetAnimator
                   petTemplateId={pet.petTemplateId}
-                  mode="idle"
+                  mode={isZooming ? "zoom" : "idle"}
                   size={sz}
                   style={{
                     filter: `drop-shadow(0 ${Math.round(sz * 0.12)}px ${Math.round(sz * 0.15)}px rgba(0,0,0,0.5))`,

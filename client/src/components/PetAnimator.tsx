@@ -17,7 +17,7 @@ interface PetPart {
 
 interface PetAnimatorProps {
   petTemplateId: string;
-  mode: "idle" | "walk";
+  mode: "idle" | "walk" | "zoom";
   view?: "front" | "back";
   size?: number;
   className?: string;
@@ -70,6 +70,13 @@ const WALK_ANIMATIONS: Record<string, string> = {
   front_legs: "petWalkLeftLeg",
   back_legs: "petWalkRightLeg",
   wings: "petWalkLeftWing",
+};
+
+const ZOOM_ANIMATIONS: Record<string, string> = {
+  ...WALK_ANIMATIONS,
+  left_wing: "petZoomLeftWing",
+  right_wing: "petZoomRightWing",
+  wings: "petZoomLeftWing",
 };
 
 const ANIMATION_STYLES = `
@@ -211,9 +218,19 @@ const ANIMATION_STYLES = `
     50% { transform: translateY(0px); }
     75% { transform: translateY(-1px); }
   }
+  @keyframes petZoomLeftWing {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-22deg); }
+    75% { transform: rotate(18deg); }
+  }
+  @keyframes petZoomRightWing {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(22deg); }
+    75% { transform: rotate(-18deg); }
+  }
 `;
 
-function getPartDuration(partType: string, mode: "idle" | "walk"): string {
+function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom"): string {
   if (mode === "idle") {
     const durations: Record<string, string> = {
       eyes: "4s", eyes_closed: "4s", mouth: "5s", mouth_closed: "5s",
@@ -226,6 +243,10 @@ function getPartDuration(partType: string, mode: "idle" | "walk"): string {
       front_arms: "3.5s", back_arms: "3.5s", front_legs: "4s", back_legs: "4s", wings: "3.5s",
     };
     return durations[partType] || "3s";
+  }
+  if (mode === "zoom") {
+    const isWing = partType === "left_wing" || partType === "right_wing" || partType === "wings";
+    return isWing ? "0.28s" : "0.6s";
   }
   return "0.6s";
 }
@@ -310,7 +331,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           );
         }
 
-        const animations = mode === "idle" ? IDLE_ANIMATIONS : WALK_ANIMATIONS;
+        const animations = mode === "idle" ? IDLE_ANIMATIONS : mode === "zoom" ? ZOOM_ANIMATIONS : WALK_ANIMATIONS;
         const animName = animations[part.partType] || animations.body;
 
         if (!animName) return null;
