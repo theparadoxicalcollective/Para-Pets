@@ -147,6 +147,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const bossOrbsRef = useRef<BossOrb[]>([]);
   const [laserActive, setLaserActive] = useState(false);
   const [laserWarning, setLaserWarning] = useState(false);
+  const [laserFireX, setLaserFireX] = useState<number | null>(null);
   const [bossEnlarged, setBossEnlarged] = useState(false);
   const bossAttackModeRef = useRef<"basic" | "bubble" | "laser">("basic");
   const nextBossAttackRef = useRef(0);
@@ -481,31 +482,39 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
             setLaserWarning(false);
             setLaserActive(true);
             setBossEnlarged(true);
-            petFrozenRef.current = true;
-            // 3 damage ticks
+            // Capture beam X at fire moment — pet had full warning window to dodge sideways
+            const fireX = enemyPosRef.current.x;
+            setLaserFireX(fireX);
+            // Only hit if pet is still under the beam (within ~13% horizontal)
+            const laserHit = Math.abs(petPosRef.current.x - fireX) < 13;
+            if (laserHit) petFrozenRef.current = true;
+            // Damage ticks only apply if the laser connected
             let ticks = 0;
             const laserTick = setInterval(() => {
               if (!battleActiveRef.current) { clearInterval(laserTick); return; }
               ticks++;
-              const rawDmg = enemyStatsRef.current.atk * 1.5 - Math.floor(petStatsRef.current.def * 0.1);
-              const dmg = Math.max(2, Math.floor(rawDmg + Math.random() * 6));
-              petHpRef.current = Math.max(0, petHpRef.current - dmg);
-              setPetHp(petHpRef.current);
-              setPetHit(true);
-              setTimeout(() => setPetHit(false), 300);
-              const newDmg: DamageNumber = {
-                id: dmgIdRef.current++,
-                x: petPosRef.current.x + (Math.random() * 10 - 5),
-                y: petPosRef.current.y - 10,
-                value: dmg, isCrit: false,
-              };
-              setDamageNumbers(prev => [...prev, newDmg]);
-              setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== newDmg.id)), 1000);
+              if (laserHit) {
+                const rawDmg = enemyStatsRef.current.atk * 1.5 - Math.floor(petStatsRef.current.def * 0.1);
+                const dmg = Math.max(2, Math.floor(rawDmg + Math.random() * 6));
+                petHpRef.current = Math.max(0, petHpRef.current - dmg);
+                setPetHp(petHpRef.current);
+                setPetHit(true);
+                setTimeout(() => setPetHit(false), 300);
+                const newDmg: DamageNumber = {
+                  id: dmgIdRef.current++,
+                  x: petPosRef.current.x + (Math.random() * 10 - 5),
+                  y: petPosRef.current.y - 10,
+                  value: dmg, isCrit: false,
+                };
+                setDamageNumbers(prev => [...prev, newDmg]);
+                setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== newDmg.id)), 1000);
+              }
               if (ticks >= 3 || petHpRef.current <= 0) {
                 clearInterval(laserTick);
                 setTimeout(() => {
                   setLaserActive(false);
                   setBossEnlarged(false);
+                  setLaserFireX(null);
                   petFrozenRef.current = false;
                   bossAttackModeRef.current = "basic";
                   nextBossAttackRef.current = Date.now() + 10000 + Math.random() * 6000;
@@ -1476,22 +1485,39 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           />
         ))}
 
-        {/* Boss laser warning flash */}
+        {/* Boss laser warning — targeting reticle + text */}
         {laserWarning && (
-          <div
-            className="absolute inset-0 z-40 pointer-events-none flex items-start justify-center pt-4"
-            style={{ animation: "tensionPulse 0.4s ease-in-out infinite" }}
-          >
-            <div style={{
-              fontFamily: "Cinzel, serif",
-              fontSize: 14,
-              fontWeight: 700,
-              color: "#ff4444",
-              textShadow: "0 0 18px #ff0000, 0 0 8px rgba(255,0,0,0.8)",
-              letterSpacing: "0.15em",
-              animation: "tensionPulse 0.4s ease-in-out infinite",
-            }}>⚠ LASER INCOMING ⚠</div>
-          </div>
+          <>
+            {/* Thin targeting beam showing exactly where the laser will land */}
+            <div
+              className="absolute pointer-events-none z-38"
+              style={{
+                left: `${enemyPos.x}%`,
+                top: `${enemyPos.y + 6}%`,
+                transform: "translateX(-50%)",
+                width: 4,
+                height: `${94 - enemyPos.y}%`,
+                background: "linear-gradient(180deg, rgba(255,60,60,0.55) 0%, rgba(255,100,60,0.25) 70%, transparent 100%)",
+                borderRadius: 2,
+                animation: "tensionPulse 0.35s ease-in-out infinite",
+              }}
+            />
+            {/* Warning text */}
+            <div
+              className="absolute inset-0 z-40 pointer-events-none flex items-start justify-center pt-4"
+              style={{ animation: "tensionPulse 0.4s ease-in-out infinite" }}
+            >
+              <div style={{
+                fontFamily: "Cinzel, serif",
+                fontSize: 13,
+                fontWeight: 700,
+                color: "#ff4444",
+                textShadow: "0 0 18px #ff0000, 0 0 8px rgba(255,0,0,0.8)",
+                letterSpacing: "0.15em",
+                animation: "tensionPulse 0.4s ease-in-out infinite",
+              }}>⚠ DODGE THE LASER ⚠</div>
+            </div>
+          </>
         )}
 
         {/* Boss break-free flash */}
@@ -1568,17 +1594,17 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           }} />
         )}
 
-        {/* Boss laser beam */}
-        {laserActive && petPos.y > enemyPos.y && (
+        {/* Boss laser beam — fires from the X where boss was when laser triggered */}
+        {laserActive && laserFireX !== null && (
           <div
             className="absolute pointer-events-none z-38"
             style={{
-              left: `${enemyPos.x}%`,
+              left: `${laserFireX}%`,
               top: `${enemyPos.y}%`,
               transform: "translateX(-50%)",
               width: 8,
-              height: `${petPos.y - enemyPos.y}%`,
-              background: "linear-gradient(180deg, rgba(255,60,60,0.9) 0%, rgba(255,120,80,0.7) 60%, rgba(255,200,100,0.3) 100%)",
+              height: `${100 - enemyPos.y}%`,
+              background: "linear-gradient(180deg, rgba(255,60,60,0.95) 0%, rgba(255,120,80,0.8) 50%, rgba(255,200,100,0.4) 85%, transparent 100%)",
               boxShadow: "0 0 18px rgba(255,50,50,0.8), 0 0 6px white",
               borderRadius: 4,
               animation: "laserPulse 0.15s ease-in-out infinite alternate",
