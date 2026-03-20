@@ -218,8 +218,8 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
     },
   });
 
-  // Items shown in each modal mode
-  const powerUpModalItems: PowerUpItem[] = usableItems;
+  // Items shown in each modal mode (exclude lvl-boost items from Power Up — those live in LVL Up / edibles)
+  const powerUpModalItems: PowerUpItem[] = usableItems.filter(i => i.statBoostType !== "lvl");
   const lvlUpModalItems: PowerUpItem[] = specialItems.filter(i => i.specialType === "level");
 
   // Handler called by PetPowerUpModal when an item is dragged/tapped onto the pet
