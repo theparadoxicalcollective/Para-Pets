@@ -133,8 +133,10 @@ function App() {
       const x = e.touches[0].clientX;
       touchStartX = x;
       touchStartY = e.touches[0].clientY;
-      // Widen edge zone to 44px to catch more swipe-back attempts
-      if (x < 44 || x > window.innerWidth - 44) {
+      // Only block the LEFT edge (iOS swipe-back gesture).
+      // Do NOT block the right edge — close buttons (X) live there and
+      // preventDefault on touchstart silently cancels their click events.
+      if (x < 20) {
         e.preventDefault();
       }
     };
