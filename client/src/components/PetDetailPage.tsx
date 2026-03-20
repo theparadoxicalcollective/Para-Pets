@@ -4,6 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import coinIconImg from "@assets/icon_coin.png";
 import PowerUpOverlay, { PowerUpEffectType } from "@/components/PowerUpOverlay";
+import PetPowerUpModal, { PowerUpItem } from "@/components/PetPowerUpModal";
 
 interface PetData {
   inventoryId: string;
@@ -57,8 +58,7 @@ interface PetDetailPageProps {
 }
 
 export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUserUpdate }: PetDetailPageProps) {
-  const [showPowerUp, setShowPowerUp] = useState(false);
-  const [showLvlUp, setShowLvlUp] = useState(false);
+  const [showPowerUpModal, setShowPowerUpModal] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [confirmItem, setConfirmItem] = useState<BagItem | null>(null);
   const [showSuccessAnim, setShowSuccessAnim] = useState(false);
@@ -165,6 +165,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
       setSuccessAnimType("stat");
       setShowSuccessAnim(true);
       setConfirmItem(null);
+      setShowPowerUpModal(false);
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       onUpdate();
     },
@@ -189,6 +190,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
       setSuccessAnimType(isHatchTime ? "hatch" : "level");
       setShowSuccessAnim(true);
       setConfirmItem(null);
+      setShowPowerUpModal(false);
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       onUpdate();
     },
@@ -214,6 +216,20 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
       toast({ title: "Failed", description: err?.message || "Could not reset stats", variant: "destructive" });
     },
   });
+
+  // Combined items list for the power-up modal
+  const allPowerUpItems: PowerUpItem[] = [...usableItems, ...specialItems];
+
+  // Handler called by PetPowerUpModal when an item is dragged/tapped onto the pet
+  const handlePowerUpModalUse = (item: PowerUpItem) => {
+    setConfirmItem(item as BagItem);
+    // Fire mutation immediately (no separate confirm dialog — the drag/tap IS the confirmation)
+    if (item.type === "special") {
+      useSpecialMutation.mutate(item.inventoryId);
+    } else {
+      powerUpMutation.mutate(item.inventoryId);
+    }
+  };
 
   const petImage = pet.hatchedImageUrl || pet.imageUrl;
 
@@ -505,7 +521,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
           <div className="flex gap-2 mb-2">
             <button
               data-testid="button-power-up"
-              onClick={() => { setShowPowerUp(true); setShowLvlUp(false); }}
+              onClick={() => setShowPowerUpModal(true)}
               disabled={pet.petLevel >= 100}
               className="flex-1 py-2.5 rounded-md font-fantasy text-xs tracking-wider transition-transform active:scale-95 disabled:opacity-40"
               style={{
@@ -519,7 +535,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
             </button>
             <button
               data-testid="button-lvl-up"
-              onClick={() => { setShowLvlUp(true); setShowPowerUp(false); }}
+              onClick={() => setShowPowerUpModal(true)}
               disabled={pet.petLevel >= 100}
               className="flex-1 py-2.5 rounded-md font-fantasy text-xs tracking-wider transition-transform active:scale-95 disabled:opacity-40"
               style={{
@@ -549,158 +565,6 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
           </div>
         </div>
 
-        {showPowerUp && (
-          <div className="p-5 pt-0">
-            <div
-              className="rounded-lg p-4"
-              style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(127,255,212,0.2)" }}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="font-fantasy text-[#7fffd4] text-xs tracking-wider">SELECT ITEM</h4>
-                <button
-                  onClick={() => setShowPowerUp(false)}
-                  className="font-fantasy text-[#a89878] text-[10px] tracking-wider"
-                  style={{ cursor: "pointer", background: "none", border: "none" }}
-                >
-                  Cancel
-                </button>
-              </div>
-              {usableItems.length === 0 ? (
-                <p className="font-fantasy text-[#a89878] text-xs text-center py-4">
-                  No power-up items in your bag
-                </p>
-              ) : (
-                <>
-                  <p className="font-fantasy text-[#a89878] text-[9px] tracking-wider mb-1">
-                    POWER-UP ITEMS{showRemainingCount ? ` (${itemsRemaining} uses left)` : ""}
-                  </p>
-                  {itemsRemaining <= 0 && (
-                    <p className="font-fantasy text-[#ff9999] text-[8px] text-center mb-2">
-                      No slots left. Level up to earn more!
-                    </p>
-                  )}
-                  <div className="grid grid-cols-3 gap-2">
-                    {usableItems.map((item) => (
-                      <button
-                        key={item.inventoryId}
-                        data-testid={`button-use-item-${item.inventoryId}`}
-                        onClick={() => setConfirmItem(item)}
-                        disabled={powerUpMutation.isPending || (item.statBoostType !== "lvl" && itemsRemaining <= 0)}
-                        className="rounded-md p-2 flex flex-col items-center gap-1 transition-transform active:scale-95 disabled:opacity-40"
-                        style={{
-                          background: "rgba(30,15,5,0.8)",
-                          border: "1px solid rgba(212,160,23,0.3)",
-                          cursor: powerUpMutation.isPending ? "wait" : "pointer",
-                        }}
-                      >
-                        <div className="w-10 h-10 rounded flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.3)" }}>
-                          {item.imageUrl ? (
-                            <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
-                          ) : (
-                            <span className="text-lg">📦</span>
-                          )}
-                        </div>
-                        <span className="font-fantasy text-[#f0c040] text-[8px] tracking-wider text-center truncate w-full">{item.name}</span>
-                        <span
-                          className="font-fantasy text-[7px] tracking-wider px-1.5 py-0.5 rounded-full"
-                          style={{
-                            background: item.statBoostType === "health" ? "rgba(74,222,128,0.15)" : item.statBoostType === "atk" ? "rgba(248,113,113,0.15)" : item.statBoostType === "def" ? "rgba(96,165,250,0.15)" : "rgba(192,132,252,0.15)",
-                            color: item.statBoostType === "health" ? "#4ade80" : item.statBoostType === "atk" ? "#f87171" : item.statBoostType === "def" ? "#60a5fa" : "#c084fc",
-                          }}
-                        >
-                          +{item.statBoostAmount || "?"} {item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "LVL"}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-
-        {showLvlUp && (
-          <div className="p-5 pt-0">
-            <div
-              className="rounded-lg p-4"
-              style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(240,192,64,0.3)" }}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="font-fantasy text-[#f0c040] text-xs tracking-wider">LVL UP ITEMS</h4>
-                <button
-                  onClick={() => setShowLvlUp(false)}
-                  className="font-fantasy text-[#a89878] text-[10px] tracking-wider"
-                  style={{ cursor: "pointer", background: "none", border: "none" }}
-                >
-                  Cancel
-                </button>
-              </div>
-              {(() => {
-                const needed = Math.floor(100 + pet.petLevel * 30 + pet.petLevel * pet.petLevel * 5);
-                const current = pet.petLevelPoints || 0;
-                const pct = Math.min(100, (current / needed) * 100);
-                return (
-              <div className="mb-3">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-fantasy text-[#a89878] text-[10px] tracking-wider">PROGRESS TO NEXT LEVEL</span>
-                  <span className="font-fantasy text-[#f0c040] text-[10px] font-bold">{current} / {needed} pts</span>
-                </div>
-                <div className="w-full rounded-full overflow-hidden" style={{ background: "rgba(0,0,0,0.5)", height: "10px", border: "1px solid rgba(240,192,64,0.2)" }}>
-                  <div style={{
-                    width: `${Math.max(pct > 0 ? 3 : 0, pct)}%`,
-                    background: "linear-gradient(90deg, #d4a017, #f0c040, #ffd700)",
-                    height: "100%",
-                    borderRadius: "4px",
-                    transition: "width 0.5s ease",
-                    boxShadow: pct > 0 ? "0 0 8px rgba(240,192,64,0.5), inset 0 1px 0 rgba(255,255,255,0.3)" : "none",
-                  }} />
-                </div>
-              </div>
-                );
-              })()}
-              {specialItems.filter(i => i.specialType === "level").length === 0 ? (
-                <p className="font-fantasy text-[#a89878] text-xs text-center py-4">
-                  No LVL items in your bag
-                </p>
-              ) : (
-                <>
-                  <p className="font-fantasy text-[#a89878] text-[9px] tracking-wider mb-1">No use limit — use as many as you want!</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {specialItems.filter(i => i.specialType === "level").map((item) => (
-                      <button
-                        key={item.inventoryId}
-                        data-testid={`button-use-lvl-${item.inventoryId}`}
-                        onClick={() => setConfirmItem(item)}
-                        disabled={useSpecialMutation.isPending}
-                        className="rounded-md p-2 flex flex-col items-center gap-1 transition-transform active:scale-95 disabled:opacity-40"
-                        style={{
-                          background: "rgba(30,15,5,0.8)",
-                          border: "1px solid rgba(240,192,64,0.3)",
-                          cursor: useSpecialMutation.isPending ? "wait" : "pointer",
-                        }}
-                      >
-                        <div className="w-10 h-10 rounded flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.3)" }}>
-                          {item.imageUrl ? (
-                            <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
-                          ) : (
-                            <span className="text-lg">⚡</span>
-                          )}
-                        </div>
-                        <span className="font-fantasy text-[#f0c040] text-[8px] tracking-wider text-center truncate w-full">{item.name}</span>
-                        <span
-                          className="font-fantasy text-[7px] tracking-wider px-1.5 py-0.5 rounded-full"
-                          style={{ background: "rgba(240,192,64,0.15)", color: "#f0c040" }}
-                        >
-                          +{item.specialAmount || "?"} LVL pts
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        )}
 
         {confirmItem && (() => {
           const isSpecial = confirmItem.type === "special";
@@ -878,6 +742,21 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
         label={successBoostLabel}
         onDone={() => setShowSuccessAnim(false)}
       />
+
+      {showPowerUpModal && (
+        <PetPowerUpModal
+          petName={pet.petNickname || pet.name}
+          petImage={petImage}
+          petTemplateId={pet.petTemplateId}
+          rarity={pet.rarity || 1}
+          petLevel={pet.petLevel}
+          itemsRemaining={itemsRemaining}
+          items={allPowerUpItems}
+          isPending={powerUpMutation.isPending || useSpecialMutation.isPending}
+          onUseItem={handlePowerUpModalUse}
+          onClose={() => setShowPowerUpModal(false)}
+        />
+      )}
     </div>
   );
 }
