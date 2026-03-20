@@ -81,6 +81,7 @@ export default function PetHousePage({ user: initialUser }: PetHousePageProps) {
   const [isOverPet, setIsOverPet] = useState(false);
   const [feedAnim, setFeedAnim] = useState(false);
   const [feedLabel, setFeedLabel] = useState("");
+  const [showFeedTutorial, setShowFeedTutorial] = useState(false);
   const petDropRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -179,7 +180,12 @@ export default function PetHousePage({ user: initialUser }: PetHousePageProps) {
                     key={pet.inventoryId}
                     pet={pet}
                     index={i}
-                    onClick={() => setSelectedPet(pet)}
+                    onClick={() => {
+                      if (selectedPet) return;
+                      const seen = localStorage.getItem("feedTutorialSeen");
+                      if (!seen) setShowFeedTutorial(true);
+                      setSelectedPet(pet);
+                    }}
                   />
                 ))
               )}
@@ -198,6 +204,11 @@ export default function PetHousePage({ user: initialUser }: PetHousePageProps) {
             feedAnim={feedAnim}
             feedLabel={feedLabel}
             isPending={feedMutation.isPending}
+            showTutorial={showFeedTutorial}
+            onTutorialDismiss={() => {
+              localStorage.setItem("feedTutorialSeen", "1");
+              setShowFeedTutorial(false);
+            }}
             onClose={() => setSelectedPet(null)}
             onEdiblePointerDown={handleEdiblePointerDown}
             onEdiblePointerMove={handleEdiblePointerMove}
@@ -290,6 +301,8 @@ function FeedView({
   feedAnim,
   feedLabel,
   isPending,
+  showTutorial,
+  onTutorialDismiss,
   onClose,
   onEdiblePointerDown,
   onEdiblePointerMove,
@@ -303,18 +316,70 @@ function FeedView({
   feedAnim: boolean;
   feedLabel: string;
   isPending: boolean;
+  showTutorial: boolean;
+  onTutorialDismiss: () => void;
   onClose: () => void;
   onEdiblePointerDown: (e: React.PointerEvent, edible: EdibleItem) => void;
   onEdiblePointerMove: (e: React.PointerEvent) => void;
   onEdiblePointerUp: (e: React.PointerEvent) => void;
 }) {
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
+  const useAnimated = !!pet.petTemplateId;
 
   return (
     <div
       className="absolute inset-0 z-20 flex flex-col animate-slide-up"
       style={{ background: "rgba(4,12,4,0.88)", backdropFilter: "blur(3px)" }}
     >
+      {/* Tutorial modal — shown once on first pet click */}
+      {showTutorial && (
+        <div className="absolute inset-0 z-40 flex items-center justify-center px-6" style={{ background: "rgba(0,0,0,0.6)" }}>
+          <div
+            className="relative w-full max-w-xs rounded-2xl px-6 py-7 flex flex-col items-center gap-4 animate-slide-up"
+            style={{
+              background: "linear-gradient(160deg, rgba(10,30,10,0.98) 0%, rgba(5,18,5,0.98) 100%)",
+              border: "1.5px solid rgba(134,239,172,0.45)",
+              boxShadow: "0 0 40px rgba(74,222,128,0.15)",
+            }}
+          >
+            <p className="font-fantasy text-[#86efac] text-base tracking-wider text-center">How to Feed</p>
+            <div className="flex flex-col gap-3 w-full">
+              <div className="flex items-start gap-3">
+                <span className="text-xl flex-shrink-0">🍎</span>
+                <p className="font-fantasy text-[#c8b896] text-[11px] tracking-wide leading-relaxed">
+                  Drag an edible item from the row below and drop it onto your pet.
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-xl flex-shrink-0">⭐</span>
+                <p className="font-fantasy text-[#c8b896] text-[11px] tracking-wide leading-relaxed">
+                  Each edible gives your pet level-up points. Collect enough points and your pet will level up!
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-xl flex-shrink-0">🛒</span>
+                <p className="font-fantasy text-[#c8b896] text-[11px] tracking-wide leading-relaxed">
+                  Buy more edibles from the shop in the world your pet came from.
+                </p>
+              </div>
+            </div>
+            <button
+              data-testid="button-dismiss-feed-tutorial"
+              onClick={onTutorialDismiss}
+              className="mt-1 px-8 py-2.5 rounded-full font-fantasy text-sm tracking-widest transition-transform active:scale-95"
+              style={{
+                background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
+                border: "1px solid rgba(134,239,172,0.45)",
+                color: "#86efac",
+                cursor: "pointer",
+              }}
+            >
+              Got it!
+            </button>
+          </div>
+        </div>
+      )}
+
       <button
         data-testid="button-close-feed"
         onClick={onClose}
@@ -330,20 +395,13 @@ function FeedView({
       </button>
 
       <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6">
-        <p
-          className="font-fantasy text-[9px] tracking-[0.25em]"
-          style={{ color: draggingEdible ? "rgba(134,239,172,0.9)" : "rgba(168,152,120,0.65)" }}
-        >
-          {draggingEdible ? "DROP ON PET TO FEED!" : "DRAG AN EDIBLE ONTO YOUR PET"}
-        </p>
-
         <div
           ref={petDropRef}
           data-testid="drop-zone-pet"
           className="relative flex flex-col items-center justify-center"
           style={{
-            width: 148,
-            height: 148,
+            width: 200,
+            height: 200,
             borderRadius: "50%",
             border: `2px dashed ${isOverPet ? "rgba(74,222,128,0.9)" : "rgba(74,222,128,0.28)"}`,
             background: isOverPet
@@ -374,16 +432,22 @@ function FeedView({
           <div
             data-testid="img-feed-pet"
             style={{
-              width: 350,
-              height: 350,
+              width: 320,
+              height: 320,
               filter: isOverPet
                 ? "drop-shadow(0 0 18px rgba(74,222,128,0.85))"
                 : "drop-shadow(0 4px 10px rgba(0,0,0,0.55))",
               transition: "filter 0.15s ease",
-              animation: isPending ? "petBob 0.4s ease-in-out infinite" : undefined,
+              animation: (!useAnimated && isPending) ? "petBob 0.4s ease-in-out infinite" : undefined,
             }}
           >
-            {petImg ? (
+            {useAnimated ? (
+              <PetAnimator
+                petTemplateId={pet.petTemplateId!}
+                mode="idle"
+                size={320}
+              />
+            ) : petImg ? (
               <img src={petImg} alt="" className="w-full h-full object-contain" />
             ) : (
               <span className="text-5xl flex items-center justify-center w-full h-full">🐾</span>
