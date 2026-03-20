@@ -210,6 +210,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const enemyHitCountRef = useRef(0);
   // Cooldown so enemy can't deal damage on every frame (prevents instant-kill on overlap)
   const lastCollisionDmgRef = useRef(0);
+  // Cooldown for boss orb damage (prevents multiple orbs hitting in the same frame)
+  const lastOrbDmgRef = useRef(0);
 
   const { data: inventory = [] } = useQuery<any[]>({ queryKey: ["/api/inventory"] });
 
@@ -302,6 +304,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         setBossBurstActive(false);
         lastBossHitTimeRef.current = 0;
         lastCollisionDmgRef.current = 0;
+        lastOrbDmgRef.current = 0;
         consecutiveBossHitsRef.current = 0;
         bossImmuneUntilRef.current = 0;
         setBossHitStreak(0);
@@ -379,7 +382,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         const dy = petPosRef.current.y - pos.y;
         const d = Math.hypot(dx, dy) || 1;
         const bounceX = Math.max(8, Math.min(92, petPosRef.current.x + (dx / d) * 14));
-        const bounceY = Math.max(52, Math.min(92, petPosRef.current.y + (dy / d) * 14));
+        // Y: same safe zone as drag — clamp above toolbar (82%) and below HUD (55%)
+        const bounceY = Math.max(55, Math.min(82, petPosRef.current.y + (dy / d) * 14));
         petPosRef.current = { x: bounceX, y: bounceY };
         setPetPos({ x: bounceX, y: bounceY });
       }
@@ -464,10 +468,10 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       const pos = { ...enemyPosRef.current };
 
       if (enemy?.isBoss) {
-        // ── Boss: floats at the top, oscillates side-to-side, fires particles ──
+        // ── Boss: floats just below the top HUD, oscillates side-to-side, fires particles ──
         bossOscTimeRef.current += 0.018;
         pos.x = 50 + Math.sin(bossOscTimeRef.current * 0.55) * 26;
-        pos.y = 12;
+        pos.y = 20;
         pos.vx = 0;
         pos.vy = 0;
 
@@ -591,17 +595,21 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           const ny = orb.y + orb.vy;
           const dist = Math.hypot(nx - petX, ny - petY);
           if (dist < 10) {
-            const rawDmg = enemyStatsRef.current.atk * 0.7;
-            const dmg = Math.max(1, Math.floor(rawDmg + Math.random() * 4));
-            petHpRef.current = Math.max(0, petHpRef.current - dmg);
-            setPetHp(petHpRef.current);
-            setPetHit(true);
-            setTimeout(() => setPetHit(false), 250);
-            const newDmg: DamageNumber = { id: dmgIdRef.current++, x: petX, y: petY - 8, value: dmg, isCrit: false };
-            setDamageNumbers(prev => [...prev, newDmg]);
-            setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== newDmg.id)), 800);
+            // Rate-limit orb damage: at most once per 350 ms to prevent burst-kill
+            if (now - lastOrbDmgRef.current >= 350) {
+              lastOrbDmgRef.current = now;
+              const rawDmg = enemyStatsRef.current.atk * 0.55;
+              const dmg = Math.max(1, Math.floor(rawDmg + Math.random() * 4));
+              petHpRef.current = Math.max(0, petHpRef.current - dmg);
+              setPetHp(petHpRef.current);
+              setPetHit(true);
+              setTimeout(() => setPetHit(false), 250);
+              const newDmg: DamageNumber = { id: dmgIdRef.current++, x: petX, y: petY - 8, value: dmg, isCrit: false };
+              setDamageNumbers(prev => [...prev, newDmg]);
+              setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== newDmg.id)), 800);
+              if (petHpRef.current <= 0) { battleActiveRef.current = false; setPhase("defeat"); }
+            }
             orbHit = true;
-            if (petHpRef.current <= 0) { battleActiveRef.current = false; setPhase("defeat"); }
           } else if (nx >= -5 && nx <= 105 && ny >= -5 && ny <= 105) {
             updated.push({ ...orb, x: nx, y: ny });
           }
@@ -847,7 +855,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     e.stopPropagation();
     const arena = arenaRef.current.getBoundingClientRect();
     const x = Math.max(8, Math.min(92, ((e.clientX - arena.left) / arena.width) * 100));
-    const y = Math.max(52, Math.min(92, ((e.clientY - arena.top) / arena.height) * 100));
+    // Y: keep below top HUD (~15%) and above bottom toolbar (~18% from bottom = 82%)
+    const y = Math.max(55, Math.min(82, ((e.clientY - arena.top) / arena.height) * 100));
     petPosRef.current = { x, y };
     setPetPos({ x, y });
   }, []);
@@ -1052,8 +1061,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           100% { transform: translateY(-60px) scale(1.3); opacity: 0; }
         }
         @keyframes enemyBounce {
-          0%, 100% { transform: scaleY(1) scaleX(1); }
-          50% { transform: scaleY(0.95) scaleX(1.05); }
+          0%, 100% { transform: translate(-50%, -50%) scaleY(1) scaleX(1); }
+          50% { transform: translate(-50%, -50%) scaleY(0.95) scaleX(1.05); }
         }
         @keyframes introSlide {
           0% { transform: translateY(-100%); opacity: 0; }
@@ -1073,11 +1082,11 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           75% { transform: translateX(4px); }
         }
         @keyframes hitFlash {
-          0% { filter: brightness(1); transform: translateY(0px); }
-          20% { filter: brightness(2.5) saturate(0); transform: translateY(4px); }
-          40% { filter: brightness(1.8) saturate(0.5); transform: translateY(-3px); }
-          60% { filter: brightness(1.3); transform: translateY(2px); }
-          100% { filter: brightness(1); transform: translateY(0px); }
+          0% { filter: brightness(1); transform: translate(-50%, -50%) translateY(0px); }
+          20% { filter: brightness(2.5) saturate(0); transform: translate(-50%, -50%) translateY(4px); }
+          40% { filter: brightness(1.8) saturate(0.5); transform: translate(-50%, -50%) translateY(-3px); }
+          60% { filter: brightness(1.3); transform: translate(-50%, -50%) translateY(2px); }
+          100% { filter: brightness(1); transform: translate(-50%, -50%) translateY(0px); }
         }
         @keyframes petHitBounce {
           0%   { transform: translate(-50%, -50%) translateY(0px) scaleX(1) scaleY(1); filter: brightness(1); }
@@ -1137,9 +1146,9 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
         }
         @keyframes bossFloat {
-          0%   { transform: translate(-50%, -50%) translateY(0px) scale(1); }
-          50%  { transform: translate(-50%, -50%) translateY(-8px) scale(1.02); }
-          100% { transform: translate(-50%, -50%) translateY(0px) scale(1); }
+          0%   { transform: translateY(0px); }
+          50%  { transform: translateY(-8px); }
+          100% { transform: translateY(0px); }
         }
         @keyframes bossGlowPulse {
           0%   { filter: drop-shadow(0 0 18px rgba(255,40,40,0.85)) drop-shadow(0 0 40px rgba(200,0,0,0.4)); }
@@ -1429,89 +1438,109 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   left: `${enemyPos.x}%`,
                   top: `${enemyPos.y}%`,
                   pointerEvents: "none",
+                  // For regular enemies: animation handles centering+bounce/flash
+                  // For boss: just center here, float+scale on inner wrapper
+                  transform: enemy.isBoss ? "translate(-50%, -50%)" : undefined,
                   animation: enemy.isBoss
-                    ? "bossFloat 2.8s ease-in-out infinite"
+                    ? undefined
                     : enemyHit
                       ? "hitFlash 0.2s ease-in-out"
                       : "enemyBounce 0.6s ease-in-out infinite",
-                  transform: enemy.isBoss
-                    ? `translate(-50%, -50%) scale(${bossEnlarged ? 1.5 : 1})`
-                    : "translate(-50%, -50%)",
-                  transition: enemy.isBoss ? "transform 0.4s ease-out" : undefined,
                 }}
               >
-                {/* Boss pulsing aura underneath */}
-                {enemy.isBoss && (
-                  <div style={{
-                    position: "absolute",
-                    left: "50%", top: "50%",
-                    width: bossEnlarged ? 220 : 180,
-                    height: bossEnlarged ? 220 : 180,
-                    borderRadius: "50%",
-                    background: bossBurstActive
-                      ? "radial-gradient(circle, rgba(255,140,40,0.35) 0%, rgba(255,60,0,0.18) 50%, transparent 75%)"
-                      : "radial-gradient(circle, rgba(255,40,40,0.22) 0%, rgba(180,0,0,0.10) 55%, transparent 78%)",
-                    animation: "bossAuraPulse 1.8s ease-in-out infinite",
-                    transition: "width 0.4s, height 0.4s, background 0.3s",
-                    pointerEvents: "none",
-                  }} />
-                )}
-
-                {enemy.imageUrl ? (
-                  <img
-                    src={enemy.imageUrl}
-                    alt={enemy.name}
-                    style={{
-                      width: enemy.isBoss ? 148 : 80,
-                      height: enemy.isBoss ? 148 : 80,
-                      animation: enemy.isBoss
-                        ? (bossBurstActive ? "bossBurstGlow 0.4s ease-in-out infinite" : "bossGlowPulse 1.8s ease-in-out infinite")
-                        : (enemyHit ? "hitFlash 0.2s ease-in-out" : undefined),
-                    }}
-                    className="object-contain"
-                  />
-                ) : (
-                  <div
-                    className={`${enemy.isBoss ? "w-36 h-36" : "w-20 h-20"} bg-red-900/50 rounded-full flex items-center justify-center border-2 border-red-500`}
-                    style={enemy.isBoss ? {
-                      boxShadow: bossBurstActive
-                        ? "0 0 50px rgba(255,140,40,0.9), 0 0 20px rgba(255,80,0,0.7)"
-                        : "0 0 32px rgba(255,0,0,0.7), 0 0 12px rgba(200,0,0,0.5)",
-                      animation: "bossAuraPulse 1.8s ease-in-out infinite",
-                    } : {}}
-                  >
-                    <Swords className={enemy.isBoss ? "w-14 h-14 text-red-400" : "w-8 h-8 text-red-400"} />
-                  </div>
-                )}
-
-                {enemy.isBoss && (
-                  <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[9px] font-black tracking-widest whitespace-nowrap"
-                    style={{
-                      color: bossBurstActive ? "#ffaa40" : "#ff4444",
-                      textShadow: bossBurstActive
-                        ? "0 0 14px rgba(255,160,40,0.9), 0 0 6px rgba(255,100,0,0.7)"
-                        : "0 0 10px rgba(255,0,0,0.8)",
-                      animation: bossBurstActive ? "tensionPulse 0.35s ease-in-out infinite" : undefined,
+                {/* Boss: float wrapper (animation=translateY only) → scale wrapper (bossEnlarged) */}
+                {enemy.isBoss ? (
+                  <div style={{ animation: "bossFloat 2.8s ease-in-out infinite" }}>
+                    <div style={{
+                      transform: `scale(${bossEnlarged ? 1.5 : 1})`,
+                      transition: "transform 0.4s ease-out",
                     }}>
-                    {bossBurstActive ? "💥 BURST! 💥" : "⚠ BOSS ⚠"}
-                  </div>
-                )}
+                    {/* Boss pulsing aura underneath */}
+                    <div style={{
+                      position: "absolute",
+                      left: "50%", top: "50%",
+                      width: bossEnlarged ? 220 : 180,
+                      height: bossEnlarged ? 220 : 180,
+                      borderRadius: "50%",
+                      background: bossBurstActive
+                        ? "radial-gradient(circle, rgba(255,140,40,0.35) 0%, rgba(255,60,0,0.18) 50%, transparent 75%)"
+                        : "radial-gradient(circle, rgba(255,40,40,0.22) 0%, rgba(180,0,0,0.10) 55%, transparent 78%)",
+                      animation: "bossAuraPulse 1.8s ease-in-out infinite",
+                      transition: "width 0.4s, height 0.4s, background 0.3s",
+                      transform: "translate(-50%, -50%)",
+                      pointerEvents: "none",
+                    }} />
 
-                {enemy.isBoss && bossHitStreak > 0 && !breakFreeEffect && (
-                  <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 flex gap-1 items-center">
-                    {Array.from({ length: 6 }).map((_, i) => (
-                      <div
-                        key={i}
-                        className="rounded-full"
+                    {enemy.imageUrl ? (
+                      <img
+                        src={enemy.imageUrl}
+                        alt={enemy.name}
                         style={{
-                          width: 7, height: 7,
-                          background: i < bossHitStreak ? "#ff4444" : "rgba(255,255,255,0.2)",
-                          boxShadow: i < bossHitStreak ? "0 0 6px rgba(255,60,60,0.9)" : undefined,
-                          transition: "background 0.1s, box-shadow 0.1s",
+                          width: 148,
+                          height: 148,
+                          animation: bossBurstActive ? "bossBurstGlow 0.4s ease-in-out infinite" : "bossGlowPulse 1.8s ease-in-out infinite",
+                          display: "block",
                         }}
+                        className="object-contain"
                       />
-                    ))}
+                    ) : (
+                      <div
+                        className="w-36 h-36 bg-red-900/50 rounded-full flex items-center justify-center border-2 border-red-500"
+                        style={{
+                          boxShadow: bossBurstActive
+                            ? "0 0 50px rgba(255,140,40,0.9), 0 0 20px rgba(255,80,0,0.7)"
+                            : "0 0 32px rgba(255,0,0,0.7), 0 0 12px rgba(200,0,0,0.5)",
+                          animation: "bossAuraPulse 1.8s ease-in-out infinite",
+                        }}
+                      >
+                        <Swords className="w-14 h-14 text-red-400" />
+                      </div>
+                    )}
+
+                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[9px] font-black tracking-widest whitespace-nowrap"
+                      style={{
+                        color: bossBurstActive ? "#ffaa40" : "#ff4444",
+                        textShadow: bossBurstActive
+                          ? "0 0 14px rgba(255,160,40,0.9), 0 0 6px rgba(255,100,0,0.7)"
+                          : "0 0 10px rgba(255,0,0,0.8)",
+                        animation: bossBurstActive ? "tensionPulse 0.35s ease-in-out infinite" : undefined,
+                      }}>
+                      {bossBurstActive ? "💥 BURST! 💥" : "⚠ BOSS ⚠"}
+                    </div>
+
+                    {bossHitStreak > 0 && !breakFreeEffect && (
+                      <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 flex gap-1 items-center">
+                        {Array.from({ length: 6 }).map((_, i) => (
+                          <div
+                            key={i}
+                            className="rounded-full"
+                            style={{
+                              width: 7, height: 7,
+                              background: i < bossHitStreak ? "#ff4444" : "rgba(255,255,255,0.2)",
+                              boxShadow: i < bossHitStreak ? "0 0 6px rgba(255,60,60,0.9)" : undefined,
+                              transition: "background 0.1s, box-shadow 0.1s",
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    </div>
                   </div>
+                ) : (
+                  <>
+                    {enemy.imageUrl ? (
+                      <img
+                        src={enemy.imageUrl}
+                        alt={enemy.name}
+                        style={{ width: 80, height: 80 }}
+                        className="object-contain"
+                      />
+                    ) : (
+                      <div className="w-20 h-20 bg-red-900/50 rounded-full flex items-center justify-center border-2 border-red-500">
+                        <Swords className="w-8 h-8 text-red-400" />
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
