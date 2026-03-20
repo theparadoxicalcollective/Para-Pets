@@ -414,7 +414,7 @@ export default function PetPowerUpModal({
           data-testid="zone-pet-drop"
           className="relative flex items-center justify-center rounded-2xl transition-all duration-200"
           style={{
-            width: 180, height: 180,
+            width: 240, height: 240,
             background: dragOverPet
               ? `radial-gradient(ellipse at center, rgba(${dragging ? itemColor(dragging.item).replace("#","") : "240,192,64"},0.25) 0%, rgba(0,0,0,0.6) 100%)`
               : "radial-gradient(ellipse at center, rgba(45,122,79,0.18) 0%, rgba(0,0,0,0.5) 100%)",
@@ -438,11 +438,11 @@ export default function PetPowerUpModal({
             }}
           >
             {petTemplateId ? (
-              <PetAnimator petTemplateId={petTemplateId} mode="idle" view="front" size={160} />
+              <PetAnimator petTemplateId={petTemplateId} mode="idle" view="front" size={230} />
             ) : petImage ? (
-              <img src={petImage} alt={petName} style={{ width: 140, height: 140, objectFit: "contain" }} />
+              <img src={petImage} alt={petName} style={{ width: 220, height: 220, objectFit: "contain" }} />
             ) : (
-              <span style={{ fontSize: 80 }}>🐾</span>
+              <span style={{ fontSize: 110 }}>🐾</span>
             )}
           </div>
 
