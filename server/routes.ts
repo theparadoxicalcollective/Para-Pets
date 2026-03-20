@@ -2511,6 +2511,7 @@ export async function registerRoutes(
           petTemplateId: activePet.petTemplateId || null,
           imageUrl: petImageUrl,
           backImageUrl: petBackImageUrl,
+          specialSkill: activePet.specialSkill || null,
         },
       });
     } catch (err) {
@@ -3201,6 +3202,109 @@ export async function registerRoutes(
       return res.json({ sold: toSell.length, coinsEarned: totalCoins, newBalance: updatedUser.coins });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── PvP Arena Routes ─────────────────────────────────────────────────────
+  // Generate an AI opponent based on the player's current pet level
+  app.get("/api/pvp/opponent", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as any;
+      const inventory = await storage.getUserInventory(user.id);
+      const shopItemsData = await storage.getShopItems(user.worldId || "murk_cave");
+      const activePet = inventory
+        .map((inv: any) => {
+          const shopItem = shopItemsData.find((s: any) => s.id === inv.shopItemId);
+          return shopItem ? { ...inv, ...shopItem } : null;
+        })
+        .filter(Boolean)
+        .find((inv: any) => inv.shopItemId === user.activePetId && inv.isHatched);
+
+      const playerLevel = activePet?.petLevel || 1;
+      const playerAtk = activePet?.petAtk || 50;
+      const playerDef = activePet?.petDef || 50;
+      const playerHp = activePet?.petHealth || 1000;
+
+      // Opponent is slightly above/below player level
+      const levelOffset = Math.floor(Math.random() * 5) - 2;
+      const opponentLevel = Math.max(1, playerLevel + levelOffset);
+      const scaleFactor = 0.85 + Math.random() * 0.35;
+      const skills = ["Lazer", "Bubble", "Heal Self", "Poison", null, null];
+      const skill = skills[Math.floor(Math.random() * skills.length)];
+
+      // Pick a random enemy image from the database as avatar
+      const allEnemies = await storage.getLocationEnemies("a1b2c3d4-0001-4000-8000-000000000001").catch(() => []);
+      const randomEnemy = allEnemies[Math.floor(Math.random() * allEnemies.length)];
+
+      const opponentNames = [
+        "Shadow Keeper", "Storm Warden", "Void Stalker", "Crystal Hunter",
+        "Ember Wolf", "Tide Walker", "Iron Fang", "Moon Shade", "Ash Drake",
+        "Venom Wisp", "Frost Rune", "Chaos Sprite",
+      ];
+      const name = opponentNames[Math.floor(Math.random() * opponentNames.length)];
+
+      return res.json({
+        name,
+        imageUrl: randomEnemy?.imageUrl || null,
+        level: opponentLevel,
+        hp: Math.floor(playerHp * scaleFactor),
+        atk: Math.floor(playerAtk * scaleFactor),
+        def: Math.floor(playerDef * scaleFactor * 0.7),
+        specialSkill: skill,
+      });
+    } catch (err) {
+      console.error("PvP opponent error:", err);
+      return res.status(500).json({ message: "Failed to generate opponent" });
+    }
+  });
+
+  // Record PvP battle result and award coins
+  app.post("/api/pvp/result", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as any;
+      const { opponentName, opponentImageUrl, opponentLevel, opponentSkill, result } = req.body;
+      if (!["win", "loss"].includes(result)) return res.status(400).json({ message: "Invalid result" });
+
+      const WIN_COINS = 15 + Math.floor(opponentLevel * 2);
+      const coinsEarned = result === "win" ? WIN_COINS : 0;
+
+      if (coinsEarned > 0) await storage.addCoins(user.id, coinsEarned);
+
+      const battle = await storage.createPvpBattle({
+        userId: user.id,
+        opponentName,
+        opponentImageUrl: opponentImageUrl || null,
+        opponentLevel: opponentLevel || 1,
+        opponentSkill: opponentSkill || null,
+        result,
+        coinsEarned,
+      });
+
+      return res.json({ battle, coinsEarned });
+    } catch (err) {
+      console.error("PvP result error:", err);
+      return res.status(500).json({ message: "Failed to record result" });
+    }
+  });
+
+  // Get battle history for the logged-in user
+  app.get("/api/pvp/history", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as any;
+      const battles = await storage.getPvpBattlesByUser(user.id, 30);
+      return res.json(battles);
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to fetch history" });
+    }
+  });
+
+  // Global leaderboard
+  app.get("/api/pvp/leaderboard", isAuthenticated, async (_req: Request, res: Response) => {
+    try {
+      const board = await storage.getPvpLeaderboard(20);
+      return res.json(board);
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to fetch leaderboard" });
     }
   });
 

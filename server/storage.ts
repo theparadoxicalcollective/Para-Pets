@@ -25,9 +25,10 @@ import {
   type WorldDecorItem, worldDecorItems,
   type WorldDecorPlacement, worldDecorPlacements,
   type FishBarrel, fishBarrels,
+  pvpBattles,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, ne, gte, asc, desc, ilike, or } from "drizzle-orm";
+import { eq, and, ne, gte, asc, desc, ilike, or, sql } from "drizzle-orm";
 
 export interface EquippedAccessoryDetail {
   id: string;
@@ -170,6 +171,10 @@ export interface IStorage {
   updateFishBarrel(id: string, data: Partial<FishBarrel>): Promise<FishBarrel>;
   deleteFishBarrel(id: string): Promise<void>;
   deleteFishInventoryItems(fishIds: string[]): Promise<void>;
+  // PvP
+  createPvpBattle(data: { userId: string; opponentName: string; opponentImageUrl?: string | null; opponentLevel: number; opponentSkill?: string | null; result: string; coinsEarned: number }): Promise<any>;
+  getPvpBattlesByUser(userId: string, limit?: number): Promise<any[]>;
+  getPvpLeaderboard(limit?: number): Promise<{ userId: string; username: string; wins: number; losses: number; coins: number }[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1025,6 +1030,49 @@ export class DatabaseStorage implements IStorage {
     for (const id of fishIds) {
       await db.delete(playerFishInventory).where(eq(playerFishInventory.id, id));
     }
+  }
+
+  async createPvpBattle(data: { userId: string; opponentName: string; opponentImageUrl?: string | null; opponentLevel: number; opponentSkill?: string | null; result: string; coinsEarned: number }): Promise<any> {
+    const [row] = await db.insert(pvpBattles).values({
+      userId: data.userId,
+      opponentName: data.opponentName,
+      opponentImageUrl: data.opponentImageUrl ?? null,
+      opponentLevel: data.opponentLevel,
+      opponentSkill: data.opponentSkill ?? null,
+      result: data.result,
+      coinsEarned: data.coinsEarned,
+    }).returning();
+    return row;
+  }
+
+  async getPvpBattlesByUser(userId: string, limit = 20): Promise<any[]> {
+    return db.select().from(pvpBattles)
+      .where(eq(pvpBattles.userId, userId))
+      .orderBy(sql`${pvpBattles.createdAt} desc`)
+      .limit(limit);
+  }
+
+  async getPvpLeaderboard(limit = 20): Promise<{ userId: string; username: string; wins: number; losses: number; coins: number }[]> {
+    const rows = await db.select({
+      userId: pvpBattles.userId,
+      username: users.username,
+      result: pvpBattles.result,
+      coinsEarned: pvpBattles.coinsEarned,
+    }).from(pvpBattles)
+      .leftJoin(users, eq(pvpBattles.userId, users.id));
+
+    const byUser: Record<string, { userId: string; username: string; wins: number; losses: number; coins: number }> = {};
+    for (const row of rows) {
+      if (!byUser[row.userId]) {
+        byUser[row.userId] = { userId: row.userId, username: row.username || "Unknown", wins: 0, losses: 0, coins: 0 };
+      }
+      if (row.result === "win") byUser[row.userId].wins++;
+      else byUser[row.userId].losses++;
+      byUser[row.userId].coins += row.coinsEarned || 0;
+    }
+    return Object.values(byUser)
+      .sort((a, b) => b.wins - a.wins || a.losses - b.losses)
+      .slice(0, limit);
   }
 }
 

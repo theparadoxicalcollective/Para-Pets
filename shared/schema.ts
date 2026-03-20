@@ -392,3 +392,20 @@ export type PlayerFishingEquipment = typeof playerFishingEquipment.$inferSelect;
 export type WorldDecorItem = typeof worldDecorItems.$inferSelect;
 export type WorldDecorPlacement = typeof worldDecorPlacements.$inferSelect;
 export type FishBarrel = typeof fishBarrels.$inferSelect;
+
+// ── PvP Arena ────────────────────────────────────────────────────────────────
+export const pvpBattles = pgTable("pvp_battles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  opponentName: text("opponent_name").notNull(),
+  opponentImageUrl: text("opponent_image_url"),
+  opponentLevel: integer("opponent_level").notNull().default(1),
+  opponentSkill: text("opponent_skill"),
+  result: text("result").notNull(), // 'win' | 'loss'
+  coinsEarned: integer("coins_earned").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const insertPvpBattleSchema = createInsertSchema(pvpBattles).omit({ id: true, createdAt: true });
+export type InsertPvpBattle = z.infer<typeof insertPvpBattleSchema>;
+export type PvpBattle = typeof pvpBattles.$inferSelect;

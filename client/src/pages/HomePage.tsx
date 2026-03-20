@@ -62,7 +62,6 @@ export default function HomePage({ user }: HomePageProps) {
   const [currentUser, setCurrentUser] = useState(user);
   const [scrollOpen, setScrollOpen] = useState(false);
   const [showPetInventory, setShowPetInventory] = useState(false);
-  const [showPvpNotice, setShowPvpNotice] = useState(false);
   const [hatchRevealing, setHatchRevealing] = useState(false);
   const [showPetDetail, setShowPetDetail] = useState(false);
   const [showSpeedUp, setShowSpeedUp] = useState(false);
@@ -494,7 +493,7 @@ export default function HomePage({ user }: HomePageProps) {
                 src={swordsImg}
                 alt="Battle"
                 testId="button-nav-pvp"
-                onClick={() => setShowPvpNotice(true)}
+                onClick={() => navigate("/pvp")}
               />
               <NavIcon
                 src={eggImg}
@@ -671,60 +670,6 @@ export default function HomePage({ user }: HomePageProps) {
         </div>
       )}
 
-      {showPvpNotice && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
-          <div data-testid="backdrop-pvp-notice" className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowPvpNotice(false)} />
-          <div
-            className="relative w-[80%] max-w-xs rounded-lg p-5 animate-slide-up"
-            style={{
-              background: "linear-gradient(135deg, rgba(20,10,3,0.98) 0%, rgba(45,25,8,0.98) 100%)",
-              border: "1px solid rgba(212,160,23,0.5)",
-              boxShadow: "0 8px 40px rgba(0,0,0,0.8), 0 0 60px rgba(212,160,23,0.1)",
-            }}
-          >
-            <button
-              data-testid="button-close-pvp-notice"
-              onClick={() => setShowPvpNotice(false)}
-              className="absolute -top-3 -right-3 w-8 h-8 rounded-full flex items-center justify-center"
-              style={{ background: "linear-gradient(135deg, #5c3a1e 0%, #3a2010 100%)", border: "2px solid rgba(212,160,23,0.6)", color: "#f0c040", cursor: "pointer", fontSize: "14px", fontWeight: "bold" }}
-            >
-              X
-            </button>
-            <div className="flex flex-col items-center text-center">
-              <div
-                className="w-16 h-16 rounded-full flex items-center justify-center mb-3"
-                style={{
-                  background: "radial-gradient(ellipse at center, rgba(139,0,0,0.3) 0%, rgba(60,10,10,0.5) 100%)",
-                  border: "2px solid rgba(200,50,50,0.3)",
-                  boxShadow: "0 0 20px rgba(200,50,50,0.2)",
-                }}
-              >
-                <img src={swordsImg} alt="PvP" className="w-10 h-10 object-contain" />
-              </div>
-              <h3
-                className="font-fantasy text-[#f0c040] text-base tracking-widest font-semibold mb-2"
-                style={{ textShadow: "0 0 10px rgba(240,192,64,0.3)" }}
-                data-testid="text-pvp-notice-title"
-              >
-                BATTLE ARENA
-              </h3>
-              <p className="font-fantasy text-[#c8b896] text-sm tracking-wider leading-relaxed mb-2">
-                The arena is being forged...
-              </p>
-              <p className="font-fantasy text-[#a89878] text-xs tracking-wider leading-relaxed mb-4">
-                PvP battles are coming soon! Train your pets and prepare for glorious combat against other adventurers.
-              </p>
-              <div
-                className="w-full h-px mb-4"
-                style={{ background: "linear-gradient(90deg, transparent, rgba(212,160,23,0.3), transparent)" }}
-              />
-              <p className="font-fantasy text-[#6a5840] text-[10px] tracking-widest">
-                STAY TUNED FOR UPDATES
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
 
       {showPetInventory && (
         <PetInventory

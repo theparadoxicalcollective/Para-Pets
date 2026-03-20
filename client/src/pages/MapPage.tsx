@@ -577,6 +577,8 @@ export default function MapPage({ user }: MapPageProps) {
             </button>
           </>
         )}
+
+
       </div>
 
       {showAddWorld && (

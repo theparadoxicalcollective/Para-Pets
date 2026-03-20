@@ -28,6 +28,7 @@ interface EncounterPet {
   def: number;
   petTemplateId: string | null;
   imageUrl: string | null;
+  specialSkill: string | null;
 }
 
 interface BattleArenaProps {
@@ -155,6 +156,16 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const petFrozenRef = useRef(false);
   const lastBossHitTimeRef = useRef(0);
 
+  // Mana & special skill
+  const [mana, setMana] = useState(0);
+  const manaRef = useRef(0);
+  const [skillCooldown, setSkillCooldown] = useState(false);
+  const [skillEffect, setSkillEffect] = useState<string | null>(null);
+  const [poisonActive, setPoisonActive] = useState(false);
+  const poisonTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const MAX_MANA = 100;
+  const handleEnemyDeathRef = useRef<() => void>(() => {});
+
   const animFrameRef = useRef<number>(0);
   const arenaRef = useRef<HTMLDivElement>(null);
   const slashIdRef = useRef(0);
@@ -200,7 +211,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         setPetHp(data.pet.hp);
         setPetMaxHp(data.pet.hp);
         petHpRef.current = data.pet.hp;
-        petStatsRef.current = { atk: data.pet.atk, def: data.pet.def };
+        petStatsRef.current = { atk: data.pet.atk, def: data.pet.def, maxHp: data.pet.hp };
         startWave(data.encounters[0], 0);
       } catch (err) {
         toast({ title: "Error", description: "Failed to start battle", variant: "destructive" });
@@ -222,6 +233,13 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     setLastHitTime(0);
     setSlashEffects([]);
     setDamageNumbers([]);
+    // Reset mana, skill state, and poison between waves
+    manaRef.current = 0;
+    setMana(0);
+    setSkillCooldown(false);
+    setSkillEffect(null);
+    setPoisonActive(false);
+    if (poisonTimerRef.current) { clearInterval(poisonTimerRef.current); poisonTimerRef.current = null; }
 
     const difficulty = 0.3 + Math.random() * 0.7;
     enemyDifficultyRef.current = difficulty;
@@ -283,6 +301,17 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       setVictoryData({ error: true, lvlPointsEarned: 0, coinsAwarded: 0, droppedItems: [], levelsGained: 0 });
     },
   });
+
+  // Keep a stable ref to the "enemy just died" handler so skills can call it
+  useEffect(() => {
+    handleEnemyDeathRef.current = () => {
+      if (!enemy) return;
+      battleActiveRef.current = false;
+      defeatMutation.mutate({ enemyId: enemy.enemyId, enemyLevel: enemy.level });
+      const hasMore = waveIndex + 1 < allEnemies.length;
+      setPhase(hasMore ? "waveComplete" : "victory");
+    };
+  }, [enemy, waveIndex, allEnemies, defeatMutation]);
 
   const potionMutation = useMutation({
     mutationFn: async ({ inventoryId, petInventoryId }: { inventoryId: string; petInventoryId: string }) => {
@@ -595,6 +624,11 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     setShakeScreen(true);
     setTimeout(() => { setEnemyHit(false); setShakeScreen(false); }, 200);
 
+    // Fill mana on hit
+    const manaGain = isCrit ? 22 : (combo >= 3 ? 18 : 13);
+    manaRef.current = Math.min(MAX_MANA, manaRef.current + manaGain);
+    setMana(manaRef.current);
+
     // Slash mark at enemy position
     const markId = slashIdRef.current++;
     const slashMark: SlashEffect = { id: markId, x: ePos.x, y: ePos.y };
@@ -709,6 +743,84 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     e.stopPropagation();
     petDraggingRef.current = false;
   }, []);
+
+  // ── Special skill ────────────────────────────────────────────────────────
+  const useSpecialSkill = useCallback(() => {
+    if (!battleActiveRef.current || manaRef.current < MAX_MANA || skillCooldown) return;
+    const skill = pet?.specialSkill;
+    if (!skill) return;
+
+    manaRef.current = 0;
+    setMana(0);
+    setSkillCooldown(true);
+    setSkillEffect(skill);
+    setTimeout(() => setSkillEffect(null), 1200);
+    setTimeout(() => setSkillCooldown(false), 3000);
+
+    if (skill === "Lazer") {
+      // Heavy single-hit beam on enemy current position
+      const ePos = enemyPosRef.current;
+      const dmg = Math.floor(petStatsRef.current.atk * 2.5);
+      enemyHpRef.current = Math.max(0, enemyHpRef.current - dmg);
+      setEnemyHp(enemyHpRef.current);
+      setEnemyHit(true);
+      setTimeout(() => setEnemyHit(false), 400);
+      const nd: DamageNumber = { id: dmgIdRef.current++, x: ePos.x, y: ePos.y - 12, value: dmg, isCrit: true };
+      setDamageNumbers(prev => [...prev, nd]);
+      setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== nd.id)), 1400);
+      if (enemyHpRef.current <= 0) handleEnemyDeathRef.current();
+
+    } else if (skill === "Bubble") {
+      // Fire 3 orbs — each deals damage after a brief delay
+      const ePos = enemyPosRef.current;
+      [0, 1, 2].forEach((i) => {
+        setTimeout(() => {
+          if (!battleActiveRef.current) return;
+          const dmg = Math.floor(petStatsRef.current.atk * 0.9 + Math.random() * 10);
+          enemyHpRef.current = Math.max(0, enemyHpRef.current - dmg);
+          setEnemyHp(enemyHpRef.current);
+          setEnemyHit(true);
+          setTimeout(() => setEnemyHit(false), 180);
+          const nd: DamageNumber = { id: dmgIdRef.current++, x: ePos.x + (i - 1) * 8, y: ePos.y - 14, value: dmg };
+          setDamageNumbers(prev => [...prev, nd]);
+          setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== nd.id)), 1000);
+          if (enemyHpRef.current <= 0) handleEnemyDeathRef.current();
+        }, i * 350);
+      });
+
+    } else if (skill === "Heal Self" || skill === "Heal Party") {
+      const maxHp = (petStatsRef.current as any).maxHp || petMaxHp;
+      const healAmt = Math.floor(maxHp * 0.3);
+      petHpRef.current = Math.min(maxHp, petHpRef.current + healAmt);
+      setPetHp(petHpRef.current);
+      const nd: DamageNumber = { id: dmgIdRef.current++, x: petPosRef.current.x, y: petPosRef.current.y - 14, value: healAmt, isHeal: true };
+      setDamageNumbers(prev => [...prev, nd]);
+      setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== nd.id)), 1200);
+
+    } else if (skill === "Poison") {
+      if (poisonActive) return;
+      setPoisonActive(true);
+      let ticks = 0;
+      const tickDmg = Math.floor(petStatsRef.current.atk * 0.18);
+      const timer = setInterval(() => {
+        if (!battleActiveRef.current) { clearInterval(timer); setPoisonActive(false); return; }
+        ticks++;
+        enemyHpRef.current = Math.max(0, enemyHpRef.current - tickDmg);
+        setEnemyHp(enemyHpRef.current);
+        const ePos = enemyPosRef.current;
+        const nd: DamageNumber = { id: dmgIdRef.current++, x: ePos.x + (Math.random() * 14 - 7), y: ePos.y - 10, value: tickDmg };
+        setDamageNumbers(prev => [...prev, nd]);
+        setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== nd.id)), 900);
+        if (ticks >= 6 || enemyHpRef.current <= 0) {
+          clearInterval(timer);
+          setPoisonActive(false);
+          poisonTimerRef.current = null;
+          if (enemyHpRef.current <= 0) handleEnemyDeathRef.current();
+        }
+      }, 900);
+      poisonTimerRef.current = timer;
+    }
+  }, [pet?.specialSkill, skillCooldown, petMaxHp]);
 
   const handleSlashEnd = useCallback((_e: React.PointerEvent) => {
     if (!isSlashingRef.current) return;
@@ -827,6 +939,28 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           0%   { opacity: 0.6; }
           50%  { opacity: 1; }
           100% { opacity: 0.6; }
+        }
+        @keyframes poisonPulse {
+          0%   { transform: translate(-50%,-50%) scale(1);   opacity: 0.6; }
+          50%  { transform: translate(-50%,-50%) scale(1.2); opacity: 1; }
+          100% { transform: translate(-50%,-50%) scale(1);   opacity: 0.6; }
+        }
+        @keyframes healBurst {
+          0%   { transform: translate(-50%,-50%) scale(0.4); opacity: 1; }
+          60%  { transform: translate(-50%,-50%) scale(1.3); opacity: 0.7; }
+          100% { transform: translate(-50%,-50%) scale(1.8); opacity: 0; }
+        }
+        @keyframes skillOrbFly0 {
+          0%   { transform: translate(-50%,-50%) translateY(0)  scale(1); opacity: 1; }
+          100% { transform: translate(-50%,-50%) translateY(-90px) scale(0.6); opacity: 0; }
+        }
+        @keyframes skillOrbFly1 {
+          0%   { transform: translate(-50%,-50%) translateY(0)  scale(1); opacity: 1; }
+          100% { transform: translate(-50%,-50%) translateY(-120px) scale(0.6); opacity: 0; }
+        }
+        @keyframes skillOrbFly2 {
+          0%   { transform: translate(-50%,-50%) translateY(0)  scale(1); opacity: 1; }
+          100% { transform: translate(-50%,-50%) translateY(-100px) scale(0.6); opacity: 0; }
         }
         @keyframes comboText {
           0% { transform: scale(0.5); opacity: 0; }
@@ -962,7 +1096,62 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                     />
                   </div>
                   <div className="text-gray-300 text-[10px] mt-0.5">{petHp} / {petMaxHp}</div>
+
+                  {/* Mana bar — only shown if pet has a special skill */}
+                  {pet.specialSkill && (
+                    <div className="mt-1.5">
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className="text-[9px] font-fantasy tracking-widest" style={{ color: "#a78bfa" }}>MANA</span>
+                        <span className="text-[9px] text-white/40">{mana}/{MAX_MANA}</span>
+                      </div>
+                      <div className="h-2 bg-black/60 rounded-full overflow-hidden border border-purple-900/60">
+                        <div
+                          className="h-full rounded-full transition-all duration-300"
+                          style={{
+                            width: `${(mana / MAX_MANA) * 100}%`,
+                            background: mana >= MAX_MANA
+                              ? "linear-gradient(90deg, #7c3aed, #a78bfa, #c4b5fd)"
+                              : "linear-gradient(90deg, #4c1d95, #7c3aed)",
+                            boxShadow: mana >= MAX_MANA ? "0 0 10px rgba(167,139,250,0.8)" : undefined,
+                            animation: mana >= MAX_MANA ? "tensionPulse 0.8s ease-in-out infinite" : undefined,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
+
+                {/* Special skill button — shown when pet has a skill */}
+                {pet.specialSkill && phase === "battle" && (
+                  <button
+                    data-testid="button-use-skill"
+                    onClick={useSpecialSkill}
+                    disabled={mana < MAX_MANA || skillCooldown}
+                    className="flex-shrink-0 flex flex-col items-center justify-center rounded-xl border transition-all"
+                    style={{
+                      width: 56, height: 56,
+                      background: mana >= MAX_MANA && !skillCooldown
+                        ? "linear-gradient(135deg, #4c1d95, #7c3aed)"
+                        : "rgba(0,0,0,0.5)",
+                      borderColor: mana >= MAX_MANA && !skillCooldown ? "#a78bfa" : "rgba(255,255,255,0.1)",
+                      boxShadow: mana >= MAX_MANA && !skillCooldown ? "0 0 18px rgba(167,139,250,0.7)" : undefined,
+                      opacity: skillCooldown ? 0.5 : 1,
+                      animation: mana >= MAX_MANA && !skillCooldown ? "tensionPulse 0.7s ease-in-out infinite" : undefined,
+                      cursor: mana >= MAX_MANA && !skillCooldown ? "pointer" : "not-allowed",
+                    }}
+                  >
+                    <span style={{ fontSize: 22, lineHeight: 1 }}>
+                      {pet.specialSkill === "Lazer" ? "⚡" :
+                       pet.specialSkill === "Bubble" ? "🫧" :
+                       pet.specialSkill === "Heal Self" || pet.specialSkill === "Heal Party" ? "💚" :
+                       pet.specialSkill === "Poison" ? "☠️" : "✨"}
+                    </span>
+                    <span className="text-[7px] font-fantasy tracking-wider mt-0.5 text-center leading-tight px-0.5"
+                      style={{ color: mana >= MAX_MANA && !skillCooldown ? "#e9d5ff" : "#6b7280" }}>
+                      {skillCooldown ? "CD" : mana >= MAX_MANA ? "READY!" : pet.specialSkill.split(" ")[0].toUpperCase()}
+                    </span>
+                  </button>
+                )}
               </div>
               {comboCount > 1 && phase === "battle" && (
                 <div
@@ -1183,6 +1372,62 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               animation: "tensionPulse 0.4s ease-in-out infinite",
             }}>⚠ LASER INCOMING ⚠</div>
           </div>
+        )}
+
+        {/* ── Pet special skill visuals ── */}
+        {/* Lazer: beam from pet up to enemy */}
+        {skillEffect === "Lazer" && enemyPos.y < petPos.y && (
+          <div className="absolute pointer-events-none z-36" style={{
+            left: `${petPos.x}%`,
+            bottom: `${100 - petPos.y}%`,
+            transform: "translateX(-50%)",
+            width: 6,
+            height: `${petPos.y - enemyPos.y}%`,
+            background: "linear-gradient(0deg, rgba(250,204,21,0.9) 0%, rgba(251,191,36,0.6) 60%, rgba(253,224,71,0.2) 100%)",
+            boxShadow: "0 0 16px rgba(250,204,21,0.9), 0 0 6px white",
+            borderRadius: 4,
+            animation: "laserPulse 0.12s ease-in-out infinite alternate",
+          }} />
+        )}
+        {/* Bubble: 3 floating orbs traveling from pet to enemy */}
+        {skillEffect === "Bubble" && [0, 1, 2].map((i) => (
+          <div key={i} className="absolute pointer-events-none z-36" style={{
+            left: `${petPos.x + (i - 1) * 5}%`,
+            top: `${petPos.y - i * 12}%`,
+            transform: "translate(-50%, -50%)",
+            width: 18, height: 18,
+            borderRadius: "50%",
+            background: "radial-gradient(circle at 35% 30%, rgba(200,240,255,0.95), rgba(100,200,255,0.3))",
+            border: "1.5px solid rgba(160,220,255,0.9)",
+            boxShadow: "0 0 10px rgba(100,200,255,0.7)",
+            animation: `skillOrbFly${i} 0.6s ease-out forwards`,
+          }} />
+        ))}
+        {/* Poison: green shimmer on enemy */}
+        {poisonActive && (
+          <div className="absolute pointer-events-none z-26" style={{
+            left: `${enemyPos.x}%`,
+            top: `${enemyPos.y}%`,
+            transform: "translate(-50%, -50%)",
+            width: 80, height: 80,
+            borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(34,197,94,0.25) 0%, transparent 70%)",
+            boxShadow: "0 0 24px rgba(34,197,94,0.4)",
+            animation: "poisonPulse 0.9s ease-in-out infinite",
+          }} />
+        )}
+        {/* Heal: green burst around pet */}
+        {(skillEffect === "Heal Self" || skillEffect === "Heal Party") && (
+          <div className="absolute pointer-events-none z-36" style={{
+            left: `${petPos.x}%`,
+            top: `${petPos.y}%`,
+            transform: "translate(-50%, -50%)",
+            width: 120, height: 120,
+            borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(34,197,94,0.5) 0%, transparent 65%)",
+            boxShadow: "0 0 32px rgba(34,197,94,0.6)",
+            animation: "healBurst 0.9s ease-out forwards",
+          }} />
         )}
 
         {/* Boss laser beam */}

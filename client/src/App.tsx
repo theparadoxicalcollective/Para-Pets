@@ -1,4 +1,4 @@
-import { Switch, Route, Redirect } from "wouter";
+import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -18,7 +18,13 @@ import VisitPetHousePage from "@/pages/VisitPetHousePage";
 import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
 import BadgePage from "@/pages/BadgePage";
 import MarketPage from "@/pages/MarketPage";
+import PvpArenaPage from "@/pages/PvpArenaPage";
 import WelcomeGiftScreen from "@/components/WelcomeGiftScreen";
+
+function PvpArenaWrapper() {
+  const [, setLocation] = useLocation();
+  return <PvpArenaPage onClose={() => setLocation("/")} />;
+}
 
 function AppRouter() {
   const { data: user, isLoading } = useQuery<any>({
@@ -87,6 +93,9 @@ function AppRouter() {
       </Route>
       <Route path="/market">
         {user ? <MarketPage user={user} onUserUpdate={u => queryClient.setQueryData(["/api/auth/me"], u)} /> : <Redirect to="/auth" />}
+      </Route>
+      <Route path="/pvp">
+        {user ? <PvpArenaWrapper /> : <Redirect to="/auth" />}
       </Route>
       <Route path="/">
         {user ? <HomePage user={user} /> : <Redirect to="/auth" />}
