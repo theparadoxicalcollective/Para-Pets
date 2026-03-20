@@ -1,5 +1,6 @@
 import { useRef, useState, useCallback, useEffect, useMemo } from "react";
 import PetAnimator from "@/components/PetAnimator";
+import powerupBagIcon from "@assets/generated_images/icon_powerup_bag.png";
 
 // ── Inline success-animation configs (mirrors PowerUpOverlay) ──────────────
 const EFFECT_CONFIGS = {
@@ -473,7 +474,7 @@ export default function PetPowerUpModal({
       <div className="flex-1 overflow-y-auto px-4 pb-6" style={{ scrollbarWidth: "thin" }}>
         {items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 gap-3">
-            <span className="text-5xl">🎒</span>
+            <img src={powerupBagIcon} alt="" style={{ width: 80, height: 80, objectFit: "contain", filter: "drop-shadow(0 0 12px rgba(240,192,64,0.5))" }} />
             <p className="font-fantasy text-[#a89878] text-sm text-center">No power-up items in your bag</p>
             <p className="font-fantasy text-[#6a5840] text-[10px] text-center">Visit the shop to stock up!</p>
           </div>
@@ -518,7 +519,7 @@ export default function PetPowerUpModal({
                         style={{ background: `${color}18`, border: `1px solid ${color}30` }}>
                         {item.imageUrl
                           ? <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
-                          : <span className="text-2xl">📦</span>
+                          : <img src={powerupBagIcon} alt="" className="w-full h-full object-contain" />
                         }
                       </div>
 
@@ -575,7 +576,7 @@ export default function PetPowerUpModal({
         >
           {dragging.item.imageUrl
             ? <img src={dragging.item.imageUrl} alt={dragging.item.name} style={{ width: 40, height: 40, objectFit: "contain" }} />
-            : <span style={{ fontSize: 32 }}>📦</span>
+            : <img src={powerupBagIcon} alt="" style={{ width: 40, height: 40, objectFit: "contain" }} />
           }
           <span className="font-fantasy text-[8px] text-center leading-tight w-full" style={{ color: itemColor(dragging.item) }}>
             {itemLabel(dragging.item)}
