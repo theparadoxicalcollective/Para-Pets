@@ -183,6 +183,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const enemyStatsRef = useRef({ atk: 20, def: 10 });
   const enemyDifficultyRef = useRef(0.5);
   const enemyHitCountRef = useRef(0);
+  // Cooldown so enemy can't deal damage on every frame (prevents instant-kill on overlap)
+  const lastCollisionDmgRef = useRef(0);
 
   const { data: inventory = [] } = useQuery<any[]>({ queryKey: ["/api/inventory"] });
 
@@ -268,6 +270,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         setLaserWarning(false);
         setBossEnlarged(false);
         lastBossHitTimeRef.current = 0;
+        lastCollisionDmgRef.current = 0;
         const diff = enemyDifficultyRef.current;
         const baseSpeed = 0.5 + diff * 0.6;
         setEnemyPos({
@@ -336,6 +339,22 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     const pos = enemyPosRef.current;
     const petDist = Math.hypot(pos.x - petPosRef.current.x, pos.y - petPosRef.current.y);
     if (petDist < 13) {
+      // ── Always bounce the pet away from the enemy so it can't be camped ──
+      if (!petDraggingRef.current) {
+        const dx = petPosRef.current.x - pos.x;
+        const dy = petPosRef.current.y - pos.y;
+        const d = Math.hypot(dx, dy) || 1;
+        const bounceX = Math.max(8, Math.min(92, petPosRef.current.x + (dx / d) * 14));
+        const bounceY = Math.max(52, Math.min(92, petPosRef.current.y + (dy / d) * 14));
+        petPosRef.current = { x: bounceX, y: bounceY };
+        setPetPos({ x: bounceX, y: bounceY });
+      }
+
+      // ── Damage cooldown: only hit once every 700 ms ──────────────────────
+      const now = Date.now();
+      if (now - lastCollisionDmgRef.current < 700) return;
+      lastCollisionDmgRef.current = now;
+
       enemyHitCountRef.current += 1;
       const hitCount = enemyHitCountRef.current;
       const isCrit = hitCount > 0 && hitCount % 6 === 0;
@@ -382,6 +401,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       setDamageNumbers(prev => [...prev, newDmg]);
       setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== newDmg.id)), isCrit ? 1500 : 1000);
 
+      // Bounce the enemy back too
       enemyPosRef.current = { ...pos, vy: -Math.abs(pos.vy) * 0.9, vx: pos.vx * 0.7 };
       setEnemyPos({ ...enemyPosRef.current });
 
@@ -1204,7 +1224,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               </div>
             )}
 
-            {/* Pet — draggable */}
+            {/* Pet — visual + centered drag handle */}
             <div
               className="absolute z-10"
               style={{
@@ -1212,16 +1232,11 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                 top: `${petPos.y}%`,
                 transform: "translate(-50%, -50%)",
                 animation: petHit ? "petHitBounce 0.4s ease-out" : undefined,
-                cursor: phase === "battle" ? (petDraggingRef.current ? "grabbing" : "grab") : "default",
-                touchAction: "none",
-                userSelect: "none",
                 filter: petHit ? "drop-shadow(0 0 14px rgba(239,68,68,0.9))" : undefined,
-                transition: petDraggingRef.current ? undefined : "left 0.05s, top 0.05s",
+                transition: petDraggingRef.current ? undefined : "left 0.08s, top 0.08s",
+                userSelect: "none",
+                pointerEvents: "none",
               }}
-              onPointerDown={phase === "battle" ? handlePetPointerDown : undefined}
-              onPointerMove={phase === "battle" ? handlePetPointerMove : undefined}
-              onPointerUp={phase === "battle" ? handlePetPointerUp : undefined}
-              onPointerCancel={phase === "battle" ? handlePetPointerUp : undefined}
             >
               {pet.petTemplateId ? (
                 <PetAnimator
@@ -1240,12 +1255,38 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               ) : (
                 <span className="text-6xl">🐾</span>
               )}
+
+              {/* Small centered grab zone — requires a direct tap to drag */}
+              {phase === "battle" && (
+                <div
+                  data-testid="pet-grab-handle"
+                  style={{
+                    position: "absolute",
+                    left: "50%",
+                    top: "50%",
+                    transform: "translate(-50%, -50%)",
+                    width: 64,
+                    height: 64,
+                    borderRadius: "50%",
+                    border: "2px dashed rgba(255,255,255,0.25)",
+                    background: "rgba(255,255,255,0.04)",
+                    cursor: petDraggingRef.current ? "grabbing" : "grab",
+                    touchAction: "none",
+                    pointerEvents: "auto",
+                    zIndex: 10,
+                  }}
+                  onPointerDown={handlePetPointerDown}
+                  onPointerMove={handlePetPointerMove}
+                  onPointerUp={handlePetPointerUp}
+                  onPointerCancel={handlePetPointerUp}
+                />
+              )}
             </div>
 
             {phase === "battle" && (
               <div className="absolute inset-0 z-15 pointer-events-none">
                 <div className="absolute bottom-36 left-1/2 -translate-x-1/2 text-white/25 text-[10px] font-medium animate-pulse tracking-widest text-center whitespace-nowrap">
-                  Slash enemy · Drag pet to dodge
+                  Slash enemy · Tap pet center to drag
                 </div>
               </div>
             )}
