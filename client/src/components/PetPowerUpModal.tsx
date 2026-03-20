@@ -1,5 +1,12 @@
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback, useEffect, useMemo } from "react";
 import PetAnimator from "@/components/PetAnimator";
+
+// ── Inline success-animation configs (mirrors PowerUpOverlay) ──────────────
+const EFFECT_CONFIGS = {
+  stat:  { color: "#4ade80", rgb: "74,222,128",  icon: "💪", title: "POWER UP!", particleColors: ["#4ade80","#86efac","#bbf7d0","#22c55e","#fff"] },
+  level: { color: "#f0c040", rgb: "240,192,64",  icon: "⭐", title: "LEVEL UP!",  particleColors: ["#f0c040","#fbbf24","#fde68a","#fcd34d","#fff"] },
+  hatch: { color: "#38bdf8", rgb: "56,189,248",  icon: "⏰", title: "SPEED UP!",  particleColors: ["#38bdf8","#7dd3fc","#bae6fd","#0ea5e9","#c4b5fd"] },
+} as const;
 
 export interface PowerUpItem {
   inventoryId: string;
@@ -24,6 +31,7 @@ interface PetPowerUpModalProps {
   isPending: boolean;
   title?: string;
   subtitle?: string;
+  successEffect?: { type: "stat" | "level" | "hatch"; label: string } | null;
   onUseItem: (item: PowerUpItem) => void;
   onClose: () => void;
 }
@@ -107,11 +115,14 @@ function itemSoundType(item: PowerUpItem): "stat" | "level" | "hatch" {
   return "stat";
 }
 
+const ANIM_DURATION = 2400;
+
 // ── Component ────────────────────────────────────────────────────────────────
 export default function PetPowerUpModal({
   petName, petImage, petTemplateId, rarity,
   petLevel, itemsRemaining, items, isPending,
   title = "POWER UP", subtitle,
+  successEffect,
   onUseItem, onClose,
 }: PetPowerUpModalProps) {
   const petZoneRef    = useRef<HTMLDivElement>(null);
@@ -126,6 +137,31 @@ export default function PetPowerUpModal({
 
   // Keep dragging ref synced
   useEffect(() => { draggingRef.current = dragging; }, [dragging]);
+
+  // Auto-close after animation completes when a success effect fires
+  useEffect(() => {
+    if (!successEffect) return;
+    const t = setTimeout(onClose, ANIM_DURATION);
+    return () => clearTimeout(t);
+  }, [successEffect, onClose]);
+
+  // Pre-generate particles for the inline animation (stable across renders)
+  const animParticles = useMemo(() => {
+    if (!successEffect) return [];
+    const cfg = EFFECT_CONFIGS[successEffect.type];
+    return Array.from({ length: 24 }, (_, i) => {
+      const angle = (i / 24) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+      const dist  = 70 + Math.random() * 110;
+      return {
+        px: Math.cos(angle) * dist,
+        py: Math.sin(angle) * dist,
+        size: 5 + Math.random() * 8,
+        delay: Math.random() * 0.2,
+        color: cfg.particleColors[Math.floor(Math.random() * cfg.particleColors.length)],
+      };
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [successEffect?.type]);
 
   // ── Use an item ────────────────────────────────────────────────────────────
   const useItem = useCallback((item: PowerUpItem) => {
@@ -188,10 +224,12 @@ export default function PetPowerUpModal({
 
   const rarityStars = Array.from({ length: rarity }, (_, i) => i);
 
+  const animCfg = successEffect ? EFFECT_CONFIGS[successEffect.type] : null;
+
   return (
     <div
       className="fixed inset-0 z-[200] flex flex-col"
-      style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, background: "rgba(0,0,0,0.92)", backdropFilter: "blur(6px)" }}
+      style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, background: "rgba(0,0,0,0.92)", backdropFilter: "blur(6px)", paddingTop: "8%" }}
     >
       <style>{`
         @keyframes puMBounce {
@@ -224,7 +262,117 @@ export default function PetPowerUpModal({
           0%,100%{ transform:translate(-50%,-50%) rotate(-3deg) scale(1.05); }
           50%    { transform:translate(-50%,-50%) rotate(2deg) scale(1.08); }
         }
+        @keyframes puMRingExpand {
+          0%   { transform: scale(0.5); opacity: 0.9; }
+          100% { transform: scale(6);   opacity: 0; }
+        }
+        @keyframes puMRayFade {
+          0%   { opacity: 0.7; transform: scaleY(0.4) rotate(var(--r)); }
+          60%  { opacity: 0.5; }
+          100% { opacity: 0;   transform: scaleY(1.2) rotate(var(--r)); }
+        }
+        @keyframes puMParticle {
+          0%   { transform: translate(0,0) scale(1); opacity: 1; }
+          100% { transform: translate(var(--px),var(--py)) scale(0.15); opacity: 0; }
+        }
+        @keyframes puMStar {
+          0%   { opacity: 0; transform: translate(-50%,-50%) scale(0.3); }
+          40%  { opacity: 1; }
+          100% { opacity: 0; transform: translate(-50%,-50%) scale(1.5); }
+        }
+        @keyframes puMContentPop {
+          0%   { transform: scale(0.6); opacity: 0; }
+          60%  { transform: scale(1.08); }
+          100% { transform: scale(1);   opacity: 1; }
+        }
+        @keyframes puMOverlayFade {
+          0%   { opacity: 1; }
+          70%  { opacity: 0.9; }
+          100% { opacity: 0; }
+        }
       `}</style>
+
+      {/* ── Inline success animation — shown after item use, while modal stays open ── */}
+      {successEffect && animCfg && (
+        <div
+          className="absolute inset-0 z-[50] pointer-events-none overflow-hidden flex items-center justify-center"
+          style={{ animation: `puMOverlayFade ${ANIM_DURATION}ms ease-out forwards` }}
+        >
+          {/* Colour wash */}
+          <div className="absolute inset-0" style={{
+            background: `radial-gradient(ellipse at center, rgba(${animCfg.rgb},0.18) 0%, rgba(0,0,0,0.5) 100%)`,
+          }} />
+          {/* Flash */}
+          <div className="absolute inset-0" style={{
+            background: `radial-gradient(circle at center, rgba(${animCfg.rgb},0.45) 0%, transparent 65%)`,
+            animation: "puMFlash 0.5s ease-out forwards",
+          }} />
+          {/* Expanding rings */}
+          {[0, 0.15, 0.3].map((delay, i) => (
+            <div key={i} className="absolute rounded-full" style={{
+              width: 60, height: 60,
+              border: `3px solid rgba(${animCfg.rgb},${0.9 - i * 0.2})`,
+              animation: `puMRingExpand 1.3s ${delay}s ease-out forwards`,
+              opacity: 0,
+            }} />
+          ))}
+          {/* Rays */}
+          {Array.from({ length: 10 }, (_, i) => (
+            <div key={i} className="absolute" style={{
+              width: 2, height: 220,
+              background: `linear-gradient(to bottom, transparent 0%, rgba(${animCfg.rgb},0.6) 40%, rgba(${animCfg.rgb},0.3) 70%, transparent 100%)`,
+              ["--r" as any]: `${i * 36}deg`,
+              transform: `rotate(${i * 36}deg)`,
+              animation: `puMRayFade 1.0s ${i * 0.05}s ease-out forwards`,
+              opacity: 0,
+            }} />
+          ))}
+          {/* Particles */}
+          {animParticles.map((p, i) => (
+            <div key={i} className="absolute rounded-full" style={{
+              width: p.size, height: p.size,
+              background: p.color,
+              boxShadow: `0 0 ${p.size * 2}px ${p.color}`,
+              ["--px" as any]: `${p.px}px`,
+              ["--py" as any]: `${p.py}px`,
+              animation: `puMParticle 1.1s ${p.delay}s ease-out forwards`,
+              opacity: 0,
+            }} />
+          ))}
+          {/* Stars */}
+          {Array.from({ length: 8 }, (_, i) => {
+            const a = (i / 8) * Math.PI * 2;
+            const d = 55 + Math.random() * 50;
+            return (
+              <div key={`star-${i}`} className="absolute font-bold" style={{
+                fontSize: 12 + Math.random() * 10,
+                color: animCfg.particleColors[i % animCfg.particleColors.length],
+                left: `calc(50% + ${Math.cos(a) * d}px)`,
+                top:  `calc(50% + ${Math.sin(a) * d}px)`,
+                animation: `puMStar 1.2s ${i * 0.07}s ease-out forwards`,
+                opacity: 0,
+                transform: "translate(-50%,-50%)",
+                filter: `drop-shadow(0 0 6px ${animCfg.color})`,
+              }}>✦</div>
+            );
+          })}
+          {/* Center content */}
+          <div className="relative flex flex-col items-center gap-3 z-10" style={{ animation: "puMContentPop 0.6s ease-out both" }}>
+            <div style={{ fontSize: 72, lineHeight: 1, filter: `drop-shadow(0 0 20px rgba(${animCfg.rgb},0.9))` }}>
+              {animCfg.icon}
+            </div>
+            <div className="font-fantasy text-4xl font-bold tracking-wider"
+              data-testid="text-power-up-success"
+              style={{ color: animCfg.color, textShadow: `0 0 24px rgba(${animCfg.rgb},1), 0 0 48px rgba(${animCfg.rgb},0.5)` }}>
+              {successEffect.label}
+            </div>
+            <div className="font-fantasy text-sm tracking-[0.3em] uppercase"
+              style={{ color: `rgba(${animCfg.rgb},0.8)`, textShadow: `0 0 12px rgba(${animCfg.rgb},0.6)` }}>
+              {animCfg.title}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Header */}
       <div className="flex items-center justify-between px-5 pt-5 pb-3 flex-shrink-0">

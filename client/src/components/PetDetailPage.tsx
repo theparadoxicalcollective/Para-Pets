@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -61,17 +61,22 @@ interface PetDetailPageProps {
 
 export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUserUpdate }: PetDetailPageProps) {
   const [showPowerUpModal, setShowPowerUpModal] = useState(false);
+  const showPowerUpModalRef = useRef(false);
   const [powerUpModalMode, setPowerUpModalMode] = useState<"powerup" | "lvlup">("powerup");
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [confirmItem, setConfirmItem] = useState<BagItem | null>(null);
   const [showSuccessAnim, setShowSuccessAnim] = useState(false);
   const [successBoostLabel, setSuccessBoostLabel] = useState("");
   const [successAnimType, setSuccessAnimType] = useState<PowerUpEffectType>("stat");
+  const [modalSuccessEffect, setModalSuccessEffect] = useState<{ type: PowerUpEffectType; label: string } | null>(null);
   const [editingNickname, setEditingNickname] = useState(false);
   const [nicknameInput, setNicknameInput] = useState(pet.petNickname || "");
   const [showAccessoryPicker, setShowAccessoryPicker] = useState(false);
   const [accessoryFlash, setAccessoryFlash] = useState<"equip" | "unequip" | null>(null);
   const { toast } = useToast();
+
+  // Keep modal open ref in sync so mutation callbacks can read it reliably
+  useEffect(() => { showPowerUpModalRef.current = showPowerUpModal; }, [showPowerUpModal]);
   const queryClient = useQueryClient();
 
   const nicknameMutation = useMutation({
@@ -164,11 +169,16 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
       const boostLabel = item
         ? `+${item.statBoostAmount || "?"} ${item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "LVL"}`
         : "Power Up!";
-      setSuccessBoostLabel(boostLabel);
-      setSuccessAnimType("stat");
-      setShowSuccessAnim(true);
       setConfirmItem(null);
-      setShowPowerUpModal(false);
+      if (showPowerUpModalRef.current) {
+        // Show animation inside the modal — modal will auto-close after it finishes
+        setModalSuccessEffect({ type: "stat", label: boostLabel });
+      } else {
+        setSuccessBoostLabel(boostLabel);
+        setSuccessAnimType("stat");
+        setShowSuccessAnim(true);
+        setShowPowerUpModal(false);
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       onUpdate();
     },
@@ -189,11 +199,16 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
       const label = isHatchTime
         ? `-${item.specialAmount || "?"} min`
         : `+${item?.specialAmount || "?"} LVL pts`;
-      setSuccessBoostLabel(label);
-      setSuccessAnimType(isHatchTime ? "hatch" : "level");
-      setShowSuccessAnim(true);
+      const effectType: PowerUpEffectType = isHatchTime ? "hatch" : "level";
       setConfirmItem(null);
-      setShowPowerUpModal(false);
+      if (showPowerUpModalRef.current) {
+        setModalSuccessEffect({ type: effectType, label });
+      } else {
+        setSuccessBoostLabel(label);
+        setSuccessAnimType(effectType);
+        setShowSuccessAnim(true);
+        setShowPowerUpModal(false);
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       onUpdate();
     },
@@ -761,8 +776,9 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
           title={powerUpModalMode === "lvlup" ? "LVL UP" : "POWER UP"}
           subtitle={powerUpModalMode === "lvlup" ? "Drag a level-up item onto your pet · or tap to use" : undefined}
           isPending={powerUpMutation.isPending || useSpecialMutation.isPending}
+          successEffect={modalSuccessEffect}
           onUseItem={handlePowerUpModalUse}
-          onClose={() => setShowPowerUpModal(false)}
+          onClose={() => { setShowPowerUpModal(false); setModalSuccessEffect(null); }}
         />
       )}
     </div>
