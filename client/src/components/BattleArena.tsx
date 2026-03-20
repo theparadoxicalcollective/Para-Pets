@@ -155,6 +155,13 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const orbSpawnEndRef = useRef(0);
   const petFrozenRef = useRef(false);
   const lastBossHitTimeRef = useRef(0);
+  // Consecutive boss hits in the current hold gesture (for break-free mechanic)
+  const consecutiveBossHitsRef = useRef(0);
+  // Boss immune until this timestamp after breaking free
+  const bossImmuneUntilRef = useRef(0);
+  const [breakFreeEffect, setBreakFreeEffect] = useState(false);
+  // Displayed streak count while wailing on the boss
+  const [bossHitStreak, setBossHitStreak] = useState(0);
 
   // Mana & special skill
   const [mana, setMana] = useState(0);
@@ -271,6 +278,9 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         setBossEnlarged(false);
         lastBossHitTimeRef.current = 0;
         lastCollisionDmgRef.current = 0;
+        consecutiveBossHitsRef.current = 0;
+        bossImmuneUntilRef.current = 0;
+        setBossHitStreak(0);
         const diff = enemyDifficultyRef.current;
         const baseSpeed = 0.5 + diff * 0.6;
         setEnemyPos({
@@ -600,13 +610,16 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const checkSegmentHit = useCallback((ax: number, ay: number, bx: number, by: number) => {
     if (!battleActiveRef.current || !enemy) return;
 
-    // For bosses: allow multi-swipe hits (one hit per 350ms cooldown)
-    // For regular enemies: only one hit per full swipe gesture
+    const now = Date.now();
+
     if (enemy.isBoss) {
-      const now = Date.now();
-      if (now - lastBossHitTimeRef.current < 350) return;
+      // Skip if boss is immune after breaking free
+      if (now < bossImmuneUntilRef.current) return;
+      // 300ms cooldown between hits — allows rapid multi-pass combo
+      if (now - lastBossHitTimeRef.current < 300) return;
       lastBossHitTimeRef.current = now;
     } else {
+      // Regular enemies: only one hit per full swipe gesture
       if (hitEnemiesRef.current.has(enemy.enemyId)) return;
     }
 
@@ -620,13 +633,12 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
 
     const ePos = enemyPosRef.current;
     const dist = segmentPointDist(ax, ay, bx, by, ePos.x, ePos.y);
-    const hitRadius = enemy.isBoss ? 22 : 16;
+    const hitRadius = enemy.isBoss ? 24 : 16;
     if (dist >= hitRadius) return;
 
-    // Register hit — enemy can only be struck once per swipe
+    // Register hit — enemy can only be struck once per swipe (non-boss)
     hitEnemiesRef.current.add(enemy.enemyId);
 
-    const now = Date.now();
     let combo = comboCount;
     if (now - lastHitTime < 1400) combo += 1; else combo = 1;
     setComboCount(combo);
@@ -673,14 +685,43 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     const sparkIds = new Set(newSparks.map(s => s.id));
     setTimeout(() => setSparkParticles(prev => prev.filter(s => !sparkIds.has(s.id))), 480);
 
-    // Knockback in the slash direction
-    const sdx = bx - ax, sdy = by - ay;
-    const sLen = Math.hypot(sdx, sdy) || 1;
-    enemyPosRef.current = {
-      ...ePos,
-      vx: (sdx / sLen) * 3 + (Math.random() - 0.5),
-      vy: (sdy / sLen) * 3 + (Math.random() - 0.5),
-    };
+    // ── Boss consecutive hit tracking & break-free ────────────────────────
+    if (enemy.isBoss) {
+      consecutiveBossHitsRef.current += 1;
+      setBossHitStreak(consecutiveBossHitsRef.current);
+      if (consecutiveBossHitsRef.current >= 6) {
+        // Boss breaks free — violent knockback + brief immunity
+        consecutiveBossHitsRef.current = 0;
+        setBossHitStreak(0);
+        bossImmuneUntilRef.current = now + 1400;
+        // Burst away from the center of the arena (unpredictable escape)
+        const escapeAngle = Math.random() * Math.PI * 2;
+        enemyPosRef.current = {
+          x: Math.max(15, Math.min(85, ePos.x)),
+          y: Math.max(8, Math.min(50, ePos.y)),
+          vx: Math.cos(escapeAngle) * 5,
+          vy: Math.sin(escapeAngle) * 4 - 2,
+        };
+        setEnemyPos({ ...enemyPosRef.current });
+        setBreakFreeEffect(true);
+        setTimeout(() => setBreakFreeEffect(false), 900);
+      } else {
+        // Normal boss knockback
+        const sdx = bx - ax, sdy = by - ay;
+        const sLen = Math.hypot(sdx, sdy) || 1;
+        enemyPosRef.current = { ...ePos, vx: (sdx / sLen) * 2.5, vy: (sdy / sLen) * 2.5 };
+        setEnemyPos({ ...enemyPosRef.current });
+      }
+    } else {
+      // Regular enemy knockback
+      const sdx = bx - ax, sdy = by - ay;
+      const sLen = Math.hypot(sdx, sdy) || 1;
+      enemyPosRef.current = {
+        ...ePos,
+        vx: (sdx / sLen) * 3 + (Math.random() - 0.5),
+        vy: (sdy / sLen) * 3 + (Math.random() - 0.5),
+      };
+    }
 
     // Damage number
     const dmgNum: DamageNumber = {
@@ -709,6 +750,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     swipePathRef.current = [pos];
     lastSwipePointRef.current = pos;
     hitEnemiesRef.current = new Set();
+    consecutiveBossHitsRef.current = 0;
+    setBossHitStreak(0);
     isSlashingRef.current = true;
     setTrailFading(false);
     setSlashTrail([pos]);
@@ -731,12 +774,16 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     lastSwipePointRef.current = pos;
     setSlashTrail([...swipePathRef.current]);
 
-    // Real-time hit detection on this new segment
+    // Segment hit check — tests the latest path segment against the enemy
     const path = swipePathRef.current;
     if (path.length >= 2) {
       const prev = path[path.length - 2];
       checkSegmentHit(prev.x, prev.y, pos.x, pos.y);
     }
+
+    // Proximity hit check — also test the current finger position directly
+    // This ensures boss hits register even during slow back-and-forth passes
+    checkSegmentHit(pos.x, pos.y, pos.x, pos.y);
   }, [checkSegmentHit]);
 
   // ── Pet drag handlers ────────────────────────────────────────────────────
@@ -1221,6 +1268,23 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                     ⚠ BOSS ⚠
                   </div>
                 )}
+                {enemy.isBoss && bossHitStreak > 0 && !breakFreeEffect && (
+                  <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 flex gap-1 items-center">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="rounded-full"
+                        style={{
+                          width: 7,
+                          height: 7,
+                          background: i < bossHitStreak ? "#ff4444" : "rgba(255,255,255,0.2)",
+                          boxShadow: i < bossHitStreak ? "0 0 6px rgba(255,60,60,0.9)" : undefined,
+                          transition: "background 0.1s, box-shadow 0.1s",
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -1412,6 +1476,24 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               letterSpacing: "0.15em",
               animation: "tensionPulse 0.4s ease-in-out infinite",
             }}>⚠ LASER INCOMING ⚠</div>
+          </div>
+        )}
+
+        {/* Boss break-free flash */}
+        {breakFreeEffect && (
+          <div
+            className="absolute inset-0 z-40 pointer-events-none flex items-center justify-center"
+            style={{ background: "rgba(255,60,60,0.12)" }}
+          >
+            <div style={{
+              fontFamily: "Cinzel, serif",
+              fontSize: 18,
+              fontWeight: 900,
+              color: "#ff2222",
+              textShadow: "0 0 24px #ff0000, 0 0 10px rgba(255,80,80,0.9), 0 2px 0 #000",
+              letterSpacing: "0.18em",
+              animation: "tensionPulse 0.25s ease-in-out infinite",
+            }}>💥 BREAKS FREE! 💥</div>
           </div>
         )}
 
