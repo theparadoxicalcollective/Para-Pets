@@ -406,18 +406,19 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     const progressDrags   = [0.0018, 0.0032, 0.0105, 0.0160, 0.0220];
     // Probability per frame a surge begins — 1★/2★ surge more often now
     const surgeChances    = [0.0068, 0.0100, 0.0165, 0.0240, 0.0320];
-    // Instant tension spike on surge
-    const surgeTSpikes    = [0.09,   0.14,   0.46,   0.62,   0.76  ];
-    // Instant progress drop on surge
-    const surgePDrops     = [0.04,   0.09,   0.38,   0.54,   0.68  ];
+    // Extra tension added per frame DURING a surge (replaces old instant spike)
+    // Spread over ~30 frames so the player can see the bar rising and react
+    const surgeTPerFrames = [0.008,  0.011,  0.016,  0.022,  0.030 ];
+    // Extra progress drained per frame DURING a surge
+    const surgePPerFrames = [0.003,  0.006,  0.014,  0.019,  0.025 ];
 
-    const reelRate     = reelRates[rarity - 1];
-    const tRise        = tensionRise[rarity - 1];
-    const tFall        = tensionFalls[rarity - 1];
-    const pDrag        = progressDrags[rarity - 1];
-    const surgeChance  = surgeChances[rarity - 1];
-    const surgeTSpike  = surgeTSpikes[rarity - 1];
-    const surgePDrop   = surgePDrops[rarity - 1];
+    const reelRate      = reelRates[rarity - 1];
+    const tRise         = tensionRise[rarity - 1];
+    const tFall         = tensionFalls[rarity - 1];
+    const pDrag         = progressDrags[rarity - 1];
+    const surgeChance   = surgeChances[rarity - 1];
+    const surgeTPerFrame = surgeTPerFrames[rarity - 1];
+    const surgePPerFrame = surgePPerFrames[rarity - 1];
 
     const REEL_TIMEOUT_MS = 30000;
 
@@ -426,7 +427,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     let catchProgress = startProgress[rarity - 1]; // 3★+ fish start nearly escaped
     let tension       = 0;
     let surging       = false;
-    let surgeTimer    = 0;
+    let surgeTimer    = 15 + Math.floor(Math.random() * 20); // initial delay so no instant surge on frame 1
     const startTime   = Date.now();
 
     phaseRef.current = "reeling";
@@ -461,17 +462,20 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         catchProgress = Math.max(0, catchProgress - pDrag);
       }
 
-      // Surge logic — random fish resistance
+      // Surge logic — fish resistance builds over time (no instant spike)
       surgeTimer--;
       if (!surging && surgeTimer <= 0) {
         if (Math.random() < surgeChance) {
-          surging = true;
-          tension       = Math.min(1, tension + surgeTSpike);
-          catchProgress = Math.max(0, catchProgress - surgePDrop);
-          surgeTimer    = 22 + Math.floor(Math.random() * 18);
+          surging    = true;
+          surgeTimer = 25 + Math.floor(Math.random() * 20); // 25-44 frames (~0.4-0.7s)
         } else {
           surgeTimer = 12 + Math.floor(Math.random() * 18);
         }
+      }
+      // During surge: extra tension and progress drain spread over surge duration
+      if (surging) {
+        tension       = Math.min(1, tension + surgeTPerFrame);
+        catchProgress = Math.max(0, catchProgress - surgePPerFrame);
       }
       if (surging && surgeTimer <= 0) surging = false;
 
