@@ -400,8 +400,8 @@ function FeedView({
           data-testid="drop-zone-pet"
           className="relative flex flex-col items-center justify-center"
           style={{
-            width: 280,
-            height: 280,
+            width: 360,
+            height: 360,
             transition: "all 0.15s ease",
           }}
         >
@@ -426,8 +426,8 @@ function FeedView({
           <div
             data-testid="img-feed-pet"
             style={{
-              width: 380,
-              height: 380,
+              width: 480,
+              height: 480,
               filter: isOverPet
                 ? "drop-shadow(0 0 24px rgba(74,222,128,0.9))"
                 : "drop-shadow(0 4px 12px rgba(0,0,0,0.55))",
@@ -439,7 +439,7 @@ function FeedView({
               <PetAnimator
                 petTemplateId={pet.petTemplateId!}
                 mode="idle"
-                size={380}
+                size={480}
               />
             ) : petImg ? (
               <img src={petImg} alt="" className="w-full h-full object-contain" />
