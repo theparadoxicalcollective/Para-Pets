@@ -486,8 +486,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           className="fixed z-40 flex flex-col"
           style={{
             bottom: 0,
-            left: "max(0px, calc((100vw - 768px) / 2))",
-            right: "max(0px, calc((100vw - 768px) / 2))",
+            left: 0,
+            right: 0,
             maxHeight: "58vh",
             background: "linear-gradient(180deg, rgba(6,14,3,0.97) 0%, rgba(8,18,4,0.99) 100%)",
             borderTop: `1.5px solid ${ACCENT}50`,

@@ -161,16 +161,31 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-        {/* Mobile: full screen as normal */}
-        {/* Desktop: centered phone-sized frame with themed background */}
-        <div className="w-full h-[100dvh] md:flex md:items-center md:justify-center md:bg-[#07090f]"
+        {/* Mobile: full screen | Desktop: centered phone frame with gold border */}
+        <div
+          className="w-full h-[100dvh] md:flex md:items-center md:justify-center md:bg-[#07090f]"
           style={{
             backgroundImage: "radial-gradient(ellipse at 30% 60%, rgba(58,30,90,0.45) 0%, transparent 60%), radial-gradient(ellipse at 75% 30%, rgba(20,70,55,0.35) 0%, transparent 55%)",
           }}
         >
           <div
-            className="w-full h-full md:w-[390px] md:max-h-[90vh] md:h-[844px] md:rounded-[2.5rem] md:overflow-hidden md:shadow-[0_0_0_1px_rgba(255,255,255,0.07),0_32px_80px_rgba(0,0,0,0.85)]"
-            style={{ isolation: "isolate" }}
+            className="w-full h-full md:w-[390px] md:h-[min(844px,92dvh)] md:rounded-[2.5rem] md:overflow-hidden"
+            style={{
+              isolation: "isolate",
+              /* transform creates a new containing block so position:fixed children
+                 stay inside this frame instead of escaping to the viewport */
+              transform: "translateZ(0)",
+              /* gold decorative ring — invisible on mobile (full-screen = off-edge),
+                 visible on desktop as the device frame border */
+              boxShadow: [
+                "0 0 0 3px rgba(212,175,55,0.88)",
+                "0 0 0 6px rgba(160,110,0,0.32)",
+                "0 0 0 7px rgba(90,60,0,0.18)",
+                "0 0 44px rgba(212,175,55,0.22)",
+                "inset 0 0 0 1px rgba(255,225,90,0.13)",
+                "0 28px 72px rgba(0,0,0,0.88)",
+              ].join(", "),
+            }}
           >
             <AppRouter />
           </div>

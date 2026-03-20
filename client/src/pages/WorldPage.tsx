@@ -1786,7 +1786,7 @@ export default function WorldPage({ user }: WorldPageProps) {
         className="fixed z-30 font-fantasy text-sm tracking-[0.15em] transition-transform active:scale-95 px-4 py-2 rounded-lg"
         style={{
           bottom: "24px",
-          left: "max(16px, calc((100vw - 768px) / 2 + 16px))",
+          left: 16,
           background: `linear-gradient(135deg, rgba(10,5,15,0.92) 0%, rgba(25,15,35,0.92) 50%, rgba(10,5,15,0.92) 100%)`,
           border: `1.5px solid ${accent}70`,
           color: accent,
@@ -1800,7 +1800,7 @@ export default function WorldPage({ user }: WorldPageProps) {
 
       {currentUser.isAdmin && (
         <div className="fixed z-30 flex items-center gap-2"
-          style={{ bottom: "16px", right: "max(16px, calc((100vw - 768px) / 2 + 16px))" }}
+          style={{ bottom: "16px", right: 16 }}
         >
           <button
             data-testid="button-world-decor"
@@ -2072,8 +2072,8 @@ export default function WorldPage({ user }: WorldPageProps) {
           className="fixed z-40 flex flex-col"
           style={{
             bottom: 0,
-            left: "max(0px, calc((100vw - 768px) / 2))",
-            right: "max(0px, calc((100vw - 768px) / 2))",
+            left: 0,
+            right: 0,
             maxHeight: "60vh",
             background: "linear-gradient(180deg, rgba(8,5,18,0.97) 0%, rgba(15,8,28,0.99) 100%)",
             borderTop: `1.5px solid ${accent}50`,
