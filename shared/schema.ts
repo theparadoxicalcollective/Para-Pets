@@ -403,9 +403,21 @@ export const pvpBattles = pgTable("pvp_battles", {
   opponentSkill: text("opponent_skill"),
   result: text("result").notNull(), // 'win' | 'loss'
   coinsEarned: integer("coins_earned").notNull().default(0),
+  battlePointsDelta: integer("battle_points_delta").notNull().default(0),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
 export const insertPvpBattleSchema = createInsertSchema(pvpBattles).omit({ id: true, createdAt: true });
 export type InsertPvpBattle = z.infer<typeof insertPvpBattleSchema>;
 export type PvpBattle = typeof pvpBattles.$inferSelect;
+
+export const pvpBattleGroups = pgTable("pvp_battle_groups", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique(),
+  petInventoryIds: text("pet_inventory_ids").array().notNull().default(sql`'{}'::text[]`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const insertPvpBattleGroupSchema = createInsertSchema(pvpBattleGroups).omit({ id: true, updatedAt: true });
+export type InsertPvpBattleGroup = z.infer<typeof insertPvpBattleGroupSchema>;
+export type PvpBattleGroup = typeof pvpBattleGroups.$inferSelect;

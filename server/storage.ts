@@ -26,6 +26,7 @@ import {
   type WorldDecorPlacement, worldDecorPlacements,
   type FishBarrel, fishBarrels,
   pvpBattles,
+  pvpBattleGroups,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, ne, gte, asc, desc, ilike, or, sql } from "drizzle-orm";
@@ -172,9 +173,12 @@ export interface IStorage {
   deleteFishBarrel(id: string): Promise<void>;
   deleteFishInventoryItems(fishIds: string[]): Promise<void>;
   // PvP
-  createPvpBattle(data: { userId: string; opponentName: string; opponentImageUrl?: string | null; opponentLevel: number; opponentSkill?: string | null; result: string; coinsEarned: number }): Promise<any>;
+  createPvpBattle(data: { userId: string; opponentName: string; opponentImageUrl?: string | null; opponentLevel: number; opponentSkill?: string | null; result: string; coinsEarned: number; battlePointsDelta?: number }): Promise<any>;
   getPvpBattlesByUser(userId: string, limit?: number): Promise<any[]>;
-  getPvpLeaderboard(limit?: number): Promise<{ userId: string; username: string; wins: number; losses: number; coins: number }[]>;
+  getPvpLeaderboard(limit?: number): Promise<{ userId: string; username: string; profileImage: string | null; battlePoints: number; wins: number; losses: number }[]>;
+  getBattleGroup(userId: string): Promise<any | null>;
+  upsertBattleGroup(userId: string, petInventoryIds: string[]): Promise<any>;
+  getAllBattleGroupsWithUsers(): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1032,7 +1036,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async createPvpBattle(data: { userId: string; opponentName: string; opponentImageUrl?: string | null; opponentLevel: number; opponentSkill?: string | null; result: string; coinsEarned: number }): Promise<any> {
+  async createPvpBattle(data: { userId: string; opponentName: string; opponentImageUrl?: string | null; opponentLevel: number; opponentSkill?: string | null; result: string; coinsEarned: number; battlePointsDelta?: number }): Promise<any> {
     const [row] = await db.insert(pvpBattles).values({
       userId: data.userId,
       opponentName: data.opponentName,
@@ -1041,6 +1045,7 @@ export class DatabaseStorage implements IStorage {
       opponentSkill: data.opponentSkill ?? null,
       result: data.result,
       coinsEarned: data.coinsEarned,
+      battlePointsDelta: data.battlePointsDelta ?? 0,
     }).returning();
     return row;
   }
@@ -1052,27 +1057,59 @@ export class DatabaseStorage implements IStorage {
       .limit(limit);
   }
 
-  async getPvpLeaderboard(limit = 20): Promise<{ userId: string; username: string; wins: number; losses: number; coins: number }[]> {
+  async getPvpLeaderboard(limit = 20): Promise<{ userId: string; username: string; profileImage: string | null; battlePoints: number; wins: number; losses: number }[]> {
     const rows = await db.select({
       userId: pvpBattles.userId,
       username: users.username,
+      profileImage: users.profileImage,
       result: pvpBattles.result,
-      coinsEarned: pvpBattles.coinsEarned,
+      battlePointsDelta: pvpBattles.battlePointsDelta,
     }).from(pvpBattles)
       .leftJoin(users, eq(pvpBattles.userId, users.id));
 
-    const byUser: Record<string, { userId: string; username: string; wins: number; losses: number; coins: number }> = {};
+    const byUser: Record<string, { userId: string; username: string; profileImage: string | null; battlePoints: number; wins: number; losses: number }> = {};
     for (const row of rows) {
       if (!byUser[row.userId]) {
-        byUser[row.userId] = { userId: row.userId, username: row.username || "Unknown", wins: 0, losses: 0, coins: 0 };
+        byUser[row.userId] = { userId: row.userId, username: row.username || "Unknown", profileImage: row.profileImage ?? null, battlePoints: 0, wins: 0, losses: 0 };
       }
+      byUser[row.userId].battlePoints += row.battlePointsDelta || 0;
       if (row.result === "win") byUser[row.userId].wins++;
       else byUser[row.userId].losses++;
-      byUser[row.userId].coins += row.coinsEarned || 0;
     }
     return Object.values(byUser)
-      .sort((a, b) => b.wins - a.wins || a.losses - b.losses)
+      .sort((a, b) => b.battlePoints - a.battlePoints)
       .slice(0, limit);
+  }
+
+  async getBattleGroup(userId: string): Promise<any | null> {
+    const [row] = await db.select().from(pvpBattleGroups).where(eq(pvpBattleGroups.userId, userId));
+    return row ?? null;
+  }
+
+  async upsertBattleGroup(userId: string, petInventoryIds: string[]): Promise<any> {
+    const existing = await this.getBattleGroup(userId);
+    if (existing) {
+      const [row] = await db.update(pvpBattleGroups)
+        .set({ petInventoryIds, updatedAt: new Date() })
+        .where(eq(pvpBattleGroups.userId, userId))
+        .returning();
+      return row;
+    } else {
+      const [row] = await db.insert(pvpBattleGroups).values({ userId, petInventoryIds }).returning();
+      return row;
+    }
+  }
+
+  async getAllBattleGroupsWithUsers(): Promise<any[]> {
+    return db.select({
+      userId: pvpBattleGroups.userId,
+      petInventoryIds: pvpBattleGroups.petInventoryIds,
+      updatedAt: pvpBattleGroups.updatedAt,
+      username: users.username,
+      profileImage: users.profileImage,
+    }).from(pvpBattleGroups)
+      .leftJoin(users, eq(pvpBattleGroups.userId, users.id))
+      .orderBy(sql`${pvpBattleGroups.updatedAt} desc`);
   }
 }
 

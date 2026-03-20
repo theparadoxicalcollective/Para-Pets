@@ -3211,7 +3211,7 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
       const inventory = await storage.getUserInventory(user.id);
-      const shopItemsData = await storage.getShopItems(user.worldId || "murk_cave");
+      const shopItemsData = await storage.getShopItemsByWorld(user.worldId || "murk_cave");
       const activePet = inventory
         .map((inv: any) => {
           const shopItem = shopItemsData.find((s: any) => s.id === inv.shopItemId);
@@ -3258,15 +3258,20 @@ export async function registerRoutes(
     }
   });
 
-  // Record PvP battle result and award coins
+  // Record PvP battle result and award coins + battle points
   app.post("/api/pvp/result", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const user = req.user as any;
-      const { opponentName, opponentImageUrl, opponentLevel, opponentSkill, result } = req.body;
+      const { opponentName, opponentImageUrl, opponentLevel, opponentSkill, result, opponentUserId } = req.body;
       if (!["win", "loss"].includes(result)) return res.status(400).json({ message: "Invalid result" });
 
-      const WIN_COINS = 15 + Math.floor(opponentLevel * 2);
+      const lvl = Math.max(1, opponentLevel || 1);
+      const WIN_COINS = 15 + Math.floor(lvl * 2);
+      const WIN_BP = 100 + Math.floor(lvl * 5);
+      const LOSS_BP = -25;
+
       const coinsEarned = result === "win" ? WIN_COINS : 0;
+      const battlePointsDelta = result === "win" ? WIN_BP : LOSS_BP;
 
       if (coinsEarned > 0) await storage.addCoins(user.id, coinsEarned);
 
@@ -3274,13 +3279,14 @@ export async function registerRoutes(
         userId: user.id,
         opponentName,
         opponentImageUrl: opponentImageUrl || null,
-        opponentLevel: opponentLevel || 1,
+        opponentLevel: lvl,
         opponentSkill: opponentSkill || null,
         result,
         coinsEarned,
+        battlePointsDelta,
       });
 
-      return res.json({ battle, coinsEarned });
+      return res.json({ battle, coinsEarned, battlePointsDelta });
     } catch (err) {
       console.error("PvP result error:", err);
       return res.status(500).json({ message: "Failed to record result" });
@@ -3301,10 +3307,70 @@ export async function registerRoutes(
   // Global leaderboard
   app.get("/api/pvp/leaderboard", isAuthenticated, async (_req: Request, res: Response) => {
     try {
-      const board = await storage.getPvpLeaderboard(20);
+      const board = await storage.getPvpLeaderboard(30);
       return res.json(board);
     } catch (err) {
       return res.status(500).json({ message: "Failed to fetch leaderboard" });
+    }
+  });
+
+  // Get current user's battle group
+  app.get("/api/pvp/battle-group", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as any;
+      const group = await storage.getBattleGroup(user.id);
+      return res.json(group ?? { petInventoryIds: [] });
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to fetch battle group" });
+    }
+  });
+
+  // Save current user's battle group (up to 5 pets)
+  app.post("/api/pvp/battle-group", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as any;
+      const { petInventoryIds } = req.body;
+      if (!Array.isArray(petInventoryIds)) return res.status(400).json({ message: "petInventoryIds must be an array" });
+      const ids = petInventoryIds.slice(0, 5);
+      const group = await storage.upsertBattleGroup(user.id, ids);
+      return res.json(group);
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to save battle group" });
+    }
+  });
+
+  // Get all players who have battle groups set up (for opponent selection)
+  app.get("/api/pvp/opponents", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as any;
+      const all = await storage.getAllBattleGroupsWithUsers();
+      // Exclude current user, only show those with at least 1 pet
+      const opponents = all.filter((g: any) => g.userId !== user.id && g.petInventoryIds?.length > 0);
+      return res.json(opponents);
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to fetch opponents" });
+    }
+  });
+
+  // Get a specific user's full inventory with pet details (for building opponent battle group)
+  app.get("/api/pvp/opponent-pets/:userId", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { userId } = req.params;
+      const group = await storage.getBattleGroup(userId);
+      if (!group) return res.json([]);
+
+      const invItems = await storage.getUserInventoryWithItems(userId);
+      const petIds = group.petInventoryIds || [];
+
+      const pets = petIds.map((invId: string) => {
+        const row = invItems.find((r: any) => r.inventory.id === invId);
+        if (!row) return null;
+        return { ...row.inventory, ...row.shopItem, shopItem: row.shopItem, inventoryId: row.inventory.id };
+      }).filter(Boolean);
+
+      return res.json(pets);
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to fetch opponent pets" });
     }
   });
 
