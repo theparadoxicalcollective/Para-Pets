@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import coinIconImg from "@assets/icon_coin.png";
+import giftTreasureIcon from "@assets/generated_images/icon_gift_treasure.png";
+import eggMagicIcon from "@assets/generated_images/icon_egg_magic.png";
 
 interface RewardItem {
   id: string;
@@ -137,7 +139,7 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
               boxShadow: "0 0 30px rgba(192,132,252,0.25)",
             }}
           >
-            <span style={{ fontSize: 36, animation: "pulse 1.4s ease-in-out infinite" }}>🎁</span>
+            <img src={giftTreasureIcon} alt="" style={{ width: 48, height: 48, objectFit: "contain", animation: "pulse 1.4s ease-in-out infinite" }} />
           </div>
           <p
             className="text-[11px] tracking-widest uppercase"
@@ -184,7 +186,7 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
                     filter: "drop-shadow(0 0 12px rgba(212,170,50,0.9)) drop-shadow(0 0 24px rgba(192,132,252,0.6))",
                     animation: phase === "collect" ? "bounce 1.2s ease-in-out infinite" : undefined,
                   }}
-                >🎁</span>
+                ><img src={giftTreasureIcon} alt="" style={{ width: 44, height: 44, objectFit: "contain" }} /></span>
 
                 {/* Orbiting stars */}
                 {[0, 1, 2].map(i => (
@@ -295,7 +297,7 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
                       >
                         {displayImg
                           ? <img src={displayImg} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-                          : <span style={{ fontSize: 20 }}>{item.type === "pet" ? "🥚" : "✨"}</span>
+                          : item.type === "pet" ? <img src={eggMagicIcon} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} /> : <span style={{ fontSize: 20 }}>✨</span>
                         }
                       </div>
                       <div>

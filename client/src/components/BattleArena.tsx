@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Swords, Star, Coins, X, ChevronRight, ArrowLeft, Heart, HelpCircle } from "lucide-react";
+import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import PetAnimator from "./PetAnimator";
 
 
@@ -1232,7 +1233,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                 ) : pet.imageUrl ? (
                   <img src={pet.imageUrl} alt={pet.name} className="w-full object-contain drop-shadow-lg" style={{ maxHeight: "160px" }} />
                 ) : (
-                  <span className="text-5xl">🐾</span>
+                  <img src={petPawIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain", filter: "drop-shadow(0 2px 10px rgba(0,0,0,0.6))" }} />
                 )}
               </div>
               <div className="mt-2 px-4 py-2 bg-black/70 rounded-lg" style={{ borderColor: accent + "80", borderWidth: 1 }}>
@@ -1595,7 +1596,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   }}
                 />
               ) : (
-                <span className="text-6xl" style={{ animation: mana >= MAX_MANA && !skillCooldown ? "manaGlow 1s ease-in-out infinite" : undefined }}>🐾</span>
+                <img src={petPawIcon} alt="" style={{ width: 90, height: 90, objectFit: "contain", animation: mana >= MAX_MANA && !skillCooldown ? "manaGlow 1s ease-in-out infinite" : undefined }} />
               )}
 
               {/* Small centered grab zone — requires a direct tap to drag */}

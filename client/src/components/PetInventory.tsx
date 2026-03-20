@@ -3,6 +3,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import coinIconImg from "@assets/icon_coin.png";
+import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
+import eggMagicIcon from "@assets/generated_images/icon_egg_magic.png";
+import powerupBagIcon from "@assets/generated_images/icon_powerup_bag.png";
 import bagIconImg from "@assets/icon_bag.png";
 import PetDetailPage from "./PetDetailPage";
 
@@ -103,7 +106,7 @@ export default function PetInventory({ user, onClose, onUserUpdate }: PetInvento
                   border: "1px solid rgba(127,255,212,0.4)",
                 }}
               >
-                <span className="text-xl">🐾</span>
+                <img src={petPawIcon} alt="" style={{ width: 22, height: 22, objectFit: "contain" }} />
               </div>
               <div>
                 <h3
@@ -131,7 +134,7 @@ export default function PetInventory({ user, onClose, onUserUpdate }: PetInvento
                 }}
               >
                 {showBag ? (
-                  <span className="text-lg">🐾</span>
+                  <img src={petPawIcon} alt="" style={{ width: 20, height: 20, objectFit: "contain" }} />
                 ) : (
                   <img src={bagIconImg} alt="Bag" className="w-7 h-7 object-contain" />
                 )}
@@ -317,7 +320,7 @@ function PetView({
             border: "2px dashed rgba(127,191,176,0.3)",
           }}
         >
-          <span className="text-3xl" style={{ filter: "grayscale(100%) opacity(0.4)" }}>🥚</span>
+          <img src={eggMagicIcon} alt="" style={{ width: 48, height: 48, objectFit: "contain", filter: "grayscale(100%) opacity(0.4)" }} />
         </div>
         <p className="font-fantasy text-[#7fbfb0] text-sm tracking-wider mb-2">No pets yet</p>
         <p className="font-fantasy text-[#5a8a78] text-xs tracking-wider">Visit world shops to acquire pets!</p>
@@ -366,7 +369,7 @@ function PetView({
                 {displayImage ? (
                   <img src={displayImage} alt={pet.name} className="w-full h-full object-contain rounded-md" />
                 ) : (
-                  <span className="text-4xl">{isEgg ? "🥚" : "🐾"}</span>
+                  <img src={isEgg ? eggMagicIcon : petPawIcon} alt="" style={{ width: 52, height: 52, objectFit: "contain" }} />
                 )}
                 {isEgg && (
                   <div
@@ -558,7 +561,7 @@ function BagView({ items }: { items: InventoryItem[] }) {
             border: "2px dashed rgba(139,94,60,0.3)",
           }}
         >
-          <span className="text-3xl" style={{ filter: "grayscale(100%) opacity(0.4)" }}>🎒</span>
+          <img src={powerupBagIcon} alt="" style={{ width: 48, height: 48, objectFit: "contain", filter: "grayscale(100%) opacity(0.4)" }} />
         </div>
         <p className="font-fantasy text-[#a89878] text-sm tracking-wider mb-2">Bag is empty</p>
         <p className="font-fantasy text-[#6a5840] text-xs tracking-wider">Purchase items from world shops!</p>
@@ -595,9 +598,7 @@ function BagView({ items }: { items: InventoryItem[] }) {
                 {item.imageUrl ? (
                   <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain rounded-md" />
                 ) : (
-                  <span className="text-3xl">
-                    {item.type === "potion" ? "🧪" : item.type === "accessory" ? "💍" : "📦"}
-                  </span>
+                  <img src={powerupBagIcon} alt="" style={{ width: 44, height: 44, objectFit: "contain" }} />
                 )}
               </div>
               <p className="font-fantasy text-[#f0c040] text-xs font-semibold text-center truncate w-full" data-testid={`text-bag-item-name-${item.shopItemId}`}>
@@ -667,10 +668,12 @@ function BagView({ items }: { items: InventoryItem[] }) {
               >
                 {selectedItem.imageUrl ? (
                   <img src={selectedItem.imageUrl} alt={selectedItem.name} className="w-full h-full object-contain rounded-lg" />
+                ) : selectedItem.type === "potion" ? (
+                  <span className="text-4xl">🧪</span>
+                ) : selectedItem.type === "accessory" ? (
+                  <span className="text-4xl">💍</span>
                 ) : (
-                  <span className="text-4xl">
-                    {selectedItem.type === "potion" ? "🧪" : selectedItem.type === "accessory" ? "💍" : "📦"}
-                  </span>
+                  <img src={powerupBagIcon} alt="" style={{ width: 52, height: 52, objectFit: "contain" }} />
                 )}
               </div>
 

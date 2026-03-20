@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
+import battleTrophyIcon from "@assets/generated_images/icon_battle_trophy.png";
 import { ArrowLeft, Sword, Users, Trophy, Check, X } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
 import PvpBattlePage from "./PvpBattlePage";
@@ -147,7 +149,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
 
           {(leaderboard as LeaderboardEntry[]).length === 0 ? (
             <div className="text-center py-12 text-white/20 text-xs tracking-widest">
-              <div className="text-4xl mb-3">🏆</div>
+              <div className="mb-3"><img src={battleTrophyIcon} alt="" style={{ width: 52, height: 52, objectFit: "contain", margin: "0 auto" }} /></div>
               No battles recorded yet.<br />Be the first to fight!
             </div>
           ) : (
@@ -267,7 +269,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                           ? <PetAnimator petTemplateId={inv.petTemplateId} mode="idle" view="front" size={60} />
                           : inv.imageUrl
                           ? <img src={inv.imageUrl} className="w-14 h-14 object-contain" />
-                          : <span className="text-3xl">🐾</span>}
+                          : <img src={petPawIcon} alt="" style={{ width: 44, height: 44, objectFit: "contain" }} />}
                       </div>
                       <div className="text-center">
                         <div className="text-white/80 text-[11px] font-bold truncate w-full">{inv.petNickname || inv.name}</div>

@@ -3,6 +3,8 @@ import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import bgImg from "@assets/bg_home_v2.png";
+import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
+import eggMagicIcon from "@assets/generated_images/icon_egg_magic.png";
 import questIcon from "@assets/icon_quest_v5.png";
 import mapIcon from "@assets/icon_map_new.png";
 import swordsImg from "@assets/icon_pvp_new.png";
@@ -294,7 +296,7 @@ export default function HomePage({ user }: HomePageProps) {
                         ) : (activePet.hatchedImageUrl || activePet.imageUrl) ? (
                           <img src={activePet.hatchedImageUrl || activePet.imageUrl || ""} alt={activePet.name} className="w-full max-h-[50vh] md:max-h-[62vh] lg:max-h-[68vh] object-contain" />
                         ) : (
-                          <span className="text-5xl">🐾</span>
+                          <img src={petPawIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain", filter: "drop-shadow(0 2px 10px rgba(0,0,0,0.5))" }} />
                         )}
                       </div>
                     ) : (() => {
@@ -317,7 +319,7 @@ export default function HomePage({ user }: HomePageProps) {
                           {activePet.eggImageUrl ? (
                             <img src={activePet.eggImageUrl} alt={activePet.name} className="w-full max-h-[50vh] md:max-h-[62vh] lg:max-h-[68vh] object-contain" />
                           ) : (
-                            <span className="text-5xl">🥚</span>
+                            <img src={eggMagicIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain", filter: "drop-shadow(0 2px 10px rgba(0,0,0,0.5))" }} />
                           )}
                           {eggHatchReady && !hatchRevealing && (
                             <div className="absolute inset-0 pointer-events-none" data-testid="display-egg-hatch-ready">

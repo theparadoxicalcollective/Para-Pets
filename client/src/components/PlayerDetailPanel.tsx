@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import petHouseBg from "@assets/generated_images/pet_world_bg.png";
+import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 
 interface PlayerDetailPanelProps {
   userId: string;
@@ -254,7 +255,7 @@ export default function PlayerDetailPanel({ userId, onClose }: PlayerDetailPanel
                     {petImg ? (
                       <img src={petImg} alt="" className="w-full h-full object-contain" />
                     ) : (
-                      <span style={{ fontSize: 36 }}>🐾</span>
+                      <img src={petPawIcon} alt="" style={{ width: 44, height: 44, objectFit: "contain" }} />
                     )}
                   </div>
 

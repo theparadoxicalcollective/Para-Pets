@@ -3,6 +3,9 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { ArrowLeft, X } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
+import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
+import battleTrophyIcon from "@assets/generated_images/icon_battle_trophy.png";
+import skullDefeatIcon from "@assets/generated_images/icon_skull_defeat.png";
 import forestBgImg from "@assets/generated_images/pvp_arena_forest_bg.png";
 
 interface Opponent {
@@ -685,7 +688,7 @@ export default function PvpBattlePage({
                     ? <PetAnimator petTemplateId={pet.petTemplateId} mode="idle" view="front" size={size} />
                     : pet.imageUrl
                     ? <img src={pet.imageUrl} style={{ width: size, height: size, objectFit: "contain", filter: pet.isPlayer ? "drop-shadow(0 0 10px rgba(167,139,250,0.5))" : "drop-shadow(0 0 10px rgba(239,68,68,0.45))" }} />
-                    : <div style={{ width: size, height: size, background: pet.isPlayer ? "rgba(100,60,200,0.3)" : "rgba(200,60,60,0.3)", borderRadius: "50%", border: `2px solid ${pet.isPlayer ? "rgba(167,139,250,0.5)" : "rgba(239,68,68,0.5)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>🐾</div>}
+                    : <div style={{ width: size, height: size, background: pet.isPlayer ? "rgba(100,60,200,0.3)" : "rgba(200,60,60,0.3)", borderRadius: "50%", border: `2px solid ${pet.isPlayer ? "rgba(167,139,250,0.5)" : "rgba(239,68,68,0.5)"}`, display: "flex", alignItems: "center", justifyContent: "center" }}><img src={petPawIcon} alt="" style={{ width: size * 0.65, height: size * 0.65, objectFit: "contain" }} /></div>}
                 </div>
 
                 {/* Enemy target indicator */}
@@ -702,7 +705,7 @@ export default function PvpBattlePage({
             if (!pet) return null;
             return (
               <div key={uid} className="absolute pointer-events-none z-40" style={{ left: `${pet.x}%`, top: `${pet.y}%`, transform: "translate(-50%,-50%)" }}>
-                <div style={{ fontSize: 40, animation: "koSpin 1s ease-in forwards" }}>💀</div>
+                <img src={skullDefeatIcon} alt="" style={{ width: 48, height: 48, objectFit: "contain", animation: "koSpin 1s ease-in forwards" }} />
               </div>
             );
           })}
@@ -731,7 +734,7 @@ export default function PvpBattlePage({
           {/* Result overlay */}
           {phase === "result" && (
             <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4" style={{ background: "rgba(5,8,15,0.88)", animation: "bResultIn 0.5s ease-out" }}>
-              <div className="text-5xl">{resultOutcome === "win" ? "🏆" : "💀"}</div>
+              <div>{resultOutcome === "win" ? <img src={battleTrophyIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain" }} /> : <img src={skullDefeatIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain" }} />}</div>
               <div className="text-2xl font-black tracking-[0.15em]" style={{ color: resultOutcome === "win" ? "#fbbf24" : "#f87171", textShadow: `0 0 30px ${resultOutcome === "win" ? "rgba(251,191,36,0.6)" : "rgba(248,113,113,0.6)"}` }}>
                 {resultOutcome === "win" ? "VICTORY!" : "DEFEAT"}
               </div>

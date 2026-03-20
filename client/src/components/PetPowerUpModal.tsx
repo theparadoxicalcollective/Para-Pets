@@ -443,7 +443,7 @@ export default function PetPowerUpModal({
             ) : petImage ? (
               <img src={petImage} alt={petName} style={{ width: 220, height: 220, objectFit: "contain" }} />
             ) : (
-              <span style={{ fontSize: 110 }}>🐾</span>
+              <img src={petPawIcon} alt="" style={{ width: 130, height: 130, objectFit: "contain", filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.6))" }} />
             )}
           </div>
 

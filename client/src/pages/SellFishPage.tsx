@@ -3,6 +3,8 @@ import { playChime } from "@/lib/sounds";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import fishCommonIcon from "@assets/generated_images/icon_fish_common.png";
+import fishRodIcon from "@assets/generated_images/icon_fish_rod.png";
 import { X, ShoppingBag, Coins } from "lucide-react";
 import coinIconImg from "@assets/icon_coin.png";
 
@@ -217,7 +219,7 @@ export default function SellFishPage({ user, worldId, onClose, onUserUpdate }: S
                   <div className="w-9 h-9 flex items-center justify-center">
                     {fish.item?.imageUrl
                       ? <img src={fish.item.imageUrl} alt="" className="w-full h-full object-contain" />
-                      : <span className="text-xl">🐟</span>
+                      : <img src={fishCommonIcon} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />
                     }
                   </div>
                   <RarityStars rarity={fish.item?.starRarity ?? null} />
@@ -278,7 +280,7 @@ export default function SellFishPage({ user, worldId, onClose, onUserUpdate }: S
           <p className="font-fantasy text-xs text-center py-8" style={{ color: `${ACCENT}50` }}>Loading...</p>
         ) : inventoryFish.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 gap-3">
-            <span className="text-5xl">🎣</span>
+            <img src={fishRodIcon} alt="" style={{ width: 64, height: 64, objectFit: "contain", opacity: 0.6 }} />
             <p className="font-fantasy text-sm" style={{ color: `${ACCENT}60` }}>
               {bagFish.length === 0 && aquariumCount > 0
                 ? "All your fish are in the aquarium!"
@@ -315,7 +317,7 @@ export default function SellFishPage({ user, worldId, onClose, onUserUpdate }: S
                     <div className="w-11 h-11 flex items-center justify-center">
                       {fish.item?.imageUrl
                         ? <img src={fish.item.imageUrl} alt="" className="w-full h-full object-contain" draggable={false} />
-                        : <span className="text-2xl">🐟</span>
+                        : <img src={fishCommonIcon} alt="" style={{ width: 36, height: 36, objectFit: "contain" }} />
                       }
                     </div>
                     <RarityStars rarity={rarity} />
@@ -348,7 +350,7 @@ export default function SellFishPage({ user, worldId, onClose, onUserUpdate }: S
           >
             {draggingFish.item?.imageUrl
               ? <img src={draggingFish.item.imageUrl} alt="" className="w-10 h-10 object-contain" />
-              : <span className="text-2xl">🐟</span>
+              : <img src={fishCommonIcon} alt="" style={{ width: 36, height: 36, objectFit: "contain" }} />
             }
           </div>
         </div>

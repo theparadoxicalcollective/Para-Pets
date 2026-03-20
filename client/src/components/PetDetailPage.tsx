@@ -5,6 +5,9 @@ import { useToast } from "@/hooks/use-toast";
 import coinIconImg from "@assets/icon_coin.png";
 import PowerUpOverlay, { PowerUpEffectType } from "@/components/PowerUpOverlay";
 import PetPowerUpModal, { PowerUpItem } from "@/components/PetPowerUpModal";
+import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
+import gemCrystalIcon from "@assets/generated_images/icon_gem_crystal.png";
+import powerupBagIcon from "@assets/generated_images/icon_powerup_bag.png";
 
 interface PetData {
   inventoryId: string;
@@ -287,7 +290,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
               {petImage ? (
                 <img src={petImage} alt={pet.name} className="w-full h-full object-contain" />
               ) : (
-                <span className="text-5xl">🐾</span>
+                <img src={petPawIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain", filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.5))" }} />
               )}
             </div>
 
@@ -463,7 +466,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                       }}
                     >
                       <div className="w-10 h-10 rounded flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.35)" }}>
-                        {acc.imageUrl ? <img src={acc.imageUrl} alt={acc.name} className="w-full h-full object-contain" /> : <span className="text-lg">💎</span>}
+                        {acc.imageUrl ? <img src={acc.imageUrl} alt={acc.name} className="w-full h-full object-contain" /> : <img src={gemCrystalIcon} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />}
                       </div>
                       <span className="font-fantasy text-[#f0c040] text-[7px] tracking-wider text-center truncate w-full">{acc.name}</span>
                       <div className="flex flex-col items-center">
@@ -521,7 +524,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                             style={{ background: "rgba(30,15,5,0.8)", border: "1px solid rgba(212,160,23,0.3)", cursor: "pointer" }}
                           >
                             <div className="w-10 h-10 rounded flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.3)" }}>
-                              {item.imageUrl ? <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" /> : <span className="text-lg">💎</span>}
+                              {item.imageUrl ? <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" /> : <img src={gemCrystalIcon} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />}
                             </div>
                             <span className="font-fantasy text-[#f0c040] text-[7px] tracking-wider text-center truncate w-full">{item.name}</span>
                             <div className="flex flex-col items-center">
@@ -613,8 +616,10 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                 <div className="w-14 h-14 rounded-md flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.3)" }}>
                   {confirmItem.imageUrl ? (
                     <img src={confirmItem.imageUrl} alt={confirmItem.name} className="w-full h-full object-contain" />
+                  ) : isSpecial ? (
+                    <span className="text-2xl">✨</span>
                   ) : (
-                    <span className="text-2xl">{isSpecial ? "✨" : "📦"}</span>
+                    <img src={powerupBagIcon} alt="" style={{ width: 32, height: 32, objectFit: "contain" }} />
                   )}
                 </div>
                 <p className="font-fantasy text-[#f0c040] text-xs font-semibold">{confirmItem.name}</p>

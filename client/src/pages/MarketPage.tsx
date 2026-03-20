@@ -3,6 +3,7 @@ import { playChime } from "@/lib/sounds";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { queryClient } from "@/lib/queryClient";
+import powerupBagIcon from "@assets/generated_images/icon_powerup_bag.png";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import coinIconImg from "@assets/icon_coin.png";
@@ -129,7 +130,7 @@ function ItemCard({ listing, isMine, user, onBuy, onCollect, onCancel }: {
           <img src={listing.itemImageUrl} alt={listing.itemName} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
         ) : (
           <div style={{ width: 48, height: 48, background: "rgba(74,222,128,0.15)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ fontSize: 22 }}>📦</span>
+            <img src={powerupBagIcon} alt="" style={{ width: 32, height: 32, objectFit: "contain" }} />
           </div>
         )}
       </div>
@@ -280,7 +281,7 @@ function SellItemModal({ inventory, onClose, onSubmit, isPending }: {
                   <img src={item.imageUrl} alt={item.name} style={{ width: 44, height: 44, objectFit: "contain" }} />
                 ) : (
                   <div style={{ width: 44, height: 44, background: "rgba(74,222,128,0.1)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <span>📦</span>
+                    <img src={powerupBagIcon} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />
                   </div>
                 )}
                 <span style={{ color: "#c8f0c8", fontSize: 9, fontFamily: "Georgia, serif", textAlign: "center", lineHeight: 1.2 }}>{item.name}</span>

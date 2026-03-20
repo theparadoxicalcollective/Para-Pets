@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { readFileAsDataUrl } from "@/lib/utils";
+import fishCommonIcon from "@assets/generated_images/icon_fish_common.png";
+import fishRodIcon from "@assets/generated_images/icon_fish_rod.png";
 import { Plus, Trash2, ArrowLeft, Save } from "lucide-react";
 
 interface FishingItem {
@@ -381,8 +383,12 @@ export default function FishingAdminPanel() {
                 <div className="w-12 h-12 rounded-md flex items-center justify-center overflow-hidden flex-shrink-0" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(96,165,250,0.15)" }}>
                   {item.imageUrl ? (
                     <img src={item.imageUrl} alt="" className="w-full h-full object-contain" />
+                  ) : item.fishingType === "pole" ? (
+                    <img src={fishRodIcon} alt="" style={{ width: 32, height: 32, objectFit: "contain" }} />
+                  ) : item.fishingType === "bait" ? (
+                    <span className="text-2xl">🪱</span>
                   ) : (
-                    <span className="text-2xl">{item.fishingType === "pole" ? "🎣" : item.fishingType === "bait" ? "🪱" : "🐟"}</span>
+                    <img src={fishCommonIcon} alt="" style={{ width: 32, height: 32, objectFit: "contain" }} />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -572,7 +578,7 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
             <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Item Image (PNG or GIF)</label>
             <div className="flex items-center gap-2">
               <div className="w-16 h-16 rounded-md flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(96,165,250,0.3)" }} onClick={() => document.getElementById("fishing-img-input")?.click()}>
-                {imagePreview ? <img src={imagePreview} alt="" className="w-full h-full object-contain" /> : <span className="text-2xl">🐟</span>}
+                {imagePreview ? <img src={imagePreview} alt="" className="w-full h-full object-contain" /> : <img src={fishCommonIcon} alt="" style={{ width: 32, height: 32, objectFit: "contain", opacity: 0.6 }} />}
               </div>
               <input id="fishing-img-input" type="file" accept="image/png,image/gif" onChange={handleFile} className="hidden" />
               <button type="button" onClick={() => document.getElementById("fishing-img-input")?.click()} className="flex-1 py-1.5 rounded-md font-fantasy text-[9px] tracking-wider" style={{ background: "linear-gradient(135deg, #5c3a1e 0%, #8b5e3c 100%)", border: "1px solid rgba(212,160,23,0.4)", color: "#f0c040", cursor: "pointer" }}>
@@ -702,7 +708,7 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
                   >
                     {hooklessImagePreview
                       ? <img src={hooklessImagePreview} alt="" className="w-full h-full object-contain" />
-                      : <span className="text-2xl opacity-40">🎣</span>}
+                      : <img src={fishRodIcon} alt="" style={{ width: 32, height: 32, objectFit: "contain", opacity: 0.4 }} />}
                   </div>
                   <input id="fishing-hookless-img-input" type="file" accept="image/png,image/gif" onChange={handleHooklessFile} className="hidden" />
                   <div className="flex-1 space-y-1">
