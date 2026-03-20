@@ -565,17 +565,11 @@ function WalkingPet({
     >
       <div
         style={{
-          animation: isZooming ? `petZoom${zoomDir} 5.5s ease-in-out` : undefined,
-          transformOrigin: "center center",
-        }}
-      >
-      <div
-        style={{
           animation: `${wanderPrefix}${cfg.wanderIdx} ${cfg.duration} ${cfg.delay} ease-in-out infinite`,
           transformOrigin: "bottom center",
         }}
       >
-        <div style={{ animation: `${floatAnim} ${hasWings ? "3.2s" : "2.4s"} ${cfg.delay} ${hasWings ? "ease-in-out" : "ease"} infinite` }}>
+        <div style={{ animation: `${floatAnim} ${isZooming ? "0.9s" : hasWings ? "3.2s" : "2.4s"} ${cfg.delay} ${hasWings ? "ease-in-out" : "ease"} infinite` }}>
           {pet.petTemplateId ? (
             <>
               {/* PetAnimator: tight oval hit area so transparent edges don't block other pets */}
@@ -665,7 +659,6 @@ function WalkingPet({
             </>
           )}
         </div>
-      </div>
       </div>
     </div>
   );

@@ -246,7 +246,7 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom"): stri
   }
   if (mode === "zoom") {
     const isWing = partType === "left_wing" || partType === "right_wing" || partType === "wings";
-    return isWing ? "0.28s" : "0.6s";
+    return isWing ? "0.45s" : "0.6s";
   }
   return "0.6s";
 }
