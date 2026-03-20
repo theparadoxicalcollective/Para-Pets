@@ -11,7 +11,6 @@ import bgHome from "@assets/bg_home_v2.png";
 
 const ITEM_CATEGORIES = [
   { label: "All", value: "all" },
-  { label: "Items", value: "item" },
   { label: "Power-Ups", value: "power_up" },
   { label: "Edibles", value: "edibles" },
   { label: "Special", value: "special" },
