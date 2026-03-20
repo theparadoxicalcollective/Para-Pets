@@ -239,8 +239,10 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         setPetMaxHp(data.pet.hp);
         petHpRef.current = data.pet.hp;
         petStatsRef.current = { atk: data.pet.atk, def: data.pet.def, maxHp: data.pet.hp };
-        // Initialise battle potion slots from pre-battle loadout
-        const slots = battlePotionSlots.map(s => ({ ...s, remaining: [...s.inventoryIds] }));
+        // Initialise battle potion slots from pre-battle loadout (filter null entries)
+        const slots = battlePotionSlots
+          .filter((s): s is BattlePotionSlot => s !== null && s !== undefined)
+          .map(s => ({ ...s, remaining: [...s.inventoryIds] }));
         activeSlotsRef.current = slots;
         setActiveSlots(slots);
         startWave(data.encounters[0], 0);
