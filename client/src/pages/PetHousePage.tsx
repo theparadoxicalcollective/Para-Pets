@@ -401,12 +401,13 @@ function FeedView({
         ✕
       </button>
 
-      <div className="flex-1 flex flex-col items-center justify-center gap-3 px-4">
+      <div className="flex-1 flex flex-col items-center justify-center gap-3 px-4 min-h-0">
         <div
           ref={petDropRef}
           data-testid="drop-zone-pet"
-          className="relative flex items-center justify-center overflow-visible w-full"
+          className="relative flex items-center justify-center overflow-visible"
           style={{
+            width: "min(100%, 44vh)",
             aspectRatio: "1/1",
             transition: "all 0.15s ease",
           }}
@@ -432,6 +433,8 @@ function FeedView({
           <div
             data-testid="img-feed-pet"
             style={{
+              width: "100%",
+              height: "100%",
               filter: isOverPet
                 ? "drop-shadow(0 0 24px rgba(74,222,128,0.9))"
                 : "drop-shadow(0 4px 12px rgba(0,0,0,0.55))",
@@ -445,8 +448,7 @@ function FeedView({
                 petTemplateId={pet.petTemplateId!}
                 mode="idle"
                 size={1000}
-                className="w-full"
-                style={{ aspectRatio: "1/1" }}
+                style={{ width: "100%", height: "100%" }}
               />
             ) : petImg ? (
               <img src={petImg} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
