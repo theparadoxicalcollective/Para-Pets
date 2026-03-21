@@ -58,6 +58,7 @@ interface InventoryItem {
   fishingType?: string | null;
   poleMaxUses?: number | null;
   poleUsesLeft?: number | null;
+  quantity?: number | null;
 }
 
 interface PondFishEntry {
@@ -1037,24 +1038,30 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
             />
           </div>
           <div ref={baitSlotRef}>
-            <EquipSlot
-              label="Bait"
-              defaultIcon={baitIcon}
-              equippedItem={equipData?.baitItem || null}
-              isActive={showBaitPanel}
-              isDropTarget={dropTarget === "bait"}
-              onClick={() => {
-                if (equipData?.baitItem) {
-                  unequipMutation.mutate({ slot: "bait" });
-                  setShowBaitPanel(false);
-                } else {
-                  setShowBaitPanel(p => !p);
-                  setShowPolePanel(false);
-                  setShowFishInv(false);
-                }
-              }}
-              testId="button-bait-slot"
-            />
+            {(() => {
+              const equippedBait = baits.find(b => b.inventoryId === equipData?.equipment?.baitInventoryId);
+              return (
+                <EquipSlot
+                  label="Bait"
+                  defaultIcon={baitIcon}
+                  equippedItem={equipData?.baitItem || null}
+                  isActive={showBaitPanel}
+                  isDropTarget={dropTarget === "bait"}
+                  badgeCount={equippedBait?.quantity ?? undefined}
+                  onClick={() => {
+                    if (equipData?.baitItem) {
+                      unequipMutation.mutate({ slot: "bait" });
+                      setShowBaitPanel(false);
+                    } else {
+                      setShowBaitPanel(p => !p);
+                      setShowPolePanel(false);
+                      setShowFishInv(false);
+                    }
+                  }}
+                  testId="button-bait-slot"
+                />
+              );
+            })()}
           </div>
           <EquipSlot
             label="Fish"
@@ -1274,6 +1281,11 @@ function EquipPanel({
                         </div>
                       );
                     })()}
+                    {slot === "bait" && item.quantity != null && item.quantity > 0 && (
+                      <span className="font-fantasy text-[8px] font-bold" style={{ color: ACCENT }}>
+                        ×{item.quantity}
+                      </span>
+                    )}
                     <span className="font-fantasy text-[7px] text-center truncate w-full" style={{ color: isBroken ? "rgba(220,80,80,0.9)" : isEquipped ? ACCENT : `${ACCENT}80` }}>
                       {isBroken ? "BROKEN" : item.name}
                     </span>

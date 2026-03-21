@@ -632,6 +632,7 @@ export async function registerRoutes(
         poleSlowdown4: shopItem?.poleSlowdown4 ?? null,
         poleSlowdown5: shopItem?.poleSlowdown5 ?? null,
         fishSwimZone: shopItem?.fishSwimZone ?? null,
+        quantity: inv.quantity ?? 1,
       }));
       return res.json(itemsWithDetails);
     } catch (err) {
@@ -711,15 +712,22 @@ export async function registerRoutes(
 
       const purchaseCount = shopItem.type === "pet" ? 1 : quantity;
       let invItem: any = null;
-      for (let i = 0; i < purchaseCount; i++) {
-        const extraFields: any = {};
-        if (shopItem.fishingType === "pole" && shopItem.poleMaxUses != null) {
-          extraFields.poleUsesLeft = shopItem.poleMaxUses;
-        }
-        invItem = await storage.addToInventory(user.id, itemId, extraFields);
-        if (shopItem.type === "pet" && shopItem.hatchTime) {
-          const updated = await storage.updateInventoryItem(invItem.id, { hatchStartedAt: new Date() });
-          if (updated) invItem = updated;
+
+      if (shopItem.fishingType === "bait") {
+        // Bait stacks: each purchase gives 5 charges stacked onto one inventory row
+        const baitChargesPerPurchase = 5;
+        invItem = await storage.addToInventory(user.id, itemId, {}, baitChargesPerPurchase * purchaseCount);
+      } else {
+        for (let i = 0; i < purchaseCount; i++) {
+          const extraFields: any = {};
+          if (shopItem.fishingType === "pole" && shopItem.poleMaxUses != null) {
+            extraFields.poleUsesLeft = shopItem.poleMaxUses;
+          }
+          invItem = await storage.addToInventory(user.id, itemId, extraFields);
+          if (shopItem.type === "pet" && shopItem.hatchTime) {
+            const updated = await storage.updateInventoryItem(invItem.id, { hatchStartedAt: new Date() });
+            if (updated) invItem = updated;
+          }
         }
       }
 
@@ -3229,6 +3237,16 @@ export async function registerRoutes(
       }
 
       const caught = await storage.addFishToPlayerInventory(user.id, chosenEntry.shopItemId);
+
+      // Consume 1 bait charge on successful catch
+      if (equipment?.baitInventoryId) {
+        const { depleted } = await storage.decrementBaitQuantity(equipment.baitInventoryId);
+        if (depleted) {
+          // Bait ran out — unequip it
+          await storage.upsertPlayerFishingEquipment(user.id, { baitInventoryId: null });
+        }
+      }
+
       return res.json({ caught, item: chosenEntry.item });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });

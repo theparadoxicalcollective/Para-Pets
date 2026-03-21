@@ -81,6 +81,7 @@ export const userInventory = pgTable("user_inventory", {
   petNickname: text("pet_nickname"),
   isListed: boolean("is_listed").notNull().default(false),
   poleUsesLeft: integer("pole_uses_left"),
+  quantity: integer("quantity").notNull().default(1),
 });
 
 export const rewardBundles = pgTable("reward_bundles", {

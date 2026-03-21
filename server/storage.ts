@@ -68,7 +68,8 @@ export interface IStorage {
   updateShopItem(id: string, item: Partial<InsertShopItem>): Promise<ShopItem>;
   deleteShopItem(id: string): Promise<void>;
   getUserInventory(userId: string): Promise<UserInventoryItem[]>;
-  addToInventory(userId: string, shopItemId: string, extraFields?: Partial<UserInventoryItem>): Promise<UserInventoryItem>;
+  addToInventory(userId: string, shopItemId: string, extraFields?: Partial<UserInventoryItem>, stackQty?: number): Promise<UserInventoryItem>;
+  decrementBaitQuantity(inventoryId: string): Promise<{ depleted: boolean; item: UserInventoryItem | undefined }>;
   getInventoryItem(userId: string, shopItemId: string): Promise<UserInventoryItem | undefined>;
   getInventoryItemById(id: string): Promise<UserInventoryItem | undefined>;
   removeFromInventory(id: string): Promise<void>;
@@ -367,9 +368,40 @@ export class DatabaseStorage implements IStorage {
     return rows.map(r => ({ inventory: r.user_inventory, shopItem: r.shop_items }));
   }
 
-  async addToInventory(userId: string, shopItemId: string, extraFields?: Partial<UserInventoryItem>): Promise<UserInventoryItem> {
+  async addToInventory(userId: string, shopItemId: string, extraFields?: Partial<UserInventoryItem>, stackQty?: number): Promise<UserInventoryItem> {
+    if (stackQty && stackQty > 0) {
+      // Stacking mode: find existing row for this user+item and increment quantity
+      const existing = await this.getInventoryItem(userId, shopItemId);
+      if (existing) {
+        const [updated] = await db
+          .update(userInventory)
+          .set({ quantity: (existing.quantity ?? 1) + stackQty })
+          .where(eq(userInventory.id, existing.id))
+          .returning();
+        return updated;
+      }
+      // No existing row — insert with the given stack qty
+      const [item] = await db.insert(userInventory).values({ userId, shopItemId, quantity: stackQty, ...extraFields }).returning();
+      return item;
+    }
     const [item] = await db.insert(userInventory).values({ userId, shopItemId, ...extraFields }).returning();
     return item;
+  }
+
+  async decrementBaitQuantity(inventoryId: string): Promise<{ depleted: boolean; item: UserInventoryItem | undefined }> {
+    const inv = await this.getInventoryItemById(inventoryId);
+    if (!inv) return { depleted: true, item: undefined };
+    const newQty = Math.max(0, (inv.quantity ?? 1) - 1);
+    if (newQty === 0) {
+      await db.delete(userInventory).where(eq(userInventory.id, inventoryId));
+      return { depleted: true, item: undefined };
+    }
+    const [updated] = await db
+      .update(userInventory)
+      .set({ quantity: newQty })
+      .where(eq(userInventory.id, inventoryId))
+      .returning();
+    return { depleted: false, item: updated };
   }
 
   async decrementPoleUses(inventoryId: string): Promise<UserInventoryItem | undefined> {
