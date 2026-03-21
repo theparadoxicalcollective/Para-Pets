@@ -3923,6 +3923,36 @@ export default function WorldPage({ user }: WorldPageProps) {
           }}
         />
       )}
+
+      {/* Player decor message popup */}
+      {showDecorMsg && (
+        <div
+          className="fixed z-50"
+          style={{ inset: 0, display: "flex", alignItems: "flex-end", justifyContent: "center", paddingBottom: "90px" }}
+          onClick={() => setShowDecorMsg(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="font-fantasy text-sm text-center px-5 py-3 rounded-2xl"
+            style={{
+              maxWidth: 300,
+              background: "linear-gradient(135deg, rgba(20,10,40,0.97) 0%, rgba(35,15,60,0.97) 100%)",
+              border: `1.5px solid ${accent}60`,
+              boxShadow: `0 0 30px ${accent}30, 0 8px 32px rgba(0,0,0,0.7)`,
+              color: "#e8ddd0",
+              textShadow: "0 0 10px rgba(255,255,255,0.15)",
+              lineHeight: 1.5,
+            }}
+          >
+            <p style={{ marginBottom: 8 }}>{showDecorMsg.text}</p>
+            <button
+              onClick={() => setShowDecorMsg(null)}
+              className="font-fantasy text-[10px] tracking-wider"
+              style={{ background: "none", border: "none", color: `${accent}88`, cursor: "pointer" }}
+            >[ dismiss ]</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -4115,35 +4145,6 @@ function PondAdminModal({ locationId, accent, onClose }: { locationId: string; a
         </div>
       </div>
 
-      {/* Player decor message popup */}
-      {showDecorMsg && (
-        <div
-          className="fixed z-50"
-          style={{ inset: 0, display: "flex", alignItems: "flex-end", justifyContent: "center", paddingBottom: "90px" }}
-          onClick={() => setShowDecorMsg(null)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="font-fantasy text-sm text-center px-5 py-3 rounded-2xl"
-            style={{
-              maxWidth: 300,
-              background: "linear-gradient(135deg, rgba(20,10,40,0.97) 0%, rgba(35,15,60,0.97) 100%)",
-              border: `1.5px solid ${accent}60`,
-              boxShadow: `0 0 30px ${accent}30, 0 8px 32px rgba(0,0,0,0.7)`,
-              color: "#e8ddd0",
-              textShadow: "0 0 10px rgba(255,255,255,0.15)",
-              lineHeight: 1.5,
-            }}
-          >
-            <p style={{ marginBottom: 8 }}>{showDecorMsg.text}</p>
-            <button
-              onClick={() => setShowDecorMsg(null)}
-              className="font-fantasy text-[10px] tracking-wider"
-              style={{ background: "none", border: "none", color: `${accent}88`, cursor: "pointer" }}
-            >[ dismiss ]</button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -407,7 +407,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     const tensionFalls    = [2.20,  2.00,  1.70,  1.30,  1.00 ];
 
     // Catch progress drain per second while NOT holding
-    const progressDrags   = [0.035, 0.055, 0.080, 0.100, 0.120];
+    const progressDrags   = [0.060, 0.090, 0.130, 0.160, 0.200];
 
     // Surge probability per second — occasional excitement, not constant chaos
     const surgeChances    = [0.06,  0.12,  0.22,  0.38,  0.55 ];
