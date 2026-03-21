@@ -386,8 +386,6 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     const rarity = Math.max(1, Math.min(5, nibbleRarityRef.current));
 
     // Per-rarity tuning — all rates are per-second, scaled by delta-time each frame
-    const poleItem = equipDataRef.current?.poleItem;
-    const slowdownFactor = (pct: number | null | undefined) => pct != null ? Math.max(0, 1 - pct / 100) : 1;
 
     // Starting catch progress — just under half for easy fish; rarer = almost empty
     const startProgress   = [0.42,  0.40,  0.14,  0.07,  0.03 ];
@@ -400,14 +398,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     // → 1-2★: clearly faster than catch — need 1-2 timed releases per catch
     // → 3★: noticeably quicker — rhythmic pulsing required
     // → 4-5★: similar to each other, very aggressive — constant attention needed
-    const tensionRiseBase = [0.42,  0.42,  0.44,  0.40,  0.36 ];
-    const tensionRise     = [
-      tensionRiseBase[0],
-      tensionRiseBase[1],
-      tensionRiseBase[2] * slowdownFactor(poleItem?.poleSlowdown3),
-      tensionRiseBase[3] * slowdownFactor(poleItem?.poleSlowdown4),
-      tensionRiseBase[4] * slowdownFactor(poleItem?.poleSlowdown5),
-    ];
+    const tensionRise     = [0.42,  0.42,  0.44,  0.40,  0.36 ];
 
     // Tension fall per second while NOT holding
     const tensionFalls    = [1.80,  1.60,  1.20,  0.90,  0.75 ];

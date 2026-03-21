@@ -470,9 +470,6 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
   const [rarityBoostPercent, setRarityBoostPercent] = useState(item?.rarityBoostPercent?.toString() || "0");
   const [baitCatchBoost, setBaitCatchBoost] = useState(item?.baitCatchBoost?.toString() || "0");
   const [poleMaxUses, setPoleMaxUses] = useState(item?.poleMaxUses?.toString() || "");
-  const [poleSlowdown3, setPoleSlowdown3] = useState(item?.poleSlowdown3 != null ? item.poleSlowdown3.toString() : "");
-  const [poleSlowdown4, setPoleSlowdown4] = useState(item?.poleSlowdown4 != null ? item.poleSlowdown4.toString() : "");
-  const [poleSlowdown5, setPoleSlowdown5] = useState(item?.poleSlowdown5 != null ? item.poleSlowdown5.toString() : "");
   const [fishSwimZone, setFishSwimZone] = useState<"full" | "bottom">((item?.fishSwimZone as "full" | "bottom") || "full");
   const [facingDirection, setFacingDirection] = useState<"right" | "left">(
     (item?.facingDirection as "right" | "left") || "right"
@@ -528,9 +525,9 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
         rarityBoostPercent: fishingType === "bait" ? parseInt(rarityBoostPercent) || 0 : null,
         baitCatchBoost: fishingType === "bait" ? parseInt(baitCatchBoost) || 0 : null,
         poleMaxUses: fishingType === "pole" && poleMaxUses.trim() !== "" ? parseInt(poleMaxUses) || null : null,
-        poleSlowdown3: fishingType === "pole" && poleSlowdown3.trim() !== "" ? parseFloat(poleSlowdown3) : null,
-        poleSlowdown4: fishingType === "pole" && poleSlowdown4.trim() !== "" ? parseFloat(poleSlowdown4) : null,
-        poleSlowdown5: fishingType === "pole" && poleSlowdown5.trim() !== "" ? parseFloat(poleSlowdown5) : null,
+        poleSlowdown3: null,
+        poleSlowdown4: null,
+        poleSlowdown5: null,
       };
       if (imageData) payload.imageData = imageData;
       if (hooklessImageData) (payload as any).hooklessImageData = hooklessImageData;
@@ -738,32 +735,6 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
                 </div>
                 <p className="font-fantasy text-[#6a5840] text-[8px] mt-1">Version of the pole without a hook — used on the fishing page while waiting for a bite.</p>
               </div>
-              <div>
-                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Fish Slowdown by Rarity (%)</label>
-                <p className="font-fantasy text-[#6a5840] text-[8px] mb-2">How much to slow down 3★, 4★ and 5★ fish while reeling. Leave blank to use the default speed. e.g. 30 = 30% slower.</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {([
-                    { label: "3★ Slow %", value: poleSlowdown3, set: setPoleSlowdown3, testId: "input-pole-slowdown-3" },
-                    { label: "4★ Slow %", value: poleSlowdown4, set: setPoleSlowdown4, testId: "input-pole-slowdown-4" },
-                    { label: "5★ Slow %", value: poleSlowdown5, set: setPoleSlowdown5, testId: "input-pole-slowdown-5" },
-                  ] as const).map(({ label, value, set, testId }) => (
-                    <div key={testId}>
-                      <label className="font-fantasy text-[#a89878] text-[8px] block mb-0.5">{label}</label>
-                      <input
-                        data-testid={testId}
-                        type="number"
-                        value={value}
-                        onChange={(e) => set(e.target.value)}
-                        placeholder="—"
-                        min="0"
-                        max="90"
-                        className="w-full px-2 py-1.5 rounded-md font-sans text-xs outline-none"
-                        style={{ background: "rgba(242,232,208,0.9)", border: "1px solid #8b5e3c", color: "#2a1a0a" }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
           )}
 
@@ -785,9 +756,9 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
           <button
             data-testid="button-submit-fishing-item"
             onClick={handleSubmit}
-            disabled={submitting || !imagePreview}
+            disabled={submitting || (!imagePreview && fishingType !== "bait")}
             className="w-full py-2.5 rounded-md font-fantasy text-sm tracking-wider transition-transform active:scale-98 disabled:opacity-50"
-            style={{ background: "linear-gradient(135deg, #1e3a5f 0%, #0f2440 100%)", border: "1px solid rgba(96,165,250,0.4)", color: "#60a5fa", cursor: imagePreview ? "pointer" : "not-allowed" }}
+            style={{ background: "linear-gradient(135deg, #1e3a5f 0%, #0f2440 100%)", border: "1px solid rgba(96,165,250,0.4)", color: "#60a5fa", cursor: (imagePreview || fishingType === "bait") ? "pointer" : "not-allowed" }}
           >
             <Save className="w-4 h-4 inline mr-1" />
             {submitting ? "Saving..." : item ? "Update Item" : "Add to Game"}
