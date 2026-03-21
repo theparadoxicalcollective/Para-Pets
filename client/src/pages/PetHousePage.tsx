@@ -1032,15 +1032,26 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
   }, [addFish]);
 
   const grouped = React.useMemo(() => {
+    // Use LOCAL aquariumFish counts so the bag updates immediately on add/remove
+    // (no waiting for DB sync round-trip, which can race with the mount sync)
+    const aqCounts = new Map<string, number>();
+    for (const f of aquariumFish) {
+      aqCounts.set(f.shopItemId, (aqCounts.get(f.shopItemId) ?? 0) + 1);
+    }
+    // For each shopItemId, subtract how many are claimed by the local aquarium
+    const remaining = new Map(aqCounts);
     const map = new Map<string, { item: AqCaughtFish["item"]; count: number }>();
-    // Only show fish that are NOT currently in the aquarium (available to add)
     for (const cf of fishInventory) {
-      if (cf.inAquarium) continue;
+      const claimed = remaining.get(cf.shopItemId) ?? 0;
+      if (claimed > 0) {
+        remaining.set(cf.shopItemId, claimed - 1);
+        continue; // This fish is currently in the aquarium
+      }
       const ex = map.get(cf.shopItemId);
       if (ex) ex.count++; else map.set(cf.shopItemId, { item: cf.item, count: 1 });
     }
     return Array.from(map.entries());
-  }, [fishInventory]);
+  }, [fishInventory, aquariumFish]);
 
   return (
     <div
