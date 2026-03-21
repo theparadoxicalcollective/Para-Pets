@@ -387,31 +387,31 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
 
     // Per-rarity tuning — all rates are per-second, scaled by delta-time each frame
 
-    // Starting catch progress — just under half for easy fish; rarer = almost empty
-    const startProgress   = [0.42,  0.40,  0.14,  0.07,  0.03 ];
+    // Starting catch progress — starts well above zero so the fish isn't lost on first release
+    const startProgress   = [0.45,  0.42,  0.30,  0.20,  0.12 ];
 
     // Catch progress gain per second while holding
-    const reelRates       = [0.300, 0.260, 0.140, 0.090, 0.065];
+    const reelRates       = [0.300, 0.260, 0.140, 0.095, 0.080];
 
     // Tension rise per second while holding.
-    // Ratios vs catch rate: 1★≈1.40x, 2★≈1.62x, 3★≈3.14x, 4★≈4.44x, 5★≈5.54x
-    // → 1-2★: clearly faster than catch — need 1-2 timed releases per catch
+    // Ratios vs catch rate: 1★≈1.40x, 2★≈1.62x, 3★≈3.14x, 4★≈4.21x, 5★≈4.50x
+    // → 1-2★: clearly faster than catch — need 1-2 timed releases
     // → 3★: noticeably quicker — rhythmic pulsing required
-    // → 4-5★: similar to each other, very aggressive — constant attention needed
+    // → 4-5★: very aggressive — frequent short releases needed
     const tensionRise     = [0.42,  0.42,  0.44,  0.40,  0.36 ];
 
-    // Tension fall per second while NOT holding
-    const tensionFalls    = [1.80,  1.60,  1.20,  0.90,  0.75 ];
+    // Tension fall per second while NOT holding — faster falls give the player real control
+    const tensionFalls    = [2.00,  1.80,  1.50,  1.20,  1.00 ];
 
-    // Catch progress drain per second while NOT holding
-    const progressDrags   = [0.080, 0.130, 0.300, 0.450, 0.600];
+    // Catch progress drain per second while NOT holding — gentle so short releases don't kill the fish
+    const progressDrags   = [0.040, 0.060, 0.100, 0.140, 0.180];
 
     // Surge probability per second — rarer for easy fish
-    const surgeChances    = [0.25,  0.40,  1.10,  1.60,  2.00 ];
+    const surgeChances    = [0.15,  0.25,  0.60,  0.90,  1.20 ];
     // Extra tension per second DURING a surge
-    const surgeTPerSec    = [0.35,  0.50,  0.90,  1.20,  1.50 ];
+    const surgeTPerSec    = [0.30,  0.45,  0.80,  1.10,  1.40 ];
     // Extra progress drain per second DURING a surge (only when NOT holding)
-    const surgePPerSec    = [0.12,  0.20,  0.55,  0.80,  1.05 ];
+    const surgePPerSec    = [0.05,  0.08,  0.15,  0.20,  0.28 ];
 
     const baitCatchBoost = equipDataRef.current?.baitItem?.baitCatchBoost ?? 0;
     const reelRate       = reelRates[rarity - 1] * (1 + baitCatchBoost / 100);
