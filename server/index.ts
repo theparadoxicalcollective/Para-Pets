@@ -625,6 +625,25 @@ app.use((req, res, next) => {
     console.error("Badge reward migration error (non-fatal):", err);
   }
 
+  // Migration: update Swamp Crawler bait image to transparent version
+  try {
+    const swampCrawlerFixed = await storage.getGameSetting("swamp_crawler_bg_removed_v1");
+    if (!swampCrawlerFixed) {
+      const newImg = loadAssetBase64("bait_swamp_crawler.png");
+      if (newImg) {
+        await db.execute(sql`
+          UPDATE shop_items
+          SET image_url = ${newImg}
+          WHERE name = 'Swamp Crawler' AND fishing_type = 'bait'
+        `);
+        console.log("Swamp Crawler bait image updated (transparent).");
+      }
+      await storage.setGameSetting("swamp_crawler_bg_removed_v1", "done");
+    }
+  } catch (err) {
+    console.error("Swamp Crawler image migration error (non-fatal):", err);
+  }
+
   console.log("Background initialization complete.");
   })().catch(err => console.error("Background init error:", err));
 })();
