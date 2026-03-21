@@ -412,50 +412,55 @@ export default function PetPowerUpModal({
               : "No slots — level up first!"}
         </div>
 
-        {/* Pet zone — the drop target */}
+        {/* Pet zone — the drop target; no static box, just a sized area */}
         <div
           ref={petZoneRef}
           data-testid="zone-pet-drop"
-          className="relative flex items-center justify-center rounded-2xl transition-all duration-200 w-full"
+          className="relative flex items-center justify-center transition-all duration-200 w-full"
           style={{
-            maxWidth: 420,
-            aspectRatio: "1 / 1",
+            height: 300,
+            borderRadius: 24,
             background: dragOverPet
-              ? `radial-gradient(ellipse at center, rgba(${dragging ? itemColor(dragging.item).replace("#","") : "240,192,64"},0.25) 0%, rgba(0,0,0,0.6) 100%)`
-              : "radial-gradient(ellipse at center, rgba(45,122,79,0.18) 0%, rgba(0,0,0,0.5) 100%)",
+              ? `radial-gradient(ellipse at center, rgba(${dragging ? itemColor(dragging.item).replace("#","") : "240,192,64"},0.22) 0%, rgba(0,0,0,0.55) 100%)`
+              : petGlow
+              ? `radial-gradient(ellipse at center, ${petGlow}22 0%, transparent 70%)`
+              : "transparent",
             border: dragOverPet
               ? `2px solid ${dragging ? itemColor(dragging.item) : "#f0c040"}`
-              : `2px solid rgba(127,255,212,${petAnim !== "none" ? "0.9" : "0.25"})`,
+              : petGlow
+              ? `2px solid ${petGlow}80`
+              : "2px solid transparent",
             boxShadow: petGlow
               ? `0 0 40px ${petGlow}80, 0 0 80px ${petGlow}30`
               : dragOverPet
               ? `0 0 32px ${dragging ? itemColor(dragging.item) : "#f0c040"}60`
-              : "0 0 20px rgba(45,122,79,0.15)",
+              : "none",
             animation: dragOverPet ? "puMDropHint 1s ease-in-out infinite" : undefined,
             "--glow": dragging ? itemColor(dragging.item) + "60" : "#f0c04060",
           } as any}
         >
           {/* Pet image/animator */}
           <div
-            className="w-full h-full flex items-center justify-center"
+            className="flex items-center justify-center"
             style={{
+              width: "100%",
+              height: "100%",
               animation: petAnim === "bounce" ? "puMBounce 0.6s ease-out forwards" :
                          petAnim === "flash"  ? "puMFlash 0.5s ease-out forwards" : undefined,
             }}
           >
             {petTemplateId ? (
-              <PetAnimator petTemplateId={petTemplateId} mode="idle" view="front" size={380} />
+              <PetAnimator petTemplateId={petTemplateId} mode="idle" view="front" size={280} />
             ) : petImage ? (
-              <img src={petImage} alt={petName} style={{ width: "92%", height: "92%", objectFit: "contain" }} />
+              <img src={petImage} alt={petName} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
             ) : (
-              <img src={petPawIcon} alt="" style={{ width: "55%", height: "55%", objectFit: "contain", filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.6))" }} />
+              <img src={petPawIcon} alt="" style={{ width: "65%", height: "65%", objectFit: "contain", filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.6))" }} />
             )}
           </div>
 
           {/* Drop hint overlay */}
           {dragging && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl pointer-events-none"
-              style={{ background: "rgba(0,0,0,0.35)" }}>
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ borderRadius: 24, background: "rgba(0,0,0,0.35)" }}>
               <div className="font-fantasy text-xs tracking-widest" style={{ color: itemColor(dragging.item), textShadow: `0 0 12px ${itemColor(dragging.item)}` }}>
                 DROP HERE
               </div>
