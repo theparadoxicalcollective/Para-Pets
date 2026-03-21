@@ -61,6 +61,36 @@ function isAuthenticated(req: Request, res: Response, next: any) {
   return next();
 }
 
+async function grantWelcomeV2Bundle(userId: string): Promise<void> {
+  const bundle = await storage.createRewardBundle(
+    "Welcome to the Realm!",
+    500,
+    "A new adventure begins! These gifts are yours to keep — may your journey be legendary."
+  );
+  await storage.createUserReward(userId, bundle.id);
+  const allShopItems = await storage.getAllShopItems();
+  const find = (name: string) => allShopItems.find(i => i.name.toLowerCase() === name.toLowerCase());
+  const wanted: { name: string; qty: number }[] = [
+    { name: "Ire Deer",            qty: 1  },
+    { name: "Subtle Growth",       qty: 1  },
+    { name: "Basic Health Potion", qty: 10 },
+    { name: "Basic Mana Potion",   qty: 10 },
+    { name: "Group Revive",        qty: 1  },
+    { name: "Mossy Moonlight",     qty: 1  },
+    { name: "Scorched Relevance",  qty: 1  },
+    { name: "Sturdy Rod",          qty: 1  },
+  ];
+  for (const { name, qty } of wanted) {
+    const item = find(name);
+    if (item) {
+      for (let i = 0; i < qty; i++) {
+        await storage.addRewardBundleItem(bundle.id, item.id);
+      }
+    }
+  }
+  await storage.setWelcomeV2Sent(userId);
+}
+
 async function ensureAdminAccount() {
   try {
     const adminEmail = "paradox.esctacyartistry@gmail.com";
@@ -198,32 +228,7 @@ export async function registerRoutes(
       });
 
       try {
-        const welcomeBundle = await storage.createRewardBundle(
-          "Welcome to the Realm!",
-          500,
-          "A new adventure begins! These gifts are yours to keep — may your journey be legendary."
-        );
-        await storage.createUserReward(user.id, welcomeBundle.id);
-        const allShopItems = await storage.getAllShopItems();
-        const find = (name: string) => allShopItems.find(i => i.name.toLowerCase() === name.toLowerCase());
-        const wanted: { name: string; qty: number }[] = [
-          { name: "Ire Deer",            qty: 1  },
-          { name: "Subtle Growth",       qty: 1  },
-          { name: "Basic Health Potion", qty: 10 },
-          { name: "Basic Mana Potion",   qty: 10 },
-          { name: "Group Revive",        qty: 1  },
-          { name: "Mossy Moonlight",     qty: 1  },
-          { name: "Scorched Relevance",  qty: 1  },
-          { name: "Sturdy Rod",          qty: 1  },
-        ];
-        for (const { name, qty } of wanted) {
-          const item = find(name);
-          if (item) {
-            for (let i = 0; i < qty; i++) {
-              await storage.addRewardBundleItem(welcomeBundle.id, item.id);
-            }
-          }
-        }
+        await grantWelcomeV2Bundle(user.id);
       } catch (rewardErr) {
         console.error("Failed to create welcome reward, giving coins directly:", rewardErr);
         await storage.addCoins(user.id, 500);
@@ -244,10 +249,14 @@ export async function registerRoutes(
     passport.authenticate("local", (err: any, user: any, info: any) => {
       if (err) return next(err);
       if (!user) return res.status(401).json({ message: info?.message || "Invalid credentials" });
-      req.login(user, (loginErr) => {
+      req.login(user, async (loginErr) => {
         if (loginErr) return next(loginErr);
         req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000;
-        const { password: _, ...safeUser } = user;
+        if (!user.welcomeV2Sent) {
+          try { await grantWelcomeV2Bundle(user.id); } catch (e) { console.error("Welcome v2 grant failed:", e); }
+        }
+        const freshUser = await storage.getUser(user.id);
+        const { password: _, ...safeUser } = freshUser ?? user;
         return res.json(safeUser);
       });
     })(req, res, next);

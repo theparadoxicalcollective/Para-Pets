@@ -18,6 +18,7 @@ export const users = pgTable("users", {
   passwordResetToken: text("password_reset_token"),
   passwordResetExpires: timestamp("password_reset_expires"),
   marketExtraSlots: integer("market_extra_slots").notNull().default(0),
+  welcomeV2Sent: boolean("welcome_v2_sent").notNull().default(false),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 

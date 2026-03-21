@@ -55,6 +55,7 @@ export interface IStorage {
   banUser(id: string): Promise<User>;
   unbanUser(id: string): Promise<User>;
   addCoins(id: string, amount: number): Promise<User>;
+  setWelcomeV2Sent(id: string): Promise<void>;
   updatePassword(id: string, hashedPassword: string): Promise<User>;
   deleteAccount(id: string): Promise<void>;
   setPasswordResetToken(id: string, token: string, expires: Date): Promise<void>;
@@ -268,6 +269,10 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, id))
       .returning();
     return updated;
+  }
+
+  async setWelcomeV2Sent(id: string): Promise<void> {
+    await db.update(users).set({ welcomeV2Sent: true }).where(eq(users.id, id));
   }
 
   async updatePassword(id: string, hashedPassword: string): Promise<User> {
