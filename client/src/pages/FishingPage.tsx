@@ -418,7 +418,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     const baseReelRates     = [0.50,  0.42,  0.32,  0.24,  0.17 ];
 
     // Tension rise per second while holding (base, before modifiers)
-    const baseTensionRise   = [0.55,  0.75,  1.05,  1.45,  1.90 ];
+    // 4★ and 5★ toned down slightly — escape meter compensates for difficulty
+    const baseTensionRise   = [0.55,  0.75,  1.05,  1.20,  1.55 ];
 
     // Tension fall per second while NOT holding
     const tensionFalls      = [2.80,  2.30,  1.80,  1.35,  0.95 ];
@@ -427,7 +428,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     const baseProgressDrags = [0.030, 0.060, 0.100, 0.150, 0.200];
 
     // Escape meter fill rate per second while NOT holding (base)
-    const baseEscapeRate    = [0.040, 0.070, 0.110, 0.160, 0.220];
+    // 4★ and 5★ bumped to compensate for reduced tension rise
+    const baseEscapeRate    = [0.040, 0.070, 0.110, 0.200, 0.270];
 
     // Escape meter drain per second while holding inside sweet spot
     const escapeReelRate    = [0.080, 0.060, 0.040, 0.025, 0.010];

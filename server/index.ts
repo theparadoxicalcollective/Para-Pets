@@ -625,9 +625,9 @@ app.use((req, res, next) => {
     console.error("Badge reward migration error (non-fatal):", err);
   }
 
-  // Migration: update Swamp Crawler bait image to transparent version
+  // Migration: update Swamp Crawler bait image — v2 uses regenerated borderless art
   try {
-    const swampCrawlerFixed = await storage.getGameSetting("swamp_crawler_bg_removed_v1");
+    const swampCrawlerFixed = await storage.getGameSetting("swamp_crawler_bg_removed_v2");
     if (!swampCrawlerFixed) {
       const newImg = loadAssetBase64("bait_swamp_crawler.png");
       if (newImg) {
@@ -636,9 +636,9 @@ app.use((req, res, next) => {
           SET image_url = ${newImg}
           WHERE name = 'Swamp Crawler' AND fishing_type = 'bait'
         `);
-        console.log("Swamp Crawler bait image updated (transparent).");
+        console.log("Swamp Crawler bait image updated (borderless v2).");
       }
-      await storage.setGameSetting("swamp_crawler_bg_removed_v1", "done");
+      await storage.setGameSetting("swamp_crawler_bg_removed_v2", "done");
     }
   } catch (err) {
     console.error("Swamp Crawler image migration error (non-fatal):", err);
