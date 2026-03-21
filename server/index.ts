@@ -592,6 +592,22 @@ app.use((req, res, next) => {
     console.log("Admin test pole removed.");
   } catch (_) { /* already gone */ }
 
+  // Migration: add daily_reward_coins column to badges and seed Founder's Badge reward
+  try {
+    const badgeRewardMigrated = await storage.getGameSetting("badge_daily_reward_coins_v1");
+    if (!badgeRewardMigrated) {
+      await db.execute(sql`ALTER TABLE badges ADD COLUMN IF NOT EXISTS daily_reward_coins INTEGER`);
+      await db.execute(sql`
+        UPDATE badges SET daily_reward_coins = 100
+        WHERE LOWER(name) LIKE '%founder%' AND daily_reward_coins IS NULL
+      `);
+      await storage.setGameSetting("badge_daily_reward_coins_v1", "done");
+      console.log("Badge daily_reward_coins migration complete.");
+    }
+  } catch (err) {
+    console.error("Badge reward migration error (non-fatal):", err);
+  }
+
   console.log("Background initialization complete.");
   })().catch(err => console.error("Background init error:", err));
 })();

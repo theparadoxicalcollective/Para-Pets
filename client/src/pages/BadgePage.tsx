@@ -24,7 +24,7 @@ interface UserBadge {
   awardedAt: string;
   name: string;
   imageUrl: string;
-  dailyReward: number | null;
+  dailyRewardCoins: number | null;
   lastClaimedAt: string | null;
 }
 
@@ -79,8 +79,8 @@ function BadgeClaimButton({
       onClaimed(data.newCoins);
       queryClient.invalidateQueries({ queryKey: ["/api/user/badges"] });
       toast({
-        title: `+${badge.dailyReward} coins claimed!`,
-        description: `Come back tomorrow for another ${badge.dailyReward} coins.`,
+        title: `+${badge.dailyRewardCoins} coins claimed!`,
+        description: `Come back tomorrow for another ${badge.dailyRewardCoins} coins.`,
       });
     },
     onError: async (err: any) => {
@@ -110,7 +110,7 @@ function BadgeClaimButton({
       {claimMutation.isPending
         ? "Claiming..."
         : canClaim
-        ? `Claim ${badge.dailyReward} 🪙`
+        ? `Claim ${badge.dailyRewardCoins} 🪙`
         : formatCountdown(msLeft)}
     </button>
   );
@@ -223,11 +223,11 @@ export default function BadgePage({ user }: BadgePageProps) {
                   <div
                     className="w-20 h-20 rounded-full flex items-center justify-center"
                     style={{
-                      background: badge.dailyReward
+                      background: badge.dailyRewardCoins
                         ? "linear-gradient(135deg, rgba(240,192,64,0.18), rgba(240,140,20,0.1))"
                         : "rgba(240,192,64,0.1)",
-                      border: `2px solid ${badge.dailyReward ? "rgba(240,192,64,0.75)" : "rgba(212,160,23,0.5)"}`,
-                      boxShadow: badge.dailyReward
+                      border: `2px solid ${badge.dailyRewardCoins ? "rgba(240,192,64,0.75)" : "rgba(212,160,23,0.5)"}`,
+                      boxShadow: badge.dailyRewardCoins
                         ? "0 0 20px rgba(240,192,64,0.35), 0 4px 12px rgba(0,0,0,0.6)"
                         : "0 0 16px rgba(240,192,64,0.2), 0 4px 12px rgba(0,0,0,0.6)",
                     }}
@@ -251,7 +251,7 @@ export default function BadgePage({ user }: BadgePageProps) {
                   >
                     {new Date(badge.awardedAt).toLocaleDateString()}
                   </p>
-                  {badge.dailyReward && (
+                  {badge.dailyRewardCoins && (
                     <BadgeClaimButton badge={badge} onClaimed={handleClaimed} />
                   )}
                 </div>

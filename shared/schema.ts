@@ -285,6 +285,7 @@ export const badges = pgTable("badges", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   imageUrl: text("image_url").notNull(),
+  dailyRewardCoins: integer("daily_reward_coins"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 

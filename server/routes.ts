@@ -2716,10 +2716,10 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
       if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
-      const { name, imageData } = req.body;
+      const { name, imageData, dailyRewardCoins } = req.body;
       if (!name || !imageData) return res.status(400).json({ message: "name and imageData required" });
       const imageUrl = await processWorldImage(imageData, 1000);
-      const badge = await storage.createBadge(name, imageUrl);
+      const badge = await storage.createBadge(name, imageUrl, dailyRewardCoins ? Number(dailyRewardCoins) : null);
       return res.json(badge);
     } catch (err: any) {
       return res.status(500).json({ message: err.message || "Failed to create badge" });
@@ -2734,6 +2734,19 @@ export async function registerRoutes(
       return res.json({ ok: true });
     } catch (err) {
       return res.status(500).json({ message: "Failed to delete badge" });
+    }
+  });
+
+  app.patch("/api/admin/badges/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
+      const { dailyRewardCoins } = req.body;
+      const coins = dailyRewardCoins != null && dailyRewardCoins !== "" ? Number(dailyRewardCoins) : null;
+      await storage.updateBadgeDailyReward(req.params.id, coins);
+      return res.json({ ok: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message || "Failed to update badge" });
     }
   });
 
@@ -2778,20 +2791,11 @@ export async function registerRoutes(
     }
   });
 
-  // Daily coin rewards by badge name
-  const BADGE_DAILY_REWARDS: Record<string, number> = {
-    "Founder's Badge": 100,
-  };
-
   app.get("/api/user/badges", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
       const myBadges = await storage.getUserBadges(user.id);
-      const result = myBadges.map(b => ({
-        ...b,
-        dailyReward: BADGE_DAILY_REWARDS[b.name] ?? null,
-      }));
-      return res.json(result);
+      return res.json(myBadges);
     } catch (err) {
       return res.status(500).json({ message: "Failed to fetch user badges" });
     }
@@ -2808,7 +2812,7 @@ export async function registerRoutes(
       const badge = myBadges.find(b => b.badgeId === badgeId);
       if (!badge) return res.status(403).json({ message: "You don't have this badge" });
 
-      const reward = BADGE_DAILY_REWARDS[badge.name];
+      const reward = badge.dailyRewardCoins;
       if (!reward) return res.status(400).json({ message: "This badge has no daily reward" });
 
       // Check 24h cooldown
