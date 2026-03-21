@@ -390,19 +390,21 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     // Starting catch progress — enough cushion that the player has time to react
     const startProgress   = [0.52,  0.46,  0.38,  0.28,  0.18 ];
 
-    // Catch progress gain per second while holding
-    const reelRates       = [0.300, 0.260, 0.140, 0.095, 0.080];
+    // Catch progress gain per second while holding.
+    // Raised so pulsed holding can realistically catch higher-rarity fish within 30s.
+    const reelRates       = [0.450, 0.380, 0.220, 0.160, 0.120];
 
-    // Tension rise per second while holding — PRIMARY skill differentiator across rarities.
-    // 1★: barely rises → can hold freely.
-    // 5★: rises fast → must pulse short holds and release before snap.
-    const tensionRise     = [0.18,  0.32,  0.55,  0.78,  1.05 ];
+    // Tension rise per second while holding.
+    // Calibrated so continuous holding SNAPS the line before the fish is fully caught
+    // at every rarity — players MUST pulse the hold button instead of holding freely.
+    // 1★ snaps in ~1.0s, 5★ snaps in ~0.8s of continuous holding.
+    const tensionRise     = [1.00,  0.85,  0.90,  1.05,  1.25 ];
 
-    // Tension fall per second while NOT holding
+    // Tension fall per second while NOT holding — fast enough to reward quick releases
     const tensionFalls    = [2.20,  2.00,  1.70,  1.30,  1.00 ];
 
-    // Catch progress drain per second while NOT holding — kept gentle so brief releases aren't fatal
-    const progressDrags   = [0.025, 0.040, 0.065, 0.095, 0.130];
+    // Catch progress drain per second while NOT holding
+    const progressDrags   = [0.035, 0.055, 0.080, 0.100, 0.120];
 
     // Surge probability per second — occasional excitement, not constant chaos
     const surgeChances    = [0.06,  0.12,  0.22,  0.38,  0.55 ];
