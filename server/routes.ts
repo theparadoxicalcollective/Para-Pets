@@ -3164,7 +3164,7 @@ export async function registerRoutes(
   app.post("/api/fishing/catch", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const { locationId, performanceScore } = req.body;
+      const { locationId, performanceScore, shopItemId: clientShopItemId } = req.body;
       if (!locationId) return res.status(400).json({ message: "locationId required" });
       const score = Math.max(0, Math.min(100, Number(performanceScore) || 0));
 
@@ -3175,53 +3175,61 @@ export async function registerRoutes(
       if (pondEntries.length === 0) return res.json({ caught: null, reason: "empty_pond" });
 
       const equipment = await storage.getPlayerFishingEquipment(user.id);
-      let poleBoost = 0;
-      let baitBoost = 0;
-      if (equipment?.poleInventoryId) {
-        const inv = await storage.getInventoryItemById(equipment.poleInventoryId);
-        if (inv) {
-          const pole = await storage.getShopItem(inv.shopItemId);
-          poleBoost = pole?.rareCatchBoostPercent ?? 0;
-        }
-      }
-      if (equipment?.baitInventoryId) {
-        const inv = await storage.getInventoryItemById(equipment.baitInventoryId);
-        if (inv) {
-          const bait = await storage.getShopItem(inv.shopItemId);
-          baitBoost = bait?.rarityBoostPercent ?? 0;
-        }
-      }
-
       if (equipment?.poleInventoryId) {
         await storage.decrementPoleUses(equipment.poleInventoryId);
       }
 
       // If the player completed the reel mini-game (score 100) they always catch.
-      // For any other path (legacy / future use) apply a partial chance.
       if (score < 100) {
         const catchChance = 0.4 + (score / 100) * 0.5;
         if (Math.random() > catchChance) return res.json({ caught: null, reason: "miss" });
       }
 
-      const baseWeights: Record<number, number> = { 1: 60, 2: 24, 3: 10, 4: 4, 5: 2 };
-      const fishPool = pondEntries.map(entry => {
-        const star = entry.item?.starRarity ?? 1;
-        let weight = baseWeights[star] ?? 10;
-        if (star >= 3) weight += (baitBoost / 100) * weight;
-        if (star >= 4) weight += (poleBoost / 100) * weight;
-        return { entry, weight: Math.max(0.1, weight) };
-      });
+      // Use the specific fish the frontend selected for the minigame — this ensures the
+      // difficulty (based on that fish's starRarity) matches what the player actually catches.
+      // Verify it belongs to this pond before trusting the client value.
+      let chosenEntry = clientShopItemId
+        ? pondEntries.find(e => e.shopItemId === clientShopItemId) ?? null
+        : null;
 
-      const totalWeight = fishPool.reduce((sum, f) => sum + f.weight, 0);
-      let rand = Math.random() * totalWeight;
-      let chosen = fishPool[fishPool.length - 1];
-      for (const f of fishPool) {
-        rand -= f.weight;
-        if (rand <= 0) { chosen = f; break; }
+      // Fallback: if the client didn't send an ID or it wasn't found in this pond, random-select
+      if (!chosenEntry) {
+        let poleBoost = 0;
+        let baitBoost = 0;
+        if (equipment?.poleInventoryId) {
+          const inv = await storage.getInventoryItemById(equipment.poleInventoryId);
+          if (inv) {
+            const pole = await storage.getShopItem(inv.shopItemId);
+            poleBoost = pole?.rareCatchBoostPercent ?? 0;
+          }
+        }
+        if (equipment?.baitInventoryId) {
+          const inv = await storage.getInventoryItemById(equipment.baitInventoryId);
+          if (inv) {
+            const bait = await storage.getShopItem(inv.shopItemId);
+            baitBoost = bait?.rarityBoostPercent ?? 0;
+          }
+        }
+        const baseWeights: Record<number, number> = { 1: 60, 2: 24, 3: 10, 4: 4, 5: 2 };
+        const fishPool = pondEntries.map(entry => {
+          const star = parseInt(String(entry.item?.starRarity ?? 1), 10) || 1;
+          let weight = baseWeights[star] ?? 10;
+          if (star >= 3) weight += (baitBoost / 100) * weight;
+          if (star >= 4) weight += (poleBoost / 100) * weight;
+          return { entry, weight: Math.max(0.1, weight) };
+        });
+        const totalWeight = fishPool.reduce((sum, f) => sum + f.weight, 0);
+        let rand = Math.random() * totalWeight;
+        let chosen = fishPool[fishPool.length - 1];
+        for (const f of fishPool) {
+          rand -= f.weight;
+          if (rand <= 0) { chosen = f; break; }
+        }
+        chosenEntry = chosen.entry;
       }
 
-      const caught = await storage.addFishToPlayerInventory(user.id, chosen.entry.shopItemId);
-      return res.json({ caught, item: chosen.entry.item });
+      const caught = await storage.addFishToPlayerInventory(user.id, chosenEntry.shopItemId);
+      return res.json({ caught, item: chosenEntry.item });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }

@@ -99,6 +99,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   const [bgLoaded, setBgLoaded] = useState(false);
   const [bgError, setBgError] = useState(false);
   const nibbleRarityRef = useRef<number>(1);
+  const selectedFishIdRef = useRef<string | null>(null);
   const [nibbleCount, setNibbleCount] = useState(0);
   const nibbleCountRef = useRef(0);
   const [nibbleWindowMs, setNibbleWindowMs] = useState(2500);
@@ -191,7 +192,11 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
 
   const catchMutation = useMutation({
     mutationFn: async (performanceScore: number) => {
-      const res = await apiRequest("POST", "/api/fishing/catch", { locationId, performanceScore });
+      const res = await apiRequest("POST", "/api/fishing/catch", {
+        locationId,
+        performanceScore,
+        shopItemId: selectedFishIdRef.current,
+      });
       return res.json();
     },
     onSuccess: (data: { caught: CaughtFish | null; item?: ShopItem; reason?: string }) => {
@@ -347,8 +352,12 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       nibbleTimeoutRef.current = setTimeout(() => {
         if (phaseRef.current === "waiting") {
           // Weighted selection — higher rarity fish appear less often (matches backend)
+          // Parse starRarity to int — DB may return it as a string
           const rarityWeights: Record<number, number> = { 1: 60, 2: 24, 3: 10, 4: 4, 5: 2 };
-          const weights = pondFish.map(f => rarityWeights[f?.item?.starRarity ?? 1] ?? 20);
+          const weights = pondFish.map(f => {
+            const r = parseInt(String(f?.item?.starRarity ?? 1), 10) || 1;
+            return rarityWeights[r] ?? 20;
+          });
           const totalWeight = weights.reduce((a, b) => a + b, 0);
           let roll = Math.random() * totalWeight;
           let randomFish = pondFish[pondFish.length - 1];
@@ -356,7 +365,9 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
             roll -= weights[i];
             if (roll <= 0) { randomFish = pondFish[i]; break; }
           }
-          nibbleRarityRef.current = randomFish?.item?.starRarity ?? 1;
+          // Parse starRarity as integer — DB can return it as a string in some drivers
+          nibbleRarityRef.current = parseInt(String(randomFish?.item?.starRarity ?? 1), 10) || 1;
+          selectedFishIdRef.current = randomFish?.shopItemId ?? null;
           const nibbleRarity = Math.max(1, Math.min(5, nibbleRarityRef.current));
           const maxNibbles   = NIBBLE_MAX_BY_RARITY[nibbleRarity - 1];
           const nibbleMs     = NIBBLE_TIMEOUT_BY_RARITY[nibbleRarity - 1];
@@ -391,8 +402,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     // Per-rarity tuning — all rates are per-second, scaled by delta-time each frame
     // Rarity is strictly harder as stars increase — no inversions.
 
-    // Starting catch progress — higher rarity means less of a head-start
-    const startProgress   = [0.55,  0.48,  0.35,  0.22,  0.12 ];
+    // Starting catch progress — almost empty so the player must earn it
+    const startProgress   = [0.08,  0.06,  0.05,  0.03,  0.02 ];
 
     // Catch progress gain per second while holding
     const reelRates       = [0.450, 0.380, 0.210, 0.150, 0.110];
