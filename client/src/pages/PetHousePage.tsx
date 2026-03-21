@@ -15,6 +15,7 @@ import globeWorldIconImg from "@assets/icon_globe_world.png";
 import forestHomeIconImg from "@assets/icon_forest_home.png";
 import powerupBagIcon from "@assets/generated_images/icon_powerup_bag.png";
 import fishCommonIconPH from "@assets/generated_images/icon_fish_common.png";
+import fishInvIconPH from "@assets/icon_fish_inventory.png";
 
 interface PetHousePageProps {
   user: {
@@ -1161,7 +1162,7 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
             border: `2px solid ${showPanel ? "rgba(94,234,212,0.75)" : "rgba(94,234,212,0.38)"}`,
             boxShadow: showPanel ? "0 0 14px rgba(94,234,212,0.35)" : "0 2px 10px rgba(0,0,0,0.6)",
           }}>
-            <span style={{ fontSize: 28 }}>🐠</span>
+            <img src={fishInvIconPH} alt="Fish Bag" style={{ width: 34, height: 34, objectFit: "contain" }} />
           </div>
           <span className="font-fantasy text-[9px] tracking-widest" style={{ color: "rgba(94,234,212,0.7)" }}>FISH BAG</span>
         </button>
