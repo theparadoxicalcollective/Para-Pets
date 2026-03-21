@@ -76,9 +76,9 @@ interface CaughtFish {
 type FishingPhase = "idle" | "casting" | "waiting" | "nibble" | "reeling" | "caught" | "missed";
 
 const ACCENT = "#5eead4";
-// Per-rarity nibble config — 1★ and 2★ are equally easy; 3★+ progressively tighter
-const NIBBLE_MAX_BY_RARITY     = [3, 3, 1, 1, 1];            // 3★+ only ONE tap window before escape
-const NIBBLE_TIMEOUT_BY_RARITY = [1400, 1400, 550, 380, 260]; // ms window — 1★=2★ both generous
+// Per-rarity nibble config — windows are long enough for human reaction on mobile
+const NIBBLE_MAX_BY_RARITY     = [3, 3, 2, 2, 1];             // 5★ gets 1 chance; 3★/4★ get 2; commons get 3
+const NIBBLE_TIMEOUT_BY_RARITY = [2500, 2200, 1800, 1400, 1100]; // ms per window — all humanly achievable
 
 export default function FishingPage({ locationId, locationName, bgUrl, user, onClose }: FishingPageProps) {
   const [phase, setPhase] = useState<FishingPhase>("idle");
@@ -101,6 +101,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   const nibbleRarityRef = useRef<number>(1);
   const [nibbleCount, setNibbleCount] = useState(0);
   const nibbleCountRef = useRef(0);
+  const [nibbleWindowMs, setNibbleWindowMs] = useState(2500);
   const nibbleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const castingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const phaseRef = useRef<FishingPhase>("idle");
@@ -359,9 +360,10 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           const nibbleRarity = Math.max(1, Math.min(5, nibbleRarityRef.current));
           const maxNibbles   = NIBBLE_MAX_BY_RARITY[nibbleRarity - 1];
           const nibbleMs     = NIBBLE_TIMEOUT_BY_RARITY[nibbleRarity - 1];
-          // Start nibble sequence — fewer pulses and tighter window for rarer fish
+          // Start nibble sequence — fewer chances and tighter window for rarer fish
           nibbleCountRef.current = 1;
           setNibbleCount(1);
+          setNibbleWindowMs(nibbleMs);
           setPhase("nibble");
           const scheduleNibble = () => {
             nibbleTimeoutRef.current = setTimeout(() => {
@@ -373,6 +375,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
               }
               nibbleCountRef.current = next;
               setNibbleCount(next);
+              setNibbleWindowMs(nibbleMs);
               scheduleNibble();
             }, nibbleMs);
           };
@@ -738,7 +741,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
               {[
                 { num: "1", title: "Cast", desc: "Tap anywhere on the water to cast your line." },
                 { num: "2", title: "Wait for a Bite", desc: "Watch the bobber — when it dips, a fish is biting!" },
-                { num: "3", title: "Hook It!", desc: "Tap the moment it dips! 3★+ fish give only ONE dip before escaping — and the window is very short. Act fast!" },
+                { num: "3", title: "Hook It!", desc: "When the bobber dips, tap immediately! Watch the glowing ring around it — tap before it runs out. Rarer fish give fewer chances and a shorter window." },
                 { num: "4", title: "Reel In", desc: "Hold to reel, release when tension goes red. 3★+ fish surge hard and drag your progress back — short bursts are key. If tension maxes, the line snaps!" },
               ].map(({ num, title, desc }) => (
                 <div key={num} className="flex gap-3 items-start">
@@ -841,9 +844,34 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         </div>
       )}
 
-      {/* Bobber — nibble phase: aggressive dip with ripples */}
+      {/* Bobber — nibble phase: aggressive dip with countdown ring */}
       {phase === "nibble" && (
         <div className="absolute pointer-events-none z-[15]" style={{ bottom: "20%", left: "50%", background: "transparent" }}>
+          {/* Countdown ring — depletes over the nibble window so player knows the clock */}
+          <svg
+            key={`${nibbleCount}-${nibbleWindowMs}`}
+            style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)", zIndex: 1, pointerEvents: "none" }}
+            width="110" height="110" viewBox="0 0 110 110"
+          >
+            {/* Background ring */}
+            <circle cx="55" cy="55" r="46" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="3.5" />
+            {/* Draining fill ring */}
+            <circle
+              cx="55" cy="55" r="46"
+              fill="none"
+              stroke={ACCENT}
+              strokeWidth="3.5"
+              strokeLinecap="round"
+              strokeDasharray="289"
+              strokeDashoffset="0"
+              style={{
+                transformOrigin: "55px 55px",
+                transform: "rotate(-90deg)",
+                animation: `nibbleCountdown ${nibbleWindowMs}ms linear forwards`,
+                filter: `drop-shadow(0 0 4px ${ACCENT})`,
+              }}
+            />
+          </svg>
           {/* Expanding ripple rings */}
           <div style={{
             position: "absolute", width: 40, height: 20,
@@ -868,6 +896,15 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
             animation: "nibbleDip 0.9s ease-in-out infinite",
             filter: "drop-shadow(0 0 10px rgba(94,234,212,0.9)) drop-shadow(0 0 16px rgba(109,40,217,0.5))",
           }} />
+          {/* TAP hint below bobber */}
+          <div style={{
+            position: "absolute", left: "50%", transform: "translateX(-50%)", top: "calc(100% + 8px)",
+            color: ACCENT, fontFamily: "inherit",
+            fontSize: 11, letterSpacing: "0.18em", fontWeight: 700,
+            textShadow: `0 0 10px ${ACCENT}`,
+            animation: "nibbleTapPulse 0.45s ease-in-out infinite alternate",
+            whiteSpace: "nowrap",
+          }}>TAP!</div>
         </div>
       )}
 
@@ -1787,6 +1824,14 @@ const FISHING_ANIMATIONS = `
   @keyframes nibbleRippleOut {
     0%   { transform: scale(1); opacity: 1; }
     100% { transform: scale(3.5); opacity: 0; }
+  }
+  @keyframes nibbleCountdown {
+    0%   { stroke-dashoffset: 0; }
+    100% { stroke-dashoffset: 289; }
+  }
+  @keyframes nibbleTapPulse {
+    0%   { opacity: 0.7; transform: translateX(-50%) scale(1); }
+    100% { opacity: 1;   transform: translateX(-50%) scale(1.15); }
   }
   @keyframes surgeFlash {
     0%, 100% { opacity: 1; transform: scale(1); }
