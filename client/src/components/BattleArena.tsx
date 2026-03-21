@@ -3,11 +3,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { fireLevelUp } from "@/lib/levelUpEvents";
-import { Swords, Star, Coins, X, ChevronRight, ArrowLeft, Heart, HelpCircle, Droplets, Zap, Skull, Sparkles } from "lucide-react";
+import { Swords, Star, Coins, X, ChevronRight, ArrowLeft, Heart, HelpCircle, Droplets, Zap, Skull, Sparkles, Shield } from "lucide-react";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
-import powerupBagIconBA from "@assets/generated_images/icon_powerup_bag.png";
 import PetAnimator from "./PetAnimator";
-
 
 interface EncounterEnemy {
   enemyId: string;
@@ -51,14 +49,7 @@ interface BattleArenaProps {
   accent: string;
   onClose: () => void;
   onBattleEnd: () => void;
-  battlePotionSlots?: BattlePotionSlot[];
-}
-
-interface EnemyPosition {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
+  battlePotionSlots?: (BattlePotionSlot | null)[];
 }
 
 interface SlashEffect {
@@ -85,25 +76,9 @@ interface DamageNumber {
   isCrit?: boolean;
 }
 
-interface BossOrb {
-  id: number;
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-}
-
-interface InventoryPotion {
-  inventoryId: string;
-  shopItemId: string;
-  name: string;
-  imageUrl: string | null;
-  healthRestored: number;
-}
-
 type BattlePhase = "loading" | "intro" | "battle" | "victory" | "waveComplete" | "defeat";
 
-function buildSlashPath(pts: {x: number; y: number}[]): string {
+function buildSlashPath(pts: { x: number; y: number }[]): string {
   if (pts.length < 2) return "";
   if (pts.length === 2) return `M${pts[0].x},${pts[0].y} L${pts[1].x},${pts[1].y}`;
   let d = `M${pts[0].x},${pts[0].y}`;
@@ -121,10 +96,15 @@ function buildSlashPath(pts: {x: number; y: number}[]): string {
   return d;
 }
 
+// Fixed pet position (% of arena)
+const PET_X = 25;
+const PET_Y = 70;
+
 export default function BattleArena({ locationId, locationName, bgUrl, accent, onClose, onBattleEnd, battlePotionSlots = [] }: BattleArenaProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // ── Core phase / wave state ──────────────────────────────────────────────
   const [phase, setPhase] = useState<BattlePhase>("loading");
   const [allEnemies, setAllEnemies] = useState<EncounterEnemy[]>([]);
   const [waveIndex, setWaveIndex] = useState(0);
@@ -134,49 +114,53 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const [enemyMaxHp, setEnemyMaxHp] = useState(0);
   const [petHp, setPetHp] = useState(0);
   const [petMaxHp, setPetMaxHp] = useState(0);
-  const [enemyPos, setEnemyPos] = useState<EnemyPosition>({ x: 50, y: 25, vx: 2, vy: 1.5 });
+  const [victoryData, setVictoryData] = useState<any>(null);
+  const [totalRewards, setTotalRewards] = useState<{ lvlPoints: number; coins: number; items: any[]; levelsGained: number }>({ lvlPoints: 0, coins: 0, items: [], levelsGained: 0 });
+
+  // ── Enemy movement ───────────────────────────────────────────────────────
+  const [enemyPos, setEnemyPos] = useState({ x: 50, y: 22 });
+  const enemyPosRef = useRef({ x: 50, y: 22 });
+  const enemyOscRef = useRef(0);
+  const isBossRef = useRef(false);
+
+  // ── Charge / parry system ────────────────────────────────────────────────
+  const [enemyCharging, setEnemyCharging] = useState(false);
+  const [parryWindowOpen, setParryWindowOpen] = useState(false);
+  const [parryResult, setParryResult] = useState<"success" | "fail" | null>(null);
+  const [counterActive, setCounterActive] = useState(false);
+  const [counterHitsLeft, setCounterHitsLeft] = useState(0);
+  const enemyChargingRef = useRef(false);
+  const chargeStartRef = useRef(0);
+  const chargeDurationRef = useRef(1400);
+  const parryWindowOpenRef = useRef(false);
+  const counterActiveRef = useRef(false);
+  const counterHitsLeftRef = useRef(0);
+  const nextChargeTimeRef = useRef(0);
+
+  // ── Boss rage ────────────────────────────────────────────────────────────
+  const [bossRage, setBossRage] = useState(false);
+  const bossRageRef = useRef(false);
+
+  // ── Hit / visual effects ─────────────────────────────────────────────────
   const [slashEffects, setSlashEffects] = useState<SlashEffect[]>([]);
   const [damageNumbers, setDamageNumbers] = useState<DamageNumber[]>([]);
   const [petHit, setPetHit] = useState(false);
   const [enemyHit, setEnemyHit] = useState(false);
   const [shakeScreen, setShakeScreen] = useState(false);
-  const [victoryData, setVictoryData] = useState<any>(null);
   const [comboCount, setComboCount] = useState(0);
   const [lastHitTime, setLastHitTime] = useState(0);
-  const [totalRewards, setTotalRewards] = useState<{ lvlPoints: number; coins: number; items: any[]; levelsGained: number }>({ lvlPoints: 0, coins: 0, items: [], levelsGained: 0 });
 
-  const [slashTrail, setSlashTrail] = useState<{x: number; y: number}[]>([]);
+  // ── Swipe trail ──────────────────────────────────────────────────────────
+  const [slashTrail, setSlashTrail] = useState<{ x: number; y: number }[]>([]);
   const [trailFading, setTrailFading] = useState(false);
   const [sparkParticles, setSparkParticles] = useState<SparkParticle[]>([]);
-  const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem("battleTutorialSeen"));
-
-  // Pet dragging
-  const [petPos, setPetPos] = useState({ x: 50, y: 76 });
-  const petPosRef = useRef({ x: 50, y: 76 });
-  const petDraggingRef = useRef(false);
   const [petHitParticles, setPetHitParticles] = useState<SparkParticle[]>([]);
+  const swipePathRef = useRef<{ x: number; y: number }[]>([]);
+  const lastSwipePointRef = useRef<{ x: number; y: number } | null>(null);
+  const hitEnemiesRef = useRef<Set<string>>(new Set());
+  const isSlashingRef = useRef(false);
 
-  // Boss special attacks
-  const [bossOrbs, setBossOrbs] = useState<BossOrb[]>([]);
-  const bossOrbsRef = useRef<BossOrb[]>([]);
-  const [bossEnlarged, setBossEnlarged] = useState(false);
-  const [bossBurstActive, setBossBurstActive] = useState(false);
-  const bossAttackModeRef = useRef<"rain" | "burst" | "focused">("rain");
-  const nextBossAttackRef = useRef(0);
-  const bossOrbIdRef = useRef(1000);
-  const orbSpawnTimerRef = useRef(0);
-  const orbSpawnEndRef = useRef(0);
-  const bossOscTimeRef = useRef(0);
-  const lastBossHitTimeRef = useRef(0);
-  // Consecutive boss hits in the current hold gesture (for break-free mechanic)
-  const consecutiveBossHitsRef = useRef(0);
-  // Boss immune until this timestamp after breaking free
-  const bossImmuneUntilRef = useRef(0);
-  const [breakFreeEffect, setBreakFreeEffect] = useState(false);
-  // Displayed streak count while wailing on the boss
-  const [bossHitStreak, setBossHitStreak] = useState(0);
-
-  // Mana & special skill
+  // ── Mana & special skill ─────────────────────────────────────────────────
   const [mana, setMana] = useState(0);
   const manaRef = useRef(0);
   const manaTickRef = useRef(0);
@@ -187,47 +171,28 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const MAX_MANA = 100;
   const handleEnemyDeathRef = useRef<() => void>(() => {});
 
-  // Battle potion slots (5 slots max, with consumable inventory IDs)
+  // ── Potion slots ─────────────────────────────────────────────────────────
   const [activeSlots, setActiveSlots] = useState<(BattlePotionSlot & { remaining: string[] })[]>([]);
   const activeSlotsRef = useRef<(BattlePotionSlot & { remaining: string[] })[]>([]);
+  const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem("battleTutorialSeen"));
 
-  // Track enemy max HP (for Poison % calculation)
-  const enemyMaxHpRef = useRef(0);
-
-  const animFrameRef = useRef<number>(0);
+  // ── Core refs ────────────────────────────────────────────────────────────
   const arenaRef = useRef<HTMLDivElement>(null);
   const slashIdRef = useRef(0);
   const dmgIdRef = useRef(0);
-  const swipePathRef = useRef<{x: number; y: number}[]>([]);
-  const lastSwipePointRef = useRef<{x: number; y: number} | null>(null);
-  const hitEnemiesRef = useRef<Set<string>>(new Set());
-  const isSlashingRef = useRef(false);
+  const animFrameRef = useRef<number>(0);
   const battleActiveRef = useRef(false);
-  const enemyPosRef = useRef(enemyPos);
+  const petStatsRef = useRef<{ atk: number; def: number; maxHp: number }>({ atk: 50, def: 50, maxHp: 100 });
+  const enemyStatsRef = useRef({ atk: 20, def: 10 });
   const enemyHpRef = useRef(0);
   const petHpRef = useRef(0);
-  const lastEnemyAttackRef = useRef(0);
-  const petStatsRef = useRef({ atk: 50, def: 50 });
-  const enemyStatsRef = useRef({ atk: 20, def: 10 });
-  const enemyDifficultyRef = useRef(0.5);
-  const enemyHitCountRef = useRef(0);
-  // Cooldown so enemy can't deal damage on every frame (prevents instant-kill on overlap)
-  const lastCollisionDmgRef = useRef(0);
-  // Cooldown for boss orb damage (prevents multiple orbs hitting in the same frame)
-  const lastOrbDmgRef = useRef(0);
+  const enemyMaxHpRef = useRef(0);
+  const difficultyRef = useRef(0.5);
 
+  // ── Inventory ────────────────────────────────────────────────────────────
   const { data: inventory = [] } = useQuery<any[]>({ queryKey: ["/api/inventory"] });
 
-  const potions: InventoryPotion[] = inventory
-    .filter((item: any) => item.type === "potion" && item.healthRestored && item.healthRestored > 0)
-    .map((item: any) => ({
-      inventoryId: item.inventoryId,
-      shopItemId: item.shopItemId,
-      name: item.name,
-      imageUrl: item.imageUrl,
-      healthRestored: item.healthRestored,
-    }));
-
+  // ── Encounter init ───────────────────────────────────────────────────────
   useEffect(() => {
     const fetchEncounter = async () => {
       try {
@@ -244,14 +209,13 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         setPetMaxHp(data.pet.hp);
         petHpRef.current = data.pet.hp;
         petStatsRef.current = { atk: data.pet.atk, def: data.pet.def, maxHp: data.pet.hp };
-        // Initialise battle potion slots from pre-battle loadout (filter null entries)
         const slots = battlePotionSlots
           .filter((s): s is BattlePotionSlot => s !== null && s !== undefined)
           .map(s => ({ ...s, remaining: [...s.inventoryIds] }));
         activeSlotsRef.current = slots;
         setActiveSlots(slots);
         startWave(data.encounters[0], 0);
-      } catch (err) {
+      } catch {
         toast({ title: "Error", description: "Failed to start battle", variant: "destructive" });
         onClose();
       }
@@ -259,6 +223,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     fetchEncounter();
   }, [locationId]);
 
+  // ── startWave ────────────────────────────────────────────────────────────
   const startWave = useCallback((enc: EncounterEnemy, idx: number) => {
     setEnemy(enc);
     setWaveIndex(idx);
@@ -267,63 +232,49 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     enemyHpRef.current = enc.hp;
     enemyMaxHpRef.current = enc.hp;
     enemyStatsRef.current = { atk: enc.atk, def: enc.def };
+    isBossRef.current = enc.isBoss;
     setVictoryData(null);
     setComboCount(0);
     setLastHitTime(0);
     setSlashEffects([]);
     setDamageNumbers([]);
-    // Reset mana, skill state, and poison between waves
     manaRef.current = 0;
     setMana(0);
     setSkillCooldown(false);
     setSkillEffect(null);
     setPoisonActive(false);
+    setBossRage(false);
+    bossRageRef.current = false;
+    setCounterActive(false);
+    setCounterHitsLeft(0);
+    counterActiveRef.current = false;
+    counterHitsLeftRef.current = 0;
+    setEnemyCharging(false);
+    enemyChargingRef.current = false;
+    setParryWindowOpen(false);
+    parryWindowOpenRef.current = false;
+    setParryResult(null);
     if (poisonTimerRef.current) { clearInterval(poisonTimerRef.current); poisonTimerRef.current = null; }
-
-    const difficulty = 0.3 + Math.random() * 0.7;
-    enemyDifficultyRef.current = difficulty;
-    enemyHitCountRef.current = 0;
-
+    difficultyRef.current = 0.3 + Math.random() * 0.7;
+    chargeDurationRef.current = enc.isBoss ? 1100 : 1350;
+    enemyOscRef.current = Math.random() * Math.PI * 2;
     setPhase("intro");
   }, []);
 
+  // ── Intro → battle transition ────────────────────────────────────────────
   useEffect(() => {
     if (phase === "intro") {
       const timer = setTimeout(() => {
         setPhase("battle");
         battleActiveRef.current = true;
-        lastEnemyAttackRef.current = Date.now();
-        // Reset pet position + boss state
-        const initPet = { x: 50, y: 76 };
-        petPosRef.current = initPet;
-        setPetPos(initPet);
-        petDraggingRef.current = false;
-        bossAttackModeRef.current = "rain";
-        nextBossAttackRef.current = 0;
-        bossOscTimeRef.current = 0;
-        bossOrbsRef.current = [];
-        setBossOrbs([]);
-        setBossEnlarged(false);
-        setBossBurstActive(false);
-        lastBossHitTimeRef.current = 0;
-        lastCollisionDmgRef.current = 0;
-        lastOrbDmgRef.current = 0;
-        consecutiveBossHitsRef.current = 0;
-        bossImmuneUntilRef.current = 0;
-        setBossHitStreak(0);
-        const diff = enemyDifficultyRef.current;
-        const baseSpeed = 0.5 + diff * 0.6;
-        setEnemyPos({
-          x: 50,
-          y: 20,
-          vx: (Math.random() > 0.5 ? 1 : -1) * (baseSpeed + Math.random() * 0.3),
-          vy: (Math.random() > 0.5 ? 1 : -1) * (baseSpeed * 0.5 + Math.random() * 0.2),
-        });
-      }, 1500);
+        nextChargeTimeRef.current = Date.now() + 3500;
+        manaTickRef.current = 0;
+      }, 1800);
       return () => clearTimeout(timer);
     }
   }, [phase]);
 
+  // ── Mutations ────────────────────────────────────────────────────────────
   const defeatMutation = useMutation({
     mutationFn: async ({ enemyId, enemyLevel }: { enemyId: string; enemyLevel: number }) => {
       const res = await apiRequest("POST", `/api/explore/defeat/${enemyId}`, { enemyLevel });
@@ -348,7 +299,6 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     },
   });
 
-  // Keep a stable ref to the "enemy just died" handler so skills can call it
   useEffect(() => {
     handleEnemyDeathRef.current = () => {
       if (!enemy) return;
@@ -364,292 +314,132 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       const res = await apiRequest("POST", "/api/explore/use-potion", { inventoryId, petInventoryId });
       return res.json();
     },
-    onSuccess: (data) => {
-      const healAmount = data.healAmount || 0;
-      const newHp = Math.min(petMaxHp, petHp + healAmount);
-      setPetHp(newHp);
-      petHpRef.current = newHp;
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-      toast({ title: `Used ${data.potionName}`, description: `Restored ${healAmount} HP` });
     },
     onError: () => {
       toast({ title: "Failed", description: "Could not use potion", variant: "destructive" });
     },
   });
 
-  const checkCollision = useCallback(() => {
-    if (!battleActiveRef.current) return;
-    const pos = enemyPosRef.current;
-    const petDist = Math.hypot(pos.x - petPosRef.current.x, pos.y - petPosRef.current.y);
-    if (petDist < 13) {
-      // ── Always bounce the pet away from the enemy so it can't be camped ──
-      if (!petDraggingRef.current) {
-        const dx = petPosRef.current.x - pos.x;
-        const dy = petPosRef.current.y - pos.y;
-        const d = Math.hypot(dx, dy) || 1;
-        const bounceX = Math.max(8, Math.min(92, petPosRef.current.x + (dx / d) * 14));
-        // Y: same safe zone as drag — clamp above toolbar (82%) and below HUD (55%)
-        const bounceY = Math.max(55, Math.min(82, petPosRef.current.y + (dy / d) * 14));
-        petPosRef.current = { x: bounceX, y: bounceY };
-        setPetPos({ x: bounceX, y: bounceY });
-      }
-
-      // ── Damage cooldown: only hit once every 700 ms ──────────────────────
-      const now = Date.now();
-      if (now - lastCollisionDmgRef.current < 700) return;
-      lastCollisionDmgRef.current = now;
-
-      enemyHitCountRef.current += 1;
-      const hitCount = enemyHitCountRef.current;
-      const isCrit = hitCount > 0 && hitCount % 6 === 0;
-
-      let dmg: number;
-      if (isCrit) {
-        dmg = Math.max(1, petStatsRef.current.atk + 100 - petStatsRef.current.def);
-      } else {
-        const rawDmg = enemyStatsRef.current.atk - Math.floor(petStatsRef.current.def * 0.1);
-        dmg = Math.max(1, rawDmg + Math.floor(Math.random() * 10) - 3);
-      }
-
-      petHpRef.current = Math.max(0, petHpRef.current - dmg);
-      setPetHp(petHpRef.current);
-      setPetHit(true);
-      setShakeScreen(true);
-      setTimeout(() => { setPetHit(false); setShakeScreen(false); }, isCrit ? 500 : 300);
-      // Mana gain on being hit
-      if (pet?.specialSkill) {
-        manaRef.current = Math.min(MAX_MANA, manaRef.current + 12);
-        setMana(Math.floor(manaRef.current));
-      }
-
-      // Hit particles burst on pet
-      const particleColors = ["#c084fc", "#a855f7", "#818cf8", "#f472b6", "#60a5fa"];
-      const newPetParticles: SparkParticle[] = Array.from({ length: 8 }, (_, i) => {
-        const angle = (i / 8) * Math.PI * 2 + Math.random() * 0.5;
-        const speed = 1.4 + Math.random() * 2.2;
-        return {
-          id: slashIdRef.current++,
-          x: petPosRef.current.x + (Math.random() * 6 - 3),
-          y: petPosRef.current.y + (Math.random() * 6 - 3),
-          dx: Math.cos(angle) * speed,
-          dy: Math.sin(angle) * speed,
-          color: particleColors[Math.floor(Math.random() * particleColors.length)],
-        };
-      });
-      setPetHitParticles(prev => [...prev, ...newPetParticles]);
-      const pids = new Set(newPetParticles.map(p => p.id));
-      setTimeout(() => setPetHitParticles(prev => prev.filter(p => !pids.has(p.id))), 520);
-
-      const newDmg: DamageNumber = {
-        id: dmgIdRef.current++,
-        x: petPosRef.current.x + (Math.random() * 14 - 7),
-        y: petPosRef.current.y - 8,
-        value: dmg,
-        isCrit,
-      };
-      setDamageNumbers(prev => [...prev, newDmg]);
-      setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== newDmg.id)), isCrit ? 1500 : 1000);
-
-      // Bounce the enemy back too
-      enemyPosRef.current = { ...pos, vy: -Math.abs(pos.vy) * 0.9, vx: pos.vx * 0.7 };
-      setEnemyPos({ ...enemyPosRef.current });
-
-      if (petHpRef.current <= 0) {
-        battleActiveRef.current = false;
-        setPhase("defeat");
-      }
-    }
-  }, []);
-
+  // ── Animation loop ───────────────────────────────────────────────────────
   useEffect(() => {
     if (phase !== "battle") return;
 
     const animate = () => {
       if (!battleActiveRef.current) return;
-
-      const diff = enemyDifficultyRef.current;
       const now = Date.now();
-      const petX = petPosRef.current.x;
-      const petY = petPosRef.current.y;
-      const pos = { ...enemyPosRef.current };
 
-      if (enemy?.isBoss) {
-        // ── Boss: floats just below the top HUD, oscillates side-to-side, fires particles ──
-        bossOscTimeRef.current += 0.018;
-        pos.x = 50 + Math.sin(bossOscTimeRef.current * 0.55) * 26;
-        pos.y = 20;
-        pos.vx = 0;
-        pos.vy = 0;
-
-        // Initialise first scheduled attack on battle start
-        if (nextBossAttackRef.current === 0) {
-          nextBossAttackRef.current = now + 8000 + Math.random() * 4000;
-          orbSpawnTimerRef.current = now + 700;
-        }
-
-        // Rain mode: continuously fire 1 particle toward pet
-        // Focused mode: rapid-fire tight cluster toward pet
-        if (bossAttackModeRef.current !== "burst" && now > orbSpawnTimerRef.current) {
-          const isFocused = bossAttackModeRef.current === "focused";
-          orbSpawnTimerRef.current = now + (isFocused ? 180 : 680);
-          const count = isFocused ? 3 : 1;
-          const newOrbs: BossOrb[] = [];
-          for (let i = 0; i < count; i++) {
-            const spread = isFocused ? 0.3 : 1.1;
-            const baseAngle = Math.atan2(petY - pos.y, petX - pos.x);
-            const angle = baseAngle + (Math.random() - 0.5) * spread;
-            const speed = isFocused ? (2.2 + Math.random() * 1.0) : (0.8 + Math.random() * 0.65);
-            newOrbs.push({
-              id: bossOrbIdRef.current++,
-              x: pos.x + (Math.random() - 0.5) * 10,
-              y: pos.y + 7,
-              vx: Math.cos(angle) * speed,
-              vy: Math.sin(angle) * speed,
-            });
-          }
-          bossOrbsRef.current = [...bossOrbsRef.current, ...newOrbs];
-          setBossOrbs([...bossOrbsRef.current]);
-        }
-
-        // Trigger a burst or focused-stream attack periodically
-        if (bossAttackModeRef.current === "rain" && now > nextBossAttackRef.current) {
-          const mode = Math.random() < 0.5 ? "burst" : "focused";
-          bossAttackModeRef.current = mode;
-          if (mode === "burst") {
-            setBossEnlarged(true);
-            setBossBurstActive(true);
-            // Fire a ring of 14 particles outward in all directions
-            const burstOrbs: BossOrb[] = Array.from({ length: 14 }, (_, i) => {
-              const angle = (i / 14) * Math.PI * 2;
-              const speed = 1.3 + Math.random() * 0.9;
-              return { id: bossOrbIdRef.current++, x: pos.x, y: pos.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed };
-            });
-            bossOrbsRef.current = [...bossOrbsRef.current, ...burstOrbs];
-            setBossOrbs([...bossOrbsRef.current]);
-            setTimeout(() => {
-              if (!battleActiveRef.current) return;
-              bossAttackModeRef.current = "rain";
-              setBossEnlarged(false);
-              setBossBurstActive(false);
-              nextBossAttackRef.current = Date.now() + 9000 + Math.random() * 5000;
-            }, 1000);
-          } else {
-            // Focused rapid-fire stream for 2.5s
-            orbSpawnTimerRef.current = 0;
-            orbSpawnEndRef.current = now + 2500;
-          }
-        }
-
-        // End focused mode, return to rain
-        if (bossAttackModeRef.current === "focused" && now > orbSpawnEndRef.current) {
-          bossAttackModeRef.current = "rain";
-          nextBossAttackRef.current = Date.now() + 8000 + Math.random() * 5000;
-        }
-
+      // Smooth sinusoidal enemy movement
+      enemyOscRef.current += 0.016;
+      const osc = enemyOscRef.current;
+      let newX: number, newY: number;
+      if (isBossRef.current) {
+        newX = 50 + Math.sin(osc * 0.42) * 30;
+        newY = 17 + Math.sin(osc * 0.28) * 5;
       } else {
-        // ── Regular enemy: bounce off walls, home toward pet, periodic lunge ──
-        const speed = 0.4 + diff * 0.5;
-        pos.x += pos.vx * speed;
-        pos.y += pos.vy * speed;
+        newX = 50 + Math.sin(osc * 0.52) * 26 + Math.sin(osc * 1.35) * 11;
+        newY = 27 + Math.sin(osc * 0.74) * 13 + Math.cos(osc * 0.38) * 6;
+      }
+      const ex = Math.max(12, Math.min(88, newX));
+      const ey = Math.max(8, Math.min(isBossRef.current ? 26 : 50, newY));
+      enemyPosRef.current = { x: ex, y: ey };
+      setEnemyPos({ x: ex, y: ey });
 
-        if (pos.x < 10 || pos.x > 90) {
-          pos.vx = -pos.vx * (0.8 + Math.random() * 0.15);
-          pos.x = Math.max(10, Math.min(90, pos.x));
-          pos.vy += (Math.random() - 0.5) * 0.3;
-        }
-        if (pos.y < 5 || pos.y > 82) {
-          pos.vy = -pos.vy * (0.8 + Math.random() * 0.15);
-          pos.y = Math.max(5, Math.min(82, pos.y));
-          pos.vx += (Math.random() - 0.5) * 0.3;
-        }
-
-        // Gentle homing toward pet
-        const homeDx = petX - pos.x;
-        const homeDy = petY - pos.y;
-        const homeDist = Math.hypot(homeDx, homeDy) || 1;
-        if (homeDist > 18) {
-          pos.vx += (homeDx / homeDist) * 0.055;
-          pos.vy += (homeDy / homeDist) * 0.055;
-        }
-        const maxV = 2.2 + diff * 0.6;
-        const vMag = Math.hypot(pos.vx, pos.vy) || 1;
-        if (vMag > maxV) { pos.vx = (pos.vx / vMag) * maxV; pos.vy = (pos.vy / vMag) * maxV; }
-
-        // Periodic lunge toward pet
-        const attackInterval = 6000 - diff * 3000;
-        if (now - lastEnemyAttackRef.current > attackInterval) {
-          lastEnemyAttackRef.current = now;
-          const dx = petX - pos.x;
-          const dy = petY - pos.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist > 0) {
-            pos.vx = (dx / dist) * (1.5 + diff * 1.5);
-            pos.vy = (dy / dist) * (1.5 + diff * 1.5);
-          }
-        }
-        const maxSpeed = 1.5 + diff * 2;
-        const spd = Math.sqrt(pos.vx * pos.vx + pos.vy * pos.vy);
-        if (spd > maxSpeed) { pos.vx = (pos.vx / spd) * maxSpeed; pos.vy = (pos.vy / spd) * maxSpeed; }
+      // ── Charge initiation ─────────────────────────────────────────────
+      if (!enemyChargingRef.current && nextChargeTimeRef.current > 0 && now >= nextChargeTimeRef.current) {
+        enemyChargingRef.current = true;
+        chargeStartRef.current = now;
+        parryWindowOpenRef.current = false;
+        setEnemyCharging(true);
+        setParryWindowOpen(false);
       }
 
-      // ── Particle movement + collision (boss only) ──
-      if (bossOrbsRef.current.length > 0) {
-        const updated: BossOrb[] = [];
-        let orbHit = false;
-        for (const orb of bossOrbsRef.current) {
-          const nx = orb.x + orb.vx;
-          const ny = orb.y + orb.vy;
-          const dist = Math.hypot(nx - petX, ny - petY);
-          if (dist < 10) {
-            // Rate-limit orb damage: at most once per 350 ms to prevent burst-kill
-            if (now - lastOrbDmgRef.current >= 350) {
-              lastOrbDmgRef.current = now;
-              const rawDmg = enemyStatsRef.current.atk * 0.55;
-              const dmg = Math.max(1, Math.floor(rawDmg + Math.random() * 4));
-              petHpRef.current = Math.max(0, petHpRef.current - dmg);
-              setPetHp(petHpRef.current);
-              setPetHit(true);
-              setTimeout(() => setPetHit(false), 250);
-              const newDmg: DamageNumber = { id: dmgIdRef.current++, x: petX, y: petY - 8, value: dmg, isCrit: false };
-              setDamageNumbers(prev => [...prev, newDmg]);
-              setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== newDmg.id)), 800);
-              if (petHpRef.current <= 0) { battleActiveRef.current = false; setPhase("defeat"); }
-            }
-            orbHit = true;
-          } else if (nx >= -5 && nx <= 105 && ny >= -5 && ny <= 105) {
-            updated.push({ ...orb, x: nx, y: ny });
-          }
-        }
-        if (orbHit || updated.length !== bossOrbsRef.current.length) {
-          bossOrbsRef.current = updated;
-          setBossOrbs([...updated]);
-        } else {
-          bossOrbsRef.current = updated;
-        }
-      }
+      // ── Charge resolution ─────────────────────────────────────────────
+      if (enemyChargingRef.current) {
+        const elapsed = now - chargeStartRef.current;
 
-      enemyPosRef.current = pos;
-      setEnemyPos({ ...pos });
+        // Open parry window at 320ms
+        if (elapsed >= 320 && !parryWindowOpenRef.current) {
+          parryWindowOpenRef.current = true;
+          setParryWindowOpen(true);
+        }
 
-      // Passive mana gain: +1 every ~2 seconds (120 frames at 60fps)
-      if (pet?.specialSkill) {
-        manaTickRef.current++;
-        if (manaTickRef.current >= 120) {
-          manaTickRef.current = 0;
-          manaRef.current = Math.min(MAX_MANA, manaRef.current + 1);
+        // Attack fires when charge completes
+        if (elapsed >= chargeDurationRef.current) {
+          enemyChargingRef.current = false;
+          parryWindowOpenRef.current = false;
+          setEnemyCharging(false);
+          setParryWindowOpen(false);
+
+          // Damage
+          const rawDmg = enemyStatsRef.current.atk - Math.floor(petStatsRef.current.def * 0.08);
+          const dmg = Math.max(1, Math.floor(rawDmg + Math.random() * 14 - 5));
+          petHpRef.current = Math.max(0, petHpRef.current - dmg);
+          setPetHp(petHpRef.current);
+          setPetHit(true);
+          setShakeScreen(true);
+          setParryResult("fail");
+          setTimeout(() => { setPetHit(false); setShakeScreen(false); setParryResult(null); }, 600);
+
+          // Mana gain on being hit
+          manaRef.current = Math.min(MAX_MANA, manaRef.current + 14);
           setMana(Math.floor(manaRef.current));
+
+          // Hit particles on pet
+          const pColors = ["#c084fc", "#a855f7", "#818cf8", "#f472b6", "#60a5fa"];
+          const newP: SparkParticle[] = Array.from({ length: 9 }, (_, i) => {
+            const angle = (i / 9) * Math.PI * 2 + Math.random() * 0.5;
+            const spd = 1.6 + Math.random() * 2.4;
+            return { id: slashIdRef.current++, x: PET_X + (Math.random() * 8 - 4), y: PET_Y + (Math.random() * 8 - 4), dx: Math.cos(angle) * spd, dy: Math.sin(angle) * spd, color: pColors[Math.floor(Math.random() * pColors.length)] };
+          });
+          setPetHitParticles(prev => [...prev, ...newP]);
+          const pids = new Set(newP.map(p => p.id));
+          setTimeout(() => setPetHitParticles(prev => prev.filter(p => !pids.has(p.id))), 520);
+
+          // Damage number at pet
+          const nd: DamageNumber = { id: dmgIdRef.current++, x: PET_X + (Math.random() * 16 - 8), y: PET_Y - 12, value: dmg };
+          setDamageNumbers(prev => [...prev, nd]);
+          setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== nd.id)), 1000);
+
+          if (petHpRef.current <= 0) {
+            battleActiveRef.current = false;
+            setPhase("defeat");
+          } else {
+            // Schedule next charge
+            const diff = difficultyRef.current;
+            const isRage = bossRageRef.current;
+            const baseInterval = isBossRef.current
+              ? (isRage ? 1600 + Math.random() * 1000 : 3000 + Math.random() * 1500)
+              : 2600 + Math.random() * 2200 - diff * 900;
+            nextChargeTimeRef.current = now + Math.max(1100, baseInterval);
+          }
         }
       }
 
-      checkCollision();
+      // ── Boss rage at 50% HP ───────────────────────────────────────────
+      if (isBossRef.current && !bossRageRef.current && enemyHpRef.current > 0 && enemyHpRef.current <= enemyMaxHpRef.current * 0.5) {
+        bossRageRef.current = true;
+        setBossRage(true);
+        chargeDurationRef.current = 980;
+      }
+
+      // ── Passive mana trickle ──────────────────────────────────────────
+      manaTickRef.current++;
+      if (manaTickRef.current >= 120) {
+        manaTickRef.current = 0;
+        manaRef.current = Math.min(MAX_MANA, manaRef.current + 1);
+        setMana(Math.floor(manaRef.current));
+      }
+
       animFrameRef.current = requestAnimationFrame(animate);
     };
 
     animFrameRef.current = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animFrameRef.current);
-  }, [phase, checkCollision]);
+  }, [phase]);
 
-  // Returns distance from point P to segment AB
+  // ── Swipe helpers ────────────────────────────────────────────────────────
   const segmentPointDist = (ax: number, ay: number, bx: number, by: number, px: number, py: number) => {
     const dx = bx - ax, dy = by - ay;
     const lenSq = dx * dx + dy * dy;
@@ -666,142 +456,90 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     };
   };
 
-  // Per-segment hit check called in real-time during finger drag
   const checkSegmentHit = useCallback((ax: number, ay: number, bx: number, by: number) => {
     if (!battleActiveRef.current || !enemy) return;
-
-    const now = Date.now();
-
-    // Both boss and regular enemies: one hit per swipe gesture
     if (hitEnemiesRef.current.has(enemy.enemyId)) return;
-    // Boss: skip if immune after breaking free
-    if (enemy.isBoss && now < bossImmuneUntilRef.current) return;
 
-    // Minimum swipe path before any hit can register (prevents single-point taps)
-    // Boss has a huge hit radius so only need a tiny movement — regular enemies need more
     const totalPathLen = swipePathRef.current.reduce((acc, p, i) => {
       if (i === 0) return 0;
       const prev = swipePathRef.current[i - 1];
       return acc + Math.hypot(p.x - prev.x, p.y - prev.y);
     }, 0);
-    const minPathLen = enemy.isBoss ? 1.5 : 5;
-    if (totalPathLen < minPathLen) return;
+    if (totalPathLen < 4) return;
 
     const ePos = enemyPosRef.current;
     const dist = segmentPointDist(ax, ay, bx, by, ePos.x, ePos.y);
-    const hitRadius = enemy.isBoss ? 24 : 16;
+    const hitRadius = enemy.isBoss ? 24 : 17;
     if (dist >= hitRadius) return;
 
-    // Register hit — enemy can only be struck once per swipe (non-boss)
     hitEnemiesRef.current.add(enemy.enemyId);
 
+    const now = Date.now();
     let combo = comboCount;
     if (now - lastHitTime < 1400) combo += 1; else combo = 1;
     setComboCount(combo);
     setLastHitTime(now);
 
-    const comboMult = 1 + Math.min(combo * 0.1, 0.5);
+    const comboMult = 1 + Math.min(combo * 0.12, 0.6);
     const isCrit = Math.random() < 0.15;
-    const critMult = isCrit ? 1.8 : 1;
+    const critMult = isCrit ? 1.9 : 1;
+    const wasCounter = counterActiveRef.current;
+    const counterMult = wasCounter ? 2.0 : 1.0;
     const rawDmg = petStatsRef.current.atk - Math.floor(enemyStatsRef.current.def * 0.3);
-    const dmg = Math.max(1, Math.floor((rawDmg + Math.floor(Math.random() * 8) - 4) * comboMult * critMult));
+    const dmg = Math.max(1, Math.floor((rawDmg + Math.floor(Math.random() * 10) - 4) * comboMult * critMult * counterMult));
 
     enemyHpRef.current = Math.max(0, enemyHpRef.current - dmg);
     setEnemyHp(enemyHpRef.current);
     setEnemyHit(true);
-    setShakeScreen(true);
-    setTimeout(() => { setEnemyHit(false); setShakeScreen(false); }, 200);
+    setTimeout(() => setEnemyHit(false), 220);
 
-    // Fill mana on hit
+    // Mana on hit
     const manaGain = isCrit ? 22 : (combo >= 3 ? 18 : 13);
     manaRef.current = Math.min(MAX_MANA, manaRef.current + manaGain);
     setMana(manaRef.current);
 
-    // Slash mark at enemy position
+    // Decrement counter hits
+    if (wasCounter) {
+      counterHitsLeftRef.current = Math.max(0, counterHitsLeftRef.current - 1);
+      setCounterHitsLeft(counterHitsLeftRef.current);
+      if (counterHitsLeftRef.current <= 0) {
+        counterActiveRef.current = false;
+        setCounterActive(false);
+      }
+    }
+
+    // Slash mark
     const markId = slashIdRef.current++;
-    const slashMark: SlashEffect = { id: markId, x: ePos.x, y: ePos.y };
-    setSlashEffects(prev => [...prev, slashMark]);
+    setSlashEffects(prev => [...prev, { id: markId, x: ePos.x, y: ePos.y }]);
     setTimeout(() => setSlashEffects(prev => prev.filter(s => s.id !== markId)), 500);
 
-    // Spark burst — 8 particles radiating outward from hit point
-    const sparkColor = isCrit ? "#fbbf24" : accent;
-    const newSparks: SparkParticle[] = Array.from({ length: 10 }, (_, i) => {
-      const angle = (i / 10) * Math.PI * 2 + Math.random() * 0.4;
-      const speed = 1.8 + Math.random() * 2.8;
-      return {
-        id: slashIdRef.current++,
-        x: ePos.x,
-        y: ePos.y,
-        dx: Math.cos(angle) * speed,
-        dy: Math.sin(angle) * speed,
-        color: sparkColor,
-      };
+    // Sparks — golden during counter
+    const sparkColor = wasCounter ? "#fde68a" : isCrit ? "#fbbf24" : accent;
+    const newSparks: SparkParticle[] = Array.from({ length: 11 }, (_, i) => {
+      const angle = (i / 11) * Math.PI * 2 + Math.random() * 0.4;
+      const speed = 2.0 + Math.random() * 3.2;
+      return { id: slashIdRef.current++, x: ePos.x, y: ePos.y, dx: Math.cos(angle) * speed, dy: Math.sin(angle) * speed, color: sparkColor };
     });
     setSparkParticles(prev => [...prev, ...newSparks]);
     const sparkIds = new Set(newSparks.map(s => s.id));
     setTimeout(() => setSparkParticles(prev => prev.filter(s => !sparkIds.has(s.id))), 480);
 
-    // ── Boss consecutive hit tracking & break-free ────────────────────────
-    if (enemy.isBoss) {
-      // Expire streak if the combo window has lapsed (same 1.4s window as combo counter)
-      if (now - lastHitTime > 1400) {
-        consecutiveBossHitsRef.current = 0;
-      }
-      consecutiveBossHitsRef.current += 1;
-      setBossHitStreak(consecutiveBossHitsRef.current);
-      if (consecutiveBossHitsRef.current >= 6) {
-        // Boss breaks free — violent knockback + brief immunity
-        consecutiveBossHitsRef.current = 0;
-        setBossHitStreak(0);
-        bossImmuneUntilRef.current = now + 1400;
-        // Burst away from the center of the arena (unpredictable escape)
-        const escapeAngle = Math.random() * Math.PI * 2;
-        enemyPosRef.current = {
-          x: Math.max(15, Math.min(85, ePos.x)),
-          y: Math.max(8, Math.min(50, ePos.y)),
-          vx: Math.cos(escapeAngle) * 5,
-          vy: Math.sin(escapeAngle) * 4 - 2,
-        };
-        setEnemyPos({ ...enemyPosRef.current });
-        setBreakFreeEffect(true);
-        setTimeout(() => setBreakFreeEffect(false), 900);
-      } else {
-        // Normal boss knockback
-        const sdx = bx - ax, sdy = by - ay;
-        const sLen = Math.hypot(sdx, sdy) || 1;
-        enemyPosRef.current = { ...ePos, vx: (sdx / sLen) * 2.5, vy: (sdy / sLen) * 2.5 };
-        setEnemyPos({ ...enemyPosRef.current });
-      }
-    } else {
-      // Regular enemy knockback
-      const sdx = bx - ax, sdy = by - ay;
-      const sLen = Math.hypot(sdx, sdy) || 1;
-      enemyPosRef.current = {
-        ...ePos,
-        vx: (sdx / sLen) * 3 + (Math.random() - 0.5),
-        vy: (sdy / sLen) * 3 + (Math.random() - 0.5),
-      };
-    }
-
     // Damage number
-    const dmgNum: DamageNumber = {
-      id: dmgIdRef.current++,
-      x: ePos.x + (Math.random() * 10 - 5),
-      y: ePos.y - 5,
-      value: dmg,
-      isCrit,
-    };
+    const dmgNum: DamageNumber = { id: dmgIdRef.current++, x: ePos.x + (Math.random() * 12 - 6), y: ePos.y - 6, value: dmg, isCrit };
     setDamageNumbers(prev => [...prev, dmgNum]);
-    setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== dmgNum.id)), 1000);
+    setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== dmgNum.id)), isCrit ? 1400 : 900);
 
     if (enemyHpRef.current <= 0) {
-      battleActiveRef.current = false;
-      defeatMutation.mutate({ enemyId: enemy.enemyId, enemyLevel: enemy.level });
-      const hasMore = waveIndex + 1 < allEnemies.length;
-      setPhase(hasMore ? "waveComplete" : "victory");
+      if (battleActiveRef.current) {
+        battleActiveRef.current = false;
+        defeatMutation.mutate({ enemyId: enemy.enemyId, enemyLevel: enemy.level });
+        const hasMore = waveIndex + 1 < allEnemies.length;
+        setPhase(hasMore ? "waveComplete" : "victory");
+      }
     }
   }, [enemy, comboCount, lastHitTime, defeatMutation, waveIndex, allEnemies.length, accent]);
 
+  // ── Swipe handlers ───────────────────────────────────────────────────────
   const handleSlashStart = useCallback((e: React.PointerEvent) => {
     if (!battleActiveRef.current) return;
     e.preventDefault();
@@ -810,9 +548,6 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     swipePathRef.current = [pos];
     lastSwipePointRef.current = pos;
     hitEnemiesRef.current = new Set();
-    // Reset 300ms cooldown so every new swipe can immediately land its first hit
-    lastBossHitTimeRef.current = 0;
-    // Don't reset streak here — combo persists across swipes if within the time window
     isSlashingRef.current = true;
     setTrailFading(false);
     setSlashTrail([pos]);
@@ -822,55 +557,58 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     if (!isSlashingRef.current || !lastSwipePointRef.current) return;
     const pos = getArenaPos(e.clientX, e.clientY);
     const last = lastSwipePointRef.current;
-    const dist = Math.hypot(pos.x - last.x, pos.y - last.y);
-
-    // Throttle: only add a point when finger has moved enough (prevents jitter noise)
-    if (dist < 0.6) return;
-
+    if (Math.hypot(pos.x - last.x, pos.y - last.y) < 0.5) return;
     swipePathRef.current.push(pos);
-    // Keep only the last 6 points — short blade flash, not a persistent drawn line
-    if (swipePathRef.current.length > 6) {
-      swipePathRef.current = swipePathRef.current.slice(-6);
-    }
+    if (swipePathRef.current.length > 7) swipePathRef.current = swipePathRef.current.slice(-7);
     lastSwipePointRef.current = pos;
     setSlashTrail([...swipePathRef.current]);
-
-    // Segment hit check — tests the latest path segment against the enemy
     const path = swipePathRef.current;
     if (path.length >= 2) {
       const prev = path[path.length - 2];
       checkSegmentHit(prev.x, prev.y, pos.x, pos.y);
     }
-
-    // Proximity hit check — also test the current finger position directly
-    // This ensures boss hits register even during slow back-and-forth passes
     checkSegmentHit(pos.x, pos.y, pos.x, pos.y);
   }, [checkSegmentHit]);
 
-  // ── Pet drag handlers ────────────────────────────────────────────────────
-  const handlePetPointerDown = useCallback((e: React.PointerEvent) => {
-    if (!battleActiveRef.current) return;
-    e.stopPropagation();
-    e.preventDefault();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    petDraggingRef.current = true;
+  const handleSlashEnd = useCallback((_e: React.PointerEvent) => {
+    if (!isSlashingRef.current) return;
+    isSlashingRef.current = false;
+    if (swipePathRef.current.length >= 2) setTrailFading(true);
+    setTimeout(() => { setSlashTrail([]); setTrailFading(false); }, 320);
+    swipePathRef.current = [];
+    lastSwipePointRef.current = null;
   }, []);
 
-  const handlePetPointerMove = useCallback((e: React.PointerEvent) => {
-    if (!petDraggingRef.current || !arenaRef.current) return;
-    e.stopPropagation();
-    const arena = arenaRef.current.getBoundingClientRect();
-    const x = Math.max(8, Math.min(92, ((e.clientX - arena.left) / arena.width) * 100));
-    // Y: keep below top HUD (~15%) and above bottom toolbar (~18% from bottom = 82%)
-    const y = Math.max(55, Math.min(82, ((e.clientY - arena.top) / arena.height) * 100));
-    petPosRef.current = { x, y };
-    setPetPos({ x, y });
-  }, []);
+  // ── Parry handler ────────────────────────────────────────────────────────
+  const handleParry = useCallback(() => {
+    if (!battleActiveRef.current || !parryWindowOpenRef.current) return;
+    parryWindowOpenRef.current = false;
+    enemyChargingRef.current = false;
+    setEnemyCharging(false);
+    setParryWindowOpen(false);
+    setParryResult("success");
+    setTimeout(() => setParryResult(null), 900);
 
-  const handlePetPointerUp = useCallback((e: React.PointerEvent) => {
-    if (!petDraggingRef.current) return;
-    e.stopPropagation();
-    petDraggingRef.current = false;
+    // Open counter window: next 2 swipes deal 2× damage for 3 seconds
+    counterActiveRef.current = true;
+    counterHitsLeftRef.current = 2;
+    setCounterActive(true);
+    setCounterHitsLeft(2);
+    const counterTimer = setTimeout(() => {
+      if (counterHitsLeftRef.current > 0) {
+        counterActiveRef.current = false;
+        counterHitsLeftRef.current = 0;
+        setCounterActive(false);
+        setCounterHitsLeft(0);
+      }
+    }, 3000);
+
+    // Enemy recovery before next charge
+    const diff = difficultyRef.current;
+    const baseRecovery = isBossRef.current ? 2200 : 2600;
+    nextChargeTimeRef.current = Date.now() + baseRecovery - diff * 400;
+
+    return () => clearTimeout(counterTimer);
   }, []);
 
   // ── Special skill ────────────────────────────────────────────────────────
@@ -921,12 +659,12 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       });
 
     } else if (skill === "Heal Self" || skill === "Heal Party") {
-      const maxHp = (petStatsRef.current as any).maxHp || petMaxHp;
+      const maxHp = petStatsRef.current.maxHp;
       const healPct = pct !== null ? pct / 100 : 0.3;
       const healAmt = Math.floor(maxHp * healPct);
       petHpRef.current = Math.min(maxHp, petHpRef.current + healAmt);
       setPetHp(petHpRef.current);
-      const nd: DamageNumber = { id: dmgIdRef.current++, x: petPosRef.current.x, y: petPosRef.current.y - 14, value: healAmt, isHeal: true };
+      const nd: DamageNumber = { id: dmgIdRef.current++, x: PET_X, y: PET_Y - 14, value: healAmt, isHeal: true };
       setDamageNumbers(prev => [...prev, nd]);
       setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== nd.id)), 1200);
 
@@ -935,8 +673,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       setPoisonActive(true);
       let ticks = 0;
       const poisonPct = pct !== null ? pct / 100 : 0.05;
-      const enemyMaxHp = enemyMaxHpRef.current || 200;
-      const tickDmg = Math.max(1, Math.floor(enemyMaxHp * poisonPct));
+      const eMaxHp = enemyMaxHpRef.current || 200;
+      const tickDmg = Math.max(1, Math.floor(eMaxHp * poisonPct));
       const timer = setInterval(() => {
         if (!battleActiveRef.current) { clearInterval(timer); setPoisonActive(false); return; }
         ticks++;
@@ -955,74 +693,48 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       }, 900);
       poisonTimerRef.current = timer;
     }
-  }, [pet?.specialSkill, pet?.skillDamagePercent, skillCooldown, petMaxHp]);
+  }, [pet?.specialSkill, pet?.skillDamagePercent, skillCooldown, poisonActive]);
 
-  const handleSlashEnd = useCallback((_e: React.PointerEvent) => {
-    if (!isSlashingRef.current) return;
-    isSlashingRef.current = false;
-    // Fade then clear
-    if (swipePathRef.current.length >= 2) {
-      setTrailFading(true);
+  // ── Potion usage ─────────────────────────────────────────────────────────
+  const usePotion = useCallback((slotIndex: number) => {
+    const slot = activeSlotsRef.current[slotIndex];
+    if (!slot || slot.remaining.length === 0) return;
+    if (!battleActiveRef.current) return;
+    const inventoryId = slot.remaining[0];
+    const isHeal = (slot.healthRestored ?? 0) > 0;
+    const isMana = (slot.manaRestored ?? 0) > 0;
+    if (isHeal && petHpRef.current >= petStatsRef.current.maxHp) return;
+    if (isMana && manaRef.current >= MAX_MANA) return;
+    if (isHeal) {
+      const healAmt = slot.healthRestored!;
+      petHpRef.current = Math.min(petStatsRef.current.maxHp, petHpRef.current + healAmt);
+      setPetHp(petHpRef.current);
+      const nd: DamageNumber = { id: dmgIdRef.current++, x: PET_X, y: PET_Y - 14, value: healAmt, isHeal: true };
+      setDamageNumbers(prev => [...prev, nd]);
+      setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== nd.id)), 1200);
     }
-    setTimeout(() => {
-      setSlashTrail([]);
-      setTrailFading(false);
-    }, 320);
-    swipePathRef.current = [];
-    lastSwipePointRef.current = null;
-  }, []);
+    if (isMana) {
+      manaRef.current = Math.min(MAX_MANA, manaRef.current + slot.manaRestored!);
+      setMana(Math.floor(manaRef.current));
+    }
+    const updated = activeSlotsRef.current.map((s, i) =>
+      i === slotIndex ? { ...s, remaining: s.remaining.slice(1) } : s
+    );
+    activeSlotsRef.current = updated;
+    setActiveSlots([...updated]);
+    potionMutation.mutate({ inventoryId, petInventoryId: pet?.inventoryId ?? "" });
+  }, [pet?.inventoryId]);
 
+  // ── Misc ─────────────────────────────────────────────────────────────────
   const handleAdvance = useCallback(() => {
     const nextIdx = waveIndex + 1;
-    if (nextIdx < allEnemies.length) {
-      startWave(allEnemies[nextIdx], nextIdx);
-    }
+    if (nextIdx < allEnemies.length) startWave(allEnemies[nextIdx], nextIdx);
   }, [waveIndex, allEnemies, startWave]);
 
   const handleReturnToWorld = useCallback(() => {
     onBattleEnd();
     onClose();
   }, [onBattleEnd, onClose]);
-
-  // ── Use a battle potion slot ──────────────────────────────────────────────
-  const usePotion = useCallback((slotIndex: number) => {
-    const slot = activeSlotsRef.current[slotIndex];
-    if (!slot || slot.remaining.length === 0) return;
-    if (!battleActiveRef.current) return;
-
-    const inventoryId = slot.remaining[0];
-    const isHealPotion = (slot.healthRestored ?? 0) > 0;
-    const isManaPotion = (slot.manaRestored ?? 0) > 0;
-
-    if (isHealPotion && petHpRef.current >= (petStatsRef.current as any).maxHp) return; // already full
-    if (isManaPotion && manaRef.current >= MAX_MANA) return; // already full mana
-
-    // Apply locally
-    if (isHealPotion) {
-      const maxHp = (petStatsRef.current as any).maxHp || petMaxHp;
-      const healAmt = slot.healthRestored!;
-      petHpRef.current = Math.min(maxHp, petHpRef.current + healAmt);
-      setPetHp(petHpRef.current);
-      const nd: DamageNumber = { id: dmgIdRef.current++, x: petPosRef.current.x, y: petPosRef.current.y - 14, value: healAmt, isHeal: true };
-      setDamageNumbers(prev => [...prev, nd]);
-      setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== nd.id)), 1200);
-    }
-    if (isManaPotion) {
-      const manaAmt = slot.manaRestored!;
-      manaRef.current = Math.min(MAX_MANA, manaRef.current + manaAmt);
-      setMana(Math.floor(manaRef.current));
-    }
-
-    // Consume from slot
-    const updated = activeSlotsRef.current.map((s, i) =>
-      i === slotIndex ? { ...s, remaining: s.remaining.slice(1) } : s
-    );
-    activeSlotsRef.current = updated;
-    setActiveSlots([...updated]);
-
-    // Consume from server inventory
-    potionMutation.mutate({ inventoryId, petInventoryId: pet?.inventoryId ?? "" });
-  }, [petMaxHp, pet?.inventoryId]);
 
   const hpBarColor = (current: number, max: number) => {
     const pct = max > 0 ? current / max : 0;
@@ -1031,6 +743,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     return "#ef4444";
   };
 
+  // ── Loading state ─────────────────────────────────────────────────────────
   if (phase === "loading") {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
@@ -1042,6 +755,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     );
   }
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div
       className="fixed inset-0 z-50 flex flex-col overflow-hidden select-none"
@@ -1063,12 +777,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           100% { transform: translate(var(--spark-dx), var(--spark-dy)) scale(0.2); opacity: 0; }
         }
         @keyframes dmgFloat {
-          0% { transform: translateY(0) scale(1); opacity: 1; }
-          100% { transform: translateY(-60px) scale(1.3); opacity: 0; }
-        }
-        @keyframes enemyBounce {
-          0%, 100% { transform: translate(-50%, -50%) scaleY(1) scaleX(1); }
-          50% { transform: translate(-50%, -50%) scaleY(0.95) scaleX(1.05); }
+          0% { transform: translate(-50%,-50%) translateY(0) scale(1); opacity: 1; }
+          100% { transform: translate(-50%,-50%) translateY(-60px) scale(1.3); opacity: 0; }
         }
         @keyframes introSlide {
           0% { transform: translateY(-100%); opacity: 0; }
@@ -1080,44 +790,33 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         }
         @keyframes victoryPulse {
           0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.05); }
+          50% { transform: scale(1.04); }
         }
         @keyframes screenShake {
           0%, 100% { transform: translateX(0); }
-          25% { transform: translateX(-4px); }
-          75% { transform: translateX(4px); }
+          25% { transform: translateX(-5px); }
+          75% { transform: translateX(5px); }
         }
-        @keyframes hitFlash {
-          0% { filter: brightness(1); transform: translate(-50%, -50%) translateY(0px); }
-          20% { filter: brightness(2.5) saturate(0); transform: translate(-50%, -50%) translateY(4px); }
-          40% { filter: brightness(1.8) saturate(0.5); transform: translate(-50%, -50%) translateY(-3px); }
-          60% { filter: brightness(1.3); transform: translate(-50%, -50%) translateY(2px); }
-          100% { filter: brightness(1); transform: translate(-50%, -50%) translateY(0px); }
+        @keyframes enemyHitFlash {
+          0%   { filter: brightness(1); transform: translate(-50%,-50%) scale(1); }
+          20%  { filter: brightness(3) saturate(0); transform: translate(-50%,-50%) scale(1.08); }
+          50%  { filter: brightness(1.6); transform: translate(-50%,-50%) scale(0.95); }
+          100% { filter: brightness(1); transform: translate(-50%,-50%) scale(1); }
         }
         @keyframes petHitBounce {
-          0%   { transform: translate(-50%, -50%) translateY(0px) scaleX(1) scaleY(1); filter: brightness(1); }
-          15%  { transform: translate(-50%, -50%) translateY(-14px) scaleX(0.92) scaleY(1.1); filter: brightness(2.2) saturate(0.2); }
-          35%  { transform: translate(-50%, -50%) translateY(4px) scaleX(1.08) scaleY(0.92); filter: brightness(1.4); }
-          55%  { transform: translate(-50%, -50%) translateY(-6px) scaleX(0.96) scaleY(1.05); filter: brightness(1.1); }
-          75%  { transform: translate(-50%, -50%) translateY(2px) scaleX(1.02) scaleY(0.98); filter: brightness(1); }
-          100% { transform: translate(-50%, -50%) translateY(0px) scaleX(1) scaleY(1); filter: brightness(1); }
-        }
-        @keyframes orbFloat {
-          0%   { transform: translate(-50%, -50%) translateY(0px) scale(1); }
-          100% { transform: translate(-50%, -50%) translateY(-5px) scale(1.08); }
-        }
-        @keyframes laserPulse {
-          0%   { opacity: 0.8; box-shadow: 0 0 18px rgba(255,50,50,0.8), 0 0 6px white; }
-          100% { opacity: 1;   box-shadow: 0 0 32px rgba(255,100,50,1),  0 0 12px white; }
+          0%   { transform: translate(-50%,-50%) translateY(0) scaleX(1) scaleY(1); filter: brightness(1); }
+          15%  { transform: translate(-50%,-50%) translateY(-16px) scaleX(0.9) scaleY(1.12); filter: brightness(2.4) saturate(0.2); }
+          35%  { transform: translate(-50%,-50%) translateY(5px) scaleX(1.1) scaleY(0.9); filter: brightness(1.4); }
+          60%  { transform: translate(-50%,-50%) translateY(-5px) scaleX(0.97) scaleY(1.04); }
+          100% { transform: translate(-50%,-50%) translateY(0) scaleX(1) scaleY(1); filter: brightness(1); }
         }
         @keyframes tensionPulse {
-          0%   { opacity: 0.6; }
-          50%  { opacity: 1; }
-          100% { opacity: 0.6; }
+          0%, 100% { opacity: 0.65; }
+          50% { opacity: 1; }
         }
         @keyframes poisonPulse {
           0%   { transform: translate(-50%,-50%) scale(1);   opacity: 0.6; }
-          50%  { transform: translate(-50%,-50%) scale(1.2); opacity: 1; }
+          50%  { transform: translate(-50%,-50%) scale(1.22); opacity: 1; }
           100% { transform: translate(-50%,-50%) scale(1);   opacity: 0.6; }
         }
         @keyframes healBurst {
@@ -1126,69 +825,88 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           100% { transform: translate(-50%,-50%) scale(1.8); opacity: 0; }
         }
         @keyframes skillOrbFly0 {
-          0%   { transform: translate(-50%,-50%) translateY(0)  scale(1); opacity: 1; }
+          0%   { transform: translate(-50%,-50%) translateY(0) scale(1); opacity: 1; }
           100% { transform: translate(-50%,-50%) translateY(-90px) scale(0.6); opacity: 0; }
         }
         @keyframes skillOrbFly1 {
-          0%   { transform: translate(-50%,-50%) translateY(0)  scale(1); opacity: 1; }
+          0%   { transform: translate(-50%,-50%) translateY(0) scale(1); opacity: 1; }
           100% { transform: translate(-50%,-50%) translateY(-120px) scale(0.6); opacity: 0; }
         }
         @keyframes skillOrbFly2 {
-          0%   { transform: translate(-50%,-50%) translateY(0)  scale(1); opacity: 1; }
+          0%   { transform: translate(-50%,-50%) translateY(0) scale(1); opacity: 1; }
           100% { transform: translate(-50%,-50%) translateY(-100px) scale(0.6); opacity: 0; }
         }
         @keyframes comboText {
           0% { transform: scale(0.5); opacity: 0; }
-          50% { transform: scale(1.2); }
+          50% { transform: scale(1.25); }
           100% { transform: scale(1); opacity: 1; }
         }
         @keyframes rewardSlide {
           0% { transform: translateY(20px); opacity: 0; }
           100% { transform: translateY(0); opacity: 1; }
         }
-        @keyframes healPulse {
-          0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.4); }
-          70% { box-shadow: 0 0 0 10px rgba(34,197,94,0); }
-          100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+        @keyframes laserPulse {
+          0%   { opacity: 0.8; box-shadow: 0 0 18px rgba(255,50,50,0.8), 0 0 6px white; }
+          100% { opacity: 1;   box-shadow: 0 0 32px rgba(255,100,50,1),  0 0 12px white; }
+        }
+        @keyframes manaGlow {
+          0%   { filter: drop-shadow(0 0 10px rgba(167,139,250,0.7)); }
+          50%  { filter: drop-shadow(0 0 22px rgba(167,139,250,1.0)); }
+          100% { filter: drop-shadow(0 0 10px rgba(167,139,250,0.7)); }
+        }
+        @keyframes manaAura {
+          0%   { transform: translate(-50%,-50%) scale(1);    opacity: 0.25; }
+          50%  { transform: translate(-50%,-50%) scale(1.18); opacity: 0.5; }
+          100% { transform: translate(-50%,-50%) scale(1);    opacity: 0.25; }
+        }
+        @keyframes chargeRingPulse {
+          0%   { transform: translate(-50%,-50%) scale(1);    opacity: 0.5; box-shadow: 0 0 0 0 rgba(255,60,60,0.6); }
+          50%  { transform: translate(-50%,-50%) scale(1.12); opacity: 0.9; box-shadow: 0 0 0 12px rgba(255,60,60,0.0); }
+          100% { transform: translate(-50%,-50%) scale(1);    opacity: 0.5; box-shadow: 0 0 0 0 rgba(255,60,60,0.6); }
+        }
+        @keyframes chargeBarFill {
+          from { width: 0%; }
+          to   { width: 100%; }
+        }
+        @keyframes parrySuccessFlash {
+          0%   { opacity: 0; transform: translate(-50%,-50%) scale(0.5); }
+          30%  { opacity: 1; transform: translate(-50%,-50%) scale(1.2); }
+          70%  { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+          100% { opacity: 0; transform: translate(-50%,-50%) scale(0.9); }
+        }
+        @keyframes parryFailFlash {
+          0%   { opacity: 0; }
+          20%  { opacity: 0.8; }
+          80%  { opacity: 0.6; }
+          100% { opacity: 0; }
+        }
+        @keyframes counterGlow {
+          0%   { transform: translate(-50%,-50%) scale(1);    opacity: 0.35; border-color: rgba(253,230,138,0.7); }
+          50%  { transform: translate(-50%,-50%) scale(1.12); opacity: 0.65; border-color: rgba(253,230,138,1); }
+          100% { transform: translate(-50%,-50%) scale(1);    opacity: 0.35; border-color: rgba(253,230,138,0.7); }
+        }
+        @keyframes parryButtonPulse {
+          0%   { box-shadow: 0 0 0 0 rgba(74,222,128,0.7); transform: scale(1); }
+          50%  { box-shadow: 0 0 0 10px rgba(74,222,128,0.0); transform: scale(1.06); }
+          100% { box-shadow: 0 0 0 0 rgba(74,222,128,0.7); transform: scale(1); }
+        }
+        @keyframes rageFlash {
+          0%   { opacity: 0; }
+          30%  { opacity: 0.25; }
+          100% { opacity: 0; }
+        }
+        @keyframes ragePulse {
+          0%,100% { filter: drop-shadow(0 0 22px rgba(255,40,40,0.85)); }
+          50%      { filter: drop-shadow(0 0 42px rgba(255,100,20,1)); }
         }
         @keyframes bossFloat {
           0%   { transform: translateY(0px); }
-          50%  { transform: translateY(-8px); }
+          50%  { transform: translateY(-7px); }
           100% { transform: translateY(0px); }
         }
-        @keyframes bossGlowPulse {
-          0%   { filter: drop-shadow(0 0 18px rgba(255,40,40,0.85)) drop-shadow(0 0 40px rgba(200,0,0,0.4)); }
-          50%  { filter: drop-shadow(0 0 32px rgba(255,80,40,1)) drop-shadow(0 0 60px rgba(255,40,0,0.6)); }
-          100% { filter: drop-shadow(0 0 18px rgba(255,40,40,0.85)) drop-shadow(0 0 40px rgba(200,0,0,0.4)); }
-        }
-        @keyframes bossBurstGlow {
-          0%   { filter: drop-shadow(0 0 40px rgba(255,120,40,1)) drop-shadow(0 0 80px rgba(255,60,0,0.8)); }
-          50%  { filter: drop-shadow(0 0 60px rgba(255,200,60,1)) drop-shadow(0 0 100px rgba(255,140,0,0.9)); }
-          100% { filter: drop-shadow(0 0 40px rgba(255,120,40,1)) drop-shadow(0 0 80px rgba(255,60,0,0.8)); }
-        }
-        @keyframes bossParticle {
-          0%   { transform: translate(-50%, -50%) scale(1);   opacity: 1; }
-          70%  { opacity: 0.85; }
-          100% { transform: translate(-50%, -50%) scale(0.3); opacity: 0; }
-        }
-        @keyframes bossAuraPulse {
-          0%   { transform: translate(-50%,-50%) scale(1);   opacity: 0.18; }
-          50%  { transform: translate(-50%,-50%) scale(1.25); opacity: 0.35; }
-          100% { transform: translate(-50%,-50%) scale(1);   opacity: 0.18; }
-        }
-        @keyframes focusedStreamWarn {
-          0%, 100% { opacity: 0.5; }
-          50%       { opacity: 1; }
-        }
-        @keyframes manaGlow {
-          0%   { filter: drop-shadow(0 0 10px rgba(167,139,250,0.7)) drop-shadow(0 0 4px rgba(124,58,237,0.5)); }
-          50%  { filter: drop-shadow(0 0 22px rgba(167,139,250,1.0)) drop-shadow(0 0 10px rgba(124,58,237,0.8)); }
-          100% { filter: drop-shadow(0 0 10px rgba(167,139,250,0.7)) drop-shadow(0 0 4px rgba(124,58,237,0.5)); }
-        }
-        @keyframes manaAura {
-          0%   { transform: translate(-50%,-50%) scale(1);   opacity: 0.25; }
-          50%  { transform: translate(-50%,-50%) scale(1.18); opacity: 0.5; }
-          100% { transform: translate(-50%,-50%) scale(1);   opacity: 0.25; }
+        @keyframes enemyBounce {
+          0%, 100% { transform: translate(-50%,-50%) scaleY(1) scaleX(1); }
+          50%       { transform: translate(-50%,-50%) scaleY(0.95) scaleX(1.05); }
         }
       `}</style>
 
@@ -1201,23 +919,31 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         onPointerUp={phase === "battle" ? handleSlashEnd : undefined}
         onPointerCancel={phase === "battle" ? handleSlashEnd : undefined}
       >
+        {/* Background */}
         <div className="absolute inset-0">
           {bgUrl ? (
             <img src={bgUrl} alt="" className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/60" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/65" />
         </div>
 
+        {/* Boss rage red tint */}
+        {bossRage && phase === "battle" && (
+          <div className="absolute inset-0 pointer-events-none z-5"
+            style={{ background: "radial-gradient(ellipse at 50% 20%, rgba(255,30,30,0.15) 0%, transparent 65%)", animation: "tensionPulse 1.2s ease-in-out infinite" }} />
+        )}
+
+        {/* ── INTRO ───────────────────────────────────────────────────── */}
         {phase === "intro" && enemy && pet && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 z-30">
-            <div style={{ animation: "introSlide 0.8s ease-out" }} className="flex flex-col items-center">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 z-30">
+            <div style={{ animation: "introSlide 0.7s ease-out" }} className="flex flex-col items-center">
               {enemy.imageUrl && (
                 <img
                   src={enemy.imageUrl}
                   alt={enemy.name}
-                  style={{ width: enemy.isBoss ? 160 : 112, height: enemy.isBoss ? 160 : 112 }}
+                  style={{ width: enemy.isBoss ? 156 : 108, height: enemy.isBoss ? 156 : 108 }}
                   className={`object-contain ${enemy.isBoss ? "drop-shadow-[0_0_24px_rgba(255,0,0,0.9)]" : "drop-shadow-lg"}`}
                 />
               )}
@@ -1231,14 +957,14 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               )}
             </div>
             <div className="text-white text-2xl font-bold animate-pulse">VS</div>
-            <div style={{ animation: "petIntro 0.8s ease-out 0.3s both" }} className="flex flex-col items-center">
-              <div className="w-40 flex items-center justify-center" style={{ aspectRatio: "1/1" }}>
+            <div style={{ animation: "petIntro 0.7s ease-out 0.25s both" }} className="flex flex-col items-center">
+              <div className="w-36 flex items-center justify-center" style={{ aspectRatio: "1/1" }}>
                 {pet.petTemplateId ? (
-                  <PetAnimator petTemplateId={pet.petTemplateId} mode="idle" view="front" size={220} className="w-full h-full" style={{ aspectRatio: "1/1" }} />
+                  <PetAnimator petTemplateId={pet.petTemplateId} mode="idle" view="front" size={200} className="w-full h-full" />
                 ) : pet.imageUrl ? (
-                  <img src={pet.imageUrl} alt={pet.name} className="w-full object-contain drop-shadow-lg" style={{ maxHeight: "160px" }} />
+                  <img src={pet.imageUrl} alt={pet.name} className="w-full object-contain drop-shadow-lg" style={{ maxHeight: "144px" }} />
                 ) : (
-                  <img src={petPawIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain", filter: "drop-shadow(0 2px 10px rgba(0,0,0,0.6))" }} />
+                  <img src={petPawIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain" }} />
                 )}
               </div>
               <div className="mt-2 px-4 py-2 bg-black/70 rounded-lg" style={{ borderColor: accent + "80", borderWidth: 1 }}>
@@ -1249,13 +975,16 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           </div>
         )}
 
+        {/* ── BATTLE UI ────────────────────────────────────────────────── */}
         {(phase === "battle" || phase === "victory" || phase === "waveComplete" || phase === "defeat") && enemy && pet && (
           <>
-            <div className="absolute top-0 left-0 right-0 z-20 px-3 pb-3" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}>
-              <div className="flex items-center justify-between gap-2 mb-2">
+            {/* Top HUD */}
+            <div className="absolute top-0 left-0 right-0 z-20 px-3 pb-2" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 10px)" }}>
+              <div className="flex items-center justify-between gap-2 mb-1.5">
                 <div className="flex-1">
-                  <div className="flex items-center gap-1 mb-1">
+                  <div className="flex items-center gap-1.5 mb-1">
                     {enemy.isBoss && <span className="text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded-full font-bold">BOSS</span>}
+                    {bossRage && <span className="text-[10px] bg-orange-600 text-white px-1.5 py-0.5 rounded-full font-bold" style={{ animation: "tensionPulse 0.6s ease-in-out infinite" }}>RAGE</span>}
                     <span className="text-white text-sm font-bold drop-shadow-lg truncate">{enemy.name}</span>
                     <span className="text-gray-300 text-xs">Lv.{enemy.level}</span>
                     {allEnemies.length > 1 && <span className="text-gray-500 text-[10px]">({waveIndex + 1}/{allEnemies.length})</span>}
@@ -1270,12 +999,12 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                       }}
                     />
                   </div>
-                  <div className="text-gray-300 text-[10px] mt-0.5">{enemyHp} / {enemyMaxHp}</div>
+                  <div className="text-gray-400 text-[10px] mt-0.5">{enemyHp} / {enemyMaxHp}</div>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => setShowTutorial(true)}
-                    className="p-1.5 bg-black/50 rounded-full hover:bg-black/70 transition-colors"
+                    className="p-1.5 bg-black/50 rounded-full"
                     data-testid="button-battle-help"
                     style={{ border: `1px solid ${accent}40`, color: `${accent}cc` }}
                   >
@@ -1283,7 +1012,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   </button>
                   <button
                     onClick={handleReturnToWorld}
-                    className="p-1.5 bg-black/50 rounded-full hover:bg-black/70 transition-colors"
+                    className="p-1.5 bg-black/50 rounded-full"
                     data-testid="button-flee-battle"
                   >
                     <X className="w-4 h-4 text-white" />
@@ -1292,11 +1021,277 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               </div>
             </div>
 
-            {/* ── Bottom Toolbar ── */}
-            <div className="absolute bottom-0 left-0 right-0 z-20"
-              style={{ background: "linear-gradient(0deg, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.55) 70%, transparent 100%)", padding: "10px 12px 12px" }}>
+            {/* ── Enemy sprite ───────────────────────────────────────── */}
+            {phase === "battle" && (
+              <div
+                className="absolute z-10 pointer-events-none"
+                style={{
+                  left: `${enemyPos.x}%`,
+                  top: `${enemyPos.y}%`,
+                  transform: "translate(-50%, -50%)",
+                  animation: enemyHit
+                    ? "enemyHitFlash 0.22s ease-in-out"
+                    : enemy.isBoss
+                      ? "bossFloat 3s ease-in-out infinite"
+                      : "enemyBounce 0.7s ease-in-out infinite",
+                }}
+              >
+                {/* Charge ring around enemy */}
+                {enemyCharging && (
+                  <div style={{
+                    position: "absolute",
+                    left: "50%", top: "50%",
+                    width: enemy.isBoss ? 200 : 120,
+                    height: enemy.isBoss ? 200 : 120,
+                    borderRadius: "50%",
+                    border: "3px solid rgba(255,60,60,0.85)",
+                    boxShadow: "0 0 20px rgba(255,40,40,0.7), 0 0 8px rgba(255,40,40,0.5)",
+                    animation: "chargeRingPulse 0.55s ease-in-out infinite",
+                  }} />
+                )}
 
-              {/* Row 1: Name + Level + Skill button */}
+                {/* Charge fill bar below enemy */}
+                {enemyCharging && (
+                  <div style={{
+                    position: "absolute",
+                    bottom: enemy.isBoss ? -36 : -22,
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    width: enemy.isBoss ? 90 : 64,
+                    height: 4,
+                    background: "rgba(0,0,0,0.5)",
+                    borderRadius: 3,
+                    overflow: "hidden",
+                  }}>
+                    <div style={{
+                      height: "100%",
+                      background: "linear-gradient(90deg, #ff4444, #ff8800)",
+                      borderRadius: 3,
+                      animation: `chargeBarFill ${chargeDurationRef.current}ms linear forwards`,
+                    }} />
+                  </div>
+                )}
+
+                {/* Parry open label */}
+                {parryWindowOpen && (
+                  <div style={{
+                    position: "absolute",
+                    top: enemy.isBoss ? -48 : -32,
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    whiteSpace: "nowrap",
+                    fontFamily: "Cinzel, serif",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: "#ff4444",
+                    textShadow: "0 0 10px rgba(255,60,60,0.9), 0 1px 0 #000",
+                    letterSpacing: "0.12em",
+                    animation: "tensionPulse 0.4s ease-in-out infinite",
+                  }}>⚠ ATTACK!</div>
+                )}
+
+                {/* Boss rage glow overlay */}
+                {enemy.isBoss && bossRage && (
+                  <div style={{
+                    position: "absolute",
+                    left: "50%", top: "50%",
+                    width: 180, height: 180,
+                    borderRadius: "50%",
+                    background: "radial-gradient(circle, rgba(255,40,0,0.2) 0%, transparent 70%)",
+                    transform: "translate(-50%, -50%)",
+                    animation: "tensionPulse 0.8s ease-in-out infinite",
+                    pointerEvents: "none",
+                  }} />
+                )}
+
+                {/* Counter window aura on enemy (golden) */}
+                {counterActive && (
+                  <div style={{
+                    position: "absolute",
+                    left: "50%", top: "50%",
+                    width: enemy.isBoss ? 180 : 110,
+                    height: enemy.isBoss ? 180 : 110,
+                    borderRadius: "50%",
+                    border: "2.5px solid rgba(253,230,138,0.8)",
+                    boxShadow: "0 0 24px rgba(253,230,138,0.7), 0 0 8px rgba(253,230,138,0.5)",
+                    animation: "counterGlow 0.6s ease-in-out infinite",
+                  }} />
+                )}
+
+                {enemy.imageUrl ? (
+                  <img
+                    src={enemy.imageUrl}
+                    alt={enemy.name}
+                    style={{
+                      width: enemy.isBoss ? 148 : 84,
+                      height: enemy.isBoss ? 148 : 84,
+                      display: "block",
+                      filter: bossRage && enemy.isBoss
+                        ? "drop-shadow(0 0 18px rgba(255,40,40,0.9))"
+                        : enemy.isBoss
+                          ? "drop-shadow(0 0 14px rgba(255,80,80,0.7))"
+                          : undefined,
+                      animation: bossRage && enemy.isBoss ? "ragePulse 1.4s ease-in-out infinite" : undefined,
+                    }}
+                    className="object-contain"
+                  />
+                ) : (
+                  <div
+                    className="flex items-center justify-center bg-red-900/50 border-2 border-red-500 rounded-full"
+                    style={{ width: enemy.isBoss ? 148 : 84, height: enemy.isBoss ? 148 : 84 }}
+                  >
+                    <Swords style={{ width: enemy.isBoss ? 56 : 32, height: enemy.isBoss ? 56 : 32, color: "#f87171" }} />
+                  </div>
+                )}
+
+                {enemy.isBoss && (
+                  <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[9px] font-black tracking-widest whitespace-nowrap"
+                    style={{
+                      color: bossRage ? "#ff8820" : "#ff4444",
+                      textShadow: bossRage ? "0 0 14px rgba(255,140,20,0.9)" : "0 0 10px rgba(255,0,0,0.8)",
+                      animation: bossRage ? "tensionPulse 0.5s ease-in-out infinite" : undefined,
+                    }}>
+                    {bossRage ? "🔥 RAGE 🔥" : "⚠ BOSS ⚠"}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Pet sprite (fixed position) ─────────────────────────── */}
+            <div
+              className="absolute z-10 pointer-events-none"
+              style={{
+                left: `${PET_X}%`,
+                top: `${PET_Y}%`,
+                transform: "translate(-50%, -50%)",
+                animation: petHit ? "petHitBounce 0.42s ease-out" : undefined,
+                filter: petHit ? "drop-shadow(0 0 14px rgba(239,68,68,0.9))" : undefined,
+              }}
+            >
+              {/* Mana-ready aura */}
+              {mana >= MAX_MANA && !skillCooldown && pet.specialSkill && (
+                <div style={{
+                  position: "absolute", left: "50%", top: "50%",
+                  width: 200, height: 200, borderRadius: "50%",
+                  border: "2.5px solid rgba(167,139,250,0.75)",
+                  boxShadow: "0 0 20px rgba(124,58,237,0.6)",
+                  animation: "manaAura 1s ease-in-out infinite",
+                }} />
+              )}
+              {/* Counter window golden ring */}
+              {counterActive && (
+                <div style={{
+                  position: "absolute", left: "50%", top: "50%",
+                  width: 210, height: 210, borderRadius: "50%",
+                  border: "2.5px solid rgba(253,230,138,0.9)",
+                  boxShadow: "0 0 28px rgba(253,230,138,0.8), 0 0 10px rgba(251,191,36,0.6)",
+                  animation: "counterGlow 0.55s ease-in-out infinite",
+                }} />
+              )}
+              {pet.petTemplateId ? (
+                <PetAnimator
+                  petTemplateId={pet.petTemplateId}
+                  mode="idle"
+                  view="front"
+                  size={190}
+                  style={mana >= MAX_MANA && !skillCooldown ? { animation: "manaGlow 1s ease-in-out infinite" } : undefined}
+                />
+              ) : pet.imageUrl ? (
+                <img
+                  src={pet.imageUrl}
+                  alt={pet.name}
+                  className="object-contain drop-shadow-lg"
+                  style={{ width: 190, height: 190, animation: mana >= MAX_MANA && !skillCooldown ? "manaGlow 1s ease-in-out infinite" : undefined }}
+                />
+              ) : (
+                <img src={petPawIcon} alt="" style={{ width: 90, height: 90, objectFit: "contain" }} />
+              )}
+
+              {/* Counter hits badge */}
+              {counterActive && counterHitsLeft > 0 && (
+                <div style={{
+                  position: "absolute",
+                  top: -10,
+                  right: -6,
+                  background: "linear-gradient(135deg, #f59e0b, #fde68a)",
+                  color: "#78350f",
+                  fontWeight: 900,
+                  fontSize: 10,
+                  borderRadius: 8,
+                  padding: "2px 6px",
+                  boxShadow: "0 0 10px rgba(253,230,138,0.8)",
+                  letterSpacing: "0.05em",
+                  whiteSpace: "nowrap",
+                }}>⚡×{counterHitsLeft} 2×</div>
+              )}
+            </div>
+
+            {/* ── Floating PARRY button (appears during charge) ───────── */}
+            {phase === "battle" && parryWindowOpen && (
+              <div
+                className="absolute z-30 pointer-events-auto"
+                style={{
+                  left: "50%",
+                  top: "74%",
+                  transform: "translate(-50%, -50%)",
+                }}
+              >
+                <button
+                  data-testid="button-parry"
+                  onPointerDown={(e) => { e.stopPropagation(); handleParry(); }}
+                  className="flex items-center gap-2 font-fantasy tracking-widest rounded-2xl transition-transform active:scale-90"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(20,80,20,0.95), rgba(10,50,10,0.95))",
+                    border: "2px solid rgba(74,222,128,0.9)",
+                    boxShadow: "0 0 24px rgba(74,222,128,0.8), 0 0 8px rgba(74,222,128,0.5)",
+                    color: "#4ade80",
+                    padding: "10px 22px",
+                    fontSize: 15,
+                    fontWeight: 900,
+                    letterSpacing: "0.15em",
+                    animation: "parryButtonPulse 0.55s ease-in-out infinite",
+                  }}
+                >
+                  <Shield className="w-5 h-5" style={{ color: "#4ade80" }} />
+                  PARRY
+                </button>
+              </div>
+            )}
+
+            {/* Parry result flash */}
+            {parryResult === "success" && (
+              <div className="absolute inset-0 pointer-events-none z-40 flex items-center justify-center">
+                <div style={{
+                  fontFamily: "Cinzel, serif",
+                  fontSize: 28,
+                  fontWeight: 900,
+                  color: "#4ade80",
+                  textShadow: "0 0 28px rgba(74,222,128,0.9), 0 0 12px rgba(74,222,128,0.6), 0 2px 0 #000",
+                  letterSpacing: "0.16em",
+                  animation: "parrySuccessFlash 0.9s ease-out forwards",
+                }}>PARRY!</div>
+              </div>
+            )}
+            {parryResult === "fail" && (
+              <div className="absolute inset-0 pointer-events-none z-5"
+                style={{ background: "rgba(239,68,68,0.14)", animation: "parryFailFlash 0.6s ease-out forwards" }} />
+            )}
+
+            {/* Swipe hint */}
+            {phase === "battle" && !enemyCharging && (
+              <div className="absolute z-10 pointer-events-none"
+                style={{ bottom: "22%", left: "50%", transform: "translateX(-50%)", whiteSpace: "nowrap" }}>
+                <div className="text-white/22 text-[10px] font-medium animate-pulse tracking-widest text-center">
+                  Swipe through the enemy · tap PARRY when it charges
+                </div>
+              </div>
+            )}
+
+            {/* ── Bottom Toolbar ────────────────────────────────────────── */}
+            <div className="absolute bottom-0 left-0 right-0 z-20"
+              style={{ background: "linear-gradient(0deg, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.6) 70%, transparent 100%)", padding: "10px 14px 12px" }}>
+
+              {/* Row 1: Pet name + level + skill */}
               <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-1.5">
                   <span className="text-sm font-bold drop-shadow-lg truncate" style={{ color: accent }}>{pet.name}</span>
@@ -1305,7 +1300,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                 {pet.specialSkill && phase === "battle" && (
                   <button
                     data-testid="button-use-skill"
-                    onClick={useSpecialSkill}
+                    onPointerDown={(e) => { e.stopPropagation(); useSpecialSkill(); }}
                     disabled={mana < MAX_MANA || skillCooldown}
                     className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1 rounded-full border transition-all"
                     style={{
@@ -1319,12 +1314,11 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                       cursor: mana >= MAX_MANA && !skillCooldown ? "pointer" : "not-allowed",
                     }}
                   >
-                    <span style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      {pet.specialSkill === "Lazer" ? <Zap className="w-4 h-4" style={{ color: "#facc15" }} /> :
-                       pet.specialSkill === "Bubble" ? <Droplets className="w-4 h-4" style={{ color: "#67e8f9" }} /> :
-                       pet.specialSkill === "Heal Self" || pet.specialSkill === "Heal Party" ? <Heart className="w-4 h-4" style={{ color: "#4ade80", fill: "rgba(74,222,128,0.3)" }} /> :
-                       pet.specialSkill === "Poison" ? <Skull className="w-4 h-4" style={{ color: "#a855f7" }} /> : <Sparkles className="w-4 h-4" style={{ color: "#e879f9" }} />}
-                    </span>
+                    {pet.specialSkill === "Lazer" ? <Zap className="w-4 h-4" style={{ color: "#facc15" }} /> :
+                     pet.specialSkill === "Bubble" ? <Droplets className="w-4 h-4" style={{ color: "#67e8f9" }} /> :
+                     pet.specialSkill === "Heal Self" || pet.specialSkill === "Heal Party" ? <Heart className="w-4 h-4" style={{ color: "#4ade80" }} /> :
+                     pet.specialSkill === "Poison" ? <Skull className="w-4 h-4" style={{ color: "#a855f7" }} /> :
+                     <Sparkles className="w-4 h-4" style={{ color: "#e879f9" }} />}
                     <span className="text-[9px] font-fantasy tracking-wider"
                       style={{ color: mana >= MAX_MANA && !skillCooldown ? "#e9d5ff" : "#6b7280" }}>
                       {skillCooldown ? "CD" : mana >= MAX_MANA ? "READY!" : pet.specialSkill.split(" ")[0].toUpperCase()}
@@ -1341,15 +1335,11 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                 </div>
                 <div className="h-3 bg-black/60 rounded-full overflow-hidden border border-white/15">
                   <div className="h-full rounded-full transition-all duration-200"
-                    style={{
-                      width: `${Math.max(0, (petHp / petMaxHp) * 100)}%`,
-                      backgroundColor: hpBarColor(petHp, petMaxHp),
-                      boxShadow: `0 0 8px ${hpBarColor(petHp, petMaxHp)}80`,
-                    }} />
+                    style={{ width: `${Math.max(0, (petHp / petMaxHp) * 100)}%`, backgroundColor: hpBarColor(petHp, petMaxHp), boxShadow: `0 0 8px ${hpBarColor(petHp, petMaxHp)}80` }} />
                 </div>
               </div>
 
-              {/* Row 3: Mana bar (only if pet has a skill) */}
+              {/* Row 3: Mana bar */}
               {pet.specialSkill && (
                 <div className="mb-2">
                   <div className="flex items-center justify-between mb-0.5">
@@ -1360,9 +1350,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                     <div className="h-full rounded-full transition-all duration-300"
                       style={{
                         width: `${(mana / MAX_MANA) * 100}%`,
-                        background: mana >= MAX_MANA
-                          ? "linear-gradient(90deg, #7c3aed, #a78bfa, #c4b5fd)"
-                          : "linear-gradient(90deg, #4c1d95, #7c3aed)",
+                        background: mana >= MAX_MANA ? "linear-gradient(90deg, #7c3aed, #a78bfa, #c4b5fd)" : "linear-gradient(90deg, #4c1d95, #7c3aed)",
                         boxShadow: mana >= MAX_MANA ? "0 0 10px rgba(167,139,250,0.8)" : undefined,
                         animation: mana >= MAX_MANA ? "tensionPulse 0.8s ease-in-out infinite" : undefined,
                       }} />
@@ -1371,7 +1359,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               )}
 
               {/* Row 4: 5 Potion slots */}
-              <div className="flex gap-2 justify-start items-center">
+              <div className="flex gap-2 items-center justify-start">
                 {Array.from({ length: 5 }, (_, i) => {
                   const slot = activeSlots[i];
                   const qty = slot?.remaining.length ?? 0;
@@ -1382,24 +1370,14 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                     <button
                       key={i}
                       data-testid={`button-potion-slot-${i}`}
-                      onClick={() => usePotion(i)}
-                      disabled={isEmpty}
+                      onPointerDown={(e) => { e.stopPropagation(); usePotion(i); }}
+                      disabled={isEmpty || phase !== "battle"}
                       className="relative flex items-center justify-center rounded-full border transition-all active:scale-90"
                       style={{
                         width: 44, height: 44,
-                        background: isEmpty
-                          ? "rgba(0,0,0,0.4)"
-                          : isMana
-                            ? "rgba(76,29,149,0.5)"
-                            : "rgba(20,80,30,0.5)",
-                        borderColor: isEmpty
-                          ? "rgba(255,255,255,0.1)"
-                          : isMana
-                            ? "rgba(167,139,250,0.5)"
-                            : "rgba(34,197,94,0.45)",
-                        boxShadow: isEmpty ? undefined : isMana
-                          ? "0 0 8px rgba(124,58,237,0.4)"
-                          : "0 0 8px rgba(34,197,94,0.3)",
+                        background: isEmpty ? "rgba(0,0,0,0.4)" : isMana ? "rgba(76,29,149,0.5)" : "rgba(20,80,30,0.5)",
+                        borderColor: isEmpty ? "rgba(255,255,255,0.1)" : isMana ? "rgba(167,139,250,0.5)" : "rgba(34,197,94,0.45)",
+                        boxShadow: isEmpty ? undefined : isMana ? "0 0 8px rgba(124,58,237,0.4)" : "0 0 8px rgba(34,197,94,0.3)",
                         opacity: isEmpty ? 0.35 : 1,
                         cursor: isEmpty ? "not-allowed" : "pointer",
                       }}
@@ -1408,242 +1386,37 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                         <span className="text-white/20 text-lg">+</span>
                       ) : slot.imageUrl ? (
                         <img src={slot.imageUrl} alt={slot.name} className="w-7 h-7 object-contain" />
-                      ) : isHeal
-                        ? <Heart className="w-5 h-5 fill-red-400/40" style={{ color: "#f87171" }} />
-                        : isMana
-                        ? <Droplets className="w-5 h-5" style={{ color: "#a78bfa" }} />
-                        : <img src={powerupBagIconBA} alt="" style={{ width: 20, height: 20, objectFit: "contain" }} />}
+                      ) : isHeal ? (
+                        <Heart className="w-5 h-5 fill-red-400/40" style={{ color: "#f87171" }} />
+                      ) : (
+                        <Droplets className="w-5 h-5" style={{ color: "#a78bfa" }} />
+                      )}
                       {!isEmpty && qty > 0 && (
                         <div className="absolute -bottom-0.5 -right-0.5 rounded-full text-[8px] font-bold px-1 min-w-[14px] text-center leading-none py-0.5"
-                          style={{
-                            background: isMana ? "#7c3aed" : "#16a34a",
-                            color: "white",
-                            boxShadow: "0 1px 3px rgba(0,0,0,0.5)",
-                          }}>
+                          style={{ background: isMana ? "#7c3aed" : "#16a34a", color: "white", boxShadow: "0 1px 3px rgba(0,0,0,0.5)" }}>
                           {qty}
                         </div>
                       )}
                     </button>
                   );
                 })}
-              </div>
 
-              {comboCount > 1 && phase === "battle" && (
-                <div
-                  className="absolute -top-8 right-4 text-yellow-400 font-black text-lg drop-shadow-lg"
-                  style={{ animation: "comboText 0.3s ease-out" }}
-                  data-testid="text-combo-count"
-                >
-                  {comboCount}x COMBO!
-                </div>
-              )}
-            </div>
-
-            {phase === "battle" && (
-              <div
-                className="absolute z-10"
-                style={{
-                  left: `${enemyPos.x}%`,
-                  top: `${enemyPos.y}%`,
-                  pointerEvents: "none",
-                  // For regular enemies: animation handles centering+bounce/flash
-                  // For boss: just center here, float+scale on inner wrapper
-                  transform: enemy.isBoss ? "translate(-50%, -50%)" : undefined,
-                  animation: enemy.isBoss
-                    ? undefined
-                    : enemyHit
-                      ? "hitFlash 0.2s ease-in-out"
-                      : "enemyBounce 0.6s ease-in-out infinite",
-                }}
-              >
-                {/* Boss: float wrapper (animation=translateY only) → scale wrapper (bossEnlarged) */}
-                {enemy.isBoss ? (
-                  <div style={{ animation: "bossFloat 2.8s ease-in-out infinite" }}>
-                    <div style={{
-                      transform: `scale(${bossEnlarged ? 1.5 : 1})`,
-                      transition: "transform 0.4s ease-out",
-                    }}>
-                    {/* Boss pulsing aura underneath */}
-                    <div style={{
-                      position: "absolute",
-                      left: "50%", top: "50%",
-                      width: bossEnlarged ? 220 : 180,
-                      height: bossEnlarged ? 220 : 180,
-                      borderRadius: "50%",
-                      background: bossBurstActive
-                        ? "radial-gradient(circle, rgba(255,140,40,0.35) 0%, rgba(255,60,0,0.18) 50%, transparent 75%)"
-                        : "radial-gradient(circle, rgba(255,40,40,0.22) 0%, rgba(180,0,0,0.10) 55%, transparent 78%)",
-                      animation: "bossAuraPulse 1.8s ease-in-out infinite",
-                      transition: "width 0.4s, height 0.4s, background 0.3s",
-                      transform: "translate(-50%, -50%)",
-                      pointerEvents: "none",
-                    }} />
-
-                    {enemy.imageUrl ? (
-                      <img
-                        src={enemy.imageUrl}
-                        alt={enemy.name}
-                        style={{
-                          width: 148,
-                          height: 148,
-                          animation: bossBurstActive ? "bossBurstGlow 0.4s ease-in-out infinite" : "bossGlowPulse 1.8s ease-in-out infinite",
-                          display: "block",
-                        }}
-                        className="object-contain"
-                      />
-                    ) : (
-                      <div
-                        className="w-36 h-36 bg-red-900/50 rounded-full flex items-center justify-center border-2 border-red-500"
-                        style={{
-                          boxShadow: bossBurstActive
-                            ? "0 0 50px rgba(255,140,40,0.9), 0 0 20px rgba(255,80,0,0.7)"
-                            : "0 0 32px rgba(255,0,0,0.7), 0 0 12px rgba(200,0,0,0.5)",
-                          animation: "bossAuraPulse 1.8s ease-in-out infinite",
-                        }}
-                      >
-                        <Swords className="w-14 h-14 text-red-400" />
-                      </div>
-                    )}
-
-                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[9px] font-black tracking-widest whitespace-nowrap"
-                      style={{
-                        color: bossBurstActive ? "#ffaa40" : "#ff4444",
-                        textShadow: bossBurstActive
-                          ? "0 0 14px rgba(255,160,40,0.9), 0 0 6px rgba(255,100,0,0.7)"
-                          : "0 0 10px rgba(255,0,0,0.8)",
-                        animation: bossBurstActive ? "tensionPulse 0.35s ease-in-out infinite" : undefined,
-                      }}>
-                      {bossBurstActive ? "💥 BURST! 💥" : "⚠ BOSS ⚠"}
-                    </div>
-
-                    {bossHitStreak > 0 && !breakFreeEffect && (
-                      <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 flex gap-1 items-center">
-                        {Array.from({ length: 6 }).map((_, i) => (
-                          <div
-                            key={i}
-                            className="rounded-full"
-                            style={{
-                              width: 7, height: 7,
-                              background: i < bossHitStreak ? "#ff4444" : "rgba(255,255,255,0.2)",
-                              boxShadow: i < bossHitStreak ? "0 0 6px rgba(255,60,60,0.9)" : undefined,
-                              transition: "background 0.1s, box-shadow 0.1s",
-                            }}
-                          />
-                        ))}
-                      </div>
-                    )}
-                    </div>
+                {/* Combo counter pill (right side) */}
+                {comboCount > 1 && phase === "battle" && (
+                  <div
+                    className="ml-auto font-black text-sm"
+                    style={{ color: "#fbbf24", textShadow: "0 0 10px rgba(251,191,36,0.8), 0 1px 0 #000", animation: "comboText 0.3s ease-out", whiteSpace: "nowrap" }}
+                    data-testid="text-combo-count"
+                  >
+                    {comboCount}× COMBO
                   </div>
-                ) : (
-                  <>
-                    {enemy.imageUrl ? (
-                      <img
-                        src={enemy.imageUrl}
-                        alt={enemy.name}
-                        style={{ width: 80, height: 80 }}
-                        className="object-contain"
-                      />
-                    ) : (
-                      <div className="w-20 h-20 bg-red-900/50 rounded-full flex items-center justify-center border-2 border-red-500">
-                        <Swords className="w-8 h-8 text-red-400" />
-                      </div>
-                    )}
-                  </>
                 )}
               </div>
-            )}
-
-            {/* Pet — visual + centered drag handle */}
-            <div
-              className="absolute z-10"
-              style={{
-                left: `${petPos.x}%`,
-                top: `${petPos.y}%`,
-                transform: "translate(-50%, -50%)",
-                animation: petHit ? "petHitBounce 0.4s ease-out" : undefined,
-                filter: petHit
-                  ? "drop-shadow(0 0 14px rgba(239,68,68,0.9))"
-                  : (mana >= MAX_MANA && !skillCooldown && pet.specialSkill)
-                    ? undefined
-                    : undefined,
-                transition: petDraggingRef.current ? undefined : "left 0.08s, top 0.08s",
-                userSelect: "none",
-                pointerEvents: "none",
-              }}
-            >
-              {/* Mana-ready aura ring around pet */}
-              {mana >= MAX_MANA && !skillCooldown && pet.specialSkill && (
-                <div style={{
-                  position: "absolute",
-                  left: "50%", top: "50%",
-                  width: 230, height: 230,
-                  borderRadius: "50%",
-                  border: "2.5px solid rgba(167,139,250,0.75)",
-                  boxShadow: "0 0 20px rgba(124,58,237,0.6), inset 0 0 20px rgba(167,139,250,0.15)",
-                  animation: "manaAura 1s ease-in-out infinite",
-                  pointerEvents: "none",
-                }} />
-              )}
-              {pet.petTemplateId ? (
-                <PetAnimator
-                  petTemplateId={pet.petTemplateId}
-                  mode="idle"
-                  view="front"
-                  size={220}
-                  style={mana >= MAX_MANA && !skillCooldown ? { animation: "manaGlow 1s ease-in-out infinite" } : undefined}
-                />
-              ) : pet.imageUrl ? (
-                <img
-                  src={pet.imageUrl}
-                  alt={pet.name}
-                  className="object-contain drop-shadow-lg"
-                  style={{
-                    width: 220, height: 220,
-                    animation: mana >= MAX_MANA && !skillCooldown ? "manaGlow 1s ease-in-out infinite" : undefined,
-                  }}
-                />
-              ) : (
-                <img src={petPawIcon} alt="" style={{ width: 90, height: 90, objectFit: "contain", animation: mana >= MAX_MANA && !skillCooldown ? "manaGlow 1s ease-in-out infinite" : undefined }} />
-              )}
-
-              {/* Small centered grab zone — requires a direct tap to drag */}
-              {phase === "battle" && (
-                <div
-                  data-testid="pet-grab-handle"
-                  style={{
-                    position: "absolute",
-                    left: "50%",
-                    top: "50%",
-                    transform: "translate(-50%, -50%)",
-                    width: 64,
-                    height: 64,
-                    borderRadius: "50%",
-                    border: "2px dashed rgba(255,255,255,0.25)",
-                    background: "rgba(255,255,255,0.04)",
-                    cursor: petDraggingRef.current ? "grabbing" : "grab",
-                    touchAction: "none",
-                    pointerEvents: "auto",
-                    zIndex: 10,
-                  }}
-                  onPointerDown={handlePetPointerDown}
-                  onPointerMove={handlePetPointerMove}
-                  onPointerUp={handlePetPointerUp}
-                  onPointerCancel={handlePetPointerUp}
-                />
-              )}
             </div>
-
-            {phase === "battle" && (
-              <div className="absolute inset-0 z-15 pointer-events-none">
-                <div className="absolute bottom-36 left-1/2 -translate-x-1/2 text-white/25 text-[10px] font-medium animate-pulse tracking-widest text-center whitespace-nowrap">
-                  Slash enemy · Tap pet center to drag
-                </div>
-              </div>
-            )}
           </>
         )}
 
-        {/* Finger-traced slash trail — smooth Catmull-Rom curve through all drag points */}
+        {/* ── Swipe trail SVG ─────────────────────────────────────────── */}
         {slashTrail.length >= 2 && (
           <svg
             className="absolute inset-0 pointer-events-none z-30"
@@ -1657,274 +1430,120 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                 <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
               </filter>
             </defs>
-            {/* Wide glow halo */}
-            <path
-              d={buildSlashPath(slashTrail)}
-              stroke={accent} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"
-              fill="none"
-              opacity={trailFading ? 0 : 0.35}
-              filter="url(#slashGlow)"
-              style={{ transition: trailFading ? "opacity 0.32s ease-out" : undefined }}
-            />
-            {/* Core colored blade */}
-            <path
-              d={buildSlashPath(slashTrail)}
-              stroke={accent} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-              fill="none"
-              opacity={trailFading ? 0 : 0.95}
-              style={{ transition: trailFading ? "opacity 0.32s ease-out" : undefined }}
-            />
-            {/* White edge highlight */}
-            <path
-              d={buildSlashPath(slashTrail)}
-              stroke="white" strokeWidth="0.9" strokeLinecap="round" strokeLinejoin="round"
-              fill="none"
-              opacity={trailFading ? 0 : 0.6}
-              style={{ transition: trailFading ? "opacity 0.32s ease-out" : undefined }}
-            />
+            <path d={buildSlashPath(slashTrail)} stroke={counterActive ? "#fde68a" : accent} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"
+              fill="none" opacity={trailFading ? 0 : 0.35} filter="url(#slashGlow)"
+              style={{ transition: trailFading ? "opacity 0.32s ease-out" : undefined }} />
+            <path d={buildSlashPath(slashTrail)} stroke={counterActive ? "#fde68a" : accent} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+              fill="none" opacity={trailFading ? 0 : 0.95}
+              style={{ transition: trailFading ? "opacity 0.32s ease-out" : undefined }} />
+            <path d={buildSlashPath(slashTrail)} stroke="white" strokeWidth="0.9" strokeLinecap="round" strokeLinejoin="round"
+              fill="none" opacity={trailFading ? 0 : 0.65}
+              style={{ transition: trailFading ? "opacity 0.32s ease-out" : undefined }} />
           </svg>
         )}
 
-        {/* Spark particles on hit (enemy) */}
+        {/* Enemy hit spark particles */}
         {sparkParticles.map(spark => (
-          <div
-            key={spark.id}
-            className="absolute pointer-events-none rounded-full z-35"
+          <div key={spark.id} className="absolute pointer-events-none rounded-full z-35"
             style={{
-              left: `${spark.x}%`,
-              top: `${spark.y}%`,
-              width: 6,
-              height: 6,
-              marginLeft: -3,
-              marginTop: -3,
-              background: spark.color,
-              boxShadow: `0 0 8px ${spark.color}, 0 0 3px white`,
+              left: `${spark.x}%`, top: `${spark.y}%`, width: 6, height: 6, marginLeft: -3, marginTop: -3,
+              background: spark.color, boxShadow: `0 0 8px ${spark.color}, 0 0 3px white`,
               animation: "sparkFly 0.45s ease-out forwards",
-              ["--spark-dx" as any]: `${spark.dx * 12}px`,
-              ["--spark-dy" as any]: `${spark.dy * 12}px`,
-            }}
-          />
+              ["--spark-dx" as any]: `${spark.dx * 13}px`, ["--spark-dy" as any]: `${spark.dy * 13}px`,
+            }} />
         ))}
 
         {/* Pet hit particles */}
         {petHitParticles.map(spark => (
-          <div
-            key={spark.id}
-            className="absolute pointer-events-none rounded-full z-35"
+          <div key={spark.id} className="absolute pointer-events-none rounded-full z-35"
             style={{
-              left: `${spark.x}%`,
-              top: `${spark.y}%`,
-              width: 7,
-              height: 7,
-              marginLeft: -3.5,
-              marginTop: -3.5,
-              background: spark.color,
-              boxShadow: `0 0 10px ${spark.color}, 0 0 4px white`,
+              left: `${spark.x}%`, top: `${spark.y}%`, width: 7, height: 7, marginLeft: -3.5, marginTop: -3.5,
+              background: spark.color, boxShadow: `0 0 10px ${spark.color}, 0 0 4px white`,
               animation: "sparkFly 0.5s ease-out forwards",
-              ["--spark-dx" as any]: `${spark.dx * 14}px`,
-              ["--spark-dy" as any]: `${spark.dy * 14}px`,
-            }}
-          />
+              ["--spark-dx" as any]: `${spark.dx * 14}px`, ["--spark-dy" as any]: `${spark.dy * 14}px`,
+            }} />
         ))}
-
-        {/* Boss energy particles */}
-        {bossOrbs.map(orb => (
-          <div
-            key={orb.id}
-            className="absolute pointer-events-none z-25"
-            style={{
-              left: `${orb.x}%`,
-              top: `${orb.y}%`,
-              transform: "translate(-50%, -50%)",
-              width: bossBurstActive ? 18 : 14,
-              height: bossBurstActive ? 18 : 14,
-              borderRadius: "50%",
-              background: bossBurstActive
-                ? "radial-gradient(circle at 35% 30%, rgba(255,220,60,0.98), rgba(255,140,20,0.7) 55%, rgba(255,60,0,0.2))"
-                : "radial-gradient(circle at 35% 30%, rgba(255,160,60,0.98), rgba(255,80,20,0.7) 55%, rgba(200,30,0,0.2))",
-              border: bossBurstActive ? "1.5px solid rgba(255,220,60,0.9)" : "1.5px solid rgba(255,120,40,0.8)",
-              boxShadow: bossBurstActive
-                ? "0 0 16px rgba(255,200,40,0.8), 0 0 6px rgba(255,120,0,0.6)"
-                : "0 0 10px rgba(255,100,20,0.7), 0 0 4px rgba(255,60,0,0.5)",
-            }}
-          />
-        ))}
-
-        {/* Boss focused-stream warning */}
-        {enemy?.isBoss && bossAttackModeRef.current === "focused" && (
-          <div
-            className="absolute inset-0 z-40 pointer-events-none flex items-start justify-center"
-            style={{ paddingTop: "22%" }}
-          >
-            <div style={{
-              fontFamily: "Cinzel, serif",
-              fontSize: 12,
-              fontWeight: 700,
-              color: "#ff6a20",
-              textShadow: "0 0 16px rgba(255,100,20,0.9), 0 0 6px rgba(255,60,0,0.7)",
-              letterSpacing: "0.15em",
-              animation: "focusedStreamWarn 0.45s ease-in-out infinite",
-            }}><Zap className="inline-block w-3.5 h-3.5 mr-1 -mt-0.5" style={{ color: "#ff6a20" }} />FOCUSED ASSAULT<Zap className="inline-block w-3.5 h-3.5 ml-1 -mt-0.5" style={{ color: "#ff6a20" }} /></div>
-          </div>
-        )}
-
-        {/* Boss break-free flash */}
-        {breakFreeEffect && (
-          <div
-            className="absolute inset-0 z-40 pointer-events-none flex items-center justify-center"
-            style={{ background: "rgba(255,60,60,0.12)" }}
-          >
-            <div style={{
-              fontFamily: "Cinzel, serif",
-              fontSize: 18,
-              fontWeight: 900,
-              color: "#ff2222",
-              textShadow: "0 0 24px #ff0000, 0 0 10px rgba(255,80,80,0.9), 0 2px 0 #000",
-              letterSpacing: "0.18em",
-              animation: "tensionPulse 0.25s ease-in-out infinite",
-            }}>💥 BREAKS FREE! 💥</div>
-          </div>
-        )}
-
-        {/* ── Pet special skill visuals ── */}
-        {/* Lazer: beam from pet up to enemy */}
-        {skillEffect === "Lazer" && enemyPos.y < petPos.y && (
-          <div className="absolute pointer-events-none z-36" style={{
-            left: `${petPos.x}%`,
-            bottom: `${100 - petPos.y}%`,
-            transform: "translateX(-50%)",
-            width: 6,
-            height: `${petPos.y - enemyPos.y}%`,
-            background: "linear-gradient(0deg, rgba(250,204,21,0.9) 0%, rgba(251,191,36,0.6) 60%, rgba(253,224,71,0.2) 100%)",
-            boxShadow: "0 0 16px rgba(250,204,21,0.9), 0 0 6px white",
-            borderRadius: 4,
-            animation: "laserPulse 0.12s ease-in-out infinite alternate",
-          }} />
-        )}
-        {/* Bubble: 3 floating orbs traveling from pet to enemy */}
-        {skillEffect === "Bubble" && [0, 1, 2].map((i) => (
-          <div key={i} className="absolute pointer-events-none z-36" style={{
-            left: `${petPos.x + (i - 1) * 5}%`,
-            top: `${petPos.y - i * 12}%`,
-            transform: "translate(-50%, -50%)",
-            width: 18, height: 18,
-            borderRadius: "50%",
-            background: "radial-gradient(circle at 35% 30%, rgba(200,240,255,0.95), rgba(100,200,255,0.3))",
-            border: "1.5px solid rgba(160,220,255,0.9)",
-            boxShadow: "0 0 10px rgba(100,200,255,0.7)",
-            animation: `skillOrbFly${i} 0.6s ease-out forwards`,
-          }} />
-        ))}
-        {/* Poison: green shimmer on enemy */}
-        {poisonActive && (
-          <div className="absolute pointer-events-none z-26" style={{
-            left: `${enemyPos.x}%`,
-            top: `${enemyPos.y}%`,
-            transform: "translate(-50%, -50%)",
-            width: 80, height: 80,
-            borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(34,197,94,0.25) 0%, transparent 70%)",
-            boxShadow: "0 0 24px rgba(34,197,94,0.4)",
-            animation: "poisonPulse 0.9s ease-in-out infinite",
-          }} />
-        )}
-        {/* Heal: green burst around pet */}
-        {(skillEffect === "Heal Self" || skillEffect === "Heal Party") && (
-          <div className="absolute pointer-events-none z-36" style={{
-            left: `${petPos.x}%`,
-            top: `${petPos.y}%`,
-            transform: "translate(-50%, -50%)",
-            width: 120, height: 120,
-            borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(34,197,94,0.5) 0%, transparent 65%)",
-            boxShadow: "0 0 32px rgba(34,197,94,0.6)",
-            animation: "healBurst 0.9s ease-out forwards",
-          }} />
-        )}
-
-        {/* Boss burst screen flash */}
-        {bossBurstActive && (
-          <div
-            className="absolute inset-0 pointer-events-none z-5"
-            style={{
-              background: "radial-gradient(ellipse at 50% 15%, rgba(255,120,30,0.18) 0%, transparent 55%)",
-              animation: "bossAuraPulse 0.4s ease-in-out infinite",
-            }}
-          />
-        )}
 
         {/* Slash hit marks on enemy */}
         {slashEffects.map(slash => (
-          <div
-            key={slash.id}
-            className="absolute z-30 pointer-events-none"
-            style={{ left: `${slash.x}%`, top: `${slash.y}%`, transform: "translate(-50%, -50%)" }}
-          >
-            {/* X slash marks */}
-            <div style={{
-              animation: "slashMarkAnim 0.45s ease-out forwards",
-              fontSize: 38,
-              lineHeight: 1,
-              color: accent,
-              textShadow: `0 0 18px ${accent}, 0 0 8px white`,
-              fontWeight: 900,
-            }}>✕</div>
-            {/* Expanding ring */}
-            <div className="absolute inset-0 w-14 h-14 -m-3 rounded-full" style={{
-              animation: "slashRingAnim 0.4s ease-out forwards",
-              border: `2px solid ${accent}`,
-              boxShadow: `0 0 12px ${accent}`,
-            }} />
+          <div key={slash.id} className="absolute z-30 pointer-events-none"
+            style={{ left: `${slash.x}%`, top: `${slash.y}%`, transform: "translate(-50%, -50%)" }}>
+            <div style={{ animation: "slashMarkAnim 0.45s ease-out forwards", fontSize: 36, lineHeight: 1, color: counterActive ? "#fde68a" : accent, textShadow: `0 0 18px ${counterActive ? "#fde68a" : accent}, 0 0 8px white`, fontWeight: 900 }}>✕</div>
+            <div className="absolute inset-0 w-14 h-14 -m-3 rounded-full" style={{ animation: "slashRingAnim 0.4s ease-out forwards", border: `2px solid ${counterActive ? "#fde68a" : accent}`, boxShadow: `0 0 12px ${counterActive ? "#fde68a" : accent}` }} />
           </div>
         ))}
 
+        {/* Damage numbers */}
         {damageNumbers.map(dmg => (
-          <div
-            key={dmg.id}
-            className="absolute z-40 pointer-events-none font-black"
+          <div key={dmg.id} className="absolute z-40 pointer-events-none font-black"
             style={{
-              left: `${dmg.x}%`,
-              top: `${dmg.y}%`,
-              transform: "translate(-50%, -50%)",
-              animation: "dmgFloat 0.8s ease-out forwards",
+              left: `${dmg.x}%`, top: `${dmg.y}%`,
+              animation: "dmgFloat 0.85s ease-out forwards",
               fontSize: dmg.isCrit ? "28px" : dmg.isHeal ? "24px" : "22px",
               color: dmg.isHeal ? "#22c55e" : dmg.isCrit ? "#fbbf24" : "#ef4444",
-              textShadow: "0 2px 8px rgba(0,0,0,0.8), 0 0 4px rgba(0,0,0,0.5)",
+              textShadow: "0 2px 8px rgba(0,0,0,0.8)",
             }}
-            data-testid="text-damage-number"
-          >
+            data-testid="text-damage-number">
             {dmg.isCrit && "💥"}
             {dmg.isHeal && "+"}
             {dmg.value}
           </div>
         ))}
 
+        {/* ── Special skill visuals ──────────────────────────────────── */}
+        {skillEffect === "Lazer" && enemyPos.y < PET_Y && (
+          <div className="absolute pointer-events-none z-36" style={{
+            left: `${PET_X}%`, bottom: `${100 - PET_Y}%`, transform: "translateX(-50%)", width: 6,
+            height: `${PET_Y - enemyPos.y}%`,
+            background: "linear-gradient(0deg, rgba(250,204,21,0.9) 0%, rgba(251,191,36,0.5) 70%, rgba(253,224,71,0.1) 100%)",
+            boxShadow: "0 0 16px rgba(250,204,21,0.9), 0 0 6px white", borderRadius: 4,
+            animation: "laserPulse 0.12s ease-in-out infinite alternate",
+          }} />
+        )}
+        {skillEffect === "Bubble" && [0, 1, 2].map((i) => (
+          <div key={i} className="absolute pointer-events-none z-36" style={{
+            left: `${PET_X + (i - 1) * 5}%`, top: `${PET_Y - i * 12}%`, transform: "translate(-50%,-50%)",
+            width: 18, height: 18, borderRadius: "50%",
+            background: "radial-gradient(circle at 35% 30%, rgba(200,240,255,0.95), rgba(100,200,255,0.3))",
+            border: "1.5px solid rgba(160,220,255,0.9)", boxShadow: "0 0 10px rgba(100,200,255,0.7)",
+            animation: `skillOrbFly${i} 0.6s ease-out forwards`,
+          }} />
+        ))}
+        {poisonActive && (
+          <div className="absolute pointer-events-none z-26" style={{
+            left: `${enemyPos.x}%`, top: `${enemyPos.y}%`, transform: "translate(-50%,-50%)",
+            width: 80, height: 80, borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(34,197,94,0.25) 0%, transparent 70%)",
+            boxShadow: "0 0 24px rgba(34,197,94,0.4)", animation: "poisonPulse 0.9s ease-in-out infinite",
+          }} />
+        )}
+        {(skillEffect === "Heal Self" || skillEffect === "Heal Party") && (
+          <div className="absolute pointer-events-none z-36" style={{
+            left: `${PET_X}%`, top: `${PET_Y}%`, transform: "translate(-50%,-50%)",
+            width: 120, height: 120, borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(34,197,94,0.5) 0%, transparent 65%)",
+            boxShadow: "0 0 32px rgba(34,197,94,0.6)", animation: "healBurst 0.9s ease-out forwards",
+          }} />
+        )}
+
+        {/* ── Wave complete overlay ───────────────────────────────────── */}
         {phase === "waveComplete" && enemy && pet && (
           <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/60">
-            <div
-              className="bg-gray-900/95 rounded-2xl border p-5 mx-4 max-w-sm w-full max-h-[85vh] overflow-y-auto"
-              style={{ borderColor: accent + "60" }}
-              data-testid="modal-wave-complete"
-            >
+            <div className="bg-gray-900/95 rounded-2xl border p-5 mx-4 max-w-sm w-full" style={{ borderColor: accent + "60" }} data-testid="modal-wave-complete">
               <div className="text-center">
                 <div className="text-xl font-black mb-1" style={{ color: accent }}>Enemy Defeated!</div>
                 <div className="text-gray-400 text-sm mb-3">{enemy.name} has been vanquished!</div>
-
                 {victoryData && !victoryData.error && (
                   <div className="space-y-2 mb-4">
                     {victoryData.lvlPointsEarned > 0 && (
                       <div className="flex items-center justify-center gap-2 text-yellow-400 text-sm">
-                        <Star className="w-4 h-4" />
-                        <span className="font-bold">+{victoryData.lvlPointsEarned} Level Points</span>
+                        <Star className="w-4 h-4" /><span className="font-bold">+{victoryData.lvlPointsEarned} Level Points</span>
                       </div>
                     )}
-                    {victoryData.levelsGained > 0 && (
-                      <div className="text-green-400 font-bold animate-pulse">Level Up! → Lv.{victoryData.newLevel}</div>
-                    )}
+                    {victoryData.levelsGained > 0 && <div className="text-green-400 font-bold animate-pulse">Level Up! → Lv.{victoryData.newLevel}</div>}
                     {victoryData.coinsAwarded > 0 && (
                       <div className="flex items-center justify-center gap-2 text-amber-400 text-sm">
-                        <Coins className="w-4 h-4" />
-                        <span className="font-bold">+{victoryData.coinsAwarded} Coins</span>
+                        <Coins className="w-4 h-4" /><span className="font-bold">+{victoryData.coinsAwarded} Coins</span>
                       </div>
                     )}
                     {victoryData.droppedItems?.length > 0 && (
@@ -1939,7 +1558,6 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                     )}
                   </div>
                 )}
-
                 <div className="bg-black/40 rounded-xl p-3 mb-4">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-gray-400 text-xs">{pet.name}'s HP</span>
@@ -1948,38 +1566,22 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   <div className="h-2 bg-black/60 rounded-full overflow-hidden border border-white/10">
                     <div className="h-full rounded-full transition-all" style={{ width: `${(petHp / petMaxHp) * 100}%`, backgroundColor: hpBarColor(petHp, petMaxHp) }} />
                   </div>
-
-                  {activeSlots.some(s => s && s.remaining.length > 0) && (
-                    <div className="mt-3 text-gray-500 text-[10px] text-center tracking-wide">
-                      Use potions from the battle toolbar
-                    </div>
-                  )}
                 </div>
-
                 <div className="text-gray-500 text-xs mb-3">
                   {waveIndex + 1 < allEnemies.length
                     ? `${allEnemies.length - waveIndex - 1} more ${allEnemies.length - waveIndex - 1 === 1 ? "enemy" : "enemies"} ahead...`
                     : "All enemies defeated!"}
                 </div>
-
                 <div className="flex gap-3">
-                  <button
-                    data-testid="button-return-to-world"
-                    onClick={handleReturnToWorld}
-                    className="flex-1 py-2.5 rounded-xl font-bold text-sm text-gray-300 bg-gray-700/50 border border-gray-600/50 hover:bg-gray-600/50 transition-all active:scale-95 flex items-center justify-center gap-1.5"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                    Return
+                  <button data-testid="button-return-to-world" onClick={handleReturnToWorld}
+                    className="flex-1 py-2.5 rounded-xl font-bold text-sm text-gray-300 bg-gray-700/50 border border-gray-600/50 transition-all active:scale-95 flex items-center justify-center gap-1.5">
+                    <ArrowLeft className="w-4 h-4" />Return
                   </button>
                   {waveIndex + 1 < allEnemies.length && (
-                    <button
-                      data-testid="button-advance-wave"
-                      onClick={handleAdvance}
+                    <button data-testid="button-advance-wave" onClick={handleAdvance}
                       className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-1.5"
-                      style={{ backgroundColor: accent }}
-                    >
-                      Advance
-                      <ChevronRight className="w-4 h-4" />
+                      style={{ backgroundColor: accent }}>
+                      Advance<ChevronRight className="w-4 h-4" />
                     </button>
                   )}
                 </div>
@@ -1988,19 +1590,17 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           </div>
         )}
 
+        {/* ── Victory overlay ─────────────────────────────────────────── */}
         {phase === "victory" && enemy && (
           <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/60">
-            <div
-              className="bg-gray-900/95 rounded-2xl border p-6 mx-6 max-w-sm w-full"
+            <div className="bg-gray-900/95 rounded-2xl border p-6 mx-6 max-w-sm w-full"
               style={{ borderColor: accent + "60", animation: "victoryPulse 2s ease-in-out infinite" }}
-              data-testid="modal-victory"
-            >
+              data-testid="modal-victory">
               <div className="text-center">
                 <div className="text-3xl font-black mb-1" style={{ color: accent }}>VICTORY!</div>
                 <div className="text-gray-400 text-sm mb-4">
                   {allEnemies.length > 1 ? `All ${allEnemies.length} enemies defeated!` : `You defeated ${enemy.name}!`}
                 </div>
-
                 {(victoryData || totalRewards.lvlPoints > 0) ? (
                   <div className="space-y-3">
                     {(totalRewards.lvlPoints > 0 || victoryData?.lvlPointsEarned > 0) && (
@@ -2037,13 +1637,10 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                 ) : (
                   <div className="text-gray-400 animate-pulse">Calculating rewards...</div>
                 )}
-
-                <button
-                  onClick={handleReturnToWorld}
+                <button onClick={handleReturnToWorld}
                   className="mt-6 w-full py-3 rounded-xl font-bold text-white transition-all hover:scale-105 active:scale-95"
                   style={{ backgroundColor: accent }}
-                  data-testid="button-battle-continue"
-                >
+                  data-testid="button-battle-continue">
                   Continue
                 </button>
               </div>
@@ -2051,63 +1648,68 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           </div>
         )}
 
-        {/* Battle tutorial modal */}
+        {/* ── Defeat overlay ──────────────────────────────────────────── */}
+        {phase === "defeat" && pet && (
+          <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/70">
+            <div className="bg-gray-900/95 rounded-2xl border border-red-500/40 p-6 mx-6 max-w-sm w-full" data-testid="modal-defeat">
+              <div className="text-center">
+                <div className="text-3xl font-black text-red-500 mb-1">DEFEATED</div>
+                <div className="text-gray-400 text-sm mb-2">{pet.name} couldn't hold on...</div>
+                {totalRewards.lvlPoints > 0 || totalRewards.coins > 0 || totalRewards.items.length > 0 ? (
+                  <div className="bg-black/30 rounded-lg p-3 mb-4 space-y-1">
+                    <div className="text-gray-500 text-[10px] uppercase tracking-wide">Rewards earned before defeat</div>
+                    {totalRewards.lvlPoints > 0 && (
+                      <div className="flex items-center justify-center gap-1.5 text-yellow-400 text-sm">
+                        <Star className="w-3.5 h-3.5" /><span>+{totalRewards.lvlPoints} Level Points</span>
+                      </div>
+                    )}
+                    {totalRewards.coins > 0 && (
+                      <div className="flex items-center justify-center gap-1.5 text-amber-400 text-sm">
+                        <Coins className="w-3.5 h-3.5" /><span>+{totalRewards.coins} Coins</span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-gray-500 text-xs mb-4">No rewards earned this time.</div>
+                )}
+                <button onClick={handleReturnToWorld}
+                  className="w-full py-3 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 transition-all active:scale-95"
+                  data-testid="button-battle-retreat">
+                  Retreat
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Tutorial ─────────────────────────────────────────────────── */}
         {showTutorial && (
-          <div
-            className="absolute inset-0 z-50 flex items-center justify-center"
-            style={{ background: "rgba(0,0,0,0.82)", backdropFilter: "blur(8px)" }}
-          >
-            <div
-              className="flex flex-col gap-5 rounded-2xl px-7 py-7 mx-5 w-full"
+          <div className="absolute inset-0 z-50 flex items-center justify-center"
+            style={{ background: "rgba(0,0,0,0.82)", backdropFilter: "blur(8px)" }}>
+            <div className="flex flex-col gap-5 rounded-2xl px-7 py-7 mx-5 w-full"
               style={{
                 background: "linear-gradient(145deg, rgba(8,4,18,0.98) 0%, rgba(20,6,6,0.98) 100%)",
                 border: `1.5px solid ${accent}45`,
                 boxShadow: `0 8px 48px rgba(0,0,0,0.85), 0 0 32px ${accent}12`,
                 maxWidth: 340,
-              }}
-            >
-              {/* Header */}
+              }}>
               <div className="flex items-center gap-3">
-                <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{ background: `${accent}22`, border: `1.5px solid ${accent}55` }}
-                >
+                <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ background: `${accent}22`, border: `1.5px solid ${accent}55` }}>
                   <Swords className="w-5 h-5" style={{ color: accent }} />
                 </div>
-                <p className="font-fantasy text-lg tracking-widest font-semibold" style={{ color: accent, textShadow: `0 0 14px ${accent}55` }}>
-                  How to Battle
-                </p>
+                <p className="font-fantasy text-lg tracking-widest font-semibold" style={{ color: accent }}>How to Battle</p>
               </div>
-
-              {/* Steps */}
               <div className="flex flex-col gap-4">
                 {[
-                  {
-                    num: "1",
-                    title: "Swipe to Slash",
-                    desc: "Drag your finger across the screen — your blade follows the exact path. Short taps do nothing, so commit to a full swipe.",
-                  },
-                  {
-                    num: "2",
-                    title: "Cut Through the Enemy",
-                    desc: "Your slash hits when it crosses the enemy. One clean swipe lands one hit — the blade doesn't multi-hit on the same pass.",
-                  },
-                  {
-                    num: "3",
-                    title: "Build Combos",
-                    desc: "Hit the enemy within 1.4 seconds of your last strike to stack a combo. Higher combos deal bonus damage.",
-                  },
-                  {
-                    num: "4",
-                    title: "Dodge & Survive",
-                    desc: "When the enemy lunges at your pet, it takes damage. Watch the HP bars — if your pet falls, the battle is lost.",
-                  },
+                  { num: "1", title: "Swipe to Attack", desc: "Drag your finger through the enemy to slash it. Chain swipes within 1.4 seconds to build a combo for bonus damage." },
+                  { num: "2", title: "Parry Incoming Attacks", desc: "When the enemy glows red and charges, a green PARRY button appears. Tap it before the bar fills to block the attack." },
+                  { num: "3", title: "Counter Window", desc: "A successful PARRY stuns the enemy briefly. Your next 2 swipes deal double damage — make them count!" },
+                  { num: "4", title: "Potions & Special", desc: "Tap potion slots to heal mid-battle. When your mana bar is full, tap your Special skill for a powerful ability." },
                 ].map(({ num, title, desc }) => (
                   <div key={num} className="flex gap-3 items-start">
-                    <div
-                      className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold font-fantasy mt-0.5"
-                      style={{ background: `${accent}22`, border: `1px solid ${accent}55`, color: accent }}
-                    >
+                    <div className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold font-fantasy mt-0.5"
+                      style={{ background: `${accent}22`, border: `1px solid ${accent}55`, color: accent }}>
                       {num}
                     </div>
                     <div>
@@ -2117,66 +1719,18 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   </div>
                 ))}
               </div>
-
-              {/* Close button */}
               <button
                 data-testid="button-battle-tutorial-close"
-                onClick={() => {
-                  localStorage.setItem("battleTutorialSeen", "1");
-                  setShowTutorial(false);
-                }}
+                onClick={() => { localStorage.setItem("battleTutorialSeen", "1"); setShowTutorial(false); }}
                 className="font-fantasy text-sm tracking-[0.15em] px-6 py-2.5 rounded-xl transition-transform active:scale-95 self-center mt-1"
                 style={{
                   background: `linear-gradient(135deg, rgba(10,4,20,0.9) 0%, rgba(24,8,8,0.9) 100%)`,
                   border: `1.5px solid ${accent}60`,
                   color: accent,
                   boxShadow: `0 4px 16px rgba(0,0,0,0.5), 0 0 16px ${accent}20`,
-                }}
-              >
+                }}>
                 Ready — let's fight!
               </button>
-            </div>
-          </div>
-        )}
-
-        {phase === "defeat" && pet && (
-          <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/70">
-            <div
-              className="bg-gray-900/95 rounded-2xl border border-red-500/40 p-6 mx-6 max-w-sm w-full"
-              data-testid="modal-defeat"
-            >
-              <div className="text-center">
-                <div className="text-3xl font-black text-red-500 mb-1">DEFEATED</div>
-                <div className="text-gray-400 text-sm mb-2">{pet.name} couldn't hold on...</div>
-
-                {totalRewards.lvlPoints > 0 || totalRewards.coins > 0 || totalRewards.items.length > 0 ? (
-                  <div className="bg-black/30 rounded-lg p-3 mb-4 space-y-1">
-                    <div className="text-gray-500 text-[10px] uppercase tracking-wide">Rewards earned before defeat</div>
-                    {totalRewards.lvlPoints > 0 && (
-                      <div className="flex items-center justify-center gap-1.5 text-yellow-400 text-sm">
-                        <Star className="w-3.5 h-3.5" />
-                        <span>+{totalRewards.lvlPoints} Level Points</span>
-                      </div>
-                    )}
-                    {totalRewards.coins > 0 && (
-                      <div className="flex items-center justify-center gap-1.5 text-amber-400 text-sm">
-                        <Coins className="w-3.5 h-3.5" />
-                        <span>+{totalRewards.coins} Coins</span>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-gray-500 text-xs mb-4">No rewards earned this time.</div>
-                )}
-
-                <button
-                  onClick={handleReturnToWorld}
-                  className="w-full py-3 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 transition-all hover:scale-105 active:scale-95"
-                  data-testid="button-battle-retreat"
-                >
-                  Retreat
-                </button>
-              </div>
             </div>
           </div>
         )}
