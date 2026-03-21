@@ -824,7 +824,6 @@ export default function HomePage({ user }: HomePageProps) {
           onClose={() => setShowPetDetail(false)}
           onUpdate={() => {
             queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-            setShowPetDetail(false);
           }}
           userCoins={currentUser.coins}
           onUserUpdate={(updatedUser) => setCurrentUser(updatedUser)}

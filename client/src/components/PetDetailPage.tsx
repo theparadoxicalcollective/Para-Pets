@@ -175,7 +175,6 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
         : "Power Up!";
       setConfirmItem(null);
       if (showPowerUpModalRef.current) {
-        // Show animation inside the modal — modal will auto-close after it finishes
         setModalSuccessEffect({ type: "stat", label: boostLabel });
       } else {
         setSuccessBoostLabel(boostLabel);
