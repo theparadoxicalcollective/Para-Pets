@@ -429,6 +429,9 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     const surgePPS       = surgePPerSec[rarity - 1];
 
     const REEL_TIMEOUT_MS = 30000;
+    // Grace period: progress cannot drain for the first 600ms so the player
+    // has time to find the hold button after the nibble-to-reel transition
+    const GRACE_MS = 600;
 
     isHoldingRef.current = false;
 
@@ -438,6 +441,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     // Initial delay before first surge: 0.5-0.8s
     let surgeTimerSec = 0.5 + Math.random() * 0.3;
     const startTime   = Date.now();
+    const graceUntilMs = startTime + GRACE_MS;
     let lastFrameMs   = Date.now();
 
     phaseRef.current = "reeling";
@@ -467,14 +471,15 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         return;
       }
 
+      const inGrace = now < graceUntilMs;
       if (isHoldingRef.current) {
         // Holding: progress fills, tension climbs
         catchProgress = Math.min(1, catchProgress + reelRate * dt);
         tension       = Math.min(1, tension + tRise   * dt);
       } else {
-        // Released: tension drops quickly, fish drags progress back
+        // Released: tension drops quickly; progress only drains after grace period
         tension       = Math.max(0, tension - tFall * dt);
-        catchProgress = Math.max(0, catchProgress - pDrag * dt);
+        if (!inGrace) catchProgress = Math.max(0, catchProgress - pDrag * dt);
       }
 
       // Surge logic — timer counts in seconds
