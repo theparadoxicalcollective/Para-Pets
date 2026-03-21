@@ -238,10 +238,10 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
                         </p>
                       )}
 
-                      <div className="flex flex-wrap gap-2 mb-2">
+                      <div className="mb-2">
                         {stacked.coinAmount > 0 && (
                           <div
-                            className="flex items-center gap-1 px-2 py-1 rounded-md"
+                            className="flex items-center gap-1 px-2 py-1 rounded-md mb-2 w-fit"
                             style={{ background: "rgba(240,192,64,0.1)", border: "1px solid rgba(240,192,64,0.3)" }}
                           >
                             <img src={coinIconImg} alt="" className="w-3.5 h-3.5" />
@@ -250,24 +250,44 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
                             </span>
                           </div>
                         )}
-
-                        {stacked.items.map((item, idx) => {
-                          const displayImg = item.type === "pet" && item.eggImageUrl ? item.eggImageUrl : item.imageUrl;
+                        {(() => {
+                          const grouped: { item: RewardItem; count: number }[] = [];
+                          for (const item of stacked.items) {
+                            const existing = grouped.find(g => g.item.id === item.id);
+                            if (existing) existing.count++;
+                            else grouped.push({ item, count: 1 });
+                          }
                           return (
-                            <div
-                              key={idx}
-                              className="flex items-center gap-1 px-2 py-1 rounded-md"
-                              style={{ background: "rgba(192,132,252,0.1)", border: "1px solid rgba(192,132,252,0.2)" }}
-                            >
-                              {displayImg ? (
-                                <img src={displayImg} alt="" className="w-5 h-5 object-contain rounded-sm" />
-                              ) : (
-                                <span className="text-sm">{item.type === "pet" ? "🥚" : "📦"}</span>
-                              )}
-                              <span className="font-fantasy text-[#e0d0f0] text-[9px] truncate max-w-[80px]">{item.name}</span>
+                            <div className="grid grid-cols-5 gap-1.5">
+                              {grouped.map(({ item, count }, idx) => {
+                                const displayImg = item.type === "pet" && item.eggImageUrl ? item.eggImageUrl : item.imageUrl;
+                                return (
+                                  <div key={idx} className="relative flex flex-col items-center gap-1">
+                                    <div
+                                      className="w-full aspect-square rounded-md flex items-center justify-center"
+                                      style={{ background: "rgba(192,132,252,0.1)", border: "1px solid rgba(192,132,252,0.2)" }}
+                                    >
+                                      {displayImg ? (
+                                        <img src={displayImg} alt="" className="w-full h-full object-contain p-0.5 rounded-md" />
+                                      ) : (
+                                        <span className="text-base">{item.type === "pet" ? "🥚" : "📦"}</span>
+                                      )}
+                                    </div>
+                                    {count > 1 && (
+                                      <span
+                                        className="absolute -top-1 -right-1 font-fantasy text-[8px] font-bold px-1 rounded-full"
+                                        style={{ background: "rgba(192,132,252,0.85)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)" }}
+                                      >
+                                        ×{count}
+                                      </span>
+                                    )}
+                                    <span className="font-fantasy text-[#e0d0f0] text-[7px] text-center leading-tight truncate w-full">{item.name}</span>
+                                  </div>
+                                );
+                              })}
                             </div>
                           );
-                        })}
+                        })()}
                       </div>
 
                       <button

@@ -530,8 +530,11 @@ function getItemDescription(item: InventoryItem): string {
   return parts.join(" ");
 }
 
+const POTION_STACK_MAX = 50;
+
 function BagView({ items }: { items: InventoryItem[] }) {
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [selectedStackCount, setSelectedStackCount] = useState<number>(1);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -576,30 +579,60 @@ function BagView({ items }: { items: InventoryItem[] }) {
     potion: "#60d394",
   };
 
+  const potionStacks: { item: InventoryItem; count: number }[] = [];
+  const nonPotionItems: InventoryItem[] = [];
+  for (const item of items) {
+    if (item.type === "potion") {
+      const existing = potionStacks.find(s => s.item.shopItemId === item.shopItemId);
+      if (existing) {
+        if (existing.count < POTION_STACK_MAX) existing.count++;
+      } else {
+        potionStacks.push({ item, count: 1 });
+      }
+    } else {
+      nonPotionItems.push(item);
+    }
+  }
+  const displayItems: { item: InventoryItem; count: number }[] = [
+    ...potionStacks,
+    ...nonPotionItems.map(i => ({ item: i, count: 1 })),
+  ];
+
   return (
     <>
       <div className="grid grid-cols-2 gap-3">
-        {items.map((item) => (
+        {displayItems.map(({ item, count }) => (
           <div
             key={item.inventoryId}
             data-testid={`card-bag-item-${item.shopItemId}`}
-            className="rounded-lg overflow-hidden"
+            className="rounded-lg overflow-hidden relative"
             style={{
               background: "linear-gradient(135deg, rgba(30,15,5,0.95) 0%, rgba(50,30,10,0.95) 100%)",
               border: "1px solid rgba(212,160,23,0.3)",
               cursor: "pointer",
             }}
-            onClick={() => { setSelectedItem(item); setConfirmDelete(false); }}
+            onClick={() => { setSelectedItem(item); setSelectedStackCount(count); setConfirmDelete(false); }}
           >
             <div className="p-3 flex flex-col items-center gap-2">
-              <div
-                className="w-full aspect-square rounded-md flex items-center justify-center"
-                style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.15)" }}
-              >
-                {item.imageUrl ? (
-                  <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain rounded-md" />
-                ) : (
-                  <img src={powerupBagIcon} alt="" style={{ width: 44, height: 44, objectFit: "contain" }} />
+              <div className="relative w-full">
+                <div
+                  className="w-full aspect-square rounded-md flex items-center justify-center"
+                  style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.15)" }}
+                >
+                  {item.imageUrl ? (
+                    <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain rounded-md" />
+                  ) : (
+                    <img src={powerupBagIcon} alt="" style={{ width: 44, height: 44, objectFit: "contain" }} />
+                  )}
+                </div>
+                {count > 1 && (
+                  <span
+                    className="absolute bottom-1 right-1 font-fantasy text-[10px] font-bold px-1.5 py-0.5 rounded-md"
+                    style={{ background: "rgba(20,10,0,0.85)", color: "#60d394", border: "1px solid rgba(96,211,148,0.4)" }}
+                    data-testid={`text-stack-count-${item.shopItemId}`}
+                  >
+                    ×{count}
+                  </span>
                 )}
               </div>
               <p className="font-fantasy text-[#f0c040] text-xs font-semibold text-center truncate w-full" data-testid={`text-bag-item-name-${item.shopItemId}`}>
@@ -678,16 +711,27 @@ function BagView({ items }: { items: InventoryItem[] }) {
                 <h3 className="font-fantasy text-[#f0c040] text-lg tracking-wider mb-1" data-testid="text-item-detail-name">
                   {selectedItem.name}
                 </h3>
-                <span
-                  className="font-fantasy text-[10px] tracking-wider px-3 py-1 rounded-full capitalize inline-block"
-                  style={{
-                    background: `${typeColors[selectedItem.type] || "#f0c040"}20`,
-                    color: typeColors[selectedItem.type] || "#f0c040",
-                    border: `1px solid ${typeColors[selectedItem.type] || "#f0c040"}40`,
-                  }}
-                >
-                  {selectedItem.type}
-                </span>
+                <div className="flex items-center justify-center gap-2 flex-wrap">
+                  <span
+                    className="font-fantasy text-[10px] tracking-wider px-3 py-1 rounded-full capitalize inline-block"
+                    style={{
+                      background: `${typeColors[selectedItem.type] || "#f0c040"}20`,
+                      color: typeColors[selectedItem.type] || "#f0c040",
+                      border: `1px solid ${typeColors[selectedItem.type] || "#f0c040"}40`,
+                    }}
+                  >
+                    {selectedItem.type}
+                  </span>
+                  {selectedStackCount > 1 && (
+                    <span
+                      className="font-fantasy text-[10px] tracking-wider px-3 py-1 rounded-full inline-block"
+                      style={{ background: "rgba(96,211,148,0.15)", color: "#60d394", border: "1px solid rgba(96,211,148,0.35)" }}
+                      data-testid="text-detail-stack-count"
+                    >
+                      ×{selectedStackCount} / {POTION_STACK_MAX}
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div

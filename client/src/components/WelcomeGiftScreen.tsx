@@ -276,40 +276,61 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
                 )}
 
                 {/* Items */}
-                {welcomeReward.items.map((item) => {
-                  const displayImg = item.type === "pet" && item.eggImageUrl ? item.eggImageUrl : item.imageUrl;
-                  return (
-                    <div
-                      key={item.id}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl"
-                      style={{
-                        background: "linear-gradient(135deg, rgba(192,132,252,0.08) 0%, rgba(120,80,200,0.06) 100%)",
-                        border: "1px solid rgba(192,132,252,0.25)",
-                      }}
-                    >
+                {(() => {
+                  const grouped: { item: typeof welcomeReward.items[0]; count: number }[] = [];
+                  for (const item of welcomeReward.items) {
+                    const existing = grouped.find(g => g.item.id === item.id);
+                    if (existing) existing.count++;
+                    else grouped.push({ item, count: 1 });
+                  }
+                  return grouped.map(({ item, count }) => {
+                    const displayImg = item.type === "pet" && item.eggImageUrl ? item.eggImageUrl : item.imageUrl;
+                    return (
                       <div
+                        key={item.id}
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl"
                         style={{
-                          width: 40, height: 40, borderRadius: 10,
-                          background: "rgba(192,132,252,0.1)",
-                          border: "1.5px solid rgba(192,132,252,0.3)",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          flexShrink: 0, overflow: "hidden",
+                          background: "linear-gradient(135deg, rgba(192,132,252,0.08) 0%, rgba(120,80,200,0.06) 100%)",
+                          border: "1px solid rgba(192,132,252,0.25)",
                         }}
                       >
-                        {displayImg
-                          ? <img src={displayImg} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-                          : item.type === "pet" ? <img src={eggMagicIcon} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} /> : <img src={powerupBagIconWG} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />
-                        }
+                        <div style={{ position: "relative", flexShrink: 0 }}>
+                          <div
+                            style={{
+                              width: 40, height: 40, borderRadius: 10,
+                              background: "rgba(192,132,252,0.1)",
+                              border: "1.5px solid rgba(192,132,252,0.3)",
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              overflow: "hidden",
+                            }}
+                          >
+                            {displayImg
+                              ? <img src={displayImg} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                              : item.type === "pet" ? <img src={eggMagicIcon} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} /> : <img src={powerupBagIconWG} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />
+                            }
+                          </div>
+                          {count > 1 && (
+                            <span style={{
+                              position: "absolute", bottom: -4, right: -6,
+                              background: "rgba(20,10,0,0.9)", color: "#c084fc",
+                              border: "1px solid rgba(192,132,252,0.5)",
+                              fontSize: 9, fontWeight: "bold", padding: "1px 4px",
+                              borderRadius: 6, lineHeight: 1.4,
+                            }}>
+                              ×{count}
+                            </span>
+                          )}
+                        </div>
+                        <div>
+                          <p style={{ color: "#e0d0f0", fontSize: 13, fontWeight: "600", lineHeight: 1.2 }}>{item.name}</p>
+                          <p style={{ color: "rgba(192,132,252,0.6)", fontSize: 10, textTransform: "capitalize" }}>
+                            {item.type === "pet" ? "Companion Pet" : "Item"}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p style={{ color: "#e0d0f0", fontSize: 13, fontWeight: "600", lineHeight: 1.2 }}>{item.name}</p>
-                        <p style={{ color: "rgba(192,132,252,0.6)", fontSize: 10, textTransform: "capitalize" }}>
-                          {item.type === "pet" ? "Companion Pet" : "Item"}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  });
+                })()}
               </div>
             ) : (
               <div className="mb-5 text-center py-3">
