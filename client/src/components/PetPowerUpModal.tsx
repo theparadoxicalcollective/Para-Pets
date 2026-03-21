@@ -450,6 +450,7 @@ export default function PetPowerUpModal({
               className="w-full"
               style={{
                 aspectRatio: "1/1",
+                pointerEvents: "none",
                 animation: petAnim === "bounce" ? "puMBounce 0.6s ease-out forwards" :
                            petAnim === "flash"  ? "puMFlash 0.5s ease-out forwards" : undefined,
               }}

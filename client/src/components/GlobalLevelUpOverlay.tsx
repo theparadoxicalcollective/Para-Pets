@@ -155,7 +155,7 @@ function LevelUpBurst({ newLevel, petName, petTemplateId }: { newLevel: number; 
               view="front"
               size={1000}
               className="w-full"
-              style={{ aspectRatio: "1/1", animation: "glvlGlow 0.8s 0.3s ease-in-out infinite" }}
+              style={{ aspectRatio: "1/1", pointerEvents: "none", animation: "glvlGlow 0.8s 0.3s ease-in-out infinite" }}
             />
           ) : (
             <div className="flex items-center justify-center">
