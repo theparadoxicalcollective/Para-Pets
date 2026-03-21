@@ -448,6 +448,7 @@ function FeedView({
                 className="w-full"
                 style={{
                   aspectRatio: "1/1",
+                  pointerEvents: "none",
                   filter: isOverPet
                     ? "drop-shadow(0 0 24px rgba(74,222,128,0.9))"
                     : "drop-shadow(0 4px 12px rgba(0,0,0,0.55))",
