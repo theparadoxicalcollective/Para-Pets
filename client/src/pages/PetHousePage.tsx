@@ -444,15 +444,15 @@ function FeedView({
               <PetAnimator
                 petTemplateId={pet.petTemplateId!}
                 mode="idle"
-                size={240}
+                size={1000}
+                className="w-full"
                 style={{
-                  flexShrink: 0,
+                  aspectRatio: "1/1",
                   filter: isOverPet
                     ? "drop-shadow(0 0 24px rgba(74,222,128,0.9))"
                     : "drop-shadow(0 4px 12px rgba(0,0,0,0.55))",
                   transition: "filter 0.15s ease",
                   animation: isPending ? "petBob 0.4s ease-in-out infinite" : undefined,
-                  overflow: "visible",
                 }}
               />
             ) : petImg ? (
