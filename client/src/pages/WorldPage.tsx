@@ -1686,7 +1686,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                             draggable={false}
                             style={{
                               filter: worldId === "swamp" && loc.type === "fishing"
-                                ? "drop-shadow(0 3px 6px rgba(0,0,0,0.5)) drop-shadow(0 0 8px rgba(45,212,191,0.55)) drop-shadow(0 0 18px rgba(20,184,166,0.3))"
+                                ? "drop-shadow(0 3px 6px rgba(0,0,0,0.5)) drop-shadow(0 0 6px rgba(45,212,191,0.9)) drop-shadow(0 0 14px rgba(45,212,191,0.65)) drop-shadow(0 0 28px rgba(20,184,166,0.4))"
                                 : "drop-shadow(0 3px 6px rgba(0,0,0,0.5))",
                               transform: loc.flipped ? "scaleX(-1)" : undefined,
                               transition: "filter 0.15s ease, transform 0.15s ease",
