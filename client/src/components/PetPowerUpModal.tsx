@@ -440,18 +440,21 @@ export default function PetPowerUpModal({
             "--glow": dragging ? itemColor(dragging.item) + "60" : "#f0c04060",
           } as any}
         >
-          {/* Pet image/animator */}
+          {/* Pet image/animator — fixed square so flex container never distorts aspect ratio */}
           <div
-            className="flex items-center justify-center"
             style={{
-              width: "100%",
-              height: "100%",
+              width: 320,
+              height: 320,
+              flexShrink: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               animation: petAnim === "bounce" ? "puMBounce 0.6s ease-out forwards" :
                          petAnim === "flash"  ? "puMFlash 0.5s ease-out forwards" : undefined,
             }}
           >
             {petTemplateId ? (
-              <PetAnimator petTemplateId={petTemplateId} mode="idle" view="front" size={600} />
+              <PetAnimator petTemplateId={petTemplateId} mode="idle" view="front" size={320} />
             ) : petImage ? (
               <img src={petImage} alt={petName} style={{ width: "90%", height: "90%", objectFit: "contain" }} />
             ) : (

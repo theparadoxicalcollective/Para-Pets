@@ -149,15 +149,13 @@ function LevelUpBurst({ newLevel, petName, petTemplateId }: { newLevel: number; 
         {/* Pet (large) or fallback star icon */}
         <div style={{ animation: "glvlPetPop 0.7s ease-out both", display: "flex", justifyContent: "center" }}>
           {petTemplateId ? (
-            <div style={{ overflow: "visible", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <PetAnimator
-                petTemplateId={petTemplateId}
-                mode="idle"
-                view="front"
-                size={200}
-                style={{ flexShrink: 0, overflow: "visible", animation: "glvlGlow 0.8s 0.3s ease-in-out infinite" }}
-              />
-            </div>
+            <PetAnimator
+              petTemplateId={petTemplateId}
+              mode="idle"
+              view="front"
+              size={300}
+              style={{ flexShrink: 0, animation: "glvlGlow 0.8s 0.3s ease-in-out infinite" }}
+            />
           ) : (
             <div className="flex items-center justify-center">
               <Star
