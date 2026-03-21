@@ -804,8 +804,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
             <div className="flex flex-col gap-4">
               {[
                 { num: "1", title: "Cast", desc: "Tap anywhere on the water to cast your line." },
-                { num: "2", title: "Wait for a Bite", desc: "Watch the bobber — when it dips, a fish is biting!" },
-                { num: "3", title: "Hook It!", desc: "Tap when the bobber dips! Rarer fish give fewer chances and a tighter window." },
+                { num: "2", title: "Wait for a Bite", desc: "The bobber will float gently on the water. Keep an eye on it." },
+                { num: "3", title: "Hook It!", desc: "When the bobber dips and ripples, a fish is biting — act fast! Rarer fish give fewer chances and a tighter window." },
                 { num: "4", title: "Reel In", desc: "Hold to reel, release to drop tension. Keep tension in the GREEN sweet spot for the best progress. Watch the fish state: TIRED = reel hard, SURGE = release now! Fill the Catch bar and keep the Escape meter low." },
               ].map(({ num, title, desc }) => (
                 <div key={num} className="flex gap-3 items-start">
@@ -891,58 +891,43 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         )}
       </div>
 
-      {/* Bobber — waiting phase: gentle float, centered on ripple ring */}
-      {phase === "waiting" && (
+      {/* Bobber — single persistent element for waiting + nibble to avoid flash on transition */}
+      {(phase === "waiting" || phase === "nibble") && (
         <div className="absolute pointer-events-none z-[15]" style={{
-          bottom: "20%", left: "50%",
-          animation: "bobFloat 1.2s ease-in-out infinite",
-          transform: "translate(-50%, 0)",
-          background: "transparent",
+          bottom: "20%", left: "50%", background: "transparent",
         }}>
-          <img src={bobberIcon} alt="" style={{
-            width: 70, height: 70,
-            display: "block",
-            background: "transparent",
-            filter: "drop-shadow(0 0 8px rgba(94,234,212,0.85))",
-          }} />
-        </div>
-      )}
-
-      {/* Bobber — nibble phase: bobs and glows until tapped or time runs out */}
-      {phase === "nibble" && (
-        <div className="absolute pointer-events-none z-[15]" style={{ bottom: "20%", left: "50%", background: "transparent" }}>
-          {/* Expanding ripple rings */}
-          <div style={{
-            position: "absolute", width: 40, height: 20,
-            borderRadius: "50%",
-            border: `2px solid ${ACCENT}80`,
-            animation: "nibbleRippleOut 0.7s ease-out infinite",
-            left: "50%", top: "50%", marginLeft: -20, marginTop: -10,
-          }} />
-          <div style={{
-            position: "absolute", width: 40, height: 20,
-            borderRadius: "50%",
-            border: `2px solid ${ACCENT}50`,
-            animation: "nibbleRippleOut 0.7s ease-out infinite 0.35s",
-            left: "50%", top: "50%", marginLeft: -20, marginTop: -10,
-          }} />
-          {/* Bobber dipping with pulsing glow */}
+          {/* Ripple rings — only visible during nibble */}
+          {phase === "nibble" && (
+            <>
+              <div style={{
+                position: "absolute", width: 40, height: 20,
+                borderRadius: "50%",
+                border: `2px solid ${ACCENT}80`,
+                animation: "nibbleRippleOut 0.7s ease-out infinite",
+                left: "50%", top: "50%", marginLeft: -20, marginTop: -10,
+              }} />
+              <div style={{
+                position: "absolute", width: 40, height: 20,
+                borderRadius: "50%",
+                border: `2px solid ${ACCENT}50`,
+                animation: "nibbleRippleOut 0.7s ease-out infinite 0.35s",
+                left: "50%", top: "50%", marginLeft: -20, marginTop: -10,
+              }} />
+            </>
+          )}
+          {/* Bobber — switches animation based on phase without unmounting */}
           <img src={bobberIcon} alt="" style={{
             width: 70, height: 70,
             display: "block",
             background: "transparent",
             transform: "translate(-50%, 0)",
-            animation: "nibbleDip 0.9s ease-in-out infinite, nibbleGlowPulse 0.6s ease-in-out infinite alternate",
+            filter: phase === "nibble"
+              ? undefined
+              : "drop-shadow(0 0 8px rgba(94,234,212,0.85))",
+            animation: phase === "nibble"
+              ? "nibbleDip 0.9s ease-in-out infinite, nibbleGlowPulse 0.6s ease-in-out infinite alternate"
+              : "bobFloat 1.2s ease-in-out infinite",
           }} />
-          {/* TAP hint below bobber */}
-          <div style={{
-            position: "absolute", left: "50%", transform: "translateX(-50%)", top: "calc(100% + 8px)",
-            color: ACCENT, fontFamily: "inherit",
-            fontSize: 11, letterSpacing: "0.18em", fontWeight: 700,
-            textShadow: `0 0 10px ${ACCENT}`,
-            animation: "nibbleTapPulse 0.45s ease-in-out infinite alternate",
-            whiteSpace: "nowrap",
-          }}>TAP!</div>
         </div>
       )}
 
@@ -1884,10 +1869,6 @@ const FISHING_ANIMATIONS = `
   @keyframes nibbleGlowPulse {
     0%   { filter: drop-shadow(0 0 8px rgba(94,234,212,0.7)) drop-shadow(0 0 14px rgba(109,40,217,0.4)); }
     100% { filter: drop-shadow(0 0 20px rgba(94,234,212,1.0)) drop-shadow(0 0 32px rgba(109,40,217,0.8)) drop-shadow(0 0 6px #fff); }
-  }
-  @keyframes nibbleTapPulse {
-    0%   { opacity: 0.7; transform: translateX(-50%) scale(1); }
-    100% { opacity: 1;   transform: translateX(-50%) scale(1.15); }
   }
   @keyframes surgeFlash {
     0%, 100% { opacity: 1; transform: scale(1); }
