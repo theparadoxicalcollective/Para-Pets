@@ -389,14 +389,18 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     const poleItem = equipDataRef.current?.poleItem;
     const slowdownFactor = (pct: number | null | undefined) => pct != null ? Math.max(0, 1 - pct / 100) : 1;
 
-    // Starting catch progress — 1★ and 2★ start at same comfortable level; rarer = almost empty
-    const startProgress   = [0.50,  0.48,  0.15,  0.08,  0.03 ];
+    // Starting catch progress — 1★ and 2★ start just under half; rarer = almost empty
+    const startProgress   = [0.42,  0.40,  0.15,  0.08,  0.03 ];
 
-    // Catch progress gain per second while holding — 1★ and 2★ nearly identical
-    const reelRates       = [0.340, 0.325, 0.140, 0.100, 0.070];
+    // Catch progress gain per second while holding
+    const reelRates       = [0.340, 0.300, 0.170, 0.110, 0.080];
 
-    // Tension rise per second while holding — 1★ and 2★ rise slowly (forgiving)
-    const tensionRiseBase = [0.68,  0.78,  1.38,  1.72,  2.10 ];
+    // Tension rise per second while holding.
+    // Ratios vs catch rate: 1★≈1.12x, 2★≈1.27x, 3★≈1.76x, 4★≈2.36x, 5★≈2.75x
+    // → 1-2★ tension rises only slightly faster than catch (forgiving, mostly hold)
+    // → 3★ noticeably quicker, needs short releases
+    // → 4-5★ similar to each other, a good bit faster than 3★, frequent releases needed
+    const tensionRiseBase = [0.38,  0.38,  0.30,  0.26,  0.22 ];
     const tensionRise     = [
       tensionRiseBase[0],
       tensionRiseBase[1],
@@ -406,15 +410,15 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     ];
 
     // Tension fall per second while NOT holding — fast for easy fish so releasing is very safe
-    const tensionFalls    = [1.80,  1.65,  1.10,  0.90,  0.75 ];
+    const tensionFalls    = [1.80,  1.60,  1.20,  0.90,  0.70 ];
 
     // Catch progress drain per second while NOT holding — gentle for 1-2★
-    const progressDrags   = [0.060, 0.075, 0.260, 0.380, 0.520];
+    const progressDrags   = [0.060, 0.090, 0.240, 0.360, 0.480];
 
     // Surge probability per second — much rarer for 1-2★ so easy fish feel fair
     const surgeChances    = [0.18,  0.25,  0.80,  1.20,  1.60 ];
     // Extra tension per second DURING a surge
-    const surgeTPerSec    = [0.30,  0.40,  0.85,  1.10,  1.45 ];
+    const surgeTPerSec    = [0.25,  0.35,  0.70,  0.95,  1.20 ];
     // Extra progress drain per second DURING a surge
     // NOTE: this is ONLY applied when NOT holding — holding during a surge only costs tension
     const surgePPerSec    = [0.10,  0.15,  0.50,  0.70,  0.95 ];
@@ -1533,7 +1537,7 @@ function TensionReel({
           </div>
           {/* Track */}
           <div style={{
-            flex: 1, height: 28, borderRadius: 14,
+            flex: 1, height: 38, borderRadius: 19,
             background: "rgba(15,8,3,0.92)",
             border: tension > 0.75 ? "1.5px solid rgba(239,68,68,0.7)" : "1.5px solid rgba(80,50,20,0.65)",
             boxShadow: tension > 0.75 ? "0 0 12px rgba(239,68,68,0.3)" : "inset 0 2px 6px rgba(0,0,0,0.5)",
@@ -1543,7 +1547,7 @@ function TensionReel({
             <div style={{
               height: "100%",
               width: `${tensionPct}%`,
-              borderRadius: 14,
+              borderRadius: 19,
               background: tensionBg,
               boxShadow: tensionGlow,
               transition: "background 0.25s ease",
@@ -1566,7 +1570,7 @@ function TensionReel({
             }} />
             {tension > 0.6 && (
               <div style={{
-                position: "absolute", inset: 0, borderRadius: 11,
+                position: "absolute", inset: 0, borderRadius: 19,
                 background: "linear-gradient(90deg, transparent 60%, rgba(239,68,68,0.2) 100%)",
                 animation: "tensionPulse 0.5s ease-in-out infinite",
               }} />
@@ -1626,7 +1630,7 @@ function TensionReel({
 
           {/* Green fill track bar */}
           <div style={{
-            flex: 1, height: 28, borderRadius: 14,
+            flex: 1, height: 38, borderRadius: 19,
             background: "rgba(4,14,16,0.92)",
             border: `1.5px solid rgba(94,234,212,0.3)`,
             boxShadow: progressPct > 70 ? "0 0 14px rgba(94,234,212,0.35)" : "inset 0 2px 6px rgba(0,0,0,0.5)",
@@ -1636,7 +1640,7 @@ function TensionReel({
             <div style={{
               height: "100%",
               width: `${progressPct}%`,
-              borderRadius: 14,
+              borderRadius: 19,
               background: "linear-gradient(90deg, #0d4a3a, #0db889, #5eead4)",
               boxShadow: "0 0 14px rgba(94,234,212,0.7)",
               position: "relative", overflow: "hidden",
@@ -1650,11 +1654,11 @@ function TensionReel({
               )}
             </div>
             {/* Left danger fade */}
-            <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "18%", borderRadius: "11px 0 0 11px", background: "linear-gradient(90deg, rgba(239,68,68,0.18) 0%, transparent 100%)", pointerEvents: "none" }} />
+            <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "18%", borderRadius: "19px 0 0 19px", background: "linear-gradient(90deg, rgba(239,68,68,0.18) 0%, transparent 100%)", pointerEvents: "none" }} />
             {/* Fish-pulling ripple */}
             {fishPulling && progressPct > 0 && (
               <div style={{
-                position: "absolute", inset: 0, borderRadius: 11,
+                position: "absolute", inset: 0, borderRadius: 19,
                 background: "linear-gradient(270deg, transparent 40%, rgba(239,115,68,0.12) 100%)",
                 animation: "tensionPulse 0.4s ease-in-out infinite",
               }} />
