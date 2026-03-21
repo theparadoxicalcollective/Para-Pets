@@ -1,0 +1,200 @@
+Build a simple reusable fishing minigame for my game.
+
+IMPORTANT CONTEXT:
+My game already has an admin system where I add fish into the game database.
+Each fish has at least:
+- Fish Name
+- Fish Star Rarity (1–5)
+
+When a player hooks a fish, the fishing minigame should start and receive:
+- fishName
+- fishRarity
+
+The fishing minigame must use the fishRarity to control difficulty automatically.
+Do NOT create a weight system.
+Do NOT require external balancing tools.
+The minigame should be self-contained and only use the rarity value to scale difficulty.
+
+--------------------------------------------------
+MINIGAME OVERVIEW
+--------------------------------------------------
+
+This is a reeling and tension balance minigame.
+
+The player:
+- Presses and holds to reel
+- Releases to reduce tension
+
+There are 3 main meters:
+1. Catch Progress (win when full)
+2. Line Tension (too high breaks line)
+3. Escape Meter (too high fish escapes)
+
+The player must balance reeling and releasing to fill the catch progress bar before the fish escapes or the line breaks.
+
+--------------------------------------------------
+THE THREE METERS
+--------------------------------------------------
+
+CATCH PROGRESS (0–100)
+- Increases while holding reel
+- Increases faster when tension is in the sweet spot
+- Slower when tension is too low
+- Stops or slightly decreases when not holding
+- At 100 → fish caught
+
+TENSION (0–100)
+- Holding increases tension
+- Releasing decreases tension
+- If tension stays too high too long → line breaks
+- Best gameplay is near upper safe zone
+
+ESCAPE METER (0–Max)
+- If player reels well → escape decreases slightly
+- If player releases too much or fish resists → escape increases
+- If escape reaches max → fish escapes
+
+--------------------------------------------------
+TENSION SWEET SPOT
+--------------------------------------------------
+
+Example tension zones:
+0–30 = Too low (slow progress)
+30–70 = Sweet spot (best progress)
+70–90 = Risky (good progress but dangerous)
+90–100 = Critical (line break danger)
+
+This sweet spot is the main skill mechanic.
+
+--------------------------------------------------
+FISH BEHAVIOR STATES
+--------------------------------------------------
+
+Fish randomly switch between simple behavior states:
+
+Calm:
+- Normal behavior
+
+Resist:
+- Tension rises faster
+- Progress slower
+- Escape rises faster
+
+Tired:
+- Tension rises slower
+- Progress faster
+- Best time to reel
+
+Surge:
+- Short strong pull
+- Tension spikes quickly
+- Escape increases quickly
+- Player should release briefly
+
+Fish should change states every few seconds.
+
+--------------------------------------------------
+DIFFICULTY FROM STAR RARITY
+--------------------------------------------------
+
+Difficulty must automatically scale from fishRarity only.
+
+1 Star:
+- Very easy
+- Slow tension gain
+- Fast tension recovery
+- Slow escape
+- Rare surges
+- Large sweet spot
+- Very forgiving line break time
+
+2 Star:
+- Easy
+- Slightly more resistance
+- Occasional surges
+
+3 Star:
+- Medium difficulty
+- More resist states
+- More escape pressure
+- Medium sweet spot
+
+4 Star:
+- Hard
+- Frequent surge and resist
+- Faster escape
+- Smaller sweet spot
+- Less forgiveness
+
+5 Star:
+- Very hard
+- Fast tension gain
+- Fast escape pressure
+- Small sweet spot
+- Short line break forgiveness
+
+--------------------------------------------------
+GAME LOOP
+--------------------------------------------------
+
+1. Receive fishName and fishRarity
+2. Set difficulty values based on fishRarity
+3. Start fish in Calm state
+4. Every frame:
+   If player holding:
+      increase tension
+      increase catch progress
+      slightly reduce escape
+   If player not holding:
+      decrease tension
+      pause or slightly reduce progress
+      increase escape
+   Apply fish state modifiers
+   Apply sweet spot bonus
+   Check for line break
+   Check for escape
+   Check for catch progress reaching 100
+5. End minigame with win or lose
+6. Return result and fishName back to main game
+
+--------------------------------------------------
+WIN / LOSE
+--------------------------------------------------
+
+WIN:
+- Catch progress reaches 100
+
+LOSE:
+- Line breaks from high tension
+- Fish escape meter reaches max
+
+--------------------------------------------------
+TECH REQUIREMENTS
+--------------------------------------------------
+
+Please implement:
+- FishingMinigame controller
+- Fish behavior state machine
+- Built-in rarity difficulty scaling
+- Update loop
+- Win/Lose logic
+- Functions for UI:
+  UpdateTensionBar(value)
+  UpdateCatchProgressBar(value)
+  UpdateEscapeBar(value)
+  UpdateFishStateText(state)
+- Clean commented code
+- Simple readable structure
+- Easy to plug into existing game
+
+--------------------------------------------------
+SUMMARY
+--------------------------------------------------
+
+This minigame is about:
+- Holding to reel
+- Releasing to control tension
+- Staying in the tension sweet spot
+- Filling the catch bar
+- Preventing escape
+- Difficulty based only on star rarity
