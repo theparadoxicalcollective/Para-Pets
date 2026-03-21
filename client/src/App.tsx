@@ -20,6 +20,7 @@ import BadgePage from "@/pages/BadgePage";
 import MarketPage from "@/pages/MarketPage";
 import PvpArenaPage from "@/pages/PvpArenaPage";
 import WelcomeGiftScreen from "@/components/WelcomeGiftScreen";
+import GlobalLevelUpOverlay from "@/components/GlobalLevelUpOverlay";
 
 function PvpArenaWrapper() {
   const [, setLocation] = useLocation();
@@ -218,6 +219,7 @@ function App() {
             }}
           >
             <AppRouter />
+            <GlobalLevelUpOverlay />
           </div>
         </div>
       </TooltipProvider>

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Star, ShoppingBag } from "lucide-react";
+import { fireLevelUp } from "@/lib/levelUpEvents";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import PetWorldPage from "@/pages/PetWorldPage";
@@ -106,12 +107,15 @@ export default function PetHousePage({ user: initialUser }: PetHousePageProps) {
       const res = await apiRequest("POST", `/api/pet/${petInventoryId}/feed-edible`, { itemInventoryId: edibleInventoryId });
       return res.json();
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: (data, variables) => {
       const edible = edibles.find((e) => e.inventoryId === variables.edibleInventoryId);
       setFeedLabel(`+${edible?.statBoostAmount ?? "?"} LVL Points`);
       setFeedAnim(true);
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       setTimeout(() => setFeedAnim(false), 2400);
+      if (data?.petLevel && selectedPet && data.petLevel > (selectedPet.petLevel || 1)) {
+        fireLevelUp(data.petLevel, selectedPet.petNickname || selectedPet.name);
+      }
     },
     onError: (err: any) => {
       toast({ title: "Can't feed", description: err?.message || "Could not feed edible", variant: "destructive" });

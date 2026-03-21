@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { fireLevelUp } from "@/lib/levelUpEvents";
 import { Swords, Star, Coins, X, ChevronRight, ArrowLeft, Heart, HelpCircle, Droplets, Zap, Skull, Sparkles } from "lucide-react";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import powerupBagIconBA from "@assets/generated_images/icon_powerup_bag.png";
@@ -336,6 +337,9 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         items: [...prev.items, ...(data.droppedItems || [])],
         levelsGained: prev.levelsGained + (data.levelsGained || 0),
       }));
+      if ((data.levelsGained || 0) > 0) {
+        fireLevelUp(data.newLevel, (pet as any)?.petNickname || pet?.name || "Your pet");
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
     },

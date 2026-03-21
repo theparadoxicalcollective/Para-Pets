@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Sparkles, Wind } from "lucide-react";
+import { fireLevelUp } from "@/lib/levelUpEvents";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -168,7 +169,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
       const res = await apiRequest("POST", `/api/pet/${pet.inventoryId}/power-up`, { itemInventoryId });
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       const item = confirmItem;
       const boostLabel = item
         ? `+${item.statBoostAmount || "?"} ${item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "LVL"}`
@@ -181,6 +182,9 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
         setSuccessAnimType("stat");
         setShowSuccessAnim(true);
         setShowPowerUpModal(false);
+      }
+      if (data?.petLevel && data.petLevel > pet.petLevel) {
+        fireLevelUp(data.petLevel, pet.petNickname || pet.name);
       }
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       onUpdate();
@@ -196,7 +200,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
       const res = await apiRequest("POST", `/api/pet/${pet.inventoryId}/use-special`, { itemInventoryId });
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       const item = confirmItem;
       const isHatchTime = item?.specialType === "hatch_time";
       const label = isHatchTime
@@ -211,6 +215,9 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
         setSuccessAnimType(effectType);
         setShowSuccessAnim(true);
         setShowPowerUpModal(false);
+      }
+      if (data?.petLevel && data.petLevel > pet.petLevel) {
+        fireLevelUp(data.petLevel, pet.petNickname || pet.name);
       }
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       onUpdate();

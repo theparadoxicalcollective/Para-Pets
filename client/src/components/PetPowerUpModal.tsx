@@ -1,12 +1,12 @@
 import { useRef, useState, useCallback, useEffect, useMemo } from "react";
 import type { ReactNode } from "react";
-import { Star, Clock } from "lucide-react";
+import { Star, Clock, Zap } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
 import powerupBagIcon from "@assets/generated_images/icon_powerup_bag.png";
 
 // ── Inline success-animation configs (mirrors PowerUpOverlay) ──────────────
 const EFFECT_CONFIGS: Record<"stat" | "level" | "hatch", { color: string; rgb: string; icon: ReactNode; title: string; particleColors: readonly string[] }> = {
-  stat:  { color: "#4ade80", rgb: "74,222,128",  icon: <img src={powerupBagIcon} alt="" style={{ width: 80, height: 80, objectFit: "contain", filter: "drop-shadow(0 0 18px rgba(74,222,128,0.9))" }} />, title: "POWER UP!", particleColors: ["#4ade80","#86efac","#bbf7d0","#22c55e","#fff"] },
+  stat:  { color: "#4ade80", rgb: "74,222,128",  icon: <Zap style={{ width: 80, height: 80, color: "#4ade80", fill: "#4ade80", filter: "drop-shadow(0 0 18px rgba(74,222,128,0.9))" }} />, title: "POWER UP!", particleColors: ["#4ade80","#86efac","#bbf7d0","#22c55e","#fff"] },
   level: { color: "#f0c040", rgb: "240,192,64",  icon: <Star style={{ width: 80, height: 80, color: "#f0c040", fill: "#f0c040", filter: "drop-shadow(0 0 18px rgba(240,192,64,0.9))" }} />, title: "LEVEL UP!",  particleColors: ["#f0c040","#fbbf24","#fde68a","#fcd34d","#fff"] },
   hatch: { color: "#38bdf8", rgb: "56,189,248",  icon: <Clock style={{ width: 80, height: 80, color: "#38bdf8", filter: "drop-shadow(0 0 18px rgba(56,189,248,0.9))" }} />, title: "SPEED UP!",  particleColors: ["#38bdf8","#7dd3fc","#bae6fd","#0ea5e9","#c4b5fd"] },
 } as const;
