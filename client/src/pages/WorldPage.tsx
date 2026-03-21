@@ -354,7 +354,7 @@ export default function WorldPage({ user }: WorldPageProps) {
     staleTime: 0,
   });
 
-  const { data: allShopItems = [] } = useQuery<ShopItem[]>({
+  const { data: allShopItems = [], refetch: refetchAllShopItems } = useQuery<ShopItem[]>({
     queryKey: ["/api/admin/shop-items-all"],
     enabled: currentUser.isAdmin,
     staleTime: 0,
@@ -941,6 +941,12 @@ export default function WorldPage({ user }: WorldPageProps) {
   // Keep ref in sync so handlePointerDown never sees stale state
   useEffect(() => { draggableLocIdRef.current = selectedLocId; }, [selectedLocId]);
   useEffect(() => { draggableShopItemIdRef.current = selectedShopItemAdminId; }, [selectedShopItemAdminId]);
+  useEffect(() => {
+    if (showItemPicker) {
+      setPickerFilter("all");
+      refetchAllShopItems();
+    }
+  }, [showItemPicker]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent, loc: WorldLocationData) => {
     if (!currentUser.isAdmin) return;
