@@ -389,40 +389,49 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     const rarity = Math.max(1, Math.min(5, nibbleRarityRef.current));
 
     // Per-rarity tuning — all rates are per-second, scaled by delta-time each frame
+    // Rarity is strictly harder as stars increase — no inversions.
 
-    // Starting catch progress — enough cushion that the player has time to react
-    const startProgress   = [0.52,  0.46,  0.38,  0.28,  0.18 ];
+    // Starting catch progress — higher rarity means less of a head-start
+    const startProgress   = [0.55,  0.48,  0.35,  0.22,  0.12 ];
 
-    // Catch progress gain per second while holding.
-    // Raised so pulsed holding can realistically catch higher-rarity fish within 30s.
-    const reelRates       = [0.450, 0.380, 0.220, 0.160, 0.120];
+    // Catch progress gain per second while holding
+    const reelRates       = [0.450, 0.380, 0.210, 0.150, 0.110];
 
     // Tension rise per second while holding.
-    // Calibrated so continuous holding SNAPS the line before the fish is fully caught
-    // at every rarity — players MUST pulse the hold button instead of holding freely.
-    // 1★ snaps in ~1.0s, 5★ snaps in ~0.8s of continuous holding.
-    const tensionRise     = [1.00,  0.85,  0.90,  1.05,  1.25 ];
+    // Strictly increasing: 1★ snaps in ~1.25s, 3★ in ~0.71s, 5★ in ~0.45s.
+    // Players MUST pulse — continuous holding snaps the line at every rarity.
+    // 3★+ requires noticeably more frequent releases than 1-2★.
+    const tensionRise     = [0.80,  1.00,  1.40,  1.80,  2.20 ];
 
-    // Tension fall per second while NOT holding — fast enough to reward quick releases
-    const tensionFalls    = [2.20,  2.00,  1.70,  1.30,  1.00 ];
+    // Tension fall per second while NOT holding — strictly decreasing so higher rarity
+    // gives less relief per release, forcing the player to release more often.
+    const tensionFalls    = [2.50,  2.10,  1.65,  1.20,  0.85 ];
 
     // Catch progress drain per second while NOT holding
-    const progressDrags   = [0.060, 0.090, 0.130, 0.160, 0.200];
+    const progressDrags   = [0.050, 0.085, 0.140, 0.185, 0.225];
 
-    // Surge probability per second — occasional excitement, not constant chaos
-    const surgeChances    = [0.06,  0.12,  0.22,  0.38,  0.55 ];
+    // Surge probability per second — jumps sharply at 3★ for an aggressive feel
+    const surgeChances    = [0.05,  0.10,  0.28,  0.45,  0.62 ];
     // Extra tension per second DURING a surge
-    const surgeTPerSec    = [0.20,  0.30,  0.48,  0.65,  0.85 ];
+    const surgeTPerSec    = [0.18,  0.28,  0.60,  0.80,  1.00 ];
     // Extra progress drain per second DURING a surge (only when NOT holding)
-    const surgePPerSec    = [0.03,  0.05,  0.08,  0.12,  0.17 ];
+    const surgePPerSec    = [0.03,  0.05,  0.10,  0.15,  0.20 ];
 
     const baitCatchBoost = equipDataRef.current?.baitItem?.baitCatchBoost ?? 0;
+    const poleItem = equipDataRef.current?.poleItem;
+
+    // Apply pole slowdown modifier for 3-5★ fish if the equipped pole has that stat.
+    // poleSlowdown3/4/5 is a percentage penalty (e.g. 20 = 20% harder tension rise).
+    const slowdownKey = rarity >= 3 ? (`poleSlowdown${rarity}` as "poleSlowdown3" | "poleSlowdown4" | "poleSlowdown5") : null;
+    const poleSlowdownPct = slowdownKey ? (poleItem?.[slowdownKey] ?? 0) : 0;
+    const poleSlowdownMult = 1 + poleSlowdownPct / 100;
+
     const reelRate       = reelRates[rarity - 1] * (1 + baitCatchBoost / 100);
-    const tRise          = tensionRise[rarity - 1];
+    const tRise          = tensionRise[rarity - 1] * poleSlowdownMult;
     const tFall          = tensionFalls[rarity - 1];
     const pDrag          = progressDrags[rarity - 1];
     const surgeChancePS  = surgeChances[rarity - 1];
-    const surgeTPS       = surgeTPerSec[rarity - 1];
+    const surgeTPS       = surgeTPerSec[rarity - 1] * poleSlowdownMult;
     const surgePPS       = surgePPerSec[rarity - 1];
 
     const REEL_TIMEOUT_MS = 30000;
