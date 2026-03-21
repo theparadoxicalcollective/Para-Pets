@@ -26,6 +26,7 @@ interface FishingItem {
   poleSlowdown5: number | null;
   baitCatchBoost: number | null;
   fishSwimZone: string | null;
+  locationId: string | null;
   createdAt: string;
 }
 
@@ -66,7 +67,12 @@ export default function FishingAdminPanel() {
   const { data: allItems = [], isLoading } = useQuery<FishingItem[], Error, FishingItem[]>({
     queryKey: ["/api/admin/shop-items-all"],
     staleTime: 0,
-    select: (data) => (data as FishingItem[]).filter((i) => i.type === "fishing"),
+    select: (data) => (data as FishingItem[]).filter((i) => {
+      if (i.type !== "fishing") return false;
+      // Bait copies assigned to shops are not templates — hide them here
+      if (i.fishingType === "bait" && i.locationId != null) return false;
+      return true;
+    }),
   });
 
   const { data: fishParts = [] } = useQuery<FishPart[]>({

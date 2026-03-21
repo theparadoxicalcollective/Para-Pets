@@ -1829,6 +1829,12 @@ export async function registerRoutes(
     try {
       const item = await storage.getShopItem(req.params.itemId);
       if (!item) return res.status(404).json({ message: "Item not found" });
+      // Bait items are catalog templates — copy them so the original stays available for other shops
+      if (item.fishingType === "bait") {
+        const { id: _id, createdAt: _ca, ...rest } = item as any;
+        const copy = await storage.createShopItem({ ...rest, locationId: req.params.locationId });
+        return res.json(copy);
+      }
       const updated = await storage.assignItemToLocation(req.params.itemId, req.params.locationId);
       return res.json(updated);
     } catch (err) {
@@ -1839,6 +1845,12 @@ export async function registerRoutes(
 
   app.delete("/api/admin/location/:locationId/unassign-item/:itemId", isAdmin, async (req, res) => {
     try {
+      const item = await storage.getShopItem(req.params.itemId);
+      // Bait copies were created just for this shop — delete them instead of returning to catalog
+      if (item?.fishingType === "bait" && item.locationId === req.params.locationId) {
+        await storage.deleteShopItem(req.params.itemId);
+        return res.json({ ok: true });
+      }
       const updated = await storage.unassignItemFromLocation(req.params.itemId);
       return res.json(updated);
     } catch (err) {

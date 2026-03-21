@@ -98,6 +98,7 @@ interface ShopItem {
   shopPosY: number;
   shopWidth: number;
   fishingType: string | null;
+  locationId: string | null;
   createdAt: string;
 }
 
@@ -585,6 +586,7 @@ export default function WorldPage({ user }: WorldPageProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/location", activeLocationId, "items"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/shop-items-all"] });
       toast({ title: "Assigned", description: "Item added to shop" });
     },
     onError: () => {
@@ -599,6 +601,7 @@ export default function WorldPage({ user }: WorldPageProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/location", activeLocationId, "items"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/shop-items-all"] });
       toast({ title: "Removed", description: "Item removed from shop" });
     },
     onError: () => {
@@ -3028,6 +3031,8 @@ export default function WorldPage({ user }: WorldPageProps) {
                 }
                 const pickable = allShopItems.filter(si => {
                   if (si.fishingType === "fish") return false;
+                  // Only show bait templates (locationId null); assigned copies are shop-specific
+                  if (si.fishingType === "bait" && si.locationId != null) return false;
                   if (pickerFilter === "all") return true;
                   if (pickerFilter === "fishing") return si.type === "fishing";
                   return si.type === pickerFilter;
@@ -3037,7 +3042,10 @@ export default function WorldPage({ user }: WorldPageProps) {
                 ) : (
                   <div className="flex flex-col gap-2">
                     {pickable.map((si) => {
-                      const alreadyAssigned = items.some(it => it.id === si.id);
+                      // Bait items are copies — match by name since the copy has a different id
+                      const alreadyAssigned = si.fishingType === "bait"
+                        ? items.some(it => it.fishingType === "bait" && it.name === si.name)
+                        : items.some(it => it.id === si.id);
                       return (
                         <div
                           key={si.id}
