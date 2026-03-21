@@ -153,7 +153,7 @@ function LevelUpBurst({ newLevel, petName, petTemplateId }: { newLevel: number; 
               petTemplateId={petTemplateId}
               mode="idle"
               view="front"
-              size={300}
+              size={420}
               style={{ flexShrink: 0, animation: "glvlGlow 0.8s 0.3s ease-in-out infinite" }}
             />
           ) : (

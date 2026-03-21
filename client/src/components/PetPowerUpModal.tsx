@@ -440,27 +440,24 @@ export default function PetPowerUpModal({
             "--glow": dragging ? itemColor(dragging.item) + "60" : "#f0c04060",
           } as any}
         >
-          {/* Pet image/animator — fixed square so flex container never distorts aspect ratio */}
-          <div
-            style={{
-              width: 320,
-              height: 320,
-              flexShrink: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              animation: petAnim === "bounce" ? "puMBounce 0.6s ease-out forwards" :
-                         petAnim === "flash"  ? "puMFlash 0.5s ease-out forwards" : undefined,
-            }}
-          >
-            {petTemplateId ? (
-              <PetAnimator petTemplateId={petTemplateId} mode="idle" view="front" size={320} />
-            ) : petImage ? (
-              <img src={petImage} alt={petName} style={{ width: "90%", height: "90%", objectFit: "contain" }} />
-            ) : (
-              <img src={petPawIcon} alt="" style={{ width: "70%", height: "70%", objectFit: "contain", filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.6))" }} />
-            )}
-          </div>
+          {/* Pet image/animator — no restricting wrapper; overflow visible so pet fills zone */}
+          {petTemplateId ? (
+            <PetAnimator
+              petTemplateId={petTemplateId}
+              mode="idle"
+              view="front"
+              size={460}
+              style={{
+                flexShrink: 0,
+                animation: petAnim === "bounce" ? "puMBounce 0.6s ease-out forwards" :
+                           petAnim === "flash"  ? "puMFlash 0.5s ease-out forwards" : undefined,
+              }}
+            />
+          ) : petImage ? (
+            <img src={petImage} alt={petName} style={{ width: "90%", height: "90%", objectFit: "contain" }} />
+          ) : (
+            <img src={petPawIcon} alt="" style={{ width: "70%", height: "70%", objectFit: "contain", filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.6))" }} />
+          )}
 
           {/* Drop hint overlay */}
           {dragging && (
