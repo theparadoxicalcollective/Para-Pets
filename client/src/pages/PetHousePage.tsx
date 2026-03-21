@@ -433,13 +433,10 @@ function FeedView({
           <div
             data-testid="img-feed-pet"
             style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               width: "100%",
-              height: "100%",
-              filter: isOverPet
-                ? "drop-shadow(0 0 24px rgba(74,222,128,0.9))"
-                : "drop-shadow(0 4px 12px rgba(0,0,0,0.55))",
-              transition: "filter 0.15s ease",
-              animation: (!useAnimated && isPending) ? "petBob 0.4s ease-in-out infinite" : undefined,
               overflow: "visible",
             }}
           >
@@ -447,13 +444,34 @@ function FeedView({
               <PetAnimator
                 petTemplateId={pet.petTemplateId!}
                 mode="idle"
-                size={1000}
-                style={{ width: "100%", height: "100%" }}
+                size={240}
+                style={{
+                  flexShrink: 0,
+                  filter: isOverPet
+                    ? "drop-shadow(0 0 24px rgba(74,222,128,0.9))"
+                    : "drop-shadow(0 4px 12px rgba(0,0,0,0.55))",
+                  transition: "filter 0.15s ease",
+                  animation: isPending ? "petBob 0.4s ease-in-out infinite" : undefined,
+                  overflow: "visible",
+                }}
               />
             ) : petImg ? (
-              <img src={petImg} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+              <img
+                src={petImg}
+                alt=""
+                style={{
+                  width: 240,
+                  height: 240,
+                  objectFit: "contain",
+                  filter: isOverPet
+                    ? "drop-shadow(0 0 24px rgba(74,222,128,0.9))"
+                    : "drop-shadow(0 4px 12px rgba(0,0,0,0.55))",
+                  transition: "filter 0.15s ease",
+                  animation: isPending ? "petBob 0.4s ease-in-out infinite" : undefined,
+                }}
+              />
             ) : (
-              <span className="text-5xl flex items-center justify-center w-full h-full">🐾</span>
+              <span className="text-5xl flex items-center justify-center" style={{ width: 240, height: 240 }}>🐾</span>
             )}
           </div>
         </div>
