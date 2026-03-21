@@ -524,6 +524,68 @@ app.use((req, res, next) => {
     console.error("Swamp location migration error (non-fatal):", err);
   }
 
+  // One-time seed: The Soggy Hook bait items
+  try {
+    const baitSeeded = await storage.getGameSetting("soggy_hook_bait_v1");
+    if (!baitSeeded) {
+      const SOGGY_HOOK_ID = "a1b2c3d4-0008-4000-8000-000000000008";
+      const baitItems = [
+        {
+          name: "Swamp Crawler",
+          price: 60,
+          imageFile: "bait_swamp_crawler.png",
+          baitCatchBoost: 0,
+          rarityBoostPercent: 25,
+        },
+        {
+          name: "Ghost Shrimp Lure",
+          price: 85,
+          imageFile: "bait_ghost_shrimp.png",
+          baitCatchBoost: 30,
+          rarityBoostPercent: 0,
+        },
+        {
+          name: "Hex Bayou Lure",
+          price: 150,
+          imageFile: "bait_hex_lure.png",
+          baitCatchBoost: 20,
+          rarityBoostPercent: 35,
+        },
+      ];
+      for (const b of baitItems) {
+        const imgData = loadAssetBase64(b.imageFile);
+        await storage.createShopItem({
+          name: b.name,
+          price: b.price,
+          type: "fishing",
+          fishingType: "bait",
+          worldId: "all",
+          locationId: SOGGY_HOOK_ID,
+          imageUrl: imgData,
+          baitCatchBoost: b.baitCatchBoost,
+          rarityBoostPercent: b.rarityBoostPercent,
+          rarity: null,
+          hatchTime: null,
+          statBoostType: null,
+          statBoostAmount: null,
+          eggImageUrl: null,
+          hatchedImageUrl: null,
+          specialSkill: null,
+          healthRestored: null,
+          manaRestored: null,
+          petsRevived: null,
+          atkBoost: null,
+          defBoost: null,
+        });
+        console.log(`Seeded bait item: ${b.name}`);
+      }
+      await storage.setGameSetting("soggy_hook_bait_v1", "done");
+      console.log("Soggy Hook bait items seeded.");
+    }
+  } catch (err) {
+    console.error("Bait item seeding error (non-fatal):", err);
+  }
+
   // One-time cleanup: remove the admin test pole if it still exists
   try {
     await storage.deleteShopItem("00000000-0000-0000-0000-admin0000pole");
