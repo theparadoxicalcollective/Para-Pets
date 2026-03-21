@@ -526,9 +526,8 @@ app.use((req, res, next) => {
 
   // One-time seed: The Soggy Hook bait items
   try {
-    const baitSeeded = await storage.getGameSetting("soggy_hook_bait_v1");
+    const baitSeeded = await storage.getGameSetting("soggy_hook_bait_v2");
     if (!baitSeeded) {
-      const SOGGY_HOOK_ID = "a1b2c3d4-0008-4000-8000-000000000008";
       const baitItems = [
         {
           name: "Swamp Crawler",
@@ -560,7 +559,7 @@ app.use((req, res, next) => {
           type: "fishing",
           fishingType: "bait",
           worldId: "all",
-          locationId: SOGGY_HOOK_ID,
+          locationId: null,
           imageUrl: imgData,
           baitCatchBoost: b.baitCatchBoost,
           rarityBoostPercent: b.rarityBoostPercent,
@@ -579,8 +578,8 @@ app.use((req, res, next) => {
         });
         console.log(`Seeded bait item: ${b.name}`);
       }
-      await storage.setGameSetting("soggy_hook_bait_v1", "done");
-      console.log("Soggy Hook bait items seeded.");
+      await storage.setGameSetting("soggy_hook_bait_v2", "done");
+      console.log("Bait items seeded (unassigned).");
     }
   } catch (err) {
     console.error("Bait item seeding error (non-fatal):", err);
@@ -591,6 +590,24 @@ app.use((req, res, next) => {
     await storage.deleteShopItem("00000000-0000-0000-0000-admin0000pole");
     console.log("Admin test pole removed.");
   } catch (_) { /* already gone */ }
+
+  // Migration: unassign bait items that were previously hardcoded to the Soggy Hook
+  try {
+    const baitUnassigned = await storage.getGameSetting("bait_unassign_v1");
+    if (!baitUnassigned) {
+      await db.execute(sql`
+        UPDATE shop_items
+        SET location_id = NULL
+        WHERE fishing_type = 'bait'
+          AND type = 'fishing'
+          AND location_id IS NOT NULL
+      `);
+      await storage.setGameSetting("bait_unassign_v1", "done");
+      console.log("Bait items unassigned from fixed locations.");
+    }
+  } catch (err) {
+    console.error("Bait unassign migration error (non-fatal):", err);
+  }
 
   // Migration: add daily_reward_coins column to badges and seed Founder's Badge reward
   try {
