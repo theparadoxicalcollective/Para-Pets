@@ -65,6 +65,7 @@ export default function HomePage({ user }: HomePageProps) {
   const [scrollOpen, setScrollOpen] = useState(false);
   const [showPetInventory, setShowPetInventory] = useState(false);
   const [hatchRevealing, setHatchRevealing] = useState(false);
+  const [hatchedPetCache, setHatchedPetCache] = useState<{ hatchedImageUrl: string | null; imageUrl: string | null; petTemplateId: string | null; name: string } | null>(null);
   const [showPetDetail, setShowPetDetail] = useState(false);
   const [showSpeedUp, setShowSpeedUp] = useState(false);
   const [showSpeedEffect, setShowSpeedEffect] = useState(false);
@@ -80,10 +81,19 @@ export default function HomePage({ user }: HomePageProps) {
     },
     onSuccess: (data: any) => {
       if (data.isHatched) {
+        if (activePet) {
+          setHatchedPetCache({
+            hatchedImageUrl: activePet.hatchedImageUrl,
+            imageUrl: activePet.imageUrl,
+            petTemplateId: activePet.petTemplateId,
+            name: activePet.petNickname || activePet.name,
+          });
+        }
         setHatchRevealing(true);
+        queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
         setTimeout(() => {
           setHatchRevealing(false);
-          queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+          setHatchedPetCache(null);
         }, 3500);
       }
     },
@@ -910,6 +920,27 @@ export default function HomePage({ user }: HomePageProps) {
               animation: "hatchCenterDramatic 2.5s ease-out forwards",
             }}
           />
+          {hatchedPetCache && (hatchedPetCache.hatchedImageUrl || hatchedPetCache.imageUrl) && (
+            <div
+              style={{
+                position: "absolute",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "70%",
+                maxWidth: 280,
+                animation: "hatchPetReveal 2.8s 0.55s ease-out forwards",
+                opacity: 0,
+                filter: "drop-shadow(0 0 40px rgba(240,192,64,0.9)) drop-shadow(0 0 80px rgba(240,192,64,0.5))",
+              }}
+            >
+              <img
+                src={hatchedPetCache.hatchedImageUrl || hatchedPetCache.imageUrl || ""}
+                alt={hatchedPetCache.name}
+                style={{ width: "100%", height: "auto", objectFit: "contain" }}
+              />
+            </div>
+          )}
           <span
             className="font-fantasy text-2xl font-bold tracking-[0.2em] absolute"
             style={{
@@ -917,6 +948,7 @@ export default function HomePage({ user }: HomePageProps) {
               textShadow: "0 0 20px rgba(240,192,64,0.9), 0 0 40px rgba(240,192,64,0.5), 0 2px 8px rgba(0,0,0,0.8)",
               animation: "hatchRevealText 3s 0.5s ease-out forwards",
               opacity: 0,
+              bottom: "28%",
             }}
             data-testid="text-hatch-reveal"
           >
@@ -951,6 +983,15 @@ export default function HomePage({ user }: HomePageProps) {
           50% { transform: translateY(-5px) scale(1); opacity: 1; }
           80% { transform: translateY(-10px) scale(1); opacity: 1; }
           100% { transform: translateY(-20px) scale(0.9); opacity: 0; }
+        }
+        @keyframes hatchPetReveal {
+          0%   { transform: scale(0.2) translateY(30px); opacity: 0; filter: brightness(5) drop-shadow(0 0 60px rgba(240,192,64,1)); }
+          18%  { transform: scale(1.18) translateY(-6px); opacity: 1; filter: brightness(2) drop-shadow(0 0 40px rgba(240,192,64,0.9)); }
+          32%  { transform: scale(0.96) translateY(0px); filter: brightness(1.3) drop-shadow(0 0 24px rgba(240,192,64,0.6)); }
+          50%  { transform: scale(1.04) translateY(-3px); opacity: 1; filter: brightness(1) drop-shadow(0 0 12px rgba(240,192,64,0.3)); }
+          72%  { transform: scale(1) translateY(0px); opacity: 1; filter: none; }
+          88%  { opacity: 1; }
+          100% { transform: scale(0.92) translateY(-10px); opacity: 0; filter: none; }
         }
       `}</style>
 
