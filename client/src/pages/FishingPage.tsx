@@ -75,6 +75,7 @@ interface CaughtFish {
 }
 
 type FishingPhase = "idle" | "casting" | "waiting" | "nibble" | "reeling" | "caught" | "missed";
+type FishBehaviorState = "calm" | "resist" | "tired" | "surge";
 
 const ACCENT = "#5eead4";
 // Per-rarity nibble config — windows are long enough for human reaction on mobile
@@ -92,7 +93,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   const [tensionState, setTensionState] = useState<{
     catchProgress: number;
     tension: number;
-    isSurging: boolean;
+    escapeMeter: number;
+    fishState: FishBehaviorState;
     timeLeft: number;
     snapEffect: boolean;
   } | null>(null);
@@ -407,140 +409,172 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   const startReeling = useCallback(() => {
     const rarity = Math.max(1, Math.min(5, nibbleRarityRef.current));
 
-    // Per-rarity tuning — all rates are per-second, scaled by delta-time each frame
-    // Rarity is strictly harder as stars increase — no inversions.
+    // ── Per-rarity base rates (all per-second, scaled by delta-time each frame) ──────────
 
     // Starting catch progress — almost empty so the player must earn it
-    const startProgress   = [0.08,  0.06,  0.05,  0.03,  0.02 ];
+    const startProgress     = [0.08,  0.06,  0.05,  0.03,  0.02 ];
 
-    // Catch progress gain per second while holding
-    const reelRates       = [0.450, 0.380, 0.210, 0.150, 0.110];
+    // Catch progress gain per second while holding (base, before modifiers)
+    const baseReelRates     = [0.50,  0.42,  0.32,  0.24,  0.17 ];
 
-    // Tension rise per second while holding.
-    // Strictly increasing: 1★ snaps in ~1.25s, 3★ in ~0.71s, 5★ in ~0.45s.
-    // Players MUST pulse — continuous holding snaps the line at every rarity.
-    // 3★+ requires noticeably more frequent releases than 1-2★.
-    const tensionRise     = [0.80,  1.00,  1.40,  1.80,  2.20 ];
+    // Tension rise per second while holding (base, before modifiers)
+    const baseTensionRise   = [0.55,  0.75,  1.05,  1.45,  1.90 ];
 
-    // Tension fall per second while NOT holding — strictly decreasing so higher rarity
-    // gives less relief per release, forcing the player to release more often.
-    const tensionFalls    = [2.50,  2.10,  1.65,  1.20,  0.85 ];
+    // Tension fall per second while NOT holding
+    const tensionFalls      = [2.80,  2.30,  1.80,  1.35,  0.95 ];
 
-    // Catch progress drain per second while NOT holding
-    const progressDrags   = [0.050, 0.085, 0.140, 0.185, 0.225];
+    // Catch progress drain per second while NOT holding (base)
+    const baseProgressDrags = [0.030, 0.060, 0.100, 0.150, 0.200];
 
-    // Surge probability per second — jumps sharply at 3★ for an aggressive feel
-    const surgeChances    = [0.05,  0.10,  0.28,  0.45,  0.62 ];
-    // Extra tension per second DURING a surge
-    const surgeTPerSec    = [0.18,  0.28,  0.60,  0.80,  1.00 ];
-    // Extra progress drain per second DURING a surge (only when NOT holding)
-    const surgePPerSec    = [0.03,  0.05,  0.10,  0.15,  0.20 ];
+    // Escape meter fill rate per second while NOT holding (base)
+    const baseEscapeRate    = [0.040, 0.070, 0.110, 0.160, 0.220];
+
+    // Escape meter drain per second while holding inside sweet spot
+    const escapeReelRate    = [0.080, 0.060, 0.040, 0.025, 0.010];
+
+    // Tension sweet spot boundaries (fraction 0-1)
+    const sweetLow  = [0.25, 0.28, 0.30, 0.33, 0.35];
+    const sweetHigh = [0.75, 0.72, 0.70, 0.67, 0.65];
+
+    // State machine: probability weights [calm, resist, tired, surge]
+    const stateWeights: [number, number, number, number][] = [
+      [65, 10, 20,  5],  // 1★
+      [55, 20, 15, 10],  // 2★
+      [40, 30, 15, 15],  // 3★
+      [25, 35, 15, 25],  // 4★
+      [15, 40, 12, 33],  // 5★
+    ];
+
+    // Min/max seconds before the fish can switch to a new state
+    const minStateDuration = [3.5, 3.0, 2.5, 2.0, 1.5];
+    const maxStateDuration = [6.0, 5.0, 4.0, 3.0, 2.5];
 
     const baitCatchBoost = equipDataRef.current?.baitItem?.baitCatchBoost ?? 0;
     const poleItem = equipDataRef.current?.poleItem;
 
-    // Apply pole slowdown modifier for 3-5★ fish if the equipped pole has that stat.
-    // poleSlowdown3/4/5 is a percentage penalty (e.g. 20 = 20% harder tension rise).
+    // Pole slowdown modifier for 3-5★ fish
     const slowdownKey = rarity >= 3 ? (`poleSlowdown${rarity}` as "poleSlowdown3" | "poleSlowdown4" | "poleSlowdown5") : null;
     const poleSlowdownPct = slowdownKey ? (poleItem?.[slowdownKey] ?? 0) : 0;
     const poleSlowdownMult = 1 + poleSlowdownPct / 100;
 
-    const reelRate       = reelRates[rarity - 1] * (1 + baitCatchBoost / 100);
-    const tRise          = tensionRise[rarity - 1] * poleSlowdownMult;
-    const tFall          = tensionFalls[rarity - 1];
-    const pDrag          = progressDrags[rarity - 1];
-    const surgeChancePS  = surgeChances[rarity - 1];
-    const surgeTPS       = surgeTPerSec[rarity - 1] * poleSlowdownMult;
-    const surgePPS       = surgePPerSec[rarity - 1];
+    const idx = rarity - 1;
+    const baseReelRate  = baseReelRates[idx] * (1 + baitCatchBoost / 100);
+    const baseTRise     = baseTensionRise[idx] * poleSlowdownMult;
+    const tFall         = tensionFalls[idx];
+    const basePDrag     = baseProgressDrags[idx];
+    const baseEscRate   = baseEscapeRate[idx];
+    const escReelRate   = escapeReelRate[idx];
+    const sLow          = sweetLow[idx];
+    const sHigh         = sweetHigh[idx];
+    const weights       = stateWeights[idx];
+    const minDur        = minStateDuration[idx];
+    const maxDur        = maxStateDuration[idx];
 
-    const REEL_TIMEOUT_MS = 30000;
-    // Grace period: progress (and surge drain) cannot apply for the first 1200ms so the
-    // player has time to find the hold button after the nibble-to-reel transition
-    const GRACE_MS = 1200;
+    // ── State machine helpers ──────────────────────────────────────────────────────────────
+
+    // Pick a random FishBehaviorState weighted by [calm, resist, tired, surge]
+    const pickState = (): FishBehaviorState => {
+      const states: FishBehaviorState[] = ["calm", "resist", "tired", "surge"];
+      const total = weights.reduce((a, b) => a + b, 0);
+      let roll = Math.random() * total;
+      for (let i = 0; i < states.length; i++) {
+        roll -= weights[i];
+        if (roll <= 0) return states[i];
+      }
+      return "calm";
+    };
+
+    // ── Fish state modifiers (multipliers on base rates) ───────────────────────────────────
+    // calm:   no change
+    // resist: tension rises faster, progress slower, escape fills faster
+    // tired:  tension rises slower, progress faster, escape drains faster
+    // surge:  tension spikes, escape spikes — player must release briefly
+    const STATE_MODS: Record<FishBehaviorState, { tRiseMult: number; reelMult: number; escapeMult: number }> = {
+      calm:   { tRiseMult: 1.0,  reelMult: 1.0,  escapeMult: 1.0  },
+      resist: { tRiseMult: 1.5,  reelMult: 0.7,  escapeMult: 1.4  },
+      tired:  { tRiseMult: 0.5,  reelMult: 1.5,  escapeMult: 0.6  },
+      surge:  { tRiseMult: 2.2,  reelMult: 0.5,  escapeMult: 2.0  },
+    };
+
+    const GRACE_MS = 1200; // player has 1.2s to find the hold button after nibble
 
     isHoldingRef.current = false;
 
-    let catchProgress = startProgress[rarity - 1];
-    let tension       = 0;
-    let surging       = false;
-    // Initial delay before first surge: give the player 2.5-4s to establish a rhythm
-    let surgeTimerSec = 2.5 + Math.random() * 1.5;
-    const startTime   = Date.now();
-    const graceUntilMs = startTime + GRACE_MS;
-    let lastFrameMs   = Date.now();
+    let catchProgress   = startProgress[idx];
+    let tension         = 0;
+    let escapeMeter     = 0;
+    let fishState: FishBehaviorState = "calm";
+    let stateTimerSec   = minDur + Math.random() * (maxDur - minDur);
+    const startTime     = Date.now();
+    const graceUntilMs  = startTime + GRACE_MS;
+    let lastFrameMs     = Date.now();
 
     phaseRef.current = "reeling";
     setPhase("reeling");
-    setTensionState({ catchProgress, tension, isSurging: false, timeLeft: 30, snapEffect: false });
+    setTensionState({ catchProgress, tension, escapeMeter, fishState, timeLeft: 60, snapEffect: false });
 
     const tick = () => {
       if (phaseRef.current !== "reeling") return;
 
-      // Delta-time: how many seconds elapsed since last frame (capped at 2 frames max)
       const now = Date.now();
-      const dt  = Math.min((now - lastFrameMs) / 1000, 2 / 60);
+      const dt  = Math.min((now - lastFrameMs) / 1000, 2 / 60); // cap at 2 frames
       lastFrameMs = now;
 
-      const elapsed  = now - startTime;
-      const timeLeft = Math.max(0, (REEL_TIMEOUT_MS - elapsed) / 1000);
-
-      if (timeLeft <= 0) {
-        setTensionState(null);
-        if (catchProgress >= 0.5) {
-          playCatch();
-          catchMutateRef.current(100);
-        } else {
-          phaseRef.current = "missed";
-          setPhase("missed");
-        }
-        return;
-      }
-
       const inGrace = now < graceUntilMs;
+
+      // ── Fish state machine ───────────────────────────────────────────────────────────────
+      stateTimerSec -= dt;
+      if (stateTimerSec <= 0) {
+        fishState     = pickState();
+        stateTimerSec = minDur + Math.random() * (maxDur - minDur);
+      }
+
+      const mods = STATE_MODS[fishState];
+
+      // ── Sweet spot multiplier on reel rate (only applies while holding) ─────────────────
+      // 0-sLow: too low (slow progress)
+      // sLow-sHigh: sweet spot (full rate)
+      // sHigh-0.90: risky (slightly boosted)
+      // 0.90-1.00: critical (slow — focus on releasing)
+      let sweetMult = 1.0;
+      if (tension < sLow)       sweetMult = 0.5;
+      else if (tension < sHigh) sweetMult = 1.0;
+      else if (tension < 0.90)  sweetMult = 1.2;
+      else                      sweetMult = 0.4;
+
+      const tRise   = baseTRise * mods.tRiseMult;
+      const reelRate = baseReelRate * mods.reelMult * sweetMult;
+      const pDrag   = basePDrag;
+      const escRate  = baseEscRate * mods.escapeMult;
+
       if (isHoldingRef.current) {
-        // Holding: progress fills, tension climbs
+        // Holding: progress fills (sweet spot matters), tension climbs
         catchProgress = Math.min(1, catchProgress + reelRate * dt);
-        tension       = Math.min(1, tension + tRise   * dt);
+        tension       = Math.min(1, tension + tRise * dt);
+        // Escape drains while holding in sweet spot
+        if (!inGrace) escapeMeter = Math.max(0, escapeMeter - escReelRate * dt);
       } else {
-        // Released: tension drops quickly; progress only drains after grace period
-        tension       = Math.max(0, tension - tFall * dt);
-        if (!inGrace) catchProgress = Math.max(0, catchProgress - pDrag * dt);
-      }
-
-      // Surge logic — timer counts in seconds
-      surgeTimerSec -= dt;
-      if (!surging && surgeTimerSec <= 0) {
-        // Each frame after timer expires has a per-second chance to surge
-        if (Math.random() < surgeChancePS * dt) {
-          surging       = true;
-          surgeTimerSec = 0.4 + Math.random() * 0.35; // 0.4-0.75s surge
-        } else {
-          surgeTimerSec = 0.18 + Math.random() * 0.22; // 0.18-0.40s between checks
+        // Released: tension drops; progress and escape only change after grace period
+        tension = Math.max(0, tension - tFall * dt);
+        if (!inGrace) {
+          catchProgress = Math.max(0, catchProgress - pDrag * dt);
+          escapeMeter   = Math.min(1, escapeMeter + escRate * dt);
         }
       }
-      if (surging) {
-        tension = Math.min(1, tension + surgeTPS * dt);
-        // Only drain catch progress during a surge if the player is NOT holding
-        // and the grace period has ended — prevents instant escapes right after nibble.
-        if (!isHoldingRef.current && !inGrace) {
-          catchProgress = Math.max(0, catchProgress - surgePPS * dt);
-        }
-      }
-      if (surging && surgeTimerSec <= 0) surging = false;
 
-      setTensionState({ catchProgress, tension, isSurging: surging, timeLeft, snapEffect: false });
+      setTensionState({ catchProgress, tension, escapeMeter, fishState, timeLeft: 0, snapEffect: false });
 
-      // Fish escaped
-      if (catchProgress <= 0) {
+      // ── Lose: escape meter full ────────────────────────────────────────────────────────
+      if (escapeMeter >= 1) {
         setTensionState(null);
         phaseRef.current = "missed";
         setPhase("missed");
         return;
       }
 
-      // Line snap
+      // ── Lose: line snapped ─────────────────────────────────────────────────────────────
       if (tension >= 1) {
-        setTensionState({ catchProgress, tension: 1, isSurging: false, timeLeft, snapEffect: true });
+        setTensionState({ catchProgress, tension: 1, escapeMeter, fishState, timeLeft: 0, snapEffect: true });
         setTimeout(() => {
           setTensionState(null);
           phaseRef.current = "missed";
@@ -549,7 +583,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         return;
       }
 
-      // Win — progress filled
+      // ── Win: catch progress filled ─────────────────────────────────────────────────────
       if (catchProgress >= 1) {
         setTensionState(null);
         playCatch();
@@ -769,8 +803,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
               {[
                 { num: "1", title: "Cast", desc: "Tap anywhere on the water to cast your line." },
                 { num: "2", title: "Wait for a Bite", desc: "Watch the bobber — when it dips, a fish is biting!" },
-                { num: "3", title: "Hook It!", desc: "When the bobber dips, tap immediately! Watch the glowing ring around it — tap before it runs out. Rarer fish give fewer chances and a shorter window." },
-                { num: "4", title: "Reel In", desc: "Hold to reel, release when tension goes red. 3★+ fish surge hard and drag your progress back — short bursts are key. If tension maxes, the line snaps!" },
+                { num: "3", title: "Hook It!", desc: "Tap when the bobber dips! Rarer fish give fewer chances and a tighter window." },
+                { num: "4", title: "Reel In", desc: "Hold to reel, release to drop tension. Keep tension in the GREEN sweet spot for the best progress. Watch the fish state: TIRED = reel hard, SURGE = release now! Fill the Catch bar and keep the Escape meter low." },
               ].map(({ num, title, desc }) => (
                 <div key={num} className="flex gap-3 items-start">
                   <div className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold font-fantasy mt-0.5"
@@ -962,10 +996,12 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         <TensionReel
           catchProgress={tensionState.catchProgress}
           tension={tensionState.tension}
-          isSurging={tensionState.isSurging}
-          timeLeft={tensionState.timeLeft}
+          escapeMeter={tensionState.escapeMeter}
+          fishState={tensionState.fishState}
           snapEffect={tensionState.snapEffect}
           onHoldChange={(holding) => { isHoldingRef.current = holding; }}
+          sweetLow={[0.25, 0.28, 0.30, 0.33, 0.35][Math.max(0, Math.min(4, nibbleRarityRef.current - 1))]}
+          sweetHigh={[0.75, 0.72, 0.70, 0.67, 0.65][Math.max(0, Math.min(4, nibbleRarityRef.current - 1))]}
         />
       )}
 
@@ -1484,14 +1520,16 @@ function PondAdminPanel({
 }
 
 function TensionReel({
-  catchProgress, tension, isSurging, timeLeft, snapEffect, onHoldChange,
+  catchProgress, tension, escapeMeter, fishState, snapEffect, onHoldChange, sweetLow, sweetHigh,
 }: {
   catchProgress: number;
   tension: number;
-  isSurging: boolean;
-  timeLeft: number;
+  escapeMeter: number;
+  fishState: FishBehaviorState;
   snapEffect: boolean;
   onHoldChange: (holding: boolean) => void;
+  sweetLow: number;
+  sweetHigh: number;
 }) {
   const [held, setHeld] = useState(false);
 
@@ -1505,26 +1543,38 @@ function TensionReel({
     onHoldChange(false);
   };
 
-  const showTimer = timeLeft <= 10;
-  const timerSecs = Math.ceil(timeLeft);
-  const timerUrgent = timeLeft <= 5;
-
-  const tensionPct = Math.round(tension * 100);
+  const tensionPct  = Math.round(tension * 100);
   const progressPct = Math.round(catchProgress * 100);
+  const escapePct   = Math.round(escapeMeter * 100);
 
-  const tensionColor = tension > 0.75 ? "#ef4444" : tension > 0.45 ? "#f59e0b" : "#4ade80";
-  const tensionBg = tension > 0.75
+  // Tension bar color — red in critical zone, amber in risky, green in sweet/low
+  const tensionColor = tension >= 0.90 ? "#ef4444" : tension >= sweetHigh ? "#f59e0b" : "#4ade80";
+  const tensionBg = tension >= 0.90
     ? "linear-gradient(90deg, #7f1d1d, #dc2626, #ef4444)"
-    : tension > 0.45
+    : tension >= sweetHigh
     ? "linear-gradient(90deg, #78350f, #d97706, #f59e0b)"
-    : "linear-gradient(90deg, #14532d, #16a34a, #4ade80)";
-  const tensionGlow = tension > 0.75
+    : tension >= sweetLow
+    ? "linear-gradient(90deg, #14532d, #16a34a, #4ade80)"
+    : "linear-gradient(90deg, #1a3040, #1e6080, #38bdf8)"; // too-low zone: blue-ish
+  const tensionGlow = tension >= 0.90
     ? "0 0 16px rgba(239,68,68,0.9)"
-    : tension > 0.45
+    : tension >= sweetHigh
     ? "0 0 12px rgba(245,158,11,0.7)"
-    : "0 0 8px rgba(74,222,128,0.5)";
+    : tension >= sweetLow
+    ? "0 0 8px rgba(74,222,128,0.5)"
+    : "0 0 6px rgba(56,189,248,0.4)";
+
+  // Fish state display config
+  const STATE_DISPLAY: Record<FishBehaviorState, { label: string; color: string; anim?: string }> = {
+    calm:   { label: "CALM",    color: "rgba(94,234,212,0.85)" },
+    resist: { label: "RESIST!", color: "#f97316", anim: "surgeFlash 0.5s ease-in-out infinite" },
+    tired:  { label: "TIRED",   color: "#4ade80" },
+    surge:  { label: "SURGE — RELEASE!", color: "#ef4444", anim: "surgeFlash 0.3s ease-in-out infinite" },
+  };
+  const stateDisplay = STATE_DISPLAY[fishState];
 
   const fishPulling = !held && !snapEffect && catchProgress > 0;
+  const isSurging   = fishState === "surge";
 
   return (
     <div
@@ -1539,51 +1589,47 @@ function TensionReel({
         className="flex flex-col items-center gap-2 w-full px-5"
         style={{ maxWidth: 320, userSelect: "none" }}
       >
-        {/* Alert / timer strip */}
+        {/* ── Fish state label ── */}
         <div style={{ height: 22, display: "flex", alignItems: "center", justifyContent: "center" }}>
           {snapEffect ? (
             <span className="font-fantasy text-sm tracking-widest" style={{ color: "#ef4444", textShadow: "0 0 12px rgba(239,68,68,1)", animation: "surgeFlash 0.2s ease-in-out infinite" }}>
               LINE SNAPPED!
             </span>
-          ) : isSurging ? (
-            <span className="font-fantasy text-xs tracking-widest" style={{ color: "#f97316", textShadow: "0 0 10px rgba(249,115,22,0.9)", animation: "surgeFlash 0.35s ease-in-out infinite" }}>
-              SURGE — RELEASE!
+          ) : (
+            <span className="font-fantasy text-xs tracking-widest font-semibold" style={{ color: stateDisplay.color, textShadow: `0 0 8px ${stateDisplay.color}`, animation: stateDisplay.anim }}>
+              {stateDisplay.label}
             </span>
-          ) : showTimer ? (
-            <span className="font-fantasy text-[11px] tracking-widest font-bold" style={{
-              color: timerUrgent ? "#ef4444" : "#facc15",
-              textShadow: timerUrgent ? "0 0 10px rgba(239,68,68,0.9)" : "0 0 8px rgba(250,204,21,0.7)",
-              animation: timerUrgent ? "surgeFlash 0.4s ease-in-out infinite" : undefined,
-            }}>
-              {timerSecs}s
-            </span>
-          ) : null}
+          )}
         </div>
 
-        {/* Fish-fight indicator — shows the fish actively resisting when not holding */}
-        <div style={{ height: 20, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: fishPulling ? 1 : 0, transition: "opacity 0.2s ease" }}>
-          <span style={{ fontSize: 12, animation: fishPulling ? "fishFightWiggle 0.35s ease-in-out infinite" : undefined }}>←</span>
-          <span className="font-fantasy text-[10px] tracking-widest" style={{ color: "rgba(239,115,68,0.95)", textShadow: "0 0 8px rgba(239,115,68,0.6)" }}>
-            FISH PULLING
-          </span>
-          <span style={{ fontSize: 12, animation: fishPulling ? "fishFightWiggle 0.35s ease-in-out infinite 0.1s" : undefined }}>←</span>
-        </div>
-
-        {/* ── TENSION BAR ── */}
+        {/* ── TENSION BAR with sweet-spot zone markers ── */}
         <div style={{ width: "100%", display: "flex", alignItems: "center", gap: 7 }}>
-          {/* Rope icon */}
-          <div style={{ width: 14, height: 28, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0, gap: 2 }}>
-            <div style={{ width: 3, height: 28, borderRadius: 2, background: tension > 0.75 ? "#ef4444" : tension > 0.45 ? "#f59e0b" : "rgba(160,120,60,0.8)", boxShadow: tension > 0.6 ? `0 0 6px ${tensionColor}` : undefined, transition: "background 0.3s ease" }} />
+          {/* Rope / line icon */}
+          <div style={{ width: 14, height: 28, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <div style={{ width: 3, height: 28, borderRadius: 2, background: tension >= 0.90 ? "#ef4444" : tension >= sweetHigh ? "#f59e0b" : "rgba(160,120,60,0.8)", boxShadow: tension >= 0.6 ? `0 0 6px ${tensionColor}` : undefined, transition: "background 0.3s ease" }} />
           </div>
           {/* Track */}
           <div style={{
             flex: 1, height: 38, borderRadius: 19,
             background: "rgba(15,8,3,0.92)",
-            border: tension > 0.75 ? "1.5px solid rgba(239,68,68,0.7)" : "1.5px solid rgba(80,50,20,0.65)",
-            boxShadow: tension > 0.75 ? "0 0 12px rgba(239,68,68,0.3)" : "inset 0 2px 6px rgba(0,0,0,0.5)",
+            border: tension >= 0.90 ? "1.5px solid rgba(239,68,68,0.7)" : "1.5px solid rgba(80,50,20,0.65)",
+            boxShadow: tension >= 0.90 ? "0 0 12px rgba(239,68,68,0.3)" : "inset 0 2px 6px rgba(0,0,0,0.5)",
             position: "relative", overflow: "hidden",
             transition: "border-color 0.3s ease, box-shadow 0.3s ease",
           }}>
+            {/* Sweet spot zone highlight (behind fill bar) */}
+            <div style={{
+              position: "absolute", top: 0, bottom: 0,
+              left: `${sweetLow * 100}%`,
+              width: `${(sweetHigh - sweetLow) * 100}%`,
+              background: "rgba(74,222,128,0.08)",
+              borderLeft: "1px solid rgba(74,222,128,0.35)",
+              borderRight: "1px solid rgba(74,222,128,0.35)",
+              pointerEvents: "none",
+            }} />
+            {/* Sweet spot left tick label */}
+            <div style={{ position: "absolute", top: 2, left: `${sweetLow * 100}%`, transform: "translateX(-50%)", fontFamily: "Cinzel, serif", fontSize: 6, color: "rgba(74,222,128,0.55)", letterSpacing: "0.05em", pointerEvents: "none" }}>▼</div>
+            {/* Tension fill */}
             <div style={{
               height: "100%",
               width: `${tensionPct}%`,
@@ -1593,47 +1639,29 @@ function TensionReel({
               transition: "background 0.25s ease",
               position: "relative",
             }}>
-              {tensionPct > 25 && (
-                <div style={{ position: "absolute", top: "50%", left: "25%", transform: "translateY(-50%)", width: 7, height: 7, borderRadius: "50%", background: "rgba(255,255,255,0.18)" }} />
-              )}
-              {tensionPct > 50 && (
-                <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translateY(-50%)", width: 7, height: 7, borderRadius: "50%", background: "rgba(255,255,255,0.18)" }} />
-              )}
-              {tensionPct > 75 && (
-                <div style={{ position: "absolute", top: "50%", left: "75%", transform: "translateY(-50%)", width: 7, height: 7, borderRadius: "50%", background: "rgba(255,255,255,0.18)" }} />
-              )}
+              {tensionPct > 25 && <div style={{ position: "absolute", top: "50%", left: "25%", transform: "translateY(-50%)", width: 7, height: 7, borderRadius: "50%", background: "rgba(255,255,255,0.18)" }} />}
+              {tensionPct > 50 && <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translateY(-50%)", width: 7, height: 7, borderRadius: "50%", background: "rgba(255,255,255,0.18)" }} />}
+              {tensionPct > 75 && <div style={{ position: "absolute", top: "50%", left: "75%", transform: "translateY(-50%)", width: 7, height: 7, borderRadius: "50%", background: "rgba(255,255,255,0.18)" }} />}
             </div>
-            <div style={{
-              position: "absolute", top: 0, bottom: 0, left: "80%", width: 2,
-              background: "rgba(239,68,68,0.5)",
-              boxShadow: "0 0 6px rgba(239,68,68,0.4)",
-            }} />
-            {tension > 0.6 && (
-              <div style={{
-                position: "absolute", inset: 0, borderRadius: 19,
-                background: "linear-gradient(90deg, transparent 60%, rgba(239,68,68,0.2) 100%)",
-                animation: "tensionPulse 0.5s ease-in-out infinite",
-              }} />
+            {/* Snap danger line at 90% */}
+            <div style={{ position: "absolute", top: 0, bottom: 0, left: "90%", width: 2, background: "rgba(239,68,68,0.55)", boxShadow: "0 0 6px rgba(239,68,68,0.4)" }} />
+            {/* Critical zone pulse */}
+            {tension >= 0.75 && (
+              <div style={{ position: "absolute", inset: 0, borderRadius: 19, background: "linear-gradient(90deg, transparent 60%, rgba(239,68,68,0.18) 100%)", animation: "tensionPulse 0.5s ease-in-out infinite" }} />
             )}
           </div>
         </div>
 
-        {/* ── CATCH BAR — fish floats ABOVE track, green fill bar below ── */}
+        {/* ── CATCH PROGRESS BAR with fish marker ── */}
         <div style={{ width: "100%", position: "relative" }}>
-          {/* Zone labels */}
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
             <span style={{ fontFamily: "Cinzel, serif", fontSize: 8, color: "rgba(239,68,68,0.7)", letterSpacing: "0.1em" }}>ESCAPE</span>
             <span style={{ fontFamily: "Cinzel, serif", fontSize: 8, color: "rgba(94,234,212,0.7)", letterSpacing: "0.1em" }}>CATCH</span>
           </div>
 
-          {/* Fish icon row — positioned horizontally above the bar */}
+          {/* Fish marker row */}
           <div style={{ width: "100%", height: 46, position: "relative", marginBottom: 2 }}>
-            {/* Connector line: dashes along the track width */}
-            <div style={{
-              position: "absolute", bottom: 0, left: "3%", right: "3%", height: 1,
-              background: "linear-gradient(90deg, rgba(239,68,68,0.25) 0%, rgba(255,255,255,0.08) 50%, rgba(94,234,212,0.25) 100%)",
-            }} />
-            {/* Fish marker */}
+            <div style={{ position: "absolute", bottom: 0, left: "3%", right: "3%", height: 1, background: "linear-gradient(90deg, rgba(239,68,68,0.25) 0%, rgba(255,255,255,0.08) 50%, rgba(94,234,212,0.25) 100%)" }} />
             <div style={{
               position: "absolute",
               left: `${Math.max(3, Math.min(97, progressPct))}%`,
@@ -1642,66 +1670,82 @@ function TensionReel({
               display: "flex", flexDirection: "column", alignItems: "center",
               pointerEvents: "none",
             }}>
-              {/* Connector dot */}
-              <div style={{
-                width: 3, height: 8, marginBottom: 2,
-                background: fishPulling ? "rgba(249,115,22,0.6)" : held ? "rgba(94,234,212,0.6)" : "rgba(255,255,255,0.2)",
-                borderRadius: 2,
-              }} />
-              {/* Fish image */}
+              <div style={{ width: 3, height: 8, marginBottom: 2, background: fishPulling ? "rgba(249,115,22,0.6)" : held ? "rgba(94,234,212,0.6)" : "rgba(255,255,255,0.2)", borderRadius: 2 }} />
               <img
                 src={fishIconImg}
                 alt="fish"
                 style={{
-                  width: 40, height: 40,
-                  objectFit: "contain",
+                  width: 40, height: 40, objectFit: "contain",
                   transform: `scaleX(${fishPulling ? -1 : 1})`,
                   transition: "transform 0.15s ease",
                   filter: fishPulling
                     ? "drop-shadow(0 0 6px rgba(249,115,22,0.95)) hue-rotate(30deg)"
-                    : held
-                    ? `drop-shadow(0 0 8px ${ACCENT})`
-                    : "drop-shadow(0 0 4px rgba(94,234,212,0.4))",
+                    : held ? `drop-shadow(0 0 8px ${ACCENT})` : "drop-shadow(0 0 4px rgba(94,234,212,0.4))",
                   animation: fishPulling ? "fishFightWiggle 0.4s ease-in-out infinite" : undefined,
                 }}
               />
             </div>
           </div>
 
-          {/* Green fill track bar */}
+          {/* Green catch progress fill */}
           <div style={{
-            flex: 1, height: 38, borderRadius: 19,
+            height: 38, borderRadius: 19,
             background: "rgba(4,14,16,0.92)",
-            border: `1.5px solid rgba(94,234,212,0.3)`,
+            border: "1.5px solid rgba(94,234,212,0.3)",
             boxShadow: progressPct > 70 ? "0 0 14px rgba(94,234,212,0.35)" : "inset 0 2px 6px rgba(0,0,0,0.5)",
             position: "relative", overflow: "hidden",
             transition: "box-shadow 0.3s ease",
           }}>
             <div style={{
-              height: "100%",
-              width: `${progressPct}%`,
-              borderRadius: 19,
+              height: "100%", width: `${progressPct}%`, borderRadius: 19,
               background: "linear-gradient(90deg, #0d4a3a, #0db889, #5eead4)",
               boxShadow: "0 0 14px rgba(94,234,212,0.7)",
               position: "relative", overflow: "hidden",
             }}>
               {progressPct > 5 && (
-                <div style={{
-                  position: "absolute", inset: 0,
-                  background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.22) 50%, transparent 100%)",
-                  animation: "energyFlow 1.1s linear infinite",
-                }} />
+                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.22) 50%, transparent 100%)", animation: "energyFlow 1.1s linear infinite" }} />
               )}
             </div>
-            {/* Left danger fade */}
             <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "18%", borderRadius: "19px 0 0 19px", background: "linear-gradient(90deg, rgba(239,68,68,0.18) 0%, transparent 100%)", pointerEvents: "none" }} />
-            {/* Fish-pulling ripple */}
             {fishPulling && progressPct > 0 && (
-              <div style={{
-                position: "absolute", inset: 0, borderRadius: 19,
-                background: "linear-gradient(270deg, transparent 40%, rgba(239,115,68,0.12) 100%)",
-                animation: "tensionPulse 0.4s ease-in-out infinite",
-              }} />
+              <div style={{ position: "absolute", inset: 0, borderRadius: 19, background: "linear-gradient(270deg, transparent 40%, rgba(239,115,68,0.12) 100%)", animation: "tensionPulse 0.4s ease-in-out infinite" }} />
+            )}
+          </div>
+        </div>
+
+        {/* ── ESCAPE METER ── */}
+        <div style={{ width: "100%", position: "relative" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+            <span style={{ fontFamily: "Cinzel, serif", fontSize: 8, color: "rgba(249,115,22,0.8)", letterSpacing: "0.1em" }}>ESCAPE METER</span>
+            <span style={{ fontFamily: "Cinzel, serif", fontSize: 8, color: escapePct > 70 ? "rgba(239,68,68,0.9)" : "rgba(249,115,22,0.6)", letterSpacing: "0.1em" }}>{escapePct}%</span>
+          </div>
+          <div style={{
+            height: 18, borderRadius: 9,
+            background: "rgba(15,5,3,0.92)",
+            border: escapePct > 75 ? "1.5px solid rgba(239,68,68,0.6)" : "1.5px solid rgba(120,50,10,0.5)",
+            boxShadow: escapePct > 75 ? "0 0 10px rgba(239,68,68,0.25)" : "inset 0 1px 4px rgba(0,0,0,0.5)",
+            position: "relative", overflow: "hidden",
+            transition: "border-color 0.3s ease",
+          }}>
+            <div style={{
+              height: "100%",
+              width: `${escapePct}%`,
+              borderRadius: 9,
+              background: escapePct > 75
+                ? "linear-gradient(90deg, #7c1d1d, #dc2626, #f97316)"
+                : escapePct > 40
+                ? "linear-gradient(90deg, #7c3508, #c2600a, #f97316)"
+                : "linear-gradient(90deg, #3d1a05, #a04010, #f97316)",
+              boxShadow: escapePct > 75 ? "0 0 10px rgba(239,68,68,0.7)" : "0 0 6px rgba(249,115,22,0.5)",
+              position: "relative", overflow: "hidden",
+              transition: "background 0.4s ease",
+            }}>
+              {escapePct > 10 && (
+                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%)", animation: "energyFlow 0.9s linear infinite" }} />
+              )}
+            </div>
+            {escapePct > 80 && (
+              <div style={{ position: "absolute", inset: 0, borderRadius: 9, background: "rgba(239,68,68,0.08)", animation: "tensionPulse 0.35s ease-in-out infinite" }} />
             )}
           </div>
         </div>
@@ -1717,15 +1761,13 @@ function TensionReel({
           draggable={false}
           className="pointer-events-auto select-none"
           style={{
-            marginTop: 6,
+            marginTop: 4,
             width: 88, height: 88, borderRadius: "50%",
             position: "relative",
             background: held
               ? "radial-gradient(circle at 40% 35%, #7a5230, #3d2512)"
               : "radial-gradient(circle at 40% 35%, #5c3d1e, #2a1a0a)",
-            border: held
-              ? "3px solid rgba(94,234,212,0.95)"
-              : "3px solid rgba(130,90,40,0.85)",
+            border: held ? "3px solid rgba(94,234,212,0.95)" : "3px solid rgba(130,90,40,0.85)",
             boxShadow: held
               ? "0 0 36px rgba(94,234,212,0.75), 0 0 64px rgba(94,234,212,0.3), inset 0 0 20px rgba(94,234,212,0.15)"
               : "0 4px 18px rgba(0,0,0,0.75), inset 0 1px 3px rgba(255,200,100,0.1)",
@@ -1740,7 +1782,6 @@ function TensionReel({
             animation: !held ? "buttonIdlePulse 1.4s ease-in-out infinite" : undefined,
           }}
         >
-          {/* Rune ring */}
           <div style={{ position: "absolute", inset: 7, borderRadius: "50%", border: held ? "1px solid rgba(94,234,212,0.5)" : "1px solid rgba(160,110,50,0.4)", pointerEvents: "none" }} />
           <div style={{ position: "absolute", inset: 15, borderRadius: "50%", border: held ? "1px dashed rgba(94,234,212,0.35)" : "1px dashed rgba(120,80,30,0.3)", pointerEvents: "none", animation: held ? "runeRotate 2s linear infinite" : undefined }} />
           <span style={{ fontSize: held ? 11 : 9, fontWeight: 700, letterSpacing: "0.12em", color: held ? "#5eead4" : "rgba(200,160,80,0.9)", fontFamily: "Cinzel, serif", textShadow: held ? "0 0 8px rgba(94,234,212,0.9)" : "0 1px 2px rgba(0,0,0,0.8)", pointerEvents: "none", transition: "font-size 0.1s ease" }}>
