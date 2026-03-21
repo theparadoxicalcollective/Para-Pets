@@ -289,7 +289,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         levelsGained: prev.levelsGained + (data.levelsGained || 0),
       }));
       if ((data.levelsGained || 0) > 0) {
-        fireLevelUp(data.newLevel, (pet as any)?.petNickname || pet?.name || "Your pet");
+        fireLevelUp(data.newLevel, (pet as any)?.petNickname || pet?.name || "Your pet", (pet as any)?.petTemplateId ?? null);
       }
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });

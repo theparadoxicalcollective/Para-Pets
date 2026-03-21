@@ -184,7 +184,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
         setShowPowerUpModal(false);
       }
       if (data?.petLevel && data.petLevel > pet.petLevel) {
-        fireLevelUp(data.petLevel, pet.petNickname || pet.name);
+        fireLevelUp(data.petLevel, pet.petNickname || pet.name, pet.petTemplateId);
       }
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       onUpdate();
@@ -217,7 +217,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
         setShowPowerUpModal(false);
       }
       if (data?.petLevel && data.petLevel > pet.petLevel) {
-        fireLevelUp(data.petLevel, pet.petNickname || pet.name);
+        fireLevelUp(data.petLevel, pet.petNickname || pet.name, pet.petTemplateId);
       }
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       onUpdate();

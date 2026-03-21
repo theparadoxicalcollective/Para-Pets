@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { onLevelUp } from "@/lib/levelUpEvents";
 import { Star } from "lucide-react";
+import PetAnimator from "@/components/PetAnimator";
 
 const DURATION_MS = 2800;
 
@@ -8,6 +9,7 @@ interface LevelUpEvent {
   id: number;
   newLevel: number;
   petName?: string;
+  petTemplateId?: string | null;
 }
 
 export default function GlobalLevelUpOverlay() {
@@ -15,9 +17,9 @@ export default function GlobalLevelUpOverlay() {
   const counterRef = useRef(0);
 
   useEffect(() => {
-    return onLevelUp(({ newLevel, petName }) => {
+    return onLevelUp(({ newLevel, petName, petTemplateId }) => {
       const id = ++counterRef.current;
-      setEvents(prev => [...prev, { id, newLevel, petName }]);
+      setEvents(prev => [...prev, { id, newLevel, petName, petTemplateId }]);
       setTimeout(() => {
         setEvents(prev => prev.filter(e => e.id !== id));
       }, DURATION_MS);
@@ -29,13 +31,13 @@ export default function GlobalLevelUpOverlay() {
   return (
     <>
       {events.map(evt => (
-        <LevelUpBurst key={evt.id} newLevel={evt.newLevel} petName={evt.petName} />
+        <LevelUpBurst key={evt.id} newLevel={evt.newLevel} petName={evt.petName} petTemplateId={evt.petTemplateId} />
       ))}
     </>
   );
 }
 
-function LevelUpBurst({ newLevel, petName }: { newLevel: number; petName?: string }) {
+function LevelUpBurst({ newLevel, petName, petTemplateId }: { newLevel: number; petName?: string; petTemplateId?: string | null }) {
   const rings = [0, 0.12, 0.26];
   const rays = Array.from({ length: 12 }, (_, i) => i);
   const stars = Array.from({ length: 10 }, (_, i) => {
@@ -46,7 +48,7 @@ function LevelUpBurst({ newLevel, petName }: { newLevel: number; petName?: strin
 
   return (
     <div
-      className="fixed inset-0 pointer-events-none flex items-center justify-center z-[999]"
+      className="fixed inset-0 pointer-events-none flex flex-col items-center justify-center z-[999]"
       style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
     >
       <style>{`
@@ -84,6 +86,12 @@ function LevelUpBurst({ newLevel, petName }: { newLevel: number; petName?: strin
           15%  { opacity: 1; }
           70%  { opacity: 0.6; }
           100% { opacity: 0; }
+        }
+        @keyframes glvlPetPop {
+          0%   { transform: scale(0.6) translateY(24px); opacity: 0; }
+          50%  { transform: scale(1.04) translateY(-6px); opacity: 1; }
+          70%  { transform: scale(0.98) translateY(2px); }
+          100% { transform: scale(1) translateY(0); opacity: 1; }
         }
       `}</style>
 
@@ -135,19 +143,36 @@ function LevelUpBurst({ newLevel, petName }: { newLevel: number; petName?: strin
 
       {/* Centre content */}
       <div
-        className="relative flex flex-col items-center gap-2 z-10"
+        className="relative flex flex-col items-center gap-2 z-10 w-full"
         style={{ animation: `glvlFadeOut ${DURATION_MS}ms ease-out forwards` }}
       >
-        <div style={{ animation: `glvlPop 0.6s ease-out both` }}>
-          <Star
-            style={{
-              width: 96, height: 96,
-              color: "#f0c040", fill: "#f0c040",
-              animation: `glvlGlow 0.8s 0.3s ease-in-out infinite`,
-              filter: "drop-shadow(0 0 24px rgba(240,192,64,0.9))",
-            }}
-          />
+        {/* Pet (large) or fallback star icon */}
+        <div style={{ animation: "glvlPetPop 0.7s ease-out both", width: "100%" }}>
+          {petTemplateId ? (
+            <div style={{ width: "100%", overflow: "visible", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <PetAnimator
+                petTemplateId={petTemplateId}
+                mode="idle"
+                view="front"
+                size={1000}
+                className="w-full"
+                style={{ aspectRatio: "1/1", animation: "glvlGlow 0.8s 0.3s ease-in-out infinite" }}
+              />
+            </div>
+          ) : (
+            <div className="flex items-center justify-center">
+              <Star
+                style={{
+                  width: 96, height: 96,
+                  color: "#f0c040", fill: "#f0c040",
+                  animation: "glvlGlow 0.8s 0.3s ease-in-out infinite",
+                  filter: "drop-shadow(0 0 24px rgba(240,192,64,0.9))",
+                }}
+              />
+            </div>
+          )}
         </div>
+
         <div
           className="font-fantasy text-5xl font-bold tracking-wider"
           style={{

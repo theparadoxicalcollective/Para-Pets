@@ -114,7 +114,7 @@ export default function PetHousePage({ user: initialUser }: PetHousePageProps) {
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       setTimeout(() => setFeedAnim(false), 2400);
       if (data?.petLevel && selectedPet && data.petLevel > (selectedPet.petLevel || 1)) {
-        fireLevelUp(data.petLevel, selectedPet.petNickname || selectedPet.name);
+        fireLevelUp(data.petLevel, selectedPet.petNickname || selectedPet.name, selectedPet.petTemplateId);
       }
     },
     onError: (err: any) => {
