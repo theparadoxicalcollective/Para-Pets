@@ -65,6 +65,7 @@ export default function FishingAdminPanel() {
 
   const { data: allItems = [], isLoading } = useQuery<FishingItem[], Error, FishingItem[]>({
     queryKey: ["/api/admin/shop-items-all"],
+    staleTime: 0,
     select: (data) => (data as FishingItem[]).filter((i) => i.type === "fishing"),
   });
 

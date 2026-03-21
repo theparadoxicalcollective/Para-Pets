@@ -2590,7 +2590,7 @@ export default function WorldPage({ user }: WorldPageProps) {
               {currentUser.isAdmin && (
                 <button
                   data-testid="button-add-shop-item"
-                  onClick={() => setShowItemPicker(true)}
+                  onClick={() => { setShowItemPicker(true); refetchAllShopItems(); }}
                   className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
                   style={{ background: `${accent}30`, border: `2px solid ${accent}60`, color: accent, cursor: "pointer" }}
                 >
