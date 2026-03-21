@@ -200,19 +200,33 @@ export async function registerRoutes(
       try {
         const welcomeBundle = await storage.createRewardBundle(
           "Welcome to the Realm!",
-          300,
+          500,
           "A new adventure begins! These gifts are yours to keep — may your journey be legendary."
         );
         await storage.createUserReward(user.id, welcomeBundle.id);
-        // Add Ire Deer pet and Subtle Growth item if they exist
         const allShopItems = await storage.getAllShopItems();
-        const ireDeer = allShopItems.find(i => i.name.toLowerCase() === "ire deer" && i.type === "pet");
-        const subtleGrowth = allShopItems.find(i => i.name.toLowerCase() === "subtle growth");
-        if (ireDeer) await storage.addRewardBundleItem(welcomeBundle.id, ireDeer.id);
-        if (subtleGrowth) await storage.addRewardBundleItem(welcomeBundle.id, subtleGrowth.id);
+        const find = (name: string) => allShopItems.find(i => i.name.toLowerCase() === name.toLowerCase());
+        const wanted: { name: string; qty: number }[] = [
+          { name: "Ire Deer",            qty: 1  },
+          { name: "Subtle Growth",       qty: 1  },
+          { name: "Basic Health Potion", qty: 10 },
+          { name: "Basic Mana Potion",   qty: 10 },
+          { name: "Group Revive",        qty: 1  },
+          { name: "Mossy Moonlight",     qty: 1  },
+          { name: "Scorched Relevance",  qty: 1  },
+          { name: "Sturdy Rod",          qty: 1  },
+        ];
+        for (const { name, qty } of wanted) {
+          const item = find(name);
+          if (item) {
+            for (let i = 0; i < qty; i++) {
+              await storage.addRewardBundleItem(welcomeBundle.id, item.id);
+            }
+          }
+        }
       } catch (rewardErr) {
         console.error("Failed to create welcome reward, giving coins directly:", rewardErr);
-        await storage.addCoins(user.id, 300);
+        await storage.addCoins(user.id, 500);
       }
 
       req.login(user, (err) => {
