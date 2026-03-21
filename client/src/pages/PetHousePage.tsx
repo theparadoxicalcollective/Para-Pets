@@ -401,14 +401,13 @@ function FeedView({
         ✕
       </button>
 
-      <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6">
+      <div className="flex-1 flex flex-col items-center justify-center gap-3 px-4">
         <div
           ref={petDropRef}
           data-testid="drop-zone-pet"
-          className="relative flex flex-col items-center justify-center"
+          className="relative flex items-center justify-center overflow-visible w-full"
           style={{
-            width: 360,
-            height: 360,
+            aspectRatio: "1/1",
             transition: "all 0.15s ease",
           }}
         >
@@ -433,23 +432,24 @@ function FeedView({
           <div
             data-testid="img-feed-pet"
             style={{
-              width: 480,
-              height: 480,
               filter: isOverPet
                 ? "drop-shadow(0 0 24px rgba(74,222,128,0.9))"
                 : "drop-shadow(0 4px 12px rgba(0,0,0,0.55))",
               transition: "filter 0.15s ease",
               animation: (!useAnimated && isPending) ? "petBob 0.4s ease-in-out infinite" : undefined,
+              overflow: "visible",
             }}
           >
             {useAnimated ? (
               <PetAnimator
                 petTemplateId={pet.petTemplateId!}
                 mode="idle"
-                size={480}
+                size={1000}
+                className="w-full"
+                style={{ aspectRatio: "1/1" }}
               />
             ) : petImg ? (
-              <img src={petImg} alt="" className="w-full h-full object-contain" />
+              <img src={petImg} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
             ) : (
               <span className="text-5xl flex items-center justify-center w-full h-full">🐾</span>
             )}
@@ -640,7 +640,7 @@ function WalkingPet({
           transformOrigin: "bottom center",
         }}
       >
-        <div style={{ animation: `${floatAnim} ${isZooming ? "0.9s" : hasWings ? "3.2s" : "2.4s"} ${cfg.delay} ${hasWings ? "ease-in-out" : "ease"} infinite` }}>
+        <div style={hasWings ? { animation: `${floatAnim} ${isZooming ? "0.9s" : "3.2s"} ${cfg.delay} ease-in-out infinite` } : undefined}>
           {pet.petTemplateId ? (
             <>
               {/* PetAnimator: tight oval hit area so transparent edges don't block other pets */}
