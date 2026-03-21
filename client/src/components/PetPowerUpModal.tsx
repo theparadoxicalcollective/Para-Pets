@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Star, Clock, Zap } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
 import powerupBagIcon from "@assets/generated_images/icon_powerup_bag.png";
+import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 
 // ── Inline success-animation configs (mirrors PowerUpOverlay) ──────────────
 const EFFECT_CONFIGS: Record<"stat" | "level" | "hatch", { color: string; rgb: string; icon: ReactNode; title: string; particleColors: readonly string[] }> = {

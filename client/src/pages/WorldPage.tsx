@@ -354,7 +354,7 @@ export default function WorldPage({ user }: WorldPageProps) {
     staleTime: 0,
   });
 
-  const { data: allShopItems = [], refetch: refetchAllShopItems } = useQuery<ShopItem[]>({
+  const { data: allShopItems = [], refetch: refetchAllShopItems, isLoading: isAllShopItemsLoading } = useQuery<ShopItem[]>({
     queryKey: ["/api/admin/shop-items-all"],
     enabled: currentUser.isAdmin,
     staleTime: 0,
@@ -3023,6 +3023,9 @@ export default function WorldPage({ user }: WorldPageProps) {
             {/* Item list */}
             <div className="flex-1 overflow-y-auto px-4 pb-4">
               {(() => {
+                if (isAllShopItemsLoading) {
+                  return <p className="font-fantasy text-[#a89878] text-xs text-center py-6 animate-pulse">Loading items...</p>;
+                }
                 const pickable = allShopItems.filter(si => {
                   if (si.fishingType === "fish") return false;
                   if (pickerFilter === "all") return true;
@@ -3594,11 +3597,11 @@ export default function WorldPage({ user }: WorldPageProps) {
             updated[slotIdx] = {
               shopItemId: group.shopItemId, inventoryIds: toAdd, name: group.name,
               imageUrl: group.imageUrl ?? null, healthRestored: group.healthRestored ?? null,
-              manaRestored: group.manaRestored ?? null, remaining: toAdd,
+              manaRestored: group.manaRestored ?? null,
             };
           } else if (updated[slotIdx]!.shopItemId === group.shopItemId) {
             const newIds = [...existingIds, ...toAdd];
-            updated[slotIdx] = { ...updated[slotIdx]!, inventoryIds: newIds, remaining: newIds };
+            updated[slotIdx] = { ...updated[slotIdx]!, inventoryIds: newIds };
           } else {
             return;
           }
@@ -3610,7 +3613,7 @@ export default function WorldPage({ user }: WorldPageProps) {
           const slot = updated[slotIdx];
           if (!slot) return;
           if (slot.inventoryIds.length <= 1) updated[slotIdx] = null;
-          else { const ids = slot.inventoryIds.slice(0, -1); updated[slotIdx] = { ...slot, inventoryIds: ids, remaining: ids }; }
+          else { const ids = slot.inventoryIds.slice(0, -1); updated[slotIdx] = { ...slot, inventoryIds: ids }; }
           setBattlePotionSlots(updated);
         };
 
