@@ -570,9 +570,6 @@ function WalkingPet({
   onClick: () => void;
 }) {
   const [isHovered, setIsHovered] = useState(false);
-  const [isZooming, setIsZooming] = useState(false);
-  const [zoomDir, setZoomDir] = useState<"R" | "L">("R");
-  const zoomTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data: templateData } = useQuery<{ parts: Array<{ partType: string }> }>({
     queryKey: ["/api/pet-template-parts", pet.petTemplateId],
@@ -596,23 +593,6 @@ function WalkingPet({
   const floatAnim = hasWings ? "petFloatSmall" : "petGroundFloat";
   const wanderPrefix = hasWings ? "petWander" : "petGroundWander";
 
-  // Winged pets occasionally zoom across the screen
-  useEffect(() => {
-    if (!hasWings) return;
-    const schedule = () => {
-      const delay = 14000 + Math.random() * 22000; // 14-36 seconds between zooms
-      zoomTimerRef.current = setTimeout(() => {
-        setZoomDir(Math.random() > 0.5 ? "R" : "L");
-        setIsZooming(true);
-        zoomTimerRef.current = setTimeout(() => {
-          setIsZooming(false);
-          schedule();
-        }, 3800);
-      }, delay);
-    };
-    schedule();
-    return () => { if (zoomTimerRef.current) clearTimeout(zoomTimerRef.current); };
-  }, [hasWings]);
 
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
   const sz = cfg.size;
@@ -661,14 +641,14 @@ function WalkingPet({
           transformOrigin: "bottom center",
         }}
       >
-        <div style={hasWings ? { animation: `${floatAnim} ${isZooming ? "0.9s" : "3.2s"} ${cfg.delay} ease-in-out infinite` } : undefined}>
+        <div style={hasWings ? { animation: `${floatAnim} 3.2s ease-in-out infinite` } : undefined}>
           {pet.petTemplateId ? (
             <>
               {/* PetAnimator: tight oval hit area so transparent edges don't block other pets */}
               <div style={{ width: sz, height: sz, pointerEvents: "none", position: "relative" }}>
                 <PetAnimator
                   petTemplateId={pet.petTemplateId}
-                  mode={isZooming ? "zoom" : "idle"}
+                  mode="idle"
                   size={sz}
                   style={{
                     filter: `drop-shadow(0 ${Math.round(sz * 0.12)}px ${Math.round(sz * 0.15)}px rgba(0,0,0,0.5))`,
