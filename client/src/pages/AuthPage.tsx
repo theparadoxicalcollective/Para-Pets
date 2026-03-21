@@ -323,7 +323,7 @@ export default function AuthPage() {
 
               <div>
                 <label className="font-fantasy text-xs tracking-wider block mb-1 ml-1" style={{ color: mode === "register" ? "#7ecfcf" : "#c8b896" }}>
-                  {mode === "login" ? "USERNAME OR EMAIL" : "⚔ USERNAME"}
+                  {mode === "login" ? "USERNAME OR EMAIL" : "USERNAME"}
                 </label>
                 <input
                   data-testid="input-username"

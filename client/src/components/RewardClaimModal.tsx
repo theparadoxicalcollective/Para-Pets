@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Sparkles } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -209,7 +210,7 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
                   >
                     {showSparkle === stacked.rewardIds[0] && (
                       <div className="absolute inset-0 z-10 flex items-center justify-center animate-pulse" style={{ background: "rgba(192,132,252,0.2)" }}>
-                        <span className="text-4xl" style={{ filter: "drop-shadow(0 0 20px rgba(192,132,252,0.8))" }}>✨</span>
+                        <Sparkles className="w-10 h-10" style={{ color: "#c084fc", filter: "drop-shadow(0 0 20px rgba(192,132,252,0.8))" }} />
                       </div>
                     )}
                     <div className="p-3">

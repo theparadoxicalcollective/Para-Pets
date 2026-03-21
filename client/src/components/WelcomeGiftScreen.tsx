@@ -4,6 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import coinIconImg from "@assets/icon_coin.png";
 import giftTreasureIcon from "@assets/generated_images/icon_gift_treasure.png";
 import eggMagicIcon from "@assets/generated_images/icon_egg_magic.png";
+import powerupBagIconWG from "@assets/generated_images/icon_powerup_bag.png";
 
 interface RewardItem {
   id: string;
@@ -124,7 +125,7 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
             animation: "ping 1s ease-out forwards",
             opacity: 0.9,
           }}
-        >✨</div>
+        >✦</div>
       ))}
 
       {phase === "loading" ? (
@@ -297,7 +298,7 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
                       >
                         {displayImg
                           ? <img src={displayImg} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-                          : item.type === "pet" ? <img src={eggMagicIcon} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} /> : <span style={{ fontSize: 20 }}>✨</span>
+                          : item.type === "pet" ? <img src={eggMagicIcon} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} /> : <img src={powerupBagIconWG} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />
                         }
                       </div>
                       <div>

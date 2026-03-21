@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { Sparkles, Wind } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -444,7 +445,9 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                   className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center"
                   style={{ animation: accessoryFlash === "equip" ? "accEquipFlash 0.7s ease-out forwards" : "accUnequipFlash 0.6s ease-out forwards" }}
                 >
-                  <span style={{ fontSize: "32px" }}>{accessoryFlash === "equip" ? "✨" : "💨"}</span>
+                  {accessoryFlash === "equip"
+                    ? <Sparkles style={{ width: 32, height: 32, color: "#f0c040", filter: "drop-shadow(0 0 8px rgba(240,192,64,0.9))" }} />
+                    : <Wind style={{ width: 32, height: 32, color: "#94a3b8", filter: "drop-shadow(0 0 6px rgba(148,163,184,0.7))" }} />}
                 </div>
               )}
               <div className="grid grid-cols-3 gap-2">
@@ -617,7 +620,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                   {confirmItem.imageUrl ? (
                     <img src={confirmItem.imageUrl} alt={confirmItem.name} className="w-full h-full object-contain" />
                   ) : isSpecial ? (
-                    <span className="text-2xl">✨</span>
+                    <Sparkles className="w-7 h-7" style={{ color: "#f0c040" }} />
                   ) : (
                     <img src={powerupBagIcon} alt="" style={{ width: 32, height: 32, objectFit: "contain" }} />
                   )}

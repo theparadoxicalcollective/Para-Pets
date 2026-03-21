@@ -947,7 +947,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
               {caughtItem.imageUrl ? (
                 <img src={caughtItem.imageUrl} alt="" className="w-20 h-20 object-contain" data-testid="img-caught-fish" />
               ) : (
-                <span className="text-5xl">🐟</span>
+                <img src={fishIconImg} alt="" className="w-16 h-16 object-contain" />
               )}
             </div>
             <h3 className="font-fantasy text-lg tracking-widest" style={{ color: ACCENT, textShadow: `0 0 12px ${ACCENT}60` }} data-testid="text-caught-fish-name">
@@ -973,7 +973,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
             border: "2px solid rgba(239,115,68,0.5)",
             animation: "catchPop 0.4s ease-out",
           }}>
-            <span className="text-5xl" style={{ display: "block", animation: "missWiggle 0.6s ease-in-out" }}>💨</span>
+            <img src={brokenRodIcon} alt="" style={{ width: 64, height: 64, objectFit: "contain", display: "block", animation: "missWiggle 0.6s ease-in-out" }} />
             <h3 className="font-fantasy text-lg tracking-widest" style={{ color: "#ef7344" }}>
               It got away!
             </h3>
@@ -1098,7 +1098,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           {ghostPos.item.imageUrl ? (
             <img src={ghostPos.item.imageUrl} alt="" className="w-10 h-10 object-contain" />
           ) : (
-            <span className="text-2xl">{ghostPos.item.fishingType === "pole" ? "🎣" : "🪱"}</span>
+            <img src={ghostPos.item.fishingType === "pole" ? poleIcon : baitIcon} alt="" style={{ width: 32, height: 32, objectFit: "contain" }} />
           )}
         </div>
       )}
@@ -1230,7 +1230,7 @@ function EquipPanel({
                       ) : item.imageUrl ? (
                         <img src={item.imageUrl} alt="" className="w-full h-full object-contain" />
                       ) : (
-                        <span className="text-xl">{slot === "pole" ? "🎣" : "🪱"}</span>
+                        <img src={slot === "pole" ? poleIcon : baitIcon} alt="" className="w-full h-full object-contain opacity-60" />
                       )}
                     </div>
                     {slot === "pole" && !isBroken && item.poleMaxUses != null && item.poleUsesLeft != null && (() => {
@@ -1317,7 +1317,7 @@ function FishInventoryPanel({
                   {item?.imageUrl ? (
                     <img src={item.imageUrl} alt="" className="w-full h-full object-contain" />
                   ) : (
-                    <span className="text-2xl">🐟</span>
+                    <img src={fishIconImg} alt="" className="w-full h-full object-contain opacity-60" />
                   )}
                 </div>
                 <span className="font-fantasy text-[8px] text-center truncate w-full" style={{ color: `${ACCENT}cc` }}>
@@ -1374,7 +1374,7 @@ function PondAdminPanel({
               {pondFish.map(pf => (
                 <div key={pf.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg mb-1" style={{ background: "rgba(0,0,0,0.3)" }}>
                   <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
-                    {pf.item?.imageUrl ? <img src={pf.item.imageUrl} alt="" className="w-full h-full object-contain" /> : <span>🐟</span>}
+                    {pf.item?.imageUrl ? <img src={pf.item.imageUrl} alt="" className="w-full h-full object-contain" /> : <img src={fishIconImg} alt="" className="w-full h-full object-contain opacity-60" />}
                   </div>
                   <span className="font-fantasy text-[10px] flex-1 truncate" style={{ color: `${ACCENT}cc` }}>{pf.item?.name || "Unknown"}</span>
                   {pf.item?.starRarity && (
@@ -1408,7 +1408,7 @@ function PondAdminPanel({
                   style={{ background: "rgba(0,0,0,0.2)", border: `1px solid ${ACCENT}15`, cursor: "pointer" }}
                 >
                   <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
-                    {fi.imageUrl ? <img src={fi.imageUrl} alt="" className="w-full h-full object-contain" /> : <span>🐟</span>}
+                    {fi.imageUrl ? <img src={fi.imageUrl} alt="" className="w-full h-full object-contain" /> : <img src={fishIconImg} alt="" className="w-full h-full object-contain opacity-60" />}
                   </div>
                   <span className="font-fantasy text-[10px] flex-1 text-left truncate" style={{ color: `${ACCENT}aa` }}>{fi.name}</span>
                   {fi.starRarity && (
@@ -1697,7 +1697,7 @@ function TensionReel({
           <span style={{ fontSize: held ? 11 : 9, fontWeight: 700, letterSpacing: "0.12em", color: held ? "#5eead4" : "rgba(200,160,80,0.9)", fontFamily: "Cinzel, serif", textShadow: held ? "0 0 8px rgba(94,234,212,0.9)" : "0 1px 2px rgba(0,0,0,0.8)", pointerEvents: "none", transition: "font-size 0.1s ease" }}>
             {held ? "REELING" : "HOLD"}
           </span>
-          <span style={{ fontSize: 20, pointerEvents: "none", filter: held ? "drop-shadow(0 0 8px rgba(94,234,212,0.9))" : undefined, transition: "filter 0.1s ease" }}>🎣</span>
+          <img src={poleIcon} alt="" style={{ width: 22, height: 22, objectFit: "contain", pointerEvents: "none", filter: held ? "drop-shadow(0 0 8px rgba(94,234,212,0.9)) brightness(1.4)" : undefined, transition: "filter 0.1s ease" }} />
         </button>
       </div>
     </div>

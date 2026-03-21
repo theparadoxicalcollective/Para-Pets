@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import petHouseBg from "@assets/generated_images/pet_world_bg.png";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
+import powerupBagIconPDP from "@assets/generated_images/icon_powerup_bag.png";
 
 interface PlayerDetailPanelProps {
   userId: string;
@@ -347,7 +348,7 @@ export default function PlayerDetailPanel({ userId, onClose }: PlayerDetailPanel
                         {badge.imageUrl ? (
                           <img src={badge.imageUrl} alt={badge.name} className="w-full h-full object-contain p-1" />
                         ) : (
-                          <span style={{ fontSize: 24 }}>🏅</span>
+                          <img src={petPawIcon} alt="" style={{ width: 24, height: 24, objectFit: "contain", opacity: 0.55 }} />
                         )}
                       </div>
                       <p
@@ -408,7 +409,7 @@ export default function PlayerDetailPanel({ userId, onClose }: PlayerDetailPanel
                         {acc.imageUrl ? (
                           <img src={acc.imageUrl} alt="" className="w-full h-full object-contain" />
                         ) : (
-                          <span style={{ fontSize: 22 }}>💍</span>
+                          <img src={powerupBagIconPDP} alt="" style={{ width: 22, height: 22, objectFit: "contain" }} />
                         )}
                       </div>
                       <p

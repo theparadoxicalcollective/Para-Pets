@@ -659,11 +659,11 @@ function AdminItemForm({
                   style={inputStyle}
                 >
                   <option value="__custom__">— Custom / None —</option>
-                  <option value="Lazer">⚡ Lazer</option>
-                  <option value="Bubble">🫧 Bubble</option>
-                  <option value="Heal Self">💚 Heal Self</option>
-                  <option value="Heal Party">💚 Heal Party</option>
-                  <option value="Poison">☠️ Poison</option>
+                  <option value="Lazer">Lazer</option>
+                  <option value="Bubble">Bubble</option>
+                  <option value="Heal Self">Heal Self</option>
+                  <option value="Heal Party">Heal Party</option>
+                  <option value="Poison">Poison</option>
                 </select>
                 <input
                   data-testid="input-special-skill"

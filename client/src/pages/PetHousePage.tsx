@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Star, ShoppingBag } from "lucide-react";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import PetWorldPage from "@/pages/PetWorldPage";
@@ -11,6 +12,8 @@ import aquariumBg from "@assets/bg_aquarium.png";
 import fishbowlIconImg from "@assets/icon_fishbowl.png";
 import globeWorldIconImg from "@assets/icon_globe_world.png";
 import forestHomeIconImg from "@assets/icon_forest_home.png";
+import powerupBagIcon from "@assets/generated_images/icon_powerup_bag.png";
+import fishCommonIconPH from "@assets/generated_images/icon_fish_common.png";
 
 interface PetHousePageProps {
   user: {
@@ -283,7 +286,7 @@ export default function PetHousePage({ user: initialUser }: PetHousePageProps) {
             {draggingEdible.imageUrl ? (
               <img src={draggingEdible.imageUrl} alt="" className="w-full h-full object-contain" />
             ) : (
-              <span className="text-2xl">🍎</span>
+              <img src={powerupBagIcon} alt="" style={{ width: 40, height: 40, objectFit: "contain", opacity: 0.9 }} />
             )}
           </div>
         </div>
@@ -345,19 +348,19 @@ function FeedView({
             <p className="font-fantasy text-[#86efac] text-base tracking-wider text-center">How to Feed</p>
             <div className="flex flex-col gap-3 w-full">
               <div className="flex items-start gap-3">
-                <span className="text-xl flex-shrink-0">🍎</span>
+                <img src={powerupBagIcon} alt="" style={{ width: 22, height: 22, objectFit: "contain", flexShrink: 0, marginTop: 2 }} />
                 <p className="font-fantasy text-[#c8b896] text-[11px] tracking-wide leading-relaxed">
                   Drag an edible item from the row below and drop it onto your pet.
                 </p>
               </div>
               <div className="flex items-start gap-3">
-                <span className="text-xl flex-shrink-0">⭐</span>
+                <Star className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: "#f0c040" }} />
                 <p className="font-fantasy text-[#c8b896] text-[11px] tracking-wide leading-relaxed">
                   Each edible gives your pet level-up points. Collect enough points and your pet will level up!
                 </p>
               </div>
               <div className="flex items-start gap-3">
-                <span className="text-xl flex-shrink-0">🛒</span>
+                <ShoppingBag className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: "#86efac" }} />
                 <p className="font-fantasy text-[#c8b896] text-[11px] tracking-wide leading-relaxed">
                   Buy more edibles from the shop in the world your pet came from.
                 </p>
@@ -510,7 +513,7 @@ function FeedView({
                     {edible.imageUrl ? (
                       <img src={edible.imageUrl} alt="" className="w-full h-full object-contain pointer-events-none" />
                     ) : (
-                      <span className="text-2xl pointer-events-none">🍎</span>
+                      <img src={powerupBagIcon} alt="" style={{ width: 32, height: 32, objectFit: "contain", pointerEvents: "none" }} />
                     )}
                   </div>
                   <p
@@ -1080,7 +1083,7 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
         >
           {f.imageUrl
             ? <img src={f.imageUrl} alt={f.name} style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none", userSelect: "none", transform: ((f.facingDirection !== "left") !== f.facingRight) ? "scaleX(-1)" : undefined }} draggable={false} />
-            : <span style={{ fontSize: 34, lineHeight: 1 }}>🐟</span>}
+            : <img src={fishCommonIconPH} alt="" style={{ width: 34, height: 34, objectFit: "contain", opacity: 0.7, pointerEvents: "none", userSelect: "none" }} draggable={false} />}
         </button>
         );
       })}
@@ -1189,12 +1192,12 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
                       <div style={{ width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
                         {item?.imageUrl
                           ? <img src={item.imageUrl} alt="" draggable={false} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-                          : <span style={{ fontSize: 26 }}>🐟</span>}
+                          : <img src={fishCommonIconPH} alt="" draggable={false} style={{ width: "100%", height: "100%", objectFit: "contain", opacity: 0.7 }} />}
                       </div>
                       <span className="font-fantasy text-[8px] text-center leading-tight w-full truncate" style={{ color: "rgba(94,234,212,0.82)" }}>{item?.name || "Unknown"}</span>
                       <div className="flex items-center gap-1">
                         <span className="font-fantasy text-[7px]" style={{ color: "rgba(94,234,212,0.48)" }}>×{count}</span>
-                        {inTank > 0 && <span style={{ fontSize: 9 }}>🌊</span>}
+                        {inTank > 0 && <span className="font-fantasy text-[7px]" style={{ color: "rgba(94,234,212,0.6)", fontWeight: "bold" }}>✓</span>}
                       </div>
                     </div>
                   );
@@ -1228,7 +1231,7 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
               filter: "drop-shadow(0 0 10px rgba(94,234,212,0.5))" }}>
               {pendingRemove.imageUrl
                 ? <img src={pendingRemove.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} draggable={false} />
-                : <span style={{ fontSize: 40 }}>🐟</span>}
+                : <img src={fishCommonIconPH} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", opacity: 0.7 }} draggable={false} />}
             </div>
 
             <p className="font-fantasy text-[11px] tracking-wider text-center mb-1" style={{ color: AQ_TEAL }}>
@@ -1291,7 +1294,7 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
         }}>
           {dragging.fish.imageUrl
             ? <img src={dragging.fish.imageUrl} alt="" style={{ width: 40, height: 40, objectFit: "contain" }} draggable={false} />
-            : <span style={{ fontSize: 28 }}>🐟</span>}
+            : <img src={fishCommonIconPH} alt="" style={{ width: 40, height: 40, objectFit: "contain", opacity: 0.7 }} draggable={false} />}
         </div>
       )}
     </div>

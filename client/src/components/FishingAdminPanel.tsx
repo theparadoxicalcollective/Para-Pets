@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { readFileAsDataUrl } from "@/lib/utils";
 import fishCommonIcon from "@assets/generated_images/icon_fish_common.png";
 import fishRodIcon from "@assets/generated_images/icon_fish_rod.png";
+import baitIconImg from "@assets/icon_fishing_bait.png";
 import { Plus, Trash2, ArrowLeft, Save } from "lucide-react";
 
 interface FishingItem {
@@ -386,7 +387,7 @@ export default function FishingAdminPanel() {
                   ) : item.fishingType === "pole" ? (
                     <img src={fishRodIcon} alt="" style={{ width: 32, height: 32, objectFit: "contain" }} />
                   ) : item.fishingType === "bait" ? (
-                    <span className="text-2xl">🪱</span>
+                    <img src={baitIconImg} alt="" style={{ width: 32, height: 32, objectFit: "contain" }} />
                   ) : (
                     <img src={fishCommonIcon} alt="" style={{ width: 32, height: 32, objectFit: "contain" }} />
                   )}
@@ -613,7 +614,7 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
                     cursor: "pointer",
                   }}
                 >
-                  {t === "fish" ? "🐟 Fish" : t === "pole" ? "🎣 Pole" : "🪱 Bait"}
+                  {t === "fish" ? "Fish" : t === "pole" ? "Pole" : "Bait"}
                 </button>
               ))}
             </div>
@@ -668,7 +669,7 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
                         cursor: "pointer",
                       }}
                     >
-                      {zone === "full" ? "🌊 Full Page" : "🪨 Bottom"}
+                      {zone === "full" ? "Full Page" : "Bottom"}
                     </button>
                   ))}
                 </div>

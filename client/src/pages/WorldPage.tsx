@@ -7,7 +7,9 @@ import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import coinIconImg from "@assets/icon_coin.png";
-import { Plus, Minus, Trash2, X, MapPin, Package, Pencil, Settings, Swords, FlipHorizontal, Copy, Waves, Palette } from "lucide-react";
+import fishCommonIconWp from "@assets/generated_images/icon_fish_common.png";
+import fishRodIconWp from "@assets/icon_fishing_pole.png";
+import { Plus, Minus, Trash2, X, MapPin, Package, Pencil, Settings, Swords, FlipHorizontal, Copy, Waves, Palette, Heart, Droplets } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 import ExploreAdminPanel from "@/components/ExploreAdminPanel";
 import BattleArena, { BattlePotionSlot } from "@/components/BattleArena";
@@ -1853,7 +1855,7 @@ export default function WorldPage({ user }: WorldPageProps) {
             }}
             title={fishBarrel ? "Remove Fish Market" : "Add Fish Market"}
           >
-            🪣
+            <img src={fishBarrelImg} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />
           </button>
           <button
             data-testid="button-add-location"
@@ -3309,7 +3311,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                         fontSize: "22px",
                       }}
                     >
-                      🎣
+                      <img src={fishRodIconWp} alt="" style={{ width: 22, height: 22, objectFit: "contain" }} />
                     </button>
                   )}
                   {activeLoc.type === "explore" && (
@@ -3718,9 +3720,9 @@ export default function WorldPage({ user }: WorldPageProps) {
                         {slot ? (
                           slot.imageUrl ? (
                             <img src={slot.imageUrl} alt={slot.name} className="w-8 h-8 object-contain" />
-                          ) : (
-                            <span className="text-xl">{isHeal ? "❤️" : "💧"}</span>
-                          )
+                          ) : isHeal
+                          ? <Heart className="w-5 h-5" style={{ color: "#f87171", fill: "rgba(248,113,113,0.3)" }} />
+                          : <Droplets className="w-5 h-5" style={{ color: "#a78bfa" }} />
                         ) : (
                           <span className="text-2xl" style={{ color: isHover && canAcceptDrag ? "rgba(167,139,250,0.7)" : "rgba(255,255,255,0.1)" }}>+</span>
                         )}
@@ -3777,9 +3779,9 @@ export default function WorldPage({ user }: WorldPageProps) {
                             >
                               {group.imageUrl ? (
                                 <img src={group.imageUrl} alt={group.name} className="w-10 h-10 object-contain pointer-events-none" />
-                              ) : (
-                                <span className="text-2xl pointer-events-none">{isHeal ? "❤️" : "💧"}</span>
-                              )}
+                              ) : isHeal
+                              ? <Heart className="w-6 h-6 pointer-events-none" style={{ color: "#f87171", fill: "rgba(248,113,113,0.3)" }} />
+                              : <Droplets className="w-6 h-6 pointer-events-none" style={{ color: "#a78bfa" }} />}
                             </div>
                             {/* Quantity badge */}
                             <div
@@ -3820,7 +3822,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                     boxShadow: "0 4px 24px rgba(239,68,68,0.35)",
                   }}
                 >
-                  ⚔ BEGIN BATTLE
+                  <Swords className="w-4 h-4 inline-block mr-1 -mt-0.5" />BEGIN BATTLE
                 </button>
               </div>
             </div>
@@ -3842,9 +3844,9 @@ export default function WorldPage({ user }: WorldPageProps) {
               >
                 {prepDrag.imageUrl ? (
                   <img src={prepDrag.imageUrl} alt={prepDrag.name} className="w-10 h-10 object-contain" />
-                ) : (
-                  <span className="text-2xl">{(prepDrag.healthRestored ?? 0) > 0 ? "❤️" : "💧"}</span>
-                )}
+                ) : (prepDrag.healthRestored ?? 0) > 0
+                ? <Heart className="w-6 h-6" style={{ color: "#f87171", fill: "rgba(248,113,113,0.3)" }} />
+                : <Droplets className="w-6 h-6" style={{ color: "#a78bfa" }} />}
               </div>
             )}
           </div>
@@ -4004,7 +4006,7 @@ function PondAdminModal({ locationId, accent, onClose }: { locationId: string; a
       >
         <div className="flex items-center justify-between px-4 py-3 flex-shrink-0" style={{ borderBottom: `1px solid ${accent}25` }}>
           <h3 className="font-fantasy text-sm tracking-widest" style={{ color: accent, textShadow: `0 0 10px ${accent}40` }}>
-            🎣 Pond Stocking
+            <img src={fishRodIconWp} alt="" style={{ width: 16, height: 16, objectFit: "contain", display: "inline-block", verticalAlign: "middle", marginRight: 6 }} />Pond Stocking
           </h3>
           <button
             data-testid="button-close-pond-admin"
@@ -4023,7 +4025,7 @@ function PondAdminModal({ locationId, accent, onClose }: { locationId: string; a
             </div>
           ) : pondFish.length === 0 ? (
             <div className="text-center py-6">
-              <p className="text-3xl mb-2">🎣</p>
+              <img src={fishRodIconWp} alt="" style={{ width: 40, height: 40, objectFit: "contain", margin: "0 auto 8px", display: "block", opacity: 0.7 }} />
               <p className="font-fantasy text-xs tracking-wider" style={{ color: `${accent}88` }}>Pond is empty — stock some fish!</p>
             </div>
           ) : (
@@ -4038,7 +4040,7 @@ function PondAdminModal({ locationId, accent, onClose }: { locationId: string; a
                   {entry.item?.imageUrl ? (
                     <img src={entry.item.imageUrl} alt="" className="w-full h-full object-contain" />
                   ) : (
-                    <span className="text-lg">🐟</span>
+                    <img src={fishCommonIconWp} alt="" style={{ width: 24, height: 24, objectFit: "contain", opacity: 0.6 }} />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -4090,7 +4092,7 @@ function PondAdminModal({ locationId, accent, onClose }: { locationId: string; a
                     style={{ background: `${accent}08`, border: `1px solid ${accent}20`, cursor: "pointer" }}
                   >
                     <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ background: "rgba(0,0,0,0.3)" }}>
-                      {fish.imageUrl ? <img src={fish.imageUrl} alt="" className="w-full h-full object-contain" /> : <span>🐟</span>}
+                      {fish.imageUrl ? <img src={fish.imageUrl} alt="" className="w-full h-full object-contain" /> : <img src={fishCommonIconWp} alt="" className="w-full h-full object-contain opacity-60" />}
                     </div>
                     <div>
                       <p className="font-fantasy text-xs" style={{ color: accent }}>{fish.name}</p>

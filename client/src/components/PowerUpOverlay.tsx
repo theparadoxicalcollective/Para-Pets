@@ -1,4 +1,7 @@
 import { useEffect } from "react";
+import type { ReactNode } from "react";
+import { Star, Clock } from "lucide-react";
+import powerupBagIconPO from "@assets/generated_images/icon_powerup_bag.png";
 
 export type PowerUpEffectType = "stat" | "level" | "hatch";
 
@@ -13,7 +16,7 @@ const CONFIGS: Record<PowerUpEffectType, {
   color: string;
   colorRgb: string;
   bg: string;
-  icon: string;
+  icon: ReactNode;
   title: string;
   particleColors: string[];
 }> = {
@@ -21,7 +24,7 @@ const CONFIGS: Record<PowerUpEffectType, {
     color: "#4ade80",
     colorRgb: "74,222,128",
     bg: "rgba(74,222,128,0.08)",
-    icon: "💪",
+    icon: <img src={powerupBagIconPO} alt="" style={{ width: 88, height: 88, objectFit: "contain", filter: "drop-shadow(0 0 18px rgba(74,222,128,0.9)) drop-shadow(0 0 40px rgba(74,222,128,0.5))" }} />,
     title: "POWER UP!",
     particleColors: ["#4ade80", "#86efac", "#bbf7d0", "#22c55e", "#fff"],
   },
@@ -29,7 +32,7 @@ const CONFIGS: Record<PowerUpEffectType, {
     color: "#f0c040",
     colorRgb: "240,192,64",
     bg: "rgba(240,192,64,0.08)",
-    icon: "⭐",
+    icon: <Star style={{ width: 88, height: 88, color: "#f0c040", fill: "#f0c040", filter: "drop-shadow(0 0 18px rgba(240,192,64,0.9)) drop-shadow(0 0 40px rgba(240,192,64,0.5))" }} />,
     title: "LEVEL UP!",
     particleColors: ["#f0c040", "#fbbf24", "#fde68a", "#fcd34d", "#fff"],
   },
@@ -37,7 +40,7 @@ const CONFIGS: Record<PowerUpEffectType, {
     color: "#38bdf8",
     colorRgb: "56,189,248",
     bg: "rgba(56,189,248,0.08)",
-    icon: "⏰",
+    icon: <Clock style={{ width: 88, height: 88, color: "#38bdf8", filter: "drop-shadow(0 0 18px rgba(56,189,248,0.9)) drop-shadow(0 0 40px rgba(56,189,248,0.5))" }} />,
     title: "SPEED UP!",
     particleColors: ["#38bdf8", "#7dd3fc", "#bae6fd", "#0ea5e9", "#c4b5fd"],
   },
@@ -174,10 +177,11 @@ export default function PowerUpOverlay({ visible, effectType, label, onDone }: P
         {/* Big icon */}
         <div
           style={{
-            fontSize: 88,
             lineHeight: 1,
-            filter: `drop-shadow(0 0 24px rgba(${cfg.colorRgb},0.9)) drop-shadow(0 0 50px rgba(${cfg.colorRgb},0.5))`,
             animation: "puIconBounce 0.9s ease-out forwards",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
           {cfg.icon}

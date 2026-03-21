@@ -2,8 +2,9 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Swords, Star, Coins, X, ChevronRight, ArrowLeft, Heart, HelpCircle } from "lucide-react";
+import { Swords, Star, Coins, X, ChevronRight, ArrowLeft, Heart, HelpCircle, Droplets, Zap, Skull, Sparkles } from "lucide-react";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
+import powerupBagIconBA from "@assets/generated_images/icon_powerup_bag.png";
 import PetAnimator from "./PetAnimator";
 
 
@@ -1314,11 +1315,11 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                       cursor: mana >= MAX_MANA && !skillCooldown ? "pointer" : "not-allowed",
                     }}
                   >
-                    <span style={{ fontSize: 16, lineHeight: 1 }}>
-                      {pet.specialSkill === "Lazer" ? "⚡" :
-                       pet.specialSkill === "Bubble" ? "🫧" :
-                       pet.specialSkill === "Heal Self" || pet.specialSkill === "Heal Party" ? "💚" :
-                       pet.specialSkill === "Poison" ? "☠️" : "✨"}
+                    <span style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      {pet.specialSkill === "Lazer" ? <Zap className="w-4 h-4" style={{ color: "#facc15" }} /> :
+                       pet.specialSkill === "Bubble" ? <Droplets className="w-4 h-4" style={{ color: "#67e8f9" }} /> :
+                       pet.specialSkill === "Heal Self" || pet.specialSkill === "Heal Party" ? <Heart className="w-4 h-4" style={{ color: "#4ade80", fill: "rgba(74,222,128,0.3)" }} /> :
+                       pet.specialSkill === "Poison" ? <Skull className="w-4 h-4" style={{ color: "#a855f7" }} /> : <Sparkles className="w-4 h-4" style={{ color: "#e879f9" }} />}
                     </span>
                     <span className="text-[9px] font-fantasy tracking-wider"
                       style={{ color: mana >= MAX_MANA && !skillCooldown ? "#e9d5ff" : "#6b7280" }}>
@@ -1403,9 +1404,11 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                         <span className="text-white/20 text-lg">+</span>
                       ) : slot.imageUrl ? (
                         <img src={slot.imageUrl} alt={slot.name} className="w-7 h-7 object-contain" />
-                      ) : (
-                        <span className="text-lg">{isHeal ? "❤️" : isMana ? "💧" : "🧪"}</span>
-                      )}
+                      ) : isHeal
+                        ? <Heart className="w-5 h-5 fill-red-400/40" style={{ color: "#f87171" }} />
+                        : isMana
+                        ? <Droplets className="w-5 h-5" style={{ color: "#a78bfa" }} />
+                        : <img src={powerupBagIconBA} alt="" style={{ width: 20, height: 20, objectFit: "contain" }} />}
                       {!isEmpty && qty > 0 && (
                         <div className="absolute -bottom-0.5 -right-0.5 rounded-full text-[8px] font-bold px-1 min-w-[14px] text-center leading-none py-0.5"
                           style={{
@@ -1757,7 +1760,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               textShadow: "0 0 16px rgba(255,100,20,0.9), 0 0 6px rgba(255,60,0,0.7)",
               letterSpacing: "0.15em",
               animation: "focusedStreamWarn 0.45s ease-in-out infinite",
-            }}>⚡ FOCUSED ASSAULT ⚡</div>
+            }}><Zap className="inline-block w-3.5 h-3.5 mr-1 -mt-0.5" style={{ color: "#ff6a20" }} />FOCUSED ASSAULT<Zap className="inline-block w-3.5 h-3.5 ml-1 -mt-0.5" style={{ color: "#ff6a20" }} /></div>
           </div>
         )}
 

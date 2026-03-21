@@ -270,7 +270,7 @@ function HatchProgressBar({ hatchStartedAt, hatchTime }: { hatchStartedAt: strin
         style={{ color: isReady ? "#4ade80" : "#d4a017" }}
         data-testid="text-hatch-time"
       >
-        {isReady ? "✨ Tap to hatch! ✨" : timeLeft}
+        {isReady ? "Tap to hatch!" : timeLeft}
       </p>
     </div>
   );
@@ -668,10 +668,6 @@ function BagView({ items }: { items: InventoryItem[] }) {
               >
                 {selectedItem.imageUrl ? (
                   <img src={selectedItem.imageUrl} alt={selectedItem.name} className="w-full h-full object-contain rounded-lg" />
-                ) : selectedItem.type === "potion" ? (
-                  <span className="text-4xl">🧪</span>
-                ) : selectedItem.type === "accessory" ? (
-                  <span className="text-4xl">💍</span>
                 ) : (
                   <img src={powerupBagIcon} alt="" style={{ width: 52, height: 52, objectFit: "contain" }} />
                 )}

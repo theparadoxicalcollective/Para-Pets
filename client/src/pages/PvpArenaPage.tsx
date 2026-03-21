@@ -115,7 +115,9 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
         {/* Profile pic */}
         {me?.profileImage
           ? <img src={me.profileImage} className="w-9 h-9 rounded-full border border-purple-400/40 object-cover shrink-0" />
-          : <div className="w-9 h-9 rounded-full border border-purple-400/30 bg-purple-900/50 flex items-center justify-center text-sm shrink-0">👤</div>}
+          : <div className="w-9 h-9 rounded-full border border-purple-400/30 bg-purple-900/50 flex items-center justify-center shrink-0">
+              <img src={petPawIcon} alt="" style={{ width: 20, height: 20, objectFit: "contain", opacity: 0.5 }} />
+            </div>}
         <div className="flex-1 min-w-0">
           <div className="text-white/90 text-sm font-bold truncate">{me?.username ?? "—"}</div>
           <div className="text-yellow-400 text-[10px] tracking-wider">{me?.coins ?? 0} ✦</div>
@@ -136,7 +138,11 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
         {/* ── ARENA title ── */}
         <div className="text-center pt-4 pb-2 shrink-0">
           <div className="text-[10px] tracking-[0.4em] text-purple-400/70 mb-0.5">WELCOME TO THE</div>
-          <div className="text-2xl font-black tracking-[0.2em] text-white" style={{ textShadow: "0 0 30px rgba(167,139,250,0.6)" }}>⚔ PvP ARENA ⚔</div>
+          <div className="flex items-center justify-center gap-2 text-2xl font-black tracking-[0.2em] text-white" style={{ textShadow: "0 0 30px rgba(167,139,250,0.6)" }}>
+            <img src={swordImg} alt="" style={{ width: 22, height: 22, objectFit: "contain", transform: "scaleX(-1)", opacity: 0.85 }} />
+            PvP ARENA
+            <img src={swordImg} alt="" style={{ width: 22, height: 22, objectFit: "contain", opacity: 0.85 }} />
+          </div>
           {myBp > 0 && <div className="text-yellow-400/80 text-[10px] tracking-wider mt-1">Your battle points: {myBp}</div>}
         </div>
 
@@ -169,12 +175,18 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                     border: `1px solid ${i === 0 ? "rgba(251,191,36,0.2)" : i === 1 ? "rgba(156,163,175,0.15)" : i === 2 ? "rgba(180,83,9,0.15)" : "rgba(255,255,255,0.05)"}`,
                   }}
                 >
-                  <span className="text-sm font-black w-5 text-center" style={{ color: i === 0 ? "#fbbf24" : i === 1 ? "#9ca3af" : i === 2 ? "#b45309" : "#6b7280" }}>
-                    {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`}
-                  </span>
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 font-black text-[10px]" style={{
+                    background: i === 0 ? "rgba(251,191,36,0.25)" : i === 1 ? "rgba(156,163,175,0.2)" : i === 2 ? "rgba(180,83,9,0.2)" : "rgba(107,114,128,0.1)",
+                    border: `1px solid ${i === 0 ? "rgba(251,191,36,0.5)" : i === 1 ? "rgba(156,163,175,0.4)" : i === 2 ? "rgba(180,83,9,0.4)" : "rgba(107,114,128,0.2)"}`,
+                    color: i === 0 ? "#fbbf24" : i === 1 ? "#d1d5db" : i === 2 ? "#d97706" : "#6b7280",
+                  }}>
+                    {i + 1}
+                  </div>
                   {entry.profileImage
                     ? <img src={entry.profileImage} className="w-8 h-8 rounded-full object-cover border border-white/10 shrink-0" />
-                    : <div className="w-8 h-8 rounded-full bg-purple-900/50 border border-purple-400/20 flex items-center justify-center text-xs shrink-0">👤</div>}
+                    : <div className="w-8 h-8 rounded-full bg-purple-900/50 border border-purple-400/20 flex items-center justify-center shrink-0">
+                        <img src={petPawIcon} alt="" style={{ width: 18, height: 18, objectFit: "contain", opacity: 0.5 }} />
+                      </div>}
                   <div className="flex-1 min-w-0">
                     <div className="text-white/90 text-xs font-bold truncate">{entry.username}</div>
                     <div className="text-white/30 text-[9px]">{entry.wins}W · {entry.losses}L</div>
@@ -343,7 +355,9 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                   >
                     {opp.profileImage
                       ? <img src={opp.profileImage} className="w-12 h-12 rounded-full object-cover border border-red-500/30 shrink-0" />
-                      : <div className="w-12 h-12 rounded-full bg-red-900/40 border border-red-500/20 flex items-center justify-center text-lg shrink-0">👤</div>}
+                      : <div className="w-12 h-12 rounded-full bg-red-900/40 border border-red-500/20 flex items-center justify-center shrink-0">
+                          <img src={petPawIcon} alt="" style={{ width: 26, height: 26, objectFit: "contain", opacity: 0.5 }} />
+                        </div>}
                     <div className="flex-1 text-left">
                       <div className="text-white/90 text-sm font-bold">{opp.username}</div>
                       <div className="text-white/30 text-[9px]">{opp.petInventoryIds.length} pets in group</div>

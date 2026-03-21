@@ -5,6 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import fishCommonIcon from "@assets/generated_images/icon_fish_common.png";
 import fishRodIcon from "@assets/generated_images/icon_fish_rod.png";
+import fishBarrelImg from "@assets/fish_barrel.png";
 import { X, ShoppingBag, Coins } from "lucide-react";
 import coinIconImg from "@assets/icon_coin.png";
 
@@ -152,7 +153,7 @@ export default function SellFishPage({ user, worldId, onClose, onUserUpdate }: S
         style={{ borderBottom: `1px solid ${ACCENT}25`, paddingTop: "max(env(safe-area-inset-top, 0px) + 10px, 48px)", paddingBottom: 12 }}
       >
         <div className="flex items-center gap-2">
-          <span className="text-2xl">🪣</span>
+          <img src={fishBarrelImg} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />
           <div>
             <h2 className="font-fantasy text-base tracking-widest" style={{ color: ACCENT }}>Fish Market</h2>
             <p className="font-fantasy text-[10px]" style={{ color: `${ACCENT}60` }}>Drag or tap fish to sell</p>
