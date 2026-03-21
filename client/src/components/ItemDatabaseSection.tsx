@@ -99,6 +99,7 @@ export default function ItemDatabaseSection() {
     setShowForm(false);
     setEditingItem(null);
     queryClient.invalidateQueries({ queryKey: ["/api/admin/shop-items-all"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
     WORLD_OPTIONS.forEach(w => {
       queryClient.invalidateQueries({ queryKey: ["/api/shop", w.id] });
     });

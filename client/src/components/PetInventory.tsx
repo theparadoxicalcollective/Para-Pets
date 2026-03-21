@@ -27,6 +27,7 @@ interface InventoryItem {
   statBoostAmount: number | null;
   specialType: string | null;
   specialAmount: number | null;
+  specialSkill: string | null;
   healthRestored: number | null;
   hatchStartedAt: string | null;
   isHatched: boolean;

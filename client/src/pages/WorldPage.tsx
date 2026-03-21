@@ -350,7 +350,7 @@ export default function WorldPage({ user }: WorldPageProps) {
 
   const { data: inventory = [] } = useQuery<InventoryItem[]>({
     queryKey: ["/api/inventory"],
-    enabled: showShop,
+    enabled: showShop || showBattlePrep,
     staleTime: 0,
   });
 

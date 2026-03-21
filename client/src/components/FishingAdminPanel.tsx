@@ -450,6 +450,7 @@ export default function FishingAdminPanel() {
             setShowForm(false);
             setEditingItem(null);
             queryClient.invalidateQueries({ queryKey: ["/api/admin/shop-items-all"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
           }}
         />
       )}
@@ -507,7 +508,7 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
   };
 
   const handleSubmit = async () => {
-    if (!imagePreview) {
+    if (!imagePreview && fishingType !== "bait") {
       toast({ title: "Image required", description: "Upload an image", variant: "destructive" });
       return;
     }
@@ -576,7 +577,7 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
 
         <div className="space-y-3">
           <div>
-            <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Item Image (PNG or GIF)</label>
+            <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Item Image (PNG or GIF){fishingType === "bait" ? " — optional for bait" : ""}</label>
             <div className="flex items-center gap-2">
               <div className="w-16 h-16 rounded-md flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(96,165,250,0.3)" }} onClick={() => document.getElementById("fishing-img-input")?.click()}>
                 {imagePreview ? <img src={imagePreview} alt="" className="w-full h-full object-contain" /> : <img src={fishCommonIcon} alt="" style={{ width: 32, height: 32, objectFit: "contain", opacity: 0.6 }} />}
