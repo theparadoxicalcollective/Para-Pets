@@ -153,8 +153,9 @@ function LevelUpBurst({ newLevel, petName, petTemplateId }: { newLevel: number; 
               petTemplateId={petTemplateId}
               mode="idle"
               view="front"
-              size={420}
-              style={{ flexShrink: 0, animation: "glvlGlow 0.8s 0.3s ease-in-out infinite" }}
+              size={1000}
+              className="w-full"
+              style={{ aspectRatio: "1/1", animation: "glvlGlow 0.8s 0.3s ease-in-out infinite" }}
             />
           ) : (
             <div className="flex items-center justify-center">

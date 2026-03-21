@@ -440,15 +440,16 @@ export default function PetPowerUpModal({
             "--glow": dragging ? itemColor(dragging.item) + "60" : "#f0c04060",
           } as any}
         >
-          {/* Pet image/animator — no restricting wrapper; overflow visible so pet fills zone */}
+          {/* Pet image/animator — full-width like home page active pet */}
           {petTemplateId ? (
             <PetAnimator
               petTemplateId={petTemplateId}
               mode="idle"
               view="front"
-              size={460}
+              size={1000}
+              className="w-full"
               style={{
-                flexShrink: 0,
+                aspectRatio: "1/1",
                 animation: petAnim === "bounce" ? "puMBounce 0.6s ease-out forwards" :
                            petAnim === "flash"  ? "puMFlash 0.5s ease-out forwards" : undefined,
               }}
