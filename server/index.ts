@@ -203,6 +203,13 @@ app.use((req, res, next) => {
 
   // All heavy seeding/refresh runs in the background — does NOT block requests
   (async () => {
+  // Schema migrations must run first, before any seeding
+  try {
+    await db.execute(sql`ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS bait_rarity_boost_star INTEGER`);
+  } catch (err) {
+    console.error("bait_rarity_boost_star migration error (non-fatal):", err);
+  }
+
   try {
     console.log('Initializing Stripe...');
     const databaseUrl = process.env.DATABASE_URL;

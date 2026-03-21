@@ -60,6 +60,7 @@ export const shopItems = pgTable("shop_items", {
   poleSlowdown4: real("pole_slowdown_4"),
   poleSlowdown5: real("pole_slowdown_5"),
   baitCatchBoost: integer("bait_catch_boost"),
+  baitRarityBoostStar: integer("bait_rarity_boost_star"),
   fishSwimZone: text("fish_swim_zone"),
   skillDamagePercent: integer("skill_damage_percent"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),

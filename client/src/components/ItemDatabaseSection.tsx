@@ -31,6 +31,8 @@ export interface ShopItemFull {
   fishingType: string | null;
   starRarity: number | null;
   baitCatchBoost: number | null;
+  rarityBoostPercent: number | null;
+  baitRarityBoostStar: number | null;
   poleMaxUses: number | null;
   createdAt: string;
 }
@@ -313,7 +315,7 @@ export default function ItemDatabaseSection() {
                             : item.fishingType === "pole"
                             ? `Pole${item.poleMaxUses ? ` · ${item.poleMaxUses} uses` : " · Unlimited"}`
                             : item.fishingType === "bait"
-                            ? `Bait${item.baitCatchBoost ? ` · +${item.baitCatchBoost}% rare boost` : ""}`
+                            ? `Bait${item.rarityBoostPercent ? ` · +${item.rarityBoostPercent}% on ${"★".repeat(item.baitRarityBoostStar ?? 3)}` : ""}`
                             : (item.fishingType ?? "fishing")}
                         </span>
                       )}
@@ -382,6 +384,8 @@ function AdminItemForm({
   const [fishingType, setFishingType] = useState(item?.fishingType || "fish");
   const [starRarity, setStarRarity] = useState(item?.starRarity?.toString() || "1");
   const [baitCatchBoost, setBaitCatchBoost] = useState(item?.baitCatchBoost?.toString() || "");
+  const [rarityBoostPercent, setRarityBoostPercent] = useState(item?.rarityBoostPercent?.toString() || "0");
+  const [baitRarityBoostStar, setBaitRarityBoostStar] = useState(item?.baitRarityBoostStar?.toString() || "3");
   const [poleMaxUses, setPoleMaxUses] = useState(item?.poleMaxUses?.toString() || "");
   const [rarity, setRarity] = useState(item?.rarity?.toString() || "1");
   const [hatchTime, setHatchTime] = useState(item?.hatchTime?.toString() || "1");
@@ -499,20 +503,28 @@ function AdminItemForm({
           if (fishingType === "fish") {
             payload.starRarity = parseInt(starRarity) || 1;
             payload.baitCatchBoost = null;
+            payload.rarityBoostPercent = null;
+            payload.baitRarityBoostStar = null;
             payload.poleMaxUses = null;
           } else if (fishingType === "bait") {
             payload.starRarity = null;
-            payload.baitCatchBoost = parseInt(baitCatchBoost) || null;
+            payload.baitCatchBoost = null;
+            payload.rarityBoostPercent = parseInt(rarityBoostPercent) || 0;
+            payload.baitRarityBoostStar = parseInt(baitRarityBoostStar) || null;
             payload.poleMaxUses = null;
           } else if (fishingType === "pole") {
             payload.starRarity = null;
             payload.baitCatchBoost = null;
+            payload.rarityBoostPercent = null;
+            payload.baitRarityBoostStar = null;
             payload.poleMaxUses = parseInt(poleMaxUses) || null;
           }
         } else {
           payload.fishingType = null;
           payload.starRarity = null;
           payload.baitCatchBoost = null;
+          payload.rarityBoostPercent = null;
+          payload.baitRarityBoostStar = null;
           payload.poleMaxUses = null;
         }
       }
@@ -902,19 +914,39 @@ function AdminItemForm({
                 </div>
               )}
               {fishingType === "bait" && (
-                <div>
-                  <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Rare Catch Boost (%)</label>
-                  <input
-                    data-testid="input-bait-catch-boost"
-                    type="number"
-                    value={baitCatchBoost}
-                    onChange={(e) => setBaitCatchBoost(e.target.value)}
-                    placeholder="e.g. 20"
-                    min="0"
-                    className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
-                    style={inputStyle}
-                  />
-                  <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">% boost to rare fish catch chance when this bait is equipped</p>
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Rarity Boost (%)</label>
+                    <input
+                      data-testid="input-bait-boost"
+                      type="number"
+                      value={rarityBoostPercent}
+                      onChange={(e) => setRarityBoostPercent(e.target.value)}
+                      placeholder="e.g. 40"
+                      min="0"
+                      max="500"
+                      className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div>
+                    <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Target Star Rarity</label>
+                    <select
+                      data-testid="select-bait-rarity-star"
+                      value={baitRarityBoostStar}
+                      onChange={(e) => setBaitRarityBoostStar(e.target.value)}
+                      className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+                      style={inputStyle}
+                    >
+                      <option value="2">★★ 2 Stars</option>
+                      <option value="3">★★★ 3 Stars</option>
+                      <option value="4">★★★★ 4 Stars</option>
+                      <option value="5">★★★★★ 5 Stars</option>
+                    </select>
+                    <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">
+                      When this bait is equipped, the selected star rarity fish will appear {rarityBoostPercent || "0"}% more often than other fish.
+                    </p>
+                  </div>
                 </div>
               )}
               {fishingType === "pole" && (

@@ -625,6 +625,7 @@ export async function registerRoutes(
         fishingType: shopItem?.fishingType ?? null,
         rareCatchBoostPercent: shopItem?.rareCatchBoostPercent ?? null,
         rarityBoostPercent: shopItem?.rarityBoostPercent ?? null,
+        baitRarityBoostStar: shopItem?.baitRarityBoostStar ?? null,
         baitCatchBoost: shopItem?.baitCatchBoost ?? null,
         poleMaxUses: shopItem?.poleMaxUses ?? null,
         poleUsesLeft: inv.poleUsesLeft ?? null,
@@ -3211,11 +3212,13 @@ export async function registerRoutes(
             poleBoost = pole?.rareCatchBoostPercent ?? 0;
           }
         }
+        let baitRarityBoostStar = 0;
         if (equipment?.baitInventoryId) {
           const inv = await storage.getInventoryItemById(equipment.baitInventoryId);
           if (inv) {
             const bait = await storage.getShopItem(inv.shopItemId);
             baitBoost = bait?.rarityBoostPercent ?? 0;
+            baitRarityBoostStar = bait?.baitRarityBoostStar ?? 0;
           }
         }
         const baseWeights: Record<number, number> = { 1: 60, 2: 24, 3: 10, 4: 4, 5: 2 };
@@ -3229,7 +3232,10 @@ export async function registerRoutes(
         const fishPool = pondEntries.map(entry => {
           const star = parseInt(String(entry.item?.starRarity ?? 1), 10) || 1;
           let weight = (baseWeights[star] ?? 10) / (rarityCounts[star] ?? 1);
-          if (star >= 3) weight += (baitBoost / 100) * weight;
+          // Apply bait boost only to the specific target star rarity
+          if (baitBoost > 0 && baitRarityBoostStar > 0 && star === baitRarityBoostStar) {
+            weight += (baitBoost / 100) * weight;
+          }
           if (star >= 4) weight += (poleBoost / 100) * weight;
           return { entry, weight: Math.max(0.01, weight) };
         });
