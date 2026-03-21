@@ -387,31 +387,29 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
 
     // Per-rarity tuning — all rates are per-second, scaled by delta-time each frame
 
-    // Starting catch progress — starts well above zero so the fish isn't lost on first release
-    const startProgress   = [0.45,  0.42,  0.30,  0.20,  0.12 ];
+    // Starting catch progress — enough cushion that the player has time to react
+    const startProgress   = [0.52,  0.46,  0.38,  0.28,  0.18 ];
 
     // Catch progress gain per second while holding
     const reelRates       = [0.300, 0.260, 0.140, 0.095, 0.080];
 
-    // Tension rise per second while holding.
-    // Ratios vs catch rate: 1★≈1.40x, 2★≈1.62x, 3★≈3.14x, 4★≈4.21x, 5★≈4.50x
-    // → 1-2★: clearly faster than catch — need 1-2 timed releases
-    // → 3★: noticeably quicker — rhythmic pulsing required
-    // → 4-5★: very aggressive — frequent short releases needed
-    const tensionRise     = [0.42,  0.42,  0.44,  0.40,  0.36 ];
+    // Tension rise per second while holding — PRIMARY skill differentiator across rarities.
+    // 1★: barely rises → can hold freely.
+    // 5★: rises fast → must pulse short holds and release before snap.
+    const tensionRise     = [0.18,  0.32,  0.55,  0.78,  1.05 ];
 
-    // Tension fall per second while NOT holding — faster falls give the player real control
-    const tensionFalls    = [2.00,  1.80,  1.50,  1.20,  1.00 ];
+    // Tension fall per second while NOT holding
+    const tensionFalls    = [2.20,  2.00,  1.70,  1.30,  1.00 ];
 
-    // Catch progress drain per second while NOT holding — gentle so short releases don't kill the fish
-    const progressDrags   = [0.040, 0.060, 0.100, 0.140, 0.180];
+    // Catch progress drain per second while NOT holding — kept gentle so brief releases aren't fatal
+    const progressDrags   = [0.025, 0.040, 0.065, 0.095, 0.130];
 
-    // Surge probability per second — rarer for easy fish
-    const surgeChances    = [0.15,  0.25,  0.60,  0.90,  1.20 ];
+    // Surge probability per second — occasional excitement, not constant chaos
+    const surgeChances    = [0.06,  0.12,  0.22,  0.38,  0.55 ];
     // Extra tension per second DURING a surge
-    const surgeTPerSec    = [0.30,  0.45,  0.80,  1.10,  1.40 ];
+    const surgeTPerSec    = [0.20,  0.30,  0.48,  0.65,  0.85 ];
     // Extra progress drain per second DURING a surge (only when NOT holding)
-    const surgePPerSec    = [0.05,  0.08,  0.15,  0.20,  0.28 ];
+    const surgePPerSec    = [0.03,  0.05,  0.08,  0.12,  0.17 ];
 
     const baitCatchBoost = equipDataRef.current?.baitItem?.baitCatchBoost ?? 0;
     const reelRate       = reelRates[rarity - 1] * (1 + baitCatchBoost / 100);
@@ -423,17 +421,17 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     const surgePPS       = surgePPerSec[rarity - 1];
 
     const REEL_TIMEOUT_MS = 30000;
-    // Grace period: progress cannot drain for the first 600ms so the player
-    // has time to find the hold button after the nibble-to-reel transition
-    const GRACE_MS = 600;
+    // Grace period: progress (and surge drain) cannot apply for the first 1200ms so the
+    // player has time to find the hold button after the nibble-to-reel transition
+    const GRACE_MS = 1200;
 
     isHoldingRef.current = false;
 
     let catchProgress = startProgress[rarity - 1];
     let tension       = 0;
     let surging       = false;
-    // Initial delay before first surge: 0.5-0.8s
-    let surgeTimerSec = 0.5 + Math.random() * 0.3;
+    // Initial delay before first surge: give the player 2.5-4s to establish a rhythm
+    let surgeTimerSec = 2.5 + Math.random() * 1.5;
     const startTime   = Date.now();
     const graceUntilMs = startTime + GRACE_MS;
     let lastFrameMs   = Date.now();
@@ -489,9 +487,9 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       }
       if (surging) {
         tension = Math.min(1, tension + surgeTPS * dt);
-        // Only drain catch progress during a surge if the player is NOT holding.
-        // Holding during a surge only costs tension — prevents surprise escapes.
-        if (!isHoldingRef.current) {
+        // Only drain catch progress during a surge if the player is NOT holding
+        // and the grace period has ended — prevents instant escapes right after nibble.
+        if (!isHoldingRef.current && !inGrace) {
           catchProgress = Math.max(0, catchProgress - surgePPS * dt);
         }
       }
