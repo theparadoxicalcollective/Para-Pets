@@ -295,6 +295,13 @@ export const userBadges = pgTable("user_badges", {
   awardedAt: timestamp("awarded_at").notNull().default(sql`now()`),
 });
 
+export const badgeRewardClaims = pgTable("badge_reward_claims", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  badgeId: varchar("badge_id").notNull(),
+  lastClaimedAt: timestamp("last_claimed_at").notNull().default(sql`now()`),
+});
+
 export const fishTemplateParts = pgTable("fish_template_parts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   fishItemId: varchar("fish_item_id").notNull(),

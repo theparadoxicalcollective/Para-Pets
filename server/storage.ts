@@ -15,7 +15,7 @@ import {
   type SupportMessage, type InsertSupportMessage, supportMessages,
   type LocationEnemy, locationEnemies,
   type EnemyDrop, enemyDrops,
-  type Badge, type UserBadge, badges, userBadges,
+  type Badge, type UserBadge, badges, userBadges, badgeRewardClaims,
   type PlayerMarketListing, playerMarketListings,
   petEquippedAccessories,
   type FishTemplatePart, fishTemplateParts,
@@ -134,10 +134,12 @@ export interface IStorage {
   getAllBadges(): Promise<Badge[]>;
   createBadge(name: string, imageUrl: string): Promise<Badge>;
   deleteBadge(id: string): Promise<void>;
-  getUserBadges(userId: string): Promise<(UserBadge & { name: string; imageUrl: string })[]>;
+  getUserBadges(userId: string): Promise<(UserBadge & { name: string; imageUrl: string; lastClaimedAt: Date | null })[]>;
   getBadgeRecipients(badgeId: string): Promise<string[]>;
   awardBadge(userId: string, badgeId: string): Promise<UserBadge>;
   revokeBadge(userId: string, badgeId: string): Promise<void>;
+  getBadgeRewardClaim(userId: string, badgeId: string): Promise<{ lastClaimedAt: Date } | null>;
+  upsertBadgeRewardClaim(userId: string, badgeId: string): Promise<void>;
   getMarketListings(filters?: { search?: string; itemType?: string; orderAsc?: boolean }): Promise<PlayerMarketListing[]>;
   getMyMarketListings(sellerId: string): Promise<PlayerMarketListing[]>;
   getMarketListing(id: string): Promise<PlayerMarketListing | undefined>;
@@ -734,7 +736,7 @@ export class DatabaseStorage implements IStorage {
     await db.delete(badges).where(eq(badges.id, id));
   }
 
-  async getUserBadges(userId: string): Promise<(UserBadge & { name: string; imageUrl: string })[]> {
+  async getUserBadges(userId: string): Promise<(UserBadge & { name: string; imageUrl: string; lastClaimedAt: Date | null })[]> {
     const rows = await db
       .select({
         id: userBadges.id,
@@ -743,12 +745,36 @@ export class DatabaseStorage implements IStorage {
         awardedAt: userBadges.awardedAt,
         name: badges.name,
         imageUrl: badges.imageUrl,
+        lastClaimedAt: badgeRewardClaims.lastClaimedAt,
       })
       .from(userBadges)
       .innerJoin(badges, eq(userBadges.badgeId, badges.id))
+      .leftJoin(badgeRewardClaims, and(
+        eq(badgeRewardClaims.userId, userId),
+        eq(badgeRewardClaims.badgeId, userBadges.badgeId)
+      ))
       .where(eq(userBadges.userId, userId))
       .orderBy(desc(userBadges.awardedAt));
     return rows;
+  }
+
+  async getBadgeRewardClaim(userId: string, badgeId: string): Promise<{ lastClaimedAt: Date } | null> {
+    const [row] = await db.select({ lastClaimedAt: badgeRewardClaims.lastClaimedAt })
+      .from(badgeRewardClaims)
+      .where(and(eq(badgeRewardClaims.userId, userId), eq(badgeRewardClaims.badgeId, badgeId)));
+    return row ?? null;
+  }
+
+  async upsertBadgeRewardClaim(userId: string, badgeId: string): Promise<void> {
+    const now = new Date();
+    const existing = await this.getBadgeRewardClaim(userId, badgeId);
+    if (existing) {
+      await db.update(badgeRewardClaims)
+        .set({ lastClaimedAt: now })
+        .where(and(eq(badgeRewardClaims.userId, userId), eq(badgeRewardClaims.badgeId, badgeId)));
+    } else {
+      await db.insert(badgeRewardClaims).values({ userId, badgeId, lastClaimedAt: now });
+    }
   }
 
   async getBadgeRecipients(badgeId: string): Promise<string[]> {

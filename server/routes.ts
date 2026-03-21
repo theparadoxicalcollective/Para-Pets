@@ -2778,13 +2778,55 @@ export async function registerRoutes(
     }
   });
 
+  // Daily coin rewards by badge name
+  const BADGE_DAILY_REWARDS: Record<string, number> = {
+    "Founder's Badge": 100,
+  };
+
   app.get("/api/user/badges", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
       const myBadges = await storage.getUserBadges(user.id);
-      return res.json(myBadges);
+      const result = myBadges.map(b => ({
+        ...b,
+        dailyReward: BADGE_DAILY_REWARDS[b.name] ?? null,
+      }));
+      return res.json(result);
     } catch (err) {
       return res.status(500).json({ message: "Failed to fetch user badges" });
+    }
+  });
+
+  app.post("/api/badges/claim-daily", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { badgeId } = req.body;
+      if (!badgeId) return res.status(400).json({ message: "badgeId required" });
+
+      // Verify player owns this badge
+      const myBadges = await storage.getUserBadges(user.id);
+      const badge = myBadges.find(b => b.badgeId === badgeId);
+      if (!badge) return res.status(403).json({ message: "You don't have this badge" });
+
+      const reward = BADGE_DAILY_REWARDS[badge.name];
+      if (!reward) return res.status(400).json({ message: "This badge has no daily reward" });
+
+      // Check 24h cooldown
+      if (badge.lastClaimedAt) {
+        const msSinceClaim = Date.now() - new Date(badge.lastClaimedAt).getTime();
+        if (msSinceClaim < 24 * 60 * 60 * 1000) {
+          const msLeft = 24 * 60 * 60 * 1000 - msSinceClaim;
+          return res.status(429).json({ message: "Already claimed today", msLeft });
+        }
+      }
+
+      // Award coins and record claim
+      const updated = await storage.addCoins(user.id, reward);
+      await storage.upsertBadgeRewardClaim(user.id, badgeId);
+
+      return res.json({ coinsAwarded: reward, newCoins: updated.coins });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message || "Failed to claim reward" });
     }
   });
 
