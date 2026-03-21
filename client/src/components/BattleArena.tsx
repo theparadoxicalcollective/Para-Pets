@@ -882,7 +882,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     setTimeout(() => setSkillEffect(null), 1200);
     setTimeout(() => setSkillCooldown(false), 3000);
 
-    const pct = (pet as any)?.skillDamagePercent ?? null;
+    const rawPct = (pet as any)?.skillDamagePercent;
+    const pct = (rawPct !== null && rawPct !== undefined && rawPct > 0) ? rawPct : null;
 
     if (skill === "Lazer") {
       const ePos = enemyPosRef.current;
@@ -929,7 +930,6 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       if (poisonActive) return;
       setPoisonActive(true);
       let ticks = 0;
-      // Poison: pct% of enemy MAX HP per tick, 5 ticks. Default 5%.
       const poisonPct = pct !== null ? pct / 100 : 0.05;
       const enemyMaxHp = enemyMaxHpRef.current || 200;
       const tickDmg = Math.max(1, Math.floor(enemyMaxHp * poisonPct));
@@ -951,7 +951,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       }, 900);
       poisonTimerRef.current = timer;
     }
-  }, [pet?.specialSkill, skillCooldown, petMaxHp]);
+  }, [pet?.specialSkill, pet?.skillDamagePercent, skillCooldown, petMaxHp]);
 
   const handleSlashEnd = useCallback((_e: React.PointerEvent) => {
     if (!isSlashingRef.current) return;
