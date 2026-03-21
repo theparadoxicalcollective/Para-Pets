@@ -416,7 +416,7 @@ export default function PetPowerUpModal({
         <div
           ref={petZoneRef}
           data-testid="zone-pet-drop"
-          className="relative flex items-center justify-center transition-all duration-200 w-full overflow-hidden"
+          className="relative flex items-center justify-center transition-all duration-200 w-full overflow-visible"
           style={{
             height: 380,
             borderRadius: 24,
@@ -450,7 +450,7 @@ export default function PetPowerUpModal({
             }}
           >
             {petTemplateId ? (
-              <PetAnimator petTemplateId={petTemplateId} mode="idle" view="front" size={460} />
+              <PetAnimator petTemplateId={petTemplateId} mode="idle" view="front" size={360} />
             ) : petImage ? (
               <img src={petImage} alt={petName} style={{ width: "90%", height: "90%", objectFit: "contain" }} />
             ) : (
