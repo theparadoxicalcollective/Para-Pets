@@ -352,12 +352,19 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       const waitTime = 1500 + Math.random() * 2500;
       nibbleTimeoutRef.current = setTimeout(() => {
         if (phaseRef.current === "waiting") {
-          // Weighted selection — higher rarity fish appear less often (matches backend)
-          // Parse starRarity to int — DB may return it as a string
+          // Weighted selection — normalize weights per rarity group so that multiple fish
+          // of the same rarity share the rarity's probability pool instead of each getting
+          // the full weight (which would make common 1★ fish dominate).
+          // Parse starRarity to int — DB may return it as a string.
           const rarityWeights: Record<number, number> = { 1: 60, 2: 24, 3: 10, 4: 4, 5: 2 };
+          const rarityCounts: Record<number, number> = {};
+          for (const f of pondFish) {
+            const r = parseInt(String(f?.item?.starRarity ?? 1), 10) || 1;
+            rarityCounts[r] = (rarityCounts[r] ?? 0) + 1;
+          }
           const weights = pondFish.map(f => {
             const r = parseInt(String(f?.item?.starRarity ?? 1), 10) || 1;
-            return rarityWeights[r] ?? 20;
+            return (rarityWeights[r] ?? 20) / (rarityCounts[r] ?? 1);
           });
           const totalWeight = weights.reduce((a, b) => a + b, 0);
           let roll = Math.random() * totalWeight;

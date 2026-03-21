@@ -3219,12 +3219,19 @@ export async function registerRoutes(
           }
         }
         const baseWeights: Record<number, number> = { 1: 60, 2: 24, 3: 10, 4: 4, 5: 2 };
+        // Count fish per rarity so weights are normalized per group, preventing many 1★
+        // fish from dominating the pool over rarer fish.
+        const rarityCounts: Record<number, number> = {};
+        for (const entry of pondEntries) {
+          const s = parseInt(String(entry.item?.starRarity ?? 1), 10) || 1;
+          rarityCounts[s] = (rarityCounts[s] ?? 0) + 1;
+        }
         const fishPool = pondEntries.map(entry => {
           const star = parseInt(String(entry.item?.starRarity ?? 1), 10) || 1;
-          let weight = baseWeights[star] ?? 10;
+          let weight = (baseWeights[star] ?? 10) / (rarityCounts[star] ?? 1);
           if (star >= 3) weight += (baitBoost / 100) * weight;
           if (star >= 4) weight += (poleBoost / 100) * weight;
-          return { entry, weight: Math.max(0.1, weight) };
+          return { entry, weight: Math.max(0.01, weight) };
         });
         const totalWeight = fishPool.reduce((sum, f) => sum + f.weight, 0);
         let rand = Math.random() * totalWeight;
