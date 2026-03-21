@@ -853,34 +853,9 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         </div>
       )}
 
-      {/* Bobber — nibble phase: aggressive dip with countdown ring */}
+      {/* Bobber — nibble phase: bobs and glows until tapped or time runs out */}
       {phase === "nibble" && (
         <div className="absolute pointer-events-none z-[15]" style={{ bottom: "20%", left: "50%", background: "transparent" }}>
-          {/* Countdown ring — depletes over the nibble window so player knows the clock */}
-          <svg
-            key={`${nibbleCount}-${nibbleWindowMs}`}
-            style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)", zIndex: 1, pointerEvents: "none" }}
-            width="110" height="110" viewBox="0 0 110 110"
-          >
-            {/* Background ring */}
-            <circle cx="55" cy="55" r="46" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="3.5" />
-            {/* Draining fill ring */}
-            <circle
-              cx="55" cy="55" r="46"
-              fill="none"
-              stroke={ACCENT}
-              strokeWidth="3.5"
-              strokeLinecap="round"
-              strokeDasharray="289"
-              strokeDashoffset="0"
-              style={{
-                transformOrigin: "55px 55px",
-                transform: "rotate(-90deg)",
-                animation: `nibbleCountdown ${nibbleWindowMs}ms linear forwards`,
-                filter: `drop-shadow(0 0 4px ${ACCENT})`,
-              }}
-            />
-          </svg>
           {/* Expanding ripple rings */}
           <div style={{
             position: "absolute", width: 40, height: 20,
@@ -896,14 +871,13 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
             animation: "nibbleRippleOut 0.7s ease-out infinite 0.35s",
             left: "50%", top: "50%", marginLeft: -20, marginTop: -10,
           }} />
-          {/* Bobber dipping */}
+          {/* Bobber dipping with pulsing glow */}
           <img src={bobberIcon} alt="" style={{
             width: 70, height: 70,
             display: "block",
             background: "transparent",
             transform: "translate(-50%, 0)",
-            animation: "nibbleDip 0.9s ease-in-out infinite",
-            filter: "drop-shadow(0 0 10px rgba(94,234,212,0.9)) drop-shadow(0 0 16px rgba(109,40,217,0.5))",
+            animation: "nibbleDip 0.9s ease-in-out infinite, nibbleGlowPulse 0.6s ease-in-out infinite alternate",
           }} />
           {/* TAP hint below bobber */}
           <div style={{
@@ -1834,9 +1808,9 @@ const FISHING_ANIMATIONS = `
     0%   { transform: scale(1); opacity: 1; }
     100% { transform: scale(3.5); opacity: 0; }
   }
-  @keyframes nibbleCountdown {
-    0%   { stroke-dashoffset: 0; }
-    100% { stroke-dashoffset: 289; }
+  @keyframes nibbleGlowPulse {
+    0%   { filter: drop-shadow(0 0 8px rgba(94,234,212,0.7)) drop-shadow(0 0 14px rgba(109,40,217,0.4)); }
+    100% { filter: drop-shadow(0 0 20px rgba(94,234,212,1.0)) drop-shadow(0 0 32px rgba(109,40,217,0.8)) drop-shadow(0 0 6px #fff); }
   }
   @keyframes nibbleTapPulse {
     0%   { opacity: 0.7; transform: translateX(-50%) scale(1); }
