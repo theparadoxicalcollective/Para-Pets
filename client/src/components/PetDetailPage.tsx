@@ -786,6 +786,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
           isPending={powerUpMutation.isPending || useSpecialMutation.isPending}
           successEffect={modalSuccessEffect}
           onUseItem={handlePowerUpModalUse}
+          onSuccessAnimEnd={() => setModalSuccessEffect(null)}
           onClose={() => { setShowPowerUpModal(false); setModalSuccessEffect(null); }}
         />
       )}

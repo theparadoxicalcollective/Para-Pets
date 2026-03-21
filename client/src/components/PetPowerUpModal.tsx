@@ -36,6 +36,7 @@ interface PetPowerUpModalProps {
   subtitle?: string;
   successEffect?: { type: "stat" | "level" | "hatch"; label: string } | null;
   onUseItem: (item: PowerUpItem) => void;
+  onSuccessAnimEnd: () => void;
   onClose: () => void;
 }
 
@@ -126,7 +127,7 @@ export default function PetPowerUpModal({
   petLevel, itemsRemaining, items, isPending,
   title = "POWER UP", subtitle,
   successEffect,
-  onUseItem, onClose,
+  onUseItem, onSuccessAnimEnd, onClose,
 }: PetPowerUpModalProps) {
   const petZoneRef    = useRef<HTMLDivElement>(null);
   const draggingRef   = useRef<{ item: PowerUpItem; x: number; y: number } | null>(null);
@@ -141,12 +142,12 @@ export default function PetPowerUpModal({
   // Keep dragging ref synced
   useEffect(() => { draggingRef.current = dragging; }, [dragging]);
 
-  // Auto-close after animation completes when a success effect fires
+  // Clear the success effect after animation completes — modal stays open so player can use more items
   useEffect(() => {
     if (!successEffect) return;
-    const t = setTimeout(onClose, ANIM_DURATION);
+    const t = setTimeout(onSuccessAnimEnd, ANIM_DURATION);
     return () => clearTimeout(t);
-  }, [successEffect, onClose]);
+  }, [successEffect, onSuccessAnimEnd]);
 
   // Pre-generate particles for the inline animation (stable across renders)
   const animParticles = useMemo(() => {
@@ -396,7 +397,7 @@ export default function PetPowerUpModal({
       </div>
 
       {/* Pet display zone */}
-      <div className="flex flex-col items-center flex-shrink-0 pb-3 relative">
+      <div className="flex flex-col items-center flex-shrink-0 pb-3 relative w-full px-3">
         {/* Slots remaining */}
         <div className="mb-2 px-3 py-1 rounded-full font-fantasy text-[10px] tracking-wider"
           style={{
@@ -415,9 +416,10 @@ export default function PetPowerUpModal({
         <div
           ref={petZoneRef}
           data-testid="zone-pet-drop"
-          className="relative flex items-center justify-center rounded-2xl transition-all duration-200"
+          className="relative flex items-center justify-center rounded-2xl transition-all duration-200 w-full"
           style={{
-            width: 300, height: 300,
+            maxWidth: 420,
+            aspectRatio: "1 / 1",
             background: dragOverPet
               ? `radial-gradient(ellipse at center, rgba(${dragging ? itemColor(dragging.item).replace("#","") : "240,192,64"},0.25) 0%, rgba(0,0,0,0.6) 100%)`
               : "radial-gradient(ellipse at center, rgba(45,122,79,0.18) 0%, rgba(0,0,0,0.5) 100%)",
@@ -435,17 +437,18 @@ export default function PetPowerUpModal({
         >
           {/* Pet image/animator */}
           <div
+            className="w-full h-full flex items-center justify-center"
             style={{
               animation: petAnim === "bounce" ? "puMBounce 0.6s ease-out forwards" :
                          petAnim === "flash"  ? "puMFlash 0.5s ease-out forwards" : undefined,
             }}
           >
             {petTemplateId ? (
-              <PetAnimator petTemplateId={petTemplateId} mode="idle" view="front" size={290} />
+              <PetAnimator petTemplateId={petTemplateId} mode="idle" view="front" size={380} />
             ) : petImage ? (
-              <img src={petImage} alt={petName} style={{ width: 280, height: 280, objectFit: "contain" }} />
+              <img src={petImage} alt={petName} style={{ width: "92%", height: "92%", objectFit: "contain" }} />
             ) : (
-              <img src={petPawIcon} alt="" style={{ width: 130, height: 130, objectFit: "contain", filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.6))" }} />
+              <img src={petPawIcon} alt="" style={{ width: "55%", height: "55%", objectFit: "contain", filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.6))" }} />
             )}
           </div>
 
