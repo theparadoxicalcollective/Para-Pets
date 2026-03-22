@@ -77,6 +77,10 @@ function BadgeClaimButton({
     onSuccess: async (res) => {
       const data = await res.json();
       onClaimed(data.newCoins);
+      // Update global user cache so every page sees the new coin balance
+      queryClient.setQueryData(["/api/auth/me"], (old: any) =>
+        old ? { ...old, coins: data.newCoins } : old
+      );
       queryClient.invalidateQueries({ queryKey: ["/api/user/badges"] });
       toast({
         title: `+${badge.dailyRewardCoins} coins claimed!`,
