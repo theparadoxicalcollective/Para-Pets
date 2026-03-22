@@ -1,13 +1,14 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { readFileAsDataUrl } from "@/lib/utils";
-import { Plus, Trash2, X, ArrowLeft, Save, Layers, Link2 } from "lucide-react";
+import { Plus, Trash2, X, ArrowLeft, Save, Layers, Link2, Pencil } from "lucide-react";
 
 interface PetTemplate {
   id: string;
   name: string;
+  facing?: string | null;
   frontAssembled: string | null;
   backAssembled: string | null;
   createdAt: string;
@@ -44,16 +45,21 @@ interface LinkedShopPet {
 type PartLayer = "front" | "back" | "body";
 interface PartDef { key: string; label: string; defaultZ: number; layer: PartLayer; animOnly?: boolean; defaultPivotX?: number; defaultPivotY?: number; }
 
+// Layer order per user spec (top-to-bottom = highest z-index to lowest)
+// Front facing:
+//   eyes(open), eyes(closed), mouth(closed), mouth(open), head,
+//   left ear, right ear, left arm, right arm, body,
+//   left wing, right wing, left leg, right leg, tail
 const FRONT_PART_GROUPS: { group: string; parts: PartDef[] }[] = [
   { group: "Face", parts: [
-    { key: "eyes",         label: "Eyes (Open)",   defaultZ: 14, layer: "front" },
-    { key: "eyes_closed",  label: "Eyes (Closed)", defaultZ: 13, layer: "front", animOnly: true },
-    { key: "mouth_closed", label: "Mouth (Closed)",defaultZ: 12, layer: "front" },
-    { key: "mouth",        label: "Mouth (Open)",  defaultZ: 11, layer: "front", animOnly: true },
+    { key: "eyes",         label: "Eyes (Open)",   defaultZ: 15, layer: "front" },
+    { key: "eyes_closed",  label: "Eyes (Closed)", defaultZ: 14, layer: "front", animOnly: true },
+    { key: "mouth_closed", label: "Mouth (Closed)",defaultZ: 13, layer: "front" },
+    { key: "mouth",        label: "Mouth (Open)",  defaultZ: 12, layer: "front", animOnly: true },
   ]},
   { group: "Head & Ears", parts: [
     { key: "head",       label: "Head",      defaultZ: 10, layer: "front" },
-    { key: "left_ear",   label: "Left Ear",  defaultZ: 9,  layer: "back" },
+    { key: "left_ear",   label: "Left Ear",  defaultZ: 9,  layer: "front" },
     { key: "right_ear",  label: "Right Ear", defaultZ: 9,  layer: "back" },
   ]},
   { group: "Arms", parts: [
@@ -61,27 +67,31 @@ const FRONT_PART_GROUPS: { group: string; parts: PartDef[] }[] = [
     { key: "right_arm", label: "Right Arm", defaultZ: 7, layer: "front" },
   ]},
   { group: "Body", parts: [
-    { key: "body", label: "Body", defaultZ: 6, layer: "body" },
+    { key: "body", label: "Body", defaultZ: 5, layer: "body" },
   ]},
   { group: "Wings", parts: [
     { key: "left_wing",  label: "Left Wing",  defaultZ: 4, layer: "back" },
-    { key: "right_wing", label: "Right Wing", defaultZ: 4, layer: "back" },
+    { key: "right_wing", label: "Right Wing", defaultZ: 3, layer: "back" },
   ]},
   { group: "Legs", parts: [
-    { key: "left_leg",  label: "Left Leg",  defaultZ: 3, layer: "back" },
-    { key: "right_leg", label: "Right Leg", defaultZ: 3, layer: "back" },
+    { key: "left_leg",  label: "Left Leg",  defaultZ: 2, layer: "back" },
+    { key: "right_leg", label: "Right Leg", defaultZ: 2, layer: "back" },
   ]},
   { group: "Tail", parts: [
-    { key: "tail", label: "Tail", defaultZ: 2, layer: "back", defaultPivotX: 50, defaultPivotY: 0 },
+    { key: "tail", label: "Tail", defaultZ: 1, layer: "back", defaultPivotX: 50, defaultPivotY: 0 },
   ]},
 ];
 
+// Side facing:
+//   eyes(open), eyes(closed), mouth(closed), mouth(open), head,
+//   left ear, right ear, front arm, front leg, front wing,
+//   body, back arm, back leg, back wing, tail
 const SIDE_PART_GROUPS: { group: string; parts: PartDef[] }[] = [
   { group: "Face", parts: [
-    { key: "eyes",         label: "Eyes (Open)",   defaultZ: 14, layer: "front" },
-    { key: "eyes_closed",  label: "Eyes (Closed)", defaultZ: 13, layer: "front", animOnly: true },
-    { key: "mouth_closed", label: "Mouth (Closed)",defaultZ: 12, layer: "front" },
-    { key: "mouth",        label: "Mouth (Open)",  defaultZ: 11, layer: "front", animOnly: true },
+    { key: "eyes",         label: "Eyes (Open)",   defaultZ: 15, layer: "front" },
+    { key: "eyes_closed",  label: "Eyes (Closed)", defaultZ: 14, layer: "front", animOnly: true },
+    { key: "mouth_closed", label: "Mouth (Closed)",defaultZ: 13, layer: "front" },
+    { key: "mouth",        label: "Mouth (Open)",  defaultZ: 12, layer: "front", animOnly: true },
   ]},
   { group: "Head & Ears", parts: [
     { key: "head",      label: "Head",      defaultZ: 10, layer: "front" },
@@ -117,7 +127,8 @@ export default function PetDatabasePanel() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newPetName, setNewPetName] = useState("");
-  const [activeView, setActiveView] = useState<"front" | "back">("front");
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [renameName, setRenameName] = useState("");
   const [uploadPartType, setUploadPartType] = useState<string | null>(null);
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
   const [pivotMode, setPivotMode] = useState(false);
@@ -129,6 +140,9 @@ export default function PetDatabasePanel() {
   const didDrag = useRef(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Derive the DB view value from the facing mode toggle
+  const activeView = facingMode === "front" ? "front" : "back";
 
   const { data: templates = [], isLoading } = useQuery<PetTemplate[]>({
     queryKey: ["/api/admin/pet-templates"],
@@ -152,6 +166,20 @@ export default function PetDatabasePanel() {
     },
     enabled: !!selectedTemplateId,
   });
+
+  // Sync facingMode from the loaded template's facing field or existing parts
+  useEffect(() => {
+    if (!templateDetail) return;
+    if (templateDetail.facing === "back") {
+      setFacingMode("side");
+    } else if (templateDetail.facing === "front") {
+      setFacingMode("front");
+    } else {
+      // Legacy: detect from parts
+      const hasBackParts = (templateDetail.parts || []).some(p => p.view === "back");
+      setFacingMode(hasBackParts ? "side" : "front");
+    }
+  }, [templateDetail?.id, templateDetail?.facing]);
 
   const viewParts = (templateDetail?.parts || []).filter(p => p.view === activeView).sort((a, b) => a.zIndex - b.zIndex);
 
@@ -180,6 +208,23 @@ export default function PetDatabasePanel() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates"] });
       setSelectedTemplateId(null);
       toast({ title: "Deleted", description: "Pet template removed" });
+    },
+  });
+
+  const renameMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      const res = await apiRequest("PATCH", `/api/admin/pet-templates/${id}`, { name });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates", selectedTemplateId] });
+      setShowRenameModal(false);
+      setRenameName("");
+      toast({ title: "Renamed", description: "Template name updated" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to rename", variant: "destructive" });
     },
   });
 
@@ -239,10 +284,12 @@ export default function PetDatabasePanel() {
       });
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Save the facing direction to the template
+      await apiRequest("PATCH", `/api/admin/pet-templates/${selectedTemplateId}`, { facing: activeView });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates", selectedTemplateId] });
-      toast({ title: "Saved!", description: `${activeView === "front" ? "Front" : "Back"} view assembled and saved` });
+      toast({ title: "Saved!", description: `${facingMode === "front" ? "Front" : "Side"} view assembled and saved` });
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to assemble", variant: "destructive" });
@@ -290,8 +337,14 @@ export default function PetDatabasePanel() {
 
   const selectedPart = viewParts.find(p => p.id === selectedPartId);
 
+  // Has parts in the OTHER view (the one not currently active)
+  const otherView = activeView === "front" ? "back" : "front";
+  const hasOtherViewParts = (templateDetail?.parts || []).some(p => p.view === otherView);
+
   if (selectedTemplateId && templateDetail) {
     const linkedPet = getLinkedShopPet(templateDetail.id);
+    const viewLabel = facingMode === "front" ? "Front View" : sideFacingDir === "left" ? "Side View (Left)" : "Side View (Right)";
+
     return (
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-2 mb-1">
@@ -304,6 +357,14 @@ export default function PetDatabasePanel() {
             <ArrowLeft className="w-4 h-4" />
           </button>
           <h3 className="font-fantasy text-[#f0c040] text-sm tracking-widest flex-1 truncate">{templateDetail.name}</h3>
+          <button
+            data-testid="button-rename-pet-template"
+            onClick={() => { setRenameName(templateDetail.name); setShowRenameModal(true); }}
+            className="w-8 h-8 rounded-full flex items-center justify-center"
+            style={{ background: "rgba(240,192,64,0.12)", border: "1px solid rgba(240,192,64,0.25)", cursor: "pointer", color: "#a89878" }}
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
           <button
             data-testid="button-delete-pet-template"
             onClick={() => { if (confirm(`Delete "${templateDetail.name}"?`)) deleteMutation.mutate(templateDetail.id); }}
@@ -351,20 +412,20 @@ export default function PetDatabasePanel() {
 
         <div className="flex justify-center gap-2 mb-1">
           <span className="px-4 py-1.5 rounded-md font-fantasy text-[10px] tracking-wider" style={{ background: "linear-gradient(135deg, #5c3a1e 0%, #8b5e3c 100%)", border: "1px solid rgba(212,160,23,0.6)", color: "#f0c040" }}>
-            Front View
+            {viewLabel}
           </span>
         </div>
 
+        {/* Canvas — overflow visible so parts can extend beyond bounds */}
         <div
           ref={canvasRef}
-          className="relative mx-auto rounded-lg overflow-hidden"
+          className="relative mx-auto rounded-lg"
           style={{
             width: "100%",
-            maxWidth: "800px",
             aspectRatio: "1",
+            overflow: "visible",
             background: "repeating-conic-gradient(rgba(255,255,255,0.03) 0% 25%, transparent 0% 50%) 0 0 / 20px 20px",
-            border: pivotMode ? "2px solid rgba(255,80,80,0.6)" : "2px solid rgba(240,192,64,0.3)",
-            boxShadow: pivotMode ? "inset 0 0 30px rgba(255,80,80,0.2)" : "inset 0 0 30px rgba(0,0,0,0.5)",
+            border: pivotMode ? "2px dashed rgba(255,80,80,0.5)" : "2px dashed rgba(240,192,64,0.25)",
             touchAction: "none",
             cursor: pivotMode ? "crosshair" : "default",
           }}
@@ -448,12 +509,18 @@ export default function PetDatabasePanel() {
           })}
         </div>
 
-        {/* Facing direction selector */}
+        {/* Facing direction selector — mutually exclusive toggle */}
         <div className="rounded-lg overflow-hidden" style={{ border: "1px solid rgba(240,192,64,0.25)" }}>
           <div className="flex">
             <button
               data-testid="button-facing-front"
-              onClick={() => setFacingMode("front")}
+              onClick={() => {
+                if (facingMode === "side" && viewParts.length > 0) {
+                  if (!confirm("Switch to Front Facing? Parts you add will be saved to the front view.")) return;
+                }
+                setFacingMode("front");
+                setSelectedPartId(null);
+              }}
               className="flex-1 py-2 font-fantasy text-[10px] tracking-wider transition-colors"
               style={{
                 background: facingMode === "front" ? "rgba(240,192,64,0.2)" : "rgba(0,0,0,0.2)",
@@ -465,7 +532,13 @@ export default function PetDatabasePanel() {
             </button>
             <button
               data-testid="button-facing-side"
-              onClick={() => setFacingMode("side")}
+              onClick={() => {
+                if (facingMode === "front" && viewParts.length > 0) {
+                  if (!confirm("Switch to Side Facing? Parts you add will be saved to the side view.")) return;
+                }
+                setFacingMode("side");
+                setSelectedPartId(null);
+              }}
               className="flex-1 py-2 font-fantasy text-[10px] tracking-wider transition-colors"
               style={{
                 background: facingMode === "side" ? "rgba(240,192,64,0.2)" : "rgba(0,0,0,0.2)",
@@ -500,6 +573,13 @@ export default function PetDatabasePanel() {
               >
                 Right Facing →
               </button>
+            </div>
+          )}
+          {hasOtherViewParts && (
+            <div className="px-2 py-1.5 border-t" style={{ borderColor: "rgba(240,192,64,0.15)", background: "rgba(240,160,32,0.06)" }}>
+              <p className="font-fantasy text-[8px] tracking-wider text-center" style={{ color: "#a89878" }}>
+                Both front &amp; side parts exist — only the saved view is used in-game
+              </p>
             </div>
           )}
         </div>
@@ -680,24 +760,38 @@ export default function PetDatabasePanel() {
             }}
           >
             <Save className="w-4 h-4" />
-            {assembleMutation.isPending ? "Assembling..." : "Save Front View"}
+            {assembleMutation.isPending ? "Assembling..." : `Save ${facingMode === "front" ? "Front" : "Side"} View`}
           </button>
         </div>
 
-        {templateDetail.frontAssembled && (
+        {(templateDetail.frontAssembled || templateDetail.backAssembled) && (
           <div className="mt-1">
             <p className="font-fantasy text-[9px] text-[#a89878] tracking-wider mb-2 text-center">Assembled Preview</p>
-            <div className="flex justify-center">
-              <div className="text-center">
-                <img
-                  src={templateDetail.frontAssembled}
-                  alt="Front"
-                  className="w-32 h-32 object-contain rounded-lg"
-                  style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(127,255,212,0.2)" }}
-                  data-testid="preview-front-assembled"
-                />
-                <span className="font-fantasy text-[8px] text-[#7fbfb0] tracking-wider">Front</span>
-              </div>
+            <div className="flex justify-center gap-4">
+              {templateDetail.frontAssembled && (
+                <div className="text-center">
+                  <img
+                    src={templateDetail.frontAssembled}
+                    alt="Front"
+                    className="w-28 h-28 object-contain rounded-lg"
+                    style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(127,255,212,0.2)" }}
+                    data-testid="preview-front-assembled"
+                  />
+                  <span className="font-fantasy text-[8px] text-[#7fbfb0] tracking-wider">Front</span>
+                </div>
+              )}
+              {templateDetail.backAssembled && (
+                <div className="text-center">
+                  <img
+                    src={templateDetail.backAssembled}
+                    alt="Side"
+                    className="w-28 h-28 object-contain rounded-lg"
+                    style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(127,255,212,0.2)" }}
+                    data-testid="preview-back-assembled"
+                  />
+                  <span className="font-fantasy text-[8px] text-[#7fbfb0] tracking-wider">Side</span>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -715,7 +809,7 @@ export default function PetDatabasePanel() {
             >
               <div className="flex items-center justify-between mb-4">
                 <h4 className="font-fantasy text-[#f0c040] text-sm tracking-widest capitalize">
-                  Upload {uploadPartType} ({activeView})
+                  Upload {uploadPartType} ({facingMode === "front" ? "Front" : "Side"})
                 </h4>
                 <button
                   onClick={() => setUploadPartType(null)}
@@ -764,6 +858,61 @@ export default function PetDatabasePanel() {
             </div>
           </div>
         )}
+
+        {showRenameModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowRenameModal(false)} />
+            <div
+              className="relative z-10 w-[85%] max-w-sm rounded-lg p-5"
+              style={{
+                background: "linear-gradient(135deg, rgba(30,15,5,0.97) 0%, rgba(60,35,10,0.97) 100%)",
+                border: "1px solid rgba(212,160,23,0.5)",
+                boxShadow: "0 8px 40px rgba(0,0,0,0.7)",
+              }}
+            >
+              <h4 className="font-fantasy text-[#f0c040] text-center text-sm tracking-widest mb-4">Rename Template</h4>
+              <div className="mb-4">
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">New Name</label>
+                <input
+                  data-testid="input-rename-pet-template"
+                  type="text"
+                  value={renameName}
+                  onChange={(e) => setRenameName(e.target.value)}
+                  placeholder="Enter new name..."
+                  className="w-full px-3 py-2 rounded-md font-fantasy text-sm outline-none"
+                  style={{ background: "rgba(242,232,208,0.9)", border: "1px solid #8b5e3c", color: "#2a1a0a" }}
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowRenameModal(false)}
+                  className="flex-1 py-2 rounded-md font-fantasy text-xs tracking-wider"
+                  style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.2)", color: "#a89878", cursor: "pointer" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  data-testid="button-confirm-rename-pet"
+                  onClick={() => {
+                    if (renameName.trim() && selectedTemplateId) {
+                      renameMutation.mutate({ id: selectedTemplateId, name: renameName.trim() });
+                    }
+                  }}
+                  disabled={renameMutation.isPending || !renameName.trim()}
+                  className="flex-1 py-2 rounded-md font-fantasy text-xs tracking-wider disabled:opacity-50"
+                  style={{
+                    background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
+                    border: "1px solid rgba(127,255,212,0.4)",
+                    color: "#7fffd4",
+                    cursor: "pointer",
+                  }}
+                >
+                  {renameMutation.isPending ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -801,6 +950,7 @@ export default function PetDatabasePanel() {
         <div className="grid grid-cols-2 gap-3">
           {templates.map(t => {
             const linked = getLinkedShopPet(t.id);
+            const isSide = t.facing === "back";
             return (
               <button
                 key={t.id}
@@ -818,7 +968,9 @@ export default function PetDatabasePanel() {
                     className="w-full aspect-square rounded-md flex items-center justify-center overflow-hidden"
                     style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.15)" }}
                   >
-                    {t.frontAssembled ? (
+                    {(isSide ? t.backAssembled : t.frontAssembled) ? (
+                      <img src={(isSide ? t.backAssembled : t.frontAssembled) || ""} alt={t.name} className="w-full h-full object-contain" />
+                    ) : t.frontAssembled ? (
                       <img src={t.frontAssembled} alt={t.name} className="w-full h-full object-contain" />
                     ) : (
                       <Layers className="w-8 h-8" style={{ color: "rgba(240,192,64,0.2)" }} />
@@ -849,6 +1001,11 @@ export default function PetDatabasePanel() {
                     {t.frontAssembled && (
                       <span className="font-fantasy text-[7px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(127,255,212,0.1)", color: "#7fbfb0", border: "1px solid rgba(127,255,212,0.2)" }}>
                         Front ✓
+                      </span>
+                    )}
+                    {t.backAssembled && (
+                      <span className="font-fantasy text-[7px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(127,200,255,0.1)", color: "#7fbfff", border: "1px solid rgba(127,200,255,0.2)" }}>
+                        Side ✓
                       </span>
                     )}
                     {!linked && (

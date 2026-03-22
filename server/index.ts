@@ -211,6 +211,12 @@ app.use((req, res, next) => {
   }
 
   try {
+    await db.execute(sql`ALTER TABLE pet_templates ADD COLUMN IF NOT EXISTS facing TEXT DEFAULT 'front'`);
+  } catch (err) {
+    console.error("pet_templates facing migration error (non-fatal):", err);
+  }
+
+  try {
     console.log('Initializing Stripe...');
     const databaseUrl = process.env.DATABASE_URL;
     if (databaseUrl) {

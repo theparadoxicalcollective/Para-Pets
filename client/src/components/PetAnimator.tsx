@@ -42,11 +42,12 @@ const IDLE_ANIMATIONS: Record<string, string> = {
   left_leg: "petIdleLeftLeg",
   right_leg: "petIdleRightLeg",
   tail: "petIdleTail",
-  front_arms: "petIdleLeftArm",
-  back_arms: "petIdleRightArm",
-  front_legs: "petIdleLeftLeg",
-  back_legs: "petIdleRightLeg",
-  wings: "petIdleLeftWing",
+  front_arm: "petIdleLeftArm",
+  back_arm: "petIdleRightArm",
+  front_leg: "petIdleLeftLeg",
+  back_leg: "petIdleRightLeg",
+  front_wing: "petIdleLeftWing",
+  back_wing: "petIdleRightWing",
 };
 
 const WALK_ANIMATIONS: Record<string, string> = {
@@ -65,19 +66,24 @@ const WALK_ANIMATIONS: Record<string, string> = {
   left_leg: "petWalkLeftLeg",
   right_leg: "petWalkRightLeg",
   tail: "petWalkTail",
-  front_arms: "petWalkLeftArm",
-  back_arms: "petWalkRightArm",
-  front_legs: "petWalkLeftLeg",
-  back_legs: "petWalkRightLeg",
-  wings: "petWalkLeftWing",
+  front_arm: "petWalkLeftArm",
+  back_arm: "petWalkRightArm",
+  front_leg: "petWalkLeftLeg",
+  back_leg: "petWalkRightLeg",
+  front_wing: "petWalkLeftWing",
+  back_wing: "petWalkRightWing",
 };
 
 const ZOOM_ANIMATIONS: Record<string, string> = {
   ...WALK_ANIMATIONS,
   left_wing: "petZoomLeftWing",
   right_wing: "petZoomRightWing",
-  wings: "petZoomLeftWing",
+  front_wing: "petZoomLeftWing",
+  back_wing: "petZoomRightWing",
 };
+
+// Parts that are hidden by default and only appear during specific animations
+const ANIM_ONLY_PARTS = new Set(["eyes_closed", "mouth"]);
 
 const ANIMATION_STYLES = `
   @keyframes petIdleEyes {
@@ -89,8 +95,7 @@ const ANIMATION_STYLES = `
     95%, 97% { opacity: 1; }
   }
   @keyframes petIdleMouth {
-    0%, 100% { transform: scaleY(1); }
-    50% { transform: scaleY(0.95); }
+    0%, 100% { opacity: 0; }
   }
   @keyframes petIdleMouthClosed {
     0%, 100% { opacity: 1; }
@@ -155,9 +160,7 @@ const ANIMATION_STYLES = `
     90%, 95% { opacity: 1; }
   }
   @keyframes petWalkMouth {
-    0%, 100% { transform: scaleY(1); }
-    30% { transform: scaleY(0.9); }
-    60% { transform: scaleY(1.05); }
+    0%, 100% { opacity: 0; }
   }
   @keyframes petWalkMouthClosed {
     0%, 100% { opacity: 1; }
@@ -240,16 +243,44 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom"): stri
       left_wing: "3.5s", right_wing: "3.5s",
       left_leg: "4s", right_leg: "4s",
       tail: "2.5s",
-      front_arms: "3.5s", back_arms: "3.5s", front_legs: "4s", back_legs: "4s", wings: "3.5s",
+      front_arm: "3.5s", back_arm: "3.5s",
+      front_leg: "4s", back_leg: "4s",
+      front_wing: "3.5s", back_wing: "3.5s",
     };
     return durations[partType] || "3s";
   }
   if (mode === "zoom") {
-    const isWing = partType === "left_wing" || partType === "right_wing" || partType === "wings";
+    const isWing = ["left_wing", "right_wing", "front_wing", "back_wing"].includes(partType);
     return isWing ? "0.45s" : "0.6s";
   }
   return "0.6s";
 }
+
+// Layer order: lower number = rendered behind, higher number = rendered in front
+// Covers both front-facing (left_/right_) and side-facing (front_/back_) parts
+const LAYER_ORDER: Record<string, number> = {
+  tail: 1,
+  right_leg: 2,
+  left_leg: 2,
+  back_wing: 2,
+  back_leg: 3,
+  right_wing: 3,
+  back_arm: 4,
+  left_wing: 4,
+  body: 5,
+  front_wing: 6,
+  right_arm: 7,
+  front_leg: 7,
+  left_arm: 8,
+  front_arm: 8,
+  right_ear: 9,
+  left_ear: 9,
+  head: 10,
+  mouth: 12,
+  mouth_closed: 13,
+  eyes_closed: 14,
+  eyes: 15,
+};
 
 export default function PetAnimator({ petTemplateId, mode, view = "front", size = 200, className = "", style: externalStyle }: PetAnimatorProps) {
   const { data: templateData } = useQuery<{ parts: PetPart[] }>({
@@ -262,29 +293,6 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     enabled: !!petTemplateId,
     staleTime: 300000,
   });
-
-  const LAYER_ORDER: Record<string, number> = {
-    tail: 1,
-    left_leg: 2,
-    right_leg: 2,
-    back_legs: 2,
-    left_wing: 3,
-    right_wing: 3,
-    wings: 3,
-    body: 4,
-    left_arm: 5,
-    right_arm: 5,
-    front_arms: 5,
-    back_arms: 5,
-    front_legs: 2,
-    left_ear: 6,
-    right_ear: 6,
-    head: 7,
-    mouth: 8,
-    mouth_closed: 8,
-    eyes: 9,
-    eyes_closed: 9,
-  };
 
   const allParts = templateData?.parts || [];
   const viewParts = allParts.filter(p => p.view === view).sort((a, b) => {
@@ -309,6 +317,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
         const heightPct = (part.height / CANVAS_SIZE) * 100;
 
         const layerZ = LAYER_ORDER[part.partType] ?? part.zIndex;
+        const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
 
         if (part.partType === "back_full") {
           return (
@@ -353,6 +362,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
               zIndex: layerZ,
               transformOrigin: `${part.pivotX ?? 50}% ${part.pivotY ?? 50}%`,
               animation: `${animName} ${duration} ease-in-out infinite`,
+              opacity: isAnimOnly ? 0 : 1,
               imageRendering: "auto",
               pointerEvents: "none",
             }}

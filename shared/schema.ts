@@ -175,6 +175,7 @@ export const gameSettings = pgTable("game_settings", {
 export const petTemplates = pgTable("pet_templates", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
+  facing: text("facing").default("front"),
   frontAssembled: text("front_assembled"),
   backAssembled: text("back_assembled"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
