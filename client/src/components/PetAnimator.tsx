@@ -283,7 +283,7 @@ const LAYER_ORDER: Record<string, number> = {
 };
 
 export default function PetAnimator({ petTemplateId, mode, view = "front", size = 200, className = "", style: externalStyle }: PetAnimatorProps) {
-  const { data: templateData } = useQuery<{ parts: PetPart[] }>({
+  const { data: templateData } = useQuery<{ parts: PetPart[]; facing: string }>({
     queryKey: ["/api/pet-template-parts", petTemplateId],
     queryFn: async () => {
       const res = await fetch(`/api/pet-template-parts/${petTemplateId}`, { credentials: "include" });
@@ -291,11 +291,25 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
       return res.json();
     },
     enabled: !!petTemplateId,
-    staleTime: 300000,
+    staleTime: 30000,
   });
 
   const allParts = templateData?.parts || [];
-  const viewParts = allParts.filter(p => p.view === view).sort((a, b) => {
+
+  // Determine which view to render:
+  // 1. If template is explicitly saved as side-facing ("back"), always use "back"
+  // 2. If no front parts exist but back parts do (parts uploaded in side mode
+  //    before the template was assembled/saved), fall back to "back"
+  // 3. Otherwise honour the `view` prop (defaults to "front")
+  const facing = templateData?.facing ?? "front";
+  const frontCount = allParts.filter(p => p.view === "front").length;
+  const backCount = allParts.filter(p => p.view === "back").length;
+  const resolvedView =
+    facing === "back" ? "back" :
+    (frontCount === 0 && backCount > 0) ? "back" :
+    view;
+
+  const viewParts = allParts.filter(p => p.view === resolvedView).sort((a, b) => {
     const aLayer = LAYER_ORDER[a.partType] ?? a.zIndex;
     const bLayer = LAYER_ORDER[b.partType] ?? b.zIndex;
     return aLayer - bLayer;

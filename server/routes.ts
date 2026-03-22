@@ -1897,8 +1897,11 @@ export async function registerRoutes(
 
   app.get("/api/pet-template-parts/:templateId", isAuthenticated, async (req, res) => {
     try {
-      const parts = await storage.getPetTemplateParts(req.params.templateId);
-      return res.json({ parts });
+      const [parts, template] = await Promise.all([
+        storage.getPetTemplateParts(req.params.templateId),
+        storage.getPetTemplate(req.params.templateId),
+      ]);
+      return res.json({ parts, facing: template?.facing ?? "front" });
     } catch (err) {
       console.error("Get pet template parts error:", err);
       return res.status(500).json({ message: "Failed to get parts" });
