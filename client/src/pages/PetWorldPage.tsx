@@ -1088,11 +1088,9 @@ function WorldRoamingPet({
   const duration = `${34 + rng(3) * 16}s`;
   const delay    = `-${rng(4) * 20}s`;
 
-  // Use the same full CANVAS_SIZE (1000) that PetAnimator uses internally.
-  // This matches the Home-page approach: no constraining box, parts rendered
-  // at full coordinate fidelity with overflow: visible. The map-canvas scale
-  // factor (≈0.4–1.4×) then controls how large the pet actually appears.
-  const sz     = 1000;
+  // sz is in map-canvas pixels. At typical map scale (≈0.44–0.78×) this
+  // renders the pet at a comfortable 150–270 px on screen.
+  const sz     = 350;
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
   const displayName = pet.petNickname || pet.name;
   const rarityCount = Math.min(5, Math.max(0, pet.rarity ?? 0));
@@ -1130,96 +1128,116 @@ function WorldRoamingPet({
       >
         <div style={hasWings && !isDragging ? { animation: `${floatAnim} 3.2s ease-in-out infinite` } : undefined}>
 
-          {/* Column layout: name badge → sprite → stars → shadow
-              Labels live outside the sprite box so they sit flush against
-              the visible pet body rather than floating at the box edges. */}
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, pointerEvents: "none" }}>
+          {/* Single position:relative box — sz × sz in map-canvas pixels.
+              Badge and stars are overlaid absolutely so they sit flush against
+              the pet's visible head / feet rather than floating outside the box. */}
+          <div style={{ position: "relative", width: sz, height: sz, pointerEvents: "none" }}>
 
-            {/* Username badge — just above the sprite.
-                Sizes are in map-canvas pixels (sz=1000 coordinate space). */}
+            {/* Pet sprite — overflow:visible so parts that extend slightly
+                beyond the sz box still render fully */}
+            {pet.petTemplateId ? (
+              <PetAnimator
+                petTemplateId={pet.petTemplateId}
+                mode="idle"
+                size={sz}
+                style={{
+                  filter: `drop-shadow(0 ${Math.round(sz * 0.04)}px ${Math.round(sz * 0.06)}px rgba(0,0,0,0.55))`,
+                  pointerEvents: "none",
+                  overflow: "visible",
+                }}
+              />
+            ) : petImg ? (
+              <img
+                src={petImg}
+                alt={displayName}
+                draggable={false}
+                style={{
+                  width: sz, height: sz,
+                  objectFit: "contain",
+                  filter: `drop-shadow(0 ${Math.round(sz * 0.03)}px ${Math.round(sz * 0.05)}px rgba(0,0,0,0.5))`,
+                  pointerEvents: "none",
+                }}
+              />
+            ) : null}
+
+            {/* Username badge — anchored just above the pet's head.
+                Pet heads sit at ~15% from top of the CANVAS_SIZE canvas. */}
             <span
               className="font-fantasy tracking-wide"
               style={{
-                fontSize: 28,
-                padding: "6px 22px",
+                position: "absolute",
+                top: "8%",
+                left: "50%",
+                transform: "translate(-50%, -100%)",
+                fontSize: Math.round(sz * 0.032),
+                padding: `${Math.round(sz * 0.008)}px ${Math.round(sz * 0.022)}px`,
                 borderRadius: 999,
                 background: "rgba(4,10,6,0.82)",
-                border: "3px solid rgba(127,255,212,0.30)",
+                border: `1px solid rgba(127,255,212,0.30)`,
                 color: "#7fffd4",
-                textShadow: "0 0 24px rgba(127,255,212,0.55)",
+                textShadow: "0 0 8px rgba(127,255,212,0.55)",
                 backdropFilter: "blur(4px)",
                 whiteSpace: "nowrap",
+                zIndex: 2,
               }}
             >
               {pet.username}
             </span>
 
-            {/* Sprite — no constraining box (same approach as the Home page).
-                size={1000} matches PetAnimator's internal CANVAS_SIZE so parts
-                render at full coordinate fidelity; overflow: visible lets them
-                paint naturally without being clipped to a small rectangle. */}
-            <div style={{ position: "relative" }}>
-              {pet.petTemplateId ? (
-                <PetAnimator
-                  petTemplateId={pet.petTemplateId}
-                  mode="idle"
-                  size={sz}
-                  style={{
-                    filter: "drop-shadow(0 8px 18px rgba(0,0,0,0.55))",
-                    pointerEvents: "none",
-                    overflow: "visible",
-                  }}
-                />
-              ) : petImg ? (
-                <img
-                  src={petImg}
-                  alt={displayName}
-                  draggable={false}
-                  style={{
-                    width: sz, height: sz,
-                    objectFit: "contain",
-                    filter: "drop-shadow(0 8px 14px rgba(0,0,0,0.5))",
-                    pointerEvents: "none",
-                  }}
-                />
-              ) : null}
-
-              {/* Hit-zone: covers the pet body area (roughly 40–60% of the
-                  1000-unit canvas). Absolute px values work because the
-                  position: relative container's layout origin is at (0,0). */}
+            {/* Rarity stars — just below the pet's feet (~85% from top) */}
+            {rarityCount > 0 && (
               <div
                 style={{
                   position: "absolute",
-                  left: "50%", top: "50%",
-                  width: 420, height: 460,
-                  transform: "translate(-50%, -50%)",
-                  borderRadius: "50%",
-                  pointerEvents: "auto",
+                  top: "85%",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  display: "flex",
+                  gap: Math.round(sz * 0.01),
+                  alignItems: "center",
+                  zIndex: 2,
                 }}
-              />
-            </div>
-
-            {/* Rarity stars — sized for the 1000-unit coordinate space */}
-            {rarityCount > 0 && (
-              <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                {Array.from({ length: rarityCount }).map((_, i) => (
-                  <svg key={i} width="30" height="30" viewBox="0 0 24 24" fill={starColour} style={{ filter: `drop-shadow(0 0 8px ${starColour}99)` }}>
-                    <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
-                  </svg>
-                ))}
+              >
+                {Array.from({ length: rarityCount }).map((_, i) => {
+                  const starSz = Math.round(sz * 0.075);
+                  return (
+                    <svg key={i} width={starSz} height={starSz} viewBox="0 0 24 24" fill={starColour} style={{ filter: `drop-shadow(0 0 3px ${starColour}99)` }}>
+                      <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+                    </svg>
+                  );
+                })}
               </div>
             )}
 
-            {/* Ground shadow */}
+            {/* Ground shadow — at the very bottom of the box */}
             {!hasWings && (
-              <div style={{
-                width: Math.round(sz * 0.5),
-                height: Math.max(3, Math.round(sz * 0.05)),
-                background: "rgba(0,0,0,0.22)",
-                borderRadius: "50%",
-                filter: `blur(${Math.max(2, Math.round(sz * 0.04))}px)`,
-              }} />
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: "2%",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  width: Math.round(sz * 0.5),
+                  height: Math.max(3, Math.round(sz * 0.04)),
+                  background: "rgba(0,0,0,0.22)",
+                  borderRadius: "50%",
+                  filter: `blur(${Math.max(2, Math.round(sz * 0.03))}px)`,
+                }}
+              />
             )}
+
+            {/* Hit-zone oval — covers the pet body (40–50% of sz), centred */}
+            <div
+              style={{
+                position: "absolute",
+                left: "50%", top: "50%",
+                width: Math.round(sz * 0.46),
+                height: Math.round(sz * 0.50),
+                transform: "translate(-50%, -50%)",
+                borderRadius: "50%",
+                pointerEvents: "auto",
+              }}
+            />
           </div>
         </div>
       </div>
