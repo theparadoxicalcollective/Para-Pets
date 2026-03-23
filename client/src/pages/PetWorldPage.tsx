@@ -173,7 +173,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   // ── initial centering on mount / mapH change ───────────────────────────────
   useEffect(() => {
     const coverSc = Math.max(FRAME_W / MAP_W, FRAME_H / mapHRef.current);
-    const initSc  = coverSc * 1.4;
+    // Start at cover scale so the world fills the frame without zooming in extra
+    const initSc  = coverSc;
     const ix = (FRAME_W - MAP_W * initSc) / 2;
     const iy = (FRAME_H - mapHRef.current * initSc) / 2;
     mapTransformRef.current = { x: ix, y: iy, scale: initSc };
@@ -353,18 +354,13 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
             background: "linear-gradient(to bottom, rgba(0,0,0,0.22) 0%, transparent 18%, transparent 75%, rgba(0,0,0,0.36) 100%)",
           }} />
 
-          {/* Floating magic motes */}
+          {/* Floating magic motes — sparse so the world feels open */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
             {[
-              { left: "10%", top: "18%", mx: "28px",  my: "-55px", dur: "7s",  delay: "0s",   size: "3px" },
-              { left: "72%", top: "35%", mx: "-38px", my: "-48px", dur: "9s",  delay: "1.5s", size: "2px" },
-              { left: "40%", top: "60%", mx: "20px",  my: "-65px", dur: "8s",  delay: "3s",   size: "3px" },
-              { left: "22%", top: "78%", mx: "-24px", my: "-52px", dur: "10s", delay: "2s",   size: "2px" },
-              { left: "62%", top: "28%", mx: "32px",  my: "-42px", dur: "6s",  delay: "4s",   size: "2px" },
-              { left: "85%", top: "65%", mx: "-20px", my: "-60px", dur: "8.5s",delay: "0.5s", size: "3px" },
-              { left: "50%", top: "85%", mx: "15px",  my: "-70px", dur: "7.5s",delay: "2.5s", size: "2px" },
-              { left: "30%", top: "45%", mx: "-18px", my: "-45px", dur: "9.5s",delay: "3.5s", size: "2px" },
-              { left: "78%", top: "72%", mx: "22px",  my: "-58px", dur: "7.2s",delay: "1s",   size: "3px" },
+              { left: "12%", top: "22%", mx: "20px",  my: "-45px", dur: "8s",  delay: "0s",   size: "2px" },
+              { left: "68%", top: "40%", mx: "-25px", my: "-50px", dur: "10s", delay: "2s",   size: "2px" },
+              { left: "45%", top: "72%", mx: "18px",  my: "-55px", dur: "9s",  delay: "4s",   size: "2px" },
+              { left: "82%", top: "58%", mx: "-18px", my: "-48px", dur: "7.5s",delay: "1s",   size: "2px" },
             ].map((m, i) => (
               <div key={i} className="absolute rounded-full" style={{
                 left: m.left, top: m.top, width: m.size, height: m.size,
