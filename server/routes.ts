@@ -12,8 +12,8 @@ import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClie
 import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "Para Pets <noreply@para-pets.com>";
-const APP_URL = process.env.APP_URL || "https://para-pets.replit.app";
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "Para Pets <noreply@parapets.net>";
+const APP_URL = process.env.APP_URL || "https://parapets.net";
 
 const COIN_PACKS = [
   { id: "pack_100", coins: 100, priceUsd: 1, label: "100 Coins" },
