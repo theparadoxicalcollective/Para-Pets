@@ -62,6 +62,10 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletePassword, setDeletePassword] = useState("");
 
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [feedbackSent, setFeedbackSent] = useState(false);
+
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
   const [cropOffset, setCropOffset] = useState({ x: 50, y: 50 });
   const cropDragRef = useRef<{ startX: number; startY: number; startOX: number; startOY: number } | null>(null);
@@ -217,7 +221,26 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
     },
   });
 
-  const isPending = updateUsernameMutation.isPending || updateProfilePicMutation.isPending || changePasswordMutation.isPending || logoutMutation.isPending || deleteAccountMutation.isPending;
+  const feedbackMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/support-message", {
+        username: user.username,
+        email: user.email,
+        subject: "Player Feedback",
+        message: feedbackMessage.trim(),
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      setFeedbackSent(true);
+      setFeedbackMessage("");
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to send feedback. Please try again.", variant: "destructive" });
+    },
+  });
+
+  const isPending = updateUsernameMutation.isPending || updateProfilePicMutation.isPending || changePasswordMutation.isPending || logoutMutation.isPending || deleteAccountMutation.isPending || feedbackMutation.isPending;
 
   return (
     <>
@@ -472,6 +495,89 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                   >
                     {changePasswordMutation.isPending ? "Updating..." : "Update Password"}
                   </button>
+                </div>
+              )}
+            </div>
+
+            {/* Feedback Section */}
+            <div>
+              <button
+                data-testid="button-toggle-feedback"
+                onClick={() => { setShowFeedback(!showFeedback); setFeedbackSent(false); setFeedbackMessage(""); }}
+                disabled={isPending}
+                className="w-full py-2.5 rounded-md font-fantasy text-xs tracking-widest transition-all disabled:opacity-60"
+                style={{
+                  background: "linear-gradient(135deg, rgba(42,58,92,0.6) 0%, rgba(25,38,70,0.6) 100%)",
+                  border: "1px solid rgba(100,140,212,0.4)",
+                  color: "#8ab4f8",
+                  cursor: "pointer",
+                }}
+              >
+                {showFeedback ? "Cancel" : "Send Feedback"}
+              </button>
+
+              {showFeedback && (
+                <div
+                  className="mt-2 rounded-lg p-3 space-y-3"
+                  style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(100,140,212,0.2)" }}
+                >
+                  {feedbackSent ? (
+                    <div className="text-center py-2 space-y-2">
+                      <p className="font-fantasy text-[#7fffd4] text-sm tracking-wider" data-testid="text-feedback-sent">
+                        Thanks for your feedback!
+                      </p>
+                      <p className="font-fantasy text-[#a89878] text-xs tracking-wider">
+                        We read every message and appreciate you taking the time.
+                      </p>
+                      <button
+                        onClick={() => { setShowFeedback(false); setFeedbackSent(false); }}
+                        className="font-fantasy text-[#8ab4f8] text-xs tracking-wider hover:text-[#aaccff] transition-colors"
+                        style={{ background: "none", border: "none", cursor: "pointer" }}
+                      >
+                        Close
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="font-fantasy text-[#8ab4f8] text-[10px] tracking-wider">
+                        Share a bug, idea, or anything on your mind — it goes straight to the admin inbox.
+                      </p>
+                      <textarea
+                        data-testid="input-feedback-message"
+                        value={feedbackMessage}
+                        onChange={e => setFeedbackMessage(e.target.value)}
+                        disabled={feedbackMutation.isPending}
+                        placeholder="What's on your mind?"
+                        rows={4}
+                        maxLength={2000}
+                        className="w-full px-3 py-2 rounded font-sans text-xs resize-none outline-none disabled:opacity-60"
+                        style={{
+                          background: "rgba(255,255,255,0.06)",
+                          border: "1px solid rgba(100,140,212,0.3)",
+                          color: "#e8d8b0",
+                        }}
+                      />
+                      <div className="flex items-center justify-between">
+                        <span className="font-fantasy text-[#6a5840] text-[9px] tracking-wider">
+                          {feedbackMessage.length}/2000
+                        </span>
+                        <button
+                          data-testid="button-submit-feedback"
+                          onClick={() => feedbackMutation.mutate()}
+                          disabled={feedbackMutation.isPending || !feedbackMessage.trim()}
+                          className="px-4 py-1.5 rounded font-fantasy text-xs tracking-wider transition-all disabled:opacity-50"
+                          style={{
+                            background: "linear-gradient(135deg, #1a2d5a 0%, #0d1a3a 100%)",
+                            border: "1px solid rgba(100,140,212,0.5)",
+                            color: "#8ab4f8",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {feedbackMutation.isPending ? "Sending..." : "Send"}
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>
