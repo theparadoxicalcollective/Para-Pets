@@ -882,3 +882,9 @@ id = "5dVqwUnw_KWDeg225IH12"
 uri = "file://attached_assets/pw_ground_layer.png"
 type = "image"
 title = "Pet World Background — Mossy Stone Plaza"
+
+[[outputs]]
+id = "taXq4_W41fMvw79-bspwY"
+uri = "file://attached_assets/pw_ground_preview.png"
+type = "image"
+title = "Preview — Enchanted Clearing (not yet applied)"
