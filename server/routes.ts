@@ -1788,6 +1788,7 @@ export async function registerRoutes(
             imageUrl: row.shopItem.imageUrl,
             hatchedImageUrl: row.shopItem.hatchedImageUrl,
             petLevel: row.inventory.petLevel,
+            rarity: row.shopItem.rarity ?? null,
             petTemplateId: row.shopItem.petTemplateId || null,
           });
         })

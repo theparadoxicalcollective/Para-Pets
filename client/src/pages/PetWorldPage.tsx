@@ -63,6 +63,7 @@ type WorldActivePet = {
   imageUrl: string | null;
   hatchedImageUrl: string | null;
   petLevel: number;
+  rarity: number | null;
   petTemplateId: string | null;
 };
 
@@ -810,6 +811,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
 // Renders a single user's active pet roaming freely in the viewport.
 // Wings → can wander anywhere on screen.
 // No wings → stays near the lower ground strip.
+// Labels (username above, rarity stars below) are overlaid directly on the
+// sprite so they're always close to the pet body regardless of size.
 function WorldRoamingPet({
   pet,
   index,
@@ -834,13 +837,11 @@ function WorldRoamingPet({
     (p) => p.partType === "left_wing" || p.partType === "right_wing" || p.partType === "wings" || p.partType === "front_wing" || p.partType === "back_wing"
   ));
 
-  // Each pet picks a random wander animation variant (0-5) seeded by index
   const wanderIdx = index % 6;
   const wanderPrefix = hasWings ? "petWander" : "petGroundWander";
   const floatAnim = hasWings ? "petFloatSmall" : "petGroundFloat";
 
-  // Randomise starting position using session salt so it changes each visit.
-  // Winged pets → anywhere on screen; ground pets → bottom 20% strip.
+  // Random starting position per session — wings roam freely, others hug the ground
   const seedBase = (index + 1) * 1337 + sessionSalt * 999983;
   const rng = (n: number) => {
     let h = Math.imul(Math.floor(seedBase * 10000 + n), 0x9e3779b9);
@@ -848,20 +849,22 @@ function WorldRoamingPet({
     return ((h >>> 0) / 4294967295);
   };
 
-  const startLeft = hasWings
-    ? `${8 + rng(1) * 76}%`
-    : `${4 + rng(1) * 72}%`;
-  const startTop = hasWings
-    ? `${10 + rng(2) * 60}%`
-    : `${78 + rng(2) * 10}%`;
-
-  // Vary duration & delay so pets don't all move in sync
-  const duration = `${34 + rng(3) * 16}s`;
-  const delay    = `-${rng(4) * 20}s`;
+  const startLeft = hasWings ? `${8 + rng(1) * 76}%` : `${4 + rng(1) * 72}%`;
+  const startTop  = hasWings ? `${10 + rng(2) * 60}%` : `${78 + rng(2) * 10}%`;
+  const duration  = `${34 + rng(3) * 16}s`;
+  const delay     = `-${rng(4) * 20}s`;
 
   const sz = hasWings ? 140 : 160;
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
   const displayName = pet.petNickname || pet.name;
+  const rarityCount = Math.min(5, Math.max(0, pet.rarity ?? 0));
+
+  // Star colour by rarity
+  const starColour =
+    rarityCount >= 5 ? "#e040fb" :
+    rarityCount >= 4 ? "#ff9800" :
+    rarityCount >= 3 ? "#7fffd4" :
+    "#f0c040";
 
   return (
     <div
@@ -881,8 +884,42 @@ function WorldRoamingPet({
         }}
       >
         <div style={hasWings ? { animation: `${floatAnim} 3.2s ease-in-out infinite` } : undefined}>
-          {pet.petTemplateId ? (
-            <div style={{ width: sz, height: sz, position: "relative" }}>
+
+          {/* ── Sprite container — labels are absolutely positioned inside ── */}
+          <div style={{ position: "relative", width: sz, height: sz, pointerEvents: "none" }}>
+
+            {/* Username badge — top-center of the sprite, overlaid */}
+            <div
+              style={{
+                position: "absolute",
+                top: 6,
+                left: "50%",
+                transform: "translateX(-50%)",
+                zIndex: 5,
+                pointerEvents: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <span
+                className="font-fantasy tracking-wide"
+                style={{
+                  fontSize: 9,
+                  padding: "2px 7px",
+                  borderRadius: 99,
+                  background: "rgba(4,10,6,0.80)",
+                  border: "1px solid rgba(127,255,212,0.30)",
+                  color: "#7fffd4",
+                  textShadow: "0 0 8px rgba(127,255,212,0.55)",
+                  display: "inline-block",
+                  backdropFilter: "blur(4px)",
+                }}
+              >
+                {pet.username}
+              </span>
+            </div>
+
+            {/* Pet sprite */}
+            {pet.petTemplateId ? (
               <PetAnimator
                 petTemplateId={pet.petTemplateId}
                 mode="idle"
@@ -891,22 +928,46 @@ function WorldRoamingPet({
                   filter: `drop-shadow(0 ${Math.round(sz * 0.12)}px ${Math.round(sz * 0.15)}px rgba(0,0,0,0.5))`,
                 }}
               />
-            </div>
-          ) : petImg ? (
-            <img
-              src={petImg}
-              alt={displayName}
-              draggable={false}
-              style={{
-                width: sz,
-                height: sz,
-                objectFit: "contain",
-                filter: `drop-shadow(0 ${Math.round(sz * 0.1)}px ${Math.round(sz * 0.12)}px rgba(0,0,0,0.45))`,
-              }}
-            />
-          ) : null}
+            ) : petImg ? (
+              <img
+                src={petImg}
+                alt={displayName}
+                draggable={false}
+                style={{
+                  width: sz,
+                  height: sz,
+                  objectFit: "contain",
+                  filter: `drop-shadow(0 ${Math.round(sz * 0.1)}px ${Math.round(sz * 0.12)}px rgba(0,0,0,0.45))`,
+                  pointerEvents: "none",
+                }}
+              />
+            ) : null}
 
-          {/* Shadow beneath ground pets */}
+            {/* Rarity stars — bottom-center of the sprite, overlaid */}
+            {rarityCount > 0 && (
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: 6,
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  zIndex: 5,
+                  pointerEvents: "none",
+                  display: "flex",
+                  gap: 1,
+                  alignItems: "center",
+                }}
+              >
+                {Array.from({ length: rarityCount }).map((_, i) => (
+                  <svg key={i} width="9" height="9" viewBox="0 0 24 24" fill={starColour} style={{ filter: `drop-shadow(0 0 3px ${starColour}99)` }}>
+                    <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+                  </svg>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Ground shadow beneath non-flying pets */}
           {!hasWings && (
             <div style={{
               width: Math.round(sz * 0.5),
@@ -917,35 +978,6 @@ function WorldRoamingPet({
               filter: `blur(${Math.max(2, Math.round(sz * 0.04))}px)`,
             }} />
           )}
-
-          {/* Username + pet name badge */}
-          <div
-            className="flex flex-col items-center gap-0.5 mt-1"
-            style={{ pointerEvents: "none" }}
-          >
-            <span
-              className="font-fantasy text-[9px] tracking-wide px-2 py-0.5 rounded-full"
-              style={{
-                background: "rgba(4,10,6,0.78)",
-                border: "1px solid rgba(127,255,212,0.25)",
-                color: "#7fffd4",
-                textShadow: "0 0 8px rgba(127,255,212,0.5)",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {pet.username}
-            </span>
-            <span
-              className="font-fantasy text-[8px] tracking-wide px-1.5 py-0.5 rounded-full"
-              style={{
-                background: "rgba(4,10,6,0.6)",
-                color: "rgba(127,255,212,0.65)",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {displayName}
-            </span>
-          </div>
         </div>
       </div>
     </div>
