@@ -291,7 +291,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
       return res.json();
     },
     enabled: !!petTemplateId,
-    staleTime: 30000,
+    staleTime: Infinity,
   });
 
   const allParts = templateData?.parts || [];

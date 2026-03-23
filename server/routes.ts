@@ -13,6 +13,23 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "Para Pets <noreply@parapets.net>";
+
+// ── In-memory caches for static/rarely-changing data ─────────────────────────
+// Pet template parts never change during a session (only admins modify them).
+// Caching for 10 minutes eliminates repeated DB hits across all users.
+const templatePartsCache = new Map<string, { data: any; expiresAt: number }>();
+const TEMPLATE_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+function getCachedTemplateParts(templateId: string) {
+  const entry = templatePartsCache.get(templateId);
+  if (entry && entry.expiresAt > Date.now()) return entry.data;
+  templatePartsCache.delete(templateId);
+  return null;
+}
+
+function setCachedTemplateParts(templateId: string, data: any) {
+  templatePartsCache.set(templateId, { data, expiresAt: Date.now() + TEMPLATE_CACHE_TTL });
+}
 const APP_URL = process.env.APP_URL || "https://parapets.net";
 
 const COIN_PACKS = [
@@ -2133,11 +2150,17 @@ export async function registerRoutes(
 
   app.get("/api/pet-template-parts/:templateId", isAuthenticated, async (req, res) => {
     try {
+      const { templateId } = req.params;
+      const cached = getCachedTemplateParts(templateId);
+      if (cached) return res.json(cached);
+
       const [parts, template] = await Promise.all([
-        storage.getPetTemplateParts(req.params.templateId),
-        storage.getPetTemplate(req.params.templateId),
+        storage.getPetTemplateParts(templateId),
+        storage.getPetTemplate(templateId),
       ]);
-      return res.json({ parts, facing: template?.facing ?? "front" });
+      const result = { parts, facing: template?.facing ?? "front" };
+      setCachedTemplateParts(templateId, result);
+      return res.json(result);
     } catch (err) {
       console.error("Get pet template parts error:", err);
       return res.status(500).json({ message: "Failed to get parts" });
@@ -2301,6 +2324,7 @@ export async function registerRoutes(
       if (typeof pivotX === "number") updates.pivotX = Math.max(0, Math.min(100, pivotX));
       if (typeof pivotY === "number") updates.pivotY = Math.max(0, Math.min(100, pivotY));
       const updated = await storage.updatePetTemplatePart(req.params.partId, updates);
+      templatePartsCache.clear();
       return res.json(updated);
     } catch (err) {
       console.error("Update pet template part error:", err);
@@ -2311,6 +2335,7 @@ export async function registerRoutes(
   app.delete("/api/admin/pet-template-parts/:partId", isAdmin, async (req, res) => {
     try {
       await storage.deletePetTemplatePart(req.params.partId);
+      templatePartsCache.clear();
       return res.json({ message: "Part deleted" });
     } catch (err) {
       console.error("Delete pet template part error:", err);
