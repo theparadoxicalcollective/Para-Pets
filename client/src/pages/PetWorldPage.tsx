@@ -252,8 +252,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   // ── clamp + apply ──────────────────────────────────────────────────────────
   const applyMapTransform = useCallback((x: number, y: number, sc: number) => {
     const coverSc  = Math.max(FRAME_W / MAP_W, FRAME_H / mapHRef.current);
-    // Allow zooming out to 65% of cover scale (shows more world), max 2.5x zoom in
-    const clampedSc = Math.max(coverSc * 0.65, Math.min(coverSc * 2.5, sc));
+    // Minimum is cover scale (background always fills the frame), max 2.5x zoom in
+    const clampedSc = Math.max(coverSc, Math.min(coverSc * 2.5, sc));
     const mw = MAP_W * clampedSc;
     const mh = mapHRef.current * clampedSc;
     const cx = mw <= FRAME_W ? (FRAME_W - mw) / 2 : Math.max(FRAME_W - mw, Math.min(0, x));
