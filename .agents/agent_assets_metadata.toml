@@ -876,3 +876,9 @@ id = "xZh9BWFDs-49zFVWoqakm"
 uri = "file://attached_assets/generated_images/bait_swamp_crawler.png"
 type = "image"
 title = "Swamp Crawler"
+
+[[outputs]]
+id = "5dVqwUnw_KWDeg225IH12"
+uri = "file://attached_assets/pw_ground_layer.png"
+type = "image"
+title = "Pet World Background — Mossy Stone Plaza"
