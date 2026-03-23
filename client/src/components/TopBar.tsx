@@ -31,7 +31,14 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideHome, h
     refetchInterval: 10000,
   });
 
+  const { data: friendRequestData } = useQuery<{ count: number }>({
+    queryKey: ["/api/friends/requests/count"],
+    refetchInterval: 10000,
+  });
+
   const hasRewards = pendingRewards.length > 0;
+  const friendRequestCount = friendRequestData?.count ?? 0;
+  const hasFriendRequests = friendRequestCount > 0;
 
   return (
     <>
@@ -166,6 +173,42 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideHome, h
                     }}
                   >
                     <span className="font-bold text-[8px] text-white leading-none">{pendingRewards.length}</span>
+                  </div>
+                </button>
+              )}
+
+              {hasFriendRequests && (
+                <button
+                  data-testid="button-friend-requests"
+                  onClick={onProfileClick}
+                  className="relative flex-shrink-0 transition-transform active:scale-90"
+                  style={{ background: "none", border: "none", cursor: "pointer" }}
+                  title="Friend requests"
+                >
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(30,15,5,0.9) 0%, rgba(60,35,10,0.9) 100%)",
+                      border: "1.5px solid rgba(74,222,128,0.55)",
+                      boxShadow: "0 0 10px rgba(74,222,128,0.25)",
+                    }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                      <circle cx="9" cy="7" r="4"/>
+                      <line x1="19" y1="8" x2="19" y2="14"/>
+                      <line x1="22" y1="11" x2="16" y2="11"/>
+                    </svg>
+                  </div>
+                  <div
+                    className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full flex items-center justify-center px-1"
+                    style={{
+                      background: "radial-gradient(circle, #4ade80 0%, #16a34a 100%)",
+                      border: "1.5px solid rgba(30,15,5,0.8)",
+                      boxShadow: "0 0 6px rgba(74,222,128,0.6)",
+                    }}
+                  >
+                    <span className="font-bold text-[8px] text-white leading-none">{friendRequestCount}</span>
                   </div>
                 </button>
               )}

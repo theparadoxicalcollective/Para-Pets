@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -65,6 +65,8 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [feedbackSent, setFeedbackSent] = useState(false);
+
+  const [showFriends, setShowFriends] = useState(false);
 
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
   const [cropOffset, setCropOffset] = useState({ x: 50, y: 50 });
@@ -241,6 +243,45 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
   });
 
   const isPending = updateUsernameMutation.isPending || updateProfilePicMutation.isPending || changePasswordMutation.isPending || logoutMutation.isPending || deleteAccountMutation.isPending || feedbackMutation.isPending;
+
+  const { data: friends = [] } = useQuery<any[]>({
+    queryKey: ["/api/friends"],
+    enabled: showFriends,
+    refetchInterval: showFriends ? 15000 : false,
+  });
+
+  const { data: friendRequests = [] } = useQuery<any[]>({
+    queryKey: ["/api/friends/requests"],
+    enabled: showFriends,
+    refetchInterval: showFriends ? 15000 : false,
+  });
+
+  const acceptRequestMutation = useMutation({
+    mutationFn: (requestId: string) => apiRequest("POST", `/api/friends/accept/${requestId}`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/friends"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/friends/requests"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/friends/requests/count"] });
+    },
+    onError: () => toast({ title: "Error", description: "Could not accept request.", variant: "destructive" }),
+  });
+
+  const declineRequestMutation = useMutation({
+    mutationFn: (otherId: string) => apiRequest("DELETE", `/api/friends/${otherId}`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/friends/requests"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/friends/requests/count"] });
+    },
+    onError: () => toast({ title: "Error", description: "Could not decline request.", variant: "destructive" }),
+  });
+
+  const removeFriendMutation = useMutation({
+    mutationFn: (friendId: string) => apiRequest("DELETE", `/api/friends/${friendId}`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/friends"] });
+    },
+    onError: () => toast({ title: "Error", description: "Could not remove friend.", variant: "destructive" }),
+  });
 
   return (
     <>
@@ -578,6 +619,125 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                       </div>
                     </>
                   )}
+                </div>
+              )}
+            </div>
+
+            {/* ── Friends section ──────────────────────────────────────── */}
+            <div className="space-y-2">
+              <button
+                data-testid="button-toggle-friends"
+                onClick={() => setShowFriends(v => !v)}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all"
+                style={{
+                  background: showFriends ? "rgba(127,255,212,0.08)" : "rgba(127,255,212,0.04)",
+                  border: "1px solid rgba(127,255,212,0.25)",
+                  color: "#7fffd4",
+                  cursor: "pointer",
+                }}
+              >
+                <span className="font-fantasy text-xs tracking-widest">Friends</span>
+                <span className="font-fantasy text-xs text-[#7fffd4]/60">{showFriends ? "▲" : "▼"}</span>
+              </button>
+
+              {showFriends && (
+                <div
+                  className="rounded-xl p-4 space-y-4"
+                  style={{ background: "rgba(10,20,14,0.6)", border: "1px solid rgba(127,255,212,0.15)" }}
+                >
+                  {/* Pending requests */}
+                  {friendRequests.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="font-fantasy text-[#7fffd4] text-[10px] tracking-widest uppercase">
+                        Requests ({friendRequests.length})
+                      </p>
+                      {friendRequests.map((req: any) => (
+                        <div
+                          key={req.id}
+                          className="flex items-center gap-3 py-2 px-3 rounded-lg"
+                          style={{ background: "rgba(127,255,212,0.06)", border: "1px solid rgba(127,255,212,0.12)" }}
+                          data-testid={`friend-request-${req.id}`}
+                        >
+                          <div className="flex-shrink-0">
+                            {req.profileImage ? (
+                              <img src={req.profileImage} alt={req.username} style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(127,255,212,0.3)" }} />
+                            ) : (
+                              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(127,255,212,0.1)", border: "1px solid rgba(127,255,212,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                <span style={{ fontSize: 12, color: "#7fffd4", fontWeight: "bold" }}>{(req.username ?? "?").charAt(0).toUpperCase()}</span>
+                              </div>
+                            )}
+                          </div>
+                          <span className="font-fantasy text-[#d4e8da] text-xs flex-1 truncate" data-testid={`text-request-username-${req.id}`}>{req.username}</span>
+                          <div className="flex gap-1.5 flex-shrink-0">
+                            <button
+                              data-testid={`button-accept-request-${req.id}`}
+                              onClick={() => acceptRequestMutation.mutate(req.id)}
+                              disabled={acceptRequestMutation.isPending}
+                              className="px-2.5 py-1 rounded-md font-fantasy text-[10px] tracking-wider transition-all disabled:opacity-50"
+                              style={{ background: "rgba(74,222,128,0.2)", border: "1px solid rgba(74,222,128,0.45)", color: "#4ade80", cursor: "pointer" }}
+                            >
+                              Accept
+                            </button>
+                            <button
+                              data-testid={`button-decline-request-${req.id}`}
+                              onClick={() => declineRequestMutation.mutate(req.requesterId)}
+                              disabled={declineRequestMutation.isPending}
+                              className="px-2.5 py-1 rounded-md font-fantasy text-[10px] tracking-wider transition-all disabled:opacity-50"
+                              style={{ background: "rgba(248,113,113,0.15)", border: "1px solid rgba(248,113,113,0.35)", color: "#f87171", cursor: "pointer" }}
+                            >
+                              Decline
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(127,255,212,0.2), transparent)" }} />
+                    </div>
+                  )}
+
+                  {/* Friends list */}
+                  <div className="space-y-2">
+                    <p className="font-fantasy text-[#7fffd4] text-[10px] tracking-widest uppercase">
+                      My Friends ({friends.length})
+                    </p>
+                    {friends.length === 0 && friendRequests.length === 0 && (
+                      <p className="font-fantasy text-[#5a8070] text-xs text-center py-3" data-testid="text-no-friends">
+                        No friends yet — explore the world and add some!
+                      </p>
+                    )}
+                    {friends.length === 0 && friendRequests.length > 0 && (
+                      <p className="font-fantasy text-[#5a8070] text-xs text-center py-2" data-testid="text-no-friends-yet">
+                        No friends yet
+                      </p>
+                    )}
+                    {friends.map((f: any) => (
+                      <div
+                        key={f.id}
+                        className="flex items-center gap-3 py-2 px-3 rounded-lg"
+                        style={{ background: "rgba(127,255,212,0.04)", border: "1px solid rgba(127,255,212,0.1)" }}
+                        data-testid={`friend-row-${f.friendId}`}
+                      >
+                        <div className="flex-shrink-0">
+                          {f.profileImage ? (
+                            <img src={f.profileImage} alt={f.username} style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(212,160,23,0.35)" }} />
+                          ) : (
+                            <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(212,160,23,0.1)", border: "1px solid rgba(212,160,23,0.35)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <span style={{ fontSize: 12, color: "#d4a017", fontWeight: "bold" }}>{(f.username ?? "?").charAt(0).toUpperCase()}</span>
+                            </div>
+                          )}
+                        </div>
+                        <span className="font-fantasy text-[#d4e8da] text-xs flex-1 truncate" data-testid={`text-friend-username-${f.friendId}`}>{f.username}</span>
+                        <button
+                          data-testid={`button-remove-friend-${f.friendId}`}
+                          onClick={() => removeFriendMutation.mutate(f.friendId)}
+                          disabled={removeFriendMutation.isPending}
+                          className="px-2.5 py-1 rounded-md font-fantasy text-[10px] tracking-wider transition-all disabled:opacity-50"
+                          style={{ background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.3)", color: "#f87171", cursor: "pointer" }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

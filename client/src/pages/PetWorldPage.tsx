@@ -63,6 +63,9 @@ type WorldActivePet = {
   imageUrl: string | null;
   hatchedImageUrl: string | null;
   petLevel: number;
+  petHealth: number | null;
+  petAtk: number | null;
+  petDef: number | null;
   rarity: number | null;
   petTemplateId: string | null;
 };
@@ -133,6 +136,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     },
     staleTime: 60000,
   });
+
+  const [selectedPet, setSelectedPet] = useState<WorldActivePet | null>(null);
 
   // Generate a random session salt once per mount so pets spawn at fresh
   // random locations every time the user opens Pet World
@@ -546,6 +551,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
             pet={pet}
             index={idx}
             sessionSalt={sessionSalt}
+            onPetClick={setSelectedPet}
           />
         ))}
       </div>
@@ -803,6 +809,215 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           )}
         </div>
       )}
+
+      {/* ── Pet detail modal ─────────────────────────────────────────────── */}
+      {selectedPet && (
+        <PetDetailModal
+          pet={selectedPet}
+          currentUserId={user.id}
+          onClose={() => setSelectedPet(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── PetDetailModal ─────────────────────────────────────────────────────────
+function PetDetailModal({
+  pet,
+  currentUserId,
+  onClose,
+}: {
+  pet: WorldActivePet;
+  currentUserId: string;
+  onClose: () => void;
+}) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const isOwnPet = pet.userId === currentUserId;
+
+  const { data: friendStatus, isLoading: statusLoading } = useQuery<{ friendship: any | null }>({
+    queryKey: ["/api/friends/status", pet.userId],
+    queryFn: async () => {
+      const res = await fetch(`/api/friends/status/${pet.userId}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    enabled: !isOwnPet,
+  });
+
+  const sendRequestMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/friends/request/${pet.userId}`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/friends/status", pet.userId] });
+      toast({ title: "Friend request sent!", description: `Request sent to ${pet.username}.` });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Could not send friend request.", variant: "destructive" });
+    },
+  });
+
+  const rarityCount = Math.min(5, Math.max(0, pet.rarity ?? 0));
+  const starColour =
+    rarityCount >= 5 ? "#e040fb" :
+    rarityCount >= 4 ? "#ff9800" :
+    rarityCount >= 3 ? "#7fffd4" :
+    "#f0c040";
+
+  const displayName = pet.petNickname || pet.name;
+  const petImg = pet.hatchedImageUrl || pet.imageUrl;
+
+  const friendship = friendStatus?.friendship;
+  const isFriend = friendship?.status === "accepted";
+  const isPending = friendship?.status === "pending";
+
+  return (
+    <div
+      className="fixed inset-0 z-[80] flex items-end justify-center"
+      style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
+    >
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="relative w-full rounded-t-3xl animate-slide-up overflow-hidden"
+        style={{
+          background: "linear-gradient(180deg, #0b1a0d 0%, #122015 60%, #0b1a0d 100%)",
+          border: "1px solid rgba(127,255,212,0.3)",
+          borderBottom: "none",
+          boxShadow: "0 -8px 40px rgba(0,0,0,0.9), inset 0 1px 0 rgba(127,255,212,0.2)",
+          maxHeight: "70vh",
+        }}
+      >
+        <div className="absolute inset-x-0 top-0 h-1 rounded-t-3xl" style={{ background: "linear-gradient(90deg, transparent, rgba(127,255,212,0.5), transparent)" }} />
+
+        <button
+          data-testid="button-close-pet-detail"
+          onClick={onClose}
+          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full z-10"
+          style={{ background: "rgba(127,255,212,0.12)", border: "1px solid rgba(127,255,212,0.35)", color: ACCENT, fontSize: 18, cursor: "pointer" }}
+        >
+          ✕
+        </button>
+
+        <div className="px-6 pt-6 pb-8 flex flex-col gap-4">
+          {/* Pet sprite + name */}
+          <div className="flex items-center gap-4">
+            <div className="relative flex-shrink-0">
+              {pet.petTemplateId ? (
+                <PetAnimator petTemplateId={pet.petTemplateId} mode="idle" size={90} />
+              ) : petImg ? (
+                <img src={petImg} alt={displayName} style={{ width: 90, height: 90, objectFit: "contain" }} />
+              ) : (
+                <div style={{ width: 90, height: 90, borderRadius: 12, background: "rgba(127,255,212,0.08)", border: "1px solid rgba(127,255,212,0.2)" }} />
+              )}
+            </div>
+
+            <div className="flex flex-col gap-1 min-w-0">
+              <p
+                className="font-fantasy text-[#7fffd4] font-semibold truncate"
+                style={{ fontSize: 17, textShadow: "0 0 12px rgba(127,255,212,0.6)" }}
+                data-testid="text-pet-detail-name"
+              >
+                {displayName}
+              </p>
+              {pet.petNickname && (
+                <p className="font-fantasy text-[#a89878] text-xs truncate">{pet.name}</p>
+              )}
+
+              {/* Rarity stars */}
+              {rarityCount > 0 && (
+                <div className="flex gap-1 items-center">
+                  {Array.from({ length: rarityCount }).map((_, i) => (
+                    <svg key={i} width="13" height="13" viewBox="0 0 24 24" fill={starColour} style={{ filter: `drop-shadow(0 0 4px ${starColour}99)` }}>
+                      <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+                    </svg>
+                  ))}
+                </div>
+              )}
+
+              {/* Owner */}
+              <div className="flex items-center gap-1.5 mt-0.5">
+                {pet.profileImage ? (
+                  <img src={pet.profileImage} alt={pet.username} style={{ width: 18, height: 18, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(212,160,23,0.4)" }} />
+                ) : (
+                  <div style={{ width: 18, height: 18, borderRadius: "50%", background: "rgba(212,160,23,0.2)", border: "1px solid rgba(212,160,23,0.4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <span style={{ fontSize: 9, color: "#d4a017", fontWeight: "bold" }}>{pet.username.charAt(0).toUpperCase()}</span>
+                  </div>
+                )}
+                <span className="font-fantasy text-[#d4a017] text-xs" data-testid="text-pet-detail-owner">{pet.username}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(127,255,212,0.25), transparent)" }} />
+
+          {/* Stats */}
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              { label: "Level", value: pet.petLevel ?? 1, colour: "#f0c040" },
+              { label: "HP", value: pet.petHealth ?? "—", colour: "#4ade80" },
+              { label: "ATK", value: pet.petAtk ?? "—", colour: "#f87171" },
+              { label: "DEF", value: pet.petDef ?? "—", colour: "#60a5fa" },
+            ].map(({ label, value, colour }) => (
+              <div
+                key={label}
+                className="flex flex-col items-center gap-1 py-2 rounded-xl"
+                style={{ background: "rgba(127,255,212,0.05)", border: "1px solid rgba(127,255,212,0.12)" }}
+                data-testid={`stat-${label.toLowerCase()}`}
+              >
+                <span className="font-fantasy font-bold" style={{ fontSize: 16, color: colour, textShadow: `0 0 8px ${colour}80` }}>{value}</span>
+                <span className="font-fantasy text-[#7a9080] uppercase tracking-widest" style={{ fontSize: 9 }}>{label}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Add Friend / Friend status button */}
+          {!isOwnPet && (
+            <div className="flex justify-center mt-1">
+              {statusLoading ? (
+                <div style={{ color: "#7fffd4", fontSize: 12 }} className="font-fantasy">Loading...</div>
+              ) : isFriend ? (
+                <div
+                  className="font-fantasy text-xs tracking-wider px-5 py-2.5 rounded-full"
+                  style={{ background: "rgba(127,255,212,0.1)", border: "1px solid rgba(127,255,212,0.35)", color: "#7fffd4" }}
+                  data-testid="status-already-friends"
+                >
+                  ✓ Friends
+                </div>
+              ) : isPending ? (
+                <div
+                  className="font-fantasy text-xs tracking-wider px-5 py-2.5 rounded-full"
+                  style={{ background: "rgba(240,192,64,0.1)", border: "1px solid rgba(240,192,64,0.35)", color: "#f0c040" }}
+                  data-testid="status-request-pending"
+                >
+                  Request Pending
+                </div>
+              ) : (
+                <button
+                  data-testid="button-add-friend"
+                  onClick={() => sendRequestMutation.mutate()}
+                  disabled={sendRequestMutation.isPending}
+                  className="font-fantasy text-sm tracking-wider px-6 py-2.5 rounded-full transition-all active:scale-95"
+                  style={{
+                    background: sendRequestMutation.isPending
+                      ? "rgba(127,255,212,0.08)"
+                      : "linear-gradient(135deg, rgba(45,154,100,0.7) 0%, rgba(20,100,60,0.7) 100%)",
+                    border: "1.5px solid rgba(127,255,212,0.5)",
+                    color: "#7fffd4",
+                    cursor: sendRequestMutation.isPending ? "default" : "pointer",
+                    boxShadow: "0 0 12px rgba(127,255,212,0.15)",
+                  }}
+                >
+                  {sendRequestMutation.isPending ? "Sending..." : "+ Add Friend"}
+                </button>
+              )}
+            </div>
+          )}
+          {isOwnPet && (
+            <p className="font-fantasy text-center text-[#6a8a78] text-xs tracking-wider">Your pet</p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -817,10 +1032,12 @@ function WorldRoamingPet({
   pet,
   index,
   sessionSalt,
+  onPetClick,
 }: {
   pet: WorldActivePet;
   index: number;
   sessionSalt: number;
+  onPetClick: (pet: WorldActivePet) => void;
 }) {
   const { data: templateData } = useQuery<{ parts: Array<{ partType: string }> }>({
     queryKey: ["/api/pet-template-parts", pet.petTemplateId],
@@ -886,7 +1103,10 @@ function WorldRoamingPet({
         <div style={hasWings ? { animation: `${floatAnim} 3.2s ease-in-out infinite` } : undefined}>
 
           {/* ── Sprite container — labels are absolutely positioned inside ── */}
-          <div style={{ position: "relative", width: sz, height: sz, pointerEvents: "none" }}>
+          <div
+            style={{ position: "relative", width: sz, height: sz, pointerEvents: "auto", cursor: "pointer" }}
+            onClick={() => onPetClick(pet)}
+          >
 
             {/* Username badge — top-center of the sprite, overlaid */}
             <div

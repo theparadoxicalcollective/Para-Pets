@@ -1788,6 +1788,9 @@ export async function registerRoutes(
             imageUrl: row.shopItem.imageUrl,
             hatchedImageUrl: row.shopItem.hatchedImageUrl,
             petLevel: row.inventory.petLevel,
+            petHealth: row.inventory.petHealth,
+            petAtk: row.inventory.petAtk,
+            petDef: row.inventory.petDef,
             rarity: row.shopItem.rarity ?? null,
             petTemplateId: row.shopItem.petTemplateId || null,
           });
@@ -3738,6 +3741,84 @@ export async function registerRoutes(
       return res.json(pets);
     } catch (err) {
       return res.status(500).json({ message: "Failed to fetch opponent pets" });
+    }
+  });
+
+  // ── Friends ────────────────────────────────────────────────────────────────
+
+  app.post("/api/friends/request/:targetUserId", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const requesterId = (req.user as any).id;
+      const { targetUserId } = req.params;
+      if (requesterId === targetUserId) return res.status(400).json({ message: "Cannot friend yourself" });
+      const result = await storage.sendFriendRequest(requesterId, targetUserId);
+      return res.json(result);
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to send friend request" });
+    }
+  });
+
+  app.get("/api/friends/requests", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.user as any).id;
+      const requests = await storage.getPendingFriendRequests(userId);
+      return res.json(requests);
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to get friend requests" });
+    }
+  });
+
+  app.get("/api/friends/requests/count", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.user as any).id;
+      const count = await storage.getPendingFriendRequestCount(userId);
+      return res.json({ count });
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to get request count" });
+    }
+  });
+
+  app.post("/api/friends/accept/:requestId", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.user as any).id;
+      const { requestId } = req.params;
+      const result = await storage.acceptFriendRequest(requestId, userId);
+      if (!result) return res.status(404).json({ message: "Request not found" });
+      return res.json(result);
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to accept friend request" });
+    }
+  });
+
+  app.delete("/api/friends/:otherId", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.user as any).id;
+      const { otherId } = req.params;
+      await storage.removeFriendOrRequest(userId, otherId);
+      return res.json({ success: true });
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to remove friend" });
+    }
+  });
+
+  app.get("/api/friends", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.user as any).id;
+      const friends = await storage.getFriends(userId);
+      return res.json(friends);
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to get friends" });
+    }
+  });
+
+  app.get("/api/friends/status/:otherId", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.user as any).id;
+      const { otherId } = req.params;
+      const friendship = await storage.getFriendshipStatus(userId, otherId);
+      return res.json({ friendship });
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to get friendship status" });
     }
   });
 

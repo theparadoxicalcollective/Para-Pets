@@ -437,3 +437,14 @@ export const pvpBattleGroups = pgTable("pvp_battle_groups", {
 export const insertPvpBattleGroupSchema = createInsertSchema(pvpBattleGroups).omit({ id: true, updatedAt: true });
 export type InsertPvpBattleGroup = z.infer<typeof insertPvpBattleGroupSchema>;
 export type PvpBattleGroup = typeof pvpBattleGroups.$inferSelect;
+
+// ── Friendships ─────────────────────────────────────────────────────────────
+export const friendships = pgTable("friendships", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  requesterId: varchar("requester_id").notNull(),
+  receiverId: varchar("receiver_id").notNull(),
+  status: text("status").notNull().default("pending"), // "pending" | "accepted"
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export type Friendship = typeof friendships.$inferSelect;
