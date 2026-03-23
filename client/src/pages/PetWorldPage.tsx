@@ -1128,74 +1128,111 @@ function WorldRoamingPet({
       >
         <div style={hasWings && !isDragging ? { animation: `${floatAnim} 3.2s ease-in-out infinite` } : undefined}>
 
-          {/* Single position:relative box — sz × sz in map-canvas pixels.
-              Badge and stars are overlaid absolutely so they sit flush against
-              the pet's visible head / feet rather than floating outside the box. */}
-          <div style={{ position: "relative", width: sz, height: sz, pointerEvents: "none" }}>
+          {/* Flex column: badge → [pet box] → stars.
+              Negative margins on the pet box eat up the ~15% of empty canvas
+              space that PetAnimator leaves at the top and bottom, pulling the
+              badge and stars flush against the actual visible pet body. */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0, pointerEvents: "none" }}>
 
-            {/* Pet sprite — overflow:visible so parts that extend slightly
-                beyond the sz box still render fully */}
-            {pet.petTemplateId ? (
-              <PetAnimator
-                petTemplateId={pet.petTemplateId}
-                mode="idle"
-                size={sz}
-                style={{
-                  filter: `drop-shadow(0 ${Math.round(sz * 0.04)}px ${Math.round(sz * 0.06)}px rgba(0,0,0,0.55))`,
-                  pointerEvents: "none",
-                  overflow: "visible",
-                }}
-              />
-            ) : petImg ? (
-              <img
-                src={petImg}
-                alt={displayName}
-                draggable={false}
-                style={{
-                  width: sz, height: sz,
-                  objectFit: "contain",
-                  filter: `drop-shadow(0 ${Math.round(sz * 0.03)}px ${Math.round(sz * 0.05)}px rgba(0,0,0,0.5))`,
-                  pointerEvents: "none",
-                }}
-              />
-            ) : null}
-
-            {/* Username badge — anchored just above the pet's head.
-                Pet heads sit at ~15% from top of the CANVAS_SIZE canvas. */}
+            {/* Username badge */}
             <span
               className="font-fantasy tracking-wide"
               style={{
-                position: "absolute",
-                top: "8%",
-                left: "50%",
-                transform: "translate(-50%, -100%)",
+                position: "relative",
+                zIndex: 3,
                 fontSize: Math.round(sz * 0.032),
                 padding: `${Math.round(sz * 0.008)}px ${Math.round(sz * 0.022)}px`,
                 borderRadius: 999,
                 background: "rgba(4,10,6,0.82)",
-                border: `1px solid rgba(127,255,212,0.30)`,
+                border: "1px solid rgba(127,255,212,0.30)",
                 color: "#7fffd4",
                 textShadow: "0 0 8px rgba(127,255,212,0.55)",
                 backdropFilter: "blur(4px)",
                 whiteSpace: "nowrap",
-                zIndex: 2,
               }}
             >
               {pet.username}
             </span>
 
-            {/* Rarity stars — just below the pet's feet (~85% from top) */}
-            {rarityCount > 0 && (
+            {/* Pet box — negative margins collapse the empty whitespace that
+                PetAnimator leaves at its top (~15%) and bottom (~15%), so the
+                badge and stars appear right next to the actual visible body.
+                overflow:visible means pet parts still render outside the box. */}
+            <div
+              style={{
+                position: "relative",
+                width: sz,
+                height: sz,
+                marginTop: -(sz * 0.15),
+                marginBottom: -(sz * 0.15),
+                overflow: "visible",
+              }}
+            >
+              {pet.petTemplateId ? (
+                <PetAnimator
+                  petTemplateId={pet.petTemplateId}
+                  mode="idle"
+                  size={sz}
+                  style={{
+                    filter: `drop-shadow(0 ${Math.round(sz * 0.04)}px ${Math.round(sz * 0.06)}px rgba(0,0,0,0.55))`,
+                    pointerEvents: "none",
+                    overflow: "visible",
+                  }}
+                />
+              ) : petImg ? (
+                <img
+                  src={petImg}
+                  alt={displayName}
+                  draggable={false}
+                  style={{
+                    width: sz, height: sz,
+                    objectFit: "contain",
+                    filter: `drop-shadow(0 ${Math.round(sz * 0.03)}px ${Math.round(sz * 0.05)}px rgba(0,0,0,0.5))`,
+                    pointerEvents: "none",
+                  }}
+                />
+              ) : null}
+
+              {/* Ground shadow — near the feet */}
+              {!hasWings && (
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: sz * 0.06,
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    width: Math.round(sz * 0.5),
+                    height: Math.max(3, Math.round(sz * 0.04)),
+                    background: "rgba(0,0,0,0.22)",
+                    borderRadius: "50%",
+                    filter: `blur(${Math.max(2, Math.round(sz * 0.03))}px)`,
+                  }}
+                />
+              )}
+
+              {/* Hit-zone oval — centred on the pet body coordinate space */}
               <div
                 style={{
                   position: "absolute",
-                  top: "85%",
-                  left: "50%",
-                  transform: "translateX(-50%)",
+                  left: "50%", top: "50%",
+                  width: Math.round(sz * 0.46),
+                  height: Math.round(sz * 0.50),
+                  transform: "translate(-50%, -50%)",
+                  borderRadius: "50%",
+                  pointerEvents: "auto",
+                }}
+              />
+            </div>
+
+            {/* Rarity stars */}
+            {rarityCount > 0 && (
+              <div
+                style={{
+                  position: "relative",
+                  zIndex: 3,
                   display: "flex",
                   gap: Math.round(sz * 0.01),
                   alignItems: "center",
-                  zIndex: 2,
                 }}
               >
                 {Array.from({ length: rarityCount }).map((_, i) => {
@@ -1208,36 +1245,6 @@ function WorldRoamingPet({
                 })}
               </div>
             )}
-
-            {/* Ground shadow — at the very bottom of the box */}
-            {!hasWings && (
-              <div
-                style={{
-                  position: "absolute",
-                  bottom: "2%",
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  width: Math.round(sz * 0.5),
-                  height: Math.max(3, Math.round(sz * 0.04)),
-                  background: "rgba(0,0,0,0.22)",
-                  borderRadius: "50%",
-                  filter: `blur(${Math.max(2, Math.round(sz * 0.03))}px)`,
-                }}
-              />
-            )}
-
-            {/* Hit-zone oval — covers the pet body (40–50% of sz), centred */}
-            <div
-              style={{
-                position: "absolute",
-                left: "50%", top: "50%",
-                width: Math.round(sz * 0.46),
-                height: Math.round(sz * 0.50),
-                transform: "translate(-50%, -50%)",
-                borderRadius: "50%",
-                pointerEvents: "auto",
-              }}
-            />
           </div>
         </div>
       </div>
