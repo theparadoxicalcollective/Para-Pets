@@ -68,6 +68,8 @@ type WorldActivePet = {
   petDef: number | null;
   rarity: number | null;
   petTemplateId: string | null;
+  posX: number | null;
+  posY: number | null;
 };
 
 interface PetWorldPageProps {
@@ -139,9 +141,46 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
 
   const [selectedPet, setSelectedPet] = useState<WorldActivePet | null>(null);
 
-  // Generate a random session salt once per mount so pets spawn at fresh
-  // random locations every time the user opens Pet World
-  const sessionSalt = useMemo(() => Math.random(), []);
+  // ── pet drag on the map canvas ─────────────────────────────────────────────
+  const petDragRef  = useRef<{ userId: string; startX: number; startY: number; startPosX: number; startPosY: number } | null>(null);
+  const petDidDrag  = useRef(false);
+  const [petDragPos, setPetDragPos] = useState<{ userId: string; posX: number; posY: number } | null>(null);
+
+  const savePetPositionMutation = useMutation({
+    mutationFn: async (data: { ownerUserId: string; posX: number; posY: number }) => {
+      const res = await apiRequest("PATCH", "/api/world/pet_world/pet-position", data);
+      return res.json();
+    },
+    onSuccess: (_data, vars) => {
+      // Update cache optimistically so position is stable on next refetch
+      queryClient.setQueryData<WorldActivePet[]>(["/api/world/pet_world/active-pets"], old =>
+        old ? old.map(p => p.userId === vars.ownerUserId ? { ...p, posX: vars.posX, posY: vars.posY } : p) : old
+      );
+    },
+  });
+
+  // ── seeded default positions — spread pets across the full map canvas ───────
+  const petDefaultPositions = useMemo(() => {
+    const map = new Map<string, { x: number; y: number }>();
+    worldPets.forEach((pet, idx) => {
+      // If server gave us a stored position, use it; otherwise seed a default
+      if (pet.posX !== null && pet.posY !== null) {
+        map.set(pet.userId, { x: pet.posX, y: pet.posY });
+      } else {
+        const seed = (idx + 1) * 1337;
+        const rng = (n: number) => {
+          let h = Math.imul(Math.floor(seed * 10000 + n), 0x9e3779b9);
+          h ^= h >>> 16;
+          return (h >>> 0) / 4294967295;
+        };
+        map.set(pet.userId, {
+          x: 5 + rng(1) * 88,   // 5% – 93% across the map width
+          y: 52 + rng(2) * 34,  // 52% – 86% — lower portion of the map
+        });
+      }
+    });
+    return map;
+  }, [worldPets]);
 
   // ── mutations ──────────────────────────────────────────────────────────────
   const addDecorItemMutation = useMutation({
@@ -330,6 +369,42 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     setDecorDragPos(null);
   }, [decorDragPos, updateDecorPlacementMutation]);
 
+  // ── pet drag on map canvas ────────────────────────────────────────────────
+  const handlePetPointerDown = useCallback((e: React.PointerEvent, pet: WorldActivePet, resolvedPosX: number, resolvedPosY: number) => {
+    e.stopPropagation();
+    e.preventDefault();
+    try { (e.target as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+    petDidDrag.current = false;
+    petDragRef.current = { userId: pet.userId, startX: e.clientX, startY: e.clientY, startPosX: resolvedPosX, startPosY: resolvedPosY };
+  }, []);
+
+  const handlePetPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!petDragRef.current) return;
+    e.stopPropagation();
+    const sc = mapTransformRef.current.scale;
+    const dx = e.clientX - petDragRef.current.startX;
+    const dy = e.clientY - petDragRef.current.startY;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) petDidDrag.current = true;
+    const newPosX = Math.max(2, Math.min(97, petDragRef.current.startPosX + (dx / sc) / MAP_W * 100));
+    const newPosY = Math.max(3, Math.min(95, petDragRef.current.startPosY + (dy / sc) / mapHRef.current * 100));
+    setPetDragPos({ userId: petDragRef.current.userId, posX: newPosX, posY: newPosY });
+  }, []);
+
+  const handlePetPointerUp = useCallback((e: React.PointerEvent, pet: WorldActivePet) => {
+    if (!petDragRef.current || petDragRef.current.userId !== pet.userId) return;
+    e.stopPropagation();
+    const wasDrag = petDidDrag.current;
+    const finalPos = petDragPos && petDragPos.userId === pet.userId ? { ...petDragPos } : null;
+    petDragRef.current = null;
+    petDidDrag.current = false;
+    if (wasDrag && finalPos) {
+      savePetPositionMutation.mutate({ ownerUserId: pet.userId, posX: finalPos.posX, posY: finalPos.posY });
+    } else if (!wasDrag) {
+      setSelectedPet(pet);
+    }
+    setPetDragPos(null);
+  }, [petDragPos, savePetPositionMutation]);
+
   // ── panel drag-to-map ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!panelDragGhost) return;
@@ -449,6 +524,28 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
             ))}
           </div>
 
+          {/* ── Roaming pets — inside the map canvas so they pan with the world ── */}
+          {worldPets.map((pet, idx) => {
+            const stored = petDefaultPositions.get(pet.userId) ?? { x: 50, y: 70 };
+            const drag = petDragPos?.userId === pet.userId ? petDragPos : null;
+            const resolvedX = drag ? drag.posX : stored.x;
+            const resolvedY = drag ? drag.posY : stored.y;
+            const isDragging = drag !== null;
+            return (
+              <WorldRoamingPet
+                key={pet.userId}
+                pet={pet}
+                index={idx}
+                posX={resolvedX}
+                posY={resolvedY}
+                isDragging={isDragging}
+                onPointerDown={e => handlePetPointerDown(e, pet, stored.x, stored.y)}
+                onPointerMove={handlePetPointerMove}
+                onPointerUp={e => handlePetPointerUp(e, pet)}
+              />
+            );
+          })}
+
           {/* Decor placements */}
           {decorPlacements.map(p => {
             const dpos = decorDragPos?.id === p.id ? { x: decorDragPos.x, y: decorDragPos.y } : { x: p.posX, y: p.posY };
@@ -543,18 +640,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
         </div>
       </div>
 
-      {/* ── Roaming pets layer (viewport-fixed, not on the map canvas) ─── */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 20 }}>
-        {worldPets.map((pet, idx) => (
-          <WorldRoamingPet
-            key={pet.userId}
-            pet={pet}
-            index={idx}
-            sessionSalt={sessionSalt}
-            onPetClick={setSelectedPet}
-          />
-        ))}
-      </div>
+      {/* Pets are now rendered inside the map canvas (see below) */}
 
       {/* ── HUD overlay ─────────────────────────────────────────────────── */}
       <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 30 }}>
@@ -1023,21 +1109,28 @@ function PetDetailModal({
 }
 
 // ── WorldRoamingPet ────────────────────────────────────────────────────────
-// Renders a single user's active pet roaming freely in the viewport.
-// Wings → can wander anywhere on screen.
-// No wings → stays near the lower ground strip.
-// Labels (username above, rarity stars below) are overlaid directly on the
-// sprite so they're always close to the pet body regardless of size.
+// Renders a single user's active pet inside the map canvas so it pans with
+// the world. posX/posY are percentages of the map canvas dimensions.
+// The wander animation applies a small wandering offset around the base
+// position; dragging lets the owner reposition their pet anywhere on the map.
 function WorldRoamingPet({
   pet,
   index,
-  sessionSalt,
-  onPetClick,
+  posX,
+  posY,
+  isDragging,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
 }: {
   pet: WorldActivePet;
   index: number;
-  sessionSalt: number;
-  onPetClick: (pet: WorldActivePet) => void;
+  posX: number;
+  posY: number;
+  isDragging: boolean;
+  onPointerDown: (e: React.PointerEvent) => void;
+  onPointerMove: (e: React.PointerEvent) => void;
+  onPointerUp: (e: React.PointerEvent) => void;
 }) {
   const { data: templateData } = useQuery<{ parts: Array<{ partType: string }> }>({
     queryKey: ["/api/pet-template-parts", pet.petTemplateId],
@@ -1054,29 +1147,26 @@ function WorldRoamingPet({
     (p) => p.partType === "left_wing" || p.partType === "right_wing" || p.partType === "wings" || p.partType === "front_wing" || p.partType === "back_wing"
   ));
 
+  // Use a deterministic per-pet animation variant based on the index
   const wanderIdx = index % 6;
   const wanderPrefix = hasWings ? "petWander" : "petGroundWander";
-  const floatAnim = hasWings ? "petFloatSmall" : "petGroundFloat";
+  const floatAnim   = hasWings ? "petFloatSmall" : "petGroundFloat";
 
-  // Random starting position per session — wings roam freely, others hug the ground
-  const seedBase = (index + 1) * 1337 + sessionSalt * 999983;
+  // Seeded timing so each pet has a slightly different wander cadence
+  const seedBase = (index + 1) * 2741;
   const rng = (n: number) => {
     let h = Math.imul(Math.floor(seedBase * 10000 + n), 0x9e3779b9);
     h ^= h >>> 16;
-    return ((h >>> 0) / 4294967295);
+    return (h >>> 0) / 4294967295;
   };
+  const duration = `${34 + rng(3) * 16}s`;
+  const delay    = `-${rng(4) * 20}s`;
 
-  const startLeft = hasWings ? `${8 + rng(1) * 76}%` : `${4 + rng(1) * 72}%`;
-  const startTop  = hasWings ? `${10 + rng(2) * 60}%` : `${78 + rng(2) * 10}%`;
-  const duration  = `${34 + rng(3) * 16}s`;
-  const delay     = `-${rng(4) * 20}s`;
-
-  const sz = hasWings ? 140 : 160;
-  const petImg = pet.hatchedImageUrl || pet.imageUrl;
+  const sz          = hasWings ? 140 : 160;
+  const petImg      = pet.hatchedImageUrl || pet.imageUrl;
   const displayName = pet.petNickname || pet.name;
   const rarityCount = Math.min(5, Math.max(0, pet.rarity ?? 0));
 
-  // Star colour by rarity
   const starColour =
     rarityCount >= 5 ? "#e040fb" :
     rarityCount >= 4 ? "#ff9800" :
@@ -1087,39 +1177,40 @@ function WorldRoamingPet({
     <div
       className="absolute"
       style={{
-        left: startLeft,
-        top: startTop,
-        marginTop: -sz,
+        left: `${posX}%`,
+        top:  `${posY}%`,
+        transform: "translate(-50%, -100%)",
         zIndex: hasWings ? 15 : 10,
-        pointerEvents: "none",
+        pointerEvents: "auto",
+        touchAction: "none",
+        willChange: "left, top",
       }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
     >
+      {/* Wander animation — suppressed while dragging so the pet stays under the finger */}
       <div
         style={{
-          animation: `${wanderPrefix}${wanderIdx} ${duration} ${delay} ease-in-out infinite`,
+          animation: isDragging ? "none" : `${wanderPrefix}${wanderIdx} ${duration} ${delay} ease-in-out infinite`,
           transformOrigin: "bottom center",
         }}
       >
-        <div style={hasWings ? { animation: `${floatAnim} 3.2s ease-in-out infinite` } : undefined}>
+        <div style={hasWings && !isDragging ? { animation: `${floatAnim} 3.2s ease-in-out infinite` } : undefined}>
 
-          {/* ── Sprite container — labels are absolutely positioned inside ── */}
+          {/* Sprite container — username + stars overlaid inside */}
           <div
-            style={{ position: "relative", width: sz, height: sz, pointerEvents: "auto", cursor: "pointer" }}
-            onClick={() => onPetClick(pet)}
+            style={{
+              position: "relative",
+              width: sz,
+              height: sz,
+              cursor: isDragging ? "grabbing" : "grab",
+              userSelect: "none",
+            }}
           >
-
-            {/* Username badge — top-center of the sprite, overlaid */}
-            <div
-              style={{
-                position: "absolute",
-                top: 6,
-                left: "50%",
-                transform: "translateX(-50%)",
-                zIndex: 5,
-                pointerEvents: "none",
-                whiteSpace: "nowrap",
-              }}
-            >
+            {/* Username badge */}
+            <div style={{ position: "absolute", top: 6, left: "50%", transform: "translateX(-50%)", zIndex: 5, pointerEvents: "none", whiteSpace: "nowrap" }}>
               <span
                 className="font-fantasy tracking-wide"
                 style={{
@@ -1144,9 +1235,7 @@ function WorldRoamingPet({
                 petTemplateId={pet.petTemplateId}
                 mode="idle"
                 size={sz}
-                style={{
-                  filter: `drop-shadow(0 ${Math.round(sz * 0.12)}px ${Math.round(sz * 0.15)}px rgba(0,0,0,0.5))`,
-                }}
+                style={{ filter: `drop-shadow(0 ${Math.round(sz * 0.12)}px ${Math.round(sz * 0.15)}px rgba(0,0,0,0.5))`, pointerEvents: "none" }}
               />
             ) : petImg ? (
               <img
@@ -1154,8 +1243,7 @@ function WorldRoamingPet({
                 alt={displayName}
                 draggable={false}
                 style={{
-                  width: sz,
-                  height: sz,
+                  width: sz, height: sz,
                   objectFit: "contain",
                   filter: `drop-shadow(0 ${Math.round(sz * 0.1)}px ${Math.round(sz * 0.12)}px rgba(0,0,0,0.45))`,
                   pointerEvents: "none",
@@ -1163,21 +1251,9 @@ function WorldRoamingPet({
               />
             ) : null}
 
-            {/* Rarity stars — bottom-center of the sprite, overlaid */}
+            {/* Rarity stars */}
             {rarityCount > 0 && (
-              <div
-                style={{
-                  position: "absolute",
-                  bottom: 6,
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  zIndex: 5,
-                  pointerEvents: "none",
-                  display: "flex",
-                  gap: 1,
-                  alignItems: "center",
-                }}
-              >
+              <div style={{ position: "absolute", bottom: 6, left: "50%", transform: "translateX(-50%)", zIndex: 5, pointerEvents: "none", display: "flex", gap: 1, alignItems: "center" }}>
                 {Array.from({ length: rarityCount }).map((_, i) => (
                   <svg key={i} width="9" height="9" viewBox="0 0 24 24" fill={starColour} style={{ filter: `drop-shadow(0 0 3px ${starColour}99)` }}>
                     <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
@@ -1187,7 +1263,7 @@ function WorldRoamingPet({
             )}
           </div>
 
-          {/* Ground shadow beneath non-flying pets */}
+          {/* Ground shadow */}
           {!hasWings && (
             <div style={{
               width: Math.round(sz * 0.5),

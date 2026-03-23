@@ -438,6 +438,16 @@ export const insertPvpBattleGroupSchema = createInsertSchema(pvpBattleGroups).om
 export type InsertPvpBattleGroup = z.infer<typeof insertPvpBattleGroupSchema>;
 export type PvpBattleGroup = typeof pvpBattleGroups.$inferSelect;
 
+// ── World pet positions ──────────────────────────────────────────────────────
+export const worldPetPositions = pgTable("world_pet_positions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  worldId: text("world_id").notNull(),
+  ownerUserId: varchar("owner_user_id").notNull(),
+  posX: real("pos_x").notNull().default(50),
+  posY: real("pos_y").notNull().default(75),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
 // ── Friendships ─────────────────────────────────────────────────────────────
 export const friendships = pgTable("friendships", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

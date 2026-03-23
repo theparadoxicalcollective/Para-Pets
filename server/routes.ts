@@ -1768,6 +1768,9 @@ export async function registerRoutes(
   app.get("/api/world/pet_world/active-pets", isAuthenticated, async (req, res) => {
     try {
       const allUsers = await storage.getAllUsers();
+      const storedPositions = await storage.getPetPositions("pet_world");
+      const positionMap = new Map(storedPositions.map(p => [p.ownerUserId, { posX: p.posX, posY: p.posY }]));
+
       const results: any[] = [];
       await Promise.all(
         allUsers.map(async (u) => {
@@ -1777,6 +1780,7 @@ export async function registerRoutes(
             r => r.shopItem?.id === u.activePetId && r.inventory.isHatched && r.shopItem?.type === "pet"
           );
           if (!row || !row.shopItem) return;
+          const pos = positionMap.get(u.id);
           results.push({
             userId: u.id,
             username: u.username,
@@ -1793,6 +1797,8 @@ export async function registerRoutes(
             petDef: row.inventory.petDef,
             rarity: row.shopItem.rarity ?? null,
             petTemplateId: row.shopItem.petTemplateId || null,
+            posX: pos?.posX ?? null,
+            posY: pos?.posY ?? null,
           });
         })
       );
@@ -1800,6 +1806,19 @@ export async function registerRoutes(
     } catch (err) {
       console.error("World active pets error:", err);
       return res.status(500).json({ message: "Failed to get world pets" });
+    }
+  });
+
+  app.patch("/api/world/pet_world/pet-position", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { ownerUserId, posX, posY } = req.body;
+      if (typeof posX !== "number" || typeof posY !== "number" || !ownerUserId) {
+        return res.status(400).json({ message: "ownerUserId, posX, posY required" });
+      }
+      await storage.upsertPetPosition("pet_world", ownerUserId, posX, posY);
+      return res.json({ success: true });
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to update pet position" });
     }
   });
 

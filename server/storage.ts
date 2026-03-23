@@ -28,6 +28,7 @@ import {
   pvpBattles,
   pvpBattleGroups,
   type Friendship, friendships,
+  worldPetPositions,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, ne, gte, asc, desc, ilike, or, sql, inArray } from "drizzle-orm";
@@ -1215,6 +1216,23 @@ export class DatabaseStorage implements IStorage {
     }).from(pvpBattleGroups)
       .leftJoin(users, eq(pvpBattleGroups.userId, users.id))
       .orderBy(sql`${pvpBattleGroups.updatedAt} desc`);
+  }
+
+  // ── World pet positions ────────────────────────────────────────────────────
+
+  async getPetPositions(worldId: string): Promise<{ ownerUserId: string; posX: number; posY: number }[]> {
+    return db.select({ ownerUserId: worldPetPositions.ownerUserId, posX: worldPetPositions.posX, posY: worldPetPositions.posY })
+      .from(worldPetPositions)
+      .where(eq(worldPetPositions.worldId, worldId));
+  }
+
+  async upsertPetPosition(worldId: string, ownerUserId: string, posX: number, posY: number): Promise<void> {
+    await db.insert(worldPetPositions)
+      .values({ worldId, ownerUserId, posX, posY })
+      .onConflictDoUpdate({
+        target: [worldPetPositions.worldId, worldPetPositions.ownerUserId],
+        set: { posX, posY, updatedAt: new Date() },
+      });
   }
 
   // ── Friendships ────────────────────────────────────────────────────────────
