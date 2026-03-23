@@ -1112,7 +1112,7 @@ function WorldRoamingPet({
 
   // sz is in map-canvas pixels. At typical map scale (≈0.44–0.78×) this
   // renders the pet at a comfortable 150–270 px on screen.
-  const sz     = 350;
+  const sz     = 260;
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
   const displayName = pet.petNickname || pet.name;
 
