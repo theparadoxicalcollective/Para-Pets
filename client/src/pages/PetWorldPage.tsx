@@ -1088,8 +1088,10 @@ function WorldRoamingPet({
   const duration = `${34 + rng(3) * 16}s`;
   const delay    = `-${rng(4) * 20}s`;
 
-  // Sprite size — slightly smaller so the touch footprint is tighter
-  const sz          = hasWings ? 110 : 120;
+  // Sprite size in map-canvas pixels. The map is ~1080px wide scaled down
+  // to the ~390px frame, so pets need to be much larger here than in other
+  // views to appear at a natural size on screen.
+  const sz          = hasWings ? 280 : 300;
   const petImg      = pet.hatchedImageUrl || pet.imageUrl;
   const displayName = pet.petNickname || pet.name;
   const rarityCount = Math.min(5, Math.max(0, pet.rarity ?? 0));
