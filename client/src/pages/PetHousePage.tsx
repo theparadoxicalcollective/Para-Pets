@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -90,6 +90,9 @@ export default function PetHousePage({ user: initialUser }: PetHousePageProps) {
   const petDropRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Fresh random seed every mount — makes pets appear in new positions each visit
+  const sessionSalt = useMemo(() => Math.random(), []);
 
   const { data: inventory = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/inventory"],
@@ -188,6 +191,7 @@ export default function PetHousePage({ user: initialUser }: PetHousePageProps) {
                     key={pet.inventoryId}
                     pet={pet}
                     index={i}
+                    sessionSalt={sessionSalt}
                     onClick={() => {
                       if (selectedPet) return;
                       const seen = localStorage.getItem("feedTutorialSeen");
@@ -564,10 +568,12 @@ function FeedView({
 function WalkingPet({
   pet,
   index,
+  sessionSalt,
   onClick,
 }: {
   pet: InventoryPet;
   index: number;
+  sessionSalt: number;
   onClick: () => void;
 }) {
   const [isHovered, setIsHovered] = useState(false);
@@ -587,9 +593,23 @@ function WalkingPet({
     (p) => p.partType === "left_wing" || p.partType === "right_wing" || p.partType === "wings" || p.partType === "front_wing" || p.partType === "back_wing"
   ));
 
+  // Pull animation variant from the config tables (these don't need to vary)
   const cfg = hasWings
     ? WALK_CONFIGS[index % WALK_CONFIGS.length]
     : GROUND_WALK_CONFIGS[index % GROUND_WALK_CONFIGS.length];
+
+  // Seeded RNG: combines the per-session random salt with the pet index so
+  // each pet gets a unique, stable (within the session) random position.
+  const rng = (n: number) => {
+    let h = Math.imul(Math.floor((sessionSalt * 999983 + index * 1337 + n) * 10000), 0x9e3779b9);
+    h ^= h >>> 16;
+    return (h >>> 0) / 4294967295;
+  };
+
+  // Random starting position — wings pets roam the whole room, ground pets
+  // stay near the bottom strip (87–91 % top, matching the original layout).
+  const randLeft = hasWings ? `${5 + rng(1) * 73}%` : `${4 + rng(1) * 63}%`;
+  const randTop  = hasWings ? `${15 + rng(2) * 52}%` : `${87 + rng(2) * 4}%`;
 
   const floatAnim = hasWings ? "petFloatSmall" : "petGroundFloat";
   const wanderPrefix = hasWings ? "petWander" : "petGroundWander";
@@ -629,10 +649,10 @@ function WalkingPet({
       data-testid={`pet-room-${pet.inventoryId}`}
       className="absolute"
       style={{
-        left: cfg.left,
-        top: cfg.top,
+        left: randLeft,
+        top: randTop,
         marginTop: -sz,
-        zIndex: parseInt(cfg.top, 10),
+        zIndex: parseInt(randTop, 10),
         pointerEvents: "none",
       }}
     >
