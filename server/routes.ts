@@ -9,6 +9,11 @@ import { storage } from "./storage";
 import { insertUserSchema, updateUsernameSchema, insertShopItemSchema } from "@shared/schema";
 import sharp from "sharp";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "Para Pets <noreply@para-pets.com>";
+const APP_URL = process.env.APP_URL || "https://para-pets.replit.app";
 
 const COIN_PACKS = [
   { id: "pack_100", coins: 100, priceUsd: 1, label: "100 Coins" },
@@ -333,6 +338,59 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Reset password error:", err);
       return res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { emailOrUsername } = req.body;
+      if (!emailOrUsername || typeof emailOrUsername !== "string") {
+        return res.status(400).json({ message: "Email or username is required" });
+      }
+      const input = emailOrUsername.trim().toLowerCase();
+      let user = await storage.getUserByEmail(input);
+      if (!user) {
+        user = await storage.getUserByUsernameCaseInsensitive(input);
+      }
+      // Always return success to prevent email/username enumeration
+      if (!user || !user.email) {
+        return res.json({ message: "If that account exists, a reset link has been sent" });
+      }
+      const token = crypto.randomBytes(32).toString("hex");
+      const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+      await storage.setPasswordResetToken(user.id, token, expires);
+      const resetUrl = `${APP_URL}/reset-password/${token}`;
+      const emailResult = await resend.emails.send({
+        from: FROM_EMAIL,
+        to: user.email,
+        subject: "Para Pets — Password Reset",
+        html: `
+          <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #1a120a; color: #d4b896; border-radius: 12px;">
+            <h1 style="color: #d4a017; font-size: 22px; margin-bottom: 8px;">Password Reset</h1>
+            <p style="color: #a89878; font-size: 14px; margin-bottom: 24px;">
+              Hi <strong style="color: #d4b896;">${user.username}</strong>,<br><br>
+              We received a request to reset your Para Pets password.
+              Click the button below to set a new one. This link expires in <strong>1 hour</strong>.
+            </p>
+            <a href="${resetUrl}" style="display: inline-block; padding: 14px 28px; background: #2d6a4f; color: #7fffd4; text-decoration: none; border-radius: 8px; font-size: 15px; font-weight: bold;">
+              Reset My Password
+            </a>
+            <p style="color: #6a5840; font-size: 12px; margin-top: 24px;">
+              If you didn't request this, you can safely ignore this email — your password won't change.<br><br>
+              If the button doesn't work, copy and paste this link into your browser:<br>
+              <a href="${resetUrl}" style="color: #7fbfb0; word-break: break-all;">${resetUrl}</a>
+            </p>
+          </div>
+        `,
+      });
+      if (emailResult.error) {
+        console.error("Forgot password email send error:", emailResult.error);
+      }
+      // Always return success — never reveal whether the account/email exists
+      return res.json({ message: "If that account exists, a reset link has been sent" });
+    } catch (err) {
+      console.error("Forgot password error:", err);
+      return res.status(500).json({ message: "Failed to send reset email" });
     }
   });
 

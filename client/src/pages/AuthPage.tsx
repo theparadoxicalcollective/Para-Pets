@@ -9,7 +9,7 @@ import bgImg from "@assets/bg_login.png";
 import signInBtn from "@assets/btn_signin_v2.png";
 import createAccountBtn from "@assets/btn_create_v2.png";
 
-type Mode = "landing" | "login" | "register" | "support";
+type Mode = "landing" | "login" | "register" | "forgot" | "support";
 
 function resizeImageTo500(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -46,6 +46,8 @@ export default function AuthPage() {
   const [supportSubject, setSupportSubject] = useState("");
   const [supportMessage, setSupportMessage] = useState("");
   const [supportSent, setSupportSent] = useState(false);
+  const [forgotInput, setForgotInput] = useState("");
+  const [forgotSent, setForgotSent] = useState(false);
   const [profileImageData, setProfileImageData] = useState<string | null>(null);
   const [profilePreview, setProfilePreview] = useState<string | null>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
@@ -170,6 +172,19 @@ export default function AuthPage() {
     },
   });
 
+  const forgotMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/auth/forgot-password", { emailOrUsername: forgotInput.trim() });
+      return res.json();
+    },
+    onSuccess: () => {
+      setForgotSent(true);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Something went wrong. Please try again.", variant: "destructive" });
+    },
+  });
+
   const handleSubmit = () => {
     if (isLoading) return;
     if (mode === "login") {
@@ -189,7 +204,7 @@ export default function AuthPage() {
     }
   };
 
-  const isPending = loginMutation.isPending || registerMutation.isPending || supportMutation.isPending;
+  const isPending = loginMutation.isPending || registerMutation.isPending || supportMutation.isPending || forgotMutation.isPending;
 
   return (
     <div
@@ -490,12 +505,12 @@ export default function AuthPage() {
                   {loginFailed && (
                     <button
                       data-testid="button-forgot-password"
-                      onClick={() => { setMode("support"); setSupportSent(false); setSupportUsername(""); setSupportEmail(email); setSupportSubject("Password Help"); setSupportMessage(""); }}
+                      onClick={() => { setMode("forgot"); setForgotSent(false); setForgotInput(email); }}
                       disabled={isPending}
                       className="font-fantasy text-[#d4a017] text-xs tracking-wider hover:text-[#f0c040] transition-colors"
                       style={{ background: "none", border: "none", cursor: "pointer" }}
                     >
-                      Need Help? Contact Support
+                      Forgot Password?
                     </button>
                   )}
                   <p className="font-fantasy text-[#a89878] text-xs tracking-wider">
@@ -526,6 +541,100 @@ export default function AuthPage() {
                 </p>
               )}
             </div>
+          </div>
+        )}
+
+        {mode === "forgot" && (
+          <div className="w-full max-w-sm animate-slide-up">
+            <h2 className="font-fantasy text-[#d4b896] text-center text-xl tracking-widest mb-2 drop-shadow-lg">
+              Forgot Password
+            </h2>
+            <p className="font-fantasy text-[#a89878] text-xs text-center tracking-wider mb-5">
+              Enter your email or username and we'll send a reset link
+            </p>
+
+            {forgotSent ? (
+              <div className="text-center space-y-4">
+                <div
+                  className="w-16 h-16 mx-auto rounded-full flex items-center justify-center"
+                  style={{ background: "rgba(45,106,79,0.3)", border: "2px solid rgba(127,255,212,0.4)" }}
+                >
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7fffd4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </div>
+                <p className="font-fantasy text-[#7fffd4] text-sm tracking-wider" data-testid="text-forgot-sent">
+                  Check Your Email
+                </p>
+                <p className="font-fantasy text-[#a89878] text-xs tracking-wider">
+                  If an account exists for that email or username, a reset link has been sent. It expires in 1 hour.
+                </p>
+                <button
+                  data-testid="button-back-to-login-from-forgot"
+                  onClick={() => { setMode("login"); setForgotSent(false); setLoginFailed(false); }}
+                  className="font-fantasy text-[#d4a017] text-xs tracking-wider hover:text-[#f0c040] transition-colors"
+                  style={{ background: "none", border: "none", cursor: "pointer" }}
+                >
+                  ← Back to Sign In
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="font-fantasy text-[#c8b896] text-xs tracking-wider block mb-1 ml-1">EMAIL OR USERNAME</label>
+                  <input
+                    data-testid="input-forgot-email-or-username"
+                    type="text"
+                    value={forgotInput}
+                    onChange={e => setForgotInput(e.target.value)}
+                    disabled={forgotMutation.isPending}
+                    placeholder="your@email.com or username"
+                    className="w-full px-4 py-2.5 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#8a7060] outline-none focus:ring-2 focus:ring-[#d4a017] disabled:opacity-60"
+                    style={{
+                      background: "linear-gradient(135deg, #f2e8d0 0%, #e8d8b0 100%)",
+                      border: "2px solid #8b5e3c",
+                      boxShadow: "inset 0 2px 6px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1)",
+                    }}
+                    onKeyDown={e => e.key === "Enter" && !forgotMutation.isPending && forgotInput.trim() && forgotMutation.mutate()}
+                  />
+                </div>
+
+                <button
+                  data-testid="button-submit-forgot"
+                  onClick={() => forgotMutation.mutate()}
+                  disabled={forgotMutation.isPending || !forgotInput.trim()}
+                  className="w-full py-3 rounded-md font-fantasy text-sm tracking-wider transition-transform active:scale-95 disabled:opacity-60"
+                  style={{
+                    background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
+                    border: "1px solid rgba(127,255,212,0.4)",
+                    color: "#7fffd4",
+                    cursor: "pointer",
+                    boxShadow: "0 0 12px rgba(127,255,212,0.2)",
+                  }}
+                >
+                  {forgotMutation.isPending ? "Sending..." : "Send Reset Link"}
+                </button>
+
+                <div className="flex flex-col items-center gap-2 pt-1">
+                  <button
+                    data-testid="button-back-to-login-from-forgot"
+                    onClick={() => { setMode("login"); setLoginFailed(false); }}
+                    className="font-fantasy text-[#a89878] text-xs tracking-widest hover:text-[#d4b896] transition-colors"
+                    style={{ background: "none", border: "none", cursor: "pointer" }}
+                  >
+                    ← Back to Sign In
+                  </button>
+                  <button
+                    data-testid="button-contact-support-from-forgot"
+                    onClick={() => { setMode("support"); setSupportSent(false); setSupportUsername(""); setSupportEmail(""); setSupportSubject("Account Help"); setSupportMessage(""); }}
+                    className="font-fantasy text-[#6a5840] text-[10px] tracking-wider hover:text-[#a89878] transition-colors"
+                    style={{ background: "none", border: "none", cursor: "pointer" }}
+                  >
+                    Contact Support instead
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
