@@ -1115,13 +1115,6 @@ function WorldRoamingPet({
   const sz     = 350;
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
   const displayName = pet.petNickname || pet.name;
-  const rarityCount = Math.min(5, Math.max(0, pet.rarity ?? 0));
-
-  const starColour =
-    rarityCount >= 5 ? "#e040fb" :
-    rarityCount >= 4 ? "#ff9800" :
-    rarityCount >= 3 ? "#7fffd4" :
-    "#f0c040";
 
   return (
     <div
@@ -1203,30 +1196,6 @@ function WorldRoamingPet({
               {pet.username}
             </span>
 
-            {/* Rarity stars — sits just below the bottommost visible part */}
-            {rarityCount > 0 && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: Math.round(maxBotFrac * sz) + 2,
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  display: "flex",
-                  gap: Math.round(sz * 0.01),
-                  alignItems: "center",
-                  zIndex: 2,
-                }}
-              >
-                {Array.from({ length: rarityCount }).map((_, i) => {
-                  const starSz = Math.round(sz * 0.075);
-                  return (
-                    <svg key={i} width={starSz} height={starSz} viewBox="0 0 24 24" fill={starColour} style={{ filter: `drop-shadow(0 0 3px ${starColour}99)` }}>
-                      <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
-                    </svg>
-                  );
-                })}
-              </div>
-            )}
 
             {/* Ground shadow — at the very bottom of the visible body */}
             {!hasWings && (
