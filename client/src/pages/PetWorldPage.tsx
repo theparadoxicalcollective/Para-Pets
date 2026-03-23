@@ -858,6 +858,15 @@ function PetDetailModal({
     enabled: !isOwnPet,
   });
 
+  const { data: ownerBadges } = useQuery<Array<{ badgeId: string; name: string; imageUrl: string }>>({
+    queryKey: ["/api/users", pet.userId, "badges"],
+    queryFn: async () => {
+      const res = await fetch(`/api/users/${pet.userId}/badges`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+  });
+
   const sendRequestMutation = useMutation({
     mutationFn: () => apiRequest("POST", `/api/friends/request/${pet.userId}`, {}),
     onSuccess: () => {
@@ -982,6 +991,35 @@ function PetDetailModal({
               </div>
             ))}
           </div>
+
+          {/* Owner badges */}
+          {ownerBadges && ownerBadges.length > 0 && (
+            <>
+              <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(127,255,212,0.25), transparent)" }} />
+              <div className="flex flex-col gap-2">
+                <p className="font-fantasy text-[#7a9080] uppercase tracking-widest text-center" style={{ fontSize: 9 }}>Badges</p>
+                <div className="flex flex-wrap justify-center gap-3">
+                  {ownerBadges.map((badge) => (
+                    <div key={badge.badgeId} className="flex flex-col items-center gap-1" style={{ maxWidth: 52 }}>
+                      <div
+                        style={{
+                          width: 44, height: 44, borderRadius: "50%",
+                          background: "rgba(127,255,212,0.07)",
+                          border: "1.5px solid rgba(127,255,212,0.28)",
+                          boxShadow: "0 0 10px rgba(127,255,212,0.12)",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <img src={badge.imageUrl} alt={badge.name} style={{ width: 36, height: 36, objectFit: "contain" }} />
+                      </div>
+                      <span className="font-fantasy text-[#7fffd4] text-center leading-tight" style={{ fontSize: 8, opacity: 0.75 }}>{badge.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Add Friend / Friend status button */}
           {!isOwnPet && (
@@ -1112,7 +1150,7 @@ function WorldRoamingPet({
 
   // sz is in map-canvas pixels. At typical map scale (≈0.44–0.78×) this
   // renders the pet at a comfortable 150–270 px on screen.
-  const sz     = 260;
+  const sz     = 210;
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
   const displayName = pet.petNickname || pet.name;
 
