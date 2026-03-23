@@ -4,17 +4,21 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, X, Trash2, FlipHorizontal, Palette } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
-import bgForest from "@assets/bg_enchanted_grove_td.png";
+import bgSky from "@assets/pw_sky_layer.png";
+import bgMidForest from "@assets/pw_midforest_layer.png";
+import bgGround from "@assets/pw_ground_layer.png";
 
 const WORLD_ID = "pet_world";
 const ACCENT = "#7fffd4";
 const MAP_W = 1080;
 const MAP_H_DEFAULT = 1920;
 
-// The game always renders inside a 390×844 phone frame. Use these constants
-// instead of window.innerWidth/Height so map scaling matches iPhone 12 exactly.
 const FRAME_W = 390;
 const FRAME_H = 844;
+
+// Parallax factors — how much each layer moves relative to the main canvas pan
+const SKY_PARALLAX    = 0.10;
+const MIDFOREST_PARALLAX = 0.32;
 
 const LIGHT_ORB_SENTINEL        = "__light_orb__";
 const LIGHT_ORB_BLUE_SENTINEL   = "__light_orb_blue__";
@@ -163,7 +167,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
         setMapH(h);
       }
     };
-    img.src = bgForest;
+    img.src = bgGround;
   }, []);
 
   // ── initial centering on mount / mapH change ───────────────────────────────
@@ -273,16 +277,58 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     return () => { document.removeEventListener("pointermove", onMove); document.removeEventListener("pointerup", onUp); };
   }, [!!panelDragGhost]);
 
+  // Parallax offsets for each layer (relative to centre)
+  const skyOffsetX = mapX * SKY_PARALLAX;
+  const skyOffsetY = mapY * SKY_PARALLAX;
+  const midOffsetX = mapX * MIDFOREST_PARALLAX;
+  const midOffsetY = mapY * MIDFOREST_PARALLAX;
+
   // ── render ─────────────────────────────────────────────────────────────────
   return (
     <div
       className="fixed inset-0 z-50 overflow-hidden"
-      style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
+      style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, background: "#02050a" }}
     >
-      {/* ── Pannable map canvas ─────────────────────────────────────────── */}
+      {/* ══ PARALLAX LAYER 1: Sky (slowest) ════════════════════════════════ */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          inset: "-25%",
+          backgroundImage: `url(${bgSky})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          transform: `translate(${skyOffsetX}px, ${skyOffsetY}px)`,
+          willChange: "transform",
+        }}
+      />
+
+      {/* ══ PARALLAX LAYER 2: Mid forest (medium speed) ════════════════════ */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          inset: "-15%",
+          backgroundImage: `url(${bgMidForest})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center bottom",
+          transform: `translate(${midOffsetX}px, ${midOffsetY}px)`,
+          willChange: "transform",
+          mixBlendMode: "normal",
+        }}
+      />
+
+      {/* Atmospheric depth gradient between mid and ground */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: "linear-gradient(to bottom, rgba(2,5,10,0.55) 0%, rgba(4,12,6,0.20) 30%, rgba(4,12,6,0.10) 60%, rgba(2,8,4,0.45) 100%)",
+          zIndex: 2,
+        }}
+      />
+
+      {/* ══ LAYER 3: Main world canvas (ground — full parallax + zoom) ══════ */}
       <div
         className="absolute inset-0 overflow-hidden"
-        style={{ touchAction: "none", userSelect: "none" }}
+        style={{ touchAction: "none", userSelect: "none", zIndex: 3 }}
         onPointerDown={handleVpPointerDown}
         onPointerMove={handleVpPointerMove}
         onPointerUp={handleVpPointerUp}
@@ -296,15 +342,15 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
             height: mapH,
             transformOrigin: "0 0",
             transform: `translate(${mapX}px, ${mapY}px) scale(${mapScale})`,
-            backgroundImage: `url(${bgForest})`,
+            backgroundImage: `url(${bgGround})`,
             backgroundSize: "100% 100%",
             backgroundRepeat: "no-repeat",
           }}
           onClick={() => { if (user.isAdmin) setSelectedDecorId(null); }}
         >
-          {/* Gradient vignette */}
+          {/* Subtle ground depth shading */}
           <div className="absolute inset-0 pointer-events-none" style={{
-            background: "linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.05) 25%, rgba(0,0,0,0.05) 75%, rgba(0,0,0,0.4) 100%)",
+            background: "linear-gradient(to bottom, rgba(0,0,0,0.22) 0%, transparent 18%, transparent 75%, rgba(0,0,0,0.36) 100%)",
           }} />
 
           {/* Floating magic motes */}
@@ -317,6 +363,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
               { left: "62%", top: "28%", mx: "32px",  my: "-42px", dur: "6s",  delay: "4s",   size: "2px" },
               { left: "85%", top: "65%", mx: "-20px", my: "-60px", dur: "8.5s",delay: "0.5s", size: "3px" },
               { left: "50%", top: "85%", mx: "15px",  my: "-70px", dur: "7.5s",delay: "2.5s", size: "2px" },
+              { left: "30%", top: "45%", mx: "-18px", my: "-45px", dur: "9.5s",delay: "3.5s", size: "2px" },
+              { left: "78%", top: "72%", mx: "22px",  my: "-58px", dur: "7.2s",delay: "1s",   size: "3px" },
             ].map((m, i) => (
               <div key={i} className="absolute rounded-full" style={{
                 left: m.left, top: m.top, width: m.size, height: m.size,
@@ -434,9 +482,9 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
             top: "max(14px, env(safe-area-inset-top, 14px))",
             left: 14,
             width: 40, height: 40, borderRadius: 12,
-            background: "rgba(6,14,3,0.82)",
+            background: "rgba(4,10,6,0.88)",
             border: "1.5px solid rgba(127,255,212,0.35)",
-            boxShadow: "0 2px 12px rgba(0,0,0,0.7)",
+            boxShadow: "0 2px 12px rgba(0,0,0,0.7), inset 0 0 8px rgba(127,255,212,0.06)",
             cursor: "pointer",
             display: "flex", alignItems: "center", justifyContent: "center",
           }}
@@ -449,11 +497,11 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           style={{ top: "max(16px, env(safe-area-inset-top, 16px))" }}>
           <div className="px-4 py-1.5 rounded-xl font-fantasy text-xs tracking-widest"
             style={{
-              background: "rgba(6,14,3,0.78)",
-              border: "1.5px solid rgba(127,255,212,0.25)",
-              boxShadow: "0 2px 12px rgba(0,0,0,0.6)",
+              background: "rgba(4,10,6,0.85)",
+              border: "1.5px solid rgba(127,255,212,0.28)",
+              boxShadow: "0 2px 16px rgba(0,0,0,0.7), 0 0 20px rgba(127,255,212,0.08)",
               color: ACCENT,
-              textShadow: `0 0 10px ${ACCENT}60`,
+              textShadow: `0 0 14px ${ACCENT}60`,
             }}>
             Pet World
           </div>
@@ -469,7 +517,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
               top: "max(14px, env(safe-area-inset-top, 14px))",
               right: 14,
               width: 40, height: 40, borderRadius: 12,
-              background: showDecorPanel ? `rgba(127,255,212,0.18)` : "rgba(6,14,3,0.82)",
+              background: showDecorPanel ? `rgba(127,255,212,0.18)` : "rgba(4,10,6,0.88)",
               border: `1.5px solid ${ACCENT}55`,
               boxShadow: "0 2px 12px rgba(0,0,0,0.7)",
               cursor: "pointer",
@@ -479,6 +527,18 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
             <Palette className="w-5 h-5" style={{ color: ACCENT }} />
           </button>
         )}
+
+        {/* Depth hint — small indicator at bottom centre */}
+        <div className="absolute bottom-4 left-0 right-0 flex justify-center pointer-events-none">
+          <div className="font-fantasy text-[9px] tracking-widest px-3 py-1 rounded-full"
+            style={{
+              color: `${ACCENT}55`,
+              background: "rgba(4,10,6,0.55)",
+              border: `1px solid ${ACCENT}20`,
+            }}>
+            drag to explore
+          </div>
+        </div>
       </div>
 
       {/* ── World Decor Panel ────────────────────────────────────────────── */}
@@ -490,7 +550,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
             left: 0,
             right: 0,
             maxHeight: "58vh",
-            background: "linear-gradient(180deg, rgba(6,14,3,0.97) 0%, rgba(8,18,4,0.99) 100%)",
+            background: "linear-gradient(180deg, rgba(4,10,6,0.97) 0%, rgba(6,14,7,0.99) 100%)",
             borderTop: `1.5px solid ${ACCENT}50`,
             borderLeft: `1.5px solid ${ACCENT}30`,
             borderRight: `1.5px solid ${ACCENT}30`,
@@ -599,7 +659,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                       key={item.id}
                       data-testid={`decor-item-${item.id}`}
                       className="relative flex flex-col items-center gap-1 rounded-xl p-2 cursor-grab active:cursor-grabbing transition-transform active:scale-95"
-                      style={{ background: "rgba(20,35,15,0.7)", border: `1px solid ${ACCENT}25`, touchAction: "none" }}
+                      style={{ background: "rgba(10,22,12,0.8)", border: `1px solid ${ACCENT}25`, touchAction: "none" }}
                       onPointerDown={e => {
                         e.preventDefault();
                         panelDragRef.current = { item };
@@ -608,7 +668,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                     >
                       {/* Preview */}
                       <div className="w-12 h-12 flex items-center justify-center overflow-hidden rounded-lg"
-                        style={{ background: "rgba(10,20,8,0.6)" }}>
+                        style={{ background: "rgba(6,14,8,0.7)" }}>
                         {isPassThrough ? (
                           item.imageUrl === FIREFLIES_SENTINEL ? (
                             <div className="relative w-10 h-10">
