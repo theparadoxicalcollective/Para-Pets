@@ -1088,7 +1088,8 @@ function WorldRoamingPet({
   const duration = `${34 + rng(3) * 16}s`;
   const delay    = `-${rng(4) * 20}s`;
 
-  const sz          = hasWings ? 140 : 160;
+  // Sprite size — slightly smaller so the touch footprint is tighter
+  const sz          = hasWings ? 110 : 120;
   const petImg      = pet.hatchedImageUrl || pet.imageUrl;
   const displayName = pet.petNickname || pet.name;
   const rarityCount = Math.min(5, Math.max(0, pet.rarity ?? 0));
@@ -1109,13 +1110,15 @@ function WorldRoamingPet({
         zIndex: hasWings ? 15 : 10,
         pointerEvents: "auto",
         touchAction: "none",
+        cursor: isDragging ? "grabbing" : "grab",
+        userSelect: "none",
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
     >
-      {/* Wander animation — suppressed while dragging so the pet stays under the finger */}
+      {/* Wander animation — suppressed while dragging */}
       <div
         style={{
           animation: isDragging ? "none" : `${wanderPrefix}${wanderIdx} ${duration} ${delay} ease-in-out infinite`,
@@ -1124,61 +1127,73 @@ function WorldRoamingPet({
       >
         <div style={hasWings && !isDragging ? { animation: `${floatAnim} 3.2s ease-in-out infinite` } : undefined}>
 
-          {/* Sprite container — username + stars overlaid inside */}
-          <div
-            style={{
-              position: "relative",
-              width: sz,
-              height: sz,
-              cursor: isDragging ? "grabbing" : "grab",
-              userSelect: "none",
-            }}
-          >
-            {/* Username badge */}
-            <div style={{ position: "absolute", top: 6, left: "50%", transform: "translateX(-50%)", zIndex: 5, pointerEvents: "none", whiteSpace: "nowrap" }}>
-              <span
-                className="font-fantasy tracking-wide"
+          {/* Column layout: name badge → sprite → stars → shadow
+              Labels live outside the sprite box so they sit flush against
+              the visible pet body rather than floating at the box edges. */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, pointerEvents: "none" }}>
+
+            {/* Username badge — just above the sprite */}
+            <span
+              className="font-fantasy tracking-wide"
+              style={{
+                fontSize: 9,
+                padding: "2px 7px",
+                borderRadius: 99,
+                background: "rgba(4,10,6,0.82)",
+                border: "1px solid rgba(127,255,212,0.30)",
+                color: "#7fffd4",
+                textShadow: "0 0 8px rgba(127,255,212,0.55)",
+                backdropFilter: "blur(4px)",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {pet.username}
+            </span>
+
+            {/* Sprite — pointerEvents none so the outer div handles all touch/drag */}
+            <div style={{ position: "relative", width: sz, height: sz }}>
+              {pet.petTemplateId ? (
+                <PetAnimator
+                  petTemplateId={pet.petTemplateId}
+                  mode="idle"
+                  size={sz}
+                  style={{
+                    filter: `drop-shadow(0 ${Math.round(sz * 0.12)}px ${Math.round(sz * 0.15)}px rgba(0,0,0,0.5))`,
+                    pointerEvents: "none",
+                  }}
+                />
+              ) : petImg ? (
+                <img
+                  src={petImg}
+                  alt={displayName}
+                  draggable={false}
+                  style={{
+                    width: sz, height: sz,
+                    objectFit: "contain",
+                    filter: `drop-shadow(0 ${Math.round(sz * 0.1)}px ${Math.round(sz * 0.12)}px rgba(0,0,0,0.45))`,
+                    pointerEvents: "none",
+                  }}
+                />
+              ) : null}
+
+              {/* Small oval hit-zone — tightens the interactive area to the
+                  visible pet body, same technique as the Active Pet page */}
+              <div
                 style={{
-                  fontSize: 9,
-                  padding: "2px 7px",
-                  borderRadius: 99,
-                  background: "rgba(4,10,6,0.80)",
-                  border: "1px solid rgba(127,255,212,0.30)",
-                  color: "#7fffd4",
-                  textShadow: "0 0 8px rgba(127,255,212,0.55)",
-                  display: "inline-block",
-                  backdropFilter: "blur(4px)",
+                  position: "absolute",
+                  left: "50%", top: "50%",
+                  width: Math.round(sz * 0.46),
+                  height: Math.round(sz * 0.50),
+                  transform: "translate(-50%, -50%)",
+                  borderRadius: "50%",
+                  pointerEvents: "auto",
                 }}
-              >
-                {pet.username}
-              </span>
+              />
             </div>
 
-            {/* Pet sprite */}
-            {pet.petTemplateId ? (
-              <PetAnimator
-                petTemplateId={pet.petTemplateId}
-                mode="idle"
-                size={sz}
-                style={{ filter: `drop-shadow(0 ${Math.round(sz * 0.12)}px ${Math.round(sz * 0.15)}px rgba(0,0,0,0.5))`, pointerEvents: "none" }}
-              />
-            ) : petImg ? (
-              <img
-                src={petImg}
-                alt={displayName}
-                draggable={false}
-                style={{
-                  width: sz, height: sz,
-                  objectFit: "contain",
-                  filter: `drop-shadow(0 ${Math.round(sz * 0.1)}px ${Math.round(sz * 0.12)}px rgba(0,0,0,0.45))`,
-                  pointerEvents: "none",
-                }}
-              />
-            ) : null}
-
-            {/* Rarity stars */}
+            {/* Rarity stars — just below the sprite */}
             {rarityCount > 0 && (
-              <div style={{ position: "absolute", bottom: 6, left: "50%", transform: "translateX(-50%)", zIndex: 5, pointerEvents: "none", display: "flex", gap: 1, alignItems: "center" }}>
+              <div style={{ display: "flex", gap: 1, alignItems: "center" }}>
                 {Array.from({ length: rarityCount }).map((_, i) => (
                   <svg key={i} width="9" height="9" viewBox="0 0 24 24" fill={starColour} style={{ filter: `drop-shadow(0 0 3px ${starColour}99)` }}>
                     <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
@@ -1186,19 +1201,18 @@ function WorldRoamingPet({
                 ))}
               </div>
             )}
-          </div>
 
-          {/* Ground shadow */}
-          {!hasWings && (
-            <div style={{
-              width: Math.round(sz * 0.5),
-              height: Math.max(3, Math.round(sz * 0.05)),
-              background: "rgba(0,0,0,0.22)",
-              borderRadius: "50%",
-              margin: "0 auto",
-              filter: `blur(${Math.max(2, Math.round(sz * 0.04))}px)`,
-            }} />
-          )}
+            {/* Ground shadow */}
+            {!hasWings && (
+              <div style={{
+                width: Math.round(sz * 0.5),
+                height: Math.max(3, Math.round(sz * 0.05)),
+                background: "rgba(0,0,0,0.22)",
+                borderRadius: "50%",
+                filter: `blur(${Math.max(2, Math.round(sz * 0.04))}px)`,
+              }} />
+            )}
+          </div>
         </div>
       </div>
     </div>
