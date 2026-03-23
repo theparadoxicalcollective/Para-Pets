@@ -1088,11 +1088,12 @@ function WorldRoamingPet({
   const duration = `${34 + rng(3) * 16}s`;
   const delay    = `-${rng(4) * 20}s`;
 
-  // Sprite size in map-canvas pixels. The map is ~1080px wide scaled down
-  // to the ~390px frame, so pets need to be much larger here than in other
-  // views to appear at a natural size on screen.
-  const sz          = hasWings ? 280 : 300;
-  const petImg      = pet.hatchedImageUrl || pet.imageUrl;
+  // Use the same full CANVAS_SIZE (1000) that PetAnimator uses internally.
+  // This matches the Home-page approach: no constraining box, parts rendered
+  // at full coordinate fidelity with overflow: visible. The map-canvas scale
+  // factor (≈0.4–1.4×) then controls how large the pet actually appears.
+  const sz     = 1000;
+  const petImg = pet.hatchedImageUrl || pet.imageUrl;
   const displayName = pet.petNickname || pet.name;
   const rarityCount = Math.min(5, Math.max(0, pet.rarity ?? 0));
 
@@ -1134,17 +1135,18 @@ function WorldRoamingPet({
               the visible pet body rather than floating at the box edges. */}
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, pointerEvents: "none" }}>
 
-            {/* Username badge — just above the sprite */}
+            {/* Username badge — just above the sprite.
+                Sizes are in map-canvas pixels (sz=1000 coordinate space). */}
             <span
               className="font-fantasy tracking-wide"
               style={{
-                fontSize: 9,
-                padding: "2px 7px",
-                borderRadius: 99,
+                fontSize: 28,
+                padding: "6px 22px",
+                borderRadius: 999,
                 background: "rgba(4,10,6,0.82)",
-                border: "1px solid rgba(127,255,212,0.30)",
+                border: "3px solid rgba(127,255,212,0.30)",
                 color: "#7fffd4",
-                textShadow: "0 0 8px rgba(127,255,212,0.55)",
+                textShadow: "0 0 24px rgba(127,255,212,0.55)",
                 backdropFilter: "blur(4px)",
                 whiteSpace: "nowrap",
               }}
@@ -1152,16 +1154,20 @@ function WorldRoamingPet({
               {pet.username}
             </span>
 
-            {/* Sprite — pointerEvents none so the outer div handles all touch/drag */}
-            <div style={{ position: "relative", width: sz, height: sz }}>
+            {/* Sprite — no constraining box (same approach as the Home page).
+                size={1000} matches PetAnimator's internal CANVAS_SIZE so parts
+                render at full coordinate fidelity; overflow: visible lets them
+                paint naturally without being clipped to a small rectangle. */}
+            <div style={{ position: "relative" }}>
               {pet.petTemplateId ? (
                 <PetAnimator
                   petTemplateId={pet.petTemplateId}
                   mode="idle"
                   size={sz}
                   style={{
-                    filter: `drop-shadow(0 ${Math.round(sz * 0.12)}px ${Math.round(sz * 0.15)}px rgba(0,0,0,0.5))`,
+                    filter: "drop-shadow(0 8px 18px rgba(0,0,0,0.55))",
                     pointerEvents: "none",
+                    overflow: "visible",
                   }}
                 />
               ) : petImg ? (
@@ -1172,20 +1178,20 @@ function WorldRoamingPet({
                   style={{
                     width: sz, height: sz,
                     objectFit: "contain",
-                    filter: `drop-shadow(0 ${Math.round(sz * 0.1)}px ${Math.round(sz * 0.12)}px rgba(0,0,0,0.45))`,
+                    filter: "drop-shadow(0 8px 14px rgba(0,0,0,0.5))",
                     pointerEvents: "none",
                   }}
                 />
               ) : null}
 
-              {/* Small oval hit-zone — tightens the interactive area to the
-                  visible pet body, same technique as the Active Pet page */}
+              {/* Hit-zone: covers the pet body area (roughly 40–60% of the
+                  1000-unit canvas). Absolute px values work because the
+                  position: relative container's layout origin is at (0,0). */}
               <div
                 style={{
                   position: "absolute",
                   left: "50%", top: "50%",
-                  width: Math.round(sz * 0.46),
-                  height: Math.round(sz * 0.50),
+                  width: 420, height: 460,
                   transform: "translate(-50%, -50%)",
                   borderRadius: "50%",
                   pointerEvents: "auto",
@@ -1193,11 +1199,11 @@ function WorldRoamingPet({
               />
             </div>
 
-            {/* Rarity stars — just below the sprite */}
+            {/* Rarity stars — sized for the 1000-unit coordinate space */}
             {rarityCount > 0 && (
-              <div style={{ display: "flex", gap: 1, alignItems: "center" }}>
+              <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
                 {Array.from({ length: rarityCount }).map((_, i) => (
-                  <svg key={i} width="9" height="9" viewBox="0 0 24 24" fill={starColour} style={{ filter: `drop-shadow(0 0 3px ${starColour}99)` }}>
+                  <svg key={i} width="30" height="30" viewBox="0 0 24 24" fill={starColour} style={{ filter: `drop-shadow(0 0 8px ${starColour}99)` }}>
                     <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
                   </svg>
                 ))}
