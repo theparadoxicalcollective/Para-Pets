@@ -1764,6 +1764,41 @@ export async function registerRoutes(
     }
   });
 
+  // Active pets for the Pet World — returns every user's active hatched pet
+  app.get("/api/world/pet_world/active-pets", isAuthenticated, async (req, res) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      const results: any[] = [];
+      await Promise.all(
+        allUsers.map(async (u) => {
+          if (!u.activePetId || u.isBanned) return;
+          const rows = await storage.getUserInventoryWithItems(u.id);
+          const row = rows.find(
+            r => r.shopItem?.id === u.activePetId && r.inventory.isHatched && r.shopItem?.type === "pet"
+          );
+          if (!row || !row.shopItem) return;
+          results.push({
+            userId: u.id,
+            username: u.username,
+            profileImage: u.profileImage,
+            inventoryId: row.inventory.id,
+            shopItemId: row.shopItem.id,
+            name: row.shopItem.name,
+            petNickname: row.inventory.petNickname,
+            imageUrl: row.shopItem.imageUrl,
+            hatchedImageUrl: row.shopItem.hatchedImageUrl,
+            petLevel: row.inventory.petLevel,
+            petTemplateId: row.shopItem.petTemplateId || null,
+          });
+        })
+      );
+      return res.json(results);
+    } catch (err) {
+      console.error("World active pets error:", err);
+      return res.status(500).json({ message: "Failed to get world pets" });
+    }
+  });
+
   app.get("/api/world/:worldId/decor/placements", async (req, res) => {
     try {
       const placements = await storage.getWorldDecorPlacements(req.params.worldId);

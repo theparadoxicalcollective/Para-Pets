@@ -1,9 +1,10 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, X, Trash2, FlipHorizontal, Palette } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
+import PetAnimator from "@/components/PetAnimator";
 import bgSky from "@assets/pw_sky_layer.png";
 import bgMidForest from "@assets/pw_midforest_layer.png";
 import bgGround from "@assets/pw_ground_layer.png";
@@ -51,6 +52,19 @@ function seededRand(seed: string, n: number) {
 
 type DecorItem      = { id: string; worldId: string; name: string; imageUrl: string; createdAt: string };
 type DecorPlacement = { id: string; worldId: string; decorItemId: string; name: string; imageUrl: string; posX: number; posY: number; size: number; flipped: boolean; message: string | null; createdAt: string };
+type WorldActivePet = {
+  userId: string;
+  username: string;
+  profileImage: string | null;
+  inventoryId: string;
+  shopItemId: string;
+  name: string;
+  petNickname: string | null;
+  imageUrl: string | null;
+  hatchedImageUrl: string | null;
+  petLevel: number;
+  petTemplateId: string | null;
+};
 
 interface PetWorldPageProps {
   user: { id: string; isAdmin: boolean };
@@ -108,6 +122,20 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
       return res.json();
     },
   });
+
+  const { data: worldPets = [] } = useQuery<WorldActivePet[]>({
+    queryKey: ["/api/world/pet_world/active-pets"],
+    queryFn: async () => {
+      const res = await fetch(`/api/world/pet_world/active-pets`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    staleTime: 60000,
+  });
+
+  // Generate a random session salt once per mount so pets spawn at fresh
+  // random locations every time the user opens Pet World
+  const sessionSalt = useMemo(() => Math.random(), []);
 
   // ── mutations ──────────────────────────────────────────────────────────────
   const addDecorItemMutation = useMutation({
@@ -509,6 +537,18 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
         </div>
       </div>
 
+      {/* ── Roaming pets layer (viewport-fixed, not on the map canvas) ─── */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 20 }}>
+        {worldPets.map((pet, idx) => (
+          <WorldRoamingPet
+            key={pet.userId}
+            pet={pet}
+            index={idx}
+            sessionSalt={sessionSalt}
+          />
+        ))}
+      </div>
+
       {/* ── HUD overlay ─────────────────────────────────────────────────── */}
       <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 30 }}>
         {/* Close button — top-left */}
@@ -762,6 +802,152 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── WorldRoamingPet ────────────────────────────────────────────────────────
+// Renders a single user's active pet roaming freely in the viewport.
+// Wings → can wander anywhere on screen.
+// No wings → stays near the lower ground strip.
+function WorldRoamingPet({
+  pet,
+  index,
+  sessionSalt,
+}: {
+  pet: WorldActivePet;
+  index: number;
+  sessionSalt: number;
+}) {
+  const { data: templateData } = useQuery<{ parts: Array<{ partType: string }> }>({
+    queryKey: ["/api/pet-template-parts", pet.petTemplateId],
+    queryFn: async () => {
+      const res = await fetch(`/api/pet-template-parts/${pet.petTemplateId}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    enabled: !!pet.petTemplateId,
+    staleTime: 300000,
+  });
+
+  const hasWings = !!(templateData?.parts?.some(
+    (p) => p.partType === "left_wing" || p.partType === "right_wing" || p.partType === "wings" || p.partType === "front_wing" || p.partType === "back_wing"
+  ));
+
+  // Each pet picks a random wander animation variant (0-5) seeded by index
+  const wanderIdx = index % 6;
+  const wanderPrefix = hasWings ? "petWander" : "petGroundWander";
+  const floatAnim = hasWings ? "petFloatSmall" : "petGroundFloat";
+
+  // Randomise starting position using session salt so it changes each visit.
+  // Winged pets → anywhere on screen; ground pets → bottom 20% strip.
+  const seedBase = (index + 1) * 1337 + sessionSalt * 999983;
+  const rng = (n: number) => {
+    let h = Math.imul(Math.floor(seedBase * 10000 + n), 0x9e3779b9);
+    h ^= h >>> 16;
+    return ((h >>> 0) / 4294967295);
+  };
+
+  const startLeft = hasWings
+    ? `${8 + rng(1) * 76}%`
+    : `${4 + rng(1) * 72}%`;
+  const startTop = hasWings
+    ? `${10 + rng(2) * 60}%`
+    : `${78 + rng(2) * 10}%`;
+
+  // Vary duration & delay so pets don't all move in sync
+  const duration = `${34 + rng(3) * 16}s`;
+  const delay    = `-${rng(4) * 20}s`;
+
+  const sz = hasWings ? 140 : 160;
+  const petImg = pet.hatchedImageUrl || pet.imageUrl;
+  const displayName = pet.petNickname || pet.name;
+
+  return (
+    <div
+      className="absolute"
+      style={{
+        left: startLeft,
+        top: startTop,
+        marginTop: -sz,
+        zIndex: hasWings ? 15 : 10,
+        pointerEvents: "none",
+      }}
+    >
+      <div
+        style={{
+          animation: `${wanderPrefix}${wanderIdx} ${duration} ${delay} ease-in-out infinite`,
+          transformOrigin: "bottom center",
+        }}
+      >
+        <div style={hasWings ? { animation: `${floatAnim} 3.2s ease-in-out infinite` } : undefined}>
+          {pet.petTemplateId ? (
+            <div style={{ width: sz, height: sz, position: "relative" }}>
+              <PetAnimator
+                petTemplateId={pet.petTemplateId}
+                mode="idle"
+                size={sz}
+                style={{
+                  filter: `drop-shadow(0 ${Math.round(sz * 0.12)}px ${Math.round(sz * 0.15)}px rgba(0,0,0,0.5))`,
+                }}
+              />
+            </div>
+          ) : petImg ? (
+            <img
+              src={petImg}
+              alt={displayName}
+              draggable={false}
+              style={{
+                width: sz,
+                height: sz,
+                objectFit: "contain",
+                filter: `drop-shadow(0 ${Math.round(sz * 0.1)}px ${Math.round(sz * 0.12)}px rgba(0,0,0,0.45))`,
+              }}
+            />
+          ) : null}
+
+          {/* Shadow beneath ground pets */}
+          {!hasWings && (
+            <div style={{
+              width: Math.round(sz * 0.5),
+              height: Math.max(3, Math.round(sz * 0.05)),
+              background: "rgba(0,0,0,0.22)",
+              borderRadius: "50%",
+              margin: "0 auto",
+              filter: `blur(${Math.max(2, Math.round(sz * 0.04))}px)`,
+            }} />
+          )}
+
+          {/* Username + pet name badge */}
+          <div
+            className="flex flex-col items-center gap-0.5 mt-1"
+            style={{ pointerEvents: "none" }}
+          >
+            <span
+              className="font-fantasy text-[9px] tracking-wide px-2 py-0.5 rounded-full"
+              style={{
+                background: "rgba(4,10,6,0.78)",
+                border: "1px solid rgba(127,255,212,0.25)",
+                color: "#7fffd4",
+                textShadow: "0 0 8px rgba(127,255,212,0.5)",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {pet.username}
+            </span>
+            <span
+              className="font-fantasy text-[8px] tracking-wide px-1.5 py-0.5 rounded-full"
+              style={{
+                background: "rgba(4,10,6,0.6)",
+                color: "rgba(127,255,212,0.65)",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {displayName}
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
