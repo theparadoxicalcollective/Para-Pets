@@ -1058,7 +1058,10 @@ function WorldRoamingPet({
   onPointerMove: (e: React.PointerEvent) => void;
   onPointerUp: (e: React.PointerEvent) => void;
 }) {
-  const { data: templateData } = useQuery<{ parts: Array<{ partType: string }> }>({
+  const { data: templateData } = useQuery<{
+    parts: Array<{ partType: string; posY: number; height: number; posX: number; width: number; view: string }>;
+    facing: string;
+  }>({
     queryKey: ["/api/pet-template-parts", pet.petTemplateId],
     queryFn: async () => {
       const res = await fetch(`/api/pet-template-parts/${pet.petTemplateId}`, { credentials: "include" });
@@ -1066,12 +1069,31 @@ function WorldRoamingPet({
       return res.json();
     },
     enabled: !!pet.petTemplateId,
-    staleTime: 300000,
+    staleTime: Infinity,
   });
 
   const hasWings = !!(templateData?.parts?.some(
     (p) => p.partType === "left_wing" || p.partType === "right_wing" || p.partType === "wings" || p.partType === "front_wing" || p.partType === "back_wing"
   ));
+
+  // Compute the tight bounding box of the pet's actual visible parts so we can
+  // position the name badge exactly above the head and stars exactly below the feet.
+  const CANVAS_SIZE = 1000;
+  const facing = templateData?.facing ?? "front";
+  const allParts = templateData?.parts ?? [];
+  const frontCount = allParts.filter(p => p.view === "front").length;
+  const backCount  = allParts.filter(p => p.view === "back").length;
+  const resolvedView = facing === "back" ? "back" : (frontCount === 0 && backCount > 0) ? "back" : "front";
+  const visibleParts = allParts.filter(p => p.view === resolvedView);
+
+  // minTopFrac / maxBotFrac are fractions of sz (0–1) for the top and bottom
+  // of the pet's actual visual body. Fall back to sensible defaults while loading.
+  const minTopFrac = visibleParts.length > 0
+    ? Math.min(...visibleParts.map(p => p.posY / CANVAS_SIZE))
+    : 0.15;
+  const maxBotFrac = visibleParts.length > 0
+    ? Math.max(...visibleParts.map(p => (p.posY + p.height) / CANVAS_SIZE))
+    : 0.85;
 
   // Use a deterministic per-pet animation variant based on the index
   const wanderIdx = index % 6;
@@ -1128,18 +1150,46 @@ function WorldRoamingPet({
       >
         <div style={hasWings && !isDragging ? { animation: `${floatAnim} 3.2s ease-in-out infinite` } : undefined}>
 
-          {/* Flex column: badge → [pet box] → stars.
-              Negative margins on the pet box eat up the ~15% of empty canvas
-              space that PetAnimator leaves at the top and bottom, pulling the
-              badge and stars flush against the actual visible pet body. */}
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0, pointerEvents: "none" }}>
+          {/* Single position:relative box (sz × sz map-pixels).
+              Badge and stars are absolutely positioned using the pet's ACTUAL
+              bounding box (minTopFrac / maxBotFrac) computed from the real part
+              coordinates — no guessing, no invisible-box problem. */}
+          <div style={{ position: "relative", width: sz, height: sz, pointerEvents: "none" }}>
 
-            {/* Username badge */}
+            {/* Pet sprite */}
+            {pet.petTemplateId ? (
+              <PetAnimator
+                petTemplateId={pet.petTemplateId}
+                mode="idle"
+                size={sz}
+                style={{
+                  filter: `drop-shadow(0 ${Math.round(sz * 0.04)}px ${Math.round(sz * 0.06)}px rgba(0,0,0,0.55))`,
+                  pointerEvents: "none",
+                  overflow: "visible",
+                }}
+              />
+            ) : petImg ? (
+              <img
+                src={petImg}
+                alt={displayName}
+                draggable={false}
+                style={{
+                  width: sz, height: sz,
+                  objectFit: "contain",
+                  filter: `drop-shadow(0 ${Math.round(sz * 0.03)}px ${Math.round(sz * 0.05)}px rgba(0,0,0,0.5))`,
+                  pointerEvents: "none",
+                }}
+              />
+            ) : null}
+
+            {/* Username badge — sits just above the topmost visible part */}
             <span
               className="font-fantasy tracking-wide"
               style={{
-                position: "relative",
-                zIndex: 3,
+                position: "absolute",
+                top: Math.round(minTopFrac * sz) - 4,
+                left: "50%",
+                transform: "translate(-50%, -100%)",
                 fontSize: Math.round(sz * 0.032),
                 padding: `${Math.round(sz * 0.008)}px ${Math.round(sz * 0.022)}px`,
                 borderRadius: 999,
@@ -1149,90 +1199,24 @@ function WorldRoamingPet({
                 textShadow: "0 0 8px rgba(127,255,212,0.55)",
                 backdropFilter: "blur(4px)",
                 whiteSpace: "nowrap",
+                zIndex: 2,
               }}
             >
               {pet.username}
             </span>
 
-            {/* Pet box — negative margins collapse the empty whitespace that
-                PetAnimator leaves at its top (~15%) and bottom (~15%), so the
-                badge and stars appear right next to the actual visible body.
-                overflow:visible means pet parts still render outside the box. */}
-            <div
-              style={{
-                position: "relative",
-                width: sz,
-                height: sz,
-                marginTop: -(sz * 0.15),
-                marginBottom: -(sz * 0.15),
-                overflow: "visible",
-              }}
-            >
-              {pet.petTemplateId ? (
-                <PetAnimator
-                  petTemplateId={pet.petTemplateId}
-                  mode="idle"
-                  size={sz}
-                  style={{
-                    filter: `drop-shadow(0 ${Math.round(sz * 0.04)}px ${Math.round(sz * 0.06)}px rgba(0,0,0,0.55))`,
-                    pointerEvents: "none",
-                    overflow: "visible",
-                  }}
-                />
-              ) : petImg ? (
-                <img
-                  src={petImg}
-                  alt={displayName}
-                  draggable={false}
-                  style={{
-                    width: sz, height: sz,
-                    objectFit: "contain",
-                    filter: `drop-shadow(0 ${Math.round(sz * 0.03)}px ${Math.round(sz * 0.05)}px rgba(0,0,0,0.5))`,
-                    pointerEvents: "none",
-                  }}
-                />
-              ) : null}
-
-              {/* Ground shadow — near the feet */}
-              {!hasWings && (
-                <div
-                  style={{
-                    position: "absolute",
-                    bottom: sz * 0.06,
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    width: Math.round(sz * 0.5),
-                    height: Math.max(3, Math.round(sz * 0.04)),
-                    background: "rgba(0,0,0,0.22)",
-                    borderRadius: "50%",
-                    filter: `blur(${Math.max(2, Math.round(sz * 0.03))}px)`,
-                  }}
-                />
-              )}
-
-              {/* Hit-zone oval — centred on the pet body coordinate space */}
-              <div
-                style={{
-                  position: "absolute",
-                  left: "50%", top: "50%",
-                  width: Math.round(sz * 0.46),
-                  height: Math.round(sz * 0.50),
-                  transform: "translate(-50%, -50%)",
-                  borderRadius: "50%",
-                  pointerEvents: "auto",
-                }}
-              />
-            </div>
-
-            {/* Rarity stars */}
+            {/* Rarity stars — sits just below the bottommost visible part */}
             {rarityCount > 0 && (
               <div
                 style={{
-                  position: "relative",
-                  zIndex: 3,
+                  position: "absolute",
+                  top: Math.round(maxBotFrac * sz) + 2,
+                  left: "50%",
+                  transform: "translateX(-50%)",
                   display: "flex",
                   gap: Math.round(sz * 0.01),
                   alignItems: "center",
+                  zIndex: 2,
                 }}
               >
                 {Array.from({ length: rarityCount }).map((_, i) => {
@@ -1245,6 +1229,37 @@ function WorldRoamingPet({
                 })}
               </div>
             )}
+
+            {/* Ground shadow — at the very bottom of the visible body */}
+            {!hasWings && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: Math.round(maxBotFrac * sz) - Math.round(sz * 0.01),
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  width: Math.round(sz * 0.5),
+                  height: Math.max(3, Math.round(sz * 0.04)),
+                  background: "rgba(0,0,0,0.22)",
+                  borderRadius: "50%",
+                  filter: `blur(${Math.max(2, Math.round(sz * 0.03))}px)`,
+                }}
+              />
+            )}
+
+            {/* Hit-zone oval — centred on the pet's actual body */}
+            <div
+              style={{
+                position: "absolute",
+                left: "50%",
+                top: Math.round(((minTopFrac + maxBotFrac) / 2) * sz),
+                width: Math.round(sz * 0.46),
+                height: Math.round((maxBotFrac - minTopFrac) * sz * 0.85),
+                transform: "translate(-50%, -50%)",
+                borderRadius: "50%",
+                pointerEvents: "auto",
+              }}
+            />
           </div>
         </div>
       </div>
