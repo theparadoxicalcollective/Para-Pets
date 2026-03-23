@@ -5,8 +5,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, X, Trash2, FlipHorizontal, Palette } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 import PetAnimator from "@/components/PetAnimator";
-import bgSky from "@assets/pw_sky_layer.png";
-import bgMidForest from "@assets/pw_midforest_layer.png";
 import bgGround from "@assets/pw_ground_layer.png";
 
 const WORLD_ID = "pet_world";
@@ -16,10 +14,6 @@ const MAP_H_DEFAULT = 1920;
 
 const FRAME_W = 390;
 const FRAME_H = 844;
-
-// Parallax factors — how much each layer moves relative to the main canvas pan
-const SKY_PARALLAX    = 0.10;
-const MIDFOREST_PARALLAX = 0.32;
 
 const LIGHT_ORB_SENTINEL        = "__light_orb__";
 const LIGHT_ORB_BLUE_SENTINEL   = "__light_orb_blue__";
@@ -174,8 +168,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           return (h >>> 0) / 4294967295;
         };
         map.set(pet.userId, {
-          x: 5 + rng(1) * 88,   // 5% – 93% across the map width
-          y: 52 + rng(2) * 34,  // 52% – 86% — lower portion of the map
+          x: 8 + rng(1) * 80,   // 8% – 88% across the map width
+          y: 30 + rng(2) * 38,  // 30% – 68% — spread across the visible portion
         });
       }
     });
@@ -429,55 +423,13 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     return () => { document.removeEventListener("pointermove", onMove); document.removeEventListener("pointerup", onUp); };
   }, [!!panelDragGhost]);
 
-  // Parallax offsets for each layer (relative to centre)
-  const skyOffsetX = mapX * SKY_PARALLAX;
-  const skyOffsetY = mapY * SKY_PARALLAX;
-  const midOffsetX = mapX * MIDFOREST_PARALLAX;
-  const midOffsetY = mapY * MIDFOREST_PARALLAX;
-
   // ── render ─────────────────────────────────────────────────────────────────
   return (
     <div
       className="fixed inset-0 z-50 overflow-hidden"
-      style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, background: "#02050a" }}
+      style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, background: "#060e06" }}
     >
-      {/* ══ PARALLAX LAYER 1: Sky (slowest) ════════════════════════════════ */}
-      <div
-        className="absolute pointer-events-none"
-        style={{
-          inset: "-25%",
-          backgroundImage: `url(${bgSky})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          transform: `translate(${skyOffsetX}px, ${skyOffsetY}px)`,
-          willChange: "transform",
-        }}
-      />
-
-      {/* ══ PARALLAX LAYER 2: Mid forest (medium speed) ════════════════════ */}
-      <div
-        className="absolute pointer-events-none"
-        style={{
-          inset: "-15%",
-          backgroundImage: `url(${bgMidForest})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center bottom",
-          transform: `translate(${midOffsetX}px, ${midOffsetY}px)`,
-          willChange: "transform",
-          mixBlendMode: "normal",
-        }}
-      />
-
-      {/* Atmospheric depth gradient between mid and ground */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: "linear-gradient(to bottom, rgba(2,5,10,0.55) 0%, rgba(4,12,6,0.20) 30%, rgba(4,12,6,0.10) 60%, rgba(2,8,4,0.45) 100%)",
-          zIndex: 2,
-        }}
-      />
-
-      {/* ══ LAYER 3: Main world canvas (ground — full parallax + zoom) ══════ */}
+      {/* ══ Map canvas — single background, full pan + zoom ════════════════ */}
       <div
         className="absolute inset-0 overflow-hidden"
         style={{ touchAction: "none", userSelect: "none", zIndex: 3 }}
@@ -500,30 +452,6 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           }}
           onClick={() => { if (user.isAdmin) setSelectedDecorId(null); }}
         >
-          {/* Subtle ground depth shading */}
-          <div className="absolute inset-0 pointer-events-none" style={{
-            background: "linear-gradient(to bottom, rgba(0,0,0,0.22) 0%, transparent 18%, transparent 75%, rgba(0,0,0,0.36) 100%)",
-          }} />
-
-          {/* Floating magic motes — sparse so the world feels open */}
-          <div className="absolute inset-0 pointer-events-none overflow-hidden">
-            {[
-              { left: "12%", top: "22%", mx: "20px",  my: "-45px", dur: "8s",  delay: "0s",   size: "2px" },
-              { left: "68%", top: "40%", mx: "-25px", my: "-50px", dur: "10s", delay: "2s",   size: "2px" },
-              { left: "45%", top: "72%", mx: "18px",  my: "-55px", dur: "9s",  delay: "4s",   size: "2px" },
-              { left: "82%", top: "58%", mx: "-18px", my: "-48px", dur: "7.5s",delay: "1s",   size: "2px" },
-            ].map((m, i) => (
-              <div key={i} className="absolute rounded-full" style={{
-                left: m.left, top: m.top, width: m.size, height: m.size,
-                background: ACCENT,
-                boxShadow: `0 0 6px ${ACCENT}80, 0 0 12px ${ACCENT}40`,
-                animation: `worldMote ${m.dur} ease-in-out infinite`,
-                animationDelay: m.delay,
-                "--mx": m.mx, "--my": m.my,
-              } as React.CSSProperties} />
-            ))}
-          </div>
-
           {/* ── Roaming pets — inside the map canvas so they pan with the world ── */}
           {worldPets.map((pet, idx) => {
             const stored = petDefaultPositions.get(pet.userId) ?? { x: 50, y: 70 };
@@ -639,8 +567,6 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           })}
         </div>
       </div>
-
-      {/* Pets are now rendered inside the map canvas (see below) */}
 
       {/* ── HUD overlay ─────────────────────────────────────────────────── */}
       <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 30 }}>
@@ -1183,7 +1109,6 @@ function WorldRoamingPet({
         zIndex: hasWings ? 15 : 10,
         pointerEvents: "auto",
         touchAction: "none",
-        willChange: "left, top",
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
