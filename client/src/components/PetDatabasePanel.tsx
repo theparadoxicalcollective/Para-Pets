@@ -616,21 +616,21 @@ export default function PetDatabasePanel() {
               <div className="flex items-center gap-2 mb-1">
                 <p className="font-fantasy text-[8px] text-[#6a5840] tracking-widest uppercase pl-0.5">{group.group}</p>
                 {(group.group === "Wings" || group.parts.some(p => p.key.includes("wing"))) && templateDetail && (
-                  <label
-                    className="flex items-center gap-1 cursor-pointer select-none"
-                    style={{ marginLeft: "2px" }}
+                  <button
+                    data-testid="checkbox-can-fly"
+                    onClick={() => canFlyMutation.mutate({ id: templateDetail.id, canFly: !templateDetail.canFly })}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full font-fantasy text-[9px] tracking-wider transition-all active:scale-95"
+                    style={{
+                      background: templateDetail.canFly ? "rgba(127,255,212,0.2)" : "rgba(0,0,0,0.25)",
+                      border: `1px solid ${templateDetail.canFly ? "rgba(127,255,212,0.6)" : "rgba(106,88,64,0.4)"}`,
+                      color: templateDetail.canFly ? "#7fffd4" : "#6a5840",
+                      cursor: "pointer",
+                      boxShadow: templateDetail.canFly ? "0 0 8px rgba(127,255,212,0.25)" : "none",
+                    }}
                   >
-                    <input
-                      data-testid="checkbox-can-fly"
-                      type="checkbox"
-                      checked={!!templateDetail.canFly}
-                      onChange={(e) => canFlyMutation.mutate({ id: templateDetail.id, canFly: e.target.checked })}
-                      style={{ accentColor: "#7fffd4", width: "11px", height: "11px", cursor: "pointer" }}
-                    />
-                    <span className="font-fantasy text-[8px] tracking-wider" style={{ color: templateDetail.canFly ? "#7fffd4" : "#6a5840" }}>
-                      Fly
-                    </span>
-                  </label>
+                    <span>{templateDetail.canFly ? "✦" : "○"}</span>
+                    Can Fly
+                  </button>
                 )}
               </div>
               <div className="flex flex-wrap gap-1.5">
