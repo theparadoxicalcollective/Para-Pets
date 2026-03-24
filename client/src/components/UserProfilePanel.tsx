@@ -61,6 +61,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletePassword, setDeletePassword] = useState("");
+  const [showFinalConfirm, setShowFinalConfirm] = useState(false);
 
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState("");
@@ -207,8 +208,8 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
   });
 
   const deleteAccountMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/user/delete-account", { password: deletePassword });
+    mutationFn: async (password: string) => {
+      const res = await apiRequest("POST", "/api/user/delete-account", { password });
       return res.json();
     },
     onSuccess: async () => {
@@ -219,7 +220,10 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
       const msg = err.message?.includes(":") ? err.message.split(": ").slice(1).join(": ") : err.message;
       let parsed: any = {};
       try { parsed = JSON.parse(msg); } catch {}
-      toast({ title: "Deletion Failed", description: parsed.message || msg || "Failed to delete account", variant: "destructive" });
+      const description = parsed.message || msg || "Failed to delete account";
+      toast({ title: "Deletion Failed", description, variant: "destructive" });
+      // Return to password step so they can try again
+      setShowFinalConfirm(false);
     },
   });
 
@@ -763,7 +767,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
               {!showDeleteConfirm ? (
                 <button
                   data-testid="button-show-delete-account"
-                  onClick={() => setShowDeleteConfirm(true)}
+                  onClick={() => { setShowDeleteConfirm(true); setShowFinalConfirm(false); setDeletePassword(""); }}
                   disabled={isPending}
                   className="w-full py-2 rounded-md font-fantasy text-xs tracking-widest transition-all disabled:opacity-60"
                   style={{
@@ -775,7 +779,8 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                 >
                   Delete Account
                 </button>
-              ) : (
+              ) : !showFinalConfirm ? (
+                /* Step 1: Enter password */
                 <div
                   className="rounded-xl p-4 space-y-3"
                   style={{
@@ -789,39 +794,34 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                     <div className="space-y-1.5">
                       <p className="font-fantasy text-[#ff6b6b] text-xs tracking-wider">This is irreversible</p>
                       <p className="font-sans text-[#c08080] text-[11px] leading-relaxed">
-                        Your account, pets, items, coins, badges, and all progress will be <span style={{ color: "#ff8888", fontWeight: 600 }}>permanently and completely erased</span>. This action cannot be undone by anyone, including support.
-                      </p>
-                      <p className="font-sans text-[#c08080] text-[11px] leading-relaxed">
-                        Your username and email will be freed up for a new account once deleted.
+                        Your account, pets, items, coins, badges, and all progress will be <span style={{ color: "#ff8888", fontWeight: 600 }}>permanently erased</span>. This cannot be undone by anyone, including support.
                       </p>
                     </div>
                   </div>
 
                   <div className="space-y-1">
-                    <label className="font-fantasy text-[#c08080] text-[10px] tracking-wider block">ENTER YOUR PASSWORD TO CONFIRM</label>
+                    <label className="font-fantasy text-[#c08080] text-[10px] tracking-wider block">ENTER YOUR PASSWORD TO CONTINUE</label>
                     <input
                       data-testid="input-delete-password"
                       type="password"
                       value={deletePassword}
                       onChange={e => setDeletePassword(e.target.value)}
                       placeholder="Your current password"
-                      disabled={deleteAccountMutation.isPending}
-                      className="w-full px-3 py-2.5 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#9a6060] outline-none disabled:opacity-60"
+                      className="w-full px-3 py-2.5 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#9a6060] outline-none"
                       style={{
                         background: "linear-gradient(135deg, #f5d8d8 0%, #ecc0c0 100%)",
                         border: "2px solid #9a4040",
                         boxShadow: "inset 0 2px 6px rgba(0,0,0,0.3)",
                       }}
-                      onKeyDown={e => { if (e.key === "Enter" && deletePassword.trim()) deleteAccountMutation.mutate(); }}
+                      onKeyDown={e => { if (e.key === "Enter" && deletePassword.trim()) setShowFinalConfirm(true); }}
                     />
                   </div>
 
                   <div className="flex gap-2">
                     <button
                       data-testid="button-cancel-delete"
-                      onClick={() => { setShowDeleteConfirm(false); setDeletePassword(""); }}
-                      disabled={deleteAccountMutation.isPending}
-                      className="flex-1 py-2 rounded-md font-fantasy text-xs tracking-wider transition-opacity disabled:opacity-50"
+                      onClick={() => { setShowDeleteConfirm(false); setDeletePassword(""); setShowFinalConfirm(false); }}
+                      className="flex-1 py-2 rounded-md font-fantasy text-xs tracking-wider transition-opacity"
                       style={{
                         background: "rgba(60,30,10,0.6)",
                         border: "1px solid rgba(139,94,60,0.4)",
@@ -832,9 +832,9 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                       Cancel
                     </button>
                     <button
-                      data-testid="button-confirm-delete"
-                      onClick={() => deleteAccountMutation.mutate()}
-                      disabled={deleteAccountMutation.isPending || !deletePassword.trim()}
+                      data-testid="button-next-delete"
+                      onClick={() => setShowFinalConfirm(true)}
+                      disabled={!deletePassword.trim()}
                       className="flex-1 py-2 rounded-md font-fantasy text-xs tracking-wider transition-opacity disabled:opacity-50"
                       style={{
                         background: "linear-gradient(135deg, rgba(160,20,20,0.8) 0%, rgba(100,10,10,0.8) 100%)",
@@ -843,7 +843,55 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                         cursor: "pointer",
                       }}
                     >
-                      {deleteAccountMutation.isPending ? "Deleting..." : "Confirm"}
+                      Continue
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Step 2: Final "Are you sure?" confirmation */
+                <div
+                  className="rounded-xl p-4 space-y-4"
+                  style={{
+                    background: "rgba(80,10,10,0.5)",
+                    border: "1px solid rgba(200,50,50,0.5)",
+                    boxShadow: "0 0 20px rgba(180,0,0,0.2)",
+                  }}
+                >
+                  <div className="text-center space-y-2">
+                    <p className="font-fantasy text-[#ff6b6b] text-sm tracking-wider">Are you sure?</p>
+                    <p className="font-sans text-[#c08080] text-[11px] leading-relaxed">
+                      Your password, username, email, and <span style={{ color: "#ff8888", fontWeight: 600 }}>all account data</span> will be permanently deleted. There is no way to recover your account after this.
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      data-testid="button-no-delete"
+                      onClick={() => { setShowDeleteConfirm(false); setDeletePassword(""); setShowFinalConfirm(false); }}
+                      disabled={deleteAccountMutation.isPending}
+                      className="flex-1 py-2.5 rounded-md font-fantasy text-sm tracking-wider transition-opacity disabled:opacity-50"
+                      style={{
+                        background: "rgba(40,80,40,0.7)",
+                        border: "1px solid rgba(80,160,80,0.5)",
+                        color: "#a0e0a0",
+                        cursor: "pointer",
+                      }}
+                    >
+                      No
+                    </button>
+                    <button
+                      data-testid="button-yes-delete"
+                      onClick={() => deleteAccountMutation.mutate(deletePassword)}
+                      disabled={deleteAccountMutation.isPending}
+                      className="flex-1 py-2.5 rounded-md font-fantasy text-sm tracking-wider transition-opacity disabled:opacity-50"
+                      style={{
+                        background: "linear-gradient(135deg, rgba(180,20,20,0.9) 0%, rgba(120,10,10,0.9) 100%)",
+                        border: "1px solid rgba(240,60,60,0.7)",
+                        color: "#ffcccc",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {deleteAccountMutation.isPending ? "Deleting..." : "Yes, Delete"}
                     </button>
                   </div>
                 </div>
