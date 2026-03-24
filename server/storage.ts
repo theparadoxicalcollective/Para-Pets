@@ -297,11 +297,17 @@ export class DatabaseStorage implements IStorage {
   async deleteAccount(id: string): Promise<void> {
     await db.delete(playerMarketListings).where(eq(playerMarketListings.sellerId, id));
     await db.delete(playerFishInventory).where(eq(playerFishInventory.userId, id));
+    await db.delete(playerFishCatchLog).where(eq(playerFishCatchLog.userId, id));
     await db.delete(playerFishingEquipment).where(eq(playerFishingEquipment.userId, id));
     await db.delete(petEquippedAccessories).where(eq(petEquippedAccessories.userId, id));
+    await db.delete(badgeRewardClaims).where(eq(badgeRewardClaims.userId, id));
     await db.delete(userBadges).where(eq(userBadges.userId, id));
     await db.delete(coinPurchases).where(eq(coinPurchases.userId, id));
     await db.delete(userRewards).where(eq(userRewards.userId, id));
+    await db.delete(pvpBattles).where(eq(pvpBattles.userId, id));
+    await db.delete(pvpBattleGroups).where(eq(pvpBattleGroups.userId, id));
+    await db.delete(worldPetPositions).where(eq(worldPetPositions.ownerUserId, id));
+    await db.delete(friendships).where(or(eq(friendships.requesterId, id), eq(friendships.receiverId, id)));
     await db.delete(userInventory).where(eq(userInventory.userId, id));
     await db.delete(users).where(eq(users.id, id));
   }

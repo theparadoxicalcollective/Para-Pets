@@ -559,7 +559,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/user/account", isAuthenticated, async (req, res) => {
+  app.post("/api/user/delete-account", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
       const { password } = req.body;

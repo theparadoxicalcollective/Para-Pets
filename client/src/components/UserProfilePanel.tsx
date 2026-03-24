@@ -208,7 +208,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
 
   const deleteAccountMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("DELETE", "/api/user/account", { password: deletePassword });
+      const res = await apiRequest("POST", "/api/user/delete-account", { password: deletePassword });
       return res.json();
     },
     onSuccess: async () => {
