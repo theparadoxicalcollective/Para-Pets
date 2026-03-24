@@ -785,8 +785,8 @@ function WalkingPet({
     const container = containerRef.current;
     if (!container) return;
     const rect = container.getBoundingClientRect();
-    const leftPct = Math.max(2, Math.min(88, (clientX + ox - rect.left) / rect.width  * 100));
-    const topPct  = Math.max(5, Math.min(92, (clientY + oy - rect.top  + sz) / rect.height * 100));
+    const leftPct = Math.max(2, Math.min(94, (clientX + ox - rect.left) / rect.width  * 100));
+    const topPct  = Math.max(5, Math.min(97, (clientY + oy - rect.top  + sz) / rect.height * 100));
     const pos = { left: `${leftPct.toFixed(1)}%`, top: `${topPct.toFixed(1)}%` };
     setBasePos(pos);
     try { sessionStorage.setItem(storageKey, JSON.stringify(pos)); } catch {}
