@@ -1471,7 +1471,7 @@ function FishBookPanel({
 
   return (
     <div className="absolute inset-x-0 bottom-0 z-[40] flex flex-col" style={{
-      top: 64,
+      top: 118,
       borderRadius: "20px 20px 0 0",
       background: "rgba(3,12,10,0.97)",
       backdropFilter: "blur(12px)",
