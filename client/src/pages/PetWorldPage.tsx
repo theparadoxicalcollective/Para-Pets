@@ -896,6 +896,19 @@ function PetDetailModal({
     },
   });
 
+  const cancelRequestMutation = useMutation({
+    mutationFn: () => apiRequest("DELETE", `/api/friends/${pet.userId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/friends/status", pet.userId] });
+      toast({ title: "Request cancelled", description: "Friend request unsent." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Could not cancel request.", variant: "destructive" });
+    },
+  });
+
+  const [pendingHover, setPendingHover] = useState(false);
+
   const rarityCount = Math.min(5, Math.max(0, pet.rarity ?? 0));
   const starColour =
     rarityCount >= 5 ? "#e040fb" :
@@ -1050,13 +1063,25 @@ function PetDetailModal({
                   ✓ Friends
                 </div>
               ) : isPending ? (
-                <div
-                  className="font-fantasy text-xs tracking-wider px-5 py-2.5 rounded-full"
-                  style={{ background: "rgba(240,192,64,0.1)", border: "1px solid rgba(240,192,64,0.35)", color: "#f0c040" }}
-                  data-testid="status-request-pending"
+                <button
+                  data-testid="button-request-pending"
+                  onClick={() => cancelRequestMutation.mutate()}
+                  disabled={cancelRequestMutation.isPending}
+                  onMouseEnter={() => setPendingHover(true)}
+                  onMouseLeave={() => setPendingHover(false)}
+                  onTouchStart={() => setPendingHover(true)}
+                  onTouchEnd={() => setPendingHover(false)}
+                  className="font-fantasy text-xs tracking-wider px-5 py-2.5 rounded-full transition-all active:scale-95"
+                  style={{
+                    background: pendingHover ? "rgba(220,80,80,0.15)" : "rgba(240,192,64,0.1)",
+                    border: `1px solid ${pendingHover ? "rgba(220,80,80,0.5)" : "rgba(240,192,64,0.35)"}`,
+                    color: pendingHover ? "#f08080" : "#f0c040",
+                    cursor: cancelRequestMutation.isPending ? "default" : "pointer",
+                    transition: "all 0.2s ease",
+                  }}
                 >
-                  Request Pending
-                </div>
+                  {cancelRequestMutation.isPending ? "Cancelling..." : pendingHover ? "✕ Unsend Request" : "⏳ Request Pending"}
+                </button>
               ) : (
                 <button
                   data-testid="button-add-friend"
