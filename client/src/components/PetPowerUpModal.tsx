@@ -366,7 +366,7 @@ export default function PetPowerUpModal({
       {/* ── Header ── */}
       <div className="relative z-[10] flex items-center justify-between px-4 pt-[18%] pb-2 flex-shrink-0">
         <div className="flex items-center gap-3">
-          <img src={powerupBagIcon} alt="" style={{ width: 36, height: 36, objectFit: "contain", filter: "drop-shadow(0 0 10px rgba(134,239,172,0.6)) drop-shadow(0 0 20px rgba(134,239,172,0.3))" }} />
+          <img src={powerupBagIcon} alt="" style={{ width: 36, height: 36, objectFit: "contain" }} />
           <div>
             <h2 className="font-fantasy text-[#fcd34d] text-xl tracking-widest leading-none"
               style={{ textShadow: "0 0 18px rgba(252,211,77,0.8), 0 0 40px rgba(252,211,77,0.3), 0 2px 8px rgba(0,0,0,0.9)" }}>
@@ -481,7 +481,7 @@ export default function PetPowerUpModal({
       <div className="relative z-[10] flex-1 overflow-y-auto px-3 pb-6" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(134,239,172,0.3) transparent" }}>
         {items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 gap-3">
-            <img src={powerupBagIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain", filter: "drop-shadow(0 0 12px rgba(134,239,172,0.3))" }} />
+            <img src={powerupBagIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain" }} />
             <p className="font-fantasy text-[#86efac] text-sm text-center" style={{ textShadow: "0 0 8px rgba(134,239,172,0.3)" }}>Your bag is empty</p>
             <p className="font-fantasy text-[#4a7a50] text-[11px] text-center">Visit the shop to stock up on power-up items!</p>
           </div>
