@@ -1051,26 +1051,6 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         paddingTop: 20,
         paddingBottom: 24,
       }}>
-        <div className="flex justify-end pr-4 mb-1">
-          <button
-            data-testid="button-fish-book"
-            onClick={() => { setShowFishBook(p => !p); setShowPolePanel(false); setShowBaitPanel(false); setShowFishInv(false); }}
-            className="flex flex-col items-center gap-1 transition-transform active:scale-95"
-            style={{ cursor: "pointer" }}
-          >
-            <div style={{
-              width: 52, height: 52, borderRadius: 12,
-              background: showFishBook ? `${ACCENT}20` : "rgba(5,20,15,0.85)",
-              border: `2px solid ${showFishBook ? ACCENT : `${ACCENT}40`}`,
-              boxShadow: showFishBook ? `0 0 16px ${ACCENT}40` : "0 2px 8px rgba(0,0,0,0.4)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              transition: "all 0.12s ease",
-            }}>
-              <img src={fishBookIcon} alt="Fish Book" style={{ width: 40, height: 40, objectFit: "contain" }} />
-            </div>
-            <span style={{ fontFamily: "Cinzel, serif", fontSize: 8, letterSpacing: "0.08em", color: showFishBook ? ACCENT : `${ACCENT}60` }}>FISH BOOK</span>
-          </button>
-        </div>
         <div className="flex items-end justify-center gap-4 px-4">
           <div ref={poleSlotRef}>
             <EquipSlot
@@ -1125,6 +1105,24 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
             onClick={() => { setShowFishInv(!showFishInv); setShowPolePanel(false); setShowBaitPanel(false); }}
             testId="button-fish-inventory"
           />
+          <button
+            data-testid="button-fish-book"
+            onClick={() => { setShowFishBook(p => !p); setShowPolePanel(false); setShowBaitPanel(false); setShowFishInv(false); }}
+            className="flex flex-col items-center gap-1 transition-transform active:scale-95"
+            style={{ cursor: "pointer" }}
+          >
+            <div style={{
+              width: 52, height: 52, borderRadius: 12,
+              background: showFishBook ? `${ACCENT}20` : "rgba(5,20,15,0.85)",
+              border: `2px solid ${showFishBook ? ACCENT : `${ACCENT}40`}`,
+              boxShadow: showFishBook ? `0 0 16px ${ACCENT}40` : "0 2px 8px rgba(0,0,0,0.4)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              transition: "all 0.12s ease",
+            }}>
+              <img src={fishBookIcon} alt="Fish Book" style={{ width: 40, height: 40, objectFit: "contain" }} />
+            </div>
+            <span style={{ fontFamily: "Cinzel, serif", fontSize: 8, letterSpacing: "0.08em", color: showFishBook ? ACCENT : `${ACCENT}60` }}>FISH BOOK</span>
+          </button>
         </div>
       </div>
 
