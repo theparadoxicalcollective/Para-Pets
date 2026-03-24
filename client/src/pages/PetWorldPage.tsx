@@ -1173,7 +1173,7 @@ function WorldRoamingPet({
           transformOrigin: "bottom center",
         }}
       >
-        <div style={hasWings && !isDragging ? { animation: `${floatAnim} 3.2s ease-in-out infinite` } : undefined}>
+        <div style={!isDragging ? { animation: `${floatAnim} 3.2s ease-in-out infinite` } : undefined}>
 
           {/* Single position:relative box (sz × sz map-pixels).
               Badge and stars are absolutely positioned using the pet's ACTUAL

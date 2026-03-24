@@ -924,7 +924,7 @@ function WalkingPet({
         {/* Large wander animation (disabled once pet is pinned) */}
         <div style={{ animation: wanderAnim, transformOrigin: "bottom center" }}>
           {/* Gentle float animation (always on unless dragging) */}
-          <div style={!isDragging ? { animation: `${floatAnim} 3.2s ease-in-out infinite` } : undefined}>
+          <div style={hasWings && !isDragging ? { animation: `${floatAnim} 3.2s ease-in-out infinite` } : undefined}>
             {/* Interactive wrapper — pointer events live here, inside the float layer
                 so the hit area tracks with wherever the animation puts the pet */}
             <div
