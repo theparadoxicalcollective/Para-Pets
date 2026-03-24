@@ -1076,19 +1076,10 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
     },
   });
 
-  // Track whether this is the first render so we skip the DB sync on mount.
-  // The DB is already correct from the last session's sync. Syncing on mount
-  // races with immediate user actions (add/remove) and can overwrite them.
-  const aquariumMountedRef = React.useRef(false);
-
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(aquariumFish)); } catch {}
-    // Skip DB sync on the very first render — DB already reflects last session
-    if (!aquariumMountedRef.current) {
-      aquariumMountedRef.current = true;
-      return;
-    }
-    // Sync aquarium state to DB so fish bag / sell page reflect correctly
+    // Always sync to DB on every change (including mount) so the sell page
+    // never sees a stale inAquarium:false for fish that are actually in the tank.
     const counts: { shopItemId: string; count: number }[] = [];
     const countMap = new Map<string, number>();
     for (const f of aquariumFish) {

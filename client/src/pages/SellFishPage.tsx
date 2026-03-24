@@ -64,7 +64,12 @@ export default function SellFishPage({ user, worldId, onClose, onUserUpdate }: S
       const res = await apiRequest("POST", "/api/fishing/sell", { fishIds });
       return res.json();
     },
-    onSuccess: (data: { sold: number; coinsEarned: number; newBalance: number }) => {
+    onSuccess: (data: { sold: number; coinsEarned: number; newBalance: number }, fishIds: string[]) => {
+      // Immediately remove sold fish from cache so bag updates without waiting for refetch
+      const soldIdSet = new Set(fishIds);
+      queryClient.setQueryData(["/api/fishing/inventory"], (old: CaughtFish[] | undefined) =>
+        (old ?? []).filter(f => !soldIdSet.has(f.id))
+      );
       queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       if (onUserUpdate) onUserUpdate({ ...user, coins: data.newBalance });
