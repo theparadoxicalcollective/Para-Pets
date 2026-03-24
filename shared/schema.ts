@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, boolean, timestamp, integer, real } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, boolean, timestamp, integer, real, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -457,7 +457,7 @@ export const worldPetPositions = pgTable("world_pet_positions", {
   posX: real("pos_x").notNull().default(50),
   posY: real("pos_y").notNull().default(75),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
-});
+}, (t) => [uniqueIndex("world_pet_positions_world_owner_uidx").on(t.worldId, t.ownerUserId)]);
 
 // ── Friendships ─────────────────────────────────────────────────────────────
 export const friendships = pgTable("friendships", {
