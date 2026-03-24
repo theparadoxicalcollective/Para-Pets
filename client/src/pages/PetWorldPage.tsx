@@ -1179,12 +1179,9 @@ function WorldRoamingPet({
         top:  `${posY}%`,
         transform: "translate(-50%, -100%)",
         zIndex: hasWings ? 15 : 10,
-        pointerEvents: "auto",
-        touchAction: "none",
+        pointerEvents: "none",
         userSelect: "none",
-        cursor: "grab",
       }}
-      onPointerDown={onPointerDown}
     >
       {/* Wander animation — suppressed while dragging */}
       <div
@@ -1268,16 +1265,17 @@ function WorldRoamingPet({
               />
             )}
 
-            {/* Hit-zone oval — only this element is pointer-interactive.
-                The outer wrapper is pointer-events:none so empty space around
-                the pet cannot be accidentally clicked or dragged. */}
+            {/* Hit-zone oval — the only pointer-interactive element.
+                The outer wrapper is pointer-events:none so transparent space
+                around the pet cannot be accidentally clicked or dragged. */}
             <div
+              onPointerDown={onPointerDown}
               style={{
                 position: "absolute",
                 left: "50%",
                 top: Math.round(((minTopFrac + maxBotFrac) / 2) * sz),
-                width: Math.round(sz * 0.38),
-                height: Math.round((maxBotFrac - minTopFrac) * sz * 0.75),
+                width: Math.round(sz * 0.28),
+                height: Math.round((maxBotFrac - minTopFrac) * sz * 0.6),
                 transform: "translate(-50%, -50%)",
                 borderRadius: "50%",
                 pointerEvents: "auto",
