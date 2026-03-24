@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useRef } from "react";
 
 interface PetPart {
   id: string;
@@ -283,6 +284,10 @@ const LAYER_ORDER: Record<string, number> = {
 };
 
 export default function PetAnimator({ petTemplateId, mode, view = "front", size = 200, className = "", style: externalStyle }: PetAnimatorProps) {
+  // Stable random blink offset per instance — spreads eye animations across the
+  // full 4 s blink cycle so pets don't all blink at the same time.
+  const blinkOffset = useRef(`-${(Math.random() * 4).toFixed(2)}s`);
+
   const { data: templateData } = useQuery<{ parts: PetPart[]; facing: string }>({
     queryKey: ["/api/pet-template-parts", petTemplateId],
     queryFn: async () => {
@@ -360,6 +365,8 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
         if (!animName) return null;
 
         const duration = getPartDuration(part.partType, mode);
+        const isEyePart = part.partType === "eyes" || part.partType === "eyes_closed";
+        const delay = isEyePart ? blinkOffset.current : "0s";
 
         return (
           <img
@@ -375,7 +382,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
               height: `${heightPct}%`,
               zIndex: layerZ,
               transformOrigin: `${part.pivotX ?? 50}% ${part.pivotY ?? 50}%`,
-              animation: `${animName} ${duration} ease-in-out infinite`,
+              animation: `${animName} ${duration} ease-in-out ${delay} infinite`,
               opacity: isAnimOnly ? 0 : 1,
               imageRendering: "auto",
               pointerEvents: "none",
