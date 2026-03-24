@@ -8,7 +8,7 @@ import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import PetWorldPage from "@/pages/PetWorldPage";
 import PetAnimator from "@/components/PetAnimator";
-import petHouseBg from "@assets/generated_images/pet_world_bg.png";
+import petHouseBg from "@assets/generated_images/powerup_forest_bg.png";
 import aquariumBg from "@assets/bg_aquarium.png";
 import fishbowlIconImg from "@assets/icon_fishbowl.png";
 import globeWorldIconImg from "@assets/icon_globe_world.png";
