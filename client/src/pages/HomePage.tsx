@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
+import { X, HelpCircle } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import bgImg from "@assets/bg_home_v2.png";
@@ -71,6 +72,7 @@ export default function HomePage({ user }: HomePageProps) {
   const [showSpeedEffect, setShowSpeedEffect] = useState(false);
   const [speedEffectLabel, setSpeedEffectLabel] = useState("");
   const [showPvpNotice, setShowPvpNotice] = useState(false);
+  const [showHomePageTutorial, setShowHomePageTutorial] = useState(() => !localStorage.getItem("homePageTutorialSeen"));
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
 
@@ -994,6 +996,154 @@ export default function HomePage({ user }: HomePageProps) {
           100% { transform: scale(0.92) translateY(-10px); opacity: 0; filter: none; }
         }
       `}</style>
+
+      {/* ? button — shown after tutorial is dismissed */}
+      {!showHomePageTutorial && !showProfile && !showPetInventory && !showPetDetail && !scrollOpen && !showPvpNotice && (
+        <button
+          data-testid="button-open-homepage-tutorial"
+          onClick={() => setShowHomePageTutorial(true)}
+          className="absolute z-30 flex items-center justify-center rounded-full transition-transform active:scale-90"
+          style={{
+            bottom: "94px",
+            right: "14px",
+            width: "30px",
+            height: "30px",
+            background: "rgba(10,5,2,0.82)",
+            border: "1.5px solid rgba(212,160,23,0.45)",
+            color: "rgba(212,160,23,0.75)",
+            cursor: "pointer",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.5)",
+          }}
+        >
+          <HelpCircle className="w-4 h-4" />
+        </button>
+      )}
+
+      {/* Home page tutorial overlay */}
+      {showHomePageTutorial && (
+        <div
+          className="absolute inset-0 z-[60] flex items-center justify-center px-5"
+          style={{ background: "rgba(0,0,0,0.78)", backdropFilter: "blur(2px)" }}
+        >
+          <div
+            className="relative w-full max-w-sm rounded-2xl px-5 py-6 flex flex-col gap-4 animate-slide-up"
+            style={{
+              background: "linear-gradient(160deg, rgba(12,8,2,0.99) 0%, rgba(8,5,1,0.99) 100%)",
+              border: "1.5px solid rgba(212,160,23,0.45)",
+              boxShadow: "0 0 50px rgba(212,160,23,0.1), 0 8px 32px rgba(0,0,0,0.7)",
+              maxHeight: "90vh",
+              overflowY: "auto",
+            }}
+          >
+            {/* Close button */}
+            <button
+              data-testid="button-close-homepage-tutorial"
+              onClick={() => {
+                localStorage.setItem("homePageTutorialSeen", "1");
+                setShowHomePageTutorial(false);
+              }}
+              className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center transition-transform active:scale-90"
+              style={{
+                background: "rgba(60,25,5,0.85)",
+                border: "1.5px solid rgba(212,160,23,0.35)",
+                color: "rgba(212,160,23,0.8)",
+                cursor: "pointer",
+              }}
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+
+            <p className="font-fantasy text-[#f0c040] text-base tracking-wider text-center pr-6">Welcome to Para Pets!</p>
+
+            <div className="flex flex-col gap-3">
+
+              {/* Active Pet */}
+              <div className="flex items-start gap-3 pb-3" style={{ borderBottom: "1px solid rgba(212,160,23,0.12)" }}>
+                <img src={eggMagicIcon} alt="Pet" style={{ width: 26, height: 26, objectFit: "contain", flexShrink: 0, marginTop: 1 }} />
+                <div>
+                  <p className="font-fantasy text-[#f0c040] text-[11px] tracking-wider mb-0.5">Your Active Pet</p>
+                  <p className="font-fantasy text-[#a89878] text-[10px] tracking-wide leading-relaxed">
+                    Your current companion is shown in the center. Tap it to view details, rename it, or manage it. If it's still an egg — tap to check if it's ready to hatch!
+                  </p>
+                </div>
+              </div>
+
+              {/* Map */}
+              <div className="flex items-start gap-3 pb-3" style={{ borderBottom: "1px solid rgba(212,160,23,0.12)" }}>
+                <img src={mapIcon} alt="Map" style={{ width: 26, height: 26, objectFit: "contain", flexShrink: 0, marginTop: 1, borderRadius: "6px" }} />
+                <div>
+                  <p className="font-fantasy text-[#f0c040] text-[11px] tracking-wider mb-0.5">Map  <span style={{ color: "#6a5840", fontSize: "9px" }}>— bottom left</span></p>
+                  <p className="font-fantasy text-[#a89878] text-[10px] tracking-wide leading-relaxed">
+                    Explore different worlds, visit shops to find new pets and items, and unlock fishing spots.
+                  </p>
+                </div>
+              </div>
+
+              {/* Quests */}
+              <div className="flex items-start gap-3 pb-3" style={{ borderBottom: "1px solid rgba(212,160,23,0.12)" }}>
+                <img src={questIcon} alt="Quests" style={{ width: 26, height: 26, objectFit: "contain", flexShrink: 0, marginTop: 1, borderRadius: "6px" }} />
+                <div>
+                  <p className="font-fantasy text-[#f0c040] text-[11px] tracking-wider mb-0.5">Quests  <span style={{ color: "#6a5840", fontSize: "9px" }}>— bottom</span></p>
+                  <p className="font-fantasy text-[#a89878] text-[10px] tracking-wide leading-relaxed">
+                    View your active quests and daily challenges. Complete them to earn rewards and coins.
+                  </p>
+                </div>
+              </div>
+
+              {/* Battle */}
+              <div className="flex items-start gap-3 pb-3" style={{ borderBottom: "1px solid rgba(212,160,23,0.12)" }}>
+                <img src={swordsImg} alt="Battle" style={{ width: 26, height: 26, objectFit: "contain", flexShrink: 0, marginTop: 1, borderRadius: "6px" }} />
+                <div>
+                  <p className="font-fantasy text-[#f0c040] text-[11px] tracking-wider mb-0.5">Battle Arena  <span style={{ color: "#6a5840", fontSize: "9px" }}>— bottom</span></p>
+                  <p className="font-fantasy text-[#a89878] text-[10px] tracking-wide leading-relaxed">
+                    Challenge other keepers in the PvP arena. Coming soon — the arena is being forged!
+                  </p>
+                </div>
+              </div>
+
+              {/* Pets */}
+              <div className="flex items-start gap-3 pb-3" style={{ borderBottom: "1px solid rgba(212,160,23,0.12)" }}>
+                <img src={eggImg} alt="Pets" style={{ width: 26, height: 26, objectFit: "contain", flexShrink: 0, marginTop: 1, borderRadius: "6px" }} />
+                <div>
+                  <p className="font-fantasy text-[#f0c040] text-[11px] tracking-wider mb-0.5">Pets  <span style={{ color: "#6a5840", fontSize: "9px" }}>— bottom</span></p>
+                  <p className="font-fantasy text-[#a89878] text-[10px] tracking-wide leading-relaxed">
+                    View your full pet collection. Set a pet as your active companion or visit the Pet House to watch them roam.
+                  </p>
+                </div>
+              </div>
+
+              {/* Badges */}
+              <div className="flex items-start gap-3">
+                <img src={badgeIcon} alt="Badges" style={{ width: 26, height: 26, objectFit: "contain", flexShrink: 0, marginTop: 1, borderRadius: "6px" }} />
+                <div>
+                  <p className="font-fantasy text-[#f0c040] text-[11px] tracking-wider mb-0.5">Badges  <span style={{ color: "#6a5840", fontSize: "9px" }}>— bottom right</span></p>
+                  <p className="font-fantasy text-[#a89878] text-[10px] tracking-wide leading-relaxed">
+                    Track your achievements and show off the badges you've earned on your journey.
+                  </p>
+                </div>
+              </div>
+
+            </div>
+
+            <button
+              data-testid="button-got-it-homepage-tutorial"
+              onClick={() => {
+                localStorage.setItem("homePageTutorialSeen", "1");
+                setShowHomePageTutorial(false);
+              }}
+              className="py-2.5 rounded-full font-fantasy text-sm tracking-widest transition-transform active:scale-95"
+              style={{
+                background: "linear-gradient(135deg, rgba(100,70,5,0.9) 0%, rgba(60,40,3,0.9) 100%)",
+                border: "1px solid rgba(212,160,23,0.5)",
+                color: "#f0c040",
+                cursor: "pointer",
+              }}
+            >
+              Begin the Journey!
+            </button>
+          </div>
+        </div>
+      )}
 
       <PowerUpOverlay
         visible={showSpeedEffect}
