@@ -54,7 +54,7 @@ export const WORLD_OPTIONS = [
   { id: "haunted_woods", name: "Haunted Woods" },
 ];
 
-const NON_PET_TYPES = ["power_up", "accessory", "potion", "special", "decor", "edibles", "fishing"];
+const NON_PET_TYPES = ["power_up", "accessory", "potion", "special", "decor", "edibles"];
 
 function formatTypeName(type: string): string {
   if (type === "power_up") return "Power Up";
