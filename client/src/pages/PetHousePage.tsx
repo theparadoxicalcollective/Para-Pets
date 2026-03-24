@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Star, ShoppingBag } from "lucide-react";
+import { Star, ShoppingBag, X, HelpCircle } from "lucide-react";
 import { fireLevelUp } from "@/lib/levelUpEvents";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
@@ -87,6 +87,7 @@ export default function PetHousePage({ user: initialUser }: PetHousePageProps) {
   const [feedAnim, setFeedAnim] = useState(false);
   const [feedLabel, setFeedLabel] = useState("");
   const [showFeedTutorial, setShowFeedTutorial] = useState(false);
+  const [showHomeTutorial, setShowHomeTutorial] = useState(() => !localStorage.getItem("homeTutorialSeen"));
   const petDropRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -273,6 +274,130 @@ export default function PetHousePage({ user: initialUser }: PetHousePageProps) {
             setShowProfile(false);
           }}
         />
+      )}
+
+      {/* ? button — always visible after tutorial is dismissed */}
+      {!showHomeTutorial && !selectedPet && (
+        <button
+          data-testid="button-open-home-tutorial"
+          onClick={() => setShowHomeTutorial(true)}
+          className="absolute z-30 flex items-center justify-center rounded-full transition-transform active:scale-90"
+          style={{
+            bottom: "94px",
+            right: "14px",
+            width: "30px",
+            height: "30px",
+            background: "rgba(10,25,10,0.82)",
+            border: "1.5px solid rgba(180,140,40,0.45)",
+            color: "rgba(212,160,23,0.75)",
+            cursor: "pointer",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.4)",
+          }}
+        >
+          <HelpCircle className="w-4 h-4" />
+        </button>
+      )}
+
+      {/* Home tutorial overlay */}
+      {showHomeTutorial && (
+        <div
+          className="absolute inset-0 z-40 flex items-center justify-center px-5"
+          style={{ background: "rgba(0,0,0,0.72)", backdropFilter: "blur(2px)" }}
+        >
+          <div
+            className="relative w-full max-w-sm rounded-2xl px-5 py-6 flex flex-col gap-4 animate-slide-up"
+            style={{
+              background: "linear-gradient(160deg, rgba(8,22,8,0.99) 0%, rgba(4,14,4,0.99) 100%)",
+              border: "1.5px solid rgba(180,140,40,0.45)",
+              boxShadow: "0 0 50px rgba(180,140,40,0.12), 0 8px 32px rgba(0,0,0,0.6)",
+            }}
+          >
+            {/* Close button */}
+            <button
+              data-testid="button-close-home-tutorial"
+              onClick={() => {
+                localStorage.setItem("homeTutorialSeen", "1");
+                setShowHomeTutorial(false);
+              }}
+              className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center transition-transform active:scale-90"
+              style={{
+                background: "rgba(60,25,5,0.85)",
+                border: "1.5px solid rgba(212,160,23,0.35)",
+                color: "rgba(212,160,23,0.8)",
+                cursor: "pointer",
+              }}
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+
+            <p className="font-fantasy text-[#d4a017] text-base tracking-wider text-center pr-6">Your Pet House</p>
+
+            <div className="flex flex-col gap-3.5">
+
+              {/* Pet interaction */}
+              <div className="flex items-start gap-3 pb-3" style={{ borderBottom: "1px solid rgba(180,140,40,0.15)" }}>
+                <span className="text-lg flex-shrink-0 mt-0.5">🐾</span>
+                <div>
+                  <p className="font-fantasy text-[#86efac] text-[11px] tracking-wider mb-0.5">Your Pets</p>
+                  <p className="font-fantasy text-[#a89878] text-[10px] tracking-wide leading-relaxed">
+                    Watch your pets roam around! Tap any pet to open the feeding menu and give them edibles to earn level-up points.
+                  </p>
+                </div>
+              </div>
+
+              {/* Aquarium */}
+              <div className="flex items-start gap-3 pb-3" style={{ borderBottom: "1px solid rgba(180,140,40,0.15)" }}>
+                <img src={fishbowlIconImg} alt="Aquarium" style={{ width: 26, height: 26, objectFit: "contain", flexShrink: 0, marginTop: 1 }} />
+                <div>
+                  <p className="font-fantasy text-[#86efac] text-[11px] tracking-wider mb-0.5">Aquarium  <span style={{ color: "#6a5840", fontSize: "9px" }}>— bottom left</span></p>
+                  <p className="font-fantasy text-[#a89878] text-[10px] tracking-wide leading-relaxed">
+                    Visit your aquarium to view and care for your fish collection.
+                  </p>
+                </div>
+              </div>
+
+              {/* Pet House */}
+              <div className="flex items-start gap-3 pb-3" style={{ borderBottom: "1px solid rgba(180,140,40,0.15)" }}>
+                <img src={forestHomeIconImg} alt="Pet House" style={{ width: 26, height: 26, objectFit: "contain", flexShrink: 0, marginTop: 1 }} />
+                <div>
+                  <p className="font-fantasy text-[#86efac] text-[11px] tracking-wider mb-0.5">Pet House  <span style={{ color: "#6a5840", fontSize: "9px" }}>— bottom center</span></p>
+                  <p className="font-fantasy text-[#a89878] text-[10px] tracking-wide leading-relaxed">
+                    You are here! This is your pet home where all your hatched companions live.
+                  </p>
+                </div>
+              </div>
+
+              {/* Keeper's Central */}
+              <div className="flex items-start gap-3">
+                <img src={globeWorldIconImg} alt="Keeper's Central" style={{ width: 26, height: 26, objectFit: "contain", flexShrink: 0, marginTop: 1 }} />
+                <div>
+                  <p className="font-fantasy text-[#86efac] text-[11px] tracking-wider mb-0.5">Keeper's Central  <span style={{ color: "#6a5840", fontSize: "9px" }}>— bottom right</span></p>
+                  <p className="font-fantasy text-[#a89878] text-[10px] tracking-wide leading-relaxed">
+                    Explore the world, visit shops, go fishing, and discover new pets to bring home.
+                  </p>
+                </div>
+              </div>
+
+            </div>
+
+            <button
+              data-testid="button-got-it-home-tutorial"
+              onClick={() => {
+                localStorage.setItem("homeTutorialSeen", "1");
+                setShowHomeTutorial(false);
+              }}
+              className="mt-1 py-2.5 rounded-full font-fantasy text-sm tracking-widest transition-transform active:scale-95"
+              style={{
+                background: "linear-gradient(135deg, rgba(100,70,5,0.9) 0%, rgba(60,40,3,0.9) 100%)",
+                border: "1px solid rgba(212,160,23,0.5)",
+                color: "#d4a017",
+                cursor: "pointer",
+              }}
+            >
+              Got it!
+            </button>
+          </div>
+        </div>
       )}
 
       {draggingEdible && (
