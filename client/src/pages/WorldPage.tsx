@@ -1686,6 +1686,22 @@ export default function WorldPage({ user }: WorldPageProps) {
                             className="w-full h-full"
                             style={loc.type === "fishing" ? { animation: "breathe 3s ease-in-out infinite" } : undefined}
                           >
+                          {/* Glow orb behind the ripple icon — visible regardless of PNG transparency */}
+                          {loc.type === "fishing" && (
+                            <div style={{
+                              position: "absolute",
+                              inset: "8%",
+                              borderRadius: "50%",
+                              background: worldId === "swamp"
+                                ? "radial-gradient(circle, rgba(45,212,191,0.32) 0%, rgba(20,184,166,0.18) 45%, transparent 72%)"
+                                : "radial-gradient(circle, rgba(56,189,248,0.28) 0%, rgba(14,165,233,0.14) 45%, transparent 72%)",
+                              boxShadow: worldId === "swamp"
+                                ? "0 0 30px 12px rgba(45,212,191,0.22), 0 0 60px 24px rgba(20,184,166,0.12)"
+                                : "0 0 30px 12px rgba(56,189,248,0.2), 0 0 60px 24px rgba(14,165,233,0.1)",
+                              pointerEvents: "none",
+                              zIndex: 5,
+                            }} />
+                          )}
                           <img
                             src={loc.iconUrl}
                             alt={loc.name}
@@ -1694,8 +1710,8 @@ export default function WorldPage({ user }: WorldPageProps) {
                             style={{
                               filter: loc.type === "fishing"
                                 ? worldId === "swamp"
-                                  ? "drop-shadow(0 3px 6px rgba(0,0,0,0.5)) drop-shadow(0 0 6px rgba(45,212,191,0.9)) drop-shadow(0 0 14px rgba(45,212,191,0.65)) drop-shadow(0 0 28px rgba(20,184,166,0.4))"
-                                  : "drop-shadow(0 3px 6px rgba(0,0,0,0.5)) drop-shadow(0 0 8px rgba(56,189,248,0.55)) drop-shadow(0 0 20px rgba(56,189,248,0.3))"
+                                  ? "drop-shadow(0 3px 8px rgba(0,0,0,0.5)) drop-shadow(0 0 18px rgba(45,212,191,0.8)) drop-shadow(0 0 40px rgba(20,184,166,0.5))"
+                                  : "drop-shadow(0 3px 8px rgba(0,0,0,0.5)) drop-shadow(0 0 18px rgba(56,189,248,0.7)) drop-shadow(0 0 40px rgba(56,189,248,0.35))"
                                 : "drop-shadow(0 3px 6px rgba(0,0,0,0.5))",
                               transform: loc.flipped ? "scaleX(-1)" : undefined,
                               transition: "filter 0.15s ease, transform 0.15s ease",
