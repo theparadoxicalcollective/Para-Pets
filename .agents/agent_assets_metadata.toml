@@ -906,3 +906,9 @@ id = "F7yZg52bPJA5XswRPqTQJ"
 uri = "file://attached_assets/bait_ghost_shrimp.png"
 type = "image"
 title = "Ghost Shrimp Bait (original)"
+
+[[outputs]]
+id = "vmD-fP08uWtwk6HR72vFu"
+uri = "file://attached_assets/icon_bayous_heart.png"
+type = "image"
+title = "Bayou's Heart Icon (new)"
