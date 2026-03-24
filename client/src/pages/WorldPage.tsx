@@ -2721,8 +2721,8 @@ export default function WorldPage({ user }: WorldPageProps) {
                         className="w-full h-full object-contain"
                         style={{
                           filter: (isHovered && !(currentUser.isAdmin && (isDragging || selectedShopItemAdminId === item.id)))
-                            ? `drop-shadow(0 0 9px rgba(255,210,120,0.65)) drop-shadow(0 1px 2px rgba(0,0,0,0.65)) drop-shadow(0 0 2px rgba(255,255,255,0.3))`
-                            : `drop-shadow(0 0 5px rgba(255,200,100,0.32)) drop-shadow(0 1px 2px rgba(0,0,0,0.55)) drop-shadow(0 0 1px rgba(255,255,255,0.18))`,
+                            ? `drop-shadow(0 0 1px rgba(255,255,255,0.75)) drop-shadow(0 0 9px rgba(255,210,120,0.65)) drop-shadow(0 1px 3px rgba(0,0,0,0.75)) drop-shadow(0 0 2px rgba(255,255,255,0.35))`
+                            : `drop-shadow(0 0 1px rgba(255,255,255,0.5)) drop-shadow(0 0 5px rgba(255,200,100,0.35)) drop-shadow(0 1px 3px rgba(0,0,0,0.7)) drop-shadow(0 0 1px rgba(255,255,255,0.3))`,
                           transform: (isHovered && !(currentUser.isAdmin && (isDragging || selectedShopItemAdminId === item.id))) ? "scale(1.12)" : "scale(1)",
                           transition: isDragging ? "none" : "transform 0.15s ease, filter 0.15s ease",
                           cursor: currentUser.isAdmin ? (selectedShopItemAdminId === item.id ? "grab" : "pointer") : "pointer",
