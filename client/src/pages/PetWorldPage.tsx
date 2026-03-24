@@ -1136,12 +1136,19 @@ function WorldRoamingPet({
 
   // minTopFrac / maxBotFrac are fractions of sz (0–1) for the top and bottom
   // of the pet's actual visual body. Fall back to sensible defaults while loading.
-  const minTopFrac = visibleParts.length > 0
+  const rawMinTopFrac = visibleParts.length > 0
     ? Math.min(...visibleParts.map(p => p.posY / CANVAS_SIZE))
     : 0.15;
-  const maxBotFrac = visibleParts.length > 0
+  const rawMaxBotFrac = visibleParts.length > 0
     ? Math.max(...visibleParts.map(p => (p.posY + p.height) / CANVAS_SIZE))
     : 0.85;
+
+  // PetAnimator scales large-style parts (≥500px) at 0.3× from center center.
+  // Apply the same correction here so badge/shadow track the visual body, not the raw coords.
+  const isLargeStyle = visibleParts.some(p => p.width >= 500 || p.height >= 500);
+  const partScale = isLargeStyle ? 0.3 : 1;
+  const minTopFrac = 0.5 + (rawMinTopFrac - 0.5) * partScale;
+  const maxBotFrac = 0.5 + (rawMaxBotFrac - 0.5) * partScale;
 
   // Use a deterministic per-pet animation variant based on the index
   const wanderIdx = index % 6;
