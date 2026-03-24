@@ -815,9 +815,29 @@ html, body {
   touch-action: pan-y;
 }
 
-input, textarea, [contenteditable] {
-  user-select: text;
+/* Suppress the iOS/Android long-press magnifier and context callout everywhere */
+* {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Re-enable text selection only where typing is needed */
+input, textarea, [contenteditable], [contenteditable] * {
   -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+/* Images: disable save-image / share callout on long-press */
+img {
+  -webkit-touch-callout: none;
+  pointer-events: none;
+}
+
+/* Interactive images (avatars, shop items, etc.) that need pointer events */
+img[data-interactive], button img, a img {
+  pointer-events: auto;
 }
 
 #root {
