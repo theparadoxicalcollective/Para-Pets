@@ -170,7 +170,7 @@ export default function PetHousePage({ user: initialUser }: PetHousePageProps) {
         <TopBar user={user} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} hideTreehouse />
       </div>
 
-      <div className="flex-1 relative overflow-hidden">
+      <div className="flex-1 relative">
         {isLoading ? (
           <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
             <p className="font-fantasy text-[#8b6a3e] text-xs animate-pulse tracking-widest">Loading...</p>
@@ -786,7 +786,7 @@ function WalkingPet({
     if (!container) return;
     const rect = container.getBoundingClientRect();
     const leftPct = Math.max(2, Math.min(94, (clientX + ox - rect.left) / rect.width  * 100));
-    const topPct  = Math.max(5, Math.min(97, (clientY + oy - rect.top  + sz) / rect.height * 100));
+    const topPct  = Math.max(5, Math.min(104, (clientY + oy - rect.top  + sz) / rect.height * 100));
     const pos = { left: `${leftPct.toFixed(1)}%`, top: `${topPct.toFixed(1)}%` };
     setBasePos(pos);
     try { sessionStorage.setItem(storageKey, JSON.stringify(pos)); } catch {}
