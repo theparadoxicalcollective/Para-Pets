@@ -10,6 +10,7 @@ import baitIcon from "@assets/icon_fishing_bait.png";
 import fishInvIcon from "@assets/icon_fish_inventory.png";
 import brokenRodIcon from "@assets/broken_rod.svg";
 import bobberIcon from "@assets/Photoroom_20260317_35839_PM_1773781228635.png";
+import fishBookIcon from "@assets/Photoroom_20260324_65241_AM_1774353229077.png";
 import { playPlop, playCatch } from "@/lib/sounds";
 
 interface FishingPageProps {
@@ -87,6 +88,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   const [showPolePanel, setShowPolePanel] = useState(false);
   const [showBaitPanel, setShowBaitPanel] = useState(false);
   const [showFishInv, setShowFishInv] = useState(false);
+  const [showFishBook, setShowFishBook] = useState(false);
   const [showPondAdmin, setShowPondAdmin] = useState(false);
   const [showNoPoleModal, setShowNoPoleModal] = useState(false);
   const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem("fishingTutorialSeen"));
@@ -1048,6 +1050,26 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         paddingTop: 20,
         paddingBottom: 24,
       }}>
+        <div className="flex justify-end pr-4 mb-1">
+          <button
+            data-testid="button-fish-book"
+            onClick={() => { setShowFishBook(p => !p); setShowPolePanel(false); setShowBaitPanel(false); setShowFishInv(false); }}
+            className="flex flex-col items-center gap-1 transition-transform active:scale-95"
+            style={{ cursor: "pointer" }}
+          >
+            <div style={{
+              width: 52, height: 52, borderRadius: 12,
+              background: showFishBook ? `${ACCENT}20` : "rgba(5,20,15,0.85)",
+              border: `2px solid ${showFishBook ? ACCENT : `${ACCENT}40`}`,
+              boxShadow: showFishBook ? `0 0 16px ${ACCENT}40` : "0 2px 8px rgba(0,0,0,0.4)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              transition: "all 0.12s ease",
+            }}>
+              <img src={fishBookIcon} alt="Fish Book" style={{ width: 40, height: 40, objectFit: "contain" }} />
+            </div>
+            <span style={{ fontFamily: "Cinzel, serif", fontSize: 8, letterSpacing: "0.08em", color: showFishBook ? ACCENT : `${ACCENT}60` }}>FISH BOOK</span>
+          </button>
+        </div>
         <div className="flex items-end justify-center gap-4 px-4">
           <div ref={poleSlotRef}>
             <EquipSlot
@@ -1134,6 +1156,13 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
         <FishInventoryPanel
           fishInventory={fishInventory}
           onClose={() => setShowFishInv(false)}
+        />
+      )}
+
+      {showFishBook && (
+        <FishBookPanel
+          caughtShopItemIds={fishInventory.map(f => f.shopItemId)}
+          onClose={() => setShowFishBook(false)}
         />
       )}
 
@@ -1405,6 +1434,145 @@ function FishInventoryPanel({
                 <span className="font-fantasy text-[7px]" style={{ color: `${ACCENT}70` }}>x{count}</span>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FishBookPanel({
+  caughtShopItemIds,
+  onClose,
+}: {
+  caughtShopItemIds: string[];
+  onClose: () => void;
+}) {
+  const caughtSet = new Set(caughtShopItemIds);
+  const [filter, setFilter] = useState<"all" | "caught" | "uncaught">("all");
+
+  const { data: allFish = [], isLoading } = useQuery<ShopItem[]>({
+    queryKey: ["/api/fishing/all-fish"],
+    staleTime: 60000,
+  });
+
+  const sorted = [...allFish].sort((a, b) => (a.starRarity ?? 1) - (b.starRarity ?? 1));
+  const filtered = sorted.filter(f => {
+    if (filter === "caught") return caughtSet.has(f.id);
+    if (filter === "uncaught") return !caughtSet.has(f.id);
+    return true;
+  });
+
+  const caughtCount = allFish.filter(f => caughtSet.has(f.id)).length;
+
+  return (
+    <div className="absolute inset-x-0 bottom-0 z-[40] flex flex-col" style={{
+      top: 0,
+      background: "rgba(3,12,10,0.97)",
+      backdropFilter: "blur(12px)",
+      animation: "slideUp 0.2s ease-out",
+    }}>
+      <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${ACCENT}30` }}>
+        <div className="flex items-center gap-2">
+          <img src={fishBookIcon} alt="" style={{ width: 32, height: 32, objectFit: "contain" }} />
+          <div>
+            <h3 className="font-fantasy text-sm tracking-widest" style={{ color: ACCENT }}>FISH BOOK</h3>
+            <p className="font-fantasy text-[9px]" style={{ color: `${ACCENT}60` }}>{caughtCount} / {allFish.length} discovered</p>
+          </div>
+        </div>
+        <button data-testid="button-fish-book-close" onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full" style={{ background: "rgba(0,0,0,0.4)", color: `${ACCENT}80`, cursor: "pointer" }}>
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      <div className="flex gap-2 px-4 py-2" style={{ borderBottom: `1px solid ${ACCENT}20` }}>
+        {(["all", "caught", "uncaught"] as const).map(f => (
+          <button
+            key={f}
+            data-testid={`button-fishbook-filter-${f}`}
+            onClick={() => setFilter(f)}
+            className="font-fantasy text-[9px] tracking-wider px-3 py-1 rounded-full transition-all"
+            style={{
+              background: filter === f ? ACCENT : "rgba(0,0,0,0.4)",
+              color: filter === f ? "#0a1a14" : `${ACCENT}70`,
+              border: `1px solid ${filter === f ? ACCENT : `${ACCENT}30`}`,
+              cursor: "pointer",
+            }}
+          >
+            {f === "all" ? "All" : f === "caught" ? "Caught" : "Undiscovered"}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-3" style={{ scrollbarWidth: "thin" }}>
+        {isLoading ? (
+          <div className="flex items-center justify-center h-32">
+            <p className="font-fantasy text-xs" style={{ color: `${ACCENT}50` }}>Loading…</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex items-center justify-center h-32">
+            <p className="font-fantasy text-xs" style={{ color: `${ACCENT}50` }}>No fish found.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 gap-2">
+            {filtered.map(fish => {
+              const caught = caughtSet.has(fish.id);
+              return (
+                <div
+                  key={fish.id}
+                  data-testid={`card-fishbook-${fish.id}`}
+                  className="flex flex-col items-center gap-1 p-2 rounded-xl"
+                  style={{
+                    background: caught ? "rgba(10,40,30,0.8)" : "rgba(5,15,12,0.6)",
+                    border: `1px solid ${caught ? `${ACCENT}40` : "rgba(255,255,255,0.06)"}`,
+                    boxShadow: caught ? `0 0 8px ${ACCENT}15` : "none",
+                  }}
+                >
+                  <div className="w-16 h-16 flex items-center justify-center relative">
+                    {fish.imageUrl ? (
+                      <img
+                        src={fish.imageUrl}
+                        alt={fish.name}
+                        className="w-full h-full object-contain"
+                        style={{ filter: caught ? "none" : "grayscale(100%) brightness(0.4)" }}
+                      />
+                    ) : (
+                      <img
+                        src={fishIconImg}
+                        alt=""
+                        className="w-full h-full object-contain"
+                        style={{ filter: caught ? "none" : "grayscale(100%) brightness(0.4)" }}
+                      />
+                    )}
+                  </div>
+                  <span className="font-fantasy text-[8px] text-center leading-tight" style={{
+                    color: caught ? `${ACCENT}cc` : "rgba(255,255,255,0.2)",
+                    maxWidth: "100%",
+                    overflow: "hidden",
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical" as any,
+                  }}>
+                    {caught ? fish.name : "???"}
+                  </span>
+                  <div className="flex gap-px">
+                    {Array.from({ length: fish.starRarity ?? 1 }).map((_, i) => (
+                      <Star
+                        key={i}
+                        className="w-2.5 h-2.5"
+                        style={{
+                          fill: caught ? "#facc15" : "rgba(255,255,255,0.1)",
+                          color: caught ? "#facc15" : "rgba(255,255,255,0.1)",
+                        }}
+                      />
+                    ))}
+                  </div>
+                  {caught && (
+                    <span className="font-fantasy text-[7px]" style={{ color: `${ACCENT}60` }}>Caught</span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

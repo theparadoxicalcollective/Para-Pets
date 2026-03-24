@@ -3341,6 +3341,16 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/fishing/all-fish", isAuthenticated, async (req, res) => {
+    try {
+      const items = await storage.getAllShopItems();
+      const fish = items.filter((i: any) => i.type === "fishing" && i.fishingType === "fish");
+      return res.json(fish);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
   app.get("/api/location/:locationId/pond-fish", isAuthenticated, async (req, res) => {
     try {
       const fish = await storage.getPondFish(req.params.locationId);
