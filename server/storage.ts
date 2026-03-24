@@ -299,7 +299,11 @@ export class DatabaseStorage implements IStorage {
     await db.delete(playerFishInventory).where(eq(playerFishInventory.userId, id));
     await db.delete(playerFishCatchLog).where(eq(playerFishCatchLog.userId, id));
     await db.delete(playerFishingEquipment).where(eq(playerFishingEquipment.userId, id));
-    await db.delete(petEquippedAccessories).where(eq(petEquippedAccessories.userId, id));
+    // petEquippedAccessories links petInventoryId → accessoryInventoryId (no userId), cleaned up via userInventory below
+    const userInvIds = await db.select({ id: userInventory.id }).from(userInventory).where(eq(userInventory.userId, id));
+    if (userInvIds.length > 0) {
+      await db.delete(petEquippedAccessories).where(inArray(petEquippedAccessories.petInventoryId, userInvIds.map(r => r.id)));
+    }
     await db.delete(badgeRewardClaims).where(eq(badgeRewardClaims.userId, id));
     await db.delete(userBadges).where(eq(userBadges.userId, id));
     await db.delete(coinPurchases).where(eq(coinPurchases.userId, id));

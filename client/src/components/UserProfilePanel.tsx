@@ -62,6 +62,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletePassword, setDeletePassword] = useState("");
   const [showFinalConfirm, setShowFinalConfirm] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState("");
@@ -209,20 +210,26 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
 
   const deleteAccountMutation = useMutation({
     mutationFn: async (password: string) => {
-      const res = await apiRequest("POST", "/api/user/delete-account", { password });
-      return res.json();
+      const res = await fetch("/api/user/delete-account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.message || `Error ${res.status}`);
+      }
+      return data;
     },
     onSuccess: async () => {
       await queryClient.clear();
       window.location.href = "/auth";
     },
     onError: (err: any) => {
-      const msg = err.message?.includes(":") ? err.message.split(": ").slice(1).join(": ") : err.message;
-      let parsed: any = {};
-      try { parsed = JSON.parse(msg); } catch {}
-      const description = parsed.message || msg || "Failed to delete account";
-      toast({ title: "Deletion Failed", description, variant: "destructive" });
-      // Return to password step so they can try again
+      const msg = err?.message || "Failed to delete account";
+      console.error("Delete account failed:", msg);
+      setDeleteError(msg);
       setShowFinalConfirm(false);
     },
   });
@@ -767,7 +774,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
               {!showDeleteConfirm ? (
                 <button
                   data-testid="button-show-delete-account"
-                  onClick={() => { setShowDeleteConfirm(true); setShowFinalConfirm(false); setDeletePassword(""); }}
+                  onClick={() => { setShowDeleteConfirm(true); setShowFinalConfirm(false); setDeletePassword(""); setDeleteError(""); }}
                   disabled={isPending}
                   className="w-full py-2 rounded-md font-fantasy text-xs tracking-widest transition-all disabled:opacity-60"
                   style={{
@@ -805,22 +812,27 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                       data-testid="input-delete-password"
                       type="password"
                       value={deletePassword}
-                      onChange={e => setDeletePassword(e.target.value)}
+                      onChange={e => { setDeletePassword(e.target.value); setDeleteError(""); }}
                       placeholder="Your current password"
                       className="w-full px-3 py-2.5 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#9a6060] outline-none"
                       style={{
                         background: "linear-gradient(135deg, #f5d8d8 0%, #ecc0c0 100%)",
-                        border: "2px solid #9a4040",
+                        border: `2px solid ${deleteError ? "#ff4444" : "#9a4040"}`,
                         boxShadow: "inset 0 2px 6px rgba(0,0,0,0.3)",
                       }}
                       onKeyDown={e => { if (e.key === "Enter" && deletePassword.trim()) setShowFinalConfirm(true); }}
                     />
+                    {deleteError && (
+                      <p data-testid="text-delete-error" className="font-sans text-[#ff8888] text-[11px] pt-0.5 flex items-center gap-1">
+                        <span>⚠</span> {deleteError}
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex gap-2">
                     <button
                       data-testid="button-cancel-delete"
-                      onClick={() => { setShowDeleteConfirm(false); setDeletePassword(""); setShowFinalConfirm(false); }}
+                      onClick={() => { setShowDeleteConfirm(false); setDeletePassword(""); setShowFinalConfirm(false); setDeleteError(""); }}
                       className="flex-1 py-2 rounded-md font-fantasy text-xs tracking-wider transition-opacity"
                       style={{
                         background: "rgba(60,30,10,0.6)",
@@ -867,7 +879,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                   <div className="flex gap-2">
                     <button
                       data-testid="button-no-delete"
-                      onClick={() => { setShowDeleteConfirm(false); setDeletePassword(""); setShowFinalConfirm(false); }}
+                      onClick={() => { setShowDeleteConfirm(false); setDeletePassword(""); setShowFinalConfirm(false); setDeleteError(""); }}
                       disabled={deleteAccountMutation.isPending}
                       className="flex-1 py-2.5 rounded-md font-fantasy text-sm tracking-wider transition-opacity disabled:opacity-50"
                       style={{
