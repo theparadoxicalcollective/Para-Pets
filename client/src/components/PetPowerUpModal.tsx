@@ -5,7 +5,6 @@ import PetAnimator from "@/components/PetAnimator";
 import powerupBagIcon from "@assets/generated_images/icon_powerup_bag.png";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import forestBg from "@assets/generated_images/powerup_forest_bg.png";
-import forestBanner from "@assets/generated_images/powerup_forest_banner.png";
 import itemCardBg from "@assets/generated_images/powerup_item_card.png";
 
 // ── Inline success-animation configs (mirrors PowerUpOverlay) ──────────────
@@ -366,22 +365,23 @@ export default function PetPowerUpModal({
 
       {/* ── Header ── */}
       <div className="relative z-[10] flex items-center justify-between px-4 pt-[10%] pb-2 flex-shrink-0">
-        <div className="relative flex items-center gap-2">
-          <img src={forestBanner} alt="" className="absolute inset-0 w-full h-full object-fill pointer-events-none" style={{ transform: "scaleX(1.25) scaleY(1.5)", transformOrigin: "left center", opacity: 0.85 }} />
-          <div className="relative flex items-center gap-2.5 px-3 py-2 z-10">
-            <img src={powerupBagIcon} alt="" style={{ width: 32, height: 32, objectFit: "contain", filter: "drop-shadow(0 0 8px rgba(240,192,64,0.7))" }} />
-            <div>
-              <h2 className="font-fantasy text-[#fcd34d] text-xl tracking-widest leading-none" style={{ textShadow: "0 2px 12px rgba(0,0,0,0.9), 0 0 20px rgba(240,192,64,0.4)" }}>{title}</h2>
-              <p className="font-fantasy text-[#d4b896] text-[11px] tracking-wide mt-0.5" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.9)" }}>
-                {subtitle ?? `Choose an item below to strengthen ${petName}`}
-              </p>
-            </div>
+        <div className="flex items-center gap-3">
+          <img src={powerupBagIcon} alt="" style={{ width: 36, height: 36, objectFit: "contain", filter: "drop-shadow(0 0 10px rgba(134,239,172,0.6)) drop-shadow(0 0 20px rgba(134,239,172,0.3))" }} />
+          <div>
+            <h2 className="font-fantasy text-[#fcd34d] text-xl tracking-widest leading-none"
+              style={{ textShadow: "0 0 18px rgba(252,211,77,0.8), 0 0 40px rgba(252,211,77,0.3), 0 2px 8px rgba(0,0,0,0.9)" }}>
+              {title}
+            </h2>
+            <p className="font-fantasy text-[#86efac] text-[11px] tracking-wide mt-0.5"
+              style={{ textShadow: "0 0 10px rgba(134,239,172,0.5), 0 1px 4px rgba(0,0,0,0.9)" }}>
+              {subtitle ?? `Choose an item below to strengthen ${petName}`}
+            </p>
           </div>
         </div>
         <button
           data-testid="button-close-powerup-modal"
           onClick={onClose}
-          className="relative z-[10] w-9 h-9 rounded-full flex items-center justify-center font-bold text-base flex-shrink-0"
+          className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-base flex-shrink-0"
           style={{ background: "rgba(10,20,10,0.85)", border: "1.5px solid rgba(134,239,172,0.35)", color: "#86efac", cursor: "pointer", boxShadow: "0 0 12px rgba(134,239,172,0.15)" }}
         >
           ✕
