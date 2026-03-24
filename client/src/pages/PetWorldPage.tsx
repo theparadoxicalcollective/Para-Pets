@@ -1096,6 +1096,7 @@ function WorldRoamingPet({
   const { data: templateData } = useQuery<{
     parts: Array<{ partType: string; posY: number; height: number; posX: number; width: number; view: string }>;
     facing: string;
+    canFly: boolean;
   }>({
     queryKey: ["/api/pet-template-parts", pet.petTemplateId],
     queryFn: async () => {
@@ -1107,9 +1108,7 @@ function WorldRoamingPet({
     staleTime: Infinity,
   });
 
-  const hasWings = !!(templateData?.parts?.some(
-    (p) => p.partType === "left_wing" || p.partType === "right_wing" || p.partType === "wings" || p.partType === "front_wing" || p.partType === "back_wing"
-  ));
+  const hasWings = !!(templateData?.canFly);
 
   // Compute the tight bounding box of the pet's actual visible parts so we can
   // position the name badge exactly above the head and stars exactly below the feet.

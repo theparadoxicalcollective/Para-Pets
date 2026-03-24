@@ -578,7 +578,7 @@ function WalkingPet({
 }) {
   const [isHovered, setIsHovered] = useState(false);
 
-  const { data: templateData } = useQuery<{ parts: Array<{ partType: string }> }>({
+  const { data: templateData } = useQuery<{ parts: Array<{ partType: string }>; canFly: boolean }>({
     queryKey: ["/api/pet-template-parts", pet.petTemplateId],
     queryFn: async () => {
       const res = await fetch(`/api/pet-template-parts/${pet.petTemplateId}`, { credentials: "include" });
@@ -589,9 +589,7 @@ function WalkingPet({
     staleTime: 300000,
   });
 
-  const hasWings = !!(templateData?.parts?.some(
-    (p) => p.partType === "left_wing" || p.partType === "right_wing" || p.partType === "wings" || p.partType === "front_wing" || p.partType === "back_wing"
-  ));
+  const hasWings = !!(templateData?.canFly);
 
   // Pull animation variant from the config tables (these don't need to vary)
   const cfg = hasWings

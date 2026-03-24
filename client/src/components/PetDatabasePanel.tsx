@@ -11,6 +11,7 @@ interface PetTemplate {
   facing?: string | null;
   frontAssembled: string | null;
   backAssembled: string | null;
+  canFly: boolean;
   createdAt: string;
 }
 
@@ -225,6 +226,20 @@ export default function PetDatabasePanel() {
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to rename", variant: "destructive" });
+    },
+  });
+
+  const canFlyMutation = useMutation({
+    mutationFn: async ({ id, canFly }: { id: string; canFly: boolean }) => {
+      const res = await apiRequest("PATCH", `/api/admin/pet-templates/${id}`, { canFly });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates", selectedTemplateId] });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update fly setting", variant: "destructive" });
     },
   });
 
@@ -588,7 +603,26 @@ export default function PetDatabasePanel() {
         <div className="flex flex-col gap-2">
           {(facingMode === "front" ? FRONT_PART_GROUPS : SIDE_PART_GROUPS).map(group => (
             <div key={group.group}>
-              <p className="font-fantasy text-[8px] text-[#6a5840] tracking-widest uppercase mb-1 pl-0.5">{group.group}</p>
+              <div className="flex items-center gap-2 mb-1">
+                <p className="font-fantasy text-[8px] text-[#6a5840] tracking-widest uppercase pl-0.5">{group.group}</p>
+                {(group.group === "Wings" || group.parts.some(p => p.key.includes("wing"))) && templateDetail && (
+                  <label
+                    className="flex items-center gap-1 cursor-pointer select-none"
+                    style={{ marginLeft: "2px" }}
+                  >
+                    <input
+                      data-testid="checkbox-can-fly"
+                      type="checkbox"
+                      checked={!!templateDetail.canFly}
+                      onChange={(e) => canFlyMutation.mutate({ id: templateDetail.id, canFly: e.target.checked })}
+                      style={{ accentColor: "#7fffd4", width: "11px", height: "11px", cursor: "pointer" }}
+                    />
+                    <span className="font-fantasy text-[8px] tracking-wider" style={{ color: templateDetail.canFly ? "#7fffd4" : "#6a5840" }}>
+                      Fly
+                    </span>
+                  </label>
+                )}
+              </div>
               <div className="flex flex-wrap gap-1.5">
                 {group.parts.map(pt => {
                   const exists = viewParts.some(p => p.partType === pt.key);

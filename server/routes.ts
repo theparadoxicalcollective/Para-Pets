@@ -2158,7 +2158,7 @@ export async function registerRoutes(
         storage.getPetTemplateParts(templateId),
         storage.getPetTemplate(templateId),
       ]);
-      const result = { parts, facing: template?.facing ?? "front" };
+      const result = { parts, facing: template?.facing ?? "front", canFly: template?.canFly ?? false };
       setCachedTemplateParts(templateId, result);
       return res.json(result);
     } catch (err) {
@@ -2261,12 +2261,13 @@ export async function registerRoutes(
 
   app.patch("/api/admin/pet-templates/:id", isAdmin, async (req, res) => {
     try {
-      const { name, frontAssembled, backAssembled, facing } = req.body;
+      const { name, frontAssembled, backAssembled, facing, canFly } = req.body;
       const updates: Record<string, any> = {};
       if (name !== undefined) updates.name = name;
       if (frontAssembled !== undefined) updates.frontAssembled = frontAssembled;
       if (backAssembled !== undefined) updates.backAssembled = backAssembled;
       if (facing !== undefined) updates.facing = facing;
+      if (canFly !== undefined) updates.canFly = canFly;
       const updated = await storage.updatePetTemplate(req.params.id, updates);
       return res.json(updated);
     } catch (err) {
