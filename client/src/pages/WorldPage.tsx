@@ -187,6 +187,7 @@ export default function WorldPage({ user }: WorldPageProps) {
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
+    staleTime: 5 * 60 * 1000,
   });
 
   const dbName = worldApiData?.name;
@@ -294,6 +295,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   const adminLocTapRef = useRef<{ id: string; timer: ReturnType<typeof setTimeout> } | null>(null);
   const [worldBgLoaded, setWorldBgLoaded] = useState(false);
   const [committedWorldBg, setCommittedWorldBg] = useState<string>("");
+  const lastLoadedBgRef = useRef("");
 
   const mapTransformRef = useRef({ x: 0, y: 0, scale: 1 });
   const [mapX, setMapX] = useState(0);
@@ -317,6 +319,7 @@ export default function WorldPage({ user }: WorldPageProps) {
       if (!res.ok) throw new Error("Failed to fetch locations");
       return res.json();
     },
+    staleTime: 5 * 60 * 1000,
   });
 
   const { data: activeLocDetail } = useQuery<WorldLocationData>({
@@ -797,8 +800,11 @@ export default function WorldPage({ user }: WorldPageProps) {
   });
 
   useEffect(() => {
-    setWorldBgLoaded(false);
     if (!world?.bg) { setWorldBgLoaded(true); return; }
+    // If we already loaded this exact URL (e.g. stale cache returned same bg),
+    // skip the reload entirely to prevent a flash of the loading screen.
+    if (world.bg === lastLoadedBgRef.current) { setWorldBgLoaded(true); return; }
+    setWorldBgLoaded(false);
     const img = new Image();
     img.onload = () => {
       if (img.naturalWidth > 0 && img.naturalHeight > 0) {
@@ -806,10 +812,15 @@ export default function WorldPage({ user }: WorldPageProps) {
         mapHRef.current = h;
         setMapH(h);
       }
+      lastLoadedBgRef.current = world.bg;
       setCommittedWorldBg(world.bg);
       setWorldBgLoaded(true);
     };
-    img.onerror = () => { setCommittedWorldBg(world.bg); setWorldBgLoaded(true); };
+    img.onerror = () => {
+      lastLoadedBgRef.current = world.bg;
+      setCommittedWorldBg(world.bg);
+      setWorldBgLoaded(true);
+    };
     img.src = world.bg;
   }, [world?.bg]);
 
