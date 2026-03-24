@@ -12,7 +12,7 @@ import brokenRodIcon from "@assets/broken_rod.svg";
 import bobberIcon from "@assets/Photoroom_20260317_35839_PM_1773781228635.png";
 import fishBookIcon from "@assets/Photoroom_20260324_65241_AM_1774353229077.png";
 import coinIconImg from "@assets/icon_coin.png";
-import { playPlop, playCatch } from "@/lib/sounds";
+import { playPlop, playCatch, playReelTick } from "@/lib/sounds";
 
 interface FishingPageProps {
   locationId: string;
@@ -1800,15 +1800,30 @@ function TensionReel({
   sweetHigh: number;
 }) {
   const [held, setHeld] = useState(false);
+  const reelIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (reelIntervalRef.current) clearInterval(reelIntervalRef.current);
+    };
+  }, []);
 
   const startHold = (e: React.PointerEvent) => {
     e.preventDefault();
     setHeld(true);
     onHoldChange(true);
+    if (!reelIntervalRef.current) {
+      playReelTick();
+      reelIntervalRef.current = setInterval(playReelTick, 65);
+    }
   };
   const endHold = () => {
     setHeld(false);
     onHoldChange(false);
+    if (reelIntervalRef.current) {
+      clearInterval(reelIntervalRef.current);
+      reelIntervalRef.current = null;
+    }
   };
 
   const tensionPct  = Math.round(tension * 100);
@@ -2021,6 +2036,7 @@ function TensionReel({
         {/* ── REEL BUTTON ── */}
         <button
           data-testid="button-reel"
+          data-no-click-sound
           onPointerDown={startHold}
           onPointerUp={endHold}
           onPointerLeave={endHold}

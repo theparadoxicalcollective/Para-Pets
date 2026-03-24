@@ -175,6 +175,50 @@ export function playChime() {
   } catch {}
 }
 
+export function playReelTick() {
+  try {
+    const c = getCtx();
+    if (!c) return;
+
+    const compressor = c.createDynamicsCompressor();
+    compressor.threshold.setValueAtTime(-18, c.currentTime);
+    compressor.ratio.setValueAtTime(6, c.currentTime);
+    compressor.connect(c.destination);
+
+    // Mechanical body — sawtooth dropping for a gear-tooth click quality
+    const osc = c.createOscillator();
+    const gain = c.createGain();
+    osc.connect(gain);
+    gain.connect(compressor);
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(340, c.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(120, c.currentTime + 0.018);
+    gain.gain.setValueAtTime(0.20, c.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.022);
+    osc.start(c.currentTime);
+    osc.stop(c.currentTime + 0.025);
+
+    // Texture layer — filtered noise burst for the metallic "snap"
+    const bufLen = Math.floor(c.sampleRate * 0.012);
+    const buf = c.createBuffer(1, bufLen, c.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) data[i] = (Math.random() * 2 - 1);
+    const noise = c.createBufferSource();
+    const filter = c.createBiquadFilter();
+    const noiseGain = c.createGain();
+    filter.type = "bandpass";
+    filter.frequency.value = 2800;
+    filter.Q.value = 1.8;
+    noise.buffer = buf;
+    noise.connect(filter);
+    filter.connect(noiseGain);
+    noiseGain.connect(compressor);
+    noiseGain.gain.setValueAtTime(0.09, c.currentTime);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.012);
+    noise.start(c.currentTime);
+  } catch {}
+}
+
 export function playCatch() {
   try {
     const c = getCtx();

@@ -143,7 +143,7 @@ function App() {
       }
       const target = e.target as Element;
       const interactive = target.closest('button, [role="button"], [data-testid^="button-"]');
-      if (interactive) playClick();
+      if (interactive && !interactive.hasAttribute('data-no-click-sound')) playClick();
     };
 
     document.addEventListener("pointerdown", handler, true);
