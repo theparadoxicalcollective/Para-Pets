@@ -778,18 +778,13 @@ function WalkingPet({
   const sz = cfg.size;
   const shadowW = Math.round(sz * 0.52);
 
-  // ── Helper: commit a screen position to state + sessionStorage ──────────
-  // The grab offsets in drag.current ensure that the placed pet's top-left
-  // lands exactly where the ghost's top-left was — no jump on release.
-  const commitPos = (clientX: number, clientY: number) => {
+  // ── Commit position to state + sessionStorage ───────────────────────────
+  // ox/oy are the grab offsets recorded at pointerdown — they ensure the
+  // placed pet's top-left lands exactly where the ghost showed it (no jump).
+  const commitPos = (clientX: number, clientY: number, ox: number, oy: number) => {
     const container = containerRef.current;
     if (!container) return;
     const rect = container.getBoundingClientRect();
-    const ox = drag.current.grabOffsetX;
-    const oy = drag.current.grabOffsetY;
-    // Ghost top-left = (clientX + ox, clientY + oy).
-    // Placed pet top-left = (leftPct%*W, topPct%*H - sz).
-    // Equate both so the pet lands exactly where the ghost shows it.
     const leftPct = Math.max(2, Math.min(88, (clientX + ox - rect.left) / rect.width  * 100));
     const topPct  = Math.max(5, Math.min(92, (clientY + oy - rect.top  + sz) / rect.height * 100));
     const pos = { left: `${leftPct.toFixed(1)}%`, top: `${topPct.toFixed(1)}%` };
@@ -797,16 +792,19 @@ function WalkingPet({
     try { sessionStorage.setItem(storageKey, JSON.stringify(pos)); } catch {}
   };
 
-  // ── Drag handlers on the interactive wrapper ─────────────────────────────
+  // ── Single element handler — rest handled at document level ──────────────
+  // Using document-level listeners is the only reliable approach on mobile:
+  // setPointerCapture gets cancelled by the browser's scroll detection, firing
+  // pointercancel before pointerup and losing the drop position. Document-level
+  // listeners receive events regardless of element opacity/visibility/capture.
   const onPointerDown = (e: React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    // Grab offset: distance from cursor to the pet's top-left corner.
-    // The hit zone's centre ≈ the pet body's centre ≈ pet top-left + sz/2.
+
     const hitRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const grabOffsetX = (hitRect.left + hitRect.width  / 2) - sz / 2 - e.clientX;
     const grabOffsetY = (hitRect.top  + hitRect.height / 2) - sz / 2 - e.clientY;
+
     drag.current = {
       active: true, moved: false, pointerId: e.pointerId,
       startX: e.clientX, startY: e.clientY,
@@ -815,46 +813,60 @@ function WalkingPet({
     };
     setGhostXY({ x: e.clientX, y: e.clientY });
     setIsHovered(true);
-  };
 
-  const onPointerMove = (e: React.PointerEvent) => {
-    if (!drag.current.active || drag.current.pointerId !== e.pointerId) return;
-    drag.current.lastX = e.clientX;
-    drag.current.lastY = e.clientY;
-    const dist = Math.hypot(e.clientX - drag.current.startX, e.clientY - drag.current.startY);
-    if (!drag.current.moved && dist > 8) {
-      drag.current.moved = true;
-      setIsDragging(true);
-    }
-    if (drag.current.moved) {
-      setGhostXY({ x: e.clientX, y: e.clientY });
-    }
-  };
+    // Fresh closures — capture current sz, grabOffsets, commitPos, onClick
+    const pid  = e.pointerId;
+    const ox   = grabOffsetX;
+    const oy   = grabOffsetY;
 
-  const onPointerUp = (e: React.PointerEvent) => {
-    if (!drag.current.active || drag.current.pointerId !== e.pointerId) return;
-    if (drag.current.moved) {
-      commitPos(e.clientX, e.clientY);
+    const cleanup = () => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup",   onUp);
+      document.removeEventListener("pointercancel", onCancel);
+    };
+
+    const onMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== pid) return;
+      drag.current.lastX = ev.clientX;
+      drag.current.lastY = ev.clientY;
+      if (!drag.current.moved &&
+          Math.hypot(ev.clientX - drag.current.startX, ev.clientY - drag.current.startY) > 6) {
+        drag.current.moved = true;
+        setIsDragging(true);
+      }
+      if (drag.current.moved) setGhostXY({ x: ev.clientX, y: ev.clientY });
+    };
+
+    const onUp = (ev: PointerEvent) => {
+      if (ev.pointerId !== pid) return;
+      cleanup();
+      if (drag.current.moved) {
+        commitPos(ev.clientX, ev.clientY, ox, oy);
+        setIsDragging(false);
+      } else {
+        onClick();
+      }
+      drag.current.active = false;
+      drag.current.pointerId = -1;
+      setIsHovered(false);
+    };
+
+    const onCancel = (ev: PointerEvent) => {
+      if (ev.pointerId !== pid) return;
+      cleanup();
+      // Save wherever the finger last was — even a cancelled drag stays put
+      if (drag.current.moved) {
+        commitPos(drag.current.lastX, drag.current.lastY, ox, oy);
+      }
+      drag.current.active = false;
+      drag.current.pointerId = -1;
       setIsDragging(false);
-    } else {
-      onClick();
-    }
-    drag.current.active = false;
-    drag.current.pointerId = -1;
-    setIsHovered(false);
-  };
+      setIsHovered(false);
+    };
 
-  // pointercancel fires on mobile when the browser takes over (e.g. scroll).
-  // We still want to save the last position if the user had started dragging.
-  const onPointerCancel = () => {
-    if (!drag.current.active) return;
-    if (drag.current.moved) {
-      commitPos(drag.current.lastX, drag.current.lastY);
-    }
-    drag.current.active = false;
-    drag.current.pointerId = -1;
-    setIsDragging(false);
-    setIsHovered(false);
+    document.addEventListener("pointermove",  onMove);
+    document.addEventListener("pointerup",    onUp);
+    document.addEventListener("pointercancel", onCancel);
   };
 
   // ── Shared visual renderer ───────────────────────────────────────────────
@@ -955,9 +967,6 @@ function WalkingPet({
                   touchAction: "none",
                 }}
                 onPointerDown={onPointerDown}
-                onPointerMove={onPointerMove}
-                onPointerUp={onPointerUp}
-                onPointerCancel={onPointerCancel}
               />
             </div>
             {shadow}
