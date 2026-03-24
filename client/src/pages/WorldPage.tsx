@@ -1686,18 +1686,16 @@ export default function WorldPage({ user }: WorldPageProps) {
                             className="w-full h-full"
                             style={loc.type === "fishing" ? { animation: "breathe 3s ease-in-out infinite" } : undefined}
                           >
-                          {/* Glow orb behind the ripple icon — visible regardless of PNG transparency */}
+                          {/* Glow ring behind the ripple icon — box-shadow only, no fill so PNG transparency is preserved */}
                           {loc.type === "fishing" && (
                             <div style={{
                               position: "absolute",
-                              inset: "8%",
+                              inset: "12%",
                               borderRadius: "50%",
-                              background: worldId === "swamp"
-                                ? "radial-gradient(circle, rgba(45,212,191,0.32) 0%, rgba(20,184,166,0.18) 45%, transparent 72%)"
-                                : "radial-gradient(circle, rgba(56,189,248,0.28) 0%, rgba(14,165,233,0.14) 45%, transparent 72%)",
+                              background: "transparent",
                               boxShadow: worldId === "swamp"
-                                ? "0 0 30px 12px rgba(45,212,191,0.22), 0 0 60px 24px rgba(20,184,166,0.12)"
-                                : "0 0 30px 12px rgba(56,189,248,0.2), 0 0 60px 24px rgba(14,165,233,0.1)",
+                                ? "0 0 22px 14px rgba(45,212,191,0.3), 0 0 50px 28px rgba(20,184,166,0.15)"
+                                : "0 0 22px 14px rgba(56,189,248,0.26), 0 0 50px 28px rgba(14,165,233,0.13)",
                               pointerEvents: "none",
                               zIndex: 5,
                             }} />
