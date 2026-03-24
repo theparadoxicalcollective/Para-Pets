@@ -724,13 +724,17 @@ function WalkingPet({
   // All drag state in a ref so callbacks always see the latest values without
   // needing to be re-created (avoids stale closure issues during pointer capture).
   const drag = useRef({
-    active: false,      // pointer is currently down
-    moved: false,       // movement exceeded threshold → it's a drag, not a tap
+    active: false,
+    moved: false,
     pointerId: -1,
     startX: 0,
     startY: 0,
-    lastX: 0,           // last known position — used by pointercancel to save
+    lastX: 0,
     lastY: 0,
+    // Offset from cursor to the pet's top-left corner at grab time.
+    // Keeps the exact body pixel under the finger throughout the drag.
+    grabOffsetX: 0,
+    grabOffsetY: 0,
   });
 
   const { data: templateData } = useQuery<{ parts: Array<{ partType: string }>; canFly: boolean }>({
@@ -775,12 +779,19 @@ function WalkingPet({
   const shadowW = Math.round(sz * 0.52);
 
   // ── Helper: commit a screen position to state + sessionStorage ──────────
+  // The grab offsets in drag.current ensure that the placed pet's top-left
+  // lands exactly where the ghost's top-left was — no jump on release.
   const commitPos = (clientX: number, clientY: number) => {
     const container = containerRef.current;
     if (!container) return;
     const rect = container.getBoundingClientRect();
-    const leftPct = Math.max(3, Math.min(90, ((clientX - rect.left) / rect.width)  * 100));
-    const topPct  = Math.max(5, Math.min(90, ((clientY - rect.top)  / rect.height) * 100));
+    const ox = drag.current.grabOffsetX;
+    const oy = drag.current.grabOffsetY;
+    // Ghost top-left = (clientX + ox, clientY + oy).
+    // Placed pet top-left = (leftPct%*W, topPct%*H - sz).
+    // Equate both so the pet lands exactly where the ghost shows it.
+    const leftPct = Math.max(2, Math.min(88, (clientX + ox - rect.left) / rect.width  * 100));
+    const topPct  = Math.max(5, Math.min(92, (clientY + oy - rect.top  + sz) / rect.height * 100));
     const pos = { left: `${leftPct.toFixed(1)}%`, top: `${topPct.toFixed(1)}%` };
     setBasePos(pos);
     try { sessionStorage.setItem(storageKey, JSON.stringify(pos)); } catch {}
@@ -791,7 +802,18 @@ function WalkingPet({
     e.preventDefault();
     e.stopPropagation();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    drag.current = { active: true, moved: false, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, lastX: e.clientX, lastY: e.clientY };
+    // Grab offset: distance from cursor to the pet's top-left corner.
+    // The hit zone's centre ≈ the pet body's centre ≈ pet top-left + sz/2.
+    const hitRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const grabOffsetX = (hitRect.left + hitRect.width  / 2) - sz / 2 - e.clientX;
+    const grabOffsetY = (hitRect.top  + hitRect.height / 2) - sz / 2 - e.clientY;
+    drag.current = {
+      active: true, moved: false, pointerId: e.pointerId,
+      startX: e.clientX, startY: e.clientY,
+      lastX: e.clientX, lastY: e.clientY,
+      grabOffsetX, grabOffsetY,
+    };
+    setGhostXY({ x: e.clientX, y: e.clientY });
     setIsHovered(true);
   };
 
@@ -871,8 +893,10 @@ function WalkingPet({
       {isDragging && (
         <div style={{
           position: "fixed",
-          left: ghostXY.x - sz / 2,
-          top:  ghostXY.y - sz / 2,
+          // Offset by the grab point so the exact body pixel that was grabbed
+          // stays under the finger — no snapping to center of the bounding box.
+          left: ghostXY.x + drag.current.grabOffsetX,
+          top:  ghostXY.y + drag.current.grabOffsetY,
           zIndex: 9999,
           pointerEvents: "none",
           opacity: 0.9,
