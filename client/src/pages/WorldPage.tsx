@@ -1686,20 +1686,6 @@ export default function WorldPage({ user }: WorldPageProps) {
                             className="w-full h-full"
                             style={loc.type === "fishing" ? { animation: "breathe 3s ease-in-out infinite" } : undefined}
                           >
-                          {/* Glow ring behind the ripple icon — box-shadow only, no fill so PNG transparency is preserved */}
-                          {loc.type === "fishing" && (
-                            <div style={{
-                              position: "absolute",
-                              inset: "12%",
-                              borderRadius: "50%",
-                              background: "transparent",
-                              boxShadow: worldId === "swamp"
-                                ? "0 0 22px 14px rgba(45,212,191,0.3), 0 0 50px 28px rgba(20,184,166,0.15)"
-                                : "0 0 22px 14px rgba(56,189,248,0.26), 0 0 50px 28px rgba(14,165,233,0.13)",
-                              pointerEvents: "none",
-                              zIndex: 5,
-                            }} />
-                          )}
                           <img
                             src={loc.iconUrl}
                             alt={loc.name}
@@ -1732,9 +1718,9 @@ export default function WorldPage({ user }: WorldPageProps) {
                                 width: b.size,
                                 height: b.size,
                                 borderRadius: "50%",
-                                background: "radial-gradient(circle at 35% 30%, rgba(204,251,241,0.95), rgba(45,212,191,0.5))",
-                                border: "0.5px solid rgba(153,246,228,0.7)",
-                                boxShadow: "0 0 7px rgba(45,212,191,0.9), 0 0 14px rgba(20,184,166,0.55), 0 0 3px rgba(255,255,255,0.6)",
+                                background: "radial-gradient(circle at 35% 30%, rgba(204,251,241,0.45), rgba(45,212,191,0.18))",
+                                border: "0.5px solid rgba(153,246,228,0.3)",
+                                boxShadow: "0 0 4px rgba(45,212,191,0.35), 0 0 8px rgba(20,184,166,0.18)",
                                 animation: `fishBubbleRise ${b.dur} ease-in-out ${b.delay} infinite`,
                                 pointerEvents: "none",
                                 zIndex: 15,
