@@ -888,3 +888,21 @@ id = "taXq4_W41fMvw79-bspwY"
 uri = "file://attached_assets/pw_ground_preview.png"
 type = "image"
 title = "Preview — Enchanted Clearing, no orbs (not yet applied)"
+
+[[outputs]]
+id = "fziJg9_OPwsoXT6XO6Q8U"
+uri = "file://attached_assets/bait_swamp_crawler.png"
+type = "image"
+title = "Swamp Crawler Bait (original)"
+
+[[outputs]]
+id = "T-s-HqJrk8l6rGz_IejM_"
+uri = "file://attached_assets/bait_hex_lure.png"
+type = "image"
+title = "Hex Lure Bait (original)"
+
+[[outputs]]
+id = "F7yZg52bPJA5XswRPqTQJ"
+uri = "file://attached_assets/bait_ghost_shrimp.png"
+type = "image"
+title = "Ghost Shrimp Bait (original)"
