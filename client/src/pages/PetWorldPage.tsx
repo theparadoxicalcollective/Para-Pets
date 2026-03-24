@@ -954,15 +954,15 @@ function PetDetailModal({
             )}
 
             {/* Owner */}
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               {pet.profileImage ? (
-                <img src={pet.profileImage} alt={pet.username} style={{ width: 18, height: 18, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(212,160,23,0.4)" }} />
+                <img src={pet.profileImage} alt={pet.username} style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", border: "2px solid rgba(212,160,23,0.5)" }} />
               ) : (
-                <div style={{ width: 18, height: 18, borderRadius: "50%", background: "rgba(212,160,23,0.2)", border: "1px solid rgba(212,160,23,0.4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <span style={{ fontSize: 9, color: "#d4a017", fontWeight: "bold" }}>{pet.username.charAt(0).toUpperCase()}</span>
+                <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(212,160,23,0.2)", border: "2px solid rgba(212,160,23,0.5)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <span style={{ fontSize: 15, color: "#d4a017", fontWeight: "bold" }}>{pet.username.charAt(0).toUpperCase()}</span>
                 </div>
               )}
-              <span className="font-fantasy text-[#d4a017] text-xs" data-testid="text-pet-detail-owner">{pet.username}</span>
+              <span className="font-fantasy text-[#d4a017] text-sm" data-testid="text-pet-detail-owner">{pet.username}</span>
             </div>
           </div>
 
