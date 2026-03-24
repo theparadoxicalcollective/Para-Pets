@@ -250,7 +250,7 @@ export default function PetHousePage({ user: initialUser }: PetHousePageProps) {
           <HouseNavButton testId="button-nav-pet-house" onClick={() => {}} label="Pet House">
             <PetHouseNavIcon />
           </HouseNavButton>
-          <HouseNavButton testId="button-nav-forest-den" onClick={() => setShowPetWorld(true)} label="Pet World">
+          <HouseNavButton testId="button-nav-forest-den" onClick={() => setShowPetWorld(true)} label="Keeper's Central">
             <ForestHomeIcon />
           </HouseNavButton>
         </div>
@@ -1407,7 +1407,7 @@ function ForestHomeIcon() {
   return (
     <img
       src={globeWorldIconImg}
-      alt="Pet World"
+      alt="Keeper's Central"
       width={46}
       height={46}
       style={{ objectFit: "contain", imageRendering: "auto" }}

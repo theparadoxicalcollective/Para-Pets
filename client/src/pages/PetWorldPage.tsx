@@ -600,7 +600,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
               color: ACCENT,
               textShadow: `0 0 14px ${ACCENT}60`,
             }}>
-            Pet World
+            Keeper's Central
           </div>
         </div>
 

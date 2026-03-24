@@ -239,7 +239,7 @@ export default function VisitPetHousePage() {
             style={{ color: "#f0c040", textShadow: "0 0 12px rgba(240,192,64,0.5)" }}
             data-testid="text-visit-house-owner"
           >
-            {data.username}'s Pet World
+            {data.username}'s Keeper's Central
           </p>
         )}
       </div>
