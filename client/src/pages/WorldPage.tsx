@@ -1327,6 +1327,13 @@ export default function WorldPage({ user }: WorldPageProps) {
           0%, 100% { opacity: 0.72; transform: scale(1); }
           50% { opacity: 1; transform: scale(1.1); }
         }
+        @keyframes fishBubbleRise {
+          0%   { transform: translateY(0px) translateX(0px) scale(0.35); opacity: 0; }
+          10%  { opacity: 0.85; transform: translateY(-6px) translateX(1px) scale(1); }
+          40%  { opacity: 0.65; transform: translateY(-38px) translateX(-3px) scale(0.9); }
+          75%  { opacity: 0.3;  transform: translateY(-78px) translateX(3px) scale(0.75); }
+          100% { transform: translateY(-110px) translateX(0px) scale(0.5); opacity: 0; }
+        }
         .loc-node { transition: filter 0.2s ease; touch-action: none; }
         .loc-node:active { filter: brightness(1.15); }
         .world-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
@@ -1685,13 +1692,41 @@ export default function WorldPage({ user }: WorldPageProps) {
                             className="w-full h-full object-contain relative z-10"
                             draggable={false}
                             style={{
-                              filter: worldId === "swamp" && loc.type === "fishing"
-                                ? "drop-shadow(0 3px 6px rgba(0,0,0,0.5)) drop-shadow(0 0 6px rgba(45,212,191,0.9)) drop-shadow(0 0 14px rgba(45,212,191,0.65)) drop-shadow(0 0 28px rgba(20,184,166,0.4))"
+                              filter: loc.type === "fishing"
+                                ? worldId === "swamp"
+                                  ? "drop-shadow(0 3px 6px rgba(0,0,0,0.5)) drop-shadow(0 0 6px rgba(45,212,191,0.9)) drop-shadow(0 0 14px rgba(45,212,191,0.65)) drop-shadow(0 0 28px rgba(20,184,166,0.4))"
+                                  : "drop-shadow(0 3px 6px rgba(0,0,0,0.5)) drop-shadow(0 0 8px rgba(56,189,248,0.55)) drop-shadow(0 0 20px rgba(56,189,248,0.3))"
                                 : "drop-shadow(0 3px 6px rgba(0,0,0,0.5))",
                               transform: loc.flipped ? "scaleX(-1)" : undefined,
                               transition: "filter 0.15s ease, transform 0.15s ease",
                             }}
                           />
+                          {/* Floating bubbles rising from fishing spots */}
+                          {loc.type === "fishing" && ([
+                            { left: "16%", bottom: "28%", size: 5, dur: "3.0s", delay: "0.0s" },
+                            { left: "32%", bottom: "35%", size: 4, dur: "3.8s", delay: "0.9s" },
+                            { left: "50%", bottom: "22%", size: 6, dur: "2.6s", delay: "1.6s" },
+                            { left: "67%", bottom: "32%", size: 4, dur: "4.2s", delay: "0.4s" },
+                            { left: "82%", bottom: "26%", size: 3, dur: "3.4s", delay: "2.1s" },
+                          ].map((b, bi) => (
+                            <div
+                              key={bi}
+                              style={{
+                                position: "absolute",
+                                bottom: b.bottom,
+                                left: b.left,
+                                width: b.size,
+                                height: b.size,
+                                borderRadius: "50%",
+                                background: "radial-gradient(circle at 35% 30%, rgba(224,242,254,0.95), rgba(56,189,248,0.45))",
+                                border: "0.5px solid rgba(186,230,253,0.6)",
+                                boxShadow: "0 0 5px rgba(56,189,248,0.7), 0 0 2px rgba(255,255,255,0.5)",
+                                animation: `fishBubbleRise ${b.dur} ease-in-out ${b.delay} infinite`,
+                                pointerEvents: "none",
+                                zIndex: 15,
+                              }}
+                            />
+                          )))}
                           </div>
                         ) : (
                           <div
