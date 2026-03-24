@@ -136,8 +136,6 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const [selectedPet, setSelectedPet] = useState<WorldActivePet | null>(null);
 
   // ── pet drag on the map canvas ─────────────────────────────────────────────
-  const petDragRef  = useRef<{ userId: string; startX: number; startY: number; startPosX: number; startPosY: number } | null>(null);
-  const petDidDrag  = useRef(false);
   const [petDragPos, setPetDragPos] = useState<{ userId: string; posX: number; posY: number } | null>(null);
 
   const savePetPositionMutation = useMutation({
@@ -364,40 +362,62 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   }, [decorDragPos, updateDecorPlacementMutation]);
 
   // ── pet drag on map canvas ────────────────────────────────────────────────
+  // Document-level listeners are used (same pattern as Pet House) so that
+  // pointercancel from browser scroll detection never drops the final position,
+  // and so the pet div itself can use pointerEvents:"auto" without needing
+  // setPointerCapture on the correct element.
   const handlePetPointerDown = useCallback((e: React.PointerEvent, pet: WorldActivePet, resolvedPosX: number, resolvedPosY: number) => {
     e.stopPropagation();
     e.preventDefault();
-    try { (e.target as HTMLElement).setPointerCapture(e.pointerId); } catch {}
-    petDidDrag.current = false;
-    petDragRef.current = { userId: pet.userId, startX: e.clientX, startY: e.clientY, startPosX: resolvedPosX, startPosY: resolvedPosY };
-  }, []);
 
-  const handlePetPointerMove = useCallback((e: React.PointerEvent) => {
-    if (!petDragRef.current) return;
-    e.stopPropagation();
-    const sc = mapTransformRef.current.scale;
-    const dx = e.clientX - petDragRef.current.startX;
-    const dy = e.clientY - petDragRef.current.startY;
-    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) petDidDrag.current = true;
-    const newPosX = Math.max(2, Math.min(97, petDragRef.current.startPosX + (dx / sc) / MAP_W * 100));
-    const newPosY = Math.max(3, Math.min(95, petDragRef.current.startPosY + (dy / sc) / mapHRef.current * 100));
-    setPetDragPos({ userId: petDragRef.current.userId, posX: newPosX, posY: newPosY });
-  }, []);
+    const pid    = e.pointerId;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    let didDrag  = false;
+    let finalPos: { posX: number; posY: number } | null = null;
 
-  const handlePetPointerUp = useCallback((e: React.PointerEvent, pet: WorldActivePet) => {
-    if (!petDragRef.current || petDragRef.current.userId !== pet.userId) return;
-    e.stopPropagation();
-    const wasDrag = petDidDrag.current;
-    const finalPos = petDragPos && petDragPos.userId === pet.userId ? { ...petDragPos } : null;
-    petDragRef.current = null;
-    petDidDrag.current = false;
-    if (wasDrag && finalPos) {
-      savePetPositionMutation.mutate({ ownerUserId: pet.userId, posX: finalPos.posX, posY: finalPos.posY });
-    } else if (!wasDrag) {
-      setSelectedPet(pet);
-    }
-    setPetDragPos(null);
-  }, [petDragPos, savePetPositionMutation]);
+    const cleanup = () => {
+      document.removeEventListener("pointermove",   onDocMove);
+      document.removeEventListener("pointerup",     onDocUp);
+      document.removeEventListener("pointercancel", onDocCancel);
+    };
+
+    const onDocMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== pid) return;
+      const sc = mapTransformRef.current.scale;
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) didDrag = true;
+      const newPosX = Math.max(2, Math.min(97, resolvedPosX + (dx / sc) / MAP_W * 100));
+      const newPosY = Math.max(3, Math.min(95, resolvedPosY + (dy / sc) / mapHRef.current * 100));
+      finalPos = { posX: newPosX, posY: newPosY };
+      setPetDragPos({ userId: pet.userId, posX: newPosX, posY: newPosY });
+    };
+
+    const onDocUp = (ev: PointerEvent) => {
+      if (ev.pointerId !== pid) return;
+      cleanup();
+      setPetDragPos(null);
+      if (didDrag && finalPos) {
+        savePetPositionMutation.mutate({ ownerUserId: pet.userId, posX: finalPos.posX, posY: finalPos.posY });
+      } else if (!didDrag) {
+        setSelectedPet(pet);
+      }
+    };
+
+    const onDocCancel = (ev: PointerEvent) => {
+      if (ev.pointerId !== pid) return;
+      cleanup();
+      if (didDrag && finalPos) {
+        savePetPositionMutation.mutate({ ownerUserId: pet.userId, posX: finalPos.posX, posY: finalPos.posY });
+      }
+      setPetDragPos(null);
+    };
+
+    document.addEventListener("pointermove",   onDocMove);
+    document.addEventListener("pointerup",     onDocUp);
+    document.addEventListener("pointercancel", onDocCancel);
+  }, [savePetPositionMutation]);
 
   // ── panel drag-to-map ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -468,8 +488,6 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                 posY={resolvedY}
                 isDragging={isDragging}
                 onPointerDown={e => handlePetPointerDown(e, pet, stored.x, stored.y)}
-                onPointerMove={handlePetPointerMove}
-                onPointerUp={e => handlePetPointerUp(e, pet)}
               />
             );
           })}
@@ -1081,8 +1099,6 @@ function WorldRoamingPet({
   posY,
   isDragging,
   onPointerDown,
-  onPointerMove,
-  onPointerUp,
 }: {
   pet: WorldActivePet;
   index: number;
@@ -1090,8 +1106,6 @@ function WorldRoamingPet({
   posY: number;
   isDragging: boolean;
   onPointerDown: (e: React.PointerEvent) => void;
-  onPointerMove: (e: React.PointerEvent) => void;
-  onPointerUp: (e: React.PointerEvent) => void;
 }) {
   const { data: templateData } = useQuery<{
     parts: Array<{ partType: string; posY: number; height: number; posX: number; width: number; view: string }>;
@@ -1158,13 +1172,12 @@ function WorldRoamingPet({
         top:  `${posY}%`,
         transform: "translate(-50%, -100%)",
         zIndex: hasWings ? 15 : 10,
-        pointerEvents: "none",
+        pointerEvents: "auto",
+        touchAction: "none",
         userSelect: "none",
+        cursor: "grab",
       }}
       onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
     >
       {/* Wander animation — suppressed while dragging */}
       <div

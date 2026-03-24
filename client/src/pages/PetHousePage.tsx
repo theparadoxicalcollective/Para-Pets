@@ -830,7 +830,7 @@ function WalkingPet({
       drag.current.lastX = ev.clientX;
       drag.current.lastY = ev.clientY;
       if (!drag.current.moved &&
-          Math.hypot(ev.clientX - drag.current.startX, ev.clientY - drag.current.startY) > 6) {
+          Math.hypot(ev.clientX - drag.current.startX, ev.clientY - drag.current.startY) > 3) {
         drag.current.moved = true;
         setIsDragging(true);
       }
