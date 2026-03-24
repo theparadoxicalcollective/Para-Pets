@@ -707,11 +707,31 @@ function WalkingPet({
 }) {
   const [isHovered, setIsHovered] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [dragScreenPos, setDragScreenPos] = useState({ x: 0, y: 0 });
-  // Override position after a drag-drop (as % strings)
-  const [basePos, setBasePos] = useState<{ left: string; top: string } | null>(null);
+  // dragScreenPos tracked in a ref for pointer-cancel safety; also mirrored to
+  // state only when we need to re-render the ghost.
+  const [ghostXY, setGhostXY] = useState({ x: 0, y: 0 });
 
-  const dragRef = useRef({ startX: 0, startY: 0, hasMoved: false, pointerId: -1 });
+  // Positions saved to sessionStorage so they persist within the tab session
+  // but are NEVER sent to the server — each player sees their own arrangement.
+  const storageKey = `petPos_${pet.inventoryId}`;
+  const [basePos, setBasePos] = useState<{ left: string; top: string } | null>(() => {
+    try {
+      const raw = sessionStorage.getItem(storageKey);
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  });
+
+  // All drag state in a ref so callbacks always see the latest values without
+  // needing to be re-created (avoids stale closure issues during pointer capture).
+  const drag = useRef({
+    active: false,      // pointer is currently down
+    moved: false,       // movement exceeded threshold → it's a drag, not a tap
+    pointerId: -1,
+    startX: 0,
+    startY: 0,
+    lastX: 0,           // last known position — used by pointercancel to save
+    lastY: 0,
+  });
 
   const { data: templateData } = useQuery<{ parts: Array<{ partType: string }>; canFly: boolean }>({
     queryKey: ["/api/pet-template-parts", pet.petTemplateId],
@@ -739,141 +759,130 @@ function WalkingPet({
   const seedLeft = hasWings ? `${5 + rng(1) * 73}%` : `${4 + rng(1) * 63}%`;
   const seedTop  = hasWings ? `${15 + rng(2) * 52}%` : `${87 + rng(2) * 4}%`;
 
-  // Use drag-overridden position if available
   const posLeft = basePos?.left ?? seedLeft;
   const posTop  = basePos?.top  ?? seedTop;
 
-  const floatAnim   = hasWings ? "petFloatSmall" : "petGroundFloat";
+  // When a pet has been placed, use only the gentle float — no large wander.
+  // When free-roaming (no basePos), use the full wander animation.
+  const floatAnim    = hasWings ? "petFloatSmall" : "petGroundFloat";
   const wanderPrefix = hasWings ? "petWander" : "petGroundWander";
+  const wanderAnim   = basePos
+    ? "none"
+    : `${wanderPrefix}${cfg.wanderIdx} ${cfg.duration} ${cfg.delay} ease-in-out infinite`;
 
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
   const sz = cfg.size;
   const shadowW = Math.round(sz * 0.52);
 
-  // ── Drag handlers ───────────────────────────────────────────────────────
-  const handlePointerDown = (e: React.PointerEvent) => {
+  // ── Helper: commit a screen position to state + sessionStorage ──────────
+  const commitPos = (clientX: number, clientY: number) => {
+    const container = containerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const leftPct = Math.max(3, Math.min(90, ((clientX - rect.left) / rect.width)  * 100));
+    const topPct  = Math.max(5, Math.min(90, ((clientY - rect.top)  / rect.height) * 100));
+    const pos = { left: `${leftPct.toFixed(1)}%`, top: `${topPct.toFixed(1)}%` };
+    setBasePos(pos);
+    try { sessionStorage.setItem(storageKey, JSON.stringify(pos)); } catch {}
+  };
+
+  // ── Drag handlers on the interactive wrapper ─────────────────────────────
+  const onPointerDown = (e: React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    dragRef.current = { startX: e.clientX, startY: e.clientY, hasMoved: false, pointerId: e.pointerId };
-    setDragScreenPos({ x: e.clientX, y: e.clientY });
+    drag.current = { active: true, moved: false, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, lastX: e.clientX, lastY: e.clientY };
     setIsHovered(true);
   };
 
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (dragRef.current.pointerId !== e.pointerId) return;
-    const dx = e.clientX - dragRef.current.startX;
-    const dy = e.clientY - dragRef.current.startY;
-    if (!dragRef.current.hasMoved && Math.hypot(dx, dy) > 8) {
-      dragRef.current.hasMoved = true;
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!drag.current.active || drag.current.pointerId !== e.pointerId) return;
+    drag.current.lastX = e.clientX;
+    drag.current.lastY = e.clientY;
+    const dist = Math.hypot(e.clientX - drag.current.startX, e.clientY - drag.current.startY);
+    if (!drag.current.moved && dist > 8) {
+      drag.current.moved = true;
       setIsDragging(true);
     }
-    if (dragRef.current.hasMoved) {
-      setDragScreenPos({ x: e.clientX, y: e.clientY });
+    if (drag.current.moved) {
+      setGhostXY({ x: e.clientX, y: e.clientY });
     }
   };
 
-  const handlePointerUp = (e: React.PointerEvent) => {
-    if (dragRef.current.pointerId !== e.pointerId) return;
-    if (dragRef.current.hasMoved) {
-      // Convert screen coords → percentage of container
-      const container = containerRef.current;
-      if (container) {
-        const rect = container.getBoundingClientRect();
-        const leftPct = Math.max(2, Math.min(92, ((e.clientX - rect.left) / rect.width) * 100));
-        const topPct  = Math.max(5, Math.min(92, ((e.clientY - rect.top)  / rect.height) * 100));
-        setBasePos({ left: `${leftPct.toFixed(1)}%`, top: `${topPct.toFixed(1)}%` });
-      }
+  const onPointerUp = (e: React.PointerEvent) => {
+    if (!drag.current.active || drag.current.pointerId !== e.pointerId) return;
+    if (drag.current.moved) {
+      commitPos(e.clientX, e.clientY);
       setIsDragging(false);
     } else {
-      // It was a tap — fire click
       onClick();
     }
-    dragRef.current.pointerId = -1;
+    drag.current.active = false;
+    drag.current.pointerId = -1;
     setIsHovered(false);
   };
 
-  const hitAreaHandlers = {
-    onPointerDown: handlePointerDown,
-    onPointerMove: handlePointerMove,
-    onPointerUp: handlePointerUp,
-    onPointerCancel: () => {
-      dragRef.current.pointerId = -1;
-      setIsDragging(false);
-      setIsHovered(false);
-    },
+  // pointercancel fires on mobile when the browser takes over (e.g. scroll).
+  // We still want to save the last position if the user had started dragging.
+  const onPointerCancel = () => {
+    if (!drag.current.active) return;
+    if (drag.current.moved) {
+      commitPos(drag.current.lastX, drag.current.lastY);
+    }
+    drag.current.active = false;
+    drag.current.pointerId = -1;
+    setIsDragging(false);
+    setIsHovered(false);
   };
 
-  // ── Shared pet visual renderer ───────────────────────────────────────────
-  const petVisual = (scale: number, forGhost: boolean) => {
-    const s = Math.round(sz * scale);
-    const filter = forGhost
-      ? `drop-shadow(0 0 14px rgba(212,160,23,0.7))`
+  // ── Shared visual renderer ───────────────────────────────────────────────
+  const petVisual = (ghost = false) => {
+    const filter = ghost
+      ? "drop-shadow(0 0 16px rgba(212,160,23,0.85))"
       : `drop-shadow(0 ${Math.round(sz * 0.12)}px ${Math.round(sz * 0.15)}px rgba(0,0,0,0.5))`;
+    const scale = !ghost && isHovered ? "scale(1.12)" : "scale(1)";
+    const transition = "transform 0.15s ease";
 
-    if (pet.petTemplateId) {
-      return (
-        <PetAnimator
-          petTemplateId={pet.petTemplateId}
-          mode="idle"
-          size={s}
-          style={{ filter, transform: !forGhost && isHovered ? "scale(1.12)" : "scale(1)", transition: "transform 0.15s ease" }}
-        />
-      );
-    }
-    if (petImg) {
-      return (
-        <img
-          src={petImg}
-          alt=""
-          style={{
-            width: s, height: s, objectFit: "contain", display: "block",
-            filter, transform: !forGhost && isHovered ? "scale(1.12)" : "scale(1)", transition: "transform 0.15s ease",
-          }}
-        />
-      );
-    }
-    return (
-      <span style={{ fontSize: s * 0.65, lineHeight: 1, display: "block", filter }}>🐾</span>
-    );
+    if (pet.petTemplateId)
+      return <PetAnimator petTemplateId={pet.petTemplateId} mode="idle" size={sz} style={{ filter, transform: scale, transition }} />;
+    if (petImg)
+      return <img src={petImg} alt="" style={{ width: sz, height: sz, objectFit: "contain", display: "block", filter, transform: scale, transition }} />;
+    return <span style={{ fontSize: sz * 0.65, lineHeight: 1, display: "block", filter }}>🐾</span>;
   };
 
   const shadow = (
-    <div
-      style={{
-        width: shadowW,
-        height: Math.max(3, Math.round(sz * 0.06)),
-        background: "rgba(0,0,0,0.25)",
-        borderRadius: "50%",
-        margin: "0 auto",
-        filter: `blur(${Math.max(2, Math.round(sz * 0.05))}px)`,
-      }}
-    />
+    <div style={{
+      width: shadowW,
+      height: Math.max(3, Math.round(sz * 0.06)),
+      background: "rgba(0,0,0,0.25)",
+      borderRadius: "50%",
+      margin: "0 auto",
+      filter: `blur(${Math.max(2, Math.round(sz * 0.05))}px)`,
+    }} />
   );
 
-  // Hit area size — smaller oval reduces overlap-misclicks
+  // Tight oval — smaller than the sprite to reduce overlap-misclicks
   const hitW = Math.round(sz * 0.38);
   const hitH = Math.round(sz * 0.42);
 
   return (
     <>
-      {/* ── Fixed ghost that follows the finger while dragging ─── */}
+      {/* ── Ghost follows the finger during drag (fixed, outside any overflow) ── */}
       {isDragging && (
-        <div
-          style={{
-            position: "fixed",
-            left: dragScreenPos.x - sz / 2,
-            top:  dragScreenPos.y - sz / 2,
-            zIndex: 9999,
-            pointerEvents: "none",
-            opacity: 0.88,
-          }}
-        >
-          {petVisual(1, true)}
+        <div style={{
+          position: "fixed",
+          left: ghostXY.x - sz / 2,
+          top:  ghostXY.y - sz / 2,
+          zIndex: 9999,
+          pointerEvents: "none",
+          opacity: 0.9,
+          willChange: "transform",
+        }}>
+          {petVisual(true)}
         </div>
       )}
 
-      {/* ── Stationary pet in the room ─── */}
+      {/* ── Pet in the room ─────────────────────────────────────────────── */}
       <div
         data-testid={`pet-room-${pet.inventoryId}`}
         className="absolute"
@@ -883,38 +892,50 @@ function WalkingPet({
           marginTop: -sz,
           zIndex: parseInt(posTop, 10),
           pointerEvents: "none",
-          visibility: isDragging ? "hidden" : "visible",
+          // Use opacity (not visibility) — keeps pointer capture alive on mobile
+          opacity: isDragging ? 0 : 1,
+          transition: isDragging ? "none" : "opacity 0.1s",
         }}
       >
-        <div
-          style={{
-            animation: isDragging ? "none" : `${wanderPrefix}${cfg.wanderIdx} ${cfg.duration} ${cfg.delay} ease-in-out infinite`,
-            transformOrigin: "bottom center",
-          }}
-        >
-          <div style={hasWings && !isDragging ? { animation: `${floatAnim} 3.2s ease-in-out infinite` } : undefined}>
-            {/* Visual layer (no pointer events) */}
-            <div style={{ pointerEvents: "none" }}>
-              {petVisual(1, false)}
-            </div>
-
-            {/* Tight oval hit area — smaller than the sprite to reduce misclicks */}
+        {/* Large wander animation (disabled once pet is pinned) */}
+        <div style={{ animation: wanderAnim, transformOrigin: "bottom center" }}>
+          {/* Gentle float animation (always on unless dragging) */}
+          <div style={!isDragging ? { animation: `${floatAnim} 3.2s ease-in-out infinite` } : undefined}>
+            {/* Interactive wrapper — pointer events live here, inside the float layer
+                so the hit area tracks with wherever the animation puts the pet */}
             <div
               style={{
-                position: "absolute",
-                left: "50%",
-                top: "50%",
-                width: hitW,
-                height: hitH,
-                transform: "translate(-50%, -50%)",
-                borderRadius: "50%",
-                pointerEvents: "auto",
-                cursor: isDragging ? "grabbing" : "grab",
-                touchAction: "none",
+                position: "relative",
+                width: sz,
+                height: sz,
+                touchAction: "none",   // prevent browser scroll stealing the drag
               }}
-              {...hitAreaHandlers}
-            />
+            >
+              {/* Visual (no pointer events so transparent areas don't intercept) */}
+              <div style={{ pointerEvents: "none" }}>
+                {petVisual(false)}
+              </div>
 
+              {/* Small oval hit zone — avoids nearby-pet misclicks */}
+              <div
+                style={{
+                  position: "absolute",
+                  left: "50%",
+                  top: "50%",
+                  width: hitW,
+                  height: hitH,
+                  transform: "translate(-50%, -50%)",
+                  borderRadius: "50%",
+                  pointerEvents: "auto",
+                  cursor: isDragging ? "grabbing" : "grab",
+                  touchAction: "none",
+                }}
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+                onPointerCancel={onPointerCancel}
+              />
+            </div>
             {shadow}
           </div>
         </div>
