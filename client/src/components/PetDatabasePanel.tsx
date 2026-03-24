@@ -869,18 +869,6 @@ export default function PetDatabasePanel() {
                   const isBackFull = uploadPartType === "back_full";
                   const ptConfig = ALL_PART_DEFS.find(p => p.key === uploadPartType);
                   const defaultZ = isBackFull ? 0 : (ptConfig?.defaultZ || 0);
-
-                  // Read natural image dimensions so the part fills the canvas at its true size
-                  let naturalW = CANVAS_SIZE;
-                  let naturalH = CANVAS_SIZE;
-                  try {
-                    const img = new window.Image();
-                    img.src = dataUrl;
-                    await new Promise<void>(resolve => { img.onload = () => resolve(); img.onerror = () => resolve(); });
-                    naturalW = Math.min(img.naturalWidth || CANVAS_SIZE, CANVAS_SIZE);
-                    naturalH = Math.min(img.naturalHeight || CANVAS_SIZE, CANVAS_SIZE);
-                  } catch {}
-
                   addPartMutation.mutate({
                     templateId: selectedTemplateId!,
                     partType: uploadPartType!,
@@ -889,10 +877,10 @@ export default function PetDatabasePanel() {
                     zIndex: defaultZ,
                     pivotX: isBackFull ? 50 : ((ptConfig as any)?.defaultPivotX ?? 50),
                     pivotY: isBackFull ? 50 : ((ptConfig as any)?.defaultPivotY ?? 50),
-                    posX: 0,
-                    posY: 0,
-                    width: isBackFull ? CANVAS_SIZE : naturalW,
-                    height: isBackFull ? CANVAS_SIZE : naturalH,
+                    posX: isBackFull ? 0 : undefined,
+                    posY: isBackFull ? 0 : undefined,
+                    width: isBackFull ? 1000 : undefined,
+                    height: isBackFull ? 1000 : undefined,
                   });
                 }}
                 className="w-full text-xs font-fantasy"
