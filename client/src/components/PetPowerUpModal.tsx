@@ -5,7 +5,6 @@ import PetAnimator from "@/components/PetAnimator";
 import powerupBagIcon from "@assets/generated_images/icon_powerup_bag.png";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import forestBg from "@assets/generated_images/powerup_forest_bg.png";
-import itemCardBg from "@assets/generated_images/powerup_item_card.png";
 
 // ── Inline success-animation configs (mirrors PowerUpOverlay) ──────────────
 const EFFECT_CONFIGS: Record<"stat" | "level" | "hatch", { color: string; rgb: string; icon: ReactNode; title: string; particleColors: readonly string[] }> = {
@@ -525,9 +524,6 @@ export default function PetPowerUpModal({
                         boxShadow: locked ? "none" : `0 2px 12px ${color}20, inset 0 1px 0 rgba(255,255,255,0.04)`,
                       }}
                     >
-                      {/* Background tile image */}
-                      <img src={itemCardBg} alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" style={{ opacity: 0.18, mixBlendMode: "screen" }} />
-
                       {/* Item image */}
                       <div className="relative w-14 h-14 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0"
                         style={{ background: `radial-gradient(circle, ${color}22 0%, rgba(8,20,10,0.8) 100%)`, border: `1px solid ${color}40` }}>
