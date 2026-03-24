@@ -1131,7 +1131,7 @@ function WorldRoamingPet({
 
   // Use a deterministic per-pet animation variant based on the index
   const wanderIdx = index % 6;
-  const wanderPrefix = hasWings ? "petWander" : "petGroundWander";
+  const wanderPrefix = hasWings ? "petWander" : "petWorldGroundWander";
   const floatAnim   = hasWings ? "petFloatSmall" : "petGroundFloat";
 
   // Seeded timing so each pet has a slightly different wander cadence
