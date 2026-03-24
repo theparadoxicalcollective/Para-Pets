@@ -3354,8 +3354,22 @@ export async function registerRoutes(
   app.get("/api/fishing/caught-fish-ids", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const ids = await storage.getPlayerCaughtFishIds(user.id);
-      return res.json(ids);
+      const log = await storage.getPlayerCaughtFishLog(user.id);
+      return res.json(log);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/fishing/claim-catch-reward", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { shopItemId } = req.body;
+      if (!shopItemId) return res.status(400).json({ message: "shopItemId required" });
+      const claimed = await storage.claimFishCatchReward(user.id, shopItemId);
+      if (!claimed) return res.status(400).json({ message: "Reward already claimed or fish not caught" });
+      const updated = await storage.addCoins(user.id, 10);
+      return res.json({ ok: true, coins: updated.coins });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }

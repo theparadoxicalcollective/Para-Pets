@@ -1452,13 +1452,35 @@ function FishBookPanel({
     staleTime: 60000,
   });
 
-  const { data: caughtIds = [], isLoading: caughtLoading } = useQuery<string[]>({
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [claimedLocally, setClaimedLocally] = useState<Set<string>>(new Set());
+
+  const { data: catchLog = [], isLoading: caughtLoading } = useQuery<{ shopItemId: string; rewardClaimed: boolean }[]>({
     queryKey: ["/api/fishing/caught-fish-ids"],
     staleTime: 0,
   });
 
+  const claimRewardMutation = useMutation({
+    mutationFn: async (shopItemId: string) => {
+      const res = await apiRequest("POST", "/api/fishing/claim-catch-reward", { shopItemId });
+      return res.json();
+    },
+    onSuccess: (data, shopItemId) => {
+      setClaimedLocally(prev => new Set(prev).add(shopItemId));
+      queryClient.invalidateQueries({ queryKey: ["/api/fishing/caught-fish-ids"] });
+      toast({ title: "+10 Coins!", description: "First catch reward claimed!" });
+    },
+    onError: () => {
+      toast({ title: "Already claimed", variant: "destructive" });
+    },
+  });
+
   const isLoading = fishLoading || caughtLoading;
-  const caughtSet = new Set(caughtIds);
+  const caughtSet = new Set(catchLog.map(e => e.shopItemId));
+  const unclaimedSet = new Set(
+    catchLog.filter(e => !e.rewardClaimed).map(e => e.shopItemId)
+  );
 
   const sorted = [...allFish].sort((a, b) => (a.starRarity ?? 1) - (b.starRarity ?? 1));
   const filtered = sorted.filter(f => {
@@ -1524,24 +1546,35 @@ function FishBookPanel({
           <div className="grid grid-cols-3 gap-2">
             {filtered.map(fish => {
               const caught = caughtSet.has(fish.id);
+              const canClaim = caught && unclaimedSet.has(fish.id) && !claimedLocally.has(fish.id);
+              const isClaiming = claimRewardMutation.isPending && claimRewardMutation.variables === fish.id;
               return (
                 <div
                   key={fish.id}
                   data-testid={`card-fishbook-${fish.id}`}
                   className="flex flex-col items-center gap-1 p-2 rounded-xl"
                   style={{
-                    background: caught ? "rgba(10,40,30,0.8)" : "rgba(5,15,12,0.6)",
-                    border: `1px solid ${caught ? `${ACCENT}40` : "rgba(255,255,255,0.06)"}`,
-                    boxShadow: caught ? `0 0 8px ${ACCENT}15` : "none",
+                    background: canClaim ? "rgba(20,50,30,0.9)" : caught ? "rgba(10,40,30,0.8)" : "rgba(5,15,12,0.6)",
+                    border: `1px solid ${canClaim ? "#facc1580" : caught ? `${ACCENT}40` : "rgba(255,255,255,0.06)"}`,
+                    boxShadow: canClaim ? "0 0 14px rgba(250,204,21,0.25)" : caught ? `0 0 8px ${ACCENT}15` : "none",
                   }}
                 >
-                  <div className="w-16 h-16 flex items-center justify-center relative">
+                  <div
+                    className="w-16 h-16 flex items-center justify-center relative"
+                    style={{ cursor: canClaim ? "pointer" : "default" }}
+                    onClick={() => canClaim && !isClaiming && claimRewardMutation.mutate(fish.id)}
+                    data-testid={canClaim ? `button-claim-reward-${fish.id}` : undefined}
+                  >
                     {fish.imageUrl ? (
                       <img
                         src={fish.imageUrl}
                         alt={fish.name}
                         className="w-full h-full object-contain"
-                        style={{ filter: caught ? "none" : "grayscale(100%) brightness(0.4)" }}
+                        style={{
+                          filter: caught ? (canClaim ? "drop-shadow(0 0 6px rgba(250,204,21,0.6))" : "none") : "grayscale(100%) brightness(0.4)",
+                          transform: canClaim ? "scale(1.05)" : "scale(1)",
+                          transition: "transform 0.15s ease",
+                        }}
                       />
                     ) : (
                       <img
@@ -1550,6 +1583,25 @@ function FishBookPanel({
                         className="w-full h-full object-contain"
                         style={{ filter: caught ? "none" : "grayscale(100%) brightness(0.4)" }}
                       />
+                    )}
+                    {canClaim && !isClaiming && (
+                      <div
+                        className="absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold"
+                        style={{
+                          background: "linear-gradient(135deg, #fbbf24, #f59e0b)",
+                          color: "#1a0a00",
+                          boxShadow: "0 0 8px rgba(251,191,36,0.8)",
+                          animation: "coinPulse 1s ease-in-out infinite",
+                          fontFamily: "Cinzel, serif",
+                        }}
+                      >
+                        +
+                      </div>
+                    )}
+                    {isClaiming && (
+                      <div className="absolute inset-0 flex items-center justify-center rounded-lg" style={{ background: "rgba(0,0,0,0.4)" }}>
+                        <span style={{ color: "#fbbf24", fontSize: 10, fontFamily: "Cinzel, serif" }}>...</span>
+                      </div>
                     )}
                   </div>
                   <span className="font-fantasy text-[8px] text-center leading-tight" style={{
@@ -1574,9 +1626,11 @@ function FishBookPanel({
                       />
                     ))}
                   </div>
-                  {caught && (
+                  {canClaim ? (
+                    <span className="font-fantasy text-[7px]" style={{ color: "#fbbf24", textShadow: "0 0 6px rgba(251,191,36,0.6)" }}>TAP FOR 🪙10</span>
+                  ) : caught ? (
                     <span className="font-fantasy text-[7px]" style={{ color: `${ACCENT}60` }}>Caught</span>
-                  )}
+                  ) : null}
                 </div>
               );
             })}
@@ -2090,5 +2144,9 @@ const FISHING_ANIMATIONS = `
   @keyframes buttonIdlePulse {
     0%, 100% { box-shadow: 0 4px 18px rgba(0,0,0,0.75), inset 0 1px 3px rgba(255,200,100,0.1); }
     50% { box-shadow: 0 4px 28px rgba(0,0,0,0.75), 0 0 20px rgba(200,160,80,0.35), inset 0 1px 3px rgba(255,200,100,0.1); }
+  }
+  @keyframes coinPulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 8px rgba(251,191,36,0.8); }
+    50% { transform: scale(1.2); box-shadow: 0 0 16px rgba(251,191,36,1.0); }
   }
 `;

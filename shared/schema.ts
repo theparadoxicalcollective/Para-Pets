@@ -339,6 +339,7 @@ export const playerFishCatchLog = pgTable("player_fish_catch_log", {
   userId: varchar("user_id").notNull(),
   shopItemId: varchar("shop_item_id").notNull(),
   firstCaughtAt: timestamp("first_caught_at").notNull().default(sql`now()`),
+  rewardClaimed: boolean("reward_claimed").notNull().default(false),
 });
 
 export type PlayerFishCatchLog = typeof playerFishCatchLog.$inferSelect;

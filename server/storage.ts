@@ -167,7 +167,8 @@ export interface IStorage {
   getPlayerFishInventory(userId: string): Promise<(PlayerFishInventory & { item: ShopItem | null })[]>;
   addFishToPlayerInventory(userId: string, shopItemId: string): Promise<PlayerFishInventory>;
   logFishCatch(userId: string, shopItemId: string): Promise<void>;
-  getPlayerCaughtFishIds(userId: string): Promise<string[]>;
+  getPlayerCaughtFishLog(userId: string): Promise<{ shopItemId: string; rewardClaimed: boolean }[]>;
+  claimFishCatchReward(userId: string, shopItemId: string): Promise<boolean>;
   syncAquariumFish(userId: string, counts: { shopItemId: string; count: number }[]): Promise<void>;
   getPlayerFishingEquipment(userId: string): Promise<PlayerFishingEquipment | null>;
   upsertPlayerFishingEquipment(userId: string, data: { poleInventoryId?: string | null; baitInventoryId?: string | null }): Promise<PlayerFishingEquipment>;
@@ -1038,11 +1039,26 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getPlayerCaughtFishIds(userId: string): Promise<string[]> {
-    const rows = await db.select({ shopItemId: playerFishCatchLog.shopItemId })
+  async getPlayerCaughtFishLog(userId: string): Promise<{ shopItemId: string; rewardClaimed: boolean }[]> {
+    const rows = await db.select({
+      shopItemId: playerFishCatchLog.shopItemId,
+      rewardClaimed: playerFishCatchLog.rewardClaimed,
+    })
       .from(playerFishCatchLog)
       .where(eq(playerFishCatchLog.userId, userId));
-    return rows.map(r => r.shopItemId);
+    return rows;
+  }
+
+  async claimFishCatchReward(userId: string, shopItemId: string): Promise<boolean> {
+    const [entry] = await db.select()
+      .from(playerFishCatchLog)
+      .where(and(eq(playerFishCatchLog.userId, userId), eq(playerFishCatchLog.shopItemId, shopItemId)))
+      .limit(1);
+    if (!entry || entry.rewardClaimed) return false;
+    await db.update(playerFishCatchLog)
+      .set({ rewardClaimed: true })
+      .where(and(eq(playerFishCatchLog.userId, userId), eq(playerFishCatchLog.shopItemId, shopItemId)));
+    return true;
   }
 
   async syncAquariumFish(userId: string, counts: { shopItemId: string; count: number }[]): Promise<void> {
