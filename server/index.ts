@@ -217,18 +217,6 @@ app.use((req, res, next) => {
   }
 
   try {
-    // One-time fix: normalize any parts that were uploaded at 1000x1000 (full canvas)
-    // back to the standard 300x300 at position (350,350) so they render at the correct in-game size.
-    await db.execute(sql`
-      UPDATE pet_template_parts
-      SET width = 300, height = 300, pos_x = 350, pos_y = 350
-      WHERE width = 1000 AND height = 1000 AND pos_x = 0 AND pos_y = 0
-    `);
-  } catch (err) {
-    console.error("Normalize oversized pet parts error (non-fatal):", err);
-  }
-
-  try {
     console.log('Initializing Stripe...');
     const databaseUrl = process.env.DATABASE_URL;
     if (databaseUrl) {

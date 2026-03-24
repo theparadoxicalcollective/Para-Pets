@@ -322,6 +322,11 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
 
   if (viewParts.length === 0) return null;
 
+  // Large-style parts (1000x1000) fill the full canvas — scale them down visually
+  // so they match the old 300x300 in-game footprint (30% of the container).
+  const isLargeStyle = viewParts.some(p => p.width >= 500 || p.height >= 500);
+  const partScale = isLargeStyle ? 0.3 : 1;
+
   return (
     <div
       className={className}
@@ -329,6 +334,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
       data-testid="pet-animator"
     >
       <style>{ANIMATION_STYLES}</style>
+      <div style={{ position: "absolute", inset: 0, transform: `scale(${partScale})`, transformOrigin: "center center" }}>
       {viewParts.map((part) => {
         const leftPct = (part.posX / CANVAS_SIZE) * 100;
         const topPct = (part.posY / CANVAS_SIZE) * 100;
@@ -390,6 +396,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           />
         );
       })}
+      </div>
     </div>
   );
 }
