@@ -3351,6 +3351,16 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/fishing/caught-fish-ids", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const ids = await storage.getPlayerCaughtFishIds(user.id);
+      return res.json(ids);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
   app.get("/api/location/:locationId/pond-fish", isAuthenticated, async (req, res) => {
     try {
       const fish = await storage.getPondFish(req.params.locationId);
@@ -3526,6 +3536,7 @@ export async function registerRoutes(
       }
 
       const caught = await storage.addFishToPlayerInventory(user.id, chosenEntry.shopItemId);
+      await storage.logFishCatch(user.id, chosenEntry.shopItemId);
 
       // Consume 1 bait charge on successful catch
       if (equipment?.baitInventoryId) {

@@ -334,6 +334,15 @@ export const playerFishInventory = pgTable("player_fish_inventory", {
   inAquarium: boolean("in_aquarium").notNull().default(false),
 });
 
+export const playerFishCatchLog = pgTable("player_fish_catch_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  shopItemId: varchar("shop_item_id").notNull(),
+  firstCaughtAt: timestamp("first_caught_at").notNull().default(sql`now()`),
+});
+
+export type PlayerFishCatchLog = typeof playerFishCatchLog.$inferSelect;
+
 export const playerFishingEquipment = pgTable("player_fishing_equipment", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().unique(),

@@ -1161,7 +1161,6 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
 
       {showFishBook && (
         <FishBookPanel
-          caughtShopItemIds={fishInventory.map(f => f.shopItemId)}
           onClose={() => setShowFishBook(false)}
         />
       )}
@@ -1442,19 +1441,24 @@ function FishInventoryPanel({
 }
 
 function FishBookPanel({
-  caughtShopItemIds,
   onClose,
 }: {
-  caughtShopItemIds: string[];
   onClose: () => void;
 }) {
-  const caughtSet = new Set(caughtShopItemIds);
   const [filter, setFilter] = useState<"all" | "caught" | "uncaught">("all");
 
-  const { data: allFish = [], isLoading } = useQuery<ShopItem[]>({
+  const { data: allFish = [], isLoading: fishLoading } = useQuery<ShopItem[]>({
     queryKey: ["/api/fishing/all-fish"],
     staleTime: 60000,
   });
+
+  const { data: caughtIds = [], isLoading: caughtLoading } = useQuery<string[]>({
+    queryKey: ["/api/fishing/caught-fish-ids"],
+    staleTime: 0,
+  });
+
+  const isLoading = fishLoading || caughtLoading;
+  const caughtSet = new Set(caughtIds);
 
   const sorted = [...allFish].sort((a, b) => (a.starRarity ?? 1) - (b.starRarity ?? 1));
   const filtered = sorted.filter(f => {
@@ -1467,9 +1471,12 @@ function FishBookPanel({
 
   return (
     <div className="absolute inset-x-0 bottom-0 z-[40] flex flex-col" style={{
-      top: 0,
+      top: 64,
+      borderRadius: "20px 20px 0 0",
       background: "rgba(3,12,10,0.97)",
       backdropFilter: "blur(12px)",
+      border: `1px solid ${ACCENT}30`,
+      borderBottom: "none",
       animation: "slideUp 0.2s ease-out",
     }}>
       <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${ACCENT}30` }}>

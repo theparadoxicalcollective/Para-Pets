@@ -21,6 +21,7 @@ import {
   type FishTemplatePart, fishTemplateParts,
   type PondFish, pondFish,
   type PlayerFishInventory, playerFishInventory,
+  playerFishCatchLog,
   type PlayerFishingEquipment, playerFishingEquipment,
   type WorldDecorItem, worldDecorItems,
   type WorldDecorPlacement, worldDecorPlacements,
@@ -165,6 +166,8 @@ export interface IStorage {
   removeFishFromPond(locationId: string, shopItemId: string): Promise<void>;
   getPlayerFishInventory(userId: string): Promise<(PlayerFishInventory & { item: ShopItem | null })[]>;
   addFishToPlayerInventory(userId: string, shopItemId: string): Promise<PlayerFishInventory>;
+  logFishCatch(userId: string, shopItemId: string): Promise<void>;
+  getPlayerCaughtFishIds(userId: string): Promise<string[]>;
   syncAquariumFish(userId: string, counts: { shopItemId: string; count: number }[]): Promise<void>;
   getPlayerFishingEquipment(userId: string): Promise<PlayerFishingEquipment | null>;
   upsertPlayerFishingEquipment(userId: string, data: { poleInventoryId?: string | null; baitInventoryId?: string | null }): Promise<PlayerFishingEquipment>;
@@ -1023,6 +1026,23 @@ export class DatabaseStorage implements IStorage {
   async addFishToPlayerInventory(userId: string, shopItemId: string): Promise<PlayerFishInventory> {
     const [row] = await db.insert(playerFishInventory).values({ userId, shopItemId }).returning();
     return row;
+  }
+
+  async logFishCatch(userId: string, shopItemId: string): Promise<void> {
+    const existing = await db.select({ id: playerFishCatchLog.id })
+      .from(playerFishCatchLog)
+      .where(and(eq(playerFishCatchLog.userId, userId), eq(playerFishCatchLog.shopItemId, shopItemId)))
+      .limit(1);
+    if (existing.length === 0) {
+      await db.insert(playerFishCatchLog).values({ userId, shopItemId });
+    }
+  }
+
+  async getPlayerCaughtFishIds(userId: string): Promise<string[]> {
+    const rows = await db.select({ shopItemId: playerFishCatchLog.shopItemId })
+      .from(playerFishCatchLog)
+      .where(eq(playerFishCatchLog.userId, userId));
+    return rows.map(r => r.shopItemId);
   }
 
   async syncAquariumFish(userId: string, counts: { shopItemId: string; count: number }[]): Promise<void> {
