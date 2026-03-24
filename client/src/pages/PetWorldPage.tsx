@@ -922,18 +922,11 @@ function PetDetailModal({
         <div className="px-6 pt-6 pb-8 flex flex-col gap-4">
           {/* Pet sprite — large, centred */}
           <div className="flex flex-col items-center gap-2">
-            <div className="relative flex-shrink-0" style={{ width: 160, height: 160, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              {pet.petTemplateId ? (
-                <PetAnimator
-                  petTemplateId={pet.petTemplateId}
-                  mode="idle"
-                  size={160}
-                  style={{ filter: `drop-shadow(0 6px 14px rgba(0,0,0,0.65))`, overflow: "visible" }}
-                />
-              ) : petImg ? (
-                <img src={petImg} alt={displayName} style={{ width: 160, height: 160, objectFit: "contain", filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.65))" }} />
+            <div className="relative flex-shrink-0" style={{ width: 200, height: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {petImg ? (
+                <img src={petImg} alt={displayName} style={{ width: 200, height: 200, objectFit: "contain", filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.7))" }} />
               ) : (
-                <div style={{ width: 160, height: 160, borderRadius: 16, background: "rgba(127,255,212,0.08)", border: "1px solid rgba(127,255,212,0.2)" }} />
+                <div style={{ width: 200, height: 200, borderRadius: 16, background: "rgba(127,255,212,0.08)", border: "1px solid rgba(127,255,212,0.2)" }} />
               )}
             </div>
 
