@@ -132,13 +132,13 @@ export default function PetDatabasePanel() {
   const [renameName, setRenameName] = useState("");
   const [uploadPartType, setUploadPartType] = useState<string | null>(null);
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
-  const [pivotMode, setPivotMode] = useState(false);
   const [facingMode, setFacingMode] = useState<"front" | "side">("front");
   const [sideFacingDir, setSideFacingDir] = useState<"left" | "right">("left");
   const canvasRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ partId: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
   const [dragPos, setDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
   const didDrag = useRef(false);
+  const pixelCacheRef = useRef<Map<string, HTMLCanvasElement>>(new Map());
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -350,6 +350,32 @@ export default function PetDatabasePanel() {
     setDragPos(null);
   }, [dragPos, updatePartMutation]);
 
+  const isOpaqueAt = useCallback(async (imageUrl: string, relX: number, relY: number): Promise<boolean> => {
+    let cv = pixelCacheRef.current.get(imageUrl);
+    if (!cv) {
+      cv = await new Promise<HTMLCanvasElement>((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.naturalWidth || 100;
+          canvas.height = img.naturalHeight || 100;
+          const ctx = canvas.getContext("2d");
+          ctx?.drawImage(img, 0, 0);
+          resolve(canvas);
+        };
+        img.onerror = () => resolve(document.createElement("canvas"));
+        img.src = imageUrl;
+      });
+      pixelCacheRef.current.set(imageUrl, cv);
+    }
+    const ctx = cv.getContext("2d");
+    if (!ctx || cv.width === 0 || cv.height === 0) return true;
+    const px = Math.max(0, Math.min(Math.floor(relX * cv.width), cv.width - 1));
+    const py = Math.max(0, Math.min(Math.floor(relY * cv.height), cv.height - 1));
+    const data = ctx.getImageData(px, py, 1, 1).data;
+    return data[3] > 10;
+  }, []);
+
   const selectedPart = viewParts.find(p => p.id === selectedPartId);
 
   // Has parts in the OTHER view (the one not currently active)
@@ -440,28 +466,31 @@ export default function PetDatabasePanel() {
             aspectRatio: "1",
             overflow: "visible",
             background: "repeating-conic-gradient(rgba(255,255,255,0.03) 0% 25%, transparent 0% 50%) 0 0 / 20px 20px",
-            border: pivotMode ? "2px dashed rgba(255,80,80,0.5)" : "2px dashed rgba(240,192,64,0.25)",
+            border: "2px dashed rgba(240,192,64,0.25)",
             touchAction: "none",
-            cursor: pivotMode ? "crosshair" : "default",
+            cursor: "default",
           }}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
-          onClick={(e) => {
-            if (pivotMode && selectedPartId && canvasRef.current) {
-              const rect = canvasRef.current.getBoundingClientRect();
-              const canvasX = ((e.clientX - rect.left) / rect.width) * CANVAS_SIZE;
-              const canvasY = ((e.clientY - rect.top) / rect.height) * CANVAS_SIZE;
-              const part = viewParts.find(p => p.id === selectedPartId);
-              if (part) {
-                const relX = Math.round(((canvasX - part.posX) / part.width) * 100);
-                const relY = Math.round(((canvasY - part.posY) / part.height) * 100);
-                const clampedX = Math.max(0, Math.min(100, relX));
-                const clampedY = Math.max(0, Math.min(100, relY));
-                updatePartMutation.mutate({ partId: selectedPartId, pivotX: clampedX, pivotY: clampedY });
-                setPivotMode(false);
-                toast({ title: "Pivot Set", description: `Pivot point set to ${clampedX}%, ${clampedY}%` });
-              }
+          onClick={async (e) => {
+            if (didDrag.current) return;
+            const canvasEl = canvasRef.current;
+            if (!canvasEl) return;
+            const rect = canvasEl.getBoundingClientRect();
+            const scale = rect.width / CANVAS_SIZE;
+            const canvasX = (e.clientX - rect.left) / scale;
+            const canvasY = (e.clientY - rect.top) / scale;
+            // Find topmost part whose pixel at the click is opaque
+            const sorted = [...viewParts].sort((a, b) => b.zIndex - a.zIndex);
+            for (const part of sorted) {
+              if (canvasX < part.posX || canvasX > part.posX + part.width ||
+                  canvasY < part.posY || canvasY > part.posY + part.height) continue;
+              const relX = (canvasX - part.posX) / part.width;
+              const relY = (canvasY - part.posY) / part.height;
+              const opaque = await isOpaqueAt(part.imageUrl, relX, relY);
+              if (opaque) { setSelectedPartId(part.id); return; }
             }
+            setSelectedPartId(null);
           }}
         >
           {viewParts.map(part => {
@@ -479,13 +508,12 @@ export default function PetDatabasePanel() {
                   width: `${(part.width / CANVAS_SIZE) * 100}%`,
                   height: `${(part.height / CANVAS_SIZE) * 100}%`,
                   zIndex: part.zIndex + (isDragging ? 100 : 0),
-                  cursor: pivotMode && isSelected ? "crosshair" : "grab",
+                  cursor: "grab",
                   outline: isSelected ? "2px solid rgba(240,192,64,0.8)" : "none",
                   outlineOffset: "2px",
                   borderRadius: "4px",
                 }}
-                onPointerDown={(e) => { if (!pivotMode) handlePointerDown(e, part); }}
-                onClick={(e) => { e.stopPropagation(); if (!pivotMode && !didDrag.current) setSelectedPartId(part.id); }}
+                onPointerDown={(e) => handlePointerDown(e, part)}
               >
                 <img
                   src={part.imageUrl}
@@ -500,24 +528,6 @@ export default function PetDatabasePanel() {
                   >
                     {part.partType}
                   </div>
-                )}
-                {isSelected && (
-                  <div
-                    className="absolute pointer-events-none"
-                    style={{
-                      left: `${part.pivotX ?? 50}%`,
-                      top: `${part.pivotY ?? 50}%`,
-                      width: "12px",
-                      height: "12px",
-                      marginLeft: "-6px",
-                      marginTop: "-6px",
-                      borderRadius: "50%",
-                      background: "radial-gradient(circle, rgba(255,80,80,1) 0%, rgba(255,80,80,0.4) 50%, transparent 70%)",
-                      border: "2px solid #fff",
-                      boxShadow: "0 0 6px rgba(255,80,80,0.8), 0 0 12px rgba(255,80,80,0.4)",
-                      zIndex: 999,
-                    }}
-                  />
                 )}
               </div>
             );
@@ -651,129 +661,30 @@ export default function PetDatabasePanel() {
 
         {selectedPart && (
           <div
-            className="rounded-lg p-3"
+            className="flex items-center justify-between px-3 py-2 rounded-lg"
             style={{ background: "rgba(240,192,64,0.08)", border: "1px solid rgba(240,192,64,0.2)" }}
           >
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <span className="font-fantasy text-[#f0c040] text-xs tracking-wider capitalize">{selectedPart.partType}</span>
-                {(() => {
-                  const ptInfo = ALL_PART_DEFS.find(p => p.key === selectedPart.partType);
-                  const layerLabel = ptInfo?.layer === "back" ? "Behind Body" : ptInfo?.layer === "body" ? "Body Layer" : "In Front";
-                  const layerColor = ptInfo?.layer === "back" ? "#ff9966" : ptInfo?.layer === "body" ? "#7fbfb0" : "#66ccff";
-                  return (
-                    <span className="font-fantasy text-[7px] tracking-wider px-1.5 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.3)", border: `1px solid ${layerColor}40`, color: layerColor }}>
-                      {layerLabel}
-                    </span>
-                  );
-                })()}
-              </div>
-              <button
-                data-testid="button-delete-selected-part"
-                onClick={() => deletePartMutation.mutate(selectedPart.id)}
-                className="w-6 h-6 rounded-full flex items-center justify-center"
-                style={{ background: "rgba(220,38,38,0.3)", cursor: "pointer", color: "#fca5a5" }}
-              >
-                <Trash2 className="w-3 h-3" />
-              </button>
+            <div className="flex items-center gap-2">
+              <span className="font-fantasy text-[#f0c040] text-xs tracking-wider capitalize">{selectedPart.partType}</span>
+              {(() => {
+                const ptInfo = ALL_PART_DEFS.find(p => p.key === selectedPart.partType);
+                const layerLabel = ptInfo?.layer === "back" ? "Behind Body" : ptInfo?.layer === "body" ? "Body Layer" : "In Front";
+                const layerColor = ptInfo?.layer === "back" ? "#ff9966" : ptInfo?.layer === "body" ? "#7fbfb0" : "#66ccff";
+                return (
+                  <span className="font-fantasy text-[7px] tracking-wider px-1.5 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.3)", border: `1px solid ${layerColor}40`, color: layerColor }}>
+                    {layerLabel}
+                  </span>
+                );
+              })()}
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="font-fantasy text-[8px] text-[#a89878] block">Width</label>
-                <input
-                  data-testid="input-part-width"
-                  type="number"
-                  value={selectedPart.width}
-                  onChange={(e) => {
-                    const val = Math.max(10, Math.min(1000, parseInt(e.target.value) || 10));
-                    updatePartMutation.mutate({ partId: selectedPart.id, width: val });
-                  }}
-                  className="w-full px-2 py-1 rounded text-xs font-mono"
-                  style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(240,192,64,0.2)", color: "#e8ddd0", outline: "none" }}
-                />
-              </div>
-              <div>
-                <label className="font-fantasy text-[8px] text-[#a89878] block">Height</label>
-                <input
-                  data-testid="input-part-height"
-                  type="number"
-                  value={selectedPart.height}
-                  onChange={(e) => {
-                    const val = Math.max(10, Math.min(1000, parseInt(e.target.value) || 10));
-                    updatePartMutation.mutate({ partId: selectedPart.id, height: val });
-                  }}
-                  className="w-full px-2 py-1 rounded text-xs font-mono"
-                  style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(240,192,64,0.2)", color: "#e8ddd0", outline: "none" }}
-                />
-              </div>
-              <div>
-                <label className="font-fantasy text-[8px] text-[#a89878] block">Layer (Z)</label>
-                <input
-                  data-testid="input-part-zindex"
-                  type="number"
-                  value={selectedPart.zIndex}
-                  onChange={(e) => {
-                    const val = Math.max(0, Math.min(20, parseInt(e.target.value) || 0));
-                    updatePartMutation.mutate({ partId: selectedPart.id, zIndex: val });
-                  }}
-                  className="w-full px-2 py-1 rounded text-xs font-mono"
-                  style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(240,192,64,0.2)", color: "#e8ddd0", outline: "none" }}
-                />
-              </div>
-            </div>
-
-            <div className="mt-3 pt-3" style={{ borderTop: "1px solid rgba(240,192,64,0.15)" }}>
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-fantasy text-[9px] text-[#a89878] tracking-wider">Pivot Point (Rotation Anchor)</span>
-                <div
-                  className="w-3 h-3 rounded-full"
-                  style={{ background: "radial-gradient(circle, rgba(255,80,80,1) 0%, rgba(255,80,80,0.4) 60%)", border: "1.5px solid #fff", boxShadow: "0 0 4px rgba(255,80,80,0.6)" }}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2 mb-2">
-                <div>
-                  <label className="font-fantasy text-[8px] text-[#a89878] block">Pivot X %</label>
-                  <input
-                    data-testid="input-part-pivot-x"
-                    type="number"
-                    value={selectedPart.pivotX ?? 50}
-                    onChange={(e) => {
-                      const val = Math.max(0, Math.min(100, parseInt(e.target.value) || 0));
-                      updatePartMutation.mutate({ partId: selectedPart.id, pivotX: val });
-                    }}
-                    className="w-full px-2 py-1 rounded text-xs font-mono"
-                    style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,80,80,0.3)", color: "#e8ddd0", outline: "none" }}
-                  />
-                </div>
-                <div>
-                  <label className="font-fantasy text-[8px] text-[#a89878] block">Pivot Y %</label>
-                  <input
-                    data-testid="input-part-pivot-y"
-                    type="number"
-                    value={selectedPart.pivotY ?? 50}
-                    onChange={(e) => {
-                      const val = Math.max(0, Math.min(100, parseInt(e.target.value) || 0));
-                      updatePartMutation.mutate({ partId: selectedPart.id, pivotY: val });
-                    }}
-                    className="w-full px-2 py-1 rounded text-xs font-mono"
-                    style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,80,80,0.3)", color: "#e8ddd0", outline: "none" }}
-                  />
-                </div>
-              </div>
-              <button
-                data-testid="button-set-pivot"
-                onClick={() => { setPivotMode(!pivotMode); }}
-                className="w-full py-1.5 rounded-md font-fantasy text-[10px] tracking-wider transition-transform active:scale-95"
-                style={{
-                  background: pivotMode ? "rgba(255,80,80,0.3)" : "rgba(255,80,80,0.1)",
-                  border: `1px solid ${pivotMode ? "rgba(255,80,80,0.6)" : "rgba(255,80,80,0.3)"}`,
-                  color: pivotMode ? "#ff6666" : "#ff9999",
-                  cursor: "pointer",
-                }}
-              >
-                {pivotMode ? "Tap on canvas to set pivot..." : "Tap to Set Pivot Point"}
-              </button>
-            </div>
+            <button
+              data-testid="button-delete-selected-part"
+              onClick={() => deletePartMutation.mutate(selectedPart.id)}
+              className="w-7 h-7 rounded-full flex items-center justify-center"
+              style={{ background: "rgba(220,38,38,0.3)", cursor: "pointer", color: "#fca5a5" }}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
           </div>
         )}
 
