@@ -920,52 +920,56 @@ function PetDetailModal({
         </button>
 
         <div className="px-6 pt-6 pb-8 flex flex-col gap-4">
-          {/* Pet sprite + name */}
-          <div className="flex items-center gap-4">
-            <div className="relative flex-shrink-0">
+          {/* Pet sprite — large, centred */}
+          <div className="flex flex-col items-center gap-2">
+            <div className="relative flex-shrink-0" style={{ width: 160, height: 160, display: "flex", alignItems: "center", justifyContent: "center" }}>
               {pet.petTemplateId ? (
-                <PetAnimator petTemplateId={pet.petTemplateId} mode="idle" size={90} />
+                <PetAnimator
+                  petTemplateId={pet.petTemplateId}
+                  mode="idle"
+                  size={160}
+                  style={{ filter: `drop-shadow(0 6px 14px rgba(0,0,0,0.65))`, overflow: "visible" }}
+                />
               ) : petImg ? (
-                <img src={petImg} alt={displayName} style={{ width: 90, height: 90, objectFit: "contain" }} />
+                <img src={petImg} alt={displayName} style={{ width: 160, height: 160, objectFit: "contain", filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.65))" }} />
               ) : (
-                <div style={{ width: 90, height: 90, borderRadius: 12, background: "rgba(127,255,212,0.08)", border: "1px solid rgba(127,255,212,0.2)" }} />
+                <div style={{ width: 160, height: 160, borderRadius: 16, background: "rgba(127,255,212,0.08)", border: "1px solid rgba(127,255,212,0.2)" }} />
               )}
             </div>
 
-            <div className="flex flex-col gap-1 min-w-0">
-              <p
-                className="font-fantasy text-[#7fffd4] font-semibold truncate"
-                style={{ fontSize: 17, textShadow: "0 0 12px rgba(127,255,212,0.6)" }}
-                data-testid="text-pet-detail-name"
-              >
-                {displayName}
-              </p>
-              {pet.petNickname && (
-                <p className="font-fantasy text-[#a89878] text-xs truncate">{pet.name}</p>
-              )}
+            {/* Name */}
+            <p
+              className="font-fantasy text-[#7fffd4] font-semibold text-center"
+              style={{ fontSize: 18, textShadow: "0 0 12px rgba(127,255,212,0.6)" }}
+              data-testid="text-pet-detail-name"
+            >
+              {displayName}
+            </p>
+            {pet.petNickname && (
+              <p className="font-fantasy text-[#a89878] text-xs text-center -mt-2">{pet.name}</p>
+            )}
 
-              {/* Rarity stars */}
-              {rarityCount > 0 && (
-                <div className="flex gap-1 items-center">
-                  {Array.from({ length: rarityCount }).map((_, i) => (
-                    <svg key={i} width="13" height="13" viewBox="0 0 24 24" fill={starColour} style={{ filter: `drop-shadow(0 0 4px ${starColour}99)` }}>
-                      <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
-                    </svg>
-                  ))}
+            {/* Rarity stars */}
+            {rarityCount > 0 && (
+              <div className="flex gap-1 items-center justify-center">
+                {Array.from({ length: rarityCount }).map((_, i) => (
+                  <svg key={i} width="14" height="14" viewBox="0 0 24 24" fill={starColour} style={{ filter: `drop-shadow(0 0 4px ${starColour}99)` }}>
+                    <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+                  </svg>
+                ))}
+              </div>
+            )}
+
+            {/* Owner */}
+            <div className="flex items-center gap-1.5">
+              {pet.profileImage ? (
+                <img src={pet.profileImage} alt={pet.username} style={{ width: 18, height: 18, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(212,160,23,0.4)" }} />
+              ) : (
+                <div style={{ width: 18, height: 18, borderRadius: "50%", background: "rgba(212,160,23,0.2)", border: "1px solid rgba(212,160,23,0.4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <span style={{ fontSize: 9, color: "#d4a017", fontWeight: "bold" }}>{pet.username.charAt(0).toUpperCase()}</span>
                 </div>
               )}
-
-              {/* Owner */}
-              <div className="flex items-center gap-1.5 mt-0.5">
-                {pet.profileImage ? (
-                  <img src={pet.profileImage} alt={pet.username} style={{ width: 18, height: 18, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(212,160,23,0.4)" }} />
-                ) : (
-                  <div style={{ width: 18, height: 18, borderRadius: "50%", background: "rgba(212,160,23,0.2)", border: "1px solid rgba(212,160,23,0.4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <span style={{ fontSize: 9, color: "#d4a017", fontWeight: "bold" }}>{pet.username.charAt(0).toUpperCase()}</span>
-                  </div>
-                )}
-                <span className="font-fantasy text-[#d4a017] text-xs" data-testid="text-pet-detail-owner">{pet.username}</span>
-              </div>
+              <span className="font-fantasy text-[#d4a017] text-xs" data-testid="text-pet-detail-owner">{pet.username}</span>
             </div>
           </div>
 
@@ -1150,7 +1154,7 @@ function WorldRoamingPet({
 
   // sz is in map-canvas pixels. At typical map scale (≈0.44–0.78×) this
   // renders the pet at a comfortable 150–270 px on screen.
-  const sz     = 210;
+  const sz     = 185;
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
   const displayName = pet.petNickname || pet.name;
 
