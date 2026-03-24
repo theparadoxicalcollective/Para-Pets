@@ -11,6 +11,7 @@ import fishInvIcon from "@assets/icon_fish_inventory.png";
 import brokenRodIcon from "@assets/broken_rod.svg";
 import bobberIcon from "@assets/Photoroom_20260317_35839_PM_1773781228635.png";
 import fishBookIcon from "@assets/Photoroom_20260324_65241_AM_1774353229077.png";
+import coinIconImg from "@assets/icon_coin.png";
 import { playPlop, playCatch } from "@/lib/sounds";
 
 interface FishingPageProps {
@@ -1627,7 +1628,11 @@ function FishBookPanel({
                     ))}
                   </div>
                   {canClaim ? (
-                    <span className="font-fantasy text-[7px]" style={{ color: "#fbbf24", textShadow: "0 0 6px rgba(251,191,36,0.6)" }}>TAP FOR 🪙10</span>
+                    <div className="flex items-center gap-0.5" style={{ color: "#fbbf24", textShadow: "0 0 6px rgba(251,191,36,0.6)" }}>
+                      <span className="font-fantasy text-[7px]">TAP FOR</span>
+                      <img src={coinIconImg} alt="coin" style={{ width: 10, height: 10, objectFit: "contain" }} />
+                      <span className="font-fantasy text-[7px]">10</span>
+                    </div>
                   ) : caught ? (
                     <span className="font-fantasy text-[7px]" style={{ color: `${ACCENT}60` }}>Caught</span>
                   ) : null}
