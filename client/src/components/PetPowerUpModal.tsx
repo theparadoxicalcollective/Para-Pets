@@ -364,7 +364,7 @@ export default function PetPowerUpModal({
       )}
 
       {/* ── Header ── */}
-      <div className="relative z-[10] flex items-center justify-between px-4 pt-[10%] pb-2 flex-shrink-0">
+      <div className="relative z-[10] flex items-center justify-between px-4 pt-[18%] pb-2 flex-shrink-0">
         <div className="flex items-center gap-3">
           <img src={powerupBagIcon} alt="" style={{ width: 36, height: 36, objectFit: "contain", filter: "drop-shadow(0 0 10px rgba(134,239,172,0.6)) drop-shadow(0 0 20px rgba(134,239,172,0.3))" }} />
           <div>
