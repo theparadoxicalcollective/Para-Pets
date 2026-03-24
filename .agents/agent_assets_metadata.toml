@@ -863,19 +863,19 @@ title = "Fantasy Forest Gift Icon (Standalone)"
 id = "8ExEmd7ILllvv0ybZsLLE"
 uri = "file://attached_assets/generated_images/bait_ghost_shrimp_lure.png"
 type = "image"
-title = "Ghost Shrimp Lure"
+title = "Ghost Shrimp Lure Bait"
 
 [[outputs]]
 id = "zWEwIBJD-MtnEX-xePuPe"
 uri = "file://attached_assets/generated_images/bait_hex_bayou_lure.png"
 type = "image"
-title = "Hex Bayou Lure"
+title = "Hex Bayou Lure Bait"
 
 [[outputs]]
 id = "xZh9BWFDs-49zFVWoqakm"
 uri = "file://attached_assets/generated_images/bait_swamp_crawler.png"
 type = "image"
-title = "Swamp Crawler"
+title = "Swamp Crawler Bait"
 
 [[outputs]]
 id = "5dVqwUnw_KWDeg225IH12"
