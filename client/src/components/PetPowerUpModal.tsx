@@ -4,6 +4,9 @@ import { Star, Clock, Zap } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
 import powerupBagIcon from "@assets/generated_images/icon_powerup_bag.png";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
+import forestBg from "@assets/generated_images/powerup_forest_bg.png";
+import forestBanner from "@assets/generated_images/powerup_forest_banner.png";
+import itemCardBg from "@assets/generated_images/powerup_item_card.png";
 
 // ── Inline success-animation configs (mirrors PowerUpOverlay) ──────────────
 const EFFECT_CONFIGS: Record<"stat" | "level" | "hatch", { color: string; rgb: string; icon: ReactNode; title: string; particleColors: readonly string[] }> = {
@@ -67,7 +70,6 @@ function playPowerUpSound(type: "stat" | "level" | "hatch") {
       osc.stop(ctx.currentTime + i * 0.09 + 0.38);
     });
 
-    // Shimmer overtone
     const sh     = ctx.createOscillator();
     const shGain = ctx.createGain();
     sh.type = "triangle";
@@ -140,17 +142,14 @@ export default function PetPowerUpModal({
   const [sparkles,    setSparkles]    = useState<{ id: number; x: number; y: number; color: string; angle: number }[]>([]);
   const sparkIdRef = useRef(0);
 
-  // Keep dragging ref synced
   useEffect(() => { draggingRef.current = dragging; }, [dragging]);
 
-  // Clear the success effect after animation completes — modal stays open so player can use more items
   useEffect(() => {
     if (!successEffect) return;
     const t = setTimeout(onSuccessAnimEnd, ANIM_DURATION);
     return () => clearTimeout(t);
   }, [successEffect, onSuccessAnimEnd]);
 
-  // Pre-generate particles for the inline animation (stable across renders)
   const animParticles = useMemo(() => {
     if (!successEffect) return [];
     const cfg = EFFECT_CONFIGS[successEffect.type];
@@ -173,13 +172,11 @@ export default function PetPowerUpModal({
     playPowerUpSound(itemSoundType(item));
     const color = itemColor(item);
 
-    // Pet reaction: bounce + glow + sparkle burst
     setPetGlow(color);
     setPetAnim("bounce");
     setTimeout(() => { setPetAnim("flash"); }, 300);
     setTimeout(() => { setPetAnim("none"); setPetGlow(null); }, 900);
 
-    // Sparkle burst from pet zone center
     if (petZoneRef.current) {
       const rect = petZoneRef.current.getBoundingClientRect();
       const cx   = rect.left + rect.width / 2;
@@ -228,13 +225,22 @@ export default function PetPowerUpModal({
   }, [useItem]);
 
   const rarityStars = Array.from({ length: rarity }, (_, i) => i);
-
   const animCfg = successEffect ? EFFECT_CONFIGS[successEffect.type] : null;
+
+  const slotsColor = itemsRemaining === Infinity ? "#fcd34d"
+    : itemsRemaining > 0 ? "#86efac"
+    : "#f87171";
+  const slotsBorder = itemsRemaining === Infinity ? "rgba(240,192,64,0.5)"
+    : itemsRemaining > 0 ? "rgba(134,239,172,0.5)"
+    : "rgba(248,113,113,0.5)";
+  const slotsBg = itemsRemaining === Infinity ? "rgba(30,20,5,0.85)"
+    : itemsRemaining > 0 ? "rgba(10,25,12,0.85)"
+    : "rgba(30,8,8,0.85)";
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex flex-col"
-      style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, background: "rgba(0,0,0,0.92)", backdropFilter: "blur(6px)", paddingTop: "8%" }}
+      className="fixed inset-0 z-[200] flex flex-col overflow-hidden"
+      style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
     >
       <style>{`
         @keyframes puMBounce {
@@ -260,8 +266,8 @@ export default function PetPowerUpModal({
           100%{ transform: scale(1); opacity:1; }
         }
         @keyframes puMDropHint {
-          0%,100%{ transform:scale(1); box-shadow: 0 0 24px var(--glow); }
-          50%    { transform:scale(1.03); box-shadow: 0 0 48px var(--glow); }
+          0%,100%{ transform:scale(1); box-shadow: 0 0 32px var(--glow); }
+          50%    { transform:scale(1.02); box-shadow: 0 0 64px var(--glow); }
         }
         @keyframes puMFloatCard {
           0%,100%{ transform:translate(-50%,-50%) rotate(-3deg) scale(1.05); }
@@ -295,152 +301,138 @@ export default function PetPowerUpModal({
           70%  { opacity: 0.9; }
           100% { opacity: 0; }
         }
+        @keyframes puMFirefly {
+          0%,100% { transform: translate(0,0) scale(1); opacity: 0.6; }
+          33%     { transform: translate(8px,-12px) scale(1.2); opacity: 1; }
+          66%     { transform: translate(-6px,6px) scale(0.8); opacity: 0.4; }
+        }
       `}</style>
 
-      {/* ── Inline success animation — shown after item use, while modal stays open ── */}
+      {/* ── Forest background ── */}
+      <div className="absolute inset-0 z-0">
+        <img src={forestBg} alt="" className="w-full h-full object-cover" style={{ objectPosition: "center top" }} />
+        <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(4,12,6,0.55) 0%, rgba(4,14,6,0.45) 40%, rgba(6,18,8,0.82) 75%, rgba(4,12,5,0.96) 100%)" }} />
+      </div>
+
+      {/* ── Ambient fireflies ── */}
+      {[
+        { left: "12%", top: "18%", delay: "0s",   color: "#a3e635", size: 5 },
+        { left: "82%", top: "12%", delay: "0.8s",  color: "#fcd34d", size: 4 },
+        { left: "25%", top: "35%", delay: "1.4s",  color: "#86efac", size: 3 },
+        { left: "70%", top: "28%", delay: "0.3s",  color: "#a3e635", size: 4 },
+        { left: "55%", top: "8%",  delay: "2.1s",  color: "#fcd34d", size: 3 },
+        { left: "90%", top: "42%", delay: "1.7s",  color: "#86efac", size: 4 },
+      ].map((f, i) => (
+        <div key={i} className="absolute z-[1] rounded-full pointer-events-none" style={{
+          left: f.left, top: f.top,
+          width: f.size, height: f.size,
+          background: f.color,
+          boxShadow: `0 0 ${f.size * 3}px ${f.color}, 0 0 ${f.size * 6}px ${f.color}40`,
+          animation: `puMFirefly ${3.5 + i * 0.6}s ${f.delay} ease-in-out infinite`,
+        }} />
+      ))}
+
+      {/* ── Inline success animation ── */}
       {successEffect && animCfg && (
         <div
           className="absolute inset-0 z-[50] pointer-events-none overflow-hidden flex items-center justify-center"
           style={{ animation: `puMOverlayFade ${ANIM_DURATION}ms ease-out forwards` }}
         >
-          {/* Colour wash */}
-          <div className="absolute inset-0" style={{
-            background: `radial-gradient(ellipse at center, rgba(${animCfg.rgb},0.18) 0%, rgba(0,0,0,0.5) 100%)`,
-          }} />
-          {/* Flash */}
-          <div className="absolute inset-0" style={{
-            background: `radial-gradient(circle at center, rgba(${animCfg.rgb},0.45) 0%, transparent 65%)`,
-            animation: "puMFlash 0.5s ease-out forwards",
-          }} />
-          {/* Expanding rings */}
+          <div className="absolute inset-0" style={{ background: `radial-gradient(ellipse at center, rgba(${animCfg.rgb},0.22) 0%, rgba(0,0,0,0.5) 100%)` }} />
+          <div className="absolute inset-0" style={{ background: `radial-gradient(circle at center, rgba(${animCfg.rgb},0.45) 0%, transparent 65%)`, animation: "puMFlash 0.5s ease-out forwards" }} />
           {[0, 0.15, 0.3].map((delay, i) => (
-            <div key={i} className="absolute rounded-full" style={{
-              width: 60, height: 60,
-              border: `3px solid rgba(${animCfg.rgb},${0.9 - i * 0.2})`,
-              animation: `puMRingExpand 1.3s ${delay}s ease-out forwards`,
-              opacity: 0,
-            }} />
+            <div key={i} className="absolute rounded-full" style={{ width: 60, height: 60, border: `3px solid rgba(${animCfg.rgb},${0.9 - i * 0.2})`, animation: `puMRingExpand 1.3s ${delay}s ease-out forwards`, opacity: 0 }} />
           ))}
-          {/* Rays */}
           {Array.from({ length: 10 }, (_, i) => (
-            <div key={i} className="absolute" style={{
-              width: 2, height: 220,
-              background: `linear-gradient(to bottom, transparent 0%, rgba(${animCfg.rgb},0.6) 40%, rgba(${animCfg.rgb},0.3) 70%, transparent 100%)`,
-              ["--r" as any]: `${i * 36}deg`,
-              transform: `rotate(${i * 36}deg)`,
-              animation: `puMRayFade 1.0s ${i * 0.05}s ease-out forwards`,
-              opacity: 0,
-            }} />
+            <div key={i} className="absolute" style={{ width: 2, height: 220, background: `linear-gradient(to bottom, transparent 0%, rgba(${animCfg.rgb},0.6) 40%, rgba(${animCfg.rgb},0.3) 70%, transparent 100%)`, ["--r" as any]: `${i * 36}deg`, transform: `rotate(${i * 36}deg)`, animation: `puMRayFade 1.0s ${i * 0.05}s ease-out forwards`, opacity: 0 }} />
           ))}
-          {/* Particles */}
           {animParticles.map((p, i) => (
-            <div key={i} className="absolute rounded-full" style={{
-              width: p.size, height: p.size,
-              background: p.color,
-              boxShadow: `0 0 ${p.size * 2}px ${p.color}`,
-              ["--px" as any]: `${p.px}px`,
-              ["--py" as any]: `${p.py}px`,
-              animation: `puMParticle 1.1s ${p.delay}s ease-out forwards`,
-              opacity: 0,
-            }} />
+            <div key={i} className="absolute rounded-full" style={{ width: p.size, height: p.size, background: p.color, boxShadow: `0 0 ${p.size * 2}px ${p.color}`, ["--px" as any]: `${p.px}px`, ["--py" as any]: `${p.py}px`, animation: `puMParticle 1.1s ${p.delay}s ease-out forwards`, opacity: 0 }} />
           ))}
-          {/* Stars */}
           {Array.from({ length: 8 }, (_, i) => {
             const a = (i / 8) * Math.PI * 2;
             const d = 55 + Math.random() * 50;
             return (
-              <div key={`star-${i}`} className="absolute font-bold" style={{
-                fontSize: 12 + Math.random() * 10,
-                color: animCfg.particleColors[i % animCfg.particleColors.length],
-                left: `calc(50% + ${Math.cos(a) * d}px)`,
-                top:  `calc(50% + ${Math.sin(a) * d}px)`,
-                animation: `puMStar 1.2s ${i * 0.07}s ease-out forwards`,
-                opacity: 0,
-                transform: "translate(-50%,-50%)",
-                filter: `drop-shadow(0 0 6px ${animCfg.color})`,
-              }}>✦</div>
+              <div key={`star-${i}`} className="absolute font-bold" style={{ fontSize: 12 + Math.random() * 10, color: animCfg.particleColors[i % animCfg.particleColors.length], left: `calc(50% + ${Math.cos(a) * d}px)`, top: `calc(50% + ${Math.sin(a) * d}px)`, animation: `puMStar 1.2s ${i * 0.07}s ease-out forwards`, opacity: 0, transform: "translate(-50%,-50%)", filter: `drop-shadow(0 0 6px ${animCfg.color})` }}>✦</div>
             );
           })}
-          {/* Center content */}
           <div className="relative flex flex-col items-center gap-3 z-10" style={{ animation: "puMContentPop 0.6s ease-out both" }}>
-            <div style={{ fontSize: 72, lineHeight: 1, filter: `drop-shadow(0 0 20px rgba(${animCfg.rgb},0.9))` }}>
-              {animCfg.icon}
-            </div>
-            <div className="font-fantasy text-4xl font-bold tracking-wider"
-              data-testid="text-power-up-success"
-              style={{ color: animCfg.color, textShadow: `0 0 24px rgba(${animCfg.rgb},1), 0 0 48px rgba(${animCfg.rgb},0.5)` }}>
-              {successEffect.label}
-            </div>
-            <div className="font-fantasy text-sm tracking-[0.3em] uppercase"
-              style={{ color: `rgba(${animCfg.rgb},0.8)`, textShadow: `0 0 12px rgba(${animCfg.rgb},0.6)` }}>
-              {animCfg.title}
-            </div>
+            <div style={{ fontSize: 72, lineHeight: 1, filter: `drop-shadow(0 0 20px rgba(${animCfg.rgb},0.9))` }}>{animCfg.icon}</div>
+            <div className="font-fantasy text-4xl font-bold tracking-wider" data-testid="text-power-up-success" style={{ color: animCfg.color, textShadow: `0 0 24px rgba(${animCfg.rgb},1), 0 0 48px rgba(${animCfg.rgb},0.5)` }}>{successEffect.label}</div>
+            <div className="font-fantasy text-sm tracking-[0.3em] uppercase" style={{ color: `rgba(${animCfg.rgb},0.8)`, textShadow: `0 0 12px rgba(${animCfg.rgb},0.6)` }}>{animCfg.title}</div>
           </div>
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 pt-5 pb-3 flex-shrink-0">
-        <div>
-          <h2 className="font-fantasy text-[#f0c040] text-base tracking-widest">{title}</h2>
-          <p className="font-fantasy text-[#a89878] text-[10px] tracking-wider mt-0.5">
-            {subtitle ?? `Drag an item onto ${petName} · or tap to use`}
-          </p>
+      {/* ── Header ── */}
+      <div className="relative z-[10] flex items-center justify-between px-4 pt-[10%] pb-2 flex-shrink-0">
+        <div className="relative flex items-center gap-2">
+          <img src={forestBanner} alt="" className="absolute inset-0 w-full h-full object-fill pointer-events-none" style={{ transform: "scaleX(1.25) scaleY(1.5)", transformOrigin: "left center", opacity: 0.85 }} />
+          <div className="relative flex items-center gap-2.5 px-3 py-2 z-10">
+            <img src={powerupBagIcon} alt="" style={{ width: 32, height: 32, objectFit: "contain", filter: "drop-shadow(0 0 8px rgba(240,192,64,0.7))" }} />
+            <div>
+              <h2 className="font-fantasy text-[#fcd34d] text-xl tracking-widest leading-none" style={{ textShadow: "0 2px 12px rgba(0,0,0,0.9), 0 0 20px rgba(240,192,64,0.4)" }}>{title}</h2>
+              <p className="font-fantasy text-[#d4b896] text-[11px] tracking-wide mt-0.5" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.9)" }}>
+                {subtitle ?? `Choose an item below to strengthen ${petName}`}
+              </p>
+            </div>
+          </div>
         </div>
         <button
           data-testid="button-close-powerup-modal"
           onClick={onClose}
-          className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm"
-          style={{ background: "rgba(90,50,10,0.8)", border: "1px solid rgba(212,160,23,0.5)", color: "#f0c040", cursor: "pointer" }}
+          className="relative z-[10] w-9 h-9 rounded-full flex items-center justify-center font-bold text-base flex-shrink-0"
+          style={{ background: "rgba(10,20,10,0.85)", border: "1.5px solid rgba(134,239,172,0.35)", color: "#86efac", cursor: "pointer", boxShadow: "0 0 12px rgba(134,239,172,0.15)" }}
         >
           ✕
         </button>
       </div>
 
-      {/* Pet display zone */}
-      <div className="flex flex-col items-center flex-shrink-0 pb-3 relative w-full px-3">
-        {/* Slots remaining */}
-        <div className="mb-2 px-3 py-1 rounded-full font-fantasy text-[10px] tracking-wider"
+      {/* ── Slots remaining banner ── */}
+      <div className="relative z-[10] flex justify-center px-4 pb-1 flex-shrink-0">
+        <div className="px-5 py-1.5 rounded-full font-fantasy text-[11px] tracking-wider font-semibold"
           style={{
-            background: itemsRemaining === Infinity ? "rgba(240,192,64,0.12)" : itemsRemaining > 0 ? "rgba(74,222,128,0.12)" : "rgba(248,113,113,0.12)",
-            border: `1px solid ${itemsRemaining === Infinity ? "rgba(240,192,64,0.3)" : itemsRemaining > 0 ? "rgba(74,222,128,0.3)" : "rgba(248,113,113,0.3)"}`,
-            color: itemsRemaining === Infinity ? "#f0c040" : itemsRemaining > 0 ? "#4ade80" : "#f87171",
+            background: slotsBg,
+            border: `1.5px solid ${slotsBorder}`,
+            color: slotsColor,
+            boxShadow: `0 0 16px ${slotsBorder}40, inset 0 1px 0 rgba(255,255,255,0.06)`,
           }}>
           {itemsRemaining === Infinity
-            ? "No use limit — use as many as you want!"
+            ? "✦ No limit — use as many as you like!"
             : itemsRemaining > 0
-              ? `${itemsRemaining} power-up slot${itemsRemaining === 1 ? "" : "s"} remaining`
-              : "No slots — level up first!"}
+              ? `✦ ${itemsRemaining} slot${itemsRemaining === 1 ? "" : "s"} remaining this level`
+              : "✕ No slots left — level up to continue!"}
         </div>
+      </div>
 
-        {/* Pet zone — the drop target; no static box, just a sized area */}
+      {/* ── Pet zone ── */}
+      <div className="relative z-[10] flex flex-col items-center flex-shrink-0 px-3 pb-1">
         <div
           ref={petZoneRef}
           data-testid="zone-pet-drop"
-          className="relative flex items-center justify-center transition-all duration-200 w-full overflow-visible"
+          className="relative flex items-center justify-center transition-all duration-300 w-full overflow-visible"
           style={{
-            height: 460,
-            borderRadius: 24,
+            height: 340,
+            borderRadius: 20,
             background: dragOverPet
-              ? `radial-gradient(ellipse at center, rgba(${dragging ? itemColor(dragging.item).replace("#","") : "240,192,64"},0.22) 0%, rgba(0,0,0,0.55) 100%)`
+              ? `radial-gradient(ellipse at center, rgba(134,239,172,0.18) 0%, rgba(0,0,0,0.3) 100%)`
               : petGlow
-              ? `radial-gradient(ellipse at center, ${petGlow}22 0%, transparent 70%)`
+              ? `radial-gradient(ellipse at center, ${petGlow}18 0%, transparent 70%)`
               : "transparent",
             border: dragOverPet
-              ? `2px solid ${dragging ? itemColor(dragging.item) : "#f0c040"}`
+              ? `2px dashed rgba(134,239,172,0.7)`
               : petGlow
-              ? `2px solid ${petGlow}80`
+              ? `2px solid ${petGlow}60`
               : "2px solid transparent",
             boxShadow: petGlow
-              ? `0 0 40px ${petGlow}80, 0 0 80px ${petGlow}30`
+              ? `0 0 50px ${petGlow}50, 0 0 100px ${petGlow}20`
               : dragOverPet
-              ? `0 0 32px ${dragging ? itemColor(dragging.item) : "#f0c040"}60`
+              ? `0 0 40px rgba(134,239,172,0.3)`
               : "none",
-            animation: dragOverPet ? "puMDropHint 1s ease-in-out infinite" : undefined,
-            "--glow": dragging ? itemColor(dragging.item) + "60" : "#f0c04060",
+            animation: dragOverPet ? "puMDropHint 1.2s ease-in-out infinite" : undefined,
+            "--glow": dragging ? itemColor(dragging.item) + "50" : "#86efac50",
           } as any}
         >
-          {/* Pet image/animator — full-width like home page active pet */}
           {petTemplateId ? (
             <PetAnimator
               petTemplateId={petTemplateId}
@@ -456,16 +448,16 @@ export default function PetPowerUpModal({
               }}
             />
           ) : petImage ? (
-            <img src={petImage} alt={petName} style={{ width: "90%", height: "90%", objectFit: "contain" }} />
+            <img src={petImage} alt={petName} style={{ width: "85%", height: "85%", objectFit: "contain" }} />
           ) : (
-            <img src={petPawIcon} alt="" style={{ width: "70%", height: "70%", objectFit: "contain", filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.6))" }} />
+            <img src={petPawIcon} alt="" style={{ width: "65%", height: "65%", objectFit: "contain", filter: "drop-shadow(0 4px 20px rgba(0,0,0,0.8))" }} />
           )}
 
           {/* Drop hint overlay */}
           {dragging && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ borderRadius: 24, background: "rgba(0,0,0,0.35)" }}>
-              <div className="font-fantasy text-xs tracking-widest" style={{ color: itemColor(dragging.item), textShadow: `0 0 12px ${itemColor(dragging.item)}` }}>
-                DROP HERE
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ borderRadius: 20, background: "rgba(0,20,5,0.5)" }}>
+              <div className="font-fantasy text-base tracking-widest font-bold" style={{ color: "#86efac", textShadow: "0 0 16px rgba(134,239,172,0.9)" }}>
+                ✦ DROP HERE ✦
               </div>
             </div>
           )}
@@ -473,30 +465,39 @@ export default function PetPowerUpModal({
           {/* Rarity stars */}
           <div className="absolute bottom-2 flex gap-0.5 justify-center">
             {rarityStars.map(i => (
-              <span key={i} style={{ fontSize: 12, color: "#f0c040", textShadow: "0 0 6px rgba(240,192,64,0.7)" }}>★</span>
+              <span key={i} style={{ fontSize: 13, color: "#fcd34d", textShadow: "0 0 8px rgba(252,211,77,0.8)" }}>★</span>
             ))}
           </div>
         </div>
 
-        {/* Pet name */}
-        <div className="mt-2 font-fantasy text-sm tracking-wider" style={{ color: "#f0c040" }}>{petName}</div>
-        <div className="font-fantasy text-[10px]" style={{ color: "#a89878" }}>Lv.{petLevel}</div>
+        {/* Pet name + level */}
+        <div className="mt-1.5 flex items-center gap-2">
+          <div className="font-fantasy text-[13px] tracking-wider" style={{ color: "#fcd34d", textShadow: "0 0 12px rgba(252,211,77,0.4)" }}>{petName}</div>
+          <div className="font-fantasy text-[10px] px-2 py-0.5 rounded-full" style={{ color: "#86efac", background: "rgba(10,30,12,0.8)", border: "1px solid rgba(134,239,172,0.3)" }}>Lv.{petLevel}</div>
+        </div>
       </div>
 
-      {/* Item grid — scrollable */}
-      <div className="flex-1 overflow-y-auto px-4 pb-6" style={{ scrollbarWidth: "thin" }}>
+      {/* ── Item grid ── */}
+      <div className="relative z-[10] flex-1 overflow-y-auto px-3 pb-6" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(134,239,172,0.3) transparent" }}>
         {items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 gap-3">
-            <img src={powerupBagIcon} alt="" style={{ width: 80, height: 80, objectFit: "contain" }} />
-            <p className="font-fantasy text-[#a89878] text-sm text-center">No power-up items in your bag</p>
-            <p className="font-fantasy text-[#6a5840] text-[10px] text-center">Visit the shop to stock up!</p>
+          <div className="flex flex-col items-center justify-center py-10 gap-3">
+            <img src={powerupBagIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain", filter: "drop-shadow(0 0 12px rgba(134,239,172,0.3))" }} />
+            <p className="font-fantasy text-[#86efac] text-sm text-center" style={{ textShadow: "0 0 8px rgba(134,239,172,0.3)" }}>Your bag is empty</p>
+            <p className="font-fantasy text-[#4a7a50] text-[11px] text-center">Visit the shop to stock up on power-up items!</p>
           </div>
         ) : (
           <>
-            <p className="font-fantasy text-[#6a5840] text-[9px] tracking-widest text-center mb-3">
-              DRAG ONTO PET — OR TAP TO USE
-            </p>
-            <div className="grid grid-cols-3 gap-3">
+            {/* Instruction strip */}
+            <div className="flex items-center justify-center gap-2 mb-3 py-2 rounded-lg"
+              style={{ background: "rgba(10,25,12,0.7)", border: "1px solid rgba(134,239,172,0.15)" }}>
+              <span style={{ fontSize: 13, color: "#86efac" }}>✦</span>
+              <p className="font-fantasy text-[#86efac] text-[11px] tracking-wider">
+                Tap <span className="font-bold text-[#fcd34d]">USE</span> on an item — or drag it onto your pet
+              </p>
+              <span style={{ fontSize: 13, color: "#86efac" }}>✦</span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2.5">
               {items.map((item, idx) => {
                 const color   = itemColor(item);
                 const label   = itemLabel(item);
@@ -506,59 +507,63 @@ export default function PetPowerUpModal({
                   <div
                     key={item.inventoryId}
                     data-testid={`item-powerup-${item.inventoryId}`}
-                    style={{
-                      animation: `puMItemPop 0.3s ${idx * 0.04}s ease-out both`,
-                      opacity: locked ? 0.4 : 1,
-                      touchAction: "none",
-                    }}
+                    style={{ animation: `puMItemPop 0.3s ${idx * 0.04}s ease-out both`, touchAction: "none" }}
                   >
-                    {/* Draggable handle */}
                     <div
                       onPointerDown={locked || isPending ? undefined : (e) => handleItemPointerDown(e, item)}
                       onPointerMove={handleItemPointerMove}
                       onPointerUp={handleItemPointerUp}
                       onPointerCancel={handleItemPointerUp}
-                      className="rounded-xl p-3 flex flex-col items-center gap-1.5 select-none"
+                      className="relative rounded-xl flex flex-col items-center gap-1.5 select-none overflow-hidden"
                       style={{
-                        background: `radial-gradient(ellipse at 50% 0%, ${color}18 0%, rgba(20,10,5,0.95) 100%)`,
-                        border: `1px solid ${color}40`,
-                        boxShadow: `0 0 12px ${color}15`,
                         cursor: locked || isPending ? "not-allowed" : "grab",
                         userSelect: "none",
+                        opacity: locked ? 0.45 : 1,
+                        padding: "10px 8px 8px",
+                        background: `linear-gradient(160deg, rgba(8,22,10,0.95) 0%, rgba(12,28,14,0.95) 100%)`,
+                        border: `1.5px solid ${locked ? "rgba(80,60,30,0.4)" : color + "55"}`,
+                        boxShadow: locked ? "none" : `0 2px 12px ${color}20, inset 0 1px 0 rgba(255,255,255,0.04)`,
                       }}
                     >
+                      {/* Background tile image */}
+                      <img src={itemCardBg} alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" style={{ opacity: 0.18, mixBlendMode: "screen" }} />
+
                       {/* Item image */}
-                      <div className="w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden"
-                        style={item.imageUrl ? { background: `${color}18`, border: `1px solid ${color}30` } : {}}>
+                      <div className="relative w-14 h-14 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0"
+                        style={{ background: `radial-gradient(circle, ${color}22 0%, rgba(8,20,10,0.8) 100%)`, border: `1px solid ${color}40` }}>
                         {item.imageUrl
-                          ? <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
-                          : <img src={powerupBagIcon} alt="" className="w-full h-full object-contain" />
+                          ? <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain p-0.5" />
+                          : <img src={powerupBagIcon} alt="" className="w-full h-full object-contain p-1" />
                         }
                       </div>
 
                       {/* Name */}
-                      <span className="font-fantasy text-[9px] tracking-wider text-center leading-tight w-full truncate"
-                        style={{ color: "#f0c040" }}>
+                      <span className="relative font-fantasy text-[9px] tracking-wide text-center leading-tight w-full truncate"
+                        style={{ color: "#d4b896" }}>
                         {item.name}
                       </span>
 
                       {/* Stat badge */}
-                      <span className="font-fantasy text-[8px] tracking-wider px-2 py-0.5 rounded-full"
-                        style={{ background: `${color}20`, color, border: `1px solid ${color}40` }}>
+                      <span className="relative font-fantasy text-[10px] font-bold tracking-wider px-2.5 py-0.5 rounded-full"
+                        style={{ background: `${color}22`, color, border: `1px solid ${color}55`, textShadow: `0 0 8px ${color}80` }}>
                         {label}
                       </span>
 
-                      {/* Tap to use button */}
+                      {/* USE button */}
                       <button
                         data-testid={`button-tap-use-${item.inventoryId}`}
                         onClick={locked || isPending ? undefined : () => useItem(item)}
                         disabled={locked || isPending}
-                        className="w-full mt-0.5 py-1 rounded-lg font-fantasy text-[8px] tracking-wider transition-transform active:scale-95 disabled:opacity-30"
+                        className="relative w-full py-1.5 rounded-lg font-fantasy text-[10px] tracking-widest font-bold transition-transform active:scale-95 disabled:opacity-30"
                         style={{
-                          background: locked ? "rgba(80,40,10,0.5)" : `linear-gradient(135deg, ${color}25, ${color}10)`,
-                          border: `1px solid ${color}35`,
-                          color: locked ? "#6a5840" : color,
+                          background: locked
+                            ? "rgba(40,30,15,0.7)"
+                            : `linear-gradient(135deg, ${color}40, ${color}20)`,
+                          border: `1px solid ${locked ? "rgba(80,60,20,0.4)" : color + "60"}`,
+                          color: locked ? "#4a4030" : color,
                           cursor: locked ? "not-allowed" : "pointer",
+                          textShadow: locked ? "none" : `0 0 8px ${color}80`,
+                          boxShadow: locked ? "none" : `0 0 8px ${color}20`,
                         }}
                       >
                         {locked ? "LOCKED" : isPending ? "..." : "USE"}
@@ -572,32 +577,32 @@ export default function PetPowerUpModal({
         )}
       </div>
 
-      {/* Floating drag ghost */}
+      {/* ── Floating drag ghost ── */}
       {dragging && (
         <div
-          className="fixed pointer-events-none z-[300] rounded-xl p-2 flex flex-col items-center gap-1"
+          className="fixed pointer-events-none z-[300] rounded-xl flex flex-col items-center gap-1.5"
           style={{
-            left: dragging.x,
-            top: dragging.y,
+            left: dragging.x, top: dragging.y,
             transform: "translate(-50%, -50%)",
-            background: `radial-gradient(ellipse at 50% 0%, ${itemColor(dragging.item)}30 0%, rgba(20,10,5,0.95) 100%)`,
+            background: `linear-gradient(160deg, rgba(8,22,10,0.97) 0%, rgba(12,30,14,0.97) 100%)`,
             border: `2px solid ${itemColor(dragging.item)}`,
-            boxShadow: `0 0 20px ${itemColor(dragging.item)}80`,
-            width: 72,
+            boxShadow: `0 0 24px ${itemColor(dragging.item)}80, 0 0 48px ${itemColor(dragging.item)}30`,
+            width: 76,
+            padding: "8px 6px 6px",
             animation: "puMFloatCard 0.6s ease-in-out infinite",
           }}
         >
           {dragging.item.imageUrl
-            ? <img src={dragging.item.imageUrl} alt={dragging.item.name} style={{ width: 40, height: 40, objectFit: "contain" }} />
-            : <img src={powerupBagIcon} alt="" style={{ width: 40, height: 40, objectFit: "contain" }} />
+            ? <img src={dragging.item.imageUrl} alt={dragging.item.name} style={{ width: 44, height: 44, objectFit: "contain" }} />
+            : <img src={powerupBagIcon} alt="" style={{ width: 44, height: 44, objectFit: "contain" }} />
           }
-          <span className="font-fantasy text-[8px] text-center leading-tight w-full" style={{ color: itemColor(dragging.item) }}>
+          <span className="font-fantasy text-[9px] text-center leading-tight w-full font-bold" style={{ color: itemColor(dragging.item), textShadow: `0 0 8px ${itemColor(dragging.item)}` }}>
             {itemLabel(dragging.item)}
           </span>
         </div>
       )}
 
-      {/* Sparkle burst particles */}
+      {/* ── Sparkle burst ── */}
       {sparkles.map(s => (
         <div
           key={s.id}
