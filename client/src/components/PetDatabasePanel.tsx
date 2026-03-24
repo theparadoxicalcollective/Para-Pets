@@ -781,6 +781,15 @@ export default function PetDatabasePanel() {
                   const ptConfig = ALL_PART_DEFS.find(p => p.key === uploadPartType);
                   const defaultZ = isBackFull ? 0 : (ptConfig?.defaultZ || 0);
 
+                  // Auto-delete existing part of the same type before replacing
+                  const existingPart = viewParts.find(p => p.partType === uploadPartType);
+                  if (existingPart) {
+                    try {
+                      await apiRequest("DELETE", `/api/admin/pet-template-parts/${existingPart.id}`);
+                      if (selectedPartId === existingPart.id) setSelectedPartId(null);
+                    } catch {}
+                  }
+
                   // Read natural image dimensions and use them directly (capped to canvas size)
                   let naturalW = CANVAS_SIZE;
                   let naturalH = CANVAS_SIZE;
