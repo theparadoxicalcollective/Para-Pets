@@ -1456,6 +1456,7 @@ function FishBookPanel({
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [claimedLocally, setClaimedLocally] = useState<Set<string>>(new Set());
+  const [justClaimed, setJustClaimed] = useState<Set<string>>(new Set());
 
   const { data: catchLog = [], isLoading: caughtLoading } = useQuery<{ shopItemId: string; rewardClaimed: boolean }[]>({
     queryKey: ["/api/fishing/caught-fish-ids"],
@@ -1469,8 +1470,19 @@ function FishBookPanel({
     },
     onSuccess: (data, shopItemId) => {
       setClaimedLocally(prev => new Set(prev).add(shopItemId));
+      setJustClaimed(prev => {
+        const next = new Set(prev);
+        next.add(shopItemId);
+        setTimeout(() => setJustClaimed(p => { const n = new Set(p); n.delete(shopItemId); return n; }), 1400);
+        return next;
+      });
+      // Update coin balance instantly from server response
+      if (data?.coins !== undefined) {
+        queryClient.setQueryData(["/api/auth/me"], (old: any) => old ? { ...old, coins: data.coins } : old);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/fishing/caught-fish-ids"] });
-      toast({ title: "+10 Coins!", description: "First catch reward claimed!" });
     },
     onError: () => {
       toast({ title: "Already claimed", variant: "destructive" });
@@ -1549,20 +1561,31 @@ function FishBookPanel({
               const caught = caughtSet.has(fish.id);
               const canClaim = caught && unclaimedSet.has(fish.id) && !claimedLocally.has(fish.id);
               const isClaiming = claimRewardMutation.isPending && claimRewardMutation.variables === fish.id;
+              const isJustClaimed = justClaimed.has(fish.id);
               return (
                 <div
                   key={fish.id}
                   data-testid={`card-fishbook-${fish.id}`}
                   className="flex flex-col items-center gap-1 p-2 rounded-xl"
                   style={{
-                    background: canClaim ? "rgba(20,50,30,0.9)" : caught ? "rgba(10,40,30,0.8)" : "rgba(5,15,12,0.6)",
-                    border: `1px solid ${canClaim ? "#facc1580" : caught ? `${ACCENT}40` : "rgba(255,255,255,0.06)"}`,
-                    boxShadow: canClaim ? "0 0 14px rgba(250,204,21,0.25)" : caught ? `0 0 8px ${ACCENT}15` : "none",
+                    background: isJustClaimed
+                      ? "rgba(60,50,0,0.95)"
+                      : isClaiming
+                        ? "rgba(40,35,0,0.95)"
+                        : canClaim ? "rgba(20,50,30,0.9)" : caught ? "rgba(10,40,30,0.8)" : "rgba(5,15,12,0.6)",
+                    border: `1px solid ${isJustClaimed ? "#facc15" : isClaiming ? "#facc1560" : canClaim ? "#facc1580" : caught ? `${ACCENT}40` : "rgba(255,255,255,0.06)"}`,
+                    boxShadow: isJustClaimed
+                      ? "0 0 24px rgba(250,204,21,0.55), 0 0 8px rgba(250,204,21,0.3)"
+                      : isClaiming
+                        ? "0 0 16px rgba(250,204,21,0.35)"
+                        : canClaim ? "0 0 14px rgba(250,204,21,0.25)" : caught ? `0 0 8px ${ACCENT}15` : "none",
+                    animation: isJustClaimed ? "claimFlash 0.4s ease-out" : undefined,
+                    transition: "background 0.2s, border 0.2s, box-shadow 0.2s",
                   }}
                 >
                   <div
                     className="w-16 h-16 flex items-center justify-center relative"
-                    style={{ cursor: canClaim ? "pointer" : "default" }}
+                    style={{ cursor: canClaim && !isClaiming ? "pointer" : "default" }}
                     onClick={() => canClaim && !isClaiming && claimRewardMutation.mutate(fish.id)}
                     data-testid={canClaim ? `button-claim-reward-${fish.id}` : undefined}
                   >
@@ -1572,9 +1595,13 @@ function FishBookPanel({
                         alt={fish.name}
                         className="w-full h-full object-contain"
                         style={{
-                          filter: caught ? (canClaim ? "drop-shadow(0 0 6px rgba(250,204,21,0.6))" : "none") : "grayscale(100%) brightness(0.4)",
-                          transform: canClaim ? "scale(1.05)" : "scale(1)",
-                          transition: "transform 0.15s ease",
+                          filter: caught
+                            ? isJustClaimed
+                              ? "drop-shadow(0 0 10px rgba(250,204,21,1)) brightness(1.2)"
+                              : canClaim ? "drop-shadow(0 0 6px rgba(250,204,21,0.6))" : "none"
+                            : "grayscale(100%) brightness(0.4)",
+                          transform: isJustClaimed ? "scale(1.12)" : isClaiming ? "scale(0.95)" : canClaim ? "scale(1.05)" : "scale(1)",
+                          transition: "transform 0.2s ease, filter 0.2s ease",
                         }}
                       />
                     ) : (
@@ -1585,7 +1612,8 @@ function FishBookPanel({
                         style={{ filter: caught ? "none" : "grayscale(100%) brightness(0.4)" }}
                       />
                     )}
-                    {canClaim && !isClaiming && (
+                    {/* Pulsing badge for unclaimed */}
+                    {canClaim && !isClaiming && !isJustClaimed && (
                       <div
                         className="absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold"
                         style={{
@@ -1599,9 +1627,28 @@ function FishBookPanel({
                         +
                       </div>
                     )}
+                    {/* Claiming spinner */}
                     {isClaiming && (
-                      <div className="absolute inset-0 flex items-center justify-center rounded-lg" style={{ background: "rgba(0,0,0,0.4)" }}>
-                        <span style={{ color: "#fbbf24", fontSize: 10, fontFamily: "Cinzel, serif" }}>...</span>
+                      <div className="absolute inset-0 flex items-center justify-center rounded-lg" style={{ background: "rgba(0,0,0,0.25)" }}>
+                        <div style={{ animation: "coinSpin 0.6s linear infinite", fontSize: 22 }}>
+                          <img src={coinIconImg} alt="" style={{ width: 24, height: 24, objectFit: "contain" }} />
+                        </div>
+                      </div>
+                    )}
+                    {/* +10 float-up on success */}
+                    {isJustClaimed && (
+                      <div
+                        className="absolute inset-x-0 flex items-center justify-center pointer-events-none"
+                        style={{ top: -4, animation: "floatUp 1.4s ease-out forwards" }}
+                      >
+                        <div className="flex items-center gap-0.5 px-2 py-0.5 rounded-full"
+                          style={{
+                            background: "linear-gradient(135deg, #fbbf24, #f59e0b)",
+                            boxShadow: "0 0 12px rgba(251,191,36,0.9)",
+                          }}>
+                          <span style={{ fontFamily: "Cinzel, serif", fontSize: 11, color: "#1a0a00", fontWeight: 700 }}>+10</span>
+                          <img src={coinIconImg} alt="" style={{ width: 11, height: 11, objectFit: "contain" }} />
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1627,12 +1674,14 @@ function FishBookPanel({
                       />
                     ))}
                   </div>
-                  {canClaim ? (
+                  {canClaim && !isJustClaimed ? (
                     <div className="flex items-center gap-0.5" style={{ color: "#fbbf24", textShadow: "0 0 6px rgba(251,191,36,0.6)" }}>
                       <span className="font-fantasy text-[7px]">TAP FOR</span>
                       <img src={coinIconImg} alt="coin" style={{ width: 10, height: 10, objectFit: "contain" }} />
                       <span className="font-fantasy text-[7px]">10</span>
                     </div>
+                  ) : isJustClaimed ? (
+                    <span className="font-fantasy text-[7px]" style={{ color: "#facc15", textShadow: "0 0 6px rgba(250,204,21,0.6)" }}>Claimed!</span>
                   ) : caught ? (
                     <span className="font-fantasy text-[7px]" style={{ color: `${ACCENT}60` }}>Caught</span>
                   ) : null}
@@ -2153,5 +2202,20 @@ const FISHING_ANIMATIONS = `
   @keyframes coinPulse {
     0%, 100% { transform: scale(1); box-shadow: 0 0 8px rgba(251,191,36,0.8); }
     50% { transform: scale(1.2); box-shadow: 0 0 16px rgba(251,191,36,1.0); }
+  }
+  @keyframes coinSpin {
+    0% { transform: rotateY(0deg) scale(1.1); }
+    50% { transform: rotateY(180deg) scale(1.2); }
+    100% { transform: rotateY(360deg) scale(1.1); }
+  }
+  @keyframes floatUp {
+    0%   { transform: translateY(0px); opacity: 1; }
+    60%  { transform: translateY(-28px); opacity: 1; }
+    100% { transform: translateY(-42px); opacity: 0; }
+  }
+  @keyframes claimFlash {
+    0%   { box-shadow: 0 0 0px rgba(250,204,21,0); background: rgba(40,35,0,0.95); }
+    30%  { box-shadow: 0 0 40px rgba(250,204,21,0.9), inset 0 0 20px rgba(250,204,21,0.3); }
+    100% { box-shadow: 0 0 24px rgba(250,204,21,0.55); background: rgba(60,50,0,0.95); }
   }
 `;
