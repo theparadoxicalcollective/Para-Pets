@@ -143,8 +143,25 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
       const res = await apiRequest("PATCH", "/api/world/pet_world/pet-position", data);
       return res.json();
     },
+    onMutate: async (vars) => {
+      // Cancel any in-flight refetches so they don't overwrite the optimistic update
+      await queryClient.cancelQueries({ queryKey: ["/api/world/pet_world/active-pets"] });
+      // Snapshot current data for rollback on error
+      const previous = queryClient.getQueryData<WorldActivePet[]>(["/api/world/pet_world/active-pets"]);
+      // Apply the new position immediately so the pet stays where it was dropped
+      queryClient.setQueryData<WorldActivePet[]>(["/api/world/pet_world/active-pets"], old =>
+        old ? old.map(p => p.userId === vars.ownerUserId ? { ...p, posX: vars.posX, posY: vars.posY } : p) : old
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      // Roll back to the pre-drop position if the save fails
+      if (context?.previous) {
+        queryClient.setQueryData(["/api/world/pet_world/active-pets"], context.previous);
+      }
+    },
     onSuccess: (_data, vars) => {
-      // Update cache optimistically so position is stable on next refetch
+      // Confirm the optimistic update is still accurate after the server responds
       queryClient.setQueryData<WorldActivePet[]>(["/api/world/pet_world/active-pets"], old =>
         old ? old.map(p => p.userId === vars.ownerUserId ? { ...p, posX: vars.posX, posY: vars.posY } : p) : old
       );
