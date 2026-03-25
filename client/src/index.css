@@ -800,6 +800,72 @@
   100% { transform: translate(0, 0)    scale(0.85); opacity: 0.1; }
 }
 
+@keyframes titleGlowPulse {
+  0%, 100% {
+    text-shadow:
+      0 0 8px rgba(127,255,220,0.9),
+      0 0 20px rgba(127,255,220,0.6),
+      0 0 40px rgba(127,191,176,0.4),
+      0 0 80px rgba(80,200,160,0.2);
+  }
+  50% {
+    text-shadow:
+      0 0 4px #fff,
+      0 0 14px rgba(200,255,240,1),
+      0 0 30px rgba(127,255,220,0.9),
+      0 0 60px rgba(127,191,176,0.6),
+      0 0 100px rgba(80,200,160,0.35);
+  }
+}
+
+@keyframes titleShimmer {
+  0%   { background-position: -300% center; }
+  100% { background-position: 300% center; }
+}
+
+@keyframes titleFloat {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-6px); }
+}
+
+.para-pets-title {
+  font-family: 'Cinzel Decorative', 'Cinzel', serif;
+  font-weight: 900;
+  font-size: clamp(2.4rem, 10vw, 3.6rem);
+  letter-spacing: 0.08em;
+  background: linear-gradient(
+    105deg,
+    #a8f0e0 0%,
+    #ffffff 20%,
+    #7fbfb0 38%,
+    #e0fff8 50%,
+    #7fbfb0 62%,
+    #ffffff 80%,
+    #a8f0e0 100%
+  );
+  background-size: 300% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation:
+    titleGlowPulse 2.8s ease-in-out infinite,
+    titleShimmer 4s linear infinite,
+    titleFloat 3.5s ease-in-out infinite;
+  filter: drop-shadow(0 0 12px rgba(127,255,220,0.5));
+}
+
+@keyframes titleSparkle {
+  0%, 90%, 100% { opacity: 0; transform: scale(0) rotate(0deg); }
+  45%, 55%      { opacity: 1; transform: scale(1) rotate(180deg); }
+}
+
+.title-sparkle {
+  display: inline-block;
+  animation: titleSparkle 3s ease-in-out infinite;
+  color: #c8ffe8;
+  filter: drop-shadow(0 0 4px rgba(127,255,220,0.9));
+}
+
 html, body {
   margin: 0;
   padding: 0;

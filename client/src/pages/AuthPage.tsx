@@ -4,7 +4,6 @@ import { useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import logoImg from "@assets/logo_parapets.png";
 import bgImg from "@assets/bg_login.png";
 import signInBtn from "@assets/btn_signin_v2.png";
 import createAccountBtn from "@assets/btn_create_v2.png";
@@ -222,13 +221,13 @@ export default function AuthPage() {
 
       <div className="relative z-10 flex flex-col items-center justify-center w-full px-6 py-8 h-full overflow-y-auto" style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         <div className="flex flex-col items-center w-full">
-          <div className="mb-3 text-center animate-fade-in">
-            <img
-              src={logoImg}
-              alt="Para Pets"
-              className="w-72 mx-auto drop-shadow-2xl"
-              style={{ filter: "drop-shadow(0 0 20px rgba(127,191,176,0.5))" }}
-            />
+          <div className="mb-3 text-center">
+            <div className="relative inline-block">
+              <span className="title-sparkle absolute -top-3 -left-3 text-xl select-none" style={{ animationDelay: "0s" }}>✦</span>
+              <span className="title-sparkle absolute -top-3 -right-3 text-xl select-none" style={{ animationDelay: "1s" }}>✦</span>
+              <span className="title-sparkle absolute -bottom-2 left-1/2 -translate-x-1/2 text-sm select-none" style={{ animationDelay: "1.8s" }}>✦</span>
+              <h1 className="para-pets-title select-none">Para Pets</h1>
+            </div>
           </div>
 
           {mode === "landing" && (
