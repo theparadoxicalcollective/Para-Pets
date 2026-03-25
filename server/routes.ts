@@ -2549,32 +2549,6 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/admin/cleanup-welcome-bundles", isAdmin, async (_req, res) => {
-    try {
-      const staleNames = ["Welcome to the Realm!"];
-      const staleBundles = await db
-        .select({ id: rewardBundles.id })
-        .from(rewardBundles)
-        .where(
-          and(
-            inArray(rewardBundles.name, staleNames),
-            lt(rewardBundles.coinAmount, 500)
-          )
-        );
-      const staleIds = staleBundles.map(b => b.id);
-      if (staleIds.length === 0) {
-        return res.json({ deleted: 0, message: "Nothing to clean up." });
-      }
-      await db.delete(rewardBundleItems).where(inArray(rewardBundleItems.bundleId, staleIds));
-      await db.delete(userRewards).where(inArray(userRewards.bundleId, staleIds));
-      await db.delete(rewardBundles).where(inArray(rewardBundles.id, staleIds));
-      return res.json({ deleted: staleIds.length, message: `Removed ${staleIds.length} stale welcome bundle(s).` });
-    } catch (err) {
-      console.error("Cleanup welcome bundles error:", err);
-      return res.status(500).json({ message: "Cleanup failed" });
-    }
-  });
-
   app.get("/api/rewards/pending", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;

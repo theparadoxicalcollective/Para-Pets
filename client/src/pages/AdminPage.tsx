@@ -426,63 +426,6 @@ export default function AdminPage({ user }: AdminPageProps) {
   );
 }
 
-function CleanupWelcomeBundlesButton() {
-  const { toast } = useToast();
-  const [lastResult, setLastResult] = useState<{ deleted: number; message: string } | null>(null);
-  const cleanupMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/admin/cleanup-welcome-bundles", {});
-      return res.json();
-    },
-    onSuccess: (data: any) => {
-      setLastResult(data);
-      toast({ title: "Cleanup Complete", description: data.message });
-    },
-    onError: () => {
-      setLastResult(null);
-      toast({ title: "Cleanup Failed", description: "Something went wrong.", variant: "destructive" });
-    },
-  });
-
-  return (
-    <div
-      className="rounded-lg p-4 mt-1"
-      style={{ background: "rgba(20,15,10,0.5)", border: "1px solid rgba(139,94,60,0.25)" }}
-    >
-      <h3 className="font-fantasy text-[#a89878] text-xs tracking-wider mb-2">Maintenance</h3>
-      <button
-        data-testid="button-cleanup-welcome-bundles"
-        onClick={() => cleanupMutation.mutate()}
-        disabled={cleanupMutation.isPending}
-        className="w-full py-2 rounded-md font-fantasy text-xs tracking-wider transition-transform active:scale-95 disabled:opacity-50"
-        style={{
-          background: "rgba(80,40,20,0.5)",
-          border: "1px solid rgba(139,94,60,0.4)",
-          color: "#c8a878",
-          cursor: "pointer",
-        }}
-      >
-        {cleanupMutation.isPending ? "Cleaning up..." : "Remove Stale Welcome Bundles"}
-      </button>
-      {lastResult && (
-        <div
-          data-testid="text-cleanup-result"
-          className="mt-2 rounded px-3 py-2 text-[11px] font-fantasy text-center tracking-wide"
-          style={{
-            background: lastResult.deleted > 0 ? "rgba(34,100,34,0.25)" : "rgba(40,40,20,0.4)",
-            border: `1px solid ${lastResult.deleted > 0 ? "rgba(74,222,128,0.35)" : "rgba(139,94,60,0.3)"}`,
-            color: lastResult.deleted > 0 ? "#4ade80" : "#a89878",
-          }}
-        >
-          {lastResult.deleted > 0 ? "✓ " : ""}{lastResult.message}
-        </div>
-      )}
-      <p className="text-[10px] text-center mt-1.5" style={{ color: "rgba(168,152,120,0.5)" }}>
-        Removes old 100 &amp; 300 coin welcome bundles, keeping only the canonical 500-coin bundle.
-      </p>
-    </div>
-  );
-}
 
 function RewardBundleSection({ members }: { members: MemberUser[] }) {
   const [bundleName, setBundleName] = useState("");
@@ -754,8 +697,6 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
           </button>
         </div>
       </div>
-
-      <CleanupWelcomeBundlesButton />
 
       {showItemPicker && (
         <ItemPickerModal
