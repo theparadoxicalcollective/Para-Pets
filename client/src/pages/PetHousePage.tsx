@@ -1101,19 +1101,39 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
   // Keep fishSwimZone in sync with the latest API data so admin changes take effect immediately.
   useEffect(() => {
     if (!fishInventory.length) return;
-    const zoneByShopId = new Map<string, string | null>(
-      fishInventory.map(f => [f.shopItemId, f.item?.fishSwimZone ?? null])
+    // Build a lookup of the latest item properties from the API, keyed by shopItemId
+    const itemByShopId = new Map(
+      fishInventory.map(f => [f.shopItemId, f.item])
     );
-    setAquariumFish(prev => prev.map(f => ({
-      ...f,
-      fishSwimZone: zoneByShopId.has(f.shopItemId) ? zoneByShopId.get(f.shopItemId)! : f.fishSwimZone,
-    })));
+    const applyFresh = (f: AqFishEntry): AqFishEntry => {
+      const item = itemByShopId.get(f.shopItemId);
+      if (!item) return f;
+      return {
+        ...f,
+        name: item.name ?? f.name,
+        imageUrl: item.imageUrl ?? f.imageUrl,
+        starRarity: item.starRarity ?? f.starRarity,
+        facingDirection: item.facingDirection ?? f.facingDirection,
+        fishSwimZone: item.fishSwimZone ?? f.fishSwimZone,
+      };
+    };
+    setAquariumFish(prev => prev.map(applyFresh));
     setSwimmers(prev => prev.map(s => {
-      const zone = zoneByShopId.has(s.shopItemId) ? zoneByShopId.get(s.shopItemId) ?? null : s.fishSwimZone ?? null;
+      const item = itemByShopId.get(s.shopItemId);
+      if (!item) return s;
+      const zone = item.fishSwimZone ?? s.fishSwimZone ?? null;
       const isBottom = zone === "bottom";
       const yMin = isBottom ? 61 : 22;
       const yMax = isBottom ? 78 : 71;
-      return { ...s, fishSwimZone: zone, y: Math.max(yMin, Math.min(yMax, s.y)) };
+      return {
+        ...s,
+        name: item.name ?? s.name,
+        imageUrl: item.imageUrl ?? s.imageUrl,
+        starRarity: item.starRarity ?? s.starRarity,
+        facingDirection: item.facingDirection ?? s.facingDirection,
+        fishSwimZone: zone,
+        y: Math.max(yMin, Math.min(yMax, s.y)),
+      };
     }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fishInventory]);
