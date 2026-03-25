@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from "react";
-import { Sparkles, Wind } from "lucide-react";
+import { useState, useRef, useEffect, type ReactNode } from "react";
+import { Sparkles, Wind, Heart, Swords, Shield } from "lucide-react";
 import { fireLevelUp } from "@/lib/levelUpEvents";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -64,6 +64,14 @@ interface PetDetailPageProps {
   onUserUpdate: (user: any) => void;
 }
 
+const RARITY: Record<number, { label: string; primary: string; glow: string; heroBg: string; dim: string }> = {
+  1: { label: "Common",    primary: "#94a3b8", glow: "rgba(148,163,184,0.55)", heroBg: "rgba(60,70,80,0.45)",  dim: "rgba(148,163,184,0.18)" },
+  2: { label: "Uncommon",  primary: "#4ade80", glow: "rgba(74,222,128,0.55)",  heroBg: "rgba(15,70,45,0.5)",   dim: "rgba(74,222,128,0.15)"  },
+  3: { label: "Rare",      primary: "#60a5fa", glow: "rgba(96,165,250,0.55)",  heroBg: "rgba(15,45,90,0.5)",   dim: "rgba(96,165,250,0.15)"  },
+  4: { label: "Epic",      primary: "#c084fc", glow: "rgba(192,132,252,0.55)", heroBg: "rgba(55,15,85,0.55)",  dim: "rgba(192,132,252,0.18)" },
+  5: { label: "Legendary", primary: "#f0c040", glow: "rgba(240,192,64,0.55)",  heroBg: "rgba(75,55,5,0.55)",   dim: "rgba(240,192,64,0.18)"  },
+};
+
 export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUserUpdate }: PetDetailPageProps) {
   const [showPowerUpModal, setShowPowerUpModal] = useState(false);
   const showPowerUpModalRef = useRef(false);
@@ -80,7 +88,6 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
   const [accessoryFlash, setAccessoryFlash] = useState<"equip" | "unequip" | null>(null);
   const { toast } = useToast();
 
-  // Keep modal open ref in sync so mutation callbacks can read it reliably
   useEffect(() => { showPowerUpModalRef.current = showPowerUpModal; }, [showPowerUpModal]);
   const queryClient = useQueryClient();
 
@@ -245,14 +252,11 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
     },
   });
 
-  // Items shown in each modal mode (exclude lvl-boost items from Power Up — those live in LVL Up / edibles)
   const powerUpModalItems: PowerUpItem[] = usableItems.filter(i => i.statBoostType !== "lvl");
   const lvlUpModalItems: PowerUpItem[] = specialItems.filter(i => i.specialType === "level");
 
-  // Handler called by PetPowerUpModal when an item is dragged/tapped onto the pet
   const handlePowerUpModalUse = (item: PowerUpItem) => {
     setConfirmItem(item as BagItem);
-    // Fire mutation immediately (no separate confirm dialog — the drag/tap IS the confirmation)
     if (item.type === "special") {
       useSpecialMutation.mutate(item.inventoryId);
     } else {
@@ -261,190 +265,310 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
   };
 
   const petImage = pet.hatchedImageUrl || pet.imageUrl;
+  const rc = RARITY[Math.min(5, Math.max(1, rarity))] || RARITY[1];
+
+  // XP progress
+  const needed = Math.floor(100 + pet.petLevel * 30 + pet.petLevel * pet.petLevel * 5);
+  const current = pet.petLevelPoints || 0;
+  const xpPct = Math.min(100, (current / needed) * 100);
+
+  // Particle positions (stable, not random on render)
+  const particles = [
+    { left: "12%", delay: "0s",    dur: "2.8s" },
+    { left: "28%", delay: "0.6s",  dur: "3.2s" },
+    { left: "48%", delay: "1.1s",  dur: "2.5s" },
+    { left: "66%", delay: "0.3s",  dur: "3.6s" },
+    { left: "82%", delay: "0.9s",  dur: "2.9s" },
+    { left: "94%", delay: "1.5s",  dur: "3.1s" },
+  ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+      <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={onClose} />
+
       <div
-        className="relative w-[90%] max-w-sm rounded-lg overflow-y-auto animate-slide-up"
+        className="relative w-full sm:w-[92%] sm:max-w-sm rounded-t-3xl sm:rounded-2xl overflow-y-auto animate-slide-up"
         style={{
-          background: "linear-gradient(135deg, rgba(20,10,3,0.98) 0%, rgba(45,25,8,0.98) 100%)",
-          border: "1px solid rgba(212,160,23,0.5)",
-          boxShadow: "0 8px 40px rgba(0,0,0,0.8), 0 0 60px rgba(212,160,23,0.1)",
-          maxHeight: "85vh",
+          background: "linear-gradient(160deg, rgba(16,8,2,0.99) 0%, rgba(28,16,6,0.99) 100%)",
+          border: "1px solid rgba(255,255,255,0.07)",
+          borderBottom: "none",
+          boxShadow: `0 -4px 60px rgba(0,0,0,0.9), 0 0 80px ${rc.glow.replace("0.55", "0.12")}`,
+          maxHeight: "90vh",
         }}
       >
-        <button
-          data-testid="button-close-pet-detail"
-          onClick={onClose}
-          className="absolute top-3 right-3 z-20 w-8 h-8 rounded-full flex items-center justify-center"
-          style={{ background: "linear-gradient(135deg, #5c3a1e 0%, #3a2010 100%)", border: "2px solid rgba(212,160,23,0.6)", color: "#f0c040", cursor: "pointer", fontSize: "14px", fontWeight: "bold" }}
+        {/* ── Hero banner ─────────────────────────────────────────── */}
+        <div
+          className="relative overflow-hidden"
+          style={{
+            height: 172,
+            background: `radial-gradient(ellipse 80% 120% at 50% 100%, ${rc.heroBg} 0%, rgba(8,4,0,0.6) 100%)`,
+          }}
         >
-          X
-        </button>
+          {/* Rarity shimmer bar at top */}
+          <div style={{
+            position: "absolute", top: 0, left: 0, right: 0, height: 3,
+            background: `linear-gradient(90deg, transparent, ${rc.primary}, transparent)`,
+            animation: "shimmerBar 3s ease-in-out infinite",
+          }} />
 
-        <div className="p-5">
-          <div className="flex flex-col items-center mb-2 relative">
-            <div
-              className="w-36 h-36 rounded-xl flex items-center justify-center overflow-hidden mb-1"
-              style={{
-                background: "radial-gradient(ellipse at center, rgba(45,122,79,0.25) 0%, rgba(10,40,20,0.5) 100%)",
-                border: "2px solid rgba(127,255,212,0.3)",
-                boxShadow: "0 0 30px rgba(45,122,79,0.3)",
-              }}
-              data-testid="img-pet-detail"
-            >
-              {petImage ? (
-                <img src={petImage} alt={pet.name} className="w-full h-full object-contain" />
-              ) : (
-                <img src={petPawIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain", filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.5))" }} />
-              )}
-            </div>
+          {/* Floating particles */}
+          {particles.map((p, i) => (
+            <div key={i} style={{
+              position: "absolute",
+              bottom: "8%",
+              left: p.left,
+              width: i % 2 === 0 ? 4 : 3,
+              height: i % 2 === 0 ? 4 : 3,
+              borderRadius: "50%",
+              background: rc.primary,
+              boxShadow: `0 0 8px ${rc.glow}`,
+              animation: `heroParticle ${p.dur} ease-in-out infinite`,
+              animationDelay: p.delay,
+              opacity: 0,
+            }} />
+          ))}
 
+          {/* Radial glow behind pet */}
+          <div style={{
+            position: "absolute",
+            left: "50%", top: "54%",
+            transform: "translate(-50%, -50%)",
+            width: 160, height: 160,
+            borderRadius: "50%",
+            background: `radial-gradient(circle, ${rc.glow.replace("0.55", "0.28")} 0%, transparent 70%)`,
+            animation: "glowPulse 3s ease-in-out infinite",
+          }} />
 
-            {pet.eggImageUrl && (
-              <div
-                className="w-8 h-8 rounded-md overflow-hidden -mt-6 ml-24 relative z-10"
-                style={{ border: "1px solid rgba(212,160,23,0.4)", background: "rgba(0,0,0,0.5)" }}
-                data-testid="img-pet-egg-thumb"
-              >
-                <img src={pet.eggImageUrl} alt="Egg" className="w-full h-full object-contain" />
-              </div>
-            )}
-
-            <h3
-              className="font-fantasy text-[#f0c040] text-lg tracking-widest font-semibold mt-1"
-              style={{ textShadow: "0 0 10px rgba(240,192,64,0.3)" }}
-              data-testid="text-pet-detail-name"
-            >
-              {pet.petNickname || pet.name}
-            </h3>
-            {pet.petNickname && (
-              <p className="font-fantasy text-[#a89878] text-[10px] tracking-wider" data-testid="text-pet-species">{pet.name}</p>
-            )}
-            {editingNickname ? (
-              <div className="flex items-center gap-2 mt-1">
-                <input
-                  data-testid="input-pet-nickname"
-                  type="text"
-                  value={nicknameInput}
-                  onChange={(e) => setNicknameInput(e.target.value.slice(0, 20))}
-                  placeholder="Name your pet..."
-                  autoFocus
-                  className="px-2 py-1 rounded-md font-fantasy text-xs outline-none w-32 text-center"
-                  style={{ background: "rgba(242,232,208,0.9)", border: "1px solid #8b5e3c", color: "#2a1a0a" }}
-                  onKeyDown={(e) => { if (e.key === "Enter") nicknameMutation.mutate(nicknameInput); }}
-                />
-                <button
-                  data-testid="button-save-nickname"
-                  onClick={() => nicknameMutation.mutate(nicknameInput)}
-                  disabled={nicknameMutation.isPending}
-                  className="px-2 py-1 rounded-md font-fantasy text-[9px] tracking-wider"
-                  style={{ background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)", border: "1px solid rgba(127,255,212,0.4)", color: "#7fffd4", cursor: "pointer" }}
-                >
-                  {nicknameMutation.isPending ? "..." : "Save"}
-                </button>
-                <button
-                  data-testid="button-cancel-nickname"
-                  onClick={() => { setEditingNickname(false); setNicknameInput(pet.petNickname || ""); }}
-                  className="px-2 py-1 rounded-md font-fantasy text-[9px] tracking-wider"
-                  style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.2)", color: "#a89878", cursor: "pointer" }}
-                >
-                  Cancel
-                </button>
-              </div>
+          {/* Pet portrait */}
+          <div
+            className="absolute"
+            style={{
+              left: "50%", top: "52%",
+              transform: "translate(-50%, -50%)",
+              width: 128, height: 128,
+              borderRadius: "50%",
+              overflow: "hidden",
+              border: `2.5px solid ${rc.primary}`,
+              boxShadow: `0 0 0 4px ${rc.dim}, 0 0 30px ${rc.glow}`,
+              background: "rgba(0,0,0,0.4)",
+              animation: "portraitFloat 4s ease-in-out infinite",
+            }}
+            data-testid="img-pet-detail"
+          >
+            {petImage ? (
+              <img src={petImage} alt={pet.name} className="w-full h-full object-contain" />
             ) : (
-              <button
-                data-testid="button-edit-nickname"
-                onClick={() => { setEditingNickname(true); setNicknameInput(pet.petNickname || ""); }}
-                className="mt-1 px-3 py-1 rounded-md font-fantasy text-[9px] tracking-wider"
-                style={{ background: "rgba(240,192,64,0.1)", border: "1px solid rgba(240,192,64,0.25)", color: "#f0c040", cursor: "pointer" }}
-              >
-                {pet.petNickname ? "Rename" : "Name Your Pet"}
-              </button>
-            )}
-
-            {rarity > 0 && (
-              <div className="flex items-center gap-0.5 mt-1" data-testid="stars-pet-detail">
-                {Array.from({ length: rarity }).map((_, i) => (
-                  <span key={i} className="text-sm" style={{ color: "#f0c040", textShadow: "0 0 6px rgba(240,192,64,0.6)" }}>★</span>
-                ))}
-                {Array.from({ length: 5 - rarity }).map((_, i) => (
-                  <span key={i} className="text-sm" style={{ color: "#3a2a1a" }}>★</span>
-                ))}
-              </div>
+              <img src={petPawIcon} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", opacity: 0.6 }} />
             )}
           </div>
 
+          {/* Rarity badge – top left */}
           <div
-            className="rounded-lg p-4 mb-3"
-            style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.2)" }}
+            className="absolute font-fantasy tracking-widest"
+            style={{
+              top: 14, left: 14,
+              fontSize: 9, fontWeight: 700,
+              color: rc.primary,
+              background: rc.dim,
+              border: `1px solid ${rc.primary}55`,
+              borderRadius: 20,
+              padding: "2px 8px",
+              letterSpacing: "0.14em",
+              textShadow: `0 0 8px ${rc.glow}`,
+            }}
           >
-            <div className="flex items-center justify-between mb-1">
-              <span className="font-fantasy text-[#a89878] text-xs tracking-wider">LEVEL</span>
-              <span className="font-fantasy text-[#f0c040] text-lg font-bold" data-testid="text-pet-level">{pet.petLevel}</span>
+            {rc.label.toUpperCase()}
+          </div>
+
+          {/* Close button */}
+          <button
+            data-testid="button-close-pet-detail"
+            onClick={onClose}
+            className="absolute top-3 right-3 z-20 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm"
+            style={{ background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.7)", cursor: "pointer" }}
+          >
+            ✕
+          </button>
+
+          {/* Egg thumbnail */}
+          {pet.eggImageUrl && (
+            <div
+              className="absolute w-8 h-8 rounded-md overflow-hidden"
+              style={{ bottom: 12, right: 14, border: `1px solid ${rc.primary}66`, background: "rgba(0,0,0,0.5)" }}
+              data-testid="img-pet-egg-thumb"
+            >
+              <img src={pet.eggImageUrl} alt="Egg" className="w-full h-full object-contain" />
             </div>
-            {pet.petLevel < 100 && (() => {
-              const needed = Math.floor(100 + pet.petLevel * 30 + pet.petLevel * pet.petLevel * 5);
-              const current = pet.petLevelPoints || 0;
-              const pct = Math.min(100, (current / needed) * 100);
-              return (
-                <div className="mb-3">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-fantasy text-[#a89878] text-[10px] tracking-wider">NEXT LEVEL</span>
-                    <span className="font-fantasy text-[#f0c040] text-[10px] font-bold" data-testid="text-level-points">
-                      {current} / {needed} pts
+          )}
+        </div>
+
+        {/* ── Name + stars ────────────────────────────────────────── */}
+        <div className="flex flex-col items-center pt-3 pb-1 px-5">
+          <h3
+            className="font-fantasy text-xl tracking-widest font-bold"
+            style={{ color: rc.primary, textShadow: `0 0 16px ${rc.glow}` }}
+            data-testid="text-pet-detail-name"
+          >
+            {pet.petNickname || pet.name}
+          </h3>
+          {pet.petNickname && (
+            <p className="font-fantasy text-[#7a6a50] text-[10px] tracking-wider -mt-0.5" data-testid="text-pet-species">{pet.name}</p>
+          )}
+
+          {rarity > 0 && (
+            <div className="flex items-center gap-0.5 mt-1" data-testid="stars-pet-detail">
+              {Array.from({ length: rarity }).map((_, i) => (
+                <span key={i} style={{ color: rc.primary, textShadow: `0 0 8px ${rc.glow}`, fontSize: 14 }}>★</span>
+              ))}
+              {Array.from({ length: 5 - rarity }).map((_, i) => (
+                <span key={i} style={{ color: "rgba(255,255,255,0.08)", fontSize: 14 }}>★</span>
+              ))}
+            </div>
+          )}
+
+          {/* Nickname editing */}
+          {editingNickname ? (
+            <div className="flex items-center gap-2 mt-2">
+              <input
+                data-testid="input-pet-nickname"
+                type="text"
+                value={nicknameInput}
+                onChange={(e) => setNicknameInput(e.target.value.slice(0, 20))}
+                placeholder="Name your pet..."
+                autoFocus
+                className="px-2 py-1 rounded-md font-fantasy text-xs outline-none w-32 text-center"
+                style={{ background: "rgba(242,232,208,0.9)", border: "1px solid #8b5e3c", color: "#2a1a0a" }}
+                onKeyDown={(e) => { if (e.key === "Enter") nicknameMutation.mutate(nicknameInput); }}
+              />
+              <button
+                data-testid="button-save-nickname"
+                onClick={() => nicknameMutation.mutate(nicknameInput)}
+                disabled={nicknameMutation.isPending}
+                className="px-2 py-1 rounded-md font-fantasy text-[9px] tracking-wider"
+                style={{ background: `linear-gradient(135deg, ${rc.primary}33, ${rc.primary}11)`, border: `1px solid ${rc.primary}55`, color: rc.primary, cursor: "pointer" }}
+              >
+                {nicknameMutation.isPending ? "..." : "Save"}
+              </button>
+              <button
+                data-testid="button-cancel-nickname"
+                onClick={() => { setEditingNickname(false); setNicknameInput(pet.petNickname || ""); }}
+                className="px-2 py-1 rounded-md font-fantasy text-[9px] tracking-wider"
+                style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)", color: "#6a5840", cursor: "pointer" }}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              data-testid="button-edit-nickname"
+              onClick={() => { setEditingNickname(true); setNicknameInput(pet.petNickname || ""); }}
+              className="mt-1.5 px-3 py-1 rounded-full font-fantasy text-[9px] tracking-wider transition-opacity hover:opacity-80"
+              style={{ background: rc.dim, border: `1px solid ${rc.primary}33`, color: rc.primary, cursor: "pointer" }}
+            >
+              {pet.petNickname ? "✎ Rename" : "✎ Give a Name"}
+            </button>
+          )}
+        </div>
+
+        <div className="px-4 pb-5 space-y-3 mt-1">
+
+          {/* ── Level + XP + Stats card ──────────────────────────── */}
+          <div
+            className="rounded-2xl overflow-hidden"
+            style={{ background: "rgba(0,0,0,0.35)", border: `1px solid ${rc.primary}22` }}
+          >
+            {/* Level badge row */}
+            <div
+              className="flex items-center justify-between px-4 py-3"
+              style={{ borderBottom: `1px solid ${rc.primary}18` }}
+            >
+              <div className="flex flex-col">
+                <span className="font-fantasy text-[9px] tracking-widest" style={{ color: "rgba(255,255,255,0.3)" }}>LEVEL</span>
+                <span
+                  className="font-fantasy text-3xl font-bold leading-none"
+                  style={{ color: rc.primary, textShadow: `0 0 20px ${rc.glow}` }}
+                  data-testid="text-pet-level"
+                >
+                  {pet.petLevel}
+                </span>
+              </div>
+
+              {pet.petLevel < 100 && (
+                <div className="flex-1 ml-4">
+                  <div className="flex justify-between mb-1">
+                    <span className="font-fantasy text-[9px] tracking-widest" style={{ color: "rgba(255,255,255,0.3)" }}>NEXT LEVEL</span>
+                    <span className="font-fantasy text-[9px]" style={{ color: rc.primary }} data-testid="text-level-points">
+                      {current.toLocaleString()} / {needed.toLocaleString()}
                     </span>
                   </div>
-                  <div className="w-full rounded-full overflow-hidden" style={{ background: "rgba(0,0,0,0.5)", height: "10px", border: "1px solid rgba(240,192,64,0.2)" }}>
+                  <div className="relative w-full rounded-full overflow-hidden" style={{ height: 7, background: "rgba(0,0,0,0.5)" }}>
                     <div
                       data-testid="bar-level-progress"
                       style={{
-                        width: `${Math.max(pct > 0 ? 3 : 0, pct)}%`,
-                        background: "linear-gradient(90deg, #d4a017, #f0c040, #ffd700)",
+                        width: `${Math.max(xpPct > 0 ? 2 : 0, xpPct)}%`,
+                        background: `linear-gradient(90deg, ${rc.primary}99, ${rc.primary})`,
                         height: "100%",
-                        borderRadius: "4px",
-                        transition: "width 0.5s ease",
-                        boxShadow: pct > 0 ? "0 0 8px rgba(240,192,64,0.5), inset 0 1px 0 rgba(255,255,255,0.3)" : "none",
+                        borderRadius: 4,
+                        transition: "width 0.6s ease",
+                        boxShadow: xpPct > 0 ? `0 0 8px ${rc.glow}` : "none",
                       }}
                     />
                   </div>
                 </div>
-              );
-            })()}
+              )}
+              {pet.petLevel >= 100 && (
+                <span
+                  className="font-fantasy text-xs tracking-widest px-3 py-1 rounded-full"
+                  style={{ background: rc.dim, color: rc.primary, border: `1px solid ${rc.primary}44` }}
+                >
+                  MAX LEVEL
+                </span>
+              )}
+            </div>
 
-            <StatBar label="HP" value={pet.petHealth} displayValue={pet.petHealth.toLocaleString()} color="#4ade80" testId="bar-pet-health" />
-            <StatBar label="ATK" value={pet.petAtk} displayValue={pet.petAtk.toLocaleString()} color="#f87171" testId="bar-pet-atk" />
-            <StatBar label="DEF" value={pet.petDef} displayValue={pet.petDef.toLocaleString()} color="#60a5fa" testId="bar-pet-def" />
+            {/* Stat rows */}
+            <div className="px-4 py-3 space-y-2.5">
+              <StatRow icon={<Heart className="w-3.5 h-3.5" />} label="HP"  value={pet.petHealth} color="#4ade80" testId="bar-pet-health" />
+              <StatRow icon={<Swords className="w-3.5 h-3.5" />} label="ATK" value={pet.petAtk}   color="#f87171" testId="bar-pet-atk"    />
+              <StatRow icon={<Shield className="w-3.5 h-3.5" />} label="DEF" value={pet.petDef}   color="#60a5fa" testId="bar-pet-def"    />
+            </div>
 
-            <div className="mt-3 pt-3" style={{ borderTop: "1px solid rgba(212,160,23,0.15)" }}>
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-fantasy text-[#6a5840] text-[10px] tracking-wider">POWER-UP SLOTS</span>
-                <span className="font-fantasy text-[#a89878] text-[10px]" data-testid="text-items-used">
-                  {showRemainingCount ? `${itemsRemaining} left` : "✦"}
+            {/* Power-up slots */}
+            <div className="px-4 pb-3">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="font-fantasy text-[9px] tracking-widest" style={{ color: "rgba(255,255,255,0.25)" }}>POWER-UP SLOTS</span>
+                <span className="font-fantasy text-[9px]" style={{ color: "rgba(192,132,252,0.7)" }} data-testid="text-items-used">
+                  {showRemainingCount ? `${itemsRemaining} remaining` : "✦ unlimited"}
                 </span>
               </div>
-              <div className="w-full h-1.5 rounded-full mt-1 relative" style={{ background: "rgba(0,0,0,0.4)" }}>
+              <div className="w-full rounded-full overflow-hidden" style={{ height: 5, background: "rgba(0,0,0,0.5)" }}>
                 <div style={{
                   width: totalAllowances > 0 ? `${Math.min(100, (totalUsed / totalAllowances) * 100)}%` : "0%",
-                  background: "linear-gradient(90deg, #c084fc, #c084fc88)",
-                  height: "6px",
-                  borderRadius: "4px",
+                  background: "linear-gradient(90deg, #7c3aed, #c084fc)",
+                  height: "100%",
+                  borderRadius: 4,
                   transition: "width 0.5s ease",
+                  boxShadow: "0 0 6px rgba(192,132,252,0.5)",
                 }} />
               </div>
             </div>
           </div>
 
+          {/* ── Accessories ─────────────────────────────────────── */}
           <div
-            className="rounded-lg p-4 mb-3"
-            style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.2)" }}
+            className="rounded-2xl p-4"
+            style={{ background: "rgba(0,0,0,0.35)", border: `1px solid ${rc.primary}22` }}
             data-testid="section-accessories"
           >
             <div className="relative">
               <div className="flex items-center justify-between mb-3">
-                <span className="font-fantasy text-[#a89878] text-xs tracking-wider">ACCESSORIES</span>
-                <span className="font-fantasy text-[#6a5840] text-[9px] tracking-wider">{equippedAccessories.length}/3 EQUIPPED</span>
+                <span className="font-fantasy text-[10px] tracking-widest" style={{ color: "rgba(255,255,255,0.35)" }}>ACCESSORIES</span>
+                <span
+                  className="font-fantasy text-[9px] tracking-wider px-2 py-0.5 rounded-full"
+                  style={{ background: rc.dim, color: rc.primary, border: `1px solid ${rc.primary}33` }}
+                >
+                  {equippedAccessories.length} / 3
+                </span>
               </div>
               {accessoryFlash && (
                 <div
@@ -452,7 +576,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                   style={{ animation: accessoryFlash === "equip" ? "accEquipFlash 0.7s ease-out forwards" : "accUnequipFlash 0.6s ease-out forwards" }}
                 >
                   {accessoryFlash === "equip"
-                    ? <Sparkles style={{ width: 32, height: 32, color: "#f0c040", filter: "drop-shadow(0 0 8px rgba(240,192,64,0.9))" }} />
+                    ? <Sparkles style={{ width: 32, height: 32, color: rc.primary, filter: `drop-shadow(0 0 8px ${rc.glow})` }} />
                     : <Wind style={{ width: 32, height: 32, color: "#94a3b8", filter: "drop-shadow(0 0 6px rgba(148,163,184,0.7))" }} />}
                 </div>
               )}
@@ -465,53 +589,53 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                       data-testid={`button-unequip-slot-${slot}`}
                       onClick={() => unequipMutation.mutate(acc.accessoryInventoryId)}
                       disabled={unequipMutation.isPending}
-                      className="w-full rounded-md p-2 flex flex-col items-center gap-1 transition-transform active:scale-95 disabled:opacity-60"
+                      className="w-full rounded-xl p-2 flex flex-col items-center gap-1 transition-transform active:scale-95 disabled:opacity-60"
                       style={{
-                        background: "rgba(40,20,5,0.9)",
-                        border: "1px solid rgba(212,160,23,0.55)",
-                        boxShadow: "0 0 8px rgba(212,160,23,0.15)",
+                        background: "rgba(30,15,5,0.8)",
+                        border: `1px solid ${rc.primary}55`,
+                        boxShadow: `0 0 10px ${rc.dim}`,
                         cursor: "pointer",
-                        minHeight: "82px",
+                        minHeight: 82,
                       }}
                     >
-                      <div className="w-10 h-10 rounded flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.35)" }}>
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.35)" }}>
                         {acc.imageUrl ? <img src={acc.imageUrl} alt={acc.name} className="w-full h-full object-contain" /> : <img src={gemCrystalIcon} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />}
                       </div>
-                      <span className="font-fantasy text-[#f0c040] text-[7px] tracking-wider text-center truncate w-full">{acc.name}</span>
+                      <span className="font-fantasy text-[7px] tracking-wider text-center truncate w-full" style={{ color: rc.primary }}>{acc.name}</span>
                       <div className="flex flex-col items-center">
                         {(acc.atkBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#f87171" }}>+{acc.atkBoost} ATK</span>}
                         {(acc.defBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#60a5fa" }}>+{acc.defBoost} DEF</span>}
                         {(acc.healthBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#4ade80" }}>+{acc.healthBoost} HP</span>}
                       </div>
-                      <span className="font-fantasy text-[5px] tracking-wider" style={{ color: "rgba(255,120,120,0.7)" }}>TAP TO REMOVE</span>
+                      <span className="font-fantasy text-[5px] tracking-wider" style={{ color: "rgba(255,100,100,0.6)" }}>TAP TO REMOVE</span>
                     </button>
                   ) : (
                     <button
                       key={slot}
                       data-testid={`button-equip-slot-${slot}`}
                       onClick={() => setShowAccessoryPicker(true)}
-                      className="w-full rounded-md flex flex-col items-center justify-center transition-transform active:scale-95"
+                      className="w-full rounded-xl flex flex-col items-center justify-center transition-all active:scale-95 hover:border-opacity-40"
                       style={{
                         background: "rgba(0,0,0,0.15)",
-                        border: "1px dashed rgba(212,160,23,0.2)",
+                        border: `1px dashed ${rc.primary}22`,
                         cursor: "pointer",
-                        minHeight: "82px",
+                        minHeight: 82,
                       }}
                     >
-                      <span className="text-xl" style={{ color: "#4a3820" }}>+</span>
-                      <span className="font-fantasy text-[7px] tracking-wider" style={{ color: "#4a3820" }}>EMPTY</span>
+                      <span className="text-xl" style={{ color: `${rc.primary}33` }}>+</span>
+                      <span className="font-fantasy text-[7px] tracking-wider" style={{ color: `${rc.primary}33` }}>EMPTY</span>
                     </button>
                   );
                 })}
               </div>
               {showAccessoryPicker && (
-                <div className="mt-3 pt-3" style={{ borderTop: "1px solid rgba(212,160,23,0.15)" }}>
+                <div className="mt-3 pt-3" style={{ borderTop: `1px solid ${rc.primary}18` }}>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="font-fantasy text-[#a89878] text-[10px] tracking-wider">SELECT ACCESSORY</span>
+                    <span className="font-fantasy text-[10px] tracking-wider" style={{ color: "rgba(255,255,255,0.35)" }}>SELECT ACCESSORY</span>
                     <button
                       onClick={() => setShowAccessoryPicker(false)}
-                      className="font-fantasy text-[#a89878] text-[9px]"
-                      style={{ background: "none", border: "none", cursor: "pointer" }}
+                      className="font-fantasy text-[9px]"
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "#6a5840" }}
                     >
                       Cancel
                     </button>
@@ -529,13 +653,13 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                             data-testid={`button-pick-accessory-${item.inventoryId}`}
                             onClick={() => equipMutation.mutate(item.inventoryId)}
                             disabled={equipMutation.isPending}
-                            className="rounded-md p-2 flex flex-col items-center gap-1 transition-transform active:scale-95 disabled:opacity-40"
-                            style={{ background: "rgba(30,15,5,0.8)", border: "1px solid rgba(212,160,23,0.3)", cursor: "pointer" }}
+                            className="rounded-xl p-2 flex flex-col items-center gap-1 transition-transform active:scale-95 disabled:opacity-40"
+                            style={{ background: "rgba(30,15,5,0.8)", border: `1px solid ${rc.primary}33`, cursor: "pointer" }}
                           >
-                            <div className="w-10 h-10 rounded flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.3)" }}>
+                            <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.3)" }}>
                               {item.imageUrl ? <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" /> : <img src={gemCrystalIcon} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />}
                             </div>
-                            <span className="font-fantasy text-[#f0c040] text-[7px] tracking-wider text-center truncate w-full">{item.name}</span>
+                            <span className="font-fantasy text-[7px] tracking-wider text-center truncate w-full" style={{ color: rc.primary }}>{item.name}</span>
                             <div className="flex flex-col items-center">
                               {(item.atkBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#f87171" }}>+{item.atkBoost} ATK</span>}
                               {(item.defBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#60a5fa" }}>+{item.defBoost} DEF</span>}
@@ -551,54 +675,61 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
             </div>
           </div>
 
-          <div className="flex gap-2 mb-2">
+          {/* ── Action buttons ──────────────────────────────────── */}
+          <div className="flex gap-2.5">
             <button
               data-testid="button-power-up"
               onClick={() => { setPowerUpModalMode("powerup"); setShowPowerUpModal(true); }}
               disabled={pet.petLevel >= 100}
-              className="flex-1 py-2.5 rounded-md font-fantasy text-xs tracking-wider transition-transform active:scale-95 disabled:opacity-40"
+              className="flex-1 py-3 rounded-xl font-fantasy text-xs tracking-widest transition-transform active:scale-95 disabled:opacity-40 flex items-center justify-center gap-1.5"
               style={{
-                background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
-                border: "1px solid rgba(127,255,212,0.4)",
-                color: "#7fffd4",
+                background: pet.petLevel >= 100
+                  ? "rgba(20,40,30,0.4)"
+                  : "linear-gradient(135deg, rgba(20,90,60,0.9) 0%, rgba(10,55,35,0.9) 100%)",
+                border: "1px solid rgba(74,222,128,0.4)",
+                color: "#4ade80",
+                boxShadow: pet.petLevel < 100 ? "0 0 20px rgba(74,222,128,0.15), inset 0 1px 0 rgba(255,255,255,0.05)" : "none",
                 cursor: pet.petLevel >= 100 ? "not-allowed" : "pointer",
               }}
             >
+              <Sparkles className="w-3.5 h-3.5" />
               {pet.petLevel >= 100 ? "MAX" : "Power Up"}
             </button>
             <button
               data-testid="button-lvl-up"
               onClick={() => { setPowerUpModalMode("lvlup"); setShowPowerUpModal(true); }}
               disabled={pet.petLevel >= 100}
-              className="flex-1 py-2.5 rounded-md font-fantasy text-xs tracking-wider transition-transform active:scale-95 disabled:opacity-40"
+              className="flex-1 py-3 rounded-xl font-fantasy text-xs tracking-widest transition-transform active:scale-95 disabled:opacity-40 flex items-center justify-center gap-1.5"
               style={{
-                background: "linear-gradient(135deg, rgba(240,192,64,0.3) 0%, rgba(180,140,30,0.3) 100%)",
-                border: "1px solid rgba(240,192,64,0.4)",
-                color: "#f0c040",
+                background: pet.petLevel >= 100
+                  ? "rgba(30,25,5,0.4)"
+                  : `linear-gradient(135deg, ${rc.primary}28 0%, ${rc.primary}12 100%)`,
+                border: `1px solid ${rc.primary}50`,
+                color: rc.primary,
+                boxShadow: pet.petLevel < 100 ? `0 0 20px ${rc.dim}, inset 0 1px 0 rgba(255,255,255,0.05)` : "none",
                 cursor: pet.petLevel >= 100 ? "not-allowed" : "pointer",
               }}
             >
-              {pet.petLevel >= 100 ? "MAX" : "LVL Up"}
+              ⬆ {pet.petLevel >= 100 ? "MAX" : "LVL Up"}
             </button>
           </div>
-          <div className="mb-3">
-            <button
-              data-testid="button-reset-stats"
-              onClick={() => setShowResetConfirm(true)}
-              className="w-full py-2 rounded-md font-fantasy text-[10px] tracking-wider transition-transform active:scale-95"
-              style={{
-                background: "linear-gradient(135deg, rgba(139,0,0,0.4) 0%, rgba(80,0,0,0.4) 100%)",
-                border: "1px solid rgba(200,50,50,0.3)",
-                color: "#ff9999",
-                cursor: "pointer",
-              }}
-            >
-              Reset Stats
-            </button>
-          </div>
+
+          <button
+            data-testid="button-reset-stats"
+            onClick={() => setShowResetConfirm(true)}
+            className="w-full py-2 rounded-xl font-fantasy text-[9px] tracking-widest transition-transform active:scale-95"
+            style={{
+              background: "rgba(80,5,5,0.25)",
+              border: "1px solid rgba(200,50,50,0.2)",
+              color: "rgba(255,120,120,0.6)",
+              cursor: "pointer",
+            }}
+          >
+            Reset Stats
+          </button>
         </div>
 
-
+        {/* ── Confirm use item ────────────────────────────────────── */}
         {confirmItem && (() => {
           const isSpecial = confirmItem.type === "special";
           const isPending = isSpecial ? useSpecialMutation.isPending : powerUpMutation.isPending;
@@ -608,80 +739,81 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
           const effectColor = isSpecial ? "#f0c040" : (confirmItem.statBoostType === "health" ? "#4ade80" : confirmItem.statBoostType === "atk" ? "#f87171" : confirmItem.statBoostType === "def" ? "#60a5fa" : "#c084fc");
           const effectBg = isSpecial ? "rgba(240,192,64,0.2)" : (confirmItem.statBoostType === "health" ? "rgba(74,222,128,0.2)" : confirmItem.statBoostType === "atk" ? "rgba(248,113,113,0.2)" : confirmItem.statBoostType === "def" ? "rgba(96,165,250,0.2)" : "rgba(192,132,252,0.2)");
           return (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
-            <div className="absolute inset-0 bg-black/60" onClick={() => setConfirmItem(null)} />
-            <div
-              className="relative w-[80%] max-w-xs rounded-lg p-5 animate-slide-up"
-              style={{
-                background: "linear-gradient(135deg, rgba(10,40,25,0.97) 0%, rgba(20,60,35,0.97) 100%)",
-                border: "1px solid rgba(127,255,212,0.5)",
-                boxShadow: "0 8px 40px rgba(0,0,0,0.8), 0 0 30px rgba(127,255,212,0.15)",
-              }}
-            >
-              <h4 className="font-fantasy text-[#7fffd4] text-sm tracking-wider text-center mb-3" data-testid="text-confirm-use-title">
-                {isSpecial ? "Use Special Item?" : "Use Item?"}
-              </h4>
-              <div className="flex flex-col items-center gap-2 mb-4">
-                <div className="w-14 h-14 rounded-md flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.3)" }}>
-                  {confirmItem.imageUrl ? (
-                    <img src={confirmItem.imageUrl} alt={confirmItem.name} className="w-full h-full object-contain" />
-                  ) : isSpecial ? (
-                    <Sparkles className="w-7 h-7" style={{ color: "#f0c040" }} />
-                  ) : (
-                    <img src={powerupBagIcon} alt="" style={{ width: 32, height: 32, objectFit: "contain" }} />
+            <div className="fixed inset-0 z-[60] flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+              <div className="absolute inset-0 bg-black/60" onClick={() => setConfirmItem(null)} />
+              <div
+                className="relative w-[80%] max-w-xs rounded-2xl p-5 animate-slide-up"
+                style={{
+                  background: "linear-gradient(135deg, rgba(10,40,25,0.97) 0%, rgba(20,60,35,0.97) 100%)",
+                  border: "1px solid rgba(127,255,212,0.5)",
+                  boxShadow: "0 8px 40px rgba(0,0,0,0.8), 0 0 30px rgba(127,255,212,0.15)",
+                }}
+              >
+                <h4 className="font-fantasy text-[#7fffd4] text-sm tracking-wider text-center mb-3" data-testid="text-confirm-use-title">
+                  {isSpecial ? "Use Special Item?" : "Use Item?"}
+                </h4>
+                <div className="flex flex-col items-center gap-2 mb-4">
+                  <div className="w-14 h-14 rounded-xl flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.3)" }}>
+                    {confirmItem.imageUrl ? (
+                      <img src={confirmItem.imageUrl} alt={confirmItem.name} className="w-full h-full object-contain" />
+                    ) : isSpecial ? (
+                      <Sparkles className="w-7 h-7" style={{ color: "#f0c040" }} />
+                    ) : (
+                      <img src={powerupBagIcon} alt="" style={{ width: 32, height: 32, objectFit: "contain" }} />
+                    )}
+                  </div>
+                  <p className="font-fantasy text-[#f0c040] text-xs font-semibold">{confirmItem.name}</p>
+                  <span
+                    className="font-fantasy text-xs tracking-wider px-3 py-1 rounded-full"
+                    style={{ background: effectBg, color: effectColor, border: `1px solid ${effectColor}44` }}
+                  >
+                    {effectLabel}
+                  </span>
+                  {isSpecial && (
+                    <p className="font-fantasy text-[#f0c040] text-[9px] text-center">
+                      Does NOT count toward power-up limit
+                    </p>
                   )}
-                </div>
-                <p className="font-fantasy text-[#f0c040] text-xs font-semibold">{confirmItem.name}</p>
-                <span
-                  className="font-fantasy text-xs tracking-wider px-3 py-1 rounded-full"
-                  style={{ background: effectBg, color: effectColor, border: `1px solid ${effectColor}44` }}
-                >
-                  {effectLabel}
-                </span>
-                {isSpecial && (
-                  <p className="font-fantasy text-[#f0c040] text-[9px] text-center">
-                    Does NOT count toward power-up limit
+                  <p className="font-fantasy text-[#a89878] text-[10px] text-center">
+                    This item will be consumed and cannot be undone.
                   </p>
-                )}
-                <p className="font-fantasy text-[#a89878] text-[10px] text-center">
-                  This item will be consumed and cannot be undone.
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setConfirmItem(null)}
-                  className="flex-1 py-2 rounded-md font-fantasy text-xs tracking-wider"
-                  style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#ccc", cursor: "pointer" }}
-                  data-testid="button-cancel-use-item"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => isSpecial ? useSpecialMutation.mutate(confirmItem.inventoryId) : powerUpMutation.mutate(confirmItem.inventoryId)}
-                  disabled={isPending}
-                  className="flex-1 py-2 rounded-md font-fantasy text-xs tracking-wider disabled:opacity-50"
-                  style={{
-                    background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
-                    border: "1px solid rgba(127,255,212,0.5)",
-                    color: "#7fffd4",
-                    cursor: "pointer",
-                    boxShadow: "0 0 15px rgba(127,255,212,0.2)",
-                  }}
-                  data-testid="button-confirm-use-item"
-                >
-                  {isPending ? "Using..." : "Use Item"}
-                </button>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setConfirmItem(null)}
+                    className="flex-1 py-2 rounded-xl font-fantasy text-xs tracking-wider"
+                    style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#ccc", cursor: "pointer" }}
+                    data-testid="button-cancel-use-item"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => isSpecial ? useSpecialMutation.mutate(confirmItem.inventoryId) : powerUpMutation.mutate(confirmItem.inventoryId)}
+                    disabled={isPending}
+                    className="flex-1 py-2 rounded-xl font-fantasy text-xs tracking-wider disabled:opacity-50"
+                    style={{
+                      background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
+                      border: "1px solid rgba(127,255,212,0.5)",
+                      color: "#7fffd4",
+                      cursor: "pointer",
+                      boxShadow: "0 0 15px rgba(127,255,212,0.2)",
+                    }}
+                    data-testid="button-confirm-use-item"
+                  >
+                    {isPending ? "Using..." : "Use Item"}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
           );
         })()}
 
+        {/* ── Reset confirm ───────────────────────────────────────── */}
         {showResetConfirm && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
             <div className="absolute inset-0 bg-black/60" onClick={() => setShowResetConfirm(false)} />
             <div
-              className="relative w-[80%] max-w-xs rounded-lg p-5 animate-slide-up"
+              className="relative w-[80%] max-w-xs rounded-2xl p-5 animate-slide-up"
               style={{
                 background: "linear-gradient(135deg, rgba(60,10,10,0.97) 0%, rgba(30,5,5,0.97) 100%)",
                 border: "1px solid rgba(200,50,50,0.5)",
@@ -711,7 +843,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowResetConfirm(false)}
-                  className="flex-1 py-2 rounded-md font-fantasy text-xs tracking-wider"
+                  className="flex-1 py-2 rounded-xl font-fantasy text-xs tracking-wider"
                   style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#ccc", cursor: "pointer" }}
                   data-testid="button-cancel-reset"
                 >
@@ -720,7 +852,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                 <button
                   onClick={() => resetMutation.mutate()}
                   disabled={resetMutation.isPending || userCoins < 300}
-                  className="flex-1 py-2 rounded-md font-fantasy text-xs tracking-wider disabled:opacity-40"
+                  className="flex-1 py-2 rounded-xl font-fantasy text-xs tracking-wider disabled:opacity-40"
                   style={{ background: "linear-gradient(135deg, #8b0000 0%, #500000 100%)", border: "1px solid rgba(200,50,50,0.5)", color: "#ff6666", cursor: userCoins < 300 ? "not-allowed" : "pointer" }}
                   data-testid="button-confirm-reset"
                 >
@@ -733,40 +865,57 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
       </div>
 
       <style>{`
+        @keyframes heroParticle {
+          0%   { transform: translateY(0px)   scale(1);   opacity: 0; }
+          15%  { opacity: 0.8; }
+          80%  { transform: translateY(-80px) scale(0.5); opacity: 0.4; }
+          100% { transform: translateY(-100px) scale(0.2); opacity: 0; }
+        }
+        @keyframes glowPulse {
+          0%, 100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
+          50%       { opacity: 1;   transform: translate(-50%, -50%) scale(1.15); }
+        }
+        @keyframes portraitFloat {
+          0%, 100% { transform: translate(-50%, -50%) translateY(0px); }
+          50%       { transform: translate(-50%, -50%) translateY(-5px); }
+        }
+        @keyframes shimmerBar {
+          0%   { opacity: 0.4; background-position: -200% center; }
+          50%  { opacity: 1; }
+          100% { opacity: 0.4; background-position: 200% center; }
+        }
         @keyframes powerUpFlash {
-          0% { opacity: 1; }
-          70% { opacity: 1; }
-          100% { opacity: 0; }
+          0% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; }
         }
         @keyframes powerUpRise {
-          0% { transform: translateY(20px) scale(0.8); opacity: 0; }
-          15% { transform: translateY(0px) scale(1.3); opacity: 1; }
-          40% { transform: translateY(-8px) scale(1.05); opacity: 1; }
+          0%   { transform: translateY(20px) scale(0.8); opacity: 0; }
+          15%  { transform: translateY(0px) scale(1.3); opacity: 1; }
+          40%  { transform: translateY(-8px) scale(1.05); opacity: 1; }
           100% { transform: translateY(-35px) scale(0.9); opacity: 0; }
         }
         @keyframes powerUpSpin {
-          0% { transform: rotate(0deg) scale(0.3); }
-          40% { transform: rotate(200deg) scale(1.4); }
+          0%   { transform: rotate(0deg) scale(0.3); }
+          40%  { transform: rotate(200deg) scale(1.4); }
           100% { transform: rotate(360deg) scale(1); }
         }
         @keyframes powerUpPulse {
-          0% { opacity: 0; transform: scale(0.5); }
-          30% { opacity: 1; transform: scale(1); }
+          0%   { opacity: 0; transform: scale(0.5); }
+          30%  { opacity: 1; transform: scale(1); }
           100% { opacity: 0; transform: scale(1.5); }
         }
         @keyframes powerUpParticle {
-          0% { opacity: 1; transform: rotate(var(--angle, 0deg)) translateY(-10px) scale(1); }
+          0%   { opacity: 1; transform: rotate(var(--angle, 0deg)) translateY(-10px) scale(1); }
           100% { opacity: 0; transform: rotate(var(--angle, 0deg)) translateY(-60px) scale(0.3); }
         }
         @keyframes accEquipFlash {
-          0% { opacity: 0; transform: scale(0.3); }
-          25% { opacity: 1; transform: scale(1.5); }
-          70% { opacity: 1; transform: scale(1.1); }
+          0%   { opacity: 0; transform: scale(0.3); }
+          25%  { opacity: 1; transform: scale(1.5); }
+          70%  { opacity: 1; transform: scale(1.1); }
           100% { opacity: 0; transform: scale(0.9); }
         }
         @keyframes accUnequipFlash {
-          0% { opacity: 1; transform: scale(1); }
-          40% { opacity: 0.7; transform: scale(1.3); }
+          0%   { opacity: 1; transform: scale(1); }
+          40%  { opacity: 0.7; transform: scale(1.3); }
           100% { opacity: 0; transform: scale(1.6); }
         }
       `}</style>
@@ -800,25 +949,31 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
   );
 }
 
-function StatBar({ label, value, displayValue, color, testId }: { label: string; value: number; displayValue: string; color: string; testId: string }) {
+function StatRow({ icon, label, value, color, testId }: { icon: ReactNode; label: string; value: number; color: string; testId: string }) {
   const maxDisplay = Math.max(value, label === "HP" ? 5000 : 500);
+  const pct = Math.min(100, (value / maxDisplay) * 100);
   return (
-    <div className="mb-2">
-      <div className="flex items-center justify-between mb-0.5">
-        <span className="font-fantasy text-[10px] tracking-wider" style={{ color }}>{label}</span>
-        <span className="font-fantasy text-[#e0d0b0] text-[10px]" data-testid={testId}>{displayValue}</span>
+    <div className="flex items-center gap-2.5">
+      <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center" style={{ color }}>
+        {icon}
       </div>
-      <div className="w-full h-2 rounded-full" style={{ background: "rgba(0,0,0,0.4)" }}>
-        <div
-          style={{
-            width: `${Math.min(100, (value / maxDisplay) * 100)}%`,
-            background: `linear-gradient(90deg, ${color}, ${color}88)`,
+      <div className="flex-1">
+        <div className="flex items-center justify-between mb-1">
+          <span className="font-fantasy text-[9px] tracking-widest" style={{ color: `${color}aa` }}>{label}</span>
+          <span className="font-fantasy text-[11px] font-semibold" style={{ color }} data-testid={testId}>
+            {value.toLocaleString()}
+          </span>
+        </div>
+        <div className="w-full rounded-full overflow-hidden" style={{ height: 5, background: "rgba(0,0,0,0.45)" }}>
+          <div style={{
+            width: `${Math.max(pct > 0 ? 2 : 0, pct)}%`,
+            background: `linear-gradient(90deg, ${color}88, ${color})`,
             height: "100%",
-            borderRadius: "4px",
-            transition: "width 0.5s ease",
-            boxShadow: `0 0 6px ${color}40`,
-          }}
-        />
+            borderRadius: 4,
+            transition: "width 0.6s ease",
+            boxShadow: pct > 0 ? `0 0 6px ${color}55` : "none",
+          }} />
+        </div>
       </div>
     </div>
   );
