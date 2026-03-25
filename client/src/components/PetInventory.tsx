@@ -7,7 +7,18 @@ import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import eggMagicIcon from "@assets/generated_images/icon_egg_magic.png";
 import powerupBagIcon from "@assets/generated_images/icon_powerup_bag.png";
 import bagIconImg from "@assets/icon_bag.png";
+import forestBg from "@assets/generated_images/powerup_forest_bg.png";
 import PetDetailPage from "./PetDetailPage";
+
+function getRarityStyle(rarity: number | null): { border: string; glow: string; bg: string; starColor: string } {
+  switch (rarity) {
+    case 5: return { border: "2px solid rgba(56,189,248,0.85)", glow: "0 0 22px rgba(56,189,248,0.35)", bg: "linear-gradient(135deg, rgba(5,25,50,0.97) 0%, rgba(8,35,65,0.97) 100%)", starColor: "#38bdf8" };
+    case 4: return { border: "2px solid rgba(192,132,252,0.8)",  glow: "0 0 18px rgba(192,132,252,0.3)", bg: "linear-gradient(135deg, rgba(25,10,45,0.97) 0%, rgba(40,15,65,0.97) 100%)", starColor: "#c084fc" };
+    case 3: return { border: "2px solid rgba(240,192,64,0.8)",   glow: "0 0 16px rgba(240,192,64,0.25)", bg: "linear-gradient(135deg, rgba(40,25,5,0.97) 0%, rgba(60,35,5,0.97) 100%)",  starColor: "#f0c040" };
+    case 2: return { border: "2px solid rgba(180,190,210,0.6)",  glow: "0 0 10px rgba(180,190,210,0.15)", bg: "linear-gradient(135deg, rgba(25,28,38,0.97) 0%, rgba(35,38,50,0.97) 100%)", starColor: "#c0c8d8" };
+    default: return { border: "1px solid rgba(212,160,23,0.35)", glow: "none", bg: "linear-gradient(135deg, rgba(30,15,5,0.97) 0%, rgba(50,30,10,0.97) 100%)", starColor: "#a07830" };
+  }
+}
 
 interface InventoryItem {
   inventoryId: string;
@@ -96,50 +107,39 @@ export default function PetInventory({ user, onClose, onUserUpdate }: PetInvento
   return (
     <>
       <div className="fixed inset-0 z-40 flex flex-col" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
-        <div className="absolute inset-0 bg-black/85 backdrop-blur-sm" onClick={onClose} />
+        {/* Background */}
+        <div className="absolute inset-0" onClick={onClose}>
+          <img src={forestBg} alt="" className="w-full h-full object-cover" style={{ objectPosition: "center top" }} />
+          <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.78)" }} />
+        </div>
+
         <div className="relative z-10 flex flex-col h-full overflow-hidden">
-          <div className="flex items-center justify-between px-4 pt-10 pb-3">
-            <div className="flex items-center gap-3">
-              <div
-                className="w-10 h-10 rounded-lg flex items-center justify-center"
-                style={{
-                  background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
-                  border: "1px solid rgba(127,255,212,0.4)",
-                }}
-              >
-                <img src={petPawIcon} alt="" style={{ width: 22, height: 22, objectFit: "contain" }} />
-              </div>
-              <div>
-                <h3
-                  className="font-fantasy text-[#f0c040] text-base tracking-widest font-semibold"
-                  style={{ textShadow: "0 0 10px rgba(240,192,64,0.3)" }}
+          {/* Header */}
+          <div className="px-4 pt-10 pb-0">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-11 h-11 rounded-xl flex items-center justify-center"
+                  style={{
+                    background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
+                    border: "1.5px solid rgba(127,255,212,0.5)",
+                    boxShadow: "0 0 12px rgba(127,255,212,0.15)",
+                  }}
                 >
-                  {showBag ? "Adventurer's Bag" : "Pet Companions"}
-                </h3>
-                <p className="font-fantasy text-[#a89878] text-[10px] tracking-wider">
-                  {showBag ? `${bagItems.length} ${bagItems.length === 1 ? "item" : "items"}` : `${pets.length} ${pets.length === 1 ? "pet" : "pets"}`}
-                </p>
+                  <img src={showBag ? bagIconImg : petPawIcon} alt="" style={{ width: 24, height: 24, objectFit: "contain" }} />
+                </div>
+                <div>
+                  <h3
+                    className="font-fantasy text-[#f0c040] text-lg tracking-widest font-semibold"
+                    style={{ textShadow: "0 0 14px rgba(240,192,64,0.45)" }}
+                  >
+                    {showBag ? "Adventurer's Bag" : "Pet Companions"}
+                  </h3>
+                  <p className="font-fantasy text-[#a89878] text-xs tracking-wider">
+                    {showBag ? `${bagItems.length} ${bagItems.length === 1 ? "item" : "items"}` : `${pets.length} ${pets.length === 1 ? "pet" : "pets"}`}
+                  </p>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                data-testid="button-toggle-bag"
-                onClick={() => setShowBag(!showBag)}
-                className="w-10 h-10 rounded-lg flex items-center justify-center transition-transform active:scale-90"
-                style={{
-                  background: showBag
-                    ? "linear-gradient(135deg, #5c3a1e 0%, #8b5e3c 100%)"
-                    : "linear-gradient(135deg, rgba(30,15,5,0.85) 0%, rgba(60,35,10,0.85) 100%)",
-                  border: showBag ? "2px solid rgba(212,160,23,0.6)" : "1px solid rgba(212,160,23,0.3)",
-                  cursor: "pointer",
-                }}
-              >
-                {showBag ? (
-                  <img src={petPawIcon} alt="" style={{ width: 20, height: 20, objectFit: "contain" }} />
-                ) : (
-                  <img src={bagIconImg} alt="Bag" className="w-7 h-7 object-contain" />
-                )}
-              </button>
               <button
                 data-testid="button-close-inventory"
                 onClick={onClose}
@@ -153,7 +153,41 @@ export default function PetInventory({ user, onClose, onUserUpdate }: PetInvento
                   fontWeight: "bold",
                 }}
               >
-                X
+                ✕
+              </button>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex gap-1 mb-3" style={{ borderBottom: "1px solid rgba(212,160,23,0.2)" }}>
+              <button
+                data-testid="button-tab-pets"
+                onClick={() => setShowBag(false)}
+                className="flex-1 py-2 flex items-center justify-center gap-2 font-fantasy text-sm tracking-wider transition-all"
+                style={{
+                  background: !showBag ? "linear-gradient(180deg, rgba(45,106,79,0.4) 0%, rgba(26,74,46,0.2) 100%)" : "transparent",
+                  borderBottom: !showBag ? "2px solid #4ade80" : "2px solid transparent",
+                  color: !showBag ? "#4ade80" : "#6a8a78",
+                  cursor: "pointer",
+                  marginBottom: "-1px",
+                }}
+              >
+                <img src={petPawIcon} alt="" style={{ width: 16, height: 16, objectFit: "contain" }} />
+                Pets
+              </button>
+              <button
+                data-testid="button-tab-bag"
+                onClick={() => setShowBag(true)}
+                className="flex-1 py-2 flex items-center justify-center gap-2 font-fantasy text-sm tracking-wider transition-all"
+                style={{
+                  background: showBag ? "linear-gradient(180deg, rgba(92,58,30,0.4) 0%, rgba(60,35,10,0.2) 100%)" : "transparent",
+                  borderBottom: showBag ? "2px solid #f0c040" : "2px solid transparent",
+                  color: showBag ? "#f0c040" : "#6a5840",
+                  cursor: "pointer",
+                  marginBottom: "-1px",
+                }}
+              >
+                <img src={bagIconImg} alt="" style={{ width: 16, height: 16, objectFit: "contain" }} />
+                Bag
               </button>
             </div>
           </div>
@@ -267,8 +301,8 @@ function HatchProgressBar({ hatchStartedAt, hatchTime }: { hatchStartedAt: strin
         />
       </div>
       <p
-        className="font-fantasy text-[8px] tracking-wider text-center mt-1"
-        style={{ color: isReady ? "#4ade80" : "#d4a017" }}
+        className="font-fantasy text-[11px] tracking-wider text-center mt-1 font-bold"
+        style={{ color: isReady ? "#4ade80" : "#d4a017", textShadow: isReady ? "0 0 8px rgba(74,222,128,0.6)" : "none" }}
         data-testid="text-hatch-time"
       >
         {isReady ? "Tap to hatch!" : timeLeft}
@@ -348,44 +382,46 @@ function PetView({
           }
         };
 
+        const rs = getRarityStyle(pet.rarity ?? null);
+
         return (
           <div
             key={pet.inventoryId}
             data-testid={`card-pet-${pet.shopItemId}`}
-            className="rounded-lg overflow-hidden"
+            className="rounded-xl overflow-hidden"
             style={{
               background: isActive
-                ? "linear-gradient(135deg, rgba(45,106,79,0.6) 0%, rgba(26,74,46,0.6) 100%)"
-                : "linear-gradient(135deg, rgba(30,15,5,0.95) 0%, rgba(50,30,10,0.95) 100%)",
-              border: isActive ? "2px solid rgba(127,255,212,0.6)" : "1px solid rgba(212,160,23,0.3)",
-              boxShadow: isActive ? "0 0 20px rgba(127,255,212,0.2)" : "none",
+                ? "linear-gradient(135deg, rgba(20,60,40,0.98) 0%, rgba(10,40,25,0.98) 100%)"
+                : rs.bg,
+              border: isActive ? "2px solid rgba(74,222,128,0.8)" : rs.border,
+              boxShadow: isActive ? "0 0 24px rgba(74,222,128,0.3)" : rs.glow,
             }}
           >
             <div className="p-3 flex flex-col items-center gap-2">
               <div
-                className="w-full aspect-square rounded-md flex items-center justify-center cursor-pointer relative"
-                style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.15)" }}
+                className="w-full aspect-square rounded-lg flex items-center justify-center cursor-pointer relative"
+                style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.06)" }}
                 onClick={handleClick}
               >
                 {displayImage ? (
-                  <img src={displayImage} alt={pet.name} className="w-full h-full object-contain rounded-md" />
+                  <img src={displayImage} alt={pet.name} className="w-full h-full object-contain rounded-lg" />
                 ) : (
                   <img src={isEgg ? eggMagicIcon : petPawIcon} alt="" style={{ width: 52, height: 52, objectFit: "contain" }} />
                 )}
                 {isEgg && (
                   <div
-                    className="absolute top-1 right-1 px-1.5 py-0.5 rounded-full"
-                    style={{ background: "rgba(0,0,0,0.7)", border: "1px solid rgba(240,192,64,0.3)" }}
+                    className="absolute top-1.5 right-1.5 px-2 py-0.5 rounded-full"
+                    style={{ background: "rgba(0,0,0,0.8)", border: "1px solid rgba(240,192,64,0.4)" }}
                   >
-                    <span className="font-fantasy text-[7px] text-[#f0c040] tracking-wider">EGG</span>
+                    <span className="font-fantasy text-[10px] text-[#f0c040] tracking-wider">EGG</span>
                   </div>
                 )}
                 {hatchReady && hatchingId !== pet.inventoryId && (
                   <div
-                    className="absolute inset-0 rounded-md flex items-center justify-center animate-pulse"
-                    style={{ background: "rgba(74,222,128,0.15)", border: "2px solid rgba(74,222,128,0.4)" }}
+                    className="absolute inset-0 rounded-lg flex items-center justify-center animate-pulse"
+                    style={{ background: "rgba(74,222,128,0.15)", border: "2px solid rgba(74,222,128,0.5)" }}
                   >
-                    <span className="font-fantasy text-[#4ade80] text-xs tracking-wider font-bold" style={{ textShadow: "0 0 8px rgba(74,222,128,0.6)" }}>
+                    <span className="font-fantasy text-[#4ade80] text-sm tracking-wider font-bold" style={{ textShadow: "0 0 10px rgba(74,222,128,0.8)" }}>
                       READY!
                     </span>
                   </div>
@@ -444,19 +480,20 @@ function PetView({
               </div>
 
               <p
-                className="font-fantasy text-[#f0c040] text-xs font-semibold text-center truncate w-full"
+                className="font-fantasy text-[#f0c040] text-sm font-semibold text-center truncate w-full"
+                style={{ textShadow: "0 0 8px rgba(240,192,64,0.3)" }}
                 data-testid={`text-pet-name-${pet.shopItemId}`}
               >
                 {pet.petNickname || pet.name}
               </p>
               {pet.petNickname && (
-                <p className="font-fantasy text-[#a89878] text-[8px] tracking-wider text-center truncate w-full">{pet.name}</p>
+                <p className="font-fantasy text-[#a89878] text-[11px] tracking-wider text-center truncate w-full -mt-1">{pet.name}</p>
               )}
 
               {pet.rarity && (
                 <div className="flex items-center gap-0.5">
                   {Array.from({ length: pet.rarity }).map((_, i) => (
-                    <span key={i} className="text-[10px]" style={{ color: "#f0c040", textShadow: "0 0 4px rgba(240,192,64,0.6)" }}>★</span>
+                    <span key={i} className="text-xs" style={{ color: rs.starColor, textShadow: `0 0 6px ${rs.starColor}80` }}>★</span>
                   ))}
                 </div>
               )}
@@ -464,20 +501,18 @@ function PetView({
               {isEgg && pet.hatchStartedAt && pet.hatchTime ? (
                 <HatchProgressBar hatchStartedAt={pet.hatchStartedAt} hatchTime={pet.hatchTime} />
               ) : !isEgg ? (
-                <div className="w-full space-y-0.5">
-                  <div className="flex items-center justify-between">
-                    <span className="font-fantasy text-[8px] text-[#a89878] tracking-wider">LV {pet.petLevel}</span>
-                    <span className="font-fantasy text-[8px] text-[#4ade80] tracking-wider">HP {pet.petHealth}</span>
-                  </div>
+                <div className="w-full flex items-center justify-center gap-2">
+                  <span className="font-fantasy text-[11px] font-bold px-2 py-0.5 rounded-md" style={{ background: "rgba(192,132,252,0.15)", color: "#c084fc", border: "1px solid rgba(192,132,252,0.3)" }}>LV {pet.petLevel}</span>
+                  <span className="font-fantasy text-[11px] font-bold px-2 py-0.5 rounded-md" style={{ background: "rgba(74,222,128,0.15)", color: "#4ade80", border: "1px solid rgba(74,222,128,0.3)" }}>HP {pet.petHealth}</span>
                 </div>
               ) : null}
 
               {isActive && (
                 <span
-                  className="font-fantasy text-[9px] tracking-wider px-2 py-0.5 rounded-full"
-                  style={{ background: "rgba(127,255,212,0.2)", color: "#7fffd4", border: "1px solid rgba(127,255,212,0.3)" }}
+                  className="font-fantasy text-xs tracking-wider px-3 py-0.5 rounded-full"
+                  style={{ background: "rgba(74,222,128,0.2)", color: "#4ade80", border: "1px solid rgba(74,222,128,0.4)", textShadow: "0 0 6px rgba(74,222,128,0.5)" }}
                 >
-                  ACTIVE
+                  ✦ ACTIVE ✦
                 </span>
               )}
 
@@ -485,14 +520,14 @@ function PetView({
                 data-testid={`button-select-pet-${pet.shopItemId}`}
                 onClick={() => onToggle(pet.shopItemId)}
                 disabled={isPending}
-                className="w-full py-1.5 rounded font-fantasy text-[10px] tracking-wider transition-transform active:scale-95 disabled:opacity-50"
+                className="w-full py-2 rounded-lg font-fantasy text-xs tracking-wider transition-transform active:scale-95 disabled:opacity-50"
                 style={{
                   background: isActive
                     ? "linear-gradient(135deg, rgba(139,0,0,0.5) 0%, rgba(80,0,0,0.5) 100%)"
                     : "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
                   border: isActive
-                    ? "1px solid rgba(200,50,50,0.4)"
-                    : "1px solid rgba(127,255,212,0.4)",
+                    ? "1px solid rgba(200,50,50,0.5)"
+                    : "1px solid rgba(127,255,212,0.5)",
                   color: isActive ? "#ff9999" : "#7fffd4",
                   cursor: "pointer",
                 }}
@@ -601,68 +636,72 @@ function BagView({ items }: { items: InventoryItem[] }) {
   return (
     <>
       <div className="grid grid-cols-2 gap-3">
-        {displayItems.map(({ item, count }) => (
-          <div
-            key={item.inventoryId}
-            data-testid={`card-bag-item-${item.shopItemId}`}
-            className="rounded-lg overflow-hidden relative"
-            style={{
-              background: "linear-gradient(135deg, rgba(30,15,5,0.95) 0%, rgba(50,30,10,0.95) 100%)",
-              border: "1px solid rgba(212,160,23,0.3)",
-              cursor: "pointer",
-            }}
-            onClick={() => { setSelectedItem(item); setSelectedStackCount(count); setConfirmDelete(false); }}
-          >
-            <div className="p-3 flex flex-col items-center gap-2">
-              <div className="relative w-full">
-                <div
-                  className="w-full aspect-square rounded-md flex items-center justify-center"
-                  style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.15)" }}
-                >
-                  {item.imageUrl ? (
-                    <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain rounded-md" />
-                  ) : (
-                    <img src={powerupBagIcon} alt="" style={{ width: 44, height: 44, objectFit: "contain" }} />
+        {displayItems.map(({ item, count }) => {
+          const typeColor = typeColors[item.type] || "#f0c040";
+          return (
+            <div
+              key={item.inventoryId}
+              data-testid={`card-bag-item-${item.shopItemId}`}
+              className="rounded-xl overflow-hidden relative"
+              style={{
+                background: "linear-gradient(135deg, rgba(28,14,4,0.97) 0%, rgba(48,28,8,0.97) 100%)",
+                border: `1px solid ${typeColor}55`,
+                boxShadow: `0 0 10px ${typeColor}18`,
+                cursor: "pointer",
+              }}
+              onClick={() => { setSelectedItem(item); setSelectedStackCount(count); setConfirmDelete(false); }}
+            >
+              <div className="p-3 flex flex-col items-center gap-2">
+                <div className="relative w-full">
+                  <div
+                    className="w-full aspect-square rounded-lg flex items-center justify-center"
+                    style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.05)" }}
+                  >
+                    {item.imageUrl ? (
+                      <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain rounded-lg" />
+                    ) : (
+                      <img src={powerupBagIcon} alt="" style={{ width: 44, height: 44, objectFit: "contain" }} />
+                    )}
+                  </div>
+                  {count > 1 && (
+                    <span
+                      className="absolute bottom-1.5 right-1.5 font-fantasy text-xs font-bold px-2 py-0.5 rounded-md"
+                      style={{ background: "rgba(10,6,0,0.9)", color: "#60d394", border: "1px solid rgba(96,211,148,0.5)" }}
+                      data-testid={`text-stack-count-${item.shopItemId}`}
+                    >
+                      ×{count}
+                    </span>
                   )}
                 </div>
-                {count > 1 && (
+                <p className="font-fantasy text-[#f0c040] text-sm font-semibold text-center truncate w-full" data-testid={`text-bag-item-name-${item.shopItemId}`}>
+                  {item.name}
+                </p>
+                {item.statBoostType && (
                   <span
-                    className="absolute bottom-1 right-1 font-fantasy text-[10px] font-bold px-1.5 py-0.5 rounded-md"
-                    style={{ background: "rgba(20,10,0,0.85)", color: "#60d394", border: "1px solid rgba(96,211,148,0.4)" }}
-                    data-testid={`text-stack-count-${item.shopItemId}`}
+                    className="font-fantasy text-xs tracking-wider px-2 py-0.5 rounded-full font-bold"
+                    style={{
+                      background: item.statBoostType === "health" ? "rgba(74,222,128,0.15)" : item.statBoostType === "atk" ? "rgba(248,113,113,0.15)" : item.statBoostType === "def" ? "rgba(96,165,250,0.15)" : "rgba(192,132,252,0.15)",
+                      color: item.statBoostType === "health" ? "#4ade80" : item.statBoostType === "atk" ? "#f87171" : item.statBoostType === "def" ? "#60a5fa" : "#c084fc",
+                      border: `1px solid ${item.statBoostType === "health" ? "rgba(74,222,128,0.4)" : item.statBoostType === "atk" ? "rgba(248,113,113,0.4)" : item.statBoostType === "def" ? "rgba(96,165,250,0.4)" : "rgba(192,132,252,0.4)"}`,
+                    }}
                   >
-                    ×{count}
+                    +{item.statBoostAmount || "?"} {item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "LVL"}
                   </span>
                 )}
-              </div>
-              <p className="font-fantasy text-[#f0c040] text-xs font-semibold text-center truncate w-full" data-testid={`text-bag-item-name-${item.shopItemId}`}>
-                {item.name}
-              </p>
-              {item.statBoostType && (
                 <span
-                  className="font-fantasy text-[8px] tracking-wider px-2 py-0.5 rounded-full"
+                  className="font-fantasy text-xs tracking-wider px-2 py-0.5 rounded-full capitalize"
                   style={{
-                    background: item.statBoostType === "health" ? "rgba(74,222,128,0.15)" : item.statBoostType === "atk" ? "rgba(248,113,113,0.15)" : item.statBoostType === "def" ? "rgba(96,165,250,0.15)" : "rgba(192,132,252,0.15)",
-                    color: item.statBoostType === "health" ? "#4ade80" : item.statBoostType === "atk" ? "#f87171" : item.statBoostType === "def" ? "#60a5fa" : "#c084fc",
-                    border: `1px solid ${item.statBoostType === "health" ? "rgba(74,222,128,0.3)" : item.statBoostType === "atk" ? "rgba(248,113,113,0.3)" : item.statBoostType === "def" ? "rgba(96,165,250,0.3)" : "rgba(192,132,252,0.3)"}`,
+                    background: `${typeColor}18`,
+                    color: typeColor,
+                    border: `1px solid ${typeColor}45`,
                   }}
                 >
-                  +{item.statBoostAmount || "?"} {item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "LVL"}
+                  {item.type}
                 </span>
-              )}
-              <span
-                className="font-fantasy text-[9px] tracking-wider px-2 py-0.5 rounded-full capitalize"
-                style={{
-                  background: `${typeColors[item.type] || "#f0c040"}20`,
-                  color: typeColors[item.type] || "#f0c040",
-                  border: `1px solid ${typeColors[item.type] || "#f0c040"}40`,
-                }}
-              >
-                {item.type}
-              </span>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {selectedItem && (
