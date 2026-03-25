@@ -973,11 +973,11 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
         }
         @keyframes coinFlipForward {
           0%   { transform: rotateY(0deg); }
-          100% { transform: rotateY(900deg); }
+          100% { transform: rotateY(540deg); }
         }
         @keyframes coinFlipBack {
-          0%   { transform: rotateY(900deg); }
-          100% { transform: rotateY(1800deg); }
+          0%   { transform: rotateY(540deg); }
+          100% { transform: rotateY(1080deg); }
         }
         @keyframes shimmerBar {
           0%   { opacity: 0.4; background-position: -200% center; }
