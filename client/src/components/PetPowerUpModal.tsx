@@ -299,34 +299,41 @@ export default function PetPowerUpModal({
           70%  { opacity: 0.9; }
           100% { opacity: 0; }
         }
-        @keyframes puMFirefly {
-          0%,100% { transform: translate(0,0) scale(1); opacity: 0.6; }
-          33%     { transform: translate(8px,-12px) scale(1.2); opacity: 1; }
-          66%     { transform: translate(-6px,6px) scale(0.8); opacity: 0.4; }
+        @keyframes puMOrb {
+          0%   { transform: translate(0, 0) scale(1);    opacity: 0.55; }
+          25%  { transform: translate(6px, -18px) scale(1.1); opacity: 0.85; }
+          50%  { transform: translate(-4px, -30px) scale(0.95); opacity: 0.7; }
+          75%  { transform: translate(8px, -16px) scale(1.05); opacity: 0.9; }
+          100% { transform: translate(0, 0) scale(1);    opacity: 0.55; }
+        }
+        @keyframes puMOrbPulse {
+          0%,100% { box-shadow: 0 0 18px 6px rgba(56,189,248,0.55), 0 0 40px 12px rgba(56,189,248,0.25); }
+          50%     { box-shadow: 0 0 32px 12px rgba(56,189,248,0.85), 0 0 70px 24px rgba(56,189,248,0.4); }
         }
       `}</style>
 
       {/* ── Forest background ── */}
       <div className="absolute inset-0 z-0">
         <img src={forestBg} alt="" className="w-full h-full object-cover" style={{ objectPosition: "center top" }} />
-        <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(4,12,6,0.55) 0%, rgba(4,14,6,0.45) 40%, rgba(6,18,8,0.82) 75%, rgba(4,12,5,0.96) 100%)" }} />
+        <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(1,8,20,0.45) 0%, rgba(2,10,24,0.35) 40%, rgba(3,12,28,0.78) 75%, rgba(1,6,16,0.96) 100%)" }} />
       </div>
 
-      {/* ── Ambient fireflies ── */}
+      {/* ── Floating blue orbs ── */}
       {[
-        { left: "12%", top: "18%", delay: "0s",   color: "#a3e635", size: 5 },
-        { left: "82%", top: "12%", delay: "0.8s",  color: "#fcd34d", size: 4 },
-        { left: "25%", top: "35%", delay: "1.4s",  color: "#86efac", size: 3 },
-        { left: "70%", top: "28%", delay: "0.3s",  color: "#a3e635", size: 4 },
-        { left: "55%", top: "8%",  delay: "2.1s",  color: "#fcd34d", size: 3 },
-        { left: "90%", top: "42%", delay: "1.7s",  color: "#86efac", size: 4 },
-      ].map((f, i) => (
+        { left: "10%",  top: "55%", delay: "0s",    dur: 5.2, size: 18 },
+        { left: "80%",  top: "48%", delay: "1.1s",  dur: 6.8, size: 22 },
+        { left: "22%",  top: "30%", delay: "2.3s",  dur: 4.9, size: 14 },
+        { left: "68%",  top: "22%", delay: "0.6s",  dur: 7.1, size: 26 },
+        { left: "45%",  top: "60%", delay: "1.8s",  dur: 5.6, size: 16 },
+        { left: "88%",  top: "35%", delay: "3.0s",  dur: 6.2, size: 12 },
+        { left: "55%",  top: "15%", delay: "0.4s",  dur: 8.0, size: 20 },
+        { left: "32%",  top: "70%", delay: "2.7s",  dur: 5.0, size: 10 },
+      ].map((o, i) => (
         <div key={i} className="absolute z-[1] rounded-full pointer-events-none" style={{
-          left: f.left, top: f.top,
-          width: f.size, height: f.size,
-          background: f.color,
-          boxShadow: `0 0 ${f.size * 3}px ${f.color}, 0 0 ${f.size * 6}px ${f.color}40`,
-          animation: `puMFirefly ${3.5 + i * 0.6}s ${f.delay} ease-in-out infinite`,
+          left: o.left, top: o.top,
+          width: o.size, height: o.size,
+          background: "radial-gradient(circle at 35% 35%, rgba(186,230,253,0.95), rgba(56,189,248,0.7) 50%, rgba(14,165,233,0.3))",
+          animation: `puMOrb ${o.dur}s ${o.delay} ease-in-out infinite, puMOrbPulse ${o.dur * 0.7}s ${o.delay} ease-in-out infinite`,
         }} />
       ))}
 
