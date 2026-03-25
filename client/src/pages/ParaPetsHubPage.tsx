@@ -1,6 +1,14 @@
 import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 
 export default function ParaPetsHubPage() {
+  const { data: user } = useQuery<any>({
+    queryKey: ["/api/auth/me"],
+    retry: false,
+  });
+
+  const playDestination = user ? "/pet-house" : "/auth";
+
   return (
     <div
       data-testid="para-pets-hub-page"
@@ -33,20 +41,41 @@ export default function ParaPetsHubPage() {
           >
             Para Pets
           </span>
-          <Link
-            href="/auth"
-            data-testid="link-hub-signin"
-            className="text-xs font-semibold tracking-wide transition-all duration-150"
-            style={{
-              color: "#c8d8b0",
-              border: "1px solid rgba(127,191,176,0.3)",
-              borderRadius: "9999px",
-              padding: "6px 18px",
-              background: "rgba(26,107,85,0.12)",
-            }}
-          >
-            Sign In
-          </Link>
+
+          <div className="flex items-center gap-3">
+            <Link
+              href={playDestination}
+              data-testid="button-play-game"
+              className="text-xs font-bold tracking-widest transition-all duration-150 active:scale-95"
+              style={{
+                color: "#07090f",
+                borderRadius: "9999px",
+                padding: "7px 20px",
+                background: "linear-gradient(135deg, #7fbfb0 0%, #1a9b70 100%)",
+                boxShadow: "0 0 16px rgba(127,191,176,0.35), 0 2px 8px rgba(0,0,0,0.4)",
+                letterSpacing: "0.08em",
+              }}
+            >
+              Play Game
+            </Link>
+
+            {!user && (
+              <Link
+                href="/auth"
+                data-testid="link-hub-signin"
+                className="text-xs font-semibold tracking-wide transition-all duration-150"
+                style={{
+                  color: "#c8d8b0",
+                  border: "1px solid rgba(127,191,176,0.3)",
+                  borderRadius: "9999px",
+                  padding: "6px 18px",
+                  background: "rgba(26,107,85,0.12)",
+                }}
+              >
+                Sign In
+              </Link>
+            )}
+          </div>
         </div>
       </header>
 
