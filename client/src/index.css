@@ -831,8 +831,8 @@
 .para-pets-title {
   font-family: 'Cinzel Decorative', 'Cinzel', serif;
   font-weight: 900;
-  font-size: clamp(2.4rem, 10vw, 3.6rem);
-  letter-spacing: 0.08em;
+  font-size: clamp(3rem, 13vw, 4.8rem);
+  letter-spacing: 0.02em;
   background: linear-gradient(
     105deg,
     #a8f0e0 0%,
