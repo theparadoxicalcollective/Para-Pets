@@ -16,7 +16,7 @@ function getRarityStyle(rarity: number | null): { border: string; glow: string; 
     case 4: return { border: "2px solid rgba(192,132,252,0.8)",  glow: "0 0 18px rgba(192,132,252,0.3)", bg: "linear-gradient(135deg, rgba(25,10,45,0.97) 0%, rgba(40,15,65,0.97) 100%)", starColor: "#c084fc" };
     case 3: return { border: "2px solid rgba(96,165,250,0.8)",   glow: "0 0 16px rgba(96,165,250,0.28)",  bg: "linear-gradient(135deg, rgba(5,18,40,0.97) 0%, rgba(8,28,58,0.97) 100%)",   starColor: "#60a5fa" };
     case 2: return { border: "2px solid rgba(74,222,128,0.75)",  glow: "0 0 14px rgba(74,222,128,0.25)", bg: "linear-gradient(135deg, rgba(5,25,12,0.97) 0%, rgba(8,38,18,0.97) 100%)",   starColor: "#4ade80" };
-    default: return { border: "1px solid rgba(148,163,184,0.35)", glow: "none", bg: "linear-gradient(135deg, rgba(20,22,28,0.97) 0%, rgba(28,30,38,0.97) 100%)", starColor: "#94a3b8" };
+    default: return { border: "1.5px solid rgba(200,210,225,0.55)", glow: "0 0 10px rgba(200,210,225,0.15)", bg: "linear-gradient(135deg, rgba(22,25,32,0.97) 0%, rgba(30,34,44,0.97) 100%)", starColor: "#c8d2e1" };
   }
 }
 
