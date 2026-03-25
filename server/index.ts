@@ -539,6 +539,19 @@ app.use((req, res, next) => {
       await storage.setGameSetting("bayous_heart_type_explore_v1", "done");
     }
 
+    // One-time: update Bayou's Heart type to "quest"
+    const bayousHeartQuestDone = await storage.getGameSetting("bayous_heart_type_quest_v1");
+    if (!bayousHeartQuestDone) {
+      const BAYOUS_HEART_ID = "8e211716-0448-496e-8582-6ce1025ac4e4";
+      const allSwampLocs = await storage.getWorldLocations("swamp");
+      const bayousHeart = allSwampLocs.find((l: any) => l.id === BAYOUS_HEART_ID);
+      if (bayousHeart && (bayousHeart as any).type !== "quest") {
+        await storage.updateWorldLocation(BAYOUS_HEART_ID, { type: "quest" });
+        console.log("Bayou's Heart type set to quest.");
+      }
+      await storage.setGameSetting("bayous_heart_type_quest_v1", "done");
+    }
+
     // Seed Murk Cave enemies (one-time)
     const murkEnemiesDone = await storage.getGameSetting("murk_cave_enemies_v1");
     if (!murkEnemiesDone) {
