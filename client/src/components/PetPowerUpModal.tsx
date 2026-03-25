@@ -300,15 +300,15 @@ export default function PetPowerUpModal({
           100% { opacity: 0; }
         }
         @keyframes puMOrb {
-          0%   { transform: translate(0, 0) scale(1);    opacity: 0.55; }
-          25%  { transform: translate(6px, -18px) scale(1.1); opacity: 0.85; }
-          50%  { transform: translate(-4px, -30px) scale(0.95); opacity: 0.7; }
-          75%  { transform: translate(8px, -16px) scale(1.05); opacity: 0.9; }
-          100% { transform: translate(0, 0) scale(1);    opacity: 0.55; }
+          0%   { transform: translate(0, 0) scale(1);         opacity: 0.35; }
+          25%  { transform: translate(6px, -18px) scale(1.1); opacity: 0.6;  }
+          50%  { transform: translate(-4px, -30px) scale(0.95); opacity: 0.45; }
+          75%  { transform: translate(8px, -16px) scale(1.05); opacity: 0.65; }
+          100% { transform: translate(0, 0) scale(1);         opacity: 0.35; }
         }
         @keyframes puMOrbPulse {
-          0%,100% { box-shadow: 0 0 18px 6px rgba(56,189,248,0.55), 0 0 40px 12px rgba(56,189,248,0.25); }
-          50%     { box-shadow: 0 0 32px 12px rgba(56,189,248,0.85), 0 0 70px 24px rgba(56,189,248,0.4); }
+          0%,100% { box-shadow: 0 0 14px 8px rgba(147,219,250,0.3), 0 0 36px 16px rgba(56,189,248,0.12), 0 0 60px 24px rgba(56,189,248,0.06); }
+          50%     { box-shadow: 0 0 22px 12px rgba(147,219,250,0.5), 0 0 55px 24px rgba(56,189,248,0.22), 0 0 90px 36px rgba(56,189,248,0.1); }
         }
       `}</style>
 
@@ -332,7 +332,7 @@ export default function PetPowerUpModal({
         <div key={i} className="absolute z-[1] rounded-full pointer-events-none" style={{
           left: o.left, top: o.top,
           width: o.size, height: o.size,
-          background: "radial-gradient(circle at 35% 35%, rgba(186,230,253,0.95), rgba(56,189,248,0.7) 50%, rgba(14,165,233,0.3))",
+          background: "radial-gradient(circle at 40% 38%, rgba(255,255,255,0.45) 0%, rgba(147,219,250,0.18) 35%, rgba(56,189,248,0.06) 65%, transparent 85%)",
           animation: `puMOrb ${o.dur}s ${o.delay} ease-in-out infinite, puMOrbPulse ${o.dur * 0.7}s ${o.delay} ease-in-out infinite`,
         }} />
       ))}
