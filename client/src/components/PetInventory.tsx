@@ -406,7 +406,12 @@ function PetView({
                 onClick={handleClick}
               >
                 {displayImage ? (
-                  <img src={displayImage} alt={pet.name} className="w-full h-full object-contain rounded-lg" />
+                  <img
+                    src={displayImage}
+                    alt={pet.name}
+                    className="w-full h-full object-contain rounded-lg"
+                    style={{ filter: `drop-shadow(0 0 5px ${rs.starColor}cc) drop-shadow(0 0 10px ${rs.starColor}66)` }}
+                  />
                 ) : (
                   <img src={isEgg ? eggMagicIcon : petPawIcon} alt="" style={{ width: 52, height: 52, objectFit: "contain" }} />
                 )}
