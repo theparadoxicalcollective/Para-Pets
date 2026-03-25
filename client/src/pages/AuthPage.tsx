@@ -58,6 +58,7 @@ export default function AuthPage() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const returnTo = new URLSearchParams(window.location.search).get("returnTo") || "/";
 
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -102,7 +103,7 @@ export default function AuthPage() {
       setLoadingProgress(100);
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       setTimeout(() => {
-        setLocation("/");
+        setLocation(returnTo);
       }, 300);
     },
     onError: (err: any) => {
@@ -128,7 +129,7 @@ export default function AuthPage() {
       localStorage.setItem("para_pets_just_registered", "true");
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       setTimeout(() => {
-        setLocation("/");
+        setLocation(returnTo);
       }, 300);
     },
     onError: (err: any) => {

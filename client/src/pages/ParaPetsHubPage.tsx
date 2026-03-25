@@ -78,7 +78,7 @@ export default function ParaPetsHubPage() {
 
           {!user && (
             <Link
-              href="/auth"
+              href="/auth?returnTo=/hub"
               data-testid="link-hub-signin"
               className="text-xs font-semibold tracking-wide transition-all duration-150"
               style={{
