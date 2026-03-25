@@ -32,6 +32,7 @@ interface EncounterPet {
   specialSkill: string | null;
   specialSkillType: string | null;
   skillDamagePercent: number | null;
+  skillHealPercent: number | null;
 }
 
 export interface BattlePotionSlot {
@@ -646,6 +647,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
 
     const rawPct = (pet as any)?.skillDamagePercent;
     const pct = (rawPct !== null && rawPct !== undefined && rawPct > 0) ? rawPct : null;
+    const rawHealPct = (pet as any)?.skillHealPercent;
+    const healPctOverride = (rawHealPct !== null && rawHealPct !== undefined && rawHealPct > 0) ? rawHealPct : null;
 
     if (skill === "Lazer") {
       const ePos = enemyPosRef.current;
@@ -680,7 +683,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
 
     } else if (skill === "Heal Self" || skill === "Heal Party") {
       const maxHp = petStatsRef.current.maxHp;
-      const healPct = pct !== null ? pct / 100 : 0.3;
+      const healPct = healPctOverride !== null ? healPctOverride / 100 : (pct !== null ? pct / 100 : 0.3);
       const healAmt = Math.floor(maxHp * healPct);
       petHpRef.current = Math.min(maxHp, petHpRef.current + healAmt);
       setPetHp(petHpRef.current);

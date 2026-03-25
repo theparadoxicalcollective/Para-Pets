@@ -27,6 +27,7 @@ interface BattlePet {
   def: number;
   specialSkill: string | null;
   specialSkillType: string | null;
+  skillHealPercent: number | null;
   isPlayer: boolean;
   x: number;
   y: number;
@@ -147,6 +148,7 @@ export default function PvpBattlePage({
         atk: invItem.petAtk || 50, def: invItem.petDef || 30,
         specialSkill: invItem.specialSkill ?? null,
         specialSkillType: (invItem as any).specialSkillType ?? null,
+        skillHealPercent: (invItem as any).skillHealPercent ?? null,
         isPlayer: true,
         x: 12 + (i % 3) * 28 + Math.random() * 6,
         y: 64 + Math.floor(i / 3) * 15 + Math.random() * 4,
@@ -163,6 +165,7 @@ export default function PvpBattlePage({
       atk: p.petAtk || 50, def: p.petDef || 30,
       specialSkill: p.specialSkill ?? null,
       specialSkillType: p.specialSkillType ?? null,
+      skillHealPercent: p.skillHealPercent ?? null,
       isPlayer: false,
       x: 12 + (i % 3) * 28 + Math.random() * 6,
       y: 8 + Math.floor(i / 3) * 14 + Math.random() * 4,
@@ -249,15 +252,17 @@ export default function PvpBattlePage({
       });
 
     } else if (skill === "Heal Self") {
-      const heal = Math.floor(attacker.maxHp * 0.28);
+      const healPct = attacker.skillHealPercent ? attacker.skillHealPercent / 100 : 0.28;
+      const heal = Math.floor(attacker.maxHp * healPct);
       attacker.hp = Math.min(attacker.maxHp, attacker.hp + heal);
       spawnFloatNum(attacker.x, attacker.y - 10, heal, true);
       spawnSparks(attacker.x, attacker.y, ["#4ade80", "#86efac", "#bbf7d0"]);
 
     } else if (skill === "Heal Party") {
+      const healPct = attacker.skillHealPercent ? attacker.skillHealPercent / 100 : 0.2;
       const allies = attacker.isPlayer ? myAlive : oppAlive;
       allies.forEach(p => {
-        const heal = Math.floor(p.maxHp * 0.2);
+        const heal = Math.floor(p.maxHp * healPct);
         p.hp = Math.min(p.maxHp, p.hp + heal);
         spawnFloatNum(p.x, p.y - 10, heal, true);
         spawnSparks(p.x, p.y, ["#4ade80", "#86efac", "#bbf7d0"]);

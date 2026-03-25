@@ -392,6 +392,7 @@ function AdminItemForm({
   const [specialSkill, setSpecialSkill] = useState(item?.specialSkill || "");
   const [specialSkillType, setSpecialSkillType] = useState((item as any)?.specialSkillType || "");
   const [skillDamagePercent, setSkillDamagePercent] = useState(item?.skillDamagePercent?.toString() || "");
+  const [skillHealPercent, setSkillHealPercent] = useState((item as any)?.skillHealPercent?.toString() || "");
   const [petTemplateId, setPetTemplateId] = useState(item?.petTemplateId || "");
   const [statBoostType, setStatBoostType] = useState(item?.statBoostType || "health");
   const [statBoostAmount, setStatBoostAmount] = useState(item?.statBoostAmount?.toString() || "10");
@@ -440,6 +441,7 @@ function AdminItemForm({
         payload.specialSkill = specialSkill.trim() || null;
         payload.specialSkillType = specialSkillType.trim() || null;
         payload.skillDamagePercent = skillDamagePercent.trim() ? parseFloat(skillDamagePercent) : null;
+        payload.skillHealPercent = skillHealPercent.trim() ? parseFloat(skillHealPercent) : null;
         payload.petTemplateId = petTemplateId || null;
         if (eggImageData) payload.eggImageData = eggImageData;
         if (hatchedImageData) payload.hatchedImageData = hatchedImageData;
@@ -699,14 +701,26 @@ function AdminItemForm({
                   type="number"
                   value={skillDamagePercent}
                   onChange={(e) => setSkillDamagePercent(e.target.value)}
-                  placeholder="e.g. 250 (= 2.5× ATK for Lazer), 30 (= 30% heal), 5 (= 5% poison/tick)"
+                  placeholder="e.g. 250 (= 2.5× ATK for Lazer), 5 (= 5% poison/tick)"
+                  min="0"
+                  step="0.5"
+                  className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none mb-2"
+                  style={inputStyle}
+                />
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Skill Heal %</label>
+                <input
+                  data-testid="input-skill-heal-percent"
+                  type="number"
+                  value={skillHealPercent}
+                  onChange={(e) => setSkillHealPercent(e.target.value)}
+                  placeholder="e.g. 30 (= 30% of max HP restored)"
                   min="0"
                   step="0.5"
                   className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
                   style={inputStyle}
                 />
                 <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">
-                  Number stored as %. Lazer/Bubble: % of ATK. Heal: % of maxHP. Poison: % of enemy maxHP per tick.
+                  Damage %: Lazer/Bubble = % of ATK · Poison = % of enemy HP per tick · Heal %: % of max HP restored
                 </p>
               </div>
               <div>
