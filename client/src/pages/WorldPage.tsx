@@ -224,6 +224,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [editLocGlowColor, setEditLocGlowColor] = useState("");
   const [activeLocationId, setActiveLocationId] = useState<string | null>(null);
   const [showLocationView, setShowLocationView] = useState(false);
+  const [bayouMistVisible, setBayouMistVisible] = useState(false);
   const [showItemPicker, setShowItemPicker] = useState(false);
   const [pickerFilter, setPickerFilter] = useState("all");
   const [showAddObject, setShowAddObject] = useState(false);
@@ -993,6 +994,8 @@ export default function WorldPage({ user }: WorldPageProps) {
     : null;
   const hasHatchedActivePet = activePetInv && activePetInv.isHatched;
 
+  const BAYOUS_HEART_ID = "8e211716-0448-496e-8582-6ce1025ac4e4";
+
   const openLocation = useCallback((loc: WorldLocationData) => {
     setActiveLocationId(loc.id);
     if (loc.type === "fishing") {
@@ -1009,6 +1012,11 @@ export default function WorldPage({ user }: WorldPageProps) {
     } else {
       setShowShop(false);
       setShowLocationView(true);
+      // Trigger entrance mist for Bayou's Heart
+      if (loc.id === BAYOUS_HEART_ID) {
+        setBayouMistVisible(true);
+        setTimeout(() => setBayouMistVisible(false), 1400);
+      }
     }
   }, [currentUser.isAdmin]);
 
@@ -3253,6 +3261,70 @@ export default function WorldPage({ user }: WorldPageProps) {
             <div className="absolute inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(8,5,20,1)" }}>
               <div className="animate-spin rounded-full" style={{ width: 48, height: 48, border: `3px solid ${accent}25`, borderTopColor: accent }} />
             </div>
+          )}
+
+          {/* Bayou's Heart entrance mist */}
+          {activeLoc?.id === BAYOUS_HEART_ID && (
+            <>
+              <style>{`
+                @keyframes bayouMist1 {
+                  0%   { transform: translateX(-8%) scaleX(1); }
+                  50%  { transform: translateX(8%) scaleX(1.12); }
+                  100% { transform: translateX(-8%) scaleX(1); }
+                }
+                @keyframes bayouMist2 {
+                  0%   { transform: translateX(6%) scaleX(0.92); }
+                  50%  { transform: translateX(-10%) scaleX(1.18); }
+                  100% { transform: translateX(6%) scaleX(0.92); }
+                }
+                @keyframes bayouMist3 {
+                  0%   { transform: translateX(0%) translateY(-8px); }
+                  50%  { transform: translateX(12%) translateY(8px); }
+                  100% { transform: translateX(0%) translateY(-8px); }
+                }
+              `}</style>
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  zIndex: 5,
+                  opacity: bayouMistVisible ? 1 : 0,
+                  transition: "opacity 1.6s ease-out",
+                }}
+              >
+                {/* Bottom floor mist */}
+                <div style={{
+                  position: "absolute", bottom: "-5%", left: "-15%",
+                  width: "130%", height: "50%",
+                  background: "radial-gradient(ellipse at 50% 90%, rgba(80,200,160,0.22) 0%, rgba(40,160,120,0.12) 45%, transparent 70%)",
+                  filter: "blur(28px)",
+                  animation: "bayouMist1 7s ease-in-out infinite",
+                }} />
+                {/* Mid sweep */}
+                <div style={{
+                  position: "absolute", top: "28%", left: "-25%",
+                  width: "150%", height: "42%",
+                  background: "radial-gradient(ellipse at 45% 55%, rgba(100,210,170,0.16) 0%, rgba(60,170,130,0.09) 50%, transparent 72%)",
+                  filter: "blur(36px)",
+                  animation: "bayouMist2 9s ease-in-out infinite",
+                }} />
+                {/* Upper wisps */}
+                <div style={{
+                  position: "absolute", top: "4%", left: "-8%",
+                  width: "116%", height: "38%",
+                  background: "radial-gradient(ellipse at 55% 35%, rgba(140,230,195,0.13) 0%, rgba(90,185,150,0.07) 52%, transparent 74%)",
+                  filter: "blur(22px)",
+                  animation: "bayouMist3 8s ease-in-out infinite",
+                }} />
+                {/* Bright center bloom */}
+                <div style={{
+                  position: "absolute", top: "18%", left: "12%",
+                  width: "76%", height: "52%",
+                  background: "radial-gradient(ellipse at 50% 50%, rgba(190,255,230,0.09) 0%, transparent 62%)",
+                  filter: "blur(44px)",
+                  animation: "bayouMist1 11s ease-in-out infinite reverse",
+                }} />
+              </div>
+            </>
           )}
 
           <div className="relative z-10 flex flex-col h-full">
