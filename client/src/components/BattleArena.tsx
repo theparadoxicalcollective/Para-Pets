@@ -372,9 +372,11 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           setEnemyCharging(false);
           setParryWindowOpen(false);
 
-          // Damage
-          const rawDmg = enemyStatsRef.current.atk - Math.floor(petStatsRef.current.def * 0.08);
-          const dmg = Math.max(1, Math.floor(rawDmg + Math.random() * 14 - 5));
+          // Damage — DEF meaningfully reduces incoming hit (missed block)
+          const def = petStatsRef.current.def;
+          const defReduction = def / (def + 60); // def=20→25%, def=60→50%, def=120→67%
+          const rawDmg = enemyStatsRef.current.atk * (1 - defReduction);
+          const dmg = Math.max(1, Math.floor(rawDmg + Math.random() * 8 - 4));
           petHpRef.current = Math.max(0, petHpRef.current - dmg);
           setPetHp(petHpRef.current);
           setPetHit(true);
@@ -579,7 +581,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     lastSwipePointRef.current = null;
   }, []);
 
-  // ── Parry handler ────────────────────────────────────────────────────────
+  // ── Block handler ────────────────────────────────────────────────────────
   const handleParry = useCallback(() => {
     if (!battleActiveRef.current || !parryWindowOpenRef.current) return;
     parryWindowOpenRef.current = false;
@@ -588,6 +590,23 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     setParryWindowOpen(false);
     setParryResult("success");
     setTimeout(() => setParryResult(null), 900);
+
+    // DEF determines bleed-through damage even on a successful block
+    const def = petStatsRef.current.def;
+    const blockAbsorb = Math.min(0.95, def / (def + 30)); // def=30→50%, def=90→75%, def=180→86%
+    const bleedDmg = Math.max(0, Math.floor(enemyStatsRef.current.atk * (1 - blockAbsorb) * 0.5));
+    if (bleedDmg > 0) {
+      petHpRef.current = Math.max(0, petHpRef.current - bleedDmg);
+      setPetHp(petHpRef.current);
+      const nd: DamageNumber = { id: dmgIdRef.current++, x: PET_X + (Math.random() * 16 - 8), y: PET_Y - 12, value: bleedDmg };
+      setDamageNumbers(prev => [...prev, nd]);
+      setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== nd.id)), 1000);
+      if (petHpRef.current <= 0) {
+        battleActiveRef.current = false;
+        setPhase("defeat");
+        return;
+      }
+    }
 
     // Open counter window: next 2 swipes deal 2× damage for 3 seconds
     counterActiveRef.current = true;
@@ -1226,7 +1245,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               )}
             </div>
 
-            {/* ── Floating PARRY button (appears during charge) ───────── */}
+            {/* ── Floating BLOCK button (appears during charge) ───────── */}
             {phase === "battle" && parryWindowOpen && (
               <div
                 className="absolute z-30 pointer-events-auto"
@@ -1237,7 +1256,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                 }}
               >
                 <button
-                  data-testid="button-parry"
+                  data-testid="button-block"
                   onPointerDown={(e) => { e.stopPropagation(); handleParry(); }}
                   className="flex items-center gap-2 font-fantasy tracking-widest rounded-2xl transition-transform active:scale-90"
                   style={{
@@ -1253,12 +1272,12 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   }}
                 >
                   <Shield className="w-5 h-5" style={{ color: "#4ade80" }} />
-                  PARRY
+                  BLOCK
                 </button>
               </div>
             )}
 
-            {/* Parry result flash */}
+            {/* Block result flash */}
             {parryResult === "success" && (
               <div className="absolute inset-0 pointer-events-none z-40 flex items-center justify-center">
                 <div style={{
@@ -1269,7 +1288,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   textShadow: "0 0 28px rgba(74,222,128,0.9), 0 0 12px rgba(74,222,128,0.6), 0 2px 0 #000",
                   letterSpacing: "0.16em",
                   animation: "parrySuccessFlash 0.9s ease-out forwards",
-                }}>PARRY!</div>
+                }}>BLOCK!</div>
               </div>
             )}
             {parryResult === "fail" && (
@@ -1282,7 +1301,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               <div className="absolute z-10 pointer-events-none"
                 style={{ bottom: "22%", left: "50%", transform: "translateX(-50%)", whiteSpace: "nowrap" }}>
                 <div className="text-white/22 text-[10px] font-medium animate-pulse tracking-widest text-center">
-                  Swipe through the enemy · tap PARRY when it charges
+                  Swipe through the enemy · tap BLOCK when it charges
                 </div>
               </div>
             )}
@@ -1703,8 +1722,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               <div className="flex flex-col gap-4">
                 {[
                   { num: "1", title: "Swipe to Attack", desc: "Drag your finger through the enemy to slash it. Chain swipes within 1.4 seconds to build a combo for bonus damage." },
-                  { num: "2", title: "Parry Incoming Attacks", desc: "When the enemy glows red and charges, a green PARRY button appears. Tap it before the bar fills to block the attack." },
-                  { num: "3", title: "Counter Window", desc: "A successful PARRY stuns the enemy briefly. Your next 2 swipes deal double damage — make them count!" },
+                  { num: "2", title: "Block Incoming Attacks", desc: "When the enemy glows red and charges, a green BLOCK button appears. Tap it before the bar fills to reduce the damage. Higher DEF absorbs more!" },
+                  { num: "3", title: "Counter Window", desc: "A successful BLOCK stuns the enemy briefly. Your next 2 swipes deal double damage — make them count!" },
                   { num: "4", title: "Potions & Special", desc: "Tap potion slots to heal mid-battle. When your mana bar is full, tap your Special skill for a powerful ability." },
                 ].map(({ num, title, desc }) => (
                   <div key={num} className="flex gap-3 items-start">
