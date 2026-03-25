@@ -30,6 +30,7 @@ interface EncounterPet {
   petTemplateId: string | null;
   imageUrl: string | null;
   specialSkill: string | null;
+  specialSkillType: string | null;
   skillDamagePercent: number | null;
 }
 
@@ -633,7 +634,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   // ── Special skill ────────────────────────────────────────────────────────
   const useSpecialSkill = useCallback(() => {
     if (!battleActiveRef.current || manaRef.current < MAX_MANA || skillCooldown) return;
-    const skill = pet?.specialSkill;
+    const skill = (pet as any)?.specialSkillType || pet?.specialSkill;
     if (!skill) return;
 
     manaRef.current = 0;
@@ -712,7 +713,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       }, 900);
       poisonTimerRef.current = timer;
     }
-  }, [pet?.specialSkill, pet?.skillDamagePercent, skillCooldown, poisonActive]);
+  }, [(pet as any)?.specialSkillType, pet?.specialSkill, pet?.skillDamagePercent, skillCooldown, poisonActive]);
 
   // ── Potion usage ─────────────────────────────────────────────────────────
   const usePotion = useCallback((slotIndex: number) => {

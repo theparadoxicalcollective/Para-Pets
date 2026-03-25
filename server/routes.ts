@@ -2764,6 +2764,7 @@ export async function registerRoutes(
         hatchedImageUrl: shopItem?.hatchedImageUrl || null,
         petTemplateId: shopItem?.petTemplateId || null,
         specialSkill: shopItem?.specialSkill || null,
+        specialSkillType: shopItem?.specialSkillType || null,
         skillDamagePercent: shopItem?.skillDamagePercent ?? null,
       }));
       const activePet = inventoryJoined.find((inv: any) => inv.shopItemId === user.activePetId && inv.isHatched);
@@ -2838,6 +2839,7 @@ export async function registerRoutes(
           imageUrl: petImageUrl,
           backImageUrl: petBackImageUrl,
           specialSkill: activePet.specialSkill || null,
+          specialSkillType: (activePet as any).specialSkillType || null,
           skillDamagePercent: activePet.skillDamagePercent ?? null,
         },
       });

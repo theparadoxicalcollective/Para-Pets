@@ -26,6 +26,7 @@ interface BattlePet {
   atk: number;
   def: number;
   specialSkill: string | null;
+  specialSkillType: string | null;
   isPlayer: boolean;
   x: number;
   y: number;
@@ -57,6 +58,10 @@ function skillMode(skill: string | null): SkillMode {
   if (!skill) return "auto";
   if (skill === "Lazer" || skill === "Poison") return "needs-enemy";
   return "auto";
+}
+
+function effectiveSkillType(pet: BattlePet): string | null {
+  return pet.specialSkillType || pet.specialSkill;
 }
 
 let _uid = 0;
@@ -141,6 +146,7 @@ export default function PvpBattlePage({
         maxHp: invItem.petHealth || 800, hp: invItem.petHealth || 800,
         atk: invItem.petAtk || 50, def: invItem.petDef || 30,
         specialSkill: invItem.specialSkill ?? null,
+        specialSkillType: (invItem as any).specialSkillType ?? null,
         isPlayer: true,
         x: 12 + (i % 3) * 28 + Math.random() * 6,
         y: 64 + Math.floor(i / 3) * 15 + Math.random() * 4,
@@ -156,6 +162,7 @@ export default function PvpBattlePage({
       maxHp: p.petHealth || 800, hp: p.petHealth || 800,
       atk: p.petAtk || 50, def: p.petDef || 30,
       specialSkill: p.specialSkill ?? null,
+      specialSkillType: p.specialSkillType ?? null,
       isPlayer: false,
       x: 12 + (i % 3) * 28 + Math.random() * 6,
       y: 8 + Math.floor(i / 3) * 14 + Math.random() * 4,
@@ -348,7 +355,7 @@ export default function PvpBattlePage({
           // AI skill: auto-trigger when mana full
           if (pet.mana >= MAX_MANA && (now - (lastAiSkillTime.current[pet.uid] || 0)) > 5000) {
             lastAiSkillTime.current[pet.uid] = now;
-            const sk = pet.specialSkill;
+            const sk = effectiveSkillType(pet);
             if (sk) {
               const mode = skillMode(sk);
               if (mode === "needs-enemy") {
@@ -410,7 +417,7 @@ export default function PvpBattlePage({
         const oppAlive = ps.filter(p => !p.isPlayer && !p.isDead);
         const tapped = oppAlive.find(p => Math.hypot(p.x - pos.x, p.y - pos.y) < 14);
         if (tapped) {
-          fireSkill(skill_pet, skill_pet.specialSkill!, tapped);
+          fireSkill(skill_pet, effectiveSkillType(skill_pet)!, tapped);
           setPendingSkill(null); pendingSkillRef.current = null;
         } else {
           // Cancel on any other tap
@@ -425,9 +432,9 @@ export default function PvpBattlePage({
 
     // ─ Normal mode: check if tapping a glowing (skill-ready) player pet ─
     const myAlive = ps.filter(p => p.isPlayer && !p.isDead);
-    const tappedSkillReady = myAlive.find(p => p.mana >= MAX_MANA && p.specialSkill && Math.hypot(p.x - pos.x, p.y - pos.y) < 13);
+    const tappedSkillReady = myAlive.find(p => p.mana >= MAX_MANA && effectiveSkillType(p) && Math.hypot(p.x - pos.x, p.y - pos.y) < 13);
     if (tappedSkillReady) {
-      const sk = tappedSkillReady.specialSkill!;
+      const sk = effectiveSkillType(tappedSkillReady)!;
       const mode = skillMode(sk);
       if (mode === "auto") {
         // Fire immediately

@@ -390,6 +390,7 @@ function AdminItemForm({
   const [rarity, setRarity] = useState(item?.rarity?.toString() || "1");
   const [hatchTime, setHatchTime] = useState(item?.hatchTime?.toString() || "1");
   const [specialSkill, setSpecialSkill] = useState(item?.specialSkill || "");
+  const [specialSkillType, setSpecialSkillType] = useState((item as any)?.specialSkillType || "");
   const [skillDamagePercent, setSkillDamagePercent] = useState(item?.skillDamagePercent?.toString() || "");
   const [petTemplateId, setPetTemplateId] = useState(item?.petTemplateId || "");
   const [statBoostType, setStatBoostType] = useState(item?.statBoostType || "health");
@@ -437,6 +438,7 @@ function AdminItemForm({
         payload.rarity = parseInt(rarity);
         payload.hatchTime = parseInt(hatchTime);
         payload.specialSkill = specialSkill.trim() || null;
+        payload.specialSkillType = specialSkillType.trim() || null;
         payload.skillDamagePercent = skillDamagePercent.trim() ? parseFloat(skillDamagePercent) : null;
         payload.petTemplateId = petTemplateId || null;
         if (eggImageData) payload.eggImageData = eggImageData;
@@ -663,31 +665,32 @@ function AdminItemForm({
                 />
               </div>
               <div>
-                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Special Skill</label>
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Skill Style</label>
                 <select
                   data-testid="select-special-skill-type"
-                  value={["Lazer","Bubble","Heal Self","Heal Party","Poison"].includes(specialSkill) ? specialSkill : "__custom__"}
-                  onChange={(e) => { if (e.target.value !== "__custom__") setSpecialSkill(e.target.value); }}
-                  className="w-full px-3 py-2 rounded-md font-fantasy text-sm outline-none mb-1"
+                  value={specialSkillType}
+                  onChange={(e) => setSpecialSkillType(e.target.value)}
+                  className="w-full px-3 py-2 rounded-md font-fantasy text-sm outline-none mb-2"
                   style={inputStyle}
                 >
-                  <option value="__custom__">— Custom / None —</option>
+                  <option value="">— None —</option>
                   <option value="Lazer">Lazer</option>
                   <option value="Bubble">Bubble</option>
                   <option value="Heal Self">Heal Self</option>
                   <option value="Heal Party">Heal Party</option>
                   <option value="Poison">Poison</option>
                 </select>
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Skill Display Name</label>
                 <input
                   data-testid="input-special-skill"
                   type="text"
                   value={specialSkill}
                   onChange={(e) => setSpecialSkill(e.target.value)}
-                  placeholder="Or type a custom skill name..."
+                  placeholder="Custom name shown to players..."
                   className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
                   style={inputStyle}
                 />
-                <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">Pick from the list or type a custom skill name</p>
+                <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">Choose the skill style and give it a custom display name</p>
               </div>
               <div>
                 <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Skill Damage %</label>

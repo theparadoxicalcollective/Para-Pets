@@ -38,6 +38,7 @@ export const shopItems = pgTable("shop_items", {
   statBoostAmount: integer("stat_boost_amount"),
   petTemplateId: varchar("pet_template_id"),
   specialSkill: text("special_skill"),
+  specialSkillType: text("special_skill_type"),
   healthRestored: integer("health_restored"),
   manaRestored: integer("mana_restored"),
   petsRevived: integer("pets_revived"),
