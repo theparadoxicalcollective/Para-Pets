@@ -1011,14 +1011,14 @@ export default function WorldPage({ user }: WorldPageProps) {
       setShowDangerWarning(true);
       if (loc.id === BAYOUS_HEART_ID) {
         setBayouMistVisible(true);
-        setTimeout(() => setBayouMistVisible(false), 1400);
+        setTimeout(() => setBayouMistVisible(false), 3000);
       }
     } else {
       setShowShop(false);
       setShowLocationView(true);
       if (loc.id === BAYOUS_HEART_ID) {
         setBayouMistVisible(true);
-        setTimeout(() => setBayouMistVisible(false), 1400);
+        setTimeout(() => setBayouMistVisible(false), 3000);
       }
     }
   }, [currentUser.isAdmin]);
@@ -3291,39 +3291,39 @@ export default function WorldPage({ user }: WorldPageProps) {
                 style={{
                   zIndex: 5,
                   opacity: bayouMistVisible ? 1 : 0,
-                  transition: "opacity 1.6s ease-out",
+                  transition: "opacity 2.5s ease-out",
                 }}
               >
                 {/* Bottom floor mist */}
                 <div style={{
                   position: "absolute", bottom: "-5%", left: "-15%",
-                  width: "130%", height: "50%",
-                  background: "radial-gradient(ellipse at 50% 90%, rgba(80,200,160,0.22) 0%, rgba(40,160,120,0.12) 45%, transparent 70%)",
-                  filter: "blur(28px)",
+                  width: "130%", height: "60%",
+                  background: "radial-gradient(ellipse at 50% 90%, rgba(80,220,170,0.60) 0%, rgba(40,180,130,0.35) 45%, transparent 70%)",
+                  filter: "blur(20px)",
                   animation: "bayouMist1 7s ease-in-out infinite",
                 }} />
                 {/* Mid sweep */}
                 <div style={{
-                  position: "absolute", top: "28%", left: "-25%",
-                  width: "150%", height: "42%",
-                  background: "radial-gradient(ellipse at 45% 55%, rgba(100,210,170,0.16) 0%, rgba(60,170,130,0.09) 50%, transparent 72%)",
-                  filter: "blur(36px)",
+                  position: "absolute", top: "20%", left: "-25%",
+                  width: "150%", height: "50%",
+                  background: "radial-gradient(ellipse at 45% 55%, rgba(100,220,180,0.45) 0%, rgba(60,180,140,0.25) 50%, transparent 72%)",
+                  filter: "blur(28px)",
                   animation: "bayouMist2 9s ease-in-out infinite",
                 }} />
                 {/* Upper wisps */}
                 <div style={{
                   position: "absolute", top: "4%", left: "-8%",
-                  width: "116%", height: "38%",
-                  background: "radial-gradient(ellipse at 55% 35%, rgba(140,230,195,0.13) 0%, rgba(90,185,150,0.07) 52%, transparent 74%)",
-                  filter: "blur(22px)",
+                  width: "116%", height: "45%",
+                  background: "radial-gradient(ellipse at 55% 35%, rgba(160,240,205,0.38) 0%, rgba(100,200,160,0.20) 52%, transparent 74%)",
+                  filter: "blur(18px)",
                   animation: "bayouMist3 8s ease-in-out infinite",
                 }} />
                 {/* Bright center bloom */}
                 <div style={{
-                  position: "absolute", top: "18%", left: "12%",
-                  width: "76%", height: "52%",
-                  background: "radial-gradient(ellipse at 50% 50%, rgba(190,255,230,0.09) 0%, transparent 62%)",
-                  filter: "blur(44px)",
+                  position: "absolute", top: "10%", left: "5%",
+                  width: "90%", height: "70%",
+                  background: "radial-gradient(ellipse at 50% 50%, rgba(200,255,235,0.28) 0%, transparent 62%)",
+                  filter: "blur(36px)",
                   animation: "bayouMist1 11s ease-in-out infinite reverse",
                 }} />
               </div>
@@ -3660,11 +3660,12 @@ export default function WorldPage({ user }: WorldPageProps) {
                 `}</style>
                 <div
                   className="absolute inset-0 pointer-events-none"
-                  style={{ zIndex: 1, opacity: bayouMistVisible ? 1 : 0, transition: "opacity 1.6s ease-out" }}
+                  style={{ zIndex: 1, opacity: bayouMistVisible ? 1 : 0, transition: "opacity 2.5s ease-out" }}
                 >
-                  <div style={{ position: "absolute", bottom: "-5%", left: "-15%", width: "130%", height: "50%", background: "radial-gradient(ellipse at 50% 90%, rgba(80,200,160,0.35) 0%, rgba(40,160,120,0.18) 45%, transparent 70%)", filter: "blur(24px)", animation: "bayouMist1 7s ease-in-out infinite" }} />
-                  <div style={{ position: "absolute", top: "28%", left: "-25%", width: "150%", height: "42%", background: "radial-gradient(ellipse at 45% 55%, rgba(100,210,170,0.25) 0%, rgba(60,170,130,0.13) 50%, transparent 72%)", filter: "blur(32px)", animation: "bayouMist2 9s ease-in-out infinite" }} />
-                  <div style={{ position: "absolute", top: "4%", left: "-8%", width: "116%", height: "38%", background: "radial-gradient(ellipse at 55% 35%, rgba(140,230,195,0.20) 0%, rgba(90,185,150,0.10) 52%, transparent 74%)", filter: "blur(20px)", animation: "bayouMist3 8s ease-in-out infinite" }} />
+                  <div style={{ position: "absolute", bottom: "-5%", left: "-15%", width: "130%", height: "60%", background: "radial-gradient(ellipse at 50% 90%, rgba(80,220,170,0.60) 0%, rgba(40,180,130,0.35) 45%, transparent 70%)", filter: "blur(20px)", animation: "bayouMist1 7s ease-in-out infinite" }} />
+                  <div style={{ position: "absolute", top: "20%", left: "-25%", width: "150%", height: "50%", background: "radial-gradient(ellipse at 45% 55%, rgba(100,220,180,0.45) 0%, rgba(60,180,140,0.25) 50%, transparent 72%)", filter: "blur(28px)", animation: "bayouMist2 9s ease-in-out infinite" }} />
+                  <div style={{ position: "absolute", top: "4%", left: "-8%", width: "116%", height: "45%", background: "radial-gradient(ellipse at 55% 35%, rgba(160,240,205,0.38) 0%, rgba(100,200,160,0.20) 52%, transparent 74%)", filter: "blur(18px)", animation: "bayouMist3 8s ease-in-out infinite" }} />
+                  <div style={{ position: "absolute", top: "10%", left: "5%", width: "90%", height: "70%", background: "radial-gradient(ellipse at 50% 50%, rgba(200,255,235,0.28) 0%, transparent 62%)", filter: "blur(36px)", animation: "bayouMist1 11s ease-in-out infinite reverse" }} />
                 </div>
               </>
             )}
