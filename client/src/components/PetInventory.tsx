@@ -365,9 +365,15 @@ function PetView({
     );
   }
 
+  const sortedPets = [...pets].sort((a, b) => {
+    const rarityDiff = (b.rarity ?? 0) - (a.rarity ?? 0);
+    if (rarityDiff !== 0) return rarityDiff;
+    return (b.petLevel ?? 0) - (a.petLevel ?? 0);
+  });
+
   return (
     <div className="grid grid-cols-2 gap-3">
-      {pets.map((pet) => {
+      {sortedPets.map((pet) => {
         const isActive = activePetId === pet.shopItemId;
         const isEgg = !pet.isHatched;
         const displayImage = isEgg ? pet.eggImageUrl : (pet.hatchedImageUrl || pet.imageUrl);
