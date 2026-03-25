@@ -392,11 +392,11 @@ function PetView({
             data-testid={`card-pet-${pet.shopItemId}`}
             className="rounded-xl overflow-hidden"
             style={{
-              background: isActive
-                ? "linear-gradient(135deg, rgba(20,60,40,0.98) 0%, rgba(10,40,25,0.98) 100%)"
-                : rs.bg,
-              border: isActive ? "2px solid rgba(74,222,128,0.8)" : rs.border,
-              boxShadow: isActive ? "0 0 24px rgba(74,222,128,0.3)" : rs.glow,
+              background: rs.bg,
+              border: isActive ? `2px solid ${rs.starColor}` : rs.border,
+              boxShadow: isActive
+                ? `0 0 28px ${rs.starColor}55, 0 0 8px ${rs.starColor}33`
+                : rs.glow,
             }}
           >
             <div className="p-3 flex flex-col items-center gap-2">
