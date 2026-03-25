@@ -426,6 +426,48 @@ export default function AdminPage({ user }: AdminPageProps) {
   );
 }
 
+function CleanupWelcomeBundlesButton() {
+  const { toast } = useToast();
+  const cleanupMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/cleanup-welcome-bundles", {});
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      toast({ title: "Cleanup Complete", description: data.message });
+    },
+    onError: () => {
+      toast({ title: "Cleanup Failed", description: "Something went wrong.", variant: "destructive" });
+    },
+  });
+
+  return (
+    <div
+      className="rounded-lg p-4 mt-1"
+      style={{ background: "rgba(20,15,10,0.5)", border: "1px solid rgba(139,94,60,0.25)" }}
+    >
+      <h3 className="font-fantasy text-[#a89878] text-xs tracking-wider mb-2">Maintenance</h3>
+      <button
+        data-testid="button-cleanup-welcome-bundles"
+        onClick={() => cleanupMutation.mutate()}
+        disabled={cleanupMutation.isPending}
+        className="w-full py-2 rounded-md font-fantasy text-xs tracking-wider transition-transform active:scale-95 disabled:opacity-50"
+        style={{
+          background: "rgba(80,40,20,0.5)",
+          border: "1px solid rgba(139,94,60,0.4)",
+          color: "#c8a878",
+          cursor: "pointer",
+        }}
+      >
+        {cleanupMutation.isPending ? "Cleaning up..." : "Remove Stale Welcome Bundles"}
+      </button>
+      <p className="text-[10px] text-center mt-1.5" style={{ color: "rgba(168,152,120,0.5)" }}>
+        Removes old 100 &amp; 300 coin welcome bundles. Safe — only deletes already-claimed entries.
+      </p>
+    </div>
+  );
+}
+
 function RewardBundleSection({ members }: { members: MemberUser[] }) {
   const [bundleName, setBundleName] = useState("");
   const [bundleMessage, setBundleMessage] = useState("");
@@ -696,6 +738,8 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
           </button>
         </div>
       </div>
+
+      <CleanupWelcomeBundlesButton />
 
       {showItemPicker && (
         <ItemPickerModal
