@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import homeIconImg from "@assets/icon_home_new.png";
 import coinIconImg from "@assets/icon_coin.png";
 import petHouseIconImg from "@assets/icon_pet_house.png";
@@ -36,6 +37,8 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideHome, h
   const [showRequestsPopup, setShowRequestsPopup] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const seenNotifIds = useRef<Set<string>>(new Set());
 
   const { data: pendingRewards = [] } = useQuery<any[]>({
     queryKey: ["/api/rewards/pending"],
@@ -46,6 +49,26 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideHome, h
     queryKey: ["/api/friends/requests/count"],
     refetchInterval: 10000,
   });
+
+  const { data: unreadNotifications = [] } = useQuery<any[]>({
+    queryKey: ["/api/notifications/unread"],
+    refetchInterval: 30000,
+  });
+
+  const markReadMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/notifications/mark-read", {}),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/notifications/unread"] }),
+  });
+
+  useEffect(() => {
+    const newOnes = unreadNotifications.filter(n => !seenNotifIds.current.has(n.id));
+    if (newOnes.length === 0) return;
+    newOnes.forEach(n => {
+      seenNotifIds.current.add(n.id);
+      toast({ title: "🎉 Friend Request Accepted", description: n.message });
+    });
+    markReadMutation.mutate();
+  }, [unreadNotifications]);
 
   const { data: pendingRequests = [], refetch: refetchRequests } = useQuery<FriendRequest[]>({
     queryKey: ["/api/friends/requests"],

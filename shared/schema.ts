@@ -469,3 +469,15 @@ export const friendships = pgTable("friendships", {
 });
 
 export type Friendship = typeof friendships.$inferSelect;
+
+// ── Notifications ────────────────────────────────────────────────────────────
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  type: text("type").notNull(),
+  message: text("message").notNull(),
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export type Notification = typeof notifications.$inferSelect;

@@ -3831,6 +3831,8 @@ export async function registerRoutes(
       const requesterId = (req.user as any).id;
       const { targetUserId } = req.params;
       if (requesterId === targetUserId) return res.status(400).json({ message: "Cannot friend yourself" });
+      const outgoingCount = await storage.getOutgoingPendingRequestCount(requesterId);
+      if (outgoingCount >= 25) return res.status(400).json({ message: "You have reached the limit of 25 unanswered friend requests. Wait for some to be accepted before sending more." });
       const result = await storage.sendFriendRequest(requesterId, targetUserId);
       return res.json(result);
     } catch (err) {
@@ -3864,9 +3866,37 @@ export async function registerRoutes(
       const { requestId } = req.params;
       const result = await storage.acceptFriendRequest(requestId, userId);
       if (!result) return res.status(404).json({ message: "Request not found" });
+      const accepter = await storage.getUser(userId);
+      if (accepter) {
+        await storage.createNotification(
+          result.requesterId,
+          "friend_accepted",
+          `${accepter.username} accepted your friend request!`
+        );
+      }
       return res.json(result);
     } catch (err) {
       return res.status(500).json({ message: "Failed to accept friend request" });
+    }
+  });
+
+  app.get("/api/notifications/unread", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.user as any).id;
+      const notifs = await storage.getUnreadNotifications(userId);
+      return res.json(notifs);
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to get notifications" });
+    }
+  });
+
+  app.post("/api/notifications/mark-read", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.user as any).id;
+      await storage.markNotificationsRead(userId);
+      return res.json({ success: true });
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to mark notifications read" });
     }
   });
 

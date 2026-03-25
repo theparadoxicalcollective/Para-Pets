@@ -29,6 +29,7 @@ import {
   pvpBattles,
   pvpBattleGroups,
   type Friendship, friendships,
+  type Notification, notifications,
   worldPetPositions,
 } from "@shared/schema";
 import { db } from "./db";
@@ -1360,6 +1361,28 @@ export class DatabaseStorage implements IStorage {
       )
     );
     return row ?? null;
+  }
+
+  async getOutgoingPendingRequestCount(userId: string): Promise<number> {
+    const rows = await db.select({ id: friendships.id }).from(friendships)
+      .where(and(eq(friendships.requesterId, userId), eq(friendships.status, "pending")));
+    return rows.length;
+  }
+
+  async createNotification(userId: string, type: string, message: string): Promise<void> {
+    await db.insert(notifications).values({ userId, type, message });
+  }
+
+  async getUnreadNotifications(userId: string): Promise<Notification[]> {
+    return db.select().from(notifications)
+      .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)))
+      .orderBy(desc(notifications.createdAt));
+  }
+
+  async markNotificationsRead(userId: string): Promise<void> {
+    await db.update(notifications)
+      .set({ isRead: true })
+      .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
   }
 }
 
