@@ -1009,10 +1009,13 @@ export default function WorldPage({ user }: WorldPageProps) {
       playShopBell();
     } else if ((loc.type === "battle" || loc.type === "explore") && !currentUser.isAdmin) {
       setShowDangerWarning(true);
+      if (loc.id === BAYOUS_HEART_ID) {
+        setBayouMistVisible(true);
+        setTimeout(() => setBayouMistVisible(false), 1400);
+      }
     } else {
       setShowShop(false);
       setShowLocationView(true);
-      // Trigger entrance mist for Bayou's Heart
       if (loc.id === BAYOUS_HEART_ID) {
         setBayouMistVisible(true);
         setTimeout(() => setBayouMistVisible(false), 1400);
@@ -3635,6 +3638,36 @@ export default function WorldPage({ user }: WorldPageProps) {
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
             <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowDangerWarning(false)} />
+            {/* Bayou's Heart entrance mist — renders over backdrop, under modal */}
+            {dangerLoc.id === BAYOUS_HEART_ID && (
+              <>
+                <style>{`
+                  @keyframes bayouMist1 {
+                    0%   { transform: translateX(-8%) scaleX(1); }
+                    50%  { transform: translateX(8%) scaleX(1.12); }
+                    100% { transform: translateX(-8%) scaleX(1); }
+                  }
+                  @keyframes bayouMist2 {
+                    0%   { transform: translateX(6%) scaleX(0.92); }
+                    50%  { transform: translateX(-10%) scaleX(1.18); }
+                    100% { transform: translateX(6%) scaleX(0.92); }
+                  }
+                  @keyframes bayouMist3 {
+                    0%   { transform: translateX(0%) translateY(-8px); }
+                    50%  { transform: translateX(12%) translateY(8px); }
+                    100% { transform: translateX(0%) translateY(-8px); }
+                  }
+                `}</style>
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{ zIndex: 1, opacity: bayouMistVisible ? 1 : 0, transition: "opacity 1.6s ease-out" }}
+                >
+                  <div style={{ position: "absolute", bottom: "-5%", left: "-15%", width: "130%", height: "50%", background: "radial-gradient(ellipse at 50% 90%, rgba(80,200,160,0.35) 0%, rgba(40,160,120,0.18) 45%, transparent 70%)", filter: "blur(24px)", animation: "bayouMist1 7s ease-in-out infinite" }} />
+                  <div style={{ position: "absolute", top: "28%", left: "-25%", width: "150%", height: "42%", background: "radial-gradient(ellipse at 45% 55%, rgba(100,210,170,0.25) 0%, rgba(60,170,130,0.13) 50%, transparent 72%)", filter: "blur(32px)", animation: "bayouMist2 9s ease-in-out infinite" }} />
+                  <div style={{ position: "absolute", top: "4%", left: "-8%", width: "116%", height: "38%", background: "radial-gradient(ellipse at 55% 35%, rgba(140,230,195,0.20) 0%, rgba(90,185,150,0.10) 52%, transparent 74%)", filter: "blur(20px)", animation: "bayouMist3 8s ease-in-out infinite" }} />
+                </div>
+              </>
+            )}
             <div
               className="relative z-10 w-[85%] max-w-sm rounded-lg p-5 text-center"
               style={{
