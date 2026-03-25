@@ -1505,10 +1505,11 @@ export default function WorldPage({ user }: WorldPageProps) {
                           <div key={i} style={{
                             position: "absolute",
                             left: `${fx}%`, top: `${fy}%`,
-                            width: fsz, height: fsz,
+                            width: 3, height: 3,
                             borderRadius: "50%",
-                            background: `radial-gradient(circle, rgba(255,230,30,0.48) 0%, rgba(255,210,0,0.1) 52%, transparent 72%)`,
-                            boxShadow: `0 0 ${fsz}px ${fsz * 0.5}px rgba(255,215,0,0.2)`,
+                            background: "rgba(255,252,180,1)",
+                            filter: "blur(0.4px)",
+                            boxShadow: `0 0 3px 2px rgba(255,248,120,0.95), 0 0 10px 5px rgba(255,220,30,0.55), 0 0 24px 12px rgba(255,190,0,0.25), 0 0 48px 22px rgba(255,160,0,0.09)`,
                             mixBlendMode: "screen",
                             animation: `${FF_ANIMS[i % 3]} ${dur}s ease-in-out ${delay}s infinite`,
                           }} />
@@ -2096,9 +2097,10 @@ export default function WorldPage({ user }: WorldPageProps) {
                   <div key={i} style={{
                     position: "absolute",
                     left: `${[20,55,35,70][i]}%`, top: `${[35,20,65,50][i]}%`,
-                    width: 9, height: 9, borderRadius: "50%",
-                    background: "radial-gradient(circle, rgba(255,230,30,0.48) 0%, rgba(255,210,0,0.1) 52%, transparent 72%)",
-                    boxShadow: "0 0 6px 3px rgba(255,215,0,0.22)",
+                    width: 3, height: 3, borderRadius: "50%",
+                    background: "rgba(255,252,180,1)",
+                    filter: "blur(0.4px)",
+                    boxShadow: "0 0 3px 2px rgba(255,248,120,0.95), 0 0 10px 5px rgba(255,220,30,0.55), 0 0 22px 10px rgba(255,190,0,0.25)",
                   }} />
                 ))}
               </div>
@@ -2186,9 +2188,10 @@ export default function WorldPage({ user }: WorldPageProps) {
                 <div key={i} style={{
                   position: "absolute",
                   left: `${[28,52,38][i]}%`, top: `${[40,25,62][i]}%`,
-                  width: 4, height: 4, borderRadius: "50%",
-                  background: "rgba(255,228,30,0.52)",
-                  boxShadow: "0 0 4px 2px rgba(255,210,0,0.3)",
+                  width: 3, height: 3, borderRadius: "50%",
+                  background: "rgba(255,252,180,1)",
+                  filter: "blur(0.4px)",
+                  boxShadow: "0 0 3px 2px rgba(255,248,120,0.95), 0 0 8px 4px rgba(255,220,30,0.6), 0 0 16px 7px rgba(255,190,0,0.25)",
                 }} />
               ))}
             </button>
@@ -2364,9 +2367,10 @@ export default function WorldPage({ user }: WorldPageProps) {
                             <div key={i} style={{
                               position: "absolute",
                               left: `${[22,50,30,65,42][i]}%`, top: `${[38,20,60,45,75][i]}%`,
-                              width: 5, height: 5, borderRadius: "50%",
-                              background: "rgba(255,228,30,0.52)",
-                              boxShadow: "0 0 5px 2px rgba(255,210,0,0.28)",
+                              width: 3, height: 3, borderRadius: "50%",
+                              background: "rgba(255,252,180,1)",
+                              filter: "blur(0.4px)",
+                              boxShadow: "0 0 3px 2px rgba(255,248,120,0.95), 0 0 8px 4px rgba(255,220,30,0.55), 0 0 18px 8px rgba(255,190,0,0.22)",
                             }} />
                           ))}
                         </div>

@@ -555,9 +555,10 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                       return (
                         <div key={i} style={{
                           position: "absolute", left: `${fx}%`, top: `${fy}%`,
-                          width: fsz, height: fsz, borderRadius: "50%",
-                          background: "radial-gradient(circle, rgba(255,230,30,0.48) 0%, rgba(255,210,0,0.1) 52%, transparent 72%)",
-                          boxShadow: `0 0 ${fsz}px ${fsz * 0.5}px rgba(255,215,0,0.2)`,
+                          width: 3, height: 3, borderRadius: "50%",
+                          background: "rgba(255,252,180,1)",
+                          filter: "blur(0.4px)",
+                          boxShadow: "0 0 3px 2px rgba(255,248,120,0.95), 0 0 10px 5px rgba(255,220,30,0.55), 0 0 24px 12px rgba(255,190,0,0.25), 0 0 48px 22px rgba(255,160,0,0.09)",
                           mixBlendMode: "screen",
                           animation: `${FF_ANIMS[i % 3]} ${dur}s ease-in-out ${del}s infinite`,
                         }} />
@@ -736,9 +737,10 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
               {[0,1,2].map(i => (
                 <div key={i} style={{
                   position: "absolute", left: `${[28,52,38][i]}%`, top: `${[40,25,62][i]}%`,
-                  width: 4, height: 4, borderRadius: "50%",
-                  background: "rgba(255,228,30,0.6)",
-                  boxShadow: "0 0 4px 2px rgba(255,210,0,0.3)",
+                  width: 3, height: 3, borderRadius: "50%",
+                  background: "rgba(255,252,180,1)",
+                  filter: "blur(0.4px)",
+                  boxShadow: "0 0 3px 2px rgba(255,248,120,0.95), 0 0 8px 4px rgba(255,220,30,0.6), 0 0 16px 7px rgba(255,190,0,0.25)",
                 }} />
               ))}
             </button>
@@ -807,8 +809,10 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                               {[0,1,2,3].map(i => (
                                 <div key={i} style={{
                                   position: "absolute", left: `${[20,55,35,65][i]}%`, top: `${[30,20,60,50][i]}%`,
-                                  width: 5, height: 5, borderRadius: "50%",
-                                  background: "rgba(255,228,30,0.7)", boxShadow: "0 0 6px 2px rgba(255,210,0,0.4)",
+                                  width: 3, height: 3, borderRadius: "50%",
+                                  background: "rgba(255,252,180,1)",
+                                  filter: "blur(0.4px)",
+                                  boxShadow: "0 0 3px 2px rgba(255,248,120,0.95), 0 0 8px 4px rgba(255,220,30,0.55), 0 0 18px 8px rgba(255,190,0,0.22)",
                                 }} />
                               ))}
                             </div>
