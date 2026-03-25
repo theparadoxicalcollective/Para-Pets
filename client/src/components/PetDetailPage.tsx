@@ -86,6 +86,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
   const [nicknameInput, setNicknameInput] = useState(pet.petNickname || "");
   const [showAccessoryPicker, setShowAccessoryPicker] = useState(false);
   const [accessoryFlash, setAccessoryFlash] = useState<"equip" | "unequip" | null>(null);
+  const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem("petDetailTutorialSeen"));
   const { toast } = useToast();
 
   useEffect(() => { showPowerUpModalRef.current = showPowerUpModal; }, [showPowerUpModal]);
@@ -380,15 +381,25 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
             {rc.label.toUpperCase()}
           </div>
 
-          {/* Close button */}
-          <button
-            data-testid="button-close-pet-detail"
-            onClick={onClose}
-            className="absolute top-3 right-3 z-20 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm"
-            style={{ background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.7)", cursor: "pointer" }}
-          >
-            ✕
-          </button>
+          {/* Help + Close buttons */}
+          <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5">
+            <button
+              data-testid="button-pet-detail-help"
+              onClick={() => setShowTutorial(true)}
+              className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs"
+              style={{ background: "rgba(0,0,0,0.5)", border: `1px solid ${rc.primary}55`, color: rc.primary, cursor: "pointer", fontFamily: "Cinzel, serif" }}
+            >
+              ?
+            </button>
+            <button
+              data-testid="button-close-pet-detail"
+              onClick={onClose}
+              className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm"
+              style={{ background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.7)", cursor: "pointer" }}
+            >
+              ✕
+            </button>
+          </div>
 
           {/* Egg thumbnail */}
           {pet.eggImageUrl && (
@@ -919,6 +930,124 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
           100% { opacity: 0; transform: scale(1.6); }
         }
       `}</style>
+
+      {/* ── Tutorial modal ─────────────────────────────────────────── */}
+      {showTutorial && (
+        <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => { localStorage.setItem("petDetailTutorialSeen", "1"); setShowTutorial(false); }} />
+          <div
+            className="relative w-full sm:w-[92%] sm:max-w-sm rounded-t-3xl sm:rounded-2xl overflow-y-auto animate-slide-up"
+            style={{
+              background: "linear-gradient(160deg, rgba(14,7,2,0.99) 0%, rgba(26,14,5,0.99) 100%)",
+              border: `1px solid ${rc.primary}33`,
+              borderBottom: "none",
+              boxShadow: `0 -4px 60px rgba(0,0,0,0.9), 0 0 40px ${rc.dim}`,
+              maxHeight: "82vh",
+            }}
+          >
+            {/* Header */}
+            <div
+              className="flex items-center justify-between px-5 pt-5 pb-3"
+              style={{ borderBottom: `1px solid ${rc.primary}18` }}
+            >
+              <div>
+                <p className="font-fantasy text-[9px] tracking-widest mb-0.5" style={{ color: `${rc.primary}88` }}>PET DETAILS</p>
+                <p className="font-fantasy text-base font-bold tracking-wider" style={{ color: rc.primary }}>How It Works</p>
+              </div>
+              <button
+                data-testid="button-pet-tutorial-close"
+                onClick={() => { localStorage.setItem("petDetailTutorialSeen", "1"); setShowTutorial(false); }}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
+                style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.6)", cursor: "pointer" }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Cards */}
+            <div className="px-4 py-4 space-y-3">
+              {[
+                {
+                  icon: "★",
+                  iconColor: rc.primary,
+                  title: "Rarity & Stars",
+                  desc: `Stars (1–5) show your pet's rarity tier. Higher rarity = more power-up slots per level, so rare pets grow faster with items.`,
+                },
+                {
+                  icon: "⬆",
+                  iconColor: "#f0c040",
+                  title: "Level & XP",
+                  desc: "Your pet gains XP automatically through battles. Watch the bar fill — when it's full your pet levels up and grows stronger.",
+                },
+                {
+                  icon: "❤",
+                  iconColor: "#4ade80",
+                  title: "HP / ATK / DEF",
+                  desc: "HP is health in battle. ATK determines how hard you hit enemies. DEF reduces incoming damage — especially important for blocking.",
+                },
+                {
+                  icon: "✦",
+                  iconColor: "#c084fc",
+                  title: "Power Up",
+                  desc: "Feed your pet items from your bag to permanently boost HP, ATK, or DEF. Each level has a limited number of slots based on rarity.",
+                },
+                {
+                  icon: "⚡",
+                  iconColor: "#60a5fa",
+                  title: "LVL Up Items",
+                  desc: "Special level-up items inject XP directly into the bar. Great for pushing past a level quickly without waiting for battles.",
+                },
+                {
+                  icon: "◈",
+                  iconColor: "#f0c040",
+                  title: "Accessories",
+                  desc: "Equip up to 3 accessories for passive stat bonuses. Tap a filled slot to remove it. Accessories stack on top of your base stats.",
+                },
+                {
+                  icon: "✎",
+                  iconColor: rc.primary,
+                  title: "Nickname",
+                  desc: "Give your pet a personal name that shows in battle and the pet house. Species name stays visible underneath as a reference.",
+                },
+              ].map(({ icon, iconColor, title, desc }) => (
+                <div
+                  key={title}
+                  className="flex gap-3 items-start rounded-xl p-3"
+                  style={{ background: "rgba(0,0,0,0.25)", border: "1px solid rgba(255,255,255,0.04)" }}
+                >
+                  <div
+                    className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-base font-bold"
+                    style={{ background: `${iconColor}18`, border: `1px solid ${iconColor}33`, color: iconColor }}
+                  >
+                    {icon}
+                  </div>
+                  <div>
+                    <p className="font-fantasy text-[11px] font-semibold tracking-wide mb-0.5" style={{ color: iconColor }}>{title}</p>
+                    <p className="font-fantasy text-[10px] leading-relaxed tracking-wide" style={{ color: "rgba(200,180,150,0.7)" }}>{desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="px-4 pb-5">
+              <button
+                data-testid="button-pet-tutorial-got-it"
+                onClick={() => { localStorage.setItem("petDetailTutorialSeen", "1"); setShowTutorial(false); }}
+                className="w-full py-3 rounded-xl font-fantasy text-xs tracking-widest transition-transform active:scale-95"
+                style={{
+                  background: `linear-gradient(135deg, ${rc.primary}28 0%, ${rc.primary}12 100%)`,
+                  border: `1px solid ${rc.primary}44`,
+                  color: rc.primary,
+                  cursor: "pointer",
+                  boxShadow: `0 0 20px ${rc.dim}`,
+                }}
+              >
+                Got It!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <PowerUpOverlay
         visible={showSuccessAnim}
