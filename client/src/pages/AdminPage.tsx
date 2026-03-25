@@ -428,15 +428,18 @@ export default function AdminPage({ user }: AdminPageProps) {
 
 function CleanupWelcomeBundlesButton() {
   const { toast } = useToast();
+  const [lastResult, setLastResult] = useState<{ deleted: number; message: string } | null>(null);
   const cleanupMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/admin/cleanup-welcome-bundles", {});
       return res.json();
     },
     onSuccess: (data: any) => {
+      setLastResult(data);
       toast({ title: "Cleanup Complete", description: data.message });
     },
     onError: () => {
+      setLastResult(null);
       toast({ title: "Cleanup Failed", description: "Something went wrong.", variant: "destructive" });
     },
   });
@@ -461,8 +464,21 @@ function CleanupWelcomeBundlesButton() {
       >
         {cleanupMutation.isPending ? "Cleaning up..." : "Remove Stale Welcome Bundles"}
       </button>
+      {lastResult && (
+        <div
+          data-testid="text-cleanup-result"
+          className="mt-2 rounded px-3 py-2 text-[11px] font-fantasy text-center tracking-wide"
+          style={{
+            background: lastResult.deleted > 0 ? "rgba(34,100,34,0.25)" : "rgba(40,40,20,0.4)",
+            border: `1px solid ${lastResult.deleted > 0 ? "rgba(74,222,128,0.35)" : "rgba(139,94,60,0.3)"}`,
+            color: lastResult.deleted > 0 ? "#4ade80" : "#a89878",
+          }}
+        >
+          {lastResult.deleted > 0 ? "✓ " : ""}{lastResult.message}
+        </div>
+      )}
       <p className="text-[10px] text-center mt-1.5" style={{ color: "rgba(168,152,120,0.5)" }}>
-        Removes old 100 &amp; 300 coin welcome bundles. Safe — only deletes already-claimed entries.
+        Removes old 100 &amp; 300 coin welcome bundles, keeping only the canonical 500-coin bundle.
       </p>
     </div>
   );
