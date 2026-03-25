@@ -43,6 +43,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideHome, h
   const { data: pendingRewards = [] } = useQuery<any[]>({
     queryKey: ["/api/rewards/pending"],
     refetchInterval: 10000,
+    refetchOnWindowFocus: true,
   });
 
   const { data: friendRequestData, refetch: refetchCount } = useQuery<{ count: number }>({

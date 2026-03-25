@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { playClick, unlockAudio } from "@/lib/sounds";
+import { initTabSync, teardownTabSync } from "@/lib/tabSync";
 import AuthPage from "@/pages/AuthPage";
 import HomePage from "@/pages/HomePage";
 import MapPage from "@/pages/MapPage";
@@ -32,6 +33,9 @@ function AppRouter() {
   const { data: user, isLoading } = useQuery<any>({
     queryKey: ["/api/auth/me"],
     retry: false,
+    staleTime: 20 * 1000,
+    refetchInterval: 30 * 1000,
+    refetchOnWindowFocus: true,
   });
 
   const [showWelcome, setShowWelcome] = useState(() =>
@@ -113,6 +117,11 @@ function AppRouter() {
 }
 
 function App() {
+  useEffect(() => {
+    initTabSync();
+    return () => teardownTabSync();
+  }, []);
+
   // On desktop, scale the phone frame down so it always fits in the viewport
   // without clipping any content (exactly like a device emulator).
   // On mobile the frame is full-screen so scale stays 1.

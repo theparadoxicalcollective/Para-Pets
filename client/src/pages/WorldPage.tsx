@@ -356,6 +356,8 @@ export default function WorldPage({ user }: WorldPageProps) {
     queryKey: ["/api/inventory"],
     enabled: showShop || showBattlePrep,
     staleTime: 0,
+    refetchInterval: 30 * 1000,
+    refetchOnWindowFocus: true,
   });
 
   const { data: allShopItems = [], refetch: refetchAllShopItems, isLoading: isAllShopItemsLoading } = useQuery<ShopItem[]>({

@@ -101,6 +101,8 @@ export default function PetHousePage({ user: initialUser }: PetHousePageProps) {
   const { data: inventory = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/inventory"],
     staleTime: 0,
+    refetchInterval: 30 * 1000,
+    refetchOnWindowFocus: true,
   });
 
   const hatchedPets: InventoryPet[] = inventory.filter(
