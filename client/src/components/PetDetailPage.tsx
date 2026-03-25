@@ -317,15 +317,16 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
           maxHeight: "90vh",
         }}
       >
-        {/* ── Hero banner ─────────────────────────────────────────── */}
+        {/* ── Portrait + name (open, no box header) ──────────────── */}
         <div
-          className="relative overflow-hidden"
+          className="relative flex flex-col items-center"
           style={{
-            height: 196,
-            background: `radial-gradient(ellipse 80% 120% at 50% 100%, ${rc.heroBg} 0%, rgba(8,4,0,0.6) 100%)`,
+            paddingTop: 50,
+            paddingBottom: 10,
+            background: `radial-gradient(ellipse 140% 180% at 50% -20%, ${rc.heroBg} 0%, transparent 62%)`,
           }}
         >
-          {/* Rarity shimmer bar at top */}
+          {/* Shimmer bar at very top */}
           <div style={{
             position: "absolute", top: 0, left: 0, right: 0, height: 3,
             background: `linear-gradient(90deg, transparent, ${rc.primary}, transparent)`,
@@ -336,48 +337,48 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
           {particles.map((p, i) => (
             <div key={i} style={{
               position: "absolute",
-              bottom: "8%",
+              top: 50,
               left: p.left,
-              width: i % 2 === 0 ? 4 : 3,
-              height: i % 2 === 0 ? 4 : 3,
+              width: i % 2 === 0 ? 3 : 2,
+              height: i % 2 === 0 ? 3 : 2,
               borderRadius: "50%",
               background: rc.primary,
-              boxShadow: `0 0 8px ${rc.glow}`,
+              boxShadow: `0 0 6px ${rc.glow}`,
               animation: `heroParticle ${p.dur} ease-in-out infinite`,
               animationDelay: p.delay,
               opacity: 0,
             }} />
           ))}
 
-          {/* Radial glow behind pet */}
+          {/* Soft radial glow behind portrait */}
           <div style={{
             position: "absolute",
-            left: "50%", top: "54%",
-            transform: "translate(-50%, -50%)",
-            width: 188, height: 188,
+            left: "50%", top: 50,
+            transform: "translateX(-50%)",
+            width: 220, height: 220,
             borderRadius: "50%",
-            background: `radial-gradient(circle, ${rc.glow.replace("0.55", "0.28")} 0%, transparent 70%)`,
+            background: `radial-gradient(circle, ${rc.glow.replace("0.55", "0.30")} 0%, transparent 70%)`,
             animation: "glowPulse 3s ease-in-out infinite",
+            pointerEvents: "none",
           }} />
 
           {/* Pet portrait (coin-flip card) */}
           <div
-            className="absolute"
             style={{
-              left: "50%", top: "50%",
-              transform: "translate(-50%, -50%)",
-              width: 152, height: 152,
+              width: 180, height: 180,
               cursor: pet.eggImageUrl ? "pointer" : "default",
+              position: "relative",
               zIndex: 1,
+              flexShrink: 0,
             }}
             onClick={handlePortraitClick}
             data-testid="img-pet-detail"
           >
-            {/* Float layer — translateY only, no 3D */}
+            {/* Float layer */}
             <div style={{ width: "100%", height: "100%", animation: "portraitFloat 4s ease-in-out infinite" }}>
               {/* Perspective container */}
               <div style={{ width: "100%", height: "100%", perspective: "700px" }}>
-                {/* Flipper — rotateY only, no float */}
+                {/* Flipper */}
                 <div style={{
                   width: "100%",
                   height: "100%",
@@ -437,10 +438,10 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                 </div>
               </div>
             </div>
-            {/* Tap hint — outside float layer so it doesn't bounce */}
+            {/* Tap hint */}
             {pet.eggImageUrl && flipAnim === "idle" && (
               <div style={{
-                position: "absolute", bottom: -16, left: "50%", transform: "translateX(-50%)",
+                position: "absolute", bottom: -14, left: "50%", transform: "translateX(-50%)",
                 fontSize: 8, fontFamily: "Cinzel, serif", letterSpacing: "0.08em",
                 color: "rgba(240,192,64,0.5)",
                 whiteSpace: "nowrap",
@@ -449,18 +450,88 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
             )}
           </div>
 
+          {/* Name + stars + nickname — flows directly below portrait */}
+          <div className="flex flex-col items-center mt-4 px-4 w-full">
+            <h3
+              className="font-fantasy text-base tracking-widest font-bold"
+              style={{ color: rc.primary, textShadow: `0 0 12px ${rc.glow}` }}
+              data-testid="text-pet-detail-name"
+            >
+              {pet.petNickname || pet.name}
+            </h3>
+            {pet.petNickname && (
+              <p className="font-fantasy text-[#7a6a50] text-[9px] tracking-wider -mt-0.5" data-testid="text-pet-species">{pet.name}</p>
+            )}
+            {rarity > 0 && (
+              <div className="flex items-center gap-0.5 mt-0.5" data-testid="stars-pet-detail">
+                {Array.from({ length: rarity }).map((_, i) => (
+                  <span key={i} style={{ color: rc.primary, textShadow: `0 0 6px ${rc.glow}`, fontSize: 12 }}>★</span>
+                ))}
+                {Array.from({ length: 5 - rarity }).map((_, i) => (
+                  <span key={i} style={{ color: "rgba(255,255,255,0.08)", fontSize: 12 }}>★</span>
+                ))}
+              </div>
+            )}
+
+            {/* Nickname editing */}
+            {editingNickname ? (
+              <div className="flex items-center gap-1.5 mt-1.5">
+                <input
+                  data-testid="input-pet-nickname"
+                  type="text"
+                  value={nicknameInput}
+                  onChange={(e) => setNicknameInput(e.target.value.slice(0, 20))}
+                  placeholder="Name your pet..."
+                  autoFocus
+                  className="px-2 py-0.5 rounded-md font-fantasy text-[10px] outline-none w-28 text-center"
+                  style={{ background: "rgba(242,232,208,0.9)", border: "1px solid #8b5e3c", color: "#2a1a0a" }}
+                  onKeyDown={(e) => { if (e.key === "Enter") nicknameMutation.mutate(nicknameInput); }}
+                />
+                <button
+                  data-testid="button-save-nickname"
+                  onClick={() => nicknameMutation.mutate(nicknameInput)}
+                  disabled={nicknameMutation.isPending}
+                  className="px-2 py-0.5 rounded-md font-fantasy text-[8px] tracking-wider"
+                  style={{ background: `linear-gradient(135deg, ${rc.primary}33, ${rc.primary}11)`, border: `1px solid ${rc.primary}55`, color: rc.primary, cursor: "pointer" }}
+                >
+                  {nicknameMutation.isPending ? "..." : "Save"}
+                </button>
+                <button
+                  data-testid="button-cancel-nickname"
+                  onClick={() => { setEditingNickname(false); setNicknameInput(pet.petNickname || ""); }}
+                  className="px-2 py-0.5 rounded-md font-fantasy text-[8px] tracking-wider"
+                  style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)", color: "#6a5840", cursor: "pointer" }}
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                data-testid="button-edit-nickname"
+                onClick={() => { setEditingNickname(true); setNicknameInput(pet.petNickname || ""); }}
+                className="mt-1 px-2.5 py-0.5 rounded-full font-fantasy text-[8px] tracking-wider transition-opacity hover:opacity-80"
+                style={{ background: rc.dim, border: `1px solid ${rc.primary}33`, color: rc.primary, cursor: "pointer" }}
+              >
+                <span className="flex items-center gap-1">
+                  <Pencil size={8} />
+                  {pet.petNickname ? "Rename" : "Give a Name"}
+                </span>
+              </button>
+            )}
+          </div>
+
           {/* Rarity badge – top left */}
           <div
             className="absolute font-fantasy tracking-widest"
             style={{
-              top: 14, left: 14,
-              fontSize: 9, fontWeight: 700,
+              top: 12, left: 12,
+              fontSize: 8, fontWeight: 700,
               color: rc.primary,
               background: rc.dim,
               border: `1px solid ${rc.primary}55`,
               borderRadius: 20,
-              padding: "2px 8px",
-              letterSpacing: "0.14em",
+              padding: "2px 7px",
+              letterSpacing: "0.12em",
               textShadow: `0 0 8px ${rc.glow}`,
             }}
           >
@@ -472,7 +543,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
             <button
               data-testid="button-pet-detail-help"
               onClick={() => setShowTutorial(true)}
-              className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs"
+              className="w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px]"
               style={{ background: "rgba(0,0,0,0.5)", border: `1px solid ${rc.primary}55`, color: rc.primary, cursor: "pointer", fontFamily: "Cinzel, serif" }}
             >
               ?
@@ -480,84 +551,12 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
             <button
               data-testid="button-close-pet-detail"
               onClick={onClose}
-              className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm"
+              className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs"
               style={{ background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.7)", cursor: "pointer" }}
             >
               ✕
             </button>
           </div>
-
-        </div>
-
-        {/* ── Name + stars ────────────────────────────────────────── */}
-        <div className="flex flex-col items-center pt-3 pb-1 px-5">
-          <h3
-            className="font-fantasy text-xl tracking-widest font-bold"
-            style={{ color: rc.primary, textShadow: `0 0 16px ${rc.glow}` }}
-            data-testid="text-pet-detail-name"
-          >
-            {pet.petNickname || pet.name}
-          </h3>
-          {pet.petNickname && (
-            <p className="font-fantasy text-[#7a6a50] text-[10px] tracking-wider -mt-0.5" data-testid="text-pet-species">{pet.name}</p>
-          )}
-
-          {rarity > 0 && (
-            <div className="flex items-center gap-0.5 mt-1" data-testid="stars-pet-detail">
-              {Array.from({ length: rarity }).map((_, i) => (
-                <span key={i} style={{ color: rc.primary, textShadow: `0 0 8px ${rc.glow}`, fontSize: 14 }}>★</span>
-              ))}
-              {Array.from({ length: 5 - rarity }).map((_, i) => (
-                <span key={i} style={{ color: "rgba(255,255,255,0.08)", fontSize: 14 }}>★</span>
-              ))}
-            </div>
-          )}
-
-          {/* Nickname editing */}
-          {editingNickname ? (
-            <div className="flex items-center gap-2 mt-2">
-              <input
-                data-testid="input-pet-nickname"
-                type="text"
-                value={nicknameInput}
-                onChange={(e) => setNicknameInput(e.target.value.slice(0, 20))}
-                placeholder="Name your pet..."
-                autoFocus
-                className="px-2 py-1 rounded-md font-fantasy text-xs outline-none w-32 text-center"
-                style={{ background: "rgba(242,232,208,0.9)", border: "1px solid #8b5e3c", color: "#2a1a0a" }}
-                onKeyDown={(e) => { if (e.key === "Enter") nicknameMutation.mutate(nicknameInput); }}
-              />
-              <button
-                data-testid="button-save-nickname"
-                onClick={() => nicknameMutation.mutate(nicknameInput)}
-                disabled={nicknameMutation.isPending}
-                className="px-2 py-1 rounded-md font-fantasy text-[9px] tracking-wider"
-                style={{ background: `linear-gradient(135deg, ${rc.primary}33, ${rc.primary}11)`, border: `1px solid ${rc.primary}55`, color: rc.primary, cursor: "pointer" }}
-              >
-                {nicknameMutation.isPending ? "..." : "Save"}
-              </button>
-              <button
-                data-testid="button-cancel-nickname"
-                onClick={() => { setEditingNickname(false); setNicknameInput(pet.petNickname || ""); }}
-                className="px-2 py-1 rounded-md font-fantasy text-[9px] tracking-wider"
-                style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)", color: "#6a5840", cursor: "pointer" }}
-              >
-                Cancel
-              </button>
-            </div>
-          ) : (
-            <button
-              data-testid="button-edit-nickname"
-              onClick={() => { setEditingNickname(true); setNicknameInput(pet.petNickname || ""); }}
-              className="mt-1.5 px-3 py-1 rounded-full font-fantasy text-[9px] tracking-wider transition-opacity hover:opacity-80"
-              style={{ background: rc.dim, border: `1px solid ${rc.primary}33`, color: rc.primary, cursor: "pointer" }}
-            >
-              <span className="flex items-center gap-1">
-                <Pencil size={9} />
-                {pet.petNickname ? "Rename" : "Give a Name"}
-              </span>
-            </button>
-          )}
         </div>
 
         <div className="px-4 pb-5 space-y-3 mt-1">
@@ -569,13 +568,13 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
           >
             {/* Level badge row */}
             <div
-              className="flex items-center justify-between px-4 py-3"
+              className="flex items-center justify-between px-3 py-2"
               style={{ borderBottom: `1px solid ${rc.primary}18` }}
             >
               <div className="flex flex-col">
                 <span className="font-fantasy text-[9px] tracking-widest" style={{ color: "rgba(255,255,255,0.3)" }}>LEVEL</span>
                 <span
-                  className="font-fantasy text-3xl font-bold leading-none"
+                  className="font-fantasy text-2xl font-bold leading-none"
                   style={{ color: rc.primary, textShadow: `0 0 20px ${rc.glow}` }}
                   data-testid="text-pet-level"
                 >
@@ -617,14 +616,14 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
             </div>
 
             {/* Stat rows */}
-            <div className="px-4 py-3 space-y-2.5">
+            <div className="px-3 py-2 space-y-2">
               <StatRow icon={<Heart className="w-3.5 h-3.5" />} label="HP"  value={pet.petHealth} color="#4ade80" testId="bar-pet-health" />
               <StatRow icon={<Swords className="w-3.5 h-3.5" />} label="ATK" value={pet.petAtk}   color="#f87171" testId="bar-pet-atk"    />
               <StatRow icon={<Shield className="w-3.5 h-3.5" />} label="DEF" value={pet.petDef}   color="#60a5fa" testId="bar-pet-def"    />
             </div>
 
             {/* Power-up slots */}
-            <div className="px-4 pb-3">
+            <div className="px-3 pb-2.5">
               <div className="flex items-center justify-between mb-1.5">
                 <span className="font-fantasy text-[9px] tracking-widest" style={{ color: "rgba(255,255,255,0.25)" }}>POWER-UP SLOTS</span>
                 <span className="font-fantasy text-[9px]" style={{ color: "rgba(192,132,252,0.7)" }} data-testid="text-items-used">
