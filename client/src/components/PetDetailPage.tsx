@@ -94,15 +94,18 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
   const [showAccessoryPicker, setShowAccessoryPicker] = useState(false);
   const [accessoryFlash, setAccessoryFlash] = useState<"equip" | "unequip" | null>(null);
   const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem("petDetailTutorialSeen"));
-  const [portraitFlipped, setPortraitFlipped] = useState(false);
+  const [flipAnim, setFlipAnim] = useState<"idle" | "forward" | "back">("idle");
   const flipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { toast } = useToast();
 
   const handlePortraitClick = () => {
-    if (!pet.eggImageUrl) return;
+    if (!pet.eggImageUrl || flipAnim !== "idle") return;
     if (flipTimerRef.current) clearTimeout(flipTimerRef.current);
-    setPortraitFlipped(true);
-    flipTimerRef.current = setTimeout(() => setPortraitFlipped(false), 3000);
+    setFlipAnim("forward");
+    flipTimerRef.current = setTimeout(() => {
+      setFlipAnim("back");
+      flipTimerRef.current = setTimeout(() => setFlipAnim("idle"), 900);
+    }, 900 + 2800);
   };
   useEffect(() => () => { if (flipTimerRef.current) clearTimeout(flipTimerRef.current); }, []);
 
@@ -357,71 +360,79 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
             animation: "glowPulse 3s ease-in-out infinite",
           }} />
 
-          {/* Pet portrait (flip card) */}
+          {/* Pet portrait (coin-flip card) */}
           <div
             className="absolute"
             style={{
-              left: "50%", top: "52%",
+              left: "50%", top: "50%",
               transform: "translate(-50%, -50%)",
               width: 152, height: 152,
-              perspective: "700px",
               cursor: pet.eggImageUrl ? "pointer" : "default",
+              zIndex: 1,
             }}
             onClick={handlePortraitClick}
             data-testid="img-pet-detail"
           >
-            {/* Floating wrapper + 3D flipper */}
-            <div style={{
-              position: "relative",
-              width: "100%",
-              height: "100%",
-              transformStyle: "preserve-3d",
-              transition: "transform 0.7s cubic-bezier(0.4, 0, 0.2, 1)",
-              transform: portraitFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
-              animation: portraitFlipped ? "none" : "portraitFloat 4s ease-in-out infinite",
-            }}>
-              {/* Front face: pet */}
-              <div style={{
-                position: "absolute", inset: 0,
-                borderRadius: "50%",
-                overflow: "hidden",
-                backfaceVisibility: "hidden",
-                WebkitBackfaceVisibility: "hidden",
-                border: `2.5px solid ${rc.primary}`,
-                boxShadow: `0 0 0 4px ${rc.dim}, 0 0 30px ${rc.glow}`,
-                background: "rgba(0,0,0,0.4)",
-              }}>
-                {petImage ? (
-                  <img src={petImage} alt={pet.name} className="w-full h-full object-contain" />
-                ) : (
-                  <img src={petPawIcon} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", opacity: 0.6 }} />
-                )}
-              </div>
-              {/* Back face: egg */}
-              <div style={{
-                position: "absolute", inset: 0,
-                borderRadius: "50%",
-                overflow: "hidden",
-                backfaceVisibility: "hidden",
-                WebkitBackfaceVisibility: "hidden",
-                transform: "rotateY(180deg)",
-                border: "2.5px solid rgba(240,192,64,0.85)",
-                boxShadow: "0 0 0 4px rgba(240,192,64,0.18), 0 0 32px rgba(240,192,64,0.45)",
-                background: "rgba(10,5,0,0.65)",
-              }}>
-                {pet.eggImageUrl ? (
-                  <img src={pet.eggImageUrl} alt="Egg" className="w-full h-full object-contain" />
-                ) : (
-                  <img src={petPawIcon} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", opacity: 0.35 }} />
-                )}
+            {/* Float layer — translateY only, no 3D */}
+            <div style={{ width: "100%", height: "100%", animation: "portraitFloat 4s ease-in-out infinite" }}>
+              {/* Perspective container */}
+              <div style={{ width: "100%", height: "100%", perspective: "700px" }}>
+                {/* Flipper — rotateY only, no float */}
+                <div style={{
+                  width: "100%",
+                  height: "100%",
+                  transformStyle: "preserve-3d",
+                  animation: flipAnim === "forward"
+                    ? "coinFlipForward 0.9s ease-in-out forwards"
+                    : flipAnim === "back"
+                    ? "coinFlipBack 0.9s ease-in-out forwards"
+                    : "none",
+                  transform: flipAnim === "idle" ? "rotateY(0deg)" : undefined,
+                }}>
+                  {/* Front face: pet */}
+                  <div style={{
+                    position: "absolute", inset: 0,
+                    borderRadius: "50%",
+                    overflow: "hidden",
+                    backfaceVisibility: "hidden",
+                    WebkitBackfaceVisibility: "hidden",
+                    border: `2.5px solid ${rc.primary}`,
+                    boxShadow: `0 0 0 4px ${rc.dim}, 0 0 30px ${rc.glow}`,
+                    background: "rgba(0,0,0,0.4)",
+                  }}>
+                    {petImage ? (
+                      <img src={petImage} alt={pet.name} className="w-full h-full object-contain" />
+                    ) : (
+                      <img src={petPawIcon} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", opacity: 0.6 }} />
+                    )}
+                  </div>
+                  {/* Back face: egg */}
+                  <div style={{
+                    position: "absolute", inset: 0,
+                    borderRadius: "50%",
+                    overflow: "hidden",
+                    backfaceVisibility: "hidden",
+                    WebkitBackfaceVisibility: "hidden",
+                    transform: "rotateY(180deg)",
+                    border: "2.5px solid rgba(240,192,64,0.85)",
+                    boxShadow: "0 0 0 4px rgba(240,192,64,0.18), 0 0 32px rgba(240,192,64,0.45)",
+                    background: "rgba(10,5,0,0.65)",
+                  }}>
+                    {pet.eggImageUrl ? (
+                      <img src={pet.eggImageUrl} alt="Egg" className="w-full h-full object-contain" />
+                    ) : (
+                      <img src={petPawIcon} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", opacity: 0.35 }} />
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
-            {/* Tap hint */}
-            {pet.eggImageUrl && !portraitFlipped && (
+            {/* Tap hint — outside float layer so it doesn't bounce */}
+            {pet.eggImageUrl && flipAnim === "idle" && (
               <div style={{
-                position: "absolute", bottom: -18, left: "50%", transform: "translateX(-50%)",
-                fontSize: 8, fontFamily: "Cinzel, serif", letterSpacing: "0.1em",
-                color: "rgba(240,192,64,0.55)",
+                position: "absolute", bottom: -16, left: "50%", transform: "translateX(-50%)",
+                fontSize: 8, fontFamily: "Cinzel, serif", letterSpacing: "0.08em",
+                color: "rgba(240,192,64,0.5)",
                 whiteSpace: "nowrap",
                 pointerEvents: "none",
               }}>tap to reveal</div>
@@ -948,8 +959,16 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
           50%       { opacity: 1;   transform: translate(-50%, -50%) scale(1.15); }
         }
         @keyframes portraitFloat {
-          0%, 100% { transform: translate(-50%, -50%) translateY(0px); }
-          50%       { transform: translate(-50%, -50%) translateY(-5px); }
+          0%, 100% { transform: translateY(0px); }
+          50%       { transform: translateY(-6px); }
+        }
+        @keyframes coinFlipForward {
+          0%   { transform: rotateY(0deg); }
+          100% { transform: rotateY(900deg); }
+        }
+        @keyframes coinFlipBack {
+          0%   { transform: rotateY(900deg); }
+          100% { transform: rotateY(1800deg); }
         }
         @keyframes shimmerBar {
           0%   { opacity: 0.4; background-position: -200% center; }
