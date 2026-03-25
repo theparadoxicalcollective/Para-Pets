@@ -16,6 +16,7 @@ import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import PetHousePage from "@/pages/PetHousePage";
 import VisitPetHousePage from "@/pages/VisitPetHousePage";
 import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
+import ParaPetsHubPage from "@/pages/ParaPetsHubPage";
 import BadgePage from "@/pages/BadgePage";
 import MarketPage from "@/pages/MarketPage";
 import PvpArenaPage from "@/pages/PvpArenaPage";
@@ -88,6 +89,9 @@ function AppRouter() {
       </Route>
       <Route path="/privacy">
         <PrivacyPolicyPage user={user ?? null} />
+      </Route>
+      <Route path="/hub">
+        <ParaPetsHubPage />
       </Route>
       <Route path="/badges">
         {user ? <BadgePage user={user} /> : <Redirect to="/auth" />}

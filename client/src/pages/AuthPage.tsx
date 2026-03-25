@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -254,6 +254,14 @@ export default function AuthPage() {
               >
                 <img src={createAccountBtn} alt="Create Account" className="w-full h-auto object-contain drop-shadow-lg block" />
               </button>
+
+              <Link
+                data-testid="link-para-pets-hub"
+                href="/hub"
+                className="font-fantasy text-[#7fbfb0] text-sm tracking-widest underline underline-offset-4 decoration-[#7fbfb0]/50 hover:text-[#a8dfd0] transition-colors duration-150 mt-1"
+              >
+                Para Pets Hub
+              </Link>
             </div>
           )}
 
