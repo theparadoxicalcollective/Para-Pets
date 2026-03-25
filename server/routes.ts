@@ -1992,6 +1992,7 @@ export async function registerRoutes(
     "a1b2c3d4-0006-4000-8000-000000000006": "bg_mossy_cauldron.png",
     "a1b2c3d4-0007-4000-8000-000000000007": "bg_myst_pond.png",
     "3e20ad30-faff-4643-9e80-5e5f30010738": "bg_thicket.png",
+    "8e211716-0448-496e-8582-6ce1025ac4e4": "bg_bayous_heart.png",
   };
 
   app.post("/api/admin/world/location/:locationId/reset-bg", isAdmin, async (req, res) => {

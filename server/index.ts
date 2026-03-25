@@ -510,6 +510,22 @@ app.use((req, res, next) => {
       }
     }
 
+    // One-time: apply the Bayou's Heart background image (admin-created location, not in seed list)
+    const bayousHeartBgDone = await storage.getGameSetting("bayous_heart_bg_v1");
+    if (!bayousHeartBgDone) {
+      const BAYOUS_HEART_ID = "8e211716-0448-496e-8582-6ce1025ac4e4";
+      const bayousHeartBgData = loadAssetBase64("bg_bayous_heart.png");
+      if (bayousHeartBgData) {
+        const allSwampLocs = await storage.getWorldLocations("swamp");
+        const bayousHeart = allSwampLocs.find((l: any) => l.id === BAYOUS_HEART_ID);
+        if (bayousHeart) {
+          await storage.updateWorldLocation(BAYOUS_HEART_ID, { bgUrl: bayousHeartBgData });
+          console.log("Bayou's Heart background applied.");
+        }
+      }
+      await storage.setGameSetting("bayous_heart_bg_v1", "done");
+    }
+
     // Seed Murk Cave enemies (one-time)
     const murkEnemiesDone = await storage.getGameSetting("murk_cave_enemies_v1");
     if (!murkEnemiesDone) {
