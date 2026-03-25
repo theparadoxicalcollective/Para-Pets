@@ -300,15 +300,19 @@ export default function PetPowerUpModal({
           100% { opacity: 0; }
         }
         @keyframes puMOrb {
-          0%   { transform: translate(0, 0) scale(1);         opacity: 0.35; }
-          25%  { transform: translate(6px, -18px) scale(1.1); opacity: 0.6;  }
-          50%  { transform: translate(-4px, -30px) scale(0.95); opacity: 0.45; }
-          75%  { transform: translate(8px, -16px) scale(1.05); opacity: 0.65; }
-          100% { transform: translate(0, 0) scale(1);         opacity: 0.35; }
+          0%   { transform: translate(0, 0);    opacity: 0.2; }
+          20%  { transform: translate(5px, -20px);  opacity: 0.9; }
+          45%  { transform: translate(-6px, -38px); opacity: 0.5; }
+          70%  { transform: translate(9px, -22px);  opacity: 0.85; }
+          100% { transform: translate(0, 0);    opacity: 0.2; }
         }
         @keyframes puMOrbPulse {
-          0%,100% { box-shadow: 0 0 14px 8px rgba(147,219,250,0.3), 0 0 36px 16px rgba(56,189,248,0.12), 0 0 60px 24px rgba(56,189,248,0.06); }
-          50%     { box-shadow: 0 0 22px 12px rgba(147,219,250,0.5), 0 0 55px 24px rgba(56,189,248,0.22), 0 0 90px 36px rgba(56,189,248,0.1); }
+          0%,100% { box-shadow: 0 0 3px 2px rgba(255,255,255,0.9), 0 0 10px 6px rgba(180,240,255,0.5), 0 0 28px 14px rgba(56,189,248,0.2), 0 0 52px 26px rgba(56,189,248,0.07); }
+          50%     { box-shadow: 0 0 5px 3px rgba(255,255,255,1),   0 0 16px 9px rgba(180,240,255,0.7), 0 0 44px 22px rgba(56,189,248,0.3), 0 0 80px 40px rgba(56,189,248,0.12); }
+        }
+        @keyframes puMOrbWarm {
+          0%,100% { box-shadow: 0 0 3px 2px rgba(255,255,220,0.9), 0 0 10px 6px rgba(255,220,100,0.5), 0 0 28px 14px rgba(240,180,40,0.2), 0 0 52px 26px rgba(240,160,20,0.07); }
+          50%     { box-shadow: 0 0 5px 3px rgba(255,255,220,1),   0 0 16px 9px rgba(255,220,100,0.7), 0 0 44px 22px rgba(240,180,40,0.3), 0 0 80px 40px rgba(240,160,20,0.12); }
         }
       `}</style>
 
@@ -318,22 +322,25 @@ export default function PetPowerUpModal({
         <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(1,8,20,0.45) 0%, rgba(2,10,24,0.35) 40%, rgba(3,12,28,0.78) 75%, rgba(1,6,16,0.96) 100%)" }} />
       </div>
 
-      {/* ── Floating blue orbs ── */}
+      {/* ── Floating lights ── */}
       {[
-        { left: "10%",  top: "55%", delay: "0s",    dur: 5.2, size: 18 },
-        { left: "80%",  top: "48%", delay: "1.1s",  dur: 6.8, size: 22 },
-        { left: "22%",  top: "30%", delay: "2.3s",  dur: 4.9, size: 14 },
-        { left: "68%",  top: "22%", delay: "0.6s",  dur: 7.1, size: 26 },
-        { left: "45%",  top: "60%", delay: "1.8s",  dur: 5.6, size: 16 },
-        { left: "88%",  top: "35%", delay: "3.0s",  dur: 6.2, size: 12 },
-        { left: "55%",  top: "15%", delay: "0.4s",  dur: 8.0, size: 20 },
-        { left: "32%",  top: "70%", delay: "2.7s",  dur: 5.0, size: 10 },
+        { left: "10%",  top: "55%", delay: "0s",    dur: 5.2, warm: false },
+        { left: "80%",  top: "48%", delay: "1.1s",  dur: 6.8, warm: true  },
+        { left: "22%",  top: "30%", delay: "2.3s",  dur: 4.9, warm: false },
+        { left: "68%",  top: "22%", delay: "0.6s",  dur: 7.1, warm: true  },
+        { left: "45%",  top: "60%", delay: "1.8s",  dur: 5.6, warm: false },
+        { left: "88%",  top: "35%", delay: "3.0s",  dur: 6.2, warm: true  },
+        { left: "55%",  top: "15%", delay: "0.4s",  dur: 8.0, warm: false },
+        { left: "32%",  top: "70%", delay: "2.7s",  dur: 5.0, warm: true  },
+        { left: "15%",  top: "20%", delay: "1.5s",  dur: 6.0, warm: false },
+        { left: "72%",  top: "65%", delay: "0.9s",  dur: 5.8, warm: true  },
       ].map((o, i) => (
         <div key={i} className="absolute z-[1] rounded-full pointer-events-none" style={{
           left: o.left, top: o.top,
-          width: o.size, height: o.size,
-          background: "radial-gradient(circle at 40% 38%, rgba(255,255,255,0.45) 0%, rgba(147,219,250,0.18) 35%, rgba(56,189,248,0.06) 65%, transparent 85%)",
-          animation: `puMOrb ${o.dur}s ${o.delay} ease-in-out infinite, puMOrbPulse ${o.dur * 0.7}s ${o.delay} ease-in-out infinite`,
+          width: 4, height: 4,
+          background: o.warm ? "rgba(255,250,200,1)" : "rgba(220,245,255,1)",
+          filter: "blur(0.5px)",
+          animation: `puMOrb ${o.dur}s ${o.delay} ease-in-out infinite, ${o.warm ? "puMOrbWarm" : "puMOrbPulse"} ${o.dur * 0.8}s ${o.delay} ease-in-out infinite`,
         }} />
       ))}
 
