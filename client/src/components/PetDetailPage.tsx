@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, type ReactNode } from "react";
-import { Sparkles, Wind, Heart, Swords, Shield } from "lucide-react";
+import { Sparkles, Wind, Heart, Swords, Shield, Pencil, TrendingUp } from "lucide-react";
 import { fireLevelUp } from "@/lib/levelUpEvents";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -10,6 +10,13 @@ import PetPowerUpModal, { PowerUpItem } from "@/components/PetPowerUpModal";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import gemCrystalIcon from "@assets/generated_images/icon_gem_crystal.png";
 import powerupBagIcon from "@assets/generated_images/icon_powerup_bag.png";
+import tutIconRarity from "@assets/generated_images/icon_tut_rarity.png";
+import tutIconLevelup from "@assets/generated_images/icon_tut_levelup.png";
+import tutIconStats from "@assets/generated_images/icon_tut_stats.png";
+import tutIconPowerup from "@assets/generated_images/icon_tut_powerup.png";
+import tutIconLvlitem from "@assets/generated_images/icon_tut_lvlitem.png";
+import tutIconAccessory from "@assets/generated_images/icon_tut_accessory.png";
+import tutIconNickname from "@assets/generated_images/icon_tut_nickname.png";
 
 interface PetData {
   inventoryId: string;
@@ -87,7 +94,17 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
   const [showAccessoryPicker, setShowAccessoryPicker] = useState(false);
   const [accessoryFlash, setAccessoryFlash] = useState<"equip" | "unequip" | null>(null);
   const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem("petDetailTutorialSeen"));
+  const [portraitFlipped, setPortraitFlipped] = useState(false);
+  const flipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { toast } = useToast();
+
+  const handlePortraitClick = () => {
+    if (!pet.eggImageUrl) return;
+    if (flipTimerRef.current) clearTimeout(flipTimerRef.current);
+    setPortraitFlipped(true);
+    flipTimerRef.current = setTimeout(() => setPortraitFlipped(false), 3000);
+  };
+  useEffect(() => () => { if (flipTimerRef.current) clearTimeout(flipTimerRef.current); }, []);
 
   useEffect(() => { showPowerUpModalRef.current = showPowerUpModal; }, [showPowerUpModal]);
   const queryClient = useQueryClient();
@@ -301,7 +318,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
         <div
           className="relative overflow-hidden"
           style={{
-            height: 172,
+            height: 196,
             background: `radial-gradient(ellipse 80% 120% at 50% 100%, ${rc.heroBg} 0%, rgba(8,4,0,0.6) 100%)`,
           }}
         >
@@ -334,32 +351,80 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
             position: "absolute",
             left: "50%", top: "54%",
             transform: "translate(-50%, -50%)",
-            width: 160, height: 160,
+            width: 188, height: 188,
             borderRadius: "50%",
             background: `radial-gradient(circle, ${rc.glow.replace("0.55", "0.28")} 0%, transparent 70%)`,
             animation: "glowPulse 3s ease-in-out infinite",
           }} />
 
-          {/* Pet portrait */}
+          {/* Pet portrait (flip card) */}
           <div
             className="absolute"
             style={{
               left: "50%", top: "52%",
               transform: "translate(-50%, -50%)",
-              width: 128, height: 128,
-              borderRadius: "50%",
-              overflow: "hidden",
-              border: `2.5px solid ${rc.primary}`,
-              boxShadow: `0 0 0 4px ${rc.dim}, 0 0 30px ${rc.glow}`,
-              background: "rgba(0,0,0,0.4)",
-              animation: "portraitFloat 4s ease-in-out infinite",
+              width: 152, height: 152,
+              perspective: "700px",
+              cursor: pet.eggImageUrl ? "pointer" : "default",
             }}
+            onClick={handlePortraitClick}
             data-testid="img-pet-detail"
           >
-            {petImage ? (
-              <img src={petImage} alt={pet.name} className="w-full h-full object-contain" />
-            ) : (
-              <img src={petPawIcon} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", opacity: 0.6 }} />
+            {/* Floating wrapper + 3D flipper */}
+            <div style={{
+              position: "relative",
+              width: "100%",
+              height: "100%",
+              transformStyle: "preserve-3d",
+              transition: "transform 0.7s cubic-bezier(0.4, 0, 0.2, 1)",
+              transform: portraitFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
+              animation: portraitFlipped ? "none" : "portraitFloat 4s ease-in-out infinite",
+            }}>
+              {/* Front face: pet */}
+              <div style={{
+                position: "absolute", inset: 0,
+                borderRadius: "50%",
+                overflow: "hidden",
+                backfaceVisibility: "hidden",
+                WebkitBackfaceVisibility: "hidden",
+                border: `2.5px solid ${rc.primary}`,
+                boxShadow: `0 0 0 4px ${rc.dim}, 0 0 30px ${rc.glow}`,
+                background: "rgba(0,0,0,0.4)",
+              }}>
+                {petImage ? (
+                  <img src={petImage} alt={pet.name} className="w-full h-full object-contain" />
+                ) : (
+                  <img src={petPawIcon} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", opacity: 0.6 }} />
+                )}
+              </div>
+              {/* Back face: egg */}
+              <div style={{
+                position: "absolute", inset: 0,
+                borderRadius: "50%",
+                overflow: "hidden",
+                backfaceVisibility: "hidden",
+                WebkitBackfaceVisibility: "hidden",
+                transform: "rotateY(180deg)",
+                border: "2.5px solid rgba(240,192,64,0.85)",
+                boxShadow: "0 0 0 4px rgba(240,192,64,0.18), 0 0 32px rgba(240,192,64,0.45)",
+                background: "rgba(10,5,0,0.65)",
+              }}>
+                {pet.eggImageUrl ? (
+                  <img src={pet.eggImageUrl} alt="Egg" className="w-full h-full object-contain" />
+                ) : (
+                  <img src={petPawIcon} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", opacity: 0.35 }} />
+                )}
+              </div>
+            </div>
+            {/* Tap hint */}
+            {pet.eggImageUrl && !portraitFlipped && (
+              <div style={{
+                position: "absolute", bottom: -18, left: "50%", transform: "translateX(-50%)",
+                fontSize: 8, fontFamily: "Cinzel, serif", letterSpacing: "0.1em",
+                color: "rgba(240,192,64,0.55)",
+                whiteSpace: "nowrap",
+                pointerEvents: "none",
+              }}>tap to reveal</div>
             )}
           </div>
 
@@ -401,16 +466,6 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
             </button>
           </div>
 
-          {/* Egg thumbnail */}
-          {pet.eggImageUrl && (
-            <div
-              className="absolute w-8 h-8 rounded-md overflow-hidden"
-              style={{ bottom: 12, right: 14, border: `1px solid ${rc.primary}66`, background: "rgba(0,0,0,0.5)" }}
-              data-testid="img-pet-egg-thumb"
-            >
-              <img src={pet.eggImageUrl} alt="Egg" className="w-full h-full object-contain" />
-            </div>
-          )}
         </div>
 
         {/* ── Name + stars ────────────────────────────────────────── */}
@@ -476,7 +531,10 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
               className="mt-1.5 px-3 py-1 rounded-full font-fantasy text-[9px] tracking-wider transition-opacity hover:opacity-80"
               style={{ background: rc.dim, border: `1px solid ${rc.primary}33`, color: rc.primary, cursor: "pointer" }}
             >
-              {pet.petNickname ? "✎ Rename" : "✎ Give a Name"}
+              <span className="flex items-center gap-1">
+                <Pencil size={9} />
+                {pet.petNickname ? "Rename" : "Give a Name"}
+              </span>
             </button>
           )}
         </div>
@@ -721,7 +779,10 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                 cursor: pet.petLevel >= 100 ? "not-allowed" : "pointer",
               }}
             >
-              ⬆ {pet.petLevel >= 100 ? "MAX" : "LVL Up"}
+              <span className="flex items-center justify-center gap-1">
+                <TrendingUp size={11} />
+                {pet.petLevel >= 100 ? "MAX" : "LVL Up"}
+              </span>
             </button>
           </div>
 
@@ -968,58 +1029,58 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
             <div className="px-4 py-4 space-y-3">
               {[
                 {
-                  icon: "★",
+                  iconImg: tutIconRarity,
                   iconColor: rc.primary,
                   title: "Rarity & Stars",
                   desc: `Stars (1–5) show your pet's rarity tier. Higher rarity = more power-up slots per level, so rare pets grow faster with items.`,
                 },
                 {
-                  icon: "⬆",
+                  iconImg: tutIconLevelup,
                   iconColor: "#f0c040",
                   title: "Level & XP",
                   desc: "Your pet gains XP automatically through battles. Watch the bar fill — when it's full your pet levels up and grows stronger.",
                 },
                 {
-                  icon: "❤",
+                  iconImg: tutIconStats,
                   iconColor: "#4ade80",
                   title: "HP / ATK / DEF",
                   desc: "HP is health in battle. ATK determines how hard you hit enemies. DEF reduces incoming damage — especially important for blocking.",
                 },
                 {
-                  icon: "✦",
+                  iconImg: tutIconPowerup,
                   iconColor: "#c084fc",
                   title: "Power Up",
                   desc: "Feed your pet items from your bag to permanently boost HP, ATK, or DEF. Each level has a limited number of slots based on rarity.",
                 },
                 {
-                  icon: "⚡",
+                  iconImg: tutIconLvlitem,
                   iconColor: "#60a5fa",
                   title: "LVL Up Items",
                   desc: "Special level-up items inject XP directly into the bar. Great for pushing past a level quickly without waiting for battles.",
                 },
                 {
-                  icon: "◈",
+                  iconImg: tutIconAccessory,
                   iconColor: "#f0c040",
                   title: "Accessories",
                   desc: "Equip up to 3 accessories for passive stat bonuses. Tap a filled slot to remove it. Accessories stack on top of your base stats.",
                 },
                 {
-                  icon: "✎",
+                  iconImg: tutIconNickname,
                   iconColor: rc.primary,
                   title: "Nickname",
                   desc: "Give your pet a personal name that shows in battle and the pet house. Species name stays visible underneath as a reference.",
                 },
-              ].map(({ icon, iconColor, title, desc }) => (
+              ].map(({ iconImg, iconColor, title, desc }) => (
                 <div
                   key={title}
                   className="flex gap-3 items-start rounded-xl p-3"
                   style={{ background: "rgba(0,0,0,0.25)", border: "1px solid rgba(255,255,255,0.04)" }}
                 >
                   <div
-                    className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-base font-bold"
-                    style={{ background: `${iconColor}18`, border: `1px solid ${iconColor}33`, color: iconColor }}
+                    className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center overflow-hidden"
+                    style={{ background: `${iconColor}12`, border: `1px solid ${iconColor}33` }}
                   >
-                    {icon}
+                    <img src={iconImg} alt={title} className="w-full h-full object-contain p-0.5" />
                   </div>
                   <div>
                     <p className="font-fantasy text-[11px] font-semibold tracking-wide mb-0.5" style={{ color: iconColor }}>{title}</p>
