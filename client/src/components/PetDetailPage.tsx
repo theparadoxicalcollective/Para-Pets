@@ -398,10 +398,15 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                     WebkitBackfaceVisibility: "hidden",
                     border: `2.5px solid ${rc.primary}`,
                     boxShadow: `0 0 0 4px ${rc.dim}, 0 0 30px ${rc.glow}`,
-                    background: "rgba(0,0,0,0.4)",
+                    background: "rgba(8,4,2,0.18)",
                   }}>
                     {petImage ? (
-                      <img src={petImage} alt={pet.name} className="w-full h-full object-contain" />
+                      <img
+                        src={petImage}
+                        alt={pet.name}
+                        className="w-full h-full object-contain"
+                        style={{ filter: `drop-shadow(0 0 8px ${rc.glow}) drop-shadow(0 0 20px ${rc.glow.replace("0.55", "0.28")})` }}
+                      />
                     ) : (
                       <img src={petPawIcon} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", opacity: 0.6 }} />
                     )}
@@ -416,10 +421,15 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                     transform: "rotateY(180deg)",
                     border: "2.5px solid rgba(240,192,64,0.85)",
                     boxShadow: "0 0 0 4px rgba(240,192,64,0.18), 0 0 32px rgba(240,192,64,0.45)",
-                    background: "rgba(10,5,0,0.65)",
+                    background: "rgba(8,4,0,0.22)",
                   }}>
                     {pet.eggImageUrl ? (
-                      <img src={pet.eggImageUrl} alt="Egg" className="w-full h-full object-contain" />
+                      <img
+                        src={pet.eggImageUrl}
+                        alt="Egg"
+                        className="w-full h-full object-contain"
+                        style={{ filter: "drop-shadow(0 0 8px rgba(240,192,64,0.65)) drop-shadow(0 0 20px rgba(240,192,64,0.28))" }}
+                      />
                     ) : (
                       <img src={petPawIcon} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", opacity: 0.35 }} />
                     )}
