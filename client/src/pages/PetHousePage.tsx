@@ -1067,6 +1067,9 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
   const draggingRef = useRef<typeof dragging>(null);
   draggingRef.current = dragging;
 
+  // Always-fresh zone lookup used by the animation loop — bypasses state sync lag
+  const swimZoneRef = useRef<Map<string, string | null>>(new Map());
+
   const queryClient = useQueryClient();
 
   const { data: fishInventory = [] } = useQuery<AqCaughtFish[]>({
@@ -1098,26 +1101,20 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aquariumFish, STORAGE_KEY]);
 
-  // Keep fishSwimZone in sync with the latest API data so admin changes take effect immediately.
+  // Sync latest item data from API into the ref and swimmer state whenever inventory loads.
+  // We deliberately do NOT update aquariumFish here to avoid triggering the localStorage
+  // save → DB sync → invalidate fishInventory infinite loop.
   useEffect(() => {
     if (!fishInventory.length) return;
-    // Build a lookup of the latest item properties from the API, keyed by shopItemId
-    const itemByShopId = new Map(
-      fishInventory.map(f => [f.shopItemId, f.item])
-    );
-    const applyFresh = (f: AqFishEntry): AqFishEntry => {
-      const item = itemByShopId.get(f.shopItemId);
-      if (!item) return f;
-      return {
-        ...f,
-        name: item.name ?? f.name,
-        imageUrl: item.imageUrl ?? f.imageUrl,
-        starRarity: item.starRarity ?? f.starRarity,
-        facingDirection: item.facingDirection ?? f.facingDirection,
-        fishSwimZone: item.fishSwimZone ?? f.fishSwimZone,
-      };
-    };
-    setAquariumFish(prev => prev.map(applyFresh));
+    // Update the always-fresh ref used by the animation loop
+    const newZoneMap = new Map<string, string | null>();
+    const itemByShopId = new Map(fishInventory.map(f => [f.shopItemId, f.item]));
+    for (const [id, item] of itemByShopId) {
+      newZoneMap.set(id, item?.fishSwimZone ?? null);
+    }
+    swimZoneRef.current = newZoneMap;
+    // Also push fresh data into swimmer state so new fish spawn in the right zone
+    // and existing fish snap to their correct band immediately
     setSwimmers(prev => prev.map(s => {
       const item = itemByShopId.get(s.shopItemId);
       if (!item) return s;
@@ -1228,10 +1225,11 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
           wobble = (wobble + 0.032) % (Math.PI * 2);
           const sineY = Math.sin(wobble) * 0.012;
           x += vx;
-          // Keep fish in the clearly lit band of the tank
-          // Gradient overlay: dark 0–25%, clear 25–72%, dark 72–100%
-          const yMin = f.fishSwimZone === "bottom" ? 61 : 22;
-          const yMax = f.fishSwimZone === "bottom" ? 78 : 71;
+          // Keep fish in the clearly lit band of the tank.
+          // Use swimZoneRef for always-fresh zone data (bypasses state lag).
+          const zone = swimZoneRef.current.get(f.shopItemId) ?? f.fishSwimZone ?? null;
+          const yMin = zone === "bottom" ? 61 : 22;
+          const yMax = zone === "bottom" ? 78 : 71;
           y = Math.max(yMin, Math.min(yMax, y + sineY));
 
           // Bounce off edges
