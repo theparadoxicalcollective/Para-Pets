@@ -1347,7 +1347,8 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
 
       {/* Swimming fish */}
       {swimmers.map(f => {
-        const fishSize = (f.starRarity ?? 1) >= 4 ? 65 : 54;
+        const rarity = f.starRarity ?? 1;
+        const fishSize = rarity >= 5 ? 78 : rarity === 4 ? 65 : 54;
         return (
         <button
           key={f.id}
