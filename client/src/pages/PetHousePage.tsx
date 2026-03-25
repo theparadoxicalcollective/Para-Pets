@@ -9,6 +9,7 @@ import UserProfilePanel from "@/components/UserProfilePanel";
 import PetWorldPage from "@/pages/PetWorldPage";
 import PetAnimator from "@/components/PetAnimator";
 import petHouseBg from "@assets/generated_images/pethouse_bg.png";
+import insideRoomBg from "@assets/generated_images/inside_room_bg.png";
 import aquariumBg from "@assets/bg_aquarium.png";
 import fishbowlIconImg from "@assets/icon_fishbowl.png";
 import globeWorldIconImg from "@assets/icon_globe_world.png";
@@ -79,6 +80,7 @@ export default function PetHousePage({ user: initialUser }: PetHousePageProps) {
   const user = currentUser;
   const [showProfile, setShowProfile] = useState(false);
   const [showPetWorld, setShowPetWorld] = useState(false);
+  const [showInsideRoom, setShowInsideRoom] = useState(false);
   const [selectedPet, setSelectedPet] = useState<InventoryPet | null>(null);
   const [showAquarium, setShowAquarium] = useState(false);
   const [draggingEdible, setDraggingEdible] = useState<EdibleItem | null>(null);
@@ -250,7 +252,7 @@ export default function PetHousePage({ user: initialUser }: PetHousePageProps) {
           <HouseNavButton testId="button-nav-aquarium" onClick={() => setShowAquarium(true)} label="Aquarium">
             <FishbowlIcon />
           </HouseNavButton>
-          <HouseNavButton testId="button-nav-pet-house" onClick={() => {}} label="Pet House">
+          <HouseNavButton testId="button-nav-inside" onClick={() => setShowInsideRoom(true)} label="Inside">
             <PetHouseNavIcon />
           </HouseNavButton>
           <HouseNavButton testId="button-nav-forest-den" onClick={() => setShowPetWorld(true)} label="Keeper's Central">
@@ -265,6 +267,10 @@ export default function PetHousePage({ user: initialUser }: PetHousePageProps) {
 
       {showPetWorld && (
         <PetWorldPage user={user} onClose={() => setShowPetWorld(false)} />
+      )}
+
+      {showInsideRoom && (
+        <InsideRoom onClose={() => setShowInsideRoom(false)} />
       )}
 
       {showProfile && (
@@ -358,13 +364,13 @@ export default function PetHousePage({ user: initialUser }: PetHousePageProps) {
                 </div>
               </div>
 
-              {/* Pet House */}
+              {/* Inside */}
               <div className="flex items-start gap-3 pb-3" style={{ borderBottom: "1px solid rgba(180,140,40,0.15)" }}>
-                <img src={forestHomeIconImg} alt="Pet House" style={{ width: 26, height: 26, objectFit: "contain", flexShrink: 0, marginTop: 1 }} />
+                <img src={forestHomeIconImg} alt="Inside" style={{ width: 26, height: 26, objectFit: "contain", flexShrink: 0, marginTop: 1 }} />
                 <div>
-                  <p className="font-fantasy text-[#86efac] text-[11px] tracking-wider mb-0.5">Pet House  <span style={{ color: "#6a5840", fontSize: "9px" }}>— bottom center</span></p>
+                  <p className="font-fantasy text-[#86efac] text-[11px] tracking-wider mb-0.5">Inside  <span style={{ color: "#6a5840", fontSize: "9px" }}>— bottom center</span></p>
                   <p className="font-fantasy text-[#a89878] text-[10px] tracking-wide leading-relaxed">
-                    You are here! This is your pet home where all your hatched companions live.
+                    Step inside your treehouse room. Decorate and personalise it however you like!
                   </p>
                 </div>
               </div>
@@ -1701,6 +1707,89 @@ function _ForestHomeIconOld() {
       <circle cx="9.5" cy="39" r="0.4" fill="white" opacity="0.6"/>
       <circle cx="11" cy="38.7" r="0.3" fill="white" opacity="0.5"/>
     </svg>
+  );
+}
+
+function InsideRoom({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="absolute inset-0 z-40 overflow-hidden" style={{ background: "#0d0a04" }}>
+      {/* Background */}
+      <img
+        src={insideRoomBg}
+        alt=""
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{ objectPosition: "center" }}
+        draggable={false}
+      />
+
+      {/* Top vignette */}
+      <div className="absolute top-0 left-0 right-0 pointer-events-none" style={{
+        height: "18%",
+        background: "linear-gradient(to bottom, rgba(8,5,2,0.55) 0%, transparent 100%)",
+      }} />
+
+      {/* Bottom vignette */}
+      <div className="absolute bottom-0 left-0 right-0 pointer-events-none" style={{
+        height: "18%",
+        background: "linear-gradient(to top, rgba(8,5,2,0.65) 0%, transparent 100%)",
+      }} />
+
+      {/* Side vignettes */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: "linear-gradient(90deg, rgba(5,3,1,0.3) 0%, transparent 18%, transparent 82%, rgba(5,3,1,0.3) 100%)",
+      }} />
+
+      {/* Title */}
+      <div
+        className="absolute top-0 left-0 right-0 flex flex-col items-center pointer-events-none"
+        style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 14px)" }}
+      >
+        <h2
+          className="font-fantasy text-sm tracking-[0.3em]"
+          style={{
+            color: "rgba(212,160,23,0.9)",
+            textShadow: "0 0 16px rgba(212,160,23,0.6), 0 0 32px rgba(212,160,23,0.25)",
+          }}
+        >
+          YOUR ROOM
+        </h2>
+        <div style={{
+          height: 1,
+          width: 70,
+          marginTop: 5,
+          background: "linear-gradient(90deg, transparent, rgba(212,160,23,0.5), transparent)",
+        }} />
+      </div>
+
+      {/* Coming soon placeholder */}
+      <div className="absolute inset-0 flex items-end justify-center pointer-events-none"
+        style={{ paddingBottom: "18%" }}>
+        <p
+          className="font-fantasy text-[10px] tracking-widest text-center px-8 leading-relaxed"
+          style={{ color: "rgba(212,160,23,0.35)" }}
+        >
+          Room decoration coming soon
+        </p>
+      </div>
+
+      {/* Close button */}
+      <button
+        data-testid="button-close-inside-room"
+        onClick={onClose}
+        className="absolute z-50 w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm active:scale-90 transition-transform"
+        style={{
+          top: "calc(env(safe-area-inset-top, 0px) + 12px)",
+          right: 12,
+          background: "rgba(10,6,2,0.85)",
+          border: "1.5px solid rgba(212,160,23,0.45)",
+          color: "rgba(212,160,23,0.85)",
+          cursor: "pointer",
+          boxShadow: "0 0 10px rgba(212,160,23,0.2)",
+        }}
+      >
+        ✕
+      </button>
+    </div>
   );
 }
 
