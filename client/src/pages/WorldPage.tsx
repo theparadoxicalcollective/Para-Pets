@@ -832,26 +832,23 @@ export default function WorldPage({ user }: WorldPageProps) {
     return { x: cx, y: cy };
   }, []);
 
-  const applyMapTransform = useCallback((x: number, y: number, sc: number) => {
+  const applyMapTransform = useCallback((x: number, y: number, _sc: number) => {
     const coverSc = Math.max(FRAME_W / MAP_W, FRAME_H / mapHRef.current);
-    const maxSc = isMobilePhone() ? coverSc * 3 : coverSc;
-    const clampedSc = Math.max(coverSc, Math.min(maxSc, sc));
-    const { x: cx, y: cy } = clampTransform(x, y, clampedSc);
-    mapTransformRef.current = { x: cx, y: cy, scale: clampedSc };
+    const { x: cx, y: cy } = clampTransform(x, y, coverSc);
+    mapTransformRef.current = { x: cx, y: cy, scale: coverSc };
     setMapX(cx);
     setMapY(cy);
-    setMapScale(clampedSc);
+    setMapScale(coverSc);
   }, [clampTransform]);
 
   useEffect(() => {
     const coverSc = Math.max(FRAME_W / MAP_W, FRAME_H / mapHRef.current);
-    const initSc = isMobilePhone() ? coverSc * 1.5 : coverSc;
-    const ix = (FRAME_W - MAP_W * initSc) / 2;
-    const iy = (FRAME_H - mapHRef.current * initSc) / 2;
-    mapTransformRef.current = { x: ix, y: iy, scale: initSc };
+    const ix = (FRAME_W - MAP_W * coverSc) / 2;
+    const iy = (FRAME_H - mapHRef.current * coverSc) / 2;
+    mapTransformRef.current = { x: ix, y: iy, scale: coverSc };
     setMapX(ix);
     setMapY(iy);
-    setMapScale(initSc);
+    setMapScale(coverSc);
   }, [worldId, mapH]);
 
   const handleVpPointerDown = useCallback((e: React.PointerEvent) => {
@@ -865,11 +862,6 @@ export default function WorldPage({ user }: WorldPageProps) {
       mapPanStartRef.current = { x: e.clientX, y: e.clientY, mapX: mapTransformRef.current.x, mapY: mapTransformRef.current.y };
       mapPinchRef.current = null;
       mapPanningRef.current = false;
-    } else if (ptrs.length === 2 && isMobilePhone()) {
-      const [p1, p2] = ptrs;
-      const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-      mapPinchRef.current = { dist, midX: (p1.x + p2.x) / 2, midY: (p1.y + p2.y) / 2, mapX: mapTransformRef.current.x, mapY: mapTransformRef.current.y, scale: mapTransformRef.current.scale };
-      mapPanStartRef.current = null;
     }
   }, []);
 
@@ -883,15 +875,6 @@ export default function WorldPage({ user }: WorldPageProps) {
       const dy = e.clientY - mapPanStartRef.current.y;
       if (!mapPanningRef.current && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) mapPanningRef.current = true;
       if (mapPanningRef.current) applyMapTransform(mapPanStartRef.current.mapX + dx, mapPanStartRef.current.mapY + dy, mapTransformRef.current.scale);
-    } else if (ptrs.length === 2 && mapPinchRef.current && isMobilePhone()) {
-      const [p1, p2] = ptrs;
-      const newDist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-      const newMidX = (p1.x + p2.x) / 2;
-      const newMidY = (p1.y + p2.y) / 2;
-      const sc = mapPinchRef.current.scale * (newDist / mapPinchRef.current.dist);
-      const newX = newMidX - (sc / mapPinchRef.current.scale) * (mapPinchRef.current.midX - mapPinchRef.current.mapX);
-      const newY = newMidY - (sc / mapPinchRef.current.scale) * (mapPinchRef.current.midY - mapPinchRef.current.mapY);
-      applyMapTransform(newX, newY, sc);
     }
   }, [applyMapTransform]);
 
@@ -913,13 +896,7 @@ export default function WorldPage({ user }: WorldPageProps) {
 
   const handleVpWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();
-    const coverSc = Math.max(FRAME_W / MAP_W, FRAME_H / mapHRef.current);
-    const zoomF = e.deltaY < 0 ? 1.1 : 0.9;
-    const sc = Math.max(coverSc, Math.min(coverSc * 3, mapTransformRef.current.scale * zoomF));
-    const { x, y } = mapTransformRef.current;
-    const scChange = sc / mapTransformRef.current.scale;
-    applyMapTransform(e.clientX - scChange * (e.clientX - x), e.clientY - scChange * (e.clientY - y), sc);
-  }, [applyMapTransform]);
+  }, []);
 
   useEffect(() => {
     const el = vpRef.current;
