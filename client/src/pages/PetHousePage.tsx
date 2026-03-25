@@ -1098,6 +1098,26 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aquariumFish, STORAGE_KEY]);
 
+  // Keep fishSwimZone in sync with the latest API data so admin changes take effect immediately.
+  useEffect(() => {
+    if (!fishInventory.length) return;
+    const zoneByShopId = new Map<string, string | null>(
+      fishInventory.map(f => [f.shopItemId, f.item?.fishSwimZone ?? null])
+    );
+    setAquariumFish(prev => prev.map(f => ({
+      ...f,
+      fishSwimZone: zoneByShopId.has(f.shopItemId) ? zoneByShopId.get(f.shopItemId)! : f.fishSwimZone,
+    })));
+    setSwimmers(prev => prev.map(s => {
+      const zone = zoneByShopId.has(s.shopItemId) ? zoneByShopId.get(s.shopItemId) ?? null : s.fishSwimZone ?? null;
+      const isBottom = zone === "bottom";
+      const yMin = isBottom ? 61 : 22;
+      const yMax = isBottom ? 78 : 71;
+      return { ...s, fishSwimZone: zone, y: Math.max(yMin, Math.min(yMax, s.y)) };
+    }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fishInventory]);
+
   useEffect(() => {
     setSwimmers(prev => {
       const existingMap = new Map(prev.map(s => [s.id, s]));
@@ -1109,7 +1129,7 @@ function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string
         const isBottom = (existing.fishSwimZone ?? f.fishSwimZone) === "bottom";
         const yMin = isBottom ? 61 : 22;
         const yMax = isBottom ? 78 : 71;
-        return { ...existing, y: Math.max(yMin, Math.min(yMax, existing.y)) };
+        return { ...existing, fishSwimZone: f.fishSwimZone, y: Math.max(yMin, Math.min(yMax, existing.y)) };
       });
       return result.filter(s => aquariumIds.has(s.id));
     });
