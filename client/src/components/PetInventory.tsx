@@ -158,17 +158,18 @@ export default function PetInventory({ user, onClose, onUserUpdate }: PetInvento
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-1 mb-3" style={{ borderBottom: "1px solid rgba(212,160,23,0.2)" }}>
+            <div className="flex gap-2 mb-3">
               <button
                 data-testid="button-tab-pets"
                 onClick={() => setShowBag(false)}
                 className="flex-1 py-2 flex items-center justify-center gap-2 font-fantasy text-sm tracking-wider transition-all"
                 style={{
-                  background: !showBag ? "linear-gradient(180deg, rgba(45,106,79,0.4) 0%, rgba(26,74,46,0.2) 100%)" : "transparent",
-                  borderBottom: !showBag ? "2px solid #4ade80" : "2px solid transparent",
+                  background: !showBag ? "linear-gradient(135deg, rgba(45,106,79,0.5) 0%, rgba(26,74,46,0.35) 100%)" : "rgba(255,255,255,0.04)",
+                  border: !showBag ? "1.5px solid rgba(74,222,128,0.55)" : "1.5px solid rgba(255,255,255,0.08)",
+                  borderRadius: "12px",
                   color: !showBag ? "#4ade80" : "#6a8a78",
                   cursor: "pointer",
-                  marginBottom: "-1px",
+                  boxShadow: !showBag ? "0 0 12px rgba(74,222,128,0.15)" : "none",
                 }}
               >
                 <img src={petPawIcon} alt="" style={{ width: 16, height: 16, objectFit: "contain" }} />
@@ -179,11 +180,12 @@ export default function PetInventory({ user, onClose, onUserUpdate }: PetInvento
                 onClick={() => setShowBag(true)}
                 className="flex-1 py-2 flex items-center justify-center gap-2 font-fantasy text-sm tracking-wider transition-all"
                 style={{
-                  background: showBag ? "linear-gradient(180deg, rgba(92,58,30,0.4) 0%, rgba(60,35,10,0.2) 100%)" : "transparent",
-                  borderBottom: showBag ? "2px solid #f0c040" : "2px solid transparent",
+                  background: showBag ? "linear-gradient(135deg, rgba(92,58,30,0.5) 0%, rgba(60,35,10,0.35) 100%)" : "rgba(255,255,255,0.04)",
+                  border: showBag ? "1.5px solid rgba(240,192,64,0.55)" : "1.5px solid rgba(255,255,255,0.08)",
+                  borderRadius: "12px",
                   color: showBag ? "#f0c040" : "#6a5840",
                   cursor: "pointer",
-                  marginBottom: "-1px",
+                  boxShadow: showBag ? "0 0 12px rgba(240,192,64,0.15)" : "none",
                 }}
               >
                 <img src={bagIconImg} alt="" style={{ width: 16, height: 16, objectFit: "contain" }} />
