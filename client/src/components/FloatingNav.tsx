@@ -1,17 +1,17 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import mainNavIcon from "@assets/generated_images/icon_main_nav.png";
-import homeIcon from "@assets/generated_images/nav_icon_home_nobg.png";
-import petHouseIcon from "@assets/generated_images/nav_icon_pethouse_nobg.png";
-import marketIcon from "@assets/generated_images/nav_icon_market_nobg.png";
-import fishbowlIcon from "@assets/icon_fishbowl_nobg.png";
+import homeIcon from "@assets/generated_images/nav_icon_home.png";
+import petHouseIcon from "@assets/generated_images/nav_icon_pethouse.png";
+import marketIcon from "@assets/generated_images/nav_icon_market.png";
+import fishbowlIcon from "@assets/icon_fishbowl.png";
 import globeIcon from "@assets/icon_globe_world.png";
 import bagIcon from "@assets/icon_bag.png";
-import mapIcon from "@assets/generated_images/nav_icon_map_nobg.png";
-import questIcon from "@assets/generated_images/nav_icon_quest_nobg.png";
-import pvpIcon from "@assets/generated_images/nav_icon_pvp_nobg.png";
-import petsIcon from "@assets/generated_images/nav_icon_pets_nobg.png";
-import badgesIcon from "@assets/generated_images/nav_icon_badges_nobg.png";
+import mapIcon from "@assets/generated_images/nav_icon_map.png";
+import questIcon from "@assets/generated_images/nav_icon_quest_v3.png";
+import pvpIcon from "@assets/generated_images/nav_icon_pvp.png";
+import petsIcon from "@assets/generated_images/nav_icon_pets.png";
+import badgesIcon from "@assets/generated_images/nav_icon_badges.png";
 import PetInventory from "@/components/PetInventory";
 import PetWorldPage from "@/pages/PetWorldPage";
 import { AquariumPage } from "@/pages/PetHousePage";
@@ -285,9 +285,9 @@ function NavButton({
         height: ICON_SIZE,
         bottom: 0,
         right: 0,
-        background: "none",
-        border: "none",
-        boxShadow: "none",
+        background: "radial-gradient(circle at 38% 35%, rgba(60,130,80,0.3) 0%, rgba(12,22,12,0.92) 75%)",
+        border: "1.5px solid rgba(212,160,23,0.55)",
+        boxShadow: "0 2px 12px rgba(0,0,0,0.7), 0 0 10px rgba(212,160,23,0.15)",
         cursor: "pointer",
         transform: isOpen ? `translate(${translateX}px, ${translateY}px) scale(1)` : "translate(0,0) scale(0.5)",
         opacity: isOpen ? 1 : 0,
@@ -296,7 +296,7 @@ function NavButton({
         zIndex: 96,
       }}
     >
-      <img src={icon} alt={label} style={{ width: ICON_SIZE, height: ICON_SIZE, objectFit: "contain", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.8))" }} />
+      <img src={icon} alt={label} style={{ width: ICON_SIZE - 10, height: ICON_SIZE - 10, objectFit: "contain", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.7))" }} />
 
       {/* Label tooltip */}
       {isOpen && (
