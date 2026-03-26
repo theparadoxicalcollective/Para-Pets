@@ -1,0 +1,575 @@
+================================================================================
+                         MASTER GAME DOCUMENT
+                    GAME_SYSTEM_OVERVIEW — ParaPets
+================================================================================
+Last Updated: March 26, 2026
+Purpose: This document exists so that any developer or AI assistant can read
+it before touching the codebase and immediately understand the full scope of
+the project — what it is, how it works, how each system connects, and what
+pitfalls to watch for.
+
+================================================================================
+SECTION 1 — WHAT THE GAME IS
+================================================================================
+
+ParaPets is a browser-based fantasy RPG set in a world called Veridia.
+Players hatch and raise magical creatures called ParaPets, battle enemies
+across themed regions, go fishing with a real-time minigame, trade on a
+player marketplace (the Mire Bazaar), and decorate a personal Pet House.
+
+The tech stack is:
+  Frontend  — React + TypeScript, Vite, Tailwind CSS, Wouter (routing),
+               TanStack Query v5, Framer Motion, shadcn/ui, Lucide React
+  Backend   — Node.js + Express + TypeScript, Drizzle ORM, Passport.js
+  Database  — PostgreSQL (via Drizzle)
+  Payments  — Stripe (client: server/stripeClient.ts, webhooks: server/webhookHandlers.ts)
+
+The app is full-stack in a single repo. The Express server serves both the
+REST API and the Vite-compiled frontend on the same port.
+
+================================================================================
+SECTION 2 — CORE GAMEPLAY LOOP
+================================================================================
+
+1. EARN COINS
+   - Catch fish and sell them, or defeat enemies to collect coin drops.
+
+2. BUY EGGS / GEAR
+   - Spend coins at World Shops (region-specific) to buy pet eggs, fishing
+     poles, bait, potions, accessories, and power-up consumables.
+
+3. HATCH & RAISE
+   - Eggs hatch over real time (hours). Use Hatch Accelerator items to speed
+     this up. Once hatched, feed pets power-up items to raise their stats.
+
+4. BATTLE
+   - Take pets into region encounters. Slash enemies with swipe gestures, parry
+     attacks, and fire special skills. Defeated enemies drop coins, XP, and
+     rare items.
+
+5. FISH
+   - Equip a pole and optional bait. Complete the tension/reel minigame to catch
+     fish for the Fish Book (collection) or sell them for coins.
+
+6. SPECIALIZE
+   - Better fishing gear → rarer fish → more coins.
+   - Better battle gear / higher-level pets → tougher enemies → rarer drops.
+
+7. ENDGAME
+   - Complete the Fish Book, climb the PvP Arena rankings, unlock all Veridia
+     regions, and fully outfit pets with accessories.
+
+================================================================================
+SECTION 3 — FISHING SYSTEM OVERVIEW
+================================================================================
+
+FILES:
+  client/src/pages/FishingPage.tsx   — all minigame UI & logic
+  server/routes.ts                   — cast, catch, server-side validation
+  shared/schema.ts                   — shopItems (fish), playerFishInventory,
+                                       playerFishingEquipment
+
+--- 3.1 Equipment ---
+
+POLES
+  - Stored in user_inventory; linked to a shop_item with type "fishing" and
+    fishingType "pole".
+  - poleMaxUses: total durability. poleUsesLeft: remaining uses.
+  - Every cast attempt (successful or not) decrements poleUsesLeft.
+  - High-tier poles (3★-5★) have poleSlowdown3/4/5 multipliers that reduce
+    how fast line tension rises, making harder fish manageable.
+  - Some poles have rareCatchBoostPercent which increases the weight of 4★
+    and 5★ fish in the selection pool.
+
+BAIT
+  - Consumable. One unit consumed only on a SUCCESSFUL catch.
+  - baitCatchBoost: increases the progress gain rate during reeling.
+  - baitRarityBoostStar + rarityBoostPercent: boosts the weight of a specific
+    rarity tier in the pond's fish pool.
+
+--- 3.2 Fishing Phases ---
+
+  IDLE       → Player selects pole and bait.
+  CASTING    → Animation; verifies pole is equipped and has durability.
+  WAITING    → Random delay 1.5s–4s; server selects the fish from the pond.
+  NIBBLE     → Player must tap/click within the window (shorter for rarer fish).
+                 5★ fish: 1.1 s window, 1 chance.
+                 1★ fish: 2.5 s window, 3 chances.
+  REELING    → Core tension/reel minigame (see 3.3).
+  CAUGHT/MISSED → Final outcome.
+
+--- 3.3 Tension & Reel Minigame ---
+
+Three simultaneous meters:
+
+  CATCH PROGRESS (0–100%): Fills while player holds "Pull". Reach 100% → fish caught.
+  TENSION       (0–100%): Rises while holding "Pull", falls when released.
+                           Sweet spot is roughly 35%–65% for 5★ fish.
+                           Hitting 100% → line snaps → fish lost.
+  ESCAPE METER  (0–100%): Fills when player releases OR is outside sweet spot.
+                           Hitting 100% → fish escapes.
+
+Fish cycle through four behaviour states during the reel phase:
+  CALM   — standard rates.
+  RESIST — tension rises 50% faster, progress 30% slower.
+  TIRED  — tension rises 50% slower, progress 50% faster (player's advantage).
+  SURGE  — tension spikes at 2.2× rate, player MUST release to avoid snapping.
+
+--- 3.4 Server-Side Catch Logic ---
+
+  Base rarity weights: 1★:60  2★:24  3★:10  4★:4  5★:2
+  Pole and bait modifiers adjust these weights before selection.
+  Client sends a performanceScore to the server after the minigame.
+  If performanceScore = 100 → guaranteed catch.
+  If lower → catch chance = 0.4 + (score / 100) * 0.5
+
+================================================================================
+SECTION 4 — BATTLE / SLASH SYSTEM OVERVIEW
+================================================================================
+
+FILES:
+  client/src/components/BattleArena.tsx  — PvE combat engine
+  client/src/pages/PvpBattlePage.tsx     — PvP combat engine
+  server/routes.ts                       — /api/explore/:locationId/encounter,
+                                           /api/explore/defeat/:enemyId
+  shared/schema.ts                       — locationEnemies, enemyDrops
+
+--- 4.1 Slash / Hit Mechanics ---
+
+  "Fruit Ninja"-style continuous swipe detection (not tap-to-hit).
+  - onPointerDown starts recording a slashPath (up to 22 coordinate points).
+  - Each frame: checkSegmentHit uses segmentPointDist to test whether the
+    latest swipe segment intersects an enemy's circular hitbox.
+  - hitEnemiesRef (Set) prevents a single continuous motion from hitting the
+    same enemy more than once per frame.
+  - Combo System: Successive hits within 1.4 s increase comboCount.
+    Damage multiplier = 1 + min(combo × 0.12, 0.6).
+
+--- 4.2 Parry and Counter System ---
+
+  Enemies "charge" an attack (red ring + progress bar) for ~1100–1400 ms.
+  At 320 ms into the charge, parryWindowOpen = true.
+  Player sees a "⚠ ATTACK!" warning and a red ring on their pet.
+
+  SUCCESS PARRY — player taps their pet during the parry window:
+    → Incoming damage nullified.
+    → "BLOCK!" animation plays.
+    → Counter State activates: next 3 hits deal 2× damage.
+
+  FAILED PARRY — charge completes before player taps:
+    → Pet takes damage reduced by its DEF stat only.
+
+--- 4.3 Mana and Special Skills ---
+
+  Mana fills passively over time, +14 on being hit, +13–22 on landing slashes
+  (higher with combos/crits).
+  At 100 mana the pet's aura shifts to its rarity colour.
+  Tapping the pet fires fireSkill().
+
+  Skill types:
+    LAZER / POISON   — High single-target damage or damage-over-time.
+    BUBBLE           — AoE damage to all enemies on screen.
+    HEAL SELF/PARTY  — Restores HP based on ATK × skillHealPercent.
+
+--- 4.4 Enemy Waves and Boss Encounters ---
+
+  Encounters are fetched from /api/explore/:locationId/encounter.
+  BattleArena iterates through the returned enemy array via waveIndex,
+  showing a "Wave Complete" phase between each wave.
+
+  BOSSES:
+    - Larger hitbox (radius 24 vs 17 for normal enemies).
+    - Rage State triggers at ≤50% HP: erratic movement, red screen tint,
+      reduced charge time (1100 ms → 980 ms).
+    - Hits cause screen shake and shockwave ring effects.
+
+--- 4.5 PvP Mechanics ---
+
+  AI pets wander toward the nearest player pet.
+  Damage comes from collision (not from parry/charge).
+  Skill targeting requires tapping the specific opponent pet (e.g., Lazer).
+
+--- 4.6 Rewards ---
+
+  On enemy defeat → POST /api/explore/defeat/:enemyId
+  Server calculates XP (added to active pet's levelPoints), coins, and
+  possible item drops defined in the enemyDrops table.
+
+================================================================================
+SECTION 5 — PET SYSTEM OVERVIEW
+================================================================================
+
+FILES:
+  shared/schema.ts                        — shopItems, userInventory,
+                                            petEquippedAccessories,
+                                            petHousePositions, petTemplates,
+                                            petTemplateParts
+  server/routes.ts                        — all /api/pet/... endpoints
+  client/src/components/PetDetailPage.tsx
+  client/src/components/PetAnimator.tsx
+  client/src/pages/PetHousePage.tsx
+  client/src/pages/PetWorldPage.tsx
+
+--- 5.1 Pet Stats ---
+
+  Stored in user_inventory per owned pet.
+  petHealth  — base 1000
+  petAtk     — base 50
+  petDef     — base 50
+  petLevel   — 1 to 100
+  petLevelPoints — XP toward next level
+  Rarity (1–5★) — defined in shop_items; controls power-up limits.
+
+--- 5.2 Hatching ---
+
+  Purchase sets hatchStartedAt to current time.
+  hatchTime (hours) is defined on the shop_item.
+  GET /api/pet/:inventoryId/hatch-check compares elapsed time to hatchTime.
+  If complete → isHatched = true.
+  Special items with specialType "hatch_time" shift hatchStartedAt backward
+  to accelerate hatching.
+
+--- 5.3 Leveling and Power-Ups ---
+
+  XP formula: 100 + level × 30 + level² × 5
+
+  Power-up slots per level = (Rarity + 2) × Level
+  Once that many items have been used this level, no more stat items until
+  the next level-up (resets itemsUsedThisLevel counter).
+
+  Stat-boosting items target: atk, def, health, or lvl (direct XP grant).
+  POST /api/pet/:inventoryId/power-up
+
+  Reset for 300 coins → Level 1, base stats, accessories removed.
+  POST /api/pet/:inventoryId/reset-stats
+
+--- 5.4 Accessories ---
+
+  Pets have 3 equip slots.
+  POST /api/pet/:inventoryId/equip — adds atkBoost, defBoost, or healthBoost
+    from the accessory's shop_item definition.
+  POST /api/pet/:inventoryId/unequip — reverses those bonuses.
+  Tracked in pet_equipped_accessories (junction table).
+
+  Nicknames (up to 20 chars) — PATCH /api/inventory/:inventoryId/nickname.
+
+--- 5.5 Pet Templates and Visuals ---
+
+  pet_templates + pet_template_parts tables.
+  Each template is assembled from named parts (Body, Eyes, Mouth, Wings, Tail)
+  with posX, posY, zIndex offsets.
+  PetAnimator.tsx renders idle/hover states.
+  In PetWorldPage: canFly = true → floating animation; false → ground drift.
+
+--- 5.6 Pet House ---
+
+  Players drag-and-drop pets within their house.
+  Positions (posLeft, posTop) saved to pet_house_positions.
+  PATCH /api/pet-house-positions/:inventoryId
+  Other players can visit to view the collection.
+
+================================================================================
+SECTION 6 — ITEMS AND INVENTORY
+================================================================================
+
+FILES:
+  shared/schema.ts      — shopItems, userInventory, playerFishingEquipment,
+                          playerFishInventory, petEquippedAccessories,
+                          playerMarketListings
+  server/routes.ts      — all item/inventory endpoints
+  client/src/components/PetInventory.tsx
+  client/src/components/PetDetailPage.tsx
+
+--- 6.1 Item Types (shop_items.type field) ---
+
+  pet          — Eggs / hatched pets.
+  power_up     — Consumable stat boosters (atk, def, health, lvl).
+  item         — General consumable or resource.
+  special      — Special effect (e.g., hatch accelerator).
+  accessory    — Equippable passive gear for pets.
+  fishing      — Fishing gear (sub-typed by fishingType: pole | bait | fish).
+  potion       — In-battle consumables (Healing, Mana, Revive).
+
+--- 6.2 Inventory Tables ---
+
+  user_inventory          — Core ownership table: userId, itemId, quantity,
+                            all pet stats (health, atk, def, level, xp),
+                            isHatched, hatchStartedAt, nickname, marketListed.
+  player_fishing_equipment — Tracks currently active pole and bait per user.
+  player_fish_inventory   — Records caught fish per player.
+  pet_equipped_accessories — Junction: links accessory inventoryId → pet inventoryId.
+  player_market_listings  — Active listings on the Mire Bazaar.
+
+--- 6.3 Key Inventory Rules ---
+
+  - Pole durability decreases every cast (not just on success).
+  - Bait is consumed only on a successful catch.
+  - Accessories cannot be equipped if all 3 slots are full; the player must
+    unequip one first.
+  - Potions are used during battle from a dedicated hotbar (not the main UI).
+  - A pet can be listed on the market while still in the player's house; it
+    becomes unavailable for battle while listed.
+
+================================================================================
+SECTION 7 — ADMIN SYSTEM
+================================================================================
+
+FILES:
+  client/src/pages/AdminPage.tsx              — main admin hub
+  client/src/components/ItemDatabaseSection.tsx
+  client/src/components/FishingAdminPanel.tsx
+  client/src/components/PetDatabasePanel.tsx
+  server/routes.ts                            — all /api/admin/... routes
+
+--- 7.1 Access Control ---
+
+  Server: isAdmin middleware checks req.user.isAdmin before every admin route.
+  Client: /admin route in App.tsx is conditionally rendered based on user.isAdmin.
+
+--- 7.2 Admin Sections ---
+
+  MEMBERS      — Search users, ban/unban, reset passwords, adjust coin balances.
+                 Route: POST /api/admin/coins/:userId
+
+  REWARDS      — Create Reward Bundles (coins + items) and broadcast to all
+                 users or specific users.
+                 Route: POST /api/admin/reward-bundle
+
+  ITEM DB      — View/create/edit all items and pets in the game database.
+                 Component: ItemDatabaseSection.tsx
+                 Route (create): POST /api/admin/shop
+
+  ANIMATIONS   — Assemble pet visual templates from body parts.
+                 Component: PetDatabasePanel.tsx
+                 Routes: POST /api/admin/pet-templates,
+                         POST /api/admin/pet-templates/:id/assemble
+
+  FISHING      — Manage fish items and their visual parts.
+                 Component: FishingAdminPanel.tsx
+                 Routes: POST /api/admin/fish-parts/:fishItemId,
+                         PATCH /api/admin/fish-parts/:partId
+
+  SUPPORT      — View and manage player support messages.
+                 Route: GET /api/admin/support-messages
+
+================================================================================
+SECTION 8 — HOW FISH AND ITEMS ARE ADDED FROM THE ADMIN PANEL
+================================================================================
+
+--- 8.1 Adding a Regular Item ---
+
+  1. Open Admin → Item DB section.
+  2. Choose item type (power_up, accessory, potion, special, etc.).
+  3. Fill in: name, description, price, rarity (1–5), stat boosts.
+  4. Upload image → server processes it with Sharp for consistent sizing.
+  5. Item appears in the global shop_items database.
+  6. To make it available in a world region: assign it via the Map/World editor.
+     Route: POST /api/admin/location/:locationId/assign-item/:itemId
+
+--- 8.2 Adding a Pet ---
+
+  STEP 1 — Build the Pet Template (Admin → Animation Parts):
+    a. Create a new PetTemplate record.
+    b. Upload individual body parts (eyes, body, tail, wings, etc.) for both
+       front and back views, with posX/posY/zIndex for each.
+    c. Trigger assembly: POST /api/admin/pet-templates/:id/assemble
+       This composites parts into a preview image.
+
+  STEP 2 — Create the Pet Item (Admin → Item DB → Pets):
+    a. Create a new item with type "pet".
+    b. Link it to the PetTemplate created in Step 1.
+    c. Upload Egg image and Hatched image.
+    d. Set hatchTime (hours), base stats, rarity.
+    e. Assign to a world shop as in 8.1 step 6.
+
+--- 8.3 Adding a Fish ---
+
+  1. Open Admin → Fishing section (FishingAdminPanel.tsx).
+  2. Create a new item with type "fishing" and fishingType "fish".
+  3. Set: name, rarity, sell price, weight in the pool.
+  4. Upload Fish Parts (Body, Eyes, Tail) individually via
+     POST /api/admin/fish-parts/:fishItemId
+  5. Position each part on the coordinate system via
+     PATCH /api/admin/fish-parts/:partId
+     The minigame uses these coordinates to render the fish dynamically.
+  6. Assign the fish to a fishing location/pond so it appears in catches.
+
+--- 8.4 Adding a Fishing Pole or Bait ---
+
+  Same flow as a regular item (8.1) but:
+  - type = "fishing", fishingType = "pole" or "bait".
+  - Set pole-specific fields: poleMaxUses, poleSlowdown3/4/5,
+    rareCatchBoostPercent.
+  - Set bait-specific fields: baitCatchBoost, baitRarityBoostStar,
+    rarityBoostPercent.
+
+================================================================================
+SECTION 9 — FILE STRUCTURE OVERVIEW
+================================================================================
+
+/
+├── client/                      Frontend (React + Vite + TypeScript)
+│   ├── index.html
+│   ├── public/                  Static assets (icons, manifest)
+│   └── src/
+│       ├── App.tsx              Route definitions (wouter)
+│       ├── main.tsx             Entry point
+│       ├── assets/              Game images and icons (@assets/... alias)
+│       ├── components/          Reusable components
+│       │   ├── ui/              shadcn/ui base components
+│       │   ├── BattleArena.tsx  PvE combat engine
+│       │   ├── PetAnimator.tsx  Pet visual renderer
+│       │   ├── PetDetailPage.tsx
+│       │   ├── PetInventory.tsx
+│       │   ├── ItemDatabaseSection.tsx  Admin: items & pets
+│       │   ├── FishingAdminPanel.tsx    Admin: fish management
+│       │   └── PetDatabasePanel.tsx     Admin: pet templates
+│       ├── hooks/               Custom React hooks (use-toast, use-mobile)
+│       ├── lib/
+│       │   ├── queryClient.ts   TanStack Query setup + apiRequest helper
+│       │   └── sounds.ts        Sound effect manager
+│       └── pages/
+│           ├── AdminPage.tsx
+│           ├── FishingPage.tsx
+│           ├── PetHousePage.tsx
+│           ├── PetWorldPage.tsx
+│           ├── MarketPage.tsx
+│           ├── CoinShopPage.tsx
+│           ├── PvpArenaPage.tsx
+│           ├── PvpBattlePage.tsx
+│           └── ... (other region/world pages)
+│
+├── server/
+│   ├── index.ts             Express server setup, middleware, session, passport
+│   ├── routes.ts            ALL API endpoints (auth, game, admin)
+│   ├── storage.ts           IStorage interface + database implementation
+│   ├── db.ts                Drizzle database connection
+│   ├── stripeClient.ts      Stripe SDK setup
+│   └── webhookHandlers.ts   Stripe webhook processing
+│
+├── shared/
+│   └── schema.ts            Single source of truth: Drizzle schema + Zod types
+│
+├── attached_assets/         Game art (PNG/JPEG): fish, pets, items, backgrounds
+├── drizzle.config.ts        Drizzle ORM config (do NOT modify)
+├── vite.config.ts           Vite build config (do NOT modify)
+├── package.json             Dependencies and npm scripts (do NOT modify)
+└── replit.md                Project notes for the Replit AI environment
+
+================================================================================
+SECTION 10 — IMPORTANT GAME MECHANICS SUMMARY
+================================================================================
+
+COINS
+  - Primary currency. Earned from fishing sales, enemy drops, and market sales.
+  - Stored as integer on the user record.
+
+RARITY SYSTEM (1–5★)
+  - Applies to fish, pets, accessories, and drops.
+  - Higher rarity → better stats, harder to obtain, more power-up slots per level.
+
+WORLD / LOCATION SYSTEM
+  - Veridia is divided into themed regions (Swamp, Volcanic, Sky Realm, etc.).
+  - Each location has its own: shop items, enemies, fishing pond, and NPCs.
+  - The admin assigns items and enemies to specific locations.
+
+MARKET (MIRE BAZAAR)
+  - Fully player-to-player. Items listed in player_market_listings.
+  - Pets listed on market are unavailable for battle until unlisted.
+
+AQUARIUM
+  - Players can display caught fish in a personal aquarium instead of selling.
+
+SUPPORT SYSTEM
+  - Players can submit support tickets from within the game.
+  - Admin panel has an inbox to view and respond.
+
+SOUND SYSTEM
+  - lib/sounds.ts manages all in-game audio.
+  - Sounds are triggered at key game events (catch, battle hit, level-up, etc.).
+
+AUTHENTICATION
+  - Passport.js handles sessions.
+  - User record stores: username, password hash, coins, isAdmin flag, activePetId.
+
+STRIPE PAYMENTS
+  - Used for premium currency or shop purchases.
+  - Webhooks handled in server/webhookHandlers.ts.
+
+================================================================================
+SECTION 11 — WHAT AN AI SHOULD KNOW BEFORE EDITING CODE
+================================================================================
+
+1. SCHEMA IS THE SOURCE OF TRUTH
+   shared/schema.ts defines every database table, column, and type.
+   Always check this file first before adding new fields or endpoints.
+   Use createInsertSchema from drizzle-zod to derive insert types.
+
+2. STORAGE LAYER
+   All database reads/writes go through server/storage.ts (IStorage interface).
+   Do NOT write raw SQL in routes.ts — add a method to IStorage and implement
+   it in the storage class, then call it from the route.
+
+3. FRONTEND DATA FETCHING
+   Uses TanStack Query v5 (object form only, no positional args).
+   Default fetcher is already configured; queries just need a queryKey.
+   Mutations use apiRequest from @lib/queryClient.
+   Always invalidate affected queryKeys after mutations.
+
+4. ROUTING
+   Frontend: wouter (Link, useLocation). Never use window.location directly.
+   Backend: all game routes in server/routes.ts, prefix /api/.
+   Admin routes are protected by isAdmin middleware on the server AND
+   conditionally rendered on the client.
+
+5. DO NOT MODIFY THESE FILES without a very good reason:
+   - vite.config.ts
+   - drizzle.config.ts
+   - package.json (use package manager tools to add dependencies instead)
+
+6. ENVIRONMENT / IMPORTS
+   - React is auto-imported by the JSX transformer. Do NOT import React manually.
+   - Use import.meta.env.VITE_* for frontend env vars (not process.env).
+   - Use @assets/... for game images in the frontend.
+   - Use @/ prefix for src/ aliases (components, hooks, lib, pages).
+
+7. FISHING MINIGAME STATE MACHINE
+   The fishing page is a complex state machine. When editing it, trace the
+   full phase flow (IDLE → CASTING → WAITING → NIBBLE → REELING → CAUGHT/MISSED)
+   and ensure state transitions are not broken.
+
+8. BATTLE SYSTEM IS FRAME-BASED
+   BattleArena.tsx uses requestAnimationFrame loops. Be careful when adding
+   state updates inside these loops — ensure you are using refs where needed
+   to avoid stale closure bugs.
+
+9. PET TEMPLATE ASSEMBLY
+   Pet visuals depend on the pet_template_parts coordinate system. If you add
+   new pets, they MUST be assembled through the admin panel, not hard-coded.
+
+10. IMAGE UPLOADS
+    The server uses Sharp to process uploaded images. Keep this pipeline intact
+    when adding new upload endpoints.
+
+11. ADDING NEW ITEMS OR FISH
+    Always use the Admin Panel flow described in Section 8. Do not seed items
+    directly in SQL without also updating the admin UI to manage them.
+
+12. POWER-UP SLOT FORMULA
+    power-up slots = (rarity + 2) × level
+    This controls how many stat items a pet can consume per level. Any changes
+    to rarity or leveling must re-check this formula.
+
+13. SERVER-SIDE CATCH VALIDATION
+    The fishing minigame is client-side but the final catch decision is server-
+    side. The client sends a performanceScore; the server does the final roll.
+    Never bypass this by trusting only client state.
+
+14. DATA-TESTID ATTRIBUTES
+    All interactive and meaningful display elements should have data-testid
+    attributes following the pattern: {action}-{target} or {type}-{content}.
+    Dynamic lists: {type}-{description}-{id}.
+
+================================================================================
+END OF MASTER GAME DOCUMENT
+================================================================================
