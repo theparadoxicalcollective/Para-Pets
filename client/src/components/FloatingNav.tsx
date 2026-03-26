@@ -9,6 +9,7 @@ import globeIcon from "@assets/icon_globe_world.png";
 import bagIcon from "@assets/icon_bag.png";
 import mapIcon from "@assets/generated_images/nav_icon_map.png";
 import questIcon from "@assets/generated_images/nav_icon_quest_v3.png";
+import questScrollBg from "@assets/IMG_6427_1774545779530.png";
 import pvpIcon from "@assets/generated_images/nav_icon_pvp.png";
 import petsIcon from "@assets/generated_images/nav_icon_pets.png";
 import badgesIcon from "@assets/generated_images/nav_icon_badges.png";
@@ -173,51 +174,32 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             onClick={() => setShowQuest(false)}
           />
-          <div className="relative w-[85%] max-w-[340px] scroll-unroll">
+          <div className="relative w-[78%] max-w-[300px] scroll-unroll" style={{ filter: "drop-shadow(0 12px 40px rgba(0,0,0,0.8))" }}>
+            {/* Close button */}
             <button
               onClick={() => setShowQuest(false)}
-              className="absolute -top-2 -right-2 z-30 w-8 h-8 rounded-full flex items-center justify-center transition-transform active:scale-90"
+              className="absolute top-[13%] right-[4%] z-30 w-7 h-7 rounded-full flex items-center justify-center transition-transform active:scale-90"
               style={{ background: "linear-gradient(135deg, #5c3a1e 0%, #3a2010 100%)", border: "2px solid rgba(212,160,23,0.6)", color: "#f0c040", cursor: "pointer", fontSize: 14, fontWeight: "bold", boxShadow: "0 2px 10px rgba(0,0,0,0.6)" }}
             >
               ×
             </button>
-            <div style={{ filter: "drop-shadow(0 8px 30px rgba(0,0,0,0.7))" }}>
-              <svg className="w-full" viewBox="0 0 340 40" preserveAspectRatio="none" style={{ display: "block", marginBottom: -1 }}>
-                <defs>
-                  <linearGradient id="fnScrollRod" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#8b6e4e" /><stop offset="30%" stopColor="#6b4e2e" /><stop offset="70%" stopColor="#5c3a1e" /><stop offset="100%" stopColor="#3a2010" />
-                  </linearGradient>
-                  <radialGradient id="fnKnob" cx="50%" cy="40%" r="50%">
-                    <stop offset="0%" stopColor="#f0c040" /><stop offset="60%" stopColor="#c4a030" /><stop offset="100%" stopColor="#8b6e2e" />
-                  </radialGradient>
-                </defs>
-                <rect x="18" y="10" width="304" height="22" rx="11" fill="url(#fnScrollRod)" />
-                <circle cx="26" cy="21" r="13" fill="url(#fnKnob)" stroke="#5c3a1e" strokeWidth="1.5" />
-                <circle cx="314" cy="21" r="13" fill="url(#fnKnob)" stroke="#5c3a1e" strokeWidth="1.5" />
-                <rect x="28" y="28" width="284" height="12" fill="#f2e8d0" />
-              </svg>
-              <div style={{ background: "linear-gradient(180deg, #f2e8d0 0%, #e8d8b8 40%, #f0e4c8 100%)", borderLeft: "2px solid rgba(139,110,78,0.2)", borderRight: "2px solid rgba(139,110,78,0.2)", marginLeft: 16, marginRight: 16, paddingBottom: 0 }}>
-                <div style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 18px, rgba(139,110,78,0.04) 18px, rgba(139,110,78,0.04) 19px)" }} className="absolute inset-0 pointer-events-none" />
-                <div className="px-6 py-5">
-                  <div className="flex items-center justify-center gap-2 mb-4">
-                    <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(139,110,78,0.3))" }} />
-                    <h3 className="font-fantasy text-[#5c3a1e] text-sm tracking-[0.25em] font-bold">QUESTS</h3>
-                    <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, rgba(139,110,78,0.3), transparent)" }} />
-                  </div>
-                  <div className="rounded-md p-3 flex items-center gap-3 mb-3" style={{ background: "rgba(92,58,30,0.05)", border: "1px dashed rgba(139,110,78,0.2)" }}>
-                    <p className="font-fantasy text-[#a08060] text-[10px] tracking-wider leading-relaxed">No active quests. Explore the realm to discover adventures...</p>
-                  </div>
-                  <div className="rounded-md p-3 flex items-center gap-3" style={{ background: "rgba(92,58,30,0.05)", border: "1px dashed rgba(139,110,78,0.2)" }}>
-                    <p className="font-fantasy text-[#a08060] text-[10px] tracking-wider leading-relaxed">No rewards pending. Complete quests to earn coins and items!</p>
-                  </div>
+            {/* Scroll image */}
+            <img src={questScrollBg} alt="Quest scroll" className="w-full h-auto block select-none" draggable={false} />
+            {/* Content layered on top of parchment area */}
+            <div className="absolute inset-0 flex flex-col" style={{ paddingTop: "20%", paddingBottom: "20%", paddingLeft: "13%", paddingRight: "13%" }}>
+              <div className="flex items-center justify-center gap-2 mb-3">
+                <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(139,90,40,0.4))" }} />
+                <h3 className="font-fantasy text-[#4a2a0e] text-xs tracking-[0.3em] font-bold">QUESTS</h3>
+                <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, rgba(139,90,40,0.4), transparent)" }} />
+              </div>
+              <div className="flex-1 overflow-y-auto space-y-2" style={{ scrollbarWidth: "none" }}>
+                <div className="rounded p-2.5" style={{ background: "rgba(92,58,30,0.07)", border: "1px dashed rgba(139,90,40,0.25)" }}>
+                  <p className="font-fantasy text-[#6b3e1a] text-[10px] tracking-wider leading-relaxed">No active quests. Explore the realm to discover adventures...</p>
+                </div>
+                <div className="rounded p-2.5" style={{ background: "rgba(92,58,30,0.07)", border: "1px dashed rgba(139,90,40,0.25)" }}>
+                  <p className="font-fantasy text-[#6b3e1a] text-[10px] tracking-wider leading-relaxed">No rewards pending. Complete quests to earn coins and items!</p>
                 </div>
               </div>
-              <svg className="w-full" viewBox="0 0 340 40" preserveAspectRatio="none" style={{ display: "block", marginTop: -1 }}>
-                <rect x="28" y="0" width="284" height="12" fill="#e5d5b0" />
-                <rect x="18" y="8" width="304" height="22" rx="11" fill="url(#fnScrollRod)" />
-                <circle cx="26" cy="19" r="13" fill="url(#fnKnob)" stroke="#5c3a1e" strokeWidth="1.5" />
-                <circle cx="314" cy="19" r="13" fill="url(#fnKnob)" stroke="#5c3a1e" strokeWidth="1.5" />
-              </svg>
             </div>
           </div>
         </div>
