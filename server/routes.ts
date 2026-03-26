@@ -2598,25 +2598,6 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/admin/delete-unclaimed-welcome-bundles", isAdmin, async (req, res) => {
-    try {
-      const unclaimedRewards = await db.select().from(userRewards).where(eq(userRewards.claimed, false));
-      let deleted = 0;
-      for (const reward of unclaimedRewards) {
-        const bundle = await storage.getRewardBundle(reward.bundleId);
-        if (!bundle || bundle.name !== "Welcome to the Realm!") continue;
-        await db.delete(userRewards).where(eq(userRewards.id, reward.id));
-        await db.delete(rewardBundleItems).where(eq(rewardBundleItems.bundleId, bundle.id));
-        await db.delete(rewardBundles).where(eq(rewardBundles.id, bundle.id));
-        deleted++;
-      }
-      console.log(`[DeleteWelcomeBundles] Deleted ${deleted} unclaimed welcome bundles`);
-      return res.json({ message: `Deleted ${deleted} unclaimed welcome bundle${deleted !== 1 ? "s" : ""}`, deleted });
-    } catch (err) {
-      console.error("Delete unclaimed welcome bundles error:", err);
-      return res.status(500).json({ message: "Failed to delete unclaimed welcome bundles" });
-    }
-  });
 
   app.get("/api/rewards/pending", isAuthenticated, async (req, res) => {
     try {

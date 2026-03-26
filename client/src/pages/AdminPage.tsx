@@ -477,15 +477,6 @@ function WelcomeBundleSection() {
     onError: () => toast({ title: "Save Failed", variant: "destructive" }),
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/admin/delete-unclaimed-welcome-bundles", {});
-      return res.json();
-    },
-    onSuccess: (data: any) => toast({ title: "Done", description: data.message }),
-    onError: () => toast({ title: "Delete Failed", variant: "destructive" }),
-  });
-
   const addItem = (shopItem: ShopItemFull) => {
     const exists = items.findIndex(i => i.name.toLowerCase() === shopItem.name.toLowerCase());
     if (exists >= 0) {
@@ -600,21 +591,6 @@ function WelcomeBundleSection() {
           style={{ background: "linear-gradient(135deg, rgba(20,100,60,0.9) 0%, rgba(10,60,35,0.9) 100%)", border: "1px solid rgba(110,231,183,0.6)", color: "#6ee7b7", cursor: "pointer" }}
         >
           {saveMutation.isPending ? "Saving..." : "Save Welcome Bundle"}
-        </button>
-      </div>
-
-      {/* Delete unclaimed bundles */}
-      <div className="rounded-lg p-3" style={{ background: "rgba(20,8,8,0.5)", border: "1px solid rgba(248,113,113,0.2)" }}>
-        <h4 className="font-fantasy text-[#f87171] text-[10px] tracking-wider mb-1">Delete Unclaimed Welcome Bundles</h4>
-        <p className="font-fantasy text-[#6a3a3a] text-[10px] mb-2">Permanently removes all unclaimed Welcome to the Realm! bundles. Players who haven't claimed will simply have no pending bundle.</p>
-        <button
-          data-testid="button-delete-unclaimed-welcome-bundles"
-          onClick={() => deleteMutation.mutate()}
-          disabled={deleteMutation.isPending}
-          className="w-full py-1.5 rounded-md font-fantasy text-xs tracking-wider transition-transform active:scale-95"
-          style={{ background: "rgba(60,10,10,0.8)", border: "1px solid rgba(248,113,113,0.45)", color: "#f87171", cursor: "pointer" }}
-        >
-          {deleteMutation.isPending ? "Deleting..." : "Delete Unclaimed Bundles"}
         </button>
       </div>
 
