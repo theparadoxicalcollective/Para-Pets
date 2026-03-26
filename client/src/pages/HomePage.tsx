@@ -356,7 +356,27 @@ export default function HomePage({ user }: HomePageProps) {
                           <PetAnimator petTemplateId={activePet.petTemplateId} mode="idle" view="front" size={1000} className="w-full" style={{ aspectRatio: "1/1" }} />
                         ) : (activePet.hatchedImageUrl || activePet.imageUrl) ? (
                           <div style={{ paddingTop: "13vh", width: "100%" }}>
-                            <img src={activePet.hatchedImageUrl || activePet.imageUrl || ""} alt={activePet.name} className="w-full max-h-[50vh] object-contain" />
+                            <style>{`
+                              @keyframes petImgIdle {
+                                0%, 100% { transform: scale(1) translateY(0px); filter: brightness(1); }
+                                25% { transform: scale(1.012, 1.018) translateY(-2px); filter: brightness(1.04); }
+                                50% { transform: scale(1.018, 1.025) translateY(-3px); filter: brightness(1.07); }
+                                75% { transform: scale(1.012, 1.018) translateY(-2px); filter: brightness(1.04); }
+                              }
+                              @keyframes petImgBlink {
+                                0%, 88%, 100% { opacity: 1; }
+                                92%, 96% { opacity: 0.92; }
+                              }
+                            `}</style>
+                            <img
+                              src={activePet.hatchedImageUrl || activePet.imageUrl || ""}
+                              alt={activePet.name}
+                              className="w-full max-h-[50vh] object-contain"
+                              style={{
+                                animation: "petImgIdle 3.5s ease-in-out infinite, petImgBlink 4s ease-in-out infinite",
+                                transformOrigin: "center bottom",
+                              }}
+                            />
                           </div>
                         ) : (
                           <img src={petPawIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain", filter: "drop-shadow(0 2px 10px rgba(0,0,0,0.5))" }} />
@@ -381,7 +401,15 @@ export default function HomePage({ user }: HomePageProps) {
                         >
                           {activePet.eggImageUrl ? (
                             <div style={{ paddingTop: "13vh", width: "100%" }}>
-                              <img src={activePet.eggImageUrl} alt={activePet.name} className="w-full max-h-[50vh] object-contain" />
+                              <img
+                                src={activePet.eggImageUrl}
+                                alt={activePet.name}
+                                className="w-full max-h-[50vh] object-contain"
+                                style={{
+                                  animation: "petImgIdle 3.5s ease-in-out infinite",
+                                  transformOrigin: "center bottom",
+                                }}
+                              />
                             </div>
                           ) : (
                             <img src={eggMagicIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain", filter: "drop-shadow(0 2px 10px rgba(0,0,0,0.5))" }} />
