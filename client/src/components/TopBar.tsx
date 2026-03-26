@@ -397,7 +397,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                   <img
                     src={giftIconImg}
                     alt="Gifts"
-                    className="w-10 h-10 object-contain"
+                    className="w-12 h-12 object-contain"
                     style={{ filter: "drop-shadow(0 0 8px rgba(120,200,80,0.7)) drop-shadow(0 0 16px rgba(192,132,252,0.4))" }}
                   />
                   <div
@@ -424,14 +424,14 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                     title="Friend requests"
                   >
                     <div
-                      className="w-9 h-9 rounded-full flex items-center justify-center"
+                      className="w-11 h-11 rounded-full flex items-center justify-center"
                       style={{
                         background: "linear-gradient(135deg, rgba(30,15,5,0.9) 0%, rgba(60,35,10,0.9) 100%)",
                         border: `1.5px solid ${showRequestsPopup ? "rgba(74,222,128,0.85)" : "rgba(74,222,128,0.55)"}`,
                         boxShadow: showRequestsPopup ? "0 0 14px rgba(74,222,128,0.45)" : "0 0 10px rgba(74,222,128,0.25)",
                       }}
                     >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
                         <circle cx="9" cy="7" r="4"/>
                         <line x1="19" y1="8" x2="19" y2="14"/>
