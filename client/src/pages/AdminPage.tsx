@@ -477,13 +477,13 @@ function WelcomeBundleSection() {
     onError: () => toast({ title: "Save Failed", variant: "destructive" }),
   });
 
-  const patchMutation = useMutation({
+  const deleteMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/admin/patch-welcome-bundles", {});
+      const res = await apiRequest("POST", "/api/admin/delete-unclaimed-welcome-bundles", {});
       return res.json();
     },
-    onSuccess: (data: any) => toast({ title: "Bundles Patched!", description: data.message }),
-    onError: () => toast({ title: "Patch Failed", variant: "destructive" }),
+    onSuccess: (data: any) => toast({ title: "Done", description: data.message }),
+    onError: () => toast({ title: "Delete Failed", variant: "destructive" }),
   });
 
   const addItem = (shopItem: ShopItemFull) => {
@@ -603,18 +603,18 @@ function WelcomeBundleSection() {
         </button>
       </div>
 
-      {/* Patch existing bundles */}
-      <div className="rounded-lg p-3" style={{ background: "rgba(10,20,15,0.5)", border: "1px solid rgba(110,231,183,0.2)" }}>
-        <h4 className="font-fantasy text-[#6ee7b7] text-[10px] tracking-wider mb-1">Fix Existing Unclaimed Bundles</h4>
-        <p className="font-fantasy text-[#3a6050] text-[10px] mb-2">Adds the Small Hatching Potion to any unclaimed Welcome bundles missing it.</p>
+      {/* Delete unclaimed bundles */}
+      <div className="rounded-lg p-3" style={{ background: "rgba(20,8,8,0.5)", border: "1px solid rgba(248,113,113,0.2)" }}>
+        <h4 className="font-fantasy text-[#f87171] text-[10px] tracking-wider mb-1">Delete Unclaimed Welcome Bundles</h4>
+        <p className="font-fantasy text-[#6a3a3a] text-[10px] mb-2">Permanently removes all unclaimed Welcome to the Realm! bundles. Players who haven't claimed will simply have no pending bundle.</p>
         <button
-          data-testid="button-patch-welcome-bundles"
-          onClick={() => patchMutation.mutate()}
-          disabled={patchMutation.isPending}
+          data-testid="button-delete-unclaimed-welcome-bundles"
+          onClick={() => deleteMutation.mutate()}
+          disabled={deleteMutation.isPending}
           className="w-full py-1.5 rounded-md font-fantasy text-xs tracking-wider transition-transform active:scale-95"
-          style={{ background: "rgba(15,40,25,0.8)", border: "1px solid rgba(110,231,183,0.35)", color: "#6ee7b7", cursor: "pointer" }}
+          style={{ background: "rgba(60,10,10,0.8)", border: "1px solid rgba(248,113,113,0.45)", color: "#f87171", cursor: "pointer" }}
         >
-          {patchMutation.isPending ? "Patching..." : "Patch Unclaimed Welcome Bundles"}
+          {deleteMutation.isPending ? "Deleting..." : "Delete Unclaimed Bundles"}
         </button>
       </div>
 

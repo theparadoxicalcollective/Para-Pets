@@ -2598,30 +2598,23 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/admin/patch-welcome-bundles", isAdmin, async (req, res) => {
+  app.post("/api/admin/delete-unclaimed-welcome-bundles", isAdmin, async (req, res) => {
     try {
-      const allShopItems = await storage.getAllShopItems();
-      const hatchPotion = allShopItems.find(i => i.name.toLowerCase() === "small hatching potion");
-      if (!hatchPotion) {
-        return res.status(404).json({ message: "Small Hatching Potion not found in shop items" });
-      }
       const unclaimedRewards = await db.select().from(userRewards).where(eq(userRewards.claimed, false));
-      let patched = 0;
-      let skipped = 0;
+      let deleted = 0;
       for (const reward of unclaimedRewards) {
         const bundle = await storage.getRewardBundle(reward.bundleId);
-        if (!bundle || bundle.name !== "Welcome to the Realm!") { skipped++; continue; }
-        const existingItems = await storage.getRewardBundleItems(bundle.id);
-        const alreadyHas = existingItems.some(bi => bi.shopItemId === hatchPotion.id);
-        if (alreadyHas) { skipped++; continue; }
-        await storage.addRewardBundleItem(bundle.id, hatchPotion.id);
-        patched++;
+        if (!bundle || bundle.name !== "Welcome to the Realm!") continue;
+        await db.delete(userRewards).where(eq(userRewards.id, reward.id));
+        await db.delete(rewardBundleItems).where(eq(rewardBundleItems.bundleId, bundle.id));
+        await db.delete(rewardBundles).where(eq(rewardBundles.id, bundle.id));
+        deleted++;
       }
-      console.log(`[PatchWelcomeBundles] Patched ${patched} bundles, skipped ${skipped}`);
-      return res.json({ message: `Patched ${patched} welcome bundles`, patched, skipped });
+      console.log(`[DeleteWelcomeBundles] Deleted ${deleted} unclaimed welcome bundles`);
+      return res.json({ message: `Deleted ${deleted} unclaimed welcome bundle${deleted !== 1 ? "s" : ""}`, deleted });
     } catch (err) {
-      console.error("Patch welcome bundles error:", err);
-      return res.status(500).json({ message: "Failed to patch welcome bundles" });
+      console.error("Delete unclaimed welcome bundles error:", err);
+      return res.status(500).json({ message: "Failed to delete unclaimed welcome bundles" });
     }
   });
 
