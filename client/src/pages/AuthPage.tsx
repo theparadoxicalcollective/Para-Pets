@@ -218,577 +218,582 @@ export default function AuthPage() {
         margin: "0 auto",
       }}
     >
-      <div className="absolute inset-0 bg-black/40 z-0" />
+      {/* Lighter vignette — let the forest breathe */}
+      <div className="absolute inset-0 z-0" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.08) 45%, rgba(3,10,5,0.7) 100%)" }} />
 
-      <div className="relative z-10 flex flex-col items-center justify-center w-full px-6 py-8 h-full overflow-y-auto" style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
-        <div className="flex flex-col items-center w-full">
-          <div className="mb-3 text-center">
-            <div className="relative inline-block px-6 py-2 rounded-2xl" style={{ background: "rgba(0,0,0,0.35)", backdropFilter: "blur(4px)" }}>
-              <span className="title-sparkle absolute -top-3 -left-3 text-xl select-none" style={{ animationDelay: "0s" }}>✦</span>
-              <span className="title-sparkle absolute -top-3 -right-3 text-xl select-none" style={{ animationDelay: "1s" }}>✦</span>
-              <span className="title-sparkle absolute -bottom-2 left-1/2 -translate-x-1/2 text-sm select-none" style={{ animationDelay: "1.8s" }}>✦</span>
-              <h1 className="para-pets-title select-none">Para Pets</h1>
-            </div>
-          </div>
+      <div
+        className="relative z-10 flex flex-col items-center w-full h-full"
+        style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+      >
+        {mode === "landing" ? (
+          /* ══════════════════════ LANDING SCREEN ══════════════════════ */
+          <div className="flex flex-col items-center justify-between h-full w-full px-6 animate-slide-up">
 
-          {mode === "landing" && (
-            <div className="flex flex-col items-center gap-3 mt-2 w-full animate-slide-up">
-              <p className="font-fantasy text-white text-center text-sm tracking-wider px-4 leading-relaxed drop-shadow-lg">
-                A world of magical companions awaits.
-                <br />Embark on your journey now.
-              </p>
-
-              <div className="flex flex-col items-center gap-0 w-full">
-                <button
-                  data-testid="button-signin"
-                  onClick={() => setMode("login")}
-                  className="w-[72%] max-w-[290px] mx-auto block transition-transform duration-150 active:scale-95"
-                  style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
-                >
-                  <img src={signInBtn} alt="Sign In" className="w-full h-auto object-contain drop-shadow-lg block" />
-                </button>
-
-                <button
-                  data-testid="button-create-account"
-                  onClick={() => setMode("register")}
-                  className="w-[72%] max-w-[290px] mx-auto block transition-transform duration-150 active:scale-95"
-                  style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
-                >
-                  <img src={createAccountBtn} alt="Create Account" className="w-full h-auto object-contain drop-shadow-lg block" />
-                </button>
+            {/* ── TOP: floating title ── */}
+            <div className="flex flex-col items-center pt-14">
+              <div className="relative">
+                <span className="title-sparkle absolute -top-5 -left-6 text-2xl select-none" style={{ animationDelay: "0s" }}>✦</span>
+                <span className="title-sparkle absolute -top-5 -right-6 text-2xl select-none" style={{ animationDelay: "1.2s" }}>✦</span>
+                <span className="title-sparkle absolute -bottom-4 -left-9 text-sm select-none" style={{ animationDelay: "0.5s" }}>✦</span>
+                <span className="title-sparkle absolute -bottom-4 -right-9 text-sm select-none" style={{ animationDelay: "1.8s" }}>✦</span>
+                <h1 className="para-pets-title select-none">Para Pets</h1>
               </div>
+              <p
+                className="font-fantasy text-white text-center text-sm tracking-widest mt-7 leading-relaxed"
+                style={{ textShadow: "0 2px 12px rgba(0,0,0,1), 0 0 30px rgba(0,0,0,0.9)" }}
+              >
+                A world of magical companions awaits
+              </p>
+            </div>
 
+            {/* ── BOTTOM: action buttons ── */}
+            <div className="flex flex-col items-center w-full pb-10">
+              <button
+                data-testid="button-signin"
+                onClick={() => setMode("login")}
+                className="w-[78%] max-w-[310px] mx-auto block transition-transform duration-150 active:scale-95"
+                style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+              >
+                <img
+                  src={signInBtn} alt="Sign In"
+                  className="w-full h-auto object-contain block"
+                  style={{ filter: "drop-shadow(0 0 16px rgba(240,160,48,0.75)) drop-shadow(0 4px 10px rgba(0,0,0,0.95))" }}
+                />
+              </button>
+              <button
+                data-testid="button-create-account"
+                onClick={() => setMode("register")}
+                className="w-[78%] max-w-[310px] mx-auto block transition-transform duration-150 active:scale-95"
+                style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+              >
+                <img
+                  src={createAccountBtn} alt="Create Account"
+                  className="w-full h-auto object-contain block"
+                  style={{ filter: "drop-shadow(0 0 16px rgba(240,160,48,0.75)) drop-shadow(0 4px 10px rgba(0,0,0,0.95))" }}
+                />
+              </button>
               <Link
                 data-testid="link-para-pets-hub"
                 href="/hub"
-                className="font-fantasy text-[#ffd700] text-sm tracking-widest underline underline-offset-4 decoration-[#ffd700]/60 hover:text-white transition-colors duration-150 mt-1 drop-shadow"
+                className="font-fantasy text-[#7fffd4] text-xs tracking-widest mt-4 hover:text-white transition-colors duration-150"
+                style={{ textShadow: "0 0 14px rgba(0,200,180,0.9), 0 2px 6px rgba(0,0,0,0.9)" }}
               >
-                Para Pets Hub
+                ✦ Para Pets Hub ✦
               </Link>
+            </div>
+          </div>
+
+        ) : (
+          /* ══════════════════ FORM SCREENS ══════════════════ */
+          <div className="flex flex-col items-center justify-center w-full min-h-full px-5 py-6 overflow-y-auto">
+
+            {/* Compact title above form */}
+            <div className="relative mb-5 text-center">
+              <span className="title-sparkle absolute -top-3 -left-4 text-base select-none" style={{ animationDelay: "0s" }}>✦</span>
+              <span className="title-sparkle absolute -top-3 -right-4 text-base select-none" style={{ animationDelay: "1s" }}>✦</span>
+              <h1 className="para-pets-title select-none" style={{ fontSize: "clamp(1.9rem, 9vw, 2.9rem)" }}>Para Pets</h1>
+            </div>
+
+          {/* ── LOGIN / REGISTER PANEL ── */}
+          {(mode === "login" || mode === "register") && (
+            <div
+              className="w-full max-w-sm animate-slide-up"
+              style={{
+                background: "linear-gradient(160deg, rgba(6,18,10,0.95) 0%, rgba(4,12,8,0.97) 100%)",
+                border: "1px solid rgba(175,135,35,0.45)",
+                borderRadius: "18px",
+                boxShadow: "0 0 0 1px rgba(0,160,130,0.07), 0 14px 45px rgba(0,0,0,0.88), 0 0 28px rgba(150,115,20,0.13)",
+                backdropFilter: "blur(16px)",
+              }}
+            >
+              {/* Forest-panel header */}
+              <div className="px-6 pt-5 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(0,170,130,0.55))" }} />
+                  <span style={{ color: "#7fffd4", fontSize: 14, textShadow: "0 0 8px rgba(0,200,160,0.8)" }}>🌿</span>
+                  <h2 className="font-fantasy text-white text-sm tracking-[0.22em]" style={{ textShadow: "0 0 14px rgba(0,200,160,0.35)" }}>
+                    {mode === "login" ? "Welcome Back" : "Begin Your Journey"}
+                  </h2>
+                  <span style={{ color: "#7fffd4", fontSize: 14, textShadow: "0 0 8px rgba(0,200,160,0.8)" }}>🌿</span>
+                  <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, rgba(0,170,130,0.55), transparent)" }} />
+                </div>
+              </div>
+
+              <div className="px-6 pb-6 space-y-3">
+                {/* Register-only: email + avatar */}
+                {mode === "register" && (
+                  <>
+                    <div>
+                      <label className="font-fantasy text-[#7fffd4] text-[10px] tracking-widest block mb-1 ml-1 uppercase opacity-80">Email</label>
+                      <input
+                        data-testid="input-email"
+                        type="email"
+                        value={email}
+                        onChange={e => { setEmail(e.target.value); setFieldErrors(prev => ({ ...prev, email: undefined })); }}
+                        disabled={isPending}
+                        placeholder="your@email.com"
+                        className="w-full px-4 py-2.5 rounded-lg font-sans text-sm text-[#1a0e04] placeholder-[#8a7060] outline-none disabled:opacity-60"
+                        style={{
+                          background: "linear-gradient(135deg, #f5ead8 0%, #ecdec0 100%)",
+                          border: fieldErrors.email ? "1.5px solid #e05555" : "1.5px solid rgba(170,125,35,0.55)",
+                          boxShadow: fieldErrors.email ? "0 0 0 2px rgba(220,60,60,0.22)" : "inset 0 2px 4px rgba(0,0,0,0.15)",
+                        }}
+                      />
+                      {fieldErrors.email && (
+                        <p data-testid="error-email" className="font-sans text-[11px] mt-1 ml-1 flex items-center gap-1" style={{ color: "#ff7070" }}>
+                          <span>⚠</span> {fieldErrors.email}
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="font-fantasy text-[#7fffd4] text-[10px] tracking-widest block mb-1 ml-1 uppercase opacity-80">Profile Picture</label>
+                      <div className="flex items-center gap-3">
+                        {profilePreview ? (
+                          <div
+                            className="w-12 h-12 rounded-full overflow-hidden cursor-pointer border-2 border-[#ffd700] flex-shrink-0"
+                            onClick={() => fileInputRef.current?.click()}
+                            data-testid="img-profile-preview"
+                            style={{ boxShadow: "0 0 10px rgba(255,215,0,0.45)" }}
+                          >
+                            <img src={profilePreview} alt="Preview" className="w-full h-full object-cover" />
+                          </div>
+                        ) : (
+                          <div
+                            className="w-12 h-12 rounded-full cursor-pointer border-2 border-dashed border-[#3a9a80] flex items-center justify-center flex-shrink-0"
+                            onClick={() => fileInputRef.current?.click()}
+                            data-testid="button-upload-avatar"
+                            style={{ background: "rgba(0,160,120,0.1)" }}
+                          >
+                            <span className="text-[#7fffd4] text-xl">+</span>
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="font-fantasy text-[10px] tracking-wider py-1.5 px-3 rounded-lg transition-opacity hover:opacity-80"
+                          style={{ background: "rgba(0,90,65,0.45)", border: "1px solid rgba(0,190,150,0.3)", color: "#7fffd4" }}
+                        >
+                          {profilePreview ? "Change Photo" : "Choose Photo"}
+                        </button>
+                      </div>
+                      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" data-testid="input-file-upload" />
+                    </div>
+                  </>
+                )}
+
+                {/* Username / email field */}
+                <div>
+                  <label className="font-fantasy text-[#7fffd4] text-[10px] tracking-widest block mb-1 ml-1 uppercase opacity-80">
+                    {mode === "login" ? "Username or Email" : "Username"}
+                  </label>
+                  <input
+                    data-testid="input-username"
+                    type="text"
+                    value={username}
+                    onChange={e => { setUsername(e.target.value); setFieldErrors(prev => ({ ...prev, username: undefined })); }}
+                    disabled={isPending}
+                    placeholder={mode === "login" ? "Username or email" : "HeroName123"}
+                    className="w-full px-4 py-2.5 rounded-lg font-sans text-sm text-[#1a0e04] placeholder-[#8a7060] outline-none disabled:opacity-60"
+                    style={{
+                      background: "linear-gradient(135deg, #f5ead8 0%, #ecdec0 100%)",
+                      border: fieldErrors.username ? "1.5px solid #e05555" : "1.5px solid rgba(170,125,35,0.55)",
+                      boxShadow: fieldErrors.username ? "0 0 0 2px rgba(220,60,60,0.22)" : "inset 0 2px 4px rgba(0,0,0,0.15)",
+                    }}
+                  />
+                  {mode === "register" && fieldErrors.username ? (
+                    <p data-testid="error-username" className="font-sans text-[11px] mt-1 ml-1 flex items-center gap-1" style={{ color: "#ff7070" }}>
+                      <span>⚠</span> {fieldErrors.username}
+                    </p>
+                  ) : mode === "register" ? (
+                    <p className="font-sans text-[10px] mt-1 ml-1" style={{ color: "#5aafaf" }}>Letters, numbers &amp; underscores, 3–20 chars</p>
+                  ) : null}
+                </div>
+
+                {/* Password field */}
+                <div>
+                  <label className="font-fantasy text-[#7fffd4] text-[10px] tracking-widest block mb-1 ml-1 uppercase opacity-80">Password</label>
+                  <div className="relative">
+                    <input
+                      data-testid="input-password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={e => { setPassword(e.target.value); setFieldErrors(prev => ({ ...prev, password: undefined })); }}
+                      disabled={isPending}
+                      placeholder="••••••••"
+                      className="w-full px-4 py-2.5 pr-11 rounded-lg font-sans text-sm text-[#1a0e04] placeholder-[#8a7060] outline-none disabled:opacity-60"
+                      style={{
+                        background: "linear-gradient(135deg, #f5ead8 0%, #ecdec0 100%)",
+                        border: fieldErrors.password ? "1.5px solid #e05555" : "1.5px solid rgba(170,125,35,0.55)",
+                        boxShadow: fieldErrors.password ? "0 0 0 2px rgba(220,60,60,0.22)" : "inset 0 2px 4px rgba(0,0,0,0.15)",
+                      }}
+                      onKeyDown={e => e.key === "Enter" && handleSubmit()}
+                    />
+                    <button
+                      data-testid="button-toggle-password"
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded opacity-55 hover:opacity-90 transition-opacity"
+                      style={{ color: "#5a7a60" }}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                  {mode === "register" && fieldErrors.password ? (
+                    <p data-testid="error-password" className="font-sans text-[11px] mt-1 ml-1 flex items-center gap-1" style={{ color: "#ff7070" }}>
+                      <span>⚠</span> {fieldErrors.password}
+                    </p>
+                  ) : mode === "register" ? (
+                    <p className="font-sans text-[10px] mt-1 ml-1" style={{ color: "#5aafaf" }}>Minimum 6 characters</p>
+                  ) : null}
+                </div>
+
+                {/* Remember me */}
+                {mode === "login" && (
+                  <button
+                    data-testid="button-remember-me"
+                    type="button"
+                    onClick={() => setRememberMe(!rememberMe)}
+                    className="flex items-center gap-2"
+                    style={{ background: "none", border: "none", cursor: "pointer" }}
+                  >
+                    <div
+                      className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-colors"
+                      style={{
+                        background: rememberMe ? "linear-gradient(135deg, #155c3a 0%, #0a3020 100%)" : "rgba(0,160,120,0.1)",
+                        border: rememberMe ? "1.5px solid rgba(127,255,212,0.65)" : "1.5px solid rgba(0,160,120,0.38)",
+                      }}
+                    >
+                      {rememberMe && (
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#7fffd4" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                    </div>
+                    <span className="font-fantasy text-[#96b8a4] text-[10px] tracking-wider">Remember Me</span>
+                  </button>
+                )}
+
+                {/* Loading bar */}
+                {isLoading && (
+                  <div className="space-y-1.5 pt-1">
+                    <div className="relative w-full h-3.5 rounded-full overflow-hidden" style={{ background: "rgba(0,0,0,0.5)", border: "1px solid rgba(0,160,120,0.2)" }}>
+                      <div
+                        className="absolute inset-y-0 left-0 rounded-full transition-all duration-300 ease-out"
+                        style={{
+                          width: `${loadingProgress}%`,
+                          background: "linear-gradient(90deg, #0a3020 0%, #155c40 50%, #7fffd4 100%)",
+                          boxShadow: "0 0 8px rgba(127,255,212,0.65)",
+                        }}
+                      />
+                    </div>
+                    <p className="font-fantasy text-[#7fffd4] text-[10px] text-center tracking-widest animate-pulse">
+                      {mode === "login" ? "Entering the realm..." : "Creating your legend..."}
+                    </p>
+                  </div>
+                )}
+
+                {/* Action buttons */}
+                <div className="flex flex-col items-center gap-2.5 pt-1">
+                  {mode === "login" ? (
+                    <button
+                      data-testid="button-submit-signin"
+                      onClick={handleSubmit}
+                      disabled={isPending}
+                      className="w-[68%] max-w-[240px] transition-transform duration-150 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+                      style={{ background: "none", border: "none", cursor: "pointer" }}
+                    >
+                      <img src={signInBtn} alt="Sign In" className="w-full h-auto object-contain" style={isPending ? { filter: "brightness(0.65)" } : { filter: "drop-shadow(0 0 10px rgba(240,160,48,0.55))" }} />
+                    </button>
+                  ) : (
+                    <button
+                      data-testid="button-submit-register"
+                      onClick={handleSubmit}
+                      disabled={isPending}
+                      className="w-[68%] max-w-[240px] transition-transform duration-150 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+                      style={{ background: "none", border: "none", cursor: "pointer" }}
+                    >
+                      <img src={createAccountBtn} alt="Create Account" className="w-full h-auto object-contain" style={isPending ? { filter: "brightness(0.65)" } : { filter: "drop-shadow(0 0 10px rgba(240,160,48,0.55))" }} />
+                    </button>
+                  )}
+
+                  <button
+                    data-testid="button-back"
+                    onClick={() => { setMode("landing"); setUsername(""); setEmail(""); setPassword(""); setProfileImageData(null); setProfilePreview(null); setIsLoading(false); setLoadingProgress(0); setShowPassword(false); setLoginFailed(false); }}
+                    disabled={isPending}
+                    className="font-fantasy text-[#96b8a4] text-[10px] tracking-widest hover:text-white transition-colors disabled:opacity-40"
+                  >
+                    ← BACK
+                  </button>
+
+                  {mode === "login" && (
+                    <>
+                      {loginFailed && (
+                        <button
+                          data-testid="button-forgot-password"
+                          onClick={() => { setMode("forgot"); setForgotSent(false); setForgotInput(email); }}
+                          disabled={isPending}
+                          className="font-fantasy text-[#ffd700] text-[10px] tracking-wider hover:text-white transition-colors"
+                          style={{ background: "none", border: "none", cursor: "pointer" }}
+                        >
+                          Forgot Password?
+                        </button>
+                      )}
+                      <p className="font-fantasy text-[#96b8a4] text-[10px] tracking-wider">
+                        New traveler?{" "}
+                        <button data-testid="button-switch-to-register" onClick={() => setMode("register")} disabled={isPending} className="text-[#ffd700] hover:text-white transition-colors">
+                          Create Account
+                        </button>
+                      </p>
+                    </>
+                  )}
+
+                  {mode === "register" && (
+                    <p className="font-fantasy text-[#96b8a4] text-[10px] tracking-wider">
+                      Already a hero?{" "}
+                      <button data-testid="button-switch-to-login" onClick={() => setMode("login")} disabled={isPending} className="text-[#ffd700] hover:text-white transition-colors">
+                        Sign In
+                      </button>
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
-          {(mode === "login" || mode === "register") && (
-            <div className="w-full max-w-sm animate-slide-up rounded-2xl px-5 py-5" style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}>
-              <h2 className="font-fantasy text-white text-center text-xl tracking-widest mb-6 drop-shadow-lg">
-                {mode === "login" ? "Welcome Back" : "Begin Your Journey"}
-              </h2>
-
-            <div className="space-y-4">
-              {mode === "register" && (
-                <>
-                  <div className="relative">
-                    <label className="font-fantasy text-[#c8b896] text-xs tracking-wider block mb-1 ml-1">EMAIL</label>
-                    <input
-                      data-testid="input-email"
-                      type="email"
-                      value={email}
-                      onChange={e => { setEmail(e.target.value); setFieldErrors(prev => ({ ...prev, email: undefined })); }}
-                      disabled={isPending}
-                      placeholder="your@email.com"
-                      className="w-full px-4 py-3 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#8a7060] outline-none focus:ring-2 focus:ring-[#d4a017] disabled:opacity-60"
-                      style={{
-                        background: "linear-gradient(135deg, #f2e8d0 0%, #e8d8b0 100%)",
-                        border: fieldErrors.email ? "2px solid #e05555" : "2px solid #8b5e3c",
-                        boxShadow: fieldErrors.email ? "inset 0 2px 6px rgba(0,0,0,0.3), 0 0 0 2px rgba(220,60,60,0.25)" : "inset 0 2px 6px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1)",
-                      }}
-                    />
-                    {fieldErrors.email && (
-                      <p data-testid="error-email" className="font-sans text-[11px] mt-1.5 ml-1 flex items-center gap-1" style={{ color: "#ff7070" }}>
-                        <span>⚠</span> {fieldErrors.email}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="font-fantasy text-[#c8b896] text-xs tracking-wider block mb-1 ml-1">PROFILE PICTURE</label>
-                    <div className="flex items-center gap-3">
-                      {profilePreview ? (
-                        <div
-                          className="w-14 h-14 rounded-full overflow-hidden cursor-pointer border-2 border-[#d4a017] flex-shrink-0"
-                          onClick={() => fileInputRef.current?.click()}
-                          data-testid="img-profile-preview"
-                          style={{ boxShadow: "0 0 10px rgba(212,160,23,0.5)" }}
-                        >
-                          <img src={profilePreview} alt="Preview" className="w-full h-full object-cover" />
-                        </div>
-                      ) : (
-                        <div
-                          className="w-14 h-14 rounded-full cursor-pointer border-2 border-dashed border-[#8b5e3c] flex items-center justify-center flex-shrink-0 transition-colors"
-                          onClick={() => fileInputRef.current?.click()}
-                          data-testid="button-upload-avatar"
-                          style={{ background: "rgba(242,232,208,0.15)" }}
-                        >
-                          <span className="text-[#c8b896] text-2xl">+</span>
-                        </div>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="font-fantasy text-xs text-[#c8b896] tracking-wider py-2 px-4 rounded-md transition-opacity hover:opacity-80"
-                        style={{
-                          background: "rgba(139,94,60,0.4)",
-                          border: "1px solid #8b5e3c",
-                        }}
-                      >
-                        {profilePreview ? "Change Photo" : "Choose Photo"}
-                      </button>
-                    </div>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileChange}
-                      className="hidden"
-                      data-testid="input-file-upload"
-                    />
-                  </div>
-                </>
-              )}
-
-              <div>
-                <label className="font-fantasy text-xs tracking-wider block mb-1 ml-1" style={{ color: mode === "register" ? "#7ecfcf" : "#c8b896" }}>
-                  {mode === "login" ? "USERNAME OR EMAIL" : "USERNAME"}
-                </label>
-                <input
-                  data-testid="input-username"
-                  type="text"
-                  value={username}
-                  onChange={e => { setUsername(e.target.value); setFieldErrors(prev => ({ ...prev, username: undefined })); }}
-                  disabled={isPending}
-                  placeholder={mode === "login" ? "Username or email" : "HeroName123"}
-                  className="w-full px-4 py-3 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#8a7060] outline-none disabled:opacity-60"
-                  style={{
-                    background: mode === "register"
-                      ? "linear-gradient(135deg, #d8f2ec 0%, #c4e8e0 100%)"
-                      : "linear-gradient(135deg, #f2e8d0 0%, #e8d8b0 100%)",
-                    border: fieldErrors.username
-                      ? "2px solid #e05555"
-                      : mode === "register" ? "2px solid #2a9a8a" : "2px solid #8b5e3c",
-                    boxShadow: fieldErrors.username
-                      ? "inset 0 2px 6px rgba(0,0,0,0.2), 0 0 0 2px rgba(220,60,60,0.25)"
-                      : mode === "register"
-                        ? "inset 0 2px 6px rgba(0,0,0,0.2), 0 0 0 0 transparent"
-                        : "inset 0 2px 6px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1)",
-                    outline: "none",
-                  }}
-                />
-                {mode === "register" && fieldErrors.username ? (
-                  <p data-testid="error-username" className="font-sans text-[11px] mt-1.5 ml-1 flex items-center gap-1" style={{ color: "#ff7070" }}>
-                    <span>⚠</span> {fieldErrors.username}
-                  </p>
-                ) : mode === "register" ? (
-                  <p className="font-sans text-[10px] mt-1 ml-1" style={{ color: "#5aafaf" }}>Letters, numbers &amp; underscores, 3–20 characters</p>
-                ) : null}
-              </div>
-
-              <div>
-                <label className="font-fantasy text-xs tracking-wider block mb-1 ml-1" style={{ color: mode === "register" ? "#c8a8e0" : "#c8b896" }}>
-                  {mode === "register" ? "🔒 PASSWORD" : "PASSWORD"}
-                </label>
-                <div className="relative">
-                  <input
-                    data-testid="input-password"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={e => { setPassword(e.target.value); setFieldErrors(prev => ({ ...prev, password: undefined })); }}
-                    disabled={isPending}
-                    placeholder="••••••••"
-                    className="w-full px-4 py-3 pr-12 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#8a7060] outline-none disabled:opacity-60"
-                    style={{
-                      background: mode === "register"
-                        ? "linear-gradient(135deg, #ede8f5 0%, #ddd0f0 100%)"
-                        : "linear-gradient(135deg, #f2e8d0 0%, #e8d8b0 100%)",
-                      border: fieldErrors.password
-                        ? "2px solid #e05555"
-                        : mode === "register" ? "2px solid #8a5aae" : "2px solid #8b5e3c",
-                      boxShadow: fieldErrors.password
-                        ? "inset 0 2px 6px rgba(0,0,0,0.2), 0 0 0 2px rgba(220,60,60,0.25)"
-                        : mode === "register"
-                          ? "inset 0 2px 6px rgba(0,0,0,0.2)"
-                          : "inset 0 2px 6px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1)",
-                    }}
-                    onKeyDown={e => e.key === "Enter" && handleSubmit()}
-                  />
-                  <button
-                    data-testid="button-toggle-password"
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded opacity-60 hover:opacity-100 transition-opacity"
-                    style={{ color: mode === "register" ? "#9b6fca" : "#8b5e3c" }}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
+          {/* ── FORGOT PASSWORD PANEL ── */}
+          {mode === "forgot" && (
+            <div
+              className="w-full max-w-sm animate-slide-up"
+              style={{
+                background: "linear-gradient(160deg, rgba(6,18,10,0.95) 0%, rgba(4,12,8,0.97) 100%)",
+                border: "1px solid rgba(175,135,35,0.45)",
+                borderRadius: "18px",
+                boxShadow: "0 0 0 1px rgba(0,160,130,0.07), 0 14px 45px rgba(0,0,0,0.88)",
+                backdropFilter: "blur(16px)",
+              }}
+            >
+              <div className="px-6 pt-5 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(0,170,130,0.55))" }} />
+                  <span style={{ color: "#7fffd4", fontSize: 14 }}>🍄</span>
+                  <h2 className="font-fantasy text-white text-sm tracking-[0.22em]">Forgot Password</h2>
+                  <span style={{ color: "#7fffd4", fontSize: 14 }}>🍄</span>
+                  <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, rgba(0,170,130,0.55), transparent)" }} />
                 </div>
-                {mode === "register" && fieldErrors.password ? (
-                  <p data-testid="error-password" className="font-sans text-[11px] mt-1.5 ml-1 flex items-center gap-1" style={{ color: "#ff7070" }}>
-                    <span>⚠</span> {fieldErrors.password}
-                  </p>
-                ) : mode === "register" ? (
-                  <p className="font-sans text-[10px] mt-1 ml-1" style={{ color: "#9b6fca" }}>Minimum 6 characters</p>
-                ) : null}
+                <p className="font-fantasy text-[#96b8a4] text-[10px] text-center tracking-wider mt-2.5">
+                  Enter your email or username for a reset link
+                </p>
               </div>
 
-              {mode === "login" && (
-                <button
-                  data-testid="button-remember-me"
-                  type="button"
-                  onClick={() => setRememberMe(!rememberMe)}
-                  className="flex items-center gap-2 mt-1"
-                  style={{ background: "none", border: "none", cursor: "pointer" }}
-                >
-                  <div
-                    className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 transition-colors"
-                    style={{
-                      background: rememberMe
-                        ? "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)"
-                        : "rgba(242,232,208,0.15)",
-                      border: rememberMe
-                        ? "2px solid rgba(127,255,212,0.5)"
-                        : "2px solid #8b5e3c",
-                    }}
-                  >
-                    {rememberMe && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7fffd4" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <div className="px-6 pb-6">
+                {forgotSent ? (
+                  <div className="text-center space-y-3 py-2">
+                    <div className="w-14 h-14 mx-auto rounded-full flex items-center justify-center" style={{ background: "rgba(15,70,45,0.45)", border: "2px solid rgba(127,255,212,0.4)" }}>
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7fffd4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="20 6 9 17 4 12" />
                       </svg>
-                    )}
-                  </div>
-                  <span className="font-fantasy text-[#e8d8b0] text-xs tracking-wider">Remember Me</span>
-                </button>
-              )}
-            </div>
-
-            {isLoading && (
-              <div className="mt-5 space-y-2">
-                <div className="relative w-full h-5 rounded-full overflow-hidden" style={{ background: "rgba(0,0,0,0.5)", border: "1px solid #5c3a1e" }}>
-                  <div
-                    className="absolute inset-y-0 left-0 rounded-full transition-all duration-300 ease-out"
-                    style={{
-                      width: `${loadingProgress}%`,
-                      background: "linear-gradient(90deg, #1a6b55 0%, #2d9b7a 50%, #7fffd4 100%)",
-                      boxShadow: "0 0 10px rgba(127,255,212,0.6)",
-                    }}
-                  />
-                </div>
-                <p className="font-fantasy text-[#7fffd4] text-xs text-center tracking-widest animate-pulse">
-                  {mode === "login" ? "Entering the realm..." : "Creating your legend..."}
-                </p>
-              </div>
-            )}
-
-            <div className="flex flex-col items-center gap-4 mt-6">
-              {mode === "login" ? (
-                <button
-                  data-testid="button-submit-signin"
-                  onClick={handleSubmit}
-                  disabled={isPending}
-                  className="w-[65%] max-w-[260px] transition-transform duration-150 active:scale-93 disabled:opacity-60 disabled:cursor-not-allowed"
-                  style={{ background: "none", border: "none", cursor: "pointer" }}
-                >
-                  <img src={signInBtn} alt="Sign In" className="w-full h-auto object-contain drop-shadow-lg" style={isPending ? { filter: "brightness(0.7)" } : {}} />
-                </button>
-              ) : (
-                <button
-                  data-testid="button-submit-register"
-                  onClick={handleSubmit}
-                  disabled={isPending}
-                  className="w-[65%] max-w-[260px] transition-transform duration-150 active:scale-93 disabled:opacity-60 disabled:cursor-not-allowed"
-                  style={{ background: "none", border: "none", cursor: "pointer" }}
-                >
-                  <img src={createAccountBtn} alt="Create Account" className="w-full h-auto object-contain drop-shadow-lg" style={isPending ? { filter: "brightness(0.7)" } : {}} />
-                </button>
-              )}
-
-              <button
-                data-testid="button-back"
-                onClick={() => { setMode("landing"); setUsername(""); setEmail(""); setPassword(""); setProfileImageData(null); setProfilePreview(null); setIsLoading(false); setLoadingProgress(0); setShowPassword(false); setLoginFailed(false); }}
-                disabled={isPending}
-                className="font-fantasy text-[#d4c0a0] text-xs tracking-widest hover:text-white transition-colors disabled:opacity-40"
-              >
-                ← BACK
-              </button>
-
-              {mode === "login" && (
-                <>
-                  {loginFailed && (
+                    </div>
+                    <p className="font-fantasy text-[#7fffd4] text-sm tracking-wider" data-testid="text-forgot-sent">Check Your Email</p>
+                    <p className="font-fantasy text-[#96b8a4] text-[10px] tracking-wider leading-relaxed">
+                      If an account exists, a reset link has been sent. It expires in 1 hour.
+                    </p>
                     <button
-                      data-testid="button-forgot-password"
-                      onClick={() => { setMode("forgot"); setForgotSent(false); setForgotInput(email); }}
-                      disabled={isPending}
-                      className="font-fantasy text-[#d4a017] text-xs tracking-wider hover:text-[#f0c040] transition-colors"
+                      data-testid="button-back-to-login-from-forgot"
+                      onClick={() => { setMode("login"); setForgotSent(false); setLoginFailed(false); }}
+                      className="font-fantasy text-[#ffd700] text-[10px] tracking-wider hover:text-white transition-colors"
                       style={{ background: "none", border: "none", cursor: "pointer" }}
                     >
-                      Forgot Password?
+                      ← Back to Sign In
                     </button>
-                  )}
-                  <p className="font-fantasy text-[#d4c0a0] text-xs tracking-wider">
-                    New traveler?{" "}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="font-fantasy text-[#7fffd4] text-[10px] tracking-widest block mb-1 ml-1 uppercase opacity-80">Email or Username</label>
+                      <input
+                        data-testid="input-forgot-email-or-username"
+                        type="text"
+                        value={forgotInput}
+                        onChange={e => setForgotInput(e.target.value)}
+                        disabled={forgotMutation.isPending}
+                        placeholder="your@email.com or username"
+                        className="w-full px-4 py-2.5 rounded-lg font-sans text-sm text-[#1a0e04] placeholder-[#8a7060] outline-none disabled:opacity-60"
+                        style={{
+                          background: "linear-gradient(135deg, #f5ead8 0%, #ecdec0 100%)",
+                          border: "1.5px solid rgba(170,125,35,0.55)",
+                          boxShadow: "inset 0 2px 4px rgba(0,0,0,0.15)",
+                        }}
+                        onKeyDown={e => e.key === "Enter" && !forgotMutation.isPending && forgotInput.trim() && forgotMutation.mutate()}
+                      />
+                    </div>
                     <button
-                      data-testid="button-switch-to-register"
-                      onClick={() => setMode("register")}
-                      disabled={isPending}
-                      className="text-[#d4a017] hover:text-[#f0c040] transition-colors"
+                      data-testid="button-submit-forgot"
+                      onClick={() => forgotMutation.mutate()}
+                      disabled={forgotMutation.isPending || !forgotInput.trim()}
+                      className="w-full py-2.5 rounded-lg font-fantasy text-xs tracking-wider transition-transform active:scale-95 disabled:opacity-50"
+                      style={{
+                        background: "linear-gradient(135deg, #0d4a30 0%, #082a1c 100%)",
+                        border: "1px solid rgba(0,200,160,0.38)",
+                        color: "#7fffd4",
+                        cursor: "pointer",
+                        boxShadow: "0 0 10px rgba(0,200,160,0.14)",
+                      }}
                     >
-                      Create Account
+                      {forgotMutation.isPending ? "Sending..." : "Send Reset Link"}
                     </button>
-                  </p>
-                </>
-              )}
-
-              {mode === "register" && (
-                <p className="font-fantasy text-[#d4c0a0] text-xs tracking-wider">
-                  Already a hero?{" "}
-                  <button
-                    data-testid="button-switch-to-login"
-                    onClick={() => setMode("login")}
-                    disabled={isPending}
-                    className="text-[#d4a017] hover:text-[#f0c040] transition-colors"
-                  >
-                    Sign In
-                  </button>
-                </p>
-              )}
+                    <div className="flex flex-col items-center gap-2 pt-0.5">
+                      <button
+                        data-testid="button-back-to-login-from-forgot"
+                        onClick={() => { setMode("login"); setLoginFailed(false); }}
+                        className="font-fantasy text-[#96b8a4] text-[10px] tracking-widest hover:text-white transition-colors"
+                        style={{ background: "none", border: "none", cursor: "pointer" }}
+                      >
+                        ← Back to Sign In
+                      </button>
+                      <button
+                        data-testid="button-contact-support-from-forgot"
+                        onClick={() => { setMode("support"); setSupportSent(false); setSupportUsername(""); setSupportEmail(""); setSupportSubject("Account Help"); setSupportMessage(""); }}
+                        className="font-fantasy text-[#5a8870] text-[9px] tracking-wider hover:text-[#96b8a4] transition-colors"
+                        style={{ background: "none", border: "none", cursor: "pointer" }}
+                      >
+                        Contact Support instead
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {mode === "forgot" && (
-          <div className="w-full max-w-sm animate-slide-up rounded-2xl px-5 py-5" style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}>
-            <h2 className="font-fantasy text-white text-center text-xl tracking-widest mb-2 drop-shadow-lg">
-              Forgot Password
-            </h2>
-            <p className="font-fantasy text-[#d4c0a0] text-xs text-center tracking-wider mb-5">
-              Enter your email or username and we'll send a reset link
-            </p>
-
-            {forgotSent ? (
-              <div className="text-center space-y-4">
-                <div
-                  className="w-16 h-16 mx-auto rounded-full flex items-center justify-center"
-                  style={{ background: "rgba(45,106,79,0.3)", border: "2px solid rgba(127,255,212,0.4)" }}
-                >
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7fffd4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
+          {/* ── CONTACT SUPPORT PANEL ── */}
+          {mode === "support" && (
+            <div
+              className="w-full max-w-sm animate-slide-up"
+              style={{
+                background: "linear-gradient(160deg, rgba(6,18,10,0.95) 0%, rgba(4,12,8,0.97) 100%)",
+                border: "1px solid rgba(175,135,35,0.45)",
+                borderRadius: "18px",
+                boxShadow: "0 0 0 1px rgba(0,160,130,0.07), 0 14px 45px rgba(0,0,0,0.88)",
+                backdropFilter: "blur(16px)",
+              }}
+            >
+              <div className="px-6 pt-5 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(0,170,130,0.55))" }} />
+                  <span style={{ color: "#7fffd4", fontSize: 14 }}>🌟</span>
+                  <h2 className="font-fantasy text-white text-sm tracking-[0.22em]">Contact Support</h2>
+                  <span style={{ color: "#7fffd4", fontSize: 14 }}>🌟</span>
+                  <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, rgba(0,170,130,0.55), transparent)" }} />
                 </div>
-                <p className="font-fantasy text-[#7fffd4] text-sm tracking-wider" data-testid="text-forgot-sent">
-                  Check Your Email
+                <p className="font-fantasy text-[#96b8a4] text-[10px] text-center tracking-wider mt-2.5">
+                  Fill out the form and we'll help you out
                 </p>
-                <p className="font-fantasy text-[#d4c0a0] text-xs tracking-wider">
-                  If an account exists for that email or username, a reset link has been sent. It expires in 1 hour.
-                </p>
-                <button
-                  data-testid="button-back-to-login-from-forgot"
-                  onClick={() => { setMode("login"); setForgotSent(false); setLoginFailed(false); }}
-                  className="font-fantasy text-[#d4a017] text-xs tracking-wider hover:text-[#f0c040] transition-colors"
-                  style={{ background: "none", border: "none", cursor: "pointer" }}
-                >
-                  ← Back to Sign In
-                </button>
               </div>
-            ) : (
-              <div className="space-y-4">
-                <div>
-                  <label className="font-fantasy text-[#c8b896] text-xs tracking-wider block mb-1 ml-1">EMAIL OR USERNAME</label>
-                  <input
-                    data-testid="input-forgot-email-or-username"
-                    type="text"
-                    value={forgotInput}
-                    onChange={e => setForgotInput(e.target.value)}
-                    disabled={forgotMutation.isPending}
-                    placeholder="your@email.com or username"
-                    className="w-full px-4 py-2.5 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#8a7060] outline-none focus:ring-2 focus:ring-[#d4a017] disabled:opacity-60"
-                    style={{
-                      background: "linear-gradient(135deg, #f2e8d0 0%, #e8d8b0 100%)",
-                      border: "2px solid #8b5e3c",
-                      boxShadow: "inset 0 2px 6px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1)",
-                    }}
-                    onKeyDown={e => e.key === "Enter" && !forgotMutation.isPending && forgotInput.trim() && forgotMutation.mutate()}
-                  />
-                </div>
 
-                <button
-                  data-testid="button-submit-forgot"
-                  onClick={() => forgotMutation.mutate()}
-                  disabled={forgotMutation.isPending || !forgotInput.trim()}
-                  className="w-full py-3 rounded-md font-fantasy text-sm tracking-wider transition-transform active:scale-95 disabled:opacity-60"
-                  style={{
-                    background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
-                    border: "1px solid rgba(127,255,212,0.4)",
-                    color: "#7fffd4",
-                    cursor: "pointer",
-                    boxShadow: "0 0 12px rgba(127,255,212,0.2)",
-                  }}
-                >
-                  {forgotMutation.isPending ? "Sending..." : "Send Reset Link"}
-                </button>
-
-                <div className="flex flex-col items-center gap-2 pt-1">
-                  <button
-                    data-testid="button-back-to-login-from-forgot"
-                    onClick={() => { setMode("login"); setLoginFailed(false); }}
-                    className="font-fantasy text-[#d4c0a0] text-xs tracking-widest hover:text-white transition-colors"
-                    style={{ background: "none", border: "none", cursor: "pointer" }}
-                  >
-                    ← Back to Sign In
-                  </button>
-                  <button
-                    data-testid="button-contact-support-from-forgot"
-                    onClick={() => { setMode("support"); setSupportSent(false); setSupportUsername(""); setSupportEmail(""); setSupportSubject("Account Help"); setSupportMessage(""); }}
-                    className="font-fantasy text-[#b0a080] text-[10px] tracking-wider hover:text-[#d4c0a0] transition-colors"
-                    style={{ background: "none", border: "none", cursor: "pointer" }}
-                  >
-                    Contact Support instead
-                  </button>
-                </div>
+              <div className="px-6 pb-6">
+                {supportSent ? (
+                  <div className="text-center space-y-3 py-2">
+                    <div className="w-14 h-14 mx-auto rounded-full flex items-center justify-center" style={{ background: "rgba(15,70,45,0.45)", border: "2px solid rgba(127,255,212,0.4)" }}>
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7fffd4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </div>
+                    <p className="font-fantasy text-[#7fffd4] text-sm tracking-wider" data-testid="text-support-sent">Message Sent!</p>
+                    <p className="font-fantasy text-[#96b8a4] text-[10px] tracking-wider leading-relaxed">
+                      An admin will review your message and reach out to help.
+                    </p>
+                    <button
+                      data-testid="button-back-to-login-from-support"
+                      onClick={() => { setMode("login"); setSupportSent(false); setLoginFailed(false); }}
+                      className="font-fantasy text-[#ffd700] text-[10px] tracking-wider hover:text-white transition-colors"
+                      style={{ background: "none", border: "none", cursor: "pointer" }}
+                    >
+                      ← Back to Sign In
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {[
+                      { label: "Username", testId: "input-support-username", value: supportUsername, onChange: (v: string) => setSupportUsername(v), type: "text", placeholder: "Your username" },
+                      { label: "Email", testId: "input-support-email", value: supportEmail, onChange: (v: string) => setSupportEmail(v), type: "email", placeholder: "your@email.com" },
+                      { label: "Subject", testId: "input-support-subject", value: supportSubject, onChange: (v: string) => setSupportSubject(v), type: "text", placeholder: "e.g. Password Help, Account Issue..." },
+                    ].map(f => (
+                      <div key={f.testId}>
+                        <label className="font-fantasy text-[#7fffd4] text-[10px] tracking-widest block mb-1 ml-1 uppercase opacity-80">{f.label}</label>
+                        <input
+                          data-testid={f.testId}
+                          type={f.type}
+                          value={f.value}
+                          onChange={e => f.onChange(e.target.value)}
+                          disabled={supportMutation.isPending}
+                          placeholder={f.placeholder}
+                          className="w-full px-3 py-2 rounded-lg font-sans text-sm text-[#1a0e04] placeholder-[#8a7060] outline-none disabled:opacity-60"
+                          style={{
+                            background: "linear-gradient(135deg, #f5ead8 0%, #ecdec0 100%)",
+                            border: "1.5px solid rgba(170,125,35,0.55)",
+                            boxShadow: "inset 0 2px 4px rgba(0,0,0,0.15)",
+                          }}
+                        />
+                      </div>
+                    ))}
+                    <div>
+                      <label className="font-fantasy text-[#7fffd4] text-[10px] tracking-widest block mb-1 ml-1 uppercase opacity-80">Message</label>
+                      <textarea
+                        data-testid="input-support-message"
+                        value={supportMessage}
+                        onChange={e => setSupportMessage(e.target.value)}
+                        disabled={supportMutation.isPending}
+                        placeholder="Describe what you need help with..."
+                        rows={3}
+                        maxLength={2000}
+                        className="w-full px-3 py-2 rounded-lg font-sans text-sm text-[#1a0e04] placeholder-[#8a7060] outline-none disabled:opacity-60 resize-none"
+                        style={{
+                          background: "linear-gradient(135deg, #f5ead8 0%, #ecdec0 100%)",
+                          border: "1.5px solid rgba(170,125,35,0.55)",
+                          boxShadow: "inset 0 2px 4px rgba(0,0,0,0.15)",
+                        }}
+                      />
+                      <p className="font-fantasy text-[#5a8870] text-[9px] tracking-wider text-right mt-0.5">{supportMessage.length}/2000</p>
+                    </div>
+                    <button
+                      data-testid="button-submit-support"
+                      onClick={() => supportMutation.mutate()}
+                      disabled={supportMutation.isPending || !supportUsername || !supportEmail || !supportSubject || !supportMessage}
+                      className="w-full py-2.5 rounded-lg font-fantasy text-xs tracking-wider transition-transform active:scale-95 disabled:opacity-50"
+                      style={{
+                        background: "linear-gradient(135deg, #0d4a30 0%, #082a1c 100%)",
+                        border: "1px solid rgba(0,200,160,0.38)",
+                        color: "#7fffd4",
+                        cursor: "pointer",
+                        boxShadow: "0 0 10px rgba(0,200,160,0.14)",
+                      }}
+                    >
+                      {supportMutation.isPending ? "Sending..." : "Send Message"}
+                    </button>
+                    <div className="text-center pt-0.5">
+                      <button
+                        data-testid="button-back-to-login-from-support"
+                        onClick={() => { setMode("login"); setLoginFailed(false); }}
+                        className="font-fantasy text-[#96b8a4] text-[10px] tracking-widest hover:text-white transition-colors"
+                        style={{ background: "none", border: "none", cursor: "pointer" }}
+                      >
+                        ← Back to Sign In
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          )}
 
-        {mode === "support" && (
-          <div className="w-full max-w-sm animate-slide-up rounded-2xl px-5 py-5" style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}>
-            <h2 className="font-fantasy text-white text-center text-xl tracking-widest mb-2 drop-shadow-lg">
-              Contact Support
-            </h2>
-            <p className="font-fantasy text-[#d4c0a0] text-xs text-center tracking-wider mb-5">
-              Fill out the form below and we'll help you out
-            </p>
-
-            {supportSent ? (
-              <div className="text-center space-y-4">
-                <div
-                  className="w-16 h-16 mx-auto rounded-full flex items-center justify-center"
-                  style={{ background: "rgba(45,106,79,0.3)", border: "2px solid rgba(127,255,212,0.4)" }}
-                >
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7fffd4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </div>
-                <p className="font-fantasy text-[#7fffd4] text-sm tracking-wider" data-testid="text-support-sent">
-                  Message Sent!
-                </p>
-                <p className="font-fantasy text-[#d4c0a0] text-xs tracking-wider">
-                  An admin will review your message and reach out to help you directly.
-                </p>
-                <button
-                  data-testid="button-back-to-login-from-support"
-                  onClick={() => { setMode("login"); setSupportSent(false); setLoginFailed(false); }}
-                  className="font-fantasy text-[#d4a017] text-xs tracking-wider hover:text-[#f0c040] transition-colors"
-                  style={{ background: "none", border: "none", cursor: "pointer" }}
-                >
-                  ← Back to Sign In
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div>
-                  <label className="font-fantasy text-[#c8b896] text-xs tracking-wider block mb-1 ml-1">USERNAME</label>
-                  <input
-                    data-testid="input-support-username"
-                    type="text"
-                    value={supportUsername}
-                    onChange={e => setSupportUsername(e.target.value)}
-                    disabled={supportMutation.isPending}
-                    placeholder="Your username"
-                    className="w-full px-4 py-2.5 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#8a7060] outline-none focus:ring-2 focus:ring-[#d4a017] disabled:opacity-60"
-                    style={{
-                      background: "linear-gradient(135deg, #f2e8d0 0%, #e8d8b0 100%)",
-                      border: "2px solid #8b5e3c",
-                      boxShadow: "inset 0 2px 6px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1)",
-                    }}
-                  />
-                </div>
-                <div>
-                  <label className="font-fantasy text-[#c8b896] text-xs tracking-wider block mb-1 ml-1">EMAIL</label>
-                  <input
-                    data-testid="input-support-email"
-                    type="email"
-                    value={supportEmail}
-                    onChange={e => setSupportEmail(e.target.value)}
-                    disabled={supportMutation.isPending}
-                    placeholder="your@email.com"
-                    className="w-full px-4 py-2.5 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#8a7060] outline-none focus:ring-2 focus:ring-[#d4a017] disabled:opacity-60"
-                    style={{
-                      background: "linear-gradient(135deg, #f2e8d0 0%, #e8d8b0 100%)",
-                      border: "2px solid #8b5e3c",
-                      boxShadow: "inset 0 2px 6px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1)",
-                    }}
-                  />
-                </div>
-                <div>
-                  <label className="font-fantasy text-[#c8b896] text-xs tracking-wider block mb-1 ml-1">SUBJECT</label>
-                  <input
-                    data-testid="input-support-subject"
-                    type="text"
-                    value={supportSubject}
-                    onChange={e => setSupportSubject(e.target.value)}
-                    disabled={supportMutation.isPending}
-                    placeholder="e.g. Password Help, Account Issue..."
-                    className="w-full px-4 py-2.5 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#8a7060] outline-none focus:ring-2 focus:ring-[#d4a017] disabled:opacity-60"
-                    style={{
-                      background: "linear-gradient(135deg, #f2e8d0 0%, #e8d8b0 100%)",
-                      border: "2px solid #8b5e3c",
-                      boxShadow: "inset 0 2px 6px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1)",
-                    }}
-                  />
-                </div>
-                <div>
-                  <label className="font-fantasy text-[#c8b896] text-xs tracking-wider block mb-1 ml-1">MESSAGE</label>
-                  <textarea
-                    data-testid="input-support-message"
-                    value={supportMessage}
-                    onChange={e => setSupportMessage(e.target.value)}
-                    disabled={supportMutation.isPending}
-                    placeholder="Describe what you need help with..."
-                    rows={4}
-                    maxLength={2000}
-                    className="w-full px-4 py-2.5 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#8a7060] outline-none focus:ring-2 focus:ring-[#d4a017] disabled:opacity-60 resize-none"
-                    style={{
-                      background: "linear-gradient(135deg, #f2e8d0 0%, #e8d8b0 100%)",
-                      border: "2px solid #8b5e3c",
-                      boxShadow: "inset 0 2px 6px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1)",
-                    }}
-                  />
-                  <p className="font-fantasy text-[#b0a080] text-[9px] tracking-wider text-right mt-0.5">{supportMessage.length}/2000</p>
-                </div>
-
-                <button
-                  data-testid="button-submit-support"
-                  onClick={() => supportMutation.mutate()}
-                  disabled={supportMutation.isPending || !supportUsername || !supportEmail || !supportSubject || !supportMessage}
-                  className="w-full py-3 rounded-md font-fantasy text-sm tracking-wider transition-transform active:scale-95 disabled:opacity-60"
-                  style={{
-                    background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
-                    border: "1px solid rgba(127,255,212,0.4)",
-                    color: "#7fffd4",
-                    cursor: "pointer",
-                    boxShadow: "0 0 12px rgba(127,255,212,0.2)",
-                  }}
-                >
-                  {supportMutation.isPending ? "Sending..." : "Send Message"}
-                </button>
-
-                <div className="text-center">
-                  <button
-                    data-testid="button-back-to-login-from-support"
-                    onClick={() => { setMode("login"); setLoginFailed(false); }}
-                    className="font-fantasy text-[#d4c0a0] text-xs tracking-widest hover:text-white transition-colors"
-                    style={{ background: "none", border: "none", cursor: "pointer" }}
-                  >
-                    ← Back to Sign In
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
         </div>
+        )}
 
-        <div className="absolute bottom-4 left-0 right-0 text-center">
-          <p className="font-fantasy text-[#6a5840] text-xs tracking-widest">
+        {/* Footer */}
+        <div className="absolute bottom-3 left-0 right-0 text-center pointer-events-none">
+          <p className="font-fantasy text-[#3a6050] text-[9px] tracking-widest" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.9)" }}>
             PARA PETS &copy; 2026
           </p>
         </div>
