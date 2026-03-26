@@ -238,23 +238,25 @@ export default function AuthPage() {
                 <br />Embark on your journey now.
               </p>
 
-              <button
-                data-testid="button-signin"
-                onClick={() => setMode("login")}
-                className="w-[72%] max-w-[290px] mx-auto block transition-transform duration-150 active:scale-95"
-                style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
-              >
-                <img src={signInBtn} alt="Sign In" className="w-full h-auto object-contain drop-shadow-lg block" />
-              </button>
+              <div className="flex flex-col items-center gap-1 w-full">
+                <button
+                  data-testid="button-signin"
+                  onClick={() => setMode("login")}
+                  className="w-[72%] max-w-[290px] mx-auto block transition-transform duration-150 active:scale-95"
+                  style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                >
+                  <img src={signInBtn} alt="Sign In" className="w-full h-auto object-contain drop-shadow-lg block" />
+                </button>
 
-              <button
-                data-testid="button-create-account"
-                onClick={() => setMode("register")}
-                className="w-[72%] max-w-[290px] mx-auto block transition-transform duration-150 active:scale-95"
-                style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
-              >
-                <img src={createAccountBtn} alt="Create Account" className="w-full h-auto object-contain drop-shadow-lg block" />
-              </button>
+                <button
+                  data-testid="button-create-account"
+                  onClick={() => setMode("register")}
+                  className="w-[72%] max-w-[290px] mx-auto block transition-transform duration-150 active:scale-95"
+                  style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                >
+                  <img src={createAccountBtn} alt="Create Account" className="w-full h-auto object-contain drop-shadow-lg block" />
+                </button>
+              </div>
 
               <Link
                 data-testid="link-para-pets-hub"
