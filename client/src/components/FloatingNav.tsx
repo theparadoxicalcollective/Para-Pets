@@ -50,8 +50,9 @@ const RIGHT_ITEMS = [
   { id: "bag",      label: "Bag",     icon: bagIcon      },
 ];
 
-const ICON_SIZE = 44;
-const SPACING   = 56; // center-to-center
+const ICON_SIZE   = 44;
+const BUTTON_SIZE = 58; // main button — larger for easier tap target
+const SPACING     = 60; // center-to-center spacing for icon fan
 
 export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   const [, navigate] = useLocation();
@@ -96,7 +97,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
       {/* ── Nav container ────────────────────────────────────────────────── */}
       <div
         className="absolute z-[95]"
-        style={{ bottom: 20, right: 16, width: ICON_SIZE, height: ICON_SIZE }}
+        style={{ bottom: 16, right: 12, width: BUTTON_SIZE, height: BUTTON_SIZE }}
       >
         {/* LEFT items – fan out to the left */}
         {LEFT_ITEMS.map((item, i) => (
@@ -134,6 +135,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
           onClick={() => setIsOpen(v => !v)}
           className="absolute inset-0 rounded-full transition-transform duration-200 active:scale-90 flex items-center justify-center"
           style={{
+            zIndex: 99,
             background: "radial-gradient(circle at 38% 35%, rgba(80,180,100,0.25) 0%, rgba(20,40,20,0.85) 70%)",
             border: "2px solid rgba(212,160,23,0.7)",
             boxShadow: isOpen
@@ -146,8 +148,8 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
             src={mainNavIcon}
             alt="Navigation"
             style={{
-              width: ICON_SIZE - 6,
-              height: ICON_SIZE - 6,
+              width: BUTTON_SIZE - 14,
+              height: BUTTON_SIZE - 14,
               objectFit: "contain",
               transform: isOpen ? "rotate(45deg)" : "rotate(0deg)",
               transition: "transform 0.3s ease",
