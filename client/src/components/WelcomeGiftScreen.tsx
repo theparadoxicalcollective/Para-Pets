@@ -179,12 +179,13 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
       ) : (
         /* Main card — shown only once data is ready */
         <div
-          className="relative w-[92%] max-w-[380px] rounded-2xl overflow-hidden"
+          className="relative w-[92%] max-w-[380px] rounded-2xl overflow-hidden flex flex-col"
           style={{
             background: "linear-gradient(160deg, rgba(28,12,55,0.98) 0%, rgba(18,8,38,0.99) 100%)",
             border: "2px solid rgba(212,170,50,0.55)",
             boxShadow: "0 0 80px rgba(192,132,252,0.18), 0 0 30px rgba(212,170,50,0.12), 0 20px 60px rgba(0,0,0,0.85)",
             animation: "fadeIn 0.5s ease-out",
+            maxHeight: "88vh",
           }}
         >
           <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }`}</style>
@@ -195,7 +196,8 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
             background: "linear-gradient(90deg, transparent, rgba(212,170,50,0.8) 30%, rgba(192,132,252,0.9) 60%, rgba(212,170,50,0.8) 80%, transparent)",
           }} />
 
-          <div className="px-6 pt-6 pb-7">
+          {/* Fixed header: orb + title + divider */}
+          <div className="px-6 pt-5 flex-shrink-0">
             {/* Glowing gift orb */}
             <div className="flex justify-center mb-4">
               <div
@@ -264,15 +266,18 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
             </div>
 
             {/* Divider */}
-            <div className="flex items-center gap-3 my-4">
+            <div className="flex items-center gap-3 my-3">
               <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, transparent, rgba(212,170,50,0.35))" }} />
               <span style={{ color: "rgba(212,170,50,0.55)", fontSize: 12 }}>✦</span>
               <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, rgba(212,170,50,0.35), transparent)" }} />
             </div>
+          </div>
 
+          {/* Scrollable items area */}
+          <div className="px-6 overflow-y-auto flex-1 min-h-0">
             {/* Gift items */}
             {welcomeReward ? (
-              <div className="flex flex-col gap-2.5 mb-5">
+              <div className="flex flex-col gap-2 pb-2">
                 {/* Coins */}
                 {welcomeReward.coinAmount > 0 && (
                   <div
@@ -360,11 +365,14 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
                 })()}
               </div>
             ) : (
-              <div className="mb-5 text-center py-3">
+              <div className="text-center py-3">
                 <p style={{ color: "rgba(200,185,155,0.6)", fontSize: 12, fontStyle: "italic" }}>No gifts found</p>
               </div>
             )}
+          </div>
 
+          {/* Fixed footer: collect button + skip */}
+          <div className="px-6 pt-3 pb-5 flex-shrink-0">
             {/* Collect button — only shown once gifts are ready */}
             {phase === "collect" || phase === "claiming" || phase === "done" ? (
               <button
