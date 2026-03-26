@@ -5,7 +5,7 @@ import { X } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
 import petHouseBg from "@assets/generated_images/pet_world_bg.png";
 import insideRoomBg from "@assets/generated_images/inside_room_bg.png";
-import forestHomeIconImg from "@assets/icon_forest_home.png";
+import petHouseIconImg from "@assets/icon_pet_house.png";
 
 interface VisitedPet {
   inventoryId: string;
@@ -284,7 +284,7 @@ export default function VisitPetHousePage() {
             display: "flex", alignItems: "center", justifyContent: "center",
             overflow: "hidden",
           }}>
-            <img src={forestHomeIconImg} alt="Inside" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            <img src={petHouseIconImg} alt="Inside" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           </div>
           <span className="font-fantasy text-[8px] tracking-widest" style={{ color: "rgba(212,160,23,0.65)" }}>Inside</span>
         </button>

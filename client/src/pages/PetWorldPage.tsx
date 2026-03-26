@@ -11,7 +11,7 @@ import friendsIconSrc from "@assets/friends_icon.png";
 import coinIconImg from "@assets/icon_coin.png";
 import homeIconImg from "@assets/icon_home_new.png";
 import marketIconImg from "@assets/icon_market.png";
-import petHouseIconImg from "@assets/icon_forest_home.png";
+import petHouseIconImg from "@assets/icon_pet_house.png";
 
 const WORLD_ID = "pet_world";
 const ACCENT = "#7fffd4";
