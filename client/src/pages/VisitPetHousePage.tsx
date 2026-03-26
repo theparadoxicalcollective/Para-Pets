@@ -3,7 +3,7 @@ import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
-import petHouseBg from "@assets/generated_images/pet_world_bg.png";
+import petHouseBg from "@assets/generated_images/pethouse_bg.png";
 import insideRoomBg from "@assets/generated_images/inside_room_bg.png";
 import petHouseIconImg from "@assets/icon_pet_house.png";
 
