@@ -265,7 +265,7 @@ export default function HomePage({ user }: HomePageProps) {
       <div className="relative z-10 flex flex-col h-full" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
         <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
 
-        {activePet && (activePet.rarity ?? 0) > 0 && (
+        {activePet && (
           <div
             data-testid="display-pet-rarity-stars"
             className="relative shrink-0 flex justify-center items-center"
