@@ -104,28 +104,38 @@ function isAuthenticated(req: Request, res: Response, next: any) {
   return next();
 }
 
+const DEFAULT_WELCOME_CONFIG = {
+  coinAmount: 500,
+  message: "A new adventure begins! These gifts are yours to keep — may your journey be legendary.",
+  items: [
+    { name: "Ire Deer",              qty: 1  },
+    { name: "Subtle Growth",         qty: 1  },
+    { name: "Basic Health Potion",   qty: 10 },
+    { name: "Basic Mana Potion",     qty: 10 },
+    { name: "Group Revive",          qty: 1  },
+    { name: "Mossy Moonlight",       qty: 1  },
+    { name: "Scorched Relevance",    qty: 1  },
+    { name: "Sturdy Rod",            qty: 1  },
+    { name: "Small Hatching Potion", qty: 1  },
+  ],
+};
+
+async function getWelcomeBundleConfig() {
+  try {
+    const raw = await storage.getGameSetting("welcome_bundle_config");
+    if (raw) return JSON.parse(raw) as typeof DEFAULT_WELCOME_CONFIG;
+  } catch {}
+  return DEFAULT_WELCOME_CONFIG;
+}
+
 async function grantWelcomeV2Bundle(userId: string): Promise<void> {
-  const bundle = await storage.createRewardBundle(
-    "Welcome to the Realm!",
-    500,
-    "A new adventure begins! These gifts are yours to keep — may your journey be legendary."
-  );
+  const config = await getWelcomeBundleConfig();
+  const bundle = await storage.createRewardBundle("Welcome to the Realm!", config.coinAmount, config.message);
   await storage.createUserReward(userId, bundle.id);
   const allShopItems = await storage.getAllShopItems();
   const find = (name: string) => allShopItems.find(i => i.name.toLowerCase() === name.toLowerCase());
-  const wanted: { name: string; qty: number }[] = [
-    { name: "Ire Deer",                qty: 1  },
-    { name: "Subtle Growth",           qty: 1  },
-    { name: "Basic Health Potion",     qty: 10 },
-    { name: "Basic Mana Potion",       qty: 10 },
-    { name: "Group Revive",            qty: 1  },
-    { name: "Mossy Moonlight",         qty: 1  },
-    { name: "Scorched Relevance",      qty: 1  },
-    { name: "Sturdy Rod",              qty: 1  },
-    { name: "Small Hatching Potion",   qty: 1  },
-  ];
   console.log(`[WelcomeBundle] Creating bundle for user ${userId}. Shop has ${allShopItems.length} items.`);
-  for (const { name, qty } of wanted) {
+  for (const { name, qty } of config.items) {
     const item = find(name);
     if (item) {
       console.log(`[WelcomeBundle] Found item: "${item.name}" (${item.id})`);
@@ -2558,6 +2568,33 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Create reward bundle error:", err);
       return res.status(500).json({ message: "Failed to create reward bundle" });
+    }
+  });
+
+  app.get("/api/admin/welcome-bundle", isAdmin, async (req, res) => {
+    try {
+      const config = await getWelcomeBundleConfig();
+      const allShopItems = await storage.getAllShopItems();
+      const itemsWithDetails = config.items.map(({ name, qty }) => {
+        const shop = allShopItems.find(i => i.name.toLowerCase() === name.toLowerCase());
+        return { name, qty, found: !!shop, imageUrl: shop?.imageUrl ?? null, type: shop?.type ?? null };
+      });
+      return res.json({ coinAmount: config.coinAmount, message: config.message, items: itemsWithDetails });
+    } catch (err) {
+      console.error("Get welcome bundle config error:", err);
+      return res.status(500).json({ message: "Failed to get welcome bundle config" });
+    }
+  });
+
+  app.put("/api/admin/welcome-bundle", isAdmin, async (req, res) => {
+    try {
+      const { coinAmount, message, items } = req.body;
+      const config = { coinAmount: Number(coinAmount) || 0, message: message || "", items: items || [] };
+      await storage.setGameSetting("welcome_bundle_config", JSON.stringify(config));
+      return res.json({ success: true, config });
+    } catch (err) {
+      console.error("Save welcome bundle config error:", err);
+      return res.status(500).json({ message: "Failed to save welcome bundle config" });
     }
   });
 

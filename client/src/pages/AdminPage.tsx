@@ -50,7 +50,7 @@ export default function AdminPage({ user }: AdminPageProps) {
   const [coinAmounts, setCoinAmounts] = useState<Record<string, string>>({});
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "items" | "pets" | "messages" | "badges" | "fishing" | null>(null);
+  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "welcome" | "items" | "pets" | "messages" | "badges" | "fishing" | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -103,6 +103,7 @@ export default function AdminPage({ user }: AdminPageProps) {
     { key: "messages" as const, label: "Messages", icon: adminIconMessages, desc: "Support inbox", color: "#fca5a5", glow: "rgba(252,165,165,0.30)", bg: "linear-gradient(145deg, rgba(80,18,18,0.92) 0%, rgba(110,28,28,0.88) 100%)", border: "rgba(252,165,165,0.45)" },
     { key: "badges" as const, label: "Badges", icon: adminIconBadges, desc: "Award badges", color: "#fde68a", glow: "rgba(253,230,138,0.30)", bg: "linear-gradient(145deg, rgba(72,54,0,0.92) 0%, rgba(108,80,0,0.88) 100%)", border: "rgba(253,230,138,0.45)" },
     { key: "fishing" as const, label: "Fishing", icon: adminIconFishing, desc: "Fish & ponds", color: "#93c5fd", glow: "rgba(147,197,253,0.30)", bg: "linear-gradient(145deg, rgba(12,22,60,0.92) 0%, rgba(18,36,90,0.88) 100%)", border: "rgba(147,197,253,0.45)" },
+    { key: "welcome" as const, label: "Welcome Bundle", icon: adminIconRewards, desc: "New user gifts", color: "#6ee7b7", glow: "rgba(110,231,183,0.35)", bg: "linear-gradient(145deg, rgba(8,50,35,0.92) 0%, rgba(14,80,55,0.88) 100%)", border: "rgba(110,231,183,0.45)" },
   ];
 
   const activeSectionMeta = activeSection ? sections.find(s => s.key === activeSection) : null;
@@ -400,6 +401,10 @@ export default function AdminPage({ user }: AdminPageProps) {
               {activeSection === "fishing" && (
                 <FishingAdminPanel />
               )}
+
+              {activeSection === "welcome" && (
+                <WelcomeBundleSection />
+              )}
             </>
           )}
         </div>
@@ -426,6 +431,203 @@ export default function AdminPage({ user }: AdminPageProps) {
   );
 }
 
+
+interface WelcomeConfigItem { name: string; qty: number; found: boolean; imageUrl: string | null; type: string | null; }
+interface WelcomeConfig { coinAmount: number; message: string; items: WelcomeConfigItem[]; }
+
+function WelcomeBundleSection() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [coinAmount, setCoinAmount] = useState("500");
+  const [message, setMessage] = useState("");
+  const [items, setItems] = useState<WelcomeConfigItem[]>([]);
+  const [qtyEdits, setQtyEdits] = useState<Record<number, string>>({});
+  const [showPicker, setShowPicker] = useState(false);
+
+  const { data: config, isLoading } = useQuery<WelcomeConfig>({
+    queryKey: ["/api/admin/welcome-bundle"],
+  });
+
+  const { data: allShopItems = [] } = useQuery<ShopItemFull[]>({
+    queryKey: ["/api/admin/shop-items-all"],
+  });
+
+  useEffect(() => {
+    if (config) {
+      setCoinAmount(String(config.coinAmount));
+      setMessage(config.message);
+      setItems(config.items);
+    }
+  }, [config]);
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const payload = {
+        coinAmount: Number(coinAmount) || 0,
+        message,
+        items: items.map((item, i) => ({ name: item.name, qty: Number(qtyEdits[i] ?? item.qty) || 1 })),
+      };
+      const res = await apiRequest("PUT", "/api/admin/welcome-bundle", payload);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Saved!", description: "Welcome bundle updated for all future new users." });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/welcome-bundle"] });
+    },
+    onError: () => toast({ title: "Save Failed", variant: "destructive" }),
+  });
+
+  const patchMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/patch-welcome-bundles", {});
+      return res.json();
+    },
+    onSuccess: (data: any) => toast({ title: "Bundles Patched!", description: data.message }),
+    onError: () => toast({ title: "Patch Failed", variant: "destructive" }),
+  });
+
+  const addItem = (shopItem: ShopItemFull) => {
+    const exists = items.findIndex(i => i.name.toLowerCase() === shopItem.name.toLowerCase());
+    if (exists >= 0) {
+      const current = Number(qtyEdits[exists] ?? items[exists].qty) || 1;
+      setQtyEdits(prev => ({ ...prev, [exists]: String(current + 1) }));
+    } else {
+      setItems(prev => [...prev, { name: shopItem.name, qty: 1, found: true, imageUrl: shopItem.imageUrl || null, type: shopItem.type }]);
+    }
+    setShowPicker(false);
+  };
+
+  const removeItem = (index: number) => {
+    setItems(prev => prev.filter((_, i) => i !== index));
+    setQtyEdits(prev => {
+      const next: Record<number, string> = {};
+      Object.entries(prev).forEach(([k, v]) => { const n = Number(k); if (n < index) next[n] = v; else if (n > index) next[n - 1] = v; });
+      return next;
+    });
+  };
+
+  const inputStyle = { background: "rgba(12,20,12,0.8)", border: "1px solid rgba(110,231,183,0.35)", color: "#d4f0e0" };
+
+  if (isLoading) return <div className="text-center py-8 font-fantasy text-[#6ee7b7] text-sm">Loading...</div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg p-4" style={{ background: "linear-gradient(135deg, rgba(8,40,25,0.6) 0%, rgba(5,25,15,0.6) 100%)", border: "1px solid rgba(110,231,183,0.35)" }}>
+        <h3 className="font-fantasy text-[#6ee7b7] text-sm tracking-wider mb-1">New User Welcome Bundle</h3>
+        <p className="font-fantasy text-[#4a7a60] text-[10px] mb-4">Configure what every new player receives when they first join the realm.</p>
+
+        {/* Coins */}
+        <div className="mb-3">
+          <label className="font-fantasy text-[#6ee7b7] text-[10px] tracking-wider block mb-1">Starting Coins</label>
+          <input
+            data-testid="input-welcome-coins"
+            type="number"
+            value={coinAmount}
+            onChange={e => setCoinAmount(e.target.value)}
+            className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+            style={inputStyle}
+          />
+        </div>
+
+        {/* Message */}
+        <div className="mb-4">
+          <label className="font-fantasy text-[#6ee7b7] text-[10px] tracking-wider block mb-1">Welcome Message</label>
+          <textarea
+            data-testid="input-welcome-message"
+            value={message}
+            onChange={e => setMessage(e.target.value)}
+            rows={2}
+            className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none resize-none"
+            style={inputStyle}
+          />
+        </div>
+
+        {/* Items list */}
+        <label className="font-fantasy text-[#6ee7b7] text-[10px] tracking-wider block mb-2">Items Included</label>
+        <div className="space-y-2 mb-3">
+          {items.length === 0 && (
+            <p className="font-fantasy text-[#3a6050] text-[10px] text-center py-2">No items yet — add some below</p>
+          )}
+          {items.map((item, i) => (
+            <div key={i} className="flex items-center gap-2 rounded-md px-2 py-1.5" style={{ background: "rgba(10,30,20,0.7)", border: item.found === false ? "1px solid rgba(248,113,113,0.4)" : "1px solid rgba(110,231,183,0.2)" }}>
+              {item.imageUrl
+                ? <img src={item.imageUrl} alt={item.name} className="w-7 h-7 object-contain rounded flex-shrink-0" />
+                : <div className="w-7 h-7 rounded flex-shrink-0 flex items-center justify-center" style={{ background: "rgba(110,231,183,0.1)" }}><span className="text-[8px] text-[#6ee7b7]">?</span></div>
+              }
+              <span className="font-fantasy text-[11px] flex-1 truncate" style={{ color: item.found === false ? "#f87171" : "#c0e8d0" }}>
+                {item.name}{item.found === false && " ⚠ not found"}
+              </span>
+              <div className="flex items-center gap-1">
+                <span className="font-fantasy text-[9px] text-[#4a8060]">qty</span>
+                <input
+                  type="number"
+                  min={1}
+                  value={qtyEdits[i] ?? item.qty}
+                  onChange={e => setQtyEdits(prev => ({ ...prev, [i]: e.target.value }))}
+                  className="w-10 px-1 py-0.5 rounded text-center font-sans text-xs outline-none"
+                  style={{ background: "rgba(20,50,35,0.8)", border: "1px solid rgba(110,231,183,0.3)", color: "#c0e8d0" }}
+                  data-testid={`input-welcome-item-qty-${i}`}
+                />
+              </div>
+              <button
+                data-testid={`button-remove-welcome-item-${i}`}
+                onClick={() => removeItem(i)}
+                className="w-6 h-6 flex items-center justify-center rounded-full transition-transform active:scale-90"
+                style={{ background: "rgba(80,20,20,0.7)", border: "1px solid rgba(248,113,113,0.4)", color: "#f87171", cursor: "pointer" }}
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* Add item button */}
+        <button
+          data-testid="button-welcome-add-item"
+          onClick={() => setShowPicker(true)}
+          className="w-full py-1.5 rounded-md font-fantasy text-xs tracking-wider mb-4 transition-transform active:scale-95"
+          style={{ background: "rgba(10,40,25,0.8)", border: "1px dashed rgba(110,231,183,0.45)", color: "#6ee7b7", cursor: "pointer" }}
+        >
+          + Add Item
+        </button>
+
+        {/* Save */}
+        <button
+          data-testid="button-save-welcome-bundle"
+          onClick={() => saveMutation.mutate()}
+          disabled={saveMutation.isPending}
+          className="w-full py-2.5 rounded-full font-fantasy text-sm tracking-widest transition-transform active:scale-95"
+          style={{ background: "linear-gradient(135deg, rgba(20,100,60,0.9) 0%, rgba(10,60,35,0.9) 100%)", border: "1px solid rgba(110,231,183,0.6)", color: "#6ee7b7", cursor: "pointer" }}
+        >
+          {saveMutation.isPending ? "Saving..." : "Save Welcome Bundle"}
+        </button>
+      </div>
+
+      {/* Patch existing bundles */}
+      <div className="rounded-lg p-3" style={{ background: "rgba(10,20,15,0.5)", border: "1px solid rgba(110,231,183,0.2)" }}>
+        <h4 className="font-fantasy text-[#6ee7b7] text-[10px] tracking-wider mb-1">Fix Existing Unclaimed Bundles</h4>
+        <p className="font-fantasy text-[#3a6050] text-[10px] mb-2">Adds the Small Hatching Potion to any unclaimed Welcome bundles missing it.</p>
+        <button
+          data-testid="button-patch-welcome-bundles"
+          onClick={() => patchMutation.mutate()}
+          disabled={patchMutation.isPending}
+          className="w-full py-1.5 rounded-md font-fantasy text-xs tracking-wider transition-transform active:scale-95"
+          style={{ background: "rgba(15,40,25,0.8)", border: "1px solid rgba(110,231,183,0.35)", color: "#6ee7b7", cursor: "pointer" }}
+        >
+          {patchMutation.isPending ? "Patching..." : "Patch Unclaimed Welcome Bundles"}
+        </button>
+      </div>
+
+      {showPicker && (
+        <ItemPickerModal
+          allShopItems={allShopItems}
+          onSelect={addItem}
+          onClose={() => setShowPicker(false)}
+        />
+      )}
+    </div>
+  );
+}
 
 function RewardBundleSection({ members }: { members: MemberUser[] }) {
   const [bundleName, setBundleName] = useState("");
@@ -503,38 +705,8 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
 
   const inputStyle = { background: "rgba(242,232,208,0.9)", border: "1px solid #8b5e3c", color: "#2a1a0a" };
 
-  const patchMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/admin/patch-welcome-bundles", {});
-      return res.json();
-    },
-    onSuccess: (data: any) => {
-      toast({ title: "Bundles Patched!", description: data.message });
-    },
-    onError: (err: any) => {
-      toast({ title: "Patch Failed", description: err?.message || "Could not patch bundles", variant: "destructive" });
-    },
-  });
-
   return (
     <div className="space-y-4">
-      <div
-        className="rounded-lg p-3"
-        style={{ background: "linear-gradient(135deg, rgba(20,40,20,0.5) 0%, rgba(10,25,10,0.5) 100%)", border: "1px solid rgba(74,222,128,0.3)" }}
-      >
-        <h3 className="font-fantasy text-[#4ade80] text-xs tracking-wider mb-1">Fix Missing Welcome Items</h3>
-        <p className="font-fantasy text-[#6a8870] text-[10px] mb-2">Adds the Small Hatching Potion to any unclaimed Welcome bundles that are missing it.</p>
-        <button
-          data-testid="button-patch-welcome-bundles"
-          onClick={() => patchMutation.mutate()}
-          disabled={patchMutation.isPending}
-          className="w-full py-2 rounded-md font-fantasy text-xs tracking-wider transition-transform active:scale-95"
-          style={{ background: "linear-gradient(135deg, rgba(20,80,30,0.9) 0%, rgba(10,50,20,0.9) 100%)", border: "1px solid rgba(74,222,128,0.5)", color: "#4ade80", cursor: "pointer" }}
-        >
-          {patchMutation.isPending ? "Patching..." : "Patch Unclaimed Welcome Bundles"}
-        </button>
-      </div>
-
       <div
         className="rounded-lg p-4"
         style={{ background: "linear-gradient(135deg, rgba(40,20,60,0.4) 0%, rgba(25,10,40,0.4) 100%)", border: "1px solid rgba(192,132,252,0.3)" }}
