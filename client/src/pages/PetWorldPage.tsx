@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, X, Trash2, FlipHorizontal, Palette } from "lucide-react";
@@ -7,6 +8,9 @@ import { readFileAsDataUrl } from "@/lib/utils";
 import PetAnimator from "@/components/PetAnimator";
 import bgGround from "@assets/pw_ground_layer.png";
 import friendsIconSrc from "@assets/friends_icon.png";
+import coinIconImg from "@assets/icon_coin.png";
+import homeIconImg from "@assets/icon_home_new.png";
+import marketIconImg from "@assets/icon_market.png";
 
 const WORLD_ID = "pet_world";
 const ACCENT = "#7fffd4";
@@ -75,6 +79,7 @@ interface PetWorldPageProps {
 export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
 
   // ── map pan state ──────────────────────────────────────────────────────────
   const [mapX, setMapX]         = useState(0);
@@ -135,7 +140,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     staleTime: 60000,
   });
 
-  const { data: me } = useQuery<{ profileImage: string | null; username: string }>({
+  const { data: me } = useQuery<{ profileImage: string | null; username: string; coins: number }>({
     queryKey: ["/api/auth/me"],
   });
 
@@ -656,114 +661,190 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
 
       {/* ── HUD overlay ─────────────────────────────────────────────────── */}
       <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 30 }}>
-        {/* Close button — top-left */}
-        <button
-          data-testid="button-close-pet-world"
-          onClick={onClose}
-          className="absolute pointer-events-auto transition-transform active:scale-90"
+
+        {/* ── TopBar-style strip ── */}
+        <div
+          className="absolute left-0 right-0 pointer-events-auto flex items-start justify-between px-3 gap-3"
           style={{
-            top: "max(14px, env(safe-area-inset-top, 14px))",
-            left: 14,
-            width: 40, height: 40, borderRadius: 12,
-            background: "rgba(4,10,6,0.88)",
-            border: "1.5px solid rgba(127,255,212,0.35)",
-            boxShadow: "0 2px 12px rgba(0,0,0,0.7), inset 0 0 8px rgba(127,255,212,0.06)",
-            cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center",
+            top: 0,
+            paddingTop: "max(12px, env(safe-area-inset-top, 12px))",
+            paddingBottom: 8,
+            background: "linear-gradient(180deg, rgba(4,10,6,0.88) 0%, rgba(4,10,6,0.55) 80%, transparent 100%)",
           }}
         >
-          <X className="w-5 h-5" style={{ color: ACCENT }} />
-        </button>
-
-        {/* Title — top-center */}
-        <div className="absolute left-0 right-0 flex justify-center pointer-events-none"
-          style={{ top: "max(16px, env(safe-area-inset-top, 16px))" }}>
-          <div className="px-4 py-1.5 rounded-xl font-fantasy text-xs tracking-widest"
-            style={{
-              background: "rgba(4,10,6,0.85)",
-              border: "1.5px solid rgba(127,255,212,0.28)",
-              boxShadow: "0 2px 16px rgba(0,0,0,0.7), 0 0 20px rgba(127,255,212,0.08)",
-              color: ACCENT,
-              textShadow: `0 0 14px ${ACCENT}60`,
-            }}>
-            Keeper's Central
-          </div>
-        </div>
-
-        {/* Admin: World Decor button — top-right */}
-        {user.isAdmin && (
-          <button
-            data-testid="button-world-decor"
-            onClick={() => setShowDecorPanel(p => !p)}
-            className="absolute pointer-events-auto transition-transform active:scale-90"
-            style={{
-              top: "max(14px, env(safe-area-inset-top, 14px))",
-              right: 14,
-              width: 40, height: 40, borderRadius: 12,
-              background: showDecorPanel ? `rgba(127,255,212,0.18)` : "rgba(4,10,6,0.88)",
-              border: `1.5px solid ${ACCENT}55`,
-              boxShadow: "0 2px 12px rgba(0,0,0,0.7)",
-              cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}
-          >
-            <Palette className="w-5 h-5" style={{ color: ACCENT }} />
-          </button>
-        )}
-
-        {/* Player avatar + Friends button — bottom-left stack */}
-        <div className="absolute pointer-events-auto flex flex-col items-center gap-2"
-          style={{ bottom: 52, left: 14 }}>
-          {/* Player avatar */}
-          <div style={{
-            width: 40, height: 40, borderRadius: "50%",
-            border: `2px solid ${ACCENT}55`,
-            boxShadow: `0 0 10px rgba(127,255,212,0.18)`,
-            overflow: "hidden",
-            background: "rgba(4,10,6,0.88)",
-            flexShrink: 0,
-          }}>
-            {me?.profileImage ? (
-              <img src={me.profileImage} alt="you" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-            ) : (
-              <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontFamily: "fantasy", fontSize: 16, color: ACCENT }}>
-                  {(me?.username ?? "?").charAt(0).toUpperCase()}
-                </span>
+          {/* LEFT: profile photo column + Friends btn below, then username/coins to the right */}
+          <div className="flex items-start gap-2 min-w-0">
+            {/* Profile photo column */}
+            <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+              {/* Profile photo */}
+              <div
+                className="relative"
+                style={{
+                  width: 44, height: 44, borderRadius: 10,
+                  border: "2.5px solid #c9a030",
+                  boxShadow: "0 0 8px rgba(201,160,48,0.3), 0 2px 8px rgba(0,0,0,0.5)",
+                  overflow: "hidden",
+                  background: "linear-gradient(135deg, #2a1a0a 0%, #4a2e18 100%)",
+                  flexShrink: 0,
+                }}
+              >
+                {me?.profileImage ? (
+                  <img
+                    data-testid="img-kc-profile-avatar"
+                    src={me.profileImage}
+                    alt={me.username}
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                ) : (
+                  <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <span className="font-fantasy font-bold" style={{ color: "#d4a017", fontSize: 18 }}>
+                      {(me?.username ?? "?").charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                )}
               </div>
-            )}
+              {/* Friends button */}
+              <div style={{ position: "relative" }}>
+                <button
+                  data-testid="button-friends-panel"
+                  onClick={() => setShowFriendsPanel(p => !p)}
+                  className="transition-transform active:scale-90"
+                  style={{
+                    width: 44, height: 36, borderRadius: 10,
+                    background: showFriendsPanel ? "rgba(127,255,212,0.18)" : "rgba(4,10,6,0.82)",
+                    border: `1.5px solid ${showFriendsPanel ? ACCENT + "88" : ACCENT + "44"}`,
+                    boxShadow: "0 2px 10px rgba(0,0,0,0.6)",
+                    cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    overflow: "hidden",
+                  }}
+                >
+                  <img src={friendsIconSrc} alt="Friends" style={{ width: 28, height: 28, objectFit: "contain" }} />
+                </button>
+                {friendRequestCount > 0 && !showFriendsPanel && (
+                  <div style={{
+                    position: "absolute", top: -4, right: -4,
+                    width: 15, height: 15, borderRadius: "50%",
+                    background: "radial-gradient(circle, #f87171 0%, #dc2626 100%)",
+                    border: "1.5px solid rgba(4,10,6,0.9)",
+                    boxShadow: "0 0 6px rgba(248,113,113,0.6)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 8, fontWeight: "bold", color: "#fff",
+                    pointerEvents: "none",
+                  }}>
+                    {friendRequestCount > 9 ? "9+" : friendRequestCount}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Username + coins stacked */}
+            <div className="flex flex-col gap-1 min-w-0" style={{ paddingTop: 2 }}>
+              <div
+                className="px-2.5 py-1 rounded-md min-w-0"
+                style={{
+                  background: "linear-gradient(135deg, rgba(30,15,5,0.9) 0%, rgba(60,35,10,0.9) 100%)",
+                  border: "1px solid rgba(212,160,23,0.5)",
+                  boxShadow: "0 2px 12px rgba(0,0,0,0.6), inset 0 1px 0 rgba(212,160,23,0.2)",
+                  maxWidth: 120,
+                }}
+              >
+                <p
+                  className="font-fantasy text-[#f0c040] font-semibold tracking-widest truncate"
+                  style={{ textShadow: "0 0 10px rgba(240,192,64,0.6)", fontSize: "clamp(9px, 2.5vw, 11px)" }}
+                  data-testid="text-kc-username"
+                >
+                  {me?.username ?? ""}
+                </p>
+              </div>
+              <button
+                data-testid="button-kc-coin-shop"
+                onClick={() => navigate("/coins")}
+                className="flex items-center gap-1 px-2.5 py-0.5 rounded-md transition-transform active:scale-95 self-start"
+                style={{
+                  background: "linear-gradient(135deg, rgba(30,15,5,0.9) 0%, rgba(60,35,10,0.9) 100%)",
+                  border: "1px solid rgba(212,160,23,0.4)",
+                  cursor: "pointer",
+                }}
+              >
+                <img src={coinIconImg} alt="Coins" style={{ width: 14, height: 14, objectFit: "contain", filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.5))" }} />
+                <span
+                  className="font-fantasy text-[#f0c040] font-semibold"
+                  style={{ fontSize: "clamp(9px, 2.5vw, 11px)" }}
+                  data-testid="text-kc-coins"
+                >
+                  {me?.coins ?? 0}
+                </span>
+                <span className="font-fantasy text-[#d4a017] text-[8px]">+</span>
+              </button>
+            </div>
           </div>
-          {/* Friends button */}
-          <div style={{ position: "relative" }}>
+
+          {/* RIGHT: nav icons */}
+          <div className="flex items-center gap-1.5 flex-shrink-0" style={{ paddingTop: 2 }}>
+            {/* Home */}
             <button
-              data-testid="button-friends-panel"
-              onClick={() => setShowFriendsPanel(p => !p)}
-              className="transition-transform active:scale-90"
+              data-testid="button-kc-home"
+              onClick={() => navigate("/")}
+              className="flex-shrink-0 flex items-center justify-center transition-transform active:scale-95 overflow-hidden topbar-icon-size-sm"
               style={{
-                width: 40, height: 40, borderRadius: 12,
-                background: showFriendsPanel ? "rgba(127,255,212,0.18)" : "rgba(4,10,6,0.88)",
-                border: `1.5px solid ${ACCENT}55`,
-                boxShadow: "0 2px 12px rgba(0,0,0,0.7)",
+                background: "none",
+                border: "2px solid rgba(212,160,23,0.4)",
                 cursor: "pointer",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                overflow: "hidden",
+                boxShadow: "0 2px 10px rgba(0,0,0,0.6)",
+                borderRadius: 10,
               }}
             >
-              <img src={friendsIconSrc} alt="Friends" style={{ width: 30, height: 30, objectFit: "contain" }} />
+              <img src={homeIconImg} alt="Home" className="w-full h-full object-cover" style={{ filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.8))" }} />
             </button>
-            {friendRequestCount > 0 && !showFriendsPanel && (
-              <div style={{
-                position: "absolute", top: -5, right: -5,
-                width: 16, height: 16, borderRadius: "50%",
-                background: "#f87171",
-                border: "1.5px solid rgba(4,10,6,0.9)",
+            {/* Pet House (close KC) */}
+            <button
+              data-testid="button-close-pet-world"
+              onClick={onClose}
+              className="flex-shrink-0 flex items-center justify-center transition-transform active:scale-95 topbar-icon-size-sm"
+              style={{
+                background: "rgba(4,10,6,0.82)",
+                border: `2px solid ${ACCENT}55`,
+                cursor: "pointer",
+                boxShadow: `0 2px 10px rgba(0,0,0,0.6), 0 0 14px rgba(127,255,212,0.1)`,
+                borderRadius: 10,
                 display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 9, fontWeight: "bold", color: "#fff",
-                fontFamily: "fantasy",
-                pointerEvents: "none",
-              }}>
-                {friendRequestCount > 9 ? "9+" : friendRequestCount}
-              </div>
+              }}
+            >
+              <X className="w-4 h-4" style={{ color: ACCENT }} />
+            </button>
+            {/* Market */}
+            <button
+              data-testid="button-kc-market"
+              onClick={() => navigate("/market")}
+              className="flex-shrink-0 flex items-center justify-center transition-transform active:scale-95 overflow-hidden topbar-icon-size-sm"
+              style={{
+                background: "none",
+                border: `2px solid ${ACCENT}70`,
+                cursor: "pointer",
+                boxShadow: `0 2px 10px rgba(0,0,0,0.6), 0 0 14px rgba(127,255,212,0.15)`,
+                borderRadius: 10,
+              }}
+            >
+              <img src={marketIconImg} alt="Market" className="w-full h-full object-cover" />
+            </button>
+            {/* Admin: World Decor button */}
+            {user.isAdmin && (
+              <button
+                data-testid="button-world-decor"
+                onClick={() => setShowDecorPanel(p => !p)}
+                className="flex-shrink-0 flex items-center justify-center transition-transform active:scale-90 topbar-icon-size-sm"
+                style={{
+                  background: showDecorPanel ? `rgba(127,255,212,0.18)` : "rgba(4,10,6,0.82)",
+                  border: `2px solid ${ACCENT}55`,
+                  boxShadow: "0 2px 10px rgba(0,0,0,0.6)",
+                  cursor: "pointer",
+                  borderRadius: 10,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}
+              >
+                <Palette className="w-4 h-4" style={{ color: ACCENT }} />
+              </button>
             )}
           </div>
         </div>
