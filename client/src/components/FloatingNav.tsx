@@ -38,7 +38,7 @@ const LEFT_ITEMS = [
   { id: "quest",     label: "Quest",     icon: questIcon  },
   { id: "pvp",       label: "PvP",       icon: pvpIcon    },
   { id: "inventory", label: "Pets",      icon: petsIcon   },
-  { id: "map",       label: "Map",       icon: mapIcon    },
+  { id: "map",       label: "Map",       icon: mapIcon,    fill: true },
 ];
 
 // ── Right column: Home, Pet House, Market, Aquarium, Keeper's Central, Pet Bag
@@ -118,6 +118,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
             translateX={-(SPACING * (i + 1))}
             translateY={0}
             labelDir="up"
+            fillIcon={!!(item as any).fill}
             onClick={() => handleLeft(item.id)}
           />
         ))}
@@ -254,7 +255,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
 
 // ── Individual nav icon button ────────────────────────────────────────────────
 function NavButton({
-  icon, label, isOpen, delay, translateX, translateY, labelDir, onClick,
+  icon, label, isOpen, delay, translateX, translateY, labelDir, fillIcon = false, onClick,
 }: {
   icon: string;
   label: string;
@@ -263,6 +264,7 @@ function NavButton({
   translateX: number;
   translateY: number;
   labelDir: "up" | "left";
+  fillIcon?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -278,6 +280,7 @@ function NavButton({
         border: "1.5px solid rgba(212,160,23,0.55)",
         boxShadow: "0 2px 12px rgba(0,0,0,0.7), 0 0 10px rgba(212,160,23,0.15)",
         cursor: "pointer",
+        overflow: fillIcon ? "hidden" : "visible",
         transform: isOpen ? `translate(${translateX}px, ${translateY}px) scale(1)` : "translate(0,0) scale(0.5)",
         opacity: isOpen ? 1 : 0,
         pointerEvents: isOpen ? "auto" : "none",
@@ -285,7 +288,17 @@ function NavButton({
         zIndex: 96,
       }}
     >
-      <img src={icon} alt={label} style={{ width: ICON_SIZE - 10, height: ICON_SIZE - 10, objectFit: "contain", borderRadius: "50%", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.7))" }} />
+      <img
+        src={icon}
+        alt={label}
+        style={{
+          width: fillIcon ? ICON_SIZE : ICON_SIZE - 10,
+          height: fillIcon ? ICON_SIZE : ICON_SIZE - 10,
+          objectFit: fillIcon ? "cover" : "contain",
+          borderRadius: fillIcon ? 0 : "50%",
+          filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.7))",
+        }}
+      />
 
       {/* Label tooltip */}
       {isOpen && (
