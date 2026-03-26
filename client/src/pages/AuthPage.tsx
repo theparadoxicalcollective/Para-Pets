@@ -223,7 +223,7 @@ export default function AuthPage() {
       <div className="relative z-10 flex flex-col items-center justify-center w-full px-6 py-8 h-full overflow-y-auto" style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         <div className="flex flex-col items-center w-full">
           <div className="mb-3 text-center">
-            <div className="relative inline-block">
+            <div className="relative inline-block px-6 py-2 rounded-2xl" style={{ background: "rgba(0,0,0,0.35)", backdropFilter: "blur(4px)" }}>
               <span className="title-sparkle absolute -top-3 -left-3 text-xl select-none" style={{ animationDelay: "0s" }}>✦</span>
               <span className="title-sparkle absolute -top-3 -right-3 text-xl select-none" style={{ animationDelay: "1s" }}>✦</span>
               <span className="title-sparkle absolute -bottom-2 left-1/2 -translate-x-1/2 text-sm select-none" style={{ animationDelay: "1.8s" }}>✦</span>
@@ -233,7 +233,7 @@ export default function AuthPage() {
 
           {mode === "landing" && (
             <div className="flex flex-col items-center gap-3 mt-2 w-full animate-slide-up">
-              <p className="font-fantasy text-[#c8d8b0] text-center text-sm tracking-wider px-4 leading-relaxed">
+              <p className="font-fantasy text-white text-center text-sm tracking-wider px-4 leading-relaxed drop-shadow-lg">
                 A world of magical companions awaits.
                 <br />Embark on your journey now.
               </p>
@@ -261,7 +261,7 @@ export default function AuthPage() {
               <Link
                 data-testid="link-para-pets-hub"
                 href="/hub"
-                className="font-fantasy text-[#7fbfb0] text-sm tracking-widest underline underline-offset-4 decoration-[#7fbfb0]/50 hover:text-[#a8dfd0] transition-colors duration-150 mt-1"
+                className="font-fantasy text-[#ffd700] text-sm tracking-widest underline underline-offset-4 decoration-[#ffd700]/60 hover:text-white transition-colors duration-150 mt-1 drop-shadow"
               >
                 Para Pets Hub
               </Link>
@@ -269,8 +269,8 @@ export default function AuthPage() {
           )}
 
           {(mode === "login" || mode === "register") && (
-            <div className="w-full max-w-sm animate-slide-up">
-              <h2 className="font-fantasy text-[#d4b896] text-center text-xl tracking-widest mb-6 drop-shadow-lg">
+            <div className="w-full max-w-sm animate-slide-up rounded-2xl px-5 py-5" style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}>
+              <h2 className="font-fantasy text-white text-center text-xl tracking-widest mb-6 drop-shadow-lg">
                 {mode === "login" ? "Welcome Back" : "Begin Your Journey"}
               </h2>
 
@@ -455,7 +455,7 @@ export default function AuthPage() {
                       </svg>
                     )}
                   </div>
-                  <span className="font-fantasy text-[#c8b896] text-xs tracking-wider">Remember Me</span>
+                  <span className="font-fantasy text-[#e8d8b0] text-xs tracking-wider">Remember Me</span>
                 </button>
               )}
             </div>
@@ -505,7 +505,7 @@ export default function AuthPage() {
                 data-testid="button-back"
                 onClick={() => { setMode("landing"); setUsername(""); setEmail(""); setPassword(""); setProfileImageData(null); setProfilePreview(null); setIsLoading(false); setLoadingProgress(0); setShowPassword(false); setLoginFailed(false); }}
                 disabled={isPending}
-                className="font-fantasy text-[#a89878] text-xs tracking-widest hover:text-[#d4b896] transition-colors disabled:opacity-40"
+                className="font-fantasy text-[#d4c0a0] text-xs tracking-widest hover:text-white transition-colors disabled:opacity-40"
               >
                 ← BACK
               </button>
@@ -523,7 +523,7 @@ export default function AuthPage() {
                       Forgot Password?
                     </button>
                   )}
-                  <p className="font-fantasy text-[#a89878] text-xs tracking-wider">
+                  <p className="font-fantasy text-[#d4c0a0] text-xs tracking-wider">
                     New traveler?{" "}
                     <button
                       data-testid="button-switch-to-register"
@@ -538,7 +538,7 @@ export default function AuthPage() {
               )}
 
               {mode === "register" && (
-                <p className="font-fantasy text-[#a89878] text-xs tracking-wider">
+                <p className="font-fantasy text-[#d4c0a0] text-xs tracking-wider">
                   Already a hero?{" "}
                   <button
                     data-testid="button-switch-to-login"
@@ -555,11 +555,11 @@ export default function AuthPage() {
         )}
 
         {mode === "forgot" && (
-          <div className="w-full max-w-sm animate-slide-up">
-            <h2 className="font-fantasy text-[#d4b896] text-center text-xl tracking-widest mb-2 drop-shadow-lg">
+          <div className="w-full max-w-sm animate-slide-up rounded-2xl px-5 py-5" style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}>
+            <h2 className="font-fantasy text-white text-center text-xl tracking-widest mb-2 drop-shadow-lg">
               Forgot Password
             </h2>
-            <p className="font-fantasy text-[#a89878] text-xs text-center tracking-wider mb-5">
+            <p className="font-fantasy text-[#d4c0a0] text-xs text-center tracking-wider mb-5">
               Enter your email or username and we'll send a reset link
             </p>
 
@@ -576,7 +576,7 @@ export default function AuthPage() {
                 <p className="font-fantasy text-[#7fffd4] text-sm tracking-wider" data-testid="text-forgot-sent">
                   Check Your Email
                 </p>
-                <p className="font-fantasy text-[#a89878] text-xs tracking-wider">
+                <p className="font-fantasy text-[#d4c0a0] text-xs tracking-wider">
                   If an account exists for that email or username, a reset link has been sent. It expires in 1 hour.
                 </p>
                 <button
@@ -629,7 +629,7 @@ export default function AuthPage() {
                   <button
                     data-testid="button-back-to-login-from-forgot"
                     onClick={() => { setMode("login"); setLoginFailed(false); }}
-                    className="font-fantasy text-[#a89878] text-xs tracking-widest hover:text-[#d4b896] transition-colors"
+                    className="font-fantasy text-[#d4c0a0] text-xs tracking-widest hover:text-white transition-colors"
                     style={{ background: "none", border: "none", cursor: "pointer" }}
                   >
                     ← Back to Sign In
@@ -637,7 +637,7 @@ export default function AuthPage() {
                   <button
                     data-testid="button-contact-support-from-forgot"
                     onClick={() => { setMode("support"); setSupportSent(false); setSupportUsername(""); setSupportEmail(""); setSupportSubject("Account Help"); setSupportMessage(""); }}
-                    className="font-fantasy text-[#6a5840] text-[10px] tracking-wider hover:text-[#a89878] transition-colors"
+                    className="font-fantasy text-[#b0a080] text-[10px] tracking-wider hover:text-[#d4c0a0] transition-colors"
                     style={{ background: "none", border: "none", cursor: "pointer" }}
                   >
                     Contact Support instead
@@ -649,11 +649,11 @@ export default function AuthPage() {
         )}
 
         {mode === "support" && (
-          <div className="w-full max-w-sm animate-slide-up">
-            <h2 className="font-fantasy text-[#d4b896] text-center text-xl tracking-widest mb-2 drop-shadow-lg">
+          <div className="w-full max-w-sm animate-slide-up rounded-2xl px-5 py-5" style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}>
+            <h2 className="font-fantasy text-white text-center text-xl tracking-widest mb-2 drop-shadow-lg">
               Contact Support
             </h2>
-            <p className="font-fantasy text-[#a89878] text-xs text-center tracking-wider mb-5">
+            <p className="font-fantasy text-[#d4c0a0] text-xs text-center tracking-wider mb-5">
               Fill out the form below and we'll help you out
             </p>
 
@@ -670,7 +670,7 @@ export default function AuthPage() {
                 <p className="font-fantasy text-[#7fffd4] text-sm tracking-wider" data-testid="text-support-sent">
                   Message Sent!
                 </p>
-                <p className="font-fantasy text-[#a89878] text-xs tracking-wider">
+                <p className="font-fantasy text-[#d4c0a0] text-xs tracking-wider">
                   An admin will review your message and reach out to help you directly.
                 </p>
                 <button
@@ -752,7 +752,7 @@ export default function AuthPage() {
                       boxShadow: "inset 0 2px 6px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1)",
                     }}
                   />
-                  <p className="font-fantasy text-[#6a5840] text-[9px] tracking-wider text-right mt-0.5">{supportMessage.length}/2000</p>
+                  <p className="font-fantasy text-[#b0a080] text-[9px] tracking-wider text-right mt-0.5">{supportMessage.length}/2000</p>
                 </div>
 
                 <button
@@ -775,7 +775,7 @@ export default function AuthPage() {
                   <button
                     data-testid="button-back-to-login-from-support"
                     onClick={() => { setMode("login"); setLoginFailed(false); }}
-                    className="font-fantasy text-[#a89878] text-xs tracking-widest hover:text-[#d4b896] transition-colors"
+                    className="font-fantasy text-[#d4c0a0] text-xs tracking-widest hover:text-white transition-colors"
                     style={{ background: "none", border: "none", cursor: "pointer" }}
                   >
                     ← Back to Sign In
