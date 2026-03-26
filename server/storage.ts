@@ -1215,6 +1215,7 @@ export class DatabaseStorage implements IStorage {
       userId: pvpBattles.userId,
       username: users.username,
       profileImage: users.profileImage,
+      isAdmin: users.isAdmin,
       result: pvpBattles.result,
       battlePointsDelta: pvpBattles.battlePointsDelta,
     }).from(pvpBattles)
@@ -1222,6 +1223,7 @@ export class DatabaseStorage implements IStorage {
 
     const byUser: Record<string, { userId: string; username: string; profileImage: string | null; battlePoints: number; wins: number; losses: number }> = {};
     for (const row of rows) {
+      if (row.isAdmin) continue;
       if (!byUser[row.userId]) {
         byUser[row.userId] = { userId: row.userId, username: row.username || "Unknown", profileImage: row.profileImage ?? null, battlePoints: 0, wins: 0, losses: 0 };
       }
@@ -1254,15 +1256,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllBattleGroupsWithUsers(): Promise<any[]> {
-    return db.select({
+    const rows = await db.select({
       userId: pvpBattleGroups.userId,
       petInventoryIds: pvpBattleGroups.petInventoryIds,
       updatedAt: pvpBattleGroups.updatedAt,
       username: users.username,
       profileImage: users.profileImage,
+      isAdmin: users.isAdmin,
     }).from(pvpBattleGroups)
       .leftJoin(users, eq(pvpBattleGroups.userId, users.id))
       .orderBy(sql`${pvpBattleGroups.updatedAt} desc`);
+    return rows.filter(r => !r.isAdmin);
   }
 
   // ── World pet positions ────────────────────────────────────────────────────

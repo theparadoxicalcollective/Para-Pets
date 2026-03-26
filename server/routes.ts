@@ -1793,7 +1793,7 @@ export async function registerRoutes(
       const results: any[] = [];
       await Promise.all(
         allUsers.map(async (u) => {
-          if (!u.activePetId || u.isBanned) return;
+          if (!u.activePetId || u.isBanned || u.isAdmin) return;
           const rows = await storage.getUserInventoryWithItems(u.id);
           const row = rows.find(
             r => r.shopItem?.id === u.activePetId && r.inventory.isHatched && r.shopItem?.type === "pet"
