@@ -71,6 +71,9 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
         onComplete(data.user ?? null);
       }, 900);
     },
+    onError: () => {
+      setPhase("collect");
+    },
   });
 
   const handleCollect = () => {
@@ -365,8 +368,8 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
               <div style={{ height: 50 }} />
             )}
 
-            {/* Skip link */}
-            {(phase === "collect") && (
+            {/* Skip link — always available so user is never fully stuck */}
+            {(phase === "collect" || phase === "claiming") && (
               <button
                 onClick={handleSkip}
                 className="w-full text-center mt-3"
