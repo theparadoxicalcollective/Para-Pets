@@ -620,7 +620,7 @@ function WelcomeBundleSection() {
 
       {showPicker && (
         <ItemPickerModal
-          allShopItems={allShopItems}
+          items={allShopItems}
           onSelect={addItem}
           onClose={() => setShowPicker(false)}
         />
