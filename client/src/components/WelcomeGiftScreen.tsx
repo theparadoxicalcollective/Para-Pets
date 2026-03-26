@@ -30,14 +30,12 @@ interface WelcomeGiftScreenProps {
 export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScreenProps) {
   const queryClient = useQueryClient();
   const [phase, setPhase] = useState<"loading" | "reveal" | "collect" | "claiming" | "done">("loading");
-  const [sparkles, setSparkles] = useState<{ x: number; y: number; id: number }[]>([]);
 
   const { data: rewards = [], isSuccess, isError } = useQuery<PendingReward[]>({
     queryKey: ["/api/rewards/pending"],
     retry: 2,
   });
 
-  // If the request fails entirely, don't block the user forever
   useEffect(() => {
     if (!isError) return;
     localStorage.removeItem("para_pets_just_registered");
@@ -48,28 +46,16 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
 
   useEffect(() => {
     if (!isSuccess) return;
-    // If no welcome bundle exists (e.g. admin deleted it), silently dismiss
     if (!welcomeReward) {
       localStorage.removeItem("para_pets_just_registered");
       onComplete(null);
       return;
     }
     setPhase("reveal");
-    const timer = setTimeout(() => setPhase("collect"), 1600);
+    const timer = setTimeout(() => setPhase("collect"), 1200);
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSuccess]);
-
-  useEffect(() => {
-    if (phase !== "collect") return;
-    const interval = setInterval(() => {
-      setSparkles(prev => [
-        ...prev.slice(-12),
-        { x: Math.random() * 100, y: Math.random() * 100, id: Date.now() + Math.random() },
-      ]);
-    }, 350);
-    return () => clearInterval(interval);
-  }, [phase]);
 
   const claimMutation = useMutation({
     mutationFn: async (rewardId: string) => {
@@ -84,7 +70,7 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
       localStorage.removeItem("para_pets_just_registered");
       setTimeout(() => {
         onComplete(data.user ?? null);
-      }, 900);
+      }, 800);
     },
     onError: () => {
       setPhase("collect");
@@ -106,274 +92,172 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
     onComplete(null);
   };
 
+  // Group items by id
+  const groupedItems = (() => {
+    if (!welcomeReward) return [];
+    const grouped: { item: RewardItem; count: number }[] = [];
+    for (const item of welcomeReward.items) {
+      const existing = grouped.find(g => g.item.id === item.id);
+      if (existing) existing.count++;
+      else grouped.push({ item, count: 1 });
+    }
+    return grouped;
+  })();
+
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden"
+      className="fixed inset-0 z-[9999] flex items-center justify-center"
       style={{
-        background: "radial-gradient(ellipse at 50% 30%, rgba(30,15,60,0.98) 0%, rgba(8,4,20,0.99) 70%)",
+        background: "rgba(6,3,16,0.93)",
         fontFamily: "Georgia, serif",
       }}
     >
-      {/* Ambient stars */}
-      {Array.from({ length: 40 }).map((_, i) => (
-        <div
-          key={i}
-          className="absolute rounded-full"
-          style={{
-            left: `${(i * 7.3 + 11) % 100}%`,
-            top: `${(i * 5.7 + 7) % 100}%`,
-            width: i % 5 === 0 ? 3 : 2,
-            height: i % 5 === 0 ? 3 : 2,
-            background: i % 3 === 0 ? "rgba(200,180,255,0.7)" : "rgba(255,255,220,0.5)",
-            animation: `pulse ${1.5 + (i % 3) * 0.7}s ease-in-out infinite`,
-            animationDelay: `${(i * 0.13) % 2}s`,
-          }}
-        />
-      ))}
-
-      {/* Flying sparkles */}
-      {sparkles.map(s => (
-        <div
-          key={s.id}
-          className="absolute pointer-events-none"
-          style={{
-            left: `${s.x}%`,
-            top: `${s.y}%`,
-            fontSize: 14,
-            animation: "ping 1s ease-out forwards",
-            opacity: 0.9,
-          }}
-        >✦</div>
-      ))}
+      <style>{`
+        @keyframes wgFadeIn { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        @keyframes wgPulse { 0%,100% { opacity:0.6; } 50% { opacity:1; } }
+        @keyframes wgBounce { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-4px); } }
+      `}</style>
 
       {phase === "loading" ? (
-        /* Loading state — shown briefly while rewards fetch */
-        <>
-          <div className="flex flex-col items-center gap-4">
-            <div
-              className="flex items-center justify-center"
-              style={{
-                width: 72, height: 72, borderRadius: "50%",
-                background: "radial-gradient(ellipse at 40% 35%, rgba(240,200,80,0.18) 0%, rgba(192,132,252,0.14) 60%, transparent 80%)",
-                border: "2px solid rgba(212,170,50,0.35)",
-                boxShadow: "0 0 30px rgba(192,132,252,0.25)",
-              }}
-            >
-              <img src={giftTreasureIcon} alt="" style={{ width: 48, height: 48, objectFit: "contain", animation: "pulse 1.4s ease-in-out infinite" }} />
-            </div>
-            <p
-              className="text-[11px] tracking-widest uppercase"
-              style={{ color: "rgba(212,170,50,0.55)", animation: "pulse 1.8s ease-in-out infinite" }}
-            >
-              Preparing your gifts…
-            </p>
-          </div>
+        <div className="flex flex-col items-center gap-3">
+          <img
+            src={giftTreasureIcon}
+            alt=""
+            style={{ width: 44, height: 44, objectFit: "contain", animation: "wgPulse 1.4s ease-in-out infinite" }}
+          />
+          <p style={{ color: "rgba(212,170,50,0.55)", fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", animation: "wgPulse 1.8s ease-in-out infinite" }}>
+            Preparing your gifts…
+          </p>
           <button
             onClick={handleSkip}
-            className="absolute bottom-10 left-0 right-0 text-center"
-            style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(150,130,100,0.45)", fontSize: 10, letterSpacing: "0.05em" }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(150,130,100,0.4)", fontSize: 10, marginTop: 8 }}
           >
             skip for now
           </button>
-        </>
+        </div>
       ) : (
-        /* Main card — shown only once data is ready */
         <div
-          className="relative w-[92%] max-w-[380px] rounded-2xl overflow-hidden flex flex-col"
+          className="relative flex flex-col"
           style={{
-            background: "linear-gradient(160deg, rgba(28,12,55,0.98) 0%, rgba(18,8,38,0.99) 100%)",
-            border: "2px solid rgba(212,170,50,0.55)",
-            boxShadow: "0 0 80px rgba(192,132,252,0.18), 0 0 30px rgba(212,170,50,0.12), 0 20px 60px rgba(0,0,0,0.85)",
-            animation: "fadeIn 0.5s ease-out",
-            maxHeight: "88vh",
+            width: "90%",
+            maxWidth: 360,
+            maxHeight: "72vh",
+            borderRadius: 18,
+            background: "linear-gradient(160deg, rgba(26,11,52,0.99) 0%, rgba(16,7,35,0.99) 100%)",
+            border: "1.5px solid rgba(212,170,50,0.5)",
+            boxShadow: "0 0 40px rgba(192,132,252,0.15), 0 12px 40px rgba(0,0,0,0.8)",
+            animation: "wgFadeIn 0.4s ease-out",
+            overflow: "hidden",
           }}
         >
-          <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+          {/* Top band */}
+          <div style={{ height: 3, flexShrink: 0, background: "linear-gradient(90deg, transparent, rgba(212,170,50,0.8) 35%, rgba(192,132,252,0.85) 65%, rgba(212,170,50,0.8) 85%, transparent)" }} />
 
-          {/* Top decorative band */}
-          <div style={{
-            height: 4,
-            background: "linear-gradient(90deg, transparent, rgba(212,170,50,0.8) 30%, rgba(192,132,252,0.9) 60%, rgba(212,170,50,0.8) 80%, transparent)",
-          }} />
-
-          {/* Fixed header: orb + title + divider */}
-          <div className="px-6 pt-5 flex-shrink-0">
-            {/* Glowing gift orb */}
-            <div className="flex justify-center mb-4">
-              <div
-                className="relative flex items-center justify-center"
+          {/* Compact header: orb inline with title */}
+          <div className="flex items-center gap-3 px-4 pt-4 pb-3 flex-shrink-0">
+            <div
+              className="relative flex items-center justify-center flex-shrink-0"
+              style={{
+                width: 54, height: 54,
+                borderRadius: "50%",
+                background: "radial-gradient(ellipse at 40% 35%, rgba(240,200,80,0.2) 0%, rgba(192,132,252,0.15) 60%, transparent 80%)",
+                border: "1.5px solid rgba(212,170,50,0.45)",
+                boxShadow: "0 0 20px rgba(192,132,252,0.3)",
+              }}
+            >
+              <img
+                src={giftTreasureIcon}
+                alt=""
                 style={{
-                  width: 88, height: 88,
-                  borderRadius: "50%",
-                  background: "radial-gradient(ellipse at 40% 35%, rgba(240,200,80,0.22) 0%, rgba(192,132,252,0.18) 60%, transparent 80%)",
-                  border: "2px solid rgba(212,170,50,0.5)",
-                  boxShadow: "0 0 40px rgba(192,132,252,0.35), 0 0 20px rgba(212,170,50,0.3)",
+                  width: 30, height: 30, objectFit: "contain",
+                  animation: phase === "collect" ? "wgBounce 1.4s ease-in-out infinite" : undefined,
+                  filter: "drop-shadow(0 0 8px rgba(212,170,50,0.8))",
                 }}
-              >
-                <span
-                  style={{
-                    fontSize: 44,
-                    filter: "drop-shadow(0 0 12px rgba(212,170,50,0.9)) drop-shadow(0 0 24px rgba(192,132,252,0.6))",
-                    animation: phase === "collect" ? "bounce 1.2s ease-in-out infinite" : undefined,
-                  }}
-                ><img src={giftTreasureIcon} alt="" style={{ width: 44, height: 44, objectFit: "contain" }} /></span>
-
-                {/* Orbiting stars */}
-                {[0, 1, 2].map(i => (
-                  <div
-                    key={i}
-                    className="absolute"
-                    style={{
-                      width: 6, height: 6, borderRadius: "50%",
-                      background: i === 0 ? "rgba(255,220,80,0.9)" : i === 1 ? "rgba(192,132,252,0.9)" : "rgba(120,220,180,0.9)",
-                      top: `${[8, 72, 42][i]}%`,
-                      left: `${[72, 20, 88][i]}%`,
-                      boxShadow: `0 0 6px 2px ${i === 0 ? "rgba(255,220,80,0.5)" : i === 1 ? "rgba(192,132,252,0.5)" : "rgba(120,220,180,0.5)"}`,
-                      animation: `ping ${1.4 + i * 0.5}s ease-in-out infinite`,
-                      animationDelay: `${i * 0.4}s`,
-                    }}
-                  />
-                ))}
-              </div>
+              />
             </div>
-
-            {/* Welcome title */}
-            <div className="text-center mb-1">
-              <p
-                className="text-[10px] tracking-[0.35em] uppercase mb-1"
-                style={{ color: "rgba(212,170,50,0.75)", letterSpacing: "0.3em" }}
-              >
-                A Gift Awaits
+            <div className="flex-1 min-w-0">
+              <p style={{ color: "rgba(212,170,50,0.7)", fontSize: 9, letterSpacing: "0.3em", textTransform: "uppercase", marginBottom: 2 }}>
+                Welcome Gift
               </p>
-              <h1
-                className="text-xl font-bold mb-0.5"
-                style={{
-                  color: "#f0e0a0",
-                  textShadow: "0 0 20px rgba(212,170,50,0.5), 0 0 40px rgba(192,132,252,0.25)",
-                  letterSpacing: "0.05em",
-                }}
-              >
-                Welcome, {user.username}!
+              <h1 style={{ color: "#f0e0a0", fontSize: 17, fontWeight: "bold", lineHeight: 1.2, margin: 0, textShadow: "0 0 16px rgba(212,170,50,0.4)" }}>
+                {user.username}!
               </h1>
               {welcomeReward?.bundleMessage && (
-                <p
-                  className="text-[11px] leading-relaxed mt-2 italic"
-                  style={{ color: "rgba(200,185,155,0.85)", maxWidth: 280, margin: "8px auto 0" }}
-                >
+                <p style={{ color: "rgba(200,185,155,0.7)", fontSize: 10, marginTop: 3, fontStyle: "italic", lineHeight: 1.3 }}>
                   "{welcomeReward.bundleMessage}"
                 </p>
               )}
             </div>
-
-            {/* Divider */}
-            <div className="flex items-center gap-3 my-3">
-              <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, transparent, rgba(212,170,50,0.35))" }} />
-              <span style={{ color: "rgba(212,170,50,0.55)", fontSize: 12 }}>✦</span>
-              <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, rgba(212,170,50,0.35), transparent)" }} />
-            </div>
           </div>
 
-          {/* Scrollable items area */}
-          <div className="px-6 overflow-y-auto flex-1 min-h-0">
-            {/* Gift items */}
+          {/* Thin divider */}
+          <div className="mx-4 flex-shrink-0" style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(212,170,50,0.3) 30%, rgba(192,132,252,0.25) 70%, transparent)" }} />
+
+          {/* Scrollable items */}
+          <div className="flex-1 overflow-y-auto min-h-0 px-3 py-2">
             {welcomeReward ? (
-              <div className="flex flex-col gap-2 pb-2">
-                {/* Coins */}
+              <div className="flex flex-col gap-1.5">
                 {welcomeReward.coinAmount > 0 && (
                   <div
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl"
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl"
                     style={{
-                      background: "linear-gradient(135deg, rgba(240,192,64,0.1) 0%, rgba(180,130,20,0.08) 100%)",
-                      border: "1px solid rgba(240,192,64,0.3)",
+                      background: "linear-gradient(135deg, rgba(240,192,64,0.1) 0%, rgba(180,130,20,0.07) 100%)",
+                      border: "1px solid rgba(240,192,64,0.25)",
                     }}
                   >
-                    <div
-                      style={{
-                        width: 40, height: 40, borderRadius: "50%",
-                        background: "radial-gradient(circle, rgba(255,220,60,0.25) 0%, rgba(200,150,20,0.1) 100%)",
-                        border: "1.5px solid rgba(240,192,64,0.4)",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        flexShrink: 0,
-                      }}
-                    >
-                      <img src={coinIconImg} alt="" style={{ width: 22, height: 22, objectFit: "contain" }} />
+                    <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,220,60,0.15)", border: "1px solid rgba(240,192,64,0.35)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <img src={coinIconImg} alt="" style={{ width: 18, height: 18, objectFit: "contain" }} />
                     </div>
                     <div>
-                      <p style={{ color: "#f0c040", fontSize: 18, fontWeight: "bold", lineHeight: 1, textShadow: "0 0 10px rgba(240,192,64,0.5)" }}>
-                        {welcomeReward.coinAmount.toLocaleString()}
-                      </p>
-                      <p style={{ color: "rgba(200,170,80,0.75)", fontSize: 10 }}>Coins</p>
+                      <p style={{ color: "#f0c040", fontSize: 16, fontWeight: "bold", lineHeight: 1, margin: 0 }}>{welcomeReward.coinAmount.toLocaleString()}</p>
+                      <p style={{ color: "rgba(200,170,80,0.65)", fontSize: 9, margin: 0 }}>Coins</p>
                     </div>
                   </div>
                 )}
 
-                {/* Items */}
-                {(() => {
-                  const grouped: { item: typeof welcomeReward.items[0]; count: number }[] = [];
-                  for (const item of welcomeReward.items) {
-                    const existing = grouped.find(g => g.item.id === item.id);
-                    if (existing) existing.count++;
-                    else grouped.push({ item, count: 1 });
-                  }
-                  return grouped.map(({ item, count }) => {
-                    const displayImg = item.type === "pet" && item.eggImageUrl ? item.eggImageUrl : item.imageUrl;
-                    return (
-                      <div
-                        key={item.id}
-                        className="flex items-center gap-3 px-4 py-3 rounded-xl"
-                        style={{
-                          background: "linear-gradient(135deg, rgba(192,132,252,0.08) 0%, rgba(120,80,200,0.06) 100%)",
-                          border: "1px solid rgba(192,132,252,0.25)",
-                        }}
-                      >
-                        <div style={{ position: "relative", flexShrink: 0 }}>
-                          <div
-                            style={{
-                              width: 40, height: 40, borderRadius: 10,
-                              background: "rgba(192,132,252,0.1)",
-                              border: "1.5px solid rgba(192,132,252,0.3)",
-                              display: "flex", alignItems: "center", justifyContent: "center",
-                              overflow: "hidden",
-                            }}
-                          >
-                            {displayImg
-                              ? <img src={displayImg} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-                              : item.type === "pet" ? <img src={eggMagicIcon} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} /> : <img src={powerupBagIconWG} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />
-                            }
-                          </div>
-                          {count > 1 && (
-                            <span style={{
-                              position: "absolute", bottom: -4, right: -6,
-                              background: "rgba(20,10,0,0.9)", color: "#c084fc",
-                              border: "1px solid rgba(192,132,252,0.5)",
-                              fontSize: 9, fontWeight: "bold", padding: "1px 4px",
-                              borderRadius: 6, lineHeight: 1.4,
-                            }}>
-                              ×{count}
-                            </span>
-                          )}
+                {groupedItems.map(({ item, count }) => {
+                  const displayImg = item.type === "pet" && item.eggImageUrl ? item.eggImageUrl : item.imageUrl;
+                  return (
+                    <div
+                      key={item.id}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl"
+                      style={{
+                        background: "linear-gradient(135deg, rgba(192,132,252,0.07) 0%, rgba(120,80,200,0.05) 100%)",
+                        border: "1px solid rgba(192,132,252,0.2)",
+                      }}
+                    >
+                      <div style={{ position: "relative", flexShrink: 0 }}>
+                        <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(192,132,252,0.1)", border: "1px solid rgba(192,132,252,0.25)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                          {displayImg
+                            ? <img src={displayImg} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                            : item.type === "pet"
+                              ? <img src={eggMagicIcon} alt="" style={{ width: 22, height: 22, objectFit: "contain" }} />
+                              : <img src={powerupBagIconWG} alt="" style={{ width: 22, height: 22, objectFit: "contain" }} />
+                          }
                         </div>
-                        <div>
-                          <p style={{ color: "#e0d0f0", fontSize: 13, fontWeight: "600", lineHeight: 1.2 }}>{item.name}</p>
-                          <p style={{ color: "rgba(192,132,252,0.6)", fontSize: 10, textTransform: "capitalize" }}>
-                            {item.type === "pet" ? "Companion Pet" : "Item"}
-                          </p>
-                        </div>
+                        {count > 1 && (
+                          <span style={{ position: "absolute", bottom: -3, right: -5, background: "rgba(20,10,0,0.9)", color: "#c084fc", border: "1px solid rgba(192,132,252,0.5)", fontSize: 8, fontWeight: "bold", padding: "0 3px", borderRadius: 5, lineHeight: 1.5 }}>
+                            ×{count}
+                          </span>
+                        )}
                       </div>
-                    );
-                  });
-                })()}
+                      <div>
+                        <p style={{ color: "#e0d0f0", fontSize: 12, fontWeight: "600", lineHeight: 1.2, margin: 0 }}>{item.name}</p>
+                        <p style={{ color: "rgba(192,132,252,0.55)", fontSize: 9, textTransform: "capitalize", margin: 0 }}>
+                          {item.type === "pet" ? "Companion Pet" : "Item"}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             ) : (
-              <div className="text-center py-3">
-                <p style={{ color: "rgba(200,185,155,0.6)", fontSize: 12, fontStyle: "italic" }}>No gifts found</p>
-              </div>
+              <p style={{ color: "rgba(200,185,155,0.5)", fontSize: 12, fontStyle: "italic", textAlign: "center", padding: "12px 0" }}>No gifts found</p>
             )}
           </div>
 
-          {/* Fixed footer: collect button + skip */}
-          <div className="px-6 pt-3 pb-5 flex-shrink-0">
-            {/* Collect button — only shown once gifts are ready */}
+          {/* Fixed footer */}
+          <div className="px-4 pt-2 pb-4 flex-shrink-0">
             {phase === "collect" || phase === "claiming" || phase === "done" ? (
               <button
                 data-testid="button-collect-welcome-gift"
@@ -381,42 +265,37 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
                 disabled={phase === "claiming" || phase === "done"}
                 className="w-full rounded-xl font-bold tracking-wider transition-all active:scale-95 disabled:opacity-60"
                 style={{
-                  padding: "14px 0",
-                  fontSize: 14,
-                  letterSpacing: "0.1em",
+                  padding: "11px 0",
+                  fontSize: 13,
+                  letterSpacing: "0.08em",
                   background: phase === "done"
                     ? "linear-gradient(135deg, rgba(100,180,100,0.5) 0%, rgba(60,130,60,0.5) 100%)"
-                    : "linear-gradient(135deg, rgba(212,170,50,0.85) 0%, rgba(180,120,20,0.85) 50%, rgba(212,170,50,0.85) 100%)",
+                    : "linear-gradient(135deg, rgba(212,170,50,0.9) 0%, rgba(180,120,20,0.9) 50%, rgba(212,170,50,0.9) 100%)",
                   border: phase === "done" ? "1.5px solid rgba(100,220,100,0.5)" : "1.5px solid rgba(255,220,80,0.6)",
                   color: phase === "done" ? "#a0f0a0" : "#1a0e00",
                   cursor: phase === "claiming" || phase === "done" ? "default" : "pointer",
-                  boxShadow: phase !== "done" ? "0 0 25px rgba(212,170,50,0.4), inset 0 1px 0 rgba(255,255,255,0.2)" : "none",
+                  boxShadow: phase !== "done" ? "0 0 18px rgba(212,170,50,0.35)" : "none",
                 }}
               >
                 {phase === "claiming" ? "Collecting…" : phase === "done" ? "✓ Gifts Collected!" : "Collect & Begin Journey"}
               </button>
             ) : (
-              /* Brief pause after card reveals before button appears */
-              <div style={{ height: 50 }} />
+              <div style={{ height: 42 }} />
             )}
 
-            {/* Skip link — always available so user is never fully stuck */}
             {phase !== "done" && (
               <button
                 onClick={handleSkip}
-                className="w-full text-center mt-3"
-                style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(150,130,100,0.5)", fontSize: 10, letterSpacing: "0.05em" }}
+                className="w-full text-center mt-2"
+                style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(150,130,100,0.45)", fontSize: 10 }}
               >
                 skip for now
               </button>
             )}
           </div>
 
-          {/* Bottom decorative band */}
-          <div style={{
-            height: 4,
-            background: "linear-gradient(90deg, transparent, rgba(192,132,252,0.7) 30%, rgba(212,170,50,0.8) 60%, rgba(192,132,252,0.7) 80%, transparent)",
-          }} />
+          {/* Bottom band */}
+          <div style={{ height: 3, flexShrink: 0, background: "linear-gradient(90deg, transparent, rgba(192,132,252,0.65) 35%, rgba(212,170,50,0.75) 65%, rgba(192,132,252,0.65) 85%, transparent)" }} />
         </div>
       )}
     </div>
