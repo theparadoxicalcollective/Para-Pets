@@ -255,7 +255,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
 
       {/* ── Keeper's Central overlay ─────────────────────────────────────── */}
       {showKeepers && (
-        <div className="absolute inset-0 z-[200]">
+        <div className="absolute inset-0 z-[94]">
           <PetWorldPage user={user} onClose={() => setShowKeepers(false)} />
         </div>
       )}

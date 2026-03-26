@@ -9,8 +9,6 @@ import PetAnimator from "@/components/PetAnimator";
 import bgGround from "@assets/pw_ground_layer.png";
 import friendsIconSrc from "@assets/friends_icon.png";
 import coinIconImg from "@assets/icon_coin.png";
-import homeIconImg from "@assets/icon_home_new.png";
-import marketIconImg from "@assets/icon_market.png";
 import petHouseIconImg from "@assets/icon_pet_house.png";
 
 const WORLD_ID = "pet_world";
@@ -782,55 +780,9 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
             </div>
           </div>
 
-          {/* RIGHT: nav icons */}
-          <div className="flex items-center gap-1.5 flex-shrink-0" style={{ paddingTop: 2 }}>
-            {/* Home */}
-            <button
-              data-testid="button-kc-home"
-              onClick={() => navigate("/")}
-              className="flex-shrink-0 flex items-center justify-center transition-transform active:scale-95 overflow-hidden topbar-icon-size-sm"
-              style={{
-                background: "none",
-                border: "2px solid rgba(212,160,23,0.4)",
-                cursor: "pointer",
-                boxShadow: "0 2px 10px rgba(0,0,0,0.6)",
-                borderRadius: 10,
-              }}
-            >
-              <img src={homeIconImg} alt="Home" className="w-full h-full object-cover" style={{ filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.8))" }} />
-            </button>
-            {/* Pet House (close KC) */}
-            <button
-              data-testid="button-close-pet-world"
-              onClick={onClose}
-              className="flex-shrink-0 flex items-center justify-center transition-transform active:scale-95 overflow-hidden topbar-icon-size-sm"
-              style={{
-                background: "none",
-                border: `2px solid ${ACCENT}55`,
-                cursor: "pointer",
-                boxShadow: `0 2px 10px rgba(0,0,0,0.6), 0 0 14px rgba(127,255,212,0.1)`,
-                borderRadius: 10,
-              }}
-            >
-              <img src={petHouseIconImg} alt="Pet House" className="w-full h-full object-cover" />
-            </button>
-            {/* Market */}
-            <button
-              data-testid="button-kc-market"
-              onClick={() => navigate("/market")}
-              className="flex-shrink-0 flex items-center justify-center transition-transform active:scale-95 overflow-hidden topbar-icon-size-sm"
-              style={{
-                background: "none",
-                border: `2px solid ${ACCENT}70`,
-                cursor: "pointer",
-                boxShadow: `0 2px 10px rgba(0,0,0,0.6), 0 0 14px rgba(127,255,212,0.15)`,
-                borderRadius: 10,
-              }}
-            >
-              <img src={marketIconImg} alt="Market" className="w-full h-full object-cover" />
-            </button>
-            {/* Admin: World Decor button */}
-            {user.isAdmin && (
+          {/* RIGHT: admin decor button only */}
+          {user.isAdmin && (
+            <div className="flex items-center flex-shrink-0" style={{ paddingTop: 2 }}>
               <button
                 data-testid="button-world-decor"
                 onClick={() => setShowDecorPanel(p => !p)}
@@ -846,8 +798,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
               >
                 <Palette className="w-4 h-4" style={{ color: ACCENT }} />
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Depth hint — small indicator at bottom centre */}
