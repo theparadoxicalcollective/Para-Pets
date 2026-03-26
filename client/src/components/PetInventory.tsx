@@ -66,6 +66,8 @@ interface PetInventoryProps {
 export default function PetInventory({ user, onClose, onUserUpdate }: PetInventoryProps) {
   const [showBag, setShowBag] = useState(false);
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
+  const [speedUpTargetId, setSpeedUpTargetId] = useState<string | null>(null);
+  const [dragging, setDragging] = useState<{ item: InventoryItem; x: number; y: number } | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -92,9 +94,78 @@ export default function PetInventory({ user, onClose, onUserUpdate }: PetInvento
     },
   });
 
+  const speedUpMutation = useMutation({
+    mutationFn: async ({ petInvId, itemInvId }: { petInvId: string; itemInvId: string }) => {
+      const res = await apiRequest("POST", `/api/pet/${petInvId}/use-special`, { itemInventoryId: itemInvId });
+      return res.json();
+    },
+    onSuccess: (_data, variables) => {
+      const item = inventory.find(i => i.inventoryId === variables.itemInvId);
+      setSpeedUpTargetId(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      toast({ title: "⏩ Hatching Boosted!", description: item ? `-${item.specialAmount ?? "?"}min` : "Hatching time reduced!" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed", description: err?.message || "Could not use item", variant: "destructive" });
+    },
+  });
+
+  const useItemOnPetMutation = useMutation({
+    mutationFn: async ({ petInvId, itemInvId }: { petInvId: string; itemInvId: string }) => {
+      const res = await apiRequest("POST", `/api/pet/${petInvId}/use-special`, { itemInventoryId: itemInvId });
+      return res.json();
+    },
+    onSuccess: () => {
+      setDragging(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      toast({ title: "✓ Item Used!", description: "Item applied to your pet!" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed", description: err?.message || "Could not use item", variant: "destructive" });
+      setDragging(null);
+    },
+  });
+
+  const handleItemPointerDown = (e: React.PointerEvent, item: InventoryItem) => {
+    if (item.type !== "special") return;
+    const startX = e.clientX, startY = e.clientY;
+    let dragActive = false;
+    const onMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== e.pointerId) return;
+      const dist = Math.hypot(ev.clientX - startX, ev.clientY - startY);
+      if (dist > 10 && !dragActive) {
+        dragActive = true;
+        setDragging({ item, x: ev.clientX, y: ev.clientY });
+        setShowBag(false);
+      }
+      if (dragActive) {
+        setDragging(prev => prev ? { ...prev, x: ev.clientX, y: ev.clientY } : null);
+      }
+    };
+    const onUp = (ev: PointerEvent) => {
+      if (ev.pointerId !== e.pointerId) return;
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      if (dragActive) {
+        const target = document.elementFromPoint(ev.clientX, ev.clientY);
+        const petEl = target?.closest("[data-pet-inv-id]") as HTMLElement | null;
+        const petInvId = petEl?.dataset.petInvId;
+        if (petInvId) {
+          useItemOnPetMutation.mutate({ petInvId, itemInvId: item.inventoryId });
+        } else {
+          setDragging(null);
+        }
+      }
+    };
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+  };
+
   const pets = inventory.filter((item) => item.type === "pet");
   const bagItems = inventory.filter((item) => item.type !== "pet" && item.fishingType !== "fish");
+  const hatchTimeItems = inventory.filter(i => i.type === "special" && i.specialType === "hatch_time");
   const selectedPet = selectedPetId ? (inventory.find((item) => item.inventoryId === selectedPetId) ?? null) : null;
+  const speedUpTargetPet = speedUpTargetId ? (inventory.find(i => i.inventoryId === speedUpTargetId) ?? null) : null;
 
   const handlePetToggle = (shopItemId: string) => {
     if (user.activePetId === shopItemId) {
@@ -200,12 +271,14 @@ export default function PetInventory({ user, onClose, onUserUpdate }: PetInvento
                 <p className="font-fantasy text-[#7fbfb0] text-sm animate-pulse">Loading inventory...</p>
               </div>
             ) : showBag ? (
-              <BagView items={bagItems} />
+              <BagView items={bagItems} onItemPointerDown={handleItemPointerDown} />
             ) : (
               <PetView
                 pets={pets}
                 activePetId={user.activePetId}
                 onToggle={handlePetToggle}
+                onEggSpeedUp={(id) => setSpeedUpTargetId(id)}
+                isDragging={!!dragging}
                 onPetClick={(pet) => pet.isHatched && setSelectedPetId(pet.inventoryId)}
                 isPending={setActivePetMutation.isPending}
               />
@@ -233,6 +306,99 @@ export default function PetInventory({ user, onClose, onUserUpdate }: PetInvento
           100% { transform: translateY(-12px) scale(0.9); opacity: 0; }
         }
       `}</style>
+
+      {/* Speed-up hatching bottom sheet (from inventory egg tap) */}
+      {speedUpTargetId && speedUpTargetPet && (
+        <div className="fixed inset-0 z-[80] flex items-end justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+          <div className="absolute inset-0 bg-black/50" onClick={() => setSpeedUpTargetId(null)} />
+          <div
+            className="relative w-full rounded-t-2xl p-5"
+            style={{
+              background: "linear-gradient(180deg, rgba(15,8,2,0.97) 0%, rgba(10,5,1,0.99) 100%)",
+              border: "1px solid rgba(240,192,64,0.3)",
+              borderBottom: "none",
+              boxShadow: "0 -8px 40px rgba(0,0,0,0.6)",
+            }}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <h4 className="font-fantasy text-[#f0c040] text-sm tracking-wider">SPEED UP HATCHING</h4>
+              <button
+                onClick={() => setSpeedUpTargetId(null)}
+                className="font-fantasy text-[#a89878] text-xs tracking-wider"
+                style={{ cursor: "pointer", background: "none", border: "none" }}
+                data-testid="button-close-inv-speedup"
+              >
+                Close
+              </button>
+            </div>
+            <p className="font-fantasy text-[#a89878] text-[10px] tracking-wider mb-4">{speedUpTargetPet.name}</p>
+            {hatchTimeItems.length === 0 ? (
+              <p className="font-fantasy text-[#a89878] text-xs text-center py-6">
+                No speed-up items in your bag. Check the shop!
+              </p>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {hatchTimeItems.map((item) => (
+                  <button
+                    key={item.inventoryId}
+                    data-testid={`button-inv-speedup-${item.inventoryId}`}
+                    onClick={() => speedUpMutation.mutate({ petInvId: speedUpTargetId, itemInvId: item.inventoryId })}
+                    disabled={speedUpMutation.isPending}
+                    className="rounded-md p-2 flex flex-col items-center gap-1 transition-transform active:scale-95 disabled:opacity-40"
+                    style={{
+                      background: "rgba(30,15,5,0.8)",
+                      border: "1px solid rgba(240,192,64,0.3)",
+                      cursor: speedUpMutation.isPending ? "wait" : "pointer",
+                    }}
+                  >
+                    <div className="w-12 h-12 rounded flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.3)" }}>
+                      {item.imageUrl ? (
+                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
+                      ) : (
+                        <span className="text-xl">⏩</span>
+                      )}
+                    </div>
+                    <span className="font-fantasy text-[#f0c040] text-[9px] tracking-wider text-center truncate w-full">{item.name}</span>
+                    <span
+                      className="font-fantasy text-[8px] tracking-wider px-2 py-0.5 rounded-full"
+                      style={{ background: "rgba(240,192,64,0.15)", color: "#f0c040" }}
+                    >
+                      -{item.specialAmount || "?"}min
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Drag ghost image */}
+      {dragging && (
+        <div
+          className="fixed z-[90] pointer-events-none select-none"
+          style={{
+            left: dragging.x - 32,
+            top: dragging.y - 32,
+            width: 64,
+            height: 64,
+            borderRadius: 12,
+            background: "rgba(20,10,2,0.92)",
+            border: "2px solid rgba(240,192,64,0.8)",
+            boxShadow: "0 0 20px rgba(240,192,64,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            transform: "scale(1.1)",
+          }}
+        >
+          {dragging.item.imageUrl ? (
+            <img src={dragging.item.imageUrl} alt={dragging.item.name} style={{ width: 44, height: 44, objectFit: "contain" }} />
+          ) : (
+            <span style={{ fontSize: 28 }}>⏩</span>
+          )}
+        </div>
+      )}
 
       {selectedPet && (
         <PetDetailPage
@@ -318,13 +484,17 @@ function PetView({
   activePetId,
   onToggle,
   onPetClick,
+  onEggSpeedUp,
   isPending,
+  isDragging,
 }: {
   pets: InventoryItem[];
   activePetId: string | null;
   onToggle: (id: string) => void;
   onPetClick: (pet: InventoryItem) => void;
+  onEggSpeedUp?: (petInvId: string) => void;
   isPending: boolean;
+  isDragging?: boolean;
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -385,6 +555,8 @@ function PetView({
         const handleClick = () => {
           if (isEgg && hatchReady) {
             hatchCheckMutation.mutate(pet.inventoryId);
+          } else if (isEgg && !hatchReady && pet.hatchStartedAt) {
+            onEggSpeedUp?.(pet.inventoryId);
           } else if (!isEgg) {
             onPetClick(pet);
           }
@@ -396,13 +568,15 @@ function PetView({
           <div
             key={pet.inventoryId}
             data-testid={`card-pet-${pet.shopItemId}`}
+            data-pet-inv-id={pet.inventoryId}
             className="rounded-xl overflow-hidden"
             style={{
               background: rs.bg,
-              border: isActive ? `2px solid ${rs.starColor}` : rs.border,
-              boxShadow: isActive
-                ? `0 0 28px ${rs.starColor}55, 0 0 8px ${rs.starColor}33`
-                : rs.glow,
+              border: isDragging ? "2px solid rgba(240,192,64,0.85)" : (isActive ? `2px solid ${rs.starColor}` : rs.border),
+              boxShadow: isDragging
+                ? "0 0 24px rgba(240,192,64,0.5), 0 0 8px rgba(240,192,64,0.3)"
+                : (isActive ? `0 0 28px ${rs.starColor}55, 0 0 8px ${rs.starColor}33` : rs.glow),
+              transition: "border 0.15s, box-shadow 0.15s",
             }}
           >
             <div className="p-3 flex flex-col items-center gap-2">
@@ -429,7 +603,17 @@ function PetView({
                     <span className="font-fantasy text-[10px] text-[#f0c040] tracking-wider">EGG</span>
                   </div>
                 )}
-                {hatchReady && hatchingId !== pet.inventoryId && (
+                {isDragging && (
+                  <div
+                    className="absolute inset-0 rounded-lg flex items-center justify-center"
+                    style={{ background: "rgba(240,192,64,0.18)", border: "2px dashed rgba(240,192,64,0.7)", pointerEvents: "none" }}
+                  >
+                    <span className="font-fantasy text-[#f0c040] text-xs tracking-wider font-bold" style={{ textShadow: "0 0 8px rgba(240,192,64,0.9)" }}>
+                      DROP HERE
+                    </span>
+                  </div>
+                )}
+                {!isDragging && hatchReady && hatchingId !== pet.inventoryId && (
                   <div
                     className="absolute inset-0 rounded-lg flex items-center justify-center animate-pulse"
                     style={{ background: "rgba(74,222,128,0.15)", border: "2px solid rgba(74,222,128,0.5)" }}
@@ -580,7 +764,7 @@ function getItemDescription(item: InventoryItem): string {
 
 const POTION_STACK_MAX = 50;
 
-function BagView({ items }: { items: InventoryItem[] }) {
+function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemPointerDown?: (e: React.PointerEvent, item: InventoryItem) => void }) {
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [selectedStackCount, setSelectedStackCount] = useState<number>(1);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -660,9 +844,11 @@ function BagView({ items }: { items: InventoryItem[] }) {
                 background: "linear-gradient(135deg, rgba(28,14,4,0.97) 0%, rgba(48,28,8,0.97) 100%)",
                 border: `1px solid ${typeColor}55`,
                 boxShadow: `0 0 10px ${typeColor}18`,
-                cursor: "pointer",
+                cursor: item.type === "special" ? "grab" : "pointer",
+                touchAction: "none",
               }}
               onClick={() => { setSelectedItem(item); setSelectedStackCount(count); setConfirmDelete(false); }}
+              onPointerDown={item.type === "special" ? (e) => onItemPointerDown?.(e, item) : undefined}
             >
               <div className="p-3 flex flex-col items-center gap-2">
                 <div className="relative w-full">
@@ -711,6 +897,14 @@ function BagView({ items }: { items: InventoryItem[] }) {
                 >
                   {item.type}
                 </span>
+                {item.type === "special" && (
+                  <span
+                    className="font-fantasy text-[9px] tracking-wider px-2 py-0.5 rounded-full"
+                    style={{ background: "rgba(255,255,255,0.06)", color: "#a89878", border: "1px solid rgba(168,152,120,0.25)" }}
+                  >
+                    drag to use
+                  </span>
+                )}
               </div>
             </div>
           );
