@@ -180,7 +180,7 @@ export default function PetHousePage({ user: initialUser }: PetHousePageProps) {
       <ForestRoom />
 
       <div style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
-        <TopBar user={user} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} hideTreehouse />
+        <TopBar user={user} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
       </div>
 
       <div className="flex-1 relative">
@@ -1081,7 +1081,7 @@ function makeSwimmer(entry: AqFishEntry, x?: number, y?: number): SwimmingFish {
   };
 }
 
-function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string }) {
+export function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string }) {
   const STORAGE_KEY = `aq_fish_${userId}`;
   const containerRef = useRef<HTMLDivElement>(null);
 

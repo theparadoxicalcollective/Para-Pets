@@ -3,10 +3,7 @@ import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import homeIconImg from "@assets/icon_home_new.png";
 import coinIconImg from "@assets/icon_coin.png";
-import petHouseIconImg from "@assets/icon_pet_house.png";
-import marketIconImg from "@assets/icon_market.png";
 import giftIconImg from "@assets/generated_images/gift_icon_forest.png";
 import RewardClaimModal from "./RewardClaimModal";
 
@@ -20,8 +17,6 @@ interface TopBarProps {
   };
   onProfileClick: () => void;
   onUserUpdate?: (user: any) => void;
-  hideHome?: boolean;
-  hideTreehouse?: boolean;
 }
 
 interface FriendRequest {
@@ -31,7 +26,7 @@ interface FriendRequest {
   createdAt: string;
 }
 
-export default function TopBar({ user, onProfileClick, onUserUpdate, hideHome, hideTreehouse }: TopBarProps) {
+export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarProps) {
   const [, navigate] = useLocation();
   const [showRewards, setShowRewards] = useState(false);
   const [showRequestsPopup, setShowRequestsPopup] = useState(false);
@@ -392,70 +387,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideHome, h
           </div>
         </div>
 
-        {/* RIGHT: three nav icons laid out horizontally */}
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          {!hideHome && (
-            <button
-              data-testid="button-home"
-              onClick={() => navigate("/")}
-              className="topbar-icon-size-sm flex-shrink-0 flex items-center justify-center transition-transform duration-150 active:scale-95 overflow-hidden"
-              style={{
-                background: "none",
-                border: "2px solid rgba(212,160,23,0.4)",
-                cursor: "pointer",
-                boxShadow: "0 2px 10px rgba(0,0,0,0.6)",
-                borderRadius: "10px",
-              }}
-            >
-              <img
-                src={homeIconImg}
-                alt="Home"
-                className="w-full h-full object-cover"
-                style={{ filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.8))" }}
-              />
-            </button>
-          )}
-          {!hideTreehouse && (
-            <button
-              data-testid="button-pet-house"
-              onClick={() => navigate("/pet-house")}
-              className="topbar-icon-size-sm flex-shrink-0 flex items-center justify-center transition-transform duration-150 active:scale-95 overflow-hidden"
-              style={{
-                background: "none",
-                border: "2px solid rgba(74,222,128,0.45)",
-                cursor: "pointer",
-                boxShadow: "0 2px 10px rgba(0,0,0,0.6), 0 0 14px rgba(74,222,128,0.15)",
-                padding: 0,
-                borderRadius: "10px",
-              }}
-            >
-              <img
-                src={petHouseIconImg}
-                alt="Pet World"
-                className="w-full h-full object-cover"
-              />
-            </button>
-          )}
-          <button
-            data-testid="button-market"
-            onClick={() => navigate("/market")}
-            className="topbar-icon-size-sm flex-shrink-0 flex items-center justify-center transition-transform duration-150 active:scale-95 overflow-hidden"
-            style={{
-              background: "none",
-              border: "2px solid rgba(74,222,128,0.45)",
-              cursor: "pointer",
-              boxShadow: "0 2px 10px rgba(0,0,0,0.6), 0 0 14px rgba(74,222,128,0.15)",
-              padding: 0,
-              borderRadius: "10px",
-            }}
-          >
-            <img
-              src={marketIconImg}
-              alt="Player Market"
-              className="w-full h-full object-cover"
-            />
-          </button>
-        </div>
+        <div className="flex items-center gap-1.5 flex-shrink-0" />
       </div>
 
       {showRewards && (

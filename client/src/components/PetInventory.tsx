@@ -61,10 +61,11 @@ interface PetInventoryProps {
   };
   onClose: () => void;
   onUserUpdate: (user: any) => void;
+  defaultTab?: "pets" | "bag";
 }
 
-export default function PetInventory({ user, onClose, onUserUpdate }: PetInventoryProps) {
-  const [showBag, setShowBag] = useState(false);
+export default function PetInventory({ user, onClose, onUserUpdate, defaultTab }: PetInventoryProps) {
+  const [showBag, setShowBag] = useState(defaultTab === "bag");
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
   const [speedUpTargetId, setSpeedUpTargetId] = useState<string | null>(null);
   const [dragging, setDragging] = useState<{ item: InventoryItem; x: number; y: number } | null>(null);

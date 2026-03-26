@@ -23,13 +23,24 @@ import MarketPage from "@/pages/MarketPage";
 import PvpArenaPage from "@/pages/PvpArenaPage";
 import WelcomeGiftScreen from "@/components/WelcomeGiftScreen";
 import GlobalLevelUpOverlay from "@/components/GlobalLevelUpOverlay";
+import FloatingNav from "@/components/FloatingNav";
 
 function PvpArenaWrapper() {
   const [, setLocation] = useLocation();
   return <PvpArenaPage onClose={() => setLocation("/")} />;
 }
 
+// Paths where FloatingNav should NOT appear
+const NAV_HIDDEN_PATHS = ["/auth", "/hub", "/privacy", "/admin"];
+function shouldHideNav(path: string) {
+  if (NAV_HIDDEN_PATHS.includes(path)) return true;
+  if (path.startsWith("/reset-password/")) return true;
+  if (path.startsWith("/visit/")) return true;
+  return false;
+}
+
 function AppRouter() {
+  const [location] = useLocation();
   const { data: user, isLoading } = useQuery<any>({
     queryKey: ["/api/auth/me"],
     retry: false,
@@ -70,49 +81,57 @@ function AppRouter() {
   }
 
   return (
-    <Switch>
-      <Route path="/auth" component={AuthPage} />
-      <Route path="/reset-password/:token" component={ResetPasswordPage} />
-      <Route path="/map">
-        {user ? <MapPage user={user} /> : <Redirect to="/auth" />}
-      </Route>
-      <Route path="/world/:worldId">
-        {user ? <WorldPage user={user} /> : <Redirect to="/auth" />}
-      </Route>
-      <Route path="/coins">
-        {user ? <CoinShopPage user={user} /> : <Redirect to="/auth" />}
-      </Route>
-      <Route path="/admin">
-        {user && user.isAdmin ? <AdminPage user={user} /> : <Redirect to="/" />}
-      </Route>
-      <Route path="/pet-house">
-        {user ? <PetHousePage user={user} /> : <Redirect to="/auth" />}
-      </Route>
-      <Route path="/visit/:userId">
-        {user ? <VisitPetHousePage /> : <Redirect to="/auth" />}
-      </Route>
-      <Route path="/privacy">
-        <PrivacyPolicyPage user={user ?? null} />
-      </Route>
-      <Route path="/hub">
-        <ParaPetsHubPage />
-      </Route>
-      <Route path="/badges">
-        {user ? <BadgePage user={user} /> : <Redirect to="/auth" />}
-      </Route>
-      <Route path="/market">
-        {user ? <MarketPage user={user} onUserUpdate={u => queryClient.setQueryData(["/api/auth/me"], u)} /> : <Redirect to="/auth" />}
-      </Route>
-      <Route path="/pvp">
-        {user ? <PvpArenaWrapper /> : <Redirect to="/auth" />}
-      </Route>
-      <Route path="/">
-        {user ? <HomePage user={user} /> : <Redirect to="/auth" />}
-      </Route>
-      <Route>
-        <Redirect to="/" />
-      </Route>
-    </Switch>
+    <>
+      <Switch>
+        <Route path="/auth" component={AuthPage} />
+        <Route path="/reset-password/:token" component={ResetPasswordPage} />
+        <Route path="/map">
+          {user ? <MapPage user={user} /> : <Redirect to="/auth" />}
+        </Route>
+        <Route path="/world/:worldId">
+          {user ? <WorldPage user={user} /> : <Redirect to="/auth" />}
+        </Route>
+        <Route path="/coins">
+          {user ? <CoinShopPage user={user} /> : <Redirect to="/auth" />}
+        </Route>
+        <Route path="/admin">
+          {user && user.isAdmin ? <AdminPage user={user} /> : <Redirect to="/" />}
+        </Route>
+        <Route path="/pet-house">
+          {user ? <PetHousePage user={user} /> : <Redirect to="/auth" />}
+        </Route>
+        <Route path="/visit/:userId">
+          {user ? <VisitPetHousePage /> : <Redirect to="/auth" />}
+        </Route>
+        <Route path="/privacy">
+          <PrivacyPolicyPage user={user ?? null} />
+        </Route>
+        <Route path="/hub">
+          <ParaPetsHubPage />
+        </Route>
+        <Route path="/badges">
+          {user ? <BadgePage user={user} /> : <Redirect to="/auth" />}
+        </Route>
+        <Route path="/market">
+          {user ? <MarketPage user={user} onUserUpdate={u => queryClient.setQueryData(["/api/auth/me"], u)} /> : <Redirect to="/auth" />}
+        </Route>
+        <Route path="/pvp">
+          {user ? <PvpArenaWrapper /> : <Redirect to="/auth" />}
+        </Route>
+        <Route path="/">
+          {user ? <HomePage user={user} /> : <Redirect to="/auth" />}
+        </Route>
+        <Route>
+          <Redirect to="/" />
+        </Route>
+      </Switch>
+      {user && !isLoading && !shouldHideNav(location) && (
+        <FloatingNav
+          user={user}
+          onUserUpdate={(u) => queryClient.setQueryData(["/api/auth/me"], u)}
+        />
+      )}
+    </>
   );
 }
 

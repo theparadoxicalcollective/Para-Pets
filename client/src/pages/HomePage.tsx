@@ -13,7 +13,6 @@ import eggImg from "@assets/icon_pets.png";
 import badgeIcon from "@assets/icon_badges_new.png";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
-import PetInventory from "@/components/PetInventory";
 import PetAnimator from "@/components/PetAnimator";
 import PetDetailPage from "@/components/PetDetailPage";
 import PowerUpOverlay from "@/components/PowerUpOverlay";
@@ -63,8 +62,6 @@ interface InventoryItem {
 export default function HomePage({ user }: HomePageProps) {
   const [showProfile, setShowProfile] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
-  const [scrollOpen, setScrollOpen] = useState(false);
-  const [showPetInventory, setShowPetInventory] = useState(false);
   const [hatchRevealing, setHatchRevealing] = useState(false);
   const [hatchedPetCache, setHatchedPetCache] = useState<{ hatchedImageUrl: string | null; imageUrl: string | null; petTemplateId: string | null; name: string } | null>(null);
   const [showPetDetail, setShowPetDetail] = useState(false);
@@ -74,7 +71,6 @@ export default function HomePage({ user }: HomePageProps) {
   const [homeDragOver, setHomeDragOver] = useState(false);
   const [homeDragging, setHomeDragging] = useState<{ item: InventoryItem; x: number; y: number } | null>(null);
   const homeEggDropRef = useRef<HTMLDivElement>(null);
-  const [showPvpNotice, setShowPvpNotice] = useState(false);
   const [showHomePageTutorial, setShowHomePageTutorial] = useState(() => !localStorage.getItem("homePageTutorialSeen"));
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
@@ -262,7 +258,7 @@ export default function HomePage({ user }: HomePageProps) {
       </div>
 
       <div className="relative z-10 flex flex-col h-full" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
-        <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} hideHome />
+        <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
 
         {activePet && (activePet.rarity ?? 0) > 0 && (
           <div
@@ -496,306 +492,8 @@ export default function HomePage({ user }: HomePageProps) {
           </div>
         )}
 
-        <div className="relative flex-shrink-0">
-          <div
-            className="relative w-full nav-bar-height flex items-center justify-center"
-            style={{
-              background: "linear-gradient(180deg, rgba(20,10,3,0) 0%, rgba(20,10,3,0.65) 20%, rgba(15,8,2,0.8) 100%)",
-            }}
-          >
-            <div
-              className="absolute top-0 left-0 right-0 h-[3px]"
-              style={{
-                background: "linear-gradient(90deg, transparent 0%, rgba(212,160,23,0.5) 20%, rgba(240,192,64,0.7) 50%, rgba(212,160,23,0.5) 80%, transparent 100%)",
-                boxShadow: "0 0 8px rgba(240,192,64,0.3), 0 0 20px rgba(240,192,64,0.15)",
-              }}
-            />
-            <div
-              className="absolute top-[3px] left-0 right-0 h-[1px]"
-              style={{
-                background: "linear-gradient(90deg, transparent 5%, rgba(139,110,78,0.3) 25%, rgba(139,110,78,0.5) 50%, rgba(139,110,78,0.3) 75%, transparent 95%)",
-              }}
-            />
-
-            <div
-              className="absolute top-0 left-[15%] w-[2px] h-3"
-              style={{ background: "linear-gradient(180deg, rgba(212,160,23,0.5), transparent)" }}
-            />
-            <div
-              className="absolute top-0 left-[50%] w-[2px] h-4"
-              style={{ background: "linear-gradient(180deg, rgba(212,160,23,0.4), transparent)" }}
-            />
-            <div
-              className="absolute top-0 right-[15%] w-[2px] h-3"
-              style={{ background: "linear-gradient(180deg, rgba(212,160,23,0.5), transparent)" }}
-            />
-
-            <svg className="absolute top-[-6px] left-[8%] w-5 h-5" viewBox="0 0 20 20" fill="none">
-              <path d="M10,2 L12,8 L18,10 L12,12 L10,18 L8,12 L2,10 L8,8 Z" fill="rgba(240,192,64,0.25)" />
-              <circle cx="10" cy="10" r="1.5" fill="rgba(240,192,64,0.4)" />
-            </svg>
-            <svg className="absolute top-[-4px] right-[12%] w-4 h-4" viewBox="0 0 20 20" fill="none">
-              <path d="M10,3 L11.5,8.5 L17,10 L11.5,11.5 L10,17 L8.5,11.5 L3,10 L8.5,8.5 Z" fill="rgba(240,192,64,0.2)" />
-              <circle cx="10" cy="10" r="1" fill="rgba(240,192,64,0.35)" />
-            </svg>
-
-            <div className="relative z-10 flex items-center justify-evenly w-full px-6">
-              <NavIcon
-                src={mapIcon}
-                alt="Map"
-                testId="button-nav-map"
-                onClick={() => navigate("/map")}
-              />
-              <NavIcon
-                src={questIcon}
-                alt="Quests"
-                testId="button-nav-quests"
-                onClick={() => setScrollOpen(true)}
-              />
-              <NavIcon
-                src={swordsImg}
-                alt="Battle"
-                testId="button-nav-pvp"
-                onClick={() => currentUser.isAdmin ? navigate("/pvp") : setShowPvpNotice(true)}
-              />
-              <NavIcon
-                src={eggImg}
-                alt="Pets"
-                testId="button-nav-pets"
-                onClick={() => setShowPetInventory(true)}
-              />
-              <NavIcon
-                src={badgeIcon}
-                alt="Badges"
-                testId="button-nav-badges"
-                onClick={() => navigate("/badges")}
-              />
-            </div>
-          </div>
-        </div>
       </div>
 
-      {scrollOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
-          <div
-            data-testid="backdrop-quest-log"
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-            onClick={() => setScrollOpen(false)}
-          />
-          <div className="relative w-[85%] max-w-[360px] scroll-unroll">
-            <button
-              data-testid="button-close-scroll"
-              onClick={() => setScrollOpen(false)}
-              className="absolute -top-2 -right-2 z-30 w-8 h-8 rounded-full flex items-center justify-center transition-transform active:scale-90"
-              style={{
-                background: "linear-gradient(135deg, #5c3a1e 0%, #3a2010 100%)",
-                border: "2px solid rgba(212,160,23,0.6)",
-                color: "#f0c040",
-                cursor: "pointer",
-                boxShadow: "0 2px 10px rgba(0,0,0,0.6)",
-                fontSize: "14px",
-                fontWeight: "bold",
-              }}
-            >
-              X
-            </button>
-
-            <div className="relative" style={{ filter: "drop-shadow(0 8px 30px rgba(0,0,0,0.7))" }}>
-              <svg className="w-full" viewBox="0 0 360 40" preserveAspectRatio="none" style={{ display: "block", marginBottom: "-1px" }}>
-                <defs>
-                  <linearGradient id="scrollRodGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#8b6e4e" />
-                    <stop offset="30%" stopColor="#6b4e2e" />
-                    <stop offset="70%" stopColor="#5c3a1e" />
-                    <stop offset="100%" stopColor="#3a2010" />
-                  </linearGradient>
-                  <linearGradient id="scrollRodShine" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#c4a060" stopOpacity="0.5" />
-                    <stop offset="40%" stopColor="#8b6e4e" stopOpacity="0" />
-                  </linearGradient>
-                  <radialGradient id="knobGrad" cx="50%" cy="40%" r="50%">
-                    <stop offset="0%" stopColor="#f0c040" />
-                    <stop offset="60%" stopColor="#c4a030" />
-                    <stop offset="100%" stopColor="#8b6e2e" />
-                  </radialGradient>
-                </defs>
-                <rect x="20" y="10" width="320" height="22" rx="11" fill="url(#scrollRodGrad)" />
-                <rect x="20" y="10" width="320" height="10" rx="5" fill="url(#scrollRodShine)" />
-                <circle cx="28" cy="21" r="14" fill="url(#knobGrad)" stroke="#5c3a1e" strokeWidth="1.5" />
-                <circle cx="28" cy="21" r="6" fill="#5c3a1e" opacity="0.3" />
-                <circle cx="332" cy="21" r="14" fill="url(#knobGrad)" stroke="#5c3a1e" strokeWidth="1.5" />
-                <circle cx="332" cy="21" r="6" fill="#5c3a1e" opacity="0.3" />
-                <rect x="30" y="28" width="300" height="12" fill="#f2e8d0" />
-                <rect x="30" y="28" width="300" height="4" fill="rgba(139,110,78,0.08)" />
-              </svg>
-
-              <div
-                className="relative mx-auto"
-                style={{
-                  width: "calc(100% - 34px)",
-                  marginLeft: "17px",
-                  background: "linear-gradient(180deg, #f2e8d0 0%, #e8d8b8 40%, #f0e4c8 60%, #e5d5b0 100%)",
-                  borderLeft: "2px solid rgba(139,110,78,0.2)",
-                  borderRight: "2px solid rgba(139,110,78,0.2)",
-                }}
-              >
-                <div
-                  className="absolute inset-0 pointer-events-none"
-                  style={{
-                    background: "repeating-linear-gradient(0deg, transparent, transparent 18px, rgba(139,110,78,0.04) 18px, rgba(139,110,78,0.04) 19px)",
-                  }}
-                />
-                <div
-                  className="absolute inset-0 pointer-events-none"
-                  style={{
-                    background: "radial-gradient(ellipse at 20% 30%, rgba(139,110,78,0.08) 0%, transparent 50%), radial-gradient(ellipse at 80% 70%, rgba(139,110,78,0.06) 0%, transparent 50%)",
-                  }}
-                />
-                <div
-                  className="absolute top-0 left-0 right-0 h-3 pointer-events-none"
-                  style={{ background: "linear-gradient(180deg, rgba(139,110,78,0.1), transparent)" }}
-                />
-
-                <div className="relative px-6 py-5">
-                  <div className="flex items-center justify-center gap-2 mb-4">
-                    <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(139,110,78,0.3))" }} />
-                    <h3
-                      className="font-fantasy text-[#5c3a1e] text-sm tracking-[0.25em] font-bold"
-                      style={{ textShadow: "0 1px 2px rgba(0,0,0,0.08)" }}
-                      data-testid="text-quest-log-title"
-                    >
-                      QUESTS
-                    </h3>
-                    <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, rgba(139,110,78,0.3), transparent)" }} />
-                  </div>
-
-                  <div className="mb-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8b6e4e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                      </svg>
-                      <span className="font-fantasy text-[#7a5c3a] text-[10px] tracking-[0.2em] font-semibold">ACTIVE</span>
-                    </div>
-                    <div
-                      className="rounded-md p-3 flex items-center gap-3"
-                      style={{ background: "rgba(92,58,30,0.05)", border: "1px dashed rgba(139,110,78,0.2)" }}
-                      data-testid="text-no-quests"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(139,110,78,0.3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="10" />
-                        <path d="M8 12l2 2 4-4" />
-                      </svg>
-                      <p className="font-fantasy text-[#a08060] text-[10px] tracking-wider leading-relaxed">
-                        No active quests. Explore the realm to discover adventures...
-                      </p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8b6e4e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4" />
-                        <path d="M4 6v12c0 1.1.9 2 2 2h14v-4" />
-                        <path d="M18 12a2 2 0 0 0 0 4h4v-4h-4z" />
-                      </svg>
-                      <span className="font-fantasy text-[#7a5c3a] text-[10px] tracking-[0.2em] font-semibold">REWARDS</span>
-                    </div>
-                    <div
-                      className="rounded-md p-3 flex items-center gap-3"
-                      style={{ background: "rgba(92,58,30,0.05)", border: "1px dashed rgba(139,110,78,0.2)" }}
-                      data-testid="text-no-rewards"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(139,110,78,0.3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4" />
-                        <path d="M4 6v12c0 1.1.9 2 2 2h14v-4" />
-                        <path d="M18 12a2 2 0 0 0 0 4h4v-4h-4z" />
-                      </svg>
-                      <p className="font-fantasy text-[#a08060] text-[10px] tracking-wider leading-relaxed">
-                        No rewards to redeem yet.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <svg className="w-full" viewBox="0 0 360 40" preserveAspectRatio="none" style={{ display: "block", marginTop: "-1px" }}>
-                <rect x="30" y="0" width="300" height="12" fill="#e5d5b0" />
-                <rect x="30" y="8" width="300" height="4" fill="rgba(139,110,78,0.08)" />
-                <rect x="20" y="8" width="320" height="22" rx="11" fill="url(#scrollRodGrad)" />
-                <rect x="20" y="8" width="320" height="10" rx="5" fill="url(#scrollRodShine)" />
-                <circle cx="28" cy="19" r="14" fill="url(#knobGrad)" stroke="#5c3a1e" strokeWidth="1.5" />
-                <circle cx="28" cy="19" r="6" fill="#5c3a1e" opacity="0.3" />
-                <circle cx="332" cy="19" r="14" fill="url(#knobGrad)" stroke="#5c3a1e" strokeWidth="1.5" />
-                <circle cx="332" cy="19" r="6" fill="#5c3a1e" opacity="0.3" />
-              </svg>
-            </div>
-          </div>
-        </div>
-      )}
-
-
-      {showPvpNotice && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
-          <div data-testid="backdrop-pvp-notice" className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowPvpNotice(false)} />
-          <div
-            className="relative w-[80%] max-w-xs rounded-lg p-5 animate-slide-up"
-            style={{
-              background: "linear-gradient(135deg, rgba(20,10,3,0.98) 0%, rgba(45,25,8,0.98) 100%)",
-              border: "1px solid rgba(212,160,23,0.5)",
-              boxShadow: "0 8px 40px rgba(0,0,0,0.8), 0 0 60px rgba(212,160,23,0.1)",
-            }}
-          >
-            <button
-              data-testid="button-close-pvp-notice"
-              onClick={() => setShowPvpNotice(false)}
-              className="absolute -top-3 -right-3 w-8 h-8 rounded-full flex items-center justify-center"
-              style={{ background: "linear-gradient(135deg, #5c3a1e 0%, #3a2010 100%)", border: "2px solid rgba(212,160,23,0.6)", color: "#f0c040", cursor: "pointer", fontSize: "14px", fontWeight: "bold" }}
-            >
-              X
-            </button>
-            <div className="flex flex-col items-center text-center">
-              <div
-                className="w-16 h-16 rounded-full flex items-center justify-center mb-3"
-                style={{
-                  background: "radial-gradient(ellipse at center, rgba(139,0,0,0.3) 0%, rgba(60,10,10,0.5) 100%)",
-                  border: "2px solid rgba(200,50,50,0.3)",
-                  boxShadow: "0 0 20px rgba(200,50,50,0.2)",
-                }}
-              >
-                <img src={swordsImg} alt="PvP" className="w-10 h-10 object-contain" />
-              </div>
-              <h3
-                className="font-fantasy text-[#f0c040] text-base tracking-widest font-semibold mb-2"
-                style={{ textShadow: "0 0 10px rgba(240,192,64,0.3)" }}
-                data-testid="text-pvp-notice-title"
-              >
-                BATTLE ARENA
-              </h3>
-              <p className="font-fantasy text-[#c8b896] text-sm tracking-wider leading-relaxed mb-2">
-                The arena is being forged...
-              </p>
-              <p className="font-fantasy text-[#a89878] text-xs tracking-wider leading-relaxed mb-4">
-                PvP battles are coming soon! Train your pets and prepare for glorious combat against other adventurers.
-              </p>
-              <div
-                className="w-full h-px mb-4"
-                style={{ background: "linear-gradient(90deg, transparent, rgba(212,160,23,0.3), transparent)" }}
-              />
-              <p className="font-fantasy text-[#6a5840] text-[10px] tracking-widest">
-                STAY TUNED FOR UPDATES
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showPetInventory && (
-        <PetInventory
-          user={currentUser}
-          onClose={() => setShowPetInventory(false)}
-          onUserUpdate={(updatedUser) => setCurrentUser(updatedUser)}
-        />
-      )}
 
       {showSpeedUp && activePet && !activePet.isHatched && (
         <div className="fixed inset-0 z-[55] flex items-end justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
@@ -1115,7 +813,7 @@ export default function HomePage({ user }: HomePageProps) {
       `}</style>
 
       {/* ? button — shown after tutorial is dismissed */}
-      {!showHomePageTutorial && !showProfile && !showPetInventory && !showPetDetail && !scrollOpen && !showPvpNotice && (
+      {!showHomePageTutorial && !showProfile && !showPetDetail && (
         <button
           data-testid="button-open-homepage-tutorial"
           onClick={() => setShowHomePageTutorial(true)}
