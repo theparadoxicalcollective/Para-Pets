@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { fireLevelUp } from "@/lib/levelUpEvents";
-import { Swords, Star, Coins, X, ChevronRight, ArrowLeft, Heart, HelpCircle, Droplets, Zap, Skull, Sparkles, Shield } from "lucide-react";
+import { Swords, Star, Coins, X, ChevronRight, ArrowLeft, Heart, HelpCircle, Droplets } from "lucide-react";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import PetAnimator from "./PetAnimator";
 
@@ -33,6 +33,7 @@ interface EncounterPet {
   specialSkillType: string | null;
   skillDamagePercent: number | null;
   skillHealPercent: number | null;
+  rarity: number | null;
 }
 
 export interface BattlePotionSlot {
@@ -730,6 +731,21 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     }
   }, [(pet as any)?.specialSkillType, pet?.specialSkill, pet?.skillDamagePercent, skillCooldown, poisonActive]);
 
+  // ── Rarity color for pet skill glow ──────────────────────────────────────
+  const RARITY_COLORS = ["", "#a0a0b0", "#4ade80", "#60a5fa", "#c084fc", "#f0c040"];
+  const rarityColor = RARITY_COLORS[Math.min(5, Math.max(1, pet?.rarity ?? 1))] ?? "#a78bfa";
+
+  // ── Pet click: block takes priority over skill ────────────────────────────
+  const handlePetClick = useCallback((e: React.PointerEvent) => {
+    e.stopPropagation();
+    if (!battleActiveRef.current) return;
+    if (parryWindowOpenRef.current) {
+      handleParry();
+    } else if (manaRef.current >= MAX_MANA && !skillCooldown && pet?.specialSkill) {
+      useSpecialSkill();
+    }
+  }, [handleParry, useSpecialSkill, skillCooldown, pet?.specialSkill]);
+
   // ── Potion usage ─────────────────────────────────────────────────────────
   const usePotion = useCallback((slotIndex: number) => {
     const slot = activeSlotsRef.current[slotIndex];
@@ -902,6 +918,14 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           0%   { filter: drop-shadow(0 0 10px rgba(167,139,250,0.7)); }
           50%  { filter: drop-shadow(0 0 22px rgba(167,139,250,1.0)); }
           100% { filter: drop-shadow(0 0 10px rgba(167,139,250,0.7)); }
+        }
+        @keyframes blockReadyPulse {
+          0%,100% { filter: drop-shadow(0 0 16px rgba(239,68,68,0.85)) brightness(1);   }
+          50%     { filter: drop-shadow(0 0 34px rgba(239,68,68,1.0))  brightness(1.08); }
+        }
+        @keyframes skillReadyGlow {
+          0%,100% { opacity: 0.7; transform: translate(-50%,-50%) scale(1);    }
+          50%     { opacity: 1;   transform: translate(-50%,-50%) scale(1.12); }
         }
         @keyframes manaAura {
           0%   { transform: translate(-50%,-50%) scale(1);    opacity: 0.25; }
@@ -1208,22 +1232,42 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
 
             {/* ── Pet sprite (fixed position) ─────────────────────────── */}
             <div
-              className="absolute z-10 pointer-events-none"
+              className="absolute z-10"
               style={{
                 left: `${PET_X}%`,
                 top: `${PET_Y}%`,
                 transform: "translate(-50%, -50%)",
-                animation: petHit ? "petHitBounce 0.42s ease-out" : undefined,
-                filter: petHit ? "drop-shadow(0 0 14px rgba(239,68,68,0.9))" : undefined,
+                animation: petHit
+                  ? "petHitBounce 0.42s ease-out"
+                  : parryWindowOpen
+                    ? "blockReadyPulse 0.55s ease-in-out infinite"
+                    : undefined,
+                filter: petHit
+                  ? "drop-shadow(0 0 14px rgba(239,68,68,0.9))"
+                  : undefined,
+                pointerEvents: (phase === "battle" && (parryWindowOpen || (mana >= MAX_MANA && !skillCooldown && !!pet.specialSkill))) ? "auto" : "none",
+                cursor: (parryWindowOpen || (mana >= MAX_MANA && !skillCooldown && !!pet.specialSkill)) ? "pointer" : "default",
               }}
+              onPointerDown={handlePetClick}
+              data-testid="pet-battle-sprite"
             >
-              {/* Mana-ready aura */}
-              {mana >= MAX_MANA && !skillCooldown && pet.specialSkill && (
+              {/* Block-ready red ring */}
+              {parryWindowOpen && (
+                <div style={{
+                  position: "absolute", left: "50%", top: "50%",
+                  width: 210, height: 210, borderRadius: "50%",
+                  border: "3px solid rgba(239,68,68,0.9)",
+                  boxShadow: "0 0 28px rgba(239,68,68,0.8), 0 0 10px rgba(239,68,68,0.5)",
+                  animation: "chargeRingPulse 0.55s ease-in-out infinite",
+                }} />
+              )}
+              {/* Skill-ready rarity aura */}
+              {!parryWindowOpen && mana >= MAX_MANA && !skillCooldown && pet.specialSkill && (
                 <div style={{
                   position: "absolute", left: "50%", top: "50%",
                   width: 200, height: 200, borderRadius: "50%",
-                  border: "2.5px solid rgba(167,139,250,0.75)",
-                  boxShadow: "0 0 20px rgba(124,58,237,0.6)",
+                  border: `2.5px solid ${rarityColor}cc`,
+                  boxShadow: `0 0 24px ${rarityColor}99, 0 0 10px ${rarityColor}55`,
                   animation: "manaAura 1s ease-in-out infinite",
                 }} />
               )}
@@ -1273,39 +1317,43 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   whiteSpace: "nowrap",
                 }}>⚡×{counterHitsLeft} 2×</div>
               )}
-            </div>
 
-            {/* ── Floating BLOCK button (appears during charge) ───────── */}
-            {phase === "battle" && parryWindowOpen && (
-              <div
-                className="absolute z-30 pointer-events-auto"
-                style={{
+              {/* Tap action hint above pet */}
+              {phase === "battle" && parryWindowOpen && (
+                <div style={{
+                  position: "absolute",
+                  top: -36,
                   left: "50%",
-                  top: "74%",
-                  transform: "translate(-50%, -50%)",
-                }}
-              >
-                <button
-                  data-testid="button-block"
-                  onPointerDown={(e) => { e.stopPropagation(); handleParry(); }}
-                  className="flex items-center gap-2 font-fantasy tracking-widest rounded-2xl transition-transform active:scale-90"
-                  style={{
-                    background: "linear-gradient(135deg, rgba(20,80,20,0.95), rgba(10,50,10,0.95))",
-                    border: "2px solid rgba(74,222,128,0.9)",
-                    boxShadow: "0 0 24px rgba(74,222,128,0.8), 0 0 8px rgba(74,222,128,0.5)",
-                    color: "#4ade80",
-                    padding: "10px 22px",
-                    fontSize: 15,
-                    fontWeight: 900,
-                    letterSpacing: "0.15em",
-                    animation: "parryButtonPulse 0.55s ease-in-out infinite",
-                  }}
-                >
-                  <Shield className="w-5 h-5" style={{ color: "#4ade80" }} />
-                  BLOCK
-                </button>
-              </div>
-            )}
+                  transform: "translateX(-50%)",
+                  whiteSpace: "nowrap",
+                  fontFamily: "Cinzel, serif",
+                  fontSize: 11,
+                  fontWeight: 800,
+                  color: "#ef4444",
+                  textShadow: "0 0 10px rgba(239,68,68,0.9), 0 1px 0 #000",
+                  letterSpacing: "0.1em",
+                  animation: "tensionPulse 0.4s ease-in-out infinite",
+                  pointerEvents: "none",
+                }}>🛡 TAP TO BLOCK</div>
+              )}
+              {phase === "battle" && !parryWindowOpen && mana >= MAX_MANA && !skillCooldown && pet.specialSkill && (
+                <div style={{
+                  position: "absolute",
+                  top: -36,
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  whiteSpace: "nowrap",
+                  fontFamily: "Cinzel, serif",
+                  fontSize: 11,
+                  fontWeight: 800,
+                  color: rarityColor,
+                  textShadow: `0 0 10px ${rarityColor}cc, 0 1px 0 #000`,
+                  letterSpacing: "0.1em",
+                  animation: "tensionPulse 0.7s ease-in-out infinite",
+                  pointerEvents: "none",
+                }}>✦ TAP FOR SKILL</div>
+              )}
+            </div>
 
             {/* Block result flash */}
             {parryResult === "success" && (
@@ -1331,7 +1379,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               <div className="absolute z-10 pointer-events-none"
                 style={{ bottom: "22%", left: "50%", transform: "translateX(-50%)", whiteSpace: "nowrap" }}>
                 <div className="text-white/22 text-[10px] font-medium animate-pulse tracking-widest text-center">
-                  Swipe through the enemy · tap BLOCK when it charges
+                  Swipe through the enemy · tap your pet to block or use skills
                 </div>
               </div>
             )}
@@ -1340,39 +1388,16 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
             <div className="absolute bottom-0 left-0 right-0 z-20"
               style={{ background: "linear-gradient(0deg, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.6) 70%, transparent 100%)", padding: "10px 14px 12px" }}>
 
-              {/* Row 1: Pet name + level + skill */}
+              {/* Row 1: Pet name + level + skill status */}
               <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-1.5">
                   <span className="text-sm font-bold drop-shadow-lg truncate" style={{ color: accent }}>{pet.name}</span>
                   <span className="text-gray-400 text-xs">Lv.{pet.level}</span>
                 </div>
                 {pet.specialSkill && phase === "battle" && (
-                  <button
-                    data-testid="button-use-skill"
-                    onPointerDown={(e) => { e.stopPropagation(); useSpecialSkill(); }}
-                    disabled={mana < MAX_MANA || skillCooldown}
-                    className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1 rounded-full border transition-all"
-                    style={{
-                      background: mana >= MAX_MANA && !skillCooldown
-                        ? "linear-gradient(135deg, #4c1d95, #7c3aed)"
-                        : "rgba(0,0,0,0.5)",
-                      borderColor: mana >= MAX_MANA && !skillCooldown ? "#a78bfa" : "rgba(255,255,255,0.1)",
-                      boxShadow: mana >= MAX_MANA && !skillCooldown ? "0 0 16px rgba(167,139,250,0.7)" : undefined,
-                      opacity: skillCooldown ? 0.5 : 1,
-                      animation: mana >= MAX_MANA && !skillCooldown ? "tensionPulse 0.7s ease-in-out infinite" : undefined,
-                      cursor: mana >= MAX_MANA && !skillCooldown ? "pointer" : "not-allowed",
-                    }}
-                  >
-                    {pet.specialSkill === "Lazer" ? <Zap className="w-4 h-4" style={{ color: "#facc15" }} /> :
-                     pet.specialSkill === "Bubble" ? <Droplets className="w-4 h-4" style={{ color: "#67e8f9" }} /> :
-                     pet.specialSkill === "Heal Self" || pet.specialSkill === "Heal Party" ? <Heart className="w-4 h-4" style={{ color: "#4ade80" }} /> :
-                     pet.specialSkill === "Poison" ? <Skull className="w-4 h-4" style={{ color: "#a855f7" }} /> :
-                     <Sparkles className="w-4 h-4" style={{ color: "#e879f9" }} />}
-                    <span className="text-[9px] font-fantasy tracking-wider"
-                      style={{ color: mana >= MAX_MANA && !skillCooldown ? "#e9d5ff" : "#6b7280" }}>
-                      {skillCooldown ? "CD" : mana >= MAX_MANA ? "READY!" : pet.specialSkill.split(" ")[0].toUpperCase()}
-                    </span>
-                  </button>
+                  <span className="text-[9px] font-fantasy tracking-wider" style={{ color: skillCooldown ? "#6b7280" : mana >= MAX_MANA ? rarityColor : "#6b7280", opacity: 0.85 }}>
+                    {skillCooldown ? "CD" : mana >= MAX_MANA ? `✦ ${pet.specialSkill.split(" ")[0].toUpperCase()} READY` : `${pet.specialSkill.split(" ")[0].toUpperCase()} ${mana}/${MAX_MANA}`}
+                  </span>
                 )}
               </div>
 

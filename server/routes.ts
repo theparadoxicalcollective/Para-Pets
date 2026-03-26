@@ -2780,6 +2780,7 @@ export async function registerRoutes(
         specialSkillType: shopItem?.specialSkillType || null,
         skillDamagePercent: shopItem?.skillDamagePercent ?? null,
         skillHealPercent: shopItem?.skillHealPercent ?? null,
+        rarity: shopItem?.rarity ?? null,
       }));
       const activePet = inventoryJoined.find((inv: any) => inv.shopItemId === user.activePetId && inv.isHatched);
       if (!activePet) {
@@ -2856,6 +2857,7 @@ export async function registerRoutes(
           specialSkillType: (activePet as any).specialSkillType || null,
           skillDamagePercent: activePet.skillDamagePercent ?? null,
           skillHealPercent: (activePet as any).skillHealPercent ?? null,
+          rarity: (activePet as any).rarity ?? null,
         },
       });
     } catch (err) {
