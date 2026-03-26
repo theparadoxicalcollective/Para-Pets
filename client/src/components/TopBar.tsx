@@ -30,7 +30,9 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
   const [location, navigate] = useLocation();
   const [showRewards, setShowRewards] = useState(false);
   const [showRequestsPopup, setShowRequestsPopup] = useState(false);
+  const [showFriendsList, setShowFriendsList] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
+  const friendsListRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const seenNotifIds = useRef<Set<string>>(new Set());
@@ -94,6 +96,11 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
     },
   });
 
+  const { data: friendsList = [] } = useQuery<any[]>({
+    queryKey: ["/api/friends"],
+    enabled: showFriendsList,
+  });
+
   useEffect(() => {
     if (!showRequestsPopup) return;
     function handleClick(e: MouseEvent) {
@@ -104,6 +111,17 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showRequestsPopup]);
+
+  useEffect(() => {
+    if (!showFriendsList) return;
+    function handleClick(e: MouseEvent) {
+      if (friendsListRef.current && !friendsListRef.current.contains(e.target as Node)) {
+        setShowFriendsList(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showFriendsList]);
 
   // Auto-close the popup once all requests have been handled
   useEffect(() => {
@@ -179,18 +197,18 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
               </button>
             )}
             {!user.isAdmin && (
-              <div className="relative" ref={popupRef}>
+              <div className="relative" ref={friendsListRef}>
                 <button
                   data-testid="button-friends-icon"
-                  onClick={() => setShowRequestsPopup(v => !v)}
+                  onClick={() => setShowFriendsList(v => !v)}
                   className="topbar-icon-size-sm flex-shrink-0 flex items-center justify-center transition-transform duration-150 active:scale-90"
                   style={{
-                    background: showRequestsPopup
+                    background: showFriendsList
                       ? "linear-gradient(135deg, rgba(74,222,128,0.35) 0%, rgba(22,163,74,0.3) 100%)"
                       : "linear-gradient(135deg, rgba(74,222,128,0.12) 0%, rgba(22,163,74,0.12) 100%)",
-                    border: `2px solid ${showRequestsPopup ? "rgba(74,222,128,0.8)" : "rgba(74,222,128,0.45)"}`,
+                    border: `2px solid ${showFriendsList ? "rgba(74,222,128,0.8)" : "rgba(74,222,128,0.45)"}`,
                     cursor: "pointer",
-                    boxShadow: showRequestsPopup
+                    boxShadow: showFriendsList
                       ? "0 2px 10px rgba(0,0,0,0.6), 0 0 18px rgba(74,222,128,0.35)"
                       : "0 2px 10px rgba(0,0,0,0.6), 0 0 14px rgba(74,222,128,0.12)",
                     borderRadius: "10px",
@@ -202,23 +220,11 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                     <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
                     <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                   </svg>
-                  {friendRequestCount > 0 && !showRequestsPopup && (
-                    <div
-                      className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full flex items-center justify-center px-1"
-                      style={{
-                        background: "radial-gradient(circle, #4ade80 0%, #16a34a 100%)",
-                        border: "1.5px solid rgba(30,15,5,0.8)",
-                        boxShadow: "0 0 6px rgba(74,222,128,0.6)",
-                      }}
-                    >
-                      <span className="font-bold text-[8px] text-white leading-none">{friendRequestCount}</span>
-                    </div>
-                  )}
                 </button>
-                {showRequestsPopup && (
+                {showFriendsList && (
                   <div
-                    data-testid="popup-friend-requests"
-                    className="absolute top-full mt-2 left-0 z-50 min-w-[220px]"
+                    data-testid="popup-friends-list"
+                    className="absolute top-full mt-2 left-0 z-50 min-w-[200px]"
                     style={{
                       background: "linear-gradient(160deg, rgba(20,10,4,0.97) 0%, rgba(40,22,8,0.97) 100%)",
                       border: "1px solid rgba(74,222,128,0.35)",
@@ -228,34 +234,28 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                     }}
                   >
                     <p className="font-fantasy tracking-widest text-center mb-2" style={{ fontSize: 9, color: "rgba(74,222,128,0.7)", letterSpacing: "0.2em" }}>
-                      FRIEND REQUESTS
+                      FRIENDS
                     </p>
-                    {pendingRequests.length === 0 ? (
-                      <p className="text-center text-xs" style={{ color: "rgba(255,255,255,0.35)", padding: "6px 0" }}>No pending requests</p>
+                    {friendsList.length === 0 ? (
+                      <p className="text-center text-xs" style={{ color: "rgba(255,255,255,0.35)", padding: "6px 0" }}>No friends yet</p>
                     ) : (
-                      <div className="flex flex-col gap-2">
-                        {pendingRequests.map(req => (
+                      <div className="flex flex-col gap-1.5">
+                        {friendsList.map((f: any) => (
                           <div
-                            key={req.id}
-                            data-testid={`friend-request-${req.id}`}
-                            className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5"
-                            style={{ background: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)" }}
+                            key={f.id}
+                            data-testid={`friend-${f.friendId}`}
+                            className="flex items-center gap-2 rounded-lg px-2 py-1.5"
+                            style={{ background: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)", cursor: "pointer" }}
+                            onClick={() => { navigate(`/player/${f.friendId}`); setShowFriendsList(false); }}
                           >
-                            <span className="font-fantasy truncate flex-1" style={{ fontSize: 11, color: "#7fffd4" }}>{req.username}</span>
-                            <button
-                              data-testid={`button-accept-${req.id}`}
-                              onClick={() => acceptMutation.mutate(req.id)}
-                              disabled={acceptMutation.isPending || declineMutation.isPending}
-                              className="flex-shrink-0 transition-transform active:scale-90"
-                              style={{ background: "linear-gradient(135deg, rgba(74,222,128,0.25) 0%, rgba(22,163,74,0.25) 100%)", border: "1px solid rgba(74,222,128,0.5)", borderRadius: 8, padding: "3px 8px", cursor: "pointer", color: "#4ade80", fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}
-                            >✓ Accept</button>
-                            <button
-                              data-testid={`button-decline-${req.id}`}
-                              onClick={() => declineMutation.mutate(req.requesterId)}
-                              disabled={acceptMutation.isPending || declineMutation.isPending}
-                              className="flex-shrink-0 transition-transform active:scale-90"
-                              style={{ background: "linear-gradient(135deg, rgba(248,113,113,0.15) 0%, rgba(185,28,28,0.15) 100%)", border: "1px solid rgba(248,113,113,0.4)", borderRadius: 8, padding: "3px 8px", cursor: "pointer", color: "#f87171", fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}
-                            >✕ Decline</button>
+                            {f.profileImage ? (
+                              <img src={f.profileImage} alt="" className="w-7 h-7 rounded-lg object-cover flex-shrink-0" style={{ border: "1px solid rgba(74,222,128,0.3)" }} />
+                            ) : (
+                              <div className="w-7 h-7 rounded-lg flex-shrink-0 flex items-center justify-center" style={{ background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.3)" }}>
+                                <span className="font-fantasy text-[10px]" style={{ color: "#4ade80" }}>{(f.username || "?").charAt(0).toUpperCase()}</span>
+                              </div>
+                            )}
+                            <span className="font-fantasy truncate flex-1" style={{ fontSize: 11, color: "#7fffd4" }}>{f.username}</span>
                           </div>
                         ))}
                       </div>
