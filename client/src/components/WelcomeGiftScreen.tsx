@@ -148,32 +148,34 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
 
       {phase === "loading" ? (
         /* Loading state — shown briefly while rewards fetch */
-        <div className="flex flex-col items-center gap-4">
-          <div
-            className="flex items-center justify-center"
-            style={{
-              width: 72, height: 72, borderRadius: "50%",
-              background: "radial-gradient(ellipse at 40% 35%, rgba(240,200,80,0.18) 0%, rgba(192,132,252,0.14) 60%, transparent 80%)",
-              border: "2px solid rgba(212,170,50,0.35)",
-              boxShadow: "0 0 30px rgba(192,132,252,0.25)",
-            }}
-          >
-            <img src={giftTreasureIcon} alt="" style={{ width: 48, height: 48, objectFit: "contain", animation: "pulse 1.4s ease-in-out infinite" }} />
+        <>
+          <div className="flex flex-col items-center gap-4">
+            <div
+              className="flex items-center justify-center"
+              style={{
+                width: 72, height: 72, borderRadius: "50%",
+                background: "radial-gradient(ellipse at 40% 35%, rgba(240,200,80,0.18) 0%, rgba(192,132,252,0.14) 60%, transparent 80%)",
+                border: "2px solid rgba(212,170,50,0.35)",
+                boxShadow: "0 0 30px rgba(192,132,252,0.25)",
+              }}
+            >
+              <img src={giftTreasureIcon} alt="" style={{ width: 48, height: 48, objectFit: "contain", animation: "pulse 1.4s ease-in-out infinite" }} />
+            </div>
+            <p
+              className="text-[11px] tracking-widest uppercase"
+              style={{ color: "rgba(212,170,50,0.55)", animation: "pulse 1.8s ease-in-out infinite" }}
+            >
+              Preparing your gifts…
+            </p>
           </div>
-          <p
-            className="text-[11px] tracking-widest uppercase"
-            style={{ color: "rgba(212,170,50,0.55)", animation: "pulse 1.8s ease-in-out infinite" }}
+          <button
+            onClick={handleSkip}
+            className="absolute bottom-10 left-0 right-0 text-center"
+            style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(150,130,100,0.45)", fontSize: 10, letterSpacing: "0.05em" }}
           >
-            Preparing your gifts…
-          </p>
-        </div>
-        <button
-          onClick={handleSkip}
-          className="absolute bottom-10 left-0 right-0 text-center"
-          style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(150,130,100,0.45)", fontSize: 10, letterSpacing: "0.05em" }}
-        >
-          skip for now
-        </button>
+            skip for now
+          </button>
+        </>
       ) : (
         /* Main card — shown only once data is ready */
         <div
