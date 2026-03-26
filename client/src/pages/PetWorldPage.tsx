@@ -3,8 +3,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, X, Trash2, FlipHorizontal, Palette } from "lucide-react";
+import { Plus, X, Trash2, FlipHorizontal, Palette, MapPin, Minus, Store } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
+import { playShopBell } from "@/lib/sounds";
 import PetAnimator from "@/components/PetAnimator";
 import bgGround from "@assets/pw_ground_layer.png";
 import friendsIconSrc from "@assets/friends_icon.png";
@@ -50,6 +51,8 @@ function seededRand(seed: string, n: number) {
 
 type DecorItem      = { id: string; worldId: string; name: string; imageUrl: string; createdAt: string };
 type DecorPlacement = { id: string; worldId: string; decorItemId: string; name: string; imageUrl: string; posX: number; posY: number; size: number; flipped: boolean; message: string | null; createdAt: string };
+type KCLocation     = { id: string; worldId: string; name: string; type: string; iconUrl: string | null; bgUrl: string | null; description: string | null; posX: number; posY: number; isShop: boolean; glowColor: string | null; iconSize: number; flipped: boolean; sortOrder: number; ownerImageUrl: string | null };
+type KCShopItem     = { id: string; name: string; price: number; type: string; imageUrl: string | null; rarity: number | null; hatchTime: number | null; eggImageUrl: string | null; hatchedImageUrl: string | null; worldId: string; description?: string | null };
 type WorldActivePet = {
   userId: string;
   username: string;
@@ -109,6 +112,22 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const [newDecorName,     setNewDecorName]     = useState("");
   const [newDecorImage,    setNewDecorImage]    = useState<string | null>(null);
   const [showFriendsPanel, setShowFriendsPanel] = useState(false);
+
+  // ── location state ─────────────────────────────────────────────────────────
+  const [activeLocId,       setActiveLocId]       = useState<string | null>(null);
+  const [showLocShop,       setShowLocShop]       = useState(false);
+  const [showPlacesPanel,   setShowPlacesPanel]   = useState(false);
+  const [showAddLocForm,    setShowAddLocForm]     = useState(false);
+  const [newLocName,        setNewLocName]         = useState("");
+  const [newLocType,        setNewLocType]         = useState("shop");
+  const [newLocGlow,        setNewLocGlow]         = useState("#d4a017");
+  const [newLocIcon,        setNewLocIcon]         = useState<string | null>(null);
+  const [newLocOwner,       setNewLocOwner]        = useState<string | null>(null);
+  const [selectedLocId,     setSelectedLocId]      = useState<string | null>(null);
+  const [locDragPos,        setLocDragPos]         = useState<{ id: string; x: number; y: number } | null>(null);
+  const locDragRef    = useRef<{ locId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
+  const locDidDrag    = useRef(false);
+  const adminLocTapRef = useRef<{ id: string; timer: ReturnType<typeof setTimeout> } | null>(null);
 
   // ── queries ────────────────────────────────────────────────────────────────
   const { data: decorItems = [] } = useQuery<DecorItem[]>({
@@ -188,6 +207,124 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     },
     onError: () => toast({ title: "Error", description: "Could not remove friend.", variant: "destructive" }),
   });
+
+  // ── location queries ────────────────────────────────────────────────────────
+  const { data: kcLocations = [] } = useQuery<KCLocation[]>({
+    queryKey: ["/api/world", WORLD_ID, "locations"],
+    queryFn: async () => {
+      const res = await fetch(`/api/world/${WORLD_ID}/locations`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    staleTime: 60_000,
+  });
+
+  const { data: locShopItems = [] } = useQuery<KCShopItem[]>({
+    queryKey: ["/api/location", activeLocId, "items"],
+    queryFn: async () => {
+      const res = await fetch(`/api/location/${activeLocId}/items`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    enabled: showLocShop && !!activeLocId,
+    staleTime: 30_000,
+  });
+
+  // ── location mutations ──────────────────────────────────────────────────────
+  const addLocMutation = useMutation({
+    mutationFn: async (data: { name: string; type: string; iconData?: string | null; ownerImageData?: string | null; glowColor?: string }) => {
+      const res = await apiRequest("POST", `/api/admin/world/${WORLD_ID}/location`, { ...data, isShop: data.type === "shop" });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/world", WORLD_ID, "locations"] });
+      setShowAddLocForm(false);
+      setNewLocName(""); setNewLocType("shop"); setNewLocIcon(null); setNewLocOwner(null);
+      toast({ title: "Place Added" });
+    },
+    onError: () => toast({ title: "Error", description: "Failed to add place", variant: "destructive" }),
+  });
+
+  const deleteLocMutation = useMutation({
+    mutationFn: async (id: string) => { await apiRequest("DELETE", `/api/admin/world/location/${id}`); },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/world", WORLD_ID, "locations"] }),
+  });
+
+  const updateLocPositionMutation = useMutation({
+    mutationFn: async ({ locationId, posX, posY }: { locationId: string; posX: number; posY: number }) => {
+      await apiRequest("PATCH", `/api/admin/world/location/${locationId}/position`, { posX, posY });
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/world", WORLD_ID, "locations"] }),
+  });
+
+  const updateLocSizeMutation = useMutation({
+    mutationFn: async ({ locationId, iconSize }: { locationId: string; iconSize: number }) => {
+      const res = await apiRequest("PATCH", `/api/admin/world/location/${locationId}`, { iconSize });
+      return res.json();
+    },
+    onMutate: async ({ locationId, iconSize }) => {
+      queryClient.setQueryData<KCLocation[]>(["/api/world", WORLD_ID, "locations"], old =>
+        old?.map(l => l.id === locationId ? { ...l, iconSize } : l)
+      );
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/world", WORLD_ID, "locations"] }),
+  });
+
+  const flipLocMutation = useMutation({
+    mutationFn: async (id: string) => { await apiRequest("PATCH", `/api/admin/world/location/${id}/flip`, {}); },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/world", WORLD_ID, "locations"] }),
+  });
+
+  // ── location drag handlers ──────────────────────────────────────────────────
+  const handleLocPointerDown = useCallback((e: React.PointerEvent, loc: KCLocation) => {
+    if (!user.isAdmin) return;
+    e.stopPropagation();
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    locDidDrag.current = false;
+    locDragRef.current = { locId: loc.id, startX: e.clientX, startY: e.clientY, origPosX: loc.posX, origPosY: loc.posY };
+  }, [user.isAdmin]);
+
+  const handleLocPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!locDragRef.current || !areaRef.current) return;
+    const rect = areaRef.current.getBoundingClientRect();
+    const dx = e.clientX - locDragRef.current.startX;
+    const dy = e.clientY - locDragRef.current.startY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) locDidDrag.current = true;
+    const newX = Math.max(0, Math.min(85, locDragRef.current.origPosX + dx / (rect.width / 100)));
+    const newY = Math.max(0, Math.min(85, locDragRef.current.origPosY + dy / (rect.height / 100)));
+    setLocDragPos({ id: locDragRef.current.locId, x: newX, y: newY });
+  }, []);
+
+  const handleLocPointerUp = useCallback(() => {
+    if (!locDragRef.current) return;
+    const d = locDragRef.current;
+    locDragRef.current = null;
+    if (locDidDrag.current && locDragPos) {
+      updateLocPositionMutation.mutate({ locationId: d.locId, posX: locDragPos.x, posY: locDragPos.y });
+    }
+    locDidDrag.current = false;
+    setLocDragPos(null);
+  }, [locDragPos, updateLocPositionMutation]);
+
+  const handleLocClick = useCallback((loc: KCLocation) => {
+    if (locDidDrag.current || mapJustPannedRef.current) return;
+    if (user.isAdmin) {
+      if (adminLocTapRef.current?.id === loc.id) {
+        clearTimeout(adminLocTapRef.current.timer);
+        adminLocTapRef.current = null;
+        setSelectedLocId(null);
+        if (loc.isShop) { setActiveLocId(loc.id); setShowLocShop(true); playShopBell(); }
+      } else {
+        if (adminLocTapRef.current) clearTimeout(adminLocTapRef.current.timer);
+        setSelectedLocId(loc.id);
+        const timer = setTimeout(() => { adminLocTapRef.current = null; setSelectedLocId(null); }, 400);
+        adminLocTapRef.current = { id: loc.id, timer };
+      }
+    } else {
+      if (loc.isShop) { setActiveLocId(loc.id); setShowLocShop(true); playShopBell(); }
+    }
+  }, [user.isAdmin]);
 
   const [selectedPet, setSelectedPet] = useState<WorldActivePet | null>(null);
 
@@ -565,6 +702,96 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
             );
           })}
 
+          {/* ── Locations (places) on the map ─────────────────────────── */}
+          {[...kcLocations].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map(loc => {
+            const pos = locDragPos?.id === loc.id ? { x: locDragPos.x, y: locDragPos.y } : { x: loc.posX, y: loc.posY };
+            const glow = loc.glowColor || "#d4a017";
+            const sz = loc.iconSize || 160;
+            return (
+              <div
+                key={loc.id}
+                className="absolute flex flex-col items-center"
+                style={{
+                  left: `${pos.x}%`,
+                  top: `${pos.y}%`,
+                  width: sz,
+                  cursor: user.isAdmin ? "grab" : (loc.isShop ? "pointer" : "default"),
+                  zIndex: selectedLocId === loc.id ? 150 : 12,
+                  transform: "translate(-50%, -100%)",
+                  touchAction: "none",
+                }}
+                onPointerDown={e => handleLocPointerDown(e, loc)}
+                onPointerMove={handleLocPointerMove}
+                onPointerUp={handleLocPointerUp}
+                onPointerCancel={() => { locDragRef.current = null; locDidDrag.current = false; setLocDragPos(null); }}
+              >
+                <div className="relative w-full" style={{ pointerEvents: "none" }}>
+                  {loc.iconUrl ? (
+                    <img
+                      src={loc.iconUrl}
+                      alt={loc.name}
+                      draggable={false}
+                      style={{
+                        width: "100%",
+                        objectFit: "contain",
+                        filter: `drop-shadow(0 4px 8px rgba(0,0,0,0.6)) drop-shadow(0 0 12px ${glow}40)`,
+                        transform: loc.flipped ? "scaleX(-1)" : undefined,
+                      }}
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center" style={{ width: sz, height: sz, borderRadius: 16, background: `radial-gradient(circle at 40% 35%, ${glow}30, ${glow}10)`, border: `1.5px solid ${glow}50` }}>
+                      <Store style={{ width: sz * 0.4, height: sz * 0.4, color: glow }} />
+                    </div>
+                  )}
+                  {/* Click zone */}
+                  <div
+                    onClick={e => { e.stopPropagation(); handleLocClick(loc); }}
+                    style={{ position: "absolute", inset: 0, pointerEvents: "auto", cursor: user.isAdmin ? "grab" : (loc.isShop ? "pointer" : "default"), zIndex: 20 }}
+                  />
+                  {/* Admin controls */}
+                  {user.isAdmin && selectedLocId === loc.id && (
+                    <div style={{ pointerEvents: "auto" }}>
+                      <button onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); if (confirm(`Delete "${loc.name}"?`)) deleteLocMutation.mutate(loc.id); setSelectedLocId(null); }}
+                        className="absolute -top-4 -left-4 z-30 w-9 h-9 rounded-full flex items-center justify-center"
+                        style={{ background: "rgba(220,38,38,0.95)", border: "2px solid rgba(255,100,100,0.7)", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}>
+                        <Trash2 className="w-4 h-4 text-white" />
+                      </button>
+                      <button onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); flipLocMutation.mutate(loc.id); }}
+                        className="absolute -top-4 -right-4 z-30 w-9 h-9 rounded-full flex items-center justify-center"
+                        style={{ background: "rgba(0,80,180,0.95)", border: "2px solid rgba(100,180,255,0.7)", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}>
+                        <FlipHorizontal className="w-4 h-4 text-white" />
+                      </button>
+                      <button onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); updateLocSizeMutation.mutate({ locationId: loc.id, iconSize: Math.max(60, sz - 10) }); }}
+                        className="absolute -bottom-4 -left-4 z-30 w-9 h-9 rounded-full flex items-center justify-center"
+                        style={{ background: "rgba(80,40,0,0.95)", border: "2px solid rgba(255,160,50,0.7)", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}>
+                        <Minus className="w-4 h-4 text-white" />
+                      </button>
+                      <button onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); updateLocSizeMutation.mutate({ locationId: loc.id, iconSize: Math.min(400, sz + 10) }); }}
+                        className="absolute -bottom-4 -right-4 z-30 w-9 h-9 rounded-full flex items-center justify-center"
+                        style={{ background: "rgba(80,40,0,0.95)", border: "2px solid rgba(255,160,50,0.7)", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}>
+                        <Plus className="w-4 h-4 text-white" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {/* Name label */}
+                <div
+                  className="font-fantasy text-center whitespace-nowrap"
+                  style={{
+                    marginTop: 6, fontSize: 11, color: glow,
+                    textShadow: `0 0 8px ${glow}80, 0 1px 4px rgba(0,0,0,0.9)`,
+                    background: "rgba(4,10,6,0.72)", padding: "2px 8px",
+                    borderRadius: 8, border: `1px solid ${glow}30`,
+                    pointerEvents: "none",
+                  }}
+                >
+                  {loc.name}
+                  {loc.isShop && <span style={{ marginLeft: 4, fontSize: 9, opacity: 0.75 }}>• Shop</span>}
+                </div>
+              </div>
+            );
+          })}
+
           {/* Decor placements */}
           {decorPlacements.map(p => {
             const dpos = decorDragPos?.id === p.id ? { x: decorDragPos.x, y: decorDragPos.y } : { x: p.posX, y: p.posY };
@@ -781,12 +1008,27 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
             </div>
           </div>
 
-          {/* RIGHT: admin decor button only */}
+          {/* RIGHT: admin buttons */}
           {user.isAdmin && (
-            <div className="flex items-center flex-shrink-0" style={{ paddingTop: 2 }}>
+            <div className="flex items-center gap-2 flex-shrink-0" style={{ paddingTop: 2 }}>
+              <button
+                data-testid="button-world-places"
+                onClick={() => { setShowPlacesPanel(p => !p); setShowDecorPanel(false); }}
+                className="flex-shrink-0 flex items-center justify-center transition-transform active:scale-90 topbar-icon-size-sm"
+                style={{
+                  background: showPlacesPanel ? `rgba(212,160,23,0.22)` : "rgba(4,10,6,0.82)",
+                  border: `2px solid #d4a01755`,
+                  boxShadow: "0 2px 10px rgba(0,0,0,0.6)",
+                  cursor: "pointer",
+                  borderRadius: 10,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}
+              >
+                <MapPin className="w-4 h-4" style={{ color: "#d4a017" }} />
+              </button>
               <button
                 data-testid="button-world-decor"
-                onClick={() => setShowDecorPanel(p => !p)}
+                onClick={() => { setShowDecorPanel(p => !p); setShowPlacesPanel(false); }}
                 className="flex-shrink-0 flex items-center justify-center transition-transform active:scale-90 topbar-icon-size-sm"
                 style={{
                   background: showDecorPanel ? `rgba(127,255,212,0.18)` : "rgba(4,10,6,0.82)",
@@ -1139,6 +1381,226 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           </div>
         </div>
       )}
+
+      {/* ── Admin Places Panel ────────────────────────────────────────────── */}
+      {showPlacesPanel && user.isAdmin && (
+        <div
+          className="fixed z-40 flex flex-col"
+          style={{
+            bottom: 0, left: 0, right: 0, maxHeight: "58vh",
+            background: "linear-gradient(180deg, rgba(8,7,2,0.97) 0%, rgba(12,10,3,0.99) 100%)",
+            borderTop: "1.5px solid #d4a01750",
+            borderLeft: "1.5px solid #d4a01730",
+            borderRight: "1.5px solid #d4a01730",
+            borderRadius: "16px 16px 0 0",
+            boxShadow: "0 -8px 40px rgba(0,0,0,0.7), 0 0 40px rgba(212,160,23,0.12)",
+          }}
+        >
+          <div className="flex items-center justify-between px-4 py-3 shrink-0" style={{ borderBottom: "1px solid #d4a01725" }}>
+            <span className="font-fantasy text-sm tracking-widest" style={{ color: "#d4a017", textShadow: "0 0 12px #d4a01750" }}>
+              Places
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                data-testid="button-add-place"
+                onClick={() => setShowAddLocForm(p => !p)}
+                className="w-7 h-7 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                style={{ background: "#d4a01730", border: "1.5px solid #d4a01780", cursor: "pointer" }}
+                title="Add new place"
+              >
+                <Plus className="w-4 h-4" style={{ color: "#d4a017" }} />
+              </button>
+              <button onClick={() => { setShowPlacesPanel(false); setShowAddLocForm(false); }}
+                style={{ background: "none", border: "none", cursor: "pointer" }}>
+                <X className="w-5 h-5" style={{ color: "#d4a01788" }} />
+              </button>
+            </div>
+          </div>
+
+          {/* Add form */}
+          {showAddLocForm && (
+            <div className="px-4 py-3 shrink-0 flex flex-col gap-2" style={{ borderBottom: "1px solid #d4a01718" }}>
+              <input
+                type="text"
+                placeholder="Place name…"
+                value={newLocName}
+                onChange={e => setNewLocName(e.target.value)}
+                className="font-fantasy text-xs rounded-lg px-3 py-2 outline-none"
+                style={{ background: "rgba(20,16,2,0.85)", border: "1px solid #d4a01740", color: "#d4a017" }}
+              />
+              <div className="flex items-center gap-2">
+                <label className="flex items-center gap-1 cursor-pointer font-fantasy text-[10px]" style={{ color: "#d4a01780" }}>
+                  Type:
+                  <select
+                    value={newLocType}
+                    onChange={e => setNewLocType(e.target.value)}
+                    className="font-fantasy text-[10px] rounded px-1 py-0.5 outline-none"
+                    style={{ background: "rgba(20,16,2,0.85)", border: "1px solid #d4a01740", color: "#d4a017", cursor: "pointer" }}
+                  >
+                    <option value="shop">Shop</option>
+                    <option value="landmark">Landmark</option>
+                    <option value="battle">Battle</option>
+                  </select>
+                </label>
+                <label className="flex items-center gap-1 cursor-pointer font-fantasy text-[10px]" style={{ color: "#d4a01780" }}>
+                  Glow:
+                  <input type="color" value={newLocGlow} onChange={e => setNewLocGlow(e.target.value)}
+                    style={{ width: 24, height: 24, borderRadius: 4, border: "1px solid #d4a01750", cursor: "pointer", background: "none" }} />
+                </label>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <span className="font-fantasy text-[10px]" style={{ color: "#d4a01780" }}>Icon:</span>
+                <input type="file" accept="image/*" className="hidden" onChange={async e => {
+                  const f = e.target.files?.[0];
+                  if (f) { const url = await readFileAsDataUrl(f); setNewLocIcon(url); }
+                }} />
+                <span className="font-fantasy text-[10px] px-2 py-1 rounded-lg transition-transform active:scale-95"
+                  style={{ background: "#d4a01722", border: "1px solid #d4a01750", color: "#d4a017", cursor: "pointer" }}>
+                  {newLocIcon ? "✓ Loaded" : "Choose icon"}
+                </span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <span className="font-fantasy text-[10px]" style={{ color: "#d4a01780" }}>Owner:</span>
+                <input type="file" accept="image/*" className="hidden" onChange={async e => {
+                  const f = e.target.files?.[0];
+                  if (f) { const url = await readFileAsDataUrl(f); setNewLocOwner(url); }
+                }} />
+                <span className="font-fantasy text-[10px] px-2 py-1 rounded-lg transition-transform active:scale-95"
+                  style={{ background: "#d4a01722", border: "1px solid #d4a01750", color: "#d4a017", cursor: "pointer" }}>
+                  {newLocOwner ? "✓ Loaded" : "Owner image (optional)"}
+                </span>
+              </label>
+              <button
+                onClick={() => {
+                  if (newLocName.trim()) addLocMutation.mutate({ name: newLocName.trim(), type: newLocType, iconData: newLocIcon, ownerImageData: newLocOwner, glowColor: newLocGlow });
+                }}
+                disabled={!newLocName.trim() || addLocMutation.isPending}
+                className="font-fantasy text-xs py-2 rounded-lg transition-transform active:scale-95 disabled:opacity-40"
+                style={{ background: "#d4a01725", border: "1.5px solid #d4a01760", color: "#d4a017", cursor: "pointer" }}>
+                {addLocMutation.isPending ? "Saving…" : "Add Place"}
+              </button>
+            </div>
+          )}
+
+          {/* Places list */}
+          <div className="flex-1 overflow-y-auto px-4 py-3">
+            {kcLocations.length === 0 ? (
+              <p className="font-fantasy text-xs text-center py-6" style={{ color: "#d4a01755" }}>
+                No places yet — add one above
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {kcLocations.map(loc => (
+                  <div key={loc.id} className="flex items-center gap-3 rounded-xl px-3 py-2"
+                    style={{ background: "rgba(20,16,2,0.7)", border: "1px solid #d4a01725" }}>
+                    {loc.iconUrl
+                      ? <img src={loc.iconUrl} alt={loc.name} style={{ width: 40, height: 40, objectFit: "contain", borderRadius: 8, border: "1px solid #d4a01740" }} />
+                      : <div style={{ width: 40, height: 40, borderRadius: 8, background: "#d4a01720", border: "1px solid #d4a01740", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <Store className="w-5 h-5" style={{ color: "#d4a017" }} />
+                        </div>
+                    }
+                    <div className="flex-1 min-w-0">
+                      <p className="font-fantasy text-xs" style={{ color: "#d4a017" }}>{loc.name}</p>
+                      <p className="font-fantasy text-[9px]" style={{ color: "#d4a01760" }}>{loc.type} · {loc.posX.toFixed(1)}%, {loc.posY.toFixed(1)}%</p>
+                    </div>
+                    <button onClick={() => deleteLocMutation.mutate(loc.id)}
+                      className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+                      style={{ background: "rgba(220,38,38,0.8)", border: "1.5px solid rgba(255,80,80,0.6)", cursor: "pointer" }}>
+                      <X className="w-3 h-3 text-white" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Location Shop Panel ────────────────────────────────────────────── */}
+      {showLocShop && activeLocId && (() => {
+        const activeLoc = kcLocations.find(l => l.id === activeLocId);
+        const glow = activeLoc?.glowColor || "#d4a017";
+        return (
+          <div
+            className="fixed z-40 flex flex-col"
+            style={{
+              bottom: 0, left: 0, right: 0, maxHeight: "68vh",
+              background: "linear-gradient(180deg, rgba(6,4,1,0.97) 0%, rgba(10,7,2,0.99) 100%)",
+              borderTop: `1.5px solid ${glow}50`,
+              borderLeft: `1.5px solid ${glow}30`,
+              borderRight: `1.5px solid ${glow}30`,
+              borderRadius: "16px 16px 0 0",
+              boxShadow: `0 -8px 40px rgba(0,0,0,0.8), 0 0 40px ${glow}15`,
+            }}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 shrink-0" style={{ borderBottom: `1px solid ${glow}25` }}>
+              <div className="flex items-center gap-3">
+                {activeLoc?.iconUrl && (
+                  <img src={activeLoc.iconUrl} alt="" className="w-10 h-10 rounded-lg object-contain" style={{ border: `1px solid ${glow}40` }} />
+                )}
+                <div>
+                  <p className="font-fantasy text-sm tracking-wider" style={{ color: glow, textShadow: `0 0 10px ${glow}50` }}>
+                    {activeLoc?.name || "Shop"}
+                  </p>
+                  {activeLoc?.description && (
+                    <p className="font-fantasy text-[10px]" style={{ color: `${glow}70` }}>{activeLoc.description}</p>
+                  )}
+                </div>
+              </div>
+              <button onClick={() => { setShowLocShop(false); setActiveLocId(null); }}
+                style={{ background: "none", border: "none", cursor: "pointer" }}>
+                <X className="w-5 h-5" style={{ color: `${glow}88` }} />
+              </button>
+            </div>
+
+            {/* Shop owner */}
+            {activeLoc?.ownerImageUrl && (
+              <div className="flex justify-center py-3 shrink-0" style={{ borderBottom: `1px solid ${glow}18` }}>
+                <img src={activeLoc.ownerImageUrl} alt="Shop Owner"
+                  style={{ height: 90, objectFit: "contain", filter: `drop-shadow(0 2px 10px rgba(0,0,0,0.6)) drop-shadow(0 0 12px ${glow}30)` }} />
+              </div>
+            )}
+
+            {/* Items */}
+            <div className="flex-1 overflow-y-auto px-4 py-3">
+              {locShopItems.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 gap-2">
+                  <Store style={{ width: 36, height: 36, color: `${glow}50` }} />
+                  <p className="font-fantasy text-xs text-center" style={{ color: `${glow}55` }}>
+                    No items for sale yet
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-3">
+                  {locShopItems.map(item => {
+                    const img = item.hatchedImageUrl || item.eggImageUrl || item.imageUrl;
+                    const rarityColor = ["", "#a0a0b0", "#4ade80", "#60a5fa", "#c084fc", "#f0c040"][Math.min(5, item.rarity ?? 0)];
+                    return (
+                      <div key={item.id}
+                        data-testid={`shop-item-${item.id}`}
+                        className="flex flex-col items-center gap-1 rounded-xl p-2 transition-transform active:scale-95 cursor-pointer"
+                        style={{ background: `rgba(20,14,2,0.85)`, border: `1px solid ${glow}25`, boxShadow: rarityColor ? `0 0 8px ${rarityColor}25` : undefined }}>
+                        <div className="w-14 h-14 flex items-center justify-center rounded-lg overflow-hidden"
+                          style={{ background: "rgba(10,7,1,0.7)" }}>
+                          {img ? <img src={img} alt={item.name} style={{ width: 52, height: 52, objectFit: "contain" }} draggable={false} />
+                            : <Store style={{ width: 28, height: 28, color: `${glow}60` }} />}
+                        </div>
+                        <span className="font-fantasy text-[9px] tracking-wide text-center leading-tight line-clamp-2"
+                          style={{ color: `${glow}cc` }}>{item.name}</span>
+                        <div className="flex items-center gap-1">
+                          <img src={coinIconImg} alt="coins" style={{ width: 10, height: 10, objectFit: "contain" }} />
+                          <span className="font-fantasy text-[9px]" style={{ color: "#f0c040" }}>{item.price}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Panel drag ghost ─────────────────────────────────────────────── */}
       {panelDragGhost && (
