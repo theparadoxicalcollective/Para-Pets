@@ -261,14 +261,8 @@ export default function PetHousePage({ user: initialUser }: PetHousePageProps) {
             background: "linear-gradient(180deg, rgba(6,14,3,0) 0%, rgba(6,14,3,0.82) 30%, rgba(4,10,2,0.95) 100%)",
           }}
         >
-          <HouseNavButton testId="button-nav-aquarium" onClick={() => setShowAquarium(true)} label="Aquarium">
-            <FishbowlIcon />
-          </HouseNavButton>
           <HouseNavButton testId="button-nav-inside" onClick={() => setShowInsideRoom(true)} label="Inside">
             <PetHouseNavIcon />
-          </HouseNavButton>
-          <HouseNavButton testId="button-nav-forest-den" onClick={() => setShowPetWorld(true)} label="Keeper's Central">
-            <ForestHomeIcon />
           </HouseNavButton>
         </div>
       </div>
@@ -365,35 +359,13 @@ export default function PetHousePage({ user: initialUser }: PetHousePageProps) {
                 </div>
               </div>
 
-              {/* Aquarium */}
-              <div className="flex items-start gap-3 pb-3" style={{ borderBottom: "1px solid rgba(180,140,40,0.15)" }}>
-                <img src={fishbowlIconImg} alt="Aquarium" style={{ width: 26, height: 26, objectFit: "contain", flexShrink: 0, marginTop: 1 }} />
-                <div>
-                  <p className="font-fantasy text-[#86efac] text-[11px] tracking-wider mb-0.5">Aquarium  <span style={{ color: "#6a5840", fontSize: "9px" }}>— bottom left</span></p>
-                  <p className="font-fantasy text-[#a89878] text-[10px] tracking-wide leading-relaxed">
-                    Visit your aquarium to view and care for your fish collection.
-                  </p>
-                </div>
-              </div>
-
               {/* Inside */}
-              <div className="flex items-start gap-3 pb-3" style={{ borderBottom: "1px solid rgba(180,140,40,0.15)" }}>
+              <div className="flex items-start gap-3">
                 <img src={forestHomeIconImg} alt="Inside" style={{ width: 26, height: 26, objectFit: "contain", flexShrink: 0, marginTop: 1 }} />
                 <div>
-                  <p className="font-fantasy text-[#86efac] text-[11px] tracking-wider mb-0.5">Inside  <span style={{ color: "#6a5840", fontSize: "9px" }}>— bottom center</span></p>
+                  <p className="font-fantasy text-[#86efac] text-[11px] tracking-wider mb-0.5">Inside  <span style={{ color: "#6a5840", fontSize: "9px" }}>— bottom</span></p>
                   <p className="font-fantasy text-[#a89878] text-[10px] tracking-wide leading-relaxed">
                     Step inside your treehouse room. Decorate and personalise it however you like!
-                  </p>
-                </div>
-              </div>
-
-              {/* Keeper's Central */}
-              <div className="flex items-start gap-3">
-                <img src={globeWorldIconImg} alt="Keeper's Central" style={{ width: 26, height: 26, objectFit: "contain", flexShrink: 0, marginTop: 1 }} />
-                <div>
-                  <p className="font-fantasy text-[#86efac] text-[11px] tracking-wider mb-0.5">Keeper's Central  <span style={{ color: "#6a5840", fontSize: "9px" }}>— bottom right</span></p>
-                  <p className="font-fantasy text-[#a89878] text-[10px] tracking-wide leading-relaxed">
-                    Explore the world, visit shops, go fishing, and discover new pets to bring home.
                   </p>
                 </div>
               </div>
