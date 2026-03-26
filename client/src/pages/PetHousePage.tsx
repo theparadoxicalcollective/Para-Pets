@@ -798,8 +798,15 @@ function WalkingPet({
   // When free-roaming (no basePos), use the full wander animation.
   const floatAnim    = hasWings ? "petFloatSmall" : "petGroundFloat";
   const wanderPrefix = hasWings ? "petWander" : "petGroundWander";
-  const wanderAnim   = basePos
-    ? "none"
+
+  // Placed pets get a tiny local drift so they feel alive without leaving their spot.
+  const localWanderVariant = index % 6;
+  const localWanderDuration = 22 + (index % 4) * 3; // 22 / 25 / 28 / 31 s
+  const localWanderDelay   = (index * 4.7) % 18;    // stagger start across pets
+  const localWanderAnim    = `petLocalWander${localWanderVariant} ${localWanderDuration}s ${localWanderDelay}s ease-in-out infinite`;
+
+  const wanderAnim = basePos
+    ? localWanderAnim
     : `${wanderPrefix}${cfg.wanderIdx} ${cfg.duration} ${cfg.delay} ease-in-out infinite`;
 
   const petImg = pet.hatchedImageUrl || pet.imageUrl;

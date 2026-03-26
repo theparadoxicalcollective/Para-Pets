@@ -75,9 +75,15 @@ function WalkingPetView({ pet, index }: { pet: VisitedPet; index: number }) {
 
   const floatAnim = hasWings ? "petFloatSmall" : "petGroundFloat";
   const wanderPrefix = hasWings ? "petWander" : "petGroundWander";
-  // No wander animation when owner has placed the pet — mirrors PetHousePage behaviour
+
+  // Placed pets get a tiny local drift — mirrors PetHousePage exactly
+  const localWanderVariant  = index % 6;
+  const localWanderDuration = 22 + (index % 4) * 3;
+  const localWanderDelay    = (index * 4.7) % 18;
+  const localWanderAnim     = `petLocalWander${localWanderVariant} ${localWanderDuration}s ${localWanderDelay}s ease-in-out infinite`;
+
   const wanderAnim = hasSavedPos
-    ? "none"
+    ? localWanderAnim
     : `${wanderPrefix}${cfg.wanderIdx} ${cfg.duration} ${cfg.delay} ease-in-out infinite`;
 
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
