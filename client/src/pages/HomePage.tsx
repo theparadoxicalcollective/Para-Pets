@@ -6,11 +6,11 @@ import { apiRequest } from "@/lib/queryClient";
 import bgImg from "@assets/bg_home_v2.png";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import eggMagicIcon from "@assets/generated_images/icon_egg_magic.png";
-import questIcon from "@assets/generated_images/nav_icon_quest_v3.png";
-import mapIcon from "@assets/icon_map_new.png";
-import swordsImg from "@assets/icon_pvp_new.png";
-import eggImg from "@assets/icon_pets.png";
-import badgeIcon from "@assets/icon_badges_new.png";
+import questIcon from "@assets/generated_images/nav_icon_map.png";
+import mapIcon from "@assets/generated_images/nav_icon_map_new.png";
+import swordsImg from "@assets/generated_images/nav_icon_pvp.png";
+import eggImg from "@assets/generated_images/nav_icon_pets.png";
+import badgeIcon from "@assets/generated_images/nav_icon_badges.png";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import PetAnimator from "@/components/PetAnimator";
@@ -856,7 +856,7 @@ export default function HomePage({ user }: HomePageProps) {
           onClick={() => setShowHomePageTutorial(true)}
           className="absolute z-30 flex items-center justify-center rounded-full transition-transform active:scale-90"
           style={{
-            bottom: "94px",
+            top: "14px",
             right: "14px",
             width: "30px",
             height: "30px",
