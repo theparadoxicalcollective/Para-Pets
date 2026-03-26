@@ -50,7 +50,8 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
 
   const { data: unreadNotifications = [] } = useQuery<any[]>({
     queryKey: ["/api/notifications/unread"],
-    refetchInterval: 30000,
+    refetchInterval: 12000,
+    refetchOnWindowFocus: true,
   });
 
   const markReadMutation = useMutation({
@@ -63,7 +64,8 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
     if (newOnes.length === 0) return;
     newOnes.forEach(n => {
       seenNotifIds.current.add(n.id);
-      toast({ title: "🎉 Friend Request Accepted", description: n.message });
+      const title = n.type === "friend_accepted" ? "🤝 Friend Request Accepted" : "🔔 Notification";
+      toast({ title, description: n.message });
     });
     markReadMutation.mutate();
   }, [unreadNotifications]);
@@ -78,8 +80,10 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
   const hasFriendRequests = friendRequestCount > 0;
 
   const acceptMutation = useMutation({
-    mutationFn: (requestId: string) => apiRequest("POST", `/api/friends/accept/${requestId}`, {}),
-    onSuccess: () => {
+    mutationFn: ({ requestId }: { requestId: string; username: string }) =>
+      apiRequest("POST", `/api/friends/accept/${requestId}`, {}),
+    onSuccess: (_, variables) => {
+      toast({ title: "🤝 Friend Added!", description: `You and ${variables.username} are now friends.` });
       refetchRequests();
       refetchCount();
       queryClient.invalidateQueries({ queryKey: ["/api/friends"] });
@@ -279,7 +283,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                               <span className="font-fantasy text-xs flex-1 truncate" style={{ color: "#d4e8da" }}>{req.username}</span>
                               <button
                                 data-testid={`button-accept-${req.id}`}
-                                onClick={() => acceptMutation.mutate(req.id)}
+                                onClick={() => acceptMutation.mutate({ requestId: req.id, username: req.username })}
                                 disabled={acceptMutation.isPending}
                                 className="font-fantasy text-[10px] tracking-wider"
                                 style={{ padding: "3px 8px", borderRadius: 6, background: "rgba(74,222,128,0.2)", border: "1px solid rgba(74,222,128,0.45)", color: "#4ade80", cursor: "pointer" }}
@@ -500,7 +504,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                               {/* Accept */}
                               <button
                                 data-testid={`button-accept-${req.id}`}
-                                onClick={() => acceptMutation.mutate(req.id)}
+                                onClick={() => acceptMutation.mutate({ requestId: req.id, username: req.username })}
                                 disabled={acceptMutation.isPending || declineMutation.isPending}
                                 className="flex-shrink-0 transition-transform active:scale-90"
                                 style={{
