@@ -236,7 +236,16 @@ export default function AuthPage() {
                 <span className="title-sparkle absolute -top-5 -right-6 text-2xl select-none" style={{ animationDelay: "1.2s" }}>✦</span>
                 <span className="title-sparkle absolute -bottom-4 -left-9 text-sm select-none" style={{ animationDelay: "0.5s" }}>✦</span>
                 <span className="title-sparkle absolute -bottom-4 -right-9 text-sm select-none" style={{ animationDelay: "1.8s" }}>✦</span>
-                <h1 className="para-pets-title select-none">Para Pets</h1>
+                <div
+                  className="px-6 py-2 rounded-xl"
+                  style={{
+                    background: "rgba(4,12,7,0.58)",
+                    backdropFilter: "blur(6px)",
+                    border: "1px solid rgba(200,160,50,0.18)",
+                  }}
+                >
+                  <h1 className="para-pets-title select-none">Para Pets</h1>
+                </div>
               </div>
               <p
                 className="font-fantasy text-[#f0e8d4] text-center text-sm tracking-wide mt-6 leading-relaxed px-5 py-2 rounded-xl"
