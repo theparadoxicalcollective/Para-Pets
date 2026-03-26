@@ -178,6 +178,92 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                 </svg>
               </button>
             )}
+            {!user.isAdmin && (
+              <div className="relative" ref={popupRef}>
+                <button
+                  data-testid="button-friends-icon"
+                  onClick={() => setShowRequestsPopup(v => !v)}
+                  className="topbar-icon-size-sm flex-shrink-0 flex items-center justify-center transition-transform duration-150 active:scale-90"
+                  style={{
+                    background: showRequestsPopup
+                      ? "linear-gradient(135deg, rgba(74,222,128,0.35) 0%, rgba(22,163,74,0.3) 100%)"
+                      : "linear-gradient(135deg, rgba(74,222,128,0.12) 0%, rgba(22,163,74,0.12) 100%)",
+                    border: `2px solid ${showRequestsPopup ? "rgba(74,222,128,0.8)" : "rgba(74,222,128,0.45)"}`,
+                    cursor: "pointer",
+                    boxShadow: showRequestsPopup
+                      ? "0 2px 10px rgba(0,0,0,0.6), 0 0 18px rgba(74,222,128,0.35)"
+                      : "0 2px 10px rgba(0,0,0,0.6), 0 0 14px rgba(74,222,128,0.12)",
+                    borderRadius: "10px",
+                  }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: "drop-shadow(0 0 4px rgba(74,222,128,0.5))" }}>
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                  </svg>
+                  {friendRequestCount > 0 && !showRequestsPopup && (
+                    <div
+                      className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full flex items-center justify-center px-1"
+                      style={{
+                        background: "radial-gradient(circle, #4ade80 0%, #16a34a 100%)",
+                        border: "1.5px solid rgba(30,15,5,0.8)",
+                        boxShadow: "0 0 6px rgba(74,222,128,0.6)",
+                      }}
+                    >
+                      <span className="font-bold text-[8px] text-white leading-none">{friendRequestCount}</span>
+                    </div>
+                  )}
+                </button>
+                {showRequestsPopup && (
+                  <div
+                    data-testid="popup-friend-requests"
+                    className="absolute top-full mt-2 left-0 z-50 min-w-[220px]"
+                    style={{
+                      background: "linear-gradient(160deg, rgba(20,10,4,0.97) 0%, rgba(40,22,8,0.97) 100%)",
+                      border: "1px solid rgba(74,222,128,0.35)",
+                      borderRadius: 14,
+                      boxShadow: "0 8px 32px rgba(0,0,0,0.7), 0 0 20px rgba(74,222,128,0.1)",
+                      padding: "10px 10px 8px",
+                    }}
+                  >
+                    <p className="font-fantasy tracking-widest text-center mb-2" style={{ fontSize: 9, color: "rgba(74,222,128,0.7)", letterSpacing: "0.2em" }}>
+                      FRIEND REQUESTS
+                    </p>
+                    {pendingRequests.length === 0 ? (
+                      <p className="text-center text-xs" style={{ color: "rgba(255,255,255,0.35)", padding: "6px 0" }}>No pending requests</p>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        {pendingRequests.map(req => (
+                          <div
+                            key={req.id}
+                            data-testid={`friend-request-${req.id}`}
+                            className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5"
+                            style={{ background: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)" }}
+                          >
+                            <span className="font-fantasy truncate flex-1" style={{ fontSize: 11, color: "#7fffd4" }}>{req.username}</span>
+                            <button
+                              data-testid={`button-accept-${req.id}`}
+                              onClick={() => acceptMutation.mutate(req.id)}
+                              disabled={acceptMutation.isPending || declineMutation.isPending}
+                              className="flex-shrink-0 transition-transform active:scale-90"
+                              style={{ background: "linear-gradient(135deg, rgba(74,222,128,0.25) 0%, rgba(22,163,74,0.25) 100%)", border: "1px solid rgba(74,222,128,0.5)", borderRadius: 8, padding: "3px 8px", cursor: "pointer", color: "#4ade80", fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}
+                            >✓ Accept</button>
+                            <button
+                              data-testid={`button-decline-${req.id}`}
+                              onClick={() => declineMutation.mutate(req.requesterId)}
+                              disabled={acceptMutation.isPending || declineMutation.isPending}
+                              className="flex-shrink-0 transition-transform active:scale-90"
+                              style={{ background: "linear-gradient(135deg, rgba(248,113,113,0.15) 0%, rgba(185,28,28,0.15) 100%)", border: "1px solid rgba(248,113,113,0.4)", borderRadius: 8, padding: "3px 8px", cursor: "pointer", color: "#f87171", fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}
+                            >✕ Decline</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Name + coins stacked to the right of the photo */}
