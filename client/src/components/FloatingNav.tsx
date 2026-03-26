@@ -63,10 +63,17 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   const [showAquarium, setShowAquarium]   = useState(false);
   const [showKeepers, setShowKeepers]     = useState(false);
 
-  const close = () => setIsOpen(false);
+  const closeAll = () => {
+    setIsOpen(false);
+    setShowQuest(false);
+    setShowPvpNote(false);
+    setShowInv(null);
+    setShowAquarium(false);
+    setShowKeepers(false);
+  };
 
   const handleLeft = (id: string) => {
-    close();
+    closeAll();
     if (id === "map")       { navigate("/map"); return; }
     if (id === "quest")     { setShowQuest(true); return; }
     if (id === "pvp")       { user.isAdmin ? navigate("/pvp") : setShowPvpNote(true); return; }
@@ -75,7 +82,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   };
 
   const handleRight = (id: string) => {
-    close();
+    closeAll();
     if (id === "home")     { navigate("/"); return; }
     if (id === "pethouse") { navigate("/pet-house"); return; }
     if (id === "market")   { navigate("/market"); return; }
