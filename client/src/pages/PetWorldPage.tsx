@@ -8,7 +8,6 @@ import { readFileAsDataUrl } from "@/lib/utils";
 import { playShopBell } from "@/lib/sounds";
 import PetAnimator from "@/components/PetAnimator";
 import bgGround from "@assets/pw_ground_layer.png";
-import friendsIconSrc from "@assets/friends_icon.png";
 import coinIconImg from "@assets/icon_coin.png";
 import petHouseIconImg from "@assets/icon_pet_house.png";
 
@@ -947,7 +946,12 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                     overflow: "hidden",
                   }}
                 >
-                  <img src={friendsIconSrc} alt="Friends" style={{ width: 28, height: 28, objectFit: "contain" }} />
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: `drop-shadow(0 0 4px ${ACCENT}80)` }}>
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                  </svg>
                 </button>
                 {friendRequestCount > 0 && !showFriendsPanel && (
                   <div style={{
@@ -1081,7 +1085,12 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
             flexShrink: 0,
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <img src={friendsIconSrc} alt="" style={{ width: 26, height: 26, objectFit: "contain" }} />
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: `drop-shadow(0 0 4px ${ACCENT}80)` }}>
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
               <span className="font-fantasy text-sm tracking-widest" style={{ color: ACCENT }}>Friends</span>
             </div>
             <button
