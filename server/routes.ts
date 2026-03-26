@@ -120,6 +120,49 @@ const DEFAULT_WELCOME_CONFIG = {
   ],
 };
 
+function computeItemEffect(shop: any): string | null {
+  if (!shop) return null;
+  if (shop.type === "potion") {
+    const parts: string[] = [];
+    if (shop.healthRestored) parts.push(`+${shop.healthRestored} HP`);
+    if (shop.manaRestored) parts.push(`+${shop.manaRestored} MP`);
+    if (shop.petsRevived) parts.push(`Revive ${shop.petsRevived}`);
+    return parts.join(" · ") || null;
+  }
+  if (shop.type === "accessory") {
+    const parts: string[] = [];
+    if (shop.atkBoost) parts.push(`+${shop.atkBoost} ATK`);
+    if (shop.defBoost) parts.push(`+${shop.defBoost} DEF`);
+    if (shop.healthBoost) parts.push(`+${shop.healthBoost} HP`);
+    return parts.join(" · ") || null;
+  }
+  if (shop.type === "power_up" || shop.type === "item") {
+    if (shop.statBoostType && shop.statBoostAmount) {
+      const label = shop.statBoostType === "health" ? "HP" : shop.statBoostType === "atk" ? "ATK" : shop.statBoostType === "def" ? "DEF" : String(shop.statBoostType).toUpperCase();
+      return `+${shop.statBoostAmount} ${label}`;
+    }
+    return null;
+  }
+  if (shop.type === "edibles") return shop.statBoostAmount ? `+${shop.statBoostAmount} LVL pts` : null;
+  if (shop.type === "fishing") {
+    if (shop.fishingType === "fish") {
+      const rarities = ["Common","Uncommon","Rare","Epic","Legendary"];
+      return `${"★".repeat(shop.starRarity ?? 1)} ${rarities[(shop.starRarity ?? 1) - 1] ?? ""}`.trim();
+    }
+    if (shop.fishingType === "pole") return shop.poleMaxUses ? `${shop.poleMaxUses} uses` : "Unlimited uses";
+    if (shop.fishingType === "bait") return shop.rarityBoostPercent ? `+${shop.rarityBoostPercent}% on ${"★".repeat(shop.baitRarityBoostStar ?? 3)}` : "Bait";
+  }
+  if (shop.type === "special") {
+    if (shop.specialType === "hatch_time") return shop.specialAmount ? `−${shop.specialAmount}% hatch time` : "Reduces hatch time";
+    return shop.specialType ?? null;
+  }
+  if (shop.type === "pet") {
+    if (shop.specialSkill) return `Skill: ${shop.specialSkill}`;
+    if (shop.starRarity) return `${"★".repeat(shop.starRarity)} Rarity`;
+  }
+  return null;
+}
+
 async function getWelcomeBundleConfig() {
   try {
     const raw = await storage.getGameSetting("welcome_bundle_config");
@@ -2577,7 +2620,7 @@ export async function registerRoutes(
       const allShopItems = await storage.getAllShopItems();
       const itemsWithDetails = config.items.map(({ name, qty }) => {
         const shop = allShopItems.find(i => i.name.toLowerCase() === name.toLowerCase());
-        return { name, qty, found: !!shop, imageUrl: shop?.imageUrl ?? null, type: shop?.type ?? null };
+        return { name, qty, found: !!shop, imageUrl: shop?.imageUrl ?? null, type: shop?.type ?? null, effect: computeItemEffect(shop) };
       });
       return res.json({ coinAmount: config.coinAmount, message: config.message, items: itemsWithDetails });
     } catch (err) {

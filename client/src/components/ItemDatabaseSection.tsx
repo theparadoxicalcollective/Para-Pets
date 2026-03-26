@@ -76,6 +76,51 @@ export const ITEM_CATEGORIES = [
 
 export type ItemCategoryKey = typeof ITEM_CATEGORIES[number]["key"];
 
+export function getItemEffectText(item: ShopItemFull): string | null {
+  if (item.type === "potion") {
+    const parts: string[] = [];
+    if (item.healthRestored) parts.push(`+${item.healthRestored} HP`);
+    if (item.manaRestored) parts.push(`+${item.manaRestored} MP`);
+    if (item.petsRevived) parts.push(`Revive ${item.petsRevived}`);
+    return parts.join(" · ") || null;
+  }
+  if (item.type === "accessory") {
+    const parts: string[] = [];
+    if (item.atkBoost) parts.push(`+${item.atkBoost} ATK`);
+    if (item.defBoost) parts.push(`+${item.defBoost} DEF`);
+    if (item.healthBoost) parts.push(`+${item.healthBoost} HP`);
+    return parts.join(" · ") || null;
+  }
+  if (item.type === "power_up" || item.type === "item") {
+    if (item.statBoostType && item.statBoostAmount) {
+      const label = item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : item.statBoostType.toUpperCase();
+      return `+${item.statBoostAmount} ${label}`;
+    }
+    return null;
+  }
+  if (item.type === "edibles") {
+    return item.statBoostAmount ? `+${item.statBoostAmount} LVL pts` : null;
+  }
+  if (item.type === "fishing") {
+    if (item.fishingType === "fish") {
+      const rarities = ["Common","Uncommon","Rare","Epic","Legendary"];
+      return `${"★".repeat(item.starRarity ?? 1)} ${rarities[(item.starRarity ?? 1) - 1] ?? ""}`;
+    }
+    if (item.fishingType === "pole") return item.poleMaxUses ? `${item.poleMaxUses} uses` : "Unlimited uses";
+    if (item.fishingType === "bait") return item.rarityBoostPercent ? `+${item.rarityBoostPercent}% on ${"★".repeat(item.baitRarityBoostStar ?? 3)}` : "Bait";
+  }
+  if (item.type === "special") {
+    if (item.specialType === "hatch_time") return item.specialAmount ? `−${item.specialAmount}% hatch time` : "Reduces hatch time";
+    return item.specialType ?? null;
+  }
+  if (item.type === "pet") {
+    if (item.specialSkill) return `Skill: ${item.specialSkill}`;
+    if (item.starRarity) return `${"★".repeat(item.starRarity)} Rarity`;
+    return null;
+  }
+  return null;
+}
+
 export function getItemCategory(item: ShopItemFull): ItemCategoryKey {
   if (item.type === "pet") return "pets";
   if (item.type === "potion") return "potions";
@@ -1234,6 +1279,7 @@ export function ItemPickerModal({
               }
               const displayImg = item.type === "pet" && item.eggImageUrl ? item.eggImageUrl : item.imageUrl;
               const catColor = catMeta?.color ?? "#f0c040";
+              const effectText = getItemEffectText(item);
               elements.push(
                 <button
                   key={item.id}
@@ -1254,7 +1300,12 @@ export function ItemPickerModal({
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-fantasy text-[10px] truncate" style={{ color: catColor }}>{item.name}</p>
-                    <p className="font-fantasy text-[8px]" style={{ color: `${catColor}88` }}>{catMeta?.label ?? item.type}</p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="font-fantasy text-[8px]" style={{ color: `${catColor}70` }}>{catMeta?.label ?? item.type}</p>
+                      {effectText && (
+                        <p className="font-fantasy text-[8px]" style={{ color: `${catColor}cc` }}>· {effectText}</p>
+                      )}
+                    </div>
                   </div>
                 </button>
               );

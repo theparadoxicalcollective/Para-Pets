@@ -8,7 +8,7 @@ import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import coinIconImg from "@assets/icon_coin.png";
 import PetDatabasePanel from "@/components/PetDatabasePanel";
-import ItemDatabaseSection, { ShopItemFull, ItemPickerModal } from "@/components/ItemDatabaseSection";
+import ItemDatabaseSection, { ShopItemFull, ItemPickerModal, getItemEffectText } from "@/components/ItemDatabaseSection";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import FishingAdminPanel from "@/components/FishingAdminPanel";
 import adminIconMembers from "@assets/admin_icon_members.png";
@@ -432,7 +432,7 @@ export default function AdminPage({ user }: AdminPageProps) {
 }
 
 
-interface WelcomeConfigItem { name: string; qty: number; found: boolean; imageUrl: string | null; type: string | null; }
+interface WelcomeConfigItem { name: string; qty: number; found: boolean; imageUrl: string | null; type: string | null; effect: string | null; }
 interface WelcomeConfig { coinAmount: number; message: string; items: WelcomeConfigItem[]; }
 
 function WelcomeBundleSection() {
@@ -483,7 +483,7 @@ function WelcomeBundleSection() {
       const current = Number(qtyEdits[exists] ?? items[exists].qty) || 1;
       setQtyEdits(prev => ({ ...prev, [exists]: String(current + 1) }));
     } else {
-      setItems(prev => [...prev, { name: shopItem.name, qty: 1, found: true, imageUrl: shopItem.imageUrl || null, type: shopItem.type }]);
+      setItems(prev => [...prev, { name: shopItem.name, qty: 1, found: true, imageUrl: shopItem.imageUrl || null, type: shopItem.type, effect: getItemEffectText(shopItem) }]);
     }
     setShowPicker(false);
   };
@@ -545,9 +545,14 @@ function WelcomeBundleSection() {
                 ? <img src={item.imageUrl} alt={item.name} className="w-7 h-7 object-contain rounded flex-shrink-0" />
                 : <div className="w-7 h-7 rounded flex-shrink-0 flex items-center justify-center" style={{ background: "rgba(110,231,183,0.1)" }}><span className="text-[8px] text-[#6ee7b7]">?</span></div>
               }
-              <span className="font-fantasy text-[11px] flex-1 truncate" style={{ color: item.found === false ? "#f87171" : "#c0e8d0" }}>
-                {item.name}{item.found === false && " ⚠ not found"}
-              </span>
+              <div className="flex flex-col flex-1 min-w-0">
+                <span className="font-fantasy text-[11px] truncate" style={{ color: item.found === false ? "#f87171" : "#c0e8d0" }}>
+                  {item.name}{item.found === false && " ⚠ not found"}
+                </span>
+                {item.effect && (
+                  <span className="font-fantasy text-[9px] truncate" style={{ color: "rgba(110,231,183,0.55)" }}>{item.effect}</span>
+                )}
+              </div>
               <div className="flex items-center gap-1">
                 <span className="font-fantasy text-[9px] text-[#4a8060]">qty</span>
                 <input
