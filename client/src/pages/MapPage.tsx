@@ -539,25 +539,11 @@ export default function MapPage({ user }: MapPageProps) {
         </div>
 
         {currentUser.isAdmin && (
-          <>
-            <button
-              data-testid="button-add-world"
-              onClick={() => setShowAddWorld(true)}
-              className="fixed bottom-6 right-6 w-14 h-14 rounded-full flex items-center justify-center z-30 transition-transform active:scale-90"
-              style={{
-                background: "linear-gradient(135deg, #2a1850 0%, #1a1040 100%)",
-                border: "2px solid rgba(140,100,240,0.5)",
-                boxShadow: "0 4px 20px rgba(100,60,200,0.4), 0 0 30px rgba(140,100,240,0.2)",
-                cursor: "pointer",
-                maxWidth: "768px",
-              }}
-            >
-              <Plus className="w-7 h-7 text-white" />
-            </button>
+          <div className="fixed top-4 right-4 flex items-center gap-2 z-30">
             <button
               data-testid="button-edit-map-bg"
               onClick={() => { setMapBgPreview(null); setShowMapBgEdit(true); }}
-              className="fixed bottom-6 right-[5.5rem] w-11 h-11 rounded-full flex items-center justify-center z-30 transition-transform active:scale-90"
+              className="w-11 h-11 rounded-full flex items-center justify-center transition-transform active:scale-90"
               style={{
                 background: "linear-gradient(135deg, #1a2850 0%, #102040 100%)",
                 border: "2px solid rgba(100,140,240,0.5)",
@@ -567,7 +553,20 @@ export default function MapPage({ user }: MapPageProps) {
             >
               <ImageIcon className="w-5 h-5 text-white" />
             </button>
-          </>
+            <button
+              data-testid="button-add-world"
+              onClick={() => setShowAddWorld(true)}
+              className="w-11 h-11 rounded-full flex items-center justify-center transition-transform active:scale-90"
+              style={{
+                background: "linear-gradient(135deg, #2a1850 0%, #1a1040 100%)",
+                border: "2px solid rgba(140,100,240,0.5)",
+                boxShadow: "0 4px 20px rgba(100,60,200,0.4), 0 0 30px rgba(140,100,240,0.2)",
+                cursor: "pointer",
+              }}
+            >
+              <Plus className="w-6 h-6 text-white" />
+            </button>
+          </div>
         )}
 
 
