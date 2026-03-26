@@ -1393,5 +1393,671 @@ SECTION 15 — TABLE RELATIONSHIP QUICK REFERENCE
     └── fish_barrels
 
 ================================================================================
+SECTION 16 — GAME MECHANICS AND FORMULAS
+================================================================================
+
+All numbers below are taken directly from the source code as of the document
+date. When editing mechanics, change ONLY the constants listed here — the
+surrounding logic should not need to change unless the mechanic itself is
+being redesigned.
+
+SOURCE FILES FOR THIS SECTION:
+  client/src/pages/FishingPage.tsx      — fishing minigame
+  client/src/components/BattleArena.tsx — PvE combat engine
+  server/routes.ts                      — server-side formulas (XP, drops, scaling)
+
+================================================================================
+16.1 — FISHING MINIGAME MECHANICS
+================================================================================
+
+────────────────────────────────────────────────────────────────────────────────
+PHASE 1: WAITING (after cast)
+────────────────────────────────────────────────────────────────────────────────
+
+  Wait time = 1500 ms + random(0 to 2500 ms)
+  Range: 1.5 s – 4.0 s
+
+  During this window the server selects the fish from the pond's weighted pool
+  (see Section 16.5). The selected fish's rarity determines all subsequent
+  difficulty values.
+
+────────────────────────────────────────────────────────────────────────────────
+PHASE 2: NIBBLE
+────────────────────────────────────────────────────────────────────────────────
+
+  Per-rarity nibble configuration (arrays indexed 0 = 1★ … 4 = 5★):
+
+  Constant                  1★     2★     3★     4★     5★
+  ─────────────────────── ────── ────── ────── ────── ──────
+  Max nibble chances         3      3      2      2      1
+  Window per nibble (ms)   2500   2200   1800   1400   1100
+
+  Source: NIBBLE_MAX_BY_RARITY / NIBBLE_TIMEOUT_BY_RARITY arrays, FishingPage.tsx line 84–85.
+
+  HOW IT WORKS:
+  - The first nibble alert fires immediately when the waiting phase ends.
+  - If the player misses, the next nibble fires after the window expires.
+  - The player taps/clicks anywhere on screen to hook the fish.
+  - If ALL chances are exhausted without a tap, the fish escapes and phase
+    returns to IDLE (pole durability IS still consumed).
+
+────────────────────────────────────────────────────────────────────────────────
+PHASE 3: REELING — BASE RATES PER RARITY
+────────────────────────────────────────────────────────────────────────────────
+
+  All rates are per second, scaled each frame by delta-time (dt).
+  dt is capped at 2/60 s to prevent spiralling if the tab loses focus.
+
+  Constant                    1★      2★      3★      4★      5★
+  ────────────────────────  ──────  ──────  ──────  ──────  ──────
+  Starting catch progress    0.08    0.06    0.05    0.03    0.02
+  Base reel rate (holding)   0.50    0.42    0.32    0.24    0.17   /s
+  Base tension rise (hold)   0.55    0.75    1.05    1.20    1.55   /s
+  Tension fall (released)    2.80    2.30    1.80    1.35    0.95   /s
+  Progress drain (released)  0.030   0.060   0.100   0.150   0.200  /s
+  Escape fill (released)     0.040   0.070   0.110   0.200   0.270  /s
+  Escape drain (sweet spot)  0.080   0.060   0.040   0.025   0.010  /s
+  Min fish state dur (s)     3.5     3.0     2.5     2.0     1.5
+  Max fish state dur (s)     6.0     5.0     4.0     3.0     2.5
+
+  Source: startProgress, baseReelRates, baseTensionRise, etc. arrays,
+          FishingPage.tsx lines 418–455.
+
+────────────────────────────────────────────────────────────────────────────────
+16.2 — TENSION BAR (SWEET SPOT) MECHANICS
+────────────────────────────────────────────────────────────────────────────────
+
+  Tension (T) runs 0.0 – 1.0 (0% – 100%).
+  Sweet spot boundaries per rarity (fractions):
+
+  Zone               1★            2★            3★            4★            5★
+  ───────────────  ──────────    ──────────    ──────────    ──────────    ──────────
+  Low boundary     0.25          0.28          0.30          0.33          0.35
+  High boundary    0.75          0.72          0.70          0.67          0.65
+
+  Source: sweetLow / sweetHigh arrays, FishingPage.tsx lines 441–442.
+
+  SWEET SPOT PROGRESS MULTIPLIER (sweetMult):
+  ┌─────────────────────────────────────┬──────────┬───────────────────────────────┐
+  │ Tension zone                        │ sweetMult│ Effect                        │
+  ├─────────────────────────────────────┼──────────┼───────────────────────────────┤
+  │ 0 → sweetLow  (too loose)           │   0.5×   │ Half progress, escape grows   │
+  │ sweetLow → sweetHigh  (sweet spot)  │   1.0×   │ Full progress, escape drains  │
+  │ sweetHigh → 0.90  (risky)           │   1.2×   │ Bonus progress, danger zone   │
+  │ 0.90 → 1.0  (critical)              │   0.4×   │ Nearly zero progress, snap    │
+  └─────────────────────────────────────┴──────────┴───────────────────────────────┘
+
+  LOSS CONDITIONS (instant):
+    Snap:   tension >= 1.0  → snap effect plays (600 ms), then phase → MISSED
+    Escape: escapeMeter >= 1.0 → phase → MISSED immediately
+
+  WIN CONDITION:
+    catchProgress >= 1.0 → client sends performanceScore = 100 to server
+
+  GRACE PERIOD:
+    1200 ms after the nibble tap, the escape meter does NOT fill and catch
+    progress does NOT drain. Gives the player time to find the hold button.
+    Source: GRACE_MS = 1200, FishingPage.tsx line 504.
+
+────────────────────────────────────────────────────────────────────────────────
+16.3 — FISH BEHAVIOR STATES
+────────────────────────────────────────────────────────────────────────────────
+
+  Fish cycle through four states. State is picked randomly at intervals
+  using the weights below. Each state multiplies the base rates:
+
+  State    | Tension Rise | Reel Progress | Escape Fill | Notes
+  ─────────┼──────────────┼───────────────┼─────────────┼──────────────────────
+  calm     |     1.0×     |     1.0×      |     1.0×    | Baseline
+  resist   |     1.5×     |     0.7×      |     1.4×    | Fish fighting back
+  tired    |     0.5×     |     1.5×      |     0.6×    | Player's advantage
+  surge    |     2.2×     |     0.5×      |     2.0×    | Must release to survive
+
+  Source: STATE_MODS, FishingPage.tsx lines 497–502.
+
+  STATE PROBABILITY WEIGHTS [calm, resist, tired, surge]:
+
+  Rarity  | Calm | Resist | Tired | Surge
+  ────────┼──────┼────────┼───────┼──────
+  1★      |  65  |   10   |   20  |   5
+  2★      |  55  |   20   |   15  |  10
+  3★      |  40  |   30   |   15  |  15
+  4★      |  25  |   35   |   15  |  25
+  5★      |  15  |   40   |   12  |  33
+
+  Source: stateWeights array, FishingPage.tsx lines 445–451.
+
+────────────────────────────────────────────────────────────────────────────────
+16.4 — EQUIPMENT MODIFIER FORMULAS
+────────────────────────────────────────────────────────────────────────────────
+
+  FISHING POLE (tension slowdown):
+    Only applies to 3★, 4★, 5★ fish.
+    poleSlowdownMult = 1 + (poleSlowdownPercent / 100)
+    Effective tension rise = baseTensionRise[idx] × poleSlowdownMult
+    NOTE: Higher poleSlowdownPercent = MORE tension → harder. Use negative
+          values (like -20 → mult 0.80) to make poles helpful.
+    Source: FishingPage.tsx lines 461–467.
+
+  BAIT (catch boost):
+    Effective reel rate = baseReelRate[idx] × (1 + baitCatchBoost / 100)
+    Example: baitCatchBoost = 25 → reel rate × 1.25
+    Source: FishingPage.tsx line 466.
+
+  BAIT (rarity boost):
+    Applied server-side to the pond weight pool.
+    The targeted star tier's weight is multiplied by (1 + rarityBoostPercent / 100).
+
+────────────────────────────────────────────────────────────────────────────────
+16.5 — SERVER-SIDE CATCH VALIDATION
+────────────────────────────────────────────────────────────────────────────────
+
+  POND SELECTION (weighted random):
+    Base weights by star rarity: 1★:60  2★:24  3★:10  4★:4  5★:2
+    Rare boost from pole (rareCatchBoostPercent) is added to the 4★ and 5★ weights.
+    Bait rarity boost (rarityBoostPercent) is added to the targeted star tier weight.
+    The selected rarity group is chosen first; then a random fish from that group.
+
+  PERFORMANCE SCORE:
+    Client sends performanceScore (0–100) when catchProgress reaches 1.0.
+    A perfect reel = 100. Server formula:
+
+    if score == 100 → catch guaranteed
+    else            → catch chance = 0.4 + (score / 100) × 0.5
+
+    Range: score 0 → 40% chance; score 50 → 65% chance; score 99 → 89.5% chance.
+    Source: server/routes.ts line ~3508.
+
+  POLE DURABILITY:
+    poleUsesLeft is decremented on EVERY CAST regardless of outcome (hit, miss, escape).
+    When poleUsesLeft reaches 0, the pole is broken and cannot be used.
+
+  BAIT CONSUMPTION:
+    One unit of bait is consumed only on a SUCCESSFUL CATCH.
+
+================================================================================
+16.6 — BATTLE / SLASH MECHANICS
+================================================================================
+
+────────────────────────────────────────────────────────────────────────────────
+SWIPE DETECTION
+────────────────────────────────────────────────────────────────────────────────
+
+  Minimum swipe path length to register a hit: 4 (% units across arena).
+  Swipe path buffer: last 7 points kept.
+  Minimum movement threshold to add a new point: 0.5 (% units).
+  Hit detection: segment-to-point distance (segmentPointDist).
+
+  Hitbox radius:
+    Normal enemy: 17  (% of arena width/height)
+    Boss enemy:   24
+
+  Multi-hit guard: hitEnemiesRef (Set) resets on each new swipe start,
+  preventing the same enemy from being hit twice in one continuous motion.
+  Source: BattleArena.tsx lines 465–588.
+
+────────────────────────────────────────────────────────────────────────────────
+PLAYER DAMAGE TO ENEMY
+────────────────────────────────────────────────────────────────────────────────
+
+  Step 1 — Raw damage:
+    rawDmg = petAtk - floor(enemyDef × 0.3)
+
+  Step 2 — Random variance:
+    variance = floor(random() × 10) - 4   (range: -4 to +5)
+
+  Step 3 — Combo multiplier (hits within 1400 ms window):
+    comboMult = 1 + min(comboCount × 0.12, 0.6)
+
+    Combo  | Multiplier
+    ───────┼───────────
+    1      | 1.00×
+    2      | 1.12×
+    3      | 1.24×
+    4      | 1.36×
+    5+     | 1.60× (cap)
+
+  Step 4 — Critical hit:
+    Crit chance = 15%
+    critMult = 1.9× on crit, 1.0× otherwise
+
+  Step 5 — Counter multiplier (active after a successful parry):
+    counterMult = 2.0× (active), 1.0× (inactive)
+
+  FINAL FORMULA:
+    damage = max(1, floor((rawDmg + variance) × comboMult × critMult × counterMult))
+
+  Source: BattleArena.tsx lines 489–495.
+
+────────────────────────────────────────────────────────────────────────────────
+ENEMY DAMAGE TO PLAYER (FAILED PARRY)
+────────────────────────────────────────────────────────────────────────────────
+
+  DEF reduction formula:
+    defReduction = def / (def + 60)
+
+    DEF value  | Damage reduction
+    ───────────┼─────────────────
+    20         | 25.0%
+    40         | 40.0%
+    60         | 50.0%
+    90         | 60.0%
+    120        | 66.7%
+    180        | 75.0%
+
+  Raw damage:
+    rawDmg = enemyAtk × (1 - defReduction)
+
+  Variance:
+    + random() × 8 - 4   (range: -4 to +4)
+
+  Final formula:
+    damage = max(1, floor(rawDmg + variance))
+
+  Source: BattleArena.tsx line 381–383.
+
+────────────────────────────────────────────────────────────────────────────────
+SUCCESSFUL PARRY (BLOCK) — BLEED-THROUGH DAMAGE
+────────────────────────────────────────────────────────────────────────────────
+
+  A perfect parry is NOT zero damage. A small amount bleeds through:
+
+  blockAbsorb = min(0.95, def / (def + 30))
+
+    DEF value  | Block absorption | Bleed-through %
+    ───────────┼──────────────────┼────────────────
+    30         | 50.0%            | 50.0%
+    60         | 66.7%            | 33.3%
+    90         | 75.0%            | 25.0%
+    180        | 85.7%            | 14.3%
+    300+       | 95.0% (cap)      | 5.0% (minimum)
+
+  bleedDmg = max(0, floor(enemyAtk × (1 - blockAbsorb) × 0.5))
+  (Half the unabsorbed damage comes through.)
+
+  Source: BattleArena.tsx lines 611–613.
+
+────────────────────────────────────────────────────────────────────────────────
+PARRY / COUNTER TIMING
+────────────────────────────────────────────────────────────────────────────────
+
+  Parry window opens: 320 ms after charge starts
+  Charge durations:
+    Normal enemy    : 1350 ms  (chargeDurationRef default)
+    Boss            : 1100 ms
+    Boss in Rage    :  980 ms  (set when boss HP drops to ≤50%)
+  Parry window: from 320 ms until charge duration completes.
+
+  Effective parry reaction window:
+    Normal enemy: 1350 - 320 = 1030 ms to react
+    Boss:         1100 - 320 =  780 ms to react
+    Boss Rage:     980 - 320 =  660 ms to react
+
+  Counter state (after successful parry):
+    Duration: 3000 ms OR until 2 hits land (whichever comes first)
+    Hits granted: 2
+    Damage multiplier: 2.0×
+
+  Source: BattleArena.tsx lines 363–370, 427–431, 627–639.
+
+────────────────────────────────────────────────────────────────────────────────
+ENEMY ATTACK TIMING (CHARGE INTERVALS)
+────────────────────────────────────────────────────────────────────────────────
+
+  difficulty: a random float 0.3 – 1.0, set fresh for each wave.
+  Initial charge delay after battle start: 3500 ms (giving player time to react).
+
+  Post-attack cooldown (next charge timer):
+    Normal enemy (not boss):
+      base = 2600 + random() × 2200 - difficulty × 900
+      clamped to minimum 1100 ms
+      Range (diff=0.3): ~1700 – 3900 ms
+      Range (diff=1.0): ~1700 – 3900 ms (floor applies often at high diff)
+
+    Boss (normal phase):
+      base = 3000 + random() × 1500
+      Range: 3000 – 4500 ms
+
+    Boss (Rage phase):
+      base = 1600 + random() × 1000
+      Range: 1600 – 2600 ms
+
+  After a SUCCESSFUL PARRY (enemy recovery):
+    Normal:  2600 - difficulty × 400 ms
+    Boss:    2200 - difficulty × 400 ms
+
+  Source: BattleArena.tsx lines 418–422, 642–644.
+
+────────────────────────────────────────────────────────────────────────────────
+BOSS RAGE
+────────────────────────────────────────────────────────────────────────────────
+
+  Triggers when: isBoss = true AND enemyHp <= enemyMaxHp × 0.5
+  Once triggered, it never resets within a wave.
+  Effect: chargeDurationRef → 980 ms (from 1100 ms)
+          Screen gets a red tint.
+          Enemy movement becomes more erratic.
+
+  Source: BattleArena.tsx lines 426–431.
+
+================================================================================
+16.7 — MANA SYSTEM
+================================================================================
+
+  MAX_MANA = 100
+
+  Mana gains:
+    Event                    | Mana gained
+    ─────────────────────────┼────────────
+    Taking a hit             | +14
+    Landing a normal slash   | +13
+    Landing (combo ≥ 3)      | +18
+    Landing a critical hit   | +22
+    Passive tick             | +1 every 120 animation frames
+                             |   (~2 seconds at 60 fps)
+
+  Skill fires when mana = 100 and player taps their pet.
+  Mana resets to 0 immediately on skill use.
+  Skill cooldown after use: 3000 ms (UI lock; mana can still accumulate).
+
+  Source: BattleArena.tsx lines 392–393, 434–438, 513–516, 655–660.
+
+================================================================================
+16.8 — SPECIAL SKILL FORMULAS
+================================================================================
+
+  All skills use shop_items.skillDamagePercent and/or skillHealPercent.
+  If those fields are null or 0, a default multiplier is used (shown below).
+
+  Skill         | Formula                                            | Default mult
+  ──────────────┼────────────────────────────────────────────────────┼─────────────
+  Lazer         | floor(petAtk × (skillDamagePercent / 100))        | 2.5×
+  Bubble        | 3 hits: floor(petAtk × mult + random(0-10) each)  | 0.9× per hit
+                |   hits fire at 0 ms, 350 ms, 700 ms              |
+  Heal Self /   | floor(petAtk × (skillHealPercent / 100))          | 0.5×
+  Heal Party    |   (falls back to skillDamagePercent, then 0.5)    |
+  Poison        | floor(petAtk × (skillDamagePercent / 100)) / tick | 0.14× per tick
+                |   5 ticks at 900 ms intervals = 4500 ms total     |
+
+  Source: BattleArena.tsx lines 667–731.
+
+================================================================================
+16.9 — POTION MECHANICS
+================================================================================
+
+  Potion values come directly from shop_items:
+    Health potions  → healthRestored (integer HP)
+    Mana potions    → manaRestored (integer mana points)
+    Revive potions  → petsRevived (number of KO'd pets revived)
+
+  Health is capped at petMaxHp. Mana is capped at MAX_MANA (100).
+  Potions can only be used during an active battle (battleActiveRef = true).
+  A health potion cannot be used if pet is already at full HP.
+  A mana potion cannot be used if mana is already at 100.
+
+  Source: BattleArena.tsx lines 750–777.
+
+================================================================================
+16.10 — ENEMY SCALING FORMULAS
+================================================================================
+
+  Enemies are scaled to the player's active pet at encounter start.
+  Source: server/routes.ts — /api/explore/:locationId/encounter
+
+  ENEMY LEVEL:
+    Normal:  petLevel + random(0 to 2)
+    Boss:    petLevel + random(0 to 5)
+
+  ENEMY HP:
+    base = max(200, floor(petHp × 2 × bossHpMult × waveScaling))
+    bossHpMult:   4.0 for bosses, 1.0 for normal
+    waveScaling:  1 + (waveIndex × 0.15)
+    (Wave 0 = ×1.0, wave 1 = ×1.15, wave 2 = ×1.30, etc.)
+
+  ENEMY ATK / DEF:
+    base = max(statFloor, floor(petStat × (2/3) × bossStatMult × waveScaling))
+    bossStatMult: 2.5 for bosses, 1.0 for normal
+
+  DIFFICULTY MODIFIER:
+    Per-wave random float: 0.3 – 1.0
+    Used only to modulate attack frequency (see 16.6 charge intervals).
+
+================================================================================
+16.11 — LEVELING FORMULAS
+================================================================================
+
+  XP EARNED PER ENEMY:
+    lvlPointsEarned = max(1, floor(startingEnemyHp × 0.05))
+    (5% of the enemy's starting HP, rounded down, minimum 1)
+    Source: server/routes.ts line ~2895.
+
+  XP REQUIRED FOR NEXT LEVEL:
+    needed = floor(100 + level × 30 + level² × 5)
+
+    Level | XP needed
+    ──────┼──────────
+    1     |    135
+    5     |    400
+    10    |    950
+    20    |   2700
+    50    |   14,100
+    99    |   51,755
+    100   |   MAX (no more leveling)
+
+    Source: server/routes.ts line ~1145.
+
+  POWER-UP SLOTS PER LEVEL:
+    maxItemsPerLevel = rarity + 2
+
+    Rarity | Slots per level
+    ───────┼────────────────
+    1★     |       3
+    2★     |       4
+    3★     |       5
+    4★     |       6
+    5★     |       7
+
+    itemsUsedThisLevel resets to 0 on every level-up.
+    Once itemsUsedThisLevel >= maxItemsPerLevel, no more power-ups
+    can be used until the pet levels up.
+    Source: server/routes.ts line 1125.
+
+  STAT RESET COST:
+    300 coins
+    Resets: petLevel → 1, petLevelPoints → 0, petHealth → 1000, petAtk → 50,
+            petDef → 50, itemsUsedThisLevel → 0.
+    Also removes ALL equipped accessories (and reverses their stat bonuses).
+    Source: server/routes.ts line ~1292.
+
+================================================================================
+16.12 — DROP RATE SYSTEM
+================================================================================
+
+  Drop rates are stored in enemy_drops.drop_rate as an integer 1–100.
+  Each drop on the loot table is rolled INDEPENDENTLY:
+
+    roll = random() × 100
+    if roll < drop_rate → item drops
+
+  CONSEQUENCE: Multiple items can drop from a single enemy kill.
+  A drop_rate of 100 = guaranteed drop every kill.
+  A drop_rate of 10 = 10% chance per kill.
+  Drop rates are capped between 1 and 100 on creation (admin enforced).
+
+  Source: server/routes.ts line ~2924.
+
+================================================================================
+16.13 — COIN REWARD SYSTEM
+================================================================================
+
+  BASE COINS:
+    Fixed per enemy, set in location_enemies.coin_reward.
+    Awarded immediately on enemy defeat before any drop rolls.
+
+  DUPLICATE PET COMPENSATION:
+    If a pet drop item is already owned by the player (an owned instance exists
+    with the same shop_item_id), instead of giving a second copy, the server
+    awards a coin equivalent based on the item's shop price.
+    Source: server/routes.ts lines ~2625–2636.
+
+  FISH SELLING:
+    Fish sell for their shop_items.price in coins.
+    Fish can be sold from the Fish Inventory screen or at a Fish Barrel
+    in the world scene.
+
+================================================================================
+16.14 — HATCHING SYSTEM
+================================================================================
+
+  TIMER:
+    hatchTime is stored on shop_items in HOURS.
+    Hatching starts when the player initiates it, setting hatchStartedAt.
+    Progress = (now - hatchStartedAt) / (hatchTime × 3600 × 1000)
+
+  HATCH ACCELERATOR ITEMS:
+    specialType = "hatch_time", specialAmount = hours to skip.
+    The server shifts hatchStartedAt backward by (specialAmount × 3600 × 1000 ms).
+    Multiple accelerators can be stacked — each one shifts further back.
+    If the accumulated shift exceeds the total hatch time, the egg hatches instantly.
+
+  HATCH CHECK ENDPOINT:
+    GET /api/pet/:inventoryId/hatch-check
+    Compares (now - hatchStartedAt) >= (hatchTime hours in ms).
+    On success: sets isHatched = true on user_inventory.
+
+  Source: server/routes.ts lines ~963, ~1195–1204.
+
+================================================================================
+16.15 — ACCESSORY STAT FORMULAS
+================================================================================
+
+  On EQUIP:
+    petAtk  += accessory.atkBoost  (if > 0)
+    petDef  += accessory.defBoost  (if > 0)
+    petHealth += accessory.healthBoost  (if > 0)
+
+  On UNEQUIP:
+    petAtk  -= accessory.atkBoost
+    petDef  -= accessory.defBoost
+    petHealth -= accessory.healthBoost
+
+  MAX ACCESSORIES: 3 per pet (slots 0, 1, 2).
+  Attempting to equip a 4th without unequipping one returns an error.
+  Current HP is adjusted proportionally if maxHp changes from a health accessory.
+
+  Source: server/routes.ts — /api/pet/:inventoryId/equip and /unequip.
+
+================================================================================
+16.16 — TIMERS AND COOLDOWN SUMMARY
+================================================================================
+
+  System                            | Timer / Cooldown
+  ──────────────────────────────────┼──────────────────────────────────────────
+  Fishing — wait phase              | 1500 – 4000 ms (random)
+  Fishing — nibble window (1★)      | 2500 ms per chance, 3 chances
+  Fishing — nibble window (5★)      | 1100 ms per chance, 1 chance
+  Fishing — grace period            | 1200 ms after nibble tap
+  Fishing — snap display            |  600 ms (then phase → missed)
+  Battle — intro animation          | 1800 ms before battle begins
+  Battle — initial charge delay     | 3500 ms after battle starts
+  Battle — parry window opens       |  320 ms into enemy charge
+  Battle — normal charge duration   | 1350 ms
+  Battle — boss charge duration     | 1100 ms
+  Battle — boss rage charge         |  980 ms
+  Battle — combo window             | 1400 ms between hits
+  Battle — counter state duration   | 3000 ms (or 2 hits, whichever first)
+  Battle — skill cooldown (UI)      | 3000 ms
+  Battle — parry result display     |  900 ms (success) / 600 ms (fail)
+  Battle — mana passive tick        |  ~2000 ms (every 120 frames at 60 fps)
+  Battle — poison tick interval     |  900 ms (5 ticks = 4500 ms total)
+  Battle — bubble hit delay         |  350 ms between each of 3 hits
+  Username change cooldown          | Stored in last_username_change (period
+                                    | defined in routes, check before editing)
+  Profile pic change cooldown       | Stored in last_profile_pic_change
+
+================================================================================
+16.16b — ADDITIONAL REWARD AND ECONOMY FORMULAS
+================================================================================
+
+  FISH SELL PRICES (by star rarity):
+    1★ →  5 coins
+    2★ → 10 coins
+    3★ → 15 coins
+    4★ → 25 coins
+    5★ → 30 coins
+
+  PVP COIN REWARDS:
+    Win:  15 + floor(opponentLevel × 2) coins
+    Loss: 0 coins
+
+  DUPLICATE PET COIN COMPENSATION (when a bundle/drop gives an already-owned pet):
+    1★ → 100 coins
+    2★ → 150 coins
+    3★ → 250 coins
+    4★ → 1,000 coins
+    5★ → 2,000 coins
+
+  MARKET EXTRA SLOT COST:
+    Base listing limit: 5 slots.
+    Cost to buy one more slot: 500 + (currentExtraSlots × 500) coins.
+    Example: buying 1st extra = 500 coins, 2nd extra = 1000 coins, 3rd = 1500 coins.
+
+  DAILY PURCHASE LIMITS (Stripe / real money):
+    Max per session: $100 USD
+    Max per day:     $500 USD
+
+  FRIEND REQUEST LIMIT:
+    Max 25 unanswered outgoing requests at once.
+
+  BADGE DAILY REWARD COOLDOWN:
+    24 hours between claims per badge.
+
+  PASSWORD RESET TOKEN:
+    Valid for 1 hour from issuance.
+
+  SESSION COOKIE:
+    Duration: 30 days.
+
+  Source: server/routes.ts (various endpoints), server/storage.ts.
+
+================================================================================
+16.17 — BALANCE GUIDANCE FOR FUTURE EDITS
+================================================================================
+
+  When editing any mechanic, follow these rules:
+
+  FISHING BALANCE:
+  - To make a rarity EASIER:  lower baseTensionRise, raise tensionFalls,
+    lower baseEscapeRate, or widen the sweetLow/sweetHigh range.
+  - To make a rarity HARDER:  reverse the above, or add more surge weight.
+  - Do NOT change per-rarity arrays independently — they must remain
+    internally consistent across all 5 rarity tiers.
+  - Pole slowdown is multiplicative ON TOP of baseTensionRise, not additive.
+    A slowdownPct of 30 means tension rises 30% MORE, not less. This is
+    currently counter-intuitive — see note in source code.
+
+  BATTLE BALANCE:
+  - Increasing pet damage: raise statBoostAmount on power-up items, or adjust
+    the enemy DEF reduction formula (def × 0.3 scaling).
+  - Increasing difficulty: raise difficultyRef ceiling, or shorten charge
+    durations. Do NOT remove the parry window without replacing the mechanic.
+  - Counter hits (2) and duration (3000 ms) are intentionally low — increasing
+    them significantly can trivialise boss fights.
+  - Crit chance (15%) should remain below 20% to avoid feeling random/unfair.
+
+  LEVELING BALANCE:
+  - The XP formula (100 + level × 30 + level² × 5) creates steep late-game
+    scaling. Any change to this formula invalidates all existing pet XP.
+    Plan a data migration if changing it.
+  - Power-up slots per level (rarity + 2) is a soft cap, not a hard one —
+    players can always level up to unlock more slots.
+
+  DROP BALANCE:
+  - drop_rate values should stay between 2–50 for most items.
+  - drop_rate = 100 should only be used for guaranteed quest/tutorial drops.
+  - Because each drop is independent, having many drops at 25% each means
+    a player will often receive multiple items per kill.
+
+================================================================================
 END OF MASTER GAME DOCUMENT
 ================================================================================
