@@ -6,7 +6,7 @@ import { apiRequest } from "@/lib/queryClient";
 import bgImg from "@assets/bg_home_v2.png";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import eggMagicIcon from "@assets/generated_images/icon_egg_magic.png";
-import questIcon from "@assets/icon_quest_v5.png";
+import questIcon from "@assets/generated_images/nav_icon_quest_v3.png";
 import mapIcon from "@assets/icon_map_new.png";
 import swordsImg from "@assets/icon_pvp_new.png";
 import eggImg from "@assets/icon_pets.png";
