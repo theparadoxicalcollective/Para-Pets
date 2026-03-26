@@ -2059,5 +2059,622 @@ BOSS RAGE
     a player will often receive multiple items per kill.
 
 ================================================================================
+SECTION 17 — FILE STRUCTURE (WHERE TO EDIT CODE)
+================================================================================
+
+This section maps every important file in the project to its purpose.
+Use it to answer "which file do I open to change X?"
+
+KEY PATH ALIASES (configured in vite.config.ts and tsconfig.json):
+  @/            → client/src/
+  @assets/      → client/src/assets/
+  @shared/      → shared/
+  @lib/         → client/src/lib/
+
+================================================================================
+17.1 — ROOT CONFIGURATION FILES
+================================================================================
+
+  FILE                  PURPOSE
+  ────────────────────  ─────────────────────────────────────────────────────
+  package.json          All npm dependencies and scripts. DO NOT EDIT directly.
+                        Use package manager tools to add dependencies.
+
+  vite.config.ts        Vite bundler config. Defines aliases (@/, @assets/,
+                        @shared/), plugins (React), and server proxy.
+                        DO NOT MODIFY unless absolutely necessary.
+
+  tailwind.config.ts    Tailwind CSS configuration — dark mode strategy,
+                        custom colours, and content paths.
+                        Edit here to add custom theme tokens.
+
+  drizzle.config.ts     Drizzle ORM config — database connection URL and
+                        migration/schema paths. DO NOT MODIFY.
+
+  tsconfig.json         TypeScript compiler options and path aliases.
+                        DO NOT MODIFY.
+
+  postcss.config.js     PostCSS pipeline (Tailwind + Autoprefixer).
+                        DO NOT MODIFY.
+
+  components.json       shadcn/ui config (component style, aliases, etc).
+                        Used by the shadcn CLI. DO NOT MODIFY manually.
+
+  replit.md             Persistent AI memory file. Update this when making
+                        major architectural changes.
+
+  MASTER_GAME_DOCUMENT.txt  This file. The canonical reference for the game.
+
+================================================================================
+17.2 — SHARED FILES (used by both frontend and backend)
+================================================================================
+
+  FILE                  PURPOSE
+  ────────────────────  ─────────────────────────────────────────────────────
+  shared/schema.ts      THE MOST IMPORTANT FILE IN THE PROJECT.
+                        Defines every Drizzle database table, every column,
+                        Zod insert schemas, and all TypeScript types.
+                        Always read this before writing any backend query
+                        or frontend type. All types are exported from here.
+
+================================================================================
+17.3 — SERVER FILES
+================================================================================
+
+  FILE                    PURPOSE
+  ──────────────────────  ───────────────────────────────────────────────────
+  server/index.ts         Express server entry point.
+                          Sets up: session middleware, Passport.js auth,
+                          body parsers, CORS, and mounts all routes.
+                          Also starts the HTTP listener.
+                          Edit here to add global middleware.
+
+  server/routes.ts        THE LARGEST FILE. Contains ALL API endpoints.
+                          Organised into sections:
+                            - Authentication (/api/auth/*)
+                            - User profile (/api/user/*)
+                            - Inventory (/api/inventory/*)
+                            - Pets (/api/pet/*)
+                            - Exploration / Battle (/api/explore/*)
+                            - Fishing (/api/fishing/*)
+                            - Market (/api/market/*)
+                            - Worlds / Locations (/api/world/*, /api/location/*)
+                            - PvP Arena (/api/pvp/*)
+                            - Social / Friends (/api/friends/*)
+                            - Notifications (/api/notifications/*)
+                            - Badges (/api/badges/*)
+                            - Rewards (/api/rewards/*)
+                            - Coin shop / Stripe (/api/coins/*)
+                            - Admin (/api/admin/*)
+                            - Support (/api/support/*)
+                          When adding a new endpoint, add it here.
+                          Use the isAdmin or isAuthenticated middleware
+                          from this file to protect routes.
+
+  server/storage.ts       Data access layer (IStorage interface + implementation).
+                          All database reads/writes go through this file.
+                          Rules:
+                            - NEVER write raw SQL in routes.ts.
+                            - Add a method to IStorage, implement it here,
+                              then call it from routes.ts.
+                          This file is the single place where Drizzle queries
+                          are constructed.
+
+  server/db.ts            Drizzle database connection setup.
+                          Reads DATABASE_URL from environment variables.
+                          Exports the `db` object used in storage.ts.
+                          DO NOT import `db` directly in routes.ts.
+
+  server/stripeClient.ts  Stripe SDK initialization.
+                          Reads STRIPE_SECRET_KEY from environment.
+                          Exports the configured Stripe client.
+                          Used in routes.ts for payment session creation.
+
+  server/webhookHandlers.ts  Handles incoming Stripe webhook events
+                          (e.g., checkout.session.completed → credit coins).
+                          Verify the Stripe webhook signature here.
+                          Edit here when changing payment flow.
+
+  server/vite.ts          Dev-only. Integrates Vite's dev server middleware
+                          into Express for HMR during development.
+                          DO NOT MODIFY.
+
+  server/static.ts        Production-only. Serves the compiled frontend
+                          from the dist/ folder and handles SPA fallback
+                          (serves index.html for unknown routes).
+                          DO NOT MODIFY.
+
+================================================================================
+17.4 — FRONTEND ENTRY FILES
+================================================================================
+
+  FILE                      PURPOSE
+  ────────────────────────  ─────────────────────────────────────────────────
+  client/index.html         HTML shell template. Vite injects the bundled
+                            JS/CSS here. DO NOT MODIFY unless adding meta tags.
+
+  client/src/main.tsx       React app entry point.
+                            Mounts <App /> to the DOM root.
+                            Wraps with QueryClientProvider.
+
+  client/src/App.tsx        TOP-LEVEL ROUTER. Defines all page routes using
+                            wouter. Contains the auth check (fetches /api/auth/me)
+                            and conditionally renders the admin route.
+                            When adding a new page: import it here and add a
+                            <Route path="..." component={...} /> entry.
+
+  client/src/index.css      Global CSS. Defines CSS custom properties for the
+                            Tailwind theme (HSL colour tokens for :root and .dark),
+                            custom animations (pondGlow, shimmer, etc.), and
+                            global font/body styles.
+                            Edit here to change theme colours or add keyframes.
+
+================================================================================
+17.5 — FRONTEND PAGE FILES (client/src/pages/)
+================================================================================
+
+  Each page is a full-screen view. Pages are registered in App.tsx.
+
+  FILE                      ROUTE / PURPOSE
+  ────────────────────────  ─────────────────────────────────────────────────
+  AuthPage.tsx              /auth — Login and registration forms.
+                            Handles both login and sign-up in one component.
+
+  HomePage.tsx              / (root) — The main hub/home screen.
+                            Likely entry point after login.
+
+  MapPage.tsx               /map — The world map selector.
+                            Shows all Veridia worlds as clickable nodes.
+                            Navigates to WorldPage on selection.
+
+  WorldPage.tsx             /world/:worldId — Inside a specific world.
+                            Shows buildings, decorations, NPCs, world pets.
+                            Entry point to shops, fishing spots, and battles.
+
+  PetWorldPage.tsx          /pet-world — The shared pet world scene.
+                            Renders all online players' active pets wandering
+                            around. Uses world_pet_positions table.
+                            LARGEST FRONTEND FILE (1900+ lines).
+                            Contains wander animations, fly logic, and
+                            all world interaction overlays.
+
+  PetHousePage.tsx          /pet-house — Player's own Pet House.
+                            Drag-and-drop pet placement on a room background.
+                            Reads/writes pet_house_positions.
+
+  VisitPetHousePage.tsx     /pet-house/:userId — Visiting another player's house.
+                            Read-only version of PetHousePage.
+
+  FishingPage.tsx           /fishing (rendered as overlay) — Fishing minigame.
+                            THE ENTIRE FISHING SYSTEM lives in this file.
+                            State machine, tension/reel physics, nibble logic,
+                            cast/catch mutations, fish rendering.
+                            See Sections 3 and 16.1–16.5 for mechanics docs.
+                            Key constants at lines 84–85 and 418–455.
+
+  MarketPage.tsx            /market — The Mire Bazaar (player marketplace).
+                            Browse listings, buy items, list your own items.
+                            Reads player_market_listings.
+
+  SellFishPage.tsx          /sell-fish — Fish selling interface.
+                            Accessible from Fish Barrel objects in the world.
+                            Lets players sell caught fish for coins by rarity.
+
+  CoinShopPage.tsx          /coin-shop — Real-money coin purchase screen.
+                            Integrates with Stripe Checkout.
+                            Reads coin packages from game_settings or config.
+
+  PvpArenaPage.tsx          /pvp — PvP Arena lobby and ranking screen.
+                            Shows leaderboard, player's battle history,
+                            and team selection for PvP matches.
+
+  PvpBattlePage.tsx         /pvp/battle — Active PvP combat screen.
+                            Multi-pet collision-based fighting (AI opponents).
+                            Similar to BattleArena but players vs AI-driven pets.
+
+  AdminPage.tsx             /admin — Admin control panel (isAdmin required).
+                            Hub that renders all admin sub-panels.
+                            See Section 7 for admin system documentation.
+
+  BadgePage.tsx             /badges — Player badge collection and daily rewards.
+                            Lists earned badges, shows daily claim status.
+
+  ParaPetsHubPage.tsx       /hub — ParaPets information/hub page.
+                            Likely a landing or info page for the game.
+
+  ResetPasswordPage.tsx     /reset-password — Password reset flow.
+                            Validates the token from the email link and
+                            lets the user set a new password.
+
+  PrivacyPolicyPage.tsx     /privacy — Static privacy policy page.
+
+  not-found.tsx             Rendered for any unmatched route (404 page).
+
+================================================================================
+17.6 — FRONTEND COMPONENT FILES (client/src/components/)
+================================================================================
+
+  GAME-CRITICAL COMPONENTS:
+
+  FILE                      PURPOSE
+  ────────────────────────  ─────────────────────────────────────────────────
+  BattleArena.tsx           THE ENTIRE PvE COMBAT ENGINE.
+                            Frame-based animation loop (requestAnimationFrame).
+                            Swipe/slash detection, parry/counter system,
+                            mana/skill system, boss rage, wave transitions,
+                            potion hotbar rendering.
+                            See Sections 4 and 16.6–16.12 for mechanics.
+                            Key constants: hitRadius (17/24), charge durations,
+                            mana gains, combo multiplier — all in this file.
+                            Called from WorldPage/PetWorldPage as an overlay.
+
+  PetAnimator.tsx           Renders a pet using its pet_template_parts.
+                            Fetches part images, composes them with posX/posY/
+                            zIndex, and plays idle/hover CSS animations.
+                            Used everywhere a pet is displayed visually.
+                            canFly controls floating vs ground animation.
+
+  PetDetailPage.tsx         Full pet management panel.
+                            Shows stats, level/XP bar, equipped accessories,
+                            power-up item usage, nickname field, market listing,
+                            stat reset button, and hatch progress bar.
+                            This is the main "manage your pet" UI.
+
+  PetInventory.tsx          Grid view of all items in the player's inventory.
+                            Filters by item type. Supports selecting active pet.
+                            Used inside PetWorldPage and other screens.
+
+  PetPowerUpModal.tsx       Drag-and-drop interface for using items on a pet.
+                            Handles power-ups, edibles, accessories, and
+                            hatch accelerators. Plays animations and sounds
+                            on success. Calls /api/pet/:id/power-up.
+
+  TopBar.tsx                Persistent top navigation bar.
+                            Shows: profile picture, username, coin balance,
+                            notification bell (pending rewards), friend
+                            request badge, friends list popup.
+                            Mounted at the app level, always visible.
+
+  FloatingNav.tsx           Circular fan-out quick-nav menu (bottom-right).
+                            Links to: Map, Quests, PvP, Inventory, Pet House,
+                            Market, Aquarium.
+                            Handles overlay state for several panels.
+
+  GlobalLevelUpOverlay.tsx  Full-screen celebration when a pet levels up.
+                            Listens for the custom `levelup` window event
+                            (fired by levelUpEvents.ts).
+                            Displays expanding rings, rays, stars, pet preview.
+
+  PowerUpOverlay.tsx        Short burst animation for successful power-up,
+                            level-up, or hatch-speed-up actions.
+                            Accepts an effect type ("powerup", "levelup",
+                            "speedup") and colour, then auto-dismisses.
+
+  RewardClaimModal.tsx      Modal for claiming pending reward bundles.
+                            Shows coin amounts, item previews, handles
+                            duplicate-pet coin compensation display.
+                            Calls /api/rewards/:bundleId/claim.
+
+  WelcomeGiftScreen.tsx     One-time welcome screen for new players.
+                            Shows animated gift reveal and starting items.
+                            Triggered by welcomeV2Sent = false on the user.
+
+  UserProfilePanel.tsx      Slide-up account settings panel.
+                            Username change (with cooldown), profile image
+                            upload/crop, password change, feedback form,
+                            logout, and account deletion.
+
+  PlayerDetailPanel.tsx     Public profile view of any player.
+                            Shows active pet stats, badges, accessories.
+                            Includes a "Visit Pet World" button.
+
+  ADMIN COMPONENTS:
+
+  FILE                      PURPOSE
+  ────────────────────────  ─────────────────────────────────────────────────
+  ItemDatabaseSection.tsx   Admin panel section for creating/editing ALL
+                            item types (pets, power-ups, accessories, potions,
+                            fishing gear, etc.) in the global shop_items table.
+                            Contains AdminItemForm with image upload (Sharp).
+                            Calls POST /api/admin/shop to create items.
+
+  FishingAdminPanel.tsx     Admin panel section specifically for fish.
+                            Creates fish items, uploads fish visual parts
+                            (Body/Eyes/Tail), positions them on a coordinate
+                            canvas, and assigns fish to pond locations.
+                            Calls /api/admin/fish-parts/* endpoints.
+
+  PetDatabasePanel.tsx      Admin panel section for pet visual templates.
+                            Creates pet_templates, uploads individual body
+                            parts per view (front/back), sets posX/posY/
+                            zIndex, and triggers assembly into a single image.
+                            Calls /api/admin/pet-templates/* endpoints.
+
+  ExploreAdminPanel.tsx     Admin panel section for world locations.
+                            Upload location backgrounds, add/edit/delete
+                            enemies, configure enemy drop tables (item + rate).
+                            Calls /api/admin/location/* endpoints.
+
+================================================================================
+17.7 — FRONTEND HOOKS (client/src/hooks/)
+================================================================================
+
+  FILE                PURPOSE
+  ──────────────────  ───────────────────────────────────────────────────────
+  use-toast.ts        shadcn/ui toast notification hook.
+                      Import as: import { useToast } from "@/hooks/use-toast"
+                      Used everywhere for user-facing feedback messages.
+
+  use-mobile.tsx      Detects if the screen is mobile-width (≤768 px).
+                      Returns a boolean. Used for responsive layout decisions.
+
+================================================================================
+17.8 — FRONTEND UTILITIES (client/src/lib/)
+================================================================================
+
+  FILE                PURPOSE
+  ──────────────────  ───────────────────────────────────────────────────────
+  queryClient.ts      TanStack Query v5 setup.
+                      Exports: queryClient, apiRequest (fetch wrapper).
+                      The DEFAULT FETCHER is configured here — all queries
+                      with a string queryKey automatically fetch that URL.
+                      apiRequest(method, url, body?) handles POST/PATCH/DELETE.
+                      Import queryClient here to call invalidateQueries.
+
+  sounds.ts           Sound effect manager.
+                      Exports named functions: playPlop(), playCatch(),
+                      playReelTick(), and others.
+                      Each function creates and plays an Audio object.
+                      Add new sound effects here.
+                      Import sound assets as URLs via import.
+
+  levelUpEvents.ts    Custom event bus for pet level-up celebrations.
+                      fireLevelUp(level, petName, templateId) → dispatches
+                      a custom window event.
+                      onLevelUp(callback) → subscribes to that event.
+                      Used by: BattleArena.tsx (fires) and
+                      GlobalLevelUpOverlay.tsx (listens).
+
+  tabSync.ts          BroadcastChannel-based cross-tab cache sync.
+                      When coins or rewards change in one tab, this broadcasts
+                      to other open tabs to invalidate their TanStack Query
+                      cache so all tabs stay consistent.
+                      Initialised in App.tsx.
+
+  utils.ts            General utility functions.
+                      Currently contains: cn() (Tailwind className merger
+                      using clsx + tailwind-merge).
+                      Import as: import { cn } from "@/lib/utils"
+
+================================================================================
+17.9 — SHADCN/UI BASE COMPONENTS (client/src/components/ui/)
+================================================================================
+
+  These are pre-built, unstyled-then-styled primitive UI components from
+  the shadcn/ui system. Do not edit these unless changing the design system.
+  Always import from "@/components/ui/..." path.
+
+  FILE            COMPONENT         USAGE
+  ────────────    ────────────────  ─────────────────────────────────────────
+  button.tsx      <Button>          Primary interactive element.
+  card.tsx        <Card>            Container with border/shadow treatment.
+  dialog.tsx      <Dialog>          Modal dialog with backdrop.
+  input.tsx       <Input>           Styled text input.
+  label.tsx       <Label>           Form field label.
+  select.tsx      <Select>          Dropdown selector.
+  separator.tsx   <Separator>       Horizontal rule/divider.
+  sheet.tsx       <Sheet>           Slide-in side panel/drawer.
+  skeleton.tsx    <Skeleton>        Loading placeholder shimmer.
+  toast.tsx       <Toast>           Toast notification primitive.
+  toaster.tsx     <Toaster>         Toast container (mounted in App.tsx).
+  tooltip.tsx     <Tooltip>         Hover tooltip.
+
+================================================================================
+17.10 — FISHING SYSTEM FILES (all locations)
+================================================================================
+
+  FILE                              ROLE IN FISHING
+  ────────────────────────────────  ─────────────────────────────────────────
+  client/src/pages/FishingPage.tsx  ENTIRE client-side fishing experience.
+                                    State machine, physics, UI rendering,
+                                    cast/catch mutations, fish canvas renderer.
+
+  server/routes.ts                  Fishing API endpoints:
+                                      POST /api/fishing/cast
+                                      POST /api/fishing/catch
+                                      POST /api/fishing/equip
+                                      POST /api/fishing/unequip
+                                      GET  /api/fishing/equipment
+                                      GET  /api/fishing/inventory
+                                      GET  /api/location/:id/pond-fish
+                                      POST /api/fishing/sell-fish
+                                      GET  /api/fishing/catch-log
+
+  server/storage.ts                 Storage methods:
+                                      getFishingEquipment
+                                      setFishingEquipment
+                                      getPlayerFishInventory
+                                      addPlayerFish
+                                      logFirstCatch
+                                      getPondFish
+
+  shared/schema.ts                  Tables used:
+                                      shopItems (fish definitions)
+                                      fishTemplateParts (visual parts)
+                                      pondFish (location → fish assignments)
+                                      playerFishInventory (owned fish)
+                                      playerFishCatchLog (fish book records)
+                                      playerFishingEquipment (active gear)
+
+  client/src/components/
+    FishingAdminPanel.tsx            Admin UI for creating/positioning fish parts.
+
+================================================================================
+17.11 — BATTLE SYSTEM FILES (all locations)
+================================================================================
+
+  FILE                                ROLE IN BATTLE
+  ──────────────────────────────────  ───────────────────────────────────────
+  client/src/components/
+    BattleArena.tsx                   ENTIRE PvE combat engine (1830 lines).
+                                      Animation loop, slash, parry, mana,
+                                      skills, boss rage, wave transitions.
+
+  client/src/pages/PvpBattlePage.tsx  PvP combat. Collision-based, multi-pet,
+                                      AI wander behaviour.
+
+  server/routes.ts                    Battle API endpoints:
+                                        POST /api/explore/:locationId/encounter
+                                        POST /api/explore/defeat/:enemyId
+                                        POST /api/explore/use-potion
+
+  server/storage.ts                   Storage methods:
+                                        getLocationEncounter
+                                        defeatEnemy
+                                        addLevelPoints
+                                        grantItemDrop
+
+  shared/schema.ts                    Tables used:
+                                        locationEnemies (enemy definitions)
+                                        enemyDrops (loot tables)
+                                        userInventory (pet stats updated after)
+
+  client/src/components/
+    ExploreAdminPanel.tsx              Admin UI for enemies and drop tables.
+    ExploreAdminPanel.tsx              Admin UI for location backgrounds.
+
+================================================================================
+17.12 — ADMIN PANEL FILES (all locations)
+================================================================================
+
+  FILE                                ROLE
+  ──────────────────────────────────  ───────────────────────────────────────
+  client/src/pages/AdminPage.tsx      Admin hub. Tab-based layout that mounts
+                                      all sub-panel components. User management
+                                      (ban/unban, coins, password reset).
+
+  client/src/components/
+    ItemDatabaseSection.tsx           Create/edit all shop_items (non-fish).
+    FishingAdminPanel.tsx             Create fish + fish visual parts.
+    PetDatabasePanel.tsx              Create/assemble pet visual templates.
+    ExploreAdminPanel.tsx             Manage enemies, drop tables, locations.
+
+  server/routes.ts                    All admin routes are prefixed /api/admin/
+                                      Protected by isAdmin middleware.
+                                      Key endpoints:
+                                        GET    /api/admin/users
+                                        POST   /api/admin/coins/:userId
+                                        POST   /api/admin/shop (create item)
+                                        POST   /api/admin/shop/:id (edit item)
+                                        POST   /api/admin/reward-bundle
+                                        GET    /api/admin/pet-templates
+                                        POST   /api/admin/pet-templates
+                                        POST   /api/admin/pet-templates/:id/assemble
+                                        POST   /api/admin/fish-parts/:fishItemId
+                                        PATCH  /api/admin/fish-parts/:partId
+                                        GET    /api/admin/support-messages
+                                        GET    /api/admin/shop-items-all
+
+================================================================================
+17.13 — DATABASE / MIGRATION FILES
+================================================================================
+
+  FILE                  PURPOSE
+  ────────────────────  ─────────────────────────────────────────────────────
+  shared/schema.ts      Drizzle schema definition (authoritative source).
+                        All table definitions, column types, and constraints.
+
+  drizzle.config.ts     Points Drizzle at the database and schema file.
+                        Configures migration output directory.
+
+  server/db.ts          Opens the PostgreSQL connection using DATABASE_URL.
+                        Exports `db` for use in storage.ts only.
+
+  server/storage.ts     All database query logic. The only file that
+                        imports `db` and runs Drizzle queries.
+
+  HOW TO ADD A NEW TABLE:
+    1. Define the table in shared/schema.ts.
+    2. Export the insert schema (createInsertSchema) and types.
+    3. Add CRUD methods to IStorage in server/storage.ts.
+    4. Implement them in the storage class.
+    5. Call them from server/routes.ts endpoints.
+    6. Run database push/migration to apply the schema change.
+
+================================================================================
+17.14 — ASSET FOLDERS
+================================================================================
+
+  PATH                          CONTENTS
+  ────────────────────────────  ─────────────────────────────────────────────
+  client/src/assets/            Frontend-bundled static assets.
+                                Referenced with @assets/... import alias.
+                                Vite hashes filenames on build for cache busting.
+                                Contains: UI icons, backgrounds, game art
+                                that is shipped with the frontend bundle.
+
+  attached_assets/              RAW game art uploaded by the project owner.
+                                343 files total (PNG/JPEG).
+                                NOT bundled automatically — files must be copied
+                                to client/src/assets/ to be importable via @assets/.
+                                Naming conventions observed:
+                                  acc_*        — Accessory item images
+                                  bait_*       — Fishing bait images
+                                  betta_*      — Fish species images (Betta family)
+                                  bg_*         — Background images
+                                  icon_*       — UI icon images
+                                  admin_icon_* — Admin panel section icons
+                                  pole_*       — Fishing pole images
+                                  generated_images/* — AI-generated game art
+
+  client/public/                Static files served as-is (not hashed).
+                                Appropriate for: favicon, manifest.json, robots.txt.
+
+================================================================================
+17.15 — BUILD AND SCRIPT FILES
+================================================================================
+
+  FILE                PURPOSE
+  ──────────────────  ───────────────────────────────────────────────────────
+  script/build.ts     Production build script.
+                      Runs: vite build (frontend) + tsc (backend).
+                      Output: dist/ folder served by server/static.ts.
+
+  server/vite.ts      Development only. Wires Vite middleware into Express
+                      for Hot Module Replacement.
+
+================================================================================
+17.16 — QUICK REFERENCE: WHICH FILE TO EDIT
+================================================================================
+
+  TASK                                        FILE(S) TO EDIT
+  ──────────────────────────────────────────  ──────────────────────────────
+  Add a new page/screen                       App.tsx + client/src/pages/[NewPage].tsx
+  Change fishing difficulty numbers           FishingPage.tsx (lines 418–455)
+  Change nibble timing per rarity             FishingPage.tsx (lines 84–85)
+  Change battle damage formula                BattleArena.tsx (lines 489–495)
+  Change parry timing                         BattleArena.tsx (lines 263, 367–370, 427–431)
+  Change mana gain values                     BattleArena.tsx (lines 392–393, 513–516)
+  Add a new special skill type                BattleArena.tsx (useSpecialSkill section)
+  Change XP per level formula                 server/routes.ts (~line 1145)
+  Change XP gained from battles               server/routes.ts (~line 2895)
+  Change power-up slots per level             server/routes.ts (~line 1125)
+  Add a new database table                    shared/schema.ts → storage.ts → routes.ts
+  Add a new API endpoint                      server/routes.ts
+  Add a new database query                    server/storage.ts (IStorage → implementation)
+  Change fish sell prices                     server/routes.ts (fish sell endpoint)
+  Change PvP coin rewards                     server/routes.ts (PvP defeat endpoint)
+  Add new item type to admin panel            ItemDatabaseSection.tsx + routes.ts
+  Add new fish to admin panel                 FishingAdminPanel.tsx + routes.ts
+  Change theme colours                        client/src/index.css (CSS variables)
+  Add new Tailwind tokens                     tailwind.config.ts
+  Change toast behaviour                      client/src/lib/queryClient.ts
+  Add new sound effect                        client/src/lib/sounds.ts
+  Change notification/cross-tab sync         client/src/lib/tabSync.ts
+  Modify Stripe payment flow                  server/stripeClient.ts + webhookHandlers.ts
+  Grant admin access to a user               Set users.is_admin = true in database
+                                              OR via POST /api/admin/users/:id/admin
+
+================================================================================
 END OF MASTER GAME DOCUMENT
 ================================================================================
