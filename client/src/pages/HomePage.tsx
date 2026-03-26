@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { X, HelpCircle } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -71,6 +71,9 @@ export default function HomePage({ user }: HomePageProps) {
   const [showSpeedUp, setShowSpeedUp] = useState(false);
   const [showSpeedEffect, setShowSpeedEffect] = useState(false);
   const [speedEffectLabel, setSpeedEffectLabel] = useState("");
+  const [homeDragOver, setHomeDragOver] = useState(false);
+  const [homeDragging, setHomeDragging] = useState<{ item: InventoryItem; x: number; y: number } | null>(null);
+  const homeEggDropRef = useRef<HTMLDivElement>(null);
   const [showPvpNotice, setShowPvpNotice] = useState(false);
   const [showHomePageTutorial, setShowHomePageTutorial] = useState(() => !localStorage.getItem("homePageTutorialSeen"));
   const [, navigate] = useLocation();
@@ -122,11 +125,56 @@ export default function HomePage({ user }: HomePageProps) {
     },
     onSuccess: (_data, variables) => {
       setShowSpeedUp(false);
+      setHomeDragging(null);
+      setHomeDragOver(false);
       setSpeedEffectLabel(`-${variables.specialAmount ?? "?"} min`);
       setShowSpeedEffect(true);
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
     },
   });
+
+  const handleHomeSheetItemPointerDown = (e: React.PointerEvent, item: InventoryItem) => {
+    if (!activePet) return;
+    e.preventDefault();
+    const petInvId = activePet.inventoryId;
+    const startX = e.clientX, startY = e.clientY;
+    let dragActive = false;
+    const onMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== e.pointerId) return;
+      const dist = Math.hypot(ev.clientX - startX, ev.clientY - startY);
+      if (dist > 6 && !dragActive) {
+        dragActive = true;
+        setHomeDragging({ item, x: ev.clientX, y: ev.clientY });
+      }
+      if (dragActive) {
+        setHomeDragging(prev => prev ? { ...prev, x: ev.clientX, y: ev.clientY } : null);
+        const dropRect = homeEggDropRef.current?.getBoundingClientRect();
+        if (dropRect) {
+          const over = ev.clientX >= dropRect.left && ev.clientX <= dropRect.right &&
+                       ev.clientY >= dropRect.top  && ev.clientY <= dropRect.bottom;
+          setHomeDragOver(over);
+        }
+      }
+    };
+    const onUp = (ev: PointerEvent) => {
+      if (ev.pointerId !== e.pointerId) return;
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      setHomeDragOver(false);
+      if (dragActive) {
+        const dropRect = homeEggDropRef.current?.getBoundingClientRect();
+        const overDrop = dropRect &&
+          ev.clientX >= dropRect.left && ev.clientX <= dropRect.right &&
+          ev.clientY >= dropRect.top  && ev.clientY <= dropRect.bottom;
+        if (overDrop) {
+          speedUpMutation.mutate({ petInvId, itemInvId: item.inventoryId, specialAmount: item.specialAmount });
+        }
+        setHomeDragging(null);
+      }
+    };
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+  };
 
   const petLoading = currentUser.activePetId && inventoryLoading;
 
@@ -751,20 +799,23 @@ export default function HomePage({ user }: HomePageProps) {
 
       {showSpeedUp && activePet && !activePet.isHatched && (
         <div className="fixed inset-0 z-[55] flex items-end justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowSpeedUp(false)} />
+          <div className="absolute inset-0 bg-black/60" onClick={() => { setShowSpeedUp(false); setHomeDragging(null); setHomeDragOver(false); }} />
           <div
-            className="relative w-full rounded-t-2xl p-5 animate-slide-up"
+            className="relative w-full rounded-t-2xl animate-slide-up"
             style={{
-              background: "linear-gradient(180deg, rgba(15,8,2,0.97) 0%, rgba(10,5,1,0.99) 100%)",
+              background: "linear-gradient(180deg, rgba(12,6,2,0.98) 0%, rgba(8,4,1,0.99) 100%)",
               border: "1px solid rgba(240,192,64,0.3)",
               borderBottom: "none",
-              boxShadow: "0 -8px 40px rgba(0,0,0,0.6)",
+              boxShadow: "0 -10px 50px rgba(0,0,0,0.7)",
+              maxHeight: "82vh",
+              overflowY: "auto",
             }}
           >
-            <div className="flex items-center justify-between mb-4">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 pt-5 pb-2">
               <h4 className="font-fantasy text-[#f0c040] text-sm tracking-wider">SPEED UP HATCHING</h4>
               <button
-                onClick={() => setShowSpeedUp(false)}
+                onClick={() => { setShowSpeedUp(false); setHomeDragging(null); setHomeDragOver(false); }}
                 className="font-fantasy text-[#a89878] text-xs tracking-wider"
                 style={{ cursor: "pointer", background: "none", border: "none" }}
                 data-testid="button-close-speedup"
@@ -772,44 +823,110 @@ export default function HomePage({ user }: HomePageProps) {
                 Close
               </button>
             </div>
-            {hatchTimeItems.length === 0 ? (
-              <p className="font-fantasy text-[#a89878] text-xs text-center py-6">
-                No speed-up items in your bag. Check the shop!
-              </p>
-            ) : (
-              <div className="grid grid-cols-3 gap-2">
-                {hatchTimeItems.map((item) => (
-                  <button
-                    key={item.inventoryId}
-                    data-testid={`button-speedup-${item.inventoryId}`}
-                    onClick={() => speedUpMutation.mutate({ petInvId: activePet.inventoryId, itemInvId: item.inventoryId, specialAmount: item.specialAmount })}
-                    disabled={speedUpMutation.isPending}
-                    className="rounded-md p-2 flex flex-col items-center gap-1 transition-transform active:scale-95 disabled:opacity-40"
-                    style={{
-                      background: "rgba(30,15,5,0.8)",
-                      border: "1px solid rgba(240,192,64,0.3)",
-                      cursor: speedUpMutation.isPending ? "wait" : "pointer",
-                    }}
-                  >
-                    <div className="w-12 h-12 rounded flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.3)" }}>
-                      {item.imageUrl ? (
-                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
-                      ) : (
-                        <span className="text-xl">⏩</span>
-                      )}
-                    </div>
-                    <span className="font-fantasy text-[#f0c040] text-[9px] tracking-wider text-center truncate w-full">{item.name}</span>
-                    <span
-                      className="font-fantasy text-[8px] tracking-wider px-2 py-0.5 rounded-full"
-                      style={{ background: "rgba(240,192,64,0.15)", color: "#f0c040" }}
-                    >
-                      -{item.specialAmount || "?"}min
-                    </span>
-                  </button>
-                ))}
+
+            {/* Egg drop zone */}
+            <div className="px-5 pb-4">
+              <div
+                ref={homeEggDropRef}
+                className="w-full rounded-2xl flex flex-col items-center justify-center gap-3 py-5 transition-all"
+                style={{
+                  background: homeDragOver ? "rgba(240,192,64,0.18)" : "rgba(0,0,0,0.25)",
+                  border: homeDragOver ? "2px dashed rgba(240,192,64,0.85)" : "2px dashed rgba(240,192,64,0.25)",
+                  boxShadow: homeDragOver ? "0 0 24px rgba(240,192,64,0.3)" : "none",
+                  transition: "all 0.15s",
+                  minHeight: 140,
+                }}
+              >
+                {activePet.eggImageUrl ? (
+                  <img
+                    src={activePet.eggImageUrl}
+                    alt={activePet.name}
+                    style={{ width: 80, height: 80, objectFit: "contain", filter: "drop-shadow(0 0 10px rgba(240,192,64,0.5))" }}
+                  />
+                ) : (
+                  <img src={eggMagicIcon} alt="Egg" style={{ width: 64, height: 64, objectFit: "contain", opacity: 0.7 }} />
+                )}
+                <div className="text-center">
+                  <p className="font-fantasy text-[#f0c040] text-sm tracking-wider">{activePet.petNickname || activePet.name}</p>
+                  <p className="font-fantasy text-[#a89878] text-[10px] tracking-wider mt-0.5">
+                    {homeDragOver ? "Release to use!" : "Drag item here · or tap item below"}
+                  </p>
+                </div>
               </div>
-            )}
+            </div>
+
+            {/* Items section */}
+            <div className="px-5 pb-6">
+              <p className="font-fantasy text-[#a89878] text-[10px] tracking-wider mb-3 uppercase">Your Speed-Up Items</p>
+              {hatchTimeItems.length === 0 ? (
+                <p className="font-fantasy text-[#a89878] text-xs text-center py-6">
+                  No speed-up items in your bag. Check the shop!
+                </p>
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  {hatchTimeItems.map((item) => (
+                    <div
+                      key={item.inventoryId}
+                      data-testid={`button-speedup-${item.inventoryId}`}
+                      className="rounded-md p-2 flex flex-col items-center gap-1 transition-transform active:scale-95"
+                      style={{
+                        background: "rgba(30,15,5,0.8)",
+                        border: "1px solid rgba(240,192,64,0.3)",
+                        cursor: speedUpMutation.isPending ? "wait" : "grab",
+                        touchAction: "none",
+                        userSelect: "none",
+                        opacity: speedUpMutation.isPending ? 0.4 : 1,
+                      }}
+                      onClick={() => !speedUpMutation.isPending && speedUpMutation.mutate({ petInvId: activePet.inventoryId, itemInvId: item.inventoryId, specialAmount: item.specialAmount })}
+                      onPointerDown={(e) => handleHomeSheetItemPointerDown(e, item)}
+                    >
+                      <div className="w-12 h-12 rounded flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.3)" }}>
+                        {item.imageUrl ? (
+                          <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
+                        ) : (
+                          <span className="text-xl">⏩</span>
+                        )}
+                      </div>
+                      <span className="font-fantasy text-[#f0c040] text-[9px] tracking-wider text-center truncate w-full">{item.name}</span>
+                      <span
+                        className="font-fantasy text-[8px] tracking-wider px-2 py-0.5 rounded-full"
+                        style={{ background: "rgba(240,192,64,0.15)", color: "#f0c040" }}
+                      >
+                        -{item.specialAmount || "?"}min
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
+        </div>
+      )}
+
+      {/* Drag ghost for home page speed-up sheet */}
+      {homeDragging && (
+        <div
+          className="fixed z-[90] pointer-events-none select-none"
+          style={{
+            left: homeDragging.x - 32,
+            top: homeDragging.y - 32,
+            width: 64,
+            height: 64,
+            borderRadius: 12,
+            background: "rgba(20,10,2,0.92)",
+            border: "2px solid rgba(240,192,64,0.8)",
+            boxShadow: "0 0 20px rgba(240,192,64,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            transform: "scale(1.1)",
+          }}
+        >
+          {homeDragging.item.imageUrl ? (
+            <img src={homeDragging.item.imageUrl} alt={homeDragging.item.name} style={{ width: 44, height: 44, objectFit: "contain" }} />
+          ) : (
+            <span style={{ fontSize: 28 }}>⏩</span>
+          )}
         </div>
       )}
 
