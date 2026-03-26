@@ -244,7 +244,7 @@ export default function AuthPage() {
                     border: "1px solid rgba(200,160,50,0.18)",
                   }}
                 >
-                  <h1 className="para-pets-title select-none">Para Pets</h1>
+                  <h1 className="para-pets-title select-none text-center">Para Pets</h1>
                 </div>
               </div>
               <p

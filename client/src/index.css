@@ -891,6 +891,7 @@
   font-weight: 400;
   font-size: clamp(3.2rem, 13vw, 5.2rem);
   letter-spacing: 0.08em;
+  text-align: center;
   background: linear-gradient(
     160deg,
     #b87d08 0%,
