@@ -8,7 +8,7 @@ import fishbowlIcon from "@assets/icon_fishbowl.png";
 import globeIcon from "@assets/icon_globe_world.png";
 import bagIcon from "@assets/icon_bag.png";
 import mapIcon from "@assets/generated_images/nav_icon_map.png";
-import questIcon from "@assets/generated_images/nav_icon_quest.png";
+import questIcon from "@assets/generated_images/nav_icon_quest_v3.png";
 import pvpIcon from "@assets/generated_images/nav_icon_pvp.png";
 import petsIcon from "@assets/generated_images/nav_icon_pets.png";
 import badgesIcon from "@assets/generated_images/nav_icon_badges.png";
@@ -31,13 +31,13 @@ interface FloatingNavProps {
   onUserUpdate?: (u: any) => void;
 }
 
-// ── Left arc: Map, Quest, PvP, Pet Inventory, Badges ─────────────────────────
+// ── Left arc: Badges, Quest, PvP, Pet Inventory, Map ─────────────────────────
 const LEFT_ITEMS = [
-  { id: "map",       label: "Map",       icon: mapIcon    },
+  { id: "badges",    label: "Badges",    icon: badgesIcon },
   { id: "quest",     label: "Quest",     icon: questIcon  },
   { id: "pvp",       label: "PvP",       icon: pvpIcon    },
   { id: "inventory", label: "Pets",      icon: petsIcon   },
-  { id: "badges",    label: "Badges",    icon: badgesIcon },
+  { id: "map",       label: "Map",       icon: mapIcon    },
 ];
 
 // ── Right column: Home, Pet House, Market, Aquarium, Keeper's Central, Pet Bag
