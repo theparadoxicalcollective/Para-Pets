@@ -1278,6 +1278,52 @@ export class DatabaseStorage implements IStorage {
       .where(eq(worldPetPositions.worldId, worldId));
   }
 
+  async getWorldActivePets(worldId: string): Promise<any[]> {
+    const rows = await db
+      .select({
+        userId:          users.id,
+        username:        users.username,
+        profileImage:    users.profileImage,
+        inventoryId:     userInventory.id,
+        shopItemId:      shopItems.id,
+        name:            shopItems.name,
+        petNickname:     userInventory.petNickname,
+        imageUrl:        shopItems.imageUrl,
+        hatchedImageUrl: shopItems.hatchedImageUrl,
+        petLevel:        userInventory.petLevel,
+        petHealth:       userInventory.petHealth,
+        petAtk:          userInventory.petAtk,
+        petDef:          userInventory.petDef,
+        rarity:          shopItems.rarity,
+        petTemplateId:   shopItems.petTemplateId,
+        posX:            worldPetPositions.posX,
+        posY:            worldPetPositions.posY,
+      })
+      .from(users)
+      .innerJoin(
+        userInventory,
+        and(
+          eq(userInventory.userId, users.id),
+          sql`${userInventory.shopItemId} = ${users.activePetId}`,
+          eq(userInventory.isHatched, true),
+        ),
+      )
+      .innerJoin(shopItems, and(
+        eq(shopItems.id, userInventory.shopItemId),
+        eq(shopItems.type, "pet"),
+      ))
+      .leftJoin(worldPetPositions, and(
+        eq(worldPetPositions.ownerUserId, users.id),
+        eq(worldPetPositions.worldId, worldId),
+      ))
+      .where(and(
+        eq(users.isBanned, false),
+        eq(users.isAdmin, false),
+        sql`${users.activePetId} IS NOT NULL`,
+      ));
+    return rows;
+  }
+
   async upsertPetPosition(worldId: string, ownerUserId: string, posX: number, posY: number): Promise<void> {
     await db.insert(worldPetPositions)
       .values({ worldId, ownerUserId, posX, posY })

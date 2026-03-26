@@ -1820,44 +1820,19 @@ export async function registerRoutes(
   });
 
   // Active pets for the Pet World — returns every user's active hatched pet
+  // 30-second server-side cache so repeated requests don't re-run the join query
+  let _activePetsCache: { ts: number; data: any[] } | null = null;
+  const ACTIVE_PETS_TTL = 30_000;
+
   app.get("/api/world/pet_world/active-pets", isAuthenticated, async (req, res) => {
     try {
-      const allUsers = await storage.getAllUsers();
-      const storedPositions = await storage.getPetPositions("pet_world");
-      const positionMap = new Map(storedPositions.map(p => [p.ownerUserId, { posX: p.posX, posY: p.posY }]));
-
-      const results: any[] = [];
-      await Promise.all(
-        allUsers.map(async (u) => {
-          if (!u.activePetId || u.isBanned || u.isAdmin) return;
-          const rows = await storage.getUserInventoryWithItems(u.id);
-          const row = rows.find(
-            r => r.shopItem?.id === u.activePetId && r.inventory.isHatched && r.shopItem?.type === "pet"
-          );
-          if (!row || !row.shopItem) return;
-          const pos = positionMap.get(u.id);
-          results.push({
-            userId: u.id,
-            username: u.username,
-            profileImage: u.profileImage,
-            inventoryId: row.inventory.id,
-            shopItemId: row.shopItem.id,
-            name: row.shopItem.name,
-            petNickname: row.inventory.petNickname,
-            imageUrl: row.shopItem.imageUrl,
-            hatchedImageUrl: row.shopItem.hatchedImageUrl,
-            petLevel: row.inventory.petLevel,
-            petHealth: row.inventory.petHealth,
-            petAtk: row.inventory.petAtk,
-            petDef: row.inventory.petDef,
-            rarity: row.shopItem.rarity ?? null,
-            petTemplateId: row.shopItem.petTemplateId || null,
-            posX: pos?.posX ?? null,
-            posY: pos?.posY ?? null,
-          });
-        })
-      );
-      return res.json(results);
+      const now = Date.now();
+      if (_activePetsCache && now - _activePetsCache.ts < ACTIVE_PETS_TTL) {
+        return res.json(_activePetsCache.data);
+      }
+      const rows = await storage.getWorldActivePets("pet_world");
+      _activePetsCache = { ts: now, data: rows };
+      return res.json(rows);
     } catch (err) {
       console.error("World active pets error:", err);
       return res.status(500).json({ message: "Failed to get world pets" });
@@ -1871,6 +1846,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "ownerUserId, posX, posY required" });
       }
       await storage.upsertPetPosition("pet_world", ownerUserId, posX, posY);
+      _activePetsCache = null; // bust so next fetch reflects the move
       return res.json({ success: true });
     } catch (err) {
       return res.status(500).json({ message: "Failed to update pet position" });
