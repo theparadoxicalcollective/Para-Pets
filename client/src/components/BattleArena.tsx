@@ -149,6 +149,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const [petHit, setPetHit] = useState(false);
   const [enemyHit, setEnemyHit] = useState(false);
   const [shakeScreen, setShakeScreen] = useState(false);
+  const [bossShockwave, setBossShockwave] = useState<{ id: number; x: number; y: number } | null>(null);
   const [comboCount, setComboCount] = useState(0);
   const [lastHitTime, setLastHitTime] = useState(0);
 
@@ -492,10 +493,21 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     const rawDmg = petStatsRef.current.atk - Math.floor(enemyStatsRef.current.def * 0.3);
     const dmg = Math.max(1, Math.floor((rawDmg + Math.floor(Math.random() * 10) - 4) * comboMult * critMult * counterMult));
 
+    const isBossHit = !!enemy.isBoss;
+
     enemyHpRef.current = Math.max(0, enemyHpRef.current - dmg);
     setEnemyHp(enemyHpRef.current);
     setEnemyHit(true);
-    setTimeout(() => setEnemyHit(false), 220);
+    setTimeout(() => setEnemyHit(false), isBossHit ? 360 : 220);
+
+    // Boss hit: screen shake + shockwave ring
+    if (isBossHit) {
+      setShakeScreen(true);
+      setTimeout(() => setShakeScreen(false), 280);
+      const swId = slashIdRef.current++;
+      setBossShockwave({ id: swId, x: ePos.x, y: ePos.y });
+      setTimeout(() => setBossShockwave(prev => prev?.id === swId ? null : prev), 500);
+    }
 
     // Mana on hit
     const manaGain = isCrit ? 22 : (combo >= 3 ? 18 : 13);
@@ -517,16 +529,17 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     setSlashEffects(prev => [...prev, { id: markId, x: ePos.x, y: ePos.y }]);
     setTimeout(() => setSlashEffects(prev => prev.filter(s => s.id !== markId)), 500);
 
-    // Sparks — golden during counter
+    // Sparks — more for bosses, golden during counter
     const sparkColor = wasCounter ? "#fde68a" : isCrit ? "#fbbf24" : accent;
-    const newSparks: SparkParticle[] = Array.from({ length: 11 }, (_, i) => {
-      const angle = (i / 11) * Math.PI * 2 + Math.random() * 0.4;
-      const speed = 2.0 + Math.random() * 3.2;
+    const sparkCount = isBossHit ? 18 : 11;
+    const newSparks: SparkParticle[] = Array.from({ length: sparkCount }, (_, i) => {
+      const angle = (i / sparkCount) * Math.PI * 2 + Math.random() * 0.4;
+      const speed = isBossHit ? (2.8 + Math.random() * 4.2) : (2.0 + Math.random() * 3.2);
       return { id: slashIdRef.current++, x: ePos.x, y: ePos.y, dx: Math.cos(angle) * speed, dy: Math.sin(angle) * speed, color: sparkColor };
     });
     setSparkParticles(prev => [...prev, ...newSparks]);
     const sparkIds = new Set(newSparks.map(s => s.id));
-    setTimeout(() => setSparkParticles(prev => prev.filter(s => !sparkIds.has(s.id))), 480);
+    setTimeout(() => setSparkParticles(prev => prev.filter(s => !sparkIds.has(s.id))), isBossHit ? 600 : 480);
 
     // Damage number
     const dmgNum: DamageNumber = { id: dmgIdRef.current++, x: ePos.x + (Math.random() * 12 - 6), y: ePos.y - 6, value: dmg, isCrit };
@@ -825,6 +838,20 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           50%  { filter: brightness(1.6); transform: translate(-50%,-50%) scale(0.95); }
           100% { filter: brightness(1); transform: translate(-50%,-50%) scale(1); }
         }
+        @keyframes bossHitStagger {
+          0%   { filter: brightness(1);   transform: translate(-50%,-50%) translateX(0)     scale(1);    }
+          12%  { filter: brightness(5) saturate(0); transform: translate(-50%,-50%) translateX(-14px) scale(1.03); }
+          30%  { filter: brightness(2.5); transform: translate(-50%,-50%) translateX(10px)  scale(0.97); }
+          50%  { filter: brightness(1.8); transform: translate(-50%,-50%) translateX(-6px)  scale(1.01); }
+          70%  { filter: brightness(1.3); transform: translate(-50%,-50%) translateX(4px)   scale(1);    }
+          85%  { filter: brightness(1.1); transform: translate(-50%,-50%) translateX(-2px)  scale(1);    }
+          100% { filter: brightness(1);   transform: translate(-50%,-50%) translateX(0)     scale(1);    }
+        }
+        @keyframes bossImpactRing {
+          0%   { transform: translate(-50%,-50%) scale(0.2); opacity: 1;   }
+          60%  { opacity: 0.6; }
+          100% { transform: translate(-50%,-50%) scale(3.2); opacity: 0;   }
+        }
         @keyframes petHitBounce {
           0%   { transform: translate(-50%,-50%) translateY(0) scaleX(1) scaleY(1); filter: brightness(1); }
           15%  { transform: translate(-50%,-50%) translateY(-16px) scaleX(0.9) scaleY(1.12); filter: brightness(2.4) saturate(0.2); }
@@ -1052,7 +1079,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   top: `${enemyPos.y}%`,
                   transform: "translate(-50%, -50%)",
                   animation: enemyHit
-                    ? "enemyHitFlash 0.22s ease-in-out"
+                    ? (enemy.isBoss ? "bossHitStagger 0.36s ease-out" : "enemyHitFlash 0.22s ease-in-out")
                     : enemy.isBoss
                       ? "bossFloat 3s ease-in-out infinite"
                       : "enemyBounce 0.7s ease-in-out infinite",
@@ -1485,6 +1512,21 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               ["--spark-dx" as any]: `${spark.dx * 14}px`, ["--spark-dy" as any]: `${spark.dy * 14}px`,
             }} />
         ))}
+
+        {/* Boss impact shockwave ring */}
+        {bossShockwave && (
+          <div key={bossShockwave.id} className="absolute z-25 pointer-events-none"
+            style={{ left: `${bossShockwave.x}%`, top: `${bossShockwave.y}%` }}>
+            <div style={{
+              position: "absolute",
+              width: 90, height: 90,
+              borderRadius: "50%",
+              border: "3px solid rgba(255,200,80,0.9)",
+              boxShadow: "0 0 20px rgba(255,180,50,0.8), inset 0 0 12px rgba(255,220,100,0.4)",
+              animation: "bossImpactRing 0.5s ease-out forwards",
+            }} />
+          </div>
+        )}
 
         {/* Slash hit marks on enemy */}
         {slashEffects.map(slash => (
