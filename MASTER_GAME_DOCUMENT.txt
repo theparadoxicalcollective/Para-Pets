@@ -560,12 +560,20 @@ SECTION 11 — WHAT AN AI SHOULD KNOW BEFORE EDITING CODE
     This controls how many stat items a pet can consume per level. Any changes
     to rarity or leveling must re-check this formula.
 
-13. SERVER-SIDE CATCH VALIDATION
+13. PET LEVELING HELPERS (server/routes.ts)
+    Two helper functions near the top of routes.ts centralise all leveling math:
+      xpForLevel(level)  → XP needed to reach the NEXT level from `level`
+      applyPetXp(currentLevel, currentPoints, pointsToAdd)
+                         → { newLevel, newPoints }
+    These are called by three endpoints: power-up, use-special, and feed-edible.
+    Do NOT inline the leveling formula again — always call applyPetXp().
+
+14. SERVER-SIDE CATCH VALIDATION
     The fishing minigame is client-side but the final catch decision is server-
     side. The client sends a performanceScore; the server does the final roll.
     Never bypass this by trusting only client state.
 
-14. DATA-TESTID ATTRIBUTES
+15. DATA-TESTID ATTRIBUTES
     All interactive and meaningful display elements should have data-testid
     attributes following the pattern: {action}-{target} or {type}-{content}.
     Dynamic lists: {type}-{description}-{id}.
@@ -2656,8 +2664,9 @@ KEY PATH ALIASES (configured in vite.config.ts and tsconfig.json):
   Change parry timing                         BattleArena.tsx (lines 263, 367–370, 427–431)
   Change mana gain values                     BattleArena.tsx (lines 392–393, 513–516)
   Add a new special skill type                BattleArena.tsx (useSpecialSkill section)
-  Change XP per level formula                 server/routes.ts (~line 1145)
+  Change XP per level formula                 server/routes.ts — xpForLevel() helper (~line 25)
   Change XP gained from battles               server/routes.ts (~line 2895)
+  Change pet leveling logic (all 3 endpoints) server/routes.ts — applyPetXp() helper (~line 28)
   Change power-up slots per level             server/routes.ts (~line 1125)
   Add a new database table                    shared/schema.ts → storage.ts → routes.ts
   Add a new API endpoint                      server/routes.ts

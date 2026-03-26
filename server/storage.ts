@@ -1103,18 +1103,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertPlayerFishingEquipment(userId: string, data: { poleInventoryId?: string | null; baitInventoryId?: string | null }): Promise<PlayerFishingEquipment> {
-    const existing = await this.getPlayerFishingEquipment(userId);
-    if (existing) {
-      const [updated] = await db.update(playerFishingEquipment)
-        .set({ ...data, updatedAt: new Date() })
-        .where(eq(playerFishingEquipment.userId, userId))
-        .returning();
-      return updated;
-    }
-    const [created] = await db.insert(playerFishingEquipment)
+    const [row] = await db.insert(playerFishingEquipment)
       .values({ userId, poleInventoryId: data.poleInventoryId ?? null, baitInventoryId: data.baitInventoryId ?? null })
+      .onConflictDoUpdate({
+        target: playerFishingEquipment.userId,
+        set: { ...data, updatedAt: new Date() },
+      })
       .returning();
-    return created;
+    return row;
   }
 
   async getWorldDecorItems(worldId: string): Promise<WorldDecorItem[]> {
@@ -1185,9 +1181,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteFishInventoryItems(fishIds: string[]): Promise<void> {
     if (fishIds.length === 0) return;
-    for (const id of fishIds) {
-      await db.delete(playerFishInventory).where(eq(playerFishInventory.id, id));
-    }
+    await db.delete(playerFishInventory).where(inArray(playerFishInventory.id, fishIds));
   }
 
   async createPvpBattle(data: { userId: string; opponentName: string; opponentImageUrl?: string | null; opponentLevel: number; opponentSkill?: string | null; result: string; coinsEarned: number; battlePointsDelta?: number }): Promise<any> {
@@ -1216,15 +1210,14 @@ export class DatabaseStorage implements IStorage {
       userId: pvpBattles.userId,
       username: users.username,
       profileImage: users.profileImage,
-      isAdmin: users.isAdmin,
       result: pvpBattles.result,
       battlePointsDelta: pvpBattles.battlePointsDelta,
     }).from(pvpBattles)
-      .leftJoin(users, eq(pvpBattles.userId, users.id));
+      .leftJoin(users, and(eq(pvpBattles.userId, users.id), eq(users.isAdmin, false)));
 
     const byUser: Record<string, { userId: string; username: string; profileImage: string | null; battlePoints: number; wins: number; losses: number }> = {};
     for (const row of rows) {
-      if (row.isAdmin) continue;
+      if (!row.userId) continue;
       if (!byUser[row.userId]) {
         byUser[row.userId] = { userId: row.userId, username: row.username || "Unknown", profileImage: row.profileImage ?? null, battlePoints: 0, wins: 0, losses: 0 };
       }
@@ -1257,17 +1250,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllBattleGroupsWithUsers(): Promise<any[]> {
-    const rows = await db.select({
+    return db.select({
       userId: pvpBattleGroups.userId,
       petInventoryIds: pvpBattleGroups.petInventoryIds,
       updatedAt: pvpBattleGroups.updatedAt,
       username: users.username,
       profileImage: users.profileImage,
-      isAdmin: users.isAdmin,
     }).from(pvpBattleGroups)
-      .leftJoin(users, eq(pvpBattleGroups.userId, users.id))
+      .innerJoin(users, and(eq(pvpBattleGroups.userId, users.id), eq(users.isAdmin, false)))
       .orderBy(sql`${pvpBattleGroups.updatedAt} desc`);
-    return rows.filter(r => !r.isAdmin);
   }
 
   // ── World pet positions ────────────────────────────────────────────────────

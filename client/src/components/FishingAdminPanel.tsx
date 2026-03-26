@@ -6,7 +6,7 @@ import { readFileAsDataUrl } from "@/lib/utils";
 import fishCommonIcon from "@assets/generated_images/icon_fish_common.png";
 import fishRodIcon from "@assets/generated_images/icon_fish_rod.png";
 import baitIconImg from "@assets/icon_fishing_bait.png";
-import { Plus, Trash2, ArrowLeft, Save } from "lucide-react";
+import { Trash2, ArrowLeft, Save } from "lucide-react";
 
 interface FishingItem {
   id: string;

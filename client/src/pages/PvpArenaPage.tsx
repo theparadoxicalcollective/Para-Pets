@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useLocation } from "wouter";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import battleTrophyIcon from "@assets/generated_images/icon_battle_trophy.png";
 import { ArrowLeft, Sword, Users, Trophy, Check, X } from "lucide-react";

@@ -16,6 +16,25 @@ import { Resend } from "resend";
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "Para Pets <noreply@parapets.net>";
 
+// ── Pet leveling helper ───────────────────────────────────────────────────────
+// XP needed to advance from `level` to `level + 1`.
+function xpForLevel(level: number): number {
+  return Math.floor(100 + level * 30 + level * level * 5);
+}
+// Apply `pointsToAdd` XP to a pet's current level/points and return the new values.
+function applyPetXp(currentLevel: number, currentPoints: number, pointsToAdd: number): { newLevel: number; newPoints: number } {
+  let totalPoints = currentPoints + pointsToAdd;
+  let newLevel = currentLevel;
+  while (newLevel < 100) {
+    const needed = xpForLevel(newLevel);
+    if (totalPoints < needed) break;
+    totalPoints -= needed;
+    newLevel++;
+  }
+  if (newLevel >= 100) totalPoints = 0;
+  return { newLevel, newPoints: totalPoints };
+}
+
 // ── In-memory caches for static/rarely-changing data ─────────────────────────
 // Pet template parts never change during a session (only admins modify them).
 // Caching for 10 minutes eliminates repeated DB hits across all users.
@@ -1139,16 +1158,8 @@ export async function registerRoutes(
       } else if (boostType === "def") {
         updates.petDef = petInv.petDef + boostAmount;
       } else if (boostType === "lvl") {
-        let totalPoints = (petInv.petLevelPoints || 0) + boostAmount;
-        let newLevel = petInv.petLevel;
-        while (newLevel < 100) {
-          const needed = Math.floor(100 + newLevel * 30 + newLevel * newLevel * 5);
-          if (totalPoints < needed) break;
-          totalPoints -= needed;
-          newLevel++;
-        }
-        if (newLevel >= 100) totalPoints = 0;
-        updates.petLevelPoints = totalPoints;
+        const { newLevel, newPoints } = applyPetXp(petInv.petLevel, petInv.petLevelPoints || 0, boostAmount);
+        updates.petLevelPoints = newPoints;
         if (newLevel > petInv.petLevel) {
           updates.petLevel = newLevel;
         }
@@ -1210,16 +1221,8 @@ export async function registerRoutes(
         if (petInv.petLevel >= 100) {
           return res.status(400).json({ message: "Pet is at max level" });
         }
-        let totalPoints = (petInv.petLevelPoints || 0) + specialAmount;
-        let newLevel = petInv.petLevel;
-        while (newLevel < 100) {
-          const needed = Math.floor(100 + newLevel * 30 + newLevel * newLevel * 5);
-          if (totalPoints < needed) break;
-          totalPoints -= needed;
-          newLevel++;
-        }
-        if (newLevel >= 100) totalPoints = 0;
-        const updates: any = { petLevelPoints: totalPoints };
+        const { newLevel, newPoints } = applyPetXp(petInv.petLevel, petInv.petLevelPoints || 0, specialAmount);
+        const updates: any = { petLevelPoints: newPoints };
         if (newLevel !== petInv.petLevel) {
           updates.petLevel = newLevel;
         }
@@ -1263,19 +1266,9 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Not an edible item" });
       }
 
-      const petShopItem = await storage.getShopItem(petInv.shopItemId);
       const lvlPoints = itemShopItem.statBoostAmount || 5;
-      let totalPoints = (petInv.petLevelPoints || 0) + lvlPoints;
-      let newLevel = petInv.petLevel;
-      while (newLevel < 100) {
-        const needed = Math.floor(100 + newLevel * 30 + newLevel * newLevel * 5);
-        if (totalPoints < needed) break;
-        totalPoints -= needed;
-        newLevel++;
-      }
-      if (newLevel >= 100) totalPoints = 0;
-
-      const updates: any = { petLevelPoints: totalPoints };
+      const { newLevel, newPoints } = applyPetXp(petInv.petLevel, petInv.petLevelPoints || 0, lvlPoints);
+      const updates: any = { petLevelPoints: newPoints };
       if (newLevel > petInv.petLevel) {
         updates.petLevel = newLevel;
       }

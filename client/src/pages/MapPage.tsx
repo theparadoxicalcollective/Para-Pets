@@ -14,6 +14,7 @@ import worldSwamp from "@assets/world_swamp_v3.png";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import { Plus, X, Trash2, Pencil, ImageIcon } from "lucide-react";
+import { readFileAsDataUrl } from "@/lib/utils";
 
 interface MapPageProps {
   user: {
@@ -239,15 +240,6 @@ export default function MapPage({ user }: MapPageProps) {
       navigate(`/world/${w.id}`);
     }, 800);
   }, [navigate, navigatingWorldId, currentUser.isAdmin]);
-
-  const readFileAsDataUrl = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  };
 
   return (
     <div

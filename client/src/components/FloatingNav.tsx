@@ -97,7 +97,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
       {isOpen && (
         <div
           className="absolute inset-0 z-[90]"
-          onClick={close}
+          onClick={closeAll}
         />
       )}
 
