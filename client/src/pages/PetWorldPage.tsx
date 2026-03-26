@@ -11,6 +11,7 @@ import friendsIconSrc from "@assets/friends_icon.png";
 import coinIconImg from "@assets/icon_coin.png";
 import homeIconImg from "@assets/icon_home_new.png";
 import marketIconImg from "@assets/icon_market.png";
+import petHouseIconImg from "@assets/icon_forest_home.png";
 
 const WORLD_ID = "pet_world";
 const ACCENT = "#7fffd4";
@@ -1227,6 +1228,7 @@ function PetDetailModal({
 }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
   const isOwnPet = pet.userId === currentUserId;
 
   const { data: friendStatus, isLoading: statusLoading } = useQuery<{ friendship: any | null }>({
@@ -1239,24 +1241,13 @@ function PetDetailModal({
     enabled: !isOwnPet,
   });
 
-  const { data: ownerBadges } = useQuery<Array<{ badgeId: string; name: string; imageUrl: string }>>({
-    queryKey: ["/api/users", pet.userId, "badges"],
-    queryFn: async () => {
-      const res = await fetch(`/api/users/${pet.userId}/badges`, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed");
-      return res.json();
-    },
-  });
-
   const sendRequestMutation = useMutation({
     mutationFn: () => apiRequest("POST", `/api/friends/request/${pet.userId}`, {}),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/friends/status", pet.userId] });
       toast({ title: "Friend request sent!", description: `Request sent to ${pet.username}.` });
     },
-    onError: () => {
-      toast({ title: "Error", description: "Could not send friend request.", variant: "destructive" });
-    },
+    onError: () => toast({ title: "Error", description: "Could not send friend request.", variant: "destructive" }),
   });
 
   const cancelRequestMutation = useMutation({
@@ -1265,19 +1256,14 @@ function PetDetailModal({
       queryClient.invalidateQueries({ queryKey: ["/api/friends/status", pet.userId] });
       toast({ title: "Request cancelled", description: "Friend request unsent." });
     },
-    onError: () => {
-      toast({ title: "Error", description: "Could not cancel request.", variant: "destructive" });
-    },
+    onError: () => toast({ title: "Error", description: "Could not cancel request.", variant: "destructive" }),
   });
 
   const [pendingHover, setPendingHover] = useState(false);
 
   const rarityCount = Math.min(5, Math.max(0, pet.rarity ?? 0));
-  const starColour =
-    rarityCount >= 5 ? "#e040fb" :
-    rarityCount >= 4 ? "#ff9800" :
-    rarityCount >= 3 ? "#7fffd4" :
-    "#f0c040";
+  const RARITY_COLOURS = ["", "#a0a0b0", "#4ade80", "#60a5fa", "#c084fc", "#f0c040"];
+  const starColour = RARITY_COLOURS[rarityCount] ?? "#f0c040";
 
   const displayName = pet.petNickname || pet.name;
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
@@ -1288,139 +1274,102 @@ function PetDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-[80] flex items-end justify-center"
-      style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
+      className="fixed inset-0 z-[80] flex items-center justify-center"
+      style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, padding: "0 24px" }}
     >
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+
+      {/* Card */}
       <div
-        className="relative w-full rounded-t-3xl animate-slide-up overflow-hidden"
+        className="relative w-full rounded-2xl overflow-hidden animate-slide-up"
         style={{
-          background: "linear-gradient(180deg, #0b1a0d 0%, #122015 60%, #0b1a0d 100%)",
-          border: "1px solid rgba(127,255,212,0.3)",
-          borderBottom: "none",
-          boxShadow: "0 -8px 40px rgba(0,0,0,0.9), inset 0 1px 0 rgba(127,255,212,0.2)",
-          maxHeight: "70vh",
+          background: "linear-gradient(160deg, #0d1f10 0%, #0a1a0c 50%, #081408 100%)",
+          border: "1.5px solid rgba(127,255,212,0.22)",
+          boxShadow: "0 8px 48px rgba(0,0,0,0.9), 0 0 60px rgba(127,255,212,0.04), inset 0 1px 0 rgba(127,255,212,0.12)",
+          maxHeight: "86vh",
         }}
       >
-        <div className="absolute inset-x-0 top-0 h-1 rounded-t-3xl" style={{ background: "linear-gradient(90deg, transparent, rgba(127,255,212,0.5), transparent)" }} />
+        {/* Top accent line */}
+        <div className="absolute inset-x-0 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(127,255,212,0.45), transparent)" }} />
 
+        {/* Close button */}
         <button
           data-testid="button-close-pet-detail"
           onClick={onClose}
-          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full z-10"
-          style={{ background: "rgba(127,255,212,0.12)", border: "1px solid rgba(127,255,212,0.35)", color: ACCENT, fontSize: 18, cursor: "pointer" }}
+          className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full z-10 transition-transform active:scale-90"
+          style={{ background: "rgba(0,0,0,0.5)", border: "1px solid rgba(127,255,212,0.25)", color: ACCENT, fontSize: 16, cursor: "pointer" }}
         >
           ✕
         </button>
 
-        <div className="px-6 pt-6 pb-8 flex flex-col gap-4">
-          {/* Pet sprite — large, centred */}
-          <div className="flex flex-col items-center gap-2">
-            <div className="relative flex-shrink-0" style={{ width: 200, height: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              {petImg ? (
-                <img src={petImg} alt={displayName} style={{ width: 200, height: 200, objectFit: "contain", filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.7))" }} />
-              ) : (
-                <div style={{ width: 200, height: 200, borderRadius: 16, background: "rgba(127,255,212,0.08)", border: "1px solid rgba(127,255,212,0.2)" }} />
-              )}
-            </div>
+        <div className="flex flex-col items-center px-6 pt-7 pb-7 gap-4">
 
-            {/* Name */}
+          {/* Pet image — large, centred */}
+          <div style={{ width: 160, height: 160, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            {petImg ? (
+              <img
+                src={petImg}
+                alt={displayName}
+                style={{ width: 160, height: 160, objectFit: "contain", filter: "drop-shadow(0 8px 20px rgba(0,0,0,0.8)) drop-shadow(0 0 30px rgba(127,255,212,0.12))" }}
+              />
+            ) : (
+              <div style={{ width: 160, height: 160, borderRadius: 16, background: "rgba(127,255,212,0.06)", border: "1px solid rgba(127,255,212,0.15)" }} />
+            )}
+          </div>
+
+          {/* Pet name */}
+          <div className="flex flex-col items-center gap-1.5">
             <p
-              className="font-fantasy text-[#7fffd4] font-semibold text-center"
-              style={{ fontSize: 18, textShadow: "0 0 12px rgba(127,255,212,0.6)" }}
+              className="font-fantasy font-semibold text-center"
+              style={{ fontSize: 20, color: ACCENT, textShadow: `0 0 16px ${ACCENT}55` }}
               data-testid="text-pet-detail-name"
             >
               {displayName}
             </p>
             {pet.petNickname && (
-              <p className="font-fantasy text-[#a89878] text-xs text-center -mt-2">{pet.name}</p>
+              <p className="font-fantasy text-[10px] tracking-widest" style={{ color: "rgba(127,255,212,0.45)" }}>{pet.name}</p>
             )}
 
             {/* Rarity stars */}
             {rarityCount > 0 && (
-              <div className="flex gap-1 items-center justify-center">
+              <div className="flex gap-1 items-center">
                 {Array.from({ length: rarityCount }).map((_, i) => (
-                  <svg key={i} width="14" height="14" viewBox="0 0 24 24" fill={starColour} style={{ filter: `drop-shadow(0 0 4px ${starColour}99)` }}>
+                  <svg key={i} width="16" height="16" viewBox="0 0 24 24" fill={starColour} style={{ filter: `drop-shadow(0 0 5px ${starColour}bb)` }}>
                     <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
                   </svg>
                 ))}
               </div>
             )}
-
-            {/* Owner */}
-            <div className="flex items-center gap-2">
-              {pet.profileImage ? (
-                <img src={pet.profileImage} alt={pet.username} style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", border: "2px solid rgba(212,160,23,0.5)" }} />
-              ) : (
-                <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(212,160,23,0.2)", border: "2px solid rgba(212,160,23,0.5)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <span style={{ fontSize: 15, color: "#d4a017", fontWeight: "bold" }}>{pet.username.charAt(0).toUpperCase()}</span>
-                </div>
-              )}
-              <span className="font-fantasy text-[#d4a017] text-sm" data-testid="text-pet-detail-owner">{pet.username}</span>
-            </div>
           </div>
 
           {/* Divider */}
-          <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(127,255,212,0.25), transparent)" }} />
+          <div style={{ width: "100%", height: 1, background: "linear-gradient(90deg, transparent, rgba(127,255,212,0.18), transparent)" }} />
 
-          {/* Stats */}
-          <div className="grid grid-cols-4 gap-2">
-            {[
-              { label: "Level", value: pet.petLevel ?? 1, colour: "#f0c040" },
-              { label: "HP", value: pet.petHealth ?? "—", colour: "#4ade80" },
-              { label: "ATK", value: pet.petAtk ?? "—", colour: "#f87171" },
-              { label: "DEF", value: pet.petDef ?? "—", colour: "#60a5fa" },
-            ].map(({ label, value, colour }) => (
-              <div
-                key={label}
-                className="flex flex-col items-center gap-1 py-2 rounded-xl"
-                style={{ background: "rgba(127,255,212,0.05)", border: "1px solid rgba(127,255,212,0.12)" }}
-                data-testid={`stat-${label.toLowerCase()}`}
-              >
-                <span className="font-fantasy font-bold" style={{ fontSize: 16, color: colour, textShadow: `0 0 8px ${colour}80` }}>{value}</span>
-                <span className="font-fantasy text-[#7a9080] uppercase tracking-widest" style={{ fontSize: 9 }}>{label}</span>
-              </div>
-            ))}
+          {/* Owner row */}
+          <div className="flex flex-col items-center gap-2">
+            <div style={{ width: 52, height: 52, borderRadius: "50%", border: "2.5px solid rgba(212,160,23,0.55)", overflow: "hidden", background: "rgba(212,160,23,0.12)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {pet.profileImage ? (
+                <img src={pet.profileImage} alt={pet.username} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ) : (
+                <span style={{ fontSize: 20, color: "#d4a017", fontWeight: "bold" }}>{pet.username.charAt(0).toUpperCase()}</span>
+              )}
+            </div>
+            <span className="font-fantasy text-sm" style={{ color: "#d4a017", textShadow: "0 0 10px rgba(212,160,23,0.35)" }} data-testid="text-pet-detail-owner">{pet.username}</span>
           </div>
 
-          {/* Owner badges */}
-          {ownerBadges && ownerBadges.length > 0 && (
-            <>
-              <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(127,255,212,0.25), transparent)" }} />
-              <div className="flex flex-col gap-2">
-                <p className="font-fantasy text-[#7a9080] uppercase tracking-widest text-center" style={{ fontSize: 9 }}>Badges</p>
-                <div className="flex flex-wrap justify-center gap-3">
-                  {ownerBadges.map((badge) => (
-                    <div key={badge.badgeId} className="flex flex-col items-center gap-1" style={{ maxWidth: 52 }}>
-                      <div
-                        style={{
-                          width: 44, height: 44, borderRadius: "50%",
-                          background: "rgba(127,255,212,0.07)",
-                          border: "1.5px solid rgba(127,255,212,0.28)",
-                          boxShadow: "0 0 10px rgba(127,255,212,0.12)",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          overflow: "hidden",
-                        }}
-                      >
-                        <img src={badge.imageUrl} alt={badge.name} style={{ width: 36, height: 36, objectFit: "contain" }} />
-                      </div>
-                      <span className="font-fantasy text-[#7fffd4] text-center leading-tight" style={{ fontSize: 8, opacity: 0.75 }}>{badge.name}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Add Friend / Friend status button */}
-          {!isOwnPet && (
-            <div className="flex justify-center mt-1">
+          {/* Action buttons */}
+          {isOwnPet ? (
+            <p className="font-fantasy text-[11px] tracking-widest" style={{ color: "rgba(127,255,212,0.35)" }}>Your pet</p>
+          ) : (
+            <div className="flex items-center gap-3 w-full justify-center">
+              {/* Add Friend / status */}
               {statusLoading ? (
-                <div style={{ color: "#7fffd4", fontSize: 12 }} className="font-fantasy">Loading...</div>
+                <div style={{ color: "rgba(127,255,212,0.5)", fontSize: 11 }} className="font-fantasy">Loading...</div>
               ) : isFriend ? (
                 <div
                   className="font-fantasy text-xs tracking-wider px-5 py-2.5 rounded-full"
-                  style={{ background: "rgba(127,255,212,0.1)", border: "1px solid rgba(127,255,212,0.35)", color: "#7fffd4" }}
+                  style={{ background: "rgba(127,255,212,0.08)", border: "1px solid rgba(127,255,212,0.3)", color: ACCENT }}
                   data-testid="status-already-friends"
                 >
                   ✓ Friends
@@ -1436,38 +1385,52 @@ function PetDetailModal({
                   onTouchEnd={() => setPendingHover(false)}
                   className="font-fantasy text-xs tracking-wider px-5 py-2.5 rounded-full transition-all active:scale-95"
                   style={{
-                    background: pendingHover ? "rgba(220,80,80,0.15)" : "rgba(240,192,64,0.1)",
-                    border: `1px solid ${pendingHover ? "rgba(220,80,80,0.5)" : "rgba(240,192,64,0.35)"}`,
+                    background: pendingHover ? "rgba(220,80,80,0.15)" : "rgba(240,192,64,0.08)",
+                    border: `1px solid ${pendingHover ? "rgba(220,80,80,0.45)" : "rgba(240,192,64,0.3)"}`,
                     color: pendingHover ? "#f08080" : "#f0c040",
                     cursor: cancelRequestMutation.isPending ? "default" : "pointer",
-                    transition: "all 0.2s ease",
                   }}
                 >
-                  {cancelRequestMutation.isPending ? "Cancelling..." : pendingHover ? "✕ Unsend Request" : "⏳ Request Pending"}
+                  {cancelRequestMutation.isPending ? "..." : pendingHover ? "✕ Unsend" : "⏳ Pending"}
                 </button>
               ) : (
                 <button
                   data-testid="button-add-friend"
                   onClick={() => sendRequestMutation.mutate()}
                   disabled={sendRequestMutation.isPending}
-                  className="font-fantasy text-sm tracking-wider px-6 py-2.5 rounded-full transition-all active:scale-95"
+                  className="font-fantasy text-sm tracking-wider px-5 py-2.5 rounded-full transition-all active:scale-95"
                   style={{
-                    background: sendRequestMutation.isPending
-                      ? "rgba(127,255,212,0.08)"
-                      : "linear-gradient(135deg, rgba(45,154,100,0.7) 0%, rgba(20,100,60,0.7) 100%)",
-                    border: "1.5px solid rgba(127,255,212,0.5)",
-                    color: "#7fffd4",
+                    background: "linear-gradient(135deg, rgba(45,154,100,0.65) 0%, rgba(20,100,60,0.65) 100%)",
+                    border: "1.5px solid rgba(127,255,212,0.45)",
+                    color: ACCENT,
                     cursor: sendRequestMutation.isPending ? "default" : "pointer",
-                    boxShadow: "0 0 12px rgba(127,255,212,0.15)",
+                    boxShadow: "0 0 14px rgba(127,255,212,0.1)",
                   }}
                 >
                   {sendRequestMutation.isPending ? "Sending..." : "+ Add Friend"}
                 </button>
               )}
+
+              {/* Visit Pet House button */}
+              <button
+                data-testid="button-visit-pet-house"
+                onClick={() => { onClose(); navigate(`/visit/${pet.userId}`); }}
+                className="flex flex-col items-center gap-1 transition-transform active:scale-90"
+                style={{ background: "none", border: "none", cursor: "pointer" }}
+              >
+                <div style={{
+                  width: 46, height: 46, borderRadius: 12,
+                  background: "rgba(4,10,6,0.7)",
+                  border: "1.5px solid rgba(212,160,23,0.4)",
+                  boxShadow: "0 2px 12px rgba(0,0,0,0.5)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  overflow: "hidden",
+                }}>
+                  <img src={petHouseIconImg} alt="Pet House" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                </div>
+                <span className="font-fantasy text-[9px] tracking-widest" style={{ color: "rgba(212,160,23,0.7)" }}>Pet House</span>
+              </button>
             </div>
-          )}
-          {isOwnPet && (
-            <p className="font-fantasy text-center text-[#6a8a78] text-xs tracking-wider">Your pet</p>
           )}
         </div>
       </div>

@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft } from "lucide-react";
+import { X } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
 import petHouseBg from "@assets/generated_images/pet_world_bg.png";
+import insideRoomBg from "@assets/generated_images/inside_room_bg.png";
+import forestHomeIconImg from "@assets/icon_forest_home.png";
 
 interface VisitedPet {
   inventoryId: string;
@@ -158,37 +161,54 @@ function ForestRoom() {
         style={{ objectPosition: "center center" }}
         draggable={false}
       />
-      <div
-        className="absolute top-0 left-0 right-0 pointer-events-none"
+      <div className="absolute top-0 left-0 right-0 pointer-events-none" style={{ height: "18%", background: "linear-gradient(to bottom, rgba(8,14,5,0.55) 0%, transparent 100%)" }} />
+      <div className="absolute pointer-events-none" style={{ left: 0, right: 0, top: "42%", height: "14%", background: "linear-gradient(to bottom, transparent 0%, rgba(180,220,140,0.06) 50%, transparent 100%)" }} />
+      <div className="absolute pointer-events-none" style={{ left: 0, right: 0, bottom: 0, height: "30%", background: "linear-gradient(to top, rgba(20,35,8,0.38) 0%, transparent 100%)" }} />
+      <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(90deg, rgba(0,0,0,0.18) 0%, transparent 18%, transparent 82%, rgba(0,0,0,0.18) 100%)" }} />
+    </div>
+  );
+}
+
+function InsideRoomVisit({ onClose, username }: { onClose: () => void; username: string }) {
+  return (
+    <div className="absolute inset-0 z-40 overflow-hidden" style={{ background: "#0d0a04" }}>
+      <img src={insideRoomBg} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: "center" }} draggable={false} />
+
+      <div className="absolute top-0 left-0 right-0 pointer-events-none" style={{ height: "18%", background: "linear-gradient(to bottom, rgba(8,5,2,0.55) 0%, transparent 100%)" }} />
+      <div className="absolute bottom-0 left-0 right-0 pointer-events-none" style={{ height: "18%", background: "linear-gradient(to top, rgba(8,5,2,0.65) 0%, transparent 100%)" }} />
+      <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(90deg, rgba(5,3,1,0.3) 0%, transparent 18%, transparent 82%, rgba(5,3,1,0.3) 100%)" }} />
+
+      {/* Title */}
+      <div className="absolute top-0 left-0 right-0 flex flex-col items-center pointer-events-none" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 14px)" }}>
+        <h2 className="font-fantasy text-sm tracking-[0.3em]" style={{ color: "rgba(212,160,23,0.9)", textShadow: "0 0 16px rgba(212,160,23,0.6)" }}>
+          {username}'s Room
+        </h2>
+        <div style={{ height: 1, width: 70, marginTop: 5, background: "linear-gradient(90deg, transparent, rgba(212,160,23,0.5), transparent)" }} />
+      </div>
+
+      <div className="absolute inset-0 flex items-end justify-center pointer-events-none" style={{ paddingBottom: "18%" }}>
+        <p className="font-fantasy text-[10px] tracking-widest text-center px-8 leading-relaxed" style={{ color: "rgba(212,160,23,0.35)" }}>
+          Room decoration coming soon
+        </p>
+      </div>
+
+      {/* Close back to outside */}
+      <button
+        data-testid="button-close-inside-visit"
+        onClick={onClose}
+        className="absolute z-50 w-9 h-9 rounded-full flex items-center justify-center active:scale-90 transition-transform"
         style={{
-          height: "18%",
-          background: "linear-gradient(to bottom, rgba(8,14,5,0.55) 0%, transparent 100%)",
+          top: "calc(env(safe-area-inset-top, 0px) + 12px)",
+          right: 12,
+          background: "rgba(10,6,2,0.85)",
+          border: "1.5px solid rgba(212,160,23,0.45)",
+          color: "rgba(212,160,23,0.85)",
+          cursor: "pointer",
+          boxShadow: "0 0 10px rgba(212,160,23,0.2)",
         }}
-      />
-      <div
-        className="absolute pointer-events-none"
-        style={{
-          left: 0, right: 0,
-          top: "42%",
-          height: "14%",
-          background: "linear-gradient(to bottom, transparent 0%, rgba(180,220,140,0.06) 50%, transparent 100%)",
-        }}
-      />
-      <div
-        className="absolute pointer-events-none"
-        style={{
-          left: 0, right: 0,
-          bottom: 0,
-          height: "30%",
-          background: "linear-gradient(to top, rgba(20,35,8,0.38) 0%, transparent 100%)",
-        }}
-      />
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: "linear-gradient(90deg, rgba(0,0,0,0.18) 0%, transparent 18%, transparent 82%, rgba(0,0,0,0.18) 100%)",
-        }}
-      />
+      >
+        <X size={15} />
+      </button>
     </div>
   );
 }
@@ -196,6 +216,7 @@ function ForestRoom() {
 export default function VisitPetHousePage() {
   const params = useParams<{ userId: string }>();
   const userId = params.userId;
+  const [showInsideRoom, setShowInsideRoom] = useState(false);
 
   const { data, isLoading, isError } = useQuery<UserPetsResponse>({
     queryKey: ["/api/users", userId, "pets"],
@@ -212,54 +233,76 @@ export default function VisitPetHousePage() {
       className="relative h-screen-frame w-full overflow-hidden flex flex-col"
       style={{ maxWidth: "768px", margin: "0 auto", background: "#1a2a0a" }}
     >
+      {/* HUD — only X to close and Inside button */}
       <div
-        className="relative z-30 flex items-center gap-3 px-4 flex-shrink-0"
+        className="absolute z-30 left-0 right-0 flex items-center justify-between px-3"
         style={{
-          background: "linear-gradient(to bottom, rgba(8,14,5,0.85) 0%, rgba(8,14,5,0.0) 100%)",
-          paddingTop: "max(env(safe-area-inset-top, 0px) + 10px, 48px)",
-          paddingBottom: 12,
+          paddingTop: "max(12px, env(safe-area-inset-top, 12px))",
+          paddingBottom: 8,
+          background: "linear-gradient(180deg, rgba(8,14,5,0.82) 0%, rgba(8,14,5,0.45) 80%, transparent 100%)",
         }}
       >
+        {/* X — close, go back */}
         <button
           data-testid="button-back-visit"
           onClick={() => window.history.back()}
-          className="w-9 h-9 flex items-center justify-center rounded-xl flex-shrink-0"
+          className="w-9 h-9 flex items-center justify-center rounded-xl flex-shrink-0 transition-transform active:scale-90"
           style={{
-            background: "rgba(0,0,0,0.5)",
-            border: "1px solid rgba(212,160,23,0.25)",
-            color: "#a89878",
+            background: "rgba(4,10,6,0.88)",
+            border: "1.5px solid rgba(127,255,212,0.35)",
+            boxShadow: "0 2px 12px rgba(0,0,0,0.7)",
+            color: "#7fffd4",
+            cursor: "pointer",
           }}
         >
-          <ArrowLeft size={16} />
+          <X size={16} />
         </button>
 
+        {/* Owner name — centre */}
         {data && (
           <p
-            className="font-fantasy text-sm font-semibold tracking-wide"
-            style={{ color: "#f0c040", textShadow: "0 0 12px rgba(240,192,64,0.5)" }}
+            className="font-fantasy text-xs tracking-widest absolute left-0 right-0 text-center pointer-events-none"
+            style={{ color: "rgba(240,192,64,0.85)", textShadow: "0 0 12px rgba(240,192,64,0.4)" }}
             data-testid="text-visit-house-owner"
           >
-            {data.username}'s Keeper's Central
+            {data.username}'s Pet House
           </p>
         )}
+
+        {/* Inside button */}
+        <button
+          data-testid="button-visit-inside"
+          onClick={() => setShowInsideRoom(true)}
+          className="flex flex-col items-center gap-0.5 transition-transform active:scale-90"
+          style={{ background: "none", border: "none", cursor: "pointer" }}
+        >
+          <div style={{
+            width: 36, height: 36, borderRadius: 10,
+            background: "rgba(4,10,6,0.88)",
+            border: "1.5px solid rgba(212,160,23,0.4)",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.6)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            overflow: "hidden",
+          }}>
+            <img src={forestHomeIconImg} alt="Inside" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          </div>
+          <span className="font-fantasy text-[8px] tracking-widest" style={{ color: "rgba(212,160,23,0.65)" }}>Inside</span>
+        </button>
       </div>
 
+      {/* World */}
       <div className="flex-1 relative overflow-hidden">
         <ForestRoom />
 
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-            <p className="font-fantasy text-[#8b6a3e] text-xs animate-pulse tracking-widest">
-              Opening the door...
-            </p>
+            <p className="font-fantasy text-[#8b6a3e] text-xs animate-pulse tracking-widest">Opening the door...</p>
           </div>
         )}
 
         {isError && (
           <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-            <p className="font-fantasy text-[#ff6666] text-xs tracking-widest">
-              Could not enter pet world
-            </p>
+            <p className="font-fantasy text-[#ff6666] text-xs tracking-widest">Could not enter pet house</p>
           </div>
         )}
 
@@ -267,10 +310,7 @@ export default function VisitPetHousePage() {
           <div className="absolute inset-0 z-10">
             {data.pets.length === 0 ? (
               <div className="w-full h-full flex items-end justify-center pb-16">
-                <p
-                  className="font-fantasy text-[9px] tracking-wider text-center px-6"
-                  style={{ color: "rgba(200,170,100,0.55)" }}
-                >
+                <p className="font-fantasy text-[9px] tracking-wider text-center px-6" style={{ color: "rgba(200,170,100,0.55)" }}>
                   {data.username} hasn't moved any pets in yet!
                 </p>
               </div>
@@ -280,6 +320,14 @@ export default function VisitPetHousePage() {
               ))
             )}
           </div>
+        )}
+
+        {/* Inside room overlay */}
+        {showInsideRoom && (
+          <InsideRoomVisit
+            onClose={() => setShowInsideRoom(false)}
+            username={data?.username ?? ""}
+          />
         )}
       </div>
     </div>
