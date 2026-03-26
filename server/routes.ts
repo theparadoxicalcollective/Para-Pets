@@ -2951,9 +2951,9 @@ export async function registerRoutes(
   app.post("/api/explore/use-potion", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const { inventoryId, petInventoryId } = req.body;
-      if (!inventoryId || !petInventoryId) {
-        return res.status(400).json({ message: "Missing inventoryId or petInventoryId" });
+      const { inventoryId } = req.body;
+      if (!inventoryId) {
+        return res.status(400).json({ message: "Missing inventoryId" });
       }
 
       const userInv = await storage.getUserInventory(user.id);
@@ -2967,19 +2967,12 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Item is not a potion" });
       }
 
-      const petInv = userInv.find((inv: any) => inv.id === petInventoryId);
-      if (!petInv) {
-        return res.status(404).json({ message: "Pet not found" });
-      }
-
       const healAmount = shopItem.healthRestored || 0;
-      if (healAmount <= 0) {
-        return res.status(400).json({ message: "Potion has no healing effect" });
-      }
+      const manaAmount = shopItem.manaRestored || 0;
 
       await storage.removeFromInventory(inventoryId);
 
-      return res.json({ healAmount, potionName: shopItem.name });
+      return res.json({ healAmount, manaAmount, potionName: shopItem.name });
     } catch (err) {
       console.error("Use potion error:", err);
       return res.status(500).json({ message: "Failed to use potion" });
