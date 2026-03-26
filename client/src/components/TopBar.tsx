@@ -27,7 +27,7 @@ interface FriendRequest {
 }
 
 export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarProps) {
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const [showRewards, setShowRewards] = useState(false);
   const [showRequestsPopup, setShowRequestsPopup] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
@@ -159,13 +159,17 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
             {user.isAdmin && (
               <button
                 data-testid="button-admin-icon"
-                onClick={() => navigate("/admin")}
+                onClick={() => location === "/admin" ? navigate("/") : navigate("/admin")}
                 className="topbar-icon-size-sm flex-shrink-0 flex items-center justify-center transition-transform duration-150 active:scale-90"
                 style={{
-                  background: "linear-gradient(135deg, rgba(212,160,23,0.25) 0%, rgba(180,120,10,0.25) 100%)",
+                  background: location === "/admin"
+                    ? "linear-gradient(135deg, rgba(212,160,23,0.55) 0%, rgba(180,120,10,0.5) 100%)"
+                    : "linear-gradient(135deg, rgba(212,160,23,0.25) 0%, rgba(180,120,10,0.25) 100%)",
                   border: "2px solid rgba(212,160,23,0.6)",
                   cursor: "pointer",
-                  boxShadow: "0 2px 10px rgba(0,0,0,0.6), 0 0 14px rgba(212,160,23,0.2)",
+                  boxShadow: location === "/admin"
+                    ? "0 2px 10px rgba(0,0,0,0.6), 0 0 18px rgba(212,160,23,0.45)"
+                    : "0 2px 10px rgba(0,0,0,0.6), 0 0 14px rgba(212,160,23,0.2)",
                   borderRadius: "10px",
                 }}
               >
