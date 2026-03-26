@@ -105,6 +105,15 @@ export default function PetHousePage({ user: initialUser }: PetHousePageProps) {
     refetchOnWindowFocus: true,
   });
 
+  const { data: savedPetPositions = [] } = useQuery<{ inventoryId: string; posLeft: string; posTop: string }[]>({
+    queryKey: ["/api/pet-house-positions"],
+    staleTime: 60000,
+  });
+  const savedPosMap = useMemo(
+    () => new Map(savedPetPositions.map(p => [p.inventoryId, { left: p.posLeft, top: p.posTop }])),
+    [savedPetPositions]
+  );
+
   const hatchedPets: InventoryPet[] = inventory.filter(
     (item) => item.type === "pet" && item.isHatched
   );
@@ -199,6 +208,7 @@ export default function PetHousePage({ user: initialUser }: PetHousePageProps) {
                     index={i}
                     sessionSalt={sessionSalt}
                     containerRef={petAreaRef}
+                    savedPos={savedPosMap.get(pet.inventoryId) ?? null}
                     onClick={() => {
                       if (selectedPet) return;
                       const seen = localStorage.getItem("feedTutorialSeen");
@@ -705,29 +715,38 @@ function WalkingPet({
   index,
   sessionSalt,
   containerRef,
+  savedPos,
   onClick,
 }: {
   pet: InventoryPet;
   index: number;
   sessionSalt: number;
   containerRef: React.RefObject<HTMLDivElement>;
+  savedPos: { left: string; top: string } | null;
   onClick: () => void;
 }) {
   const [isHovered, setIsHovered] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  // dragScreenPos tracked in a ref for pointer-cancel safety; also mirrored to
-  // state only when we need to re-render the ghost.
   const [ghostXY, setGhostXY] = useState({ x: 0, y: 0 });
 
-  // Positions saved to sessionStorage so they persist within the tab session
-  // but are NEVER sent to the server — each player sees their own arrangement.
+  // Use DB-saved position as the source of truth, fallback to sessionStorage
   const storageKey = `petPos_${pet.inventoryId}`;
   const [basePos, setBasePos] = useState<{ left: string; top: string } | null>(() => {
+    if (savedPos) return savedPos;
     try {
       const raw = sessionStorage.getItem(storageKey);
       return raw ? JSON.parse(raw) : null;
     } catch { return null; }
   });
+
+  // Sync savedPos from parent (DB) into basePos on first load
+  const savedPosRef = useRef(savedPos);
+  useEffect(() => {
+    if (savedPos && savedPos !== savedPosRef.current) {
+      savedPosRef.current = savedPos;
+      setBasePos(savedPos);
+    }
+  }, [savedPos]);
 
   // All drag state in a ref so callbacks always see the latest values without
   // needing to be re-created (avoids stale closure issues during pointer capture).
@@ -786,9 +805,7 @@ function WalkingPet({
   const sz = cfg.size;
   const shadowW = Math.round(sz * 0.52);
 
-  // ── Commit position to state + sessionStorage ───────────────────────────
-  // ox/oy are the grab offsets recorded at pointerdown — they ensure the
-  // placed pet's top-left lands exactly where the ghost showed it (no jump).
+  // ── Commit position to state + sessionStorage + DB ─────────────────────
   const commitPos = (clientX: number, clientY: number, ox: number, oy: number) => {
     const container = containerRef.current;
     if (!container) return;
@@ -800,6 +817,13 @@ function WalkingPet({
     const pos = { left: `${leftPct.toFixed(1)}%`, top: `${topPct.toFixed(1)}%` };
     setBasePos(pos);
     try { sessionStorage.setItem(storageKey, JSON.stringify(pos)); } catch {}
+    // Persist to server so visitors see the same positions
+    fetch(`/api/pet-house-positions/${pet.inventoryId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ posLeft: pos.left, posTop: pos.top }),
+    }).catch(() => {});
   };
 
   // ── Single element handler — rest handled at document level ──────────────

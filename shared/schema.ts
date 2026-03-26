@@ -483,3 +483,13 @@ export const notifications = pgTable("notifications", {
 });
 
 export type Notification = typeof notifications.$inferSelect;
+
+// ── Pet house positions ──────────────────────────────────────────────────────
+export const petHousePositions = pgTable("pet_house_positions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  inventoryId: varchar("inventory_id").notNull(),
+  posLeft: text("pos_left").notNull(),
+  posTop: text("pos_top").notNull(),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+}, (t) => [uniqueIndex("pet_house_positions_user_inv_uidx").on(t.userId, t.inventoryId)]);

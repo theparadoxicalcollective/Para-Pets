@@ -745,29 +745,65 @@ export async function registerRoutes(
         return res.status(404).json({ message: "User not found" });
       }
 
-      const inventoryRows = await storage.getUserInventoryWithItems(targetUser.id);
+      const [inventoryRows, savedPositions] = await Promise.all([
+        storage.getUserInventoryWithItems(targetUser.id),
+        storage.getPetHousePositions(targetUser.id),
+      ]);
+      const posMap = new Map(savedPositions.map(p => [p.inventoryId, { posLeft: p.posLeft, posTop: p.posTop }]));
+
       const hatchedPets = inventoryRows
         .filter(r => r.inventory.isHatched && r.shopItem?.type === "pet")
-        .map(r => ({
-          inventoryId: r.inventory.id,
-          shopItemId: r.shopItem!.id,
-          name: r.shopItem!.name,
-          nickname: r.inventory.petNickname,
-          imageUrl: r.shopItem!.imageUrl,
-          hatchedImageUrl: r.shopItem!.hatchedImageUrl,
-          eggImageUrl: r.shopItem!.eggImageUrl,
-          rarity: r.shopItem!.rarity,
-          petLevel: r.inventory.petLevel,
-          petHealth: r.inventory.petHealth,
-          petAtk: r.inventory.petAtk,
-          petDef: r.inventory.petDef,
-          petTemplateId: r.shopItem!.petTemplateId || null,
-        }));
+        .map(r => {
+          const pos = posMap.get(r.inventory.id);
+          return {
+            inventoryId: r.inventory.id,
+            shopItemId: r.shopItem!.id,
+            name: r.shopItem!.name,
+            nickname: r.inventory.petNickname,
+            imageUrl: r.shopItem!.imageUrl,
+            hatchedImageUrl: r.shopItem!.hatchedImageUrl,
+            eggImageUrl: r.shopItem!.eggImageUrl,
+            rarity: r.shopItem!.rarity,
+            petLevel: r.inventory.petLevel,
+            petHealth: r.inventory.petHealth,
+            petAtk: r.inventory.petAtk,
+            petDef: r.inventory.petDef,
+            petTemplateId: r.shopItem!.petTemplateId || null,
+            posLeft: pos?.posLeft ?? null,
+            posTop: pos?.posTop ?? null,
+          };
+        });
 
       return res.json({ username: targetUser.username, pets: hatchedPets });
     } catch (err) {
       console.error("Get user pets error:", err);
       return res.status(500).json({ message: "Failed to get pets" });
+    }
+  });
+
+  // ── Pet house positions ─────────────────────────────────────────────────────
+  app.get("/api/pet-house-positions", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const positions = await storage.getPetHousePositions(user.id);
+      return res.json(positions);
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to get positions" });
+    }
+  });
+
+  app.patch("/api/pet-house-positions/:inventoryId", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { inventoryId } = req.params;
+      const { posLeft, posTop } = req.body;
+      if (typeof posLeft !== "string" || typeof posTop !== "string") {
+        return res.status(400).json({ message: "posLeft and posTop are required strings" });
+      }
+      await storage.upsertPetHousePosition(user.id, inventoryId, posLeft, posTop);
+      return res.json({ ok: true });
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to save position" });
     }
   });
 

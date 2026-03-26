@@ -21,6 +21,8 @@ interface VisitedPet {
   petAtk: number;
   petDef: number;
   petTemplateId: string | null;
+  posLeft: string | null;
+  posTop: string | null;
 }
 
 interface UserPetsResponse {
@@ -28,22 +30,23 @@ interface UserPetsResponse {
   pets: VisitedPet[];
 }
 
+// Fallback positions used when owner hasn't placed a pet yet — matches PetHousePage sizes
 const WALK_CONFIGS = [
-  { wanderIdx: 0, left: "4%",  top: "88%", size: 142, duration: "38s", delay: "0s"  },
-  { wanderIdx: 1, left: "58%", top: "83%", size: 122, duration: "42s", delay: "5s"  },
-  { wanderIdx: 2, left: "20%", top: "74%", size: 106, duration: "36s", delay: "11s" },
-  { wanderIdx: 3, left: "52%", top: "65%", size: 91,  duration: "44s", delay: "2s"  },
-  { wanderIdx: 4, left: "34%", top: "57%", size: 79,  duration: "40s", delay: "16s" },
-  { wanderIdx: 5, left: "40%", top: "79%", size: 113, duration: "45s", delay: "8s"  },
+  { wanderIdx: 0, left: "8%",  top: "60%", size: 200, duration: "38s", delay: "0s"  },
+  { wanderIdx: 1, left: "55%", top: "52%", size: 190, duration: "42s", delay: "5s"  },
+  { wanderIdx: 2, left: "22%", top: "40%", size: 180, duration: "36s", delay: "11s" },
+  { wanderIdx: 3, left: "50%", top: "30%", size: 170, duration: "44s", delay: "2s"  },
+  { wanderIdx: 4, left: "32%", top: "22%", size: 160, duration: "40s", delay: "16s" },
+  { wanderIdx: 5, left: "40%", top: "47%", size: 185, duration: "45s", delay: "8s"  },
 ];
 
 const GROUND_WALK_CONFIGS = [
-  { wanderIdx: 0, left: "4%",  top: "91%", size: 142, duration: "38s", delay: "0s"  },
-  { wanderIdx: 1, left: "58%", top: "91%", size: 122, duration: "42s", delay: "5s"  },
-  { wanderIdx: 2, left: "20%", top: "89%", size: 106, duration: "36s", delay: "11s" },
-  { wanderIdx: 3, left: "52%", top: "89%", size: 91,  duration: "44s", delay: "2s"  },
-  { wanderIdx: 4, left: "34%", top: "89%", size: 79,  duration: "40s", delay: "16s" },
-  { wanderIdx: 5, left: "40%", top: "91%", size: 113, duration: "45s", delay: "8s"  },
+  { wanderIdx: 0, left: "4%",  top: "91%", size: 220, duration: "38s", delay: "0s"  },
+  { wanderIdx: 1, left: "58%", top: "91%", size: 220, duration: "42s", delay: "5s"  },
+  { wanderIdx: 2, left: "20%", top: "89%", size: 220, duration: "36s", delay: "11s" },
+  { wanderIdx: 3, left: "52%", top: "89%", size: 220, duration: "44s", delay: "2s"  },
+  { wanderIdx: 4, left: "34%", top: "89%", size: 220, duration: "40s", delay: "16s" },
+  { wanderIdx: 5, left: "40%", top: "91%", size: 220, duration: "45s", delay: "8s"  },
 ];
 
 function WalkingPetView({ pet, index }: { pet: VisitedPet; index: number }) {
@@ -66,8 +69,17 @@ function WalkingPetView({ pet, index }: { pet: VisitedPet; index: number }) {
     ? WALK_CONFIGS[index % WALK_CONFIGS.length]
     : GROUND_WALK_CONFIGS[index % GROUND_WALK_CONFIGS.length];
 
+  // Use owner's saved position if available; otherwise fall back to default layout
+  const hasSavedPos = !!(pet.posLeft && pet.posTop);
+  const posLeft = pet.posLeft ?? cfg.left;
+  const posTop  = pet.posTop  ?? cfg.top;
+
   const floatAnim = hasWings ? "petFloatSmall" : "petGroundFloat";
   const wanderPrefix = hasWings ? "petWander" : "petGroundWander";
+  // No wander animation when owner has placed the pet — mirrors PetHousePage behaviour
+  const wanderAnim = hasSavedPos
+    ? "none"
+    : `${wanderPrefix}${cfg.wanderIdx} ${cfg.duration} ${cfg.delay} ease-in-out infinite`;
 
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
   const sz = cfg.size;
@@ -91,18 +103,13 @@ function WalkingPetView({ pet, index }: { pet: VisitedPet; index: number }) {
       data-testid={`visit-pet-${pet.inventoryId}`}
       className="absolute"
       style={{
-        left: cfg.left,
-        top: cfg.top,
+        left: posLeft,
+        top: posTop,
         marginTop: -sz,
-        zIndex: parseInt(cfg.top, 10),
+        zIndex: parseInt(posTop, 10),
       }}
     >
-      <div
-        style={{
-          animation: `${wanderPrefix}${cfg.wanderIdx} ${cfg.duration} ${cfg.delay} ease-in-out infinite`,
-          transformOrigin: "bottom center",
-        }}
-      >
+      <div style={{ animation: wanderAnim, transformOrigin: "bottom center" }}>
         <div style={{ animation: `${floatAnim} ${hasWings ? "3.2s" : "2.4s"} ${cfg.delay} ${hasWings ? "ease-in-out" : "ease"} infinite` }}>
           {pet.petTemplateId ? (
             <>

@@ -31,6 +31,7 @@ import {
   type Friendship, friendships,
   type Notification, notifications,
   worldPetPositions,
+  petHousePositions,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, ne, gte, asc, desc, ilike, or, sql, inArray } from "drizzle-orm";
@@ -1283,6 +1284,23 @@ export class DatabaseStorage implements IStorage {
       .onConflictDoUpdate({
         target: [worldPetPositions.worldId, worldPetPositions.ownerUserId],
         set: { posX, posY, updatedAt: new Date() },
+      });
+  }
+
+  // ── Pet house positions ────────────────────────────────────────────────────
+
+  async getPetHousePositions(userId: string): Promise<{ inventoryId: string; posLeft: string; posTop: string }[]> {
+    return db.select({ inventoryId: petHousePositions.inventoryId, posLeft: petHousePositions.posLeft, posTop: petHousePositions.posTop })
+      .from(petHousePositions)
+      .where(eq(petHousePositions.userId, userId));
+  }
+
+  async upsertPetHousePosition(userId: string, inventoryId: string, posLeft: string, posTop: string): Promise<void> {
+    await db.insert(petHousePositions)
+      .values({ userId, inventoryId, posLeft, posTop })
+      .onConflictDoUpdate({
+        target: [petHousePositions.userId, petHousePositions.inventoryId],
+        set: { posLeft, posTop, updatedAt: new Date() },
       });
   }
 
