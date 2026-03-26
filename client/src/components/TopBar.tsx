@@ -64,7 +64,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
     if (newOnes.length === 0) return;
     newOnes.forEach(n => {
       seenNotifIds.current.add(n.id);
-      const title = n.type === "friend_accepted" ? "🤝 Friend Request Accepted" : "🔔 Notification";
+      const title = n.type === "friend_accepted" ? "🐾 Friend Request Accepted" : "✨ Notification";
       toast({ title, description: n.message });
     });
     markReadMutation.mutate();
@@ -83,7 +83,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
     mutationFn: ({ requestId }: { requestId: string; username: string }) =>
       apiRequest("POST", `/api/friends/accept/${requestId}`, {}),
     onSuccess: (_, variables) => {
-      toast({ title: "🤝 Friend Added!", description: `You and ${variables.username} are now friends.` });
+      toast({ title: "🐾 Friend Added!", description: `You and ${variables.username} are now friends.` });
       refetchRequests();
       refetchCount();
       queryClient.invalidateQueries({ queryKey: ["/api/friends"] });
