@@ -132,6 +132,17 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showRequestsPopup]);
 
+  useEffect(() => {
+    if (!showFriendsList) return;
+    function handleClick(e: MouseEvent) {
+      if (friendsListRef.current && !friendsListRef.current.contains(e.target as Node)) {
+        setShowFriendsList(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showFriendsList]);
+
   // Auto-close the popup once all requests have been handled
   useEffect(() => {
     if (showRequestsPopup && pendingRequests.length === 0 && friendRequestCount === 0) {
@@ -206,7 +217,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
               </button>
             )}
             {!user.isAdmin && (
-              <>
+              <div className="relative" ref={friendsListRef}>
                 <button
                   data-testid="button-friends-icon"
                   onClick={() => setShowFriendsList(v => !v)}
@@ -232,123 +243,106 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                 </button>
 
                 {showFriendsList && (
-                  <>
-                    {/* Backdrop */}
-                    <div
-                      className="fixed inset-0 z-[99990]"
-                      style={{ background: "rgba(0,0,0,0.5)" }}
-                      onClick={() => setShowFriendsList(false)}
-                    />
+                  <div
+                    data-testid="popup-friends-list"
+                    style={{
+                      position: "absolute",
+                      top: "calc(100% + 8px)",
+                      left: 0,
+                      width: 250,
+                      maxHeight: "55vh",
+                      overflowY: "auto",
+                      zIndex: 99999,
+                      background: "rgba(4,10,6,0.98)",
+                      border: "1.5px solid rgba(127,255,212,0.2)",
+                      borderRadius: 14,
+                      boxShadow: "0 8px 40px rgba(0,0,0,0.85), 0 0 30px rgba(127,255,212,0.06)",
+                      padding: "10px 12px 14px",
+                    }}
+                  >
+                    <p className="font-fantasy tracking-widest mb-3" style={{ fontSize: 9, color: "rgba(127,255,212,0.7)", letterSpacing: "0.2em" }}>
+                      FRIENDS
+                    </p>
 
-                    {/* Side panel */}
-                    <div
-                      ref={friendsListRef}
-                      data-testid="popup-friends-list"
-                      className="fixed top-0 left-0 bottom-0 z-[99991] flex flex-col"
-                      style={{
-                        width: 220,
-                        background: "linear-gradient(180deg, rgba(4,12,8,0.99) 0%, rgba(3,9,6,0.99) 100%)",
-                        borderRight: "1.5px solid rgba(127,255,212,0.18)",
-                        boxShadow: "8px 0 40px rgba(0,0,0,0.7), 0 0 30px rgba(127,255,212,0.04)",
-                      }}
-                    >
-                      {/* Panel header */}
-                      <div className="flex items-center justify-between px-4 pt-5 pb-3 flex-shrink-0" style={{ borderBottom: "1px solid rgba(127,255,212,0.1)" }}>
-                        <p className="font-fantasy tracking-widest" style={{ fontSize: 10, color: "rgba(127,255,212,0.8)", letterSpacing: "0.25em" }}>
-                          FRIENDS
+                    {/* Pending requests */}
+                    {friendRequestsList.length > 0 && (
+                      <div style={{ marginBottom: 12 }}>
+                        <p className="font-fantasy text-[9px] tracking-widest uppercase" style={{ color: "rgba(127,255,212,0.6)", marginBottom: 6 }}>
+                          Requests ({friendRequestsList.length})
                         </p>
-                        <button
-                          onClick={() => setShowFriendsList(false)}
-                          style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(127,255,212,0.45)", fontSize: 18, lineHeight: 1, padding: "0 2px" }}
-                        >×</button>
-                      </div>
-
-                      {/* Scrollable content */}
-                      <div className="flex-1 overflow-y-auto px-3 py-3">
-                        {/* Pending requests */}
-                        {friendRequestsList.length > 0 && (
-                          <div style={{ marginBottom: 14 }}>
-                            <p className="font-fantasy text-[9px] tracking-widest uppercase" style={{ color: "rgba(127,255,212,0.6)", marginBottom: 7 }}>
-                              Requests ({friendRequestsList.length})
-                            </p>
-                            <div className="flex flex-col gap-2">
-                              {friendRequestsList.map((req: any) => (
-                                <div
-                                  key={req.id}
-                                  data-testid={`friend-request-${req.id}`}
-                                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 10, background: "rgba(127,255,212,0.05)", border: "1px solid rgba(127,255,212,0.12)" }}
-                                >
-                                  {req.profileImage ? (
-                                    <img src={req.profileImage} alt={req.username} style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(127,255,212,0.3)", flexShrink: 0 }} />
-                                  ) : (
-                                    <div style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(127,255,212,0.1)", border: "1px solid rgba(127,255,212,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                                      <span style={{ fontSize: 11, color: "#7fffd4", fontWeight: "bold" }}>{(req.username ?? "?").charAt(0).toUpperCase()}</span>
-                                    </div>
-                                  )}
-                                  <span className="font-fantasy text-xs flex-1 truncate" style={{ color: "#d4e8da" }}>{req.username}</span>
-                                  <div className="flex flex-col gap-1">
-                                    <button
-                                      data-testid={`button-accept-${req.id}`}
-                                      onClick={() => acceptMutation.mutate({ requestId: req.id, username: req.username })}
-                                      disabled={acceptMutation.isPending}
-                                      className="font-fantasy text-[10px] tracking-wider"
-                                      style={{ padding: "3px 8px", borderRadius: 6, background: "rgba(74,222,128,0.2)", border: "1px solid rgba(74,222,128,0.45)", color: "#4ade80", cursor: "pointer" }}
-                                    >Accept</button>
-                                    <button
-                                      data-testid={`button-decline-${req.id}`}
-                                      onClick={() => declineMutation.mutate(req.requesterId)}
-                                      disabled={declineMutation.isPending}
-                                      className="font-fantasy text-[10px] tracking-wider"
-                                      style={{ padding: "3px 8px", borderRadius: 6, background: "rgba(248,113,113,0.15)", border: "1px solid rgba(248,113,113,0.35)", color: "#f87171", cursor: "pointer" }}
-                                    >Decline</button>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                            <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(127,255,212,0.15), transparent)", margin: "12px 0" }} />
-                          </div>
-                        )}
-
-                        {/* Friends list */}
-                        <p className="font-fantasy text-[9px] tracking-widest uppercase" style={{ color: "rgba(127,255,212,0.6)", marginBottom: 7 }}>
-                          My Friends ({friendsList.length})
-                        </p>
-                        {friendsList.length === 0 && friendRequestsList.length === 0 && (
-                          <p className="font-fantasy text-xs text-center" style={{ color: "#5a8070", padding: "16px 0" }}>No friends yet — explore the world and add some!</p>
-                        )}
-                        {friendsList.length === 0 && friendRequestsList.length > 0 && (
-                          <p className="font-fantasy text-xs text-center" style={{ color: "#5a8070", padding: "6px 0" }}>No friends yet</p>
-                        )}
                         <div className="flex flex-col gap-2">
-                          {friendsList.map((f: any) => (
+                          {friendRequestsList.map((req: any) => (
                             <div
-                              key={f.id}
-                              data-testid={`friend-row-${f.friendId}`}
-                              style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 10, background: "rgba(127,255,212,0.03)", border: "1px solid rgba(127,255,212,0.09)" }}
+                              key={req.id}
+                              data-testid={`friend-request-${req.id}`}
+                              style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 10, background: "rgba(127,255,212,0.06)", border: "1px solid rgba(127,255,212,0.12)" }}
                             >
-                              {f.profileImage ? (
-                                <img src={f.profileImage} alt={f.username} style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(212,160,23,0.35)", flexShrink: 0 }} />
+                              {req.profileImage ? (
+                                <img src={req.profileImage} alt={req.username} style={{ width: 26, height: 26, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(127,255,212,0.3)", flexShrink: 0 }} />
                               ) : (
-                                <div style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(212,160,23,0.1)", border: "1px solid rgba(212,160,23,0.35)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                                  <span style={{ fontSize: 11, color: "#d4a017", fontWeight: "bold" }}>{(f.username ?? "?").charAt(0).toUpperCase()}</span>
+                                <div style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(127,255,212,0.1)", border: "1px solid rgba(127,255,212,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                  <span style={{ fontSize: 10, color: "#7fffd4", fontWeight: "bold" }}>{(req.username ?? "?").charAt(0).toUpperCase()}</span>
                                 </div>
                               )}
-                              <span className="font-fantasy text-xs flex-1 truncate" style={{ color: "#d4e8da" }}>{f.username}</span>
+                              <span className="font-fantasy text-xs flex-1 truncate" style={{ color: "#d4e8da", fontSize: 11 }}>{req.username}</span>
                               <button
-                                data-testid={`button-remove-friend-${f.friendId}`}
-                                onClick={() => removeFriendMutation.mutate(f.friendId)}
-                                disabled={removeFriendMutation.isPending}
-                                className="font-fantasy text-[10px] tracking-wider"
-                                style={{ padding: "3px 8px", borderRadius: 6, background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.3)", color: "#f87171", cursor: "pointer" }}
-                              >Remove</button>
+                                data-testid={`button-accept-${req.id}`}
+                                onClick={() => acceptMutation.mutate({ requestId: req.id, username: req.username })}
+                                disabled={acceptMutation.isPending}
+                                className="font-fantasy tracking-wider"
+                                style={{ fontSize: 9, padding: "2px 6px", borderRadius: 6, background: "rgba(74,222,128,0.2)", border: "1px solid rgba(74,222,128,0.45)", color: "#4ade80", cursor: "pointer" }}
+                              >✓</button>
+                              <button
+                                data-testid={`button-decline-${req.id}`}
+                                onClick={() => declineMutation.mutate(req.requesterId)}
+                                disabled={declineMutation.isPending}
+                                className="font-fantasy tracking-wider"
+                                style={{ fontSize: 9, padding: "2px 6px", borderRadius: 6, background: "rgba(248,113,113,0.15)", border: "1px solid rgba(248,113,113,0.35)", color: "#f87171", cursor: "pointer" }}
+                              >✕</button>
                             </div>
                           ))}
                         </div>
+                        <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(127,255,212,0.2), transparent)", margin: "10px 0" }} />
                       </div>
+                    )}
+
+                    {/* Friends list */}
+                    <p className="font-fantasy text-[9px] tracking-widest uppercase" style={{ color: "rgba(127,255,212,0.6)", marginBottom: 6 }}>
+                      My Friends ({friendsList.length})
+                    </p>
+                    {friendsList.length === 0 && friendRequestsList.length === 0 && (
+                      <p className="font-fantasy text-xs text-center" style={{ color: "#5a8070", padding: "10px 0", fontSize: 11 }}>No friends yet — explore and add some!</p>
+                    )}
+                    {friendsList.length === 0 && friendRequestsList.length > 0 && (
+                      <p className="font-fantasy text-xs text-center" style={{ color: "#5a8070", padding: "4px 0", fontSize: 11 }}>No friends yet</p>
+                    )}
+                    <div className="flex flex-col gap-1.5">
+                      {friendsList.map((f: any) => (
+                        <div
+                          key={f.id}
+                          data-testid={`friend-row-${f.friendId}`}
+                          style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 10, background: "rgba(127,255,212,0.04)", border: "1px solid rgba(127,255,212,0.1)" }}
+                        >
+                          {f.profileImage ? (
+                            <img src={f.profileImage} alt={f.username} style={{ width: 26, height: 26, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(212,160,23,0.35)", flexShrink: 0 }} />
+                          ) : (
+                            <div style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(212,160,23,0.1)", border: "1px solid rgba(212,160,23,0.35)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                              <span style={{ fontSize: 10, color: "#d4a017", fontWeight: "bold" }}>{(f.username ?? "?").charAt(0).toUpperCase()}</span>
+                            </div>
+                          )}
+                          <span className="font-fantasy flex-1 truncate" style={{ color: "#d4e8da", fontSize: 11 }}>{f.username}</span>
+                          <button
+                            data-testid={`button-remove-friend-${f.friendId}`}
+                            onClick={() => removeFriendMutation.mutate(f.friendId)}
+                            disabled={removeFriendMutation.isPending}
+                            style={{ fontSize: 10, padding: "1px 5px", borderRadius: 5, background: "none", border: "1px solid rgba(248,113,113,0.2)", color: "rgba(248,113,113,0.45)", cursor: "pointer", lineHeight: 1.4 }}
+                          >✕</button>
+                        </div>
+                      ))}
                     </div>
-                  </>
+                  </div>
                 )}
-              </>
+              </div>
             )}
           </div>
 
