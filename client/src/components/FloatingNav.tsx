@@ -42,12 +42,12 @@ const LEFT_ITEMS = [
 
 // ── Right column: Home, Pet House, Market, Aquarium, Keeper's Central, Pet Bag
 const RIGHT_ITEMS = [
-  { id: "home",     label: "Home",    icon: homeIcon     },
+  { id: "bag",      label: "Bag",     icon: bagIcon      },
   { id: "pethouse", label: "House",   icon: petHouseIcon },
   { id: "market",   label: "Market",  icon: marketIcon   },
   { id: "aquarium", label: "Aquarium",icon: fishbowlIcon },
   { id: "keepers",  label: "Central", icon: globeIcon    },
-  { id: "bag",      label: "Bag",     icon: bagIcon      },
+  { id: "home",     label: "Home",    icon: homeIcon     },
 ];
 
 const ICON_SIZE   = 44;
