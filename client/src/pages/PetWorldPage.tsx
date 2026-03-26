@@ -802,17 +802,16 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
             <button
               data-testid="button-close-pet-world"
               onClick={onClose}
-              className="flex-shrink-0 flex items-center justify-center transition-transform active:scale-95 topbar-icon-size-sm"
+              className="flex-shrink-0 flex items-center justify-center transition-transform active:scale-95 overflow-hidden topbar-icon-size-sm"
               style={{
-                background: "rgba(4,10,6,0.82)",
+                background: "none",
                 border: `2px solid ${ACCENT}55`,
                 cursor: "pointer",
                 boxShadow: `0 2px 10px rgba(0,0,0,0.6), 0 0 14px rgba(127,255,212,0.1)`,
                 borderRadius: 10,
-                display: "flex", alignItems: "center", justifyContent: "center",
               }}
             >
-              <X className="w-4 h-4" style={{ color: ACCENT }} />
+              <img src={petHouseIconImg} alt="Pet House" className="w-full h-full object-cover" />
             </button>
             {/* Market */}
             <button
