@@ -887,32 +887,25 @@
 }
 
 .para-pets-title {
-  font-family: 'MedievalSharp', 'Cinzel Decorative', serif;
+  font-family: 'Cinzel Decorative', 'Cinzel', serif;
   font-weight: 400;
-  font-size: clamp(2.8rem, 12vw, 4.5rem);
-  letter-spacing: 0.05em;
+  font-size: clamp(3.2rem, 13vw, 5.2rem);
+  letter-spacing: 0.08em;
   background: linear-gradient(
-    105deg,
-    #ffd700 0%,
-    #ffffff 22%,
-    #ffe066 40%,
-    #fff8c0 50%,
-    #ffe066 60%,
-    #ffffff 78%,
-    #ffd700 100%
+    160deg,
+    #b87d08 0%,
+    #e8b830 30%,
+    #fde272 50%,
+    #e8b830 70%,
+    #b87d08 100%
   );
-  background-size: 300% auto;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation:
-    titleGlowPulse 2.8s ease-in-out infinite,
-    titleShimmer 4s linear infinite,
-    titleFloat 3.5s ease-in-out infinite;
+  animation: titleFloat 3.5s ease-in-out infinite;
   filter:
-    drop-shadow(0 0 6px rgba(255,215,0,1))
-    drop-shadow(0 0 18px rgba(255,190,0,0.85))
-    drop-shadow(0 0 40px rgba(200,140,0,0.6));
+    drop-shadow(0 0 8px rgba(240,185,40,0.65))
+    drop-shadow(0 2px 18px rgba(160,105,0,0.5));
 }
 
 @keyframes titleSparkle {
