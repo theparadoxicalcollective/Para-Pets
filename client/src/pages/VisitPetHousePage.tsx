@@ -233,6 +233,9 @@ export default function VisitPetHousePage() {
       return res.json();
     },
     enabled: !!userId,
+    staleTime: 0,
+    refetchInterval: 10_000,
+    refetchOnWindowFocus: true,
   });
 
   return (
