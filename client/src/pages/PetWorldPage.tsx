@@ -6,6 +6,7 @@ import { Plus, X, Trash2, FlipHorizontal, Palette } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 import PetAnimator from "@/components/PetAnimator";
 import bgGround from "@assets/pw_ground_layer.png";
+import friendsIconSrc from "@assets/friends_icon.png";
 
 const WORLD_ID = "pet_world";
 const ACCENT = "#7fffd4";
@@ -103,6 +104,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const [showAddDecorForm, setShowAddDecorForm] = useState(false);
   const [newDecorName,     setNewDecorName]     = useState("");
   const [newDecorImage,    setNewDecorImage]    = useState<string | null>(null);
+  const [showFriendsPanel, setShowFriendsPanel] = useState(false);
 
   // ── queries ────────────────────────────────────────────────────────────────
   const { data: decorItems = [] } = useQuery<DecorItem[]>({
@@ -131,6 +133,54 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
       return res.json();
     },
     staleTime: 60000,
+  });
+
+  const { data: me } = useQuery<{ profileImage: string | null; username: string }>({
+    queryKey: ["/api/auth/me"],
+  });
+
+  const { data: friends = [] } = useQuery<any[]>({
+    queryKey: ["/api/friends"],
+    enabled: showFriendsPanel,
+    refetchInterval: showFriendsPanel ? 15000 : false,
+  });
+
+  const { data: friendRequests = [] } = useQuery<any[]>({
+    queryKey: ["/api/friends/requests"],
+    enabled: showFriendsPanel,
+    refetchInterval: showFriendsPanel ? 15000 : false,
+  });
+
+  const { data: friendRequestCount = 0 } = useQuery<number>({
+    queryKey: ["/api/friends/requests/count"],
+    select: (d: any) => (typeof d === "number" ? d : d?.count ?? 0),
+  });
+
+  const acceptRequestMutation = useMutation({
+    mutationFn: (requestId: string) => apiRequest("POST", `/api/friends/accept/${requestId}`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/friends"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/friends/requests"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/friends/requests/count"] });
+    },
+    onError: () => toast({ title: "Error", description: "Could not accept request.", variant: "destructive" }),
+  });
+
+  const declineRequestMutation = useMutation({
+    mutationFn: (otherId: string) => apiRequest("DELETE", `/api/friends/${otherId}`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/friends/requests"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/friends/requests/count"] });
+    },
+    onError: () => toast({ title: "Error", description: "Could not decline request.", variant: "destructive" }),
+  });
+
+  const removeFriendMutation = useMutation({
+    mutationFn: (friendId: string) => apiRequest("DELETE", `/api/friends/${friendId}`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/friends"] });
+    },
+    onError: () => toast({ title: "Error", description: "Could not remove friend.", variant: "destructive" }),
   });
 
   const [selectedPet, setSelectedPet] = useState<WorldActivePet | null>(null);
@@ -661,6 +711,63 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           </button>
         )}
 
+        {/* Player avatar + Friends button — bottom-left stack */}
+        <div className="absolute pointer-events-auto flex flex-col items-center gap-2"
+          style={{ bottom: 52, left: 14 }}>
+          {/* Player avatar */}
+          <div style={{
+            width: 40, height: 40, borderRadius: "50%",
+            border: `2px solid ${ACCENT}55`,
+            boxShadow: `0 0 10px rgba(127,255,212,0.18)`,
+            overflow: "hidden",
+            background: "rgba(4,10,6,0.88)",
+            flexShrink: 0,
+          }}>
+            {me?.profileImage ? (
+              <img src={me.profileImage} alt="you" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            ) : (
+              <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontFamily: "fantasy", fontSize: 16, color: ACCENT }}>
+                  {(me?.username ?? "?").charAt(0).toUpperCase()}
+                </span>
+              </div>
+            )}
+          </div>
+          {/* Friends button */}
+          <div style={{ position: "relative" }}>
+            <button
+              data-testid="button-friends-panel"
+              onClick={() => setShowFriendsPanel(p => !p)}
+              className="transition-transform active:scale-90"
+              style={{
+                width: 40, height: 40, borderRadius: 12,
+                background: showFriendsPanel ? "rgba(127,255,212,0.18)" : "rgba(4,10,6,0.88)",
+                border: `1.5px solid ${ACCENT}55`,
+                boxShadow: "0 2px 12px rgba(0,0,0,0.7)",
+                cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                overflow: "hidden",
+              }}
+            >
+              <img src={friendsIconSrc} alt="Friends" style={{ width: 30, height: 30, objectFit: "contain" }} />
+            </button>
+            {friendRequestCount > 0 && !showFriendsPanel && (
+              <div style={{
+                position: "absolute", top: -5, right: -5,
+                width: 16, height: 16, borderRadius: "50%",
+                background: "#f87171",
+                border: "1.5px solid rgba(4,10,6,0.9)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 9, fontWeight: "bold", color: "#fff",
+                fontFamily: "fantasy",
+                pointerEvents: "none",
+              }}>
+                {friendRequestCount > 9 ? "9+" : friendRequestCount}
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Depth hint — small indicator at bottom centre */}
         <div className="absolute bottom-4 left-0 right-0 flex justify-center pointer-events-none">
           <div className="font-fantasy text-[9px] tracking-widest px-3 py-1 rounded-full"
@@ -673,6 +780,160 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           </div>
         </div>
       </div>
+
+      {/* ── Friends Panel ─────────────────────────────────────────────────── */}
+      {showFriendsPanel && (
+        <div
+          className="absolute pointer-events-auto"
+          style={{
+            zIndex: 40,
+            bottom: 0, left: 0, right: 0,
+            background: "rgba(4,10,6,0.97)",
+            border: `1.5px solid ${ACCENT}28`,
+            borderRadius: "20px 20px 0 0",
+            boxShadow: "0 -4px 40px rgba(0,0,0,0.8), 0 0 30px rgba(127,255,212,0.06)",
+            maxHeight: "72vh",
+            display: "flex", flexDirection: "column",
+          }}
+        >
+          {/* Header */}
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "16px 18px 12px",
+            borderBottom: `1px solid ${ACCENT}18`,
+            flexShrink: 0,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <img src={friendsIconSrc} alt="" style={{ width: 26, height: 26, objectFit: "contain" }} />
+              <span className="font-fantasy text-sm tracking-widest" style={{ color: ACCENT }}>Friends</span>
+            </div>
+            <button
+              data-testid="button-close-friends-panel"
+              onClick={() => setShowFriendsPanel(false)}
+              style={{
+                width: 30, height: 30, borderRadius: 8,
+                background: "rgba(127,255,212,0.07)",
+                border: `1px solid ${ACCENT}30`,
+                cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: ACCENT,
+              }}
+            >
+              <X style={{ width: 14, height: 14 }} />
+            </button>
+          </div>
+
+          {/* Scrollable content */}
+          <div style={{ overflowY: "auto", padding: "12px 18px 24px", flex: 1 }}>
+
+            {/* Pending requests */}
+            {friendRequests.length > 0 && (
+              <div className="space-y-2" style={{ marginBottom: 16 }}>
+                <p className="font-fantasy text-[10px] tracking-widest uppercase" style={{ color: ACCENT, marginBottom: 8 }}>
+                  Requests ({friendRequests.length})
+                </p>
+                {friendRequests.map((req: any) => (
+                  <div
+                    key={req.id}
+                    data-testid={`friend-request-${req.id}`}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      padding: "8px 12px", borderRadius: 10,
+                      background: "rgba(127,255,212,0.06)",
+                      border: "1px solid rgba(127,255,212,0.12)",
+                    }}
+                  >
+                    <div style={{ flexShrink: 0 }}>
+                      {req.profileImage ? (
+                        <img src={req.profileImage} alt={req.username}
+                          style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(127,255,212,0.3)" }} />
+                      ) : (
+                        <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(127,255,212,0.1)", border: "1px solid rgba(127,255,212,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <span style={{ fontSize: 12, color: ACCENT, fontWeight: "bold" }}>{(req.username ?? "?").charAt(0).toUpperCase()}</span>
+                        </div>
+                      )}
+                    </div>
+                    <span className="font-fantasy text-xs" style={{ color: "#d4e8da", flex: 1 }} data-testid={`text-request-username-${req.id}`}>{req.username}</span>
+                    <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                      <button
+                        data-testid={`button-accept-request-${req.id}`}
+                        onClick={() => acceptRequestMutation.mutate(req.id)}
+                        disabled={acceptRequestMutation.isPending}
+                        className="font-fantasy text-[10px] tracking-wider"
+                        style={{ padding: "4px 10px", borderRadius: 6, background: "rgba(74,222,128,0.2)", border: "1px solid rgba(74,222,128,0.45)", color: "#4ade80", cursor: "pointer" }}
+                      >
+                        Accept
+                      </button>
+                      <button
+                        data-testid={`button-decline-request-${req.id}`}
+                        onClick={() => declineRequestMutation.mutate(req.requesterId)}
+                        disabled={declineRequestMutation.isPending}
+                        className="font-fantasy text-[10px] tracking-wider"
+                        style={{ padding: "4px 10px", borderRadius: 6, background: "rgba(248,113,113,0.15)", border: "1px solid rgba(248,113,113,0.35)", color: "#f87171", cursor: "pointer" }}
+                      >
+                        Decline
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                <div style={{ height: 1, background: `linear-gradient(90deg, transparent, ${ACCENT}30, transparent)`, margin: "8px 0" }} />
+              </div>
+            )}
+
+            {/* Friends list */}
+            <div>
+              <p className="font-fantasy text-[10px] tracking-widest uppercase" style={{ color: ACCENT, marginBottom: 8 }}>
+                My Friends ({friends.length})
+              </p>
+              {friends.length === 0 && friendRequests.length === 0 && (
+                <p className="font-fantasy text-xs text-center" style={{ color: "#5a8070", padding: "16px 0" }} data-testid="text-no-friends">
+                  No friends yet — explore the world and add some!
+                </p>
+              )}
+              {friends.length === 0 && friendRequests.length > 0 && (
+                <p className="font-fantasy text-xs text-center" style={{ color: "#5a8070", padding: "8px 0" }} data-testid="text-no-friends-yet">
+                  No friends yet
+                </p>
+              )}
+              <div className="space-y-2">
+                {friends.map((f: any) => (
+                  <div
+                    key={f.id}
+                    data-testid={`friend-row-${f.friendId}`}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      padding: "8px 12px", borderRadius: 10,
+                      background: "rgba(127,255,212,0.04)",
+                      border: "1px solid rgba(127,255,212,0.1)",
+                    }}
+                  >
+                    <div style={{ flexShrink: 0 }}>
+                      {f.profileImage ? (
+                        <img src={f.profileImage} alt={f.username}
+                          style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(212,160,23,0.35)" }} />
+                      ) : (
+                        <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(212,160,23,0.1)", border: "1px solid rgba(212,160,23,0.35)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <span style={{ fontSize: 12, color: "#d4a017", fontWeight: "bold" }}>{(f.username ?? "?").charAt(0).toUpperCase()}</span>
+                        </div>
+                      )}
+                    </div>
+                    <span className="font-fantasy text-xs flex-1 truncate" style={{ color: "#d4e8da" }} data-testid={`text-friend-username-${f.friendId}`}>{f.username}</span>
+                    <button
+                      data-testid={`button-remove-friend-${f.friendId}`}
+                      onClick={() => removeFriendMutation.mutate(f.friendId)}
+                      disabled={removeFriendMutation.isPending}
+                      className="font-fantasy text-[10px] tracking-wider"
+                      style={{ padding: "4px 10px", borderRadius: 6, background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.3)", color: "#f87171", cursor: "pointer" }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── World Decor Panel ────────────────────────────────────────────── */}
       {showDecorPanel && (
