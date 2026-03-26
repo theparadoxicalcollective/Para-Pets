@@ -136,8 +136,9 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
-    staleTime: 60_000,
-    refetchOnWindowFocus: false,
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
   });
 
   const { data: me } = useQuery<{ profileImage: string | null; username: string; coins: number }>({

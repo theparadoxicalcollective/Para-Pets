@@ -659,6 +659,7 @@ export async function registerRoutes(
       }
 
       const updated = await storage.updateActivePet(user.id, activePetId);
+      _activePetsCache = null; // new active pet must appear in Keeper's Central immediately
       const { password: _, ...safeUser } = updated;
       return res.json(safeUser);
     } catch (err) {
