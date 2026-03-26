@@ -912,3 +912,9 @@ id = "vmD-fP08uWtwk6HR72vFu"
 uri = "file://attached_assets/icon_bayous_heart.png"
 type = "image"
 title = "Bayou's Heart Icon (v2)"
+
+[[outputs]]
+id = "UlfsVHPBWKCk8caQqTWJA"
+uri = "file://attached_assets/bg_login.png"
+type = "image"
+title = "Login Page Background (bg_login.png)"
