@@ -324,8 +324,11 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
 
   // Large-style parts (1000x1000) fill the full canvas — scale them down visually
   // so they match the old 300x300 in-game footprint (30% of the container).
+  // Non-large-style parts render at scale 1 but need a downward nudge so they
+  // sit on the background platform at the same position as large-style pets.
   const isLargeStyle = viewParts.some(p => p.width >= 500 || p.height >= 500);
   const partScale = isLargeStyle ? 0.3 : 1;
+  const verticalNudge = isLargeStyle ? 0 : 50;
 
   return (
     <div
@@ -334,7 +337,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
       data-testid="pet-animator"
     >
       <style>{ANIMATION_STYLES}</style>
-      <div style={{ position: "absolute", inset: 0, transform: `scale(${partScale})`, transformOrigin: "center center" }}>
+      <div style={{ position: "absolute", inset: 0, transform: `scale(${partScale}) translateY(${verticalNudge}px)`, transformOrigin: "center center" }}>
       {viewParts.map((part) => {
         const leftPct = (part.posX / CANVAS_SIZE) * 100;
         const topPct = (part.posY / CANVAS_SIZE) * 100;
