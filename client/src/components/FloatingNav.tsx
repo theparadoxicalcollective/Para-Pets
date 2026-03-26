@@ -279,7 +279,7 @@ function NavButton({
   return (
     <button
       onClick={onClick}
-      className="absolute flex flex-col items-center justify-center rounded-full overflow-hidden active:scale-90"
+      className="absolute flex flex-col items-center justify-center rounded-full active:scale-90"
       style={{
         width: ICON_SIZE,
         height: ICON_SIZE,
