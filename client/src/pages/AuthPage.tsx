@@ -238,7 +238,7 @@ export default function AuthPage() {
                 <br />Embark on your journey now.
               </p>
 
-              <div className="flex flex-col items-center gap-1 w-full">
+              <div className="flex flex-col items-center gap-0 w-full">
                 <button
                   data-testid="button-signin"
                   onClick={() => setMode("login")}

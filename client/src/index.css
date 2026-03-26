@@ -861,18 +861,18 @@
 @keyframes titleGlowPulse {
   0%, 100% {
     text-shadow:
-      0 0 8px rgba(127,255,220,0.9),
-      0 0 20px rgba(127,255,220,0.6),
-      0 0 40px rgba(127,191,176,0.4),
-      0 0 80px rgba(80,200,160,0.2);
+      0 0 8px rgba(255,215,0,0.9),
+      0 0 20px rgba(255,190,0,0.6),
+      0 0 40px rgba(212,160,23,0.5),
+      0 0 80px rgba(180,120,0,0.3);
   }
   50% {
     text-shadow:
       0 0 4px #fff,
-      0 0 14px rgba(200,255,240,1),
-      0 0 30px rgba(127,255,220,0.9),
-      0 0 60px rgba(127,191,176,0.6),
-      0 0 100px rgba(80,200,160,0.35);
+      0 0 14px rgba(255,245,150,1),
+      0 0 30px rgba(255,215,0,0.9),
+      0 0 60px rgba(212,160,23,0.7),
+      0 0 100px rgba(180,120,0,0.4);
   }
 }
 
@@ -891,15 +891,16 @@
   font-weight: 900;
   font-size: clamp(3rem, 13vw, 4.8rem);
   letter-spacing: 0.02em;
+  font-variant: small-caps;
   background: linear-gradient(
     105deg,
-    #a8f0e0 0%,
+    #ffd700 0%,
     #ffffff 20%,
-    #7fbfb0 38%,
-    #e0fff8 50%,
-    #7fbfb0 62%,
+    #d4a017 38%,
+    #fff3a0 50%,
+    #d4a017 62%,
     #ffffff 80%,
-    #a8f0e0 100%
+    #ffd700 100%
   );
   background-size: 300% auto;
   -webkit-background-clip: text;
@@ -909,7 +910,7 @@
     titleGlowPulse 2.8s ease-in-out infinite,
     titleShimmer 4s linear infinite,
     titleFloat 3.5s ease-in-out infinite;
-  filter: drop-shadow(0 0 12px rgba(127,255,220,0.5));
+  filter: drop-shadow(0 0 14px rgba(255,215,0,0.65));
 }
 
 @keyframes titleSparkle {
@@ -920,8 +921,8 @@
 .title-sparkle {
   display: inline-block;
   animation: titleSparkle 3s ease-in-out infinite;
-  color: #c8ffe8;
-  filter: drop-shadow(0 0 4px rgba(127,255,220,0.9));
+  color: #ffd700;
+  filter: drop-shadow(0 0 4px rgba(255,215,0,0.9));
 }
 
 html, body {
