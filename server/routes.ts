@@ -8,7 +8,7 @@ import path from "path";
 import { storage } from "./storage";
 import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards } from "@shared/schema";
 import { db } from "./db";
-import { and, inArray, lt } from "drizzle-orm";
+import { and, eq, inArray, lt } from "drizzle-orm";
 import sharp from "sharp";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
 import { Resend } from "resend";
@@ -124,12 +124,16 @@ async function grantWelcomeV2Bundle(userId: string): Promise<void> {
     { name: "Sturdy Rod",              qty: 1  },
     { name: "Small Hatching Potion",   qty: 1  },
   ];
+  console.log(`[WelcomeBundle] Creating bundle for user ${userId}. Shop has ${allShopItems.length} items.`);
   for (const { name, qty } of wanted) {
     const item = find(name);
     if (item) {
+      console.log(`[WelcomeBundle] Found item: "${item.name}" (${item.id})`);
       for (let i = 0; i < qty; i++) {
         await storage.addRewardBundleItem(bundle.id, item.id);
       }
+    } else {
+      console.warn(`[WelcomeBundle] Item NOT found: "${name}"`);
     }
   }
   await storage.setWelcomeV2Sent(userId);
@@ -2554,6 +2558,33 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Create reward bundle error:", err);
       return res.status(500).json({ message: "Failed to create reward bundle" });
+    }
+  });
+
+  app.post("/api/admin/patch-welcome-bundles", isAdmin, async (req, res) => {
+    try {
+      const allShopItems = await storage.getAllShopItems();
+      const hatchPotion = allShopItems.find(i => i.name.toLowerCase() === "small hatching potion");
+      if (!hatchPotion) {
+        return res.status(404).json({ message: "Small Hatching Potion not found in shop items" });
+      }
+      const unclaimedRewards = await db.select().from(userRewards).where(eq(userRewards.claimed, false));
+      let patched = 0;
+      let skipped = 0;
+      for (const reward of unclaimedRewards) {
+        const bundle = await storage.getRewardBundle(reward.bundleId);
+        if (!bundle || bundle.name !== "Welcome to the Realm!") { skipped++; continue; }
+        const existingItems = await storage.getRewardBundleItems(bundle.id);
+        const alreadyHas = existingItems.some(bi => bi.shopItemId === hatchPotion.id);
+        if (alreadyHas) { skipped++; continue; }
+        await storage.addRewardBundleItem(bundle.id, hatchPotion.id);
+        patched++;
+      }
+      console.log(`[PatchWelcomeBundles] Patched ${patched} bundles, skipped ${skipped}`);
+      return res.json({ message: `Patched ${patched} welcome bundles`, patched, skipped });
+    } catch (err) {
+      console.error("Patch welcome bundles error:", err);
+      return res.status(500).json({ message: "Failed to patch welcome bundles" });
     }
   });
 

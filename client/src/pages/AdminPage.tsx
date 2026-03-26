@@ -503,8 +503,38 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
 
   const inputStyle = { background: "rgba(242,232,208,0.9)", border: "1px solid #8b5e3c", color: "#2a1a0a" };
 
+  const patchMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/patch-welcome-bundles", {});
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      toast({ title: "Bundles Patched!", description: data.message });
+    },
+    onError: (err: any) => {
+      toast({ title: "Patch Failed", description: err?.message || "Could not patch bundles", variant: "destructive" });
+    },
+  });
+
   return (
     <div className="space-y-4">
+      <div
+        className="rounded-lg p-3"
+        style={{ background: "linear-gradient(135deg, rgba(20,40,20,0.5) 0%, rgba(10,25,10,0.5) 100%)", border: "1px solid rgba(74,222,128,0.3)" }}
+      >
+        <h3 className="font-fantasy text-[#4ade80] text-xs tracking-wider mb-1">Fix Missing Welcome Items</h3>
+        <p className="font-fantasy text-[#6a8870] text-[10px] mb-2">Adds the Small Hatching Potion to any unclaimed Welcome bundles that are missing it.</p>
+        <button
+          data-testid="button-patch-welcome-bundles"
+          onClick={() => patchMutation.mutate()}
+          disabled={patchMutation.isPending}
+          className="w-full py-2 rounded-md font-fantasy text-xs tracking-wider transition-transform active:scale-95"
+          style={{ background: "linear-gradient(135deg, rgba(20,80,30,0.9) 0%, rgba(10,50,20,0.9) 100%)", border: "1px solid rgba(74,222,128,0.5)", color: "#4ade80", cursor: "pointer" }}
+        >
+          {patchMutation.isPending ? "Patching..." : "Patch Unclaimed Welcome Bundles"}
+        </button>
+      </div>
+
       <div
         className="rounded-lg p-4"
         style={{ background: "linear-gradient(135deg, rgba(40,20,60,0.4) 0%, rgba(25,10,40,0.4) 100%)", border: "1px solid rgba(192,132,252,0.3)" }}
