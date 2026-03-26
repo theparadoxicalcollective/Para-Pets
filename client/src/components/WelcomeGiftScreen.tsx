@@ -57,7 +57,8 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
     setPhase("reveal");
     const timer = setTimeout(() => setPhase("collect"), 1600);
     return () => clearTimeout(timer);
-  }, [isSuccess, welcomeReward]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSuccess]);
 
   useEffect(() => {
     if (phase !== "collect") return;
@@ -166,6 +167,13 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
             Preparing your gifts…
           </p>
         </div>
+        <button
+          onClick={handleSkip}
+          className="absolute bottom-10 left-0 right-0 text-center"
+          style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(150,130,100,0.45)", fontSize: 10, letterSpacing: "0.05em" }}
+        >
+          skip for now
+        </button>
       ) : (
         /* Main card — shown only once data is ready */
         <div
@@ -383,7 +391,7 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
             )}
 
             {/* Skip link — always available so user is never fully stuck */}
-            {(phase === "collect" || phase === "claiming") && (
+            {phase !== "done" && (
               <button
                 onClick={handleSkip}
                 className="w-full text-center mt-3"
