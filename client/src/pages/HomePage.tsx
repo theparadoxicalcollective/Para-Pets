@@ -318,7 +318,7 @@ export default function HomePage({ user }: HomePageProps) {
         )}
 
         <div className="flex-1 flex flex-col items-center justify-center px-2 py-0 min-h-0">
-          <div className="relative flex items-center justify-center w-[90%] max-w-[420px] md:max-w-[580px] lg:max-w-[700px]">
+          <div className="relative flex items-center justify-center w-[95%] max-w-[460px] md:max-w-[620px] lg:max-w-[740px]">
             <div
               className="w-full rounded-xl flex flex-col items-center justify-center"
               style={{
@@ -355,7 +355,7 @@ export default function HomePage({ user }: HomePageProps) {
                         {activePet.petTemplateId ? (
                           <PetAnimator petTemplateId={activePet.petTemplateId} mode="idle" view="front" size={1000} className="w-full" style={{ aspectRatio: "1/1" }} />
                         ) : (activePet.hatchedImageUrl || activePet.imageUrl) ? (
-                          <img src={activePet.hatchedImageUrl || activePet.imageUrl || ""} alt={activePet.name} className="w-full max-h-[50vh] md:max-h-[62vh] lg:max-h-[68vh] object-contain" />
+                          <img src={activePet.hatchedImageUrl || activePet.imageUrl || ""} alt={activePet.name} className="w-full max-h-[60vh] md:max-h-[70vh] lg:max-h-[75vh] object-contain" />
                         ) : (
                           <img src={petPawIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain", filter: "drop-shadow(0 2px 10px rgba(0,0,0,0.5))" }} />
                         )}
@@ -378,7 +378,7 @@ export default function HomePage({ user }: HomePageProps) {
                           }}
                         >
                           {activePet.eggImageUrl ? (
-                            <img src={activePet.eggImageUrl} alt={activePet.name} className="w-full max-h-[50vh] md:max-h-[62vh] lg:max-h-[68vh] object-contain" />
+                            <img src={activePet.eggImageUrl} alt={activePet.name} className="w-full max-h-[60vh] md:max-h-[70vh] lg:max-h-[75vh] object-contain" />
                           ) : (
                             <img src={eggMagicIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain", filter: "drop-shadow(0 2px 10px rgba(0,0,0,0.5))" }} />
                           )}
