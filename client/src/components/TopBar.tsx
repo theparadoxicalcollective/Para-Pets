@@ -83,6 +83,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
       refetchRequests();
       refetchCount();
       queryClient.invalidateQueries({ queryKey: ["/api/friends"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/friends/requests"] });
       queryClient.invalidateQueries({ queryKey: ["/api/friends/requests/count"] });
     },
   });
@@ -92,6 +93,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
     onSuccess: () => {
       refetchRequests();
       refetchCount();
+      queryClient.invalidateQueries({ queryKey: ["/api/friends/requests"] });
       queryClient.invalidateQueries({ queryKey: ["/api/friends/requests/count"] });
     },
   });
@@ -99,6 +101,20 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
   const { data: friendsList = [] } = useQuery<any[]>({
     queryKey: ["/api/friends"],
     enabled: showFriendsList,
+    refetchInterval: showFriendsList ? 15000 : false,
+  });
+
+  const { data: friendRequestsList = [] } = useQuery<any[]>({
+    queryKey: ["/api/friends/requests"],
+    enabled: showFriendsList,
+    refetchInterval: showFriendsList ? 15000 : false,
+  });
+
+  const removeFriendMutation = useMutation({
+    mutationFn: (friendId: string) => apiRequest("DELETE", `/api/friends/${friendId}`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/friends"] });
+    },
   });
 
   useEffect(() => {
@@ -224,42 +240,99 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                 {showFriendsList && (
                   <div
                     data-testid="popup-friends-list"
-                    className="absolute top-full mt-2 left-0 z-50 min-w-[200px]"
+                    className="absolute top-full mt-2 left-0 z-50"
                     style={{
-                      background: "linear-gradient(160deg, rgba(20,10,4,0.97) 0%, rgba(40,22,8,0.97) 100%)",
-                      border: "1px solid rgba(74,222,128,0.35)",
+                      width: "260px",
+                      maxHeight: "60vh",
+                      overflowY: "auto",
+                      background: "rgba(4,10,6,0.97)",
+                      border: "1.5px solid rgba(127,255,212,0.2)",
                       borderRadius: 14,
-                      boxShadow: "0 8px 32px rgba(0,0,0,0.7), 0 0 20px rgba(74,222,128,0.1)",
-                      padding: "10px 10px 8px",
+                      boxShadow: "0 8px 40px rgba(0,0,0,0.8), 0 0 30px rgba(127,255,212,0.06)",
+                      padding: "12px 14px 16px",
                     }}
                   >
-                    <p className="font-fantasy tracking-widest text-center mb-2" style={{ fontSize: 9, color: "rgba(74,222,128,0.7)", letterSpacing: "0.2em" }}>
+                    <p className="font-fantasy tracking-widest mb-3" style={{ fontSize: 9, color: "rgba(127,255,212,0.7)", letterSpacing: "0.2em" }}>
                       FRIENDS
                     </p>
-                    {friendsList.length === 0 ? (
-                      <p className="text-center text-xs" style={{ color: "rgba(255,255,255,0.35)", padding: "6px 0" }}>No friends yet</p>
-                    ) : (
-                      <div className="flex flex-col gap-1.5">
-                        {friendsList.map((f: any) => (
-                          <div
-                            key={f.id}
-                            data-testid={`friend-${f.friendId}`}
-                            className="flex items-center gap-2 rounded-lg px-2 py-1.5"
-                            style={{ background: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)", cursor: "pointer" }}
-                            onClick={() => { navigate(`/player/${f.friendId}`); setShowFriendsList(false); }}
-                          >
-                            {f.profileImage ? (
-                              <img src={f.profileImage} alt="" className="w-7 h-7 rounded-lg object-cover flex-shrink-0" style={{ border: "1px solid rgba(74,222,128,0.3)" }} />
-                            ) : (
-                              <div className="w-7 h-7 rounded-lg flex-shrink-0 flex items-center justify-center" style={{ background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.3)" }}>
-                                <span className="font-fantasy text-[10px]" style={{ color: "#4ade80" }}>{(f.username || "?").charAt(0).toUpperCase()}</span>
-                              </div>
-                            )}
-                            <span className="font-fantasy truncate flex-1" style={{ fontSize: 11, color: "#7fffd4" }}>{f.username}</span>
-                          </div>
-                        ))}
+
+                    {/* Pending requests */}
+                    {friendRequestsList.length > 0 && (
+                      <div style={{ marginBottom: 12 }}>
+                        <p className="font-fantasy text-[10px] tracking-widest uppercase" style={{ color: "rgba(127,255,212,0.7)", marginBottom: 6 }}>
+                          Requests ({friendRequestsList.length})
+                        </p>
+                        <div className="flex flex-col gap-2">
+                          {friendRequestsList.map((req: any) => (
+                            <div
+                              key={req.id}
+                              data-testid={`friend-request-${req.id}`}
+                              style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 10, background: "rgba(127,255,212,0.06)", border: "1px solid rgba(127,255,212,0.12)" }}
+                            >
+                              {req.profileImage ? (
+                                <img src={req.profileImage} alt={req.username} style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(127,255,212,0.3)", flexShrink: 0 }} />
+                              ) : (
+                                <div style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(127,255,212,0.1)", border: "1px solid rgba(127,255,212,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                  <span style={{ fontSize: 11, color: "#7fffd4", fontWeight: "bold" }}>{(req.username ?? "?").charAt(0).toUpperCase()}</span>
+                                </div>
+                              )}
+                              <span className="font-fantasy text-xs flex-1 truncate" style={{ color: "#d4e8da" }}>{req.username}</span>
+                              <button
+                                data-testid={`button-accept-${req.id}`}
+                                onClick={() => acceptMutation.mutate(req.id)}
+                                disabled={acceptMutation.isPending}
+                                className="font-fantasy text-[10px] tracking-wider"
+                                style={{ padding: "3px 8px", borderRadius: 6, background: "rgba(74,222,128,0.2)", border: "1px solid rgba(74,222,128,0.45)", color: "#4ade80", cursor: "pointer" }}
+                              >Accept</button>
+                              <button
+                                data-testid={`button-decline-${req.id}`}
+                                onClick={() => declineMutation.mutate(req.requesterId)}
+                                disabled={declineMutation.isPending}
+                                className="font-fantasy text-[10px] tracking-wider"
+                                style={{ padding: "3px 8px", borderRadius: 6, background: "rgba(248,113,113,0.15)", border: "1px solid rgba(248,113,113,0.35)", color: "#f87171", cursor: "pointer" }}
+                              >Decline</button>
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(127,255,212,0.2), transparent)", margin: "10px 0" }} />
                       </div>
                     )}
+
+                    {/* Friends list */}
+                    <p className="font-fantasy text-[10px] tracking-widest uppercase" style={{ color: "rgba(127,255,212,0.7)", marginBottom: 6 }}>
+                      My Friends ({friendsList.length})
+                    </p>
+                    {friendsList.length === 0 && friendRequestsList.length === 0 && (
+                      <p className="font-fantasy text-xs text-center" style={{ color: "#5a8070", padding: "12px 0" }}>No friends yet — explore the world and add some!</p>
+                    )}
+                    {friendsList.length === 0 && friendRequestsList.length > 0 && (
+                      <p className="font-fantasy text-xs text-center" style={{ color: "#5a8070", padding: "6px 0" }}>No friends yet</p>
+                    )}
+                    <div className="flex flex-col gap-2">
+                      {friendsList.map((f: any) => (
+                        <div
+                          key={f.id}
+                          data-testid={`friend-row-${f.friendId}`}
+                          style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 10, background: "rgba(127,255,212,0.04)", border: "1px solid rgba(127,255,212,0.1)" }}
+                        >
+                          {f.profileImage ? (
+                            <img src={f.profileImage} alt={f.username} style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(212,160,23,0.35)", flexShrink: 0 }} />
+                          ) : (
+                            <div style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(212,160,23,0.1)", border: "1px solid rgba(212,160,23,0.35)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                              <span style={{ fontSize: 11, color: "#d4a017", fontWeight: "bold" }}>{(f.username ?? "?").charAt(0).toUpperCase()}</span>
+                            </div>
+                          )}
+                          <span className="font-fantasy text-xs flex-1 truncate" style={{ color: "#d4e8da" }}>{f.username}</span>
+                          <button
+                            data-testid={`button-remove-friend-${f.friendId}`}
+                            onClick={() => removeFriendMutation.mutate(f.friendId)}
+                            disabled={removeFriendMutation.isPending}
+                            className="font-fantasy text-[10px] tracking-wider"
+                            style={{ padding: "3px 8px", borderRadius: 6, background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.3)", color: "#f87171", cursor: "pointer" }}
+                          >Remove</button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
