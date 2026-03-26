@@ -420,8 +420,8 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                     backfaceVisibility: "hidden",
                     WebkitBackfaceVisibility: "hidden",
                     transform: "rotateY(180deg)",
-                    border: "2.5px solid rgba(240,192,64,0.85)",
-                    boxShadow: "0 0 0 4px rgba(240,192,64,0.18), 0 0 32px rgba(240,192,64,0.45)",
+                    border: `2.5px solid ${rc.primary}`,
+                    boxShadow: `0 0 0 4px ${rc.dim}, 0 0 32px ${rc.glow}`,
                     background: "rgba(8,4,0,0.22)",
                   }}>
                     {pet.eggImageUrl ? (
@@ -429,7 +429,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                         src={pet.eggImageUrl}
                         alt="Egg"
                         className="w-full h-full object-contain"
-                        style={{ filter: "drop-shadow(0 0 8px rgba(240,192,64,0.65)) drop-shadow(0 0 20px rgba(240,192,64,0.28))" }}
+                        style={{ filter: `drop-shadow(0 0 8px ${rc.glow}) drop-shadow(0 0 20px ${rc.glow.replace("0.55", "0.28")})` }}
                       />
                     ) : (
                       <img src={petPawIcon} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", opacity: 0.35 }} />
@@ -443,7 +443,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
               <div style={{
                 position: "absolute", bottom: -14, left: "50%", transform: "translateX(-50%)",
                 fontSize: 8, fontFamily: "Cinzel, serif", letterSpacing: "0.08em",
-                color: "rgba(240,192,64,0.5)",
+                color: rc.primary + "80",
                 whiteSpace: "nowrap",
                 pointerEvents: "none",
               }}>tap to reveal</div>
