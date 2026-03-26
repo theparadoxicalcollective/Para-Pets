@@ -728,6 +728,7 @@ function WalkingPet({
   const [isHovered, setIsHovered] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [ghostXY, setGhostXY] = useState({ x: 0, y: 0 });
+  const queryClient = useQueryClient();
 
   // Use DB-saved position as the source of truth, fallback to sessionStorage
   const storageKey = `petPos_${pet.inventoryId}`;
@@ -739,11 +740,11 @@ function WalkingPet({
     } catch { return null; }
   });
 
-  // Sync savedPos from parent (DB) into basePos on first load
-  const savedPosRef = useRef(savedPos);
+  // Sync savedPos from parent (DB) into basePos when query loads
+  const initialised = useRef(false);
   useEffect(() => {
-    if (savedPos && savedPos !== savedPosRef.current) {
-      savedPosRef.current = savedPos;
+    if (!initialised.current && savedPos) {
+      initialised.current = true;
       setBasePos(savedPos);
     }
   }, [savedPos]);
@@ -823,7 +824,9 @@ function WalkingPet({
       headers: { "Content-Type": "application/json" },
       credentials: "include",
       body: JSON.stringify({ posLeft: pos.left, posTop: pos.top }),
-    }).catch(() => {});
+    }).then(() => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pet-house-positions"] });
+    }).catch((err) => console.warn("Failed to save pet position:", err));
   };
 
   // ── Single element handler — rest handled at document level ──────────────

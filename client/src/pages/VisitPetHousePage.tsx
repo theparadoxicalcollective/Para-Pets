@@ -50,7 +50,7 @@ const GROUND_WALK_CONFIGS = [
 ];
 
 function WalkingPetView({ pet, index }: { pet: VisitedPet; index: number }) {
-  const { data: templateData } = useQuery<{ parts: Array<{ partType: string }> }>({
+  const { data: templateData } = useQuery<{ parts: Array<{ partType: string }>; canFly: boolean }>({
     queryKey: ["/api/pet-template-parts", pet.petTemplateId],
     queryFn: async () => {
       const res = await fetch(`/api/pet-template-parts/${pet.petTemplateId}`, { credentials: "include" });
@@ -61,9 +61,8 @@ function WalkingPetView({ pet, index }: { pet: VisitedPet; index: number }) {
     staleTime: 300000,
   });
 
-  const hasWings = !!(templateData?.parts?.some(
-    (p) => p.partType === "left_wing" || p.partType === "right_wing" || p.partType === "wings" || p.partType === "front_wing" || p.partType === "back_wing"
-  ));
+  // Match PetHousePage exactly — use canFly field from the template API
+  const hasWings = !!(templateData?.canFly);
 
   const cfg = hasWings
     ? WALK_CONFIGS[index % WALK_CONFIGS.length]
@@ -110,7 +109,8 @@ function WalkingPetView({ pet, index }: { pet: VisitedPet; index: number }) {
       }}
     >
       <div style={{ animation: wanderAnim, transformOrigin: "bottom center" }}>
-        <div style={{ animation: `${floatAnim} ${hasWings ? "3.2s" : "2.4s"} ${cfg.delay} ${hasWings ? "ease-in-out" : "ease"} infinite` }}>
+        {/* Float animation only for winged pets — matches PetHousePage exactly */}
+        <div style={hasWings ? { animation: `${floatAnim} 3.2s ease-in-out infinite` } : undefined}>
           {pet.petTemplateId ? (
             <>
               <PetAnimator
