@@ -296,7 +296,7 @@ function NavButton({
         zIndex: 96,
       }}
     >
-      <img src={icon} alt={label} style={{ width: ICON_SIZE - 10, height: ICON_SIZE - 10, objectFit: "contain", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.7))" }} />
+      <img src={icon} alt={label} style={{ width: ICON_SIZE - 10, height: ICON_SIZE - 10, objectFit: "contain", borderRadius: "50%", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.7))" }} />
 
       {/* Label tooltip */}
       {isOpen && (
