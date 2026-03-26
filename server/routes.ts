@@ -114,14 +114,15 @@ async function grantWelcomeV2Bundle(userId: string): Promise<void> {
   const allShopItems = await storage.getAllShopItems();
   const find = (name: string) => allShopItems.find(i => i.name.toLowerCase() === name.toLowerCase());
   const wanted: { name: string; qty: number }[] = [
-    { name: "Ire Deer",            qty: 1  },
-    { name: "Subtle Growth",       qty: 1  },
-    { name: "Basic Health Potion", qty: 10 },
-    { name: "Basic Mana Potion",   qty: 10 },
-    { name: "Group Revive",        qty: 1  },
-    { name: "Mossy Moonlight",     qty: 1  },
-    { name: "Scorched Relevance",  qty: 1  },
-    { name: "Sturdy Rod",          qty: 1  },
+    { name: "Ire Deer",                qty: 1  },
+    { name: "Subtle Growth",           qty: 1  },
+    { name: "Basic Health Potion",     qty: 10 },
+    { name: "Basic Mana Potion",       qty: 10 },
+    { name: "Group Revive",            qty: 1  },
+    { name: "Mossy Moonlight",         qty: 1  },
+    { name: "Scorched Relevance",      qty: 1  },
+    { name: "Sturdy Rod",              qty: 1  },
+    { name: "Small Hatching Potion",   qty: 1  },
   ];
   for (const { name, qty } of wanted) {
     const item = find(name);
