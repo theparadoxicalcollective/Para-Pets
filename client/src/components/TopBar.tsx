@@ -235,8 +235,8 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                   <>
                     {/* Backdrop */}
                     <div
-                      className="fixed inset-0 z-[9980]"
-                      style={{ background: "rgba(0,0,0,0.45)" }}
+                      className="fixed inset-0 z-[99990]"
+                      style={{ background: "rgba(0,0,0,0.5)" }}
                       onClick={() => setShowFriendsList(false)}
                     />
 
@@ -244,12 +244,12 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                     <div
                       ref={friendsListRef}
                       data-testid="popup-friends-list"
-                      className="fixed top-0 right-0 bottom-0 z-[9981] flex flex-col"
+                      className="fixed top-0 left-0 bottom-0 z-[99991] flex flex-col"
                       style={{
-                        width: 270,
+                        width: 220,
                         background: "linear-gradient(180deg, rgba(4,12,8,0.99) 0%, rgba(3,9,6,0.99) 100%)",
-                        borderLeft: "1.5px solid rgba(127,255,212,0.18)",
-                        boxShadow: "-8px 0 40px rgba(0,0,0,0.7), 0 0 30px rgba(127,255,212,0.04)",
+                        borderRight: "1.5px solid rgba(127,255,212,0.18)",
+                        boxShadow: "8px 0 40px rgba(0,0,0,0.7), 0 0 30px rgba(127,255,212,0.04)",
                       }}
                     >
                       {/* Panel header */}
