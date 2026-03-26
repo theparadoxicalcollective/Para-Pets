@@ -27,6 +27,7 @@ interface BattlePet {
   def: number;
   specialSkill: string | null;
   specialSkillType: string | null;
+  skillDamagePercent: number | null;
   skillHealPercent: number | null;
   isPlayer: boolean;
   x: number;
@@ -148,6 +149,7 @@ export default function PvpBattlePage({
         atk: invItem.petAtk || 50, def: invItem.petDef || 30,
         specialSkill: invItem.specialSkill ?? null,
         specialSkillType: (invItem as any).specialSkillType ?? null,
+        skillDamagePercent: (invItem as any).skillDamagePercent ?? null,
         skillHealPercent: (invItem as any).skillHealPercent ?? null,
         isPlayer: true,
         x: 12 + (i % 3) * 28 + Math.random() * 6,
@@ -165,6 +167,7 @@ export default function PvpBattlePage({
       atk: p.petAtk || 50, def: p.petDef || 30,
       specialSkill: p.specialSkill ?? null,
       specialSkillType: p.specialSkillType ?? null,
+      skillDamagePercent: p.skillDamagePercent ?? null,
       skillHealPercent: p.skillHealPercent ?? null,
       isPlayer: false,
       x: 12 + (i % 3) * 28 + Math.random() * 6,
@@ -233,7 +236,8 @@ export default function PvpBattlePage({
     const oppAlive = ps.filter(p => !p.isPlayer && !p.isDead);
 
     if (skill === "Lazer" && target) {
-      const dmg = Math.max(1, Math.floor(attacker.atk * 2.5));
+      const mult = attacker.skillDamagePercent ? attacker.skillDamagePercent / 100 : 2.5;
+      const dmg = Math.max(1, Math.floor(attacker.atk * mult));
       target.hp = Math.max(0, target.hp - dmg);
       spawnFloatNum(target.x, target.y - 10, dmg, false, true);
       spawnSparks(target.x, target.y, ["#fbbf24", "#f59e0b", "#fde68a"]);
@@ -241,9 +245,10 @@ export default function PvpBattlePage({
       if (target.hp <= 0 && !target.isDead) doKo(target);
 
     } else if (skill === "Bubble") {
+      const mult = attacker.skillDamagePercent ? attacker.skillDamagePercent / 100 : 0.85;
       const enemies = attacker.isPlayer ? oppAlive : myAlive;
       enemies.forEach(t => {
-        const dmg = Math.max(1, Math.floor(attacker.atk * 0.85));
+        const dmg = Math.max(1, Math.floor(attacker.atk * mult));
         t.hp = Math.max(0, t.hp - dmg);
         spawnFloatNum(t.x, t.y - 8, dmg);
         spawnSparks(t.x, t.y, ["#60a5fa", "#93c5fd", "#bfdbfe"]);
@@ -252,17 +257,17 @@ export default function PvpBattlePage({
       });
 
     } else if (skill === "Heal Self") {
-      const healPct = attacker.skillHealPercent ? attacker.skillHealPercent / 100 : 0.28;
-      const heal = Math.floor(attacker.maxHp * healPct);
+      const healMult = attacker.skillHealPercent ? attacker.skillHealPercent / 100 : 0.5;
+      const heal = Math.floor(attacker.atk * healMult);
       attacker.hp = Math.min(attacker.maxHp, attacker.hp + heal);
       spawnFloatNum(attacker.x, attacker.y - 10, heal, true);
       spawnSparks(attacker.x, attacker.y, ["#4ade80", "#86efac", "#bbf7d0"]);
 
     } else if (skill === "Heal Party") {
-      const healPct = attacker.skillHealPercent ? attacker.skillHealPercent / 100 : 0.2;
+      const healMult = attacker.skillHealPercent ? attacker.skillHealPercent / 100 : 0.35;
       const allies = attacker.isPlayer ? myAlive : oppAlive;
       allies.forEach(p => {
-        const heal = Math.floor(p.maxHp * healPct);
+        const heal = Math.floor(attacker.atk * healMult);
         p.hp = Math.min(p.maxHp, p.hp + heal);
         spawnFloatNum(p.x, p.y - 10, heal, true);
         spawnSparks(p.x, p.y, ["#4ade80", "#86efac", "#bbf7d0"]);
@@ -270,7 +275,8 @@ export default function PvpBattlePage({
 
     } else if (skill === "Poison" && target) {
       let ticks = 0;
-      const tickDmg = Math.floor(attacker.atk * 0.14);
+      const poisonMult = attacker.skillDamagePercent ? attacker.skillDamagePercent / 100 : 0.14;
+      const tickDmg = Math.max(1, Math.floor(attacker.atk * poisonMult));
       spawnSparks(target.x, target.y, ["#a3e635", "#84cc16", "#d9f99d"]);
       const t = setInterval(() => {
         if (!battleActiveRef.current) { clearInterval(t); return; }

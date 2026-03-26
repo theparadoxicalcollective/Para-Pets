@@ -701,7 +701,7 @@ function AdminItemForm({
                   type="number"
                   value={skillDamagePercent}
                   onChange={(e) => setSkillDamagePercent(e.target.value)}
-                  placeholder="e.g. 250 (= 2.5× ATK for Lazer), 5 (= 5% poison/tick)"
+                  placeholder="e.g. 250 (= 2.5× ATK), 85 (= 85% ATK per Bubble hit), 14 (= 14% ATK per Poison tick)"
                   min="0"
                   step="0.5"
                   className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none mb-2"
@@ -713,14 +713,14 @@ function AdminItemForm({
                   type="number"
                   value={skillHealPercent}
                   onChange={(e) => setSkillHealPercent(e.target.value)}
-                  placeholder="e.g. 30 (= 30% of max HP restored)"
+                  placeholder="e.g. 50 (= 50% of ATK restored as HP)"
                   min="0"
                   step="0.5"
                   className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
                   style={inputStyle}
                 />
                 <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">
-                  Damage %: Lazer/Bubble = % of ATK · Poison = % of enemy HP per tick · Heal %: % of max HP restored
+                  All values use ATK × % — Damage %: used by Lazer, Bubble, Poison · Heal %: used by Heal Self, Heal Party
                 </p>
               </div>
               <div>

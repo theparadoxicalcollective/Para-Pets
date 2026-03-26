@@ -683,8 +683,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
 
     } else if (skill === "Heal Self" || skill === "Heal Party") {
       const maxHp = petStatsRef.current.maxHp;
-      const healPct = healPctOverride !== null ? healPctOverride / 100 : (pct !== null ? pct / 100 : 0.3);
-      const healAmt = Math.floor(maxHp * healPct);
+      const healMult = healPctOverride !== null ? healPctOverride / 100 : (pct !== null ? pct / 100 : 0.5);
+      const healAmt = Math.floor(petStatsRef.current.atk * healMult);
       petHpRef.current = Math.min(maxHp, petHpRef.current + healAmt);
       setPetHp(petHpRef.current);
       const nd: DamageNumber = { id: dmgIdRef.current++, x: PET_X, y: PET_Y - 14, value: healAmt, isHeal: true };
@@ -695,9 +695,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       if (poisonActive) return;
       setPoisonActive(true);
       let ticks = 0;
-      const poisonPct = pct !== null ? pct / 100 : 0.05;
-      const eMaxHp = enemyMaxHpRef.current || 200;
-      const tickDmg = Math.max(1, Math.floor(eMaxHp * poisonPct));
+      const poisonMult = pct !== null ? pct / 100 : 0.14;
+      const tickDmg = Math.max(1, Math.floor(petStatsRef.current.atk * poisonMult));
       const timer = setInterval(() => {
         if (!battleActiveRef.current) { clearInterval(timer); setPoisonActive(false); return; }
         ticks++;
