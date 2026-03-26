@@ -62,6 +62,11 @@ interface InventoryItem {
 export default function HomePage({ user }: HomePageProps) {
   const [showProfile, setShowProfile] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
+
+  useEffect(() => {
+    setCurrentUser(prev => ({ ...prev, ...user }));
+  }, [user.activePetId, user.coins, user.profileImage, user.username]);
+
   const [hatchRevealing, setHatchRevealing] = useState(false);
   const [hatchedPetCache, setHatchedPetCache] = useState<{ hatchedImageUrl: string | null; imageUrl: string | null; petTemplateId: string | null; name: string } | null>(null);
   const [showPetDetail, setShowPetDetail] = useState(false);
