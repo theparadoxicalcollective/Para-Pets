@@ -32,18 +32,32 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
   const [phase, setPhase] = useState<"loading" | "reveal" | "collect" | "claiming" | "done">("loading");
   const [sparkles, setSparkles] = useState<{ x: number; y: number; id: number }[]>([]);
 
-  const { data: rewards = [], isSuccess } = useQuery<PendingReward[]>({
+  const { data: rewards = [], isSuccess, isError } = useQuery<PendingReward[]>({
     queryKey: ["/api/rewards/pending"],
+    retry: 2,
   });
+
+  // If the request fails entirely, don't block the user forever
+  useEffect(() => {
+    if (!isError) return;
+    localStorage.removeItem("para_pets_just_registered");
+    onComplete(null);
+  }, [isError]);
 
   const welcomeReward = rewards.find(r => r.bundleName === "Welcome to the Realm!");
 
   useEffect(() => {
     if (!isSuccess) return;
+    // If no welcome bundle exists (e.g. admin deleted it), silently dismiss
+    if (!welcomeReward) {
+      localStorage.removeItem("para_pets_just_registered");
+      onComplete(null);
+      return;
+    }
     setPhase("reveal");
     const timer = setTimeout(() => setPhase("collect"), 1600);
     return () => clearTimeout(timer);
-  }, [isSuccess]);
+  }, [isSuccess, welcomeReward]);
 
   useEffect(() => {
     if (phase !== "collect") return;
