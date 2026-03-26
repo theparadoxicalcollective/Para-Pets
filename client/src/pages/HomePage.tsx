@@ -355,10 +355,8 @@ export default function HomePage({ user }: HomePageProps) {
                         {activePet.petTemplateId ? (
                           <PetAnimator petTemplateId={activePet.petTemplateId} mode="idle" view="front" size={1000} className="w-full" style={{ aspectRatio: "1/1" }} />
                         ) : (activePet.hatchedImageUrl || activePet.imageUrl) ? (
-                          <div style={{ width: 1000, height: 1000, position: "relative", overflow: "visible", flexShrink: 0 }}>
-                            <div style={{ position: "absolute", inset: 0, transform: "scale(0.3)", transformOrigin: "center center", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              <img src={activePet.hatchedImageUrl || activePet.imageUrl || ""} alt={activePet.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-                            </div>
+                          <div style={{ paddingTop: "13vh", width: "100%" }}>
+                            <img src={activePet.hatchedImageUrl || activePet.imageUrl || ""} alt={activePet.name} className="w-full max-h-[50vh] object-contain" />
                           </div>
                         ) : (
                           <img src={petPawIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain", filter: "drop-shadow(0 2px 10px rgba(0,0,0,0.5))" }} />
@@ -382,10 +380,8 @@ export default function HomePage({ user }: HomePageProps) {
                           }}
                         >
                           {activePet.eggImageUrl ? (
-                            <div style={{ width: 1000, height: 1000, position: "relative", overflow: "visible", flexShrink: 0 }}>
-                              <div style={{ position: "absolute", inset: 0, transform: "scale(0.3)", transformOrigin: "center center", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                <img src={activePet.eggImageUrl} alt={activePet.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-                              </div>
+                            <div style={{ paddingTop: "13vh", width: "100%" }}>
+                              <img src={activePet.eggImageUrl} alt={activePet.name} className="w-full max-h-[50vh] object-contain" />
                             </div>
                           ) : (
                             <img src={eggMagicIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain", filter: "drop-shadow(0 2px 10px rgba(0,0,0,0.5))" }} />
