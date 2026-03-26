@@ -317,7 +317,7 @@ export default function HomePage({ user }: HomePageProps) {
           </div>
         )}
 
-        <div className="flex-1 flex flex-col items-center justify-center px-0 py-0 min-h-0" style={{ paddingTop: "18vh" }}>
+        <div className="flex-1 flex flex-col items-center justify-center px-0 py-0 min-h-0">
           <div className="relative flex items-center justify-center w-full max-w-[520px] md:max-w-[680px] lg:max-w-[800px]">
             <div
               className="w-full rounded-xl flex flex-col items-center justify-center"
