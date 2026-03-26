@@ -54,11 +54,42 @@ export const WORLD_OPTIONS = [
   { id: "haunted_woods", name: "Haunted Woods" },
 ];
 
-const NON_PET_TYPES = ["power_up", "accessory", "potion", "special", "decor", "edibles"];
+const NON_PET_TYPES = ["power_up", "accessory", "potion", "special", "decor", "edibles", "fishing"];
 
 function formatTypeName(type: string): string {
   if (type === "power_up") return "Power Up";
   return type.charAt(0).toUpperCase() + type.slice(1);
+}
+
+export const ITEM_CATEGORIES = [
+  { key: "pets",        label: "Pets",        color: "#ffb347" },
+  { key: "potions",     label: "Potions",     color: "#a78bfa" },
+  { key: "specials",    label: "Specials",    color: "#34d399" },
+  { key: "edibles",     label: "Edibles",     color: "#f87171" },
+  { key: "poles",       label: "Poles",       color: "#60a5fa" },
+  { key: "fish",        label: "Fish",        color: "#22d3ee" },
+  { key: "bait",        label: "Bait",        color: "#86efac" },
+  { key: "accessories", label: "Accessories", color: "#f9a8d4" },
+  { key: "power_ups",   label: "Power Ups",   color: "#fde68a" },
+  { key: "decor",       label: "Decor",       color: "#d9f99d" },
+] as const;
+
+export type ItemCategoryKey = typeof ITEM_CATEGORIES[number]["key"];
+
+export function getItemCategory(item: ShopItemFull): ItemCategoryKey {
+  if (item.type === "pet") return "pets";
+  if (item.type === "potion") return "potions";
+  if (item.type === "special") return "specials";
+  if (item.type === "edibles") return "edibles";
+  if (item.type === "fishing") {
+    if (item.fishingType === "pole") return "poles";
+    if (item.fishingType === "bait") return "bait";
+    return "fish";
+  }
+  if (item.type === "accessory") return "accessories";
+  if (item.type === "power_up" || item.type === "item") return "power_ups";
+  if (item.type === "decor") return "decor";
+  return "power_ups";
 }
 
 export default function ItemDatabaseSection() {
@@ -112,8 +143,9 @@ export default function ItemDatabaseSection() {
   );
 
   const filtered = sectionItems.filter(item => {
-    if (filterType !== "all" && item.type !== filterType) return false;
-    return true;
+    if (filterType === "all") return true;
+    const cat = getItemCategory(item);
+    return cat === filterType;
   });
 
   const isPetSection = subSection === "pets";
@@ -186,8 +218,8 @@ export default function ItemDatabaseSection() {
             style={{ background: "rgba(242,232,208,0.9)", border: "1px solid #8b5e3c", color: "#2a1a0a" }}
           >
             <option value="all">All Types</option>
-            {NON_PET_TYPES.map(t => (
-              <option key={t} value={t}>{formatTypeName(t)}</option>
+            {ITEM_CATEGORIES.filter(c => c.key !== "pets").map(c => (
+              <option key={c.key} value={c.key}>{c.label}</option>
             ))}
           </select>
         </div>
@@ -210,36 +242,36 @@ export default function ItemDatabaseSection() {
       ) : (
         <div className="space-y-2">
           {(() => {
+            const catOrder = ITEM_CATEGORIES.map(c => c.key);
             const sorted = [...filtered].sort((a, b) => {
-              if (a.type !== b.type) {
-                const typeOrder = isPetSection ? [] : NON_PET_TYPES;
-                const ai = typeOrder.indexOf(a.type);
-                const bi = typeOrder.indexOf(b.type);
-                const aIdx = ai === -1 ? 999 : ai;
-                const bIdx = bi === -1 ? 999 : bi;
-                if (aIdx !== bIdx) return aIdx - bIdx;
-              }
+              const aCat = getItemCategory(a);
+              const bCat = getItemCategory(b);
+              const ai = catOrder.indexOf(aCat);
+              const bi = catOrder.indexOf(bCat);
+              if (ai !== bi) return ai - bi;
               return a.name.localeCompare(b.name);
             });
 
             const showTypeHeaders = !isPetSection && filterType === "all";
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const elements: any[] = [];
-            let lastType = "";
+            let lastCat = "";
 
             sorted.forEach(item => {
-              if (showTypeHeaders && item.type !== lastType) {
-                lastType = item.type;
+              const cat = getItemCategory(item);
+              const catMeta = ITEM_CATEGORIES.find(c => c.key === cat);
+              if (showTypeHeaders && cat !== lastCat) {
+                lastCat = cat;
                 elements.push(
                   <div
-                    key={`header-${item.type}`}
+                    key={`header-${cat}`}
                     className="pt-1 pb-0.5 px-1"
                   >
                     <p
                       className="font-fantasy text-[9px] tracking-widest uppercase"
-                      style={{ color: "rgba(212,160,23,0.55)" }}
+                      style={{ color: catMeta?.color ?? "rgba(212,160,23,0.55)" }}
                     >
-                      {formatTypeName(item.type)}
+                      {catMeta?.label ?? cat}
                     </p>
                   </div>
                 );
@@ -1097,27 +1129,40 @@ export function ItemPickerModal({
   onClose: () => void;
 }) {
   const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"all" | "items" | "pets">("all");
+  const [activeCategory, setActiveCategory] = useState<"all" | ItemCategoryKey>("all");
 
-  const filtered = items.filter(item => {
-    const matchesSearch = !search || item.name.toLowerCase().includes(search.toLowerCase());
-    const matchesType =
-      typeFilter === "all" ||
-      (typeFilter === "pets" && item.type === "pet") ||
-      (typeFilter === "items" && item.type !== "pet");
-    return matchesSearch && matchesType;
+  const ALL_TABS = [{ key: "all" as const, label: "All", color: "#a89878" }, ...ITEM_CATEGORIES];
+
+  const matchesSearch = (item: ShopItemFull) =>
+    !search || item.name.toLowerCase().includes(search.toLowerCase());
+
+  const matchesCategory = (item: ShopItemFull) =>
+    activeCategory === "all" || getItemCategory(item) === activeCategory;
+
+  const filtered = items.filter(item => matchesSearch(item) && matchesCategory(item));
+
+  const catOrder = ITEM_CATEGORIES.map(c => c.key);
+  const sorted = [...filtered].sort((a, b) => {
+    const aCat = getItemCategory(a);
+    const bCat = getItemCategory(b);
+    const ai = catOrder.indexOf(aCat);
+    const bi = catOrder.indexOf(bCat);
+    if (ai !== bi) return ai - bi;
+    return a.name.localeCompare(b.name);
   });
 
+  const showHeaders = activeCategory === "all";
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <div
-        className="relative w-[85%] max-w-sm rounded-lg p-4 animate-slide-up"
+        className="relative w-[90%] max-w-sm rounded-lg p-4 animate-slide-up"
         style={{
           background: "linear-gradient(135deg, rgba(20,10,3,0.98) 0%, rgba(45,25,8,0.98) 100%)",
           border: "1px solid rgba(192,132,252,0.5)",
           boxShadow: "0 8px 40px rgba(0,0,0,0.8)",
-          maxHeight: "75vh",
+          maxHeight: "80vh",
           display: "flex",
           flexDirection: "column",
         }}
@@ -1132,23 +1177,27 @@ export function ItemPickerModal({
 
         <h4 className="font-fantasy text-[#c084fc] text-xs tracking-wider text-center mb-3">Select Item</h4>
 
-        {/* Filter tabs */}
-        <div className="flex gap-1 mb-2">
-          {(["all", "items", "pets"] as const).map(f => (
-            <button
-              key={f}
-              onClick={() => setTypeFilter(f)}
-              className="flex-1 py-1 rounded font-fantasy text-[8px] tracking-wider transition-all"
-              style={{
-                background: typeFilter === f ? "rgba(192,132,252,0.25)" : "rgba(0,0,0,0.2)",
-                border: typeFilter === f ? "1px solid rgba(192,132,252,0.5)" : "1px solid rgba(212,160,23,0.15)",
-                color: typeFilter === f ? "#c084fc" : "#a89878",
-                cursor: "pointer",
-              }}
-            >
-              {f === "all" ? "All" : f === "pets" ? "Pets" : "Items"}
-            </button>
-          ))}
+        {/* Category chips — 2 rows of scrollable chips */}
+        <div className="flex flex-wrap gap-1 mb-2">
+          {ALL_TABS.map(tab => {
+            const isActive = activeCategory === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveCategory(tab.key as typeof activeCategory)}
+                className="px-2 py-0.5 rounded-full font-fantasy text-[8px] tracking-wider transition-all"
+                style={{
+                  background: isActive ? `${tab.color}22` : "rgba(0,0,0,0.25)",
+                  border: isActive ? `1px solid ${tab.color}88` : "1px solid rgba(212,160,23,0.12)",
+                  color: isActive ? tab.color : "#6a5840",
+                  cursor: "pointer",
+                  fontWeight: isActive ? "bold" : "normal",
+                }}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
 
         <input
@@ -1157,48 +1206,61 @@ export function ItemPickerModal({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search..."
-          className="w-full px-3 py-2 rounded-md font-sans text-xs outline-none mb-3"
+          className="w-full px-3 py-2 rounded-md font-sans text-xs outline-none mb-2"
           style={{ background: "rgba(242,232,208,0.9)", border: "1px solid #8b5e3c", color: "#2a1a0a" }}
         />
 
-        <div className="overflow-y-auto space-y-1.5 flex-1">
-          {filtered.length === 0 ? (
+        <div className="overflow-y-auto flex-1 space-y-1">
+          {sorted.length === 0 ? (
             <p className="font-fantasy text-[#a89878] text-xs text-center py-4">No items found</p>
-          ) : (
-            filtered.map(item => {
+          ) : (() => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const elements: any[] = [];
+            let lastCat = "";
+            sorted.forEach(item => {
+              const cat = getItemCategory(item);
+              const catMeta = ITEM_CATEGORIES.find(c => c.key === cat);
+              if (showHeaders && cat !== lastCat) {
+                lastCat = cat;
+                elements.push(
+                  <p
+                    key={`hdr-${cat}`}
+                    className="font-fantasy text-[8px] tracking-widest uppercase pt-2 pb-0.5 px-1"
+                    style={{ color: catMeta?.color ?? "#a89878" }}
+                  >
+                    {catMeta?.label ?? cat}
+                  </p>
+                );
+              }
               const displayImg = item.type === "pet" && item.eggImageUrl ? item.eggImageUrl : item.imageUrl;
-              return (
+              const catColor = catMeta?.color ?? "#f0c040";
+              elements.push(
                 <button
                   key={item.id}
                   data-testid={`button-pick-item-${item.id}`}
                   onClick={() => onSelect(item)}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-all"
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-all active:scale-95"
                   style={{
                     background: "rgba(0,0,0,0.3)",
-                    border: item.type === "pet" ? "1px solid rgba(255,179,71,0.2)" : "1px solid rgba(212,160,23,0.2)",
+                    border: `1px solid ${catColor}22`,
                     cursor: "pointer",
                   }}
                 >
                   <div className="w-8 h-8 rounded flex items-center justify-center overflow-hidden flex-shrink-0" style={{ background: "rgba(0,0,0,0.3)" }}>
-                    {displayImg ? (
-                      <img src={displayImg} alt="" className="w-full h-full object-contain" />
-                    ) : (
-                      <span className="text-lg">{item.type === "pet" ? "🥚" : "📦"}</span>
-                    )}
+                    {displayImg
+                      ? <img src={displayImg} alt="" className="w-full h-full object-contain" />
+                      : <span className="text-lg">{item.type === "pet" ? "🥚" : "📦"}</span>
+                    }
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-fantasy text-[#f0c040] text-[10px] truncate">{item.name}</p>
-                    <p
-                      className="font-fantasy text-[8px] capitalize"
-                      style={{ color: item.type === "pet" ? "#ffb347" : "#6a5840" }}
-                    >
-                      {item.type}
-                    </p>
+                    <p className="font-fantasy text-[10px] truncate" style={{ color: catColor }}>{item.name}</p>
+                    <p className="font-fantasy text-[8px]" style={{ color: `${catColor}88` }}>{catMeta?.label ?? item.type}</p>
                   </div>
                 </button>
               );
-            })
-          )}
+            });
+            return elements;
+          })()}
         </div>
       </div>
     </div>
