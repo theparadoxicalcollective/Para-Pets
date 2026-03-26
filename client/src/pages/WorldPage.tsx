@@ -3266,160 +3266,52 @@ export default function WorldPage({ user }: WorldPageProps) {
             </div>
           )}
 
-          {/* Bayou's Heart entrance mist */}
+          {/* Bayou's Heart floating lights */}
           {activeLoc?.id === BAYOUS_HEART_ID && (
             <>
               <style>{`
-                @keyframes bayouBase {
-                  0%   { transform: translateX(-6%) scaleX(1); }
-                  50%  { transform: translateX(6%) scaleX(1.14); }
-                  100% { transform: translateX(-6%) scaleX(1); }
-                }
-                @keyframes bayouDrift {
-                  0%   { transform: translateX(8%) scaleX(0.95); }
-                  50%  { transform: translateX(-8%) scaleX(1.1); }
-                  100% { transform: translateX(8%) scaleX(0.95); }
-                }
-                @keyframes bayouWisp1 {
-                  0%   { transform: translate(0,0) scale(1); opacity: 0; }
-                  12%  { opacity: 1; }
-                  85%  { opacity: 0.55; }
-                  100% { transform: translate(11%,-42%) scale(1.65); opacity: 0; }
-                }
-                @keyframes bayouWisp2 {
-                  0%   { transform: translate(0,0) scale(0.85); opacity: 0; }
-                  18%  { opacity: 0.8; }
-                  80%  { opacity: 0.35; }
-                  100% { transform: translate(-13%,-36%) scale(1.55); opacity: 0; }
-                }
-                @keyframes bayouWisp3 {
-                  0%   { transform: translate(0,0) scale(1.05); opacity: 0; }
-                  10%  { opacity: 0.65; }
-                  88%  { opacity: 0.2; }
-                  100% { transform: translate(5%,-52%) scale(1.75); opacity: 0; }
-                }
-                @keyframes bayouWisp4 {
-                  0%   { transform: translate(0,0) scale(0.9); opacity: 0; }
-                  15%  { opacity: 0.7; }
-                  82%  { opacity: 0.3; }
-                  100% { transform: translate(-8%,-44%) scale(1.6); opacity: 0; }
-                }
                 @keyframes bayouOrb1 {
-                  0%   { transform: translate(0,0) scale(1);    opacity: 0.35; }
-                  25%  { transform: translate(14px,-22px) scale(1.25); opacity: 0.85; }
-                  55%  { transform: translate(-9px,-38px) scale(0.88); opacity: 0.5; }
-                  78%  { transform: translate(18px,-16px) scale(1.15); opacity: 0.7; }
-                  100% { transform: translate(0,0) scale(1);    opacity: 0.35; }
+                  0%   { transform: translate(0,0) scale(1);    opacity: 0.4; }
+                  25%  { transform: translate(14px,-22px) scale(1.2); opacity: 0.9; }
+                  55%  { transform: translate(-9px,-38px) scale(0.85); opacity: 0.55; }
+                  78%  { transform: translate(18px,-16px) scale(1.1); opacity: 0.75; }
+                  100% { transform: translate(0,0) scale(1);    opacity: 0.4; }
                 }
                 @keyframes bayouOrb2 {
-                  0%   { transform: translate(0,0) scale(0.9);  opacity: 0.28; }
-                  30%  { transform: translate(-16px,-26px) scale(1.3); opacity: 0.75; }
-                  65%  { transform: translate(9px,-42px) scale(0.82); opacity: 0.4; }
-                  100% { transform: translate(0,0) scale(0.9);  opacity: 0.28; }
+                  0%   { transform: translate(0,0) scale(0.9);  opacity: 0.3; }
+                  30%  { transform: translate(-16px,-26px) scale(1.25); opacity: 0.8; }
+                  65%  { transform: translate(9px,-42px) scale(0.8); opacity: 0.45; }
+                  100% { transform: translate(0,0) scale(0.9);  opacity: 0.3; }
                 }
                 @keyframes bayouOrb3 {
-                  0%   { transform: translate(0,0) scale(1.1);  opacity: 0.3; }
-                  40%  { transform: translate(22px,-14px) scale(0.78); opacity: 0.7; }
-                  72%  { transform: translate(-11px,-32px) scale(1.22); opacity: 0.38; }
-                  100% { transform: translate(0,0) scale(1.1);  opacity: 0.3; }
+                  0%   { transform: translate(0,0) scale(1.1);  opacity: 0.35; }
+                  40%  { transform: translate(22px,-14px) scale(0.75); opacity: 0.75; }
+                  72%  { transform: translate(-11px,-32px) scale(1.2); opacity: 0.4; }
+                  100% { transform: translate(0,0) scale(1.1);  opacity: 0.35; }
                 }
                 @keyframes bayouOrbPulse {
-                  0%,100% { opacity: 0.22; transform: scale(1); }
-                  50%     { opacity: 0.65; transform: scale(1.45); }
+                  0%,100% { opacity: 0.25; transform: scale(1); }
+                  50%     { opacity: 0.7; transform: scale(1.4); }
                 }
               `}</style>
               <div
                 className="absolute inset-0 pointer-events-none"
-                style={{
-                  zIndex: 5,
-                  opacity: bayouMistVisible ? 1 : 0,
-                  transition: "opacity 2.5s ease-out",
-                }}
+                style={{ zIndex: 5, opacity: 1 }}
               >
-                {/* Persistent floor fog — left bank */}
-                <div style={{
-                  position: "absolute", bottom: "-8%", left: "-20%",
-                  width: "80%", height: "55%",
-                  background: "radial-gradient(ellipse at 50% 95%, rgba(60,200,150,0.55) 0%, rgba(30,160,110,0.28) 50%, transparent 72%)",
-                  filter: "blur(22px)",
-                  animation: "bayouBase 9s ease-in-out infinite",
-                }} />
-                {/* Persistent floor fog — right bank */}
-                <div style={{
-                  position: "absolute", bottom: "-8%", right: "-20%",
-                  width: "80%", height: "55%",
-                  background: "radial-gradient(ellipse at 50% 95%, rgba(60,200,150,0.50) 0%, rgba(30,160,110,0.25) 50%, transparent 72%)",
-                  filter: "blur(22px)",
-                  animation: "bayouDrift 11s ease-in-out infinite",
-                }} />
-                {/* Wide low blanket — always present */}
-                <div style={{
-                  position: "absolute", bottom: "-2%", left: "-10%",
-                  width: "120%", height: "38%",
-                  background: "radial-gradient(ellipse at 50% 100%, rgba(90,210,165,0.38) 0%, rgba(50,170,130,0.18) 55%, transparent 75%)",
-                  filter: "blur(30px)",
-                  animation: "bayouBase 13s ease-in-out infinite reverse",
-                }} />
-                {/* Rising wisp 1 — left-center, no delay */}
-                <div style={{
-                  position: "absolute", bottom: "5%", left: "15%",
-                  width: "40%", height: "50%",
-                  background: "radial-gradient(ellipse at 50% 80%, rgba(120,230,185,0.70) 0%, rgba(70,195,150,0.35) 45%, transparent 68%)",
-                  filter: "blur(16px)",
-                  animation: "bayouWisp1 11s ease-in-out infinite",
-                }} />
-                {/* Rising wisp 2 — right-center, delayed */}
-                <div style={{
-                  position: "absolute", bottom: "8%", right: "10%",
-                  width: "38%", height: "48%",
-                  background: "radial-gradient(ellipse at 50% 75%, rgba(100,220,175,0.65) 0%, rgba(60,185,140,0.30) 48%, transparent 70%)",
-                  filter: "blur(18px)",
-                  animation: "bayouWisp2 13s ease-in-out infinite",
-                  animationDelay: "3s",
-                }} />
-                {/* Rising wisp 3 — center, medium delay */}
-                <div style={{
-                  position: "absolute", bottom: "10%", left: "30%",
-                  width: "44%", height: "55%",
-                  background: "radial-gradient(ellipse at 50% 85%, rgba(150,240,200,0.58) 0%, rgba(90,200,160,0.25) 50%, transparent 72%)",
-                  filter: "blur(20px)",
-                  animation: "bayouWisp3 15s ease-in-out infinite",
-                  animationDelay: "5.5s",
-                }} />
-                {/* Rising wisp 4 — far left, longer delay */}
-                <div style={{
-                  position: "absolute", bottom: "6%", left: "2%",
-                  width: "35%", height: "45%",
-                  background: "radial-gradient(ellipse at 50% 80%, rgba(110,225,178,0.60) 0%, rgba(65,185,142,0.28) 48%, transparent 70%)",
-                  filter: "blur(15px)",
-                  animation: "bayouWisp4 12s ease-in-out infinite",
-                  animationDelay: "8s",
-                }} />
-                {/* Rising wisp 5 — far right, different delay */}
-                <div style={{
-                  position: "absolute", bottom: "4%", right: "5%",
-                  width: "36%", height: "46%",
-                  background: "radial-gradient(ellipse at 50% 82%, rgba(130,235,188,0.55) 0%, rgba(80,195,148,0.26) 46%, transparent 70%)",
-                  filter: "blur(17px)",
-                  animation: "bayouWisp1 14s ease-in-out infinite",
-                  animationDelay: "2s",
-                }} />
-                {/* Soft upper haze — mist that has already risen */}
-                <div style={{
-                  position: "absolute", top: "15%", left: "-5%",
-                  width: "110%", height: "50%",
-                  background: "radial-gradient(ellipse at 50% 40%, rgba(180,248,220,0.14) 0%, transparent 65%)",
-                  filter: "blur(40px)",
-                  animation: "bayouDrift 17s ease-in-out infinite",
-                }} />
-                {/* Blue glowing orbs */}
-                <div style={{ position: "absolute", left: "14%", top: "42%", width: 8, height: 8, borderRadius: "50%", background: "radial-gradient(circle, rgba(120,190,255,0.9) 0%, rgba(80,140,255,0) 70%)", boxShadow: "0 0 10px rgba(120,190,255,0.6), 0 0 22px rgba(100,160,255,0.3)", animation: "bayouOrb1 9s ease-in-out infinite" }} />
-                <div style={{ position: "absolute", right: "18%", top: "38%", width: 6, height: 6, borderRadius: "50%", background: "radial-gradient(circle, rgba(160,210,255,0.85) 0%, rgba(100,170,255,0) 70%)", boxShadow: "0 0 8px rgba(160,210,255,0.55), 0 0 18px rgba(120,180,255,0.25)", animation: "bayouOrb2 11s ease-in-out infinite 1.5s" }} />
-                <div style={{ position: "absolute", left: "38%", top: "28%", width: 5, height: 5, borderRadius: "50%", background: "radial-gradient(circle, rgba(180,225,255,0.8) 0%, rgba(130,190,255,0) 70%)", boxShadow: "0 0 7px rgba(180,225,255,0.5), 0 0 15px rgba(140,200,255,0.2)", animation: "bayouOrb3 8s ease-in-out infinite 3s" }} />
-                <div style={{ position: "absolute", right: "32%", top: "58%", width: 4, height: 4, borderRadius: "50%", background: "radial-gradient(circle, rgba(140,200,255,0.8) 0%, rgba(90,150,255,0) 70%)", boxShadow: "0 0 6px rgba(140,200,255,0.5)", animation: "bayouOrb1 13s ease-in-out infinite 5s" }} />
-                <div style={{ position: "absolute", left: "62%", top: "48%", width: 7, height: 7, borderRadius: "50%", background: "radial-gradient(circle, rgba(110,185,255,0.88) 0%, rgba(70,130,255,0) 70%)", boxShadow: "0 0 10px rgba(110,185,255,0.6), 0 0 20px rgba(90,160,255,0.25)", animation: "bayouOrb2 10s ease-in-out infinite 2s" }} />
-                <div style={{ position: "absolute", left: "80%", top: "33%", width: 5, height: 5, borderRadius: "50%", background: "radial-gradient(circle, rgba(200,225,255,0.75) 0%, rgba(160,200,255,0) 70%)", boxShadow: "0 0 7px rgba(200,225,255,0.45)", animation: "bayouOrb3 12s ease-in-out infinite 7s" }} />
-                <div style={{ position: "absolute", left: "28%", top: "65%", width: 9, height: 9, borderRadius: "50%", background: "radial-gradient(circle, rgba(100,175,255,0.6) 0%, rgba(70,130,255,0) 70%)", boxShadow: "0 0 14px rgba(100,175,255,0.35), 0 0 28px rgba(80,150,255,0.15)", animation: "bayouOrbPulse 6s ease-in-out infinite 4s" }} />
+                {/* Soft diffuse light — left mid */}
+                <div style={{ position: "absolute", left: "10%", top: "38%", width: 50, height: 50, borderRadius: "50%", background: "radial-gradient(circle, rgba(140,200,255,0.55) 0%, rgba(100,170,255,0.15) 50%, transparent 75%)", filter: "blur(10px)", animation: "bayouOrb1 9s ease-in-out infinite" }} />
+                {/* Soft diffuse light — right upper */}
+                <div style={{ position: "absolute", right: "14%", top: "30%", width: 40, height: 40, borderRadius: "50%", background: "radial-gradient(circle, rgba(170,215,255,0.5) 0%, rgba(120,185,255,0.12) 52%, transparent 75%)", filter: "blur(9px)", animation: "bayouOrb2 11s ease-in-out infinite 1.5s" }} />
+                {/* Smaller crisp light — center upper */}
+                <div style={{ position: "absolute", left: "40%", top: "25%", width: 22, height: 22, borderRadius: "50%", background: "radial-gradient(circle, rgba(200,230,255,0.75) 0%, rgba(150,205,255,0.2) 50%, transparent 72%)", filter: "blur(5px)", animation: "bayouOrb3 8s ease-in-out infinite 3s" }} />
+                {/* Tiny bright point — lower right */}
+                <div style={{ position: "absolute", right: "28%", top: "55%", width: 14, height: 14, borderRadius: "50%", background: "radial-gradient(circle, rgba(210,235,255,0.9) 0%, rgba(160,210,255,0.25) 48%, transparent 70%)", filter: "blur(4px)", animation: "bayouOrb1 13s ease-in-out infinite 5s" }} />
+                {/* Medium diffuse — right center */}
+                <div style={{ position: "absolute", left: "64%", top: "44%", width: 36, height: 36, borderRadius: "50%", background: "radial-gradient(circle, rgba(130,195,255,0.55) 0%, rgba(90,160,255,0.14) 50%, transparent 74%)", filter: "blur(8px)", animation: "bayouOrb2 10s ease-in-out infinite 2s" }} />
+                {/* Tiny point — far right upper */}
+                <div style={{ position: "absolute", left: "82%", top: "28%", width: 16, height: 16, borderRadius: "50%", background: "radial-gradient(circle, rgba(215,235,255,0.8) 0%, rgba(175,215,255,0.18) 50%, transparent 72%)", filter: "blur(4px)", animation: "bayouOrb3 12s ease-in-out infinite 7s" }} />
+                {/* Large slow pulse — lower left */}
+                <div style={{ position: "absolute", left: "22%", top: "60%", width: 60, height: 60, borderRadius: "50%", background: "radial-gradient(circle, rgba(120,185,255,0.4) 0%, rgba(80,150,255,0.08) 55%, transparent 75%)", filter: "blur(14px)", animation: "bayouOrbPulse 7s ease-in-out infinite 4s" }} />
               </div>
             </>
           )}
@@ -3796,34 +3688,22 @@ export default function WorldPage({ user }: WorldPageProps) {
                 `}</style>
                 <div
                   className="absolute inset-0 pointer-events-none"
-                  style={{ zIndex: 1, opacity: bayouMistVisible ? 1 : 0, transition: "opacity 2.5s ease-out" }}
+                  style={{ zIndex: 1, opacity: 1 }}
                 >
-                {/* Persistent floor fog — left bank */}
-                <div style={{ position: "absolute", bottom: "-8%", left: "-20%", width: "80%", height: "55%", background: "radial-gradient(ellipse at 50% 95%, rgba(60,200,150,0.55) 0%, rgba(30,160,110,0.28) 50%, transparent 72%)", filter: "blur(22px)", animation: "bayouBase 9s ease-in-out infinite" }} />
-                {/* Persistent floor fog — right bank */}
-                <div style={{ position: "absolute", bottom: "-8%", right: "-20%", width: "80%", height: "55%", background: "radial-gradient(ellipse at 50% 95%, rgba(60,200,150,0.50) 0%, rgba(30,160,110,0.25) 50%, transparent 72%)", filter: "blur(22px)", animation: "bayouDrift 11s ease-in-out infinite" }} />
-                {/* Wide low blanket */}
-                <div style={{ position: "absolute", bottom: "-2%", left: "-10%", width: "120%", height: "38%", background: "radial-gradient(ellipse at 50% 100%, rgba(90,210,165,0.38) 0%, rgba(50,170,130,0.18) 55%, transparent 75%)", filter: "blur(30px)", animation: "bayouBase 13s ease-in-out infinite reverse" }} />
-                {/* Rising wisp 1 */}
-                <div style={{ position: "absolute", bottom: "5%", left: "15%", width: "40%", height: "50%", background: "radial-gradient(ellipse at 50% 80%, rgba(120,230,185,0.70) 0%, rgba(70,195,150,0.35) 45%, transparent 68%)", filter: "blur(16px)", animation: "bayouWisp1 11s ease-in-out infinite" }} />
-                {/* Rising wisp 2 */}
-                <div style={{ position: "absolute", bottom: "8%", right: "10%", width: "38%", height: "48%", background: "radial-gradient(ellipse at 50% 75%, rgba(100,220,175,0.65) 0%, rgba(60,185,140,0.30) 48%, transparent 70%)", filter: "blur(18px)", animation: "bayouWisp2 13s ease-in-out infinite", animationDelay: "3s" }} />
-                {/* Rising wisp 3 */}
-                <div style={{ position: "absolute", bottom: "10%", left: "30%", width: "44%", height: "55%", background: "radial-gradient(ellipse at 50% 85%, rgba(150,240,200,0.58) 0%, rgba(90,200,160,0.25) 50%, transparent 72%)", filter: "blur(20px)", animation: "bayouWisp3 15s ease-in-out infinite", animationDelay: "5.5s" }} />
-                {/* Rising wisp 4 */}
-                <div style={{ position: "absolute", bottom: "6%", left: "2%", width: "35%", height: "45%", background: "radial-gradient(ellipse at 50% 80%, rgba(110,225,178,0.60) 0%, rgba(65,185,142,0.28) 48%, transparent 70%)", filter: "blur(15px)", animation: "bayouWisp4 12s ease-in-out infinite", animationDelay: "8s" }} />
-                {/* Rising wisp 5 */}
-                <div style={{ position: "absolute", bottom: "4%", right: "5%", width: "36%", height: "46%", background: "radial-gradient(ellipse at 50% 82%, rgba(130,235,188,0.55) 0%, rgba(80,195,148,0.26) 46%, transparent 70%)", filter: "blur(17px)", animation: "bayouWisp1 14s ease-in-out infinite", animationDelay: "2s" }} />
-                {/* Soft upper haze */}
-                <div style={{ position: "absolute", top: "15%", left: "-5%", width: "110%", height: "50%", background: "radial-gradient(ellipse at 50% 40%, rgba(180,248,220,0.14) 0%, transparent 65%)", filter: "blur(40px)", animation: "bayouDrift 17s ease-in-out infinite" }} />
-                {/* Blue glowing orbs */}
-                <div style={{ position: "absolute", left: "14%", top: "42%", width: 8, height: 8, borderRadius: "50%", background: "radial-gradient(circle, rgba(120,190,255,0.9) 0%, rgba(80,140,255,0) 70%)", boxShadow: "0 0 10px rgba(120,190,255,0.6), 0 0 22px rgba(100,160,255,0.3)", animation: "bayouOrb1 9s ease-in-out infinite" }} />
-                <div style={{ position: "absolute", right: "18%", top: "38%", width: 6, height: 6, borderRadius: "50%", background: "radial-gradient(circle, rgba(160,210,255,0.85) 0%, rgba(100,170,255,0) 70%)", boxShadow: "0 0 8px rgba(160,210,255,0.55), 0 0 18px rgba(120,180,255,0.25)", animation: "bayouOrb2 11s ease-in-out infinite 1.5s" }} />
-                <div style={{ position: "absolute", left: "38%", top: "28%", width: 5, height: 5, borderRadius: "50%", background: "radial-gradient(circle, rgba(180,225,255,0.8) 0%, rgba(130,190,255,0) 70%)", boxShadow: "0 0 7px rgba(180,225,255,0.5), 0 0 15px rgba(140,200,255,0.2)", animation: "bayouOrb3 8s ease-in-out infinite 3s" }} />
-                <div style={{ position: "absolute", right: "32%", top: "58%", width: 4, height: 4, borderRadius: "50%", background: "radial-gradient(circle, rgba(140,200,255,0.8) 0%, rgba(90,150,255,0) 70%)", boxShadow: "0 0 6px rgba(140,200,255,0.5)", animation: "bayouOrb1 13s ease-in-out infinite 5s" }} />
-                <div style={{ position: "absolute", left: "62%", top: "48%", width: 7, height: 7, borderRadius: "50%", background: "radial-gradient(circle, rgba(110,185,255,0.88) 0%, rgba(70,130,255,0) 70%)", boxShadow: "0 0 10px rgba(110,185,255,0.6), 0 0 20px rgba(90,160,255,0.25)", animation: "bayouOrb2 10s ease-in-out infinite 2s" }} />
-                <div style={{ position: "absolute", left: "80%", top: "33%", width: 5, height: 5, borderRadius: "50%", background: "radial-gradient(circle, rgba(200,225,255,0.75) 0%, rgba(160,200,255,0) 70%)", boxShadow: "0 0 7px rgba(200,225,255,0.45)", animation: "bayouOrb3 12s ease-in-out infinite 7s" }} />
-                <div style={{ position: "absolute", left: "28%", top: "65%", width: 9, height: 9, borderRadius: "50%", background: "radial-gradient(circle, rgba(100,175,255,0.6) 0%, rgba(70,130,255,0) 70%)", boxShadow: "0 0 14px rgba(100,175,255,0.35), 0 0 28px rgba(80,150,255,0.15)", animation: "bayouOrbPulse 6s ease-in-out infinite 4s" }} />
+                {/* Soft diffuse light — left mid */}
+                <div style={{ position: "absolute", left: "10%", top: "38%", width: 50, height: 50, borderRadius: "50%", background: "radial-gradient(circle, rgba(140,200,255,0.55) 0%, rgba(100,170,255,0.15) 50%, transparent 75%)", filter: "blur(10px)", animation: "bayouOrb1 9s ease-in-out infinite" }} />
+                {/* Soft diffuse light — right upper */}
+                <div style={{ position: "absolute", right: "14%", top: "30%", width: 40, height: 40, borderRadius: "50%", background: "radial-gradient(circle, rgba(170,215,255,0.5) 0%, rgba(120,185,255,0.12) 52%, transparent 75%)", filter: "blur(9px)", animation: "bayouOrb2 11s ease-in-out infinite 1.5s" }} />
+                {/* Smaller crisp light — center upper */}
+                <div style={{ position: "absolute", left: "40%", top: "25%", width: 22, height: 22, borderRadius: "50%", background: "radial-gradient(circle, rgba(200,230,255,0.75) 0%, rgba(150,205,255,0.2) 50%, transparent 72%)", filter: "blur(5px)", animation: "bayouOrb3 8s ease-in-out infinite 3s" }} />
+                {/* Tiny bright point — lower right */}
+                <div style={{ position: "absolute", right: "28%", top: "55%", width: 14, height: 14, borderRadius: "50%", background: "radial-gradient(circle, rgba(210,235,255,0.9) 0%, rgba(160,210,255,0.25) 48%, transparent 70%)", filter: "blur(4px)", animation: "bayouOrb1 13s ease-in-out infinite 5s" }} />
+                {/* Medium diffuse — right center */}
+                <div style={{ position: "absolute", left: "64%", top: "44%", width: 36, height: 36, borderRadius: "50%", background: "radial-gradient(circle, rgba(130,195,255,0.55) 0%, rgba(90,160,255,0.14) 50%, transparent 74%)", filter: "blur(8px)", animation: "bayouOrb2 10s ease-in-out infinite 2s" }} />
+                {/* Tiny point — far right upper */}
+                <div style={{ position: "absolute", left: "82%", top: "28%", width: 16, height: 16, borderRadius: "50%", background: "radial-gradient(circle, rgba(215,235,255,0.8) 0%, rgba(175,215,255,0.18) 50%, transparent 72%)", filter: "blur(4px)", animation: "bayouOrb3 12s ease-in-out infinite 7s" }} />
+                {/* Large slow pulse — lower left */}
+                <div style={{ position: "absolute", left: "22%", top: "60%", width: 60, height: 60, borderRadius: "50%", background: "radial-gradient(circle, rgba(120,185,255,0.4) 0%, rgba(80,150,255,0.08) 55%, transparent 75%)", filter: "blur(14px)", animation: "bayouOrbPulse 7s ease-in-out infinite 4s" }} />
                 </div>
               </>
             )}
