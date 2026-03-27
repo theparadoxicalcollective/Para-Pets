@@ -301,10 +301,6 @@ export default function AdminPage({ user }: AdminPageProps) {
                           <p className="text-[#a89878] text-[10px] truncate">{member.email}</p>
                         </div>
 
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          <span className="text-yellow-400 text-xs">&#9733;</span>
-                          <span className="font-fantasy text-[#f0c040] text-xs">{member.coins}</span>
-                        </div>
                       </button>
 
                       {isExpanded && !member.isAdmin && (
