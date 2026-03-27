@@ -1180,34 +1180,72 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
     },
   });
 
-  useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(aquariumFish)); } catch {}
-    // Always sync to DB on every change (including mount) so the sell page
-    // never sees a stale inAquarium:false for fish that are actually in the tank.
-    const counts: { shopItemId: string; count: number }[] = [];
+  // True until we've either loaded from localStorage or fallen back to the DB.
+  // Prevents the first-mount sync from firing with an empty list and wiping the DB.
+  const readyToSync = useRef(aquariumFish.length > 0);
+
+  // Build the sync payload and persist to both localStorage and DB.
+  const doSync = useCallback((fish: AqFishEntry[]) => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(fish)); } catch {}
     const countMap = new Map<string, number>();
-    for (const f of aquariumFish) {
-      countMap.set(f.shopItemId, (countMap.get(f.shopItemId) ?? 0) + 1);
-    }
+    for (const f of fish) countMap.set(f.shopItemId, (countMap.get(f.shopItemId) ?? 0) + 1);
+    const counts: { shopItemId: string; count: number }[] = [];
     countMap.forEach((count, shopItemId) => counts.push({ shopItemId, count }));
     syncAquariumMutation.mutate(counts);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aquariumFish, STORAGE_KEY]);
+  }, [STORAGE_KEY]);
+
+  useEffect(() => {
+    if (!readyToSync.current) return; // Wait for DB fallback load before syncing
+    doSync(aquariumFish);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aquariumFish]);
+
+  // Restored-from-DB guard — only run the DB fallback once.
+  const restoredFromDb = useRef(false);
 
   // Sync latest item data from API into the ref and swimmer state whenever inventory loads.
-  // We deliberately do NOT update aquariumFish here to avoid triggering the localStorage
-  // save → DB sync → invalidate fishInventory infinite loop.
+  // Also: if localStorage was empty on mount, restore aquarium state from DB (fish
+  // with inAquarium=true) so a fresh device/browser doesn't lose the player's tank.
   useEffect(() => {
     if (!fishInventory.length) return;
-    // Update the always-fresh ref used by the animation loop
+
+    // --- DB fallback restore (runs once, only when localStorage was empty) ---
+    if (!restoredFromDb.current) {
+      restoredFromDb.current = true;
+      if (!readyToSync.current) {
+        // localStorage had nothing — try to rebuild from DB state
+        const inAquarium = fishInventory.filter(f => f.inAquarium);
+        if (inAquarium.length > 0) {
+          const restored: AqFishEntry[] = inAquarium.map(f => ({
+            id: `db_${f.id}`,
+            shopItemId: f.shopItemId,
+            name: f.item?.name ?? "Fish",
+            imageUrl: f.item?.imageUrl ?? null,
+            starRarity: f.item?.starRarity ?? null,
+            facingDirection: f.item?.facingDirection ?? null,
+            fishSwimZone: f.item?.fishSwimZone ?? null,
+            hasParts: f.item?.hasParts ?? false,
+          }));
+          readyToSync.current = true;
+          setAquariumFish(restored);
+          // setAquariumFish will trigger the sync effect above which will
+          // save to localStorage and confirm the DB state. Return here so
+          // we don't also run the swimmer-update pass on stale prev data.
+          return;
+        }
+        // No fish in DB either — safe to start syncing from now on
+        readyToSync.current = true;
+      }
+    }
+
+    // --- Swimmer data refresh (hasParts, zone, image URLs) ---
     const newZoneMap = new Map<string, string | null>();
     const itemByShopId = new Map(fishInventory.map(f => [f.shopItemId, f.item]));
     for (const [id, item] of itemByShopId) {
       newZoneMap.set(id, item?.fishSwimZone ?? null);
     }
     swimZoneRef.current = newZoneMap;
-    // Also push fresh data into swimmer state so new fish spawn in the right zone
-    // and existing fish snap to their correct band immediately
     setSwimmers(prev => prev.map(s => {
       const item = itemByShopId.get(s.shopItemId);
       if (!item) return s;
