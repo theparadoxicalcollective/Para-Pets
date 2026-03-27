@@ -155,7 +155,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
 
   return (
     <>
-      <div className="flex items-center justify-between px-3 pt-3 pb-1 gap-3 relative z-20">
+      <div className="flex items-center justify-between px-3 pt-3 pb-1 gap-3 relative z-[50]">
 
         {/* LEFT: profile photo + name/coins to its right */}
         <div className="flex items-center gap-2 min-w-0">
