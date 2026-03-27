@@ -371,23 +371,32 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           const baitBoost = equipDataRef.current?.baitItem?.rarityBoostPercent ?? 0;
           const baitTargetStar = equipDataRef.current?.baitItem?.baitRarityBoostStar ?? 0;
           const poleBoost = equipDataRef.current?.poleItem?.rareCatchBoostPercent ?? 0;
-          const weights = pondFish.map(f => {
-            const r = parseInt(String(f?.item?.starRarity ?? 1), 10) || 1;
-            let w = (rarityWeights[r] ?? 20) / (rarityCounts[r] ?? 1);
-            if (baitBoost > 0 && baitTargetStar > 0 && r === baitTargetStar) {
-              w += (baitBoost / 100) * w;
-            }
-            if (poleBoost > 0 && r >= 4) {
-              w += (poleBoost / 100) * w;
-            }
-            return Math.max(0.01, w);
-          });
-          const totalWeight = weights.reduce((a, b) => a + b, 0);
-          let roll = Math.random() * totalWeight;
+
+          // Bait boost works as a direct probability roll: if baitBoost is 100 and targetStar is 5,
+          // there is a 100% chance to force a 5★ fish. If 50%, half the time a 5★ is forced.
+          // If the forced rarity has no fish in this pond, fall through to normal weighted selection.
           let randomFish = pondFish[pondFish.length - 1];
-          for (let i = 0; i < pondFish.length; i++) {
-            roll -= weights[i];
-            if (roll <= 0) { randomFish = pondFish[i]; break; }
+          let baitForcedFish: typeof pondFish | null = null;
+          if (baitBoost > 0 && baitTargetStar > 0 && Math.random() < baitBoost / 100) {
+            const targets = pondFish.filter(f => (parseInt(String(f?.item?.starRarity ?? 1), 10) || 1) === baitTargetStar);
+            if (targets.length > 0) baitForcedFish = targets;
+          }
+
+          if (baitForcedFish) {
+            randomFish = baitForcedFish[Math.floor(Math.random() * baitForcedFish.length)];
+          } else {
+            const weights = pondFish.map(f => {
+              const r = parseInt(String(f?.item?.starRarity ?? 1), 10) || 1;
+              let w = (rarityWeights[r] ?? 20) / (rarityCounts[r] ?? 1);
+              if (poleBoost > 0 && r >= 4) w += (poleBoost / 100) * w;
+              return Math.max(0.01, w);
+            });
+            const totalWeight = weights.reduce((a, b) => a + b, 0);
+            let roll = Math.random() * totalWeight;
+            for (let i = 0; i < pondFish.length; i++) {
+              roll -= weights[i];
+              if (roll <= 0) { randomFish = pondFish[i]; break; }
+            }
           }
           // Parse starRarity as integer — DB can return it as a string in some drivers
           nibbleRarityRef.current = parseInt(String(randomFish?.item?.starRarity ?? 1), 10) || 1;

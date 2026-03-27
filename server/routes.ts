@@ -3635,24 +3635,32 @@ export async function registerRoutes(
           const s = parseInt(String(entry.item?.starRarity ?? 1), 10) || 1;
           rarityCounts[s] = (rarityCounts[s] ?? 0) + 1;
         }
-        const fishPool = pondEntries.map(entry => {
-          const star = parseInt(String(entry.item?.starRarity ?? 1), 10) || 1;
-          let weight = (baseWeights[star] ?? 10) / (rarityCounts[star] ?? 1);
-          // Apply bait boost only to the specific target star rarity
-          if (baitBoost > 0 && baitRarityBoostStar > 0 && star === baitRarityBoostStar) {
-            weight += (baitBoost / 100) * weight;
-          }
-          if (star >= 4) weight += (poleBoost / 100) * weight;
-          return { entry, weight: Math.max(0.01, weight) };
-        });
-        const totalWeight = fishPool.reduce((sum, f) => sum + f.weight, 0);
-        let rand = Math.random() * totalWeight;
-        let chosen = fishPool[fishPool.length - 1];
-        for (const f of fishPool) {
-          rand -= f.weight;
-          if (rand <= 0) { chosen = f; break; }
+        // Bait boost is a direct probability roll: baitBoost=100 on star 5 guarantees a 5★ fish.
+        // If the roll succeeds but no fish of that rarity are in the pond, fall back to normal.
+        let forcedEntries: typeof pondEntries | null = null;
+        if (baitBoost > 0 && baitRarityBoostStar > 0 && Math.random() < baitBoost / 100) {
+          const targets = pondEntries.filter(e => (parseInt(String(e.item?.starRarity ?? 1), 10) || 1) === baitRarityBoostStar);
+          if (targets.length > 0) forcedEntries = targets;
         }
-        chosenEntry = chosen.entry;
+
+        if (forcedEntries) {
+          chosenEntry = forcedEntries[Math.floor(Math.random() * forcedEntries.length)];
+        } else {
+          const fishPool = pondEntries.map(entry => {
+            const star = parseInt(String(entry.item?.starRarity ?? 1), 10) || 1;
+            let weight = (baseWeights[star] ?? 10) / (rarityCounts[star] ?? 1);
+            if (star >= 4) weight += (poleBoost / 100) * weight;
+            return { entry, weight: Math.max(0.01, weight) };
+          });
+          const totalWeight = fishPool.reduce((sum, f) => sum + f.weight, 0);
+          let rand = Math.random() * totalWeight;
+          let chosen = fishPool[fishPool.length - 1];
+          for (const f of fishPool) {
+            rand -= f.weight;
+            if (rand <= 0) { chosen = f; break; }
+          }
+          chosenEntry = chosen.entry;
+        }
       }
 
       const caught = await storage.addFishToPlayerInventory(user.id, chosenEntry.shopItemId);
