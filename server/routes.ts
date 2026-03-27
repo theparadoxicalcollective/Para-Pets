@@ -2714,6 +2714,8 @@ export async function registerRoutes(
       const bundleItems = await storage.getRewardBundleItems(bundle.id);
       const duplicatePets: { name: string; coinsAwarded: number }[] = [];
 
+      const BAIT_CHARGES_PER_BUNDLE = 5;
+
       for (const bi of bundleItems) {
         const shopItem = await storage.getShopItem(bi.shopItemId);
         if (shopItem) {
@@ -2727,9 +2729,14 @@ export async function registerRoutes(
               continue;
             }
           }
-          const invItem = await storage.addToInventory(user.id, bi.shopItemId);
-          if (shopItem.type === "pet" && shopItem.hatchTime) {
-            await storage.updateInventoryItem(invItem.id, { hatchStartedAt: new Date() });
+          // Bait items must stack onto the existing inventory row (quantity-based)
+          if (shopItem.fishingType === "bait") {
+            await storage.addToInventory(user.id, bi.shopItemId, {}, BAIT_CHARGES_PER_BUNDLE);
+          } else {
+            const invItem = await storage.addToInventory(user.id, bi.shopItemId);
+            if (shopItem.type === "pet" && shopItem.hatchTime) {
+              await storage.updateInventoryItem(invItem.id, { hatchStartedAt: new Date() });
+            }
           }
         }
       }
