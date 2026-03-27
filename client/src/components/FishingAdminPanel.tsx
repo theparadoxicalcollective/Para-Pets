@@ -205,7 +205,7 @@ export default function FishingAdminPanel() {
             </p>
             <p className="font-fantasy text-[#a89878] text-[9px]">
               {selectedFish.fishingType === "pole"
-                ? `Rare catch boost: +${selectedFish.rareCatchBoostPercent || 0}%`
+                ? (selectedFish.catchEasePercent ? `Catch ease: +${selectedFish.catchEasePercent}% (3★+)` : "No catch ease set")
                 : selectedFish.rarityBoostPercent
                   ? `+${selectedFish.rarityBoostPercent}% boost · ${"★".repeat(selectedFish.baitRarityBoostStar ?? 3)} star target`
                   : "No rarity boost set"}
@@ -413,7 +413,7 @@ export default function FishingAdminPanel() {
                   </div>
                   <p className="font-fantasy text-[#6a8090] text-[7px] mt-0.5">
                     {item.fishingType === "fish" && item.starRarity ? `${"★".repeat(item.starRarity)} rarity` : ""}
-                    {item.fishingType === "pole" && item.rareCatchBoostPercent ? `+${item.rareCatchBoostPercent}% rare catch` : ""}
+                    {item.fishingType === "pole" && item.catchEasePercent ? `+${item.catchEasePercent}% catch ease` : ""}
                     {item.fishingType === "pole" && item.poleMaxUses != null ? ` · ${item.poleMaxUses} uses` : item.fishingType === "pole" ? " · ∞ uses" : ""}
                     {item.fishingType === "bait" && item.rarityBoostPercent ? `+${item.rarityBoostPercent}% on ${"★".repeat(item.baitRarityBoostStar ?? 3)}` : ""}
                   </p>
