@@ -250,6 +250,8 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [objDragPos, setObjDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
   const objDragRef = useRef<{ objId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const objDidDrag = useRef(false);
+  const shopDecorFileRef = useRef<HTMLInputElement>(null);
+  const [selectedDecorAdminId, setSelectedDecorAdminId] = useState<string | null>(null);
 
   const [showDecorPanel, setShowDecorPanel] = useState(false);
   const [showAddDecorForm, setShowAddDecorForm] = useState(false);
@@ -664,6 +666,16 @@ export default function WorldPage({ user }: WorldPageProps) {
       if (ctx?.previous) queryClient.setQueryData(["/api/location", activeLocationId, "objects"], ctx.previous);
     },
     onSuccess: () => {},
+  });
+
+  const objWidthMutation = useMutation({
+    mutationFn: async ({ objectId, width }: { objectId: string; width: number }) => {
+      const res = await apiRequest("PATCH", `/api/admin/location/object/${objectId}/size`, { width });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/location", activeLocationId, "objects"] });
+    },
   });
 
   const deleteLocationMutation = useMutation({
@@ -1092,6 +1104,20 @@ export default function WorldPage({ user }: WorldPageProps) {
     const pxPerPercY = rect.height / 100;
     const newX = Math.max(-10, Math.min(110, objDragRef.current.origPosX + dx / pxPerPercX));
     const newY = Math.max(-10, Math.min(110, objDragRef.current.origPosY + dy / pxPerPercY));
+    setObjDragPos({ id: objDragRef.current.objId, x: newX, y: newY });
+  }, []);
+
+  const handleShopObjPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!objDragRef.current || !shopCanvasRef.current) return;
+    e.preventDefault();
+    const rect = shopCanvasRef.current.getBoundingClientRect();
+    const dx = e.clientX - objDragRef.current.startX;
+    const dy = e.clientY - objDragRef.current.startY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) objDidDrag.current = true;
+    const pxPerPercX = rect.width / 100;
+    const pxPerPercY = rect.height / 100;
+    const newX = Math.max(-5, Math.min(105, objDragRef.current.origPosX + dx / pxPerPercX));
+    const newY = Math.max(-5, Math.min(105, objDragRef.current.origPosY + dy / pxPerPercY));
     setObjDragPos({ id: objDragRef.current.objId, x: newX, y: newY });
   }, []);
 
@@ -2683,14 +2709,25 @@ export default function WorldPage({ user }: WorldPageProps) {
             </div>
             <div className="flex items-center gap-2">
               {currentUser.isAdmin && (
-                <button
-                  data-testid="button-add-shop-item"
-                  onClick={() => { setShowItemPicker(true); refetchAllShopItems(); }}
-                  className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
-                  style={{ background: `${accent}30`, border: `2px solid ${accent}60`, color: accent, cursor: "pointer" }}
-                >
-                  <Plus className="w-5 h-5" />
-                </button>
+                <>
+                  <button
+                    data-testid="button-add-shop-decor"
+                    onClick={() => shopDecorFileRef.current?.click()}
+                    className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                    style={{ background: "rgba(80,40,120,0.6)", border: "2px solid rgba(180,100,255,0.6)", color: "rgba(200,140,255,1)", cursor: "pointer" }}
+                    title="Add decor"
+                  >
+                    <Palette className="w-4 h-4" />
+                  </button>
+                  <button
+                    data-testid="button-add-shop-item"
+                    onClick={() => { setShowItemPicker(true); refetchAllShopItems(); }}
+                    className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                    style={{ background: `${accent}30`, border: `2px solid ${accent}60`, color: accent, cursor: "pointer" }}
+                  >
+                    <Plus className="w-5 h-5" />
+                  </button>
+                </>
               )}
               <button
                 data-testid="button-close-shop"
@@ -2702,6 +2739,24 @@ export default function WorldPage({ user }: WorldPageProps) {
               </button>
             </div>
           </div>
+          {/* Hidden file input for shop decor uploads */}
+          <input
+            ref={shopDecorFileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file || !activeLocationId) return;
+              const reader = new FileReader();
+              reader.onload = (ev) => {
+                const dataUrl = ev.target?.result as string;
+                if (dataUrl) addObjectMutation.mutate({ locationId: activeLocationId, imageData: dataUrl });
+              };
+              reader.readAsDataURL(file);
+              e.target.value = "";
+            }}
+          />
           {/* Shop canvas — fixed aspect ratio matches background image, so items stay in position on all screens */}
           {/* Landscape pan wrapper — only active when background is wider than tall */}
           <div
@@ -2735,19 +2790,71 @@ export default function WorldPage({ user }: WorldPageProps) {
               minHeight: "100dvh",
               touchAction: "none",
             }}
-            onPointerMove={handleShopItemPointerMove}
+            onPointerMove={(e) => { handleShopItemPointerMove(e); handleShopObjPointerMove(e); }}
             onPointerUp={(e) => {
               if (shopItemDragRef.current) {
                 const dragItem = items.find(i => i.id === shopItemDragRef.current!.itemId);
                 if (dragItem) handleShopItemPointerUp(e, dragItem);
               }
+              if (objDragRef.current) handleObjPointerUp(e);
             }}
-            onClick={() => { if (currentUser.isAdmin) setSelectedShopItemAdminId(null); }}
+            onClick={() => { if (currentUser.isAdmin) { setSelectedShopItemAdminId(null); setSelectedDecorAdminId(null); } }}
           >
-            {/* Inner absolute fill — background + gradient + items all relative to this fixed-ratio space */}
+            {/* Inner absolute fill — background + gradient + decor + items all relative to this fixed-ratio space */}
             <div className="absolute inset-0">
             <img src={committedLocBgUrl || bgShopMystical} alt="" className="absolute inset-0 w-full h-full object-cover" />
             <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 72%, rgba(0,0,0,0.5) 100%)" }} />
+            {/* Shop decor objects — non-clickable for players, draggable for admins */}
+            {locationObjects.map((obj) => {
+              const pos = objDragPos?.id === obj.id ? { x: objDragPos.x, y: objDragPos.y } : { x: obj.posX, y: obj.posY };
+              const isDecorDragging = objDragRef.current?.objId === obj.id;
+              const isDecorSelected = selectedDecorAdminId === obj.id;
+              return (
+                <div
+                  key={obj.id}
+                  className="absolute"
+                  style={{
+                    left: `${pos.x}%`,
+                    top: `${pos.y}%`,
+                    width: `${obj.width}px`,
+                    transform: "translate(-50%, -50%)",
+                    zIndex: isDecorDragging ? 25 : 5,
+                    touchAction: currentUser.isAdmin ? "none" : "auto",
+                    pointerEvents: currentUser.isAdmin ? "auto" : "none",
+                    cursor: currentUser.isAdmin ? (isDecorSelected ? "grab" : "pointer") : "default",
+                  }}
+                  onPointerDown={currentUser.isAdmin ? (e) => { e.stopPropagation(); handleObjPointerDown(e, obj); setSelectedDecorAdminId(obj.id); } : undefined}
+                  onClick={(e) => { e.stopPropagation(); }}
+                >
+                  <img src={obj.imageUrl} alt="" className="w-full h-auto object-contain pointer-events-none" draggable={false}
+                    style={{ filter: `drop-shadow(0 2px 6px rgba(0,0,0,0.5)) drop-shadow(0 0 8px ${accent}20)${isDecorSelected ? " drop-shadow(0 0 8px rgba(255,220,100,0.7))" : ""}` }}
+                  />
+                  {currentUser.isAdmin && isDecorSelected && (
+                    <>
+                      <button onClick={(e) => { e.stopPropagation(); deleteObjectMutation.mutate(obj.id); }}
+                        className="absolute -top-2 -right-2 z-20 w-5 h-5 rounded-full flex items-center justify-center"
+                        style={{ background: "rgba(220,38,38,0.95)", border: "1px solid rgba(255,100,100,0.6)", cursor: "pointer", pointerEvents: "auto" }}>
+                        <X className="w-3 h-3 text-white" />
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); objWidthMutation.mutate({ objectId: obj.id, width: Math.max(20, obj.width - 10) }); }}
+                        className="absolute -bottom-2 -left-2 z-20 w-5 h-5 rounded-full flex items-center justify-center"
+                        style={{ background: "rgba(80,40,0,0.95)", border: "1px solid rgba(255,160,50,0.6)", cursor: "pointer", pointerEvents: "auto" }}>
+                        <Minus className="w-2.5 h-2.5 text-white" />
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); objWidthMutation.mutate({ objectId: obj.id, width: Math.min(600, obj.width + 10) }); }}
+                        className="absolute -bottom-2 -right-2 z-20 w-5 h-5 rounded-full flex items-center justify-center"
+                        style={{ background: "rgba(80,40,0,0.95)", border: "1px solid rgba(255,160,50,0.6)", cursor: "pointer", pointerEvents: "auto" }}>
+                        <Plus className="w-2.5 h-2.5 text-white" />
+                      </button>
+                      <div className="absolute z-20 flex items-center justify-center"
+                        style={{ top: "-16px", left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.75)", border: "1px solid rgba(255,200,50,0.4)", borderRadius: "4px", padding: "0 4px", pointerEvents: "none" }}>
+                        <span className="font-fantasy text-[9px] text-yellow-300">{obj.width}px</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })}
             {itemsLoading ? (
               <div className="absolute inset-0 flex items-center justify-center">
                 <p className="font-fantasy text-sm animate-pulse" style={{ color: `${accent}cc`, textShadow: `0 0 10px ${accent}50` }}>Loading wares...</p>
@@ -2838,10 +2945,10 @@ export default function WorldPage({ user }: WorldPageProps) {
                           cursor: currentUser.isAdmin ? (selectedShopItemAdminId === item.id ? "grab" : "pointer") : "pointer",
                           pointerEvents: (!currentUser.isAdmin && item.fishingType === "pole") ? "none" : "auto",
                         }}
-                        onMouseEnter={() => setHoveredShopItemId(item.id)}
-                        onMouseLeave={() => setHoveredShopItemId(null)}
-                        onTouchStart={() => setHoveredShopItemId(item.id)}
-                        onTouchEnd={() => setHoveredShopItemId(null)}
+                        onMouseEnter={() => { if (!currentUser.isAdmin) setHoveredShopItemId(item.id); }}
+                        onMouseLeave={() => { if (!currentUser.isAdmin) setHoveredShopItemId(null); }}
+                        onTouchStart={() => { if (!currentUser.isAdmin) setHoveredShopItemId(item.id); }}
+                        onTouchEnd={() => { if (!currentUser.isAdmin) setHoveredShopItemId(null); }}
                         onPointerDown={currentUser.isAdmin ? (e) => handleShopItemPointerDown(e, item) : undefined}
                         onClick={(e) => {
                           if (currentUser.isAdmin) {
@@ -2903,6 +3010,19 @@ export default function WorldPage({ user }: WorldPageProps) {
                       />
                     )}
                   </div>
+                  {!currentUser.isAdmin && (() => {
+                    const summary = item.type === "pet"
+                      ? (item.rarity ? "★".repeat(item.rarity) : "Egg")
+                      : (getItemDescription(item)[0] || "");
+                    return (
+                      <div className="absolute left-1/2 pointer-events-none text-center" style={{ top: "100%", transform: "translateX(-50%)", marginTop: "3px", width: "max-content", maxWidth: "110px" }}>
+                        {summary && <div className="font-fantasy text-[9px] whitespace-nowrap" style={{ color: "#e8d5a0", textShadow: "0 1px 4px rgba(0,0,0,0.95)" }}>{summary}</div>}
+                        <div className="font-fantasy text-[9px] flex items-center gap-0.5 justify-center" style={{ color: accent, textShadow: "0 1px 4px rgba(0,0,0,0.95)" }}>
+                          <img src={coinIconImg} alt="" className="w-2.5 h-2.5 object-contain" />{item.price}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}

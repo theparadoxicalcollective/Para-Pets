@@ -2280,6 +2280,18 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/admin/location/object/:objectId/size", isAdmin, async (req, res) => {
+    try {
+      const { width } = req.body;
+      if (typeof width !== "number") return res.status(400).json({ message: "width is required" });
+      const updated = await storage.updateLocationObject(req.params.objectId, { width: Math.max(20, Math.min(600, Math.round(width))) });
+      return res.json(updated);
+    } catch (err) {
+      console.error("Update object size error:", err);
+      return res.status(500).json({ message: "Failed to update object size" });
+    }
+  });
+
   app.delete("/api/admin/location/object/:objectId", isAdmin, async (req, res) => {
     try {
       await storage.deleteLocationObject(req.params.objectId);
