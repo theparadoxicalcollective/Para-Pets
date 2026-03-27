@@ -275,6 +275,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [buyError, setBuyError] = useState<string | null>(null);
   const [shopItemDragPos, setShopItemDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
   const [hoveredShopItemId, setHoveredShopItemId] = useState<string | null>(null);
+  const [pressedShopItemId, setPressedShopItemId] = useState<string | null>(null);
   const [selectedLocId, setSelectedLocId] = useState<string | null>(null);
   const [selectedDecorId, setSelectedDecorId] = useState<string | null>(null);
   const [barrelSelected, setBarrelSelected] = useState(false);
@@ -2940,7 +2941,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                           filter: (isHovered && !(currentUser.isAdmin && (isDragging || selectedShopItemAdminId === item.id)))
                             ? `drop-shadow(0 0 1px rgba(255,255,255,0.75)) drop-shadow(0 0 9px rgba(255,210,120,0.65)) drop-shadow(0 1px 3px rgba(0,0,0,0.75)) drop-shadow(0 0 2px rgba(255,255,255,0.35))`
                             : `drop-shadow(0 0 1px rgba(255,255,255,0.5)) drop-shadow(0 0 5px rgba(255,200,100,0.35)) drop-shadow(0 1px 3px rgba(0,0,0,0.7)) drop-shadow(0 0 1px rgba(255,255,255,0.3))`,
-                          transform: (isHovered && !(currentUser.isAdmin && (isDragging || selectedShopItemAdminId === item.id))) ? "scale(1.12)" : "scale(1)",
+                          transform: (!currentUser.isAdmin && pressedShopItemId === item.id) ? "scale(1.1)" : "scale(1)",
                           transition: isDragging ? "none" : "transform 0.15s ease, filter 0.15s ease",
                           cursor: currentUser.isAdmin ? (selectedShopItemAdminId === item.id ? "grab" : "pointer") : "pointer",
                           pointerEvents: (!currentUser.isAdmin && item.fishingType === "pole") ? "none" : "auto",
@@ -2949,7 +2950,12 @@ export default function WorldPage({ user }: WorldPageProps) {
                         onMouseLeave={() => { if (!currentUser.isAdmin) setHoveredShopItemId(null); }}
                         onTouchStart={() => { if (!currentUser.isAdmin) setHoveredShopItemId(item.id); }}
                         onTouchEnd={() => { if (!currentUser.isAdmin) setHoveredShopItemId(null); }}
-                        onPointerDown={currentUser.isAdmin ? (e) => handleShopItemPointerDown(e, item) : undefined}
+                        onPointerDown={currentUser.isAdmin ? (e) => handleShopItemPointerDown(e, item) : (e) => {
+                          if (isShopItemTransparentClick(e as unknown as React.MouseEvent<HTMLImageElement>)) return;
+                          setPressedShopItemId(item.id);
+                        }}
+                        onPointerUp={() => { if (!currentUser.isAdmin) setPressedShopItemId(null); }}
+                        onPointerCancel={() => { if (!currentUser.isAdmin) setPressedShopItemId(null); }}
                         onClick={(e) => {
                           if (currentUser.isAdmin) {
                             if (!shopItemDidDrag.current) {
