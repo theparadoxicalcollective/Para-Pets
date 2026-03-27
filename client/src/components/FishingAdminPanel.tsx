@@ -708,11 +708,6 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
           {fishingType === "pole" && (
             <div className="space-y-3">
               <div>
-                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Rare Catch Boost (%)</label>
-                <input data-testid="input-pole-boost" type="number" value={rareCatchBoostPercent} onChange={(e) => setRareCatchBoostPercent(e.target.value)} placeholder="0" min="0" max="100" className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
-                <p className="font-fantasy text-[#6a5840] text-[8px] mt-0.5">Extra % chance to catch 4-5 star rarity fish</p>
-              </div>
-              <div>
                 <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Uses Before Breaking</label>
                 <input
                   data-testid="input-pole-max-uses"
