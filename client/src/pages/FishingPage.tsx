@@ -588,6 +588,15 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
 
       setTensionState({ catchProgress, tension, escapeMeter, fishState, timeLeft: 0, snapEffect: false });
 
+      // ── Win: catch progress filled — checked FIRST so a full bar always beats escape ───
+      // Threshold is 0.99 so the win fires when the bar visually reads 100% (Math.round).
+      if (catchProgress >= 0.99) {
+        setTensionState(null);
+        playCatch();
+        catchMutateRef.current(100);
+        return;
+      }
+
       // ── Lose: escape meter full ────────────────────────────────────────────────────────
       if (escapeMeter >= 1) {
         setTensionState(null);
@@ -604,14 +613,6 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           phaseRef.current = "missed";
           setPhase("missed");
         }, 600);
-        return;
-      }
-
-      // ── Win: catch progress filled ─────────────────────────────────────────────────────
-      if (catchProgress >= 1) {
-        setTensionState(null);
-        playCatch();
-        catchMutateRef.current(100);
         return;
       }
 
