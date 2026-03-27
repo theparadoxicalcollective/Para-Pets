@@ -1055,6 +1055,14 @@ function makeSwimmer(entry: AqFishEntry, x?: number, y?: number): SwimmingFish {
 }
 
 const FISH_PARTS_CANVAS = 500;
+const FISH_RENDER_SIZE = 220;
+
+const FISH_PART_ANIM: Record<string, { anim: string; duration: string; origin: string }> = {
+  tail:        { anim: "fishTailWag",    duration: "0.75s", origin: "20% 50%" },
+  top_fin:     { anim: "fishFinUp",      duration: "1.1s",  origin: "50% 90%" },
+  bottom_fin:  { anim: "fishFinDown",    duration: "0.95s", origin: "50% 10%" },
+  head_fin:    { anim: "fishHeadFin",    duration: "1.3s",  origin: "50% 90%" },
+};
 
 interface FishPartData {
   id: string;
@@ -1078,27 +1086,52 @@ function FishPartsView({ fishItemId, size, flipped }: { fishItemId: string; size
     staleTime: Infinity,
   });
 
+  const scale = size / FISH_RENDER_SIZE;
+
   return (
-    <div style={{ position: "relative", width: size, height: size, transform: flipped ? "scaleX(-1)" : undefined }}>
-      {[...parts].sort((a, b) => a.zIndex - b.zIndex).map(part => (
-        <img
-          key={part.id}
-          src={part.imageUrl}
-          alt={part.partType}
-          draggable={false}
-          style={{
-            position: "absolute",
-            left: `${(part.posX / FISH_PARTS_CANVAS) * 100}%`,
-            top: `${(part.posY / FISH_PARTS_CANVAS) * 100}%`,
-            width: `${(part.width / FISH_PARTS_CANVAS) * 100}%`,
-            height: `${(part.height / FISH_PARTS_CANVAS) * 100}%`,
-            zIndex: part.zIndex,
-            objectFit: "contain",
-            pointerEvents: "none",
-            userSelect: "none",
-          }}
-        />
-      ))}
+    <div style={{
+      position: "relative",
+      width: size,
+      height: size,
+      overflow: "visible",
+      transform: flipped ? "scaleX(-1)" : undefined,
+    }}>
+      <div style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: FISH_RENDER_SIZE,
+        height: FISH_RENDER_SIZE,
+        transform: `scale(${scale})`,
+        transformOrigin: "top left",
+      }}>
+        {[...parts].sort((a, b) => a.zIndex - b.zIndex).map(part => {
+          const anim = FISH_PART_ANIM[part.partType];
+          return (
+            <img
+              key={part.id}
+              src={part.imageUrl}
+              alt={part.partType}
+              draggable={false}
+              style={{
+                position: "absolute",
+                left: `${(part.posX / FISH_PARTS_CANVAS) * 100}%`,
+                top: `${(part.posY / FISH_PARTS_CANVAS) * 100}%`,
+                width: `${(part.width / FISH_PARTS_CANVAS) * 100}%`,
+                height: `${(part.height / FISH_PARTS_CANVAS) * 100}%`,
+                zIndex: part.zIndex,
+                objectFit: "contain",
+                pointerEvents: "none",
+                userSelect: "none",
+                ...(anim ? {
+                  animation: `${anim.anim} ${anim.duration} ease-in-out infinite alternate`,
+                  transformOrigin: anim.origin,
+                } : {}),
+              }}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -1412,6 +1445,10 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
       <style>{`
         @keyframes aqSlideIn { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
         @keyframes aqPanelUp { from { transform:translateY(100%); opacity:0; } to { transform:translateY(0); opacity:1; } }
+        @keyframes fishTailWag   { from { transform: rotate(-14deg); } to { transform: rotate(14deg); } }
+        @keyframes fishFinUp     { from { transform: rotate(-7deg);  } to { transform: rotate(5deg);  } }
+        @keyframes fishFinDown   { from { transform: rotate(7deg);   } to { transform: rotate(-5deg); } }
+        @keyframes fishHeadFin   { from { transform: rotate(-5deg);  } to { transform: rotate(5deg);  } }
       `}</style>
 
       <img src={aquariumBg} alt="" className="absolute inset-0 w-full h-full object-cover" draggable={false} />
@@ -1423,7 +1460,9 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
       {/* Swimming fish */}
       {swimmers.map(f => {
         const rarity = f.starRarity ?? 1;
-        const fishSize = rarity >= 5 ? 78 : rarity === 4 ? 65 : 54;
+        const fishSize = f.hasParts
+          ? (rarity >= 5 ? 160 : rarity === 4 ? 145 : 130)
+          : (rarity >= 5 ? 78  : rarity === 4 ? 65  : 54);
         return (
         <button
           key={f.id}
