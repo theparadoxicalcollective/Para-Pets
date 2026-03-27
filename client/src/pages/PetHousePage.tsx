@@ -1155,6 +1155,10 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
   const [dragging, setDragging] = useState<{ fish: AqFishEntry; gx: number; gy: number } | null>(null);
   const draggingRef = useRef<typeof dragging>(null);
   draggingRef.current = dragging;
+  // Tracks whether the pointer actually moved enough to be a real drag (not a tap)
+  const dragMovedRef = useRef(false);
+  // Stores the pointer position at the moment drag started, to measure total displacement
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
 
   // Always-fresh zone lookup used by the animation loop — bypasses state sync lag
   const swimZoneRef = useRef<Map<string, string | null>>(new Map());
@@ -1371,6 +1375,9 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
   const addFish = useCallback((fish: Omit<AqFishEntry, "id">, px?: number, py?: number) => {
     const newId = `${fish.shopItemId}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const newEntry: AqFishEntry = { ...fish, id: newId };
+    // Both updaters are queued then executed synchronously by React in the same render pass.
+    // The `added` flag is set by the aquariumFish updater before the swimmers updater reads it,
+    // which is the correct pattern for co-ordinating two batched state updates.
     let added = false;
     setAquariumFish(prev => {
       if (prev.length >= AQ_MAX) return prev;
@@ -1389,26 +1396,39 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
   }, []);
 
   const onFishPointerDown = useCallback((e: React.PointerEvent, fish: Omit<AqFishEntry, "id">) => {
-    e.preventDefault();
+    // Do NOT call e.preventDefault() — it would block the 'click' event on iOS/touch.
+    // touchAction:"none" on the container already prevents scroll during drag.
     e.stopPropagation();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    dragMovedRef.current = false;
+    dragStartRef.current = { x: e.clientX, y: e.clientY };
     setDragging({ fish: { ...fish, id: "drag" }, gx: e.clientX, gy: e.clientY });
   }, []);
 
   const onContainerPointerMove = useCallback((e: React.PointerEvent) => {
     if (!draggingRef.current) return;
-    setDragging(d => d ? { ...d, gx: e.clientX, gy: e.clientY } : null);
+    // Measure total displacement from start to reliably distinguish tap from drag
+    if (!dragMovedRef.current && dragStartRef.current) {
+      const dx = e.clientX - dragStartRef.current.x;
+      const dy = e.clientY - dragStartRef.current.y;
+      if (Math.hypot(dx, dy) > 8) dragMovedRef.current = true;
+    }
+    setDragging(prev => prev ? { ...prev, gx: e.clientX, gy: e.clientY } : null);
   }, []);
 
   const onContainerPointerUp = useCallback((e: React.PointerEvent) => {
     const d = draggingRef.current;
     if (!d) return;
     const rect = containerRef.current?.getBoundingClientRect();
-    if (rect) {
+    // Only add via the drag path if the pointer actually moved (real drag into the tank).
+    // Taps are handled by the onClick on the fish card — this prevents double-adding.
+    if (rect && dragMovedRef.current) {
       const px = ((e.clientX - rect.left) / rect.width) * 100;
       const py = ((e.clientY - rect.top) / rect.height) * 100;
       if (py < 78) addFish(d.fish, px, py);
     }
+    dragMovedRef.current = false;
+    dragStartRef.current = null;
     setDragging(null);
   }, [addFish]);
 
