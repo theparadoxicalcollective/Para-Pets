@@ -126,7 +126,6 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const [locDragPos,        setLocDragPos]         = useState<{ id: string; x: number; y: number } | null>(null);
   const locDragRef    = useRef<{ locId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const locDidDrag    = useRef(false);
-  const adminLocTapRef = useRef<{ id: string; timer: ReturnType<typeof setTimeout> } | null>(null);
 
   // ── queries ────────────────────────────────────────────────────────────────
   const { data: decorItems = [] } = useQuery<DecorItem[]>({
@@ -309,17 +308,13 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const handleLocClick = useCallback((loc: KCLocation) => {
     if (locDidDrag.current || mapJustPannedRef.current) return;
     if (user.isAdmin) {
-      if (adminLocTapRef.current?.id === loc.id) {
-        clearTimeout(adminLocTapRef.current.timer);
-        adminLocTapRef.current = null;
-        setSelectedLocId(null);
-        if (loc.isShop) { setActiveLocId(loc.id); setShowLocShop(true); playShopBell(); }
-      } else {
-        if (adminLocTapRef.current) clearTimeout(adminLocTapRef.current.timer);
-        setSelectedLocId(loc.id);
-        const timer = setTimeout(() => { adminLocTapRef.current = null; setSelectedLocId(null); }, 400);
-        adminLocTapRef.current = { id: loc.id, timer };
-      }
+      setSelectedLocId(prev => {
+        if (prev === loc.id) {
+          if (loc.isShop) { setActiveLocId(loc.id); setShowLocShop(true); playShopBell(); }
+          return null;
+        }
+        return loc.id;
+      });
     } else {
       if (loc.isShop) { setActiveLocId(loc.id); setShowLocShop(true); playShopBell(); }
     }
@@ -679,7 +674,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
             backgroundSize: "100% 100%",
             backgroundRepeat: "no-repeat",
           }}
-          onClick={() => { if (user.isAdmin) setSelectedDecorId(null); }}
+          onClick={() => { if (user.isAdmin) { setSelectedDecorId(null); setSelectedLocId(null); } }}
         >
           {/* ── Roaming pets — inside the map canvas so they pan with the world ── */}
           {worldPets.map((pet, idx) => {
@@ -1492,7 +1487,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           )}
 
           {/* Places list */}
-          <div className="flex-1 overflow-y-auto px-4 py-3">
+          <div className="flex-1 overflow-y-auto px-4 py-3 pb-4" style={{ paddingRight: 80 }}>
             {kcLocations.length === 0 ? (
               <p className="font-fantasy text-xs text-center py-6" style={{ color: "#d4a01755" }}>
                 No places yet — add one above
