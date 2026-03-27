@@ -54,6 +54,12 @@ function AppRouter() {
     localStorage.getItem("para_pets_just_registered") === "true"
   );
 
+  useEffect(() => {
+    if (user && localStorage.getItem("para_pets_just_registered") === "true") {
+      setShowWelcome(true);
+    }
+  }, [user]);
+
   const handleWelcomeComplete = (updatedUser: any) => {
     setShowWelcome(false);
     if (updatedUser) {
