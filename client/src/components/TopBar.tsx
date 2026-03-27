@@ -189,7 +189,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                       style={{ background: "linear-gradient(135deg, #2a1a0a 0%, #4a2e18 100%)" }}
                     >
                       <span className="font-fantasy text-[#d4a017] font-bold" style={{ fontSize: "clamp(14px, 4vw, 20px)" }}>
-                        {user.username.charAt(0).toUpperCase()}
+                        {(user.username ?? "?").charAt(0).toUpperCase()}
                       </span>
                     </div>
                   )}

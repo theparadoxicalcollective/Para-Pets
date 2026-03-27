@@ -171,7 +171,7 @@ export default function PlayerDetailPanel({ userId, onClose }: PlayerDetailPanel
                     style={{ background: "linear-gradient(135deg, #2a1a0a 0%, #4a2e18 100%)" }}
                   >
                     <span className="font-fantasy text-[#d4a017] text-xl font-bold">
-                      {profile.username.charAt(0).toUpperCase()}
+                      {(profile.username ?? "?").charAt(0).toUpperCase()}
                     </span>
                   </div>
                 )}

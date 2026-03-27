@@ -283,7 +283,7 @@ export default function AdminPage({ user }: AdminPageProps) {
                             <img src={member.profileImage} alt="" className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center rounded-lg" style={{ background: "linear-gradient(135deg, #2a1a0a 0%, #4a2e18 100%)" }}>
-                              <span className="font-fantasy text-[#d4a017] text-xs font-bold">{member.username.charAt(0).toUpperCase()}</span>
+                              <span className="font-fantasy text-[#d4a017] text-xs font-bold">{(member.username ?? "?").charAt(0).toUpperCase()}</span>
                             </div>
                           )}
                         </button>

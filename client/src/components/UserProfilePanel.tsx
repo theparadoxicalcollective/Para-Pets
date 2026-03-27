@@ -319,7 +319,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                     style={{ background: "linear-gradient(135deg, #2a1a0a 0%, #4a2e18 100%)" }}
                   >
                     <span className="font-fantasy text-[#d4a017] text-3xl font-bold">
-                      {user.username.charAt(0).toUpperCase()}
+                      {(user.username ?? "?").charAt(0).toUpperCase()}
                     </span>
                   </div>
                 )}

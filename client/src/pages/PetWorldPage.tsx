@@ -1776,7 +1776,7 @@ function PetDetailModal({
               {pet.profileImage ? (
                 <img src={pet.profileImage} alt={pet.username} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               ) : (
-                <span style={{ fontSize: 20, color: "#d4a017", fontWeight: "bold" }}>{pet.username.charAt(0).toUpperCase()}</span>
+                <span style={{ fontSize: 20, color: "#d4a017", fontWeight: "bold" }}>{(pet.username ?? "?").charAt(0).toUpperCase()}</span>
               )}
             </div>
             <span className="font-fantasy text-sm" style={{ color: "#d4a017", textShadow: "0 0 10px rgba(212,160,23,0.35)" }} data-testid="text-pet-detail-owner">{pet.username}</span>

@@ -24,6 +24,7 @@ import PvpArenaPage from "@/pages/PvpArenaPage";
 import WelcomeGiftScreen from "@/components/WelcomeGiftScreen";
 import GlobalLevelUpOverlay from "@/components/GlobalLevelUpOverlay";
 import FloatingNav from "@/components/FloatingNav";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 function PvpArenaWrapper() {
   const [, setLocation] = useLocation();
@@ -250,8 +251,10 @@ function App() {
               ].join(", "),
             }}
           >
-            <AppRouter />
-            <GlobalLevelUpOverlay />
+            <ErrorBoundary>
+              <AppRouter />
+              <GlobalLevelUpOverlay />
+            </ErrorBoundary>
           </div>
         </div>
       </TooltipProvider>
