@@ -1445,10 +1445,10 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
       <style>{`
         @keyframes aqSlideIn { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
         @keyframes aqPanelUp { from { transform:translateY(100%); opacity:0; } to { transform:translateY(0); opacity:1; } }
-        @keyframes fishTailWag   { from { transform: scaleX(0.82); } to { transform: scaleX(1.0); } }
+        @keyframes fishTailWag   { from { transform: scaleX(0.91); } to { transform: scaleX(1.0); } }
         @keyframes fishFinUp     { from { transform: rotate(-3deg); } to { transform: rotate(2deg);  } }
-        @keyframes fishFinDown   { from { transform: rotate(3deg);  } to { transform: rotate(-2deg); } }
-        @keyframes fishHeadFin   { from { transform: translateY(-3px); } to { transform: translateY(3px); } }
+        @keyframes fishFinDown   { from { transform: rotate(0deg);  } to { transform: rotate(2.5deg); } }
+        @keyframes fishHeadFin   { from { transform: rotate(-3deg) translateY(-1px); } to { transform: rotate(2deg) translateY(2px); } }
       `}</style>
 
       <img src={aquariumBg} alt="" className="absolute inset-0 w-full h-full object-cover" draggable={false} />
