@@ -1058,10 +1058,10 @@ const FISH_PARTS_CANVAS = 500;
 const FISH_RENDER_SIZE = 220;
 
 const FISH_PART_ANIM: Record<string, { anim: string; duration: string; origin: string }> = {
-  tail:        { anim: "fishTailWag",    duration: "0.75s", origin: "20% 50%" },
-  top_fin:     { anim: "fishFinUp",      duration: "1.1s",  origin: "50% 90%" },
-  bottom_fin:  { anim: "fishFinDown",    duration: "0.95s", origin: "50% 10%" },
-  head_fin:    { anim: "fishHeadFin",    duration: "1.3s",  origin: "50% 90%" },
+  tail:        { anim: "fishTailWag",    duration: "0.55s", origin: "15% 50%" },
+  top_fin:     { anim: "fishFinUp",      duration: "1.6s",  origin: "50% 95%" },
+  bottom_fin:  { anim: "fishFinDown",    duration: "1.4s",  origin: "50% 5%"  },
+  head_fin:    { anim: "fishHeadFin",    duration: "1.8s",  origin: "50% 50%" },
 };
 
 interface FishPartData {
@@ -1445,10 +1445,10 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
       <style>{`
         @keyframes aqSlideIn { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
         @keyframes aqPanelUp { from { transform:translateY(100%); opacity:0; } to { transform:translateY(0); opacity:1; } }
-        @keyframes fishTailWag   { from { transform: rotate(-14deg); } to { transform: rotate(14deg); } }
-        @keyframes fishFinUp     { from { transform: rotate(-7deg);  } to { transform: rotate(5deg);  } }
-        @keyframes fishFinDown   { from { transform: rotate(7deg);   } to { transform: rotate(-5deg); } }
-        @keyframes fishHeadFin   { from { transform: rotate(-5deg);  } to { transform: rotate(5deg);  } }
+        @keyframes fishTailWag   { from { transform: scaleX(0.82); } to { transform: scaleX(1.0); } }
+        @keyframes fishFinUp     { from { transform: rotate(-3deg); } to { transform: rotate(2deg);  } }
+        @keyframes fishFinDown   { from { transform: rotate(3deg);  } to { transform: rotate(-2deg); } }
+        @keyframes fishHeadFin   { from { transform: translateY(-3px); } to { transform: translateY(3px); } }
       `}</style>
 
       <img src={aquariumBg} alt="" className="absolute inset-0 w-full h-full object-cover" draggable={false} />
