@@ -1150,6 +1150,10 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
     })().map(f => makeSwimmer(f))
   );
 
+  // Always-fresh ref to avoid stale closures in addFish/removeFish
+  const aquariumFishRef = useRef(aquariumFish);
+  aquariumFishRef.current = aquariumFish;
+
   const [showPanel, setShowPanel] = useState(false);
   const [pendingRemove, setPendingRemove] = useState<AqFishEntry | null>(null);
   const [dragging, setDragging] = useState<{ fish: AqFishEntry; gx: number; gy: number } | null>(null);
@@ -1181,23 +1185,30 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
   });
 
   // True until we've either loaded from localStorage or fallen back to the DB.
-  // Prevents the first-mount sync from firing with an empty list and wiping the DB.
+  // Prevents the first-mount DB sync from firing with an empty list and wiping the DB.
   const readyToSync = useRef(aquariumFish.length > 0);
 
-  // Build the sync payload and persist to both localStorage and DB.
-  const doSync = useCallback((fish: AqFishEntry[]) => {
+  // Save fish list to localStorage immediately (synchronous, no effect delay).
+  const saveLocal = useCallback((fish: AqFishEntry[]) => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(fish)); } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [STORAGE_KEY]);
+
+  // Build the DB sync payload and fire the mutation.
+  const syncToDb = useCallback((fish: AqFishEntry[]) => {
     const countMap = new Map<string, number>();
     for (const f of fish) countMap.set(f.shopItemId, (countMap.get(f.shopItemId) ?? 0) + 1);
     const counts: { shopItemId: string; count: number }[] = [];
     countMap.forEach((count, shopItemId) => counts.push({ shopItemId, count }));
     syncAquariumMutation.mutate(counts);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [STORAGE_KEY]);
+  }, []);
 
+  // Whenever aquariumFish changes, save to localStorage immediately and sync DB when ready.
   useEffect(() => {
-    if (!readyToSync.current) return; // Wait for DB fallback load before syncing
-    doSync(aquariumFish);
+    saveLocal(aquariumFish);
+    if (!readyToSync.current) return; // Wait for DB fallback load before syncing DB
+    syncToDb(aquariumFish);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aquariumFish]);
 
@@ -1239,13 +1250,42 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
       }
     }
 
-    // --- Swimmer data refresh (hasParts, zone, image URLs) ---
+    // --- Swimmer + aquariumFish data refresh (hasParts, zone, image URLs) ---
     const newZoneMap = new Map<string, string | null>();
     const itemByShopId = new Map(fishInventory.map(f => [f.shopItemId, f.item]));
     for (const [id, item] of itemByShopId) {
       newZoneMap.set(id, item?.fishSwimZone ?? null);
     }
     swimZoneRef.current = newZoneMap;
+
+    // Also patch aquariumFish entries so localStorage always has up-to-date hasParts / metadata.
+    setAquariumFish(prev => {
+      let changed = false;
+      const next = prev.map(f => {
+        const item = itemByShopId.get(f.shopItemId);
+        if (!item) return f;
+        const updated: AqFishEntry = {
+          ...f,
+          name: item.name ?? f.name,
+          imageUrl: item.imageUrl ?? f.imageUrl,
+          starRarity: item.starRarity ?? f.starRarity,
+          facingDirection: item.facingDirection ?? f.facingDirection,
+          fishSwimZone: item.fishSwimZone ?? f.fishSwimZone,
+          hasParts: item.hasParts ?? f.hasParts,
+        };
+        if (
+          updated.hasParts !== f.hasParts ||
+          updated.fishSwimZone !== f.fishSwimZone ||
+          updated.imageUrl !== f.imageUrl
+        ) changed = true;
+        return updated;
+      });
+      if (!changed) return prev;
+      // Persist updated metadata to localStorage immediately
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+
     setSwimmers(prev => prev.map(s => {
       const item = itemByShopId.get(s.shopItemId);
       if (!item) return s;
@@ -1413,25 +1453,26 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
   const addFish = useCallback((fish: Omit<AqFishEntry, "id">, px?: number, py?: number) => {
     const newId = `${fish.shopItemId}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const newEntry: AqFishEntry = { ...fish, id: newId };
-    // Both updaters are queued then executed synchronously by React in the same render pass.
-    // The `added` flag is set by the aquariumFish updater before the swimmers updater reads it,
-    // which is the correct pattern for co-ordinating two batched state updates.
-    let added = false;
-    setAquariumFish(prev => {
-      if (prev.length >= AQ_MAX) return prev;
-      if (prev.filter(f => f.shopItemId === fish.shopItemId).length >= 2) return prev;
-      added = true;
-      return [...prev, newEntry];
-    });
+    const current = aquariumFishRef.current;
+    if (current.length >= AQ_MAX) return;
+    if (current.filter(f => f.shopItemId === fish.shopItemId).length >= 2) return;
+    const next = [...current, newEntry];
+    // Save to localStorage immediately (synchronous failsafe — effect also saves but is async)
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
+    setAquariumFish(next);
     setSwimmers(s => {
-      if (!added || s.some(sw => sw.id === newId)) return s;
+      if (s.some(sw => sw.id === newId)) return s;
       return [...s, makeSwimmer(newEntry, px, py)];
     });
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [STORAGE_KEY]);
 
   const removeFish = useCallback((id: string) => {
-    setAquariumFish(prev => prev.filter(f => f.id !== id));
-  }, []);
+    const next = aquariumFishRef.current.filter(f => f.id !== id);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
+    setAquariumFish(next);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [STORAGE_KEY]);
 
   const onFishPointerDown = useCallback((e: React.PointerEvent, fish: Omit<AqFishEntry, "id">) => {
     // Do NOT call e.preventDefault() — it would block the 'click' event on iOS/touch.
