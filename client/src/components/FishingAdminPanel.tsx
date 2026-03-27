@@ -44,9 +44,10 @@ interface FishPart {
 }
 
 const FISH_PART_TYPES = [
-  { key: "body", label: "Body", defaultZ: 1 },
-  { key: "eyes", label: "Eyes", defaultZ: 3 },
-  { key: "tail", label: "Tail", defaultZ: 2 },
+  { key: "body",       label: "Body",       defaultZ: 1 },
+  { key: "tail",       label: "Tail",       defaultZ: 2 },
+  { key: "top_fin",    label: "Top Fin",    defaultZ: 3 },
+  { key: "bottom_fin", label: "Bottom Fin", defaultZ: 0 },
 ] as const;
 
 const CANVAS_SIZE = 500;
