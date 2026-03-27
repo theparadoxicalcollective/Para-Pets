@@ -108,7 +108,6 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   const [bgError, setBgError] = useState(false);
   const nibbleRarityRef = useRef<number>(1);
   const selectedFishIdRef = useRef<string | null>(null);
-  const selectedFishEaseRef = useRef<number>(0);
   const [nibbleCount, setNibbleCount] = useState(0);
   const nibbleCountRef = useRef(0);
   const [nibbleWindowMs, setNibbleWindowMs] = useState(2500);
@@ -403,7 +402,6 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           // Parse starRarity as integer — DB can return it as a string in some drivers
           nibbleRarityRef.current = parseInt(String(randomFish?.item?.starRarity ?? 1), 10) || 1;
           selectedFishIdRef.current = randomFish?.shopItemId ?? null;
-          selectedFishEaseRef.current = Math.min(100, Math.max(0, randomFish?.item?.catchEasePercent ?? 0));
           const nibbleRarity = Math.max(1, Math.min(5, nibbleRarityRef.current));
           const maxNibbles   = NIBBLE_MAX_BY_RARITY[nibbleRarity - 1];
           const nibbleMs     = NIBBLE_TIMEOUT_BY_RARITY[nibbleRarity - 1];
@@ -486,8 +484,9 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     const poleSlowdownMult = 1 + poleSlowdownPct / 100;
 
     const idx = rarity - 1;
-    // catchEasePercent reduces overall fight difficulty for this specific fish
-    const easeMult = 1 - (selectedFishEaseRef.current / 100);
+    // catchEasePercent on the equipped pole reduces overall fight difficulty
+    const poleEase = Math.min(100, Math.max(0, equipDataRef.current?.poleItem?.catchEasePercent ?? 0));
+    const easeMult = 1 - (poleEase / 100);
     const baseReelRate  = baseReelRates[idx] * (1 + baitCatchBoost / 100);
     const baseTRise     = baseTensionRise[idx] * poleSlowdownMult * easeMult;
     const tFall         = tensionFalls[idx];

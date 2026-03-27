@@ -532,7 +532,7 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
         starRarity: fishingType === "fish" ? parseInt(starRarity) || 1 : null,
         facingDirection: fishingType === "fish" ? facingDirection : null,
         fishSwimZone: fishingType === "fish" ? fishSwimZone : null,
-        catchEasePercent: fishingType === "fish" ? (parseInt(catchEasePercent) || 0) : null,
+        catchEasePercent: fishingType === "pole" ? (parseInt(catchEasePercent) || 0) : null,
         rareCatchBoostPercent: fishingType === "pole" ? parseInt(rareCatchBoostPercent) || 0 : null,
         rarityBoostPercent: fishingType === "bait" ? parseInt(rarityBoostPercent) || 0 : null,
         baitRarityBoostStar: fishingType === "bait" ? parseInt(baitRarityBoostStar) || null : null,
@@ -687,10 +687,15 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
                 </div>
                 <p className="font-fantasy text-[#6a5840] text-[8px] mt-0.5">Full: fish roams entire aquarium. Bottom: fish stays near the floor with a little swim room.</p>
               </div>
+            </div>
+          )}
+
+          {fishingType === "pole" && (
+            <div className="space-y-3">
               <div>
                 <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Catch Ease (%)</label>
                 <input
-                  data-testid="input-fish-catch-ease"
+                  data-testid="input-pole-catch-ease"
                   type="number"
                   value={catchEasePercent}
                   onChange={(e) => setCatchEasePercent(e.target.value)}
@@ -700,13 +705,8 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
                   className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
                   style={inputStyle}
                 />
-                <p className="font-fantasy text-[#6a5840] text-[8px] mt-0.5">0 = normal difficulty. 100 = no resistance. Each % reduces tension rise, escape speed, and surge strength for this fish.</p>
+                <p className="font-fantasy text-[#6a5840] text-[8px] mt-0.5">0 = normal difficulty. 100 = no resistance. Reduces tension rise, escape speed, and surge strength while using this pole.</p>
               </div>
-            </div>
-          )}
-
-          {fishingType === "pole" && (
-            <div className="space-y-3">
               <div>
                 <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Uses Before Breaking</label>
                 <input
