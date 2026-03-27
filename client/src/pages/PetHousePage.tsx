@@ -1819,23 +1819,24 @@ function InsideRoom({ onClose }: { onClose: () => void }) {
         </p>
       </div>
 
-      {/* Close button */}
-      <button
-        data-testid="button-close-inside-room"
-        onClick={onClose}
-        className="absolute z-50 w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm active:scale-90 transition-transform"
-        style={{
-          top: "calc(env(safe-area-inset-top, 0px) + 12px)",
-          right: 12,
-          background: "rgba(10,6,2,0.85)",
-          border: "1.5px solid rgba(212,160,23,0.45)",
-          color: "rgba(212,160,23,0.85)",
-          cursor: "pointer",
-          boxShadow: "0 0 10px rgba(212,160,23,0.2)",
-        }}
-      >
-        ✕
-      </button>
+      {/* Go Back Outside button */}
+      <div className="absolute bottom-0 left-0 right-0 flex justify-center pointer-events-none" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 32px)" }}>
+        <button
+          data-testid="button-go-outside"
+          onClick={onClose}
+          className="pointer-events-auto active:scale-95 transition-transform font-fantasy text-xs tracking-widest px-6 py-3 rounded-full"
+          style={{
+            background: "linear-gradient(160deg, rgba(30,18,4,0.96) 0%, rgba(15,9,2,0.98) 100%)",
+            border: "1.5px solid rgba(212,160,23,0.55)",
+            color: "rgba(212,160,23,0.9)",
+            boxShadow: "0 0 18px rgba(212,160,23,0.18), 0 4px 16px rgba(0,0,0,0.55)",
+            cursor: "pointer",
+            letterSpacing: "0.2em",
+          }}
+        >
+          ← Go Back Outside
+        </button>
+      </div>
     </div>
   );
 }
