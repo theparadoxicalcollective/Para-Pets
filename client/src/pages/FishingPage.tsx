@@ -35,7 +35,6 @@ interface ShopItem {
   type: string;
   fishingType: string | null;
   starRarity: number | null;
-  rareCatchBoostPercent: number | null;
   rarityBoostPercent: number | null;
   baitRarityBoostStar?: number | null;
   catchEasePercent?: number | null;
@@ -371,8 +370,6 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           }
           const baitBoost = equipDataRef.current?.baitItem?.rarityBoostPercent ?? 0;
           const baitTargetStar = equipDataRef.current?.baitItem?.baitRarityBoostStar ?? 0;
-          const poleBoost = equipDataRef.current?.poleItem?.rareCatchBoostPercent ?? 0;
-
           // Bait boost works as a direct probability roll: if baitBoost is 100 and targetStar is 5,
           // there is a 100% chance to force a 5★ fish. If 50%, half the time a 5★ is forced.
           // If the forced rarity has no fish in this pond, fall through to normal weighted selection.
@@ -388,9 +385,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           } else {
             const weights = pondFish.map(f => {
               const r = parseInt(String(f?.item?.starRarity ?? 1), 10) || 1;
-              let w = (rarityWeights[r] ?? 20) / (rarityCounts[r] ?? 1);
-              if (poleBoost > 0 && r >= 4) w += (poleBoost / 100) * w;
-              return Math.max(0.01, w);
+              return Math.max(0.01, (rarityWeights[r] ?? 20) / (rarityCounts[r] ?? 1));
             });
             const totalWeight = weights.reduce((a, b) => a + b, 0);
             let roll = Math.random() * totalWeight;

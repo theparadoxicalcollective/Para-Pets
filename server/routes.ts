@@ -934,7 +934,6 @@ export async function registerRoutes(
         specialSkill: shopItem?.specialSkill ?? null,
         skillDamagePercent: shopItem?.skillDamagePercent ?? null,
         fishingType: shopItem?.fishingType ?? null,
-        rareCatchBoostPercent: shopItem?.rareCatchBoostPercent ?? null,
         rarityBoostPercent: shopItem?.rarityBoostPercent ?? null,
         baitRarityBoostStar: shopItem?.baitRarityBoostStar ?? null,
         baitCatchBoost: shopItem?.baitCatchBoost ?? null,
@@ -3609,15 +3608,7 @@ export async function registerRoutes(
 
       // Fallback: if the client didn't send an ID or it wasn't found in this pond, random-select
       if (!chosenEntry) {
-        let poleBoost = 0;
         let baitBoost = 0;
-        if (equipment?.poleInventoryId) {
-          const inv = await storage.getInventoryItemById(equipment.poleInventoryId);
-          if (inv) {
-            const pole = await storage.getShopItem(inv.shopItemId);
-            poleBoost = pole?.rareCatchBoostPercent ?? 0;
-          }
-        }
         let baitRarityBoostStar = 0;
         if (equipment?.baitInventoryId) {
           const inv = await storage.getInventoryItemById(equipment.baitInventoryId);
@@ -3648,8 +3639,7 @@ export async function registerRoutes(
         } else {
           const fishPool = pondEntries.map(entry => {
             const star = parseInt(String(entry.item?.starRarity ?? 1), 10) || 1;
-            let weight = (baseWeights[star] ?? 10) / (rarityCounts[star] ?? 1);
-            if (star >= 4) weight += (poleBoost / 100) * weight;
+            const weight = (baseWeights[star] ?? 10) / (rarityCounts[star] ?? 1);
             return { entry, weight: Math.max(0.01, weight) };
           });
           const totalWeight = fishPool.reduce((sum, f) => sum + f.weight, 0);

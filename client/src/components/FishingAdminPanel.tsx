@@ -17,7 +17,6 @@ interface FishingItem {
   imageUrl: string | null;
   hooklessImageUrl: string | null;
   starRarity: number | null;
-  rareCatchBoostPercent: number | null;
   rarityBoostPercent: number | null;
   baitRarityBoostStar: number | null;
   poleMaxUses: number | null;
@@ -476,7 +475,6 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
     (item?.fishingType as "pole" | "bait" | "fish") || "fish"
   );
   const [starRarity, setStarRarity] = useState(item?.starRarity?.toString() || "1");
-  const [rareCatchBoostPercent, setRareCatchBoostPercent] = useState(item?.rareCatchBoostPercent?.toString() || "0");
   const [rarityBoostPercent, setRarityBoostPercent] = useState(item?.rarityBoostPercent?.toString() || "0");
   const [baitRarityBoostStar, setBaitRarityBoostStar] = useState(item?.baitRarityBoostStar?.toString() || "3");
   const [poleMaxUses, setPoleMaxUses] = useState(item?.poleMaxUses?.toString() || "");
@@ -533,7 +531,6 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
         facingDirection: fishingType === "fish" ? facingDirection : null,
         fishSwimZone: fishingType === "fish" ? fishSwimZone : null,
         catchEasePercent: fishingType === "pole" ? (parseInt(catchEasePercent) || 0) : null,
-        rareCatchBoostPercent: fishingType === "pole" ? parseInt(rareCatchBoostPercent) || 0 : null,
         rarityBoostPercent: fishingType === "bait" ? parseInt(rarityBoostPercent) || 0 : null,
         baitRarityBoostStar: fishingType === "bait" ? parseInt(baitRarityBoostStar) || null : null,
         baitCatchBoost: null,
