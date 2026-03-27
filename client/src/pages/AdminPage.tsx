@@ -58,7 +58,7 @@ export default function AdminPage({ user }: AdminPageProps) {
     queryKey: ["/api/admin/users"],
   });
 
-  const sortedMembers = [...members].sort((a, b) => b.coins - a.coins);
+  const sortedMembers = [...members].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const banMutation = useMutation({
     mutationFn: async ({ userId, ban }: { userId: string; ban: boolean }) => {
