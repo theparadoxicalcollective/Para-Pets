@@ -509,7 +509,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       calm:   { tRiseMult: 1.0,  reelMult: 1.0,  escapeMult: 1.0  },
       resist: { tRiseMult: 1.5,  reelMult: 0.7,  escapeMult: 1.4  },
       tired:  { tRiseMult: 0.5,  reelMult: 1.5,  escapeMult: 0.6  },
-      surge:  { tRiseMult: 2.2,  reelMult: 0.5,  escapeMult: 2.0  },
+      surge:  { tRiseMult: 2.2,  reelMult: 0.5,  escapeMult: 1.3  },
     };
 
     const GRACE_MS = 1200; // player has 1.2s to find the hold button after nibble
