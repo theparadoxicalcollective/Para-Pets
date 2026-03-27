@@ -333,6 +333,7 @@ export async function registerRoutes(
       } catch (rewardErr) {
         console.error("Failed to create welcome reward, giving coins directly:", rewardErr);
         await storage.addCoins(user.id, 500);
+        await storage.setWelcomeV2Sent(user.id);
       }
 
       req.login(user, (err) => {

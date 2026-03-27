@@ -272,14 +272,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async addCoins(id: string, amount: number): Promise<User> {
-    const user = await this.getUser(id);
-    if (!user) throw new Error("User not found");
-    const newCoins = Math.max(0, user.coins + amount);
     const [updated] = await db
       .update(users)
-      .set({ coins: newCoins })
+      .set({ coins: sql`GREATEST(0, ${users.coins} + ${amount})` })
       .where(eq(users.id, id))
       .returning();
+    if (!updated) throw new Error("User not found");
     return updated;
   }
 
