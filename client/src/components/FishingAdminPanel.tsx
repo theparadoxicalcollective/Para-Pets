@@ -48,6 +48,7 @@ const FISH_PART_TYPES = [
   { key: "tail",       label: "Tail",       defaultZ: 2 },
   { key: "top_fin",    label: "Top Fin",    defaultZ: 3 },
   { key: "bottom_fin", label: "Bottom Fin", defaultZ: 0 },
+  { key: "head_fin",   label: "Head Fin",   defaultZ: 4 },
 ] as const;
 
 const CANVAS_SIZE = 500;

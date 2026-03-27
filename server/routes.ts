@@ -3358,7 +3358,7 @@ export async function registerRoutes(
     }
   });
 
-  const ALLOWED_FISH_PART_TYPES = new Set(["body", "tail", "top_fin", "bottom_fin"]);
+  const ALLOWED_FISH_PART_TYPES = new Set(["body", "tail", "top_fin", "bottom_fin", "head_fin"]);
   const ALLOWED_EQUIP_SLOTS = new Set(["pole", "bait"]);
 
   app.post("/api/admin/fish-parts/:fishItemId", isAuthenticated, async (req, res) => {
