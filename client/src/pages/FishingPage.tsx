@@ -37,6 +37,7 @@ interface ShopItem {
   starRarity: number | null;
   rareCatchBoostPercent: number | null;
   rarityBoostPercent: number | null;
+  baitRarityBoostStar?: number | null;
   poleMaxUses?: number | null;
   poleSlowdown3?: number | null;
   poleSlowdown4?: number | null;
@@ -367,9 +368,19 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
             const r = parseInt(String(f?.item?.starRarity ?? 1), 10) || 1;
             rarityCounts[r] = (rarityCounts[r] ?? 0) + 1;
           }
+          const baitBoost = equipDataRef.current?.baitItem?.rarityBoostPercent ?? 0;
+          const baitTargetStar = equipDataRef.current?.baitItem?.baitRarityBoostStar ?? 0;
+          const poleBoost = equipDataRef.current?.poleItem?.rareCatchBoostPercent ?? 0;
           const weights = pondFish.map(f => {
             const r = parseInt(String(f?.item?.starRarity ?? 1), 10) || 1;
-            return (rarityWeights[r] ?? 20) / (rarityCounts[r] ?? 1);
+            let w = (rarityWeights[r] ?? 20) / (rarityCounts[r] ?? 1);
+            if (baitBoost > 0 && baitTargetStar > 0 && r === baitTargetStar) {
+              w += (baitBoost / 100) * w;
+            }
+            if (poleBoost > 0 && r >= 4) {
+              w += (poleBoost / 100) * w;
+            }
+            return Math.max(0.01, w);
           });
           const totalWeight = weights.reduce((a, b) => a + b, 0);
           let roll = Math.random() * totalWeight;
