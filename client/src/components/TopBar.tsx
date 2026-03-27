@@ -248,9 +248,9 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                   <div
                     data-testid="popup-friends-list"
                     style={{
-                      position: "absolute",
-                      top: "calc(100% + 8px)",
-                      left: 0,
+                      position: "fixed",
+                      top: 68,
+                      left: 8,
                       width: 250,
                       maxHeight: "55vh",
                       overflowY: "auto",
