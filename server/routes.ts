@@ -3348,6 +3348,15 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/fish-parts/:fishItemId", isAuthenticated, async (req, res) => {
+    try {
+      const parts = await storage.getFishTemplateParts(req.params.fishItemId);
+      return res.json(parts);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
   app.get("/api/admin/fish-parts/:fishItemId", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
@@ -3564,7 +3573,17 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
       const fish = await storage.getPlayerFishInventory(user.id);
-      return res.json(fish);
+      const uniqueShopItemIds = [...new Set(fish.map(f => f.shopItemId))];
+      const partsMap = new Map<string, boolean>();
+      await Promise.all(uniqueShopItemIds.map(async (id) => {
+        const parts = await storage.getFishTemplateParts(id);
+        partsMap.set(id, parts.length > 0);
+      }));
+      const result = fish.map(f => ({
+        ...f,
+        item: f.item ? { ...f.item, hasParts: partsMap.get(f.shopItemId) ?? false } : null,
+      }));
+      return res.json(result);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }

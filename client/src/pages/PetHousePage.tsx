@@ -998,7 +998,7 @@ interface AqCaughtFish {
   shopItemId: string;
   caughtAt: string;
   inAquarium: boolean;
-  item: { id: string; name: string; imageUrl: string | null; starRarity: number | null; facingDirection: string | null; fishSwimZone?: string | null } | null;
+  item: { id: string; name: string; imageUrl: string | null; starRarity: number | null; facingDirection: string | null; fishSwimZone?: string | null; hasParts?: boolean } | null;
 }
 
 interface AqFishEntry {
@@ -1009,6 +1009,7 @@ interface AqFishEntry {
   starRarity: number | null;
   facingDirection: string | null;
   fishSwimZone?: string | null;
+  hasParts?: boolean;
 }
 
 interface SwimmingFish extends AqFishEntry {
@@ -1051,6 +1052,55 @@ function makeSwimmer(entry: AqFishEntry, x?: number, y?: number): SwimmingFish {
     state: "normal",
     stateTimer: 60 + Math.floor(Math.random() * 120),
   };
+}
+
+const FISH_PARTS_CANVAS = 500;
+
+interface FishPartData {
+  id: string;
+  partType: string;
+  imageUrl: string;
+  posX: number;
+  posY: number;
+  width: number;
+  height: number;
+  zIndex: number;
+}
+
+function FishPartsView({ fishItemId, size, flipped }: { fishItemId: string; size: number; flipped: boolean }) {
+  const { data: parts = [] } = useQuery<FishPartData[]>({
+    queryKey: ["/api/fish-parts", fishItemId],
+    queryFn: async () => {
+      const res = await fetch(`/api/fish-parts/${fishItemId}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to load fish parts");
+      return res.json();
+    },
+    staleTime: Infinity,
+  });
+
+  return (
+    <div style={{ position: "relative", width: size, height: size, transform: flipped ? "scaleX(-1)" : undefined }}>
+      {[...parts].sort((a, b) => a.zIndex - b.zIndex).map(part => (
+        <img
+          key={part.id}
+          src={part.imageUrl}
+          alt={part.partType}
+          draggable={false}
+          style={{
+            position: "absolute",
+            left: `${(part.posX / FISH_PARTS_CANVAS) * 100}%`,
+            top: `${(part.posY / FISH_PARTS_CANVAS) * 100}%`,
+            width: `${(part.width / FISH_PARTS_CANVAS) * 100}%`,
+            height: `${(part.height / FISH_PARTS_CANVAS) * 100}%`,
+            zIndex: part.zIndex,
+            objectFit: "contain",
+            pointerEvents: "none",
+            userSelect: "none",
+          }}
+        />
+      ))}
+    </div>
+  );
 }
 
 export function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string }) {
@@ -1135,6 +1185,7 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
         starRarity: item.starRarity ?? s.starRarity,
         facingDirection: item.facingDirection ?? s.facingDirection,
         fishSwimZone: zone,
+        hasParts: item.hasParts ?? s.hasParts,
         y: Math.max(yMin, Math.min(yMax, s.y)),
       };
     }));
@@ -1394,9 +1445,15 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
             zIndex: 10,
           }}
         >
-          {f.imageUrl
-            ? <img src={f.imageUrl} alt={f.name} style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none", userSelect: "none", transform: ((f.facingDirection !== "left") !== f.facingRight) ? "scaleX(-1)" : undefined }} draggable={false} />
-            : <img src={fishCommonIconPH} alt="" style={{ width: 34, height: 34, objectFit: "contain", opacity: 0.7, pointerEvents: "none", userSelect: "none" }} draggable={false} />}
+          {f.hasParts
+            ? <FishPartsView
+                fishItemId={f.shopItemId}
+                size={fishSize}
+                flipped={((f.facingDirection !== "left") !== f.facingRight)}
+              />
+            : f.imageUrl
+              ? <img src={f.imageUrl} alt={f.name} style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none", userSelect: "none", transform: ((f.facingDirection !== "left") !== f.facingRight) ? "scaleX(-1)" : undefined }} draggable={false} />
+              : <img src={fishCommonIconPH} alt="" style={{ width: 34, height: 34, objectFit: "contain", opacity: 0.7, pointerEvents: "none", userSelect: "none" }} draggable={false} />}
         </button>
         );
       })}
