@@ -484,8 +484,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     const poleSlowdownMult = 1 + poleSlowdownPct / 100;
 
     const idx = rarity - 1;
-    // catchEasePercent on the equipped pole reduces overall fight difficulty
-    const poleEase = Math.min(100, Math.max(0, equipDataRef.current?.poleItem?.catchEasePercent ?? 0));
+    // catchEasePercent on the equipped pole reduces fight difficulty for 3★+ fish only
+    const poleEase = rarity >= 3 ? Math.min(100, Math.max(0, equipDataRef.current?.poleItem?.catchEasePercent ?? 0)) : 0;
     const easeMult = 1 - (poleEase / 100);
     const baseReelRate  = baseReelRates[idx] * (1 + baitCatchBoost / 100);
     const baseTRise     = baseTensionRise[idx] * poleSlowdownMult * easeMult;
