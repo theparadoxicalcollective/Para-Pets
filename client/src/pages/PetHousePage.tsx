@@ -1258,10 +1258,14 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
     }
     swimZoneRef.current = newZoneMap;
 
-    // Also patch aquariumFish entries so localStorage always has up-to-date hasParts / metadata.
-    setAquariumFish(prev => {
+    // Patch aquariumFish entries in localStorage with up-to-date hasParts / metadata.
+    // We write directly to localStorage (not via setAquariumFish) so we never trigger
+    // the sync effect — which would re-call syncToDb and start a mutation/invalidate
+    // cycle that can race with in-flight saves and corrupt persisted state.
+    {
+      const current = aquariumFishRef.current;
       let changed = false;
-      const next = prev.map(f => {
+      const next = current.map(f => {
         const item = itemByShopId.get(f.shopItemId);
         if (!item) return f;
         const updated: AqFishEntry = {
@@ -1280,11 +1284,12 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
         ) changed = true;
         return updated;
       });
-      if (!changed) return prev;
-      // Persist updated metadata to localStorage immediately
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
-      return next;
-    });
+      if (changed) {
+        // Write fresh metadata to localStorage only — no state change so the
+        // sync effect is never triggered (avoids the mutation→invalidate→rerender loop).
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
+      }
+    }
 
     setSwimmers(prev => prev.map(s => {
       const item = itemByShopId.get(s.shopItemId);
