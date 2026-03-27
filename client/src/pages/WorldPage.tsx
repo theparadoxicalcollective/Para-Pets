@@ -3050,80 +3050,84 @@ export default function WorldPage({ user }: WorldPageProps) {
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
             <div className="absolute inset-0 bg-black/65" onClick={() => { setSelectedShopItem(null); setBuyStep(0); setBuyError(null); }} />
-            {/* Price tag card — square container, tag image fills it */}
-            <div className="relative z-10" style={{ width: "min(300px, 86vw)", aspectRatio: "1 / 1" }}>
+            {/* Price tag — bigger square so content breathes */}
+            <div className="relative z-10" style={{ width: "min(350px, 92vw)", aspectRatio: "1 / 1" }}>
+              {/* Tag background */}
               <img
                 src={priceTagImg}
                 alt=""
                 className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
-                style={{ filter: "drop-shadow(0 10px 32px rgba(0,0,0,0.9)) drop-shadow(0 2px 6px rgba(0,0,0,0.6))" }}
+                style={{ filter: "drop-shadow(0 12px 36px rgba(0,0,0,0.92)) drop-shadow(0 2px 8px rgba(0,0,0,0.7))" }}
               />
-              {/* Close button sits at top-right of the wooden body */}
+              {/* Item image — large, no box, floating at top of wooden body */}
+              {imgSrc && (
+                <img
+                  src={imgSrc}
+                  alt={item.name}
+                  className="absolute object-contain pointer-events-none select-none"
+                  style={{
+                    width: "72px", height: "72px",
+                    left: "50%", top: "24%",
+                    transform: "translateX(-50%)",
+                    filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.55))",
+                    zIndex: 5,
+                  }}
+                />
+              )}
+              {/* Close button */}
               <button
                 onClick={() => { setSelectedShopItem(null); setBuyStep(0); setBuyError(null); }}
-                className="absolute z-20 w-6 h-6 rounded-full flex items-center justify-center transition-transform active:scale-90"
-                style={{ top: "33%", right: "9%", background: "rgba(50,20,5,0.7)", border: "1px solid rgba(140,75,20,0.5)", color: "#c8a050", cursor: "pointer" }}
+                className="absolute z-20 w-7 h-7 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                style={{ top: "31%", right: "8%", background: "rgba(45,18,4,0.75)", border: "1px solid rgba(160,90,25,0.55)", color: "#d4a84a", cursor: "pointer" }}
               >
-                <X className="w-3 h-3" />
+                <X className="w-3.5 h-3.5" />
               </button>
-              {/* Content overlaid on the wooden body (below the rope loop ~33%) */}
-              <div className="absolute flex flex-col" style={{ top: "36%", left: "12%", right: "12%", bottom: "8%" }}>
+              {/* Content — sits below the item image in the wooden body */}
+              <div className="absolute flex flex-col items-center" style={{ top: "47%", left: "13%", right: "13%", bottom: "7%", gap: "5px" }}>
                 {buyStep === 1 && (
-                  <div className="flex flex-col h-full justify-between">
-                    {/* Item info */}
-                    <div className="flex gap-2 items-start">
-                      <div
-                        className="flex-shrink-0 rounded-lg flex items-center justify-center"
-                        style={{ width: "46px", height: "46px", background: "rgba(70,35,8,0.25)", border: "1.5px solid rgba(130,70,20,0.4)" }}
-                      >
-                        {imgSrc ? (
-                          <img src={imgSrc} alt={item.name} className="w-full h-full object-contain p-1" />
-                        ) : (
-                          <Package className="w-6 h-6" style={{ color: "rgba(100,55,15,0.5)" }} />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-fantasy text-[12px] font-bold leading-tight" style={{ color: "#2a0d00" }} data-testid="text-detail-item-name">
-                          {item.name}
-                        </h3>
-                        <span className="font-fantasy text-[7.5px] px-1.5 py-px rounded-full capitalize inline-block mt-0.5" style={{ background: "rgba(70,35,8,0.22)", color: "#5a2c00", border: "1px solid rgba(120,60,15,0.35)" }}>
-                          {item.type}
-                        </span>
-                        {descLines.length > 0 && (
-                          <div className="mt-0.5 flex flex-col gap-px">
-                            {descLines.slice(0, 2).map((line, i) => (
-                              <div key={i} className="font-fantasy text-[8px] leading-tight flex items-start gap-1" style={{ color: "#3d1800" }}>
-                                <span style={{ color: "#8b4510", fontSize: "5px", marginTop: "3px", flexShrink: 0 }}>◆</span>
-                                <span>{line}</span>
-                              </div>
-                            ))}
+                  <>
+                    {/* Name + type */}
+                    <h3 className="font-fantasy text-[13px] font-bold text-center leading-tight w-full" style={{ color: "#1e0900" }} data-testid="text-detail-item-name">
+                      {item.name}
+                    </h3>
+                    <span className="font-fantasy text-[8px] px-2 py-px rounded-full capitalize" style={{ background: "rgba(65,30,5,0.2)", color: "#4a2000", border: "1px solid rgba(110,55,15,0.35)" }}>
+                      {item.type}
+                    </span>
+                    {/* Desc lines */}
+                    {descLines.length > 0 && (
+                      <div className="w-full flex flex-col items-center gap-px">
+                        {descLines.slice(0, 2).map((line, i) => (
+                          <div key={i} className="font-fantasy text-[8.5px] text-center leading-snug" style={{ color: "#3a1500" }}>
+                            {line}
                           </div>
-                        )}
+                        ))}
                       </div>
-                    </div>
-                    {/* Bottom actions */}
+                    )}
+                    {/* Divider */}
+                    <div className="w-4/5" style={{ borderTop: "1px solid rgba(100,50,10,0.3)", marginTop: "1px" }} />
+                    {/* Actions */}
                     {isOwned ? (
-                      <div className="text-center font-fantasy text-[9px] py-1.5 rounded-lg" style={{ background: "rgba(0,100,65,0.18)", color: "#004d33", border: "1px solid rgba(0,100,65,0.3)" }}>
+                      <div className="w-full text-center font-fantasy text-[9px] py-1.5 rounded-lg" style={{ background: "rgba(0,90,55,0.18)", color: "#004428", border: "1px solid rgba(0,90,55,0.3)" }}>
                         You already own this pet
                       </div>
                     ) : (
-                      <div className="flex flex-col gap-1.5">
+                      <div className="w-full flex flex-col gap-1.5">
                         {item.type !== "pet" && (
-                          <div className="flex items-center justify-between">
-                            <span className="font-fantasy text-[9px] font-semibold" style={{ color: "#3d1800" }}>Qty</span>
-                            <div className="flex items-center gap-2">
+                          <div className="flex items-center justify-between px-1">
+                            <span className="font-fantasy text-[9px] font-semibold" style={{ color: "#2e1000" }}>Qty</span>
+                            <div className="flex items-center gap-2.5">
                               <button
                                 data-testid="button-qty-minus"
                                 onClick={() => setBuyQty(q => Math.max(1, q - 1))}
-                                className="w-6 h-6 rounded-full flex items-center justify-center font-bold transition-transform active:scale-90"
-                                style={{ background: "rgba(70,35,8,0.35)", border: "1px solid rgba(130,70,20,0.5)", color: "#2a0d00", cursor: "pointer", fontSize: "15px", lineHeight: 1 }}
+                                className="w-7 h-7 rounded-full flex items-center justify-center font-bold transition-transform active:scale-90"
+                                style={{ background: "rgba(65,30,5,0.3)", border: "1px solid rgba(130,65,18,0.55)", color: "#1e0900", cursor: "pointer", fontSize: "16px", lineHeight: 1 }}
                               >−</button>
-                              <span className="font-fantasy text-[12px] font-bold min-w-[2ch] text-center" style={{ color: "#2a0d00" }} data-testid="text-buy-quantity">{buyQty}</span>
+                              <span className="font-fantasy text-[13px] font-bold min-w-[2ch] text-center" style={{ color: "#1e0900" }} data-testid="text-buy-quantity">{buyQty}</span>
                               <button
                                 data-testid="button-qty-plus"
                                 onClick={() => setBuyQty(q => Math.min(maxQty, q + 1))}
-                                className="w-6 h-6 rounded-full flex items-center justify-center font-bold transition-transform active:scale-90"
-                                style={{ background: "rgba(70,35,8,0.35)", border: "1px solid rgba(130,70,20,0.5)", color: "#2a0d00", cursor: "pointer", fontSize: "15px", lineHeight: 1 }}
+                                className="w-7 h-7 rounded-full flex items-center justify-center font-bold transition-transform active:scale-90"
+                                style={{ background: "rgba(65,30,5,0.3)", border: "1px solid rgba(130,65,18,0.55)", color: "#1e0900", cursor: "pointer", fontSize: "16px", lineHeight: 1 }}
                               >+</button>
                             </div>
                           </div>
@@ -3131,73 +3135,69 @@ export default function WorldPage({ user }: WorldPageProps) {
                         <button
                           data-testid="button-price-buy"
                           onClick={() => setBuyStep(2)}
-                          className="w-full py-1.5 rounded-lg font-fantasy text-[11px] tracking-wider font-bold transition-transform active:scale-95"
+                          className="w-full py-2 rounded-xl font-fantasy text-[12px] tracking-wide font-bold transition-transform active:scale-95"
                           style={{
-                            background: canAfford ? "linear-gradient(135deg, rgba(110,60,10,0.9) 0%, rgba(75,38,5,0.9) 100%)" : "rgba(90,70,45,0.35)",
-                            border: `1.5px solid ${canAfford ? "rgba(210,140,45,0.75)" : "rgba(100,75,40,0.3)"}`,
-                            color: canAfford ? "#f5c84a" : "#7a6040",
+                            background: canAfford ? "linear-gradient(135deg, rgba(115,62,10,0.92) 0%, rgba(78,40,6,0.92) 100%)" : "rgba(90,70,45,0.3)",
+                            border: `2px solid ${canAfford ? "rgba(220,148,42,0.8)" : "rgba(100,75,40,0.28)"}`,
+                            color: canAfford ? "#ffd04a" : "#7a6040",
                             cursor: "pointer",
-                            boxShadow: canAfford ? "0 2px 10px rgba(80,40,0,0.45)" : "none",
+                            boxShadow: canAfford ? "0 3px 12px rgba(90,45,0,0.45)" : "none",
                           }}
                         >
                           <div className="flex items-center justify-center gap-1.5">
-                            <img src={coinIconImg} alt="" className="w-3 h-3 object-contain" />
+                            <img src={coinIconImg} alt="" className="w-3.5 h-3.5 object-contain" />
                             <span>{totalCost} coins</span>
                           </div>
                         </button>
                         {!canAfford && (
-                          <p className="font-fantasy text-[8px] text-center" style={{ color: "#aa1c00" }} data-testid="text-not-enough-coins">Not enough coins</p>
+                          <p className="font-fantasy text-[8.5px] text-center -mt-1" style={{ color: "#9a1800" }} data-testid="text-not-enough-coins">Not enough coins</p>
                         )}
-                        <div className="flex items-center justify-center gap-0.5">
-                          <img src={coinIconImg} alt="" className="w-2.5 h-2.5 object-contain" style={{ opacity: 0.55 }} />
-                          <span className="font-fantasy text-[8px]" style={{ color: "#6b4020" }}>You have {currentUser.coins} coins</span>
+                        <div className="flex items-center justify-center gap-1">
+                          <img src={coinIconImg} alt="" className="w-2.5 h-2.5 object-contain opacity-50" />
+                          <span className="font-fantasy text-[8.5px]" style={{ color: "#5a3010" }}>You have {currentUser.coins} coins</span>
                         </div>
                       </div>
                     )}
-                  </div>
+                  </>
                 )}
                 {buyStep === 2 && (
-                  <div className="flex flex-col h-full justify-between">
-                    <div className="text-center flex flex-col items-center gap-1">
-                      <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "rgba(70,35,8,0.28)", border: "1.5px solid rgba(180,110,30,0.5)" }}>
-                        <img src={coinIconImg} alt="" className="w-6 h-6 object-contain" />
-                      </div>
-                      <h3 className="font-fantasy text-[12px] font-bold" style={{ color: "#2a0d00" }}>Confirm Purchase</h3>
-                      <p className="font-fantasy text-[9px]" style={{ color: "#5a2c00" }}>
-                        {item.type === "pet" ? `Buy ${item.name}` : `Buy ${buyQty}× ${item.name}`}
-                      </p>
-                      <div className="flex items-center gap-1">
-                        <img src={coinIconImg} alt="" className="w-3.5 h-3.5 object-contain" />
-                        <span className="font-fantasy text-[14px] font-bold" style={{ color: "#2a0d00" }} data-testid="text-confirm-total-cost">{totalCost} coins</span>
-                      </div>
+                  <>
+                    <h3 className="font-fantasy text-[14px] font-bold text-center" style={{ color: "#1e0900" }}>Confirm Purchase</h3>
+                    <p className="font-fantasy text-[9.5px] text-center" style={{ color: "#4a2000" }}>
+                      {item.type === "pet" ? `Buy ${item.name}` : `Buy ${buyQty}× ${item.name}`}
+                    </p>
+                    <div className="flex items-center justify-center gap-1.5">
+                      <img src={coinIconImg} alt="" className="w-4 h-4 object-contain" />
+                      <span className="font-fantasy text-[16px] font-bold" style={{ color: "#1e0900" }} data-testid="text-confirm-total-cost">{totalCost} coins</span>
                     </div>
+                    <div className="w-4/5" style={{ borderTop: "1px solid rgba(100,50,10,0.3)" }} />
                     {buyError && (
-                      <div className="px-2 py-1 rounded-lg font-fantasy text-[8px] text-center" style={{ background: "rgba(160,15,15,0.14)", color: "#7a0000", border: "1px solid rgba(160,15,15,0.3)" }} data-testid="text-buy-error">
+                      <div className="w-full px-2 py-1 rounded-lg font-fantasy text-[8.5px] text-center" style={{ background: "rgba(150,10,10,0.13)", color: "#700000", border: "1px solid rgba(150,10,10,0.28)" }} data-testid="text-buy-error">
                         {buyError}
                       </div>
                     )}
-                    <div className="flex gap-2">
+                    <div className="w-full flex gap-2 mt-auto">
                       <button
                         data-testid="button-confirm-cancel"
                         onClick={() => { setBuyStep(1); setBuyError(null); }}
-                        className="flex-1 py-1.5 rounded-lg font-fantasy text-[10px] tracking-wider font-semibold transition-transform active:scale-95"
-                        style={{ background: "rgba(70,45,20,0.35)", border: "1px solid rgba(110,70,25,0.4)", color: "#5a3210", cursor: "pointer" }}
+                        className="flex-1 py-2 rounded-xl font-fantasy text-[11px] tracking-wide font-semibold transition-transform active:scale-95"
+                        style={{ background: "rgba(65,38,12,0.3)", border: "1px solid rgba(115,65,20,0.4)", color: "#4a2800", cursor: "pointer" }}
                       >Cancel</button>
                       <button
                         data-testid="button-confirm-buy"
                         onClick={() => buyMutation.mutate({ itemId: item.id, quantity: buyQty })}
                         disabled={buyMutation.isPending}
-                        className="flex-1 py-1.5 rounded-lg font-fantasy text-[10px] tracking-wider font-bold transition-transform active:scale-95 disabled:opacity-50"
+                        className="flex-1 py-2 rounded-xl font-fantasy text-[11px] tracking-wide font-bold transition-transform active:scale-95 disabled:opacity-50"
                         style={{
-                          background: "linear-gradient(135deg, rgba(110,60,10,0.9) 0%, rgba(75,38,5,0.9) 100%)",
-                          border: "1.5px solid rgba(210,140,45,0.75)",
-                          color: "#f5c84a",
+                          background: "linear-gradient(135deg, rgba(115,62,10,0.92) 0%, rgba(78,40,6,0.92) 100%)",
+                          border: "2px solid rgba(220,148,42,0.8)",
+                          color: "#ffd04a",
                           cursor: "pointer",
-                          boxShadow: "0 2px 10px rgba(80,40,0,0.45)",
+                          boxShadow: "0 3px 12px rgba(90,45,0,0.45)",
                         }}
                       >{buyMutation.isPending ? "Buying..." : "Buy!"}</button>
                     </div>
-                  </div>
+                  </>
                 )}
               </div>
             </div>
