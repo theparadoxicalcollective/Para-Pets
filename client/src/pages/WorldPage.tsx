@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import coinIconImg from "@assets/icon_coin.png";
+import priceTagImg from "@assets/price_tag.png";
 import fishCommonIconWp from "@assets/generated_images/icon_fish_common.png";
 import fishRodIconWp from "@assets/icon_fishing_pole.png";
 import { Plus, Minus, Trash2, X, MapPin, Package, Pencil, Settings, Swords, FlipHorizontal, Copy, Waves, Palette, Heart, Droplets } from "lucide-react";
@@ -3021,10 +3022,34 @@ export default function WorldPage({ user }: WorldPageProps) {
                       ? (item.rarity ? "★".repeat(item.rarity) : "Egg")
                       : (getItemDescription(item)[0] || "");
                     return (
-                      <div className="absolute left-1/2 pointer-events-none text-center" style={{ top: "100%", transform: "translateX(-50%)", marginTop: "3px", width: "max-content", maxWidth: "110px" }}>
-                        {summary && <div className="font-fantasy text-[9px] whitespace-nowrap" style={{ color: "#e8d5a0", textShadow: "0 1px 4px rgba(0,0,0,0.95)" }}>{summary}</div>}
-                        <div className="font-fantasy text-[9px] flex items-center gap-0.5 justify-center" style={{ color: accent, textShadow: "0 1px 4px rgba(0,0,0,0.95)" }}>
-                          <img src={coinIconImg} alt="" className="w-2.5 h-2.5 object-contain" />{item.price}
+                      <div
+                        className="absolute left-1/2 pointer-events-none"
+                        style={{ top: "calc(100% - 14px)", transform: "translateX(-50%)", width: "58px", height: "66px", zIndex: 20 }}
+                      >
+                        <img
+                          src={priceTagImg}
+                          alt=""
+                          className="absolute inset-0 w-full h-full object-contain"
+                          style={{ filter: "drop-shadow(0 2px 5px rgba(0,0,0,0.65))" }}
+                        />
+                        <div
+                          className="absolute flex flex-col items-center justify-center gap-px"
+                          style={{ top: "34%", left: "10%", right: "10%", bottom: "7%" }}
+                        >
+                          {summary && (
+                            <div
+                              className="font-fantasy text-center leading-none w-full overflow-hidden whitespace-nowrap"
+                              style={{ fontSize: "6.5px", color: "#4a2200", textShadow: "0 0.5px 1px rgba(255,200,120,0.35)" }}
+                            >
+                              {summary}
+                            </div>
+                          )}
+                          <div className="flex items-center gap-px justify-center">
+                            <img src={coinIconImg} alt="" className="w-2 h-2 object-contain" />
+                            <span className="font-fantasy" style={{ fontSize: "8px", color: "#4a2200", textShadow: "0 0.5px 1px rgba(255,200,120,0.35)" }}>
+                              {item.price}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     );
