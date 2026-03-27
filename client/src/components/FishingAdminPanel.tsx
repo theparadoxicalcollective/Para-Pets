@@ -27,6 +27,7 @@ interface FishingItem {
   poleSlowdown5: number | null;
   baitCatchBoost: number | null;
   fishSwimZone: string | null;
+  catchEasePercent: number | null;
   locationId: string | null;
   createdAt: string;
 }
@@ -479,6 +480,7 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
   const [rarityBoostPercent, setRarityBoostPercent] = useState(item?.rarityBoostPercent?.toString() || "0");
   const [baitRarityBoostStar, setBaitRarityBoostStar] = useState(item?.baitRarityBoostStar?.toString() || "3");
   const [poleMaxUses, setPoleMaxUses] = useState(item?.poleMaxUses?.toString() || "");
+  const [catchEasePercent, setCatchEasePercent] = useState(item?.catchEasePercent?.toString() || "0");
   const [fishSwimZone, setFishSwimZone] = useState<"full" | "bottom">((item?.fishSwimZone as "full" | "bottom") || "full");
   const [facingDirection, setFacingDirection] = useState<"right" | "left">(
     (item?.facingDirection as "right" | "left") || "right"
@@ -530,6 +532,7 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
         starRarity: fishingType === "fish" ? parseInt(starRarity) || 1 : null,
         facingDirection: fishingType === "fish" ? facingDirection : null,
         fishSwimZone: fishingType === "fish" ? fishSwimZone : null,
+        catchEasePercent: fishingType === "fish" ? (parseInt(catchEasePercent) || 0) : null,
         rareCatchBoostPercent: fishingType === "pole" ? parseInt(rareCatchBoostPercent) || 0 : null,
         rarityBoostPercent: fishingType === "bait" ? parseInt(rarityBoostPercent) || 0 : null,
         baitRarityBoostStar: fishingType === "bait" ? parseInt(baitRarityBoostStar) || null : null,
@@ -683,6 +686,21 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
                   ))}
                 </div>
                 <p className="font-fantasy text-[#6a5840] text-[8px] mt-0.5">Full: fish roams entire aquarium. Bottom: fish stays near the floor with a little swim room.</p>
+              </div>
+              <div>
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Catch Ease (%)</label>
+                <input
+                  data-testid="input-fish-catch-ease"
+                  type="number"
+                  value={catchEasePercent}
+                  onChange={(e) => setCatchEasePercent(e.target.value)}
+                  placeholder="0"
+                  min="0"
+                  max="100"
+                  className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+                  style={inputStyle}
+                />
+                <p className="font-fantasy text-[#6a5840] text-[8px] mt-0.5">0 = normal difficulty. 100 = no resistance. Each % reduces tension rise, escape speed, and surge strength for this fish.</p>
               </div>
             </div>
           )}

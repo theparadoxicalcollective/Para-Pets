@@ -38,6 +38,7 @@ interface ShopItem {
   rareCatchBoostPercent: number | null;
   rarityBoostPercent: number | null;
   baitRarityBoostStar?: number | null;
+  catchEasePercent?: number | null;
   poleMaxUses?: number | null;
   poleSlowdown3?: number | null;
   poleSlowdown4?: number | null;
@@ -107,6 +108,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
   const [bgError, setBgError] = useState(false);
   const nibbleRarityRef = useRef<number>(1);
   const selectedFishIdRef = useRef<string | null>(null);
+  const selectedFishEaseRef = useRef<number>(0);
   const [nibbleCount, setNibbleCount] = useState(0);
   const nibbleCountRef = useRef(0);
   const [nibbleWindowMs, setNibbleWindowMs] = useState(2500);
@@ -401,6 +403,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           // Parse starRarity as integer — DB can return it as a string in some drivers
           nibbleRarityRef.current = parseInt(String(randomFish?.item?.starRarity ?? 1), 10) || 1;
           selectedFishIdRef.current = randomFish?.shopItemId ?? null;
+          selectedFishEaseRef.current = Math.min(100, Math.max(0, randomFish?.item?.catchEasePercent ?? 0));
           const nibbleRarity = Math.max(1, Math.min(5, nibbleRarityRef.current));
           const maxNibbles   = NIBBLE_MAX_BY_RARITY[nibbleRarity - 1];
           const nibbleMs     = NIBBLE_TIMEOUT_BY_RARITY[nibbleRarity - 1];
@@ -483,11 +486,13 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     const poleSlowdownMult = 1 + poleSlowdownPct / 100;
 
     const idx = rarity - 1;
+    // catchEasePercent reduces overall fight difficulty for this specific fish
+    const easeMult = 1 - (selectedFishEaseRef.current / 100);
     const baseReelRate  = baseReelRates[idx] * (1 + baitCatchBoost / 100);
-    const baseTRise     = baseTensionRise[idx] * poleSlowdownMult;
+    const baseTRise     = baseTensionRise[idx] * poleSlowdownMult * easeMult;
     const tFall         = tensionFalls[idx];
-    const basePDrag     = baseProgressDrags[idx];
-    const baseEscRate   = baseEscapeRate[idx];
+    const basePDrag     = baseProgressDrags[idx] * easeMult;
+    const baseEscRate   = baseEscapeRate[idx] * easeMult;
     const escReelRate   = escapeReelRate[idx];
     const sLow          = sweetLow[idx];
     const sHigh         = sweetHigh[idx];
@@ -515,10 +520,10 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     // tired:  tension rises slower, progress faster, escape drains faster
     // surge:  tension spikes, escape spikes — player must release briefly
     const STATE_MODS: Record<FishBehaviorState, { tRiseMult: number; reelMult: number; escapeMult: number }> = {
-      calm:   { tRiseMult: 1.0,  reelMult: 1.0,  escapeMult: 1.0  },
-      resist: { tRiseMult: 1.5,  reelMult: 0.7,  escapeMult: 1.4  },
-      tired:  { tRiseMult: 0.5,  reelMult: 1.5,  escapeMult: 0.6  },
-      surge:  { tRiseMult: 2.2,  reelMult: 0.5,  escapeMult: 1.3  },
+      calm:   { tRiseMult: 1.0,                reelMult: 1.0,  escapeMult: 1.0               },
+      resist: { tRiseMult: 1.5 * easeMult,     reelMult: 0.7,  escapeMult: 1.4 * easeMult    },
+      tired:  { tRiseMult: 0.5,                reelMult: 1.5,  escapeMult: 0.6               },
+      surge:  { tRiseMult: 2.2 * easeMult,     reelMult: 0.5,  escapeMult: 1.3 * easeMult    },
     };
 
     const GRACE_MS = 1200; // player has 1.2s to find the hold button after nibble
