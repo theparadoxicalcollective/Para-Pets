@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import coinIconImg from "@assets/icon_coin.png";
 import giftIconImg from "@assets/generated_images/gift_icon_forest.png";
 import RewardClaimModal from "./RewardClaimModal";
+import FriendProfileModal from "./FriendProfileModal";
 
 interface TopBarProps {
   user: {
@@ -31,6 +32,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
   const [showRewards, setShowRewards] = useState(false);
   const [showRequestsPopup, setShowRequestsPopup] = useState(false);
   const [showFriendsList, setShowFriendsList] = useState(false);
+  const [selectedFriend, setSelectedFriend] = useState<{ id: string; username: string } | null>(null);
   const popupRef = useRef<HTMLDivElement>(null);
   const friendsListRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
@@ -318,10 +320,13 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                     )}
                     <div className="flex flex-col gap-1.5">
                       {friendsList.map((f: any) => (
-                        <div
+                        <button
                           key={f.id}
                           data-testid={`friend-row-${f.friendId}`}
-                          style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 10, background: "rgba(127,255,212,0.04)", border: "1px solid rgba(127,255,212,0.1)" }}
+                          onClick={() => { setShowFriendsList(false); setSelectedFriend({ id: f.friendId, username: f.username }); }}
+                          style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 8px", borderRadius: 10, background: "rgba(127,255,212,0.04)", border: "1px solid rgba(127,255,212,0.1)", cursor: "pointer", width: "100%", textAlign: "left", transition: "background 0.15s" }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "rgba(127,255,212,0.09)")}
+                          onMouseLeave={e => (e.currentTarget.style.background = "rgba(127,255,212,0.04)")}
                         >
                           {f.profileImage ? (
                             <img src={f.profileImage} alt={f.username} style={{ width: 26, height: 26, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(212,160,23,0.35)", flexShrink: 0 }} />
@@ -331,13 +336,8 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                             </div>
                           )}
                           <span className="font-fantasy flex-1 truncate" style={{ color: "#d4e8da", fontSize: 11 }}>{f.username}</span>
-                          <button
-                            data-testid={`button-remove-friend-${f.friendId}`}
-                            onClick={() => removeFriendMutation.mutate(f.friendId)}
-                            disabled={removeFriendMutation.isPending}
-                            style={{ fontSize: 10, padding: "1px 5px", borderRadius: 5, background: "none", border: "1px solid rgba(248,113,113,0.2)", color: "rgba(248,113,113,0.45)", cursor: "pointer", lineHeight: 1.4 }}
-                          >✕</button>
-                        </div>
+                          <span style={{ fontSize: 9, color: "rgba(127,255,212,0.3)" }}>›</span>
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -566,6 +566,14 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
           onUserUpdate={(updatedUser) => {
             onUserUpdate?.(updatedUser);
           }}
+        />
+      )}
+
+      {selectedFriend && (
+        <FriendProfileModal
+          friendId={selectedFriend.id}
+          friendUsername={selectedFriend.username}
+          onClose={() => setSelectedFriend(null)}
         />
       )}
     </>
