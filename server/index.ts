@@ -443,7 +443,7 @@ app.use((req, res, next) => {
         name: "The Soggy Hook",
         description: "A ramshackle fishing shack perched on stilts above the swamp, stocked with rods, bait, and all manner of magical fishing gear.",
         iconFile: "icon_fishing_shack.png",
-        bgFile: "bg_fishing_shack.png",
+        bgFile: "bg_soggy_hook_v1.png",
         posX: 75,
         posY: 58,
         glowColor: "#3dc7c0",

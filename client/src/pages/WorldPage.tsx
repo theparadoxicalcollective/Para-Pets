@@ -312,6 +312,9 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [locBgLoaded, setLocBgLoaded] = useState(false);
   const [committedLocBgUrl, setCommittedLocBgUrl] = useState<string | null>(null);
   const [shopBgNaturalRatio, setShopBgNaturalRatio] = useState<number | null>(null);
+  const [shopPanX, setShopPanX] = useState(0);
+  const shopContainerRef = useRef<HTMLDivElement>(null);
+  const shopPanStartRef = useRef<{ startX: number; startPanX: number; pid: number } | null>(null);
 
   const { data: locations = [], isLoading: locationsLoading } = useQuery<WorldLocationData[]>({
     queryKey: ["/api/world", worldId, "locations"],
@@ -911,6 +914,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   useEffect(() => {
     setLocBgLoaded(false);
     setShopBgNaturalRatio(null);
+    setShopPanX(0);
     if (!activeLocationId) return;
     if (!activeLocDetail) return;
     const bgUrl = activeLocDetail.bgUrl;
@@ -931,6 +935,22 @@ export default function WorldPage({ user }: WorldPageProps) {
     const fallback = setTimeout(() => { if (!cancelled) { setCommittedLocBgUrl(bgUrl); setLocBgLoaded(true); } }, 5000);
     return () => { cancelled = true; clearTimeout(fallback); };
   }, [activeLocationId, activeLocDetail?.bgUrl]);
+
+  // For landscape shop backgrounds: center the image horizontally after it loads
+  useEffect(() => {
+    if (!locBgLoaded || !shopBgNaturalRatio || shopBgNaturalRatio >= 1) return;
+    const raf = requestAnimationFrame(() => {
+      const canvas = shopCanvasRef.current;
+      const container = shopContainerRef.current;
+      if (!canvas || !container) return;
+      const containerW = container.offsetWidth;
+      const canvasW = canvas.offsetWidth;
+      const minPan = Math.min(0, containerW - canvasW);
+      const centered = Math.max(minPan, -(canvasW - containerW) / 2);
+      setShopPanX(centered);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [locBgLoaded, shopBgNaturalRatio]);
 
   // Keep ref in sync so handlePointerDown never sees stale state
   useEffect(() => { draggableLocIdRef.current = selectedLocId; }, [selectedLocId]);
@@ -1230,6 +1250,36 @@ export default function WorldPage({ user }: WorldPageProps) {
     }
     setShopItemDragPos(null);
   }, [shopItemDragPos, shopItemPositionMutation]);
+
+  const handleShopPanPointerDown = useCallback((e: React.PointerEvent) => {
+    if (shopItemDragRef.current) return;
+    shopPanStartRef.current = { startX: e.clientX, startPanX: shopPanX, pid: e.pointerId };
+  }, [shopPanX]);
+
+  // Document-level pan tracking — avoids pointer capture so item clicks still work
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      if (!shopPanStartRef.current || e.pointerId !== shopPanStartRef.current.pid) return;
+      if (shopItemDragRef.current) { shopPanStartRef.current = null; return; }
+      const dx = e.clientX - shopPanStartRef.current.startX;
+      const canvas = shopCanvasRef.current;
+      const container = shopContainerRef.current;
+      if (!canvas || !container) return;
+      const minPan = Math.min(0, container.offsetWidth - canvas.offsetWidth);
+      setShopPanX(Math.max(minPan, Math.min(0, shopPanStartRef.current.startPanX + dx)));
+    };
+    const onUp = (e: PointerEvent) => {
+      if (shopPanStartRef.current?.pid === e.pointerId) shopPanStartRef.current = null;
+    };
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+    document.addEventListener("pointercancel", onUp);
+    return () => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointercancel", onUp);
+    };
+  }, []);
 
   const isShopItemTransparentClick = useCallback((e: React.MouseEvent<HTMLImageElement>): boolean => {
     const img = e.currentTarget;
@@ -2653,16 +2703,36 @@ export default function WorldPage({ user }: WorldPageProps) {
             </div>
           </div>
           {/* Shop canvas — fixed aspect ratio matches background image, so items stay in position on all screens */}
+          {/* Landscape pan wrapper — only active when background is wider than tall */}
+          <div
+            ref={shopContainerRef}
+            className="absolute inset-0"
+            style={{
+              overflow: "hidden",
+              zIndex: 10,
+              ...(shopBgNaturalRatio !== null && shopBgNaturalRatio < 1 ? {
+                touchAction: "none",
+                cursor: "grab",
+              } : {}),
+            }}
+            onPointerDown={shopBgNaturalRatio !== null && shopBgNaturalRatio < 1 ? handleShopPanPointerDown : undefined}
+          >
           <div
             ref={shopCanvasRef}
-            style={{
+            style={shopBgNaturalRatio !== null && shopBgNaturalRatio < 1 ? {
+              position: "absolute",
+              top: 0,
+              left: `${shopPanX}px`,
+              height: "100%",
+              aspectRatio: `${1 / shopBgNaturalRatio}`,
+              touchAction: "none",
+            } : {
               position: "absolute",
               top: 0,
               left: 0,
               right: 0,
               paddingBottom: shopBgNaturalRatio ? `${shopBgNaturalRatio * 100}%` : "177.78%",
               minHeight: "100dvh",
-              zIndex: 10,
               touchAction: "none",
             }}
             onPointerMove={handleShopItemPointerMove}
@@ -2837,6 +2907,8 @@ export default function WorldPage({ user }: WorldPageProps) {
               );
             })}
           </div>
+          </div>
+          </div>
           {activeLoc?.ownerImageUrl && (
             <div className="absolute bottom-4 left-4 z-20 pointer-events-none" style={{ animation: "locFloat 4s ease-in-out infinite" }}>
               <img src={activeLoc.ownerImageUrl} alt="Owner" className="w-20 h-20 object-contain" style={{ filter: `drop-shadow(0 2px 8px rgba(0,0,0,0.6)) drop-shadow(0 0 12px ${accent}30)` }} />
@@ -2849,7 +2921,6 @@ export default function WorldPage({ user }: WorldPageProps) {
               </p>
             </div>
           )}
-          </div>
         </div>
         );
       })()}
