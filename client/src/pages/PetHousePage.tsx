@@ -1465,7 +1465,7 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
       <style>{`
         @keyframes aqSlideIn { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
         @keyframes aqPanelUp { from { transform:translateY(100%); opacity:0; } to { transform:translateY(0); opacity:1; } }
-        @keyframes fishTailWag   { from { transform: scaleX(0.91); } to { transform: scaleX(1.0); } }
+        @keyframes fishTailWag   { from { transform: scaleX(0.95); } to { transform: scaleX(1.0); } }
         @keyframes fishFinUp     { from { transform: rotate(-3deg); } to { transform: rotate(2deg);  } }
         @keyframes fishFinDown   { from { transform: rotate(0deg);  } to { transform: rotate(2.5deg); } }
         @keyframes fishHeadFin   { from { transform: rotate(-3deg) translateY(-1px); } to { transform: rotate(2deg) translateY(2px); } }
@@ -1615,8 +1615,8 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
                         touchAction: "none",
                         cursor: canAdd ? "grab" : "default",
                       }}
-                      onPointerDown={canAdd ? (e) => onFishPointerDown(e, { shopItemId, name: item?.name || "Fish", imageUrl: item?.imageUrl || null, starRarity: item?.starRarity || null, facingDirection: item?.facingDirection || null, fishSwimZone: item?.fishSwimZone ?? null }) : undefined}
-                      onClick={canAdd ? () => addFish({ shopItemId, name: item?.name || "Fish", imageUrl: item?.imageUrl || null, starRarity: item?.starRarity || null, facingDirection: item?.facingDirection || null, fishSwimZone: item?.fishSwimZone ?? null }) : undefined}
+                      onPointerDown={canAdd ? (e) => onFishPointerDown(e, { shopItemId, name: item?.name || "Fish", imageUrl: item?.imageUrl || null, starRarity: item?.starRarity || null, facingDirection: item?.facingDirection || null, fishSwimZone: item?.fishSwimZone ?? null, hasParts: item?.hasParts ?? false }) : undefined}
+                      onClick={canAdd ? () => addFish({ shopItemId, name: item?.name || "Fish", imageUrl: item?.imageUrl || null, starRarity: item?.starRarity || null, facingDirection: item?.facingDirection || null, fishSwimZone: item?.fishSwimZone ?? null, hasParts: item?.hasParts ?? false }) : undefined}
                     >
                       <div style={{ width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
                         {item?.imageUrl
