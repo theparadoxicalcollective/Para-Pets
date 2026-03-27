@@ -2585,7 +2585,10 @@ export async function registerRoutes(
   app.get("/api/admin/shop-items-all", isAdmin, async (req, res) => {
     try {
       const items = await storage.getAllShopItems();
-      return res.json(items);
+      // Exclude bait items that are location-specific copies (they have a locationId).
+      // Only the original templates (locationId === null) should appear in the bundle picker.
+      const catalogItems = items.filter(i => !(i.fishingType === "bait" && i.locationId !== null));
+      return res.json(catalogItems);
     } catch (err) {
       return res.status(500).json({ message: "Failed to get shop items" });
     }
