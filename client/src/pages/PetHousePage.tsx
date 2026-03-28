@@ -1184,22 +1184,21 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
     },
   });
 
-  // True once we're past the DB-fallback restore phase and changes should be synced.
-  const readyToSync = useRef(aquariumFish.length > 0);
-
-  // Prevents the very first effect run (mount) from firing a DB sync.
-  // We only want to sync in response to actual user changes (add / remove).
-  const isMountedSync = useRef(false);
-
   // Debounce timer ref + snapshot of the fish list to flush on unmount.
+  // syncToDb is called directly from addFish / removeFish — never from an effect.
+  // This eliminates all timing races between effects, mount guards, and readyToSync.
   const syncDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSyncFishRef = useRef<AqFishEntry[] | null>(null);
 
-  // Save fish list to localStorage immediately (synchronous, no effect delay).
-  const saveLocal = useCallback((fish: AqFishEntry[]) => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(fish)); } catch {}
+  // Fire the actual mutation with the latest fish counts.
+  const fireSyncMutation = useCallback((fish: AqFishEntry[]) => {
+    const countMap = new Map<string, number>();
+    for (const f of fish) countMap.set(f.shopItemId, (countMap.get(f.shopItemId) ?? 0) + 1);
+    const counts: { shopItemId: string; count: number }[] = [];
+    countMap.forEach((count, shopItemId) => counts.push({ shopItemId, count }));
+    syncAquariumMutation.mutate(counts);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [STORAGE_KEY]);
+  }, []);
 
   // Debounced DB sync — coalesces rapid add/remove into a single mutation so
   // out-of-order network arrivals can never overwrite a newer state.
@@ -1208,15 +1207,18 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
     if (syncDebounceRef.current) clearTimeout(syncDebounceRef.current);
     syncDebounceRef.current = setTimeout(() => {
       syncDebounceRef.current = null;
+      const pending = pendingSyncFishRef.current;
       pendingSyncFishRef.current = null;
-      const countMap = new Map<string, number>();
-      for (const f of fish) countMap.set(f.shopItemId, (countMap.get(f.shopItemId) ?? 0) + 1);
-      const counts: { shopItemId: string; count: number }[] = [];
-      countMap.forEach((count, shopItemId) => counts.push({ shopItemId, count }));
-      syncAquariumMutation.mutate(counts);
-    }, 500);
+      if (pending) fireSyncMutation(pending);
+    }, 600);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fireSyncMutation]);
+
+  // Save fish list to localStorage synchronously.
+  const saveLocal = useCallback((fish: AqFishEntry[]) => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(fish)); } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [STORAGE_KEY]);
 
   // Flush any pending debounced sync immediately when the aquarium closes,
   // so the player's last change is never lost just because they navigated away quickly.
@@ -1227,32 +1229,13 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
         syncDebounceRef.current = null;
       }
       const fish = pendingSyncFishRef.current;
-      if (fish && readyToSync.current) {
+      if (fish) {
         pendingSyncFishRef.current = null;
-        const countMap = new Map<string, number>();
-        for (const f of fish) countMap.set(f.shopItemId, (countMap.get(f.shopItemId) ?? 0) + 1);
-        const counts: { shopItemId: string; count: number }[] = [];
-        countMap.forEach((count, shopItemId) => counts.push({ shopItemId, count }));
-        syncAquariumMutation.mutate(counts);
+        fireSyncMutation(fish);
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Whenever aquariumFish changes, save to localStorage immediately.
-  // Skip the initial mount — trust localStorage and avoid creating a race with any
-  // in-flight mutation that was already kicked off by the previous session.
-  // After mount, sync to DB (debounced) whenever the user makes a real change.
-  useEffect(() => {
-    saveLocal(aquariumFish);
-    if (!isMountedSync.current) {
-      isMountedSync.current = true;
-      return; // skip mount — localStorage is already correct
-    }
-    if (!readyToSync.current) return;
-    syncToDb(aquariumFish);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aquariumFish]);
 
   // Restored-from-DB guard — only run the DB fallback once.
   const restoredFromDb = useRef(false);
@@ -1263,10 +1246,10 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
   useEffect(() => {
     if (!fishInventory.length) return;
 
-    // --- DB fallback restore (runs once, only when localStorage was empty) ---
+    // --- DB fallback restore (runs once, only when localStorage was empty on mount) ---
     if (!restoredFromDb.current) {
       restoredFromDb.current = true;
-      if (!readyToSync.current) {
+      if (aquariumFishRef.current.length === 0) {
         // localStorage had nothing — try to rebuild from DB state
         const inAquarium = fishInventory.filter(f => f.inAquarium);
         if (inAquarium.length > 0) {
@@ -1280,15 +1263,11 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
             fishSwimZone: f.item?.fishSwimZone ?? null,
             hasParts: f.item?.hasParts ?? false,
           }));
-          readyToSync.current = true;
+          saveLocal(restored);
           setAquariumFish(restored);
-          // setAquariumFish will trigger the sync effect above which will
-          // save to localStorage and confirm the DB state. Return here so
-          // we don't also run the swimmer-update pass on stale prev data.
+          // Return early — the swimmer-update pass below would operate on stale data.
           return;
         }
-        // No fish in DB either — safe to start syncing from now on
-        readyToSync.current = true;
       }
     }
 
@@ -1504,22 +1483,23 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
     if (current.length >= AQ_MAX) return;
     if (current.filter(f => f.shopItemId === fish.shopItemId).length >= 2) return;
     const next = [...current, newEntry];
-    // Save to localStorage immediately (synchronous failsafe — effect also saves but is async)
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
+    saveLocal(next);
     setAquariumFish(next);
+    syncToDb(next);
     setSwimmers(s => {
       if (s.some(sw => sw.id === newId)) return s;
       return [...s, makeSwimmer(newEntry, px, py)];
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [STORAGE_KEY]);
+  }, [saveLocal, syncToDb]);
 
   const removeFish = useCallback((id: string) => {
     const next = aquariumFishRef.current.filter(f => f.id !== id);
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
+    saveLocal(next);
     setAquariumFish(next);
+    syncToDb(next);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [STORAGE_KEY]);
+  }, [saveLocal, syncToDb]);
 
   const onFishPointerDown = useCallback((e: React.PointerEvent, fish: Omit<AqFishEntry, "id">) => {
     // Do NOT call e.preventDefault() — it would block the 'click' event on iOS/touch.
