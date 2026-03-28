@@ -3066,7 +3066,8 @@ export default function WorldPage({ user }: WorldPageProps) {
         const item = selectedShopItem;
         const imgSrc = item.type === "pet" ? (item.eggImageUrl || item.imageUrl) : item.imageUrl;
         const descLines = getItemDescription(item);
-        const isOwned = item.type === "pet" && ownedItemIds.has(item.id);
+        const ownedCount = item.type === "pet" ? inventory.filter(inv => inv.shopItemId === item.id).length : 0;
+        const isMaxOwned = ownedCount >= 3;
         const maxQty = item.type === "pet" ? 1 : 20;
         const totalCost = item.price * (item.type === "pet" ? 1 : buyQty);
         const canAfford = currentUser.coins >= totalCost;
@@ -3153,9 +3154,14 @@ export default function WorldPage({ user }: WorldPageProps) {
                       </div>
                     )}
                     <div style={{ borderTop: "1px solid rgba(100,50,10,0.28)", marginBottom: "5px" }} />
-                    {isOwned ? (
-                      <div className="text-center font-fantasy" style={{ fontSize: "9px", padding: "7px 0", borderRadius: "8px", background: "rgba(0,90,55,0.18)", color: "#004428", border: "1px solid rgba(0,90,55,0.3)" }}>
-                        You already own this pet
+                    {ownedCount > 0 && (
+                      <div className="text-center font-fantasy font-bold" style={{ fontSize: "9.5px", marginBottom: "4px", color: "#e8a800", textShadow: "0 0 6px rgba(232,168,0,0.5)" }}>
+                        Owned{ownedCount > 1 ? ` ×${ownedCount}` : ""}
+                      </div>
+                    )}
+                    {isMaxOwned ? (
+                      <div className="text-center font-fantasy" style={{ fontSize: "9px", padding: "7px 0", borderRadius: "8px", background: "rgba(80,50,10,0.18)", color: "#7a5010", border: "1px solid rgba(120,80,20,0.3)" }}>
+                        Max owned (3)
                       </div>
                     ) : (
                       <>

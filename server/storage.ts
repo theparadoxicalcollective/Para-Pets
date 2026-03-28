@@ -76,6 +76,7 @@ export interface IStorage {
   addToInventory(userId: string, shopItemId: string, extraFields?: Partial<UserInventoryItem>, stackQty?: number): Promise<UserInventoryItem>;
   decrementBaitQuantity(inventoryId: string): Promise<{ depleted: boolean; item: UserInventoryItem | undefined }>;
   getInventoryItem(userId: string, shopItemId: string): Promise<UserInventoryItem | undefined>;
+  countInventoryPetCopies(userId: string, shopItemId: string): Promise<number>;
   getInventoryItemById(id: string): Promise<UserInventoryItem | undefined>;
   removeFromInventory(id: string): Promise<void>;
   updateInventoryItem(id: string, updates: Partial<UserInventoryItem>): Promise<UserInventoryItem>;
@@ -440,6 +441,14 @@ export class DatabaseStorage implements IStorage {
       .from(userInventory)
       .where(and(eq(userInventory.userId, userId), eq(userInventory.shopItemId, shopItemId)));
     return item;
+  }
+
+  async countInventoryPetCopies(userId: string, shopItemId: string): Promise<number> {
+    const rows = await db
+      .select()
+      .from(userInventory)
+      .where(and(eq(userInventory.userId, userId), eq(userInventory.shopItemId, shopItemId)));
+    return rows.length;
   }
 
   async getInventoryItemById(id: string): Promise<UserInventoryItem | undefined> {

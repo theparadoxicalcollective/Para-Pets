@@ -1002,9 +1002,9 @@ export async function registerRoutes(
       }
 
       if (shopItem.type === "pet") {
-        const existing = await storage.getInventoryItem(user.id, itemId);
-        if (existing) {
-          return res.status(400).json({ message: "You already own this pet" });
+        const petCount = await storage.countInventoryPetCopies(user.id, itemId);
+        if (petCount >= 3) {
+          return res.status(400).json({ message: "You already own the maximum (3) of this pet" });
         }
       } else {
         const dailyCount = await storage.getDailyItemPurchaseCount(user.id);
