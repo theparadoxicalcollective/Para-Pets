@@ -324,7 +324,6 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
 
   // ── Joystick / walking state ────────────────────────────────────────────────
   const [localPetPos,    setLocalPetPos]    = useState<{ x: number; y: number } | null>(null);
-  const [joystickActive, setJoystickActive] = useState(false);
   const localPetPosRef   = useRef<{ x: number; y: number } | null>(null);
   const joystickDirRef   = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
   const joystickActRef   = useRef(false);
@@ -398,7 +397,6 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const handleJoystickChange = useCallback((dx: number, dy: number, active: boolean) => {
     joystickDirRef.current = { dx, dy };
     joystickActRef.current = active;
-    setJoystickActive(active);
     if (active) {
       startRaf();
     } else {
@@ -641,11 +639,9 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
               <WorldRoamingPet
                 key={pet.userId}
                 pet={pet}
-                index={idx}
                 posX={resolvedX}
                 posY={resolvedY}
                 isOwn={isOwn}
-                isWalking={isOwn && joystickActive}
                 onTap={() => setSelectedPet(pet)}
               />
             );
@@ -1806,22 +1802,17 @@ function PetDetailModal({
 // ── WorldRoamingPet ────────────────────────────────────────────────────────
 // Renders a single user's active pet inside the map canvas so it pans with
 // the world. posX/posY are percentages of the map canvas dimensions.
-// isWalking triggers the hop animation for the owner's pet via the joystick.
 function WorldRoamingPet({
   pet,
-  index,
   posX,
   posY,
   isOwn,
-  isWalking,
   onTap,
 }: {
   pet: WorldActivePet;
-  index: number;
   posX: number;
   posY: number;
   isOwn: boolean;
-  isWalking: boolean;
   onTap: () => void;
 }) {
   const { data: templateData } = useQuery<{
@@ -1867,23 +1858,6 @@ function WorldRoamingPet({
   const minTopFrac = 0.5 + (rawMinTopFrac - 0.5) * partScale;
   const maxBotFrac = 0.5 + (rawMaxBotFrac - 0.5) * partScale;
 
-  const floatAnim   = hasWings ? "petFloatSmall" : "petGroundFloat";
-  const wanderIdx    = index % 6;
-  const wanderPrefix = hasWings ? "petWander" : "petWorldGroundWander";
-
-  // Seeded per-pet timing so pets are all slightly out of phase
-  const seedBase = (index + 1) * 2741;
-  const rng = (n: number) => {
-    let h = Math.imul(Math.floor(seedBase * 10000 + n), 0x9e3779b9);
-    h ^= h >>> 16;
-    return (h >>> 0) / 4294967295;
-  };
-  const wanderDuration  = `${120 + rng(3) * 60}s`;
-  const wanderDelay     = `-${(rng(4) * 20).toFixed(1)}s`;
-  // Idle hop: slow and dreamy (0.8 – 1.1s); walking hop: noticeable but not frantic (0.45s)
-  const idleHopDuration = `${0.8 + rng(5) * 0.3}s`;
-  const hopDelay        = `-${(rng(6) * 1.0).toFixed(3)}s`;
-
   // sz is in map-canvas pixels. Kept small so pets are always in reach.
   const sz     = 120;
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
@@ -1904,24 +1878,6 @@ function WorldRoamingPet({
         transition: isOwn ? undefined : "left 1.8s linear, top 1.8s linear",
       }}
     >
-      {/* Wander drift — only on other players' pets; own pet stays still so joystick is clean */}
-      <div
-        style={{
-          animation: isOwn || isWalking
-            ? undefined
-            : `${wanderPrefix}${wanderIdx} ${wanderDuration} ${wanderDelay} ease-in-out infinite`,
-        }}
-      >
-        {/* Hop bounce — layered on top of the wander so both play together */}
-        <div
-          style={{
-            // Flying pets skip the ground hop — their float animation handles up-down motion
-            animation: hasWings ? undefined : `petHop ${isWalking ? "0.45s" : idleHopDuration} ease-in-out ${hopDelay} infinite`,
-            transformOrigin: "bottom center",
-          }}
-        >
-        <div style={hasWings ? { animation: `${floatAnim} 3.2s ease-in-out infinite` } : undefined}>
-
           {/* Single position:relative box (sz × sz map-pixels).
               Badge and stars are absolutely positioned using the pet's ACTUAL
               bounding box (minTopFrac / maxBotFrac) computed from the real part
@@ -2011,9 +1967,6 @@ function WorldRoamingPet({
               }}
             />
           </div>
-        </div>
-        </div>
-      </div>
     </div>
   );
 }
