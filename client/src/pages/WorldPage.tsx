@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { playChime, playTick, playShopBell } from "@/lib/sounds";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -229,7 +229,6 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [editLocGlowColor, setEditLocGlowColor] = useState("");
   const [activeLocationId, setActiveLocationId] = useState<string | null>(null);
   const [showLocationView, setShowLocationView] = useState(false);
-  const [bayouMistVisible, setBayouMistVisible] = useState(false);
   const [showItemPicker, setShowItemPicker] = useState(false);
   const [pickerFilter, setPickerFilter] = useState("all");
   const [showAddObject, setShowAddObject] = useState(false);
@@ -389,7 +388,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   });
 
 
-  const ownedItemIds = new Set(inventory.map((inv) => inv.shopItemId));
+  const ownedItemIds = useMemo(() => new Set(inventory.map((inv) => inv.shopItemId)), [inventory]);
 
   const buyMutation = useMutation({
     mutationFn: async ({ itemId, quantity }: { itemId: string; quantity: number }) => {
@@ -1047,17 +1046,9 @@ export default function WorldPage({ user }: WorldPageProps) {
       playShopBell();
     } else if ((loc.type === "battle" || loc.type === "explore") && !currentUser.isAdmin) {
       setShowDangerWarning(true);
-      if (loc.id === BAYOUS_HEART_ID) {
-        setBayouMistVisible(true);
-        setTimeout(() => setBayouMistVisible(false), 3000);
-      }
     } else {
       setShowShop(false);
       setShowLocationView(true);
-      if (loc.id === BAYOUS_HEART_ID) {
-        setBayouMistVisible(true);
-        setTimeout(() => setBayouMistVisible(false), 3000);
-      }
     }
   }, [currentUser.isAdmin]);
 

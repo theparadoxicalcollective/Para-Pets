@@ -194,62 +194,6 @@ export default function HomePage({ user }: HomePageProps) {
     >
       <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/60 z-0 pointer-events-none" />
 
-      <style>{`
-        @keyframes eggWobble {
-          0%, 18%, 100% { transform: rotate(0deg) translateY(0px); }
-          4%  { transform: rotate(4deg) translateY(-2px); }
-          8%  { transform: rotate(-4deg) translateY(0px); }
-          12% { transform: rotate(3deg) translateY(-1px); }
-          16% { transform: rotate(-2deg) translateY(0px); }
-        }
-        @keyframes eggGlow {
-          0%, 100% { box-shadow: 0 0 20px rgba(240,192,64,0.15), 0 8px 20px rgba(0,0,0,0.4); }
-          50% { box-shadow: 0 0 35px rgba(240,192,64,0.35), 0 0 60px rgba(240,192,64,0.15), 0 8px 20px rgba(0,0,0,0.4); }
-        }
-        @keyframes eggGlowPulse {
-          0%, 100% { opacity: 0.6; transform: scale(1); }
-          50% { opacity: 1; transform: scale(1.05); }
-        }
-        @keyframes eggOrb0 {
-          0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.5; }
-          25% { transform: translate(8px, -12px) scale(1.3); opacity: 1; }
-          50% { transform: translate(-4px, -20px) scale(0.9); opacity: 0.7; }
-          75% { transform: translate(6px, -8px) scale(1.1); opacity: 0.9; }
-        }
-        @keyframes eggOrb1 {
-          0%, 100% { transform: translate(0, 0) scale(0.9); opacity: 0.4; }
-          30% { transform: translate(-10px, -15px) scale(1.2); opacity: 0.9; }
-          60% { transform: translate(5px, -25px) scale(1); opacity: 0.6; }
-        }
-        @keyframes eggOrb2 {
-          0%, 100% { transform: translate(0, 0) scale(1.1); opacity: 0.6; }
-          35% { transform: translate(12px, -10px) scale(0.8); opacity: 1; }
-          70% { transform: translate(-8px, -18px) scale(1.2); opacity: 0.5; }
-        }
-        @keyframes orbFloat1 {
-          0% { transform: translate(0, 0) scale(1); opacity: 0.3; }
-          25% { transform: translate(15px, -30px) scale(1.2); opacity: 0.6; }
-          50% { transform: translate(-10px, -50px) scale(0.9); opacity: 0.4; }
-          75% { transform: translate(20px, -25px) scale(1.1); opacity: 0.55; }
-          100% { transform: translate(0, 0) scale(1); opacity: 0.3; }
-        }
-        @keyframes orbFloat2 {
-          0% { transform: translate(0, 0) scale(1); opacity: 0.25; }
-          30% { transform: translate(-20px, -15px) scale(1.3); opacity: 0.5; }
-          60% { transform: translate(10px, -40px) scale(0.8); opacity: 0.35; }
-          100% { transform: translate(0, 0) scale(1); opacity: 0.25; }
-        }
-        @keyframes orbFloat3 {
-          0% { transform: translate(0, 0) scale(0.9); opacity: 0.2; }
-          40% { transform: translate(25px, -20px) scale(1.15); opacity: 0.5; }
-          70% { transform: translate(-15px, -35px) scale(1); opacity: 0.3; }
-          100% { transform: translate(0, 0) scale(0.9); opacity: 0.2; }
-        }
-        @keyframes orbPulse {
-          0%, 100% { opacity: 0.15; transform: scale(1); }
-          50% { opacity: 0.4; transform: scale(1.3); }
-        }
-      `}</style>
 
       <div className="absolute inset-0 z-[1] pointer-events-none overflow-hidden">
         <div className="absolute" style={{ left: "12%", top: "25%", width: "8px", height: "8px", borderRadius: "50%", background: "radial-gradient(circle, rgba(127,255,212,0.8) 0%, rgba(127,255,212,0) 70%)", boxShadow: "0 0 12px rgba(127,255,212,0.5), 0 0 25px rgba(127,255,212,0.2)", animation: "orbFloat1 8s ease-in-out infinite" }} />

@@ -172,6 +172,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const [skillEffect, setSkillEffect] = useState<string | null>(null);
   const [poisonActive, setPoisonActive] = useState(false);
   const poisonTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const counterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const MAX_MANA = 100;
   const handleEnemyDeathRef = useRef<() => void>(() => {});
 
@@ -445,6 +446,14 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     return () => cancelAnimationFrame(animFrameRef.current);
   }, [phase]);
 
+  // ── Cleanup on unmount ───────────────────────────────────────────────────
+  useEffect(() => {
+    return () => {
+      if (counterTimerRef.current) clearTimeout(counterTimerRef.current);
+      if (poisonTimerRef.current) clearInterval(poisonTimerRef.current);
+    };
+  }, []);
+
   // ── Swipe helpers ────────────────────────────────────────────────────────
   const segmentPointDist = (ax: number, ay: number, bx: number, by: number, px: number, py: number) => {
     const dx = bx - ax, dy = by - ay;
@@ -629,7 +638,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     counterHitsLeftRef.current = 2;
     setCounterActive(true);
     setCounterHitsLeft(2);
-    const counterTimer = setTimeout(() => {
+    if (counterTimerRef.current) clearTimeout(counterTimerRef.current);
+    counterTimerRef.current = setTimeout(() => {
       if (counterHitsLeftRef.current > 0) {
         counterActiveRef.current = false;
         counterHitsLeftRef.current = 0;
@@ -642,8 +652,6 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     const diff = difficultyRef.current;
     const baseRecovery = isBossRef.current ? 2200 : 2600;
     nextChargeTimeRef.current = Date.now() + baseRecovery - diff * 400;
-
-    return () => clearTimeout(counterTimer);
   }, []);
 
   // ── Special skill ────────────────────────────────────────────────────────
