@@ -915,7 +915,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                   transition: "opacity 0.5s",
                   pointerEvents: "none",
                   userSelect: "none",
-                  width: 56,
+                  width: 44,
                   willChange: "left, top",
                 }}
               >
@@ -932,10 +932,10 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                   </div>
                 )}
                 {/* Enemy image with squish-bounce animation */}
-                <div className="relative" style={{ width: 44, height: 44 }}>
+                <div className="relative" style={{ width: 34, height: 34 }}>
                   {/* Squish wrapper — animates scaleY/scaleX independently of flip */}
                   <div style={{
-                    width: 44, height: 44,
+                    width: 34, height: 34,
                     animation: defeated ? "none" : "kcSquish 0.9s ease-in-out infinite",
                     transformOrigin: "bottom center",
                   }}>
@@ -945,7 +945,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                       alt={enemy.enemyName}
                       draggable={false}
                       style={{
-                        width: 44, height: 44, objectFit: "contain",
+                        width: 34, height: 34, objectFit: "contain",
                         transform: facingLeft ? "scaleX(-1)" : undefined,
                         filter: defeated
                           ? "grayscale(1) brightness(0.4)"
@@ -957,33 +957,24 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                     />
                   ) : (
                     <div style={{
-                      width: 44, height: 44, borderRadius: 8,
+                      width: 34, height: 34, borderRadius: 6,
                       background: "rgba(239,68,68,0.3)", border: "1.5px solid #ef4444",
                       display: "flex", alignItems: "center", justifyContent: "center",
                     }}>
-                      <Swords className="w-5 h-5" style={{ color: "#ef4444" }} />
+                      <Swords className="w-4 h-4" style={{ color: "#ef4444" }} />
                     </div>
                   )}
                   </div>
                   {/* Hit flash ring */}
                   {isSwipe && (
                     <div style={{
-                      position: "absolute", inset: -6, borderRadius: "50%",
-                      border: "3px solid rgba(255,255,255,0.9)",
-                      boxShadow: "0 0 14px 5px rgba(255,80,80,0.8), inset 0 0 8px rgba(255,80,80,0.5)",
+                      position: "absolute", inset: -5, borderRadius: "50%",
+                      border: "2.5px solid rgba(255,255,255,0.9)",
+                      boxShadow: "0 0 12px 4px rgba(255,80,80,0.8), inset 0 0 6px rgba(255,80,80,0.5)",
                       pointerEvents: "none",
                     }} />
                   )}
                 </div>
-                {/* Name label */}
-                <span style={{
-                  fontFamily: "Cinzel, serif", fontSize: 9, lineHeight: 1.2,
-                  color: defeated ? "#ef444466" : "#ef4444cc",
-                  textAlign: "center", marginTop: 2,
-                  textShadow: "0 1px 4px rgba(0,0,0,1)",
-                }}>
-                  {defeated ? "✦ Defeated ✦" : enemy.enemyName}
-                </span>
               </div>
             );
           })}
@@ -2034,13 +2025,13 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
             position: "fixed",
             bottom: 108,
             left: 20,
-            width: BASE_R * 2,
-            height: BASE_R * 2,
+            width: 64,
+            height: 64,
             borderRadius: "50%",
             background: "radial-gradient(circle at 40% 35%, rgba(30,22,6,0.9) 0%, rgba(10,8,2,0.85) 100%)",
-            border: "2.5px solid rgba(212,160,23,0.55)",
+            border: "2px solid rgba(212,160,23,0.55)",
             backdropFilter: "blur(6px)",
-            boxShadow: "0 4px 20px rgba(0,0,0,0.6), 0 0 16px rgba(127,255,212,0.15), inset 0 1px 0 rgba(212,160,23,0.12)",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.6), 0 0 12px rgba(127,255,212,0.12), inset 0 1px 0 rgba(212,160,23,0.12)",
             touchAction: "none",
             zIndex: 60,
             display: "flex",
@@ -2055,9 +2046,9 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
             alt="Attack"
             draggable={false}
             style={{
-              width: 62, height: 62,
+              width: 44, height: 44,
               objectFit: "contain",
-              filter: "drop-shadow(0 0 6px rgba(127,255,212,0.6)) drop-shadow(0 0 3px rgba(212,160,23,0.7))",
+              filter: "drop-shadow(0 0 5px rgba(127,255,212,0.6)) drop-shadow(0 0 3px rgba(212,160,23,0.7))",
               transform: "rotate(-30deg)",
             }}
           />
