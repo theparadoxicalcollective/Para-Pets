@@ -3756,8 +3756,39 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
       const { counts } = req.body;
+      console.log(`[AQ-SYNC] user=${user.id} counts=${JSON.stringify(counts)}`);
       if (!Array.isArray(counts)) return res.status(400).json({ message: "counts array required" });
       await storage.syncAquariumFish(user.id, counts);
+      console.log(`[AQ-SYNC] success for user=${user.id}`);
+      return res.json({ ok: true });
+    } catch (err: any) {
+      console.error(`[AQ-SYNC] error:`, err.message);
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Add one fish to aquarium (atomic, no race conditions)
+  app.post("/api/fishing/aquarium/add", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { shopItemId } = req.body;
+      if (!shopItemId) return res.status(400).json({ message: "shopItemId required" });
+      const fishId = await storage.addFishToAquarium(user.id, shopItemId);
+      if (!fishId) return res.status(400).json({ message: "No available fish of this type" });
+      return res.json({ ok: true, fishId });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Remove one fish from aquarium (atomic, no race conditions)
+  app.post("/api/fishing/aquarium/remove", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { shopItemId } = req.body;
+      if (!shopItemId) return res.status(400).json({ message: "shopItemId required" });
+      const removed = await storage.removeFishFromAquarium(user.id, shopItemId);
+      if (!removed) return res.status(400).json({ message: "No fish of this type in aquarium" });
       return res.json({ ok: true });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });

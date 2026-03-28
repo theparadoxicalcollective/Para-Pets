@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest, queryClient as globalQueryClient } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Star, ShoppingBag, X, HelpCircle } from "lucide-react";
 import { fireLevelUp } from "@/lib/levelUpEvents";
@@ -1137,18 +1137,32 @@ function FishPartsView({ fishItemId, size, flipped }: { fishItemId: string; size
 }
 
 export function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string }) {
-  const STORAGE_KEY = `aq_fish_${userId}`;
   const containerRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
 
-  const [aquariumFish, setAquariumFish] = useState<AqFishEntry[]>(() => {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch { return []; }
+  const { data: fishInventory = [] } = useQuery<AqCaughtFish[]>({
+    queryKey: ["/api/fishing/inventory"],
+    staleTime: 30000,
   });
 
-  const [swimmers, setSwimmers] = useState<SwimmingFish[]>(() =>
-    ((): AqFishEntry[] => {
-      try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch { return []; }
-    })().map(f => makeSwimmer(f))
-  );
+  // DB is the source of truth — aquariumFish is derived directly from the query cache.
+  // Optimistic updates on the cache make add/remove feel instant.
+  const aquariumFish = React.useMemo<AqFishEntry[]>(() =>
+    fishInventory
+      .filter(f => f.inAquarium && f.item)
+      .map(f => ({
+        id: f.id,
+        shopItemId: f.shopItemId,
+        name: f.item?.name ?? "Fish",
+        imageUrl: f.item?.imageUrl ?? null,
+        starRarity: f.item?.starRarity ?? null,
+        facingDirection: f.item?.facingDirection ?? null,
+        fishSwimZone: f.item?.fishSwimZone ?? null,
+        hasParts: f.item?.hasParts ?? false,
+      })),
+  [fishInventory]);
+
+  const [swimmers, setSwimmers] = useState<SwimmingFish[]>([]);
 
   // Always-fresh ref to avoid stale closures in addFish/removeFish
   const aquariumFishRef = useRef(aquariumFish);
@@ -1167,148 +1181,74 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
   // Always-fresh zone lookup used by the animation loop — bypasses state sync lag
   const swimZoneRef = useRef<Map<string, string | null>>(new Map());
 
-  const { data: fishInventory = [] } = useQuery<AqCaughtFish[]>({
-    queryKey: ["/api/fishing/inventory"],
-    staleTime: 30000,
+  // Add one fish to the aquarium — optimistic cache update so the tank updates instantly.
+  const addFishMutation = useMutation({
+    mutationFn: async (shopItemId: string) => {
+      const res = await apiRequest("POST", "/api/fishing/aquarium/add", { shopItemId });
+      return res.json() as Promise<{ ok: boolean; fishId: string }>;
+    },
+    onMutate: async (shopItemId: string) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/fishing/inventory"] });
+      const prev = queryClient.getQueryData<AqCaughtFish[]>(["/api/fishing/inventory"]);
+      queryClient.setQueryData<AqCaughtFish[]>(["/api/fishing/inventory"], old => {
+        if (!old) return old;
+        let marked = false;
+        return old.map(f => {
+          if (!marked && f.shopItemId === shopItemId && !f.inAquarium) {
+            marked = true;
+            return { ...f, inAquarium: true };
+          }
+          return f;
+        });
+      });
+      return { prev };
+    },
+    onError: (_err, _shopItemId, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(["/api/fishing/inventory"], ctx.prev);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] });
+    },
   });
 
-  // Debounce timer + pending snapshot. syncToDb is called directly from addFish /
-  // removeFish so there are no effect-timing or readyToSync races.
-  const syncDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingSyncFishRef = useRef<AqFishEntry[] | null>(null);
-
-  // Save fish list to localStorage synchronously.
-  const saveLocal = useCallback((fish: AqFishEntry[]) => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(fish)); } catch {}
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [STORAGE_KEY]);
-
-  // Build the counts payload from a fish array.
-  const buildCounts = (fish: AqFishEntry[]) => {
-    const countMap = new Map<string, number>();
-    for (const f of fish) countMap.set(f.shopItemId, (countMap.get(f.shopItemId) ?? 0) + 1);
-    const counts: { shopItemId: string; count: number }[] = [];
-    countMap.forEach((count, shopItemId) => counts.push({ shopItemId, count }));
-    return counts;
-  };
-
-  // Fire the sync over the network using a plain fetch — NOT useMutation.
-  // useMutation is tied to the component lifecycle and silently drops calls
-  // that are fired after the component unmounts (e.g. the unmount flush).
-  // apiRequest is a raw fetch wrapper that runs to completion regardless.
-  const fireSync = (fish: AqFishEntry[]) => {
-    const counts = buildCounts(fish);
-    apiRequest("POST", "/api/fishing/aquarium/sync", { counts })
-      .then(() => globalQueryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] }))
-      .catch(() => { /* sync errors are silent — localStorage is still correct */ });
-  };
-
-  // Debounced DB sync — coalesces rapid add/remove into a single request so
-  // out-of-order network arrivals can never overwrite a newer state.
-  const syncToDb = useCallback((fish: AqFishEntry[]) => {
-    pendingSyncFishRef.current = fish;
-    if (syncDebounceRef.current) clearTimeout(syncDebounceRef.current);
-    syncDebounceRef.current = setTimeout(() => {
-      syncDebounceRef.current = null;
-      const pending = pendingSyncFishRef.current;
-      pendingSyncFishRef.current = null;
-      if (pending) fireSync(pending);
-    }, 600);
-  // fireSync is defined in component scope and stable; no deps needed
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // When the aquarium closes, immediately flush any pending debounced sync so
-  // the last change is never lost just because the player left within 600 ms.
-  useEffect(() => {
-    return () => {
-      if (syncDebounceRef.current) {
-        clearTimeout(syncDebounceRef.current);
-        syncDebounceRef.current = null;
-      }
-      const fish = pendingSyncFishRef.current;
-      if (fish) {
-        pendingSyncFishRef.current = null;
-        fireSync(fish); // plain fetch — works after unmount
-      }
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Restored-from-DB guard — only run the DB fallback once.
-  const restoredFromDb = useRef(false);
-
-  // Sync latest item data from API into the ref and swimmer state whenever inventory loads.
-  // Also: if localStorage was empty on mount, restore aquarium state from DB (fish
-  // with inAquarium=true) so a fresh device/browser doesn't lose the player's tank.
-  useEffect(() => {
-    if (!fishInventory.length) return;
-
-    // --- DB fallback restore (runs once, only when localStorage was empty on mount) ---
-    if (!restoredFromDb.current) {
-      restoredFromDb.current = true;
-      if (aquariumFishRef.current.length === 0) {
-        // localStorage had nothing — try to rebuild from DB state
-        const inAquarium = fishInventory.filter(f => f.inAquarium);
-        if (inAquarium.length > 0) {
-          const restored: AqFishEntry[] = inAquarium.map(f => ({
-            id: `db_${f.id}`,
-            shopItemId: f.shopItemId,
-            name: f.item?.name ?? "Fish",
-            imageUrl: f.item?.imageUrl ?? null,
-            starRarity: f.item?.starRarity ?? null,
-            facingDirection: f.item?.facingDirection ?? null,
-            fishSwimZone: f.item?.fishSwimZone ?? null,
-            hasParts: f.item?.hasParts ?? false,
-          }));
-          saveLocal(restored);
-          setAquariumFish(restored);
-          // Return early — the swimmer-update pass below would operate on stale data.
-          return;
-        }
-      }
-    }
-
-    // --- Swimmer + aquariumFish data refresh (hasParts, zone, image URLs) ---
-    const newZoneMap = new Map<string, string | null>();
-    const itemByShopId = new Map(fishInventory.map(f => [f.shopItemId, f.item]));
-    for (const [id, item] of itemByShopId) {
-      newZoneMap.set(id, item?.fishSwimZone ?? null);
-    }
-    swimZoneRef.current = newZoneMap;
-
-    // Patch aquariumFish entries in localStorage with up-to-date hasParts / metadata.
-    // We write directly to localStorage (not via setAquariumFish) so we never trigger
-    // the sync effect — which would re-call syncToDb and start a mutation/invalidate
-    // cycle that can race with in-flight saves and corrupt persisted state.
-    {
-      const current = aquariumFishRef.current;
-      let changed = false;
-      const next = current.map(f => {
-        const item = itemByShopId.get(f.shopItemId);
-        if (!item) return f;
-        const updated: AqFishEntry = {
-          ...f,
-          name: item.name ?? f.name,
-          imageUrl: item.imageUrl ?? f.imageUrl,
-          starRarity: item.starRarity ?? f.starRarity,
-          facingDirection: item.facingDirection ?? f.facingDirection,
-          fishSwimZone: item.fishSwimZone ?? f.fishSwimZone,
-          hasParts: item.hasParts ?? f.hasParts,
-        };
-        if (
-          updated.hasParts !== f.hasParts ||
-          updated.fishSwimZone !== f.fishSwimZone ||
-          updated.imageUrl !== f.imageUrl
-        ) changed = true;
-        return updated;
+  // Remove one fish from the aquarium — optimistic cache update.
+  const removeFishMutation = useMutation({
+    mutationFn: async (shopItemId: string) => {
+      const res = await apiRequest("POST", "/api/fishing/aquarium/remove", { shopItemId });
+      return res.json();
+    },
+    onMutate: async (shopItemId: string) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/fishing/inventory"] });
+      const prev = queryClient.getQueryData<AqCaughtFish[]>(["/api/fishing/inventory"]);
+      queryClient.setQueryData<AqCaughtFish[]>(["/api/fishing/inventory"], old => {
+        if (!old) return old;
+        let unmarked = false;
+        return old.map(f => {
+          if (!unmarked && f.shopItemId === shopItemId && f.inAquarium) {
+            unmarked = true;
+            return { ...f, inAquarium: false };
+          }
+          return f;
+        });
       });
-      if (changed) {
-        // Write fresh metadata to localStorage only — no state change so the
-        // sync effect is never triggered (avoids the mutation→invalidate→rerender loop).
-        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
-      }
-    }
+      return { prev };
+    },
+    onError: (_err, _shopItemId, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(["/api/fishing/inventory"], ctx.prev);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] });
+    },
+  });
+
+  // Keep swimZoneRef fresh and patch swimmer metadata whenever inventory updates.
+  useEffect(() => {
+    const itemByShopId = new Map(fishInventory.map(f => [f.shopItemId, f.item]));
+    const newZoneMap = new Map<string, string | null>();
+    itemByShopId.forEach((item, id) => {
+      newZoneMap.set(id, item?.fishSwimZone ?? null);
+    });
+    swimZoneRef.current = newZoneMap;
 
     setSwimmers(prev => prev.map(s => {
       const item = itemByShopId.get(s.shopItemId);
@@ -1328,7 +1268,6 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
         y: Math.max(yMin, Math.min(yMax, s.y)),
       };
     }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fishInventory]);
 
   useEffect(() => {
@@ -1475,29 +1414,17 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
   }, []);
 
   const addFish = useCallback((fish: Omit<AqFishEntry, "id">, px?: number, py?: number) => {
-    const newId = `${fish.shopItemId}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    const newEntry: AqFishEntry = { ...fish, id: newId };
     const current = aquariumFishRef.current;
     if (current.length >= AQ_MAX) return;
     if (current.filter(f => f.shopItemId === fish.shopItemId).length >= 2) return;
-    const next = [...current, newEntry];
-    saveLocal(next);
-    setAquariumFish(next);
-    syncToDb(next);
-    setSwimmers(s => {
-      if (s.some(sw => sw.id === newId)) return s;
-      return [...s, makeSwimmer(newEntry, px, py)];
-    });
+    addFishMutation.mutate(fish.shopItemId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saveLocal, syncToDb]);
+  }, [addFishMutation]);
 
-  const removeFish = useCallback((id: string) => {
-    const next = aquariumFishRef.current.filter(f => f.id !== id);
-    saveLocal(next);
-    setAquariumFish(next);
-    syncToDb(next);
+  const removeFish = useCallback((shopItemId: string) => {
+    removeFishMutation.mutate(shopItemId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saveLocal, syncToDb]);
+  }, [removeFishMutation]);
 
   const onFishPointerDown = useCallback((e: React.PointerEvent, fish: Omit<AqFishEntry, "id">) => {
     // Do NOT call e.preventDefault() — it would block the 'click' event on iOS/touch.
@@ -1536,27 +1463,16 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
     setDragging(null);
   }, [addFish]);
 
+  // DB inAquarium flag is the source of truth (optimistic updates keep this instant).
   const grouped = React.useMemo(() => {
-    // Use LOCAL aquariumFish counts so the bag updates immediately on add/remove
-    // (no waiting for DB sync round-trip, which can race with the mount sync)
-    const aqCounts = new Map<string, number>();
-    for (const f of aquariumFish) {
-      aqCounts.set(f.shopItemId, (aqCounts.get(f.shopItemId) ?? 0) + 1);
-    }
-    // For each shopItemId, subtract how many are claimed by the local aquarium
-    const remaining = new Map(aqCounts);
     const map = new Map<string, { item: AqCaughtFish["item"]; count: number }>();
     for (const cf of fishInventory) {
-      const claimed = remaining.get(cf.shopItemId) ?? 0;
-      if (claimed > 0) {
-        remaining.set(cf.shopItemId, claimed - 1);
-        continue; // This fish is currently in the aquarium
-      }
+      if (cf.inAquarium) continue;
       const ex = map.get(cf.shopItemId);
       if (ex) ex.count++; else map.set(cf.shopItemId, { item: cf.item, count: 1 });
     }
     return Array.from(map.entries());
-  }, [fishInventory, aquariumFish]);
+  }, [fishInventory]);
 
   return (
     <div
@@ -1783,7 +1699,7 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
 
             <button
               data-testid="button-return-fish-to-bag"
-              onClick={() => { removeFish(pendingRemove.id); setPendingRemove(null); }}
+              onClick={() => { removeFish(pendingRemove.shopItemId); setPendingRemove(null); }}
               className="w-full rounded-xl py-2.5 font-fantasy text-xs tracking-widest transition-transform active:scale-95 mb-2"
               style={{
                 background: "linear-gradient(135deg, rgba(94,234,212,0.22), rgba(56,189,248,0.18))",

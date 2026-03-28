@@ -172,6 +172,8 @@ export interface IStorage {
   getPlayerCaughtFishLog(userId: string): Promise<{ shopItemId: string; rewardClaimed: boolean }[]>;
   claimFishCatchReward(userId: string, shopItemId: string): Promise<boolean>;
   syncAquariumFish(userId: string, counts: { shopItemId: string; count: number }[]): Promise<void>;
+  addFishToAquarium(userId: string, shopItemId: string): Promise<string | null>;
+  removeFishFromAquarium(userId: string, shopItemId: string): Promise<boolean>;
   getPlayerFishingEquipment(userId: string): Promise<PlayerFishingEquipment | null>;
   upsertPlayerFishingEquipment(userId: string, data: { poleInventoryId?: string | null; baitInventoryId?: string | null }): Promise<PlayerFishingEquipment>;
   getWorldDecorItems(worldId: string): Promise<WorldDecorItem[]>;
@@ -1093,6 +1095,38 @@ export class DatabaseStorage implements IStorage {
           .where(inArray(playerFishInventory.id, fish.map(f => f.id)));
       }
     }
+  }
+
+  async addFishToAquarium(userId: string, shopItemId: string): Promise<string | null> {
+    const [fish] = await db.select({ id: playerFishInventory.id })
+      .from(playerFishInventory)
+      .where(and(
+        eq(playerFishInventory.userId, userId),
+        eq(playerFishInventory.shopItemId, shopItemId),
+        eq(playerFishInventory.inAquarium, false)
+      ))
+      .limit(1);
+    if (!fish) return null;
+    await db.update(playerFishInventory)
+      .set({ inAquarium: true })
+      .where(eq(playerFishInventory.id, fish.id));
+    return fish.id;
+  }
+
+  async removeFishFromAquarium(userId: string, shopItemId: string): Promise<boolean> {
+    const [fish] = await db.select({ id: playerFishInventory.id })
+      .from(playerFishInventory)
+      .where(and(
+        eq(playerFishInventory.userId, userId),
+        eq(playerFishInventory.shopItemId, shopItemId),
+        eq(playerFishInventory.inAquarium, true)
+      ))
+      .limit(1);
+    if (!fish) return false;
+    await db.update(playerFishInventory)
+      .set({ inAquarium: false })
+      .where(eq(playerFishInventory.id, fish.id));
+    return true;
   }
 
   async getPlayerFishingEquipment(userId: string): Promise<PlayerFishingEquipment | null> {
