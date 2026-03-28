@@ -2037,16 +2037,17 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
             width: BASE_R * 2,
             height: BASE_R * 2,
             borderRadius: "50%",
-            background: "radial-gradient(circle at 38% 38%, rgba(239,68,68,0.6) 0%, rgba(180,20,20,0.45) 60%, rgba(80,8,8,0.4) 100%)",
-            border: "2.5px solid rgba(239,68,68,0.5)",
+            background: "radial-gradient(circle at 40% 35%, rgba(30,22,6,0.9) 0%, rgba(10,8,2,0.85) 100%)",
+            border: "2.5px solid rgba(212,160,23,0.55)",
             backdropFilter: "blur(6px)",
-            boxShadow: "0 4px 20px rgba(0,0,0,0.5), 0 0 18px rgba(239,68,68,0.2), inset 0 1px 0 rgba(255,120,120,0.15)",
+            boxShadow: "0 4px 20px rgba(0,0,0,0.6), 0 0 16px rgba(127,255,212,0.15), inset 0 1px 0 rgba(212,160,23,0.12)",
             touchAction: "none",
             zIndex: 60,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             cursor: "pointer",
+            overflow: "hidden",
           }}
         >
           <img
@@ -2054,11 +2055,10 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
             alt="Attack"
             draggable={false}
             style={{
-              width: 52, height: 52,
+              width: 62, height: 62,
               objectFit: "contain",
-              mixBlendMode: "screen",
-              filter: "drop-shadow(0 0 8px rgba(239,68,68,0.9)) drop-shadow(0 0 4px rgba(255,180,80,0.5))",
-              transform: "rotate(-35deg)",
+              filter: "drop-shadow(0 0 6px rgba(127,255,212,0.6)) drop-shadow(0 0 3px rgba(212,160,23,0.7))",
+              transform: "rotate(-30deg)",
             }}
           />
         </button>
