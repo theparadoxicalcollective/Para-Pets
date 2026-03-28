@@ -7,14 +7,14 @@ import { Plus, X, Trash2, FlipHorizontal, Palette, MapPin, Minus, Store } from "
 import { readFileAsDataUrl } from "@/lib/utils";
 import { playShopBell } from "@/lib/sounds";
 import PetAnimator from "@/components/PetAnimator";
-import bgGround from "@assets/pw_ground_layer.png";
+import bgGround from "@assets/IMG_6459_1774673194843.jpeg";
 import coinIconImg from "@assets/icon_coin.png";
 import petHouseIconImg from "@assets/icon_pet_house.png";
 
 const WORLD_ID = "pet_world";
 const ACCENT = "#7fffd4";
 const MAP_W = 1080;
-const MAP_H_DEFAULT = 1920;
+const MAP_H_DEFAULT = 700;
 
 const FRAME_W = 390;
 const FRAME_H = 844;
