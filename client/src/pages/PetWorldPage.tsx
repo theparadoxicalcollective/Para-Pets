@@ -1863,11 +1863,14 @@ function WorldRoamingPet({
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
   const displayName = pet.petNickname || pet.name;
 
-  // Seeded per-pet so each pet bobs at a unique phase/speed
+  // Seeded per-pet so each pet drifts and bobs at a unique phase/speed
   const seed = (pet.userId.charCodeAt(0) + pet.userId.charCodeAt(1) * 31) & 0xffff;
-  const idleFloatDuration = `${2.6 + (seed % 100) / 100 * 1.4}s`;
-  const idleDelay         = `-${((seed % 60) / 60 * 2.0).toFixed(2)}s`;
-  const floatAnim = hasWings ? "petFloatSmall" : "petGroundFloat";
+  const driftIdx           = seed % 6;
+  const driftDuration      = `${90 + (seed % 50)}s`;
+  const driftDelay         = `-${(seed % 80).toFixed(0)}s`;
+  const floatDuration      = hasWings ? `${5 + (seed % 20) / 10}s` : `${2.8 + (seed % 30) / 30}s`;
+  const floatDelay         = `-${((seed % 50) / 50 * 4.0).toFixed(2)}s`;
+  const floatAnim          = hasWings ? "petFloatSmall" : "petGroundFloat";
 
   return (
     <div
@@ -1884,8 +1887,10 @@ function WorldRoamingPet({
         transition: isOwn ? undefined : "left 1.8s linear, top 1.8s linear",
       }}
     >
-      {/* Idle float — only on other players' pets; own pet is driven by the joystick */}
-      <div style={{ animation: isOwn ? undefined : `${floatAnim} ${idleFloatDuration} ease-in-out ${idleDelay} infinite` }}>
+      {/* Idle drift — wanders slowly around the map; paused for own pet */}
+      <div style={{ animation: isOwn ? undefined : `petWorldIdleDrift${driftIdx} ${driftDuration} ${driftDelay} ease-in-out infinite` }}>
+      {/* Idle float — gentle up-down bob layered on the drift */}
+      <div style={{ animation: isOwn ? undefined : `${floatAnim} ${floatDuration} ease-in-out ${floatDelay} infinite` }}>
           {/* Single position:relative box (sz × sz map-pixels).
               Badge and stars are absolutely positioned using the pet's ACTUAL
               bounding box (minTopFrac / maxBotFrac) computed from the real part
@@ -1975,6 +1980,7 @@ function WorldRoamingPet({
               }}
             />
           </div>
+      </div>
       </div>
     </div>
   );
