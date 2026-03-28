@@ -5,7 +5,6 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
-import pg from "pg";
 import { storage } from "./storage";
 import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards, userInventory } from "@shared/schema";
 import { db } from "./db";
@@ -3243,70 +3242,6 @@ export async function registerRoutes(
       return res.json(leaderboard);
     } catch (err: any) {
       return res.status(500).json({ message: err.message || "Failed to fetch leaderboard" });
-    }
-  });
-
-  // ── Vault founder sync ─────────────────────────────────────────────────────
-  app.post("/api/admin/badges/sync-founders", isAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as any;
-      if (!user?.isAdmin) return res.status(403).json({ message: "Forbidden" });
-
-      const vaultUrl = process.env.VAULT_DATABASE_URL;
-      if (!vaultUrl) return res.status(400).json({ message: "VAULT_DATABASE_URL secret is not configured. Add it in the Secrets panel." });
-
-      // Connect to Vault DB and pull all emails
-      const { Pool } = pg;
-      const vaultPool = new Pool({ connectionString: vaultUrl, connectionTimeoutMillis: 8000 });
-      let vaultEmails: Set<string>;
-      try {
-        const result = await vaultPool.query("SELECT email FROM users WHERE email IS NOT NULL AND email <> ''");
-        vaultEmails = new Set(result.rows.map((r: any) => (r.email as string).toLowerCase().trim()));
-      } finally {
-        await vaultPool.end();
-      }
-
-      if (vaultEmails.size === 0) return res.status(400).json({ message: "No emails found in The Vault database." });
-
-      // Find Founder's badge
-      const allBadges = await storage.getAllBadges();
-      const founderBadge = allBadges.find(b => b.name.toLowerCase().includes("founder"));
-      if (!founderBadge) return res.status(400).json({ message: "No badge with 'Founder' in the name exists. Create it first." });
-
-      // Cross-reference ParaPets users
-      const allUsers = await storage.getAllUsers();
-      const matched = allUsers.filter(u => u.email && vaultEmails.has(u.email.toLowerCase().trim()));
-
-      // Get who already has it
-      const existingRecipients = new Set(await storage.getBadgeRecipients(founderBadge.id));
-
-      const { preview } = req.query;
-      let awarded = 0;
-      let alreadyHad = 0;
-      const awardedUsers: string[] = [];
-
-      for (const u of matched) {
-        if (existingRecipients.has(u.id)) { alreadyHad++; continue; }
-        if (!preview) {
-          await storage.awardBadge(u.id, founderBadge.id);
-          awardedUsers.push(u.username);
-        }
-        awarded++;
-      }
-
-      return res.json({
-        preview: !!preview,
-        vaultEmailCount: vaultEmails.size,
-        parapetsUserCount: allUsers.length,
-        totalMatched: matched.length,
-        awarded,
-        alreadyHad,
-        awardedUsers: preview ? matched.filter(u => !existingRecipients.has(u.id)).map(u => u.username) : awardedUsers,
-        badgeName: founderBadge.name,
-      });
-    } catch (err: any) {
-      console.error("Vault founder sync error:", err);
-      return res.status(500).json({ message: err.message || "Sync failed" });
     }
   });
 

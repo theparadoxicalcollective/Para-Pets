@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Search, X, Upload, Trash2, ChevronLeft, Pencil, RefreshCw, CheckCircle, Users } from "lucide-react";
+import { Search, X, Upload, Trash2, ChevronLeft, Pencil } from "lucide-react";
 import bgImg from "@assets/bg_home_v2.png";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
@@ -1058,26 +1058,6 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
   const [editImageData, setEditImageData] = useState<string | null>(null);
   const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
   const editFileRef = useRef<HTMLInputElement>(null);
-  const [showSync, setShowSync] = useState(false);
-  const [syncResult, setSyncResult] = useState<null | {
-    preview: boolean; vaultEmailCount: number; parapetsUserCount: number;
-    totalMatched: number; awarded: number; alreadyHad: number;
-    awardedUsers: string[]; badgeName: string;
-  }>(null);
-
-  const syncMutation = useMutation({
-    mutationFn: async (preview: boolean) => {
-      const url = preview
-        ? "/api/admin/badges/sync-founders?preview=true"
-        : "/api/admin/badges/sync-founders";
-      const res = await apiRequest("POST", url);
-      if (!res.ok) { const d = await res.json(); throw new Error(d.message); }
-      return res.json();
-    },
-    onSuccess: (data) => { setSyncResult(data); },
-    onError: (e: any) => toast({ title: "Sync failed", description: e.message, variant: "destructive" }),
-  });
-
   const { data: allBadges = [], isLoading } = useQuery<AdminBadge[]>({
     queryKey: ["/api/badges"],
   });
