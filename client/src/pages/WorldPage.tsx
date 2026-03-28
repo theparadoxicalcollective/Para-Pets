@@ -3111,7 +3111,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                   <div className="text-center">
                     <h3
                       className="font-fantasy font-bold leading-tight"
-                      style={{ color: "#1a0700", fontSize: "14px", textShadow: "0 1px 0 rgba(255,255,255,0.45)" }}
+                      style={{ color: "#1a0700", fontSize: "14px", textShadow: "-1px -1px 0 rgba(255,225,150,0.85), 1px -1px 0 rgba(255,225,150,0.85), -1px 1px 0 rgba(255,225,150,0.85), 1px 1px 0 rgba(255,225,150,0.85), 0 0 8px rgba(255,210,120,0.6)" }}
                       data-testid="text-detail-item-name"
                     >
                       {item.name}
@@ -3123,7 +3123,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                     {descLines.length > 0 && (
                       <div style={{ marginBottom: "5px" }}>
                         {descLines.slice(0, 3).map((line, i) => (
-                          <div key={i} className="font-fantasy text-center" style={{ fontSize: "9.5px", color: "#2a1000", lineHeight: "1.45", textShadow: "0 1px 0 rgba(255,255,255,0.4)" }}>
+                          <div key={i} className="font-fantasy text-center" style={{ fontSize: "9.5px", color: "#1e0800", lineHeight: "1.45", textShadow: "-1px -1px 0 rgba(255,225,150,0.7), 1px -1px 0 rgba(255,225,150,0.7), -1px 1px 0 rgba(255,225,150,0.7), 1px 1px 0 rgba(255,225,150,0.7), 0 0 6px rgba(255,210,120,0.5)" }}>
                             {line}
                           </div>
                         ))}
@@ -3173,13 +3173,13 @@ export default function WorldPage({ user }: WorldPageProps) {
                 >
                   {/* TOP: name + qty */}
                   <div className="flex flex-col items-center" style={{ gap: "6px" }}>
-                    <h3 className="font-fantasy font-bold text-center" style={{ fontSize: "14px", color: "#1a0700", textShadow: "0 1px 0 rgba(255,255,255,0.45)" }} data-testid="text-detail-item-name">
+                    <h3 className="font-fantasy font-bold text-center" style={{ fontSize: "14px", color: "#1a0700", textShadow: "-1px -1px 0 rgba(255,225,150,0.85), 1px -1px 0 rgba(255,225,150,0.85), -1px 1px 0 rgba(255,225,150,0.85), 1px 1px 0 rgba(255,225,150,0.85), 0 0 8px rgba(255,210,120,0.6)" }} data-testid="text-detail-item-name">
                       {item.name}
                     </h3>
                     <div style={{ borderTop: "1px solid rgba(100,50,10,0.25)", width: "100%" }} />
                     {item.type !== "pet" && (
                       <div className="flex flex-col items-center" style={{ gap: "3px" }}>
-                        <span className="font-fantasy" style={{ fontSize: "9px", color: "#2e1000", fontWeight: 600 }}>How many?</span>
+                        <span className="font-fantasy" style={{ fontSize: "9px", color: "#2e1000", fontWeight: 600, textShadow: "-1px -1px 0 rgba(255,225,150,0.7), 1px -1px 0 rgba(255,225,150,0.7), -1px 1px 0 rgba(255,225,150,0.7), 1px 1px 0 rgba(255,225,150,0.7)" }}>How many?</span>
                         <div className="flex items-center" style={{ gap: "16px" }}>
                           {buyQty > 1 && (
                             <button
@@ -3189,7 +3189,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                               style={{ width: "30px", height: "30px", background: "rgba(65,30,5,0.28)", border: "1.5px solid rgba(130,65,18,0.55)", color: "#1e0900", cursor: "pointer", fontSize: "16px" }}
                             >−</button>
                           )}
-                          <span className="font-fantasy font-bold" style={{ fontSize: "24px", color: "#1e0900", minWidth: "2ch", textAlign: "center" }} data-testid="text-buy-quantity">{buyQty}</span>
+                          <span className="font-fantasy font-bold" style={{ fontSize: "24px", color: "#1e0900", minWidth: "2ch", textAlign: "center", textShadow: "-1px -1px 0 rgba(255,225,150,0.8), 1px -1px 0 rgba(255,225,150,0.8), -1px 1px 0 rgba(255,225,150,0.8), 1px 1px 0 rgba(255,225,150,0.8)" }} data-testid="text-buy-quantity">{buyQty}</span>
                           <button
                             data-testid="button-qty-plus"
                             onClick={() => setBuyQty(q => Math.min(maxQty, q + 1))}
@@ -3201,7 +3201,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                     )}
                     <div className="flex items-center" style={{ gap: "5px" }}>
                       <img src={coinIconImg} alt="" style={{ width: "16px", height: "16px", objectFit: "contain" }} />
-                      <span className="font-fantasy font-bold" style={{ fontSize: "18px", color: "#1e0900" }} data-testid="text-confirm-total-cost">{totalCost} coins</span>
+                      <span className="font-fantasy font-bold" style={{ fontSize: "18px", color: "#1e0900", textShadow: "-1px -1px 0 rgba(255,225,150,0.8), 1px -1px 0 rgba(255,225,150,0.8), -1px 1px 0 rgba(255,225,150,0.8), 1px 1px 0 rgba(255,225,150,0.8)" }} data-testid="text-confirm-total-cost">{totalCost} coins</span>
                     </div>
                   </div>
 
