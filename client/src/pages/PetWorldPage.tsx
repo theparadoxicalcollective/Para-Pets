@@ -94,6 +94,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const mapPanningRef           = useRef(false);
   const mapJustPannedRef        = useRef(false);
   const pinchStartRef           = useRef<{ dist: number; scale: number; midX: number; midY: number; mapX: number; mapY: number } | null>(null);
+  // Pet tap detection — set on pointer-down, consumed on pointer-up if no drag
+  const petTapRef               = useRef<string | null>(null); // userId under the pointer
 
   // ── decor drag state ───────────────────────────────────────────────────────
   const areaRef          = useRef<HTMLDivElement>(null);
@@ -153,6 +155,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
 
   // ── Online pets — driven entirely by SSE events, no polling ───────────────
   const [onlinePets, setOnlinePets] = useState<WorldActivePet[]>([]);
+  const onlinePetsRef = useRef<WorldActivePet[]>([]);
+  onlinePetsRef.current = onlinePets;
 
   const { data: me } = useQuery<{ profileImage: string | null; username: string; coins: number }>({
     queryKey: ["/api/auth/me"],
@@ -548,6 +552,9 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     mapPanPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     mapPanStartRef.current = { x: e.clientX, y: e.clientY, mapX: mapTransformRef.current.x, mapY: mapTransformRef.current.y };
     mapPanningRef.current = false;
+    // Record if the tap started over another player's pet
+    const petEl = (e.target as Element).closest("[data-petid]") as HTMLElement | null;
+    petTapRef.current = petEl ? (petEl.getAttribute("data-petid") ?? null) : null;
   }, []);
 
   const handleVpPointerMove = useCallback((e: React.PointerEvent) => {
@@ -561,9 +568,17 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
 
   const handleVpPointerUp = useCallback((e: React.PointerEvent) => {
     mapPanPointersRef.current.delete(e.pointerId);
-    if (mapPanningRef.current) { mapJustPannedRef.current = true; setTimeout(() => { mapJustPannedRef.current = false; }, 80); }
+    const wasPan = mapPanningRef.current;
+    if (wasPan) { mapJustPannedRef.current = true; setTimeout(() => { mapJustPannedRef.current = false; }, 80); }
     mapPanStartRef.current = null;
     mapPanningRef.current = false;
+    // If the pointer went down and up on a pet without dragging, open their profile
+    if (!wasPan && petTapRef.current) {
+      const userId = petTapRef.current;
+      const pet = onlinePetsRef.current.find(p => p.userId === userId);
+      if (pet) setSelectedPet(pet);
+    }
+    petTapRef.current = null;
   }, []);
 
   // ── decor drag on map ──────────────────────────────────────────────────────
@@ -1982,8 +1997,11 @@ function WorldRoamingPet({
               />
             )}
 
-            {/* Tap zone — tapping a pet opens their profile */}
+            {/* Tap zone — tapping a pet opens their profile.
+                data-petid is read by the viewport pointer-up handler (setPointerCapture
+                intercepts all pointer events on mobile, so onClick alone is unreliable). */}
             <div
+              data-petid={pet.userId}
               onClick={onTap}
               style={{
                 position: "absolute",
