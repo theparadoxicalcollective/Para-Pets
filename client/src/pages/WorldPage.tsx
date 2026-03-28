@@ -3050,67 +3050,70 @@ export default function WorldPage({ user }: WorldPageProps) {
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
             <div className="absolute inset-0 bg-black/70" onClick={() => { setSelectedShopItem(null); setBuyStep(0); setBuyError(null); setBuyQty(1); }} />
-            {/* Price tag — sized to fill screen comfortably, square to match 1024×1024 image */}
-            <div className="relative z-10" style={{ width: "min(460px, 96vw)", aspectRatio: "1 / 1" }}>
-              {/* Tag background — object-fill since image is exactly square (1024×1024) */}
+            {/*
+              Price tag container — explicit width & height (square to match 1024×1024 PNG).
+              MEASURED pixel positions (sharp pixel scan of price_tag.png):
+                Wooden body left:  27%   right: 72%   (span = 45% of image width)
+                Wood top:          30%   bottom: 96%
+                Grommet bottom:    ~40%  (where wood widens to full 45% span)
+              Content area insets that land safely ON the wood:
+                top=41%  left=29%  right=29%  bottom=5%
+              Close button is INSIDE the content div so it cannot escape the wooden body.
+            */}
+            <div
+              className="relative z-10"
+              style={{
+                width: "min(480px, 98vw)",
+                height: "min(480px, 98vw)",
+              }}
+            >
               <img
                 src={priceTagImg}
                 alt=""
-                className="absolute inset-0 w-full h-full object-fill pointer-events-none select-none"
-                style={{ filter: "drop-shadow(0 16px 40px rgba(0,0,0,0.95)) drop-shadow(0 4px 10px rgba(0,0,0,0.75))" }}
+                className="absolute inset-0 w-full h-full pointer-events-none select-none"
+                style={{ objectFit: "fill", filter: "drop-shadow(0 14px 36px rgba(0,0,0,0.95)) drop-shadow(0 3px 8px rgba(0,0,0,0.7))" }}
               />
-              {/*
-                From screenshot analysis (374px rendered container on iPhone):
-                  Wooden body LEFT  ≈ 15% from left  (57px)
-                  Wooden body RIGHT ≈ 85% from left  (318px) → right-inset ≈ 15%
-                  Wooden body TOP   ≈ 21% from top
-                  Grommet bottom    ≈ 33% from top
-                  Wooden body BOTTOM≈ 94% from top
-                Close button must be fully inside right edge (85%), so center at ~80% from left.
-              */}
 
-              {/* Close — fully inside wooden body; centered at ~79% from left, top of content area */}
-              <button
-                onClick={() => { setSelectedShopItem(null); setBuyStep(0); setBuyError(null); setBuyQty(1); }}
-                className="absolute z-20 w-8 h-8 rounded-full flex items-center justify-center transition-transform active:scale-90"
-                style={{ top: "26%", right: "21%", background: "rgba(45,18,4,0.85)", border: "1.5px solid rgba(160,90,25,0.65)", color: "#d4a84a", cursor: "pointer" }}
-              >
-                <X className="w-4 h-4" />
-              </button>
-
-              {/* ── STEP 1: Item detail + buy button ── */}
+              {/* ── STEP 1: Item detail ── */}
               {buyStep === 1 && (
                 <div
                   className="absolute flex flex-col justify-between"
-                  style={{ top: "34%", left: "16%", right: "16%", bottom: "7%", overflow: "hidden" }}
+                  style={{ top: "41%", left: "29%", right: "29%", bottom: "5%", overflow: "hidden" }}
                 >
-                  {/* TOP section: image + name row, then ability */}
+                  {/* TOP section */}
                   <div>
-                    {/* Image LEFT · Name RIGHT */}
-                    <div className="flex items-center" style={{ gap: "10px", marginBottom: "6px" }}>
-                      <div className="flex-shrink-0" style={{ width: "60px", height: "60px" }}>
+                    {/* Row 1: item image LEFT, name+close RIGHT */}
+                    <div className="flex items-start" style={{ gap: "6px", marginBottom: "4px" }}>
+                      {/* Item image */}
+                      <div className="flex-shrink-0" style={{ width: "44px", height: "44px" }}>
                         {imgSrc ? (
-                          <img
-                            src={imgSrc}
-                            alt={item.name}
-                            className="w-full h-full object-contain"
-                            style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.5))" }}
-                          />
+                          <img src={imgSrc} alt={item.name} className="w-full h-full object-contain" style={{ filter: "drop-shadow(0 2px 5px rgba(0,0,0,0.5))" }} />
                         ) : (
-                          <Package style={{ width: "48px", height: "48px", color: "rgba(80,40,10,0.7)" }} />
+                          <Package style={{ width: "36px", height: "36px", color: "rgba(80,40,10,0.75)" }} />
                         )}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <h3
-                          className="font-fantasy font-bold leading-tight"
-                          style={{ color: "#1e0900", fontSize: "14px", marginBottom: "3px" }}
-                          data-testid="text-detail-item-name"
-                        >
-                          {item.name}
-                        </h3>
+                      {/* Name + type + close button */}
+                      <div className="flex-1 min-w-0 flex flex-col" style={{ gap: "2px" }}>
+                        <div className="flex items-start justify-between" style={{ gap: "4px" }}>
+                          <h3
+                            className="font-fantasy font-bold leading-tight flex-1 min-w-0"
+                            style={{ color: "#1e0900", fontSize: "12px" }}
+                            data-testid="text-detail-item-name"
+                          >
+                            {item.name}
+                          </h3>
+                          {/* Close button lives here — always inside wooden body */}
+                          <button
+                            onClick={() => { setSelectedShopItem(null); setBuyStep(0); setBuyError(null); setBuyQty(1); }}
+                            className="flex-shrink-0 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                            style={{ width: "24px", height: "24px", background: "rgba(45,18,4,0.85)", border: "1.5px solid rgba(160,90,25,0.65)", color: "#d4a84a", cursor: "pointer" }}
+                          >
+                            <X style={{ width: "12px", height: "12px" }} />
+                          </button>
+                        </div>
                         <span
                           className="font-fantasy capitalize"
-                          style={{ fontSize: "9px", color: "#5a2800", background: "rgba(65,30,5,0.18)", border: "1px solid rgba(110,55,15,0.3)", borderRadius: "999px", padding: "1px 7px", display: "inline-block" }}
+                          style={{ fontSize: "8.5px", color: "#5a2800", background: "rgba(65,30,5,0.18)", border: "1px solid rgba(110,55,15,0.3)", borderRadius: "999px", padding: "1px 6px", display: "inline-block", alignSelf: "flex-start" }}
                         >
                           {item.type}
                         </span>
@@ -3118,13 +3121,9 @@ export default function WorldPage({ user }: WorldPageProps) {
                     </div>
                     {/* Ability lines */}
                     {descLines.length > 0 && (
-                      <div style={{ borderTop: "1px solid rgba(100,50,10,0.22)", paddingTop: "5px" }}>
-                        {descLines.slice(0, 4).map((line, i) => (
-                          <div
-                            key={i}
-                            className="font-fantasy"
-                            style={{ fontSize: "9.5px", color: "#3a1500", lineHeight: "1.4", marginBottom: "1px" }}
-                          >
+                      <div style={{ borderTop: "1px solid rgba(100,50,10,0.22)", paddingTop: "4px" }}>
+                        {descLines.slice(0, 3).map((line, i) => (
+                          <div key={i} className="font-fantasy" style={{ fontSize: "9px", color: "#3a1500", lineHeight: "1.45" }}>
                             {line}
                           </div>
                         ))}
@@ -3132,14 +3131,11 @@ export default function WorldPage({ user }: WorldPageProps) {
                     )}
                   </div>
 
-                  {/* BOTTOM section: buy button anchored to bottom */}
+                  {/* BOTTOM section: buy button always anchored here */}
                   <div>
-                    <div style={{ borderTop: "1px solid rgba(100,50,10,0.22)", marginBottom: "6px" }} />
+                    <div style={{ borderTop: "1px solid rgba(100,50,10,0.22)", marginBottom: "5px" }} />
                     {isOwned ? (
-                      <div
-                        className="text-center font-fantasy"
-                        style={{ fontSize: "9px", padding: "8px 0", borderRadius: "10px", background: "rgba(0,90,55,0.18)", color: "#004428", border: "1px solid rgba(0,90,55,0.3)" }}
-                      >
+                      <div className="text-center font-fantasy" style={{ fontSize: "9px", padding: "7px 0", borderRadius: "8px", background: "rgba(0,90,55,0.18)", color: "#004428", border: "1px solid rgba(0,90,55,0.3)" }}>
                         You already own this pet
                       </div>
                     ) : (
@@ -3149,32 +3145,28 @@ export default function WorldPage({ user }: WorldPageProps) {
                           onClick={() => { setBuyStep(2); setBuyQty(1); }}
                           className="w-full font-fantasy font-bold tracking-wide transition-transform active:scale-95"
                           style={{
-                            padding: "9px 0",
+                            padding: "8px 0",
                             fontSize: "12px",
-                            borderRadius: "10px",
-                            background: canAfford
-                              ? "linear-gradient(135deg, rgba(115,62,10,0.95) 0%, rgba(78,40,6,0.95) 100%)"
-                              : "rgba(90,70,45,0.28)",
+                            borderRadius: "9px",
+                            background: canAfford ? "linear-gradient(135deg, rgba(115,62,10,0.95) 0%, rgba(78,40,6,0.95) 100%)" : "rgba(90,70,45,0.28)",
                             border: `2px solid ${canAfford ? "rgba(220,148,42,0.85)" : "rgba(100,75,40,0.25)"}`,
                             color: canAfford ? "#ffd04a" : "#7a6040",
                             cursor: "pointer",
-                            boxShadow: canAfford ? "0 3px 12px rgba(90,45,0,0.4)" : "none",
-                            marginBottom: "4px",
+                            boxShadow: canAfford ? "0 3px 10px rgba(90,45,0,0.4)" : "none",
+                            marginBottom: "3px",
                           }}
                         >
-                          <div className="flex items-center justify-center" style={{ gap: "6px" }}>
-                            <img src={coinIconImg} alt="" style={{ width: "14px", height: "14px", objectFit: "contain" }} />
+                          <div className="flex items-center justify-center" style={{ gap: "5px" }}>
+                            <img src={coinIconImg} alt="" style={{ width: "13px", height: "13px", objectFit: "contain" }} />
                             <span>{item.price} coins — Buy</span>
                           </div>
                         </button>
                         {!canAfford && (
-                          <p className="font-fantasy text-center" style={{ fontSize: "8.5px", color: "#9a1800", marginBottom: "2px" }} data-testid="text-not-enough-coins">
-                            Not enough coins
-                          </p>
+                          <p className="font-fantasy text-center" style={{ fontSize: "8px", color: "#9a1800", marginBottom: "1px" }} data-testid="text-not-enough-coins">Not enough coins</p>
                         )}
-                        <div className="flex items-center justify-center" style={{ gap: "4px" }}>
-                          <img src={coinIconImg} alt="" style={{ width: "10px", height: "10px", objectFit: "contain", opacity: 0.5 }} />
-                          <span className="font-fantasy" style={{ fontSize: "8.5px", color: "#5a3010" }}>You have {currentUser.coins} coins</span>
+                        <div className="flex items-center justify-center" style={{ gap: "3px" }}>
+                          <img src={coinIconImg} alt="" style={{ width: "9px", height: "9px", objectFit: "contain", opacity: 0.5 }} />
+                          <span className="font-fantasy" style={{ fontSize: "8px", color: "#5a3010" }}>You have {currentUser.coins} coins</span>
                         </div>
                       </>
                     )}
@@ -3186,58 +3178,56 @@ export default function WorldPage({ user }: WorldPageProps) {
               {buyStep === 2 && (
                 <div
                   className="absolute flex flex-col justify-between"
-                  style={{ top: "34%", left: "16%", right: "16%", bottom: "7%", overflow: "hidden" }}
+                  style={{ top: "41%", left: "29%", right: "29%", bottom: "5%", overflow: "hidden" }}
                 >
                   {/* TOP: name + qty */}
-                  <div className="flex flex-col items-center" style={{ gap: "8px" }}>
-                    <h3
-                      className="font-fantasy font-bold text-center"
-                      style={{ fontSize: "13px", color: "#1e0900" }}
-                      data-testid="text-detail-item-name"
-                    >
+                  <div className="flex flex-col items-center" style={{ gap: "6px" }}>
+                    {/* Close button at top right */}
+                    <div className="w-full flex justify-end">
+                      <button
+                        onClick={() => { setSelectedShopItem(null); setBuyStep(0); setBuyError(null); setBuyQty(1); }}
+                        className="rounded-full flex items-center justify-center transition-transform active:scale-90"
+                        style={{ width: "24px", height: "24px", background: "rgba(45,18,4,0.85)", border: "1.5px solid rgba(160,90,25,0.65)", color: "#d4a84a", cursor: "pointer" }}
+                      >
+                        <X style={{ width: "12px", height: "12px" }} />
+                      </button>
+                    </div>
+                    <h3 className="font-fantasy font-bold text-center" style={{ fontSize: "13px", color: "#1e0900", marginTop: "-4px" }} data-testid="text-detail-item-name">
                       {item.name}
                     </h3>
                     <div style={{ borderTop: "1px solid rgba(100,50,10,0.25)", width: "100%" }} />
                     {item.type !== "pet" && (
-                      <div className="flex flex-col items-center" style={{ gap: "4px" }}>
+                      <div className="flex flex-col items-center" style={{ gap: "3px" }}>
                         <span className="font-fantasy" style={{ fontSize: "9px", color: "#2e1000", fontWeight: 600 }}>How many?</span>
-                        <div className="flex items-center" style={{ gap: "18px" }}>
+                        <div className="flex items-center" style={{ gap: "16px" }}>
                           {buyQty > 1 && (
                             <button
                               data-testid="button-qty-minus"
                               onClick={() => setBuyQty(q => Math.max(1, q - 1))}
                               className="rounded-full flex items-center justify-center font-bold transition-transform active:scale-90"
-                              style={{ width: "32px", height: "32px", background: "rgba(65,30,5,0.28)", border: "1.5px solid rgba(130,65,18,0.55)", color: "#1e0900", cursor: "pointer", fontSize: "18px" }}
+                              style={{ width: "30px", height: "30px", background: "rgba(65,30,5,0.28)", border: "1.5px solid rgba(130,65,18,0.55)", color: "#1e0900", cursor: "pointer", fontSize: "16px" }}
                             >−</button>
                           )}
-                          <span
-                            className="font-fantasy font-bold"
-                            style={{ fontSize: "26px", color: "#1e0900", minWidth: "2ch", textAlign: "center" }}
-                            data-testid="text-buy-quantity"
-                          >{buyQty}</span>
+                          <span className="font-fantasy font-bold" style={{ fontSize: "24px", color: "#1e0900", minWidth: "2ch", textAlign: "center" }} data-testid="text-buy-quantity">{buyQty}</span>
                           <button
                             data-testid="button-qty-plus"
                             onClick={() => setBuyQty(q => Math.min(maxQty, q + 1))}
                             className="rounded-full flex items-center justify-center font-bold transition-transform active:scale-90"
-                            style={{ width: "32px", height: "32px", background: "rgba(65,30,5,0.28)", border: "1.5px solid rgba(130,65,18,0.55)", color: "#1e0900", cursor: "pointer", fontSize: "18px" }}
+                            style={{ width: "30px", height: "30px", background: "rgba(65,30,5,0.28)", border: "1.5px solid rgba(130,65,18,0.55)", color: "#1e0900", cursor: "pointer", fontSize: "16px" }}
                           >+</button>
                         </div>
                       </div>
                     )}
                     <div className="flex items-center" style={{ gap: "5px" }}>
-                      <img src={coinIconImg} alt="" style={{ width: "18px", height: "18px", objectFit: "contain" }} />
-                      <span className="font-fantasy font-bold" style={{ fontSize: "20px", color: "#1e0900" }} data-testid="text-confirm-total-cost">{totalCost} coins</span>
+                      <img src={coinIconImg} alt="" style={{ width: "16px", height: "16px", objectFit: "contain" }} />
+                      <span className="font-fantasy font-bold" style={{ fontSize: "18px", color: "#1e0900" }} data-testid="text-confirm-total-cost">{totalCost} coins</span>
                     </div>
                   </div>
 
                   {/* BOTTOM: buttons */}
                   <div>
                     {buyError && (
-                      <div
-                        className="font-fantasy text-center"
-                        style={{ fontSize: "8.5px", padding: "5px 8px", marginBottom: "6px", borderRadius: "8px", background: "rgba(150,10,10,0.13)", color: "#700000", border: "1px solid rgba(150,10,10,0.28)" }}
-                        data-testid="text-buy-error"
-                      >
+                      <div className="font-fantasy text-center" style={{ fontSize: "8px", padding: "4px 8px", marginBottom: "5px", borderRadius: "7px", background: "rgba(150,10,10,0.13)", color: "#700000", border: "1px solid rgba(150,10,10,0.28)" }} data-testid="text-buy-error">
                         {buyError}
                       </div>
                     )}
