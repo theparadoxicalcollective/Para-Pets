@@ -2569,7 +2569,6 @@ function WorldRoamingPet({
                 mode="idle"
                 size={sz}
                 style={{
-                  filter: `drop-shadow(0 ${Math.round(sz * 0.04)}px ${Math.round(sz * 0.06)}px rgba(0,0,0,0.55))`,
                   pointerEvents: "none",
                   overflow: "visible",
                 }}
@@ -2582,7 +2581,6 @@ function WorldRoamingPet({
                 style={{
                   width: sz, height: sz,
                   objectFit: "contain",
-                  filter: `drop-shadow(0 ${Math.round(sz * 0.03)}px ${Math.round(sz * 0.05)}px rgba(0,0,0,0.5))`,
                   pointerEvents: "none",
                 }}
               />

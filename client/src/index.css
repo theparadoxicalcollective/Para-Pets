@@ -928,9 +928,9 @@
 /* Own pet hop-bounce while joystick is active */
 @keyframes kcPetWalkBounce {
   0%   { transform: translateY(0)    scaleX(1)    scaleY(1); }
-  22%  { transform: translateY(-7px) scaleX(0.93) scaleY(1.08); }
-  50%  { transform: translateY(1px)  scaleX(1.05) scaleY(0.95); }
-  75%  { transform: translateY(-4px) scaleX(0.97) scaleY(1.04); }
+  22%  { transform: translateY(-3px) scaleX(0.98) scaleY(1.03); }
+  50%  { transform: translateY(0)    scaleX(1.02) scaleY(0.99); }
+  75%  { transform: translateY(-2px) scaleX(0.99) scaleY(1.02); }
   100% { transform: translateY(0)    scaleX(1)    scaleY(1); }
 }
 
