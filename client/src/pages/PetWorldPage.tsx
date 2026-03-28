@@ -663,6 +663,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
               <div
                 key={loc.id}
                 className="absolute flex flex-col items-center"
+                draggable={false}
                 style={{
                   left: `${pos.x}%`,
                   top: `${pos.y}%`,
@@ -671,7 +672,10 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                   zIndex: selectedLocId === loc.id ? 150 : 10 + Math.round((pos.y / 100) * 60) + (locMoveOrder.indexOf(loc.id) + 1),
                   transform: "translate(-50%, -100%)",
                   touchAction: "none",
+                  userSelect: "none",
+                  WebkitUserDrag: "none",
                 }}
+                onDragStart={e => e.preventDefault()}
                 onPointerDown={e => handleLocPointerDown(e, loc)}
                 onPointerMove={handleLocPointerMove}
                 onPointerUp={handleLocPointerUp}
@@ -686,8 +690,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                       style={{
                         width: "100%",
                         objectFit: "contain",
-                        filter: `drop-shadow(0 4px 8px rgba(0,0,0,0.6))`,
                         transform: loc.flipped ? "scaleX(-1)" : undefined,
+                        userSelect: "none",
                       }}
                     />
                   ) : (
