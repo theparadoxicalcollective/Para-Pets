@@ -1296,12 +1296,7 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
               className="flex flex-col items-center gap-2 rounded-xl p-3"
               style={{ background: "rgba(20,12,4,0.6)", border: "1px solid rgba(255,215,0,0.15)" }}
             >
-              <button
-                data-testid={`button-apply-badge-${badge.id}`}
-                onClick={() => openApply(badge)}
-                className="flex flex-col items-center gap-1.5 w-full"
-                style={{ background: "none", border: "none", cursor: "pointer" }}
-              >
+              <div className="flex flex-col items-center gap-1.5 w-full">
                 <div
                   className="w-16 h-16 rounded-full flex items-center justify-center"
                   style={{ background: "rgba(255,215,0,0.08)", border: "2px solid rgba(255,215,0,0.3)", boxShadow: "0 0 12px rgba(255,215,0,0.15)" }}
@@ -1311,7 +1306,7 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
                 <p className="font-fantasy text-[10px] tracking-wider text-center leading-tight" style={{ color: "#ffd700" }}>
                   {badge.name}
                 </p>
-              </button>
+              </div>
               {editingRewardId === badge.id ? (
                 <div className="flex gap-1 w-full">
                   <input
