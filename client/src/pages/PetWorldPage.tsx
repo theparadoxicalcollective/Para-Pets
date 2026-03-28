@@ -624,6 +624,28 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
         const ny = Math.max(38, Math.min(90, localPetPosRef.current.y + dy * 4 * dt));
         localPetPosRef.current = { x: nx, y: ny };
         setLocalPetPos({ x: nx, y: ny });
+
+        // ── Camera follow: pan map so pet stays within horizontal margins ──
+        const { x: curMapX, y: curMapY, scale: sc } = mapTransformRef.current;
+        const scaledMapW = MAP_W * sc;
+        if (scaledMapW > FRAME_W) {
+          const petScreenX = (nx / 100) * scaledMapW + curMapX;
+          const EDGE = 110; // screen-px margin before camera starts panning
+          let targetX = curMapX;
+          if (petScreenX < EDGE) {
+            targetX = EDGE - (nx / 100) * scaledMapW;
+          } else if (petScreenX > FRAME_W - EDGE) {
+            targetX = (FRAME_W - EDGE) - (nx / 100) * scaledMapW;
+          }
+          targetX = Math.max(FRAME_W - scaledMapW, Math.min(0, targetX));
+          if (Math.abs(targetX - curMapX) > 0.5) {
+            // Smooth lerp toward target — feels like a gentle follow-cam
+            const newMapX = curMapX + (targetX - curMapX) * Math.min(1, dt * 8);
+            mapTransformRef.current = { x: newMapX, y: curMapY, scale: sc };
+            setMapX(newMapX);
+          }
+        }
+
         if (ownPet && now - lastSaveRef.current > 2000) {
           lastSaveRef.current = now;
           apiRequest("PATCH", "/api/world/pet_world/pet-position", { ownerUserId: ownPet.userId, posX: nx, posY: ny });
@@ -1125,7 +1147,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                   top: `${pos.y}%`,
                   width: sz,
                   cursor: user.isAdmin ? "grab" : (loc.isShop ? "pointer" : "default"),
-                  zIndex: selectedLocId === loc.id ? 150 : 10 + Math.round((pos.y / 100) * 60) + (locMoveOrder.indexOf(loc.id) + 1),
+                  zIndex: selectedLocId === loc.id ? 150 : locDragPos?.id === loc.id ? 200 : 10 + Math.round((pos.y / 100) * 60),
                   transform: "translate(-50%, -100%)",
                   touchAction: "none",
                   userSelect: "none",
@@ -1205,7 +1227,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                   left: `${dpos.x}%`, top: `${dpos.y}%`,
                   width: `${p.size}px`, height: `${p.size}px`,
                   transform: "translate(-50%, -50%)",
-                  zIndex: isPassThrough ? 300 : (decorDragPos?.id === p.id ? 200 : 10 + Math.round((Math.min(100, dpos.y + (p.size / 2 / mapH) * 100) / 100) * 60) + (decorMoveOrder.indexOf(p.id) + 1)),
+                  zIndex: isPassThrough ? 300 : (decorDragPos?.id === p.id ? 200 : 10 + Math.round((Math.min(100, dpos.y + (p.size / 2 / mapH) * 100) / 100) * 60)),
                   cursor: user.isAdmin ? "grab" : "default",
                   touchAction: user.isAdmin ? "none" : "auto",
                   pointerEvents: (!user.isAdmin && isPassThrough) ? "none" : "auto",
