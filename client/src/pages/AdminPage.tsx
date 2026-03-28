@@ -1032,6 +1032,7 @@ interface AdminBadge {
   name: string;
   imageUrl: string;
   dailyRewardCoins: number | null;
+  badgePoints: number;
   createdAt: string;
 }
 
@@ -1043,12 +1044,15 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
   const [showUpload, setShowUpload] = useState(false);
   const [uploadName, setUploadName] = useState("");
   const [uploadDailyReward, setUploadDailyReward] = useState<string>("");
+  const [uploadBadgePoints, setUploadBadgePoints] = useState<string>("");
   const [uploadPreview, setUploadPreview] = useState<string | null>(null);
   const [uploadData, setUploadData] = useState<string | null>(null);
 
   const [applyBadge, setApplyBadge] = useState<AdminBadge | null>(null);
   const [editingRewardId, setEditingRewardId] = useState<string | null>(null);
   const [editingRewardVal, setEditingRewardVal] = useState<string>("");
+  const [editingPointsId, setEditingPointsId] = useState<string | null>(null);
+  const [editingPointsVal, setEditingPointsVal] = useState<string>("");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [originalSelected, setOriginalSelected] = useState<Set<string>>(new Set());
@@ -1079,13 +1083,15 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
     mutationFn: async () => {
       if (!uploadName.trim() || !uploadData) throw new Error("Missing data");
       const dailyRewardCoins = uploadDailyReward.trim() ? parseInt(uploadDailyReward.trim(), 10) : null;
-      return apiRequest("POST", "/api/admin/badges", { name: uploadName.trim(), imageData: uploadData, dailyRewardCoins });
+      const badgePoints = uploadBadgePoints.trim() ? parseInt(uploadBadgePoints.trim(), 10) : 0;
+      return apiRequest("POST", "/api/admin/badges", { name: uploadName.trim(), imageData: uploadData, dailyRewardCoins, badgePoints });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/badges"] });
       setShowUpload(false);
       setUploadName("");
       setUploadDailyReward("");
+      setUploadBadgePoints("");
       setUploadPreview(null);
       setUploadData(null);
       toast({ title: "Badge created!" });
@@ -1100,6 +1106,17 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
       qc.invalidateQueries({ queryKey: ["/api/badges"] });
       setEditingRewardId(null);
       toast({ title: "Daily reward updated!" });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const updatePointsMutation = useMutation({
+    mutationFn: ({ id, points }: { id: string; points: number }) =>
+      apiRequest("PATCH", `/api/admin/badges/${id}`, { badgePoints: points }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/badges"] });
+      setEditingPointsId(null);
+      toast({ title: "Badge points updated!" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -1204,6 +1221,16 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
             className="w-full rounded-lg px-3 py-2 font-fantasy text-xs tracking-wider"
             style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,215,0,0.25)", color: "#f0c040", outline: "none" }}
           />
+          <input
+            data-testid="input-badge-points"
+            type="number"
+            min="0"
+            placeholder="Badge points (0 = no leaderboard impact)..."
+            value={uploadBadgePoints}
+            onChange={e => setUploadBadgePoints(e.target.value)}
+            className="w-full rounded-lg px-3 py-2 font-fantasy text-xs tracking-wider"
+            style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(100,200,180,0.3)", color: "#7fbfb0", outline: "none" }}
+          />
           <div className="flex gap-3 items-center">
             {uploadPreview && (
               <img src={uploadPreview} alt="preview" className="w-16 h-16 rounded-full object-cover" style={{ border: "2px solid rgba(255,215,0,0.4)" }} />
@@ -1302,6 +1329,43 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
                   style={{ background: "none", border: "none", cursor: "pointer", color: badge.dailyRewardCoins ? "#f0c040" : "#6a5840" }}
                 >
                   {badge.dailyRewardCoins ? `🪙 ${badge.dailyRewardCoins}/day` : "Set daily reward"}
+                </button>
+              )}
+              {editingPointsId === badge.id ? (
+                <div className="flex items-center gap-1">
+                  <input
+                    data-testid={`input-badge-points-${badge.id}`}
+                    type="number"
+                    min="0"
+                    value={editingPointsVal}
+                    onChange={e => setEditingPointsVal(e.target.value)}
+                    className="w-16 rounded px-1.5 py-0.5 font-fantasy text-[9px]"
+                    style={{ background: "rgba(0,0,0,0.5)", border: "1px solid rgba(100,200,180,0.4)", color: "#7fbfb0", outline: "none" }}
+                    autoFocus
+                  />
+                  <span className="font-fantasy text-[8px] text-[#7fbfb0]">pts</span>
+                  <button
+                    onClick={() => {
+                      const points = editingPointsVal.trim() ? parseInt(editingPointsVal.trim(), 10) : 0;
+                      updatePointsMutation.mutate({ id: badge.id, points });
+                    }}
+                    disabled={updatePointsMutation.isPending}
+                    className="px-1.5 rounded font-fantasy text-[9px]"
+                    style={{ background: "rgba(100,200,180,0.15)", border: "1px solid rgba(100,200,180,0.4)", color: "#7fbfb0", cursor: "pointer" }}
+                  >✓</button>
+                  <button
+                    onClick={() => setEditingPointsId(null)}
+                    className="px-1.5 rounded font-fantasy text-[9px]"
+                    style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,100,100,0.3)", color: "#ff9999", cursor: "pointer" }}
+                  >✕</button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => { setEditingPointsId(badge.id); setEditingPointsVal(String(badge.badgePoints ?? 0)); }}
+                  className="font-fantasy text-[9px] tracking-wide"
+                  style={{ background: "none", border: "none", cursor: "pointer", color: (badge.badgePoints ?? 0) > 0 ? "#7fbfb0" : "#4a6860" }}
+                >
+                  {(badge.badgePoints ?? 0) > 0 ? `⭐ ${badge.badgePoints} pts` : "Set badge pts"}
                 </button>
               )}
               <button

@@ -141,15 +141,17 @@ export interface IStorage {
   createEnemyDrop(data: { enemyId: string; shopItemId: string; dropRate: number }): Promise<EnemyDrop>;
   deleteEnemyDrop(id: string): Promise<void>;
   getAllBadges(): Promise<Badge[]>;
-  createBadge(name: string, imageUrl: string, dailyRewardCoins?: number | null): Promise<Badge>;
+  createBadge(name: string, imageUrl: string, dailyRewardCoins?: number | null, badgePoints?: number): Promise<Badge>;
   deleteBadge(id: string): Promise<void>;
   updateBadgeDailyReward(id: string, dailyRewardCoins: number | null): Promise<void>;
-  getUserBadges(userId: string): Promise<(UserBadge & { name: string; imageUrl: string; dailyRewardCoins: number | null; lastClaimedAt: Date | null })[]>;
+  updateBadge(id: string, data: { dailyRewardCoins?: number | null; badgePoints?: number }): Promise<void>;
+  getUserBadges(userId: string): Promise<(UserBadge & { name: string; imageUrl: string; dailyRewardCoins: number | null; badgePoints: number; lastClaimedAt: Date | null })[]>;
   getBadgeRecipients(badgeId: string): Promise<string[]>;
   awardBadge(userId: string, badgeId: string): Promise<UserBadge>;
   revokeBadge(userId: string, badgeId: string): Promise<void>;
   getBadgeRewardClaim(userId: string, badgeId: string): Promise<{ lastClaimedAt: Date } | null>;
   upsertBadgeRewardClaim(userId: string, badgeId: string): Promise<void>;
+  getBadgeLeaderboard(limit?: number): Promise<{ userId: string; username: string; profileImage: string | null; totalPoints: number; topBadges: { id: string; name: string; imageUrl: string; badgePoints: number }[]; allBadges: { id: string; name: string; imageUrl: string; badgePoints: number }[] }[]>;
   getMarketListings(filters?: { search?: string; itemType?: string; orderAsc?: boolean }): Promise<PlayerMarketListing[]>;
   getMyMarketListings(sellerId: string): Promise<PlayerMarketListing[]>;
   getMarketListing(id: string): Promise<PlayerMarketListing | undefined>;
@@ -797,8 +799,8 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(badges).orderBy(desc(badges.createdAt));
   }
 
-  async createBadge(name: string, imageUrl: string, dailyRewardCoins?: number | null): Promise<Badge> {
-    const [badge] = await db.insert(badges).values({ name, imageUrl, dailyRewardCoins: dailyRewardCoins ?? null }).returning();
+  async createBadge(name: string, imageUrl: string, dailyRewardCoins?: number | null, badgePoints?: number): Promise<Badge> {
+    const [badge] = await db.insert(badges).values({ name, imageUrl, dailyRewardCoins: dailyRewardCoins ?? null, badgePoints: badgePoints ?? 0 }).returning();
     return badge;
   }
 
@@ -811,7 +813,11 @@ export class DatabaseStorage implements IStorage {
     await db.update(badges).set({ dailyRewardCoins }).where(eq(badges.id, id));
   }
 
-  async getUserBadges(userId: string): Promise<(UserBadge & { name: string; imageUrl: string; dailyRewardCoins: number | null; lastClaimedAt: Date | null })[]> {
+  async updateBadge(id: string, data: { dailyRewardCoins?: number | null; badgePoints?: number }): Promise<void> {
+    await db.update(badges).set(data).where(eq(badges.id, id));
+  }
+
+  async getUserBadges(userId: string): Promise<(UserBadge & { name: string; imageUrl: string; dailyRewardCoins: number | null; badgePoints: number; lastClaimedAt: Date | null })[]> {
     const rows = await db
       .select({
         id: userBadges.id,
@@ -821,6 +827,7 @@ export class DatabaseStorage implements IStorage {
         name: badges.name,
         imageUrl: badges.imageUrl,
         dailyRewardCoins: badges.dailyRewardCoins,
+        badgePoints: badges.badgePoints,
         lastClaimedAt: badgeRewardClaims.lastClaimedAt,
       })
       .from(userBadges)
@@ -832,6 +839,41 @@ export class DatabaseStorage implements IStorage {
       .where(eq(userBadges.userId, userId))
       .orderBy(desc(userBadges.awardedAt));
     return rows;
+  }
+
+  async getBadgeLeaderboard(limit = 50): Promise<{ userId: string; username: string; profileImage: string | null; totalPoints: number; topBadges: { id: string; name: string; imageUrl: string; badgePoints: number }[]; allBadges: { id: string; name: string; imageUrl: string; badgePoints: number }[] }[]> {
+    const rows = await db
+      .select({
+        userId: userBadges.userId,
+        username: users.username,
+        profileImage: users.profileImage,
+        badgeId: badges.id,
+        badgeName: badges.name,
+        badgeImageUrl: badges.imageUrl,
+        badgePoints: badges.badgePoints,
+      })
+      .from(userBadges)
+      .innerJoin(badges, eq(userBadges.badgeId, badges.id))
+      .innerJoin(users, eq(userBadges.userId, users.id))
+      .orderBy(desc(badges.badgePoints));
+
+    const userMap = new Map<string, { userId: string; username: string; profileImage: string | null; totalPoints: number; allBadges: { id: string; name: string; imageUrl: string; badgePoints: number }[] }>();
+    for (const row of rows) {
+      if (!userMap.has(row.userId)) {
+        userMap.set(row.userId, { userId: row.userId, username: row.username, profileImage: row.profileImage, totalPoints: 0, allBadges: [] });
+      }
+      const entry = userMap.get(row.userId)!;
+      entry.totalPoints += row.badgePoints ?? 0;
+      entry.allBadges.push({ id: row.badgeId, name: row.badgeName, imageUrl: row.badgeImageUrl, badgePoints: row.badgePoints ?? 0 });
+    }
+
+    return Array.from(userMap.values())
+      .sort((a, b) => b.totalPoints - a.totalPoints)
+      .slice(0, limit)
+      .map(u => ({
+        ...u,
+        topBadges: [...u.allBadges].sort((a, b) => b.badgePoints - a.badgePoints).slice(0, 3),
+      }));
   }
 
   async getBadgeRewardClaim(userId: string, badgeId: string): Promise<{ lastClaimedAt: Date } | null> {

@@ -22,6 +22,7 @@ The application is built as a monolithic web app with a clear separation of conc
     - **Home Page**: Displays active pet, quest scroll, and main navigation.
     - **Map Page**: Interactive parchment-themed world map with 3D world icons and navigation.
     - **World Page**: World-specific shops and exploration mechanics. Shop view uses a full-screen mystical forest background (bg_shop_mystical.png) with items placed as freely-positioned draggable objects on the canvas (admin) or clickable objects (player). Player item detail sheet slides up from bottom with stat descriptions, quantity picker (1–20, pets=1), price button → confirm → buy flow.
+    - **Para Pets Hub Page** (`/hub`): Public landing page with a "Hall of Legends" badge leaderboard — players ranked by total badge points, top-3 badge icons shown per row, click-to-expand reveals all badges.
     - **Admin Page**: Comprehensive tools for realm administration.
     - **Coin Shop**: Integrated Stripe for in-app coin purchases.
     - **Pet House Page**: Enchanted forest room with animated walking/floating pets; drag-to-feed edibles mechanic.

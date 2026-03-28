@@ -3190,10 +3190,10 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
       if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
-      const { name, imageData, dailyRewardCoins } = req.body;
+      const { name, imageData, dailyRewardCoins, badgePoints } = req.body;
       if (!name || !imageData) return res.status(400).json({ message: "name and imageData required" });
       const imageUrl = await processWorldImage(imageData, 1000);
-      const badge = await storage.createBadge(name, imageUrl, dailyRewardCoins ? Number(dailyRewardCoins) : null);
+      const badge = await storage.createBadge(name, imageUrl, dailyRewardCoins ? Number(dailyRewardCoins) : null, badgePoints ? Number(badgePoints) : 0);
       return res.json(badge);
     } catch (err: any) {
       return res.status(500).json({ message: err.message || "Failed to create badge" });
@@ -3215,12 +3215,27 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
       if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
-      const { dailyRewardCoins } = req.body;
-      const coins = dailyRewardCoins != null && dailyRewardCoins !== "" ? Number(dailyRewardCoins) : null;
-      await storage.updateBadgeDailyReward(req.params.id, coins);
+      const { dailyRewardCoins, badgePoints } = req.body;
+      const updateData: { dailyRewardCoins?: number | null; badgePoints?: number } = {};
+      if (dailyRewardCoins !== undefined) {
+        updateData.dailyRewardCoins = dailyRewardCoins != null && dailyRewardCoins !== "" ? Number(dailyRewardCoins) : null;
+      }
+      if (badgePoints !== undefined) {
+        updateData.badgePoints = badgePoints != null && badgePoints !== "" ? Number(badgePoints) : 0;
+      }
+      await storage.updateBadge(req.params.id, updateData);
       return res.json({ ok: true });
     } catch (err: any) {
       return res.status(500).json({ message: err.message || "Failed to update badge" });
+    }
+  });
+
+  app.get("/api/badges/leaderboard", async (_req, res) => {
+    try {
+      const leaderboard = await storage.getBadgeLeaderboard(50);
+      return res.json(leaderboard);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message || "Failed to fetch leaderboard" });
     }
   });
 
