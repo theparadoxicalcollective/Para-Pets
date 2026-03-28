@@ -904,11 +904,19 @@
   100% { opacity: 0;   transform: translate(var(--sx, 20px), var(--sy, -20px)) scale(0.2); }
 }
 
-/* KC enemy counter-attack projectile */
+/* KC enemy claw scratch — individual stripe */
+@keyframes kcScratch {
+  0%   { opacity: 0;   transform: scaleY(0.1); }
+  15%  { opacity: 1;   transform: scaleY(1.05); }
+  40%  { opacity: 0.9; transform: scaleY(1); }
+  100% { opacity: 0;   transform: scaleY(0.8); }
+}
+
+/* KC enemy counter-attack orb */
 @keyframes kcEnemyProj {
-  0%   { opacity: 1;   transform: translate(0, 0) scale(1); }
+  0%   { opacity: 1;   transform: translate(0, 0) scale(1.1); }
   80%  { opacity: 0.9; }
-  100% { opacity: 0;   transform: translate(var(--px, 0px), var(--py, 0px)) scale(0.4); }
+  100% { opacity: 0;   transform: translate(var(--px, 0px), var(--py, 0px)) scale(0.5); }
 }
 
 /* Screen flash when enemy projectile hits the pet */
