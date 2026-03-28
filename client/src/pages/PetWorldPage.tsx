@@ -1911,18 +1911,22 @@ function WorldRoamingPet({
   const minTopFrac = 0.5 + (rawMinTopFrac - 0.5) * partScale;
   const maxBotFrac = 0.5 + (rawMaxBotFrac - 0.5) * partScale;
 
-  const floatAnim = hasWings ? "petFloatSmall" : "petGroundFloat";
+  const floatAnim   = hasWings ? "petFloatSmall" : "petGroundFloat";
+  const wanderIdx    = index % 6;
+  const wanderPrefix = hasWings ? "petWander" : "petWorldGroundWander";
 
-  // Seeded per-pet hop offset so pets aren't all in sync
+  // Seeded per-pet timing so pets are all slightly out of phase
   const seedBase = (index + 1) * 2741;
   const rng = (n: number) => {
     let h = Math.imul(Math.floor(seedBase * 10000 + n), 0x9e3779b9);
     h ^= h >>> 16;
     return (h >>> 0) / 4294967295;
   };
-  // Idle: 0.45 – 0.65s per hop; walking: 0.3s (snappier)
-  const idleHopDuration = `${0.45 + rng(3) * 0.2}s`;
-  const hopDelay        = `-${(rng(4) * 0.6).toFixed(3)}s`;
+  const wanderDuration  = `${34 + rng(3) * 16}s`;
+  const wanderDelay     = `-${(rng(4) * 20).toFixed(1)}s`;
+  // Idle hop: slow and dreamy (0.8 – 1.1s); walking hop: noticeable but not frantic (0.45s)
+  const idleHopDuration = `${0.8 + rng(5) * 0.3}s`;
+  const hopDelay        = `-${(rng(6) * 1.0).toFixed(3)}s`;
 
   // sz is in map-canvas pixels. Kept small so pets are always in reach.
   const sz     = 120;
@@ -1944,13 +1948,21 @@ function WorldRoamingPet({
         transition: isOwn ? undefined : "left 1.8s linear, top 1.8s linear",
       }}
     >
-      {/* Hop animation — snappier while walking, gentle while idle */}
+      {/* Wander drift — pauses when player is actively walking their pet */}
       <div
         style={{
-          animation: `petHop ${isWalking ? "0.3s" : idleHopDuration} ease-in-out ${hopDelay} infinite`,
-          transformOrigin: "bottom center",
+          animation: isWalking
+            ? undefined
+            : `${wanderPrefix}${wanderIdx} ${wanderDuration} ${wanderDelay} ease-in-out infinite`,
         }}
       >
+        {/* Hop bounce — layered on top of the wander so both play together */}
+        <div
+          style={{
+            animation: `petHop ${isWalking ? "0.45s" : idleHopDuration} ease-in-out ${hopDelay} infinite`,
+            transformOrigin: "bottom center",
+          }}
+        >
         <div style={hasWings ? { animation: `${floatAnim} 3.2s ease-in-out infinite` } : undefined}>
 
           {/* Single position:relative box (sz × sz map-pixels).
@@ -2041,10 +2053,11 @@ function WorldRoamingPet({
                 cursor: "pointer",
               }}
             />
-          </div>
-        </div>
-      </div>
-    </div>
+          </div>   {/* sz×sz box */}
+        </div>     {/* float anim */}
+        </div>     {/* hop bounce */}
+      </div>       {/* wander drift */}
+    </div>         {/* position anchor */}
   );
 }
 
