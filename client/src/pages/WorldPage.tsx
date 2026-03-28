@@ -3107,44 +3107,23 @@ export default function WorldPage({ user }: WorldPageProps) {
                   className="absolute flex flex-col justify-between"
                   style={{ top: "41%", left: "29%", right: "29%", bottom: "5%", overflow: "hidden" }}
                 >
-                  {/* TOP: centered name + type badge + close button */}
-                  <div>
-                    <div className="flex items-start justify-between" style={{ gap: "4px", marginBottom: "3px" }}>
-                      <div className="flex-1 min-w-0 text-center">
-                        <h3
-                          className="font-fantasy font-bold leading-tight"
-                          style={{ color: "#1a0700", fontSize: "13px", textShadow: "0 1px 0 rgba(255,255,255,0.4)" }}
-                          data-testid="text-detail-item-name"
-                        >
-                          {item.name}
-                        </h3>
-                      </div>
-                      {/* Close button */}
-                      <button
-                        onClick={() => { setSelectedShopItem(null); setBuyStep(0); setBuyError(null); setBuyQty(1); }}
-                        className="flex-shrink-0 rounded-full flex items-center justify-center transition-transform active:scale-90"
-                        style={{ width: "22px", height: "22px", background: "rgba(45,18,4,0.85)", border: "1.5px solid rgba(160,90,25,0.65)", color: "#d4a84a", cursor: "pointer" }}
-                      >
-                        <X style={{ width: "11px", height: "11px" }} />
-                      </button>
-                    </div>
-                    {/* Type badge centered */}
-                    <div className="text-center">
-                      <span
-                        className="font-fantasy capitalize"
-                        style={{ fontSize: "9px", color: "#4a2000", background: "rgba(65,30,5,0.22)", border: "1px solid rgba(110,55,15,0.35)", borderRadius: "999px", padding: "1px 7px", display: "inline-block", textShadow: "none" }}
-                      >
-                        {item.type}
-                      </span>
-                    </div>
+                  {/* TOP: item name centered bold */}
+                  <div className="text-center">
+                    <h3
+                      className="font-fantasy font-bold leading-tight"
+                      style={{ color: "#1a0700", fontSize: "14px", textShadow: "0 1px 0 rgba(255,255,255,0.45)" }}
+                      data-testid="text-detail-item-name"
+                    >
+                      {item.name}
+                    </h3>
                   </div>
 
-                  {/* BOTTOM: abilities (if any) + buy button */}
+                  {/* BOTTOM: abilities + buy button */}
                   <div>
                     {descLines.length > 0 && (
-                      <div style={{ marginBottom: "4px" }}>
-                        {descLines.slice(0, 2).map((line, i) => (
-                          <div key={i} className="font-fantasy text-center" style={{ fontSize: "9.5px", color: "#2a1000", lineHeight: "1.4", textShadow: "0 1px 0 rgba(255,255,255,0.4)" }}>
+                      <div style={{ marginBottom: "5px" }}>
+                        {descLines.slice(0, 3).map((line, i) => (
+                          <div key={i} className="font-fantasy text-center" style={{ fontSize: "9.5px", color: "#2a1000", lineHeight: "1.45", textShadow: "0 1px 0 rgba(255,255,255,0.4)" }}>
                             {line}
                           </div>
                         ))}
@@ -3170,7 +3149,6 @@ export default function WorldPage({ user }: WorldPageProps) {
                             color: canAfford ? "#ffd04a" : "#7a6040",
                             cursor: "pointer",
                             boxShadow: canAfford ? "0 3px 10px rgba(90,45,0,0.4)" : "none",
-                            marginBottom: "3px",
                           }}
                         >
                           <div className="flex items-center justify-center" style={{ gap: "5px" }}>
@@ -3179,12 +3157,8 @@ export default function WorldPage({ user }: WorldPageProps) {
                           </div>
                         </button>
                         {!canAfford && (
-                          <p className="font-fantasy text-center" style={{ fontSize: "8.5px", color: "#9a1800", marginBottom: "1px" }} data-testid="text-not-enough-coins">Not enough coins</p>
+                          <p className="font-fantasy text-center" style={{ fontSize: "8.5px", color: "#9a1800", marginTop: "2px" }} data-testid="text-not-enough-coins">Not enough coins</p>
                         )}
-                        <div className="flex items-center justify-center" style={{ gap: "3px" }}>
-                          <img src={coinIconImg} alt="" style={{ width: "9px", height: "9px", objectFit: "contain", opacity: 0.5 }} />
-                          <span className="font-fantasy" style={{ fontSize: "8.5px", color: "#4a2800" }}>You have {currentUser.coins} coins</span>
-                        </div>
                       </>
                     )}
                   </div>
@@ -3199,17 +3173,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                 >
                   {/* TOP: name + qty */}
                   <div className="flex flex-col items-center" style={{ gap: "6px" }}>
-                    {/* Close button at top right */}
-                    <div className="w-full flex justify-end">
-                      <button
-                        onClick={() => { setSelectedShopItem(null); setBuyStep(0); setBuyError(null); setBuyQty(1); }}
-                        className="rounded-full flex items-center justify-center transition-transform active:scale-90"
-                        style={{ width: "24px", height: "24px", background: "rgba(45,18,4,0.85)", border: "1.5px solid rgba(160,90,25,0.65)", color: "#d4a84a", cursor: "pointer" }}
-                      >
-                        <X style={{ width: "12px", height: "12px" }} />
-                      </button>
-                    </div>
-                    <h3 className="font-fantasy font-bold text-center" style={{ fontSize: "13px", color: "#1e0900", marginTop: "-4px" }} data-testid="text-detail-item-name">
+                    <h3 className="font-fantasy font-bold text-center" style={{ fontSize: "14px", color: "#1a0700", textShadow: "0 1px 0 rgba(255,255,255,0.45)" }} data-testid="text-detail-item-name">
                       {item.name}
                     </h3>
                     <div style={{ borderTop: "1px solid rgba(100,50,10,0.25)", width: "100%" }} />
