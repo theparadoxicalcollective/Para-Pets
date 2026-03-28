@@ -323,7 +323,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const [selectedPet, setSelectedPet] = useState<WorldActivePet | null>(null);
 
   // ── pet drag on the map canvas ─────────────────────────────────────────────
-  const [petDragPos, setPetDragPos] = useState<{ userId: string; posX: number; posY: number } | null>(null);
+  const [petDragPos,   setPetDragPos]   = useState<{ userId: string; posX: number; posY: number } | null>(null);
+  const [petDragReady, setPetDragReady] = useState<string | null>(null); // userId of pet in long-press ready state
 
   const savePetPositionMutation = useMutation({
     mutationFn: async (data: { ownerUserId: string; posX: number; posY: number }) => {
@@ -577,21 +578,44 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     const pid    = e.pointerId;
     const startX = e.clientX;
     const startY = e.clientY;
-    let didDrag  = false;
+    let dragActive       = false;  // true once long-press fires
+    let cancelled        = false;  // true if user moved before long-press
+    let movedDuringDrag  = false;
     let finalPos: { posX: number; posY: number } | null = null;
 
     const cleanup = () => {
+      clearTimeout(longPressTimer);
+      setPetDragReady(null);
       document.removeEventListener("pointermove",   onDocMove);
       document.removeEventListener("pointerup",     onDocUp);
       document.removeEventListener("pointercancel", onDocCancel);
     };
 
+    // 350 ms hold → enter drag mode
+    const longPressTimer = setTimeout(() => {
+      if (!cancelled) {
+        dragActive = true;
+        setPetDragReady(pet.userId);
+      }
+    }, 350);
+
     const onDocMove = (ev: PointerEvent) => {
       if (ev.pointerId !== pid) return;
-      const sc = mapTransformRef.current.scale;
       const dx = ev.clientX - startX;
       const dy = ev.clientY - startY;
-      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) didDrag = true;
+
+      if (!dragActive) {
+        // Significant movement before long-press = user is panning, not holding
+        if (Math.hypot(dx, dy) > 10) {
+          cancelled = true;
+          cleanup();
+        }
+        return;
+      }
+
+      // Drag mode active — move the pet
+      movedDuringDrag = true;
+      const sc = mapTransformRef.current.scale;
       const newPosX = Math.max(2, Math.min(97, resolvedPosX + (dx / sc) / MAP_W * 100));
       const newPosY = Math.max(3, Math.min(95, resolvedPosY + (dy / sc) / mapHRef.current * 100));
       finalPos = { posX: newPosX, posY: newPosY };
@@ -602,9 +626,10 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
       if (ev.pointerId !== pid) return;
       cleanup();
       setPetDragPos(null);
-      if (didDrag && finalPos) {
+      if (dragActive && movedDuringDrag && finalPos) {
         savePetPositionMutation.mutate({ ownerUserId: pet.userId, posX: finalPos.posX, posY: finalPos.posY });
-      } else if (!didDrag) {
+      } else if (!cancelled && !dragActive) {
+        // Quick tap without long-press = view profile
         setSelectedPet(pet);
       }
     };
@@ -612,7 +637,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     const onDocCancel = (ev: PointerEvent) => {
       if (ev.pointerId !== pid) return;
       cleanup();
-      if (didDrag && finalPos) {
+      if (dragActive && movedDuringDrag && finalPos) {
         savePetPositionMutation.mutate({ ownerUserId: pet.userId, posX: finalPos.posX, posY: finalPos.posY });
       }
       setPetDragPos(null);
@@ -692,6 +717,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                 posX={resolvedX}
                 posY={resolvedY}
                 isDragging={isDragging}
+                isDragReady={petDragReady === pet.userId}
                 onPointerDown={e => handlePetPointerDown(e, pet, stored.x, stored.y)}
               />
             );
@@ -1869,6 +1895,7 @@ function WorldRoamingPet({
   posX,
   posY,
   isDragging,
+  isDragReady,
   onPointerDown,
 }: {
   pet: WorldActivePet;
@@ -1876,6 +1903,7 @@ function WorldRoamingPet({
   posX: number;
   posY: number;
   isDragging: boolean;
+  isDragReady: boolean;
   onPointerDown: (e: React.PointerEvent) => void;
 }) {
   const { data: templateData } = useQuery<{
@@ -2035,6 +2063,25 @@ function WorldRoamingPet({
               />
             )}
 
+            {/* Drag-ready ring — glows when long-press fires */}
+            {(isDragReady || isDragging) && (
+              <div
+                style={{
+                  position: "absolute",
+                  left: "50%",
+                  top: Math.round(((minTopFrac + maxBotFrac) / 2) * sz),
+                  width: Math.round(sz * 0.7),
+                  height: Math.round((maxBotFrac - minTopFrac) * sz * 0.9),
+                  transform: "translate(-50%, -50%)",
+                  borderRadius: "50%",
+                  border: "2px solid rgba(127,255,212,0.85)",
+                  boxShadow: "0 0 10px rgba(127,255,212,0.5)",
+                  pointerEvents: "none",
+                  animation: isDragReady && !isDragging ? "petDragReadyPulse 0.5s ease-out" : undefined,
+                }}
+              />
+            )}
+
             {/* Hit-zone oval — the only pointer-interactive element.
                 The outer wrapper is pointer-events:none so transparent space
                 around the pet cannot be accidentally clicked or dragged. */}
@@ -2044,13 +2091,13 @@ function WorldRoamingPet({
                 position: "absolute",
                 left: "50%",
                 top: Math.round(((minTopFrac + maxBotFrac) / 2) * sz),
-                width: Math.round(sz * 0.28),
-                height: Math.round((maxBotFrac - minTopFrac) * sz * 0.6),
+                width: Math.round(sz * 0.7),
+                height: Math.round((maxBotFrac - minTopFrac) * sz),
                 transform: "translate(-50%, -50%)",
                 borderRadius: "50%",
                 pointerEvents: "auto",
                 touchAction: "none",
-                cursor: isDragging ? "grabbing" : "grab",
+                cursor: isDragging ? "grabbing" : (isDragReady ? "grabbing" : "pointer"),
               }}
             />
           </div>

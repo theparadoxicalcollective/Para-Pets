@@ -780,6 +780,13 @@
   82%, 100%{ transform: translate(0px,    0px); }
 }
 
+/* Ring that pulses in when long-press drag mode activates */
+@keyframes petDragReadyPulse {
+  0%   { transform: translate(-50%, -50%) scale(0.7); opacity: 0; }
+  60%  { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1.0); opacity: 1; }
+}
+
 /* Winged pet zoom-burst across the scene */
 @keyframes petZoomR {
   0%   { transform: translate(0px, 0px); }
