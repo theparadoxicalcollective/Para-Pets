@@ -16,6 +16,7 @@ import {
   type LocationEnemy, locationEnemies,
   type EnemyDrop, enemyDrops,
   type Badge, type UserBadge, badges, userBadges, badgeRewardClaims,
+  type KeepersCentralEnemy, keepersCentralEnemies,
   type PlayerMarketListing, playerMarketListings,
   petEquippedAccessories,
   type FishTemplatePart, fishTemplateParts,
@@ -154,6 +155,9 @@ export interface IStorage {
   getBadgeRewardClaim(userId: string, badgeId: string): Promise<{ lastClaimedAt: Date } | null>;
   upsertBadgeRewardClaim(userId: string, badgeId: string): Promise<void>;
   getBadgeLeaderboard(limit?: number): Promise<{ userId: string; username: string; profileImage: string | null; totalPoints: number; topBadges: { id: string; name: string; imageUrl: string; badgePoints: number }[]; allBadges: { id: string; name: string; imageUrl: string; badgePoints: number }[] }[]>;
+  getKeepersCentralEnemies(): Promise<(KeepersCentralEnemy & { enemyName: string; enemyImageUrl: string | null })[]>;
+  addKeepersCentralEnemy(enemyId: string, spawnX: number, spawnY: number): Promise<KeepersCentralEnemy>;
+  removeKeepersCentralEnemy(id: string): Promise<void>;
   getMarketListings(filters?: { search?: string; itemType?: string; orderAsc?: boolean }): Promise<PlayerMarketListing[]>;
   getMyMarketListings(sellerId: string): Promise<PlayerMarketListing[]>;
   getMarketListing(id: string): Promise<PlayerMarketListing | undefined>;
@@ -877,6 +881,32 @@ export class DatabaseStorage implements IStorage {
         ...u,
         topBadges: [...u.allBadges].sort((a, b) => b.badgePoints - a.badgePoints).slice(0, 3),
       }));
+  }
+
+  async getKeepersCentralEnemies(): Promise<(KeepersCentralEnemy & { enemyName: string; enemyImageUrl: string | null })[]> {
+    const rows = await db
+      .select({
+        id: keepersCentralEnemies.id,
+        enemyId: keepersCentralEnemies.enemyId,
+        spawnX: keepersCentralEnemies.spawnX,
+        spawnY: keepersCentralEnemies.spawnY,
+        createdAt: keepersCentralEnemies.createdAt,
+        enemyName: enemies.name,
+        enemyImageUrl: enemies.imageUrl,
+      })
+      .from(keepersCentralEnemies)
+      .innerJoin(enemies, eq(keepersCentralEnemies.enemyId, enemies.id))
+      .orderBy(keepersCentralEnemies.createdAt);
+    return rows;
+  }
+
+  async addKeepersCentralEnemy(enemyId: string, spawnX: number, spawnY: number): Promise<KeepersCentralEnemy> {
+    const [row] = await db.insert(keepersCentralEnemies).values({ enemyId, spawnX, spawnY }).returning();
+    return row;
+  }
+
+  async removeKeepersCentralEnemy(id: string): Promise<void> {
+    await db.delete(keepersCentralEnemies).where(eq(keepersCentralEnemies.id, id));
   }
 
   async getBadgeRewardClaim(userId: string, badgeId: string): Promise<{ lastClaimedAt: Date } | null> {

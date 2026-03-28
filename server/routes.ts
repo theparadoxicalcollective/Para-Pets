@@ -4323,5 +4323,39 @@ export async function registerRoutes(
     }
   });
 
+  // ── Keeper's Central Enemies ──────────────────────────────────────────────
+  app.get("/api/world/pet_world/kc-enemies", isAuthenticated, async (_req, res) => {
+    try {
+      const enemies = await storage.getKeepersCentralEnemies();
+      return res.json(enemies);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/admin/kc-enemies", isAdmin, async (req, res) => {
+    try {
+      const { enemyId, spawnX, spawnY } = req.body;
+      if (!enemyId) return res.status(400).json({ message: "enemyId required" });
+      const row = await storage.addKeepersCentralEnemy(
+        enemyId,
+        typeof spawnX === "number" ? spawnX : 20 + Math.random() * 60,
+        typeof spawnY === "number" ? spawnY : 40 + Math.random() * 40
+      );
+      return res.json(row);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/admin/kc-enemies/:id", isAdmin, async (req, res) => {
+    try {
+      await storage.removeKeepersCentralEnemy(req.params.id);
+      return res.json({ ok: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
   return httpServer;
 }

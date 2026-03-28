@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, X, Trash2, FlipHorizontal, Palette, MapPin, Minus, Store } from "lucide-react";
+import { Plus, X, Trash2, FlipHorizontal, Palette, MapPin, Minus, Store, Swords } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 import { playShopBell } from "@/lib/sounds";
 import PetAnimator from "@/components/PetAnimator";
@@ -72,6 +72,17 @@ type WorldActivePet = {
   posY: number | null;
 };
 
+type KCSpawnedEnemy = {
+  id: string;
+  enemyId: string;
+  spawnX: number;
+  spawnY: number;
+  enemyName: string;
+  enemyImageUrl: string | null;
+};
+
+type GlobalEnemy = { id: string; name: string; imageUrl: string | null };
+
 interface PetWorldPageProps {
   user: { id: string; isAdmin: boolean };
   onClose: () => void;
@@ -111,6 +122,13 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   // Most-recently-moved ID is last in the array → gets the highest z-index boost.
   const [locMoveOrder,   setLocMoveOrder]   = useState<string[]>([]);
   const [decorMoveOrder, setDecorMoveOrder] = useState<string[]>([]);
+
+  // ── KC enemy state ─────────────────────────────────────────────────────────
+  const [showEnemyPanel,    setShowEnemyPanel]   = useState(false);
+  const [selectedEnemyToAdd, setSelectedEnemyToAdd] = useState<string>("");
+  const [kcEnemyHealth,     setKcEnemyHealth]   = useState<Record<string, number>>({});
+  const [swipeTarget,       setSwipeTarget]      = useState<string | null>(null);
+  const [kcDefeated,        setKcDefeated]       = useState<Set<string>>(new Set());
 
   // ── panel state ────────────────────────────────────────────────────────────
   const [showDecorPanel,   setShowDecorPanel]   = useState(false);
@@ -197,6 +215,80 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     },
     onError: () => toast({ title: "Error", description: "Could not decline request.", variant: "destructive" }),
   });
+
+  // ── KC Enemies queries + mutations ─────────────────────────────────────────
+  const { data: kcSpawnedEnemies = [] } = useQuery<KCSpawnedEnemy[]>({
+    queryKey: ["/api/world/pet_world/kc-enemies"],
+    queryFn: async () => {
+      const res = await fetch("/api/world/pet_world/kc-enemies", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    refetchInterval: 30_000,
+  });
+
+  const { data: globalEnemies = [] } = useQuery<GlobalEnemy[]>({
+    queryKey: ["/api/admin/enemies"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/enemies", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    enabled: user.isAdmin && showEnemyPanel,
+  });
+
+  const addKCEnemyMutation = useMutation({
+    mutationFn: (enemyId: string) => apiRequest("POST", "/api/admin/kc-enemies", { enemyId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/world/pet_world/kc-enemies"] });
+      setSelectedEnemyToAdd("");
+      toast({ title: "Enemy spawned!" });
+    },
+    onError: () => toast({ title: "Error", description: "Failed to spawn enemy", variant: "destructive" }),
+  });
+
+  const removeKCEnemyMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/admin/kc-enemies/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/world/pet_world/kc-enemies"] });
+    },
+  });
+
+  // ── Attack handler ─────────────────────────────────────────────────────────
+  const handleAttack = useCallback(() => {
+    const pos = localPetPosRef.current;
+    if (!pos) return;
+    // Find the closest living enemy within range
+    let closest: KCSpawnedEnemy | null = null;
+    let closestDist = Infinity;
+    for (const enemy of kcSpawnedEnemies) {
+      if (kcDefeated.has(enemy.id)) continue;
+      const dist = Math.hypot(pos.x - enemy.spawnX, pos.y - enemy.spawnY);
+      if (dist < 15 && dist < closestDist) {
+        closestDist = dist;
+        closest = enemy;
+      }
+    }
+    if (!closest) return;
+    const targetId = closest.id;
+    // Deal 5–10 damage
+    const dmg = 5 + Math.floor(Math.random() * 6);
+    const currentHp = kcEnemyHealth[targetId] ?? 100;
+    const newHp = Math.max(0, currentHp - dmg);
+    setKcEnemyHealth(prev => ({ ...prev, [targetId]: newHp }));
+    // Swipe animation
+    setSwipeTarget(targetId);
+    setTimeout(() => setSwipeTarget(t => t === targetId ? null : t), 400);
+    // Defeated
+    if (newHp <= 0) {
+      setKcDefeated(prev => new Set([...prev, targetId]));
+      // Respawn after 4s
+      setTimeout(() => {
+        setKcDefeated(prev => { const next = new Set(prev); next.delete(targetId); return next; });
+        setKcEnemyHealth(prev => ({ ...prev, [targetId]: 100 }));
+      }, 4000);
+    }
+  }, [kcSpawnedEnemies, kcDefeated, kcEnemyHealth]);
 
   const removeFriendMutation = useMutation({
     mutationFn: (friendId: string) => apiRequest("DELETE", `/api/friends/${friendId}`, {}),
@@ -688,6 +780,75 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
             );
           })}
 
+          {/* ── KC Enemies on the map ─────────────────────────────────── */}
+          {kcSpawnedEnemies.map(enemy => {
+            const hp = kcEnemyHealth[enemy.id] ?? 100;
+            const defeated = kcDefeated.has(enemy.id);
+            const isSwipe = swipeTarget === enemy.id;
+            return (
+              <div
+                key={enemy.id}
+                data-testid={`enemy-on-map-${enemy.id}`}
+                className="absolute flex flex-col items-center"
+                style={{
+                  left: `${enemy.spawnX}%`,
+                  top: `${enemy.spawnY}%`,
+                  transform: "translate(-50%, -100%)",
+                  zIndex: 30,
+                  opacity: defeated ? 0.3 : 1,
+                  transition: "opacity 0.4s",
+                  pointerEvents: "none",
+                  userSelect: "none",
+                  width: 56,
+                }}
+              >
+                {/* HP bar */}
+                <div style={{ width: "100%", height: 5, borderRadius: 3, background: "rgba(0,0,0,0.55)", border: "1px solid rgba(0,0,0,0.4)", marginBottom: 2, overflow: "hidden" }}>
+                  <div style={{
+                    height: "100%",
+                    width: `${hp}%`,
+                    background: hp > 50 ? "#22c55e" : hp > 25 ? "#eab308" : "#ef4444",
+                    borderRadius: 3,
+                    transition: "width 0.2s, background 0.2s",
+                  }} />
+                </div>
+                {/* Enemy image */}
+                <div className="relative" style={{ width: 44, height: 44 }}>
+                  {enemy.enemyImageUrl ? (
+                    <img
+                      src={enemy.enemyImageUrl}
+                      alt={enemy.enemyName}
+                      draggable={false}
+                      style={{
+                        width: 44, height: 44, objectFit: "contain",
+                        filter: defeated ? "grayscale(1) brightness(0.5)" : isSwipe ? "brightness(2) saturate(0)" : "drop-shadow(0 2px 4px rgba(0,0,0,0.7))",
+                        transition: "filter 0.15s",
+                      }}
+                    />
+                  ) : (
+                    <div style={{ width: 44, height: 44, borderRadius: 8, background: "rgba(239,68,68,0.3)", border: "1.5px solid #ef4444", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Swords className="w-5 h-5" style={{ color: "#ef4444" }} />
+                    </div>
+                  )}
+                  {/* Swipe slash animation */}
+                  {isSwipe && (
+                    <div style={{
+                      position: "absolute", inset: -4, borderRadius: "50%",
+                      border: "3px solid #fff",
+                      animation: "none",
+                      opacity: 0.9,
+                      boxShadow: "0 0 12px 4px rgba(255,80,80,0.7)",
+                    }} />
+                  )}
+                </div>
+                {/* Name */}
+                <span style={{ fontFamily: "Cinzel, serif", fontSize: 9, color: defeated ? "#ef444488" : "#ef4444cc", textAlign: "center", marginTop: 2, textShadow: "0 1px 3px rgba(0,0,0,0.9)", lineHeight: 1.2 }}>
+                  {defeated ? "✦ Defeated ✦" : enemy.enemyName}
+                </span>
+              </div>
+            );
+          })}
+
           {/* ── Locations (places) on the map ─────────────────────────── */}
           {[...kcLocations].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map(loc => {
             const pos = locDragPos?.id === loc.id ? { x: locDragPos.x, y: locDragPos.y } : { x: loc.posX, y: loc.posY };
@@ -1020,6 +1181,21 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                 }}
               >
                 <Palette className="w-4 h-4" style={{ color: ACCENT }} />
+              </button>
+              <button
+                data-testid="button-world-enemies"
+                onClick={() => { setShowEnemyPanel(p => !p); setShowDecorPanel(false); setShowPlacesPanel(false); }}
+                className="flex-shrink-0 flex items-center justify-center transition-transform active:scale-90 topbar-icon-size-sm"
+                style={{
+                  background: showEnemyPanel ? "rgba(239,68,68,0.2)" : "rgba(4,10,6,0.82)",
+                  border: "2px solid #ef444455",
+                  boxShadow: "0 2px 10px rgba(0,0,0,0.6)",
+                  cursor: "pointer",
+                  borderRadius: 10,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}
+              >
+                <Swords className="w-4 h-4" style={{ color: "#ef4444" }} />
               </button>
             </div>
           )}
@@ -1356,6 +1532,97 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
         </div>
       )}
 
+      {/* ── Admin Enemy Panel ─────────────────────────────────────────────── */}
+      {showEnemyPanel && user.isAdmin && (
+        <div
+          className="fixed z-40 flex flex-col"
+          style={{
+            bottom: 0, left: 0, right: 0, maxHeight: "55vh",
+            background: "linear-gradient(180deg, rgba(20,4,4,0.97) 0%, rgba(25,6,6,0.99) 100%)",
+            borderTop: "1.5px solid #ef444450",
+            borderLeft: "1.5px solid #ef444430",
+            borderRight: "1.5px solid #ef444430",
+            borderRadius: "16px 16px 0 0",
+            boxShadow: "0 -8px 40px rgba(0,0,0,0.7), 0 0 40px rgba(239,68,68,0.12)",
+          }}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 shrink-0" style={{ borderBottom: "1px solid #ef444420" }}>
+            <span className="font-fantasy text-sm tracking-wider" style={{ color: "#ef4444" }}>
+              <Swords className="w-3.5 h-3.5 inline mr-1 -mt-0.5" />Enemy Management
+            </span>
+            <button onClick={() => setShowEnemyPanel(false)} className="transition-transform active:scale-90">
+              <X className="w-4 h-4" style={{ color: "#ef444499" }} />
+            </button>
+          </div>
+
+          {/* Add enemy row */}
+          <div className="px-4 py-3 shrink-0 flex gap-2" style={{ borderBottom: "1px solid #ef444415" }}>
+            <select
+              value={selectedEnemyToAdd}
+              onChange={e => setSelectedEnemyToAdd(e.target.value)}
+              data-testid="select-enemy-to-add"
+              className="flex-1 font-fantasy text-xs rounded-lg px-3 py-2 outline-none"
+              style={{ background: "rgba(30,8,8,0.9)", border: "1px solid #ef444440", color: "#ef4444" }}
+            >
+              <option value="">Select enemy…</option>
+              {globalEnemies.map(e => (
+                <option key={e.id} value={e.id}>{e.name}</option>
+              ))}
+            </select>
+            <button
+              data-testid="button-spawn-enemy"
+              onClick={() => selectedEnemyToAdd && addKCEnemyMutation.mutate(selectedEnemyToAdd)}
+              disabled={!selectedEnemyToAdd || addKCEnemyMutation.isPending}
+              className="font-fantasy text-xs px-3 py-2 rounded-lg transition-transform active:scale-95 disabled:opacity-40"
+              style={{ background: "rgba(239,68,68,0.2)", border: "1.5px solid #ef444460", color: "#ef4444", cursor: "pointer" }}
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Spawned enemy list */}
+          <div className="flex-1 overflow-y-auto px-4 py-3">
+            {kcSpawnedEnemies.length === 0 ? (
+              <p className="font-fantasy text-xs text-center py-6" style={{ color: "#ef444455" }}>
+                No enemies spawned yet — select one above and press +
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {kcSpawnedEnemies.map(enemy => (
+                  <div
+                    key={enemy.id}
+                    data-testid={`enemy-row-${enemy.id}`}
+                    className="flex items-center gap-3 rounded-xl px-3 py-2"
+                    style={{ background: "rgba(30,8,8,0.7)", border: "1px solid #ef444425" }}
+                  >
+                    {enemy.enemyImageUrl ? (
+                      <img src={enemy.enemyImageUrl} alt={enemy.enemyName} style={{ width: 32, height: 32, objectFit: "contain", borderRadius: 6 }} />
+                    ) : (
+                      <div style={{ width: 32, height: 32, borderRadius: 6, background: "#ef444430", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <Swords className="w-4 h-4" style={{ color: "#ef4444" }} />
+                      </div>
+                    )}
+                    <span className="font-fantasy text-xs flex-1" style={{ color: "#ef4444cc" }}>{enemy.enemyName}</span>
+                    <span className="font-fantasy text-[10px]" style={{ color: "#ef444466" }}>
+                      ({Math.round(enemy.spawnX)}%, {Math.round(enemy.spawnY)}%)
+                    </span>
+                    <button
+                      data-testid={`button-remove-enemy-${enemy.id}`}
+                      onClick={() => removeKCEnemyMutation.mutate(enemy.id)}
+                      className="transition-transform active:scale-90"
+                      style={{ padding: "4px 6px", borderRadius: 6, background: "rgba(200,30,30,0.25)", border: "1px solid #ef444440", cursor: "pointer" }}
+                    >
+                      <Trash2 className="w-3 h-3" style={{ color: "#ef4444" }} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── Admin Places Panel ────────────────────────────────────────────── */}
       {showPlacesPanel && user.isAdmin && (
         <div
@@ -1591,6 +1858,35 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
             <img src={panelDragGhost.item.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} draggable={false} />
           )}
         </div>
+      )}
+
+      {/* ── Attack button — mirrors joystick at bottom-left ─────────────── */}
+      {ownPet && kcSpawnedEnemies.length > 0 && (
+        <button
+          data-testid="button-attack"
+          onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); handleAttack(); }}
+          className="transition-transform active:scale-90"
+          style={{
+            position: "fixed",
+            bottom: 108,
+            left: 20,
+            width: BASE_R * 2,
+            height: BASE_R * 2,
+            borderRadius: "50%",
+            background: "radial-gradient(circle at 38% 38%, rgba(239,68,68,0.6) 0%, rgba(180,20,20,0.45) 60%, rgba(80,8,8,0.4) 100%)",
+            border: "2.5px solid rgba(239,68,68,0.5)",
+            backdropFilter: "blur(6px)",
+            boxShadow: "0 4px 20px rgba(0,0,0,0.5), 0 0 18px rgba(239,68,68,0.2), inset 0 1px 0 rgba(255,120,120,0.15)",
+            touchAction: "none",
+            zIndex: 60,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+          }}
+        >
+          <Swords className="w-7 h-7" style={{ color: "rgba(255,160,160,0.9)", filter: "drop-shadow(0 0 4px rgba(239,68,68,0.6))" }} />
+        </button>
       )}
 
       {/* ── Joystick — only shown when player has an active pet ─────────── */}

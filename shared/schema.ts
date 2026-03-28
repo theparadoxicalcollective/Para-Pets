@@ -525,3 +525,14 @@ export const insertEnemySchema = createInsertSchema(enemies).omit({ id: true, cr
 export type InsertEnemy = z.infer<typeof insertEnemySchema>;
 export type Enemy = typeof enemies.$inferSelect;
 export type EnemyPart = typeof enemyParts.$inferSelect;
+
+// ── Keeper's Central Spawned Enemies ─────────────────────────────────────────
+export const keepersCentralEnemies = pgTable("keepers_central_enemies", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  enemyId: varchar("enemy_id").notNull(),
+  spawnX: real("spawn_x").notNull().default(50),
+  spawnY: real("spawn_y").notNull().default(50),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export type KeepersCentralEnemy = typeof keepersCentralEnemies.$inferSelect;
