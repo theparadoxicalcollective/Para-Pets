@@ -176,6 +176,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const [petAttackMarks,      setPetAttackMarks]       = useState<{ id: string; x: number; y: number; angle: number }[]>([]);
   const [enemyProjectiles,    setEnemyProjectiles]     = useState<{ id: string; fromX: number; fromY: number; toX: number; toY: number }[]>([]);
   const [petHitFlash,         setPetHitFlash]          = useState(false);
+  const [petIsMoving,         setPetIsMoving]          = useState(false);
+  const [petPouncing,         setPetPouncing]          = useState(false);
 
   // ── panel state ────────────────────────────────────────────────────────────
   const [showDecorPanel,   setShowDecorPanel]   = useState(false);
@@ -413,11 +415,13 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     const newHp = Math.max(0, target.hp - dmg);
     const updated = [...liveEnemiesRef.current];
 
-    // Pet attack: scratch marks appear on the enemy
+    // Pet attack: scratch marks appear on the enemy + pet lunges
     const markId = makeInstanceId();
     const scratchAngle = -25 + Math.random() * 50;
     setPetAttackMarks(prev => [...prev, { id: markId, x: target.x, y: target.y, angle: scratchAngle }]);
     setTimeout(() => setPetAttackMarks(prev => prev.filter(m => m.id !== markId)), 600);
+    setPetPouncing(true);
+    setTimeout(() => setPetPouncing(false), 300);
 
     if (newHp <= 0) {
       // Kill: immediately mark dead, play death animation
@@ -669,6 +673,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const handleJoystickChange = useCallback((dx: number, dy: number, active: boolean) => {
     joystickDirRef.current = { dx, dy };
     joystickActRef.current = active;
+    setPetIsMoving(active);
     if (active) {
       startRaf();
     } else {
@@ -954,6 +959,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                 posX={resolvedX}
                 posY={resolvedY}
                 isOwn={isOwn}
+                isMoving={isOwn ? petIsMoving : false}
+                isPouncing={isOwn ? petPouncing : false}
                 onTap={() => setSelectedPet(pet)}
               />
             );
@@ -2453,12 +2460,16 @@ function WorldRoamingPet({
   posX,
   posY,
   isOwn,
+  isMoving,
+  isPouncing,
   onTap,
 }: {
   pet: WorldActivePet;
   posX: number;
   posY: number;
   isOwn: boolean;
+  isMoving: boolean;
+  isPouncing: boolean;
   onTap: () => void;
 }) {
   const { data: templateData } = useQuery<{
@@ -2535,8 +2546,16 @@ function WorldRoamingPet({
     >
       {/* Idle drift — wanders slowly around the map; linear so speed stays constant */}
       <div style={{ animation: isOwn ? undefined : `petWorldIdleDrift${driftIdx} ${driftDuration} ${driftDelay} linear infinite` }}>
-      {/* Idle float — single up-down wave with alternate so no snap at boundaries */}
-      <div style={{ animation: isOwn ? undefined : `${floatAnim} ${floatDuration} ease-in-out ${floatDelay} infinite ${hasWings ? "alternate" : ""}` }}>
+      {/* Idle float — single up-down wave; own pet uses bounce/pounce instead */}
+      <div style={{
+        animation: isOwn
+          ? isPouncing
+            ? "kcPetPounce 0.3s ease-out"
+            : isMoving
+              ? "kcPetWalkBounce 0.32s ease-in-out infinite"
+              : undefined
+          : `${floatAnim} ${floatDuration} ease-in-out ${floatDelay} infinite ${hasWings ? "alternate" : ""}`,
+      }}>
           {/* Single position:relative box (sz × sz map-pixels).
               Badge and stars are absolutely positioned using the pet's ACTUAL
               bounding box (minTopFrac / maxBotFrac) computed from the real part

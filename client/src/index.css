@@ -925,6 +925,23 @@
   100% { opacity: 0; }
 }
 
+/* Own pet hop-bounce while joystick is active */
+@keyframes kcPetWalkBounce {
+  0%   { transform: translateY(0)    scaleX(1)    scaleY(1); }
+  22%  { transform: translateY(-7px) scaleX(0.93) scaleY(1.08); }
+  50%  { transform: translateY(1px)  scaleX(1.05) scaleY(0.95); }
+  75%  { transform: translateY(-4px) scaleX(0.97) scaleY(1.04); }
+  100% { transform: translateY(0)    scaleX(1)    scaleY(1); }
+}
+
+/* Own pet quick pounce forward when attack lands */
+@keyframes kcPetPounce {
+  0%   { transform: translateX(0)    scaleX(1)    scaleY(1); }
+  28%  { transform: translateX(18px) scaleX(1.12) scaleY(0.86); }
+  60%  { transform: translateX(5px)  scaleX(0.95) scaleY(1.06); }
+  100% { transform: translateX(0)    scaleX(1)    scaleY(1); }
+}
+
 @keyframes scrollUnroll {
   0% {
     opacity: 0;
