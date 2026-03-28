@@ -3074,32 +3074,52 @@ export default function WorldPage({ user }: WorldPageProps) {
                 style={{ objectFit: "fill", filter: "drop-shadow(0 14px 36px rgba(0,0,0,0.95)) drop-shadow(0 3px 8px rgba(0,0,0,0.7))" }}
               />
 
-              {/* ── STEP 1: Item detail ── */}
+              {/* ── STEP 1: Item image — floats above all other content ── */}
+              {buyStep === 1 && (
+                <div
+                  style={{
+                    position: "absolute",
+                    left: "50%",
+                    top: "63%",
+                    transform: "translate(-50%, -50%)",
+                    zIndex: 25,
+                    width: "96px",
+                    height: "96px",
+                    pointerEvents: "none",
+                  }}
+                >
+                  {imgSrc ? (
+                    <img
+                      src={imgSrc}
+                      alt={item.name}
+                      className="w-full h-full object-contain"
+                      style={{ filter: "drop-shadow(0 4px 14px rgba(0,0,0,0.75)) drop-shadow(0 1px 4px rgba(0,0,0,0.5))" }}
+                    />
+                  ) : (
+                    <Package style={{ width: "80px", height: "80px", color: "rgba(80,40,10,0.75)" }} />
+                  )}
+                </div>
+              )}
+
+              {/* ── STEP 1: Text content (name top, abilities + buy bottom) ── */}
               {buyStep === 1 && (
                 <div
                   className="absolute flex flex-col justify-between"
                   style={{ top: "41%", left: "29%", right: "29%", bottom: "5%", overflow: "hidden" }}
                 >
-                  {/* TOP section: name → image → abilities */}
-                  <div className="flex flex-col items-center">
-                    {/* Name row + close button */}
-                    <div className="w-full flex items-start justify-between" style={{ gap: "4px", marginBottom: "2px" }}>
-                      <div className="flex-1 min-w-0">
+                  {/* TOP: centered name + type badge + close button */}
+                  <div>
+                    <div className="flex items-start justify-between" style={{ gap: "4px", marginBottom: "3px" }}>
+                      <div className="flex-1 min-w-0 text-center">
                         <h3
                           className="font-fantasy font-bold leading-tight"
-                          style={{ color: "#1e0900", fontSize: "12px" }}
+                          style={{ color: "#1a0700", fontSize: "13px", textShadow: "0 1px 0 rgba(255,255,255,0.4)" }}
                           data-testid="text-detail-item-name"
                         >
                           {item.name}
                         </h3>
-                        <span
-                          className="font-fantasy capitalize"
-                          style={{ fontSize: "8px", color: "#5a2800", background: "rgba(65,30,5,0.18)", border: "1px solid rgba(110,55,15,0.3)", borderRadius: "999px", padding: "1px 5px", display: "inline-block" }}
-                        >
-                          {item.type}
-                        </span>
                       </div>
-                      {/* Close button — inside content div, always on wooden body */}
+                      {/* Close button */}
                       <button
                         onClick={() => { setSelectedShopItem(null); setBuyStep(0); setBuyError(null); setBuyQty(1); }}
                         className="flex-shrink-0 rounded-full flex items-center justify-center transition-transform active:scale-90"
@@ -3108,34 +3128,29 @@ export default function WorldPage({ user }: WorldPageProps) {
                         <X style={{ width: "11px", height: "11px" }} />
                       </button>
                     </div>
-
-                    {/* Divider */}
-                    <div style={{ width: "100%", borderTop: "1px solid rgba(100,50,10,0.22)", margin: "4px 0" }} />
-
-                    {/* Item image — centered, larger */}
-                    <div style={{ width: "68px", height: "68px", margin: "2px 0" }}>
-                      {imgSrc ? (
-                        <img src={imgSrc} alt={item.name} className="w-full h-full object-contain" style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.55))" }} />
-                      ) : (
-                        <Package style={{ width: "56px", height: "56px", color: "rgba(80,40,10,0.75)" }} />
-                      )}
+                    {/* Type badge centered */}
+                    <div className="text-center">
+                      <span
+                        className="font-fantasy capitalize"
+                        style={{ fontSize: "9px", color: "#4a2000", background: "rgba(65,30,5,0.22)", border: "1px solid rgba(110,55,15,0.35)", borderRadius: "999px", padding: "1px 7px", display: "inline-block", textShadow: "none" }}
+                      >
+                        {item.type}
+                      </span>
                     </div>
+                  </div>
 
-                    {/* Ability lines below image */}
+                  {/* BOTTOM: abilities (if any) + buy button */}
+                  <div>
                     {descLines.length > 0 && (
-                      <div style={{ width: "100%", marginTop: "4px" }}>
+                      <div style={{ marginBottom: "4px" }}>
                         {descLines.slice(0, 2).map((line, i) => (
-                          <div key={i} className="font-fantasy text-center" style={{ fontSize: "8.5px", color: "#3a1500", lineHeight: "1.4" }}>
+                          <div key={i} className="font-fantasy text-center" style={{ fontSize: "9.5px", color: "#2a1000", lineHeight: "1.4", textShadow: "0 1px 0 rgba(255,255,255,0.4)" }}>
                             {line}
                           </div>
                         ))}
                       </div>
                     )}
-                  </div>
-
-                  {/* BOTTOM section: buy button always anchored here */}
-                  <div>
-                    <div style={{ borderTop: "1px solid rgba(100,50,10,0.22)", marginBottom: "5px" }} />
+                    <div style={{ borderTop: "1px solid rgba(100,50,10,0.28)", marginBottom: "5px" }} />
                     {isOwned ? (
                       <div className="text-center font-fantasy" style={{ fontSize: "9px", padding: "7px 0", borderRadius: "8px", background: "rgba(0,90,55,0.18)", color: "#004428", border: "1px solid rgba(0,90,55,0.3)" }}>
                         You already own this pet
@@ -3164,11 +3179,11 @@ export default function WorldPage({ user }: WorldPageProps) {
                           </div>
                         </button>
                         {!canAfford && (
-                          <p className="font-fantasy text-center" style={{ fontSize: "8px", color: "#9a1800", marginBottom: "1px" }} data-testid="text-not-enough-coins">Not enough coins</p>
+                          <p className="font-fantasy text-center" style={{ fontSize: "8.5px", color: "#9a1800", marginBottom: "1px" }} data-testid="text-not-enough-coins">Not enough coins</p>
                         )}
                         <div className="flex items-center justify-center" style={{ gap: "3px" }}>
                           <img src={coinIconImg} alt="" style={{ width: "9px", height: "9px", objectFit: "contain", opacity: 0.5 }} />
-                          <span className="font-fantasy" style={{ fontSize: "8px", color: "#5a3010" }}>You have {currentUser.coins} coins</span>
+                          <span className="font-fantasy" style={{ fontSize: "8.5px", color: "#4a2800" }}>You have {currentUser.coins} coins</span>
                         </div>
                       </>
                     )}
