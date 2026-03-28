@@ -2101,7 +2101,7 @@ function Joystick({ onChange }: { onChange: (dx: number, dy: number, active: boo
       style={{
         position: "fixed",
         bottom: 108,
-        left: 20,
+        right: 20,
         width: BASE_R * 2,
         height: BASE_R * 2,
         borderRadius: "50%",
