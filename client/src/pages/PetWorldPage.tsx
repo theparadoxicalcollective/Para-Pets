@@ -1010,17 +1010,6 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           )}
         </div>
 
-        {/* Depth hint — small indicator at bottom centre */}
-        <div className="absolute bottom-4 left-0 right-0 flex justify-center pointer-events-none">
-          <div className="font-fantasy text-[9px] tracking-widest px-3 py-1 rounded-full"
-            style={{
-              color: `${ACCENT}55`,
-              background: "rgba(4,10,6,0.55)",
-              border: `1px solid ${ACCENT}20`,
-            }}>
-            drag to explore · pinch to zoom
-          </div>
-        </div>
       </div>
 
       {/* ── Friends Panel ─────────────────────────────────────────────────── */}
