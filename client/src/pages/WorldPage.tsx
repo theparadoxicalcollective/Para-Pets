@@ -3059,28 +3059,30 @@ export default function WorldPage({ user }: WorldPageProps) {
                 className="absolute inset-0 w-full h-full object-fill pointer-events-none select-none"
                 style={{ filter: "drop-shadow(0 16px 40px rgba(0,0,0,0.95)) drop-shadow(0 4px 10px rgba(0,0,0,0.75))" }}
               />
-              {/* Close — sits inside the wooden body; notched top corners clear by ~27%, right edge of body ~87% */}
+              {/*
+                From screenshot analysis (374px rendered container on iPhone):
+                  Wooden body LEFT  ≈ 15% from left  (57px)
+                  Wooden body RIGHT ≈ 85% from left  (318px) → right-inset ≈ 15%
+                  Wooden body TOP   ≈ 21% from top
+                  Grommet bottom    ≈ 33% from top
+                  Wooden body BOTTOM≈ 94% from top
+                Close button must be fully inside right edge (85%), so center at ~80% from left.
+              */}
+
+              {/* Close — fully inside wooden body; centered at ~79% from left, top of content area */}
               <button
                 onClick={() => { setSelectedShopItem(null); setBuyStep(0); setBuyError(null); setBuyQty(1); }}
                 className="absolute z-20 w-8 h-8 rounded-full flex items-center justify-center transition-transform active:scale-90"
-                style={{ top: "27%", right: "14%", background: "rgba(45,18,4,0.85)", border: "1.5px solid rgba(160,90,25,0.65)", color: "#d4a84a", cursor: "pointer" }}
+                style={{ top: "26%", right: "21%", background: "rgba(45,18,4,0.85)", border: "1.5px solid rgba(160,90,25,0.65)", color: "#d4a84a", cursor: "pointer" }}
               >
                 <X className="w-4 h-4" />
               </button>
-
-              {/*
-                Wooden body pixel map (1024×1024 image):
-                  top of wood  ≈ 21%   grommet bottom ≈ 32%   bottom of wood ≈ 95%
-                  left of body ≈ 10%                           right of body  ≈ 90%
-                Content insets: top=33%, left=13%, right=13%, bottom=6%
-                Layout: justify-between so buy button is always anchored at bottom.
-              */}
 
               {/* ── STEP 1: Item detail + buy button ── */}
               {buyStep === 1 && (
                 <div
                   className="absolute flex flex-col justify-between"
-                  style={{ top: "33%", left: "13%", right: "13%", bottom: "6%", overflow: "hidden" }}
+                  style={{ top: "34%", left: "16%", right: "16%", bottom: "7%", overflow: "hidden" }}
                 >
                   {/* TOP section: image + name row, then ability */}
                   <div>
@@ -3095,7 +3097,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                             style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.5))" }}
                           />
                         ) : (
-                          <Package style={{ width: "48px", height: "48px", color: "rgba(80,40,10,0.4)" }} />
+                          <Package style={{ width: "48px", height: "48px", color: "rgba(80,40,10,0.7)" }} />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -3184,7 +3186,7 @@ export default function WorldPage({ user }: WorldPageProps) {
               {buyStep === 2 && (
                 <div
                   className="absolute flex flex-col justify-between"
-                  style={{ top: "33%", left: "13%", right: "13%", bottom: "6%", overflow: "hidden" }}
+                  style={{ top: "34%", left: "16%", right: "16%", bottom: "7%", overflow: "hidden" }}
                 >
                   {/* TOP: name + qty */}
                   <div className="flex flex-col items-center" style={{ gap: "8px" }}>
