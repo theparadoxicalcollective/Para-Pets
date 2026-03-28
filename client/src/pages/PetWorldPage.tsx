@@ -796,20 +796,6 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                     </div>
                   )}
                 </div>
-                {/* Name label */}
-                <div
-                  className="font-fantasy text-center whitespace-nowrap"
-                  style={{
-                    marginTop: 6, fontSize: 11, color: glow,
-                    textShadow: `0 0 8px ${glow}80, 0 1px 4px rgba(0,0,0,0.9)`,
-                    background: "rgba(4,10,6,0.72)", padding: "2px 8px",
-                    borderRadius: 8, border: `1px solid ${glow}30`,
-                    pointerEvents: "none",
-                  }}
-                >
-                  {loc.name}
-                  {loc.isShop && <span style={{ marginLeft: 4, fontSize: 9, opacity: 0.75 }}>• Shop</span>}
-                </div>
               </div>
             );
           })}
