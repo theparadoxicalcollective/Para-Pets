@@ -1876,6 +1876,26 @@ export async function registerRoutes(
   let _activePetsCache: { ts: number; data: any[] } | null = null;
   const ACTIVE_PETS_TTL = 30_000;
 
+  // SSE clients watching live pet positions
+  const _petPosSseClients = new Set<Response>();
+  function broadcastPetPosition(userId: string, posX: number, posY: number) {
+    const payload = `data: ${JSON.stringify({ userId, posX, posY })}\n\n`;
+    for (const client of _petPosSseClients) {
+      try { client.write(payload); } catch { _petPosSseClients.delete(client); }
+    }
+  }
+
+  // SSE stream — clients connect once and receive position pushes
+  app.get("/api/world/pet_world/position-stream", isAuthenticated, (req, res) => {
+    res.setHeader("Content-Type",  "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection",    "keep-alive");
+    res.flushHeaders();
+    _petPosSseClients.add(res);
+    const ping = setInterval(() => { try { res.write(": ping\n\n"); } catch { /* ignore */ } }, 25_000);
+    req.on("close", () => { _petPosSseClients.delete(res); clearInterval(ping); });
+  });
+
   app.get("/api/world/pet_world/active-pets", isAuthenticated, async (req, res) => {
     try {
       const now = Date.now();
@@ -1899,6 +1919,7 @@ export async function registerRoutes(
       }
       await storage.upsertPetPosition("pet_world", ownerUserId, posX, posY);
       _activePetsCache = null; // bust so next fetch reflects the move
+      broadcastPetPosition(ownerUserId, posX, posY); // push live to all watchers
       return res.json({ success: true });
     } catch (err) {
       return res.status(500).json({ message: "Failed to update pet position" });

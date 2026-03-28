@@ -416,6 +416,21 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   // Cleanup RAF on unmount
   useEffect(() => () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); }, []);
 
+  // ── SSE: receive live position updates from other players ──────────────────
+  useEffect(() => {
+    const es = new EventSource("/api/world/pet_world/position-stream");
+    es.onmessage = (e) => {
+      try {
+        const { userId, posX, posY } = JSON.parse(e.data) as { userId: string; posX: number; posY: number };
+        if (userId === user.id) return; // own pet managed locally
+        queryClient.setQueryData<WorldActivePet[]>(["/api/world/pet_world/active-pets"], old =>
+          old ? old.map(p => p.userId === userId ? { ...p, posX, posY } : p) : old
+        );
+      } catch { /* ignore parse errors */ }
+    };
+    return () => es.close();
+  }, [user.id, queryClient]);
+
   // ── mutations ──────────────────────────────────────────────────────────────
   const addDecorItemMutation = useMutation({
     mutationFn: async (data: { name: string; imageUrl: string }) => {
@@ -673,6 +688,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                 index={idx}
                 posX={resolvedX}
                 posY={resolvedY}
+                isOwn={isOwn}
                 isWalking={isOwn && joystickActive}
                 onTap={() => setSelectedPet(pet)}
               />
@@ -1840,6 +1856,7 @@ function WorldRoamingPet({
   index,
   posX,
   posY,
+  isOwn,
   isWalking,
   onTap,
 }: {
@@ -1847,6 +1864,7 @@ function WorldRoamingPet({
   index: number;
   posX: number;
   posY: number;
+  isOwn: boolean;
   isWalking: boolean;
   onTap: () => void;
 }) {
@@ -1923,6 +1941,9 @@ function WorldRoamingPet({
         zIndex: 11 + Math.round((posY / 100) * 60),
         pointerEvents: "none",
         userSelect: "none",
+        // Smooth glide between SSE position updates for other players' pets;
+        // own pet is already smooth via RAF so no transition needed.
+        transition: isOwn ? undefined : "left 1.8s linear, top 1.8s linear",
       }}
     >
       {/* Wander / hop animation — hop overrides wander while walking */}
