@@ -105,6 +105,11 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const [selectedDecorId, setSelectedDecorId] = useState<string | null>(null);
   const [panelDragGhost, setPanelDragGhost] = useState<{ clientX: number; clientY: number; item: DecorItem } | null>(null);
 
+  // ── layer order — tracks which item was most recently moved ────────────────
+  // Most-recently-moved ID is last in the array → gets the highest z-index boost.
+  const [locMoveOrder,   setLocMoveOrder]   = useState<string[]>([]);
+  const [decorMoveOrder, setDecorMoveOrder] = useState<string[]>([]);
+
   // ── panel state ────────────────────────────────────────────────────────────
   const [showDecorPanel,   setShowDecorPanel]   = useState(false);
   const [showAddDecorForm, setShowAddDecorForm] = useState(false);
@@ -300,6 +305,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     locDragRef.current = null;
     if (locDidDrag.current && locDragPos) {
       updateLocPositionMutation.mutate({ locationId: d.locId, posX: locDragPos.x, posY: locDragPos.y });
+      setLocMoveOrder(prev => [...prev.filter(id => id !== d.locId), d.locId]);
     }
     locDidDrag.current = false;
     setLocDragPos(null);
@@ -568,6 +574,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     decorDragRef.current = null;
     if (decorDidDrag.current && decorDragPos) {
       updateDecorPlacementMutation.mutate({ id: d.placementId, posX: Math.round(decorDragPos.x), posY: Math.round(decorDragPos.y) });
+      setDecorMoveOrder(prev => [...prev.filter(id => id !== d.placementId), d.placementId]);
     }
     setDecorDragPos(null);
   }, [decorDragPos, updateDecorPlacementMutation]);
@@ -661,7 +668,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                   top: `${pos.y}%`,
                   width: sz,
                   cursor: user.isAdmin ? "grab" : (loc.isShop ? "pointer" : "default"),
-                  zIndex: selectedLocId === loc.id ? 150 : 6,
+                  zIndex: selectedLocId === loc.id ? 150 : 6 + (locMoveOrder.indexOf(loc.id) + 1),
                   transform: "translate(-50%, -100%)",
                   touchAction: "none",
                 }}
@@ -739,7 +746,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                   left: `${dpos.x}%`, top: `${dpos.y}%`,
                   width: `${p.size}px`, height: `${p.size}px`,
                   transform: "translate(-50%, -50%)",
-                  zIndex: isPassThrough ? 300 : (decorDragPos?.id === p.id ? 200 : 10 + Math.round((Math.min(100, dpos.y + (p.size / 2 / mapH) * 100) / 100) * 60)),
+                  zIndex: isPassThrough ? 300 : (decorDragPos?.id === p.id ? 200 : 10 + Math.round((Math.min(100, dpos.y + (p.size / 2 / mapH) * 100) / 100) * 60) + (decorMoveOrder.indexOf(p.id) + 1)),
                   cursor: user.isAdmin ? "grab" : "default",
                   touchAction: user.isAdmin ? "none" : "auto",
                   pointerEvents: (!user.isAdmin && isPassThrough) ? "none" : "auto",
