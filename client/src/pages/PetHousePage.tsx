@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient as globalQueryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Star, ShoppingBag, X, HelpCircle } from "lucide-react";
 import { fireLevelUp } from "@/lib/levelUpEvents";
@@ -1167,40 +1167,43 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
   // Always-fresh zone lookup used by the animation loop — bypasses state sync lag
   const swimZoneRef = useRef<Map<string, string | null>>(new Map());
 
-  const queryClient = useQueryClient();
-
   const { data: fishInventory = [] } = useQuery<AqCaughtFish[]>({
     queryKey: ["/api/fishing/inventory"],
     staleTime: 30000,
   });
 
-  const syncAquariumMutation = useMutation({
-    mutationFn: async (counts: { shopItemId: string; count: number }[]) => {
-      const res = await apiRequest("POST", "/api/fishing/aquarium/sync", { counts });
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] });
-    },
-  });
-
-  // Debounce timer ref + snapshot of the fish list to flush on unmount.
-  // syncToDb is called directly from addFish / removeFish — never from an effect.
-  // This eliminates all timing races between effects, mount guards, and readyToSync.
+  // Debounce timer + pending snapshot. syncToDb is called directly from addFish /
+  // removeFish so there are no effect-timing or readyToSync races.
   const syncDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSyncFishRef = useRef<AqFishEntry[] | null>(null);
 
-  // Fire the actual mutation with the latest fish counts.
-  const fireSyncMutation = useCallback((fish: AqFishEntry[]) => {
+  // Save fish list to localStorage synchronously.
+  const saveLocal = useCallback((fish: AqFishEntry[]) => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(fish)); } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [STORAGE_KEY]);
+
+  // Build the counts payload from a fish array.
+  const buildCounts = (fish: AqFishEntry[]) => {
     const countMap = new Map<string, number>();
     for (const f of fish) countMap.set(f.shopItemId, (countMap.get(f.shopItemId) ?? 0) + 1);
     const counts: { shopItemId: string; count: number }[] = [];
     countMap.forEach((count, shopItemId) => counts.push({ shopItemId, count }));
-    syncAquariumMutation.mutate(counts);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    return counts;
+  };
 
-  // Debounced DB sync — coalesces rapid add/remove into a single mutation so
+  // Fire the sync over the network using a plain fetch — NOT useMutation.
+  // useMutation is tied to the component lifecycle and silently drops calls
+  // that are fired after the component unmounts (e.g. the unmount flush).
+  // apiRequest is a raw fetch wrapper that runs to completion regardless.
+  const fireSync = (fish: AqFishEntry[]) => {
+    const counts = buildCounts(fish);
+    apiRequest("POST", "/api/fishing/aquarium/sync", { counts })
+      .then(() => globalQueryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] }))
+      .catch(() => { /* sync errors are silent — localStorage is still correct */ });
+  };
+
+  // Debounced DB sync — coalesces rapid add/remove into a single request so
   // out-of-order network arrivals can never overwrite a newer state.
   const syncToDb = useCallback((fish: AqFishEntry[]) => {
     pendingSyncFishRef.current = fish;
@@ -1209,19 +1212,14 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
       syncDebounceRef.current = null;
       const pending = pendingSyncFishRef.current;
       pendingSyncFishRef.current = null;
-      if (pending) fireSyncMutation(pending);
+      if (pending) fireSync(pending);
     }, 600);
+  // fireSync is defined in component scope and stable; no deps needed
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fireSyncMutation]);
+  }, []);
 
-  // Save fish list to localStorage synchronously.
-  const saveLocal = useCallback((fish: AqFishEntry[]) => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(fish)); } catch {}
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [STORAGE_KEY]);
-
-  // Flush any pending debounced sync immediately when the aquarium closes,
-  // so the player's last change is never lost just because they navigated away quickly.
+  // When the aquarium closes, immediately flush any pending debounced sync so
+  // the last change is never lost just because the player left within 600 ms.
   useEffect(() => {
     return () => {
       if (syncDebounceRef.current) {
@@ -1231,7 +1229,7 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
       const fish = pendingSyncFishRef.current;
       if (fish) {
         pendingSyncFishRef.current = null;
-        fireSyncMutation(fish);
+        fireSync(fish); // plain fetch — works after unmount
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
