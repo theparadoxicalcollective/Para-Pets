@@ -49,6 +49,8 @@ export interface EquippedAccessoryDetail {
   healthBoost: number | null;
 }
 
+const LEADERBOARD_EXCLUDED_USERNAMES = new Set(["paradox"]);
+
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
@@ -859,6 +861,7 @@ export class DatabaseStorage implements IStorage {
 
     const userMap = new Map<string, { userId: string; username: string; profileImage: string | null; totalPoints: number; allBadges: { id: string; name: string; imageUrl: string; badgePoints: number }[] }>();
     for (const row of rows) {
+      if (LEADERBOARD_EXCLUDED_USERNAMES.has(row.username.toLowerCase())) continue;
       if (!userMap.has(row.userId)) {
         userMap.set(row.userId, { userId: row.userId, username: row.username, profileImage: row.profileImage, totalPoints: 0, allBadges: [] });
       }
@@ -1312,6 +1315,7 @@ export class DatabaseStorage implements IStorage {
     const byUser: Record<string, { userId: string; username: string; profileImage: string | null; battlePoints: number; wins: number; losses: number }> = {};
     for (const row of rows) {
       if (!row.userId) continue;
+      if (LEADERBOARD_EXCLUDED_USERNAMES.has((row.username || "").toLowerCase())) continue;
       if (!byUser[row.userId]) {
         byUser[row.userId] = { userId: row.userId, username: row.username || "Unknown", profileImage: row.profileImage ?? null, battlePoints: 0, wins: 0, losses: 0 };
       }

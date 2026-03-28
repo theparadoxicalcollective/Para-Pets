@@ -1055,6 +1055,7 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
   const [editingPointsVal, setEditingPointsVal] = useState<string>("");
   const [editingBadge, setEditingBadge] = useState<AdminBadge | null>(null);
   const [editName, setEditName] = useState("");
+  const [editBadgePoints, setEditBadgePoints] = useState<string>("");
   const [editImageData, setEditImageData] = useState<string | null>(null);
   const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
   const editFileRef = useRef<HTMLInputElement>(null);
@@ -1127,8 +1128,8 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
   });
 
   const editBadgeMutation = useMutation({
-    mutationFn: ({ id, name, imageData }: { id: string; name: string; imageData: string | null }) =>
-      apiRequest("PATCH", `/api/admin/badges/${id}`, { name, ...(imageData ? { imageData } : {}) }),
+    mutationFn: ({ id, name, badgePoints, imageData }: { id: string; name: string; badgePoints: number; imageData: string | null }) =>
+      apiRequest("PATCH", `/api/admin/badges/${id}`, { name, badgePoints, ...(imageData ? { imageData } : {}) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/badges"] });
       setEditingBadge(null);
@@ -1387,7 +1388,7 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
               <div className="flex gap-1.5 w-full">
                 <button
                   data-testid={`button-edit-badge-${badge.id}`}
-                  onClick={() => { setEditingBadge(badge); setEditName(badge.name); setEditImageData(null); setEditImagePreview(null); }}
+                  onClick={() => { setEditingBadge(badge); setEditName(badge.name); setEditBadgePoints(String(badge.badgePoints ?? 0)); setEditImageData(null); setEditImagePreview(null); }}
                   className="flex items-center justify-center gap-1 flex-1 py-1 rounded font-fantasy text-[9px] tracking-wider"
                   style={{ background: "rgba(30,60,80,0.4)", border: "1px solid rgba(100,160,210,0.3)", color: "#8ab4d8", cursor: "pointer" }}
                 >
@@ -1556,6 +1557,21 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
               </div>
 
               <div>
+                <label className="font-fantasy text-[9px] tracking-widest uppercase mb-1 block" style={{ color: "#4a7090" }}>Badge Points</label>
+                <input
+                  data-testid="input-edit-badge-points"
+                  type="number"
+                  min="0"
+                  value={editBadgePoints}
+                  onChange={e => setEditBadgePoints(e.target.value)}
+                  placeholder="0"
+                  className="w-full rounded-lg px-3 py-2 font-fantasy text-xs tracking-wider"
+                  style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(100,200,180,0.25)", color: "#7fbfb0", outline: "none" }}
+                />
+                <p className="font-fantasy text-[9px] mt-1" style={{ color: "#2a5040" }}>Points count toward the Hall of Legends leaderboard</p>
+              </div>
+
+              <div>
                 <label className="font-fantasy text-[9px] tracking-widest uppercase mb-1 block" style={{ color: "#4a7090" }}>Badge Image</label>
                 <div className="flex gap-3 items-center">
                   <div
@@ -1598,7 +1614,7 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
 
               <button
                 data-testid="button-save-badge-edit"
-                onClick={() => editBadgeMutation.mutate({ id: editingBadge.id, name: editName, imageData: editImageData })}
+                onClick={() => editBadgeMutation.mutate({ id: editingBadge.id, name: editName, badgePoints: editBadgePoints.trim() ? parseInt(editBadgePoints.trim(), 10) : 0, imageData: editImageData })}
                 disabled={!editName.trim() || editBadgeMutation.isPending}
                 className="w-full py-2.5 rounded-xl font-fantasy text-xs tracking-wider mt-1"
                 style={{
