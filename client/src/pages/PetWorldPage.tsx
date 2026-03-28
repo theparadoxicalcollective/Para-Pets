@@ -679,12 +679,12 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                       style={{
                         width: "100%",
                         objectFit: "contain",
-                        filter: `drop-shadow(0 4px 8px rgba(0,0,0,0.6)) drop-shadow(0 0 12px ${glow}40)`,
+                        filter: `drop-shadow(0 4px 8px rgba(0,0,0,0.6))`,
                         transform: loc.flipped ? "scaleX(-1)" : undefined,
                       }}
                     />
                   ) : (
-                    <div className="flex items-center justify-center" style={{ width: sz, height: sz, borderRadius: 16, background: `radial-gradient(circle at 40% 35%, ${glow}30, ${glow}10)`, border: `1.5px solid ${glow}50` }}>
+                    <div className="flex items-center justify-center" style={{ width: sz, height: sz, borderRadius: 16, background: "rgba(20,20,20,0.5)", border: "1.5px solid rgba(255,255,255,0.15)" }}>
                       <Store style={{ width: sz * 0.4, height: sz * 0.4, color: glow }} />
                     </div>
                   )}
