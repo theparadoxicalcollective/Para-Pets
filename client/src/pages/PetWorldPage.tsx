@@ -443,8 +443,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   // ── initial centering on mount / mapH change ───────────────────────────────
   useEffect(() => {
     const coverSc = Math.max(FRAME_W / MAP_W, FRAME_H / mapHRef.current);
-    // Start zoomed out so players see a wider view of the world
-    const initSc  = coverSc * 0.68;
+    // Start at cover scale so the world fills the frame
+    const initSc  = coverSc;
     const ix = (FRAME_W - MAP_W * initSc) / 2;
     const iy = (FRAME_H - mapHRef.current * initSc) / 2;
     mapTransformRef.current = { x: ix, y: iy, scale: initSc };
@@ -454,8 +454,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   // ── clamp + apply ──────────────────────────────────────────────────────────
   const applyMapTransform = useCallback((x: number, y: number, sc: number) => {
     const coverSc  = Math.max(FRAME_W / MAP_W, FRAME_H / mapHRef.current);
-    // Allow zooming out to 60% of cover scale, and up to 2.5x zoom in
-    const clampedSc = Math.max(coverSc * 0.60, Math.min(coverSc * 2.5, sc));
+    // Minimum is cover scale (background always fills the frame), max 2.5x zoom in
+    const clampedSc = Math.max(coverSc, Math.min(coverSc * 2.5, sc));
     const mw = MAP_W * clampedSc;
     const mh = mapHRef.current * clampedSc;
     const cx = mw <= FRAME_W ? (FRAME_W - mw) / 2 : Math.max(FRAME_W - mw, Math.min(0, x));
@@ -651,7 +651,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   return (
     <div
       className="fixed inset-0 z-50 overflow-hidden"
-      style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, background: "#3d7020" }}
+      style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, background: "#060e06" }}
     >
       {/* ══ Map canvas — single background, full pan + zoom ════════════════ */}
       <div
@@ -671,8 +671,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
             transformOrigin: "0 0",
             transform: `translate(${mapX}px, ${mapY}px) scale(${mapScale})`,
             backgroundImage: `url(${bgGround})`,
-            backgroundSize: "50% auto",
-            backgroundRepeat: "repeat",
+            backgroundSize: "100% 100%",
+            backgroundRepeat: "no-repeat",
           }}
           onClick={() => { if (user.isAdmin) { setSelectedDecorId(null); setSelectedLocId(null); } }}
         >
