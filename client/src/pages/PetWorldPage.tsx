@@ -370,8 +370,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           return (h >>> 0) / 4294967295;
         };
         map.set(pet.userId, {
-          x: 8 + rng(1) * 80,   // 8% – 88% across the map width
-          y: 30 + rng(2) * 38,  // 30% – 68% — spread across the visible portion
+          x: 10 + rng(1) * 75,  // 10% – 85% across the map width
+          y: 55 + rng(2) * 28,  // 55% – 83% — lower half only, always reachable
         });
       }
     });
@@ -680,8 +680,9 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           {worldPets.map((pet, idx) => {
             const stored = petDefaultPositions.get(pet.userId) ?? { x: 50, y: 70 };
             const drag = petDragPos?.userId === pet.userId ? petDragPos : null;
-            const resolvedX = drag ? drag.posX : stored.x;
-            const resolvedY = drag ? drag.posY : stored.y;
+            // Clamp to safe visible band — pets can't drift out of reach
+            const resolvedX = Math.max(5, Math.min(92, drag ? drag.posX : stored.x));
+            const resolvedY = Math.max(52, Math.min(88, drag ? drag.posY : stored.y));
             const isDragging = drag !== null;
             return (
               <WorldRoamingPet
@@ -1935,9 +1936,8 @@ function WorldRoamingPet({
   const duration = `${34 + rng(3) * 16}s`;
   const delay    = `-${rng(4) * 20}s`;
 
-  // sz is in map-canvas pixels. At typical map scale (≈0.44–0.78×) this
-  // renders the pet at a comfortable 150–270 px on screen.
-  const sz     = 185;
+  // sz is in map-canvas pixels. Kept small so pets are always in reach.
+  const sz     = 120;
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
   const displayName = pet.petNickname || pet.name;
 
