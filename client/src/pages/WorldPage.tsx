@@ -3080,50 +3080,52 @@ export default function WorldPage({ user }: WorldPageProps) {
                   className="absolute flex flex-col justify-between"
                   style={{ top: "41%", left: "29%", right: "29%", bottom: "5%", overflow: "hidden" }}
                 >
-                  {/* TOP section */}
-                  <div>
-                    {/* Row 1: item image LEFT, name+close RIGHT */}
-                    <div className="flex items-start" style={{ gap: "6px", marginBottom: "4px" }}>
-                      {/* Item image */}
-                      <div className="flex-shrink-0" style={{ width: "44px", height: "44px" }}>
-                        {imgSrc ? (
-                          <img src={imgSrc} alt={item.name} className="w-full h-full object-contain" style={{ filter: "drop-shadow(0 2px 5px rgba(0,0,0,0.5))" }} />
-                        ) : (
-                          <Package style={{ width: "36px", height: "36px", color: "rgba(80,40,10,0.75)" }} />
-                        )}
-                      </div>
-                      {/* Name + type + close button */}
-                      <div className="flex-1 min-w-0 flex flex-col" style={{ gap: "2px" }}>
-                        <div className="flex items-start justify-between" style={{ gap: "4px" }}>
-                          <h3
-                            className="font-fantasy font-bold leading-tight flex-1 min-w-0"
-                            style={{ color: "#1e0900", fontSize: "12px" }}
-                            data-testid="text-detail-item-name"
-                          >
-                            {item.name}
-                          </h3>
-                          {/* Close button lives here — always inside wooden body */}
-                          <button
-                            onClick={() => { setSelectedShopItem(null); setBuyStep(0); setBuyError(null); setBuyQty(1); }}
-                            className="flex-shrink-0 rounded-full flex items-center justify-center transition-transform active:scale-90"
-                            style={{ width: "24px", height: "24px", background: "rgba(45,18,4,0.85)", border: "1.5px solid rgba(160,90,25,0.65)", color: "#d4a84a", cursor: "pointer" }}
-                          >
-                            <X style={{ width: "12px", height: "12px" }} />
-                          </button>
-                        </div>
+                  {/* TOP section: name → image → abilities */}
+                  <div className="flex flex-col items-center">
+                    {/* Name row + close button */}
+                    <div className="w-full flex items-start justify-between" style={{ gap: "4px", marginBottom: "2px" }}>
+                      <div className="flex-1 min-w-0">
+                        <h3
+                          className="font-fantasy font-bold leading-tight"
+                          style={{ color: "#1e0900", fontSize: "12px" }}
+                          data-testid="text-detail-item-name"
+                        >
+                          {item.name}
+                        </h3>
                         <span
                           className="font-fantasy capitalize"
-                          style={{ fontSize: "8.5px", color: "#5a2800", background: "rgba(65,30,5,0.18)", border: "1px solid rgba(110,55,15,0.3)", borderRadius: "999px", padding: "1px 6px", display: "inline-block", alignSelf: "flex-start" }}
+                          style={{ fontSize: "8px", color: "#5a2800", background: "rgba(65,30,5,0.18)", border: "1px solid rgba(110,55,15,0.3)", borderRadius: "999px", padding: "1px 5px", display: "inline-block" }}
                         >
                           {item.type}
                         </span>
                       </div>
+                      {/* Close button — inside content div, always on wooden body */}
+                      <button
+                        onClick={() => { setSelectedShopItem(null); setBuyStep(0); setBuyError(null); setBuyQty(1); }}
+                        className="flex-shrink-0 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                        style={{ width: "22px", height: "22px", background: "rgba(45,18,4,0.85)", border: "1.5px solid rgba(160,90,25,0.65)", color: "#d4a84a", cursor: "pointer" }}
+                      >
+                        <X style={{ width: "11px", height: "11px" }} />
+                      </button>
                     </div>
-                    {/* Ability lines */}
+
+                    {/* Divider */}
+                    <div style={{ width: "100%", borderTop: "1px solid rgba(100,50,10,0.22)", margin: "4px 0" }} />
+
+                    {/* Item image — centered, larger */}
+                    <div style={{ width: "68px", height: "68px", margin: "2px 0" }}>
+                      {imgSrc ? (
+                        <img src={imgSrc} alt={item.name} className="w-full h-full object-contain" style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.55))" }} />
+                      ) : (
+                        <Package style={{ width: "56px", height: "56px", color: "rgba(80,40,10,0.75)" }} />
+                      )}
+                    </div>
+
+                    {/* Ability lines below image */}
                     {descLines.length > 0 && (
-                      <div style={{ borderTop: "1px solid rgba(100,50,10,0.22)", paddingTop: "4px" }}>
-                        {descLines.slice(0, 3).map((line, i) => (
-                          <div key={i} className="font-fantasy" style={{ fontSize: "9px", color: "#3a1500", lineHeight: "1.45" }}>
+                      <div style={{ width: "100%", marginTop: "4px" }}>
+                        {descLines.slice(0, 2).map((line, i) => (
+                          <div key={i} className="font-fantasy text-center" style={{ fontSize: "8.5px", color: "#3a1500", lineHeight: "1.4" }}>
                             {line}
                           </div>
                         ))}
