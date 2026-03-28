@@ -1367,7 +1367,10 @@ export default function WorldPage({ user }: WorldPageProps) {
       }
       if (item.petsRevived) lines.push(`Revives ${item.petsRevived} pet(s)`);
       if (item.specialSkill) lines.push(item.specialSkill);
-      if (item.specialType && item.specialAmount) lines.push(`${item.specialType}: ${item.specialAmount}`);
+      if (item.specialType && item.specialAmount) {
+        const specialLabel = item.specialType === "level" ? "Level Points" : item.specialType === "hatch_time" ? "Hatch Time Reduced" : item.specialType;
+        lines.push(`+${item.specialAmount} ${specialLabel}`);
+      }
     }
     return lines;
   };
@@ -3142,7 +3145,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                     {descLines.length > 0 && (
                       <div style={{ marginBottom: "5px" }}>
                         {descLines.slice(0, 3).map((line, i) => (
-                          <div key={i} className="font-fantasy text-center" style={{ fontSize: "9.5px", color: "#1e0800", lineHeight: "1.45", textShadow: "-1px -1px 0 rgba(255,225,150,0.7), 1px -1px 0 rgba(255,225,150,0.7), -1px 1px 0 rgba(255,225,150,0.7), 1px 1px 0 rgba(255,225,150,0.7), 0 0 6px rgba(255,210,120,0.5)" }}>
+                          <div key={i} className="font-fantasy text-center" style={{ fontSize: "9.5px", fontWeight: "bold", color: "#1e0800", lineHeight: "1.45", textShadow: "-1px -1px 0 rgba(255,225,150,0.7), 1px -1px 0 rgba(255,225,150,0.7), -1px 1px 0 rgba(255,225,150,0.7), 1px 1px 0 rgba(255,225,150,0.7), 0 0 6px rgba(255,210,120,0.5)" }}>
                             {line}
                           </div>
                         ))}
