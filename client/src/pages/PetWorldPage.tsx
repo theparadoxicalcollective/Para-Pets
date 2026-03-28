@@ -106,16 +106,25 @@ function makeInstanceId() {
     : Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
-function spawnKCEnemy(template: KCSpawnedEnemy): LiveKCEnemy {
+function spawnKCEnemy(template: KCSpawnedEnemy, index = 0, total = 1): LiveKCEnemy {
   const speed = 2.5 + Math.random() * 2.5;
   const angle = Math.random() * Math.PI * 2;
+  // Grid-based placement so enemies spread across the full map area
+  const cols = Math.ceil(Math.sqrt(total));
+  const rows = Math.ceil(total / cols);
+  const col = index % cols;
+  const row = Math.floor(index / cols);
+  const cellW = 78 / cols;
+  const cellH = 48 / rows;
+  const x = Math.max(8, Math.min(90, 10 + col * cellW + Math.random() * cellW * 0.75));
+  const y = Math.max(36, Math.min(86, 36 + row * cellH + Math.random() * cellH * 0.75));
   return {
     instanceId: makeInstanceId(),
     enemyId: template.enemyId,
     enemyName: template.enemyName,
     enemyImageUrl: template.enemyImageUrl,
-    x: 8 + Math.random() * 82,
-    y: 42 + Math.random() * 44,
+    x,
+    y,
     vx: Math.cos(angle) * speed,
     vy: Math.sin(angle) * speed * 0.35,
     hp: 100,
@@ -323,7 +332,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     const pool: LiveKCEnemy[] = [];
     for (let i = 0; i < count; i++) {
       const template = kcSpawnedEnemies[i % kcSpawnedEnemies.length];
-      pool.push(spawnKCEnemy(template));
+      pool.push(spawnKCEnemy(template, i, count));
     }
     liveEnemiesRef.current = pool;
     setLiveEnemies(pool);
@@ -1033,10 +1042,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                       style={{
                         width: 34, height: 34, objectFit: "contain",
                         transform: facingLeft ? "scaleX(-1)" : undefined,
-                        filter: isSwipe
-                          ? "brightness(3) saturate(0) sepia(1) hue-rotate(0deg)"
-                          : "drop-shadow(0 2px 6px rgba(0,0,0,0.75))",
-                        transition: "filter 0.1s",
+                        filter: isSwipe ? "brightness(1.6) saturate(0.6)" : undefined,
+                        transition: "filter 0.12s",
                       }}
                     />
                   ) : (
@@ -1049,23 +1056,14 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                     </div>
                   )}
                   </div>
-                  {/* Hit flash — expanding burst ring */}
+                  {/* Hit flash — small ring */}
                   {isSwipe && (
-                    <>
-                      <div style={{
-                        position: "absolute", inset: -8, borderRadius: "50%",
-                        border: "3px solid rgba(255,220,0,0.95)",
-                        boxShadow: "0 0 18px 6px rgba(255,140,0,0.8), inset 0 0 8px rgba(255,200,0,0.4)",
-                        animation: "kcDeathRing 0.35s ease-out forwards",
-                        pointerEvents: "none",
-                      }} />
-                      <div style={{
-                        position: "absolute", inset: -3, borderRadius: "50%",
-                        background: "radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,180,0,0.4) 50%, transparent 70%)",
-                        animation: "kcDeathRing 0.28s ease-out forwards",
-                        pointerEvents: "none",
-                      }} />
-                    </>
+                    <div style={{
+                      position: "absolute", inset: -5, borderRadius: "50%",
+                      border: "2px solid rgba(255,200,80,0.7)",
+                      animation: "kcDeathRing 0.3s ease-out forwards",
+                      pointerEvents: "none",
+                    }} />
                   )}
                 </div>
               </div>
