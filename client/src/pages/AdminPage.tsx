@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Search, X, Upload, Trash2, ChevronLeft } from "lucide-react";
+import { Search, X, Upload, Trash2, ChevronLeft, Pencil } from "lucide-react";
 import bgImg from "@assets/bg_home_v2.png";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
@@ -1053,6 +1053,11 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
   const [editingRewardVal, setEditingRewardVal] = useState<string>("");
   const [editingPointsId, setEditingPointsId] = useState<string | null>(null);
   const [editingPointsVal, setEditingPointsVal] = useState<string>("");
+  const [editingBadge, setEditingBadge] = useState<AdminBadge | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editImageData, setEditImageData] = useState<string | null>(null);
+  const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
+  const editFileRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [originalSelected, setOriginalSelected] = useState<Set<string>>(new Set());
@@ -1117,6 +1122,17 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
       qc.invalidateQueries({ queryKey: ["/api/badges"] });
       setEditingPointsId(null);
       toast({ title: "Badge points updated!" });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const editBadgeMutation = useMutation({
+    mutationFn: ({ id, name, imageData }: { id: string; name: string; imageData: string | null }) =>
+      apiRequest("PATCH", `/api/admin/badges/${id}`, { name, ...(imageData ? { imageData } : {}) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/badges"] });
+      setEditingBadge(null);
+      toast({ title: "Badge updated!" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -1368,16 +1384,27 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
                   {(badge.badgePoints ?? 0) > 0 ? `⭐ ${badge.badgePoints} pts` : "Set badge pts"}
                 </button>
               )}
-              <button
-                data-testid={`button-delete-badge-${badge.id}`}
-                onClick={() => deleteMutation.mutate(badge.id)}
-                disabled={deleteMutation.isPending}
-                className="flex items-center gap-1 px-2 py-0.5 rounded font-fantasy text-[9px] tracking-wider"
-                style={{ background: "rgba(139,32,32,0.2)", border: "1px solid rgba(255,100,100,0.2)", color: "#ff9999", cursor: "pointer" }}
-              >
-                <Trash2 className="w-2.5 h-2.5" />
-                Delete
-              </button>
+              <div className="flex gap-1.5 w-full">
+                <button
+                  data-testid={`button-edit-badge-${badge.id}`}
+                  onClick={() => { setEditingBadge(badge); setEditName(badge.name); setEditImageData(null); setEditImagePreview(null); }}
+                  className="flex items-center justify-center gap-1 flex-1 py-1 rounded font-fantasy text-[9px] tracking-wider"
+                  style={{ background: "rgba(30,60,80,0.4)", border: "1px solid rgba(100,160,210,0.3)", color: "#8ab4d8", cursor: "pointer" }}
+                >
+                  <Pencil className="w-2.5 h-2.5" />
+                  Edit
+                </button>
+                <button
+                  data-testid={`button-delete-badge-${badge.id}`}
+                  onClick={() => deleteMutation.mutate(badge.id)}
+                  disabled={deleteMutation.isPending}
+                  className="flex items-center justify-center gap-1 flex-1 py-1 rounded font-fantasy text-[9px] tracking-wider"
+                  style={{ background: "rgba(139,32,32,0.2)", border: "1px solid rgba(255,100,100,0.2)", color: "#ff9999", cursor: "pointer" }}
+                >
+                  <Trash2 className="w-2.5 h-2.5" />
+                  Delete
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -1484,6 +1511,105 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
                 }}
               >
                 {applyMutation.isPending ? "Saving..." : "Save Assignments"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingBadge && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+          <div className="absolute inset-0 bg-black/60" onClick={() => setEditingBadge(null)} />
+          <div
+            className="relative w-full rounded-t-2xl overflow-hidden flex flex-col"
+            style={{
+              background: "linear-gradient(180deg, #0d1520 0%, #060c14 100%)",
+              border: "1px solid rgba(100,160,210,0.3)",
+              maxHeight: "80dvh",
+            }}
+          >
+            <div className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: "1px solid rgba(100,160,210,0.12)" }}>
+              <div className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden" style={{ border: "1.5px solid rgba(100,160,210,0.35)" }}>
+                <img src={editImagePreview ?? editingBadge.imageUrl} alt={editingBadge.name} className="w-full h-full object-cover" />
+              </div>
+              <div className="flex-1">
+                <p className="font-fantasy text-[#8ab4d8] text-sm tracking-wider">Edit Badge</p>
+                <p className="font-fantasy text-[#4a7090] text-[9px] tracking-wide">Update name or image</p>
+              </div>
+              <button onClick={() => setEditingBadge(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#4a7090" }}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3 p-4 overflow-y-auto">
+              <div>
+                <label className="font-fantasy text-[9px] tracking-widest uppercase mb-1 block" style={{ color: "#4a7090" }}>Badge Name</label>
+                <input
+                  data-testid="input-edit-badge-name"
+                  type="text"
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  placeholder="Badge name..."
+                  className="w-full rounded-lg px-3 py-2 font-fantasy text-xs tracking-wider"
+                  style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(100,160,210,0.25)", color: "#8ab4d8", outline: "none" }}
+                />
+              </div>
+
+              <div>
+                <label className="font-fantasy text-[9px] tracking-widest uppercase mb-1 block" style={{ color: "#4a7090" }}>Badge Image</label>
+                <div className="flex gap-3 items-center">
+                  <div
+                    className="w-14 h-14 rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center"
+                    style={{ border: "1.5px solid rgba(100,160,210,0.3)", background: "rgba(0,0,0,0.3)" }}
+                  >
+                    <img
+                      src={editImagePreview ?? editingBadge.imageUrl}
+                      alt="preview"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <button
+                    data-testid="button-edit-badge-image"
+                    onClick={() => editFileRef.current?.click()}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-fantasy text-[10px] tracking-wider"
+                    style={{ background: "rgba(0,0,0,0.3)", border: "1px dashed rgba(100,160,210,0.3)", color: "#4a7090", cursor: "pointer" }}
+                  >
+                    <Upload className="w-3 h-3" />
+                    {editImagePreview ? "Change image" : "Replace image"}
+                  </button>
+                  <input
+                    ref={editFileRef}
+                    type="file"
+                    accept="image/png,image/jpeg"
+                    className="hidden"
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = ev => {
+                        setEditImageData(ev.target?.result as string);
+                        setEditImagePreview(ev.target?.result as string);
+                      };
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                </div>
+              </div>
+
+              <button
+                data-testid="button-save-badge-edit"
+                onClick={() => editBadgeMutation.mutate({ id: editingBadge.id, name: editName, imageData: editImageData })}
+                disabled={!editName.trim() || editBadgeMutation.isPending}
+                className="w-full py-2.5 rounded-xl font-fantasy text-xs tracking-wider mt-1"
+                style={{
+                  background: !editName.trim() ? "rgba(0,0,0,0.3)" : "linear-gradient(135deg, #0d2540, #1a4070)",
+                  border: "1px solid rgba(100,160,210,0.4)",
+                  color: !editName.trim() ? "#2a4060" : "#8ab4d8",
+                  cursor: !editName.trim() ? "not-allowed" : "pointer",
+                  boxShadow: editName.trim() ? "0 0 12px rgba(100,160,210,0.1)" : "none",
+                }}
+              >
+                {editBadgeMutation.isPending ? "Saving..." : "Save Changes"}
               </button>
             </div>
           </div>

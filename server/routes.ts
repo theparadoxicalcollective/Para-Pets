@@ -3215,13 +3215,19 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
       if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
-      const { dailyRewardCoins, badgePoints } = req.body;
-      const updateData: { dailyRewardCoins?: number | null; badgePoints?: number } = {};
+      const { dailyRewardCoins, badgePoints, name, imageData } = req.body;
+      const updateData: { dailyRewardCoins?: number | null; badgePoints?: number; name?: string; imageUrl?: string } = {};
       if (dailyRewardCoins !== undefined) {
         updateData.dailyRewardCoins = dailyRewardCoins != null && dailyRewardCoins !== "" ? Number(dailyRewardCoins) : null;
       }
       if (badgePoints !== undefined) {
         updateData.badgePoints = badgePoints != null && badgePoints !== "" ? Number(badgePoints) : 0;
+      }
+      if (name !== undefined && name.trim()) {
+        updateData.name = name.trim();
+      }
+      if (imageData) {
+        updateData.imageUrl = await processWorldImage(imageData, 1000);
       }
       await storage.updateBadge(req.params.id, updateData);
       return res.json({ ok: true });

@@ -144,7 +144,7 @@ export interface IStorage {
   createBadge(name: string, imageUrl: string, dailyRewardCoins?: number | null, badgePoints?: number): Promise<Badge>;
   deleteBadge(id: string): Promise<void>;
   updateBadgeDailyReward(id: string, dailyRewardCoins: number | null): Promise<void>;
-  updateBadge(id: string, data: { dailyRewardCoins?: number | null; badgePoints?: number }): Promise<void>;
+  updateBadge(id: string, data: { dailyRewardCoins?: number | null; badgePoints?: number; name?: string; imageUrl?: string }): Promise<void>;
   getUserBadges(userId: string): Promise<(UserBadge & { name: string; imageUrl: string; dailyRewardCoins: number | null; badgePoints: number; lastClaimedAt: Date | null })[]>;
   getBadgeRecipients(badgeId: string): Promise<string[]>;
   awardBadge(userId: string, badgeId: string): Promise<UserBadge>;
@@ -813,7 +813,7 @@ export class DatabaseStorage implements IStorage {
     await db.update(badges).set({ dailyRewardCoins }).where(eq(badges.id, id));
   }
 
-  async updateBadge(id: string, data: { dailyRewardCoins?: number | null; badgePoints?: number }): Promise<void> {
+  async updateBadge(id: string, data: { dailyRewardCoins?: number | null; badgePoints?: number; name?: string; imageUrl?: string }): Promise<void> {
     await db.update(badges).set(data).where(eq(badges.id, id));
   }
 
