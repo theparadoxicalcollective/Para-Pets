@@ -1061,7 +1061,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                     <div style={{
                       position: "absolute", inset: -5, borderRadius: "50%",
                       border: "2px solid rgba(255,200,80,0.7)",
-                      animation: "kcDeathRing 0.3s ease-out forwards",
+                      animation: "kcHitRing 0.3s ease-out forwards",
                       pointerEvents: "none",
                     }} />
                   )}
@@ -2550,7 +2550,7 @@ function WorldRoamingPet({
           ? isPouncing
             ? "kcPetPounce 0.3s ease-out"
             : isMoving
-              ? "kcPetWalkBounce 0.32s ease-in-out infinite"
+              ? "kcPetWalkBounce 0.55s ease-in-out infinite"
               : undefined
           : `${floatAnim} ${floatDuration} ease-in-out ${floatDelay} infinite ${hasWings ? "alternate" : ""}`,
       }}>

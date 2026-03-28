@@ -867,10 +867,10 @@
 /* KC enemy squish-bounce: slight vertical squish from bottom anchor */
 @keyframes kcSquish {
   0%   { transform: scaleY(1)    scaleX(1);    }
-  20%  { transform: scaleY(0.82) scaleX(1.12); }
-  40%  { transform: scaleY(1.06) scaleX(0.96); }
-  60%  { transform: scaleY(0.91) scaleX(1.07); }
-  80%  { transform: scaleY(1.03) scaleX(0.98); }
+  20%  { transform: scaleY(0.93) scaleX(1.05); }
+  40%  { transform: scaleY(1.03) scaleX(0.98); }
+  60%  { transform: scaleY(0.96) scaleX(1.03); }
+  80%  { transform: scaleY(1.01) scaleX(0.99); }
   100% { transform: scaleY(1)    scaleX(1);    }
 }
 
@@ -895,6 +895,12 @@
 @keyframes kcDeathRing {
   0%   { transform: translate(-50%, -50%) scale(0.2); opacity: 1; }
   100% { transform: translate(-50%, -50%) scale(2.8); opacity: 0; }
+}
+
+/* KC hit ring — no translate, used for normal attack hits */
+@keyframes kcHitRing {
+  0%   { transform: scale(0.4); opacity: 0.85; }
+  100% { transform: scale(2);   opacity: 0; }
 }
 
 /* KC attack spark particle — uses --sx, --sy for direction */
