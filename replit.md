@@ -51,8 +51,13 @@ The application is built as a monolithic web app with a clear separation of conc
 ### Feature Specifications
 - **User Management**: User registration, login, profile updates, and admin-managed banning/unbanning.
 - **Inventory & Shop**: In-game currency-based purchasing, item management, and pet interaction.
-- **Admin Tools**: Comprehensive features for user management, shop item creation/editing, reward bundle distribution, and world/location configuration.
+- **Admin Tools**: Comprehensive features for user management, shop item creation/editing, reward bundle distribution, world/location configuration, and enemy database management (with animation parts editor).
 - **Stripe Integration**: Secure payment processing for coin purchases with daily spending limits.
+- **Enemy Database System**:
+  - Global enemy database (not location-specific): `enemies` table with name, imageUrl, atk, health, isBoss, and up to 3 specials (boss only)
+  - Animation parts editor: `enemy_parts` table for layered animation asset assembly with drag-to-reposition canvas
+  - Admin "Enemies" tab in AdminPage.tsx → EnemyDatabasePanel.tsx (CRUD + animation parts canvas editor)
+  - API routes: GET/POST/PATCH/DELETE `/api/admin/enemies`, GET/POST/PATCH/DELETE `/api/admin/enemy-parts/:enemyId`
 - **Fishing System**:
   - Three fishing item types in the shop: `pole`, `bait`, and `fish` (all under `type="fishing"`)
   - Fish have `starRarity` (1–5); poles have `catchEasePercent` (reduces minigame difficulty for 3★+ fish); bait has `rarityBoostPercent` (direct probability boost to a target star rarity)

@@ -493,3 +493,34 @@ export const petHousePositions = pgTable("pet_house_positions", {
   posTop: text("pos_top").notNull(),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 }, (t) => [uniqueIndex("pet_house_positions_user_inv_uidx").on(t.userId, t.inventoryId)]);
+
+// ── Enemy Database ────────────────────────────────────────────────────────────
+export const enemies = pgTable("enemies", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  imageUrl: text("image_url"),
+  atk: integer("atk").notNull().default(10),
+  health: integer("health").notNull().default(100),
+  isBoss: boolean("is_boss").notNull().default(false),
+  special1: text("special1"),
+  special2: text("special2"),
+  special3: text("special3"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const enemyParts = pgTable("enemy_parts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  enemyId: varchar("enemy_id").notNull(),
+  partType: text("part_type").notNull(),
+  imageUrl: text("image_url").notNull(),
+  posX: integer("pos_x").notNull().default(100),
+  posY: integer("pos_y").notNull().default(100),
+  width: integer("width").notNull().default(200),
+  height: integer("height").notNull().default(200),
+  zIndex: integer("z_index").notNull().default(1),
+});
+
+export const insertEnemySchema = createInsertSchema(enemies).omit({ id: true, createdAt: true });
+export type InsertEnemy = z.infer<typeof insertEnemySchema>;
+export type Enemy = typeof enemies.$inferSelect;
+export type EnemyPart = typeof enemyParts.$inferSelect;

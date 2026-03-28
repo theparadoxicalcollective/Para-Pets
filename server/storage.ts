@@ -32,6 +32,8 @@ import {
   type Notification, notifications,
   worldPetPositions,
   petHousePositions,
+  type Enemy, type EnemyPart, enemies, enemyParts,
+  type InsertEnemy,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, ne, gte, asc, desc, ilike, or, sql, inArray } from "drizzle-orm";
@@ -197,6 +199,15 @@ export interface IStorage {
   getBattleGroup(userId: string): Promise<any | null>;
   upsertBattleGroup(userId: string, petInventoryIds: string[]): Promise<any>;
   getAllBattleGroupsWithUsers(): Promise<any[]>;
+  // Enemy Database
+  getAllEnemies(): Promise<Enemy[]>;
+  createEnemy(data: InsertEnemy): Promise<Enemy>;
+  updateEnemy(id: string, data: Partial<InsertEnemy>): Promise<Enemy>;
+  deleteEnemy(id: string): Promise<void>;
+  getEnemyParts(enemyId: string): Promise<EnemyPart[]>;
+  createEnemyPart(data: { enemyId: string; partType: string; imageUrl: string; posX?: number; posY?: number; width?: number; height?: number; zIndex?: number }): Promise<EnemyPart>;
+  updateEnemyPart(id: string, data: Partial<EnemyPart>): Promise<EnemyPart>;
+  deleteEnemyPart(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1532,6 +1543,52 @@ export class DatabaseStorage implements IStorage {
     await db.update(notifications)
       .set({ isRead: true })
       .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
+  }
+
+  async getAllEnemies(): Promise<Enemy[]> {
+    return db.select().from(enemies).orderBy(asc(enemies.createdAt));
+  }
+
+  async createEnemy(data: InsertEnemy): Promise<Enemy> {
+    const [enemy] = await db.insert(enemies).values(data).returning();
+    return enemy;
+  }
+
+  async updateEnemy(id: string, data: Partial<InsertEnemy>): Promise<Enemy> {
+    const [enemy] = await db.update(enemies).set(data).where(eq(enemies.id, id)).returning();
+    return enemy;
+  }
+
+  async deleteEnemy(id: string): Promise<void> {
+    await db.delete(enemyParts).where(eq(enemyParts.enemyId, id));
+    await db.delete(enemies).where(eq(enemies.id, id));
+  }
+
+  async getEnemyParts(enemyId: string): Promise<EnemyPart[]> {
+    return db.select().from(enemyParts).where(eq(enemyParts.enemyId, enemyId)).orderBy(asc(enemyParts.zIndex));
+  }
+
+  async createEnemyPart(data: { enemyId: string; partType: string; imageUrl: string; posX?: number; posY?: number; width?: number; height?: number; zIndex?: number }): Promise<EnemyPart> {
+    const [part] = await db.insert(enemyParts).values({
+      enemyId: data.enemyId,
+      partType: data.partType,
+      imageUrl: data.imageUrl,
+      posX: data.posX ?? 100,
+      posY: data.posY ?? 100,
+      width: data.width ?? 200,
+      height: data.height ?? 200,
+      zIndex: data.zIndex ?? 1,
+    }).returning();
+    return part;
+  }
+
+  async updateEnemyPart(id: string, data: Partial<EnemyPart>): Promise<EnemyPart> {
+    const [part] = await db.update(enemyParts).set(data).where(eq(enemyParts.id, id)).returning();
+    return part;
+  }
+
+  async deleteEnemyPart(id: string): Promise<void> {
+    await db.delete(enemyParts).where(eq(enemyParts.id, id));
   }
 }
 
