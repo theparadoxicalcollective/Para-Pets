@@ -2053,11 +2053,11 @@ function WorldRoamingPet({
                 cursor: "pointer",
               }}
             />
-          </div>   {/* sz×sz box */}
-        </div>     {/* float anim */}
-        </div>     {/* hop bounce */}
-      </div>       {/* wander drift */}
-    </div>         {/* position anchor */}
+          </div>
+        </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
