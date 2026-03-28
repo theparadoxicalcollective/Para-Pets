@@ -1368,8 +1368,9 @@ export default function WorldPage({ user }: WorldPageProps) {
       if (item.petsRevived) lines.push(`Revives ${item.petsRevived} pet(s)`);
       if (item.specialSkill) lines.push(item.specialSkill);
       if (item.specialType && item.specialAmount) {
-        const specialLabel = item.specialType === "level" ? "Level Points" : item.specialType === "hatch_time" ? "Hatch Time Reduced" : item.specialType;
-        lines.push(`+${item.specialAmount} ${specialLabel}`);
+        const specialLabel = item.specialType === "level" ? "Level Points" : item.specialType === "hatch_time" ? `Hatching Reduced by ${item.specialAmount}min` : item.specialType;
+        if (item.specialType === "hatch_time") lines.push(specialLabel);
+        else lines.push(`+${item.specialAmount} ${specialLabel}`);
       }
     }
     return lines;
