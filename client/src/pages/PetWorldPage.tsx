@@ -372,7 +372,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
         };
         map.set(pet.userId, {
           x: 10 + rng(1) * 75,  // 10% – 85% across the map width
-          y: 22 + rng(2) * 60,  // 22% – 82% — full range below toolbar
+          y: 40 + rng(2) * 45,  // 40% – 85% — always below toolbar
         });
       }
     });
@@ -606,7 +606,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
 
       if (!dragActive) {
         // Significant movement before long-press = user is panning, not holding
-        if (Math.hypot(dx, dy) > 10) {
+        if (Math.hypot(dx, dy) > 20) {
           cancelled = true;
           cleanup();
         }
@@ -706,8 +706,9 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
             const stored = petDefaultPositions.get(pet.userId) ?? { x: 50, y: 70 };
             const drag = petDragPos?.userId === pet.userId ? petDragPos : null;
             // Clamp to safe visible band — pets can't drift behind the toolbar or off-screen
+            // minY 38 accounts for pet height (~18% of map) so heads stay below toolbar
             const resolvedX = Math.max(5, Math.min(92, drag ? drag.posX : stored.x));
-            const resolvedY = Math.max(20, Math.min(90, drag ? drag.posY : stored.y));
+            const resolvedY = Math.max(38, Math.min(90, drag ? drag.posY : stored.y));
             const isDragging = drag !== null;
             return (
               <WorldRoamingPet
@@ -718,7 +719,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                 posY={resolvedY}
                 isDragging={isDragging}
                 isDragReady={petDragReady === pet.userId}
-                onPointerDown={e => handlePetPointerDown(e, pet, stored.x, stored.y)}
+                onPointerDown={e => handlePetPointerDown(e, pet, resolvedX, resolvedY)}
               />
             );
           })}
