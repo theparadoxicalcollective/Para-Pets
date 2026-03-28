@@ -171,6 +171,10 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const [enemiesInitialized,  setEnemiesInitialized]  = useState(false);
   const [swipeTarget,         setSwipeTarget]          = useState<string | null>(null);
   const [coinPops,            setCoinPops]             = useState<{ id: string; x: number; y: number; amount: number }[]>([]);
+  const [dyingEnemies,        setDyingEnemies]         = useState<Set<string>>(new Set());
+  const [attackSparks,        setAttackSparks]         = useState<{ id: string; x: number; y: number; dx: number; dy: number; color: string }[]>([]);
+  const [enemyProjectiles,    setEnemyProjectiles]     = useState<{ id: string; fromX: number; fromY: number; toX: number; toY: number }[]>([]);
+  const [petHitFlash,         setPetHitFlash]          = useState(false);
 
   // ── panel state ────────────────────────────────────────────────────────────
   const [showDecorPanel,   setShowDecorPanel]   = useState(false);
@@ -391,17 +395,48 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     const dmg = 5 + Math.floor(Math.random() * 6);
     const newHp = Math.max(0, target.hp - dmg);
     const updated = [...liveEnemiesRef.current];
+
+    // Spawn attack sparks at the enemy's map position
+    const sparkColors = ["#ffffff", "#fbbf24", "#f87171", "#a78bfa", "#7fffd4"];
+    const newSparks = Array.from({ length: 12 }, () => {
+      const angle = Math.random() * Math.PI * 2;
+      const dist2 = 20 + Math.random() * 30;
+      return {
+        id: makeInstanceId(),
+        x: target.x, y: target.y,
+        dx: Math.cos(angle) * dist2,
+        dy: Math.sin(angle) * dist2,
+        color: sparkColors[Math.floor(Math.random() * sparkColors.length)],
+      };
+    });
+    setAttackSparks(prev => [...prev, ...newSparks]);
+    const sparkIds = new Set(newSparks.map(s => s.id));
+    setTimeout(() => setAttackSparks(prev => prev.filter(s => !sparkIds.has(s.id))), 500);
+
     if (newHp <= 0) {
-      updated[idx] = { ...target, hp: 0, alive: false, respawnAt: Date.now() + 5000 };
+      // Kill: immediately mark dead (stops wandering), play death animation overlay
+      updated[idx] = { ...target, hp: 0, alive: false, respawnAt: Date.now() + 6000 };
+      liveEnemiesRef.current = updated;
+      setLiveEnemies([...updated]);
+      setDyingEnemies(prev => new Set([...prev, target.instanceId]));
+      setTimeout(() => setDyingEnemies(prev => { const s = new Set(prev); s.delete(target.instanceId); return s; }), 1400);
       killRewardMutation.mutate();
-      // Coin pop above enemy map position
       setCoinPops(prev => [...prev, { id: makeInstanceId(), x: target.x, y: target.y, amount: 1 + Math.floor(Math.random() * 2) }]);
       setTimeout(() => setCoinPops(prev => prev.slice(1)), 1500);
     } else {
+      // Hit but alive: enemy fires back at the pet
       updated[idx] = { ...target, hp: newHp };
+      liveEnemiesRef.current = updated;
+      setLiveEnemies([...updated]);
+      const projId = makeInstanceId();
+      setEnemyProjectiles(prev => [...prev, { id: projId, fromX: target.x, fromY: target.y, toX: pos.x, toY: pos.y }]);
+      setTimeout(() => {
+        setEnemyProjectiles(prev => prev.filter(p => p.id !== projId));
+        setPetHitFlash(true);
+        setTimeout(() => setPetHitFlash(false), 280);
+      }, 480);
     }
-    liveEnemiesRef.current = updated;
-    setLiveEnemies([...updated]);
+
     setSwipeTarget(target.instanceId);
     setTimeout(() => setSwipeTarget(t => t === target.instanceId ? null : t), 350);
   }, [killRewardMutation]);
@@ -899,8 +934,11 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           {/* ── KC Enemies on the map ─────────────────────────────────── */}
           {liveEnemies.map(enemy => {
             const defeated = !enemy.alive;
+            const isDying = dyingEnemies.has(enemy.instanceId);
             const isSwipe = swipeTarget === enemy.instanceId;
             const facingLeft = enemy.vx < 0;
+            // After the death animation ends, the enemy is fully invisible until respawn
+            if (defeated && !isDying) return null;
             return (
               <div
                 key={enemy.instanceId}
@@ -911,16 +949,14 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                   top: `${enemy.y}%`,
                   transform: "translate(-50%, -100%)",
                   zIndex: 30,
-                  opacity: defeated ? 0.25 : 1,
-                  transition: "opacity 0.5s",
                   pointerEvents: "none",
                   userSelect: "none",
                   width: 44,
                   willChange: "left, top",
                 }}
               >
-                {/* HP bar — hidden when defeated */}
-                {!defeated && (
+                {/* HP bar — hidden when dying/defeated */}
+                {!defeated && !isDying && (
                   <div style={{ width: "100%", height: 4, borderRadius: 2, background: "rgba(0,0,0,0.6)", border: "1px solid rgba(0,0,0,0.5)", marginBottom: 2, overflow: "hidden" }}>
                     <div style={{
                       height: "100%",
@@ -931,12 +967,27 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                     }} />
                   </div>
                 )}
-                {/* Enemy image with squish-bounce animation */}
+                {/* Enemy image */}
                 <div className="relative" style={{ width: 34, height: 34 }}>
-                  {/* Squish wrapper — animates scaleY/scaleX independently of flip */}
+                  {/* Death ring burst */}
+                  {isDying && (
+                    <div style={{
+                      position: "absolute",
+                      left: "50%", top: "50%",
+                      width: 44, height: 44,
+                      borderRadius: "50%",
+                      border: "3px solid rgba(255,160,0,0.9)",
+                      boxShadow: "0 0 14px 4px rgba(255,80,0,0.7)",
+                      animation: "kcDeathRing 0.7s ease-out forwards",
+                      pointerEvents: "none",
+                    }} />
+                  )}
+                  {/* Squish / death wrapper */}
                   <div style={{
                     width: 34, height: 34,
-                    animation: defeated ? "none" : "kcSquish 0.9s ease-in-out infinite",
+                    animation: isDying
+                      ? "kcEnemyDeath 1.4s ease-out forwards"
+                      : "kcSquish 0.9s ease-in-out infinite",
                     transformOrigin: "bottom center",
                   }}>
                   {enemy.enemyImageUrl ? (
@@ -947,12 +998,10 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                       style={{
                         width: 34, height: 34, objectFit: "contain",
                         transform: facingLeft ? "scaleX(-1)" : undefined,
-                        filter: defeated
-                          ? "grayscale(1) brightness(0.4)"
-                          : isSwipe
-                          ? "brightness(2.5) saturate(0.2)"
+                        filter: isSwipe
+                          ? "brightness(3) saturate(0) sepia(1) hue-rotate(0deg)"
                           : "drop-shadow(0 2px 6px rgba(0,0,0,0.75))",
-                        transition: "filter 0.12s",
+                        transition: "filter 0.1s",
                       }}
                     />
                   ) : (
@@ -965,14 +1014,23 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                     </div>
                   )}
                   </div>
-                  {/* Hit flash ring */}
+                  {/* Hit flash — expanding burst ring */}
                   {isSwipe && (
-                    <div style={{
-                      position: "absolute", inset: -5, borderRadius: "50%",
-                      border: "2.5px solid rgba(255,255,255,0.9)",
-                      boxShadow: "0 0 12px 4px rgba(255,80,80,0.8), inset 0 0 6px rgba(255,80,80,0.5)",
-                      pointerEvents: "none",
-                    }} />
+                    <>
+                      <div style={{
+                        position: "absolute", inset: -8, borderRadius: "50%",
+                        border: "3px solid rgba(255,220,0,0.95)",
+                        boxShadow: "0 0 18px 6px rgba(255,140,0,0.8), inset 0 0 8px rgba(255,200,0,0.4)",
+                        animation: "kcDeathRing 0.35s ease-out forwards",
+                        pointerEvents: "none",
+                      }} />
+                      <div style={{
+                        position: "absolute", inset: -3, borderRadius: "50%",
+                        background: "radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,180,0,0.4) 50%, transparent 70%)",
+                        animation: "kcDeathRing 0.28s ease-out forwards",
+                        pointerEvents: "none",
+                      }} />
+                    </>
                   )}
                 </div>
               </div>
@@ -1003,6 +1061,54 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
               />
             </div>
           ))}
+
+          {/* ── Attack spark particles (map-space) ───────────────────── */}
+          {attackSparks.map(spark => (
+            <div
+              key={spark.id}
+              style={{
+                position: "absolute",
+                left: `${spark.x}%`,
+                top: `${spark.y}%`,
+                width: 6, height: 6,
+                borderRadius: "50%",
+                background: spark.color,
+                boxShadow: `0 0 6px 2px ${spark.color}`,
+                pointerEvents: "none",
+                zIndex: 45,
+                transform: "translate(-50%, -50%)",
+                animation: "kcSpark 0.5s ease-out forwards",
+                ["--sx" as string]: `${spark.dx}px`,
+                ["--sy" as string]: `${spark.dy}px`,
+              }}
+            />
+          ))}
+
+          {/* ── Enemy counter-attack projectiles (map-space) ─────────── */}
+          {enemyProjectiles.map(proj => {
+            const dx = (proj.toX - proj.fromX) / 100 * MAP_W;
+            const dy = (proj.toY - proj.fromY) / 100 * MAP_H_DEFAULT;
+            return (
+              <div
+                key={proj.id}
+                style={{
+                  position: "absolute",
+                  left: `${proj.fromX}%`,
+                  top: `${proj.fromY}%`,
+                  width: 16, height: 16,
+                  borderRadius: "50%",
+                  background: "radial-gradient(circle, #ff6600 0%, #cc0000 60%, transparent 100%)",
+                  boxShadow: "0 0 12px 5px rgba(255,80,0,0.75)",
+                  pointerEvents: "none",
+                  zIndex: 40,
+                  transform: "translate(-50%, -50%)",
+                  animation: "kcEnemyProj 0.48s ease-in forwards",
+                  ["--px" as string]: `${dx}px`,
+                  ["--py" as string]: `${dy}px`,
+                }}
+              />
+            );
+          })}
 
           {/* ── Locations (places) on the map ─────────────────────────── */}
           {[...kcLocations].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map(loc => {
@@ -2013,6 +2119,17 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
             <img src={panelDragGhost.item.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} draggable={false} />
           )}
         </div>
+      )}
+
+      {/* ── Pet hit flash overlay ────────────────────────────────────────── */}
+      {petHitFlash && (
+        <div style={{
+          position: "fixed", inset: 0,
+          background: "rgba(220, 30, 10, 0.35)",
+          pointerEvents: "none",
+          zIndex: 55,
+          animation: "kcHitFlash 0.28s ease-out forwards",
+        }} />
       )}
 
       {/* ── Attack button — mirrors joystick at bottom-left ─────────────── */}

@@ -153,10 +153,6 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const [bossShockwave, setBossShockwave] = useState<{ id: number; x: number; y: number } | null>(null);
   const [comboCount, setComboCount] = useState(0);
   const [lastHitTime, setLastHitTime] = useState(0);
-  const [enemyDying, setEnemyDying] = useState(false);
-  const enemyDyingRef = useRef(false);
-  const [attackProjectile, setAttackProjectile] = useState<{ id: number; fromX: number; fromY: number } | null>(null);
-  const [chargeOrbs, setChargeOrbs] = useState<{ id: number; angle: number }[]>([]);
 
   // ── Swipe trail ──────────────────────────────────────────────────────────
   const [slashTrail, setSlashTrail] = useState<{ x: number; y: number }[]>([]);
@@ -266,10 +262,6 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     difficultyRef.current = 0.3 + Math.random() * 0.7;
     chargeDurationRef.current = enc.isBoss ? 1100 : 1350;
     enemyOscRef.current = Math.random() * Math.PI * 2;
-    setEnemyDying(false);
-    enemyDyingRef.current = false;
-    setAttackProjectile(null);
-    setChargeOrbs([]);
     setPhase("intro");
   }, []);
 
@@ -314,17 +306,10 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   useEffect(() => {
     handleEnemyDeathRef.current = () => {
       if (!enemy) return;
-      if (enemyDyingRef.current) return;
       battleActiveRef.current = false;
-      enemyDyingRef.current = true;
-      setEnemyDying(true);
       defeatMutation.mutate({ enemyId: enemy.enemyId, enemyLevel: enemy.level });
       const hasMore = waveIndex + 1 < allEnemies.length;
-      setTimeout(() => {
-        enemyDyingRef.current = false;
-        setEnemyDying(false);
-        setPhase(hasMore ? "waveComplete" : "victory");
-      }, 1800);
+      setPhase(hasMore ? "waveComplete" : "victory");
     };
   }, [enemy, waveIndex, allEnemies, defeatMutation]);
 
@@ -372,9 +357,6 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         parryWindowOpenRef.current = false;
         setEnemyCharging(true);
         setParryWindowOpen(false);
-        // Spawn charge orbs for visual excitement
-        const count = isBossRef.current ? 8 : 5;
-        setChargeOrbs(Array.from({ length: count }, (_, i) => ({ id: i, angle: (i / count) * 360 })));
       }
 
       // ── Charge resolution ─────────────────────────────────────────────
@@ -393,13 +375,6 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           parryWindowOpenRef.current = false;
           setEnemyCharging(false);
           setParryWindowOpen(false);
-          setChargeOrbs([]);
-          // Launch attack projectile toward pet
-          const projId = slashIdRef.current++;
-          const eSnapX = enemyPosRef.current.x;
-          const eSnapY = enemyPosRef.current.y;
-          setAttackProjectile({ id: projId, fromX: eSnapX, fromY: eSnapY });
-          setTimeout(() => setAttackProjectile(prev => prev?.id === projId ? null : prev), 700);
 
           // Damage — DEF meaningfully reduces incoming hit (missed block)
           const def = petStatsRef.current.def;
@@ -574,16 +549,13 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
 
     if (enemyHpRef.current <= 0) {
       if (battleActiveRef.current) {
-        handleEnemyDeathRef.current();
-      }
-    } else {
-      // Enemy retaliates immediately when hit — schedule a fast counter-attack
-      if (!enemyChargingRef.current) {
-        const retaliationDelay = isBossRef.current ? 700 : 900;
-        nextChargeTimeRef.current = Date.now() + retaliationDelay;
+        battleActiveRef.current = false;
+        defeatMutation.mutate({ enemyId: enemy.enemyId, enemyLevel: enemy.level });
+        const hasMore = waveIndex + 1 < allEnemies.length;
+        setPhase(hasMore ? "waveComplete" : "victory");
       }
     }
-  }, [enemy, comboCount, lastHitTime, waveIndex, allEnemies.length, accent]);
+  }, [enemy, comboCount, lastHitTime, defeatMutation, waveIndex, allEnemies.length, accent]);
 
   // ── Swipe handlers ───────────────────────────────────────────────────────
   const handleSlashStart = useCallback((e: React.PointerEvent) => {
@@ -632,8 +604,6 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     enemyChargingRef.current = false;
     setEnemyCharging(false);
     setParryWindowOpen(false);
-    setChargeOrbs([]);
-    setAttackProjectile(null);
     setParryResult("success");
     setTimeout(() => setParryResult(null), 900);
 
@@ -1011,36 +981,6 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           0%, 100% { transform: translate(-50%,-50%) scaleY(1) scaleX(1); }
           50%       { transform: translate(-50%,-50%) scaleY(0.95) scaleX(1.05); }
         }
-        @keyframes enemyDeath {
-          0%   { transform: translate(-50%,-50%) scale(1) rotate(0deg);   opacity: 1; filter: brightness(1); }
-          20%  { transform: translate(-50%,-50%) scale(1.25) rotate(-8deg); opacity: 0.9; filter: brightness(3) saturate(0.2); }
-          45%  { transform: translate(-50%,-50%) scale(0.85) rotate(14deg); opacity: 0.7; filter: brightness(2) hue-rotate(60deg); }
-          70%  { transform: translate(-50%,-50%) scale(0.5) rotate(-20deg) translateY(20px); opacity: 0.35; filter: brightness(1.5); }
-          100% { transform: translate(-50%,-50%) scale(0.1) rotate(30deg) translateY(40px); opacity: 0; filter: brightness(0.5); }
-        }
-        @keyframes deathExplosion {
-          0%   { transform: translate(-50%,-50%) scale(0.2); opacity: 1; }
-          40%  { opacity: 0.85; }
-          100% { transform: translate(-50%,-50%) scale(3.5); opacity: 0; }
-        }
-        @keyframes chargeOrbOrbit {
-          from { transform: rotate(var(--orb-start)) translateX(var(--orb-radius)) scale(1); opacity: 0.9; }
-          50%  { transform: rotate(calc(var(--orb-start) + 180deg)) translateX(var(--orb-radius)) scale(1.4); opacity: 1; }
-          to   { transform: rotate(calc(var(--orb-start) + 360deg)) translateX(var(--orb-radius)) scale(1); opacity: 0.9; }
-        }
-        @keyframes projectileFly {
-          0%   { transform: translate(0, 0) scale(1.2); opacity: 1; }
-          70%  { opacity: 1; }
-          100% { transform: translate(var(--proj-dx), var(--proj-dy)) scale(0.5); opacity: 0; }
-        }
-        @keyframes projectileTrail {
-          0%   { transform: scale(1); opacity: 0.7; }
-          100% { transform: scale(2.5); opacity: 0; }
-        }
-        @keyframes chargeWindup {
-          0%,100% { transform: translate(-50%,-50%) scale(1); }
-          50%     { transform: translate(-50%,-50%) scale(1.06) rotate(3deg); }
-        }
       `}</style>
 
       <div
@@ -1155,96 +1095,32 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
             </div>
 
             {/* ── Enemy sprite ───────────────────────────────────────── */}
-            {(phase === "battle" || enemyDying) && (
+            {phase === "battle" && (
               <div
                 className="absolute z-10 pointer-events-none"
                 style={{
                   left: `${enemyPos.x}%`,
                   top: `${enemyPos.y}%`,
                   transform: "translate(-50%, -50%)",
-                  animation: enemyDying
-                    ? "enemyDeath 1.8s ease-in forwards"
-                    : enemyHit
-                      ? (enemy.isBoss ? "bossHitStagger 0.36s ease-out" : "enemyHitFlash 0.22s ease-in-out")
-                      : enemyCharging
-                        ? "chargeWindup 0.35s ease-in-out infinite"
-                        : enemy.isBoss
-                          ? "bossFloat 3s ease-in-out infinite"
-                          : "enemyBounce 0.7s ease-in-out infinite",
+                  animation: enemyHit
+                    ? (enemy.isBoss ? "bossHitStagger 0.36s ease-out" : "enemyHitFlash 0.22s ease-in-out")
+                    : enemy.isBoss
+                      ? "bossFloat 3s ease-in-out infinite"
+                      : "enemyBounce 0.7s ease-in-out infinite",
                 }}
               >
-                {/* Death explosion rings */}
-                {enemyDying && (
-                  <>
-                    <div style={{
-                      position: "absolute", left: "50%", top: "50%",
-                      width: enemy.isBoss ? 180 : 110, height: enemy.isBoss ? 180 : 110,
-                      borderRadius: "50%",
-                      border: "4px solid rgba(255,120,20,0.9)",
-                      boxShadow: "0 0 30px rgba(255,80,20,0.8)",
-                      animation: "deathExplosion 1.2s ease-out forwards",
-                    }} />
-                    <div style={{
-                      position: "absolute", left: "50%", top: "50%",
-                      width: enemy.isBoss ? 120 : 70, height: enemy.isBoss ? 120 : 70,
-                      borderRadius: "50%",
-                      border: "3px solid rgba(255,220,50,0.8)",
-                      animation: "deathExplosion 0.9s 0.15s ease-out forwards",
-                    }} />
-                  </>
-                )}
-
-                {/* Enhanced charge visuals — orbiting energy orbs */}
-                {enemyCharging && !enemyDying && chargeOrbs.map((orb) => {
-                  const radius = enemy.isBoss ? 80 : 52;
-                  return (
-                    <div key={orb.id} style={{
-                      position: "absolute",
-                      left: "50%", top: "50%",
-                      width: 0, height: 0,
-                      pointerEvents: "none",
-                    }}>
-                      <div style={{
-                        position: "absolute",
-                        width: enemy.isBoss ? 14 : 10,
-                        height: enemy.isBoss ? 14 : 10,
-                        borderRadius: "50%",
-                        background: parryWindowOpen
-                          ? "radial-gradient(circle, #fff 0%, #ff3300 40%, transparent 100%)"
-                          : "radial-gradient(circle, #fff 0%, #ff8800 40%, transparent 100%)",
-                        boxShadow: parryWindowOpen
-                          ? "0 0 14px 4px rgba(255,50,0,0.9)"
-                          : "0 0 12px 3px rgba(255,140,0,0.8)",
-                        transform: `rotate(${orb.angle}deg) translateX(${radius}px) translateX(-50%) translateY(-50%)`,
-                        animation: `chargeOrbOrbit ${enemy.isBoss ? "0.7s" : "0.9s"} linear infinite`,
-                        ["--orb-start" as any]: `${orb.angle}deg`,
-                        ["--orb-radius" as any]: `${radius}px`,
-                      }} />
-                    </div>
-                  );
-                })}
-
-                {/* Outer spinning ring during charge */}
-                {enemyCharging && !enemyDying && (
-                  <>
-                    <div style={{
-                      position: "absolute", left: "50%", top: "50%",
-                      width: enemy.isBoss ? 190 : 115, height: enemy.isBoss ? 190 : 115,
-                      borderRadius: "50%",
-                      border: `3px solid ${parryWindowOpen ? "rgba(255,30,30,0.9)" : "rgba(255,120,20,0.75)"}`,
-                      boxShadow: parryWindowOpen
-                        ? "0 0 24px rgba(255,30,30,0.8), inset 0 0 12px rgba(255,30,30,0.3)"
-                        : "0 0 20px rgba(255,100,20,0.65), inset 0 0 10px rgba(255,80,0,0.2)",
-                      animation: "chargeRingPulse 0.55s ease-in-out infinite",
-                    }} />
-                    <div style={{
-                      position: "absolute", left: "50%", top: "50%",
-                      width: enemy.isBoss ? 140 : 85, height: enemy.isBoss ? 140 : 85,
-                      borderRadius: "50%",
-                      border: "2px dashed rgba(255,200,50,0.6)",
-                      animation: "chargeRingPulse 0.4s ease-in-out infinite reverse",
-                    }} />
-                  </>
+                {/* Charge ring around enemy */}
+                {enemyCharging && (
+                  <div style={{
+                    position: "absolute",
+                    left: "50%", top: "50%",
+                    width: enemy.isBoss ? 200 : 120,
+                    height: enemy.isBoss ? 200 : 120,
+                    borderRadius: "50%",
+                    border: "3px solid rgba(255,60,60,0.85)",
+                    boxShadow: "0 0 20px rgba(255,40,40,0.7), 0 0 8px rgba(255,40,40,0.5)",
+                    animation: "chargeRingPulse 0.55s ease-in-out infinite",
+                  }} />
                 )}
 
                 {/* Charge fill bar below enemy */}
@@ -1352,48 +1228,6 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   </div>
                 )}
               </div>
-            )}
-
-            {/* ── Attack projectile ──────────────────────────────────── */}
-            {attackProjectile && (
-              (() => {
-                const dx = PET_X - attackProjectile.fromX;
-                const dy = PET_Y - attackProjectile.fromY;
-                const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-                return (
-                  <div style={{
-                    position: "absolute",
-                    left: `${attackProjectile.fromX}%`,
-                    top: `${attackProjectile.fromY}%`,
-                    zIndex: 15,
-                    pointerEvents: "none",
-                  }}>
-                    {/* Main orb */}
-                    <div style={{
-                      position: "absolute",
-                      width: 22, height: 22,
-                      borderRadius: "50%",
-                      background: "radial-gradient(circle, #fff 0%, #ff6600 35%, #ff2200 70%, transparent 100%)",
-                      boxShadow: "0 0 20px 6px rgba(255,80,0,0.9), 0 0 8px 2px rgba(255,200,50,0.7)",
-                      transform: "translate(-50%, -50%)",
-                      ["--proj-dx" as any]: `${dx}vw`,
-                      ["--proj-dy" as any]: `${dy}vh`,
-                      animation: "projectileFly 0.55s ease-in forwards",
-                    }} />
-                    {/* Trailing glow */}
-                    <div style={{
-                      position: "absolute",
-                      width: 36, height: 10,
-                      borderRadius: "50%",
-                      background: "radial-gradient(ellipse, rgba(255,120,0,0.7) 0%, transparent 100%)",
-                      transform: `translate(-50%, -50%) rotate(${angle}deg)`,
-                      ["--proj-dx" as any]: `${dx}vw`,
-                      ["--proj-dy" as any]: `${dy}vh`,
-                      animation: "projectileFly 0.55s ease-in forwards",
-                    }} />
-                  </div>
-                );
-              })()
             )}
 
             {/* ── Pet sprite (fixed position) ─────────────────────────── */}
