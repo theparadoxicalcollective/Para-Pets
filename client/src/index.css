@@ -780,11 +780,10 @@
   82%, 100%{ transform: translate(0px,    0px); }
 }
 
-/* Ring that pulses in when long-press drag mode activates */
-@keyframes petDragReadyPulse {
-  0%   { transform: translate(-50%, -50%) scale(0.7); opacity: 0; }
-  60%  { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
-  100% { transform: translate(-50%, -50%) scale(1.0); opacity: 1; }
+/* Subtle hop when a pet walks via joystick */
+@keyframes petHop {
+  0%, 100% { transform: translateY(0px);  }
+  45%       { transform: translateY(-7px); }
 }
 
 /* Winged pet zoom-burst across the scene */

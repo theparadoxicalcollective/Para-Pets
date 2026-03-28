@@ -322,39 +322,15 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
 
   const [selectedPet, setSelectedPet] = useState<WorldActivePet | null>(null);
 
-  // ── pet drag on the map canvas ─────────────────────────────────────────────
-  const [petDragPos,   setPetDragPos]   = useState<{ userId: string; posX: number; posY: number } | null>(null);
-  const [petDragReady, setPetDragReady] = useState<string | null>(null); // userId of pet in long-press ready state
-
-  const savePetPositionMutation = useMutation({
-    mutationFn: async (data: { ownerUserId: string; posX: number; posY: number }) => {
-      const res = await apiRequest("PATCH", "/api/world/pet_world/pet-position", data);
-      return res.json();
-    },
-    onMutate: async (vars) => {
-      // Cancel any in-flight refetches so they don't overwrite the optimistic update
-      await queryClient.cancelQueries({ queryKey: ["/api/world/pet_world/active-pets"] });
-      // Snapshot current data for rollback on error
-      const previous = queryClient.getQueryData<WorldActivePet[]>(["/api/world/pet_world/active-pets"]);
-      // Apply the new position immediately so the pet stays where it was dropped
-      queryClient.setQueryData<WorldActivePet[]>(["/api/world/pet_world/active-pets"], old =>
-        old ? old.map(p => p.userId === vars.ownerUserId ? { ...p, posX: vars.posX, posY: vars.posY } : p) : old
-      );
-      return { previous };
-    },
-    onError: (_err, _vars, context) => {
-      // Roll back to the pre-drop position if the save fails
-      if (context?.previous) {
-        queryClient.setQueryData(["/api/world/pet_world/active-pets"], context.previous);
-      }
-    },
-    onSuccess: (_data, vars) => {
-      // Confirm the optimistic update is still accurate after the server responds
-      queryClient.setQueryData<WorldActivePet[]>(["/api/world/pet_world/active-pets"], old =>
-        old ? old.map(p => p.userId === vars.ownerUserId ? { ...p, posX: vars.posX, posY: vars.posY } : p) : old
-      );
-    },
-  });
+  // ── Joystick / walking state ────────────────────────────────────────────────
+  const [localPetPos,    setLocalPetPos]    = useState<{ x: number; y: number } | null>(null);
+  const [joystickActive, setJoystickActive] = useState(false);
+  const localPetPosRef   = useRef<{ x: number; y: number } | null>(null);
+  const joystickDirRef   = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
+  const joystickActRef   = useRef(false);
+  const rafRef           = useRef<number | null>(null);
+  const lastRafTimeRef   = useRef<number | null>(null);
+  const lastSaveRef      = useRef<number>(0);
 
   // ── seeded default positions — spread pets across the full map canvas ───────
   const petDefaultPositions = useMemo(() => {
@@ -378,6 +354,67 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     });
     return map;
   }, [worldPets]);
+
+  // ── Own pet + joystick movement ────────────────────────────────────────────
+  const ownPet = useMemo(() => worldPets.find(p => p.userId === user.id), [worldPets, user.id]);
+
+  // Seed localPetPos once the player's pet is known
+  useEffect(() => {
+    if (ownPet && localPetPosRef.current === null) {
+      const stored = petDefaultPositions.get(ownPet.userId) ?? { x: 50, y: 70 };
+      const init = { x: Math.max(5, Math.min(92, stored.x)), y: Math.max(38, Math.min(90, stored.y)) };
+      localPetPosRef.current = init;
+      setLocalPetPos(init);
+    }
+  }, [ownPet, petDefaultPositions]);
+
+  // RAF movement loop — runs while joystick is active
+  const startRaf = useCallback(() => {
+    if (rafRef.current !== null) return;
+    lastRafTimeRef.current = null;
+    const loop = (now: number) => {
+      const { dx, dy } = joystickDirRef.current;
+      const dt = lastRafTimeRef.current === null ? 0 : Math.min((now - lastRafTimeRef.current) / 1000, 0.1);
+      lastRafTimeRef.current = now;
+      if (localPetPosRef.current && (dx !== 0 || dy !== 0)) {
+        const nx = Math.max(5,  Math.min(92, localPetPosRef.current.x + dx * 12 * dt));
+        const ny = Math.max(38, Math.min(90, localPetPosRef.current.y + dy *  8 * dt));
+        localPetPosRef.current = { x: nx, y: ny };
+        setLocalPetPos({ x: nx, y: ny });
+        if (ownPet && now - lastSaveRef.current > 2000) {
+          lastSaveRef.current = now;
+          apiRequest("PATCH", "/api/world/pet_world/pet-position", { ownerUserId: ownPet.userId, posX: nx, posY: ny });
+        }
+      }
+      if (joystickActRef.current) {
+        rafRef.current = requestAnimationFrame(loop);
+      } else {
+        rafRef.current = null;
+      }
+    };
+    rafRef.current = requestAnimationFrame(loop);
+  }, [ownPet]);
+
+  const handleJoystickChange = useCallback((dx: number, dy: number, active: boolean) => {
+    joystickDirRef.current = { dx, dy };
+    joystickActRef.current = active;
+    setJoystickActive(active);
+    if (active) {
+      startRaf();
+    } else {
+      // Save final position on release
+      const pos = localPetPosRef.current;
+      if (pos && ownPet) {
+        apiRequest("PATCH", "/api/world/pet_world/pet-position", { ownerUserId: ownPet.userId, posX: pos.x, posY: pos.y });
+        queryClient.setQueryData<WorldActivePet[]>(["/api/world/pet_world/active-pets"], old =>
+          old ? old.map(p => p.userId === ownPet.userId ? { ...p, posX: pos.x, posY: pos.y } : p) : old
+        );
+      }
+    }
+  }, [ownPet, startRaf, queryClient]);
+
+  // Cleanup RAF on unmount
+  useEffect(() => () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); }, []);
 
   // ── mutations ──────────────────────────────────────────────────────────────
   const addDecorItemMutation = useMutation({
@@ -566,87 +603,6 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     setDecorDragPos(null);
   }, [decorDragPos, updateDecorPlacementMutation]);
 
-  // ── pet drag on map canvas ────────────────────────────────────────────────
-  // Document-level listeners are used (same pattern as Pet House) so that
-  // pointercancel from browser scroll detection never drops the final position,
-  // and so the pet div itself can use pointerEvents:"auto" without needing
-  // setPointerCapture on the correct element.
-  const handlePetPointerDown = useCallback((e: React.PointerEvent, pet: WorldActivePet, resolvedPosX: number, resolvedPosY: number) => {
-    e.stopPropagation();
-    e.preventDefault();
-
-    const pid    = e.pointerId;
-    const startX = e.clientX;
-    const startY = e.clientY;
-    let dragActive       = false;  // true once long-press fires
-    let cancelled        = false;  // true if user moved before long-press
-    let movedDuringDrag  = false;
-    let finalPos: { posX: number; posY: number } | null = null;
-
-    const cleanup = () => {
-      clearTimeout(longPressTimer);
-      setPetDragReady(null);
-      document.removeEventListener("pointermove",   onDocMove);
-      document.removeEventListener("pointerup",     onDocUp);
-      document.removeEventListener("pointercancel", onDocCancel);
-    };
-
-    // 350 ms hold → enter drag mode
-    const longPressTimer = setTimeout(() => {
-      if (!cancelled) {
-        dragActive = true;
-        setPetDragReady(pet.userId);
-      }
-    }, 350);
-
-    const onDocMove = (ev: PointerEvent) => {
-      if (ev.pointerId !== pid) return;
-      const dx = ev.clientX - startX;
-      const dy = ev.clientY - startY;
-
-      if (!dragActive) {
-        // Significant movement before long-press = user is panning, not holding
-        if (Math.hypot(dx, dy) > 20) {
-          cancelled = true;
-          cleanup();
-        }
-        return;
-      }
-
-      // Drag mode active — move the pet
-      movedDuringDrag = true;
-      const sc = mapTransformRef.current.scale;
-      const newPosX = Math.max(2, Math.min(97, resolvedPosX + (dx / sc) / MAP_W * 100));
-      const newPosY = Math.max(3, Math.min(95, resolvedPosY + (dy / sc) / mapHRef.current * 100));
-      finalPos = { posX: newPosX, posY: newPosY };
-      setPetDragPos({ userId: pet.userId, posX: newPosX, posY: newPosY });
-    };
-
-    const onDocUp = (ev: PointerEvent) => {
-      if (ev.pointerId !== pid) return;
-      cleanup();
-      setPetDragPos(null);
-      if (dragActive && movedDuringDrag && finalPos) {
-        savePetPositionMutation.mutate({ ownerUserId: pet.userId, posX: finalPos.posX, posY: finalPos.posY });
-      } else if (!cancelled && !dragActive) {
-        // Quick tap without long-press = view profile
-        setSelectedPet(pet);
-      }
-    };
-
-    const onDocCancel = (ev: PointerEvent) => {
-      if (ev.pointerId !== pid) return;
-      cleanup();
-      if (dragActive && movedDuringDrag && finalPos) {
-        savePetPositionMutation.mutate({ ownerUserId: pet.userId, posX: finalPos.posX, posY: finalPos.posY });
-      }
-      setPetDragPos(null);
-    };
-
-    document.addEventListener("pointermove",   onDocMove);
-    document.addEventListener("pointerup",     onDocUp);
-    document.addEventListener("pointercancel", onDocCancel);
-  }, [savePetPositionMutation]);
 
   // ── panel drag-to-map ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -703,13 +659,13 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
         >
           {/* ── Roaming pets — inside the map canvas so they pan with the world ── */}
           {worldPets.map((pet, idx) => {
-            const stored = petDefaultPositions.get(pet.userId) ?? { x: 50, y: 70 };
-            const drag = petDragPos?.userId === pet.userId ? petDragPos : null;
-            // Clamp to safe visible band — pets can't drift behind the toolbar or off-screen
-            // minY 38 accounts for pet height (~18% of map) so heads stay below toolbar
-            const resolvedX = Math.max(5, Math.min(92, drag ? drag.posX : stored.x));
-            const resolvedY = Math.max(38, Math.min(90, drag ? drag.posY : stored.y));
-            const isDragging = drag !== null;
+            const isOwn = pet.userId === user.id;
+            // Own pet uses the locally-managed position for smooth joystick movement
+            const rawPos = isOwn && localPetPos
+              ? localPetPos
+              : (petDefaultPositions.get(pet.userId) ?? { x: 50, y: 70 });
+            const resolvedX = Math.max(5,  Math.min(92, rawPos.x));
+            const resolvedY = Math.max(38, Math.min(90, rawPos.y));
             return (
               <WorldRoamingPet
                 key={pet.userId}
@@ -717,9 +673,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                 index={idx}
                 posX={resolvedX}
                 posY={resolvedY}
-                isDragging={isDragging}
-                isDragReady={petDragReady === pet.userId}
-                onPointerDown={e => handlePetPointerDown(e, pet, resolvedX, resolvedY)}
+                isWalking={isOwn && joystickActive}
+                onTap={() => setSelectedPet(pet)}
               />
             );
           })}
@@ -1637,6 +1592,11 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
         </div>
       )}
 
+      {/* ── Joystick — only shown when player has an active pet ─────────── */}
+      {ownPet && (
+        <Joystick onChange={handleJoystickChange} />
+      )}
+
       {/* ── Pet detail modal ─────────────────────────────────────────────── */}
       {selectedPet && (
         <PetDetailModal
@@ -1874,24 +1834,21 @@ function PetDetailModal({
 // ── WorldRoamingPet ────────────────────────────────────────────────────────
 // Renders a single user's active pet inside the map canvas so it pans with
 // the world. posX/posY are percentages of the map canvas dimensions.
-// The wander animation applies a small wandering offset around the base
-// position; dragging lets the owner reposition their pet anywhere on the map.
+// isWalking triggers the hop animation for the owner's pet via the joystick.
 function WorldRoamingPet({
   pet,
   index,
   posX,
   posY,
-  isDragging,
-  isDragReady,
-  onPointerDown,
+  isWalking,
+  onTap,
 }: {
   pet: WorldActivePet;
   index: number;
   posX: number;
   posY: number;
-  isDragging: boolean;
-  isDragReady: boolean;
-  onPointerDown: (e: React.PointerEvent) => void;
+  isWalking: boolean;
+  onTap: () => void;
 }) {
   const { data: templateData } = useQuery<{
     parts: Array<{ partType: string; posY: number; height: number; posX: number; width: number; view: string }>;
@@ -1968,14 +1925,16 @@ function WorldRoamingPet({
         userSelect: "none",
       }}
     >
-      {/* Wander animation — suppressed while dragging */}
+      {/* Wander / hop animation — hop overrides wander while walking */}
       <div
         style={{
-          animation: isDragging ? "none" : `${wanderPrefix}${wanderIdx} ${duration} ${delay} ease-in-out infinite`,
+          animation: isWalking
+            ? "petHop 0.38s ease-in-out infinite"
+            : `${wanderPrefix}${wanderIdx} ${duration} ${delay} ease-in-out infinite`,
           transformOrigin: "bottom center",
         }}
       >
-        <div style={hasWings && !isDragging ? { animation: `${floatAnim} 3.2s ease-in-out infinite` } : undefined}>
+        <div style={hasWings && !isWalking ? { animation: `${floatAnim} 3.2s ease-in-out infinite` } : undefined}>
 
           {/* Single position:relative box (sz × sz map-pixels).
               Badge and stars are absolutely positioned using the pet's ACTUAL
@@ -2050,30 +2009,9 @@ function WorldRoamingPet({
               />
             )}
 
-            {/* Drag-ready ring — glows when long-press fires */}
-            {(isDragReady || isDragging) && (
-              <div
-                style={{
-                  position: "absolute",
-                  left: "50%",
-                  top: Math.round(((minTopFrac + maxBotFrac) / 2) * sz),
-                  width: Math.round(sz * 0.7),
-                  height: Math.round((maxBotFrac - minTopFrac) * sz * 0.9),
-                  transform: "translate(-50%, -50%)",
-                  borderRadius: "50%",
-                  border: "2px solid rgba(127,255,212,0.85)",
-                  boxShadow: "0 0 10px rgba(127,255,212,0.5)",
-                  pointerEvents: "none",
-                  animation: isDragReady && !isDragging ? "petDragReadyPulse 0.5s ease-out" : undefined,
-                }}
-              />
-            )}
-
-            {/* Hit-zone oval — the only pointer-interactive element.
-                The outer wrapper is pointer-events:none so transparent space
-                around the pet cannot be accidentally clicked or dragged. */}
+            {/* Tap zone — tapping a pet opens their profile */}
             <div
-              onPointerDown={onPointerDown}
+              onClick={onTap}
               style={{
                 position: "absolute",
                 left: "50%",
@@ -2083,13 +2021,101 @@ function WorldRoamingPet({
                 transform: "translate(-50%, -50%)",
                 borderRadius: "50%",
                 pointerEvents: "auto",
-                touchAction: "none",
-                cursor: isDragging ? "grabbing" : (isDragReady ? "grabbing" : "pointer"),
+                cursor: "pointer",
               }}
             />
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Joystick ────────────────────────────────────────────────────────────────
+// Virtual analog stick for walking the player's pet around the map.
+// Positioned bottom-left so it never overlaps the bottom-right FloatingNav button.
+const BASE_R  = 52;
+const THUMB_R = 22;
+
+function Joystick({ onChange }: { onChange: (dx: number, dy: number, active: boolean) => void }) {
+  const baseRef  = useRef<HTMLDivElement>(null);
+  const thumbRef = useRef<HTMLDivElement>(null);
+  const pidRef   = useRef<number | null>(null);
+  const centerRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  const release = (pointerId: number) => {
+    if (pidRef.current !== pointerId) return;
+    pidRef.current = null;
+    if (thumbRef.current) thumbRef.current.style.transform = "translate(-50%, -50%)";
+    onChange(0, 0, false);
+  };
+
+  const move = (cx: number, cy: number) => {
+    let dx = cx - centerRef.current.x;
+    let dy = cy - centerRef.current.y;
+    const dist   = Math.hypot(dx, dy);
+    const maxDist = BASE_R - THUMB_R;
+    if (dist > maxDist) { dx = (dx / dist) * maxDist; dy = (dy / dist) * maxDist; }
+    if (thumbRef.current) thumbRef.current.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+    onChange(dx / maxDist, dy / maxDist, true);
+  };
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (pidRef.current !== null) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    pidRef.current = e.pointerId;
+    const rect = baseRef.current!.getBoundingClientRect();
+    centerRef.current = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    move(e.clientX, e.clientY);
+  };
+
+  return (
+    <div
+      ref={baseRef}
+      data-testid="joystick-base"
+      onPointerDown={onPointerDown}
+      onPointerMove={e => { if (e.pointerId === pidRef.current) move(e.clientX, e.clientY); }}
+      onPointerUp={e => release(e.pointerId)}
+      onPointerCancel={e => release(e.pointerId)}
+      style={{
+        position: "fixed",
+        bottom: 108,
+        left: 20,
+        width: BASE_R * 2,
+        height: BASE_R * 2,
+        borderRadius: "50%",
+        background: "rgba(4,12,6,0.52)",
+        border: "2px solid rgba(127,255,212,0.35)",
+        backdropFilter: "blur(6px)",
+        boxShadow: "0 4px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(127,255,212,0.1)",
+        touchAction: "none",
+        zIndex: 60,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      {/* Crosshair guides */}
+      <div style={{ position: "absolute", width: "60%", height: 1, background: "rgba(127,255,212,0.15)" }} />
+      <div style={{ position: "absolute", width: 1, height: "60%", background: "rgba(127,255,212,0.15)" }} />
+      {/* Thumb */}
+      <div
+        ref={thumbRef}
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: "50%",
+          width: THUMB_R * 2,
+          height: THUMB_R * 2,
+          borderRadius: "50%",
+          background: "radial-gradient(circle at 35% 35%, rgba(127,255,212,0.75) 0%, rgba(50,160,100,0.55) 60%, rgba(20,80,50,0.4) 100%)",
+          border: "1.5px solid rgba(127,255,212,0.65)",
+          transform: "translate(-50%, -50%)",
+          boxShadow: "0 2px 10px rgba(127,255,212,0.35)",
+          pointerEvents: "none",
+          transition: "box-shadow 0.1s",
+        }}
+      />
     </div>
   );
 }
