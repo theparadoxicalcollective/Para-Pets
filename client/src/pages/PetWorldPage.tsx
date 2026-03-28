@@ -1915,7 +1915,8 @@ function WorldRoamingPet({
         {/* Hop bounce — layered on top of the wander so both play together */}
         <div
           style={{
-            animation: `petHop ${isWalking ? "0.45s" : idleHopDuration} ease-in-out ${hopDelay} infinite`,
+            // Flying pets skip the ground hop — their float animation handles up-down motion
+            animation: hasWings ? undefined : `petHop ${isWalking ? "0.45s" : idleHopDuration} ease-in-out ${hopDelay} infinite`,
             transformOrigin: "bottom center",
           }}
         >
