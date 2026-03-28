@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Search, X, Upload, Trash2, ChevronLeft, Pencil } from "lucide-react";
+import { Search, X, Upload, Trash2, ChevronLeft, Pencil, RefreshCw, CheckCircle, Users } from "lucide-react";
 import bgImg from "@assets/bg_home_v2.png";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
@@ -1058,6 +1058,26 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
   const [editImageData, setEditImageData] = useState<string | null>(null);
   const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
   const editFileRef = useRef<HTMLInputElement>(null);
+  const [showSync, setShowSync] = useState(false);
+  const [syncResult, setSyncResult] = useState<null | {
+    preview: boolean; vaultEmailCount: number; parapetsUserCount: number;
+    totalMatched: number; awarded: number; alreadyHad: number;
+    awardedUsers: string[]; badgeName: string;
+  }>(null);
+
+  const syncMutation = useMutation({
+    mutationFn: async (preview: boolean) => {
+      const url = preview
+        ? "/api/admin/badges/sync-founders?preview=true"
+        : "/api/admin/badges/sync-founders";
+      const res = await apiRequest("POST", url);
+      if (!res.ok) { const d = await res.json(); throw new Error(d.message); }
+      return res.json();
+    },
+    onSuccess: (data) => { setSyncResult(data); },
+    onError: (e: any) => toast({ title: "Sync failed", description: e.message, variant: "destructive" }),
+  });
+
   const { data: allBadges = [], isLoading } = useQuery<AdminBadge[]>({
     queryKey: ["/api/badges"],
   });
@@ -1139,19 +1159,30 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <p className="font-fantasy text-[#f0c040] text-xs tracking-wider">
           {allBadges.length} badge{allBadges.length !== 1 ? "s" : ""} in realm
         </p>
-        <button
-          data-testid="button-upload-badge"
-          onClick={() => setShowUpload(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-fantasy text-[10px] tracking-wider"
-          style={{ background: "linear-gradient(135deg, #4a3800, #7a5c00)", border: "1px solid rgba(255,215,0,0.4)", color: "#ffd700", cursor: "pointer" }}
-        >
-          <Upload className="w-3 h-3" />
-          Upload Badge
-        </button>
+        <div className="flex gap-2">
+          <button
+            data-testid="button-sync-founders"
+            onClick={() => { setShowSync(true); setSyncResult(null); }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-fantasy text-[10px] tracking-wider"
+            style={{ background: "linear-gradient(135deg, #0d2540, #1a4070)", border: "1px solid rgba(100,160,210,0.4)", color: "#8ab4d8", cursor: "pointer" }}
+          >
+            <RefreshCw className="w-3 h-3" />
+            Sync Founders
+          </button>
+          <button
+            data-testid="button-upload-badge"
+            onClick={() => setShowUpload(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-fantasy text-[10px] tracking-wider"
+            style={{ background: "linear-gradient(135deg, #4a3800, #7a5c00)", border: "1px solid rgba(255,215,0,0.4)", color: "#ffd700", cursor: "pointer" }}
+          >
+            <Upload className="w-3 h-3" />
+            Upload Badge
+          </button>
+        </div>
       </div>
 
       {showUpload && (
@@ -1352,6 +1383,121 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
         </div>
       )}
 
+
+      {showSync && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+          <div className="absolute inset-0 bg-black/60" onClick={() => { setShowSync(false); setSyncResult(null); }} />
+          <div className="relative w-full rounded-t-2xl overflow-hidden flex flex-col"
+            style={{ background: "linear-gradient(180deg, #080f1c 0%, #040810 100%)", border: "1px solid rgba(100,160,210,0.3)", maxHeight: "80dvh" }}>
+            <div className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: "1px solid rgba(100,160,210,0.12)" }}>
+              <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: "rgba(100,160,210,0.12)", border: "1.5px solid rgba(100,160,210,0.3)" }}>
+                <RefreshCw className="w-4 h-4" style={{ color: "#8ab4d8" }} />
+              </div>
+              <div className="flex-1">
+                <p className="font-fantasy text-[#8ab4d8] text-sm tracking-wider">Sync Founder's Badge</p>
+                <p className="font-fantasy text-[#3a6080] text-[9px] tracking-wide">Cross-check Vault emails with ParaPets accounts</p>
+              </div>
+              <button onClick={() => { setShowSync(false); setSyncResult(null); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#3a6080" }}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {!syncResult ? (
+                <div className="space-y-3">
+                  <div className="rounded-xl p-3 space-y-1.5" style={{ background: "rgba(100,160,210,0.06)", border: "1px solid rgba(100,160,210,0.15)" }}>
+                    <p className="font-fantasy text-[#8ab4d8] text-[10px] tracking-wider">How it works</p>
+                    <p className="font-fantasy text-[#3a6080] text-[9px] leading-relaxed">Connects to The Vault database, pulls all registered emails, and awards the Founder's badge to any ParaPets player whose email matches.</p>
+                    <p className="font-fantasy text-[#2a5040] text-[9px] leading-relaxed mt-1">Requires: <span style={{ color: "#7fbfb0" }}>VAULT_DATABASE_URL</span> secret · A badge with "Founder" in the name</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      data-testid="button-preview-sync"
+                      onClick={() => syncMutation.mutate(true)}
+                      disabled={syncMutation.isPending}
+                      className="flex-1 py-2.5 rounded-xl font-fantasy text-[10px] tracking-wider flex items-center justify-center gap-1.5"
+                      style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(100,160,210,0.3)", color: "#8ab4d8", cursor: "pointer" }}
+                    >
+                      <Users className="w-3 h-3" />
+                      {syncMutation.isPending ? "Checking..." : "Preview Matches"}
+                    </button>
+                    <button
+                      data-testid="button-run-sync"
+                      onClick={() => syncMutation.mutate(false)}
+                      disabled={syncMutation.isPending}
+                      className="flex-1 py-2.5 rounded-xl font-fantasy text-[10px] tracking-wider flex items-center justify-center gap-1.5"
+                      style={{ background: "linear-gradient(135deg, #0d2540, #1a4070)", border: "1px solid rgba(100,160,210,0.5)", color: "#8ab4d8", cursor: "pointer", boxShadow: "0 0 12px rgba(100,160,210,0.1)" }}
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      {syncMutation.isPending ? "Syncing..." : "Run Sync"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="rounded-xl p-3" style={{ background: syncResult.preview ? "rgba(100,160,210,0.06)" : "rgba(40,160,80,0.08)", border: `1px solid ${syncResult.preview ? "rgba(100,160,210,0.2)" : "rgba(40,160,80,0.25)"}` }}>
+                    <p className="font-fantasy text-[10px] tracking-wider mb-2" style={{ color: syncResult.preview ? "#8ab4d8" : "#5ec47c" }}>
+                      {syncResult.preview ? "Preview — no badges awarded yet" : `✓ Sync complete — "${syncResult.badgeName}" awarded`}
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        ["Vault emails", syncResult.vaultEmailCount],
+                        ["Para Pets users", syncResult.parapetsUserCount],
+                        ["Email matches", syncResult.totalMatched],
+                        [syncResult.preview ? "Would award" : "Awarded", syncResult.awarded],
+                        ["Already had badge", syncResult.alreadyHad],
+                      ].map(([label, val]) => (
+                        <div key={label as string} className="rounded-lg p-2 text-center" style={{ background: "rgba(0,0,0,0.25)" }}>
+                          <p className="font-fantasy text-[14px]" style={{ color: "#f0c040" }}>{val}</p>
+                          <p className="font-fantasy text-[8px] tracking-wider" style={{ color: "#3a6080" }}>{label}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {syncResult.awardedUsers.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="font-fantasy text-[9px] tracking-wider" style={{ color: "#3a6080" }}>
+                        {syncResult.preview ? "Players who would receive the badge:" : "Players awarded:"}
+                      </p>
+                      <div className="max-h-32 overflow-y-auto rounded-lg p-2 space-y-1" style={{ background: "rgba(0,0,0,0.3)" }}>
+                        {syncResult.awardedUsers.map(u => (
+                          <div key={u} className="flex items-center gap-2 px-2 py-1 rounded" style={{ background: "rgba(100,160,210,0.06)" }}>
+                            <CheckCircle className="w-3 h-3 flex-shrink-0" style={{ color: "#5ec47c" }} />
+                            <span className="font-fantasy text-[10px]" style={{ color: "#f0c040" }}>{u}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    {syncResult.preview && syncResult.awarded > 0 && (
+                      <button
+                        data-testid="button-confirm-sync"
+                        onClick={() => { setSyncResult(null); syncMutation.mutate(false); }}
+                        disabled={syncMutation.isPending}
+                        className="flex-1 py-2.5 rounded-xl font-fantasy text-[10px] tracking-wider"
+                        style={{ background: "linear-gradient(135deg, #0d2540, #1a4070)", border: "1px solid rgba(100,160,210,0.5)", color: "#8ab4d8", cursor: "pointer" }}
+                      >
+                        {syncMutation.isPending ? "Awarding..." : `Award to ${syncResult.awarded} player${syncResult.awarded !== 1 ? "s" : ""}`}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setSyncResult(null)}
+                      className="flex-1 py-2.5 rounded-xl font-fantasy text-[10px] tracking-wider"
+                      style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(100,160,210,0.2)", color: "#3a6080", cursor: "pointer" }}
+                    >
+                      {syncResult.preview ? "Back" : "Done"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {editingBadge && (
         <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
