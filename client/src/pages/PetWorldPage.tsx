@@ -7,7 +7,7 @@ import { Plus, X, Trash2, FlipHorizontal, Palette, MapPin, Minus, Store } from "
 import { readFileAsDataUrl } from "@/lib/utils";
 import { playShopBell } from "@/lib/sounds";
 import PetAnimator from "@/components/PetAnimator";
-import bgGround from "@assets/IMG_6459_1774673194843.jpeg";
+import bgGround from "@assets/IMG_6459_1774675340089.jpeg";
 import coinIconImg from "@assets/icon_coin.png";
 import petHouseIconImg from "@assets/icon_pet_house.png";
 
