@@ -371,7 +371,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
         };
         map.set(pet.userId, {
           x: 10 + rng(1) * 75,  // 10% – 85% across the map width
-          y: 55 + rng(2) * 28,  // 55% – 83% — lower half only, always reachable
+          y: 22 + rng(2) * 60,  // 22% – 82% — full range below toolbar
         });
       }
     });
@@ -680,9 +680,9 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           {worldPets.map((pet, idx) => {
             const stored = petDefaultPositions.get(pet.userId) ?? { x: 50, y: 70 };
             const drag = petDragPos?.userId === pet.userId ? petDragPos : null;
-            // Clamp to safe visible band — pets can't drift out of reach
+            // Clamp to safe visible band — pets can't drift behind the toolbar or off-screen
             const resolvedX = Math.max(5, Math.min(92, drag ? drag.posX : stored.x));
-            const resolvedY = Math.max(52, Math.min(88, drag ? drag.posY : stored.y));
+            const resolvedY = Math.max(20, Math.min(90, drag ? drag.posY : stored.y));
             const isDragging = drag !== null;
             return (
               <WorldRoamingPet
