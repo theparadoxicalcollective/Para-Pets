@@ -504,87 +504,43 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     setMapX(ix); setMapY(iy); setMapScale(initSc);
   }, [mapH]);
 
-  // ── clamp + apply ──────────────────────────────────────────────────────────
-  const applyMapTransform = useCallback((x: number, y: number, sc: number) => {
-    const coverSc  = Math.max(FRAME_W / MAP_W, FRAME_H / mapHRef.current);
-    // Minimum is cover scale (background always fills the frame), max 2.5x zoom in
-    const clampedSc = Math.max(coverSc, Math.min(coverSc * 2.5, sc));
-    const mw = MAP_W * clampedSc;
-    const mh = mapHRef.current * clampedSc;
+  // ── clamp + apply (horizontal pan only, no zoom) ───────────────────────────
+  const applyMapTransform = useCallback((x: number, _y: number, _sc: number) => {
+    const coverSc = Math.max(FRAME_W / MAP_W, FRAME_H / mapHRef.current);
+    const mw = MAP_W * coverSc;
+    const mh = mapHRef.current * coverSc;
+    // Lock scale to cover; lock Y to vertical center; only X scrolls
     const cx = mw <= FRAME_W ? (FRAME_W - mw) / 2 : Math.max(FRAME_W - mw, Math.min(0, x));
-    const cy = mh <= FRAME_H ? (FRAME_H - mh) / 2 : Math.max(FRAME_H - mh, Math.min(0, y));
-    mapTransformRef.current = { x: cx, y: cy, scale: clampedSc };
-    setMapX(cx); setMapY(cy); setMapScale(clampedSc);
+    const cy = (FRAME_H - mh) / 2;
+    mapTransformRef.current = { x: cx, y: cy, scale: coverSc };
+    setMapX(cx); setMapY(cy); setMapScale(coverSc);
   }, []);
 
-  // ── pan + pinch-to-zoom pointer handlers ──────────────────────────────────
+  // ── horizontal pan only (no zoom, no vertical scroll) ─────────────────────
   const handleVpPointerDown = useCallback((e: React.PointerEvent) => {
     if (decorDragRef.current) return;
+    // Only track the first finger; ignore any additional fingers
+    if (mapPanPointersRef.current.size > 0) return;
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
     mapPanPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-
-    if (mapPanPointersRef.current.size === 1) {
-      // Single finger — prepare for pan
-      mapPanStartRef.current = { x: e.clientX, y: e.clientY, mapX: mapTransformRef.current.x, mapY: mapTransformRef.current.y };
-      mapPanningRef.current = false;
-      pinchStartRef.current = null;
-    } else if (mapPanPointersRef.current.size === 2) {
-      // Second finger joined — switch to pinch mode
-      mapPanStartRef.current = null;
-      const pts = Array.from(mapPanPointersRef.current.values());
-      const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
-      const midX = (pts[0].x + pts[1].x) / 2;
-      const midY = (pts[0].y + pts[1].y) / 2;
-      pinchStartRef.current = {
-        dist,
-        scale: mapTransformRef.current.scale,
-        midX, midY,
-        mapX: mapTransformRef.current.x,
-        mapY: mapTransformRef.current.y,
-      };
-    }
+    mapPanStartRef.current = { x: e.clientX, y: e.clientY, mapX: mapTransformRef.current.x, mapY: mapTransformRef.current.y };
+    mapPanningRef.current = false;
   }, []);
 
   const handleVpPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!mapPanStartRef.current || !mapPanPointersRef.current.has(e.pointerId)) return;
     mapPanPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-
-    if (mapPanPointersRef.current.size === 2 && pinchStartRef.current) {
-      // Pinch-to-zoom
-      const pts = Array.from(mapPanPointersRef.current.values());
-      const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
-      const newScale = pinchStartRef.current.scale * (dist / pinchStartRef.current.dist);
-      // Keep the pinch midpoint anchored in world space
-      const { midX, midY, mapX, mapY, scale: startScale } = pinchStartRef.current;
-      const curMidX = (pts[0].x + pts[1].x) / 2;
-      const curMidY = (pts[0].y + pts[1].y) / 2;
-      const newX = curMidX - (midX - mapX) * (newScale / startScale);
-      const newY = curMidY - (midY - mapY) * (newScale / startScale);
-      applyMapTransform(newX, newY, newScale);
-      mapJustPannedRef.current = true;
-    } else if (mapPanPointersRef.current.size === 1 && mapPanStartRef.current) {
-      // Single-finger pan
-      const dx = e.clientX - mapPanStartRef.current.x;
-      const dy = e.clientY - mapPanStartRef.current.y;
-      if (!mapPanningRef.current && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) mapPanningRef.current = true;
-      if (mapPanningRef.current) applyMapTransform(mapPanStartRef.current.mapX + dx, mapPanStartRef.current.mapY + dy, mapTransformRef.current.scale);
-    }
+    // Horizontal drag only — ignore vertical delta
+    const dx = e.clientX - mapPanStartRef.current.x;
+    if (!mapPanningRef.current && Math.abs(dx) > 4) mapPanningRef.current = true;
+    if (mapPanningRef.current) applyMapTransform(mapPanStartRef.current.mapX + dx, 0, 1);
   }, [applyMapTransform]);
 
   const handleVpPointerUp = useCallback((e: React.PointerEvent) => {
     mapPanPointersRef.current.delete(e.pointerId);
-    if (mapPanPointersRef.current.size === 0) {
-      if (mapPanningRef.current) { mapJustPannedRef.current = true; setTimeout(() => { mapJustPannedRef.current = false; }, 80); }
-      mapPanStartRef.current = null;
-      mapPanningRef.current = false;
-      pinchStartRef.current = null;
-    } else if (mapPanPointersRef.current.size === 1) {
-      // One finger lifted — resume single-finger pan from current position
-      pinchStartRef.current = null;
-      const [pt] = Array.from(mapPanPointersRef.current.values());
-      mapPanStartRef.current = { x: pt.x, y: pt.y, mapX: mapTransformRef.current.x, mapY: mapTransformRef.current.y };
-      mapPanningRef.current = false;
-      setTimeout(() => { mapJustPannedRef.current = false; }, 80);
-    }
+    if (mapPanningRef.current) { mapJustPannedRef.current = true; setTimeout(() => { mapJustPannedRef.current = false; }, 80); }
+    mapPanStartRef.current = null;
+    mapPanningRef.current = false;
   }, []);
 
   // ── decor drag on map ──────────────────────────────────────────────────────
