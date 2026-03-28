@@ -3695,7 +3695,11 @@ export async function registerRoutes(
         }
       }
 
-      return res.json({ caught, item: chosenEntry.item });
+      // If the pond entry's item join came back null (e.g. shop item was updated/re-keyed
+      // after the pond fish was added), fetch it directly so the client always gets a
+      // valid item object and shows the "Caught!" screen instead of "It got away!".
+      const fishItem = chosenEntry.item ?? await storage.getShopItem(chosenEntry.shopItemId) ?? null;
+      return res.json({ caught, item: fishItem });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }

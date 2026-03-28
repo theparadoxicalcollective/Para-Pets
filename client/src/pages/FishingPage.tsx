@@ -358,13 +358,18 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       const waitTime = 1500 + Math.random() * 2500;
       nibbleTimeoutRef.current = setTimeout(() => {
         if (phaseRef.current === "waiting") {
+          // Only consider fish whose shop item data loaded successfully — fish with null
+          // items would cause the catch response to show "It got away!" even on a perfect reel.
+          const selectableFish = pondFish.filter(f => f.item != null);
+          const fishPool = selectableFish.length > 0 ? selectableFish : pondFish;
+
           // Weighted selection — normalize weights per rarity group so that multiple fish
           // of the same rarity share the rarity's probability pool instead of each getting
           // the full weight (which would make common 1★ fish dominate).
           // Parse starRarity to int — DB may return it as a string.
           const rarityWeights: Record<number, number> = { 1: 60, 2: 24, 3: 10, 4: 4, 5: 2 };
           const rarityCounts: Record<number, number> = {};
-          for (const f of pondFish) {
+          for (const f of fishPool) {
             const r = parseInt(String(f?.item?.starRarity ?? 1), 10) || 1;
             rarityCounts[r] = (rarityCounts[r] ?? 0) + 1;
           }
@@ -373,25 +378,25 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           // Bait boost works as a direct probability roll: if baitBoost is 100 and targetStar is 5,
           // there is a 100% chance to force a 5★ fish. If 50%, half the time a 5★ is forced.
           // If the forced rarity has no fish in this pond, fall through to normal weighted selection.
-          let randomFish = pondFish[pondFish.length - 1];
-          let baitForcedFish: typeof pondFish | null = null;
+          let randomFish = fishPool[fishPool.length - 1];
+          let baitForcedFish: typeof fishPool | null = null;
           if (baitBoost > 0 && baitTargetStar > 0 && Math.random() < baitBoost / 100) {
-            const targets = pondFish.filter(f => (parseInt(String(f?.item?.starRarity ?? 1), 10) || 1) === baitTargetStar);
+            const targets = fishPool.filter(f => (parseInt(String(f?.item?.starRarity ?? 1), 10) || 1) === baitTargetStar);
             if (targets.length > 0) baitForcedFish = targets;
           }
 
           if (baitForcedFish) {
             randomFish = baitForcedFish[Math.floor(Math.random() * baitForcedFish.length)];
           } else {
-            const weights = pondFish.map(f => {
+            const weights = fishPool.map(f => {
               const r = parseInt(String(f?.item?.starRarity ?? 1), 10) || 1;
               return Math.max(0.01, (rarityWeights[r] ?? 20) / (rarityCounts[r] ?? 1));
             });
             const totalWeight = weights.reduce((a, b) => a + b, 0);
             let roll = Math.random() * totalWeight;
-            for (let i = 0; i < pondFish.length; i++) {
+            for (let i = 0; i < fishPool.length; i++) {
               roll -= weights[i];
-              if (roll <= 0) { randomFish = pondFish[i]; break; }
+              if (roll <= 0) { randomFish = fishPool[i]; break; }
             }
           }
           // Parse starRarity as integer — DB can return it as a string in some drivers
@@ -434,24 +439,26 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
     const startProgress     = [0.08,  0.06,  0.05,  0.03,  0.02 ];
 
     // Catch progress gain per second while holding (base, before modifiers)
-    const baseReelRates     = [0.50,  0.42,  0.32,  0.24,  0.17 ];
+    const baseReelRates     = [0.50,  0.42,  0.32,  0.26,  0.19 ];
 
     // Tension rise per second while holding (base, before modifiers)
-    // 4★ and 5★ toned down slightly — escape meter compensates for difficulty
     const baseTensionRise   = [0.55,  0.75,  1.05,  1.20,  1.55 ];
 
     // Tension fall per second while NOT holding
-    const tensionFalls      = [2.80,  2.30,  1.80,  1.35,  0.95 ];
+    // 4★/5★ fall faster so players can safely alternate hold/release
+    const tensionFalls      = [2.80,  2.30,  1.80,  1.55,  1.15 ];
 
     // Catch progress drain per second while NOT holding (base)
-    const baseProgressDrags = [0.030, 0.060, 0.100, 0.150, 0.200];
+    // 4★/5★ reduced so progress isn't lost faster than it's gained
+    const baseProgressDrags = [0.030, 0.060, 0.100, 0.105, 0.140];
 
     // Escape meter fill rate per second while NOT holding (base)
-    // 4★ and 5★ bumped to compensate for reduced tension rise
-    const baseEscapeRate    = [0.040, 0.070, 0.110, 0.200, 0.270];
+    // 4★/5★ reduced so the escape meter doesn't outrace catch progress
+    const baseEscapeRate    = [0.040, 0.070, 0.110, 0.140, 0.185];
 
     // Escape meter drain per second while holding inside sweet spot
-    const escapeReelRate    = [0.080, 0.060, 0.040, 0.025, 0.010];
+    // 4★/5★ increased so steady holding in the sweet spot meaningfully drains escape
+    const escapeReelRate    = [0.080, 0.060, 0.040, 0.055, 0.035];
 
     // Tension sweet spot boundaries (fraction 0-1)
     const sweetLow  = [0.25, 0.28, 0.30, 0.33, 0.35];
