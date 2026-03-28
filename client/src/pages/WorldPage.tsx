@@ -3050,8 +3050,8 @@ export default function WorldPage({ user }: WorldPageProps) {
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
             <div className="absolute inset-0 bg-black/65" onClick={() => { setSelectedShopItem(null); setBuyStep(0); setBuyError(null); }} />
-            {/* Price tag — bigger square so content breathes */}
-            <div className="relative z-10" style={{ width: "min(350px, 92vw)", aspectRatio: "1 / 1" }}>
+            {/* Price tag */}
+            <div className="relative z-10" style={{ width: "min(340px, 90vw)", aspectRatio: "1 / 1" }}>
               {/* Tag background */}
               <img
                 src={priceTagImg}
@@ -3059,22 +3059,22 @@ export default function WorldPage({ user }: WorldPageProps) {
                 className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
                 style={{ filter: "drop-shadow(0 12px 36px rgba(0,0,0,0.92)) drop-shadow(0 2px 8px rgba(0,0,0,0.7))" }}
               />
-              {/* Close button */}
+              {/* Close button — positioned within the wooden body (right edge of body is ~88%, notched top corners clear at ~26%) */}
               <button
                 onClick={() => { setSelectedShopItem(null); setBuyStep(0); setBuyError(null); }}
                 className="absolute z-20 w-7 h-7 rounded-full flex items-center justify-center transition-transform active:scale-90"
-                style={{ top: "30%", right: "8%", background: "rgba(45,18,4,0.75)", border: "1px solid rgba(160,90,25,0.55)", color: "#d4a84a", cursor: "pointer" }}
+                style={{ top: "27%", right: "14%", background: "rgba(45,18,4,0.75)", border: "1px solid rgba(160,90,25,0.55)", color: "#d4a84a", cursor: "pointer" }}
               >
                 <X className="w-3.5 h-3.5" />
               </button>
-              {/* Content — wooden body starts at ~30% */}
-              <div className="absolute flex flex-col" style={{ top: "32%", left: "12%", right: "12%", bottom: "7%", gap: "6px" }}>
+              {/* Content — wooden body spans ~22%-95% vertically, ~10%-90% horizontally; grommet at ~31% */}
+              <div className="absolute flex flex-col" style={{ top: "34%", left: "13%", right: "13%", bottom: "6%", gap: "5px", overflow: "hidden" }}>
                 {buyStep === 1 && (
                   <>
                     {/* Top row: image left, name+desc right */}
                     <div className="flex gap-3 items-start">
                       {/* Item image — no box, just drop shadow */}
-                      <div className="flex-shrink-0" style={{ width: "64px", height: "64px" }}>
+                      <div className="flex-shrink-0" style={{ width: "54px", height: "54px" }}>
                         {imgSrc ? (
                           <img
                             src={imgSrc}
