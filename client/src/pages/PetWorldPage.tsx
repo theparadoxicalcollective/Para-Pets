@@ -668,7 +668,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                   top: `${pos.y}%`,
                   width: sz,
                   cursor: user.isAdmin ? "grab" : (loc.isShop ? "pointer" : "default"),
-                  zIndex: selectedLocId === loc.id ? 150 : 6 + (locMoveOrder.indexOf(loc.id) + 1),
+                  zIndex: selectedLocId === loc.id ? 150 : 10 + Math.round((pos.y / 100) * 60) + (locMoveOrder.indexOf(loc.id) + 1),
                   transform: "translate(-50%, -100%)",
                   touchAction: "none",
                 }}
