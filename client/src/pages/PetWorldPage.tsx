@@ -737,7 +737,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                   top: `${pos.y}%`,
                   width: sz,
                   cursor: user.isAdmin ? "grab" : (loc.isShop ? "pointer" : "default"),
-                  zIndex: selectedLocId === loc.id ? 150 : 12,
+                  zIndex: selectedLocId === loc.id ? 150 : 6,
                   transform: "translate(-50%, -100%)",
                   touchAction: "none",
                 }}
@@ -829,7 +829,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                   left: `${dpos.x}%`, top: `${dpos.y}%`,
                   width: `${p.size}px`, height: `${p.size}px`,
                   transform: "translate(-50%, -50%)",
-                  zIndex: isPassThrough ? 300 : (decorDragPos?.id === p.id ? 200 : 8),
+                  zIndex: isPassThrough ? 300 : (decorDragPos?.id === p.id ? 200 : 10 + Math.round((dpos.y / 100) * 60)),
                   cursor: user.isAdmin ? "grab" : "default",
                   touchAction: user.isAdmin ? "none" : "auto",
                   pointerEvents: (!user.isAdmin && isPassThrough) ? "none" : "auto",
@@ -1976,7 +1976,7 @@ function WorldRoamingPet({
         left: `${posX}%`,
         top:  `${posY}%`,
         transform: "translate(-50%, -100%)",
-        zIndex: hasWings ? 15 : 10,
+        zIndex: 11 + Math.round((posY / 100) * 60),
         pointerEvents: "none",
         userSelect: "none",
       }}
