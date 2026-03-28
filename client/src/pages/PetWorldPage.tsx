@@ -1887,10 +1887,10 @@ function WorldRoamingPet({
         transition: isOwn ? undefined : "left 1.8s linear, top 1.8s linear",
       }}
     >
-      {/* Idle drift — wanders slowly around the map; paused for own pet */}
-      <div style={{ animation: isOwn ? undefined : `petWorldIdleDrift${driftIdx} ${driftDuration} ${driftDelay} ease-in-out infinite` }}>
-      {/* Idle float — gentle up-down bob layered on the drift */}
-      <div style={{ animation: isOwn ? undefined : `${floatAnim} ${floatDuration} ease-in-out ${floatDelay} infinite` }}>
+      {/* Idle drift — wanders slowly around the map; linear so speed stays constant */}
+      <div style={{ animation: isOwn ? undefined : `petWorldIdleDrift${driftIdx} ${driftDuration} ${driftDelay} linear infinite` }}>
+      {/* Idle float — single up-down wave with alternate so no snap at boundaries */}
+      <div style={{ animation: isOwn ? undefined : `${floatAnim} ${floatDuration} ease-in-out ${floatDelay} infinite ${hasWings ? "alternate" : ""}` }}>
           {/* Single position:relative box (sz × sz map-pixels).
               Badge and stars are absolutely positioned using the pet's ACTUAL
               bounding box (minTopFrac / maxBotFrac) computed from the real part

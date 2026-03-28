@@ -543,10 +543,7 @@
 
 @keyframes petFloatSmall {
   0%   { transform: translateY(0px); }
-  25%  { transform: translateY(-7px); }
-  50%  { transform: translateY(-10px); }
-  75%  { transform: translateY(-6px); }
-  100% { transform: translateY(0px); }
+  100% { transform: translateY(-10px); }
 }
 
 @keyframes petGroundFloat {
