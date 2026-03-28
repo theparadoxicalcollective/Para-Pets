@@ -151,17 +151,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     },
   });
 
-  const { data: worldPets = [] } = useQuery<WorldActivePet[]>({
-    queryKey: ["/api/world/pet_world/active-pets"],
-    queryFn: async () => {
-      const res = await fetch(`/api/world/pet_world/active-pets`, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed");
-      return res.json();
-    },
-    staleTime: 15_000,
-    refetchInterval: 30_000,
-    refetchOnWindowFocus: true,
-  });
+  // ── Online pets — driven entirely by SSE events, no polling ───────────────
+  const [onlinePets, setOnlinePets] = useState<WorldActivePet[]>([]);
 
   const { data: me } = useQuery<{ profileImage: string | null; username: string; coins: number }>({
     queryKey: ["/api/auth/me"],
@@ -338,10 +329,10 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const lastSaveRef      = useRef<number>(0);
 
   // ── seeded default positions — spread pets across the full map canvas ───────
+  // Used as a fallback when a pet has no stored server position yet.
   const petDefaultPositions = useMemo(() => {
     const map = new Map<string, { x: number; y: number }>();
-    worldPets.forEach((pet, idx) => {
-      // If server gave us a stored position, use it; otherwise seed a default
+    onlinePets.forEach((pet, idx) => {
       if (pet.posX !== null && pet.posY !== null) {
         map.set(pet.userId, { x: pet.posX, y: pet.posY });
       } else {
@@ -352,16 +343,16 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           return (h >>> 0) / 4294967295;
         };
         map.set(pet.userId, {
-          x: 10 + rng(1) * 75,  // 10% – 85% across the map width
-          y: 40 + rng(2) * 45,  // 40% – 85% — always below toolbar
+          x: 10 + rng(1) * 75,
+          y: 40 + rng(2) * 45,
         });
       }
     });
     return map;
-  }, [worldPets]);
+  }, [onlinePets]);
 
   // ── Own pet + joystick movement ────────────────────────────────────────────
-  const ownPet = useMemo(() => worldPets.find(p => p.userId === user.id), [worldPets, user.id]);
+  const ownPet = useMemo(() => onlinePets.find(p => p.userId === user.id), [onlinePets, user.id]);
 
   // Seed localPetPos once the player's pet is known
   useEffect(() => {
@@ -410,30 +401,58 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
       const pos = localPetPosRef.current;
       if (pos && ownPet) {
         apiRequest("PATCH", "/api/world/pet_world/pet-position", { ownerUserId: ownPet.userId, posX: pos.x, posY: pos.y });
-        queryClient.setQueryData<WorldActivePet[]>(["/api/world/pet_world/active-pets"], old =>
-          old ? old.map(p => p.userId === ownPet.userId ? { ...p, posX: pos.x, posY: pos.y } : p) : old
-        );
       }
     }
-  }, [ownPet, startRaf, queryClient]);
+  }, [ownPet, startRaf]);
 
   // Cleanup RAF on unmount
   useEffect(() => () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); }, []);
 
-  // ── SSE: receive live position updates from other players ──────────────────
+  // ── SSE: full presence + live positions — roster/join/leave/move ──────────
   useEffect(() => {
     const es = new EventSource("/api/world/pet_world/position-stream");
-    es.onmessage = (e) => {
+
+    // Initial snapshot of everyone currently online (including self)
+    es.addEventListener("roster", (e) => {
+      try {
+        const pets = JSON.parse(e.data) as WorldActivePet[];
+        setOnlinePets(pets);
+      } catch {}
+    });
+
+    // A new player entered the world
+    es.addEventListener("join", (e) => {
+      try {
+        const pet = JSON.parse(e.data) as WorldActivePet;
+        setOnlinePets(prev =>
+          prev.some(p => p.userId === pet.userId)
+            ? prev.map(p => p.userId === pet.userId ? pet : p)
+            : [...prev, pet]
+        );
+      } catch {}
+    });
+
+    // A player left the world
+    es.addEventListener("leave", (e) => {
+      try {
+        const { userId } = JSON.parse(e.data) as { userId: string };
+        setOnlinePets(prev => prev.filter(p => p.userId !== userId));
+      } catch {}
+    });
+
+    // Position update from another player
+    es.addEventListener("move", (e) => {
       try {
         const { userId, posX, posY } = JSON.parse(e.data) as { userId: string; posX: number; posY: number };
-        if (userId === user.id) return; // own pet managed locally
-        queryClient.setQueryData<WorldActivePet[]>(["/api/world/pet_world/active-pets"], old =>
-          old ? old.map(p => p.userId === userId ? { ...p, posX, posY } : p) : old
+        if (userId === user.id) return; // own pet is managed locally via RAF
+        setOnlinePets(prev =>
+          prev.map(p => p.userId === userId ? { ...p, posX, posY } : p)
         );
-      } catch { /* ignore parse errors */ }
-    };
+      } catch {}
+    });
+
     return () => es.close();
-  }, [user.id, queryClient]);
+  }, [user.id]);
 
   // ── mutations ──────────────────────────────────────────────────────────────
   const addDecorItemMutation = useMutation({
@@ -634,7 +653,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           onClick={() => { if (user.isAdmin) { setSelectedDecorId(null); setSelectedLocId(null); } }}
         >
           {/* ── Roaming pets — inside the map canvas so they pan with the world ── */}
-          {worldPets.map((pet, idx) => {
+          {onlinePets.map((pet, idx) => {
             const isOwn = pet.userId === user.id;
             // Own pet uses the locally-managed position for smooth joystick movement
             const rawPos = isOwn && localPetPos
@@ -673,8 +692,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                   transform: "translate(-50%, -100%)",
                   touchAction: "none",
                   userSelect: "none",
-                  WebkitUserDrag: "none",
-                }}
+                } as React.CSSProperties}
                 onDragStart={e => e.preventDefault()}
                 onPointerDown={e => handleLocPointerDown(e, loc)}
                 onPointerMove={handleLocPointerMove}

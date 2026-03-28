@@ -737,7 +737,6 @@ export async function registerRoutes(
       }
 
       const updated = await storage.updateActivePet(user.id, activePetId);
-      _activePetsCache = null; // new active pet must appear in Keeper's Central immediately
       const { password: _, ...safeUser } = updated;
       return res.json(safeUser);
     } catch (err) {
@@ -1871,44 +1870,91 @@ export async function registerRoutes(
     }
   });
 
-  // Active pets for the Pet World — returns every user's active hatched pet
-  // 30-second server-side cache so repeated requests don't re-run the join query
-  let _activePetsCache: { ts: number; data: any[] } | null = null;
-  const ACTIVE_PETS_TTL = 30_000;
+  // ── True multiplayer: SSE-based presence + live position ─────────────────
+  // Each connected client is tracked in _worldClients.
+  // Connecting = joining the world.  Disconnecting = leaving.
+  // Named SSE events: "roster" | "join" | "leave" | "move"
 
-  // SSE clients watching live pet positions
-  const _petPosSseClients = new Set<Response>();
-  function broadcastPetPosition(userId: string, posX: number, posY: number) {
-    const payload = `data: ${JSON.stringify({ userId, posX, posY })}\n\n`;
-    for (const client of _petPosSseClients) {
-      try { client.write(payload); } catch { _petPosSseClients.delete(client); }
+  interface WorldClient {
+    res:      Response;
+    userId:   string;
+    petData:  any;   // full pet profile (no posX/posY — those live below)
+    posX:     number;
+    posY:     number;
+  }
+  const _worldClients = new Map<string, WorldClient>();
+
+  function sendSSEEvent(res: Response, event: string, data: any) {
+    try { res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`); } catch {}
+  }
+
+  function broadcastWorld(event: string, data: any, excludeUserId?: string) {
+    for (const [uid, client] of _worldClients) {
+      if (uid !== excludeUserId) sendSSEEvent(client.res, event, data);
     }
   }
 
-  // SSE stream — clients connect once and receive position pushes
-  app.get("/api/world/pet_world/position-stream", isAuthenticated, (req, res) => {
+  // SSE stream — one persistent connection per user = presence
+  app.get("/api/world/pet_world/position-stream", isAuthenticated, async (req, res) => {
+    const userId = (req.user as any).id;
+
+    // Close any stale previous connection for this user (tab reload, etc.)
+    const existing = _worldClients.get(userId);
+    if (existing) {
+      try { existing.res.end(); } catch {}
+      _worldClients.delete(userId);
+    }
+
     res.setHeader("Content-Type",  "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection",    "keep-alive");
     res.flushHeaders();
-    _petPosSseClients.add(res);
-    const ping = setInterval(() => { try { res.write(": ping\n\n"); } catch { /* ignore */ } }, 25_000);
-    req.on("close", () => { _petPosSseClients.delete(res); clearInterval(ping); });
+
+    // Look up this user's active pet
+    const petData = await storage.getWorldActivePetForUser("pet_world", userId);
+
+    if (!petData) {
+      // No active pet — user can still watch the world but won't appear as a pet.
+      // Send current roster so they can see who is online, then keep stream open.
+      const roster = [..._worldClients.values()].map(c => ({ ...c.petData, posX: c.posX, posY: c.posY }));
+      sendSSEEvent(res, "roster", roster);
+      const ping = setInterval(() => { try { res.write(": ping\n\n"); } catch {} }, 25_000);
+      req.on("close", () => clearInterval(ping));
+      return;
+    }
+
+    // Retrieve last stored position (or leave null — client seeds a default)
+    const storedPos = await storage.getPetPosition("pet_world", userId);
+    const posX = storedPos?.posX ?? null;
+    const posY = storedPos?.posY ?? null;
+
+    // Build roster: all currently online pets + this user's own entry
+    const rosterOthers = [..._worldClients.values()].map(c => ({ ...c.petData, posX: c.posX, posY: c.posY }));
+    const selfEntry    = { ...petData, posX, posY };
+    sendSSEEvent(res, "roster", [...rosterOthers, selfEntry]);
+
+    // Register in map AFTER sending roster (so self not in others' list yet)
+    const resolvedPosX = posX ?? 50;
+    const resolvedPosY = posY ?? 70;
+    _worldClients.set(userId, { res, userId, petData, posX: resolvedPosX, posY: resolvedPosY });
+
+    // Announce join to everyone already online
+    broadcastWorld("join", { ...petData, posX: resolvedPosX, posY: resolvedPosY }, userId);
+
+    // Keepalive ping
+    const ping = setInterval(() => { try { res.write(": ping\n\n"); } catch {} }, 25_000);
+
+    req.on("close", () => {
+      _worldClients.delete(userId);
+      clearInterval(ping);
+      broadcastWorld("leave", { userId });
+    });
   });
 
-  app.get("/api/world/pet_world/active-pets", isAuthenticated, async (req, res) => {
-    try {
-      const now = Date.now();
-      if (_activePetsCache && now - _activePetsCache.ts < ACTIVE_PETS_TTL) {
-        return res.json(_activePetsCache.data);
-      }
-      const rows = await storage.getWorldActivePets("pet_world");
-      _activePetsCache = { ts: now, data: rows };
-      return res.json(rows);
-    } catch (err) {
-      console.error("World active pets error:", err);
-      return res.status(500).json({ message: "Failed to get world pets" });
-    }
+  // Returns the live online roster (used as a fallback / admin view)
+  app.get("/api/world/pet_world/active-pets", isAuthenticated, (_req, res) => {
+    const online = [..._worldClients.values()].map(c => ({ ...c.petData, posX: c.posX, posY: c.posY }));
+    return res.json(online);
   });
 
   app.patch("/api/world/pet_world/pet-position", isAuthenticated, async (req: Request, res: Response) => {
@@ -1917,10 +1963,14 @@ export async function registerRoutes(
       if (typeof posX !== "number" || typeof posY !== "number" || !ownerUserId) {
         return res.status(400).json({ message: "ownerUserId, posX, posY required" });
       }
-      await storage.upsertPetPosition("pet_world", ownerUserId, posX, posY);
-      _activePetsCache = null; // bust so next fetch reflects the move
-      broadcastPetPosition(ownerUserId, posX, posY); // push live to all watchers
-      return res.json({ success: true });
+      // Update in-memory position immediately
+      const client = _worldClients.get(ownerUserId);
+      if (client) { client.posX = posX; client.posY = posY; }
+      // Persist to DB (fire-and-forget — positional data, not critical)
+      storage.upsertPetPosition("pet_world", ownerUserId, posX, posY).catch(() => {});
+      // Broadcast live "move" event to all other connected clients
+      broadcastWorld("move", { userId: ownerUserId, posX, posY }, ownerUserId);
+      return res.json({ ok: true });
     } catch (err) {
       return res.status(500).json({ message: "Failed to update pet position" });
     }

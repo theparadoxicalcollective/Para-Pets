@@ -1301,6 +1301,55 @@ export class DatabaseStorage implements IStorage {
       .where(eq(worldPetPositions.worldId, worldId));
   }
 
+  async getPetPosition(worldId: string, userId: string): Promise<{ posX: number; posY: number } | null> {
+    const rows = await db.select({ posX: worldPetPositions.posX, posY: worldPetPositions.posY })
+      .from(worldPetPositions)
+      .where(and(eq(worldPetPositions.worldId, worldId), eq(worldPetPositions.ownerUserId, userId)))
+      .limit(1);
+    return rows[0] ?? null;
+  }
+
+  async getWorldActivePetForUser(worldId: string, userId: string): Promise<any | null> {
+    const rows = await db
+      .select({
+        userId:          users.id,
+        username:        users.username,
+        profileImage:    users.profileImage,
+        inventoryId:     userInventory.id,
+        shopItemId:      shopItems.id,
+        name:            shopItems.name,
+        petNickname:     userInventory.petNickname,
+        imageUrl:        shopItems.imageUrl,
+        hatchedImageUrl: shopItems.hatchedImageUrl,
+        petLevel:        userInventory.petLevel,
+        petHealth:       userInventory.petHealth,
+        petAtk:          userInventory.petAtk,
+        petDef:          userInventory.petDef,
+        rarity:          shopItems.rarity,
+        petTemplateId:   shopItems.petTemplateId,
+      })
+      .from(users)
+      .innerJoin(
+        userInventory,
+        and(
+          eq(userInventory.userId, users.id),
+          sql`${userInventory.shopItemId} = ${users.activePetId}`,
+          eq(userInventory.isHatched, true),
+        ),
+      )
+      .innerJoin(shopItems, and(
+        eq(shopItems.id, userInventory.shopItemId),
+        eq(shopItems.type, "pet"),
+      ))
+      .where(and(
+        eq(users.id, userId),
+        eq(users.isBanned, false),
+        sql`${users.activePetId} IS NOT NULL`,
+      ))
+      .limit(1);
+    return rows[0] ?? null;
+  }
+
   async getWorldActivePets(worldId: string): Promise<any[]> {
     const rows = await db
       .select({
