@@ -99,6 +99,10 @@ interface ShopItem {
   shopPosY: number;
   shopWidth: number;
   fishingType: string | null;
+  rarityBoostPercent: number | null;
+  baitRarityBoostStar: number | null;
+  poleMaxUses: number | null;
+  catchEasePercent: number | null;
   locationId: string | null;
   createdAt: string;
 }
@@ -1332,8 +1336,23 @@ export default function WorldPage({ user }: WorldPageProps) {
 
   const getItemDescription = (item: ShopItem): string[] => {
     const lines: string[] = [];
-    if (item.type === "pet") {
-      if (item.rarity) lines.push(`Rarity: ${"★".repeat(item.rarity)}`);
+    if (item.type === "fishing") {
+      if (item.fishingType === "pole") {
+        if (item.catchEasePercent) lines.push(`Easy Catch +${item.catchEasePercent}%`);
+        lines.push(item.poleMaxUses ? `${item.poleMaxUses} uses` : "Unlimited uses");
+      } else if (item.fishingType === "bait") {
+        if (item.rarityBoostPercent && item.baitRarityBoostStar) {
+          lines.push(`+${item.rarityBoostPercent}% Rarity Boost`);
+          lines.push(`Targets ${"★".repeat(item.baitRarityBoostStar)} fish`);
+        } else if (item.rarityBoostPercent) {
+          lines.push(`+${item.rarityBoostPercent}% Rarity Boost`);
+        }
+        if (item.specialSkill) lines.push(item.specialSkill);
+      } else if (item.fishingType === "fish") {
+        if (item.rarity) lines.push(`${"★".repeat(item.rarity)} Rarity`);
+      }
+    } else if (item.type === "pet") {
+      if (item.rarity) lines.push(`${"★".repeat(item.rarity)} Rarity`);
       if (item.hatchTime) lines.push(`Hatch time: ${item.hatchTime}h`);
       if (item.specialSkill) lines.push(`Special: ${item.specialSkill}`);
     } else {
