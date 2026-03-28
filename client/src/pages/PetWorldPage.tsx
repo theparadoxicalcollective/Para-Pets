@@ -376,8 +376,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
       const dt = lastRafTimeRef.current === null ? 0 : Math.min((now - lastRafTimeRef.current) / 1000, 0.1);
       lastRafTimeRef.current = now;
       if (localPetPosRef.current && (dx !== 0 || dy !== 0)) {
-        const nx = Math.max(5,  Math.min(92, localPetPosRef.current.x + dx * 12 * dt));
-        const ny = Math.max(38, Math.min(90, localPetPosRef.current.y + dy *  8 * dt));
+        const nx = Math.max(5,  Math.min(92, localPetPosRef.current.x + dx * 6 * dt));
+        const ny = Math.max(38, Math.min(90, localPetPosRef.current.y + dy * 4 * dt));
         localPetPosRef.current = { x: nx, y: ny };
         setLocalPetPos({ x: nx, y: ny });
         if (ownPet && now - lastSaveRef.current > 2000) {
