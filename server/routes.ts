@@ -6,7 +6,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { storage } from "./storage";
-import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards } from "@shared/schema";
+import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards, userInventory } from "@shared/schema";
 import { db } from "./db";
 import { and, eq, inArray, lt } from "drizzle-orm";
 import sharp from "sharp";
@@ -4318,6 +4318,37 @@ export async function registerRoutes(
     try {
       await storage.deleteEnemyPart(req.params.partId);
       return res.json({ ok: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Keeper's Central kill reward ──────────────────────────────────────────
+  app.post("/api/world/pet_world/kc-kill-reward", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const coinsEarned = 1 + Math.floor(Math.random() * 2); // 1 or 2
+      const updatedUser = await storage.addCoins(user.id, coinsEarned);
+
+      // Find the active pet inventory item and award 5 XP
+      let petResult: { petLevel: number; petLevelPoints: number } | null = null;
+      if (updatedUser.activePetId) {
+        const [petInv] = await db
+          .select()
+          .from(userInventory)
+          .where(eq(userInventory.shopItemId, updatedUser.activePetId))
+          .where(eq(userInventory.userId, user.id))
+          .limit(1);
+        if (petInv) {
+          const { newLevel, newPoints } = applyPetXp(petInv.petLevel || 1, petInv.petLevelPoints || 0, 5);
+          const updates: any = { petLevelPoints: newPoints };
+          if (newLevel > (petInv.petLevel || 1)) updates.petLevel = newLevel;
+          const updated = await storage.updateInventoryItem(petInv.id, updates);
+          petResult = { petLevel: updated.petLevel || 1, petLevelPoints: updated.petLevelPoints || 0 };
+        }
+      }
+
+      return res.json({ coins: updatedUser.coins, coinsEarned, petResult });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }

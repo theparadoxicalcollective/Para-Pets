@@ -864,6 +864,24 @@
   50%       { box-shadow: 0 0 24px rgba(74,222,128,0.7), 0 0 48px rgba(74,222,128,0.4); }
 }
 
+/* KC enemy squish-bounce: slight vertical squish from bottom anchor */
+@keyframes kcSquish {
+  0%   { transform: scaleY(1)    scaleX(1);    }
+  20%  { transform: scaleY(0.82) scaleX(1.12); }
+  40%  { transform: scaleY(1.06) scaleX(0.96); }
+  60%  { transform: scaleY(0.91) scaleX(1.07); }
+  80%  { transform: scaleY(1.03) scaleX(0.98); }
+  100% { transform: scaleY(1)    scaleX(1);    }
+}
+
+/* KC coin drop pop animation */
+@keyframes kcCoinPop {
+  0%   { opacity: 1; transform: translate(-50%, -120%) scale(0.7); }
+  30%  { opacity: 1; transform: translate(-50%, -170%) scale(1.15); }
+  70%  { opacity: 0.8; transform: translate(-50%, -220%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -270%) scale(0.8); }
+}
+
 @keyframes scrollUnroll {
   0% {
     opacity: 0;

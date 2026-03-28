@@ -83,6 +83,45 @@ type KCSpawnedEnemy = {
 
 type GlobalEnemy = { id: string; name: string; imageUrl: string | null };
 
+type LiveKCEnemy = {
+  instanceId: string;
+  enemyId: string;
+  enemyName: string;
+  enemyImageUrl: string | null;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  hp: number;
+  alive: boolean;
+  nextDirChange: number;
+  respawnAt?: number;
+};
+
+function makeInstanceId() {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? (crypto as any).randomUUID()
+    : Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+function spawnKCEnemy(template: KCSpawnedEnemy): LiveKCEnemy {
+  const speed = 2.5 + Math.random() * 2.5;
+  const angle = Math.random() * Math.PI * 2;
+  return {
+    instanceId: makeInstanceId(),
+    enemyId: template.enemyId,
+    enemyName: template.enemyName,
+    enemyImageUrl: template.enemyImageUrl,
+    x: 8 + Math.random() * 82,
+    y: 42 + Math.random() * 44,
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed * 0.35,
+    hp: 100,
+    alive: true,
+    nextDirChange: Date.now() + 1500 + Math.random() * 3000,
+  };
+}
+
 interface PetWorldPageProps {
   user: { id: string; isAdmin: boolean };
   onClose: () => void;
@@ -124,11 +163,13 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const [decorMoveOrder, setDecorMoveOrder] = useState<string[]>([]);
 
   // ── KC enemy state ─────────────────────────────────────────────────────────
-  const [showEnemyPanel,    setShowEnemyPanel]   = useState(false);
-  const [selectedEnemyToAdd, setSelectedEnemyToAdd] = useState<string>("");
-  const [kcEnemyHealth,     setKcEnemyHealth]   = useState<Record<string, number>>({});
-  const [swipeTarget,       setSwipeTarget]      = useState<string | null>(null);
-  const [kcDefeated,        setKcDefeated]       = useState<Set<string>>(new Set());
+  const [showEnemyPanel,      setShowEnemyPanel]      = useState(false);
+  const [selectedEnemyToAdd,  setSelectedEnemyToAdd]  = useState<string>("");
+  const [liveEnemies,         setLiveEnemies]          = useState<LiveKCEnemy[]>([]);
+  const liveEnemiesRef = useRef<LiveKCEnemy[]>([]);
+  const [enemiesInitialized,  setEnemiesInitialized]  = useState(false);
+  const [swipeTarget,         setSwipeTarget]          = useState<string | null>(null);
+  const [coinPops,            setCoinPops]             = useState<{ id: string; x: number; y: number; amount: number }[]>([]);
 
   // ── panel state ────────────────────────────────────────────────────────────
   const [showDecorPanel,   setShowDecorPanel]   = useState(false);
@@ -224,7 +265,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
-    refetchInterval: 30_000,
+    refetchInterval: 60_000,
   });
 
   const { data: globalEnemies = [] } = useQuery<GlobalEnemy[]>({
@@ -242,9 +283,10 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/world/pet_world/kc-enemies"] });
       setSelectedEnemyToAdd("");
-      toast({ title: "Enemy spawned!" });
+      setEnemiesInitialized(false);
+      toast({ title: "Enemy type added!" });
     },
-    onError: () => toast({ title: "Error", description: "Failed to spawn enemy", variant: "destructive" }),
+    onError: () => toast({ title: "Error", description: "Failed to add enemy type", variant: "destructive" }),
   });
 
   const removeKCEnemyMutation = useMutation({
@@ -254,41 +296,114 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     },
   });
 
+  const killRewardMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/world/pet_world/kc-kill-reward"),
+    onSuccess: (data: any) => {
+      const coins = data?.coinsEarned ?? 1;
+      toast({
+        title: `+${coins} coin${coins > 1 ? "s" : ""} · +5 XP`,
+        description: data?.petResult ? `Pet is now Level ${data.petResult.petLevel}` : undefined,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/me"] });
+    },
+  });
+
+  // ── Spawn pool initializer ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (enemiesInitialized || kcSpawnedEnemies.length === 0) return;
+    const count = 6 + Math.floor(Math.random() * 5); // 6–10
+    const pool: LiveKCEnemy[] = [];
+    for (let i = 0; i < count; i++) {
+      const template = kcSpawnedEnemies[i % kcSpawnedEnemies.length];
+      pool.push(spawnKCEnemy(template));
+    }
+    liveEnemiesRef.current = pool;
+    setLiveEnemies(pool);
+    setEnemiesInitialized(true);
+  }, [kcSpawnedEnemies, enemiesInitialized]);
+
+  // ── Enemy wander animation loop ─────────────────────────────────────────────
+  useEffect(() => {
+    if (!enemiesInitialized || kcSpawnedEnemies.length === 0) return;
+    let lastTime = performance.now();
+    let rafId: number;
+    const tick = (now: number) => {
+      const dt = Math.min((now - lastTime) / 1000, 0.1);
+      lastTime = now;
+      const prev = liveEnemiesRef.current;
+      let changed = false;
+      const next = prev.map(e => {
+        // Respawn logic
+        if (!e.alive) {
+          if (e.respawnAt && now >= e.respawnAt) {
+            const template = kcSpawnedEnemies[Math.floor(Math.random() * kcSpawnedEnemies.length)];
+            changed = true;
+            return spawnKCEnemy(template);
+          }
+          return e;
+        }
+        let { x, y, vx, vy, nextDirChange } = e;
+        // Random direction change
+        if (now >= nextDirChange) {
+          const speed = 2.5 + Math.random() * 2.5;
+          const angle = Math.random() * Math.PI * 2;
+          vx = Math.cos(angle) * speed;
+          vy = Math.sin(angle) * speed * 0.35;
+          nextDirChange = now + 1500 + Math.random() * 3000;
+          changed = true;
+        }
+        let nx = x + vx * dt;
+        let ny = y + vy * dt;
+        let nvx = vx, nvy = vy;
+        if (nx < 6)  { nx = 6;  nvx =  Math.abs(vx); changed = true; }
+        if (nx > 91) { nx = 91; nvx = -Math.abs(vx); changed = true; }
+        if (ny < 41) { ny = 41; nvy =  Math.abs(vy); changed = true; }
+        if (ny > 87) { ny = 87; nvy = -Math.abs(vy); changed = true; }
+        if (nx !== x || ny !== y) changed = true;
+        return { ...e, x: nx, y: ny, vx: nvx, vy: nvy, nextDirChange };
+      });
+      if (changed) {
+        liveEnemiesRef.current = next;
+        setLiveEnemies([...next]);
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [enemiesInitialized, kcSpawnedEnemies]);
+
   // ── Attack handler ─────────────────────────────────────────────────────────
   const handleAttack = useCallback(() => {
     const pos = localPetPosRef.current;
     if (!pos) return;
-    // Find the closest living enemy within range
-    let closest: KCSpawnedEnemy | null = null;
+    const enemies = liveEnemiesRef.current;
+    let closest: { idx: number; e: LiveKCEnemy } | null = null;
     let closestDist = Infinity;
-    for (const enemy of kcSpawnedEnemies) {
-      if (kcDefeated.has(enemy.id)) continue;
-      const dist = Math.hypot(pos.x - enemy.spawnX, pos.y - enemy.spawnY);
-      if (dist < 15 && dist < closestDist) {
-        closestDist = dist;
-        closest = enemy;
-      }
+    for (let i = 0; i < enemies.length; i++) {
+      const e = enemies[i];
+      if (!e.alive) continue;
+      const dist = Math.hypot(pos.x - e.x, pos.y - e.y);
+      if (dist < 18 && dist < closestDist) { closestDist = dist; closest = { idx: i, e }; }
     }
     if (!closest) return;
-    const targetId = closest.id;
-    // Deal 5–10 damage
+    const { idx, e: target } = closest;
     const dmg = 5 + Math.floor(Math.random() * 6);
-    const currentHp = kcEnemyHealth[targetId] ?? 100;
-    const newHp = Math.max(0, currentHp - dmg);
-    setKcEnemyHealth(prev => ({ ...prev, [targetId]: newHp }));
-    // Swipe animation
-    setSwipeTarget(targetId);
-    setTimeout(() => setSwipeTarget(t => t === targetId ? null : t), 400);
-    // Defeated
+    const newHp = Math.max(0, target.hp - dmg);
+    const updated = [...liveEnemiesRef.current];
     if (newHp <= 0) {
-      setKcDefeated(prev => new Set([...prev, targetId]));
-      // Respawn after 4s
-      setTimeout(() => {
-        setKcDefeated(prev => { const next = new Set(prev); next.delete(targetId); return next; });
-        setKcEnemyHealth(prev => ({ ...prev, [targetId]: 100 }));
-      }, 4000);
+      updated[idx] = { ...target, hp: 0, alive: false, respawnAt: Date.now() + 5000 };
+      killRewardMutation.mutate();
+      // Coin pop above enemy map position
+      setCoinPops(prev => [...prev, { id: makeInstanceId(), x: target.x, y: target.y, amount: 1 + Math.floor(Math.random() * 2) }]);
+      setTimeout(() => setCoinPops(prev => prev.slice(1)), 1500);
+    } else {
+      updated[idx] = { ...target, hp: newHp };
     }
-  }, [kcSpawnedEnemies, kcDefeated, kcEnemyHealth]);
+    liveEnemiesRef.current = updated;
+    setLiveEnemies([...updated]);
+    setSwipeTarget(target.instanceId);
+    setTimeout(() => setSwipeTarget(t => t === target.instanceId ? null : t), 350);
+  }, [killRewardMutation]);
 
   const removeFriendMutation = useMutation({
     mutationFn: (friendId: string) => apiRequest("DELETE", `/api/friends/${friendId}`, {}),
@@ -781,39 +896,48 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           })}
 
           {/* ── KC Enemies on the map ─────────────────────────────────── */}
-          {kcSpawnedEnemies.map(enemy => {
-            const hp = kcEnemyHealth[enemy.id] ?? 100;
-            const defeated = kcDefeated.has(enemy.id);
-            const isSwipe = swipeTarget === enemy.id;
+          {liveEnemies.map(enemy => {
+            const defeated = !enemy.alive;
+            const isSwipe = swipeTarget === enemy.instanceId;
+            const facingLeft = enemy.vx < 0;
             return (
               <div
-                key={enemy.id}
-                data-testid={`enemy-on-map-${enemy.id}`}
+                key={enemy.instanceId}
+                data-testid={`enemy-on-map-${enemy.instanceId}`}
                 className="absolute flex flex-col items-center"
                 style={{
-                  left: `${enemy.spawnX}%`,
-                  top: `${enemy.spawnY}%`,
+                  left: `${enemy.x}%`,
+                  top: `${enemy.y}%`,
                   transform: "translate(-50%, -100%)",
                   zIndex: 30,
-                  opacity: defeated ? 0.3 : 1,
-                  transition: "opacity 0.4s",
+                  opacity: defeated ? 0.25 : 1,
+                  transition: "opacity 0.5s",
                   pointerEvents: "none",
                   userSelect: "none",
                   width: 56,
+                  willChange: "left, top",
                 }}
               >
-                {/* HP bar */}
-                <div style={{ width: "100%", height: 5, borderRadius: 3, background: "rgba(0,0,0,0.55)", border: "1px solid rgba(0,0,0,0.4)", marginBottom: 2, overflow: "hidden" }}>
-                  <div style={{
-                    height: "100%",
-                    width: `${hp}%`,
-                    background: hp > 50 ? "#22c55e" : hp > 25 ? "#eab308" : "#ef4444",
-                    borderRadius: 3,
-                    transition: "width 0.2s, background 0.2s",
-                  }} />
-                </div>
-                {/* Enemy image */}
+                {/* HP bar — hidden when defeated */}
+                {!defeated && (
+                  <div style={{ width: "100%", height: 4, borderRadius: 2, background: "rgba(0,0,0,0.6)", border: "1px solid rgba(0,0,0,0.5)", marginBottom: 2, overflow: "hidden" }}>
+                    <div style={{
+                      height: "100%",
+                      width: `${enemy.hp}%`,
+                      background: enemy.hp > 50 ? "#22c55e" : enemy.hp > 25 ? "#eab308" : "#ef4444",
+                      borderRadius: 2,
+                      transition: "width 0.15s, background 0.15s",
+                    }} />
+                  </div>
+                )}
+                {/* Enemy image with squish-bounce animation */}
                 <div className="relative" style={{ width: 44, height: 44 }}>
+                  {/* Squish wrapper — animates scaleY/scaleX independently of flip */}
+                  <div style={{
+                    width: 44, height: 44,
+                    animation: defeated ? "none" : "kcSquish 0.9s ease-in-out infinite",
+                    transformOrigin: "bottom center",
+                  }}>
                   {enemy.enemyImageUrl ? (
                     <img
                       src={enemy.enemyImageUrl}
@@ -821,33 +945,64 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                       draggable={false}
                       style={{
                         width: 44, height: 44, objectFit: "contain",
-                        filter: defeated ? "grayscale(1) brightness(0.5)" : isSwipe ? "brightness(2) saturate(0)" : "drop-shadow(0 2px 4px rgba(0,0,0,0.7))",
-                        transition: "filter 0.15s",
+                        transform: facingLeft ? "scaleX(-1)" : undefined,
+                        filter: defeated
+                          ? "grayscale(1) brightness(0.4)"
+                          : isSwipe
+                          ? "brightness(2.5) saturate(0.2)"
+                          : "drop-shadow(0 2px 6px rgba(0,0,0,0.75))",
+                        transition: "filter 0.12s",
                       }}
                     />
                   ) : (
-                    <div style={{ width: 44, height: 44, borderRadius: 8, background: "rgba(239,68,68,0.3)", border: "1.5px solid #ef4444", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <div style={{
+                      width: 44, height: 44, borderRadius: 8,
+                      background: "rgba(239,68,68,0.3)", border: "1.5px solid #ef4444",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
                       <Swords className="w-5 h-5" style={{ color: "#ef4444" }} />
                     </div>
                   )}
-                  {/* Swipe slash animation */}
+                  </div>
+                  {/* Hit flash ring */}
                   {isSwipe && (
                     <div style={{
-                      position: "absolute", inset: -4, borderRadius: "50%",
-                      border: "3px solid #fff",
-                      animation: "none",
-                      opacity: 0.9,
-                      boxShadow: "0 0 12px 4px rgba(255,80,80,0.7)",
+                      position: "absolute", inset: -6, borderRadius: "50%",
+                      border: "3px solid rgba(255,255,255,0.9)",
+                      boxShadow: "0 0 14px 5px rgba(255,80,80,0.8), inset 0 0 8px rgba(255,80,80,0.5)",
+                      pointerEvents: "none",
                     }} />
                   )}
                 </div>
-                {/* Name */}
-                <span style={{ fontFamily: "Cinzel, serif", fontSize: 9, color: defeated ? "#ef444488" : "#ef4444cc", textAlign: "center", marginTop: 2, textShadow: "0 1px 3px rgba(0,0,0,0.9)", lineHeight: 1.2 }}>
+                {/* Name label */}
+                <span style={{
+                  fontFamily: "Cinzel, serif", fontSize: 9, lineHeight: 1.2,
+                  color: defeated ? "#ef444466" : "#ef4444cc",
+                  textAlign: "center", marginTop: 2,
+                  textShadow: "0 1px 4px rgba(0,0,0,1)",
+                }}>
                   {defeated ? "✦ Defeated ✦" : enemy.enemyName}
                 </span>
               </div>
             );
           })}
+
+          {/* ── Coin drop pops (map-space) ────────────────────────────── */}
+          {coinPops.map(pop => (
+            <div key={pop.id} style={{
+              position: "absolute",
+              left: `${pop.x}%`, top: `${pop.y}%`,
+              transform: "translate(-50%, -120%)",
+              pointerEvents: "none",
+              zIndex: 50,
+              fontFamily: "Cinzel, serif", fontSize: 13, fontWeight: 700,
+              color: "#f6d860",
+              textShadow: "0 0 8px rgba(246,216,96,0.8), 0 1px 3px rgba(0,0,0,0.9)",
+              animation: "kcCoinPop 1.4s ease-out forwards",
+            }}>
+              +{pop.amount}🪙
+            </div>
+          ))}
 
           {/* ── Locations (places) on the map ─────────────────────────── */}
           {[...kcLocations].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map(loc => {
@@ -1861,7 +2016,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
       )}
 
       {/* ── Attack button — mirrors joystick at bottom-left ─────────────── */}
-      {ownPet && kcSpawnedEnemies.length > 0 && (
+      {ownPet && liveEnemies.length > 0 && (
         <button
           data-testid="button-attack"
           onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); handleAttack(); }}
