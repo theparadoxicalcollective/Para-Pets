@@ -948,7 +948,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                   left: `${enemy.x}%`,
                   top: `${enemy.y}%`,
                   transform: "translate(-50%, -100%)",
-                  zIndex: 30,
+                  zIndex: 11 + Math.round((enemy.y / 100) * 60),
                   pointerEvents: "none",
                   userSelect: "none",
                   width: 44,
