@@ -1878,7 +1878,7 @@ function WorldRoamingPet({
     h ^= h >>> 16;
     return (h >>> 0) / 4294967295;
   };
-  const wanderDuration  = `${34 + rng(3) * 16}s`;
+  const wanderDuration  = `${120 + rng(3) * 60}s`;
   const wanderDelay     = `-${(rng(4) * 20).toFixed(1)}s`;
   // Idle hop: slow and dreamy (0.8 – 1.1s); walking hop: noticeable but not frantic (0.45s)
   const idleHopDuration = `${0.8 + rng(5) * 0.3}s`;
@@ -1904,10 +1904,10 @@ function WorldRoamingPet({
         transition: isOwn ? undefined : "left 1.8s linear, top 1.8s linear",
       }}
     >
-      {/* Wander drift — pauses when player is actively walking their pet */}
+      {/* Wander drift — only on other players' pets; own pet stays still so joystick is clean */}
       <div
         style={{
-          animation: isWalking
+          animation: isOwn || isWalking
             ? undefined
             : `${wanderPrefix}${wanderIdx} ${wanderDuration} ${wanderDelay} ease-in-out infinite`,
         }}
