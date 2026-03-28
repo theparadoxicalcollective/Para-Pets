@@ -10,6 +10,7 @@ import PetAnimator from "@/components/PetAnimator";
 import bgGround from "@assets/IMG_6459_1774675340089.jpeg";
 import coinIconImg from "@assets/icon_coin.png";
 import petHouseIconImg from "@assets/icon_pet_house.png";
+import swordIconImg from "@assets/icon_attack_sword.png";
 
 const WORLD_ID = "pet_world";
 const ACCENT = "#7fffd4";
@@ -995,12 +996,20 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
               transform: "translate(-50%, -120%)",
               pointerEvents: "none",
               zIndex: 50,
+              display: "flex", alignItems: "center", gap: 3,
               fontFamily: "Cinzel, serif", fontSize: 13, fontWeight: 700,
               color: "#f6d860",
               textShadow: "0 0 8px rgba(246,216,96,0.8), 0 1px 3px rgba(0,0,0,0.9)",
               animation: "kcCoinPop 1.4s ease-out forwards",
+              whiteSpace: "nowrap",
             }}>
-              +{pop.amount}🪙
+              +{pop.amount}
+              <img
+                src={coinIconImg}
+                alt="coin"
+                draggable={false}
+                style={{ width: 16, height: 16, objectFit: "contain", filter: "drop-shadow(0 0 4px rgba(246,216,96,0.9))" }}
+              />
             </div>
           ))}
 
@@ -2040,7 +2049,18 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
             cursor: "pointer",
           }}
         >
-          <Swords className="w-7 h-7" style={{ color: "rgba(255,160,160,0.9)", filter: "drop-shadow(0 0 4px rgba(239,68,68,0.6))" }} />
+          <img
+            src={swordIconImg}
+            alt="Attack"
+            draggable={false}
+            style={{
+              width: 52, height: 52,
+              objectFit: "contain",
+              mixBlendMode: "screen",
+              filter: "drop-shadow(0 0 8px rgba(239,68,68,0.9)) drop-shadow(0 0 4px rgba(255,180,80,0.5))",
+              transform: "rotate(-35deg)",
+            }}
+          />
         </button>
       )}
 
