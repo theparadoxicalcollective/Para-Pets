@@ -1863,6 +1863,14 @@ function WorldRoamingPet({
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
   const displayName = pet.petNickname || pet.name;
 
+  // Seeded per-pet so each pet bobs at a unique phase/speed
+  const seed = (pet.userId.charCodeAt(0) + pet.userId.charCodeAt(1) * 31) & 0xffff;
+  const idleFloatDuration = `${2.6 + (seed % 100) / 100 * 1.4}s`;
+  const idleHopDuration   = `${0.85 + (seed % 80) / 80 * 0.35}s`;
+  const idleDelay         = `-${((seed % 60) / 60 * 2.0).toFixed(2)}s`;
+  const floatAnim = hasWings ? "petFloatSmall" : "petGroundFloat";
+  const hopAnim   = hasWings ? undefined : `petHop ${idleHopDuration} ease-in-out ${idleDelay} infinite`;
+
   return (
     <div
       className="absolute"
@@ -1878,6 +1886,9 @@ function WorldRoamingPet({
         transition: isOwn ? undefined : "left 1.8s linear, top 1.8s linear",
       }}
     >
+      {/* Idle bob — only on other players' pets; own pet is driven by the joystick */}
+      <div style={{ animation: isOwn ? undefined : hopAnim }}>
+      <div style={{ animation: isOwn ? undefined : `${floatAnim} ${idleFloatDuration} ease-in-out ${idleDelay} infinite` }}>
           {/* Single position:relative box (sz × sz map-pixels).
               Badge and stars are absolutely positioned using the pet's ACTUAL
               bounding box (minTopFrac / maxBotFrac) computed from the real part
@@ -1967,6 +1978,8 @@ function WorldRoamingPet({
               }}
             />
           </div>
+      </div>
+      </div>
     </div>
   );
 }
