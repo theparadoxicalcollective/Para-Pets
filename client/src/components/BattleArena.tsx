@@ -537,19 +537,28 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     // Slash mark
     const markId = slashIdRef.current++;
     setSlashEffects(prev => [...prev, { id: markId, x: ePos.x, y: ePos.y }]);
-    setTimeout(() => setSlashEffects(prev => prev.filter(s => s.id !== markId)), 500);
+    setTimeout(() => setSlashEffects(prev => prev.filter(s => s.id !== markId)), 380);
 
-    // Sparks — more for bosses, golden during counter
+    // Sparks — toned down to look like a scratch
     const sparkColor = wasCounter ? "#fde68a" : isCrit ? "#fbbf24" : accent;
-    const sparkCount = isBossHit ? 18 : 11;
+    const sparkCount = isBossHit ? 12 : 6;
     const newSparks: SparkParticle[] = Array.from({ length: sparkCount }, (_, i) => {
-      const angle = (i / sparkCount) * Math.PI * 2 + Math.random() * 0.4;
-      const speed = isBossHit ? (2.8 + Math.random() * 4.2) : (2.0 + Math.random() * 3.2);
+      const angle = (i / sparkCount) * Math.PI * 2 + Math.random() * 0.6;
+      const speed = isBossHit ? (1.8 + Math.random() * 2.6) : (1.2 + Math.random() * 2.0);
       return { id: slashIdRef.current++, x: ePos.x, y: ePos.y, dx: Math.cos(angle) * speed, dy: Math.sin(angle) * speed, color: sparkColor };
     });
     setSparkParticles(prev => [...prev, ...newSparks]);
     const sparkIds = new Set(newSparks.map(s => s.id));
-    setTimeout(() => setSparkParticles(prev => prev.filter(s => !sparkIds.has(s.id))), isBossHit ? 600 : 480);
+    setTimeout(() => setSparkParticles(prev => prev.filter(s => !sparkIds.has(s.id))), isBossHit ? 500 : 380);
+
+    // Enemy reacts: bring forward next charge so it feels responsive
+    if (enemyHpRef.current > 0 && !enemyChargingRef.current) {
+      const reactionDelay = isBossHit ? 1100 + Math.random() * 700 : 800 + Math.random() * 600;
+      const reactionTime = now + reactionDelay;
+      if (reactionTime < nextChargeTimeRef.current) {
+        nextChargeTimeRef.current = reactionTime;
+      }
+    }
 
     // Damage number
     const dmgNum: DamageNumber = { id: dmgIdRef.current++, x: ePos.x + (Math.random() * 12 - 6), y: ePos.y - 6, value: dmg, isCrit };
@@ -822,13 +831,13 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     >
       <style>{`
         @keyframes slashMarkAnim {
-          0%   { transform: scale(0.4) rotate(-20deg); opacity: 1; }
-          50%  { transform: scale(1.3) rotate(8deg);  opacity: 0.9; }
-          100% { transform: scale(1.8) rotate(15deg); opacity: 0; }
+          0%   { transform: scale(0.5) rotate(-10deg); opacity: 0.9; }
+          45%  { transform: scale(0.85) rotate(4deg);  opacity: 0.75; }
+          100% { transform: scale(1.0) rotate(8deg);  opacity: 0; }
         }
-        @keyframes slashRingAnim {
-          0%   { transform: scale(0.5); opacity: 0.9; }
-          100% { transform: scale(2.2); opacity: 0; }
+        @keyframes targetBounce {
+          0%, 100% { transform: translateY(0) translateX(-50%); opacity: 0.65; }
+          50%       { transform: translateY(4px) translateX(-50%); opacity: 1; }
         }
         @keyframes sparkFly {
           0%   { transform: translate(0, 0) scale(1); opacity: 1; }
@@ -1117,6 +1126,22 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                       : "enemyBounce 0.7s ease-in-out infinite",
                 }}
               >
+                {/* Targeting indicator — visible when idle, hides during charge */}
+                {!enemyCharging && (
+                  <div style={{
+                    position: "absolute",
+                    top: enemy.isBoss ? -56 : -36,
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    fontSize: 10,
+                    color: "#ef4444",
+                    animation: "targetBounce 1s ease-in-out infinite",
+                    pointerEvents: "none",
+                    lineHeight: 1,
+                    filter: "drop-shadow(0 0 4px rgba(239,68,68,0.7))",
+                  }}>▼</div>
+                )}
+
                 {/* Charge ring around enemy */}
                 {enemyCharging && (
                   <div style={{
@@ -1506,21 +1531,12 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
             preserveAspectRatio="none"
             style={{ width: "100%", height: "100%", overflow: "visible" }}
           >
-            <defs>
-              <filter id="slashGlow">
-                <feGaussianBlur stdDeviation="1.8" result="blur" />
-                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-              </filter>
-            </defs>
-            <path d={buildSlashPath(slashTrail)} stroke={counterActive ? "#fde68a" : accent} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"
-              fill="none" opacity={trailFading ? 0 : 0.35} filter="url(#slashGlow)"
-              style={{ transition: trailFading ? "opacity 0.32s ease-out" : undefined }} />
-            <path d={buildSlashPath(slashTrail)} stroke={counterActive ? "#fde68a" : accent} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-              fill="none" opacity={trailFading ? 0 : 0.95}
-              style={{ transition: trailFading ? "opacity 0.32s ease-out" : undefined }} />
-            <path d={buildSlashPath(slashTrail)} stroke="white" strokeWidth="0.9" strokeLinecap="round" strokeLinejoin="round"
-              fill="none" opacity={trailFading ? 0 : 0.65}
-              style={{ transition: trailFading ? "opacity 0.32s ease-out" : undefined }} />
+            <path d={buildSlashPath(slashTrail)} stroke={counterActive ? "#fde68a" : accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              fill="none" opacity={trailFading ? 0 : 0.55}
+              style={{ transition: trailFading ? "opacity 0.28s ease-out" : undefined }} />
+            <path d={buildSlashPath(slashTrail)} stroke="white" strokeWidth="0.7" strokeLinecap="round" strokeLinejoin="round"
+              fill="none" opacity={trailFading ? 0 : 0.35}
+              style={{ transition: trailFading ? "opacity 0.28s ease-out" : undefined }} />
           </svg>
         )}
 
@@ -1528,10 +1544,10 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         {sparkParticles.map(spark => (
           <div key={spark.id} className="absolute pointer-events-none rounded-full z-35"
             style={{
-              left: `${spark.x}%`, top: `${spark.y}%`, width: 6, height: 6, marginLeft: -3, marginTop: -3,
-              background: spark.color, boxShadow: `0 0 8px ${spark.color}, 0 0 3px white`,
-              animation: "sparkFly 0.45s ease-out forwards",
-              ["--spark-dx" as any]: `${spark.dx * 13}px`, ["--spark-dy" as any]: `${spark.dy * 13}px`,
+              left: `${spark.x}%`, top: `${spark.y}%`, width: 4, height: 4, marginLeft: -2, marginTop: -2,
+              background: spark.color, boxShadow: `0 0 4px ${spark.color}`,
+              animation: "sparkFly 0.38s ease-out forwards",
+              ["--spark-dx" as any]: `${spark.dx * 9}px`, ["--spark-dy" as any]: `${spark.dy * 9}px`,
             }} />
         ))}
 
@@ -1565,8 +1581,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         {slashEffects.map(slash => (
           <div key={slash.id} className="absolute z-30 pointer-events-none"
             style={{ left: `${slash.x}%`, top: `${slash.y}%`, transform: "translate(-50%, -50%)" }}>
-            <div style={{ animation: "slashMarkAnim 0.45s ease-out forwards", fontSize: 36, lineHeight: 1, color: counterActive ? "#fde68a" : accent, textShadow: `0 0 18px ${counterActive ? "#fde68a" : accent}, 0 0 8px white`, fontWeight: 900 }}>✕</div>
-            <div className="absolute inset-0 w-14 h-14 -m-3 rounded-full" style={{ animation: "slashRingAnim 0.4s ease-out forwards", border: `2px solid ${counterActive ? "#fde68a" : accent}`, boxShadow: `0 0 12px ${counterActive ? "#fde68a" : accent}` }} />
+            <div style={{ animation: "slashMarkAnim 0.35s ease-out forwards", fontSize: 18, lineHeight: 1, color: counterActive ? "#fde68a" : "white", textShadow: `0 0 6px ${counterActive ? "#fde68a" : accent}`, fontWeight: 900 }}>✕</div>
           </div>
         ))}
 
