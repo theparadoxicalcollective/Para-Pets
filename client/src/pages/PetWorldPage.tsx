@@ -495,9 +495,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
 
   // ── initial centering on mount / mapH change ───────────────────────────────
   useEffect(() => {
-    const coverSc = Math.max(FRAME_W / MAP_W, FRAME_H / mapHRef.current);
-    // Start at cover scale so the world fills the frame
-    const initSc  = coverSc;
+    // Start at 1:1 scale, centred
+    const initSc  = 1;
     const ix = (FRAME_W - MAP_W * initSc) / 2;
     const iy = (FRAME_H - mapHRef.current * initSc) / 2;
     mapTransformRef.current = { x: ix, y: iy, scale: initSc };
@@ -506,9 +505,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
 
   // ── clamp + apply ──────────────────────────────────────────────────────────
   const applyMapTransform = useCallback((x: number, y: number, sc: number) => {
-    const coverSc  = Math.max(FRAME_W / MAP_W, FRAME_H / mapHRef.current);
-    // Minimum is cover scale (background always fills the frame), max 2.5x zoom in
-    const clampedSc = Math.max(coverSc, Math.min(coverSc * 2.5, sc));
+    // Allow zooming from 0.3× out to 2.5× in
+    const clampedSc = Math.max(0.3, Math.min(2.5, sc));
     const mw = MAP_W * clampedSc;
     const mh = mapHRef.current * clampedSc;
     const cx = mw <= FRAME_W ? (FRAME_W - mw) / 2 : Math.max(FRAME_W - mw, Math.min(0, x));
@@ -1029,17 +1027,6 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           )}
         </div>
 
-        {/* Depth hint — small indicator at bottom centre */}
-        <div className="absolute bottom-4 left-0 right-0 flex justify-center pointer-events-none">
-          <div className="font-fantasy text-[9px] tracking-widest px-3 py-1 rounded-full"
-            style={{
-              color: `${ACCENT}55`,
-              background: "rgba(4,10,6,0.55)",
-              border: `1px solid ${ACCENT}20`,
-            }}>
-            drag to explore · pinch to zoom
-          </div>
-        </div>
       </div>
 
       {/* ── Friends Panel ─────────────────────────────────────────────────── */}
