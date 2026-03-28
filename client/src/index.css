@@ -780,10 +780,10 @@
   82%, 100%{ transform: translate(0px,    0px); }
 }
 
-/* Subtle hop when a pet walks via joystick */
+/* Subtle hop used for both idle pets and walking pets */
 @keyframes petHop {
   0%, 100% { transform: translateY(0px);  }
-  45%       { transform: translateY(-7px); }
+  45%       { transform: translateY(-3px); }
 }
 
 /* Winged pet zoom-burst across the scene */

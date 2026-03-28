@@ -1911,20 +1911,18 @@ function WorldRoamingPet({
   const minTopFrac = 0.5 + (rawMinTopFrac - 0.5) * partScale;
   const maxBotFrac = 0.5 + (rawMaxBotFrac - 0.5) * partScale;
 
-  // Use a deterministic per-pet animation variant based on the index
-  const wanderIdx = index % 6;
-  const wanderPrefix = hasWings ? "petWander" : "petWorldGroundWander";
-  const floatAnim   = hasWings ? "petFloatSmall" : "petGroundFloat";
+  const floatAnim = hasWings ? "petFloatSmall" : "petGroundFloat";
 
-  // Seeded timing so each pet has a slightly different wander cadence
+  // Seeded per-pet hop offset so pets aren't all in sync
   const seedBase = (index + 1) * 2741;
   const rng = (n: number) => {
     let h = Math.imul(Math.floor(seedBase * 10000 + n), 0x9e3779b9);
     h ^= h >>> 16;
     return (h >>> 0) / 4294967295;
   };
-  const duration = `${34 + rng(3) * 16}s`;
-  const delay    = `-${rng(4) * 20}s`;
+  // Idle: 0.45 – 0.65s per hop; walking: 0.3s (snappier)
+  const idleHopDuration = `${0.45 + rng(3) * 0.2}s`;
+  const hopDelay        = `-${(rng(4) * 0.6).toFixed(3)}s`;
 
   // sz is in map-canvas pixels. Kept small so pets are always in reach.
   const sz     = 120;
@@ -1946,16 +1944,14 @@ function WorldRoamingPet({
         transition: isOwn ? undefined : "left 1.8s linear, top 1.8s linear",
       }}
     >
-      {/* Wander / hop animation — hop overrides wander while walking */}
+      {/* Hop animation — snappier while walking, gentle while idle */}
       <div
         style={{
-          animation: isWalking
-            ? "petHop 0.38s ease-in-out infinite"
-            : `${wanderPrefix}${wanderIdx} ${duration} ${delay} ease-in-out infinite`,
+          animation: `petHop ${isWalking ? "0.3s" : idleHopDuration} ease-in-out ${hopDelay} infinite`,
           transformOrigin: "bottom center",
         }}
       >
-        <div style={hasWings && !isWalking ? { animation: `${floatAnim} 3.2s ease-in-out infinite` } : undefined}>
+        <div style={hasWings ? { animation: `${floatAnim} 3.2s ease-in-out infinite` } : undefined}>
 
           {/* Single position:relative box (sz × sz map-pixels).
               Badge and stars are absolutely positioned using the pet's ACTUAL
