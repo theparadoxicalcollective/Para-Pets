@@ -551,6 +551,11 @@
   50%      { transform: translateY(-1px); }
 }
 
+@keyframes petHouseBounce {
+  0%, 100% { transform: translateY(0px); }
+  50%      { transform: translateY(-5px); }
+}
+
 @keyframes petBob {
   0%, 100% { transform: translateY(0px); }
   50%       { transform: translateY(-3px); }

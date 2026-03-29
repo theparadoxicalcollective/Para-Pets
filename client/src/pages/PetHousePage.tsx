@@ -58,7 +58,7 @@ const GROUND_CONFIGS = [
 ];
 
 function WalkingPetView({ pet, index }: { pet: HousePet; index: number }) {
-  const { data: templateData } = useQuery<{ parts: Array<{ partType: string }>; canFly: boolean }>({
+  const { data: templateData } = useQuery<{ parts: Array<{ partType: string }>; canFly: boolean; facing: string }>({
     queryKey: ["/api/pet-template-parts", pet.petTemplateId],
     queryFn: async () => {
       const res = await fetch(`/api/pet-template-parts/${pet.petTemplateId}`, { credentials: "include" });
@@ -69,7 +69,8 @@ function WalkingPetView({ pet, index }: { pet: HousePet; index: number }) {
     staleTime: 300000,
   });
 
-  const hasWings = !!(templateData?.canFly);
+  const hasWings    = !!(templateData?.canFly);
+  const isSideFacing = templateData?.facing === "back";
   const cfg = hasWings
     ? FLY_CONFIGS[index % FLY_CONFIGS.length]
     : GROUND_CONFIGS[index % GROUND_CONFIGS.length];
@@ -79,8 +80,13 @@ function WalkingPetView({ pet, index }: { pet: HousePet; index: number }) {
 
   const floatAnim    = hasWings ? "petFloatSmall" : "petGroundFloat";
   const wanderPrefix = hasWings ? "petWander" : "petGroundWander";
+  const wanderAnim   = `${wanderPrefix}${cfg.wanderIdx} ${cfg.duration} ${cfg.delay} ease-in-out infinite`;
 
-  const wanderAnim = `${wanderPrefix}${cfg.wanderIdx} ${cfg.duration} ${cfg.delay} ease-in-out infinite`;
+  // Side-facing ground pets walk; front-facing ground pets idle + gentle bounce
+  const animatorMode: "idle" | "walk" = (!hasWings && isSideFacing) ? "walk" : "idle";
+  const bounceAnim = (!hasWings && !isSideFacing)
+    ? "petHouseBounce 0.5s ease-in-out infinite"
+    : undefined;
 
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
   const sz = cfg.size;
@@ -111,12 +117,12 @@ function WalkingPetView({ pet, index }: { pet: HousePet; index: number }) {
       }}
     >
       <div style={{ animation: wanderAnim, transformOrigin: "bottom center" }}>
-        <div style={hasWings ? { animation: `${floatAnim} 3.2s ease-in-out infinite` } : undefined}>
+        <div style={{ animation: hasWings ? `${floatAnim} 3.2s ease-in-out infinite` : bounceAnim }}>
           {pet.petTemplateId ? (
             <>
               <PetAnimator
                 petTemplateId={pet.petTemplateId}
-                mode={hasWings ? "idle" : "walk"}
+                mode={animatorMode}
                 size={sz}
                 style={{
                   filter: `drop-shadow(0 ${Math.round(sz * 0.12)}px ${Math.round(sz * 0.15)}px rgba(0,0,0,0.5))`,
