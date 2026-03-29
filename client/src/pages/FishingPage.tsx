@@ -875,7 +875,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
 
       <div className="absolute top-0 left-0 right-0 flex items-start justify-between px-4 pb-3" style={{ zIndex: 60, paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
         {/* Left column — Fish Book */}
-        <div className="flex flex-col items-center">
+        <div className="flex flex-col items-center" style={{ marginTop: 28 }}>
           {/* Fish Book button */}
           <button
             data-testid="button-fish-book-top"
