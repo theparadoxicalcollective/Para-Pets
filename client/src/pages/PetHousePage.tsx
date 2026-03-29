@@ -60,11 +60,11 @@ const GROUND_CONFIGS = [
 const NUM_WANDER_ANIMS = 6;
 
 function randomGroundConfig() {
-  const left   = Math.round(4 + Math.random() * 62);   // 4–66%
-  const top    = Math.round(79 + Math.random() * 13);  // 79–92%
-  const size   = Math.round(165 + Math.random() * 50); // 165–215px
-  const dur    = (24 + Math.random() * 16).toFixed(1); // 24–40s
-  const delay  = (Math.random() * 22).toFixed(1);      // 0–22s
+  const left   = Math.round(2 + Math.random() * 88);   // 2–90% of full image width
+  const top    = Math.round(52 + Math.random() * 40);  // 52–92% — spread across scene
+  const size   = Math.round(150 + Math.random() * 60); // 150–210px
+  const dur    = (26 + Math.random() * 18).toFixed(1); // 26–44s
+  const delay  = (Math.random() * 28).toFixed(1);      // 0–28s spread
   const bDelay = (Math.random() * 1.1).toFixed(2);     // 0–1.1s bounce offset
   const wIdx   = Math.floor(Math.random() * NUM_WANDER_ANIMS);
   return { left: `${left}%`, top: `${top}%`, size, duration: `${dur}s`, delay: `${delay}s`, bounceDelay: `${bDelay}s`, wanderIdx: wIdx };
@@ -106,20 +106,6 @@ function WalkingPetView({ pet, index }: { pet: HousePet; index: number }) {
 
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
   const sz = cfg.size;
-  const shadowW = Math.round(sz * 0.52);
-
-  const shadow = (
-    <div
-      style={{
-        width: shadowW,
-        height: Math.max(3, Math.round(sz * 0.06)),
-        background: "rgba(0,0,0,0.25)",
-        borderRadius: "50%",
-        margin: "0 auto",
-        filter: `blur(${Math.max(2, Math.round(sz * 0.05))}px)`,
-      }}
-    />
-  );
 
   return (
     <div
@@ -135,45 +121,30 @@ function WalkingPetView({ pet, index }: { pet: HousePet; index: number }) {
       <div style={{ animation: wanderAnim, transformOrigin: "bottom center" }}>
         <div style={{ animation: hasWings ? `${floatAnim} 3.2s ease-in-out infinite` : bounceAnim }}>
           {pet.petTemplateId ? (
-            <>
-              <PetAnimator
-                petTemplateId={pet.petTemplateId}
-                mode={animatorMode}
-                size={sz}
-                style={{
-                  filter: `drop-shadow(0 ${Math.round(sz * 0.12)}px ${Math.round(sz * 0.15)}px rgba(0,0,0,0.5))`,
-                }}
-              />
-              {shadow}
-            </>
+            <PetAnimator
+              petTemplateId={pet.petTemplateId}
+              mode={animatorMode}
+              size={sz}
+            />
           ) : petImg ? (
-            <>
-              <img
-                src={petImg}
-                alt=""
-                className="pointer-events-none"
-                style={{
-                  width: sz,
-                  height: sz,
-                  objectFit: "contain",
-                  filter: [
-                    `drop-shadow(0 ${Math.round(sz * 0.12)}px ${Math.round(sz * 0.15)}px rgba(0,0,0,0.6))`,
-                    "brightness(1.06) saturate(1.1)",
-                  ].join(" "),
-                }}
-              />
-              {shadow}
-            </>
+            <img
+              src={petImg}
+              alt=""
+              className="pointer-events-none"
+              style={{
+                width: sz,
+                height: sz,
+                objectFit: "contain",
+                filter: "brightness(1.06) saturate(1.1)",
+              }}
+            />
           ) : (
-            <>
-              <span
-                className="pointer-events-none flex items-center justify-center"
-                style={{ width: sz, height: sz, fontSize: sz * 0.65 }}
-              >
-                🐾
-              </span>
-              {shadow}
-            </>
+            <span
+              className="pointer-events-none flex items-center justify-center"
+              style={{ width: sz, height: sz, fontSize: sz * 0.65 }}
+            >
+              🐾
+            </span>
           )}
         </div>
       </div>
