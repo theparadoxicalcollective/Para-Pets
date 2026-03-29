@@ -784,8 +784,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     const dx = e.clientX - doorDragRef.current.startX;
     const dy = e.clientY - doorDragRef.current.startY;
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) doorDidDrag.current = true;
-    const newX = Math.max(5, Math.min(92, doorDragRef.current.origPosX + dx / (rect.width / 100)));
-    const newY = Math.max(38, Math.min(90, doorDragRef.current.origPosY + dy / (rect.height / 100)));
+    const newX = Math.max(2, Math.min(98, doorDragRef.current.origPosX + dx / (rect.width / 100)));
+    const newY = Math.max(2, Math.min(98, doorDragRef.current.origPosY + dy / (rect.height / 100)));
     setDoorDragPos({ id: doorDragRef.current.doorId, x: newX, y: newY });
   }, []);
 
@@ -1098,7 +1098,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                   height: rPx * 2,
                   transform: "translate(-50%, -50%)",
                   cursor: "grab",
-                  zIndex: isSelected ? 200 : 15,
+                  zIndex: isSelected ? 300 : 100,
                   touchAction: "none",
                   userSelect: "none",
                 }}
