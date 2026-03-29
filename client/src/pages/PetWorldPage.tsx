@@ -835,9 +835,14 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const handleDoorDecorPointerMove = useCallback((e: React.PointerEvent) => {
     // Background pan (anyone)
     if (bgPanDragRef.current && bgImgRef.current && interiorRef.current) {
-      const imgW = bgImgRef.current.getBoundingClientRect().width;
-      const containerW = interiorRef.current.getBoundingClientRect().width;
-      const maxPan = Math.max(0, imgW - containerW);
+      const img = bgImgRef.current;
+      const containerRect = interiorRef.current.getBoundingClientRect();
+      // Use natural dimensions to compute true rendered width at height=100%
+      // (avoids reading a CSS-squished getBoundingClientRect value)
+      const renderedW = img.naturalWidth > 0 && img.naturalHeight > 0
+        ? (img.naturalWidth / img.naturalHeight) * containerRect.height
+        : img.getBoundingClientRect().width;
+      const maxPan = Math.max(0, renderedW - containerRect.width);
       const dx = bgPanDragRef.current.startX - e.clientX;
       const newPan = Math.max(0, Math.min(maxPan, bgPanDragRef.current.startPan + dx));
       bgPanXRef.current = newPan;
@@ -2122,6 +2127,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                   style={{
                     position: "absolute", top: 0, left: 0,
                     height: "100%", width: "auto",
+                    maxWidth: "none",      // override Tailwind preflight img { max-width: 100% }
+                    display: "block",
                     transform: `translateX(-${bgPanX}px)`,
                     pointerEvents: "none", userSelect: "none",
                   }}
