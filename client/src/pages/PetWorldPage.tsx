@@ -1113,34 +1113,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
             );
           })}
 
-          {/* ── Door indicators (visible to all users) ──────────────────────── */}
-          {!user.isAdmin && kcDoors.map(door => {
-            const rPx = door.triggerRadius * (MAP_W / 100);
-            return (
-              <div
-                key={door.id}
-                style={{
-                  position: "absolute",
-                  left: `${door.posX}%`,
-                  top: `${door.posY}%`,
-                  width: rPx * 2,
-                  height: rPx * 2,
-                  transform: "translate(-50%, -50%)",
-                  zIndex: 72,
-                  pointerEvents: "none",
-                }}
-              >
-                <div style={{
-                  width: "100%", height: "100%", borderRadius: "50%",
-                  background: "radial-gradient(circle, rgba(127,255,212,0.10) 0%, rgba(127,255,212,0.04) 60%, transparent 100%)",
-                  boxShadow: "0 0 18px 6px rgba(127,255,212,0.08)",
-                  animation: "doorPulse 2.4s ease-in-out infinite",
-                }} />
-              </div>
-            );
-          })}
-
-          {/* ── Admin door zones ──────────────────────────────────────────────── */}
+          {/* ── Door trigger zones (admin-visible only) ─────────────────── */}
           {user.isAdmin && kcDoors.map(door => {
             const pos = doorDragPos?.id === door.id ? { x: doorDragPos.x, y: doorDragPos.y } : { x: door.posX, y: door.posY };
             const rPx = door.triggerRadius * (MAP_W / 100);
@@ -1157,7 +1130,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                   height: rPx * 2,
                   transform: "translate(-50%, -50%)",
                   cursor: "grab",
-                  zIndex: isSelected ? 100 : 72,
+                  zIndex: isSelected ? 300 : 100,
                   touchAction: "none",
                   userSelect: "none",
                 }}
@@ -2118,7 +2091,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
         return (
           <div
             className="fixed inset-0 z-50 overflow-hidden"
-            style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, animation: "doorFadeIn 0.35s ease-out" }}
+            style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
           >
             {/* Background */}
             <div
@@ -2283,10 +2256,10 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                       setShowDoorAddDecorForm(false);
                       setSelectedDoorDecorId(null);
                     }}
-                    className="font-fantasy text-[11px] px-4 h-8 rounded-full flex items-center justify-center transition-transform active:scale-90"
-                    style={{ background: "rgba(40,10,10,0.9)", border: "1.5px solid rgba(200,80,80,0.5)", color: "#f87171", cursor: "pointer", letterSpacing: "0.08em" }}
+                    className="w-8 h-8 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                    style={{ background: "rgba(40,10,10,0.9)", border: "1.5px solid rgba(200,80,80,0.5)", cursor: "pointer" }}
                   >
-                    Exit
+                    <X style={{ width: 14, height: 14, color: "#f87171" }} />
                   </button>
                 </div>
               </div>
@@ -2688,7 +2661,7 @@ function WorldRoamingPet({
         left: `${posX}%`,
         top:  `${posY}%`,
         transform: "translate(-50%, -100%)",
-        zIndex: 74 + Math.round((posY / 100) * 60),
+        zIndex: 11 + Math.round((posY / 100) * 60),
         pointerEvents: "none",
         userSelect: "none",
         // Smooth glide between SSE position updates for other players' pets;
