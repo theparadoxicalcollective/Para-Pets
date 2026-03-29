@@ -158,6 +158,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const [doorEditName,        setDoorEditName]        = useState("");
   const [doorEditBgUrl,       setDoorEditBgUrl]       = useState("");
   const [doorEditRadius,      setDoorEditRadius]      = useState(6);
+  const [nearbyDoorId,      setNearbyDoorId]      = useState<string | null>(null);
+  const nearbyDoorIdRef = useRef<string | null>(null);
   const [bgPanX,            setBgPanX]            = useState(0);
   const bgPanXRef       = useRef(0);
   const bgPanDragRef    = useRef<{ startX: number; startPan: number } | null>(null);
@@ -430,7 +432,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   useEffect(() => {
     if (ownPet && localPetPosRef.current === null) {
       const stored = petDefaultPositions.get(ownPet.userId) ?? { x: 50, y: 70 };
-      const init = { x: Math.max(5, Math.min(92, stored.x)), y: Math.max(38, Math.min(90, stored.y)) };
+      const init = { x: Math.max(5, Math.min(92, stored.x)), y: Math.max(12, Math.min(92, stored.y)) };
       localPetPosRef.current = init;
       setLocalPetPos(init);
       // Pan the camera so the pet is horizontally centered in the frame on entry
@@ -453,22 +455,23 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
       lastRafTimeRef.current = now;
       if (localPetPosRef.current && (dx !== 0 || dy !== 0)) {
         const nx = Math.max(5,  Math.min(92, localPetPosRef.current.x + dx * 6 * dt));
-        const ny = Math.max(38, Math.min(90, localPetPosRef.current.y + dy * 4 * dt));
+        const ny = Math.max(12, Math.min(92, localPetPosRef.current.y + dy * 4 * dt));
         localPetPosRef.current = { x: nx, y: ny };
         setLocalPetPos({ x: nx, y: ny });
 
-        // ── Door trigger detection ──────────────────────────────────────────
+        // ── Door proximity detection (shows Enter prompt) ───────────────────
         if (!activeDoorIdRef.current) {
+          let found: string | null = null;
           for (const door of kcDoorsRef.current) {
             if (doorCooldownRef.current === door.id) continue;
             const ddx = nx - door.posX;
             const ddy = ny - door.posY;
             const dist = Math.sqrt(ddx * ddx + ddy * ddy);
-            if (dist < door.triggerRadius) {
-              activeDoorIdRef.current = door.id;
-              setActiveDoorId(door.id);
-              break;
-            }
+            if (dist < door.triggerRadius) { found = door.id; break; }
+          }
+          if (found !== nearbyDoorIdRef.current) {
+            nearbyDoorIdRef.current = found;
+            setNearbyDoorId(found);
           }
         }
 
@@ -927,7 +930,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
               ? localPetPos
               : (petDefaultPositions.get(pet.userId) ?? { x: 50, y: 70 });
             const resolvedX = Math.max(5,  Math.min(92, rawPos.x));
-            const resolvedY = Math.max(38, Math.min(90, rawPos.y));
+            const resolvedY = Math.max(12, Math.min(92, rawPos.y));
             return (
               <WorldRoamingPet
                 key={pet.userId}
@@ -2084,6 +2087,41 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
         </div>
       )}
 
+      {/* ── Door "Enter" proximity prompt ────────────────────────────────── */}
+      {nearbyDoorId && !activeDoorId && (() => {
+        const door = kcDoors.find(d => d.id === nearbyDoorId);
+        if (!door) return null;
+        return (
+          <div className="absolute bottom-36 left-0 right-0 flex justify-center pointer-events-none" style={{ zIndex: 45 }}>
+            <div
+              className="pointer-events-auto flex flex-col items-center gap-2 px-6 py-3 rounded-2xl"
+              style={{
+                background: "rgba(4,10,6,0.93)",
+                border: `1.5px solid ${ACCENT}60`,
+                backdropFilter: "blur(10px)",
+                boxShadow: `0 4px 24px rgba(0,0,0,0.6), 0 0 18px ${ACCENT}18`,
+                animation: "doorFadeIn 0.25s ease-out",
+              }}
+            >
+              <span className="font-fantasy text-[11px] tracking-widest" style={{ color: `${ACCENT}99` }}>{door.name}</span>
+              <button
+                data-testid="button-enter-door"
+                onClick={() => {
+                  activeDoorIdRef.current = nearbyDoorId;
+                  setActiveDoorId(nearbyDoorId);
+                  nearbyDoorIdRef.current = null;
+                  setNearbyDoorId(null);
+                }}
+                className="font-fantasy text-xs px-8 py-1.5 rounded-xl transition-transform active:scale-95"
+                style={{ background: `${ACCENT}28`, border: `1.5px solid ${ACCENT}80`, color: ACCENT, cursor: "pointer", letterSpacing: "0.1em" }}
+              >
+                Enter
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ── Door Interior Overlay ─────────────────────────────────────────── */}
       {activeDoorId && (() => {
         const door = kcDoors.find(d => d.id === activeDoorId);
@@ -2091,7 +2129,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
         return (
           <div
             className="fixed inset-0 z-50 overflow-hidden"
-            style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
+            style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, animation: "doorFadeIn 0.35s ease-out" }}
           >
             {/* Background */}
             <div
@@ -2252,14 +2290,16 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                       doorCooldownRef.current = activeDoorId;
                       setTimeout(() => { doorCooldownRef.current = null; }, 3000);
                       activeDoorIdRef.current = null;
+                      nearbyDoorIdRef.current = null;
                       setActiveDoorId(null);
+                      setNearbyDoorId(null);
                       setShowDoorAddDecorForm(false);
                       setSelectedDoorDecorId(null);
                     }}
-                    className="w-8 h-8 rounded-full flex items-center justify-center transition-transform active:scale-90"
-                    style={{ background: "rgba(40,10,10,0.9)", border: "1.5px solid rgba(200,80,80,0.5)", cursor: "pointer" }}
+                    className="font-fantasy text-[11px] px-4 h-8 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                    style={{ background: "rgba(40,10,10,0.9)", border: "1.5px solid rgba(200,80,80,0.5)", color: "#f87171", cursor: "pointer", letterSpacing: "0.08em" }}
                   >
-                    <X style={{ width: 14, height: 14, color: "#f87171" }} />
+                    Exit
                   </button>
                 </div>
               </div>
