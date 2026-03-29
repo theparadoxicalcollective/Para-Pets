@@ -160,6 +160,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const [doorEditRadius,      setDoorEditRadius]      = useState(6);
   const [bgPanX,            setBgPanX]            = useState(0);
   const bgPanXRef       = useRef(0);
+  const [bgRenderedW,       setBgRenderedW]        = useState(0);
   const bgPanDragRef    = useRef<{ startX: number; startPan: number } | null>(null);
   const bgNaturalSizeRef= useRef<{ w: number; h: number } | null>(null);
   const doorDragRef     = useRef<{ doorId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
@@ -522,6 +523,22 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
       if (pos && ownPet) {
         apiRequest("PATCH", "/api/world/pet_world/pet-position", { ownerUserId: ownPet.userId, posX: pos.x, posY: pos.y });
       }
+      // Also check door triggers at the resting position — catches cases where the player
+      // releases the joystick while standing inside a trigger zone
+      if (!activeDoorIdRef.current && pos) {
+        for (const door of kcDoorsRef.current) {
+          if (doorCooldownRef.current === door.id) continue;
+          const ddxPx = (pos.x - door.posX) / 100 * MAP_W;
+          const ddyPx = (pos.y - door.posY) / 100 * mapHRef.current;
+          const distPx = Math.sqrt(ddxPx * ddxPx + ddyPx * ddyPx);
+          const rPx    = door.triggerRadius / 100 * MAP_W;
+          if (distPx < rPx) {
+            activeDoorIdRef.current = door.id;
+            setActiveDoorId(door.id);
+            break;
+          }
+        }
+      }
     }
   }, [ownPet, startRaf]);
 
@@ -816,12 +833,20 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   useEffect(() => {
     bgPanXRef.current = 0;
     setBgPanX(0);
+    setBgRenderedW(0);
     bgNaturalSizeRef.current = null;
     if (!activeDoorId) return;
     const door = kcDoors.find(d => d.id === activeDoorId);
     if (!door?.bgUrl) return;
     const img = new Image();
-    img.onload = () => { bgNaturalSizeRef.current = { w: img.naturalWidth, h: img.naturalHeight }; };
+    img.onload = () => {
+      bgNaturalSizeRef.current = { w: img.naturalWidth, h: img.naturalHeight };
+      // bgRenderedH = window.innerHeight (container fills full viewport height)
+      // bgRenderedW = natural aspect ratio × rendered height
+      if (img.naturalHeight > 0) {
+        setBgRenderedW((img.naturalWidth / img.naturalHeight) * window.innerHeight);
+      }
+    };
     img.src = door.bgUrl;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeDoorId]);
@@ -861,10 +886,14 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     if (!doorDecorDragRef.current || !interiorRef.current) return;
     e.preventDefault();
     const rect = interiorRef.current.getBoundingClientRect();
+    // X drag is relative to the background image width so items stay pinned to the background
+    const bgW = bgNaturalSizeRef.current && bgNaturalSizeRef.current.h > 0
+      ? (bgNaturalSizeRef.current.w / bgNaturalSizeRef.current.h) * rect.height
+      : rect.width;
     const dx = e.clientX - doorDecorDragRef.current.startX;
     const dy = e.clientY - doorDecorDragRef.current.startY;
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) doorDecorDidDrag.current = true;
-    const newX = Math.max(0, Math.min(100, doorDecorDragRef.current.origPosX + dx / (rect.width / 100)));
+    const newX = Math.max(0, Math.min(100, doorDecorDragRef.current.origPosX + dx / (bgW / 100)));
     const newY = Math.max(0, Math.min(100, doorDecorDragRef.current.origPosY + dy / (rect.height / 100)));
     setDoorDecorDragPos({ id: doorDecorDragRef.current.placementId, x: newX, y: newY });
   }, []);
@@ -2088,7 +2117,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
         return (
           <div
             className="fixed inset-0 z-50 overflow-hidden"
-            style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
+            style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, animation: "doorFadeIn 0.35s ease-out both" }}
           >
             {/* Background */}
             <div
@@ -2115,7 +2144,18 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
               {/* Dark overlay tint */}
               <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.25)", pointerEvents: "none" }} />
 
-              {/* Decor placements */}
+              {/* Decor placements — layer is sized to background image and scrolls with bg pan */}
+              <div style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                // Width = rendered width of the background image; falls back to full container if not loaded yet
+                width: bgRenderedW > 0 ? bgRenderedW : "100%",
+                height: "100%",
+                // Translate left by the same amount as the background pans
+                transform: `translateX(-${bgPanX}px)`,
+                pointerEvents: "none",
+              }}>
               {doorDecorPlacements.map(p => {
                 const livePos = doorDecorDragPos?.id === p.id ? { x: doorDecorDragPos.x, y: doorDecorDragPos.y } : { x: p.posX, y: p.posY };
                 const isSelected = user.isAdmin && selectedDoorDecorId === p.id;
@@ -2132,6 +2172,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                       cursor: user.isAdmin ? "grab" : "default",
                       zIndex: isSelected ? 20 : 10,
                       touchAction: "none",
+                      pointerEvents: "auto",
                     }}
                     onPointerDown={e => handleDoorDecorPointerDown(e, p)}
                     onClick={e => { if (user.isAdmin) { e.stopPropagation(); setSelectedDoorDecorId(prev => prev === p.id ? null : p.id); } }}
@@ -2166,6 +2207,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                   </div>
                 );
               })}
+              </div>{/* end decor scrolling layer */}
 
               {/* Shop items shelf (if any) */}
               {doorShopItems.length > 0 && (

@@ -1170,3 +1170,8 @@ img[data-interactive], button img, a img {
   overflow: hidden;
   touch-action: pan-y;
 }
+
+@keyframes doorFadeIn {
+  from { opacity: 0; transform: scale(1.015); }
+  to   { opacity: 1; transform: scale(1); }
+}
