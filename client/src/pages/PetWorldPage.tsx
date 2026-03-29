@@ -7,6 +7,7 @@ import { Plus, X, Trash2, FlipHorizontal, Palette, MapPin, Minus, Store, DoorOpe
 import { readFileAsDataUrl } from "@/lib/utils";
 import { playShopBell } from "@/lib/sounds";
 import PetAnimator from "@/components/PetAnimator";
+import UserProfilePanel from "@/components/UserProfilePanel";
 import bgGround from "@assets/IMG_6459_1774675340089.jpeg";
 import coinIconImg from "@assets/icon_coin.png";
 import petHouseIconImg from "@assets/icon_pet_house.png";
@@ -194,7 +195,13 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const onlinePetsRef = useRef<WorldActivePet[]>([]);
   onlinePetsRef.current = onlinePets;
 
-  const { data: me } = useQuery<{ profileImage: string | null; username: string; coins: number }>({
+  const [showProfile, setShowProfile] = useState(false);
+
+  const { data: me } = useQuery<{
+    id: string; username: string; email: string; profileImage: string | null;
+    coins: number; isAdmin: boolean; activePetId: string | null;
+    lastUsernameChange: string | null; lastProfilePicChange: string | null;
+  }>({
     queryKey: ["/api/auth/me"],
   });
 
@@ -1240,9 +1247,11 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           <div className="flex items-start gap-2 min-w-0">
             {/* Profile photo column */}
             <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
-              {/* Profile photo */}
+              {/* Profile photo — tap to open settings */}
               <div
                 className="relative"
+                data-testid="button-open-profile"
+                onClick={() => setShowProfile(true)}
                 style={{
                   width: 44, height: 44, borderRadius: 10,
                   border: "2.5px solid #c9a030",
@@ -1250,6 +1259,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                   overflow: "hidden",
                   background: "linear-gradient(135deg, #2a1a0a 0%, #4a2e18 100%)",
                   flexShrink: 0,
+                  cursor: "pointer",
                 }}
               >
                 {me?.profileImage ? (
@@ -2351,6 +2361,18 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           pet={selectedPet}
           currentUserId={user.id}
           onClose={() => setSelectedPet(null)}
+        />
+      )}
+
+      {/* User profile / settings panel */}
+      {showProfile && me && (
+        <UserProfilePanel
+          user={me}
+          onClose={() => setShowProfile(false)}
+          onUserUpdate={() => {
+            queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+            setShowProfile(false);
+          }}
         />
       )}
     </div>
