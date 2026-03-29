@@ -23,6 +23,7 @@ interface FishingPageProps {
     username: string;
     coins: number;
     isAdmin: boolean;
+    profileImage?: string | null;
   };
   onClose: () => void;
 }
@@ -872,47 +873,82 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
 
       <style>{FISHING_ANIMATIONS}</style>
 
-      <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 pb-3" style={{ zIndex: 60, paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
-        <div>
-          <h3 className="font-fantasy text-base tracking-widest font-semibold" style={{ color: ACCENT, textShadow: `0 0 10px ${ACCENT}40` }} data-testid="text-fishing-location-name">
-            {locationName}
-          </h3>
-        </div>
-        <div className="flex items-center gap-2">
+      <div className="absolute top-0 left-0 right-0 flex items-start justify-between px-4 pb-3" style={{ zIndex: 60, paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
+        {/* Left column — profile picture then Fish Book below */}
+        <div className="flex flex-col items-center gap-2">
+          {/* Profile picture circle */}
+          <div
+            className="rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
+            style={{
+              width: 52, height: 52,
+              background: `linear-gradient(135deg, ${ACCENT}20, rgba(0,0,0,0.6))`,
+              border: `2px solid ${ACCENT}60`,
+              boxShadow: `0 0 12px ${ACCENT}30`,
+            }}
+          >
+            {user.profileImage ? (
+              <img
+                src={user.profileImage}
+                alt={user.username}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                data-testid="img-fishing-profile"
+              />
+            ) : (
+              <span className="font-fantasy text-lg font-bold" style={{ color: ACCENT }}>
+                {user.username.charAt(0).toUpperCase()}
+              </span>
+            )}
+          </div>
+          {/* Fish Book button — bigger, directly under profile pic */}
           <button
             data-testid="button-fish-book-top"
             onClick={() => { setShowFishBook(p => !p); setShowPolePanel(false); setShowBaitPanel(false); setShowFishInv(false); }}
-            className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
-            style={{ background: showFishBook ? `${ACCENT}30` : "rgba(0,0,0,0.45)", border: `1px solid ${showFishBook ? ACCENT : `${ACCENT}40`}`, cursor: "pointer", boxShadow: showFishBook ? `0 0 10px ${ACCENT}40` : undefined }}
+            className="rounded-full flex items-center justify-center transition-transform active:scale-90"
+            style={{
+              width: 52, height: 52,
+              background: showFishBook ? `${ACCENT}30` : "rgba(0,0,0,0.55)",
+              border: `2px solid ${showFishBook ? ACCENT : `${ACCENT}50`}`,
+              cursor: "pointer",
+              boxShadow: showFishBook ? `0 0 14px ${ACCENT}50` : `0 2px 8px rgba(0,0,0,0.4)`,
+            }}
           >
-            <img src={fishBookIcon} alt="Fish Book" style={{ width: 22, height: 22, objectFit: "contain" }} />
+            <img src={fishBookIcon} alt="Fish Book" style={{ width: 32, height: 32, objectFit: "contain" }} />
           </button>
-          <button
-            data-testid="button-fishing-help"
-            onClick={() => setShowTutorial(true)}
-            className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
-            style={{ background: "rgba(0,0,0,0.45)", border: `1px solid ${ACCENT}40`, color: `${ACCENT}cc`, cursor: "pointer" }}
-          >
-            <HelpCircle className="w-5 h-5" />
-          </button>
-          {user.isAdmin && (
+        </div>
+
+        {/* Right column — location name + action buttons */}
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex items-center gap-2">
             <button
-              data-testid="button-pond-admin"
-              onClick={() => setShowPondAdmin(true)}
+              data-testid="button-fishing-help"
+              onClick={() => setShowTutorial(true)}
               className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
-              style={{ background: `${ACCENT}30`, border: `2px solid ${ACCENT}60`, color: ACCENT, cursor: "pointer" }}
+              style={{ background: "rgba(0,0,0,0.45)", border: `1px solid ${ACCENT}40`, color: `${ACCENT}cc`, cursor: "pointer" }}
             >
-              <Plus className="w-5 h-5" />
+              <HelpCircle className="w-5 h-5" />
             </button>
-          )}
-          <button
-            data-testid="button-close-fishing"
-            onClick={onClose}
-            className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
-            style={{ background: "rgba(0,0,0,0.55)", border: `1px solid ${ACCENT}40`, color: ACCENT, cursor: "pointer" }}
-          >
-            <X className="w-5 h-5" />
-          </button>
+            {user.isAdmin && (
+              <button
+                data-testid="button-pond-admin"
+                onClick={() => setShowPondAdmin(true)}
+                className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                style={{ background: `${ACCENT}30`, border: `2px solid ${ACCENT}60`, color: ACCENT, cursor: "pointer" }}
+              >
+                <Plus className="w-5 h-5" />
+              </button>
+            )}
+            <button
+              data-testid="button-close-fishing"
+              onClick={onClose}
+              className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
+              style={{ background: "rgba(0,0,0,0.55)", border: `1px solid ${ACCENT}40`, color: ACCENT, cursor: "pointer" }}
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <h3 className="font-fantasy text-sm tracking-widest font-semibold" style={{ color: ACCENT, textShadow: `0 0 10px ${ACCENT}40` }} data-testid="text-fishing-location-name">
+            {locationName}
+          </h3>
         </div>
       </div>
 
