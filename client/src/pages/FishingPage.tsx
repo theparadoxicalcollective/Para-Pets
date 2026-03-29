@@ -903,16 +903,21 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           <button
             data-testid="button-fish-book-top"
             onClick={() => { setShowFishBook(p => !p); setShowPolePanel(false); setShowBaitPanel(false); setShowFishInv(false); }}
-            className="rounded-full flex items-center justify-center transition-transform active:scale-90"
-            style={{
-              width: 52, height: 52,
-              background: showFishBook ? `${ACCENT}30` : "rgba(0,0,0,0.55)",
-              border: `2px solid ${showFishBook ? ACCENT : `${ACCENT}50`}`,
-              cursor: "pointer",
-              boxShadow: showFishBook ? `0 0 14px ${ACCENT}50` : `0 2px 8px rgba(0,0,0,0.4)`,
-            }}
+            className="flex items-center justify-center transition-transform active:scale-90"
+            style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
           >
-            <img src={fishBookIcon} alt="Fish Book" style={{ width: 32, height: 32, objectFit: "contain" }} />
+            <img
+              src={fishBookIcon}
+              alt="Fish Book"
+              style={{
+                width: 40, height: 40,
+                objectFit: "contain",
+                filter: showFishBook
+                  ? `drop-shadow(0 0 6px ${ACCENT}) drop-shadow(0 2px 6px rgba(0,0,0,0.7))`
+                  : "drop-shadow(0 2px 6px rgba(0,0,0,0.7))",
+                opacity: showFishBook ? 1 : 0.85,
+              }}
+            />
           </button>
         </div>
 
