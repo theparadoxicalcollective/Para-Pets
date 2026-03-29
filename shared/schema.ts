@@ -536,3 +536,30 @@ export const keepersCentralEnemies = pgTable("keepers_central_enemies", {
 });
 
 export type KeepersCentralEnemy = typeof keepersCentralEnemies.$inferSelect;
+
+// ── Keeper's Central Doors ────────────────────────────────────────────────────
+export const kcDoors = pgTable("kc_doors", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  worldId: text("world_id").notNull().default("pet_world"),
+  name: text("name").notNull().default("Door"),
+  posX: real("pos_x").notNull().default(50),
+  posY: real("pos_y").notNull().default(60),
+  triggerRadius: integer("trigger_radius").notNull().default(6),
+  bgUrl: text("bg_url"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const kcDoorDecorPlacements = pgTable("kc_door_decor_placements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  doorId: varchar("door_id").notNull(),
+  name: text("name").notNull(),
+  imageUrl: text("image_url").notNull(),
+  posX: real("pos_x").notNull().default(45),
+  posY: real("pos_y").notNull().default(45),
+  size: integer("size").notNull().default(100),
+  flipped: boolean("flipped").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export type KcDoor = typeof kcDoors.$inferSelect;
+export type KcDoorDecorPlacement = typeof kcDoorDecorPlacements.$inferSelect;

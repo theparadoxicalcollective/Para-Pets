@@ -17,6 +17,8 @@ import {
   type EnemyDrop, enemyDrops,
   type Badge, type UserBadge, badges, userBadges, badgeRewardClaims,
   type KeepersCentralEnemy, keepersCentralEnemies,
+  type KcDoor, kcDoors,
+  type KcDoorDecorPlacement, kcDoorDecorPlacements,
   type PlayerMarketListing, playerMarketListings,
   petEquippedAccessories,
   type FishTemplatePart, fishTemplateParts,
@@ -158,6 +160,14 @@ export interface IStorage {
   getKeepersCentralEnemies(): Promise<(KeepersCentralEnemy & { enemyName: string; enemyImageUrl: string | null })[]>;
   addKeepersCentralEnemy(enemyId: string, spawnX: number, spawnY: number): Promise<KeepersCentralEnemy>;
   removeKeepersCentralEnemy(id: string): Promise<void>;
+  getKcDoors(worldId: string): Promise<KcDoor[]>;
+  createKcDoor(data: { worldId: string; name: string; posX: number; posY: number; triggerRadius: number; bgUrl?: string | null }): Promise<KcDoor>;
+  updateKcDoor(id: string, data: { name?: string; posX?: number; posY?: number; triggerRadius?: number; bgUrl?: string | null }): Promise<KcDoor>;
+  deleteKcDoor(id: string): Promise<void>;
+  getKcDoorDecorPlacements(doorId: string): Promise<KcDoorDecorPlacement[]>;
+  createKcDoorDecorPlacement(data: { doorId: string; name: string; imageUrl: string; posX: number; posY: number; size?: number }): Promise<KcDoorDecorPlacement>;
+  updateKcDoorDecorPlacement(id: string, data: { posX?: number; posY?: number; size?: number; flipped?: boolean }): Promise<KcDoorDecorPlacement>;
+  deleteKcDoorDecorPlacement(id: string): Promise<void>;
   getMarketListings(filters?: { search?: string; itemType?: string; orderAsc?: boolean }): Promise<PlayerMarketListing[]>;
   getMyMarketListings(sellerId: string): Promise<PlayerMarketListing[]>;
   getMarketListing(id: string): Promise<PlayerMarketListing | undefined>;
@@ -907,6 +917,43 @@ export class DatabaseStorage implements IStorage {
 
   async removeKeepersCentralEnemy(id: string): Promise<void> {
     await db.delete(keepersCentralEnemies).where(eq(keepersCentralEnemies.id, id));
+  }
+
+  async getKcDoors(worldId: string): Promise<KcDoor[]> {
+    return db.select().from(kcDoors).where(eq(kcDoors.worldId, worldId)).orderBy(kcDoors.createdAt);
+  }
+
+  async createKcDoor(data: { worldId: string; name: string; posX: number; posY: number; triggerRadius: number; bgUrl?: string | null }): Promise<KcDoor> {
+    const [row] = await db.insert(kcDoors).values(data).returning();
+    return row;
+  }
+
+  async updateKcDoor(id: string, data: { name?: string; posX?: number; posY?: number; triggerRadius?: number; bgUrl?: string | null }): Promise<KcDoor> {
+    const [row] = await db.update(kcDoors).set(data).where(eq(kcDoors.id, id)).returning();
+    return row;
+  }
+
+  async deleteKcDoor(id: string): Promise<void> {
+    await db.delete(kcDoorDecorPlacements).where(eq(kcDoorDecorPlacements.doorId, id));
+    await db.delete(kcDoors).where(eq(kcDoors.id, id));
+  }
+
+  async getKcDoorDecorPlacements(doorId: string): Promise<KcDoorDecorPlacement[]> {
+    return db.select().from(kcDoorDecorPlacements).where(eq(kcDoorDecorPlacements.doorId, doorId)).orderBy(kcDoorDecorPlacements.createdAt);
+  }
+
+  async createKcDoorDecorPlacement(data: { doorId: string; name: string; imageUrl: string; posX: number; posY: number; size?: number }): Promise<KcDoorDecorPlacement> {
+    const [row] = await db.insert(kcDoorDecorPlacements).values({ ...data, size: data.size ?? 100 }).returning();
+    return row;
+  }
+
+  async updateKcDoorDecorPlacement(id: string, data: { posX?: number; posY?: number; size?: number; flipped?: boolean }): Promise<KcDoorDecorPlacement> {
+    const [row] = await db.update(kcDoorDecorPlacements).set(data).where(eq(kcDoorDecorPlacements.id, id)).returning();
+    return row;
+  }
+
+  async deleteKcDoorDecorPlacement(id: string): Promise<void> {
+    await db.delete(kcDoorDecorPlacements).where(eq(kcDoorDecorPlacements.id, id));
   }
 
   async getBadgeRewardClaim(userId: string, badgeId: string): Promise<{ lastClaimedAt: Date } | null> {

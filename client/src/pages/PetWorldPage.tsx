@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, X, Trash2, FlipHorizontal, Palette, MapPin, Minus, Store } from "lucide-react";
+import { Plus, X, Trash2, FlipHorizontal, Palette, MapPin, Minus, Store, DoorOpen } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 import { playShopBell } from "@/lib/sounds";
 import PetAnimator from "@/components/PetAnimator";
@@ -49,6 +49,8 @@ function seededRand(seed: string, n: number) {
 }
 
 type DecorItem      = { id: string; worldId: string; name: string; imageUrl: string; createdAt: string };
+type KcDoor         = { id: string; worldId: string; name: string; posX: number; posY: number; triggerRadius: number; bgUrl: string | null; createdAt: string };
+type KcDoorDecorP   = { id: string; doorId: string; name: string; imageUrl: string; posX: number; posY: number; size: number; flipped: boolean; createdAt: string };
 type DecorPlacement = { id: string; worldId: string; decorItemId: string; name: string; imageUrl: string; posX: number; posY: number; size: number; flipped: boolean; message: string | null; createdAt: string };
 type KCLocation     = { id: string; worldId: string; name: string; type: string; iconUrl: string | null; bgUrl: string | null; description: string | null; posX: number; posY: number; isShop: boolean; glowColor: string | null; iconSize: number; flipped: boolean; sortOrder: number; ownerImageUrl: string | null };
 type KCShopItem     = { id: string; name: string; price: number; type: string; imageUrl: string | null; rarity: number | null; hatchTime: number | null; eggImageUrl: string | null; hatchedImageUrl: string | null; worldId: string; description?: string | null };
@@ -142,6 +144,28 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const locDragRef    = useRef<{ locId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const locDidDrag    = useRef(false);
 
+  // ── door state ─────────────────────────────────────────────────────────────
+  const [showDoorsPanel,      setShowDoorsPanel]      = useState(false);
+  const [activeDoorId,        setActiveDoorId]        = useState<string | null>(null);
+  const [selectedDoorId,      setSelectedDoorId]      = useState<string | null>(null);
+  const [doorDragPos,         setDoorDragPos]         = useState<{ id: string; x: number; y: number } | null>(null);
+  const [showDoorAddDecorForm,setShowDoorAddDecorForm]= useState(false);
+  const [newDoorDecorName,    setNewDoorDecorName]    = useState("");
+  const [newDoorDecorImage,   setNewDoorDecorImage]   = useState<string | null>(null);
+  const [selectedDoorDecorId, setSelectedDoorDecorId]= useState<string | null>(null);
+  const [doorDecorDragPos,    setDoorDecorDragPos]    = useState<{ id: string; x: number; y: number } | null>(null);
+  const [editingDoor,         setEditingDoor]         = useState<KcDoor | null>(null);
+  const [doorEditName,        setDoorEditName]        = useState("");
+  const [doorEditBgUrl,       setDoorEditBgUrl]       = useState("");
+  const [doorEditRadius,      setDoorEditRadius]      = useState(6);
+  const doorDragRef     = useRef<{ doorId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
+  const doorDidDrag     = useRef(false);
+  const doorDecorDragRef= useRef<{ placementId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
+  const doorDecorDidDrag= useRef(false);
+  const kcDoorsRef      = useRef<KcDoor[]>([]);
+  const activeDoorIdRef = useRef<string | null>(null);
+  const doorCooldownRef = useRef<string | null>(null);
+
   // ── queries ────────────────────────────────────────────────────────────────
   const { data: decorItems = [] } = useQuery<DecorItem[]>({
     queryKey: ["/api/world", WORLD_ID, "decor", "items"],
@@ -233,6 +257,36 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
       return res.json();
     },
     enabled: showLocShop && !!activeLocId,
+    staleTime: 30_000,
+  });
+
+  const { data: kcDoors = [] } = useQuery<KcDoor[]>({
+    queryKey: ["/api/world", WORLD_ID, "kc-doors"],
+    queryFn: async () => {
+      const res = await fetch(`/api/world/${WORLD_ID}/kc-doors`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+  });
+
+  const { data: doorDecorPlacements = [] } = useQuery<KcDoorDecorP[]>({
+    queryKey: ["/api/kc-doors", activeDoorId, "decor"],
+    queryFn: async () => {
+      const res = await fetch(`/api/kc-doors/${activeDoorId}/decor`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    enabled: !!activeDoorId,
+  });
+
+  const { data: doorShopItems = [] } = useQuery<KCShopItem[]>({
+    queryKey: ["/api/location", activeDoorId, "items"],
+    queryFn: async () => {
+      const res = await fetch(`/api/location/${activeDoorId}/items`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    enabled: !!activeDoorId,
     staleTime: 30_000,
   });
 
@@ -390,6 +444,21 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
         localPetPosRef.current = { x: nx, y: ny };
         setLocalPetPos({ x: nx, y: ny });
 
+        // ── Door trigger detection ──────────────────────────────────────────
+        if (!activeDoorIdRef.current) {
+          for (const door of kcDoorsRef.current) {
+            if (doorCooldownRef.current === door.id) continue;
+            const ddx = nx - door.posX;
+            const ddy = ny - door.posY;
+            const dist = Math.sqrt(ddx * ddx + ddy * ddy);
+            if (dist < door.triggerRadius) {
+              activeDoorIdRef.current = door.id;
+              setActiveDoorId(door.id);
+              break;
+            }
+          }
+        }
+
         // ── Camera follow: pan map so pet stays within horizontal margins ──
         const { x: curMapX, y: curMapY, scale: sc } = mapTransformRef.current;
         const scaledMapW = MAP_W * sc;
@@ -538,6 +607,55 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/world", WORLD_ID, "decor", "placements"] }),
   });
 
+  // ── KC door mutations ───────────────────────────────────────────────────────
+  const createDoorMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/kc-doors", { worldId: WORLD_ID });
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/world", WORLD_ID, "kc-doors"] }),
+    onError: () => toast({ title: "Error", description: "Could not create door", variant: "destructive" }),
+  });
+
+  const updateDoorMutation = useMutation({
+    mutationFn: async ({ id, ...data }: { id: string; name?: string; posX?: number; posY?: number; triggerRadius?: number; bgUrl?: string | null }) => {
+      const res = await apiRequest("PATCH", `/api/admin/kc-doors/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/world", WORLD_ID, "kc-doors"] }),
+    onError: () => toast({ title: "Error", description: "Could not update door", variant: "destructive" }),
+  });
+
+  const deleteDoorMutation = useMutation({
+    mutationFn: async (id: string) => { await apiRequest("DELETE", `/api/admin/kc-doors/${id}`); },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/world", WORLD_ID, "kc-doors"] }),
+  });
+
+  const addDoorDecorMutation = useMutation({
+    mutationFn: async ({ doorId, name, imageUrl }: { doorId: string; name: string; imageUrl: string }) => {
+      const res = await apiRequest("POST", `/api/admin/kc-doors/${doorId}/decor`, { name, imageUrl, posX: 45, posY: 45, size: 100 });
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/kc-doors", activeDoorId, "decor"] }),
+    onError: () => toast({ title: "Error", description: "Could not add decor", variant: "destructive" }),
+  });
+
+  const updateDoorDecorMutation = useMutation({
+    mutationFn: async ({ id, ...data }: { id: string; posX?: number; posY?: number; size?: number; flipped?: boolean }) => {
+      const res = await apiRequest("PATCH", `/api/admin/kc-door-decor/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/kc-doors", activeDoorId, "decor"] }),
+  });
+
+  const deleteDoorDecorMutation = useMutation({
+    mutationFn: async (id: string) => { await apiRequest("DELETE", `/api/admin/kc-door-decor/${id}`); },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/kc-doors", activeDoorId, "decor"] }),
+  });
+
+  // Keep kcDoorsRef in sync for RAF loop access
+  kcDoorsRef.current = kcDoors;
+
   // ── map setup: compute height from background image aspect ratio ───────────
   useEffect(() => {
     const img = new Image();
@@ -644,6 +762,70 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     setDecorDragPos(null);
   }, [decorDragPos, updateDecorPlacementMutation]);
 
+  // ── door drag handlers (admin only) ────────────────────────────────────────
+  const handleDoorPointerDown = useCallback((e: React.PointerEvent, door: KcDoor) => {
+    if (!user.isAdmin) return;
+    e.stopPropagation(); e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    doorDidDrag.current = false;
+    doorDragRef.current = { doorId: door.id, startX: e.clientX, startY: e.clientY, origPosX: door.posX, origPosY: door.posY };
+  }, [user.isAdmin]);
+
+  const handleDoorPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!doorDragRef.current || !areaRef.current) return;
+    const rect = areaRef.current.getBoundingClientRect();
+    const dx = e.clientX - doorDragRef.current.startX;
+    const dy = e.clientY - doorDragRef.current.startY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) doorDidDrag.current = true;
+    const newX = Math.max(5, Math.min(92, doorDragRef.current.origPosX + dx / (rect.width / 100)));
+    const newY = Math.max(38, Math.min(90, doorDragRef.current.origPosY + dy / (rect.height / 100)));
+    setDoorDragPos({ id: doorDragRef.current.doorId, x: newX, y: newY });
+  }, []);
+
+  const handleDoorPointerUp = useCallback(() => {
+    if (!doorDragRef.current) return;
+    const d = doorDragRef.current;
+    doorDragRef.current = null;
+    if (doorDidDrag.current && doorDragPos) {
+      updateDoorMutation.mutate({ id: d.doorId, posX: Math.round(doorDragPos.x * 10) / 10, posY: Math.round(doorDragPos.y * 10) / 10 });
+    }
+    doorDidDrag.current = false;
+    setDoorDragPos(null);
+  }, [doorDragPos, updateDoorMutation]);
+
+  // ── door interior decor drag handlers (admin only) ─────────────────────────
+  const interiorRef = useRef<HTMLDivElement>(null);
+
+  const handleDoorDecorPointerDown = useCallback((e: React.PointerEvent, p: KcDoorDecorP) => {
+    if (!user.isAdmin) return;
+    e.preventDefault(); e.stopPropagation();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    doorDecorDidDrag.current = false;
+    doorDecorDragRef.current = { placementId: p.id, startX: e.clientX, startY: e.clientY, origPosX: p.posX, origPosY: p.posY };
+  }, [user.isAdmin]);
+
+  const handleDoorDecorPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!doorDecorDragRef.current || !interiorRef.current) return;
+    e.preventDefault();
+    const rect = interiorRef.current.getBoundingClientRect();
+    const dx = e.clientX - doorDecorDragRef.current.startX;
+    const dy = e.clientY - doorDecorDragRef.current.startY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) doorDecorDidDrag.current = true;
+    const newX = Math.max(0, Math.min(100, doorDecorDragRef.current.origPosX + dx / (rect.width / 100)));
+    const newY = Math.max(0, Math.min(100, doorDecorDragRef.current.origPosY + dy / (rect.height / 100)));
+    setDoorDecorDragPos({ id: doorDecorDragRef.current.placementId, x: newX, y: newY });
+  }, []);
+
+  const handleDoorDecorPointerUp = useCallback(() => {
+    if (!doorDecorDragRef.current) return;
+    const d = doorDecorDragRef.current;
+    doorDecorDragRef.current = null;
+    if (doorDecorDidDrag.current && doorDecorDragPos) {
+      updateDoorDecorMutation.mutate({ id: d.placementId, posX: Math.round(doorDecorDragPos.x), posY: Math.round(doorDecorDragPos.y) });
+    }
+    doorDecorDidDrag.current = false;
+    setDoorDecorDragPos(null);
+  }, [doorDecorDragPos, updateDoorDecorMutation]);
 
   // ── panel drag-to-map ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -891,6 +1073,114 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
               </div>
             );
           })}
+
+          {/* ── Door trigger zones (admin-visible only) ─────────────────── */}
+          {user.isAdmin && kcDoors.map(door => {
+            const pos = doorDragPos?.id === door.id ? { x: doorDragPos.x, y: doorDragPos.y } : { x: door.posX, y: door.posY };
+            const rPx = door.triggerRadius * (MAP_W / 100);
+            const isSelected = selectedDoorId === door.id;
+            return (
+              <div
+                key={door.id}
+                data-testid={`door-zone-${door.id}`}
+                style={{
+                  position: "absolute",
+                  left: `${pos.x}%`,
+                  top: `${pos.y}%`,
+                  width: rPx * 2,
+                  height: rPx * 2,
+                  transform: "translate(-50%, -50%)",
+                  cursor: "grab",
+                  zIndex: isSelected ? 200 : 15,
+                  touchAction: "none",
+                  userSelect: "none",
+                }}
+                onPointerDown={e => handleDoorPointerDown(e, door)}
+                onPointerMove={handleDoorPointerMove}
+                onPointerUp={handleDoorPointerUp}
+                onPointerCancel={() => { doorDragRef.current = null; doorDidDrag.current = false; setDoorDragPos(null); }}
+                onClick={e => { e.stopPropagation(); if (!doorDidDrag.current) setSelectedDoorId(prev => prev === door.id ? null : door.id); }}
+              >
+                <div style={{
+                  width: "100%", height: "100%", borderRadius: "50%",
+                  border: `2px dashed ${isSelected ? "#7fffd4" : "rgba(127,255,212,0.4)"}`,
+                  background: isSelected ? "rgba(127,255,212,0.08)" : "rgba(127,255,212,0.03)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <div style={{
+                    display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+                    background: "rgba(4,10,6,0.75)", borderRadius: 8, padding: "3px 6px",
+                    border: "1px solid rgba(127,255,212,0.35)",
+                    pointerEvents: "none",
+                  }}>
+                    <DoorOpen style={{ width: 14, height: 14, color: "#7fffd4" }} />
+                    <span style={{ fontSize: 9, color: "#7fffd4", fontFamily: "monospace", maxWidth: 60, textAlign: "center", lineHeight: 1.2, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
+                      {door.name}
+                    </span>
+                  </div>
+                </div>
+                {/* Admin controls when selected */}
+                {isSelected && (
+                  <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+                    {/* Delete button */}
+                    <button
+                      onPointerDown={e => e.stopPropagation()}
+                      onClick={e => { e.stopPropagation(); if (confirm(`Delete door "${door.name}"?`)) { deleteDoorMutation.mutate(door.id); setSelectedDoorId(null); } }}
+                      style={{
+                        position: "absolute", top: -8, left: -8,
+                        width: 28, height: 28, borderRadius: "50%",
+                        background: "rgba(220,38,38,0.95)", border: "2px solid rgba(255,100,100,0.7)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        cursor: "pointer", pointerEvents: "auto", boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
+                      }}
+                    >
+                      <Trash2 style={{ width: 12, height: 12, color: "white" }} />
+                    </button>
+                    {/* Enter button */}
+                    <button
+                      onPointerDown={e => e.stopPropagation()}
+                      onClick={e => { e.stopPropagation(); activeDoorIdRef.current = door.id; setActiveDoorId(door.id); setSelectedDoorId(null); }}
+                      style={{
+                        position: "absolute", top: -8, right: -8,
+                        width: 28, height: 28, borderRadius: "50%",
+                        background: "rgba(20,100,60,0.95)", border: "2px solid rgba(127,255,212,0.7)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        cursor: "pointer", pointerEvents: "auto", boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
+                      }}
+                    >
+                      <DoorOpen style={{ width: 12, height: 12, color: "#7fffd4" }} />
+                    </button>
+                    {/* Radius − */}
+                    <button
+                      onPointerDown={e => e.stopPropagation()}
+                      onClick={e => { e.stopPropagation(); updateDoorMutation.mutate({ id: door.id, triggerRadius: Math.max(3, door.triggerRadius - 1) }); }}
+                      style={{
+                        position: "absolute", bottom: -8, left: -8,
+                        width: 28, height: 28, borderRadius: "50%",
+                        background: "rgba(10,50,10,0.95)", border: "2px solid rgba(100,220,100,0.7)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        cursor: "pointer", pointerEvents: "auto", fontSize: 16, color: "#7fffd4",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
+                      }}
+                    >−</button>
+                    {/* Radius + */}
+                    <button
+                      onPointerDown={e => e.stopPropagation()}
+                      onClick={e => { e.stopPropagation(); updateDoorMutation.mutate({ id: door.id, triggerRadius: Math.min(20, door.triggerRadius + 1) }); }}
+                      style={{
+                        position: "absolute", bottom: -8, right: -8,
+                        width: 28, height: 28, borderRadius: "50%",
+                        background: "rgba(10,50,10,0.95)", border: "2px solid rgba(100,220,100,0.7)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        cursor: "pointer", pointerEvents: "auto", fontSize: 16, color: "#7fffd4",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
+                      }}
+                    >+</button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -1040,7 +1330,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
               </button>
               <button
                 data-testid="button-world-decor"
-                onClick={() => { setShowDecorPanel(p => !p); setShowPlacesPanel(false); }}
+                onClick={() => { setShowDecorPanel(p => !p); setShowPlacesPanel(false); setShowDoorsPanel(false); }}
                 className="flex-shrink-0 flex items-center justify-center transition-transform active:scale-90 topbar-icon-size-sm"
                 style={{
                   background: showDecorPanel ? `rgba(127,255,212,0.18)` : "rgba(4,10,6,0.82)",
@@ -1052,6 +1342,21 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                 }}
               >
                 <Palette className="w-4 h-4" style={{ color: ACCENT }} />
+              </button>
+              <button
+                data-testid="button-world-doors"
+                onClick={() => { setShowDoorsPanel(p => !p); setShowDecorPanel(false); setShowPlacesPanel(false); }}
+                className="flex-shrink-0 flex items-center justify-center transition-transform active:scale-90 topbar-icon-size-sm"
+                style={{
+                  background: showDoorsPanel ? "rgba(127,255,212,0.18)" : "rgba(4,10,6,0.82)",
+                  border: `2px solid ${ACCENT}55`,
+                  boxShadow: "0 2px 10px rgba(0,0,0,0.6)",
+                  cursor: "pointer",
+                  borderRadius: 10,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}
+              >
+                <DoorOpen className="w-4 h-4" style={{ color: ACCENT }} />
               </button>
             </div>
           )}
@@ -1601,6 +1906,345 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                       </div>
                     );
                   })}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Admin Doors Panel ────────────────────────────────────────────── */}
+      {showDoorsPanel && user.isAdmin && (
+        <div
+          className="fixed z-40 flex flex-col"
+          style={{
+            bottom: 0, left: 0, right: 0, maxHeight: "55vh",
+            background: `linear-gradient(180deg, rgba(4,10,6,0.97) 0%, rgba(6,14,7,0.99) 100%)`,
+            borderTop: `1.5px solid ${ACCENT}50`,
+            borderLeft: `1.5px solid ${ACCENT}30`,
+            borderRight: `1.5px solid ${ACCENT}30`,
+            borderRadius: "16px 16px 0 0",
+            boxShadow: `0 -8px 40px rgba(0,0,0,0.7), 0 0 40px ${ACCENT}15`,
+          }}
+        >
+          <div className="flex items-center justify-between px-4 py-3 shrink-0" style={{ borderBottom: `1px solid ${ACCENT}25` }}>
+            <span className="font-fantasy text-sm tracking-widest" style={{ color: ACCENT, textShadow: `0 0 12px ${ACCENT}50` }}>
+              Interior Doors
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                data-testid="button-add-door"
+                onClick={() => createDoorMutation.mutate()}
+                disabled={createDoorMutation.isPending}
+                className="w-7 h-7 rounded-full flex items-center justify-center transition-transform active:scale-90 disabled:opacity-40"
+                style={{ background: `${ACCENT}30`, border: `1.5px solid ${ACCENT}80`, cursor: "pointer" }}
+                title="Add new door"
+              >
+                <Plus className="w-4 h-4" style={{ color: ACCENT }} />
+              </button>
+              <button onClick={() => setShowDoorsPanel(false)} style={{ background: "none", border: "none", cursor: "pointer" }}>
+                <X className="w-5 h-5" style={{ color: `${ACCENT}88` }} />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+            {kcDoors.length === 0 && (
+              <p className="font-fantasy text-xs text-center py-6" style={{ color: `${ACCENT}55` }}>
+                No doors yet — tap + to create one, then drag it on the map
+              </p>
+            )}
+            {kcDoors.map(door => (
+              <div
+                key={door.id}
+                className="rounded-xl p-3"
+                style={{ background: "rgba(10,22,12,0.8)", border: `1px solid ${ACCENT}25` }}
+              >
+                {editingDoor?.id === door.id ? (
+                  <div className="flex flex-col gap-2">
+                    <input
+                      className="font-fantasy text-xs rounded-lg px-3 py-2 outline-none"
+                      style={{ background: "rgba(20,30,15,0.8)", border: `1px solid ${ACCENT}40`, color: ACCENT }}
+                      value={doorEditName}
+                      onChange={e => setDoorEditName(e.target.value)}
+                      placeholder="Door name…"
+                    />
+                    <input
+                      className="font-fantasy text-xs rounded-lg px-3 py-2 outline-none"
+                      style={{ background: "rgba(20,30,15,0.8)", border: `1px solid ${ACCENT}40`, color: ACCENT }}
+                      value={doorEditBgUrl}
+                      onChange={e => setDoorEditBgUrl(e.target.value)}
+                      placeholder="Background image URL…"
+                    />
+                    <div className="flex items-center gap-2">
+                      <span className="font-fantasy text-[10px]" style={{ color: `${ACCENT}80` }}>Radius:</span>
+                      <button onClick={() => setDoorEditRadius(r => Math.max(3, r - 1))}
+                        style={{ width: 22, height: 22, borderRadius: "50%", background: `${ACCENT}20`, border: `1px solid ${ACCENT}50`, color: ACCENT, cursor: "pointer", fontSize: 14 }}>−</button>
+                      <span className="font-fantasy text-[10px]" style={{ color: ACCENT }}>{doorEditRadius}%</span>
+                      <button onClick={() => setDoorEditRadius(r => Math.min(20, r + 1))}
+                        style={{ width: 22, height: 22, borderRadius: "50%", background: `${ACCENT}20`, border: `1px solid ${ACCENT}50`, color: ACCENT, cursor: "pointer", fontSize: 14 }}>+</button>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          updateDoorMutation.mutate({ id: door.id, name: doorEditName, bgUrl: doorEditBgUrl || null, triggerRadius: doorEditRadius });
+                          setEditingDoor(null);
+                        }}
+                        className="font-fantasy text-[10px] flex-1 py-1.5 rounded-lg transition-transform active:scale-95"
+                        style={{ background: `${ACCENT}25`, border: `1.5px solid ${ACCENT}60`, color: ACCENT, cursor: "pointer" }}
+                      >Save</button>
+                      <button onClick={() => setEditingDoor(null)}
+                        className="font-fantasy text-[10px] px-3 py-1.5 rounded-lg"
+                        style={{ background: "rgba(60,20,20,0.6)", border: "1px solid rgba(200,80,80,0.4)", color: "#f87171", cursor: "pointer" }}>Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <DoorOpen style={{ width: 20, height: 20, color: ACCENT, flexShrink: 0 }} />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-fantasy text-xs truncate" style={{ color: ACCENT }}>{door.name}</p>
+                      <p className="font-fantasy text-[9px]" style={{ color: `${ACCENT}55` }}>
+                        radius {door.triggerRadius}% · {door.posX.toFixed(0)}%,{door.posY.toFixed(0)}%
+                      </p>
+                    </div>
+                    <div className="flex gap-1.5 flex-shrink-0">
+                      <button
+                        onClick={() => { setEditingDoor(door); setDoorEditName(door.name); setDoorEditBgUrl(door.bgUrl ?? ""); setDoorEditRadius(door.triggerRadius); }}
+                        className="font-fantasy text-[9px] px-2 py-1 rounded-lg"
+                        style={{ background: `${ACCENT}15`, border: `1px solid ${ACCENT}40`, color: ACCENT, cursor: "pointer" }}>Edit</button>
+                      <button
+                        onClick={() => { activeDoorIdRef.current = door.id; setActiveDoorId(door.id); setShowDoorsPanel(false); }}
+                        className="font-fantasy text-[9px] px-2 py-1 rounded-lg"
+                        style={{ background: "rgba(20,80,50,0.6)", border: `1px solid ${ACCENT}40`, color: ACCENT, cursor: "pointer" }}>Enter</button>
+                      <button
+                        onClick={() => { if (confirm(`Delete "${door.name}"?`)) deleteDoorMutation.mutate(door.id); }}
+                        className="w-7 h-7 rounded-full flex items-center justify-center"
+                        style={{ background: "rgba(200,30,30,0.8)", border: "1.5px solid rgba(255,80,80,0.5)", cursor: "pointer" }}>
+                        <Trash2 style={{ width: 11, height: 11, color: "white" }} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Door Interior Overlay ─────────────────────────────────────────── */}
+      {activeDoorId && (() => {
+        const door = kcDoors.find(d => d.id === activeDoorId);
+        if (!door) return null;
+        return (
+          <div
+            className="fixed inset-0 z-50 overflow-hidden"
+            style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
+          >
+            {/* Background */}
+            <div
+              ref={interiorRef}
+              style={{
+                position: "absolute", inset: 0,
+                backgroundImage: door.bgUrl ? `url(${door.bgUrl})` : undefined,
+                backgroundSize: "cover", backgroundPosition: "center",
+                backgroundColor: door.bgUrl ? undefined : "#0a1a0f",
+                touchAction: user.isAdmin ? "none" : "auto",
+              }}
+              onPointerMove={user.isAdmin ? handleDoorDecorPointerMove : undefined}
+              onPointerUp={user.isAdmin ? handleDoorDecorPointerUp : undefined}
+              onPointerCancel={user.isAdmin ? handleDoorDecorPointerUp : undefined}
+              onClick={() => { if (user.isAdmin) { setSelectedDoorDecorId(null); } }}
+            >
+              {/* Dark overlay tint */}
+              <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.25)", pointerEvents: "none" }} />
+
+              {/* Decor placements */}
+              {doorDecorPlacements.map(p => {
+                const livePos = doorDecorDragPos?.id === p.id ? { x: doorDecorDragPos.x, y: doorDecorDragPos.y } : { x: p.posX, y: p.posY };
+                const isSelected = user.isAdmin && selectedDoorDecorId === p.id;
+                return (
+                  <div
+                    key={p.id}
+                    style={{
+                      position: "absolute",
+                      left: `${livePos.x}%`,
+                      top: `${livePos.y}%`,
+                      width: p.size,
+                      height: p.size,
+                      transform: "translate(-50%, -50%)",
+                      cursor: user.isAdmin ? "grab" : "default",
+                      zIndex: isSelected ? 20 : 10,
+                      touchAction: "none",
+                    }}
+                    onPointerDown={e => handleDoorDecorPointerDown(e, p)}
+                    onClick={e => { if (user.isAdmin) { e.stopPropagation(); setSelectedDoorDecorId(prev => prev === p.id ? null : p.id); } }}
+                  >
+                    <img
+                      src={p.imageUrl}
+                      alt={p.name}
+                      draggable={false}
+                      style={{
+                        width: "100%", height: "100%", objectFit: "contain",
+                        transform: p.flipped ? "scaleX(-1)" : undefined,
+                        pointerEvents: "none",
+                        userSelect: "none",
+                      }}
+                    />
+                    {isSelected && (
+                      <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+                        <button onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); deleteDoorDecorMutation.mutate(p.id); setSelectedDoorDecorId(null); }}
+                          style={{ position: "absolute", top: -14, left: -14, width: 28, height: 28, borderRadius: "50%", background: "rgba(220,38,38,0.95)", border: "2px solid rgba(255,100,100,0.7)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", pointerEvents: "auto", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}>
+                          <Trash2 style={{ width: 12, height: 12, color: "white" }} />
+                        </button>
+                        <button onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); updateDoorDecorMutation.mutate({ id: p.id, flipped: !p.flipped }); }}
+                          style={{ position: "absolute", top: -14, right: -14, width: 28, height: 28, borderRadius: "50%", background: "rgba(0,80,180,0.95)", border: "2px solid rgba(100,180,255,0.7)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", pointerEvents: "auto", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}>
+                          <FlipHorizontal style={{ width: 12, height: 12, color: "white" }} />
+                        </button>
+                        <button onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); updateDoorDecorMutation.mutate({ id: p.id, size: Math.max(20, p.size - 10) }); }}
+                          style={{ position: "absolute", bottom: -14, left: -14, width: 28, height: 28, borderRadius: "50%", background: "rgba(10,50,10,0.95)", border: "2px solid rgba(100,220,100,0.7)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", pointerEvents: "auto", fontSize: 16, color: "#7fffd4", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}>−</button>
+                        <button onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); updateDoorDecorMutation.mutate({ id: p.id, size: Math.min(500, p.size + 10) }); }}
+                          style={{ position: "absolute", bottom: -14, right: -14, width: 28, height: 28, borderRadius: "50%", background: "rgba(10,50,10,0.95)", border: "2px solid rgba(100,220,100,0.7)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", pointerEvents: "auto", fontSize: 16, color: "#7fffd4", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}>+</button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Shop items shelf (if any) */}
+              {doorShopItems.length > 0 && (
+                <div style={{ position: "absolute", bottom: 100, left: 0, right: 0, padding: "0 12px" }}>
+                  <div style={{
+                    background: "rgba(4,10,6,0.88)",
+                    border: `1.5px solid ${ACCENT}40`,
+                    borderRadius: 16,
+                    padding: "10px 12px 12px",
+                    boxShadow: `0 -4px 20px rgba(0,0,0,0.5), 0 0 20px ${ACCENT}10`,
+                  }}>
+                    <p className="font-fantasy text-[10px] tracking-widest mb-2" style={{ color: `${ACCENT}88` }}>FOR SALE</p>
+                    <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+                      {doorShopItems.map(item => {
+                        const img = item.hatchedImageUrl || item.eggImageUrl || item.imageUrl;
+                        return (
+                          <div key={item.id}
+                            data-testid={`door-shop-item-${item.id}`}
+                            className="flex flex-col items-center gap-1 rounded-xl p-2 flex-shrink-0 transition-transform active:scale-95 cursor-pointer"
+                            style={{ background: "rgba(10,22,12,0.8)", border: `1px solid ${ACCENT}25`, width: 72 }}>
+                            <div className="w-12 h-12 flex items-center justify-center rounded-lg overflow-hidden" style={{ background: "rgba(6,14,8,0.7)" }}>
+                              {img ? <img src={img} alt={item.name} style={{ width: 44, height: 44, objectFit: "contain" }} draggable={false} /> : <Store style={{ width: 24, height: 24, color: `${ACCENT}60` }} />}
+                            </div>
+                            <span className="font-fantasy text-[8px] tracking-wide text-center leading-tight line-clamp-2" style={{ color: `${ACCENT}cc` }}>{item.name}</span>
+                            <div className="flex items-center gap-1">
+                              <img src={coinIconImg} alt="coins" style={{ width: 9, height: 9, objectFit: "contain" }} />
+                              <span className="font-fantasy text-[8px]" style={{ color: "#f0c040" }}>{item.price}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── Interior HUD ── */}
+            <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 60 }}>
+              {/* Top bar */}
+              <div className="absolute left-0 right-0 pointer-events-auto flex items-center justify-between px-3"
+                style={{
+                  top: 0,
+                  paddingTop: "max(12px, env(safe-area-inset-top, 12px))",
+                  paddingBottom: 8,
+                  background: "linear-gradient(180deg, rgba(4,10,6,0.92) 0%, transparent 100%)",
+                }}>
+                {/* Door name */}
+                <span className="font-fantasy text-sm tracking-widest" style={{ color: ACCENT, textShadow: `0 0 12px ${ACCENT}60` }}>
+                  {door.name}
+                </span>
+
+                <div className="flex items-center gap-2">
+                  {/* Admin: add decor */}
+                  {user.isAdmin && (
+                    <>
+                      <button
+                        data-testid="button-door-add-decor"
+                        onClick={() => setShowDoorAddDecorForm(p => !p)}
+                        className="w-8 h-8 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                        style={{ background: showDoorAddDecorForm ? `${ACCENT}30` : "rgba(4,10,6,0.82)", border: `1.5px solid ${ACCENT}50`, cursor: "pointer" }}
+                        title="Add decor to interior"
+                      >
+                        <Plus style={{ width: 14, height: 14, color: ACCENT }} />
+                      </button>
+                    </>
+                  )}
+                  {/* Exit */}
+                  <button
+                    data-testid="button-exit-door"
+                    onClick={() => {
+                      doorCooldownRef.current = activeDoorId;
+                      setTimeout(() => { doorCooldownRef.current = null; }, 3000);
+                      activeDoorIdRef.current = null;
+                      setActiveDoorId(null);
+                      setShowDoorAddDecorForm(false);
+                      setSelectedDoorDecorId(null);
+                    }}
+                    className="w-8 h-8 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                    style={{ background: "rgba(40,10,10,0.9)", border: "1.5px solid rgba(200,80,80,0.5)", cursor: "pointer" }}
+                  >
+                    <X style={{ width: 14, height: 14, color: "#f87171" }} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Admin: add decor form */}
+              {user.isAdmin && showDoorAddDecorForm && (
+                <div className="absolute pointer-events-auto"
+                  style={{
+                    top: 56, left: 12, right: 12, zIndex: 61,
+                    background: "rgba(4,10,6,0.96)", border: `1.5px solid ${ACCENT}40`,
+                    borderRadius: 14, padding: "12px 14px",
+                    boxShadow: "0 4px 20px rgba(0,0,0,0.7)",
+                  }}>
+                  <p className="font-fantasy text-[10px] tracking-widest mb-2" style={{ color: `${ACCENT}88` }}>ADD INTERIOR DECOR</p>
+                  <div className="flex flex-col gap-2">
+                    <input
+                      className="font-fantasy text-xs rounded-lg px-3 py-2 outline-none"
+                      style={{ background: "rgba(20,30,15,0.8)", border: `1px solid ${ACCENT}40`, color: ACCENT }}
+                      value={newDoorDecorName}
+                      onChange={e => setNewDoorDecorName(e.target.value)}
+                      placeholder="Decor name…"
+                    />
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <span className="font-fantasy text-[10px]" style={{ color: `${ACCENT}80` }}>Image:</span>
+                      <input type="file" accept="image/*" className="hidden" onChange={async e => {
+                        const f = e.target.files?.[0];
+                        if (f) { const url = await readFileAsDataUrl(f); setNewDoorDecorImage(url); }
+                      }} />
+                      <span className="font-fantasy text-[10px] px-2 py-1 rounded-lg transition-transform active:scale-95"
+                        style={{ background: `${ACCENT}22`, border: `1px solid ${ACCENT}50`, color: ACCENT, cursor: "pointer" }}>
+                        {newDoorDecorImage ? "✓ Loaded" : "Choose file"}
+                      </span>
+                    </label>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          if (newDoorDecorName.trim() && newDoorDecorImage && activeDoorId) {
+                            addDoorDecorMutation.mutate({ doorId: activeDoorId, name: newDoorDecorName.trim(), imageUrl: newDoorDecorImage });
+                            setNewDoorDecorName(""); setNewDoorDecorImage(null); setShowDoorAddDecorForm(false);
+                          }
+                        }}
+                        disabled={!newDoorDecorName.trim() || !newDoorDecorImage || addDoorDecorMutation.isPending}
+                        className="font-fantasy text-xs flex-1 py-2 rounded-lg transition-transform active:scale-95 disabled:opacity-40"
+                        style={{ background: `${ACCENT}25`, border: `1.5px solid ${ACCENT}60`, color: ACCENT, cursor: "pointer" }}
+                      >
+                        {addDoorDecorMutation.isPending ? "Saving…" : "Add Decor"}
+                      </button>
+                      <button onClick={() => { setShowDoorAddDecorForm(false); setNewDoorDecorName(""); setNewDoorDecorImage(null); }}
+                        className="font-fantasy text-xs px-3 py-2 rounded-lg"
+                        style={{ background: "rgba(60,20,20,0.6)", border: "1px solid rgba(200,80,80,0.4)", color: "#f87171", cursor: "pointer" }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

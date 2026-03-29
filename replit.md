@@ -82,6 +82,18 @@ The application is built as a monolithic web app with a clear separation of conc
   - All timer refs tracked and cleared on unmount/reset to prevent stale state updates
   - WorldPage integration: `handleLocationClick` detects `type === "fishing"` → sets `showFishing = true`; rendered as `<FishingPage>` overlay parallel to shop/battle overlays
 
+- **Keeper's Central Invisible Door System** (PetWorldPage.tsx):
+  - Admin places invisible trigger zones (doors) on the KC map via the 🚪 toolbar button → "Interior Doors" panel
+  - Each door has: `name`, `posX/posY` (% of map), `triggerRadius` (% distance for trigger), `bgUrl` (interior background)
+  - Admin can drag door zones on the map, resize radius with −/+ buttons, delete them, or enter the interior
+  - Player's pet walks over a trigger zone → door interior opens automatically as a full-screen overlay
+  - Interior overlay shows: door background, admin-placed decor items, shop shelf (if any items added via location/door ID)
+  - Interior decor items (`kc_door_decor_placements` table): admin uploads images, drags them to position, resizes, flips, deletes
+  - Admin adds decor inside the interior via + button → upload form
+  - Exit button closes the interior; a 3-second cooldown prevents immediate re-trigger on exit
+  - Shop items for a door use the door's ID as `locationId` (reuses existing `/api/location/:id/items` route)
+  - Tables: `kc_doors`, `kc_door_decor_placements`; API routes: `/api/world/:worldId/kc-doors`, `/api/admin/kc-doors`, `/api/kc-doors/:doorId/decor`, `/api/admin/kc-door-decor`
+
 ## External Dependencies
 - **Database**: PostgreSQL (via Neon)
 - **ORM**: Drizzle ORM

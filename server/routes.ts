@@ -4388,5 +4388,84 @@ export async function registerRoutes(
     }
   });
 
+  // ── KC Doors ─────────────────────────────────────────────────────────────────
+  app.get("/api/world/:worldId/kc-doors", isAuthenticated, async (req, res) => {
+    try {
+      const doors = await storage.getKcDoors(req.params.worldId);
+      return res.json(doors);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/admin/kc-doors", isAdmin, async (req, res) => {
+    try {
+      const { worldId = "pet_world", name = "Door", posX = 50, posY = 60, triggerRadius = 6, bgUrl = null } = req.body;
+      const door = await storage.createKcDoor({ worldId, name, posX, posY, triggerRadius, bgUrl });
+      return res.json(door);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/admin/kc-doors/:id", isAdmin, async (req, res) => {
+    try {
+      const { name, posX, posY, triggerRadius, bgUrl } = req.body;
+      const door = await storage.updateKcDoor(req.params.id, { name, posX, posY, triggerRadius, bgUrl });
+      return res.json(door);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/admin/kc-doors/:id", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteKcDoor(req.params.id);
+      return res.json({ ok: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── KC Door Decor ─────────────────────────────────────────────────────────────
+  app.get("/api/kc-doors/:doorId/decor", isAuthenticated, async (req, res) => {
+    try {
+      const placements = await storage.getKcDoorDecorPlacements(req.params.doorId);
+      return res.json(placements);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/admin/kc-doors/:doorId/decor", isAdmin, async (req, res) => {
+    try {
+      const { name, imageUrl, posX = 45, posY = 45, size = 100 } = req.body;
+      if (!name || !imageUrl) return res.status(400).json({ message: "name and imageUrl required" });
+      const placement = await storage.createKcDoorDecorPlacement({ doorId: req.params.doorId, name, imageUrl, posX, posY, size });
+      return res.json(placement);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/admin/kc-door-decor/:id", isAdmin, async (req, res) => {
+    try {
+      const { posX, posY, size, flipped } = req.body;
+      const placement = await storage.updateKcDoorDecorPlacement(req.params.id, { posX, posY, size, flipped });
+      return res.json(placement);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/admin/kc-door-decor/:id", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteKcDoorDecorPlacement(req.params.id);
+      return res.json({ ok: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
   return httpServer;
 }
