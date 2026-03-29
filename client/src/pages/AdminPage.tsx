@@ -51,7 +51,7 @@ export default function AdminPage({ user }: AdminPageProps) {
   const [coinAmounts, setCoinAmounts] = useState<Record<string, string>>({});
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "welcome" | "items" | "pets" | "messages" | "badges" | "fishing" | "enemies" | null>(null);
+  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "welcome" | "items" | "pets" | "messages" | "badges" | "fishing" | "enemies" | "house_bundle" | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -106,6 +106,7 @@ export default function AdminPage({ user }: AdminPageProps) {
     { key: "fishing" as const, label: "Fishing", icon: adminIconFishing, desc: "Fish & ponds", color: "#93c5fd", glow: "rgba(147,197,253,0.30)", bg: "linear-gradient(145deg, rgba(12,22,60,0.92) 0%, rgba(18,36,90,0.88) 100%)", border: "rgba(147,197,253,0.45)" },
     { key: "welcome" as const, label: "Welcome Bundle", icon: adminIconRewards, desc: "New user gifts", color: "#6ee7b7", glow: "rgba(110,231,183,0.35)", bg: "linear-gradient(145deg, rgba(8,50,35,0.92) 0%, rgba(14,80,55,0.88) 100%)", border: "rgba(110,231,183,0.45)" },
     { key: "enemies" as const, label: "Enemies", icon: adminIconBadges, desc: "Enemy database", color: "#fca5a5", glow: "rgba(239,68,68,0.30)", bg: "linear-gradient(145deg, rgba(60,8,8,0.92) 0%, rgba(90,12,12,0.88) 100%)", border: "rgba(239,68,68,0.45)" },
+    { key: "house_bundle" as const, label: "House Bundle", icon: adminIconRewards, desc: "House item bundles", color: "#a5f3fc", glow: "rgba(34,211,238,0.30)", bg: "linear-gradient(145deg, rgba(8,38,50,0.92) 0%, rgba(12,58,75,0.88) 100%)", border: "rgba(34,211,238,0.45)" },
   ];
 
   const activeSectionMeta = activeSection ? sections.find(s => s.key === activeSection) : null;
@@ -406,6 +407,25 @@ export default function AdminPage({ user }: AdminPageProps) {
 
               {activeSection === "welcome" && (
                 <WelcomeBundleSection />
+              )}
+
+              {activeSection === "house_bundle" && (
+                <div
+                  className="flex flex-col items-center justify-center py-16 gap-4 rounded-2xl"
+                  style={{
+                    background: "linear-gradient(145deg, rgba(8,38,50,0.7) 0%, rgba(12,58,75,0.7) 100%)",
+                    border: "1.5px solid rgba(34,211,238,0.3)",
+                  }}
+                  data-testid="section-house-bundle-placeholder"
+                >
+                  <img src={adminIconRewards} alt="House Bundle" className="w-16 h-16 object-contain opacity-70" style={{ filter: "drop-shadow(0 0 10px rgba(34,211,238,0.4))" }} />
+                  <p className="font-fantasy text-base tracking-widest font-semibold" style={{ color: "#a5f3fc", textShadow: "0 0 12px rgba(34,211,238,0.4)" }}>
+                    House Bundle
+                  </p>
+                  <p className="font-fantasy text-xs tracking-wide text-center px-6" style={{ color: "rgba(165,243,252,0.5)" }}>
+                    Coming soon — house item bundle management will appear here.
+                  </p>
+                </div>
               )}
             </>
           )}
