@@ -69,8 +69,7 @@ function WalkingPetView({ pet, index }: { pet: HousePet; index: number }) {
     staleTime: 300000,
   });
 
-  const hasWings    = !!(templateData?.canFly);
-  const isSideFacing = templateData?.facing === "back";
+  const hasWings = !!(templateData?.canFly);
   const cfg = hasWings
     ? FLY_CONFIGS[index % FLY_CONFIGS.length]
     : GROUND_CONFIGS[index % GROUND_CONFIGS.length];
@@ -82,10 +81,10 @@ function WalkingPetView({ pet, index }: { pet: HousePet; index: number }) {
   const wanderPrefix = hasWings ? "petWander" : "petGroundWander";
   const wanderAnim   = `${wanderPrefix}${cfg.wanderIdx} ${cfg.duration} ${cfg.delay} ease-in-out infinite`;
 
-  // Side-facing ground pets walk; front-facing ground pets idle + gentle bounce
-  const animatorMode: "idle" | "walk" = (!hasWings && isSideFacing) ? "walk" : "idle";
-  const bounceAnim = (!hasWings && !isSideFacing)
-    ? "petHouseBounce 0.5s ease-in-out infinite"
+  // All ground pets use idle — walk mode looks like running in place against slow wander
+  const animatorMode: "idle" | "walk" = "idle";
+  const bounceAnim = !hasWings
+    ? "petHouseBounce 1.1s ease-in-out infinite"
     : undefined;
 
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
