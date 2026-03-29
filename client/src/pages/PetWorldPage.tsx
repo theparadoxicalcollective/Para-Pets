@@ -545,6 +545,27 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   // Cleanup RAF on unmount
   useEffect(() => () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); }, []);
 
+  // Comprehensive door trigger check — runs on every position update so it
+  // catches positions set by the server, initial load, and joystick-stopped cases.
+  useEffect(() => {
+    if (!localPetPos || activeDoorIdRef.current) return;
+    for (const door of kcDoorsRef.current) {
+      if (doorCooldownRef.current === door.id) continue;
+      const ddxPx = (localPetPos.x - door.posX) / 100 * MAP_W;
+      const ddyPx = (localPetPos.y - door.posY) / 100 * mapHRef.current;
+      const distPx = Math.sqrt(ddxPx * ddxPx + ddyPx * ddyPx);
+      const rPx    = door.triggerRadius / 100 * MAP_W;
+      if (distPx < rPx) {
+        activeDoorIdRef.current = door.id;
+        setActiveDoorId(door.id);
+        joystickDirRef.current = { dx: 0, dy: 0 };
+        if (rafRef.current !== null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+        break;
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localPetPos]);
+
   // ── SSE: full presence + live positions — roster/join/leave/move ──────────
   useEffect(() => {
     const es = new EventSource("/api/world/pet_world/position-stream");
@@ -1172,7 +1193,9 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                   top: `${pos.y}%`,
                   width: rPx * 2,
                   height: rPx * 2,
-                  transform: "translate(-50%, -50%)",
+                  // Bottom-center anchor — same as pets and buildings so the stored
+                  // position = ground/entrance level. Circle extends upward into the building.
+                  transform: "translate(-50%, -100%)",
                   cursor: "grab",
                   zIndex: isSelected ? 300 : 100,
                   touchAction: "none",
