@@ -65,9 +65,8 @@ function randomGroundConfig() {
   const size   = Math.round(150 + Math.random() * 60); // 150–210px
   const dur    = (26 + Math.random() * 18).toFixed(1); // 26–44s
   const delay  = (Math.random() * 28).toFixed(1);      // 0–28s spread
-  const bDelay = (Math.random() * 1.1).toFixed(2);     // 0–1.1s bounce offset
   const wIdx   = Math.floor(Math.random() * NUM_WANDER_ANIMS);
-  return { left: `${left}%`, top: `${top}%`, size, duration: `${dur}s`, delay: `${delay}s`, bounceDelay: `${bDelay}s`, wanderIdx: wIdx };
+  return { left: `${left}%`, top: `${top}%`, size, duration: `${dur}s`, delay: `${delay}s`, wanderIdx: wIdx };
 }
 
 function WalkingPetView({ pet, index }: { pet: HousePet; index: number }) {
@@ -97,12 +96,8 @@ function WalkingPetView({ pet, index }: { pet: HousePet; index: number }) {
   const wanderPrefix = hasWings ? "petWander" : "petGroundWander";
   const wanderAnim   = `${wanderPrefix}${cfg.wanderIdx} ${cfg.duration} ${cfg.delay} ease-in-out infinite`;
 
-  // All ground pets use idle — walk mode looks like running in place against slow wander
+  // All ground pets use idle — the wander keyframes already arc Y during movement phases
   const animatorMode: "idle" | "walk" = "idle";
-  const bounceCfgDelay = !hasWings ? (cfg as ReturnType<typeof randomGroundConfig>).bounceDelay : undefined;
-  const bounceAnim = !hasWings
-    ? `petHouseBounce 1.1s ${bounceCfgDelay} ease-in-out infinite`
-    : undefined;
 
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
   const sz = cfg.size;
@@ -119,7 +114,7 @@ function WalkingPetView({ pet, index }: { pet: HousePet; index: number }) {
       }}
     >
       <div style={{ animation: wanderAnim, transformOrigin: "bottom center" }}>
-        <div style={{ animation: hasWings ? `${floatAnim} 3.2s ease-in-out infinite` : bounceAnim }}>
+        <div style={hasWings ? { animation: `${floatAnim} 3.2s ease-in-out infinite` } : undefined}>
           {pet.petTemplateId ? (
             <PetAnimator
               petTemplateId={pet.petTemplateId}
