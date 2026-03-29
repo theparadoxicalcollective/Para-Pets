@@ -734,7 +734,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                   left: `${pos.x}%`,
                   top: `${pos.y}%`,
                   width: sz,
-                  cursor: user.isAdmin ? "grab" : (loc.isShop ? "pointer" : "default"),
+                  cursor: user.isAdmin ? "grab" : "default",
                   zIndex: selectedLocId === loc.id ? 150 : locDragPos?.id === loc.id ? 200 : 10 + Math.round((pos.y / 100) * 60),
                   transform: "translate(-50%, -100%)",
                   touchAction: "none",
@@ -764,10 +764,10 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                       <Store style={{ width: sz * 0.4, height: sz * 0.4, color: glow }} />
                     </div>
                   )}
-                  {/* Click zone */}
+                  {/* Click zone — admin drag/select only; players cannot open shops */}
                   <div
-                    onClick={e => { e.stopPropagation(); handleLocClick(loc); }}
-                    style={{ position: "absolute", inset: 0, pointerEvents: "auto", cursor: user.isAdmin ? "grab" : (loc.isShop ? "pointer" : "default"), zIndex: 20 }}
+                    onClick={e => { e.stopPropagation(); if (user.isAdmin) handleLocClick(loc); }}
+                    style={{ position: "absolute", inset: 0, pointerEvents: "auto", cursor: user.isAdmin ? "grab" : "default", zIndex: 20 }}
                   />
                   {/* Admin controls */}
                   {user.isAdmin && selectedLocId === loc.id && (
