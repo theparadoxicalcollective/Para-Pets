@@ -479,21 +479,13 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           }
         }
 
-        // ── Camera follow: pan map so pet stays within horizontal margins ──
+        // ── Camera follow: keep pet centered, clamped at map edges ──────────
         const { x: curMapX, y: curMapY, scale: sc } = mapTransformRef.current;
         const scaledMapW = MAP_W * sc;
         if (scaledMapW > FRAME_W) {
-          const petScreenX = (nx / 100) * scaledMapW + curMapX;
-          const EDGE = 110; // screen-px margin before camera starts panning
-          let targetX = curMapX;
-          if (petScreenX < EDGE) {
-            targetX = EDGE - (nx / 100) * scaledMapW;
-          } else if (petScreenX > FRAME_W - EDGE) {
-            targetX = (FRAME_W - EDGE) - (nx / 100) * scaledMapW;
-          }
-          targetX = Math.max(FRAME_W - scaledMapW, Math.min(0, targetX));
+          const petMapX = (nx / 100) * scaledMapW;
+          const targetX = Math.max(FRAME_W - scaledMapW, Math.min(0, FRAME_W / 2 - petMapX));
           if (Math.abs(targetX - curMapX) > 0.5) {
-            // Smooth lerp toward target — feels like a gentle follow-cam
             const newMapX = curMapX + (targetX - curMapX) * Math.min(1, dt * 8);
             mapTransformRef.current = { x: newMapX, y: curMapY, scale: sc };
             setMapX(newMapX);
