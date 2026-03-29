@@ -172,6 +172,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const [currentUser, setCurrentUser] = useState(user);
 
   const [panX, setPanX] = useState(0);
+  const [imgWidth, setImgWidth] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const panStartRef = useRef<{ startX: number; startPanX: number; pid: number } | null>(null);
 
@@ -182,6 +183,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     const containerH = container.offsetHeight;
     const imgW = containerH / BG_RATIO;
     const min = Math.min(0, containerW - imgW);
+    setImgWidth(imgW);
     setPanX(Math.max(min, -(imgW - containerW) / 2));
   }, []);
 
@@ -249,12 +251,17 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       {/* Ambient gradients */}
       <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 1, background: "linear-gradient(180deg, rgba(0,0,0,0.18) 0%, transparent 18%, transparent 72%, rgba(0,0,0,0.45) 100%)" }} />
 
-      {/* Pets layer — fixed to viewport, not panning */}
-      <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 5 }}>
-        {pets.map((pet, i) => (
-          <WalkingPetView key={pet.inventoryId} pet={pet} index={i} />
-        ))}
-      </div>
+      {/* Pets layer — moves with background so pets feel part of the scene */}
+      {imgWidth > 0 && (
+        <div
+          className="absolute pointer-events-none"
+          style={{ zIndex: 5, top: 0, left: `${panX}px`, width: imgWidth, height: "100%" }}
+        >
+          {pets.map((pet, i) => (
+            <WalkingPetView key={pet.inventoryId} pet={pet} index={i} />
+          ))}
+        </div>
+      )}
 
       {/* TopBar */}
       <div className="absolute inset-0 flex flex-col" style={{ zIndex: 10, paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)", pointerEvents: "none" }}>
