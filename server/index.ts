@@ -714,11 +714,11 @@ app.use((req, res, next) => {
       if (!door) continue;
       const assetPath = path.join(process.cwd(), "attached_assets", seed.file);
       if (!fs.existsSync(assetPath)) continue;
-      const buf = fs.readFileSync(assetPath);
-      const dataUrl = `data:${seed.mime};base64,${buf.toString("base64")}`;
-      await db.execute(sql`UPDATE kc_doors SET bg_url = ${dataUrl} WHERE id = ${door.id}`);
+      // Store a lightweight static-file URL instead of a base64 data URL
+      const fileUrl = `/world-assets/${seed.file}`;
+      await db.execute(sql`UPDATE kc_doors SET bg_url = ${fileUrl} WHERE id = ${door.id}`);
       seededIds.push(door.id);
-      console.log(`${door.name} door background seeded.`);
+      console.log(`${door.name} door background seeded (${fileUrl}).`);
     }
     // Clear any manually-set backgrounds on doors not covered by seeds
     for (const door of doorRows) {
