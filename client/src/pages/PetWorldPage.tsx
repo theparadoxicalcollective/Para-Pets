@@ -342,12 +342,14 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   // ── location drag handlers ──────────────────────────────────────────────────
   const handleLocPointerDown = useCallback((e: React.PointerEvent, loc: KCLocation) => {
     if (!user.isAdmin) return;
+    // Only allow dragging a location that has already been tapped/selected
+    if (selectedLocId !== loc.id) return;
     e.stopPropagation();
     e.preventDefault();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     locDidDrag.current = false;
     locDragRef.current = { locId: loc.id, startX: e.clientX, startY: e.clientY, origPosX: loc.posX, origPosY: loc.posY };
-  }, [user.isAdmin]);
+  }, [user.isAdmin, selectedLocId]);
 
   const handleLocPointerMove = useCallback((e: React.PointerEvent) => {
     if (!locDragRef.current || !areaRef.current) return;
