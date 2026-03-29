@@ -699,6 +699,28 @@ app.use((req, res, next) => {
     console.error("Swamp Crawler image migration error (non-fatal):", err);
   }
 
+  // ── Seed door backgrounds from attached assets ──────────────────────────
+  try {
+    const allDoors = await db.execute(sql`SELECT id, name, bg_url FROM kc_doors WHERE world_id = 'pet_world'`);
+    const DOOR_BG_SEEDS: Array<{ match: string; file: string; mime: string }> = [
+      { match: "welcome", file: "bg_welcome_center.jpeg", mime: "image/jpeg" },
+    ];
+    for (const seed of DOOR_BG_SEEDS) {
+      const door = (allDoors as any[]).find((d: any) =>
+        typeof d.name === "string" && d.name.toLowerCase().includes(seed.match) && !d.bg_url
+      );
+      if (!door) continue;
+      const assetPath = path.join(process.cwd(), "attached_assets", seed.file);
+      if (!fs.existsSync(assetPath)) continue;
+      const buf = fs.readFileSync(assetPath);
+      const dataUrl = `data:${seed.mime};base64,${buf.toString("base64")}`;
+      await db.execute(sql`UPDATE kc_doors SET bg_url = ${dataUrl} WHERE id = ${door.id}`);
+      console.log(`${door.name} door background seeded.`);
+    }
+  } catch (err) {
+    console.error("Door background seed error (non-fatal):", err);
+  }
+
   console.log("Background initialization complete.");
   })().catch(err => console.error("Background init error:", err));
 })();

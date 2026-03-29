@@ -4410,8 +4410,15 @@ export async function registerRoutes(
 
   app.patch("/api/admin/kc-doors/:id", isAdmin, async (req, res) => {
     try {
-      const { name, posX, posY, triggerRadius, bgUrl } = req.body;
-      const door = await storage.updateKcDoor(req.params.id, { name, posX, posY, triggerRadius, bgUrl });
+      const { name, posX, posY, triggerRadius, bgUrl, bgData } = req.body;
+      const updates: { name?: string; posX?: number; posY?: number; triggerRadius?: number; bgUrl?: string | null } = {};
+      if (name !== undefined)          updates.name = name;
+      if (posX !== undefined)          updates.posX = posX;
+      if (posY !== undefined)          updates.posY = posY;
+      if (triggerRadius !== undefined) updates.triggerRadius = triggerRadius;
+      if (bgData)                      updates.bgUrl = await processWorldImage(bgData, 2000);
+      else if (bgUrl !== undefined)    updates.bgUrl = bgUrl;
+      const door = await storage.updateKcDoor(req.params.id, updates);
       return res.json(door);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
