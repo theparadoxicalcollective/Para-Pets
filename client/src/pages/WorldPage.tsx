@@ -3116,6 +3116,27 @@ export default function WorldPage({ user }: WorldPageProps) {
                 </div>
               )}
 
+              {/* ── STEP 1: Owned badge — sits above the egg image for pets ── */}
+              {buyStep === 1 && ownedCount > 0 && item.type === "pet" && (
+                <div
+                  className="font-fantasy font-bold text-center"
+                  style={{
+                    position: "absolute",
+                    left: "50%",
+                    top: "46%",
+                    transform: "translateX(-50%)",
+                    zIndex: 26,
+                    fontSize: "9.5px",
+                    color: "#e8a800",
+                    textShadow: "0 0 6px rgba(232,168,0,0.5)",
+                    pointerEvents: "none",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Owned{ownedCount > 1 ? ` ×${ownedCount}` : ""}
+                </div>
+              )}
+
               {/* ── STEP 1: Text content (name top, abilities + buy bottom) ── */}
               {buyStep === 1 && (
                 <div
@@ -3145,11 +3166,6 @@ export default function WorldPage({ user }: WorldPageProps) {
                       </div>
                     )}
                     <div style={{ borderTop: "1px solid rgba(100,50,10,0.28)", marginBottom: "5px" }} />
-                    {ownedCount > 0 && (
-                      <div className="text-center font-fantasy font-bold" style={{ fontSize: "9.5px", marginBottom: "4px", color: "#e8a800", textShadow: "0 0 6px rgba(232,168,0,0.5)" }}>
-                        Owned{ownedCount > 1 ? ` ×${ownedCount}` : ""}
-                      </div>
-                    )}
                     {isMaxOwned ? (
                       <div className="text-center font-fantasy" style={{ fontSize: "9px", padding: "7px 0", borderRadius: "8px", background: "rgba(80,50,10,0.18)", color: "#7a5010", border: "1px solid rgba(120,80,20,0.3)" }}>
                         Max owned (3)
