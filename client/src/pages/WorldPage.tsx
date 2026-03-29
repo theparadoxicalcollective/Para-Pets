@@ -1345,7 +1345,6 @@ export default function WorldPage({ user }: WorldPageProps) {
     } else if (item.type === "pet") {
       if (item.rarity) lines.push(`${"★".repeat(item.rarity)} Rarity`);
       if (item.hatchTime) lines.push(`Hatch time: ${item.hatchTime}h`);
-      if (item.specialSkill) lines.push(`Special: ${item.specialSkill}`);
     } else {
       if (item.healthRestored) lines.push(`Restores ${item.healthRestored} HP`);
       if (item.manaRestored) lines.push(`Restores ${item.manaRestored} Mana`);
