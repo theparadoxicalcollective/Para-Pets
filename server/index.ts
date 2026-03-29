@@ -701,13 +701,14 @@ app.use((req, res, next) => {
 
   // ── Seed door backgrounds from attached assets ──────────────────────────
   try {
-    const allDoors = await db.execute(sql`SELECT id, name, bg_url FROM kc_doors WHERE world_id = 'pet_world'`);
+    const doorRows = ((await db.execute(sql`SELECT id, name, bg_url FROM kc_doors WHERE world_id = 'pet_world'`)) as any).rows as any[];
     const DOOR_BG_SEEDS: Array<{ match: string; file: string; mime: string }> = [
       { match: "welcome", file: "bg_welcome_center.jpeg", mime: "image/jpeg" },
     ];
+    const seededIds: string[] = [];
     for (const seed of DOOR_BG_SEEDS) {
-      const door = (allDoors as any[]).find((d: any) =>
-        typeof d.name === "string" && d.name.toLowerCase().includes(seed.match) && !d.bg_url
+      const door = doorRows.find((d: any) =>
+        typeof d.name === "string" && d.name.toLowerCase().includes(seed.match)
       );
       if (!door) continue;
       const assetPath = path.join(process.cwd(), "attached_assets", seed.file);
@@ -715,7 +716,15 @@ app.use((req, res, next) => {
       const buf = fs.readFileSync(assetPath);
       const dataUrl = `data:${seed.mime};base64,${buf.toString("base64")}`;
       await db.execute(sql`UPDATE kc_doors SET bg_url = ${dataUrl} WHERE id = ${door.id}`);
+      seededIds.push(door.id);
       console.log(`${door.name} door background seeded.`);
+    }
+    // Clear any manually-set backgrounds on doors not covered by seeds
+    for (const door of doorRows) {
+      if (!seededIds.includes(door.id) && door.bg_url) {
+        await db.execute(sql`UPDATE kc_doors SET bg_url = NULL WHERE id = ${door.id}`);
+        console.log(`${door.name} door background cleared.`);
+      }
     }
   } catch (err) {
     console.error("Door background seed error (non-fatal):", err);
