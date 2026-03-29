@@ -874,32 +874,9 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       <style>{FISHING_ANIMATIONS}</style>
 
       <div className="absolute top-0 left-0 right-0 flex items-start justify-between px-4 pb-3" style={{ zIndex: 60, paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
-        {/* Left column — profile picture then Fish Book below */}
-        <div className="flex flex-col items-center gap-2">
-          {/* Profile picture circle */}
-          <div
-            className="rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
-            style={{
-              width: 52, height: 52,
-              background: `linear-gradient(135deg, ${ACCENT}20, rgba(0,0,0,0.6))`,
-              border: `2px solid ${ACCENT}60`,
-              boxShadow: `0 0 12px ${ACCENT}30`,
-            }}
-          >
-            {user.profileImage ? (
-              <img
-                src={user.profileImage}
-                alt={user.username}
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                data-testid="img-fishing-profile"
-              />
-            ) : (
-              <span className="font-fantasy text-lg font-bold" style={{ color: ACCENT }}>
-                {user.username.charAt(0).toUpperCase()}
-              </span>
-            )}
-          </div>
-          {/* Fish Book button — bigger, directly under profile pic */}
+        {/* Left column — Fish Book */}
+        <div className="flex flex-col items-center">
+          {/* Fish Book button */}
           <button
             data-testid="button-fish-book-top"
             onClick={() => { setShowFishBook(p => !p); setShowPolePanel(false); setShowBaitPanel(false); setShowFishInv(false); }}
@@ -910,12 +887,12 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
               src={fishBookIcon}
               alt="Fish Book"
               style={{
-                width: 40, height: 40,
+                width: 52, height: 52,
                 objectFit: "contain",
                 filter: showFishBook
-                  ? `drop-shadow(0 0 6px ${ACCENT}) drop-shadow(0 2px 6px rgba(0,0,0,0.7))`
-                  : "drop-shadow(0 2px 6px rgba(0,0,0,0.7))",
-                opacity: showFishBook ? 1 : 0.85,
+                  ? `drop-shadow(0 0 8px ${ACCENT}) drop-shadow(0 4px 12px rgba(0,0,0,0.55))`
+                  : "drop-shadow(0 4px 12px rgba(0,0,0,0.55))",
+                opacity: showFishBook ? 1 : 0.88,
               }}
             />
           </button>
@@ -1561,7 +1538,7 @@ function FishBookPanel({
   const caughtCount = allFish.filter(f => caughtSet.has(f.id)).length;
 
   return (
-    <div className="absolute inset-x-0 bottom-0 z-[40] flex flex-col" style={{
+    <div className="absolute inset-x-0 bottom-0 z-[65] flex flex-col" style={{
       top: 118,
       borderRadius: "20px 20px 0 0",
       background: "rgba(3,12,10,0.97)",
