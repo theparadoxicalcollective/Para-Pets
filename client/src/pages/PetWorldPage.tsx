@@ -158,8 +158,6 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const [doorEditName,        setDoorEditName]        = useState("");
   const [doorEditBgUrl,       setDoorEditBgUrl]       = useState("");
   const [doorEditRadius,      setDoorEditRadius]      = useState(6);
-  const [nearbyDoorId,      setNearbyDoorId]      = useState<string | null>(null);
-  const nearbyDoorIdRef = useRef<string | null>(null);
   const [bgPanX,            setBgPanX]            = useState(0);
   const bgPanXRef       = useRef(0);
   const bgPanDragRef    = useRef<{ startX: number; startPan: number } | null>(null);
@@ -459,19 +457,18 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
         localPetPosRef.current = { x: nx, y: ny };
         setLocalPetPos({ x: nx, y: ny });
 
-        // ── Door proximity detection (shows Enter prompt) ───────────────────
+        // ── Door trigger detection ──────────────────────────────────────────
         if (!activeDoorIdRef.current) {
-          let found: string | null = null;
           for (const door of kcDoorsRef.current) {
             if (doorCooldownRef.current === door.id) continue;
             const ddx = nx - door.posX;
             const ddy = ny - door.posY;
             const dist = Math.sqrt(ddx * ddx + ddy * ddy);
-            if (dist < door.triggerRadius) { found = door.id; break; }
-          }
-          if (found !== nearbyDoorIdRef.current) {
-            nearbyDoorIdRef.current = found;
-            setNearbyDoorId(found);
+            if (dist < door.triggerRadius) {
+              activeDoorIdRef.current = door.id;
+              setActiveDoorId(door.id);
+              break;
+            }
           }
         }
 
@@ -2087,41 +2084,6 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
         </div>
       )}
 
-      {/* ── Door "Enter" proximity prompt ────────────────────────────────── */}
-      {nearbyDoorId && !activeDoorId && (() => {
-        const door = kcDoors.find(d => d.id === nearbyDoorId);
-        if (!door) return null;
-        return (
-          <div className="absolute bottom-36 left-0 right-0 flex justify-center pointer-events-none" style={{ zIndex: 45 }}>
-            <div
-              className="pointer-events-auto flex flex-col items-center gap-2 px-6 py-3 rounded-2xl"
-              style={{
-                background: "rgba(4,10,6,0.93)",
-                border: `1.5px solid ${ACCENT}60`,
-                backdropFilter: "blur(10px)",
-                boxShadow: `0 4px 24px rgba(0,0,0,0.6), 0 0 18px ${ACCENT}18`,
-                animation: "doorFadeIn 0.25s ease-out",
-              }}
-            >
-              <span className="font-fantasy text-[11px] tracking-widest" style={{ color: `${ACCENT}99` }}>{door.name}</span>
-              <button
-                data-testid="button-enter-door"
-                onClick={() => {
-                  activeDoorIdRef.current = nearbyDoorId;
-                  setActiveDoorId(nearbyDoorId);
-                  nearbyDoorIdRef.current = null;
-                  setNearbyDoorId(null);
-                }}
-                className="font-fantasy text-xs px-8 py-1.5 rounded-xl transition-transform active:scale-95"
-                style={{ background: `${ACCENT}28`, border: `1.5px solid ${ACCENT}80`, color: ACCENT, cursor: "pointer", letterSpacing: "0.1em" }}
-              >
-                Enter
-              </button>
-            </div>
-          </div>
-        );
-      })()}
-
       {/* ── Door Interior Overlay ─────────────────────────────────────────── */}
       {activeDoorId && (() => {
         const door = kcDoors.find(d => d.id === activeDoorId);
@@ -2290,9 +2252,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                       doorCooldownRef.current = activeDoorId;
                       setTimeout(() => { doorCooldownRef.current = null; }, 3000);
                       activeDoorIdRef.current = null;
-                      nearbyDoorIdRef.current = null;
                       setActiveDoorId(null);
-                      setNearbyDoorId(null);
                       setShowDoorAddDecorForm(false);
                       setSelectedDoorDecorId(null);
                     }}
