@@ -2613,7 +2613,7 @@ function WorldRoamingPet({
       <div style={{
         animation: isOwn
           ? isMoving
-            ? "kcPetWalkBounce 0.55s ease-in-out infinite"
+            ? "kcPetWalkBounce 0.85s ease-in-out infinite"
             : undefined
           : `${floatAnim} ${floatDuration} ease-in-out ${floatDelay} infinite ${hasWings ? "alternate" : ""}`,
       }}>
@@ -2669,24 +2669,6 @@ function WorldRoamingPet({
             >
               {pet.username}
             </span>
-
-
-            {/* Ground shadow — at the very bottom of the visible body */}
-            {!hasWings && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: Math.round(maxBotFrac * sz) - Math.round(sz * 0.01),
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  width: Math.round(sz * 0.5),
-                  height: Math.max(3, Math.round(sz * 0.04)),
-                  background: "rgba(0,0,0,0.22)",
-                  borderRadius: "50%",
-                  filter: `blur(${Math.max(2, Math.round(sz * 0.03))}px)`,
-                }}
-              />
-            )}
 
             {/* Tap zone — tapping a pet opens their profile.
                 data-petid is read by the viewport pointer-up handler (setPointerCapture
