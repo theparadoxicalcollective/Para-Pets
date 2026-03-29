@@ -703,7 +703,8 @@ app.use((req, res, next) => {
   try {
     const doorRows = ((await db.execute(sql`SELECT id, name, bg_url FROM kc_doors WHERE world_id = 'pet_world'`)) as any).rows as any[];
     const DOOR_BG_SEEDS: Array<{ match: string; file: string; mime: string }> = [
-      { match: "welcome", file: "bg_welcome_center.jpeg", mime: "image/jpeg" },
+      { match: "welcome",  file: "bg_welcome_center.jpeg",  mime: "image/jpeg" },
+      { match: "fortune",  file: "bg_well_of_fortune.png",  mime: "image/png"  },
     ];
     const seededIds: string[] = [];
     for (const seed of DOOR_BG_SEEDS) {
