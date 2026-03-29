@@ -437,7 +437,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   useEffect(() => {
     if (ownPet && localPetPosRef.current === null) {
       const stored = petDefaultPositions.get(ownPet.userId) ?? { x: 50, y: 70 };
-      const init = { x: Math.max(5, Math.min(92, stored.x)), y: Math.max(38, Math.min(90, stored.y)) };
+      const init = { x: Math.max(5, Math.min(92, stored.x)), y: Math.max(15, Math.min(90, stored.y)) };
       localPetPosRef.current = init;
       setLocalPetPos(init);
       // Pan the camera so the pet is horizontally centered in the frame on entry
@@ -460,7 +460,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
       lastRafTimeRef.current = now;
       if (localPetPosRef.current && (dx !== 0 || dy !== 0)) {
         const nx = Math.max(5,  Math.min(92, localPetPosRef.current.x + dx * 6 * dt));
-        const ny = Math.max(38, Math.min(90, localPetPosRef.current.y + dy * 4 * dt));
+        const ny = Math.max(15, Math.min(90, localPetPosRef.current.y + dy * 4 * dt));
         localPetPosRef.current = { x: nx, y: ny };
         setLocalPetPos({ x: nx, y: ny });
 
@@ -926,7 +926,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
               ? localPetPos
               : (petDefaultPositions.get(pet.userId) ?? { x: 50, y: 70 });
             const resolvedX = Math.max(5,  Math.min(92, rawPos.x));
-            const resolvedY = Math.max(38, Math.min(90, rawPos.y));
+            const resolvedY = Math.max(15, Math.min(90, rawPos.y));
             return (
               <WorldRoamingPet
                 key={pet.userId}
