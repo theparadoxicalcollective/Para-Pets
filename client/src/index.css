@@ -937,6 +937,11 @@
   to   { opacity: 1; }
 }
 
+@keyframes doorPulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.06); }
+}
+
 /* Own pet hop-bounce while joystick is active */
 @keyframes kcPetWalkBounce {
   0%   { transform: translateY(0)    scaleX(1)    scaleY(1); }

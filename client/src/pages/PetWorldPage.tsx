@@ -430,7 +430,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   useEffect(() => {
     if (ownPet && localPetPosRef.current === null) {
       const stored = petDefaultPositions.get(ownPet.userId) ?? { x: 50, y: 70 };
-      const init = { x: Math.max(5, Math.min(92, stored.x)), y: Math.max(12, Math.min(92, stored.y)) };
+      const init = { x: Math.max(5, Math.min(92, stored.x)), y: Math.max(38, Math.min(90, stored.y)) };
       localPetPosRef.current = init;
       setLocalPetPos(init);
       // Pan the camera so the pet is horizontally centered in the frame on entry
@@ -453,7 +453,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
       lastRafTimeRef.current = now;
       if (localPetPosRef.current && (dx !== 0 || dy !== 0)) {
         const nx = Math.max(5,  Math.min(92, localPetPosRef.current.x + dx * 6 * dt));
-        const ny = Math.max(12, Math.min(92, localPetPosRef.current.y + dy * 4 * dt));
+        const ny = Math.max(38, Math.min(90, localPetPosRef.current.y + dy * 4 * dt));
         localPetPosRef.current = { x: nx, y: ny };
         setLocalPetPos({ x: nx, y: ny });
 
@@ -927,7 +927,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
               ? localPetPos
               : (petDefaultPositions.get(pet.userId) ?? { x: 50, y: 70 });
             const resolvedX = Math.max(5,  Math.min(92, rawPos.x));
-            const resolvedY = Math.max(12, Math.min(92, rawPos.y));
+            const resolvedY = Math.max(38, Math.min(90, rawPos.y));
             return (
               <WorldRoamingPet
                 key={pet.userId}
@@ -1113,7 +1113,34 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
             );
           })}
 
-          {/* ── Door trigger zones (admin-visible only) ─────────────────── */}
+          {/* ── Door indicators (visible to all users) ──────────────────────── */}
+          {!user.isAdmin && kcDoors.map(door => {
+            const rPx = door.triggerRadius * (MAP_W / 100);
+            return (
+              <div
+                key={door.id}
+                style={{
+                  position: "absolute",
+                  left: `${door.posX}%`,
+                  top: `${door.posY}%`,
+                  width: rPx * 2,
+                  height: rPx * 2,
+                  transform: "translate(-50%, -50%)",
+                  zIndex: 72,
+                  pointerEvents: "none",
+                }}
+              >
+                <div style={{
+                  width: "100%", height: "100%", borderRadius: "50%",
+                  background: "radial-gradient(circle, rgba(127,255,212,0.10) 0%, rgba(127,255,212,0.04) 60%, transparent 100%)",
+                  boxShadow: "0 0 18px 6px rgba(127,255,212,0.08)",
+                  animation: "doorPulse 2.4s ease-in-out infinite",
+                }} />
+              </div>
+            );
+          })}
+
+          {/* ── Admin door zones ──────────────────────────────────────────────── */}
           {user.isAdmin && kcDoors.map(door => {
             const pos = doorDragPos?.id === door.id ? { x: doorDragPos.x, y: doorDragPos.y } : { x: door.posX, y: door.posY };
             const rPx = door.triggerRadius * (MAP_W / 100);
@@ -1130,7 +1157,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                   height: rPx * 2,
                   transform: "translate(-50%, -50%)",
                   cursor: "grab",
-                  zIndex: isSelected ? 300 : 100,
+                  zIndex: isSelected ? 100 : 72,
                   touchAction: "none",
                   userSelect: "none",
                 }}
@@ -2661,7 +2688,7 @@ function WorldRoamingPet({
         left: `${posX}%`,
         top:  `${posY}%`,
         transform: "translate(-50%, -100%)",
-        zIndex: 11 + Math.round((posY / 100) * 60),
+        zIndex: 74 + Math.round((posY / 100) * 60),
         pointerEvents: "none",
         userSelect: "none",
         // Smooth glide between SSE position updates for other players' pets;
