@@ -468,10 +468,12 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
         if (!activeDoorIdRef.current) {
           for (const door of kcDoorsRef.current) {
             if (doorCooldownRef.current === door.id) continue;
-            const ddx = nx - door.posX;
-            const ddy = ny - door.posY;
-            const dist = Math.sqrt(ddx * ddx + ddy * ddy);
-            if (dist < door.triggerRadius) {
+            // Convert to map-pixel space so the trigger zone is a true circle
+            const ddxPx = (nx - door.posX) / 100 * MAP_W;
+            const ddyPx = (ny - door.posY) / 100 * mapHRef.current;
+            const distPx = Math.sqrt(ddxPx * ddxPx + ddyPx * ddyPx);
+            const rPx    = door.triggerRadius / 100 * MAP_W;
+            if (distPx < rPx) {
               activeDoorIdRef.current = door.id;
               setActiveDoorId(door.id);
               break;
@@ -2119,8 +2121,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                   draggable={false}
                   style={{
                     position: "absolute", top: 0, left: 0,
-                    height: "100%", width: "auto", minWidth: "100%",
-                    objectFit: "cover",
+                    height: "100%", width: "auto",
                     transform: `translateX(-${bgPanX}px)`,
                     pointerEvents: "none", userSelect: "none",
                   }}
@@ -2342,8 +2343,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
 
 
 
-      {/* ── Joystick — only shown when player has an active pet ─────────── */}
-      {ownPet && (
+      {/* ── Joystick — only shown when player has an active pet and is on the map ─── */}
+      {ownPet && !activeDoorId && (
         <Joystick onChange={handleJoystickChange} />
       )}
 
