@@ -420,15 +420,21 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   // ── Own pet + joystick movement ────────────────────────────────────────────
   const ownPet = useMemo(() => onlinePets.find(p => p.userId === user.id), [onlinePets, user.id]);
 
-  // Seed localPetPos once the player's pet is known
+  // Seed localPetPos once the player's pet is known, then center the camera on it
   useEffect(() => {
     if (ownPet && localPetPosRef.current === null) {
       const stored = petDefaultPositions.get(ownPet.userId) ?? { x: 50, y: 70 };
       const init = { x: Math.max(5, Math.min(92, stored.x)), y: Math.max(38, Math.min(90, stored.y)) };
       localPetPosRef.current = init;
       setLocalPetPos(init);
+      // Pan the camera so the pet is horizontally centered in the frame on entry
+      const coverSc = Math.max(FRAME_W / MAP_W, FRAME_H / mapHRef.current);
+      const scaledMapW = MAP_W * coverSc;
+      const petScreenX = (init.x / 100) * scaledMapW;
+      const targetMapX = FRAME_W / 2 - petScreenX;
+      applyMapTransform(targetMapX, 0, coverSc);
     }
-  }, [ownPet, petDefaultPositions]);
+  }, [ownPet, petDefaultPositions, applyMapTransform]);
 
   // RAF movement loop — runs while joystick is active
   const startRaf = useCallback(() => {
