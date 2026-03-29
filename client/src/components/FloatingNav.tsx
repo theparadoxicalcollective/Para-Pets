@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import mainNavIcon from "@assets/generated_images/icon_main_nav.png";
-import homeIcon from "@assets/generated_images/nav_icon_home.png";
-import petHouseIcon from "@assets/generated_images/nav_icon_pets.png";
+import petHouseIcon from "@assets/generated_images/nav_icon_home.png";
 import activePetIcon from "@assets/generated_images/nav_icon_active_pet_new.png";
+import petsIcon from "@assets/generated_images/nav_icon_pets.png";
 import marketIcon from "@assets/generated_images/nav_icon_market.png";
 import fishbowlIcon from "@assets/icon_fishbowl.png";
 import globeIcon from "@assets/icon_globe_world.png";
@@ -37,7 +37,7 @@ const LEFT_ITEMS = [
   { id: "badges",    label: "Badges",    icon: badgesIcon },
   { id: "quest",     label: "Quest",     icon: questIcon  },
   { id: "pvp",       label: "PvP",       icon: pvpIcon    },
-  { id: "inventory", label: "Pets",      icon: activePetIcon },
+  { id: "inventory", label: "Pets",      icon: petsIcon   },
   { id: "map",       label: "Map",       icon: mapIcon,    fill: true },
 ];
 
@@ -48,7 +48,7 @@ const RIGHT_ITEMS = [
   { id: "market",   label: "Market",  icon: marketIcon   },
   { id: "aquarium", label: "Aquarium",icon: fishbowlIcon },
   { id: "keepers",  label: "Central", icon: globeIcon    },
-  { id: "home",     label: "Pet",     icon: homeIcon     },
+  { id: "home",     label: "Pet",     icon: activePetIcon },
 ];
 
 const ICON_SIZE   = 44;
