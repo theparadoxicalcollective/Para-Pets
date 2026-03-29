@@ -74,21 +74,13 @@ function WalkingPetView({ pet, index }: { pet: HousePet; index: number }) {
     ? FLY_CONFIGS[index % FLY_CONFIGS.length]
     : GROUND_CONFIGS[index % GROUND_CONFIGS.length];
 
-  const hasSavedPos = !!(pet.posLeft && pet.posTop);
-  const posLeft = pet.posLeft ?? cfg.left;
-  const posTop  = pet.posTop  ?? cfg.top;
+  const posLeft = cfg.left;
+  const posTop  = cfg.top;
 
   const floatAnim    = hasWings ? "petFloatSmall" : "petGroundFloat";
   const wanderPrefix = hasWings ? "petWander" : "petGroundWander";
 
-  const localWanderVariant  = index % 6;
-  const localWanderDuration = 22 + (index % 4) * 3;
-  const localWanderDelay    = (index * 4.7) % 18;
-  const localWanderAnim     = `petLocalWander${localWanderVariant} ${localWanderDuration}s ${localWanderDelay}s ease-in-out infinite`;
-
-  const wanderAnim = hasSavedPos
-    ? localWanderAnim
-    : `${wanderPrefix}${cfg.wanderIdx} ${cfg.duration} ${cfg.delay} ease-in-out infinite`;
+  const wanderAnim = `${wanderPrefix}${cfg.wanderIdx} ${cfg.duration} ${cfg.delay} ease-in-out infinite`;
 
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
   const sz = cfg.size;
