@@ -48,7 +48,7 @@ const RIGHT_ITEMS = [
   { id: "market",   label: "Market",  icon: marketIcon   },
   { id: "aquarium", label: "Aquarium",icon: fishbowlIcon },
   { id: "keepers",  label: "Central", icon: globeIcon    },
-  { id: "home",     label: "Pet",     icon: activePetIcon },
+  { id: "home",     label: "Main",    icon: activePetIcon },
 ];
 
 const ICON_SIZE   = 44;
