@@ -1976,13 +1976,27 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                       onChange={e => setDoorEditName(e.target.value)}
                       placeholder="Door name…"
                     />
-                    <input
-                      className="font-fantasy text-xs rounded-lg px-3 py-2 outline-none"
-                      style={{ background: "rgba(20,30,15,0.8)", border: `1px solid ${ACCENT}40`, color: ACCENT }}
-                      value={doorEditBgUrl}
-                      onChange={e => setDoorEditBgUrl(e.target.value)}
-                      placeholder="Background image URL…"
-                    />
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <span className="font-fantasy text-[10px]" style={{ color: `${ACCENT}80` }}>Background:</span>
+                      <input type="file" accept="image/*" className="hidden" onChange={async e => {
+                        const f = e.target.files?.[0];
+                        if (f) { const url = await readFileAsDataUrl(f); setDoorEditBgUrl(url); }
+                      }} />
+                      {doorEditBgUrl ? (
+                        <div className="flex items-center gap-1.5">
+                          <img src={doorEditBgUrl} alt="bg" style={{ width: 32, height: 32, objectFit: "cover", borderRadius: 6, border: `1px solid ${ACCENT}40` }} />
+                          <span className="font-fantasy text-[10px] px-2 py-1 rounded-lg" style={{ background: `${ACCENT}22`, border: `1px solid ${ACCENT}50`, color: ACCENT }}>Change</span>
+                          <button type="button" onPointerDown={e => e.stopPropagation()} onClick={e => { e.preventDefault(); e.stopPropagation(); setDoorEditBgUrl(""); }}
+                            className="font-fantasy text-[10px] px-2 py-1 rounded-lg"
+                            style={{ background: "rgba(60,20,20,0.6)", border: "1px solid rgba(200,80,80,0.4)", color: "#f87171", cursor: "pointer" }}>✕</button>
+                        </div>
+                      ) : (
+                        <span className="font-fantasy text-[10px] px-2 py-1 rounded-lg transition-transform active:scale-95"
+                          style={{ background: `${ACCENT}22`, border: `1px solid ${ACCENT}50`, color: ACCENT, cursor: "pointer" }}>
+                          Choose file
+                        </span>
+                      )}
+                    </label>
                     <div className="flex items-center gap-2">
                       <span className="font-fantasy text-[10px]" style={{ color: `${ACCENT}80` }}>Radius:</span>
                       <button onClick={() => setDoorEditRadius(r => Math.max(3, r - 1))}
