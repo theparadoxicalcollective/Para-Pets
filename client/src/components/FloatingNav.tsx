@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import mainNavIcon from "@assets/generated_images/icon_main_nav.png";
 import homeIcon from "@assets/generated_images/nav_icon_home.png";
-import petHouseIcon from "@assets/generated_images/nav_icon_pethouse.png";
+import petHouseIcon from "@assets/generated_images/nav_icon_pets.png";
+import activePetIcon from "@assets/generated_images/nav_icon_active_pet_new.png";
 import marketIcon from "@assets/generated_images/nav_icon_market.png";
 import fishbowlIcon from "@assets/icon_fishbowl.png";
 import globeIcon from "@assets/icon_globe_world.png";
@@ -11,7 +12,6 @@ import mapIcon from "@assets/generated_images/nav_icon_map_new.png";
 import questIcon from "@assets/generated_images/nav_icon_map.png";
 import questScrollBg from "@assets/IMG_6427_1774545779530.png";
 import pvpIcon from "@assets/generated_images/nav_icon_pvp.png";
-import petsIcon from "@assets/generated_images/nav_icon_pets.png";
 import badgesIcon from "@assets/generated_images/nav_icon_badges.png";
 import PetInventory from "@/components/PetInventory";
 import PetWorldPage from "@/pages/PetWorldPage";
@@ -37,7 +37,7 @@ const LEFT_ITEMS = [
   { id: "badges",    label: "Badges",    icon: badgesIcon },
   { id: "quest",     label: "Quest",     icon: questIcon  },
   { id: "pvp",       label: "PvP",       icon: pvpIcon    },
-  { id: "inventory", label: "Pets",      icon: petsIcon   },
+  { id: "inventory", label: "Pets",      icon: activePetIcon },
   { id: "map",       label: "Map",       icon: mapIcon,    fill: true },
 ];
 
