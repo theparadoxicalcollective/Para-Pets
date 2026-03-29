@@ -15,7 +15,7 @@ import petsIcon from "@assets/generated_images/nav_icon_pets.png";
 import badgesIcon from "@assets/generated_images/nav_icon_badges.png";
 import PetInventory from "@/components/PetInventory";
 import PetWorldPage from "@/pages/PetWorldPage";
-import { AquariumPage } from "@/pages/PetHousePage";
+import { AquariumPage } from "@/pages/AquariumPage";
 
 interface NavUser {
   id: string;
