@@ -116,7 +116,7 @@ function WalkingPetView({ pet, index }: { pet: HousePet; index: number }) {
             <>
               <PetAnimator
                 petTemplateId={pet.petTemplateId}
-                mode="idle"
+                mode={hasWings ? "idle" : "walk"}
                 size={sz}
                 style={{
                   filter: `drop-shadow(0 ${Math.round(sz * 0.12)}px ${Math.round(sz * 0.15)}px rgba(0,0,0,0.5))`,
