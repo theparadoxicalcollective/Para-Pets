@@ -49,12 +49,12 @@ const FLY_CONFIGS = [
 ];
 
 const GROUND_CONFIGS = [
-  { wanderIdx: 0, left: "4%",  top: "91%", size: 220, duration: "38s", delay: "0s"  },
-  { wanderIdx: 1, left: "58%", top: "91%", size: 220, duration: "42s", delay: "5s"  },
-  { wanderIdx: 2, left: "20%", top: "89%", size: 220, duration: "36s", delay: "11s" },
-  { wanderIdx: 3, left: "52%", top: "89%", size: 220, duration: "44s", delay: "2s"  },
-  { wanderIdx: 4, left: "34%", top: "89%", size: 220, duration: "40s", delay: "16s" },
-  { wanderIdx: 5, left: "40%", top: "91%", size: 220, duration: "45s", delay: "8s"  },
+  { wanderIdx: 0, left: "5%",  top: "88%", size: 210, duration: "28s", delay: "0s"  },
+  { wanderIdx: 1, left: "55%", top: "85%", size: 200, duration: "32s", delay: "4s"  },
+  { wanderIdx: 2, left: "18%", top: "82%", size: 195, duration: "26s", delay: "9s"  },
+  { wanderIdx: 3, left: "48%", top: "90%", size: 210, duration: "30s", delay: "2s"  },
+  { wanderIdx: 4, left: "30%", top: "86%", size: 200, duration: "34s", delay: "14s" },
+  { wanderIdx: 5, left: "38%", top: "83%", size: 195, duration: "29s", delay: "7s"  },
 ];
 
 function WalkingPetView({ pet, index }: { pet: HousePet; index: number }) {
