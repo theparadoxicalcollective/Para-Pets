@@ -800,7 +800,7 @@ export default function HomePage({ user }: HomePageProps) {
           onClick={() => setShowHomePageTutorial(true)}
           className="absolute z-30 flex items-center justify-center rounded-full transition-transform active:scale-90"
           style={{
-            bottom: "110px",
+            top: "68px",
             right: "16px",
             width: "30px",
             height: "30px",
