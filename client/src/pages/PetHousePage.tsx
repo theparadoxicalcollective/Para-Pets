@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
@@ -57,6 +57,19 @@ const GROUND_CONFIGS = [
   { wanderIdx: 5, left: "38%", top: "83%", size: 195, duration: "29s", delay: "7s"  },
 ];
 
+const NUM_WANDER_ANIMS = 6;
+
+function randomGroundConfig() {
+  const left   = Math.round(4 + Math.random() * 62);   // 4–66%
+  const top    = Math.round(79 + Math.random() * 13);  // 79–92%
+  const size   = Math.round(165 + Math.random() * 50); // 165–215px
+  const dur    = (24 + Math.random() * 16).toFixed(1); // 24–40s
+  const delay  = (Math.random() * 22).toFixed(1);      // 0–22s
+  const bDelay = (Math.random() * 1.1).toFixed(2);     // 0–1.1s bounce offset
+  const wIdx   = Math.floor(Math.random() * NUM_WANDER_ANIMS);
+  return { left: `${left}%`, top: `${top}%`, size, duration: `${dur}s`, delay: `${delay}s`, bounceDelay: `${bDelay}s`, wanderIdx: wIdx };
+}
+
 function WalkingPetView({ pet, index }: { pet: HousePet; index: number }) {
   const { data: templateData } = useQuery<{ parts: Array<{ partType: string }>; canFly: boolean; facing: string }>({
     queryKey: ["/api/pet-template-parts", pet.petTemplateId],
@@ -70,9 +83,12 @@ function WalkingPetView({ pet, index }: { pet: HousePet; index: number }) {
   });
 
   const hasWings = !!(templateData?.canFly);
+
+  // Random config computed once on mount so pets scatter on each page open
+  const groundCfg = useMemo(() => randomGroundConfig(), []);
   const cfg = hasWings
     ? FLY_CONFIGS[index % FLY_CONFIGS.length]
-    : GROUND_CONFIGS[index % GROUND_CONFIGS.length];
+    : groundCfg;
 
   const posLeft = cfg.left;
   const posTop  = cfg.top;
@@ -83,8 +99,9 @@ function WalkingPetView({ pet, index }: { pet: HousePet; index: number }) {
 
   // All ground pets use idle — walk mode looks like running in place against slow wander
   const animatorMode: "idle" | "walk" = "idle";
+  const bounceCfgDelay = !hasWings ? (cfg as ReturnType<typeof randomGroundConfig>).bounceDelay : undefined;
   const bounceAnim = !hasWings
-    ? "petHouseBounce 1.1s ease-in-out infinite"
+    ? `petHouseBounce 1.1s ${bounceCfgDelay} ease-in-out infinite`
     : undefined;
 
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
