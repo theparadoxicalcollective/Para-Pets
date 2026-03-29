@@ -158,6 +158,10 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const [doorEditName,        setDoorEditName]        = useState("");
   const [doorEditBgUrl,       setDoorEditBgUrl]       = useState("");
   const [doorEditRadius,      setDoorEditRadius]      = useState(6);
+  const [bgPanX,            setBgPanX]            = useState(0);
+  const bgPanXRef       = useRef(0);
+  const bgPanDragRef    = useRef<{ startX: number; startPan: number } | null>(null);
+  const bgImgRef        = useRef<HTMLImageElement>(null);
   const doorDragRef     = useRef<{ doorId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const doorDidDrag     = useRef(false);
   const doorDecorDragRef= useRef<{ placementId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
@@ -800,18 +804,43 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     setDoorDragPos(null);
   }, [doorDragPos, updateDoorMutation]);
 
-  // ── door interior decor drag handlers (admin only) ─────────────────────────
+  // ── door interior decor drag + background pan handlers ──────────────────────
   const interiorRef = useRef<HTMLDivElement>(null);
+
+  // Reset background pan whenever a door is opened or closed
+  useEffect(() => {
+    bgPanXRef.current = 0;
+    setBgPanX(0);
+  }, [activeDoorId]);
+
+  const handleInteriorPointerDown = useCallback((e: React.PointerEvent) => {
+    // Only start a bg pan if no decor drag is active
+    if (doorDecorDragRef.current) return;
+    bgPanDragRef.current = { startX: e.clientX, startPan: bgPanXRef.current };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }, []);
 
   const handleDoorDecorPointerDown = useCallback((e: React.PointerEvent, p: KcDoorDecorP) => {
     if (!user.isAdmin) return;
     e.preventDefault(); e.stopPropagation();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    bgPanDragRef.current = null; // cancel any bg pan when decor drag starts
     doorDecorDidDrag.current = false;
     doorDecorDragRef.current = { placementId: p.id, startX: e.clientX, startY: e.clientY, origPosX: p.posX, origPosY: p.posY };
   }, [user.isAdmin]);
 
   const handleDoorDecorPointerMove = useCallback((e: React.PointerEvent) => {
+    // Background pan (anyone)
+    if (bgPanDragRef.current && bgImgRef.current && interiorRef.current) {
+      const imgW = bgImgRef.current.getBoundingClientRect().width;
+      const containerW = interiorRef.current.getBoundingClientRect().width;
+      const maxPan = Math.max(0, imgW - containerW);
+      const dx = bgPanDragRef.current.startX - e.clientX;
+      const newPan = Math.max(0, Math.min(maxPan, bgPanDragRef.current.startPan + dx));
+      bgPanXRef.current = newPan;
+      setBgPanX(newPan);
+    }
+    // Decor drag (admin only)
     if (!doorDecorDragRef.current || !interiorRef.current) return;
     e.preventDefault();
     const rect = interiorRef.current.getBoundingClientRect();
@@ -824,6 +853,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   }, []);
 
   const handleDoorDecorPointerUp = useCallback(() => {
+    bgPanDragRef.current = null;
     if (!doorDecorDragRef.current) return;
     const d = doorDecorDragRef.current;
     doorDecorDragRef.current = null;
@@ -2066,16 +2096,32 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
               ref={interiorRef}
               style={{
                 position: "absolute", inset: 0,
-                backgroundImage: door.bgUrl ? `url(${door.bgUrl})` : undefined,
-                backgroundSize: "cover", backgroundPosition: "center",
-                backgroundColor: door.bgUrl ? undefined : "#0a1a0f",
-                touchAction: user.isAdmin ? "none" : "auto",
+                backgroundColor: "#0a1a0f",
+                overflow: "hidden",
+                touchAction: "none",
               }}
-              onPointerMove={user.isAdmin ? handleDoorDecorPointerMove : undefined}
-              onPointerUp={user.isAdmin ? handleDoorDecorPointerUp : undefined}
-              onPointerCancel={user.isAdmin ? handleDoorDecorPointerUp : undefined}
+              onPointerDown={handleInteriorPointerDown}
+              onPointerMove={handleDoorDecorPointerMove}
+              onPointerUp={handleDoorDecorPointerUp}
+              onPointerCancel={handleDoorDecorPointerUp}
               onClick={() => { if (user.isAdmin) { setSelectedDoorDecorId(null); } }}
             >
+              {/* Background image — fills height, wider images can be panned L/R */}
+              {door.bgUrl && (
+                <img
+                  ref={bgImgRef}
+                  src={door.bgUrl}
+                  alt="interior background"
+                  draggable={false}
+                  style={{
+                    position: "absolute", top: 0, left: 0,
+                    height: "100%", width: "auto", minWidth: "100%",
+                    objectFit: "cover",
+                    transform: `translateX(-${bgPanX}px)`,
+                    pointerEvents: "none", userSelect: "none",
+                  }}
+                />
+              )}
               {/* Dark overlay tint */}
               <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.25)", pointerEvents: "none" }} />
 
