@@ -475,6 +475,9 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
             if (distPx < rPx) {
               activeDoorIdRef.current = door.id;
               setActiveDoorId(door.id);
+              // Stop the pet immediately — cancel RAF and zero joystick direction
+              joystickDirRef.current = { dx: 0, dy: 0 };
+              if (rafRef.current !== null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
               break;
             }
           }
@@ -2241,10 +2244,11 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                       setShowDoorAddDecorForm(false);
                       setSelectedDoorDecorId(null);
                     }}
-                    className="w-8 h-8 rounded-full flex items-center justify-center transition-transform active:scale-90"
-                    style={{ background: "rgba(40,10,10,0.9)", border: "1.5px solid rgba(200,80,80,0.5)", cursor: "pointer" }}
+                    className="flex items-center gap-1.5 px-3 h-8 rounded-full transition-transform active:scale-90 font-fantasy text-xs"
+                    style={{ background: "rgba(40,10,10,0.9)", border: "1.5px solid rgba(200,80,80,0.5)", color: "#f87171", cursor: "pointer" }}
                   >
-                    <X style={{ width: 14, height: 14, color: "#f87171" }} />
+                    <X style={{ width: 12, height: 12 }} />
+                    Leave
                   </button>
                 </div>
               </div>
