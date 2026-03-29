@@ -351,6 +351,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     if (!user.isAdmin) return;
     // Only allow dragging a location that has already been tapped/selected
     if (selectedLocId !== loc.id) return;
+    if ((e.target as Element).closest("button")) return;
     e.stopPropagation();
     e.preventDefault();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -787,6 +788,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   // ── decor drag on map ──────────────────────────────────────────────────────
   const handleDecorPointerDown = useCallback((e: React.PointerEvent, p: { id: string; posX: number; posY: number }) => {
     if (!user.isAdmin) return;
+    // Don't intercept pointer events meant for admin edit buttons
+    if ((e.target as Element).closest("button")) return;
     e.preventDefault(); e.stopPropagation();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     decorDidDrag.current = false;
@@ -819,6 +822,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   // ── door drag handlers (admin only) ────────────────────────────────────────
   const handleDoorPointerDown = useCallback((e: React.PointerEvent, door: KcDoor) => {
     if (!user.isAdmin) return;
+    if ((e.target as Element).closest("button")) return;
     e.stopPropagation(); e.preventDefault();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     doorDidDrag.current = false;
@@ -875,12 +879,15 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const handleInteriorPointerDown = useCallback((e: React.PointerEvent) => {
     // Only start a bg pan if no decor drag is active
     if (doorDecorDragRef.current) return;
+    // Don't start a pan when the admin taps an edit button
+    if ((e.target as Element).closest("button")) return;
     bgPanDragRef.current = { startX: e.clientX, startPan: bgPanXRef.current };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }, []);
 
   const handleDoorDecorPointerDown = useCallback((e: React.PointerEvent, p: KcDoorDecorP) => {
     if (!user.isAdmin) return;
+    if ((e.target as Element).closest("button")) return;
     e.preventDefault(); e.stopPropagation();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     bgPanDragRef.current = null; // cancel any bg pan when decor drag starts
@@ -1149,27 +1156,35 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                 )}
 
                 {user.isAdmin && selectedDecorId === p.id && (
-                  <div onPointerDown={e => e.stopPropagation()} style={{ pointerEvents: "auto" }}>
-                    <button onClick={e => { e.stopPropagation(); deleteDecorPlacementMutation.mutate(p.id); setSelectedDecorId(null); }}
+                  <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+                    <button
+                      onPointerDown={e => e.stopPropagation()}
+                      onClick={e => { e.stopPropagation(); deleteDecorPlacementMutation.mutate(p.id); setSelectedDecorId(null); }}
                       className="absolute z-30 w-8 h-8 rounded-full flex items-center justify-center"
-                      style={{ top: -16, left: -16, background: "rgba(220,38,38,0.95)", border: "2px solid rgba(255,100,100,0.7)", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}>
+                      style={{ top: -16, left: -16, background: "rgba(220,38,38,0.95)", border: "2px solid rgba(255,100,100,0.7)", cursor: "pointer", pointerEvents: "auto", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}>
                       <Trash2 className="w-3.5 h-3.5 text-white" />
                     </button>
                     {!isPassThrough && (
-                      <button onClick={e => { e.stopPropagation(); updateDecorPlacementMutation.mutate({ id: p.id, flipped: !p.flipped }); }}
+                      <button
+                        onPointerDown={e => e.stopPropagation()}
+                        onClick={e => { e.stopPropagation(); updateDecorPlacementMutation.mutate({ id: p.id, flipped: !p.flipped }); }}
                         className="absolute z-30 w-8 h-8 rounded-full flex items-center justify-center"
-                        style={{ top: -16, right: -16, background: "rgba(0,80,180,0.95)", border: "2px solid rgba(100,180,255,0.7)", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}>
+                        style={{ top: -16, right: -16, background: "rgba(0,80,180,0.95)", border: "2px solid rgba(100,180,255,0.7)", cursor: "pointer", pointerEvents: "auto", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}>
                         <FlipHorizontal className="w-3.5 h-3.5 text-white" />
                       </button>
                     )}
-                    <button onClick={e => { e.stopPropagation(); updateDecorPlacementMutation.mutate({ id: p.id, size: Math.max(20, p.size - 10) }); }}
+                    <button
+                      onPointerDown={e => e.stopPropagation()}
+                      onClick={e => { e.stopPropagation(); updateDecorPlacementMutation.mutate({ id: p.id, size: Math.max(20, p.size - 10) }); }}
                       className="absolute z-30 w-8 h-8 rounded-full flex items-center justify-center"
-                      style={{ bottom: -16, left: -16, background: "rgba(10,50,10,0.95)", border: "2px solid rgba(100,220,100,0.7)", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)", fontSize: 18, color: "#7fffd4" }}>
+                      style={{ bottom: -16, left: -16, background: "rgba(10,50,10,0.95)", border: "2px solid rgba(100,220,100,0.7)", cursor: "pointer", pointerEvents: "auto", boxShadow: "0 2px 8px rgba(0,0,0,0.5)", fontSize: 18, color: "#7fffd4" }}>
                       −
                     </button>
-                    <button onClick={e => { e.stopPropagation(); updateDecorPlacementMutation.mutate({ id: p.id, size: Math.min(600, p.size + 10) }); }}
+                    <button
+                      onPointerDown={e => e.stopPropagation()}
+                      onClick={e => { e.stopPropagation(); updateDecorPlacementMutation.mutate({ id: p.id, size: Math.min(600, p.size + 10) }); }}
                       className="absolute z-30 w-8 h-8 rounded-full flex items-center justify-center"
-                      style={{ bottom: -16, right: -16, background: "rgba(10,50,10,0.95)", border: "2px solid rgba(100,220,100,0.7)", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)", fontSize: 18, color: "#7fffd4" }}>
+                      style={{ bottom: -16, right: -16, background: "rgba(10,50,10,0.95)", border: "2px solid rgba(100,220,100,0.7)", cursor: "pointer", pointerEvents: "auto", boxShadow: "0 2px 8px rgba(0,0,0,0.5)", fontSize: 18, color: "#7fffd4" }}>
                       +
                     </button>
                   </div>
