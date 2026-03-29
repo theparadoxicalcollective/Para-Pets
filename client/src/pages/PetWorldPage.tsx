@@ -162,7 +162,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const [bgPanX,            setBgPanX]            = useState(0);
   const bgPanXRef       = useRef(0);
   const bgPanDragRef    = useRef<{ startX: number; startPan: number } | null>(null);
-  const bgImgRef        = useRef<HTMLImageElement>(null);
+  const bgNaturalSizeRef= useRef<{ w: number; h: number } | null>(null);
   const doorDragRef     = useRef<{ doorId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const doorDidDrag     = useRef(false);
   const doorDecorDragRef= useRef<{ placementId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
@@ -810,10 +810,18 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   // ── door interior decor drag + background pan handlers ──────────────────────
   const interiorRef = useRef<HTMLDivElement>(null);
 
-  // Reset background pan whenever a door is opened or closed
+  // Reset pan and preload background natural size whenever a door opens/closes
   useEffect(() => {
     bgPanXRef.current = 0;
     setBgPanX(0);
+    bgNaturalSizeRef.current = null;
+    if (!activeDoorId) return;
+    const door = kcDoors.find(d => d.id === activeDoorId);
+    if (!door?.bgUrl) return;
+    const img = new Image();
+    img.onload = () => { bgNaturalSizeRef.current = { w: img.naturalWidth, h: img.naturalHeight }; };
+    img.src = door.bgUrl;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeDoorId]);
 
   const handleInteriorPointerDown = useCallback((e: React.PointerEvent) => {
@@ -834,14 +842,13 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
 
   const handleDoorDecorPointerMove = useCallback((e: React.PointerEvent) => {
     // Background pan (anyone)
-    if (bgPanDragRef.current && bgImgRef.current && interiorRef.current) {
-      const img = bgImgRef.current;
+    if (bgPanDragRef.current && interiorRef.current) {
       const containerRect = interiorRef.current.getBoundingClientRect();
-      // Use natural dimensions to compute true rendered width at height=100%
-      // (avoids reading a CSS-squished getBoundingClientRect value)
-      const renderedW = img.naturalWidth > 0 && img.naturalHeight > 0
-        ? (img.naturalWidth / img.naturalHeight) * containerRect.height
-        : img.getBoundingClientRect().width;
+      const nat = bgNaturalSizeRef.current;
+      // Compute the image's rendered width at height=100% from natural dimensions
+      const renderedW = nat && nat.h > 0
+        ? (nat.w / nat.h) * containerRect.height
+        : containerRect.width;
       const maxPan = Math.max(0, renderedW - containerRect.width);
       const dx = bgPanDragRef.current.startX - e.clientX;
       const newPan = Math.max(0, Math.min(maxPan, bgPanDragRef.current.startPan + dx));
@@ -2110,6 +2117,13 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                 backgroundColor: "#0a1a0f",
                 overflow: "hidden",
                 touchAction: "none",
+                // CSS background-image avoids all img-tag CSS constraints (max-width, height:auto)
+                ...(door.bgUrl ? {
+                  backgroundImage: `url(${door.bgUrl})`,
+                  backgroundSize: "auto 100%",
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: `-${bgPanX}px 0`,
+                } : {}),
               }}
               onPointerDown={handleInteriorPointerDown}
               onPointerMove={handleDoorDecorPointerMove}
@@ -2117,23 +2131,6 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
               onPointerCancel={handleDoorDecorPointerUp}
               onClick={() => { if (user.isAdmin) { setSelectedDoorDecorId(null); } }}
             >
-              {/* Background image — fills height, wider images can be panned L/R */}
-              {door.bgUrl && (
-                <img
-                  ref={bgImgRef}
-                  src={door.bgUrl}
-                  alt="interior background"
-                  draggable={false}
-                  style={{
-                    position: "absolute", top: 0, left: 0,
-                    height: "100%", width: "auto",
-                    maxWidth: "none",      // override Tailwind preflight img { max-width: 100% }
-                    display: "block",
-                    transform: `translateX(-${bgPanX}px)`,
-                    pointerEvents: "none", userSelect: "none",
-                  }}
-                />
-              )}
               {/* Dark overlay tint */}
               <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.25)", pointerEvents: "none" }} />
 
