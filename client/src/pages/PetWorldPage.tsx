@@ -434,7 +434,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
       const targetMapX = FRAME_W / 2 - petScreenX;
       applyMapTransform(targetMapX, 0, coverSc);
     }
-  }, [ownPet, petDefaultPositions, applyMapTransform]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ownPet, petDefaultPositions]);
 
   // RAF movement loop — runs while joystick is active
   const startRaf = useCallback(() => {
