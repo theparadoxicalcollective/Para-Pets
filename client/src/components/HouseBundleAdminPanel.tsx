@@ -376,9 +376,12 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
       tapCandidateRef.current = null;
     } else {
       const down = pointerDownPosRef.current;
-      const moved = down ? Math.abs(e.clientX - down.x) + Math.abs(e.clientY - down.y) : 999;
+      if (!down) return;
+      const moved = Math.abs(e.clientX - down.x) + Math.abs(e.clientY - down.y);
       if (moved < 8 && !pointerDownHitBuilding.current) setSelectedId(null);
     }
+    pointerDownPosRef.current = null;
+    pointerDownHitBuilding.current = null;
   }, [livePos, savePosQuiet]);
 
   const handleSizeChange = useCallback((b: HouseBundleBuilding, delta: number) => {
@@ -543,6 +546,7 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
                       whiteSpace: "nowrap",
                     }}
                     onPointerDown={(e) => e.stopPropagation()}
+                    onPointerUp={(e) => e.stopPropagation()}
                   >
                     <button data-testid={`button-size-down-${b.id}`}
                       onClick={(e) => { e.stopPropagation(); handleSizeChange(b, -20); }}
