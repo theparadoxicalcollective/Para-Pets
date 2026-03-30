@@ -4,6 +4,8 @@ import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import PetAnimator from "@/components/PetAnimator";
 import petHouseBg from "@assets/IMG_6459_1774822089433.jpeg";
+import homeInventoryIcon from "@assets/icon_home_inventory.png";
+import decorInventoryIcon from "@assets/icon_decor_inventory.png";
 
 interface PetHousePageProps {
   user: {
@@ -150,6 +152,7 @@ function WalkingPetView({ pet, index }: { pet: HousePet; index: number }) {
 export default function PetHousePage({ user }: PetHousePageProps) {
   const [showProfile, setShowProfile] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
+  const [openInventory, setOpenInventory] = useState<"home" | "decor" | null>(null);
 
   const [panX, setPanX] = useState(0);
   const [imgWidth, setImgWidth] = useState(0);
@@ -249,6 +252,116 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
         </div>
       </div>
+
+      {/* Bottom inventory bar */}
+      <div
+        className="absolute bottom-0 left-0 right-0 flex justify-center gap-6 pb-5 pt-3"
+        style={{ zIndex: 15, pointerEvents: "auto", background: "linear-gradient(0deg, rgba(0,0,0,0.55) 0%, transparent 100%)" }}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        <button
+          data-testid="button-home-inventory"
+          onClick={() => setOpenInventory(openInventory === "home" ? null : "home")}
+          className="flex flex-col items-center gap-1 group"
+        >
+          <div
+            className="w-16 h-16 rounded-2xl flex items-center justify-center transition-transform group-active:scale-90"
+            style={{
+              background: openInventory === "home" ? "rgba(120,200,100,0.35)" : "rgba(0,0,0,0.45)",
+              border: openInventory === "home" ? "2px solid rgba(120,220,80,0.8)" : "2px solid rgba(255,255,255,0.2)",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
+              backdropFilter: "blur(6px)",
+            }}
+          >
+            <img src={homeInventoryIcon} alt="Home Inventory" className="w-12 h-12 object-contain" />
+          </div>
+          <span className="text-white text-xs font-semibold drop-shadow-md" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>
+            Home
+          </span>
+        </button>
+
+        <button
+          data-testid="button-decor-inventory"
+          onClick={() => setOpenInventory(openInventory === "decor" ? null : "decor")}
+          className="flex flex-col items-center gap-1 group"
+        >
+          <div
+            className="w-16 h-16 rounded-2xl flex items-center justify-center transition-transform group-active:scale-90"
+            style={{
+              background: openInventory === "decor" ? "rgba(180,120,220,0.35)" : "rgba(0,0,0,0.45)",
+              border: openInventory === "decor" ? "2px solid rgba(200,120,255,0.8)" : "2px solid rgba(255,255,255,0.2)",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
+              backdropFilter: "blur(6px)",
+            }}
+          >
+            <img src={decorInventoryIcon} alt="Decor Inventory" className="w-12 h-12 object-contain" />
+          </div>
+          <span className="text-white text-xs font-semibold drop-shadow-md" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>
+            Decor
+          </span>
+        </button>
+      </div>
+
+      {/* Inventory overlay panels */}
+      {openInventory && (
+        <div
+          className="absolute inset-0 flex flex-col justify-end"
+          style={{ zIndex: 20, pointerEvents: "none" }}
+        >
+          {/* Tap-outside to close */}
+          <div
+            className="absolute inset-0"
+            style={{ pointerEvents: "auto" }}
+            onPointerDown={(e) => { e.stopPropagation(); setOpenInventory(null); }}
+          />
+
+          {/* Panel */}
+          <div
+            className="relative rounded-t-3xl px-5 pt-5 pb-28"
+            style={{
+              pointerEvents: "auto",
+              background: "linear-gradient(180deg, rgba(20,30,20,0.97) 0%, rgba(10,18,10,0.99) 100%)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              boxShadow: "0 -8px 32px rgba(0,0,0,0.6)",
+              minHeight: 280,
+              maxHeight: "60vh",
+              overflowY: "auto",
+            }}
+          >
+            {/* Handle */}
+            <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-4" />
+
+            {/* Header */}
+            <div className="flex items-center gap-3 mb-5">
+              <img
+                src={openInventory === "home" ? homeInventoryIcon : decorInventoryIcon}
+                alt=""
+                className="w-10 h-10 object-contain"
+              />
+              <div>
+                <h2 className="text-white font-bold text-lg leading-tight">
+                  {openInventory === "home" ? "Home Inventory" : "Decor Inventory"}
+                </h2>
+                <p className="text-white/50 text-xs">
+                  {openInventory === "home"
+                    ? "House bundles you own"
+                    : "Home decorations you own"}
+                </p>
+              </div>
+            </div>
+
+            {/* Empty state */}
+            <div className="flex flex-col items-center justify-center py-10 gap-3">
+              <span className="text-4xl">{openInventory === "home" ? "🏡" : "🪴"}</span>
+              <p className="text-white/40 text-sm text-center">
+                {openInventory === "home"
+                  ? "No house bundles yet.\nVisit the shop to find some!"
+                  : "No decor items yet.\nVisit the shop to find some!"}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showProfile && (
         <UserProfilePanel
