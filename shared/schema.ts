@@ -608,3 +608,21 @@ export const userHouseBundles = pgTable("user_house_bundles", {
 });
 
 export type UserHouseBundle = typeof userHouseBundles.$inferSelect;
+
+// ── Location House Bundles (shop stock) ───────────────────────────────────────
+export const locationHouseBundles = pgTable("location_house_bundles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  locationId: varchar("location_id").notNull(),
+  bundleId: varchar("bundle_id").notNull(),
+});
+
+export type LocationHouseBundle = typeof locationHouseBundles.$inferSelect;
+
+// ── Location Home Decor (shop stock) ──────────────────────────────────────────
+export const locationHomeDecor = pgTable("location_home_decor", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  locationId: varchar("location_id").notNull(),
+  decorId: varchar("decor_id").notNull(),
+});
+
+export type LocationHomeDecor = typeof locationHomeDecor.$inferSelect;

@@ -41,6 +41,8 @@ import {
   type HouseBundleBuilding, houseBundleBuildings,
   type HomeDecorItem, homeDecorItems,
   type UserHouseBundle, userHouseBundles,
+  type LocationHouseBundle, locationHouseBundles,
+  type LocationHomeDecor, locationHomeDecor,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, ne, gte, asc, desc, ilike, or, sql, inArray } from "drizzle-orm";
@@ -1826,6 +1828,46 @@ export class DatabaseStorage implements IStorage {
     if (!bundle) return null;
     const buildings = await db.select().from(houseBundleBuildings).where(eq(houseBundleBuildings.bundleId, bundle.id)).orderBy(asc(houseBundleBuildings.createdAt));
     return { ...bundle, buildings };
+  }
+
+  // ── Location House Bundle shop stock ─────────────────────────────────────────
+  async getLocationHouseBundles(locationId: string): Promise<(LocationHouseBundle & { bundle: HouseBundle })[]> {
+    const rows = await db.select().from(locationHouseBundles).where(eq(locationHouseBundles.locationId, locationId));
+    const result: (LocationHouseBundle & { bundle: HouseBundle })[] = [];
+    for (const row of rows) {
+      const [bundle] = await db.select().from(houseBundles).where(eq(houseBundles.id, row.bundleId));
+      if (bundle) result.push({ ...row, bundle });
+    }
+    return result;
+  }
+
+  async addBundleToShop(locationId: string, bundleId: string): Promise<LocationHouseBundle> {
+    const [row] = await db.insert(locationHouseBundles).values({ locationId, bundleId }).returning();
+    return row;
+  }
+
+  async removeBundleFromShop(locationId: string, bundleId: string): Promise<void> {
+    await db.delete(locationHouseBundles).where(and(eq(locationHouseBundles.locationId, locationId), eq(locationHouseBundles.bundleId, bundleId)));
+  }
+
+  // ── Location Home Decor shop stock ───────────────────────────────────────────
+  async getLocationHomeDecor(locationId: string): Promise<(LocationHomeDecor & { decor: HomeDecorItem })[]> {
+    const rows = await db.select().from(locationHomeDecor).where(eq(locationHomeDecor.locationId, locationId));
+    const result: (LocationHomeDecor & { decor: HomeDecorItem })[] = [];
+    for (const row of rows) {
+      const [decor] = await db.select().from(homeDecorItems).where(eq(homeDecorItems.id, row.decorId));
+      if (decor) result.push({ ...row, decor });
+    }
+    return result;
+  }
+
+  async addDecorToShop(locationId: string, decorId: string): Promise<LocationHomeDecor> {
+    const [row] = await db.insert(locationHomeDecor).values({ locationId, decorId }).returning();
+    return row;
+  }
+
+  async removeDecorFromShop(locationId: string, decorId: string): Promise<void> {
+    await db.delete(locationHomeDecor).where(and(eq(locationHomeDecor.locationId, locationId), eq(locationHomeDecor.decorId, decorId)));
   }
 }
 

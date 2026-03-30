@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
@@ -56,7 +56,7 @@ interface ActiveBundle extends HouseBundle {
 interface OwnedBundle {
   id: string;
   bundleId: string;
-  bundle: HouseBundle;
+  bundle: HouseBundle & { shopImageUrl: string | null };
 }
 
 const DEFAULT_BG_RATIO = 1920 / 2400;
@@ -113,7 +113,6 @@ function WalkingPetView({ pet, index }: WalkingPetViewProps) {
 
 export default function PetHousePage({ user }: PetHousePageProps) {
   const { toast } = useToast();
-  const qc = useQueryClient();
   const [showProfile, setShowProfile] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
   const [openInventory, setOpenInventory] = useState<"home" | "decor" | null>(null);
@@ -135,17 +134,6 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     staleTime: 30000,
   });
 
-  // All available bundles
-  const { data: allBundles = [] } = useQuery<HouseBundle[]>({
-    queryKey: ["/api/house-bundles"],
-    queryFn: async () => {
-      const res = await fetch("/api/house-bundles", { credentials: "include" });
-      if (!res.ok) return [];
-      return res.json();
-    },
-    staleTime: 60000,
-  });
-
   // User's owned bundles
   const { data: ownedBundles = [], refetch: refetchOwned } = useQuery<OwnedBundle[]>({
     queryKey: ["/api/users", user.id, "house-bundles"],
@@ -155,25 +143,6 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       return res.json();
     },
     staleTime: 30000,
-  });
-
-  const ownedBundleIds = useMemo(() => new Set(ownedBundles.map((o) => o.bundleId)), [ownedBundles]);
-
-  const purchaseMutation = useMutation({
-    mutationFn: async (bundleId: string) => {
-      const res = await apiRequest("POST", `/api/house-bundles/${bundleId}/purchase`, {});
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message);
-      }
-      return res.json();
-    },
-    onSuccess: () => {
-      refetchOwned();
-      qc.invalidateQueries({ queryKey: ["/api/auth/me"] });
-      toast({ title: "Bundle purchased!" });
-    },
-    onError: (e: any) => toast({ title: "Purchase failed", description: e.message, variant: "destructive" }),
   });
 
   const activateMutation = useMutation({
@@ -462,19 +431,18 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                   </div>
                 )}
 
-                {allBundles.length === 0 ? (
+                {ownedBundles.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-10 gap-3">
                     <span className="text-4xl">🏡</span>
-                    <p className="text-white/40 text-sm text-center">No house bundles available yet.</p>
+                    <p className="text-white/40 text-sm text-center">No house bundles owned yet.{"\n"}Visit a shop to purchase one!</p>
                   </div>
                 ) : (
-                  allBundles.map((bundle) => {
-                    const owned = ownedBundleIds.has(bundle.id);
-                    const isActive = activeBundle?.id === bundle.id;
+                  ownedBundles.map(({ bundleId, bundle }) => {
+                    const isActive = activeBundle?.id === bundleId;
                     return (
                       <div
-                        key={bundle.id}
-                        data-testid={`bundle-item-${bundle.id}`}
+                        key={bundleId}
+                        data-testid={`bundle-item-${bundleId}`}
                         className="rounded-2xl p-3 flex items-center gap-3"
                         style={{
                           background: isActive ? "rgba(120,220,80,0.1)" : "rgba(255,255,255,0.05)",
@@ -495,33 +463,19 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                         )}
                         <div className="flex flex-col gap-0.5 flex-1 min-w-0">
                           <span className="text-white font-bold text-sm truncate">{bundle.name}</span>
-                          {owned ? (
-                            <span className="text-green-400 text-xs font-semibold">Owned</span>
-                          ) : (
-                            <span className="text-yellow-300 text-xs font-semibold">{bundle.price} coins</span>
-                          )}
+                          <span className="text-green-400 text-xs font-semibold">Owned</span>
                         </div>
                         {isActive ? (
                           <span className="text-green-400 text-xs font-bold flex-shrink-0">✓ Active</span>
-                        ) : owned ? (
+                        ) : (
                           <button
-                            data-testid={`button-activate-bundle-${bundle.id}`}
-                            onClick={() => activateMutation.mutate(bundle.id)}
+                            data-testid={`button-activate-bundle-${bundleId}`}
+                            onClick={() => activateMutation.mutate(bundleId)}
                             disabled={activateMutation.isPending}
                             className="flex-shrink-0 rounded-xl px-3 py-1.5 text-xs font-bold transition-opacity disabled:opacity-50"
                             style={{ background: "rgba(120,220,80,0.25)", color: "#86efac", border: "1px solid rgba(120,220,80,0.4)" }}
                           >
                             Activate
-                          </button>
-                        ) : (
-                          <button
-                            data-testid={`button-buy-bundle-${bundle.id}`}
-                            onClick={() => purchaseMutation.mutate(bundle.id)}
-                            disabled={purchaseMutation.isPending || (currentUser.coins ?? 0) < bundle.price}
-                            className="flex-shrink-0 rounded-xl px-3 py-1.5 text-xs font-bold transition-opacity disabled:opacity-50"
-                            style={{ background: "rgba(234,179,8,0.25)", color: "#fde047", border: "1px solid rgba(234,179,8,0.4)" }}
-                          >
-                            {purchaseMutation.isPending ? "..." : "Buy"}
                           </button>
                         )}
                       </div>

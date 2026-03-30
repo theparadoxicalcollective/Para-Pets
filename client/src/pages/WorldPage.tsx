@@ -231,6 +231,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [showLocationView, setShowLocationView] = useState(false);
   const [showItemPicker, setShowItemPicker] = useState(false);
   const [pickerFilter, setPickerFilter] = useState("all");
+  const [pickerTab, setPickerTab] = useState<"items" | "house" | "decor">("items");
   const [showAddObject, setShowAddObject] = useState(false);
   const [newObjectImage, setNewObjectImage] = useState<string | null>(null);
   const [showExploreAdmin, setShowExploreAdmin] = useState(false);
@@ -363,6 +364,28 @@ export default function WorldPage({ user }: WorldPageProps) {
     enabled: showShop && !!activeLocationId,
   });
 
+  const { data: shopBundlesForSale = [], refetch: refetchShopBundlesForSale } = useQuery<{ id: string; name: string; shopImageUrl: string | null; price: number }[]>({
+    queryKey: ["/api/locations", activeLocationId, "shop-bundles"],
+    queryFn: async () => {
+      const res = await fetch(`/api/locations/${activeLocationId}/shop-bundles`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: showShop && !!activeLocationId,
+    staleTime: 0,
+  });
+
+  const { data: shopDecorForSale = [] } = useQuery<{ id: string; name: string; imageUrl: string | null; price: number }[]>({
+    queryKey: ["/api/locations", activeLocationId, "shop-decor"],
+    queryFn: async () => {
+      const res = await fetch(`/api/locations/${activeLocationId}/shop-decor`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: showShop && !!activeLocationId,
+    staleTime: 0,
+  });
+
   const { data: inventory = [] } = useQuery<InventoryItem[]>({
     queryKey: ["/api/inventory"],
     enabled: showShop || showBattlePrep,
@@ -374,6 +397,50 @@ export default function WorldPage({ user }: WorldPageProps) {
   const { data: allShopItems = [], refetch: refetchAllShopItems, isLoading: isAllShopItemsLoading } = useQuery<ShopItem[]>({
     queryKey: ["/api/admin/shop-items-all"],
     enabled: currentUser.isAdmin,
+    staleTime: 0,
+  });
+
+  const { data: allAdminBundles = [], refetch: refetchAdminBundles } = useQuery<{ id: string; name: string; shopImageUrl: string | null; price: number }[]>({
+    queryKey: ["/api/admin/house-bundles"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/house-bundles", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: currentUser.isAdmin,
+    staleTime: 30000,
+  });
+
+  const { data: allAdminDecor = [], refetch: refetchAdminDecor } = useQuery<{ id: string; name: string; imageUrl: string | null; price: number }[]>({
+    queryKey: ["/api/admin/home-decor"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/home-decor", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: currentUser.isAdmin,
+    staleTime: 30000,
+  });
+
+  const { data: locationShopBundles = [], refetch: refetchLocationBundles } = useQuery<{ id: string; bundleId: string }[]>({
+    queryKey: ["/api/admin/location", activeLocationId, "shop-bundles"],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/location/${activeLocationId}/shop-bundles`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: currentUser.isAdmin && !!activeLocationId && showItemPicker,
+    staleTime: 0,
+  });
+
+  const { data: locationShopDecor = [], refetch: refetchLocationDecor } = useQuery<{ id: string; decorId: string }[]>({
+    queryKey: ["/api/admin/location", activeLocationId, "shop-decor"],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/location/${activeLocationId}/shop-decor`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: currentUser.isAdmin && !!activeLocationId && showItemPicker,
     staleTime: 0,
   });
 
@@ -623,6 +690,64 @@ export default function WorldPage({ user }: WorldPageProps) {
     onError: () => {
       toast({ title: "Error", description: "Failed to remove item", variant: "destructive" });
     },
+  });
+
+  const assignBundleMutation = useMutation({
+    mutationFn: async ({ locationId, bundleId }: { locationId: string; bundleId: string }) => {
+      await apiRequest("POST", `/api/admin/location/${locationId}/assign-bundle/${bundleId}`);
+    },
+    onSuccess: () => {
+      refetchLocationBundles();
+      toast({ title: "Added", description: "Bundle added to shop" });
+    },
+    onError: () => toast({ title: "Error", description: "Failed to add bundle", variant: "destructive" }),
+  });
+
+  const unassignBundleMutation = useMutation({
+    mutationFn: async ({ locationId, bundleId }: { locationId: string; bundleId: string }) => {
+      await apiRequest("DELETE", `/api/admin/location/${locationId}/unassign-bundle/${bundleId}`);
+    },
+    onSuccess: () => {
+      refetchLocationBundles();
+      toast({ title: "Removed", description: "Bundle removed from shop" });
+    },
+    onError: () => toast({ title: "Error", description: "Failed to remove bundle", variant: "destructive" }),
+  });
+
+  const assignDecorMutation = useMutation({
+    mutationFn: async ({ locationId, decorId }: { locationId: string; decorId: string }) => {
+      await apiRequest("POST", `/api/admin/location/${locationId}/assign-decor/${decorId}`);
+    },
+    onSuccess: () => {
+      refetchLocationDecor();
+      toast({ title: "Added", description: "Decor added to shop" });
+    },
+    onError: () => toast({ title: "Error", description: "Failed to add decor", variant: "destructive" }),
+  });
+
+  const unassignDecorMutation = useMutation({
+    mutationFn: async ({ locationId, decorId }: { locationId: string; decorId: string }) => {
+      await apiRequest("DELETE", `/api/admin/location/${locationId}/unassign-decor/${decorId}`);
+    },
+    onSuccess: () => {
+      refetchLocationDecor();
+      toast({ title: "Removed", description: "Decor removed from shop" });
+    },
+    onError: () => toast({ title: "Error", description: "Failed to remove decor", variant: "destructive" }),
+  });
+
+  const buyBundleMutation = useMutation({
+    mutationFn: async (bundleId: string) => {
+      const res = await apiRequest("POST", `/api/house-bundles/${bundleId}/purchase`, {});
+      return res.json();
+    },
+    onSuccess: (_, bundleId) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      refetchShopBundlesForSale();
+      toast({ title: "Bundle purchased!", description: "Find it in your Home Inventory." });
+    },
+    onError: (e: any) => toast({ title: "Purchase failed", description: e?.message ?? "Not enough coins", variant: "destructive" }),
   });
 
   const addObjectMutation = useMutation({
@@ -975,7 +1100,12 @@ export default function WorldPage({ user }: WorldPageProps) {
   useEffect(() => {
     if (showItemPicker) {
       setPickerFilter("all");
+      setPickerTab("items");
       refetchAllShopItems();
+      refetchAdminBundles();
+      refetchAdminDecor();
+      refetchLocationBundles();
+      refetchLocationDecor();
     }
   }, [showItemPicker]);
 
@@ -3048,6 +3178,74 @@ export default function WorldPage({ user }: WorldPageProps) {
               </p>
             </div>
           )}
+
+          {/* ── House Bundles / Decor for sale shelf ─────────────────────── */}
+          {(shopBundlesForSale.length > 0 || shopDecorForSale.length > 0) && (
+            <div
+              className="absolute bottom-0 left-0 right-0 flex flex-col gap-0"
+              style={{ pointerEvents: "auto", zIndex: 25 }}
+            >
+              <div
+                className="flex gap-3 overflow-x-auto px-4 py-3"
+                style={{
+                  background: "linear-gradient(0deg, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.55) 100%)",
+                  backdropFilter: "blur(8px)",
+                  borderTop: `1px solid ${accent}25`,
+                  scrollbarWidth: "none",
+                }}
+              >
+                {shopBundlesForSale.map(bundle => (
+                  <button
+                    key={bundle.id}
+                    data-testid={`button-buy-bundle-shop-${bundle.id}`}
+                    onClick={() => {
+                      if (!currentUser.isAdmin) buyBundleMutation.mutate(bundle.id);
+                    }}
+                    disabled={buyBundleMutation.isPending || currentUser.isAdmin}
+                    className="flex-shrink-0 flex flex-col items-center gap-1.5 group"
+                    style={{ cursor: currentUser.isAdmin ? "default" : "pointer" }}
+                  >
+                    <div
+                      className="w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center transition-transform group-active:scale-90"
+                      style={{
+                        background: "rgba(255,255,255,0.07)",
+                        border: `1.5px solid ${accent}40`,
+                        boxShadow: `0 2px 10px rgba(0,0,0,0.5)`,
+                      }}
+                    >
+                      {bundle.shopImageUrl
+                        ? <img src={bundle.shopImageUrl} alt={bundle.name} className="w-full h-full object-cover" />
+                        : <span className="text-2xl">🏡</span>}
+                    </div>
+                    <p className="font-fantasy text-[8px] text-white/80 max-w-[64px] text-center truncate leading-tight">{bundle.name}</p>
+                    <span className="font-fantasy text-[8px] px-2 py-0.5 rounded-full" style={{ background: `${accent}25`, color: accent, border: `1px solid ${accent}40` }}>{bundle.price}c</span>
+                  </button>
+                ))}
+                {shopDecorForSale.map(decor => (
+                  <div
+                    key={decor.id}
+                    data-testid={`button-buy-decor-shop-${decor.id}`}
+                    className="flex-shrink-0 flex flex-col items-center gap-1.5"
+                  >
+                    <div
+                      className="w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center"
+                      style={{
+                        background: "rgba(255,255,255,0.07)",
+                        border: `1.5px solid ${accent}40`,
+                        boxShadow: `0 2px 10px rgba(0,0,0,0.5)`,
+                      }}
+                    >
+                      {decor.imageUrl
+                        ? <img src={decor.imageUrl} alt={decor.name} className="w-full h-full object-cover" />
+                        : <span className="text-2xl">🪴</span>}
+                    </div>
+                    <p className="font-fantasy text-[8px] text-white/80 max-w-[64px] text-center truncate leading-tight">{decor.name}</p>
+                    <span className="font-fantasy text-[8px] px-2 py-0.5 rounded-full" style={{ background: `${accent}25`, color: accent, border: `1px solid ${accent}40` }}>{decor.price}c</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         );
       })()}
@@ -3303,43 +3501,66 @@ export default function WorldPage({ user }: WorldPageProps) {
               </button>
             </div>
 
-            {/* Filter tabs */}
-            <div className="flex-shrink-0 px-3 pb-2">
-              <div className="flex flex-wrap gap-1">
-                {[
-                  { label: "All", value: "all" },
-                  { label: "Potions", value: "potion" },
-                  { label: "Power-Ups", value: "power_up" },
-                  { label: "Special", value: "special" },
-                  { label: "Accessories", value: "accessory" },
-                  { label: "Pets", value: "pet" },
-                  { label: "Fishing", value: "fishing" },
-                ].map(f => (
-                  <button
-                    key={f.value}
-                    data-testid={`button-picker-filter-${f.value}`}
-                    onClick={() => setPickerFilter(f.value)}
-                    className="font-fantasy text-[9px] px-2 py-1 rounded-full transition-all"
-                    style={{
-                      background: pickerFilter === f.value ? `${accent}35` : "rgba(255,255,255,0.05)",
-                      border: `1px solid ${pickerFilter === f.value ? accent + "70" : "rgba(255,255,255,0.1)"}`,
-                      color: pickerFilter === f.value ? accent : `${accent}70`,
-                      cursor: "pointer",
-                    }}
-                  >{f.label}</button>
-                ))}
-              </div>
+            {/* Top-level tabs: Items / House / Decor */}
+            <div className="flex-shrink-0 px-3 pb-2 flex gap-1 border-b" style={{ borderColor: `${accent}20` }}>
+              {([
+                { label: "Items", value: "items" as const },
+                { label: "House", value: "house" as const },
+                { label: "Decor", value: "decor" as const },
+              ] as { label: string; value: "items" | "house" | "decor" }[]).map(t => (
+                <button
+                  key={t.value}
+                  data-testid={`button-picker-tab-${t.value}`}
+                  onClick={() => setPickerTab(t.value)}
+                  className="font-fantasy text-[10px] px-3 py-1.5 rounded-t-md transition-all flex-1"
+                  style={{
+                    background: pickerTab === t.value ? `${accent}25` : "transparent",
+                    borderBottom: pickerTab === t.value ? `2px solid ${accent}` : "2px solid transparent",
+                    color: pickerTab === t.value ? accent : `${accent}60`,
+                    cursor: "pointer",
+                  }}
+                >{t.label}</button>
+              ))}
             </div>
 
-            {/* Item list */}
+            {/* Sub-filter tabs (only on Items tab) */}
+            {pickerTab === "items" && (
+              <div className="flex-shrink-0 px-3 py-2">
+                <div className="flex flex-wrap gap-1">
+                  {[
+                    { label: "All", value: "all" },
+                    { label: "Potions", value: "potion" },
+                    { label: "Power-Ups", value: "power_up" },
+                    { label: "Special", value: "special" },
+                    { label: "Accessories", value: "accessory" },
+                    { label: "Pets", value: "pet" },
+                    { label: "Fishing", value: "fishing" },
+                  ].map(f => (
+                    <button
+                      key={f.value}
+                      data-testid={`button-picker-filter-${f.value}`}
+                      onClick={() => setPickerFilter(f.value)}
+                      className="font-fantasy text-[9px] px-2 py-1 rounded-full transition-all"
+                      style={{
+                        background: pickerFilter === f.value ? `${accent}35` : "rgba(255,255,255,0.05)",
+                        border: `1px solid ${pickerFilter === f.value ? accent + "70" : "rgba(255,255,255,0.1)"}`,
+                        color: pickerFilter === f.value ? accent : `${accent}70`,
+                        cursor: "pointer",
+                      }}
+                    >{f.label}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Content list */}
             <div className="flex-1 overflow-y-auto px-4 pb-4">
-              {(() => {
+              {pickerTab === "items" && (() => {
                 if (isAllShopItemsLoading) {
                   return <p className="font-fantasy text-[#a89878] text-xs text-center py-6 animate-pulse">Loading items...</p>;
                 }
                 const pickable = allShopItems.filter(si => {
                   if (si.fishingType === "fish") return false;
-                  // Only show bait templates (locationId null); assigned copies are shop-specific
                   if (si.fishingType === "bait" && si.locationId != null) return false;
                   if (pickerFilter === "all") return true;
                   if (pickerFilter === "fishing") return si.type === "fishing";
@@ -3350,7 +3571,6 @@ export default function WorldPage({ user }: WorldPageProps) {
                 ) : (
                   <div className="flex flex-col gap-2">
                     {pickable.map((si) => {
-                      // Bait items are copies — match by name since the copy has a different id
                       const alreadyAssigned = si.fishingType === "bait"
                         ? items.some(it => it.fishingType === "bait" && it.name === si.name)
                         : items.some(it => it.id === si.id);
@@ -3395,6 +3615,102 @@ export default function WorldPage({ user }: WorldPageProps) {
                   </div>
                 );
               })()}
+
+              {pickerTab === "house" && (
+                <div className="flex flex-col gap-2 pt-2">
+                  {allAdminBundles.length === 0 ? (
+                    <p className="font-fantasy text-[#a89878] text-xs text-center py-6">No house bundles created yet.</p>
+                  ) : allAdminBundles.map(bundle => {
+                    const inShop = locationShopBundles.some(lb => lb.bundleId === bundle.id);
+                    return (
+                      <div
+                        key={bundle.id}
+                        data-testid={`picker-bundle-${bundle.id}`}
+                        className="flex items-center gap-3 p-2 rounded-lg"
+                        style={{
+                          background: inShop ? `${accent}15` : "rgba(255,255,255,0.03)",
+                          border: `1px solid ${inShop ? accent + "40" : "rgba(255,255,255,0.08)"}`,
+                        }}
+                      >
+                        <div className="w-10 h-10 rounded-md flex-shrink-0 overflow-hidden" style={{ background: "rgba(0,0,0,0.3)" }}>
+                          {bundle.shopImageUrl
+                            ? <img src={bundle.shopImageUrl} alt="" className="w-full h-full object-cover" />
+                            : <span className="w-full h-full flex items-center justify-center text-lg">🏡</span>}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-fantasy text-xs truncate" style={{ color: accent }}>{bundle.name}</p>
+                          <p className="font-fantasy text-[9px]" style={{ color: `${accent}70` }}>{bundle.price} coins · house bundle</p>
+                        </div>
+                        {inShop ? (
+                          <button
+                            data-testid={`button-unassign-bundle-${bundle.id}`}
+                            onClick={() => unassignBundleMutation.mutate({ locationId: activeLocationId, bundleId: bundle.id })}
+                            disabled={unassignBundleMutation.isPending}
+                            className="font-fantasy text-[9px] px-2 py-1 rounded-full transition-transform active:scale-95"
+                            style={{ background: "rgba(200,60,60,0.2)", border: "1px solid rgba(200,60,60,0.4)", color: "#f87171", cursor: "pointer" }}
+                          >Remove</button>
+                        ) : (
+                          <button
+                            data-testid={`button-assign-bundle-${bundle.id}`}
+                            onClick={() => assignBundleMutation.mutate({ locationId: activeLocationId, bundleId: bundle.id })}
+                            disabled={assignBundleMutation.isPending}
+                            className="font-fantasy text-[9px] px-3 py-1 rounded-full transition-transform active:scale-95"
+                            style={{ background: `${accent}30`, border: `1px solid ${accent}50`, color: accent, cursor: "pointer" }}
+                          >Add</button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {pickerTab === "decor" && (
+                <div className="flex flex-col gap-2 pt-2">
+                  {allAdminDecor.length === 0 ? (
+                    <p className="font-fantasy text-[#a89878] text-xs text-center py-6">No decor items created yet.</p>
+                  ) : allAdminDecor.map(decor => {
+                    const inShop = locationShopDecor.some(ld => ld.decorId === decor.id);
+                    return (
+                      <div
+                        key={decor.id}
+                        data-testid={`picker-decor-${decor.id}`}
+                        className="flex items-center gap-3 p-2 rounded-lg"
+                        style={{
+                          background: inShop ? `${accent}15` : "rgba(255,255,255,0.03)",
+                          border: `1px solid ${inShop ? accent + "40" : "rgba(255,255,255,0.08)"}`,
+                        }}
+                      >
+                        <div className="w-10 h-10 rounded-md flex-shrink-0 overflow-hidden" style={{ background: "rgba(0,0,0,0.3)" }}>
+                          {decor.imageUrl
+                            ? <img src={decor.imageUrl} alt="" className="w-full h-full object-cover" />
+                            : <span className="w-full h-full flex items-center justify-center text-lg">🪴</span>}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-fantasy text-xs truncate" style={{ color: accent }}>{decor.name}</p>
+                          <p className="font-fantasy text-[9px]" style={{ color: `${accent}70` }}>{decor.price} coins · home decor</p>
+                        </div>
+                        {inShop ? (
+                          <button
+                            data-testid={`button-unassign-decor-${decor.id}`}
+                            onClick={() => unassignDecorMutation.mutate({ locationId: activeLocationId, decorId: decor.id })}
+                            disabled={unassignDecorMutation.isPending}
+                            className="font-fantasy text-[9px] px-2 py-1 rounded-full transition-transform active:scale-95"
+                            style={{ background: "rgba(200,60,60,0.2)", border: "1px solid rgba(200,60,60,0.4)", color: "#f87171", cursor: "pointer" }}
+                          >Remove</button>
+                        ) : (
+                          <button
+                            data-testid={`button-assign-decor-${decor.id}`}
+                            onClick={() => assignDecorMutation.mutate({ locationId: activeLocationId, decorId: decor.id })}
+                            disabled={assignDecorMutation.isPending}
+                            className="font-fantasy text-[9px] px-3 py-1 rounded-full transition-transform active:scale-95"
+                            style={{ background: `${accent}30`, border: `1px solid ${accent}50`, color: accent, cursor: "pointer" }}
+                          >Add</button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>
