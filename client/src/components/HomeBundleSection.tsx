@@ -79,7 +79,7 @@ function BundleBgEditor({ bundle, onClose }: { bundle: HouseBundle; onClose: () 
     img.src = bgUrl;
   }, [bgUrl]);
 
-  // ── Container resize (same as PetHousePage) ──
+  // ── Container resize — height-fit + center (same formula as PetHousePage) ──
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -89,10 +89,10 @@ function BundleBgEditor({ bundle, onClose }: { bundle: HouseBundle; onClose: () 
       const imgW = h * bgAspect;
       setContainerH(h);
       setImgWidth(imgW);
-      setPanX(prev => {
-        const min = Math.min(0, w - imgW);
-        return Math.max(min, Math.min(0, prev));
-      });
+      // Center the image: Math.max(min, center) handles both wide and narrow images.
+      // Wide  (imgW > w): center = (w-imgW)/2 < 0, clamped above min = w-imgW  → starts centered
+      // Narrow(imgW ≤ w): center = (w-imgW)/2 > 0, Math.max(0, positive) → centered with positive panX
+      setPanX(Math.max(Math.min(0, w - imgW), (w - imgW) / 2));
     };
     recalc();
     const ro = new ResizeObserver(recalc);
@@ -145,8 +145,12 @@ function BundleBgEditor({ bundle, onClose }: { bundle: HouseBundle; onClose: () 
     if (Math.abs(dx) > 3) isPanningRef.current = true;
     const containerW = container.offsetWidth;
     const imgW = containerHRef.current * bgAspect;
-    const min = Math.min(0, containerW - imgW);
-    setPanX(Math.min(0, Math.max(min, drag.startPanX + dx)));
+    // Same bounds as recalc: never show empty space past either edge of the image.
+    // center is the reference point for both wide and narrow images.
+    const center = (containerW - imgW) / 2;
+    const panMin = Math.min(center, containerW - imgW); // wide: imgW-containerW left of 0; narrow: locked at center
+    const panMax = Math.max(center, 0);                 // wide: 0; narrow: locked at center
+    setPanX(Math.max(panMin, Math.min(panMax, drag.startPanX + dx)));
   }, [bgAspect]);
 
   const handleContainerPointerUp = useCallback(() => {
