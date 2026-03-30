@@ -201,14 +201,14 @@ function App() {
       touchStartY = e.touches[0].clientY;
     };
 
-    // Block iOS swipe-back / swipe-forward gestures that start near either edge
-    // and move predominantly horizontal. Only touchmove prevention is safe here
-    // because it fires after intent is clear and doesn't cancel tap/click events.
+    // Block iOS swipe-back / swipe-forward gestures. Prevents back-navigation when
+    // players swipe horizontally to attack in battles or navigate map areas.
+    // Blocks any predominantly-horizontal swipe, plus edge-started ones at any angle.
     const blockHorizontalSwipe = (e: TouchEvent) => {
       const adx = Math.abs(e.touches[0].clientX - touchStartX);
       const ady = Math.abs(e.touches[0].clientY - touchStartY);
-      const fromEdge = touchStartX < 60 || touchStartX > window.innerWidth - 60;
-      if (fromEdge && adx > ady && adx > 10) {
+      const fromEdge = touchStartX < 80 || touchStartX > window.innerWidth - 80;
+      if (adx > 10 && (adx > ady * 1.2 || fromEdge)) {
         e.preventDefault();
       }
     };

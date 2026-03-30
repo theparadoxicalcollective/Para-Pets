@@ -993,7 +993,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       <div
         ref={arenaRef}
         className="relative w-full h-full"
-        style={{ animation: shakeScreen ? "screenShake 0.15s ease-in-out" : undefined }}
+        style={{ animation: shakeScreen ? "screenShake 0.15s ease-in-out" : undefined, touchAction: "none" }}
         onPointerDown={phase === "battle" ? handleSlashStart : undefined}
         onPointerMove={phase === "battle" ? handleSlashMove : undefined}
         onPointerUp={phase === "battle" ? handleSlashEnd : undefined}
