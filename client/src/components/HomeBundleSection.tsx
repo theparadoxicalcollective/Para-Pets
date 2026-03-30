@@ -354,13 +354,6 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
                     pointerEvents: "none",
                   }}
                 />
-                {/* Name label */}
-                <span
-                  className="px-2 py-0.5 rounded-full text-xs font-bold"
-                  style={{ background: "rgba(0,0,0,0.65)", color: "#fff", whiteSpace: "nowrap", textShadow: "0 1px 3px rgba(0,0,0,0.8)", pointerEvents: "none" }}
-                >
-                  {b.name}
-                </span>
               </div>
             );
           })}
@@ -372,7 +365,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
         data-testid="button-close-bg-editor"
         onClick={e => { e.stopPropagation(); onClose(); }}
         onPointerDown={e => e.stopPropagation()}
-        className="absolute top-4 left-4 flex items-center gap-2 px-3 py-2 rounded-full font-fantasy text-[11px]"
+        className="absolute top-14 left-4 flex items-center gap-2 px-3 py-2 rounded-full font-fantasy text-[11px]"
         style={{ background: "rgba(0,0,0,0.65)", border: "1px solid rgba(255,215,0,0.3)", color: GOLD, cursor: "pointer", zIndex: 30 }}
       >
         <ChevronLeft className="w-4 h-4" />
@@ -382,7 +375,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
       {/* ── Upload Background button — top-right, exact same pattern as Keeper's Central ── */}
       <label
         data-testid="label-upload-bg"
-        className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-2 rounded-full font-fantasy text-[11px]"
+        className="absolute top-14 right-4 flex items-center gap-1.5 px-3 py-2 rounded-full font-fantasy text-[11px]"
         style={{ background: "rgba(0,0,0,0.65)", border: `1px solid ${bgUploading ? "rgba(255,215,0,0.7)" : "rgba(255,215,0,0.3)"}`, color: bgUploading ? GOLD : "rgba(255,215,0,0.65)", cursor: bgUploading ? "wait" : "pointer", zIndex: 30 }}
         onPointerDown={e => e.stopPropagation()}
       >
