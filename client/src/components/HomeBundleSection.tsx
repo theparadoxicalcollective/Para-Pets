@@ -43,8 +43,10 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
   const [containerH, setContainerH] = useState(0);
   const imgWidthRef = useRef(0);
   const containerHRef = useRef(0);
+  const panXRef = useRef(0);
   useEffect(() => { imgWidthRef.current = imgWidth; }, [imgWidth]);
   useEffect(() => { containerHRef.current = containerH; }, [containerH]);
+  useEffect(() => { panXRef.current = panX; }, [panX]);
 
   // ── Building editor state ──
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -264,6 +266,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
                   cursor: isSelected ? "grab" : "pointer",
                   touchAction: "none",
                   pointerEvents: "auto",
+                  minWidth: displayW,
                 }}
                 onPointerDown={e => handleBuildingPointerDown(e, b)}
                 onPointerMove={e => { e.stopPropagation(); handleBuildingPointerMove(e); }}
