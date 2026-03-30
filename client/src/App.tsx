@@ -247,6 +247,7 @@ function App() {
           }}
         >
           <div
+            data-phone-frame="true"
             className="w-full h-full md:w-[390px] md:h-[844px] md:rounded-[2.5rem] md:overflow-hidden md:flex-shrink-0"
             style={{
               isolation: "isolate",

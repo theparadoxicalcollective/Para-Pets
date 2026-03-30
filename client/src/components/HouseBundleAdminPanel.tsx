@@ -316,6 +316,21 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
   // Tracks whether the last pointerdown geometrically hit a building (used for deselect logic)
   const pointerDownHitBuilding   = useRef<string | null>(null);
 
+  // ── Phone-frame overflow fix ──────────────────────────────────────────────
+  // On desktop the phone frame has both `transform` (which makes it the CSS
+  // containing-block for position:fixed children) AND `overflow:hidden`.
+  // Per CSS spec, that overflow clips ALL descendants — even fixed/absolute
+  // ones — so buildings near the right edge get cut off.
+  // While the full-screen editor is open we temporarily set the frame to
+  // overflow:visible (safe because the editor overlay covers the whole frame).
+  useEffect(() => {
+    const frame = document.querySelector("[data-phone-frame]") as HTMLElement | null;
+    if (!frame) return;
+    const prev = frame.style.overflow;
+    frame.style.overflow = "visible";
+    return () => { frame.style.overflow = prev; };
+  }, []);
+
   useEffect(() => {
     if (!bundle.bgImageUrl) return;
     const img = new window.Image();
