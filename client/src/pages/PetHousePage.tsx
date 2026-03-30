@@ -62,6 +62,87 @@ interface OwnedBundle {
 const DEFAULT_BG_RATIO = 1920 / 2400;
 const BUILDING_REF_H   = 900; // must match HouseBundleAdminPanel constant
 
+function InteriorViewer({ url, onClose }: { url: string; onClose: () => void }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [panX, setPanX] = useState(0);
+  const [aspect, setAspect] = useState(16 / 9);
+  const aspectRef = useRef(16 / 9);
+  const panStartRef = useRef<{ startX: number; startPanX: number; pid: number } | null>(null);
+
+  useEffect(() => {
+    const img = new window.Image();
+    img.onload = () => {
+      if (img.naturalHeight > 0) {
+        const a = img.naturalWidth / img.naturalHeight;
+        aspectRef.current = a;
+        setAspect(a);
+      }
+    };
+    img.src = url;
+  }, [url]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const recalc = () => {
+      const w = container.offsetWidth;
+      const h = container.offsetHeight;
+      const imgW = h * aspectRef.current;
+      setPanX(Math.max(Math.min(0, w - imgW), (w - imgW) / 2));
+    };
+    recalc();
+    const ro = new ResizeObserver(recalc);
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, [aspect]);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    panStartRef.current = { startX: e.clientX, startPanX: panX, pid: e.pointerId };
+  }, [panX]);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    const drag = panStartRef.current;
+    if (!drag || drag.pid !== e.pointerId) return;
+    const container = containerRef.current;
+    if (!container) return;
+    const w = container.offsetWidth;
+    const h = container.offsetHeight;
+    const imgW = h * aspectRef.current;
+    const min = Math.min(0, w - imgW);
+    setPanX(Math.min(0, Math.max(min, drag.startPanX + (e.clientX - drag.startX))));
+  }, []);
+
+  const handlePointerUp = useCallback(() => { panStartRef.current = null; }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      className="absolute inset-0"
+      style={{ zIndex: 60, background: "#000", overflow: "hidden", touchAction: "none" }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+    >
+      <img
+        src={url}
+        alt="Building interior"
+        draggable={false}
+        style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none" }}
+      />
+      <button
+        onClick={onClose}
+        onPointerDown={e => e.stopPropagation()}
+        className="absolute top-4 right-4 rounded-full w-10 h-10 flex items-center justify-center font-bold text-lg"
+        style={{ zIndex: 10, background: "rgba(0,0,0,0.65)", color: "#fff", border: "1px solid rgba(255,255,255,0.25)", paddingTop: "env(safe-area-inset-top,0px)" }}
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
 function randomGroundConfig(index: number) {
   const seed = index * 137.508;
   const pseudo = (n: number) => ((Math.sin(n) * 10000) % 1 + 1) % 1;
@@ -520,29 +601,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
       {/* Building interior viewer — shown when player taps a building with an interior set */}
       {interiorBuildingUrl && (
-        <div
-          className="absolute inset-0 flex flex-col"
-          style={{ zIndex: 60, background: "rgba(0,0,0,0.92)" }}
-          onClick={() => setInteriorBuildingUrl(null)}
-        >
-          <div className="absolute inset-0 flex items-center justify-center p-4"
-            onClick={(e) => e.stopPropagation()}>
-            <img
-              src={interiorBuildingUrl}
-              alt="Building interior"
-              draggable={false}
-              className="rounded-2xl max-w-full max-h-full object-contain"
-              style={{ boxShadow: "0 0 60px rgba(0,0,0,0.8)" }}
-            />
-          </div>
-          <button
-            onClick={() => setInteriorBuildingUrl(null)}
-            className="absolute top-4 right-4 rounded-full w-10 h-10 flex items-center justify-center font-bold text-lg transition-all"
-            style={{ background: "rgba(255,255,255,0.12)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)" }}
-          >
-            ✕
-          </button>
-        </div>
+        <InteriorViewer url={interiorBuildingUrl} onClose={() => setInteriorBuildingUrl(null)} />
       )}
 
       {showProfile && (
