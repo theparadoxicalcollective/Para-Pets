@@ -18,6 +18,13 @@ import hsPhone           from "@assets/hs_icon_phone.png";
 import hsBrowser         from "@assets/hs_icon_browser.png";
 import hsShare           from "@assets/hs_icon_share.png";
 import hsPlus            from "@assets/hs_icon_plus.png";
+import ss1               from "@assets/IMG_3026_1774876682518.jpeg";
+import ss2               from "@assets/IMG_3028_1774876682518.jpeg";
+import ss3               from "@assets/IMG_3029_1774876682518.png";
+import ss4               from "@assets/IMG_3030_1774876682518.png";
+import ss5               from "@assets/IMG_3031_1774876682518.jpeg";
+import ss6               from "@assets/IMG_3032_1774876682518.jpeg";
+import ss7               from "@assets/IMG_3035_1774876682518.jpeg";
 import hsCheck           from "@assets/hs_icon_check.png";
 import hsGlobe           from "@assets/hs_icon_globe.png";
 import hsMenu            from "@assets/hs_icon_menu.png";
@@ -94,6 +101,99 @@ function RuneDivider() {
       <img src={runeCircle} alt="" className="w-8 h-8 object-contain opacity-40"
         style={{ filter: "drop-shadow(0 0 6px rgba(127,191,176,0.5))" }} />
       <div style={{ height: 1, flex: 1, background: "linear-gradient(90deg,rgba(127,191,176,0.2),transparent)" }} />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Gameplay screenshots showcase
+// ─────────────────────────────────────────────────────────────────────────────
+const SCREENSHOTS = [
+  { img: ss1, label: "Your Pet",    accent: "#7fbfb0", tilt: -3,  pos: "top center" },
+  { img: ss7, label: "Epic Battles",accent: "#bf6aaa", tilt:  2,  pos: "top center" },
+  { img: ss2, label: "Open World",  accent: "#4a9b6a", tilt: -2,  pos: "top center" },
+  { img: ss3, label: "Companions",  accent: "#9b7abf", tilt:  3,  pos: "top center" },
+  { img: ss4, label: "Fishing",     accent: "#4a8aab", tilt: -1,  pos: "top center" },
+  { img: ss6, label: "Aquarium",    accent: "#4a6abf", tilt:  2,  pos: "top center" },
+  { img: ss5, label: "Fish Book",   accent: "#4a9b7a", tilt: -2,  pos: "top center" },
+];
+
+function GameplayShowcase() {
+  return (
+    <div className="mb-2">
+      <h2
+        className="font-fantasy text-center text-sm tracking-widest mb-1"
+        style={{ color: "#7fbfb0", textShadow: "0 0 12px rgba(127,191,176,0.3)" }}
+      >
+        See It in Action
+      </h2>
+      <p className="font-fantasy text-center text-[10px] mb-6" style={{ color: "#2a4a38" }}>
+        Real gameplay from the world of Para Pets
+      </p>
+
+      <div
+        className="flex gap-6 overflow-x-auto px-4 pb-6"
+        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+        data-testid="gameplay-showcase"
+      >
+        {SCREENSHOTS.map((s) => (
+          <div
+            key={s.label}
+            className="flex-shrink-0 flex flex-col items-center gap-2.5"
+            style={{ transform: `rotate(${s.tilt}deg)` }}
+          >
+            {/* Phone frame */}
+            <div
+              style={{
+                width: 118,
+                height: 210,
+                borderRadius: 20,
+                overflow: "hidden",
+                border: `2px solid ${s.accent}55`,
+                boxShadow: [
+                  `0 0 18px ${s.accent}28`,
+                  `0 0 1px ${s.accent}60`,
+                  "0 10px 30px rgba(0,0,0,0.65)",
+                  "inset 0 0 0 1px rgba(255,255,255,0.04)",
+                ].join(", "),
+                background: "#04080c",
+                position: "relative",
+              }}
+            >
+              {/* Subtle top notch strip */}
+              <div style={{
+                position: "absolute", top: 0, left: 0, right: 0, height: 4,
+                background: `linear-gradient(90deg, transparent, ${s.accent}18, transparent)`,
+                zIndex: 2,
+              }} />
+              <img
+                src={s.img}
+                alt={s.label}
+                className="w-full h-full object-cover"
+                style={{ objectPosition: s.pos, display: "block" }}
+              />
+              {/* Bottom shine */}
+              <div style={{
+                position: "absolute", bottom: 0, left: 0, right: 0, height: 32,
+                background: `linear-gradient(to top, rgba(4,8,12,0.45), transparent)`,
+                zIndex: 2,
+              }} />
+            </div>
+
+            {/* Label */}
+            <span
+              className="font-fantasy text-[9px] tracking-widest"
+              style={{
+                color: s.accent,
+                textShadow: `0 0 8px ${s.accent}55`,
+                letterSpacing: "0.18em",
+              }}
+            >
+              {s.label}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -782,6 +882,10 @@ export default function ParaPetsHubPage() {
               </button>
             </div>
           </div>
+
+          <RuneDivider />
+
+          <GameplayShowcase />
 
           <RuneDivider />
 
