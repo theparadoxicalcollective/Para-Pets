@@ -134,10 +134,10 @@ function InteriorViewer({ url, onClose }: { url: string; onClose: () => void }) 
       <button
         onClick={onClose}
         onPointerDown={e => e.stopPropagation()}
-        className="absolute top-4 right-4 rounded-full w-10 h-10 flex items-center justify-center font-bold text-lg"
-        style={{ zIndex: 10, background: "rgba(0,0,0,0.65)", color: "#fff", border: "1px solid rgba(255,255,255,0.25)", paddingTop: "env(safe-area-inset-top,0px)" }}
+        className="absolute top-4 right-4 flex items-center justify-center font-bold text-xs tracking-widest rounded-full px-4 py-2"
+        style={{ zIndex: 10, background: "rgba(0,0,0,0.65)", color: "#fff", border: "1px solid rgba(255,255,255,0.25)", fontFamily: "Cinzel, serif" }}
       >
-        ✕
+        Leave
       </button>
     </div>
   );
