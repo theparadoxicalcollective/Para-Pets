@@ -12,7 +12,7 @@ import ItemDatabaseSection, { ShopItemFull, ItemPickerModal, getItemEffectText }
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import FishingAdminPanel from "@/components/FishingAdminPanel";
 import EnemyDatabasePanel from "@/components/EnemyDatabasePanel";
-import HouseBundleAdminPanel from "@/components/HouseBundleAdminPanel";
+
 import adminIconMembers from "@assets/admin_icon_members.png";
 import adminIconRewards from "@assets/admin_icon_rewards_new.png";
 import adminIconItems from "@assets/admin_icon_items.png";
@@ -21,7 +21,7 @@ import adminIconMessages from "@assets/admin_icon_messages.png";
 import adminIconBadges from "@assets/admin_icon_badges.png";
 import adminIconFishing from "@assets/admin_icon_fishing.png";
 import adminIconWelcome from "@assets/admin_icon_welcome.png";
-import adminIconHouseBundle from "@assets/admin_icon_house_bundle.png";
+
 import adminIconPurchases from "@assets/admin_icon_purchases.png";
 
 interface AdminPageProps {
@@ -55,7 +55,7 @@ export default function AdminPage({ user }: AdminPageProps) {
   const [coinAmounts, setCoinAmounts] = useState<Record<string, string>>({});
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "welcome" | "items" | "pets" | "messages" | "badges" | "fishing" | "enemies" | "house_bundle" | "maintenance" | null>(null);
+  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "welcome" | "items" | "pets" | "messages" | "badges" | "fishing" | "enemies" | "maintenance" | null>(null);
   const [orphanResult, setOrphanResult] = useState<{ summary: string; cleaned: number } | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -111,7 +111,7 @@ export default function AdminPage({ user }: AdminPageProps) {
     { key: "fishing" as const, label: "Fishing", icon: adminIconFishing, desc: "Fish & ponds", color: "#93c5fd", glow: "rgba(147,197,253,0.30)", bg: "linear-gradient(145deg, rgba(12,22,60,0.92) 0%, rgba(18,36,90,0.88) 100%)", border: "rgba(147,197,253,0.45)" },
     { key: "welcome" as const, label: "Welcome Bundle", icon: adminIconWelcome, desc: "New user gifts", color: "#6ee7b7", glow: "rgba(110,231,183,0.35)", bg: "linear-gradient(145deg, rgba(8,50,35,0.92) 0%, rgba(14,80,55,0.88) 100%)", border: "rgba(110,231,183,0.45)" },
     { key: "enemies" as const, label: "Enemies", icon: adminIconBadges, desc: "Enemy database", color: "#fca5a5", glow: "rgba(239,68,68,0.30)", bg: "linear-gradient(145deg, rgba(60,8,8,0.92) 0%, rgba(90,12,12,0.88) 100%)", border: "rgba(239,68,68,0.45)" },
-    { key: "house_bundle" as const, label: "House Bundle", icon: adminIconHouseBundle, desc: "House item bundles", color: "#a5f3fc", glow: "rgba(34,211,238,0.30)", bg: "linear-gradient(145deg, rgba(8,38,50,0.92) 0%, rgba(12,58,75,0.88) 100%)", border: "rgba(34,211,238,0.45)" },
+
     { key: "purchases" as const, label: "Purchases", icon: adminIconPurchases, desc: "Coin shop history", color: "#86efac", glow: "rgba(134,239,172,0.30)", bg: "linear-gradient(145deg, rgba(8,45,18,0.92) 0%, rgba(12,70,28,0.88) 100%)", border: "rgba(134,239,172,0.45)" },
     { key: "maintenance" as const, label: "Maintenance", icon: adminIconWelcome, desc: "DB cleanup tools", color: "#f9a8d4", glow: "rgba(249,168,212,0.30)", bg: "linear-gradient(145deg, rgba(60,8,40,0.92) 0%, rgba(90,12,60,0.88) 100%)", border: "rgba(249,168,212,0.45)" },
   ];
@@ -416,9 +416,6 @@ export default function AdminPage({ user }: AdminPageProps) {
                 <WelcomeBundleSection />
               )}
 
-              {activeSection === "house_bundle" && (
-                <HouseBundleAdminPanel />
-              )}
 
               {activeSection === "purchases" && (
                 <CoinPurchasesSection />
