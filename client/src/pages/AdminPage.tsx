@@ -1164,6 +1164,7 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
   const [editingRewardVal, setEditingRewardVal] = useState<string>("");
   const [editingPointsId, setEditingPointsId] = useState<string | null>(null);
   const [editingPointsVal, setEditingPointsVal] = useState<string>("");
+  const [viewingBadge, setViewingBadge] = useState<AdminBadge | null>(null);
   const [editingBadge, setEditingBadge] = useState<AdminBadge | null>(null);
   const [editName, setEditName] = useState("");
   const [editBadgePoints, setEditBadgePoints] = useState<string>("");
@@ -1174,6 +1175,12 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
   const editFileRef = useRef<HTMLInputElement>(null);
   const { data: allBadges = [], isLoading } = useQuery<AdminBadge[]>({
     queryKey: ["/api/badges"],
+  });
+
+  interface BadgeRecipient { userId: string; username: string; profileImage: string | null; awardedAt: string; }
+  const { data: recipients = [], isLoading: recipientsLoading } = useQuery<BadgeRecipient[]>({
+    queryKey: ["/api/admin/badges", viewingBadge?.id, "recipients"],
+    enabled: !!viewingBadge,
   });
 
   const createMutation = useMutation({
@@ -1379,12 +1386,15 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
               style={{ background: "rgba(20,12,4,0.6)", border: "1px solid rgba(255,215,0,0.15)" }}
             >
               <div className="flex flex-col items-center gap-1.5 w-full">
-                <div
-                  className="w-16 h-16 rounded-full flex items-center justify-center"
-                  style={{ background: "rgba(255,215,0,0.08)", border: "2px solid rgba(255,215,0,0.3)", boxShadow: "0 0 12px rgba(255,215,0,0.15)" }}
+                <button
+                  data-testid={`button-view-recipients-${badge.id}`}
+                  onClick={() => setViewingBadge(badge)}
+                  className="w-16 h-16 rounded-full flex items-center justify-center transition-all active:scale-95"
+                  style={{ background: "rgba(255,215,0,0.08)", border: "2px solid rgba(255,215,0,0.3)", boxShadow: "0 0 12px rgba(255,215,0,0.15)", cursor: "pointer", padding: 0 }}
+                  title="View badge holders"
                 >
                   <img src={badge.imageUrl} alt={badge.name} className="w-12 h-12 object-contain rounded-full" />
-                </div>
+                </button>
                 <p className="font-fantasy text-[10px] tracking-wider text-center leading-tight" style={{ color: "#ffd700" }}>
                   {badge.name}
                 </p>
@@ -1493,6 +1503,68 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
         </div>
       )}
 
+
+      {viewingBadge && (
+        <div className="fixed inset-0 z-50 flex flex-col" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+          <div className="absolute inset-0 bg-black/70" onClick={() => setViewingBadge(null)} />
+          <div className="relative flex flex-col h-full" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
+            <div className="flex items-center gap-3 px-4 py-3" style={{ background: "rgba(8,4,0,0.95)", borderBottom: "1px solid rgba(255,215,0,0.15)" }}>
+              <button
+                data-testid="button-close-recipients"
+                onClick={() => setViewingBadge(null)}
+                className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+                style={{ background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,215,0,0.3)", color: "#ffd700", cursor: "pointer" }}
+              >✕</button>
+              <img src={viewingBadge.imageUrl} alt={viewingBadge.name} className="w-9 h-9 rounded-full object-contain" style={{ border: "1.5px solid rgba(255,215,0,0.4)" }} />
+              <div className="flex flex-col min-w-0">
+                <p className="font-fantasy text-[12px] tracking-wider" style={{ color: "#ffd700" }}>{viewingBadge.name}</p>
+                <p className="font-fantasy text-[9px]" style={{ color: "#6a5840" }}>
+                  {recipientsLoading ? "Loading..." : `${recipients.length} holder${recipients.length !== 1 ? "s" : ""}`}
+                </p>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 py-3" style={{ background: "rgba(8,4,0,0.9)" }}>
+              {recipientsLoading ? (
+                <div className="flex items-center justify-center h-32">
+                  <p className="font-fantasy text-xs animate-pulse" style={{ color: "#6a5840" }}>Loading holders...</p>
+                </div>
+              ) : recipients.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-48 gap-3">
+                  <p className="font-fantasy text-xs" style={{ color: "#6a5840" }}>No one has this badge yet</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {recipients.map((r) => (
+                    <div
+                      key={r.userId}
+                      data-testid={`row-badge-recipient-${r.userId}`}
+                      className="flex items-center gap-3 rounded-xl px-3 py-2.5"
+                      style={{ background: "rgba(255,215,0,0.04)", border: "1px solid rgba(255,215,0,0.1)" }}
+                    >
+                      <div
+                        className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 overflow-hidden"
+                        style={{ background: "rgba(255,215,0,0.1)", border: "1.5px solid rgba(255,215,0,0.25)" }}
+                      >
+                        {r.profileImage ? (
+                          <img src={r.profileImage} alt={r.username} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="font-fantasy text-sm" style={{ color: "#ffd700" }}>{r.username[0]?.toUpperCase()}</span>
+                        )}
+                      </div>
+                      <div className="flex flex-col flex-1 min-w-0">
+                        <p className="font-fantasy text-[11px] tracking-wide truncate" style={{ color: "#ffd700" }}>{r.username}</p>
+                        <p className="font-fantasy text-[9px]" style={{ color: "#6a5840" }}>
+                          Awarded {new Date(r.awardedAt).toLocaleDateString()} at {new Date(r.awardedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {editingBadge && (
         <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>

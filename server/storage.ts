@@ -158,7 +158,7 @@ export interface IStorage {
   updateBadgeDailyReward(id: string, dailyRewardCoins: number | null): Promise<void>;
   updateBadge(id: string, data: { dailyRewardCoins?: number | null; badgePoints?: number; name?: string; imageUrl?: string; claimType?: string }): Promise<void>;
   getUserBadges(userId: string): Promise<(UserBadge & { name: string; imageUrl: string; dailyRewardCoins: number | null; claimType: string; badgePoints: number; lastClaimedAt: Date | null })[]>;
-  getBadgeRecipients(badgeId: string): Promise<string[]>;
+  getBadgeRecipients(badgeId: string): Promise<{ userId: string; username: string; profileImage: string | null; awardedAt: Date }[]>;
   awardBadge(userId: string, badgeId: string): Promise<UserBadge>;
   revokeBadge(userId: string, badgeId: string): Promise<void>;
   getBadgeRewardClaim(userId: string, badgeId: string): Promise<{ lastClaimedAt: Date } | null>;
@@ -993,9 +993,14 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getBadgeRecipients(badgeId: string): Promise<string[]> {
-    const rows = await db.select({ userId: userBadges.userId }).from(userBadges).where(eq(userBadges.badgeId, badgeId));
-    return rows.map(r => r.userId);
+  async getBadgeRecipients(badgeId: string): Promise<{ userId: string; username: string; profileImage: string | null; awardedAt: Date }[]> {
+    const rows = await db
+      .select({ userId: userBadges.userId, username: users.username, profileImage: users.profileImage, awardedAt: userBadges.awardedAt })
+      .from(userBadges)
+      .innerJoin(users, eq(userBadges.userId, users.id))
+      .where(eq(userBadges.badgeId, badgeId))
+      .orderBy(desc(userBadges.awardedAt));
+    return rows;
   }
 
   async awardBadge(userId: string, badgeId: string): Promise<UserBadge> {
