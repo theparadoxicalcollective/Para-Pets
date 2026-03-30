@@ -287,18 +287,21 @@ async function maybeAwardAcquisitionBadges(userId: string, purchaseAmountUsd: nu
     if (purchaseAmountUsd >= 10) {
       const id = await getOrCreateAcquisitionBadge("minor");
       await storage.awardBadge(userId, id);
+      console.log(`[badges] Minor Acquisition awarded to ${userId}`);
     }
     if (purchaseAmountUsd >= 100) {
       const id = await getOrCreateAcquisitionBadge("advanced");
       await storage.awardBadge(userId, id);
+      console.log(`[badges] Advanced Acquisition awarded to ${userId}`);
     }
     const dailyTotal = await storage.getDailyPurchaseTotal(userId);
     if (dailyTotal >= 500) {
       const id = await getOrCreateAcquisitionBadge("legendary");
       await storage.awardBadge(userId, id);
+      console.log(`[badges] Legendary Acquisition awarded to ${userId}`);
     }
   } catch (err) {
-    console.error("Error awarding acquisition badges:", err);
+    console.error("[badges] Error awarding acquisition badges:", err);
   }
 }
 

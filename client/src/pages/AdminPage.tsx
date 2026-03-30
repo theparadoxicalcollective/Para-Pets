@@ -1181,6 +1181,8 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
   const { data: recipients = [], isLoading: recipientsLoading } = useQuery<BadgeRecipient[]>({
     queryKey: ["/api/admin/badges", viewingBadge?.id, "recipients"],
     enabled: !!viewingBadge,
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const createMutation = useMutation({
