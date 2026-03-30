@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -316,20 +317,6 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
   // Tracks whether the last pointerdown geometrically hit a building (used for deselect logic)
   const pointerDownHitBuilding   = useRef<string | null>(null);
 
-  // ── Phone-frame overflow fix ──────────────────────────────────────────────
-  // On desktop the phone frame has both `transform` (which makes it the CSS
-  // containing-block for position:fixed children) AND `overflow:hidden`.
-  // Per CSS spec, that overflow clips ALL descendants — even fixed/absolute
-  // ones — so buildings near the right edge get cut off.
-  // While the full-screen editor is open we temporarily set the frame to
-  // overflow:visible (safe because the editor overlay covers the whole frame).
-  useEffect(() => {
-    const frame = document.querySelector("[data-phone-frame]") as HTMLElement | null;
-    if (!frame) return;
-    const prev = frame.style.overflow;
-    frame.style.overflow = "visible";
-    return () => { frame.style.overflow = prev; };
-  }, []);
 
   useEffect(() => {
     if (!bundle.bgImageUrl) return;
@@ -546,6 +533,164 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
   });
 
 
+  // ── Buildings portal ──────────────────────────────────────────────────────
+  // Rendered via createPortal into document.body so it lives COMPLETELY OUTSIDE
+  // the phone-frame DOM node. The phone frame has `transform + overflow:hidden`
+  // which (per CSS spec) clips every descendant no matter what we do inside it.
+  // A portal target of document.body has no such restriction.
+  //
+  // `bgRef.getBoundingClientRect()` returns true SCREEN coordinates (already
+  // accounting for the phone-frame CSS scale transform), so building positions
+  // match the background perfectly on both mobile and desktop.
+  //
+  // All building elements are `pointer-events:none` so pointer events fall
+  // through to viewportRef, where `findBuildingAtPoint()` handles hit detection.
+  // Only the control-bar div overrides to `pointer-events:auto` for buttons.
+  const bgRect = bgRef.current?.getBoundingClientRect();
+  const buildingsPortal = bgRect && bgRect.width > 0
+    ? createPortal(
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            pointerEvents: "none",
+            zIndex: 9999,
+            overflow: "visible",
+          }}
+        >
+          {buildings.map((b) => {
+            const lp      = livePos[b.id];
+            const posX    = lp ? lp.x : b.posX;
+            const posY    = lp ? lp.y : b.posY;
+            const storedW = liveSize[b.id] ?? b.width ?? 80;
+            // displayW is in SCREEN pixels (bgRect.height is screen px)
+            const displayW  = Math.round(storedW * bgRect.height / BUILDING_REF_H);
+            const flip      = liveFlip[b.id] !== undefined ? liveFlip[b.id] : (b.flippedX ?? false);
+            const isSelected = selectedId === b.id;
+            const isDragging = draggingId === b.id;
+            const moveRank   = moveOrder.indexOf(b.id);
+            // Screen-fixed coordinates — bgRect already accounts for phone-frame scale
+            const sx = bgRect.left + (posX / 100) * bgRect.width;
+            const sy = bgRect.top  + (posY / 100) * bgRect.height;
+
+            return (
+              <div
+                key={b.id}
+                data-testid={`building-${b.id}`}
+                style={{
+                  position: "absolute",
+                  left: sx,
+                  top: sy,
+                  transform: "translate(-50%, -100%)",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  userSelect: "none",
+                  zIndex: isDragging
+                    ? 100
+                    : moveRank >= 0
+                      ? 20 + moveRank + (isSelected ? 50 : 0)
+                      : (isSelected ? 25 : 5),
+                }}
+              >
+                {/* Control bar — pointer-events:auto so buttons are clickable */}
+                {isSelected && (
+                  <div
+                    style={{
+                      pointerEvents: "auto",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                      marginBottom: 4,
+                      borderRadius: "1rem",
+                      padding: "4px 8px",
+                      background: "rgba(0,0,0,0.85)",
+                      border: "1px solid rgba(34,211,238,0.4)",
+                      whiteSpace: "nowrap",
+                    }}
+                    onPointerDown={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      data-testid={`button-size-down-${b.id}`}
+                      onClick={(e) => { e.stopPropagation(); handleSizeChange(b, -20); }}
+                      style={{ background: "rgba(34,211,238,0.15)", color: "#a5f3fc", borderRadius: "0.75rem", padding: "6px", display: "flex" }}
+                      title="Decrease size"
+                    >
+                      <ZoomOut size={13} />
+                    </button>
+                    <span style={{ color: "#e0f7fa", minWidth: 28, textAlign: "center", fontSize: 12, fontWeight: "bold" }}>
+                      {displayW}
+                    </span>
+                    <button
+                      data-testid={`button-size-up-${b.id}`}
+                      onClick={(e) => { e.stopPropagation(); handleSizeChange(b, 20); }}
+                      style={{ background: "rgba(34,211,238,0.15)", color: "#a5f3fc", borderRadius: "0.75rem", padding: "6px", display: "flex" }}
+                      title="Increase size"
+                    >
+                      <ZoomIn size={13} />
+                    </button>
+                    <div style={{ width: 1, height: 16, background: "rgba(34,211,238,0.25)", margin: "0 2px" }} />
+                    <button
+                      data-testid={`button-flip-${b.id}`}
+                      onClick={(e) => { e.stopPropagation(); handleFlip(b); }}
+                      style={{ background: flip ? "rgba(34,211,238,0.35)" : "rgba(34,211,238,0.15)", color: "#a5f3fc", borderRadius: "0.75rem", padding: "6px", display: "flex" }}
+                      title="Flip horizontal"
+                    >
+                      <FlipHorizontal size={13} />
+                    </button>
+                    <div style={{ width: 1, height: 16, background: "rgba(34,211,238,0.25)", margin: "0 2px" }} />
+                    <button
+                      data-testid={`button-delete-building-${b.id}`}
+                      onClick={(e) => { e.stopPropagation(); deleteBuildingMutation.mutate(b.id); }}
+                      style={{ background: "rgba(220,50,50,0.25)", color: "#f87171", borderRadius: "0.75rem", padding: "6px", display: "flex" }}
+                      title="Delete"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                )}
+
+                <img
+                  src={b.imageUrl}
+                  alt={b.name}
+                  draggable={false}
+                  style={{
+                    width: displayW,
+                    height: displayW,
+                    objectFit: "contain",
+                    filter: `drop-shadow(0 4px 12px rgba(0,0,0,0.8))${isSelected ? " drop-shadow(0 0 6px rgba(34,211,238,0.7))" : ""}`,
+                    transform: flip ? "scaleX(-1)" : undefined,
+                    transition: isDragging ? "none" : "width 0.15s, height 0.15s",
+                    cursor: isDragging ? "grabbing" : (isSelected ? "grab" : "default"),
+                    display: "block",
+                  }}
+                />
+                <span
+                  style={{
+                    marginTop: 2,
+                    padding: "1px 8px",
+                    borderRadius: 999,
+                    fontSize: 10,
+                    fontWeight: "bold",
+                    background: "rgba(0,0,0,0.65)",
+                    color: isSelected ? "#22d3ee" : "#a5f3fc",
+                    whiteSpace: "nowrap",
+                    display: "block",
+                  }}
+                >
+                  {b.name}
+                </span>
+              </div>
+            );
+          })}
+        </div>,
+        document.body
+      )
+    : null;
+
   return (
     <div
       className="fixed inset-0 select-none"
@@ -598,129 +743,15 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
         )}
       </div>
 
-      {/* ── Buildings layer — sibling to viewportRef so overflow:hidden does NOT clip them ──
-          pointer-events:none lets drag/tap events fall through to viewportRef (geometry hit-test).
-          Control-bar buttons set pointer-events:auto so they still receive clicks. */}
-      {canvasPxW > 0 && canvasPxH > 0 && (
-        <div
-          className="absolute inset-0"
-          style={{ zIndex: 205, pointerEvents: "none", overflow: "visible" }}
-        >
-          {buildings.map((b) => {
-            const lp   = livePos[b.id];
-            const posX = lp ? lp.x : b.posX;
-            const posY = lp ? lp.y : b.posY;
-            const storedW  = liveSize[b.id] ?? b.width ?? 80;
-            const displayW = Math.round(storedW * canvasPxH / BUILDING_REF_H);
-            const flip     = liveFlip[b.id] !== undefined ? liveFlip[b.id] : (b.flippedX ?? false);
-            const isSelected = selectedId === b.id;
-            const isDragging = draggingId === b.id;
-            const moveRank   = moveOrder.indexOf(b.id);
-            // Absolute position in CSS-px units within the outer fixed div (same coordinate
-            // space as viewportRef). Buildings can freely extend beyond viewportRef's edge
-            // because they are NOT inside its overflow:hidden context.
-            const screenX = panX + (posX / 100) * canvasPxW;
-            const screenY = (posY / 100) * canvasPxH;
-
-            return (
-              <div
-                key={b.id}
-                data-testid={`building-${b.id}`}
-                className="absolute flex flex-col items-center"
-                style={{
-                  left: `${screenX}px`,
-                  top: `${screenY}px`,
-                  transform: "translate(-50%, -100%)",
-                  userSelect: "none",
-                  zIndex: isDragging
-                    ? 100
-                    : moveRank >= 0
-                      ? 20 + moveRank + (isSelected ? 50 : 0)
-                      : (isSelected ? 25 : 5),
-                }}
-              >
-                {/* Per-building control bar — shown when selected.
-                    pointer-events:auto so buttons are still clickable. */}
-                {isSelected && (
-                  <div
-                    className="flex items-center gap-1 mb-1 rounded-2xl px-2 py-1"
-                    style={{
-                      pointerEvents: "auto",
-                      background: "rgba(0,0,0,0.85)",
-                      border: "1px solid rgba(34,211,238,0.4)",
-                      whiteSpace: "nowrap",
-                    }}
-                    onPointerDown={(e) => e.stopPropagation()}
-                  >
-                    <button
-                      data-testid={`button-size-down-${b.id}`}
-                      onClick={(e) => { e.stopPropagation(); handleSizeChange(b, -20); }}
-                      className="rounded-xl p-1.5 transition-all"
-                      style={{ background: "rgba(34,211,238,0.15)", color: "#a5f3fc" }}
-                      title="Decrease size"
-                    >
-                      <ZoomOut size={13} />
-                    </button>
-                    <span className="text-xs font-bold px-1" style={{ color: "#e0f7fa", minWidth: 28, textAlign: "center" }}>
-                      {displayW}
-                    </span>
-                    <button
-                      data-testid={`button-size-up-${b.id}`}
-                      onClick={(e) => { e.stopPropagation(); handleSizeChange(b, 20); }}
-                      className="rounded-xl p-1.5 transition-all"
-                      style={{ background: "rgba(34,211,238,0.15)", color: "#a5f3fc" }}
-                      title="Increase size"
-                    >
-                      <ZoomIn size={13} />
-                    </button>
-                    <div style={{ width: 1, height: 16, background: "rgba(34,211,238,0.25)", margin: "0 2px" }} />
-                    <button
-                      data-testid={`button-flip-${b.id}`}
-                      onClick={(e) => { e.stopPropagation(); handleFlip(b); }}
-                      className="rounded-xl p-1.5 transition-all"
-                      style={{ background: flip ? "rgba(34,211,238,0.35)" : "rgba(34,211,238,0.15)", color: "#a5f3fc" }}
-                      title="Flip horizontal"
-                    >
-                      <FlipHorizontal size={13} />
-                    </button>
-                    <div style={{ width: 1, height: 16, background: "rgba(34,211,238,0.25)", margin: "0 2px" }} />
-                    <button
-                      data-testid={`button-delete-building-${b.id}`}
-                      onClick={(e) => { e.stopPropagation(); deleteBuildingMutation.mutate(b.id); }}
-                      className="rounded-xl p-1.5 transition-all"
-                      style={{ background: "rgba(220,50,50,0.25)", color: "#f87171" }}
-                      title="Delete"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                )}
-
-                <img
-                  src={b.imageUrl}
-                  alt={b.name}
-                  draggable={false}
-                  style={{
-                    width: displayW,
-                    height: displayW,
-                    objectFit: "contain",
-                    filter: `drop-shadow(0 4px 12px rgba(0,0,0,0.8))${isSelected ? " drop-shadow(0 0 6px rgba(34,211,238,0.7))" : ""}`,
-                    transform: flip ? "scaleX(-1)" : undefined,
-                    transition: "width 0.15s, height 0.15s",
-                    cursor: isDragging ? "grabbing" : (isSelected ? "grab" : "default"),
-                  }}
-                />
-                <span
-                  className="mt-0.5 px-2 py-0.5 rounded-full text-xs font-bold"
-                  style={{ background: "rgba(0,0,0,0.65)", color: isSelected ? "#22d3ee" : "#a5f3fc", whiteSpace: "nowrap", fontSize: 10 }}
-                >
-                  {b.name}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {/* Buildings are rendered via a React portal directly into document.body.
+          This is the ONLY reliable way to escape `overflow:hidden` on ancestor
+          elements (phone frame has transform+overflow:hidden; no child-side CSS
+          trick can override that). The portal renders outside the phone frame's
+          DOM subtree so it is never clipped.
+          Events still reach viewportRef via the geometry hit-test because the
+          portal buildings have pointer-events:none — clicks pass through to the
+          viewportRef below, where findBuildingAtPoint() detects them. */}
+      {buildingsPortal}
 
       {/* ── TOP overlay bar ── */}
       <div
