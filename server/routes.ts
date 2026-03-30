@@ -4774,7 +4774,7 @@ export async function registerRoutes(
       if (width    !== undefined) updates.width    = Math.max(20, Math.min(400, Number(width)));
       if (flippedX !== undefined) updates.flippedX = Boolean(flippedX);
       if (imageData) updates.imageUrl = await processWorldImage(imageData, 1000);
-      if (interiorImageData) updates.interiorImageUrl = await processWorldImage(interiorImageData, 1200);
+      if (interiorImageData) updates.interiorImageUrl = await processWorldImage(interiorImageData, 2000);
       if (clearInterior) updates.interiorImageUrl = null;
       const building = await storage.updateHouseBundleBuilding(req.params.id, updates);
       return res.json(building);

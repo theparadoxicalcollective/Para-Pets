@@ -118,8 +118,8 @@ function InteriorViewer({ url, onClose }: { url: string; onClose: () => void }) 
   return (
     <div
       ref={containerRef}
-      className="absolute inset-0"
-      style={{ zIndex: 60, background: "#000", overflow: "hidden", touchAction: "none" }}
+      className="fixed inset-0"
+      style={{ zIndex: 60, background: "#000", overflow: "hidden", touchAction: "none", maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}

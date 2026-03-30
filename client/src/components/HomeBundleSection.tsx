@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Upload, X, ChevronLeft, Plus, Minus, FlipHorizontal, Image, Copy, DoorOpen } from "lucide-react";
+import { Trash2, Upload, X, ChevronLeft, Plus, Minus, FlipHorizontal, Image, Copy } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -414,19 +414,6 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
                   </>
                 )}
 
-                {/* Door indicator — always visible, shows if interior is set */}
-                <div
-                  className="absolute z-20 flex items-center justify-center rounded-full"
-                  style={{
-                    bottom: 2, right: 2, width: 18, height: 18,
-                    background: b.interiorImageUrl ? "rgba(0,180,80,0.95)" : "rgba(0,0,0,0.55)",
-                    border: b.interiorImageUrl ? "1.5px solid rgba(100,255,150,0.8)" : "1.5px solid rgba(255,255,255,0.2)",
-                    boxShadow: "0 1px 4px rgba(0,0,0,0.6)",
-                    pointerEvents: "none",
-                  }}
-                >
-                  <DoorOpen style={{ width: 10, height: 10, color: b.interiorImageUrl ? "#fff" : "rgba(255,255,255,0.35)" }} />
-                </div>
 
                 {/* Building image */}
                 <img
@@ -628,7 +615,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
             </div>
 
             <p className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>
-              {interiorBuilding.name} — double-tap a building to set its interior image. Players can tap buildings with an interior to open them.
+              {interiorBuilding.name} — players can tap this building to enter and view its background. Without one, the building is decorative only.
             </p>
 
             {/* Current interior preview */}
@@ -645,27 +632,23 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
             )}
 
             {/* Upload button */}
-            <label
-              className="flex items-center justify-center gap-2 rounded-xl py-3 cursor-pointer transition-opacity"
+            <button
+              onClick={() => interiorFileRef.current?.click()}
+              disabled={interiorUploading}
+              className="flex items-center justify-center gap-2 rounded-xl py-3 transition-opacity"
               style={{
                 background: "rgba(255,215,0,0.12)",
                 border: "1.5px dashed rgba(255,215,0,0.4)",
                 color: GOLD,
                 opacity: interiorUploading ? 0.6 : 1,
+                cursor: interiorUploading ? "not-allowed" : "pointer",
               }}
             >
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleInteriorUpload}
-                disabled={interiorUploading}
-              />
               <Upload className="w-4 h-4" />
               <span className="font-fantasy text-xs tracking-wider">
-                {interiorUploading ? "Uploading…" : interiorBuilding.interiorImageUrl ? "Replace Interior" : "Upload Interior"}
+                {interiorUploading ? "Uploading…" : interiorBuilding.interiorImageUrl ? "Replace Background" : "Upload Background"}
               </span>
-            </label>
+            </button>
 
             {/* Clear button — only if interior exists */}
             {interiorBuilding.interiorImageUrl && (
