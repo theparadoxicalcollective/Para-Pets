@@ -79,7 +79,7 @@ function BundleBgEditor({ bundle, onClose }: { bundle: HouseBundle; onClose: () 
     img.src = bgUrl;
   }, [bgUrl]);
 
-  // ── Container resize — height-fit + center (same formula as PetHousePage) ──
+  // ── Container resize — height-fit + center (identical to PetHousePage) ──
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -89,10 +89,10 @@ function BundleBgEditor({ bundle, onClose }: { bundle: HouseBundle; onClose: () 
       const imgW = h * bgAspect;
       setContainerH(h);
       setImgWidth(imgW);
-      // Center the image: Math.max(min, center) handles both wide and narrow images.
-      // Wide  (imgW > w): center = (w-imgW)/2 < 0, clamped above min = w-imgW  → starts centered
-      // Narrow(imgW ≤ w): center = (w-imgW)/2 > 0, Math.max(0, positive) → centered with positive panX
-      setPanX(Math.max(Math.min(0, w - imgW), (w - imgW) / 2));
+      // All bundle backgrounds are wider than the screen.
+      // Start centered: (w - imgW) / 2 is negative → half-way into the image.
+      // Math.max(min, center) keeps it within [w-imgW, 0].
+      setPanX(Math.max(w - imgW, (w - imgW) / 2));
     };
     recalc();
     const ro = new ResizeObserver(recalc);
@@ -145,12 +145,9 @@ function BundleBgEditor({ bundle, onClose }: { bundle: HouseBundle; onClose: () 
     if (Math.abs(dx) > 3) isPanningRef.current = true;
     const containerW = container.offsetWidth;
     const imgW = containerHRef.current * bgAspect;
-    // Same bounds as recalc: never show empty space past either edge of the image.
-    // center is the reference point for both wide and narrow images.
-    const center = (containerW - imgW) / 2;
-    const panMin = Math.min(center, containerW - imgW); // wide: imgW-containerW left of 0; narrow: locked at center
-    const panMax = Math.max(center, 0);                 // wide: 0; narrow: locked at center
-    setPanX(Math.max(panMin, Math.min(panMax, drag.startPanX + dx)));
+    // All backgrounds wider than screen: clamp to [containerW - imgW, 0]
+    const min = containerW - imgW;
+    setPanX(Math.min(0, Math.max(min, drag.startPanX + dx)));
   }, [bgAspect]);
 
   const handleContainerPointerUp = useCallback(() => {
@@ -261,10 +258,12 @@ function BundleBgEditor({ bundle, onClose }: { bundle: HouseBundle; onClose: () 
 
                 {/* 4-corner control buttons — same layout as WorldPage decor */}
                 {isSelected && (
-                  <div onPointerDown={e => { e.stopPropagation(); buildingDragRef.current = null; }}>
+                  <>
                     {/* Delete — top-left */}
                     <button
                       data-testid={`button-delete-building-${b.id}`}
+                      onPointerDown={e => e.stopPropagation()}
+                      onPointerUp={e => e.stopPropagation()}
                       onClick={e => { e.stopPropagation(); deleteBuilding.mutate(b.id); }}
                       className="absolute z-30 w-8 h-8 rounded-full flex items-center justify-center"
                       style={{ top: -16, left: -16, background: "rgba(220,38,38,0.95)", border: "2px solid rgba(255,100,100,0.7)", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}
@@ -274,6 +273,8 @@ function BundleBgEditor({ bundle, onClose }: { bundle: HouseBundle; onClose: () 
                     {/* Flip — top-right */}
                     <button
                       data-testid={`button-flip-building-${b.id}`}
+                      onPointerDown={e => e.stopPropagation()}
+                      onPointerUp={e => e.stopPropagation()}
                       onClick={e => { e.stopPropagation(); patchBuilding.mutate({ id: b.id, flippedX: !b.flippedX }); }}
                       className="absolute z-30 w-8 h-8 rounded-full flex items-center justify-center"
                       style={{ top: -16, right: -16, background: "rgba(0,80,180,0.95)", border: "2px solid rgba(100,180,255,0.7)", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}
@@ -283,6 +284,8 @@ function BundleBgEditor({ bundle, onClose }: { bundle: HouseBundle; onClose: () 
                     {/* Shrink — bottom-left */}
                     <button
                       data-testid={`button-shrink-building-${b.id}`}
+                      onPointerDown={e => e.stopPropagation()}
+                      onPointerUp={e => e.stopPropagation()}
                       onClick={e => { e.stopPropagation(); patchBuilding.mutate({ id: b.id, width: Math.max(20, b.width - 20) }); }}
                       className="absolute z-30 w-8 h-8 rounded-full flex items-center justify-center"
                       style={{ bottom: -20, left: -16, background: "rgba(80,40,0,0.95)", border: "2px solid rgba(255,160,50,0.7)", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}
@@ -292,6 +295,8 @@ function BundleBgEditor({ bundle, onClose }: { bundle: HouseBundle; onClose: () 
                     {/* Grow — bottom-right */}
                     <button
                       data-testid={`button-grow-building-${b.id}`}
+                      onPointerDown={e => e.stopPropagation()}
+                      onPointerUp={e => e.stopPropagation()}
                       onClick={e => { e.stopPropagation(); patchBuilding.mutate({ id: b.id, width: Math.min(400, b.width + 20) }); }}
                       className="absolute z-30 w-8 h-8 rounded-full flex items-center justify-center"
                       style={{ bottom: -20, right: -16, background: "rgba(80,40,0,0.95)", border: "2px solid rgba(255,160,50,0.7)", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}
@@ -305,7 +310,7 @@ function BundleBgEditor({ bundle, onClose }: { bundle: HouseBundle; onClose: () 
                     >
                       <span className="font-fantasy text-[9px] text-yellow-300">{b.width}px</span>
                     </div>
-                  </div>
+                  </>
                 )}
 
                 {/* Building image */}
