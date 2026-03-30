@@ -121,7 +121,12 @@ export default function AuthPage() {
       const msg = err.message?.includes(":") ? err.message.split(": ").slice(1).join(": ") : err.message;
       let parsed: any = {};
       try { parsed = JSON.parse(msg); } catch {}
-      toast({ title: "Login Failed", description: parsed.message || msg || "Invalid credentials", variant: "destructive" });
+      if (parsed.maintenance === true) {
+        toast({ title: "Realm Restricted", description: "Only admins can enter at this time. The realm is under maintenance.", variant: "destructive" });
+        setAdminBypass(false);
+      } else {
+        toast({ title: "Login Failed", description: parsed.message || msg || "Invalid credentials", variant: "destructive" });
+      }
     },
   });
 
