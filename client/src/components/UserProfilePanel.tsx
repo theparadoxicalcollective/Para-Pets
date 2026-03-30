@@ -524,7 +524,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                   cursor: "pointer",
                 }}
               >
-                {showFeedback ? "Cancel" : "Send Feedback"}
+                {showFeedback ? "Cancel" : "Support / Feedback"}
               </button>
 
               {showFeedback && (
