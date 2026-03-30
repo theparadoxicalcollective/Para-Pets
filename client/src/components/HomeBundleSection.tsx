@@ -25,6 +25,88 @@ const GOLD_BORDER = "rgba(255,215,0,0.2)";
 const BG_CARD = "rgba(255,215,0,0.04)";
 const BUILDING_REF_H = 900;
 
+// ─── AdminInteriorPreview — full-screen pannable preview used by admin ────────
+function AdminInteriorPreview({ url, onLeave }: { url: string; onLeave: () => void }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [panX, setPanX] = useState(0);
+  const [aspect, setAspect] = useState(16 / 9);
+  const aspectRef = useRef(16 / 9);
+  const panStartRef = useRef<{ startX: number; startPanX: number; pid: number } | null>(null);
+
+  useEffect(() => {
+    const img = new window.Image();
+    img.onload = () => {
+      if (img.naturalHeight > 0) {
+        const a = img.naturalWidth / img.naturalHeight;
+        aspectRef.current = a;
+        setAspect(a);
+      }
+    };
+    img.src = url;
+  }, [url]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const recalc = () => {
+      const w = container.offsetWidth;
+      const h = container.offsetHeight;
+      const imgW = h * aspectRef.current;
+      setPanX(Math.max(Math.min(0, w - imgW), (w - imgW) / 2));
+    };
+    recalc();
+    const ro = new ResizeObserver(recalc);
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, [aspect]);
+
+  const onPointerDown = useCallback((e: React.PointerEvent) => {
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    panStartRef.current = { startX: e.clientX, startPanX: panX, pid: e.pointerId };
+  }, [panX]);
+
+  const onPointerMove = useCallback((e: React.PointerEvent) => {
+    const drag = panStartRef.current;
+    if (!drag || drag.pid !== e.pointerId) return;
+    const container = containerRef.current;
+    if (!container) return;
+    const w = container.offsetWidth;
+    const h = container.offsetHeight;
+    const imgW = h * aspectRef.current;
+    const min = Math.min(0, w - imgW);
+    setPanX(Math.min(0, Math.max(min, drag.startPanX + (e.clientX - drag.startX))));
+  }, []);
+
+  const onPointerUp = useCallback(() => { panStartRef.current = null; }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      className="fixed inset-0"
+      style={{ zIndex: 100, background: "#000", overflow: "hidden", touchAction: "none", maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+    >
+      <img
+        src={url}
+        alt="Building background preview"
+        draggable={false}
+        style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none" }}
+      />
+      <button
+        onClick={onLeave}
+        onPointerDown={e => e.stopPropagation()}
+        className="absolute top-4 right-4 flex items-center justify-center rounded-full px-4 py-2 text-xs font-bold tracking-widest"
+        style={{ zIndex: 10, background: "rgba(0,0,0,0.65)", color: "#fff", border: "1px solid rgba(255,255,255,0.25)", fontFamily: "Cinzel, serif" }}
+      >
+        Leave
+      </button>
+    </div>
+  );
+}
+
 // ─── BundleBgEditor (full-screen background + building editor) ────────────────
 function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle; onClose: () => void; onBgUpdated?: (url: string) => void }) {
   const { toast } = useToast();
@@ -63,6 +145,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
   // ── Interior modal ──
   const [interiorBuilding, setInteriorBuilding] = useState<HouseBundleBuilding | null>(null);
   const [interiorUploading, setInteriorUploading] = useState(false);
+  const [previewInteriorUrl, setPreviewInteriorUrl] = useState<string | null>(null);
 
   // ── Add building form ──
   const [showAddForm, setShowAddForm] = useState(false);
@@ -172,9 +255,9 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
     setInteriorUploading(true);
     try {
       const dataUrl = await readFileAsDataUrl(file);
-      await apiRequest("PATCH", `/api/admin/house-bundle-buildings/${interiorBuilding.id}`, { interiorImageData: dataUrl });
+      const updated = await apiRequest("PATCH", `/api/admin/house-bundle-buildings/${interiorBuilding.id}`, { interiorImageData: dataUrl }) as HouseBundleBuilding;
       await refetch();
-      setInteriorBuilding(null);
+      setInteriorBuilding(updated); // keep modal open with fresh URL
     } catch (err: any) {
       toast({ title: "Upload failed", description: err.message, variant: "destructive" });
     } finally {
@@ -581,21 +664,24 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
       )}
 
       {/* ── Interior upload modal ── */}
-      {interiorBuilding && (
+      {interiorBuilding && !previewInteriorUrl && (
         <div
           className="absolute inset-0 flex items-center justify-center"
           style={{ zIndex: 80, background: "rgba(0,0,0,0.82)", padding: "0 16px" }}
+          onPointerDown={e => e.stopPropagation()}
           onClick={() => setInteriorBuilding(null)}
         >
           <div
             className="w-full rounded-2xl flex flex-col gap-4 p-5"
             style={{ maxWidth: 380, background: "rgba(20,15,5,0.98)", border: "1.5px solid rgba(255,215,0,0.25)", boxShadow: "0 8px 40px rgba(0,0,0,0.8)" }}
+            onPointerDown={e => e.stopPropagation()}
             onClick={e => e.stopPropagation()}
           >
             {/* Title */}
             <div className="flex items-center justify-between">
-              <p className="font-fantasy text-sm tracking-widest" style={{ color: GOLD }}>Building Interior</p>
+              <p className="font-fantasy text-sm tracking-widest" style={{ color: GOLD }}>Building Background</p>
               <button
+                onPointerDown={e => e.stopPropagation()}
                 onClick={() => setInteriorBuilding(null)}
                 className="w-7 h-7 rounded-full flex items-center justify-center"
                 style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.5)" }}
@@ -605,24 +691,42 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
             </div>
 
             <p className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>
-              {interiorBuilding.name} — players can tap this building to enter and view its background. Without one, the building is decorative only.
+              {interiorBuilding.name} — players tap this building to enter. Without a background it's decorative only.
             </p>
 
-            {/* Current interior preview */}
+            {/* Thumbnail + Preview button */}
             {interiorBuilding.interiorImageUrl && (
-              <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,215,0,0.15)" }}>
-                <img
-                  src={interiorBuilding.interiorImageUrl}
-                  alt="Interior"
-                  draggable={false}
-                  className="w-full object-cover"
-                  style={{ maxHeight: 180 }}
-                />
+              <div className="flex flex-col gap-2">
+                <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,215,0,0.15)" }}>
+                  <img
+                    src={interiorBuilding.interiorImageUrl}
+                    alt="Background"
+                    draggable={false}
+                    className="w-full object-cover"
+                    style={{ maxHeight: 160 }}
+                  />
+                </div>
+                <button
+                  onPointerDown={e => e.stopPropagation()}
+                  onClick={() => setPreviewInteriorUrl(interiorBuilding.interiorImageUrl!)}
+                  className="flex items-center justify-center gap-2 rounded-xl py-2"
+                  style={{
+                    background: "rgba(0,120,200,0.18)",
+                    border: "1px solid rgba(80,180,255,0.4)",
+                    color: "rgba(120,200,255,0.95)",
+                    fontSize: 12,
+                    fontFamily: "Cinzel, serif",
+                    cursor: "pointer",
+                  }}
+                >
+                  Preview as Player
+                </button>
               </div>
             )}
 
-            {/* Upload button — label wraps input directly (iOS requires this; programmatic .click() on display:none inputs is blocked) */}
+            {/* Upload label — wraps input directly so iOS native file picker opens */}
             <label
+              onPointerDown={e => e.stopPropagation()}
               className="flex items-center justify-center gap-2 rounded-xl py-3"
               style={{
                 background: "rgba(255,215,0,0.12)",
@@ -645,11 +749,12 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
               </span>
             </label>
 
-            {/* Clear button — only if interior exists */}
+            {/* Remove button */}
             {interiorBuilding.interiorImageUrl && (
               <button
+                onPointerDown={e => e.stopPropagation()}
                 onClick={handleInteriorClear}
-                className="flex items-center justify-center gap-2 rounded-xl py-2.5 transition-opacity"
+                className="flex items-center justify-center gap-2 rounded-xl py-2.5"
                 style={{
                   background: "rgba(220,38,38,0.12)",
                   border: "1px solid rgba(220,38,38,0.3)",
@@ -659,11 +764,16 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
                 }}
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                Remove Interior
+                Remove Background
               </button>
             )}
           </div>
         </div>
+      )}
+
+      {/* ── Admin interior preview (full-screen panning, same as player view) ── */}
+      {previewInteriorUrl && (
+        <AdminInteriorPreview url={previewInteriorUrl} onLeave={() => setPreviewInteriorUrl(null)} />
       )}
     </div>
   );
