@@ -14,12 +14,15 @@ import FishingAdminPanel from "@/components/FishingAdminPanel";
 import EnemyDatabasePanel from "@/components/EnemyDatabasePanel";
 import HouseBundleAdminPanel from "@/components/HouseBundleAdminPanel";
 import adminIconMembers from "@assets/admin_icon_members.png";
-import adminIconRewards from "@assets/admin_icon_rewards.png";
+import adminIconRewards from "@assets/admin_icon_rewards_new.png";
 import adminIconItems from "@assets/admin_icon_items.png";
 import adminIconPets from "@assets/admin_icon_pets.png";
 import adminIconMessages from "@assets/admin_icon_messages.png";
 import adminIconBadges from "@assets/admin_icon_badges.png";
 import adminIconFishing from "@assets/admin_icon_fishing.png";
+import adminIconWelcome from "@assets/admin_icon_welcome.png";
+import adminIconHouseBundle from "@assets/admin_icon_house_bundle.png";
+import adminIconPurchases from "@assets/admin_icon_purchases.png";
 
 interface AdminPageProps {
   user: {
@@ -105,10 +108,10 @@ export default function AdminPage({ user }: AdminPageProps) {
     { key: "messages" as const, label: "Messages", icon: adminIconMessages, desc: "Support inbox", color: "#fca5a5", glow: "rgba(252,165,165,0.30)", bg: "linear-gradient(145deg, rgba(80,18,18,0.92) 0%, rgba(110,28,28,0.88) 100%)", border: "rgba(252,165,165,0.45)" },
     { key: "badges" as const, label: "Badges", icon: adminIconBadges, desc: "Award badges", color: "#fde68a", glow: "rgba(253,230,138,0.30)", bg: "linear-gradient(145deg, rgba(72,54,0,0.92) 0%, rgba(108,80,0,0.88) 100%)", border: "rgba(253,230,138,0.45)" },
     { key: "fishing" as const, label: "Fishing", icon: adminIconFishing, desc: "Fish & ponds", color: "#93c5fd", glow: "rgba(147,197,253,0.30)", bg: "linear-gradient(145deg, rgba(12,22,60,0.92) 0%, rgba(18,36,90,0.88) 100%)", border: "rgba(147,197,253,0.45)" },
-    { key: "welcome" as const, label: "Welcome Bundle", icon: adminIconRewards, desc: "New user gifts", color: "#6ee7b7", glow: "rgba(110,231,183,0.35)", bg: "linear-gradient(145deg, rgba(8,50,35,0.92) 0%, rgba(14,80,55,0.88) 100%)", border: "rgba(110,231,183,0.45)" },
+    { key: "welcome" as const, label: "Welcome Bundle", icon: adminIconWelcome, desc: "New user gifts", color: "#6ee7b7", glow: "rgba(110,231,183,0.35)", bg: "linear-gradient(145deg, rgba(8,50,35,0.92) 0%, rgba(14,80,55,0.88) 100%)", border: "rgba(110,231,183,0.45)" },
     { key: "enemies" as const, label: "Enemies", icon: adminIconBadges, desc: "Enemy database", color: "#fca5a5", glow: "rgba(239,68,68,0.30)", bg: "linear-gradient(145deg, rgba(60,8,8,0.92) 0%, rgba(90,12,12,0.88) 100%)", border: "rgba(239,68,68,0.45)" },
-    { key: "house_bundle" as const, label: "House Bundle", icon: adminIconRewards, desc: "House item bundles", color: "#a5f3fc", glow: "rgba(34,211,238,0.30)", bg: "linear-gradient(145deg, rgba(8,38,50,0.92) 0%, rgba(12,58,75,0.88) 100%)", border: "rgba(34,211,238,0.45)" },
-    { key: "purchases" as const, label: "Purchases", icon: adminIconRewards, desc: "Coin shop history", color: "#86efac", glow: "rgba(134,239,172,0.30)", bg: "linear-gradient(145deg, rgba(8,45,18,0.92) 0%, rgba(12,70,28,0.88) 100%)", border: "rgba(134,239,172,0.45)" },
+    { key: "house_bundle" as const, label: "House Bundle", icon: adminIconHouseBundle, desc: "House item bundles", color: "#a5f3fc", glow: "rgba(34,211,238,0.30)", bg: "linear-gradient(145deg, rgba(8,38,50,0.92) 0%, rgba(12,58,75,0.88) 100%)", border: "rgba(34,211,238,0.45)" },
+    { key: "purchases" as const, label: "Purchases", icon: adminIconPurchases, desc: "Coin shop history", color: "#86efac", glow: "rgba(134,239,172,0.30)", bg: "linear-gradient(145deg, rgba(8,45,18,0.92) 0%, rgba(12,70,28,0.88) 100%)", border: "rgba(134,239,172,0.45)" },
   ];
 
   const activeSectionMeta = activeSection ? sections.find(s => s.key === activeSection) : null;
