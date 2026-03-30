@@ -303,6 +303,7 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
   const [panX, setPanX]                       = useState(0);
   const [imgAspect, setImgAspect]             = useState(16 / 9);
   const [canvasPxW, setCanvasPxW]             = useState(0);
+  const [canvasPxH, setCanvasPxH]             = useState(BUILDING_REF_H);
 
   const bgRef               = useRef<HTMLDivElement>(null);
   const viewportRef         = useRef<HTMLDivElement>(null);
@@ -325,6 +326,7 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
       if (!viewportRef.current) return;
       const vpH = viewportRef.current.offsetHeight;
       const vpW = viewportRef.current.offsetWidth;
+      setCanvasPxH(vpH || BUILDING_REF_H);
       setCanvasPxW(Math.max(vpW, Math.round(vpH * imgAspect)));
     };
     update();
@@ -536,7 +538,7 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
             const y    = lp ? lp.y : b.posY;
             // stored value is in reference units (based on BUILDING_REF_H canvas height)
             const storedW  = liveSize[b.id] ?? b.width ?? 80;
-            const displayW = Math.round(storedW * window.innerHeight / BUILDING_REF_H);
+            const displayW = Math.round(storedW * canvasPxH / BUILDING_REF_H);
             const flip = liveFlip[b.id] !== undefined ? liveFlip[b.id] : (b.flippedX ?? false);
             const isSelected = selectedId === b.id;
             const isDragging = draggingId === b.id;
