@@ -254,7 +254,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
         <div className="absolute" style={{ top: 0, left: `${panX}px`, width: imgWidth, height: "100%", zIndex: 4, pointerEvents: "none" }}>
           {buildings.map(b => {
             const pos = localPos[b.id] ?? { x: b.posX, y: b.posY };
-            const displayW = Math.round((b.width ?? 80) * (containerH || BUILDING_REF_H) / BUILDING_REF_H);
+            const displayW = Math.round((b.width ?? 120) * (containerH || BUILDING_REF_H) / BUILDING_REF_H);
             const isSelected = selectedId === b.id;
             return (
               <div

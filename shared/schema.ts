@@ -583,7 +583,7 @@ export const houseBundleBuildings = pgTable("house_bundle_buildings", {
   imageUrl: text("image_url").notNull(),
   posX: real("pos_x").notNull().default(50),
   posY: real("pos_y").notNull().default(50),
-  width: integer("width").notNull().default(80),
+  width: integer("width").notNull().default(120),
   flippedX: boolean("flipped_x").notNull().default(false),
   interiorImageUrl: text("interior_image_url"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
