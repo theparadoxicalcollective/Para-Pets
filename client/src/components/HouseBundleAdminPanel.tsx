@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -292,8 +292,48 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
   const [newBuildingImageData, setNewBuildingImageData] = useState("");
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [livePos, setLivePos] = useState<{ [id: string]: { x: number; y: number } }>({});
-  const dragOffsetRef = useRef({ x: 0, y: 0 });
+  const [panX, setPanX] = useState(0);
+  const [imgAspect, setImgAspect] = useState(16 / 9);
+  const [canvasPxW, setCanvasPxW] = useState(0);
+
   const bgRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
+  const panStartRef = useRef<{ startX: number; startPanX: number } | null>(null);
+  const draggingBuildingRef = useRef<string | null>(null);
+
+  // Load the image to get its natural aspect ratio
+  useEffect(() => {
+    if (!bundle.bgImageUrl) return;
+    const img = new window.Image();
+    img.onload = () => {
+      if (img.naturalHeight > 0) setImgAspect(img.naturalWidth / img.naturalHeight);
+    };
+    img.src = bundle.bgImageUrl;
+  }, [bundle.bgImageUrl]);
+
+  // Compute canvas pixel width whenever imgAspect or viewport size changes
+  useEffect(() => {
+    const update = () => {
+      if (!viewportRef.current) return;
+      const vpH = viewportRef.current.offsetHeight;
+      const vpW = viewportRef.current.offsetWidth;
+      setCanvasPxW(Math.max(vpW, Math.round(vpH * imgAspect)));
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    if (viewportRef.current) ro.observe(viewportRef.current);
+    return () => ro.disconnect();
+  }, [imgAspect]);
+
+  // Reset pan when switching bundles
+  useEffect(() => { setPanX(0); }, [bundle.id]);
+
+  const clampPan = (val: number) => {
+    const vpW = viewportRef.current?.offsetWidth ?? 400;
+    const min = -(canvasPxW - vpW);
+    return Math.min(0, Math.max(min < 0 ? min : 0, val));
+  };
 
   const addBuildingMutation = useMutation({
     mutationFn: async () => {
@@ -331,38 +371,65 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
     },
   });
 
-  const handlePointerDown = useCallback((e: React.PointerEvent, building: HouseBundleBuilding) => {
-    e.stopPropagation();
+  const handleViewportPointerDown = useCallback((e: React.PointerEvent) => {
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    if (draggingBuildingRef.current) {
+      // Building drag was started — handle offset
+      const bgRect = bgRef.current?.getBoundingClientRect();
+      if (!bgRect) return;
+      const buildingEl = (e.target as HTMLElement).closest("[data-building]") as HTMLElement | null;
+      if (buildingEl) {
+        const elRect = buildingEl.getBoundingClientRect();
+        dragOffsetRef.current = {
+          x: e.clientX - elRect.left - elRect.width / 2,
+          y: e.clientY - elRect.top - elRect.height / 2,
+        };
+      } else {
+        dragOffsetRef.current = { x: 0, y: 0 };
+      }
+    } else {
+      // Background pan
+      panStartRef.current = { startX: e.clientX, startPanX: panX };
+    }
+  }, [panX]);
+
+  const handleViewportPointerMove = useCallback((e: React.PointerEvent) => {
+    if (draggingBuildingRef.current) {
+      const bgRect = bgRef.current?.getBoundingClientRect();
+      if (!bgRect) return;
+      const rawX = e.clientX - dragOffsetRef.current.x - bgRect.left;
+      const rawY = e.clientY - dragOffsetRef.current.y - bgRect.top;
+      const posX = Math.max(0, Math.min(100, (rawX / bgRect.width) * 100));
+      const posY = Math.max(0, Math.min(100, (rawY / bgRect.height) * 100));
+      setLivePos((prev) => ({ ...prev, [draggingBuildingRef.current!]: { x: posX, y: posY } }));
+    } else if (panStartRef.current) {
+      setPanX(clampPan(panStartRef.current.startPanX + (e.clientX - panStartRef.current.startX)));
+    }
+  }, [imgAspect, canvasPxW]);
+
+  const handleViewportPointerUp = useCallback(() => {
+    if (draggingBuildingRef.current) {
+      const id = draggingBuildingRef.current;
+      const pos = livePos[id];
+      if (pos) moveBuildingMutation.mutate({ id, posX: pos.x, posY: pos.y });
+      draggingBuildingRef.current = null;
+      setDraggingId(null);
+    }
+    panStartRef.current = null;
+  }, [livePos, moveBuildingMutation]);
+
+  const handleBuildingPointerDown = useCallback((e: React.PointerEvent, building: HouseBundleBuilding) => {
+    draggingBuildingRef.current = building.id;
+    setDraggingId(building.id);
     const bgRect = bgRef.current?.getBoundingClientRect();
     const elRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    if (!bgRect) return;
-    dragOffsetRef.current = {
-      x: e.clientX - elRect.left - elRect.width / 2,
-      y: e.clientY - elRect.top - elRect.height / 2,
-    };
-    setDraggingId(building.id);
-  }, []);
-
-  const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (!draggingId) return;
-    const bgRect = bgRef.current?.getBoundingClientRect();
-    if (!bgRect) return;
-    const rawX = e.clientX - dragOffsetRef.current.x - bgRect.left;
-    const rawY = e.clientY - dragOffsetRef.current.y - bgRect.top;
-    const posX = Math.max(0, Math.min(100, (rawX / bgRect.width) * 100));
-    const posY = Math.max(0, Math.min(100, (rawY / bgRect.height) * 100));
-    setLivePos((prev) => ({ ...prev, [draggingId]: { x: posX, y: posY } }));
-  }, [draggingId]);
-
-  const handlePointerUp = useCallback(() => {
-    if (!draggingId) return;
-    const pos = livePos[draggingId];
-    if (pos) {
-      moveBuildingMutation.mutate({ id: draggingId, posX: pos.x, posY: pos.y });
+    if (bgRect) {
+      dragOffsetRef.current = {
+        x: e.clientX - elRect.left - elRect.width / 2,
+        y: e.clientY - elRect.top - elRect.height / 2,
+      };
     }
-    setDraggingId(null);
-  }, [draggingId, livePos, moveBuildingMutation]);
+  }, []);
 
   const saveBundleMutation = useMutation({
     mutationFn: async () => {
@@ -375,6 +442,8 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
+
+  const canvasW = `${imgAspect * 100}%`;
 
   return (
     <div className="flex flex-col gap-4">
@@ -392,76 +461,102 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
       </div>
 
       <p className="text-xs" style={{ color: "rgba(165,243,252,0.6)" }}>
-        Add buildings and drag them to position them on your background. Players will be able to click named buildings.
+        {bundle.bgImageUrl
+          ? "Drag the background to explore it. Drag buildings to reposition them."
+          : "Add buildings and drag them to position them on your background."}
       </p>
 
-      {/* Background canvas with draggable buildings */}
+      {/* Panoramic viewport — fills screen height, clips overflow */}
       <div
-        ref={bgRef}
-        className="relative rounded-2xl overflow-hidden select-none"
+        ref={viewportRef}
+        className="relative overflow-hidden select-none rounded-2xl"
         style={{
           width: "100%",
-          aspectRatio: "16/9",
-          background: bundle.bgImageUrl
-            ? `url(${bundle.bgImageUrl}) center/cover no-repeat`
-            : "rgba(20,40,55,0.9)",
+          height: "calc(var(--fh, 844px) - 200px)",
           border: "1.5px solid rgba(34,211,238,0.3)",
-          cursor: draggingId ? "grabbing" : "default",
+          background: "rgba(20,40,55,0.9)",
+          cursor: draggingId ? "grabbing" : (bundle.bgImageUrl ? "grab" : "default"),
           touchAction: "none",
         }}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
+        onPointerDown={handleViewportPointerDown}
+        onPointerMove={handleViewportPointerMove}
+        onPointerUp={handleViewportPointerUp}
+        onPointerCancel={handleViewportPointerUp}
       >
-        {!bundle.bgImageUrl && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <p className="text-xs" style={{ color: "rgba(165,243,252,0.4)" }}>No background uploaded</p>
+        {/* Inner canvas — actual image width, translated for panning */}
+        <div
+          ref={bgRef}
+          className="absolute top-0 h-full"
+          style={{
+            left: `${panX}px`,
+            width: canvasPxW > 0 ? `${canvasPxW}px` : "100%",
+            minWidth: "100%",
+            backgroundImage: bundle.bgImageUrl ? `url(${bundle.bgImageUrl})` : undefined,
+            backgroundSize: "100% 100%",
+            backgroundRepeat: "no-repeat",
+          }}
+        >
+          {!bundle.bgImageUrl && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <p className="text-xs" style={{ color: "rgba(165,243,252,0.4)" }}>No background uploaded</p>
+            </div>
+          )}
+
+          {buildings.map((b) => {
+            const live = livePos[b.id];
+            const x = live ? live.x : b.posX;
+            const y = live ? live.y : b.posY;
+            return (
+              <div
+                key={b.id}
+                data-testid={`building-${b.id}`}
+                data-building="true"
+                className="absolute flex flex-col items-center gap-0.5"
+                style={{
+                  left: `${x}%`,
+                  top: `${y}%`,
+                  transform: "translate(-50%, -100%)",
+                  cursor: "grab",
+                  userSelect: "none",
+                  zIndex: draggingId === b.id ? 20 : 10,
+                }}
+                onPointerDown={(e) => handleBuildingPointerDown(e, b)}
+              >
+                <img
+                  src={b.imageUrl}
+                  alt={b.name}
+                  draggable={false}
+                  style={{ width: 80, height: 80, objectFit: "contain", filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.7))" }}
+                />
+                <span
+                  className="px-2 py-0.5 rounded-full text-xs font-bold"
+                  style={{ background: "rgba(0,0,0,0.7)", color: "#a5f3fc", whiteSpace: "nowrap" }}
+                >
+                  {b.name}
+                </span>
+                <button
+                  data-testid={`button-delete-building-${b.id}`}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => { e.stopPropagation(); deleteBuildingMutation.mutate(b.id); }}
+                  className="mt-0.5 rounded-full p-0.5"
+                  style={{ background: "rgba(220,50,50,0.8)", color: "white" }}
+                >
+                  <Trash2 size={10} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Pan hint — only shown when image is wider than viewport */}
+        {bundle.bgImageUrl && imgAspect > 1.2 && (
+          <div
+            className="absolute bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-xs pointer-events-none"
+            style={{ background: "rgba(0,0,0,0.55)", color: "rgba(165,243,252,0.7)", whiteSpace: "nowrap" }}
+          >
+            ← drag to explore →
           </div>
         )}
-
-        {buildings.map((b) => {
-          const live = livePos[b.id];
-          const x = live ? live.x : b.posX;
-          const y = live ? live.y : b.posY;
-          return (
-            <div
-              key={b.id}
-              data-testid={`building-${b.id}`}
-              className="absolute flex flex-col items-center gap-0.5"
-              style={{
-                left: `${x}%`,
-                top: `${y}%`,
-                transform: "translate(-50%, -100%)",
-                cursor: "grab",
-                userSelect: "none",
-                zIndex: draggingId === b.id ? 20 : 10,
-              }}
-              onPointerDown={(e) => handlePointerDown(e, b)}
-            >
-              <img
-                src={b.imageUrl}
-                alt={b.name}
-                draggable={false}
-                style={{ width: 80, height: 80, objectFit: "contain", filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.7))" }}
-              />
-              <span
-                className="px-2 py-0.5 rounded-full text-xs font-bold"
-                style={{ background: "rgba(0,0,0,0.7)", color: "#a5f3fc", whiteSpace: "nowrap" }}
-              >
-                {b.name}
-              </span>
-              <button
-                data-testid={`button-delete-building-${b.id}`}
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => { e.stopPropagation(); deleteBuildingMutation.mutate(b.id); }}
-                className="mt-0.5 rounded-full p-0.5"
-                style={{ background: "rgba(220,50,50,0.8)", color: "white" }}
-              >
-                <Trash2 size={10} />
-              </button>
-            </div>
-          );
-        })}
       </div>
 
       {/* Add building form */}
