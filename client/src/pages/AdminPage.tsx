@@ -108,6 +108,7 @@ export default function AdminPage({ user }: AdminPageProps) {
     { key: "welcome" as const, label: "Welcome Bundle", icon: adminIconRewards, desc: "New user gifts", color: "#6ee7b7", glow: "rgba(110,231,183,0.35)", bg: "linear-gradient(145deg, rgba(8,50,35,0.92) 0%, rgba(14,80,55,0.88) 100%)", border: "rgba(110,231,183,0.45)" },
     { key: "enemies" as const, label: "Enemies", icon: adminIconBadges, desc: "Enemy database", color: "#fca5a5", glow: "rgba(239,68,68,0.30)", bg: "linear-gradient(145deg, rgba(60,8,8,0.92) 0%, rgba(90,12,12,0.88) 100%)", border: "rgba(239,68,68,0.45)" },
     { key: "house_bundle" as const, label: "House Bundle", icon: adminIconRewards, desc: "House item bundles", color: "#a5f3fc", glow: "rgba(34,211,238,0.30)", bg: "linear-gradient(145deg, rgba(8,38,50,0.92) 0%, rgba(12,58,75,0.88) 100%)", border: "rgba(34,211,238,0.45)" },
+    { key: "purchases" as const, label: "Purchases", icon: adminIconRewards, desc: "Coin shop history", color: "#86efac", glow: "rgba(134,239,172,0.30)", bg: "linear-gradient(145deg, rgba(8,45,18,0.92) 0%, rgba(12,70,28,0.88) 100%)", border: "rgba(134,239,172,0.45)" },
   ];
 
   const activeSectionMeta = activeSection ? sections.find(s => s.key === activeSection) : null;
@@ -413,6 +414,10 @@ export default function AdminPage({ user }: AdminPageProps) {
               {activeSection === "house_bundle" && (
                 <HouseBundleAdminPanel />
               )}
+
+              {activeSection === "purchases" && (
+                <CoinPurchasesSection />
+              )}
             </>
           )}
         </div>
@@ -439,6 +444,105 @@ export default function AdminPage({ user }: AdminPageProps) {
   );
 }
 
+
+interface CoinPurchaseRow {
+  id: string;
+  userId: string;
+  username: string;
+  email: string;
+  amountUsd: number;
+  coinsReceived: number;
+  stripeSessionId: string;
+  createdAt: string;
+}
+
+function CoinPurchasesSection() {
+  const { data: purchases = [], isLoading } = useQuery<CoinPurchaseRow[]>({
+    queryKey: ["/api/admin/coin-purchases"],
+  });
+
+  const totalUsd = purchases.reduce((s, p) => s + p.amountUsd, 0);
+  const totalCoins = purchases.reduce((s, p) => s + p.coinsReceived, 0);
+
+  const byUser: Record<string, { username: string; email: string; totalUsd: number; totalCoins: number; count: number }> = {};
+  for (const p of purchases) {
+    if (!byUser[p.userId]) byUser[p.userId] = { username: p.username, email: p.email, totalUsd: 0, totalCoins: 0, count: 0 };
+    byUser[p.userId].totalUsd += p.amountUsd;
+    byUser[p.userId].totalCoins += p.coinsReceived;
+    byUser[p.userId].count += 1;
+  }
+  const userRows = Object.entries(byUser).sort((a, b) => b[1].totalUsd - a[1].totalUsd);
+
+  if (isLoading) return (
+    <div className="flex items-center justify-center h-32">
+      <p className="font-fantasy text-xs tracking-wider animate-pulse" style={{ color: "#86efac" }}>Loading purchases...</p>
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col gap-4 px-1">
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          { label: "Total Revenue", value: `$${(totalUsd / 100).toFixed(2)}` },
+          { label: "Coins Sold", value: totalCoins.toLocaleString() },
+          { label: "Transactions", value: purchases.length },
+        ].map(stat => (
+          <div key={stat.label} className="rounded-xl p-3 text-center" style={{ background: "rgba(134,239,172,0.08)", border: "1px solid rgba(134,239,172,0.2)" }}>
+            <p className="font-fantasy text-[9px] tracking-widest uppercase mb-1" style={{ color: "#4ade80" }}>{stat.label}</p>
+            <p className="font-fantasy text-base" style={{ color: "#86efac" }}>{stat.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {userRows.length === 0 ? (
+        <p className="font-fantasy text-xs text-center py-8" style={{ color: "#4a7060" }}>No purchases yet</p>
+      ) : (
+        <>
+          <p className="font-fantasy text-[9px] tracking-widest uppercase" style={{ color: "#4a7060" }}>By Player</p>
+          <div className="flex flex-col gap-2">
+            {userRows.map(([userId, info]) => (
+              <div key={userId} className="rounded-xl px-3 py-2.5 flex items-center justify-between gap-2" style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(134,239,172,0.15)" }}>
+                <div className="flex flex-col min-w-0">
+                  <p className="font-fantasy text-[11px] tracking-wide truncate" style={{ color: "#86efac" }}>{info.username}</p>
+                  <p className="font-fantasy text-[9px] truncate" style={{ color: "#4a7060" }}>{info.email}</p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className="text-right">
+                    <p className="font-fantasy text-[10px]" style={{ color: "#4ade80" }}>${(info.totalUsd / 100).toFixed(2)}</p>
+                    <p className="font-fantasy text-[9px]" style={{ color: "#4a7060" }}>{info.count} purchase{info.count !== 1 ? "s" : ""}</p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <img src={coinIconImg} alt="coins" style={{ width: 13, height: 13, objectFit: "contain" }} />
+                    <p className="font-fantasy text-[10px]" style={{ color: "#f0c040" }}>{info.totalCoins.toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <p className="font-fantasy text-[9px] tracking-widest uppercase mt-2" style={{ color: "#4a7060" }}>Recent Transactions</p>
+          <div className="flex flex-col gap-1.5">
+            {purchases.slice(0, 50).map(p => (
+              <div key={p.id} className="rounded-lg px-3 py-2 flex items-center justify-between gap-2" style={{ background: "rgba(0,0,0,0.25)", border: "1px solid rgba(134,239,172,0.1)" }}>
+                <div className="flex flex-col min-w-0">
+                  <p className="font-fantasy text-[10px] tracking-wide truncate" style={{ color: "#86efac" }}>{p.username}</p>
+                  <p className="font-fantasy text-[8px]" style={{ color: "#4a7060" }}>{new Date(p.createdAt).toLocaleDateString()} {new Date(p.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <p className="font-fantasy text-[10px]" style={{ color: "#4ade80" }}>${(p.amountUsd / 100).toFixed(2)}</p>
+                  <div className="flex items-center gap-1">
+                    <img src={coinIconImg} alt="coins" style={{ width: 11, height: 11, objectFit: "contain" }} />
+                    <p className="font-fantasy text-[10px]" style={{ color: "#f0c040" }}>{p.coinsReceived.toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 interface WelcomeConfigItem { name: string; qty: number; found: boolean; imageUrl: string | null; type: string | null; effect: string | null; }
 interface WelcomeConfig { coinAmount: number; message: string; items: WelcomeConfigItem[]; }

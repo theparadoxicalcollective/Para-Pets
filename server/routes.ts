@@ -6,7 +6,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { storage } from "./storage";
-import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards, userInventory, houseBundles as houseBundlesTable, users as usersTable } from "@shared/schema";
+import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards, userInventory, houseBundles as houseBundlesTable, users as usersTable, coinPurchases } from "@shared/schema";
 import { db } from "./db";
 import { and, eq, inArray, lt } from "drizzle-orm";
 import sharp from "sharp";
@@ -1602,6 +1602,28 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Unban user error:", err);
       return res.status(500).json({ message: "Failed to unbanish user" });
+    }
+  });
+
+  app.get("/api/admin/coin-purchases", isAdmin, async (req, res) => {
+    try {
+      const rows = await db
+        .select({
+          id: coinPurchases.id,
+          userId: coinPurchases.userId,
+          username: usersTable.username,
+          email: usersTable.email,
+          amountUsd: coinPurchases.amountUsd,
+          coinsReceived: coinPurchases.coinsReceived,
+          stripeSessionId: coinPurchases.stripeSessionId,
+          createdAt: coinPurchases.createdAt,
+        })
+        .from(coinPurchases)
+        .innerJoin(usersTable, eq(coinPurchases.userId, usersTable.id))
+        .orderBy(coinPurchases.createdAt);
+      return res.json(rows.reverse());
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message || "Failed to fetch purchases" });
     }
   });
 
