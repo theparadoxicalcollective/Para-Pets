@@ -151,17 +151,18 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
   const [liveSize, setLiveSize]                   = useState<Record<string, number>>({});
   const [liveFlip, setLiveFlip]                   = useState<Record<string, boolean>>({});
 
-  // ── Viewport / pan state ──
-  const [panX, setPanX]           = useState(0);
+  // ── Viewport / pan state (mirrors WorldPage map approach) ──
   const [imgAspect, setImgAspect] = useState(16 / 9);
-  const [canvasPxW, setCanvasPxW] = useState(0);
-  const [canvasPxH, setCanvasPxH] = useState(BUILDING_REF_H);
+  const [bgX, setBgX]   = useState(0);
+  const [bgY, setBgY]   = useState(0);
+  const [vpW, setVpW]   = useState(390);
+  const [vpH, setVpH]   = useState(844);
 
   // ── Refs ──
   const bgRef                  = useRef<HTMLDivElement>(null);
   const viewportRef            = useRef<HTMLDivElement>(null);
   const dragOffsetRef          = useRef({ x: 0, y: 0 });
-  const panStartRef            = useRef<{ startX: number; startPanX: number } | null>(null);
+  const panStartRef            = useRef<{ startX: number; startY: number; startBgX: number; startBgY: number } | null>(null);
   const draggingBuildingRef    = useRef<string | null>(null);
   const dragCandidateRef       = useRef<string | null>(null);
   const tapCandidateRef        = useRef<string | null>(null);
@@ -169,8 +170,6 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
   const pointerDownHitBuilding = useRef<string | null>(null);
   const interiorFileRef        = useRef<HTMLInputElement>(null);
   const interiorBuildingIdRef  = useRef<string | null>(null);
-  const autoPanRAF             = useRef<number | null>(null);
-  const lastPointerX           = useRef(0);
 
   // ── Buildings query ──
   const { data: buildings = [], refetch: refetchBuildings } = useQuery<HouseBundleBuilding[]>({
@@ -191,28 +190,47 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
     img.src = activeBgUrl;
   }, [activeBgUrl]);
 
-  // ── Canvas size (height = viewport height, width = height × aspect) ──
+  // ── Derived: bg dimensions and cover scale (like WorldPage MAP_W / mapH / coverSc) ──
+  const BG_W = 1080;
+  const bgH = Math.max(1, Math.round(BG_W / imgAspect));
+  const bgScale = Math.max(vpW / BG_W, vpH / bgH);
+
+  // ── Viewport size observer ──
   useEffect(() => {
     const update = () => {
       if (!viewportRef.current) return;
-      const vpH = viewportRef.current.offsetHeight;
-      setCanvasPxH(vpH || BUILDING_REF_H);
-      setCanvasPxW(Math.round((vpH || BUILDING_REF_H) * imgAspect));
+      setVpW(viewportRef.current.offsetWidth || 390);
+      setVpH(viewportRef.current.offsetHeight || 844);
     };
     update();
     const ro = new ResizeObserver(update);
     if (viewportRef.current) ro.observe(viewportRef.current);
     return () => ro.disconnect();
-  }, [imgAspect]);
+  }, []);
 
-  useEffect(() => { setPanX(0); }, [bundle?.id]);
+  // ── Center bg when bundle/aspect changes (like WorldPage's initial mapX/mapY) ──
+  useEffect(() => {
+    const sw = BG_W * bgScale;
+    const sh = bgH * bgScale;
+    const rawX = (vpW - sw) / 2;
+    const rawY = (vpH - sh) / 2;
+    const clamped = (() => {
+      const cx = sw <= vpW ? (vpW - sw) / 2 : Math.max(vpW - sw, Math.min(0, rawX));
+      const cy = sh <= vpH ? (vpH - sh) / 2 : Math.max(vpH - sh, Math.min(0, rawY));
+      return { x: cx, y: cy };
+    })();
+    setBgX(clamped.x);
+    setBgY(clamped.y);
+  }, [bundle?.id, bgScale, bgH, vpW, vpH]);
 
-  // ── Pan clamping ──
-  const clampPan = useCallback((val: number) => {
-    const vpW = viewportRef.current?.offsetWidth ?? 400;
-    const min = -(canvasPxW - vpW);
-    return Math.min(0, Math.max(min < 0 ? min : 0, val));
-  }, [canvasPxW]);
+  // ── Pan clamping (mirrors WorldPage clampTransform) ──
+  const clampBg = useCallback((x: number, y: number) => {
+    const sw = BG_W * bgScale;
+    const sh = bgH * bgScale;
+    const cx = sw <= vpW ? (vpW - sw) / 2 : Math.max(vpW - sw, Math.min(0, x));
+    const cy = sh <= vpH ? (vpH - sh) / 2 : Math.max(vpH - sh, Math.min(0, y));
+    return { x: cx, y: cy };
+  }, [bgScale, bgH, vpW, vpH]);
 
   // ── Mutations ──
   const savePosQuiet = useCallback(async (id: string, px: number, py: number) => {
@@ -284,7 +302,7 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
   // ── Building geometry hit test (called in event handlers — DOM is committed) ──
   const findBuildingAtPoint = useCallback((clientX: number, clientY: number): string | null => {
     const bgRect = bgRef.current?.getBoundingClientRect();
-    if (!bgRect || canvasPxH <= 0 || canvasPxW <= 0) return null;
+    if (!bgRect || bgRect.width <= 0 || bgRect.height <= 0) return null;
     const priority = [
       ...buildings.filter(b => !moveOrder.includes(b.id)),
       ...moveOrder.map(id => buildings.find(b => b.id === id)!).filter(Boolean),
@@ -304,45 +322,13 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
       }
     }
     return null;
-  }, [buildings, livePos, liveSize, moveOrder, canvasPxH, canvasPxW]);
+  }, [buildings, livePos, liveSize, moveOrder]);
 
-  // ── Auto-pan during drag — scrolls the background when the finger is near an edge ──
-  const stopAutoPan = useCallback(() => {
-    if (autoPanRAF.current) { cancelAnimationFrame(autoPanRAF.current); autoPanRAF.current = null; }
-  }, []);
-
-  const startAutoPan = useCallback(() => {
-    stopAutoPan();
-    const EDGE = 50;
-    const MAX_SPEED = 14;
-    const step = () => {
-      if (!draggingBuildingRef.current) return;
-      const vpRect = viewportRef.current?.getBoundingClientRect();
-      if (!vpRect) { autoPanRAF.current = requestAnimationFrame(step); return; }
-      const relX = lastPointerX.current - vpRect.left;
-      let delta = 0;
-      if (relX < EDGE)                    delta =  Math.round((EDGE - relX) / EDGE * MAX_SPEED);
-      else if (relX > vpRect.width - EDGE) delta = -Math.round((relX - (vpRect.width - EDGE)) / EDGE * MAX_SPEED);
-      if (delta !== 0) {
-        setPanX(prev => {
-          const vpW = viewportRef.current?.offsetWidth ?? 390;
-          const min = -(canvasPxW - vpW);
-          return Math.min(0, Math.max(min < 0 ? min : 0, prev + delta));
-        });
-      }
-      autoPanRAF.current = requestAnimationFrame(step);
-    };
-    autoPanRAF.current = requestAnimationFrame(step);
-  }, [stopAutoPan, canvasPxW]);
-
-  useEffect(() => () => stopAutoPan(), [stopAutoPan]);
-
-  // ── Pointer handlers ──
+  // ── Pointer handlers (mirrors WorldPage pan + location drag) ──
   const handleViewportPointerDown = useCallback((e: React.PointerEvent) => {
     if (showSettings || addingBuilding) return;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     pointerDownPosRef.current = { x: e.clientX, y: e.clientY };
-    lastPointerX.current = e.clientX;
     tapCandidateRef.current = null;
     dragCandidateRef.current = null;
     const buildingId = findBuildingAtPoint(e.clientX, e.clientY);
@@ -363,12 +349,11 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
         }
       }
     } else {
-      panStartRef.current = { startX: e.clientX, startPanX: panX };
+      panStartRef.current = { startX: e.clientX, startY: e.clientY, startBgX: bgX, startBgY: bgY };
     }
-  }, [panX, livePos, buildings, selectedId, findBuildingAtPoint, showSettings, addingBuilding]);
+  }, [bgX, bgY, livePos, buildings, selectedId, findBuildingAtPoint, showSettings, addingBuilding]);
 
   const handleViewportPointerMove = useCallback((e: React.PointerEvent) => {
-    lastPointerX.current = e.clientX;
     const down = pointerDownPosRef.current;
     const moved = down ? Math.abs(e.clientX - down.x) + Math.abs(e.clientY - down.y) : 0;
     if (moved > 6) {
@@ -377,7 +362,6 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
         draggingBuildingRef.current = dragCandidateRef.current;
         setDraggingId(dragCandidateRef.current);
         dragCandidateRef.current = null;
-        startAutoPan();
       }
     }
     if (draggingBuildingRef.current) {
@@ -389,12 +373,15 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
       const posY = Math.max(0, Math.min(100, (rawY / bgRect.height) * 100));
       setLivePos((prev) => ({ ...prev, [draggingBuildingRef.current!]: { x: posX, y: posY } }));
     } else if (panStartRef.current) {
-      setPanX(clampPan(panStartRef.current.startPanX + (e.clientX - panStartRef.current.startX)));
+      const dx = e.clientX - panStartRef.current.startX;
+      const dy = e.clientY - panStartRef.current.startY;
+      const clamped = clampBg(panStartRef.current.startBgX + dx, panStartRef.current.startBgY + dy);
+      setBgX(clamped.x);
+      setBgY(clamped.y);
     }
-  }, [clampPan, startAutoPan]);
+  }, [clampBg]);
 
   const handleViewportPointerUp = useCallback((e: React.PointerEvent) => {
-    stopAutoPan();
     dragCandidateRef.current = null;
     if (draggingBuildingRef.current) {
       const id = draggingBuildingRef.current;
@@ -413,7 +400,7 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
       if (moved < 8 && !pointerDownHitBuilding.current) setSelectedId(null);
     }
     panStartRef.current = null;
-  }, [livePos, savePosQuiet, stopAutoPan]);
+  }, [livePos, savePosQuiet]);
 
   const handleSizeChange = useCallback((b: HouseBundleBuilding, delta: number) => {
     const current = liveSize[b.id] ?? b.width ?? 80;
@@ -464,23 +451,25 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
         onPointerUp={handleViewportPointerUp}
         onPointerCancel={handleViewportPointerUp}
       >
-        <div ref={bgRef} className="absolute top-0 h-full"
+        <div ref={bgRef}
           style={{
-            left: `${panX}px`,
-            width: canvasPxW > 0 ? `${canvasPxW}px` : "100%",
-            background: currentBgUrl
-              ? `url(${currentBgUrl}) no-repeat left top / 100% 100%`
-              : "rgba(15,35,50,1)",
+            position: "absolute",
+            width: BG_W,
+            height: bgH,
+            transformOrigin: "0 0",
+            transform: `translate(${bgX}px, ${bgY}px) scale(${bgScale})`,
+            backgroundImage: currentBgUrl ? `url(${currentBgUrl})` : undefined,
+            backgroundSize: "100% 100%",
+            backgroundRepeat: "no-repeat",
+            backgroundColor: currentBgUrl ? undefined : "rgba(15,35,50,1)",
           }}
         >
-          {/* Buildings live inside the bg div — they pan with the background automatically,
-              matching WorldPage's approach. No portal, no coordinate conversion. */}
-          {!showSettings && canvasPxW > 0 && buildings.map((b) => {
+          {!showSettings && buildings.map((b) => {
             const lp        = livePos[b.id];
             const posX      = lp ? lp.x : b.posX;
             const posY      = lp ? lp.y : b.posY;
             const storedW   = liveSize[b.id] ?? b.width ?? 80;
-            const displayW  = Math.round(storedW * canvasPxH / BUILDING_REF_H);
+            const displayW  = Math.round(storedW * bgH / BUILDING_REF_H);
             const flip      = liveFlip[b.id] !== undefined ? liveFlip[b.id] : (b.flippedX ?? false);
             const isSelected = selectedId === b.id;
             const isDragging = draggingId === b.id;
