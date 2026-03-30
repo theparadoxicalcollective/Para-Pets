@@ -41,6 +41,7 @@ export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loginFailed, setLoginFailed] = useState(false);
+  const [adminBypass, setAdminBypass] = useState(false);
 
   const { data: maintenanceData } = useQuery<{ maintenance: boolean }>({
     queryKey: ["/api/maintenance-status"],
@@ -213,8 +214,26 @@ export default function AuthPage() {
 
   const isPending = loginMutation.isPending || registerMutation.isPending || supportMutation.isPending || forgotMutation.isPending;
 
-  if (maintenanceData?.maintenance === true) {
-    return <MaintenancePage />;
+  if (maintenanceData?.maintenance === true && !adminBypass) {
+    return (
+      <div className="relative h-screen-frame w-full overflow-hidden">
+        <MaintenancePage />
+        <button
+          data-testid="button-admin-login-bypass"
+          onClick={() => { setAdminBypass(true); setMode("login"); }}
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 font-fantasy text-[10px] tracking-widest uppercase"
+          style={{
+            color: "rgba(90,90,110,0.5)",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            letterSpacing: "0.15em",
+          }}
+        >
+          Admin Login
+        </button>
+      </div>
+    );
   }
 
   return (
