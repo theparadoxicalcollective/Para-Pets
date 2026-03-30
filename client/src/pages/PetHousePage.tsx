@@ -283,7 +283,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         >
           {activeBundle.buildings.map((b) => {
             const hasInterior = !!b.interiorImageUrl;
-            const displayW = Math.round((b.width ?? 80) * (containerH || BUILDING_REF_H) / BUILDING_REF_H);
+            const displayW = Math.round((b.width ?? 120) * (containerH || BUILDING_REF_H) / BUILDING_REF_H);
             return (
               <div
                 key={b.id}

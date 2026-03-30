@@ -239,6 +239,7 @@ export interface IStorage {
   grantUserHouseBundle(userId: string, bundleId: string): Promise<UserHouseBundle>;
   setActiveHouseBundle(userId: string, bundleId: string | null): Promise<void>;
   getActiveBundleWithBuildings(userId: string): Promise<(HouseBundle & { buildings: HouseBundleBuilding[] }) | null>;
+  getHouseBundleBuilding(id: string): Promise<HouseBundleBuilding | null>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1814,13 +1815,21 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(houseBundleBuildings).where(eq(houseBundleBuildings.bundleId, bundleId)).orderBy(asc(houseBundleBuildings.createdAt));
   }
 
-  async createHouseBundleBuilding(data: { bundleId: string; name: string; imageUrl: string; posX?: number; posY?: number }): Promise<HouseBundleBuilding> {
+  async getHouseBundleBuilding(id: string): Promise<HouseBundleBuilding | null> {
+    const [b] = await db.select().from(houseBundleBuildings).where(eq(houseBundleBuildings.id, id));
+    return b ?? null;
+  }
+
+  async createHouseBundleBuilding(data: { bundleId: string; name: string; imageUrl: string; posX?: number; posY?: number; width?: number; flippedX?: boolean; interiorImageUrl?: string | null }): Promise<HouseBundleBuilding> {
     const [b] = await db.insert(houseBundleBuildings).values({
       bundleId: data.bundleId,
       name: data.name,
       imageUrl: data.imageUrl,
       posX: data.posX ?? 50,
       posY: data.posY ?? 50,
+      ...(data.width !== undefined ? { width: data.width } : {}),
+      ...(data.flippedX !== undefined ? { flippedX: data.flippedX } : {}),
+      ...(data.interiorImageUrl !== undefined ? { interiorImageUrl: data.interiorImageUrl } : {}),
     }).returning();
     return b;
   }

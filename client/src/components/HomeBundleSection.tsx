@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Upload, X, ChevronLeft, Plus, Minus, FlipHorizontal, Image } from "lucide-react";
+import { Trash2, Upload, X, ChevronLeft, Plus, Minus, FlipHorizontal, Image, Copy, DoorOpen } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -58,6 +58,12 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
   } | null>(null);
   const buildingDidDrag = useRef(false);
   const isPanningRef = useRef(false);
+  const lastTapRef = useRef<{ id: string; time: number } | null>(null);
+
+  // ── Interior modal ──
+  const [interiorBuilding, setInteriorBuilding] = useState<HouseBundleBuilding | null>(null);
+  const [interiorUploading, setInteriorUploading] = useState(false);
+  const interiorFileRef = useRef<HTMLInputElement>(null);
 
   // ── Add building form ──
   const [showAddForm, setShowAddForm] = useState(false);
@@ -154,6 +160,40 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  const duplicateBuilding = useMutation({
+    mutationFn: async (id: string) => apiRequest("POST", `/api/admin/house-bundle-buildings/${id}/duplicate`),
+    onSuccess: () => refetch(),
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const handleInteriorUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !interiorBuilding) return;
+    e.target.value = "";
+    setInteriorUploading(true);
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      await apiRequest("PATCH", `/api/admin/house-bundle-buildings/${interiorBuilding.id}`, { interiorImageData: dataUrl });
+      await refetch();
+      setInteriorBuilding(null);
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } finally {
+      setInteriorUploading(false);
+    }
+  }, [interiorBuilding, refetch, toast]);
+
+  const handleInteriorClear = useCallback(async () => {
+    if (!interiorBuilding) return;
+    try {
+      await apiRequest("PATCH", `/api/admin/house-bundle-buildings/${interiorBuilding.id}`, { clearInterior: true });
+      await refetch();
+      setInteriorBuilding(null);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  }, [interiorBuilding, refetch, toast]);
+
   // ── Background pan handlers ──
   const handleContainerPointerDown = useCallback((e: React.PointerEvent) => {
     if (buildingDragRef.current) return;
@@ -215,12 +255,29 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
         const pos = localPos[drag.id] ?? { x: b.posX, y: b.posY };
         patchBuilding.mutate({ id: drag.id, posX: pos.x, posY: pos.y });
       } else {
-        setSelectedId(prev => prev === b.id ? null : b.id);
+        // Tap on selected building — check for double-tap
+        const now = Date.now();
+        const lastTap = lastTapRef.current;
+        if (lastTap?.id === b.id && now - lastTap.time < 350) {
+          lastTapRef.current = null;
+          setInteriorBuilding(b);
+        } else {
+          lastTapRef.current = { id: b.id, time: now };
+          setSelectedId(prev => prev === b.id ? null : b.id);
+        }
       }
       buildingDidDrag.current = false;
     } else {
-      // Tap without drag start (wasn't selected before)
-      setSelectedId(prev => prev === b.id ? null : b.id);
+      // Tap on unselected building — also check for double-tap (fast double-tap before state updates)
+      const now = Date.now();
+      const lastTap = lastTapRef.current;
+      if (lastTap?.id === b.id && now - lastTap.time < 350) {
+        lastTapRef.current = null;
+        setInteriorBuilding(b);
+      } else {
+        lastTapRef.current = { id: b.id, time: now };
+        setSelectedId(prev => prev === b.id ? null : b.id);
+      }
     }
   }, [localPos, patchBuilding]);
 
@@ -289,7 +346,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
                   />
                 )}
 
-                {/* 4-corner control buttons — same layout as WorldPage decor */}
+                {/* 4-corner control buttons + duplicate + interior door */}
                 {isSelected && (
                   <>
                     {/* Delete — top-left */}
@@ -302,6 +359,17 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
                       style={{ top: -16, left: -16, background: "rgba(220,38,38,0.95)", border: "2px solid rgba(255,100,100,0.7)", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}
                     >
                       <Trash2 className="w-3.5 h-3.5 text-white" />
+                    </button>
+                    {/* Duplicate — top-center */}
+                    <button
+                      data-testid={`button-duplicate-building-${b.id}`}
+                      onPointerDown={e => e.stopPropagation()}
+                      onPointerUp={e => e.stopPropagation()}
+                      onClick={e => { e.stopPropagation(); duplicateBuilding.mutate(b.id); }}
+                      className="absolute z-30 w-8 h-8 rounded-full flex items-center justify-center"
+                      style={{ top: -16, left: "50%", transform: "translateX(-50%)", background: "rgba(100,30,180,0.95)", border: "2px solid rgba(180,100,255,0.7)", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}
+                    >
+                      <Copy className="w-3.5 h-3.5 text-white" />
                     </button>
                     {/* Flip — top-right */}
                     <button
@@ -345,6 +413,20 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
                     </div>
                   </>
                 )}
+
+                {/* Door indicator — always visible, shows if interior is set */}
+                <div
+                  className="absolute z-20 flex items-center justify-center rounded-full"
+                  style={{
+                    bottom: 2, right: 2, width: 18, height: 18,
+                    background: b.interiorImageUrl ? "rgba(0,180,80,0.95)" : "rgba(0,0,0,0.55)",
+                    border: b.interiorImageUrl ? "1.5px solid rgba(100,255,150,0.8)" : "1.5px solid rgba(255,255,255,0.2)",
+                    boxShadow: "0 1px 4px rgba(0,0,0,0.6)",
+                    pointerEvents: "none",
+                  }}
+                >
+                  <DoorOpen style={{ width: 10, height: 10, color: b.interiorImageUrl ? "#fff" : "rgba(255,255,255,0.35)" }} />
+                </div>
 
                 {/* Building image */}
                 <img
@@ -508,6 +590,100 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
                 {addBuilding.isPending ? "Adding..." : "Add Building"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Hidden interior image file input ── */}
+      <input
+        ref={interiorFileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleInteriorUpload}
+      />
+
+      {/* ── Interior upload modal ── */}
+      {interiorBuilding && (
+        <div
+          className="absolute inset-0 flex items-center justify-center"
+          style={{ zIndex: 80, background: "rgba(0,0,0,0.82)", padding: "0 16px" }}
+          onClick={() => setInteriorBuilding(null)}
+        >
+          <div
+            className="w-full rounded-2xl flex flex-col gap-4 p-5"
+            style={{ maxWidth: 380, background: "rgba(20,15,5,0.98)", border: "1.5px solid rgba(255,215,0,0.25)", boxShadow: "0 8px 40px rgba(0,0,0,0.8)" }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Title */}
+            <div className="flex items-center justify-between">
+              <p className="font-fantasy text-sm tracking-widest" style={{ color: GOLD }}>Building Interior</p>
+              <button
+                onClick={() => setInteriorBuilding(null)}
+                className="w-7 h-7 rounded-full flex items-center justify-center"
+                style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.5)" }}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <p className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>
+              {interiorBuilding.name} — double-tap a building to set its interior image. Players can tap buildings with an interior to open them.
+            </p>
+
+            {/* Current interior preview */}
+            {interiorBuilding.interiorImageUrl && (
+              <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,215,0,0.15)" }}>
+                <img
+                  src={interiorBuilding.interiorImageUrl}
+                  alt="Interior"
+                  draggable={false}
+                  className="w-full object-cover"
+                  style={{ maxHeight: 180 }}
+                />
+              </div>
+            )}
+
+            {/* Upload button */}
+            <label
+              className="flex items-center justify-center gap-2 rounded-xl py-3 cursor-pointer transition-opacity"
+              style={{
+                background: "rgba(255,215,0,0.12)",
+                border: "1.5px dashed rgba(255,215,0,0.4)",
+                color: GOLD,
+                opacity: interiorUploading ? 0.6 : 1,
+              }}
+            >
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleInteriorUpload}
+                disabled={interiorUploading}
+              />
+              <Upload className="w-4 h-4" />
+              <span className="font-fantasy text-xs tracking-wider">
+                {interiorUploading ? "Uploading…" : interiorBuilding.interiorImageUrl ? "Replace Interior" : "Upload Interior"}
+              </span>
+            </label>
+
+            {/* Clear button — only if interior exists */}
+            {interiorBuilding.interiorImageUrl && (
+              <button
+                onClick={handleInteriorClear}
+                className="flex items-center justify-center gap-2 rounded-xl py-2.5 transition-opacity"
+                style={{
+                  background: "rgba(220,38,38,0.12)",
+                  border: "1px solid rgba(220,38,38,0.3)",
+                  color: "rgba(255,120,120,0.9)",
+                  fontSize: 12,
+                  fontFamily: "inherit",
+                }}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Remove Interior
+              </button>
+            )}
           </div>
         </div>
       )}

@@ -4792,6 +4792,26 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/admin/house-bundle-buildings/:id/duplicate", isAdmin, async (req, res) => {
+    try {
+      const source = await storage.getHouseBundleBuilding(req.params.id);
+      if (!source) return res.status(404).json({ message: "Building not found" });
+      const dup = await storage.createHouseBundleBuilding({
+        bundleId: source.bundleId,
+        name: source.name,
+        imageUrl: source.imageUrl,
+        posX: Math.min(95, source.posX + 5),
+        posY: Math.min(95, source.posY + 5),
+        width: source.width,
+        flippedX: source.flippedX,
+        interiorImageUrl: source.interiorImageUrl,
+      });
+      return res.status(201).json(dup);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
   // ── Home Decor Items ──────────────────────────────────────────────────────────
   app.get("/api/admin/home-decor", isAdmin, async (_req, res) => {
     try {
