@@ -1171,6 +1171,8 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
   const [editingPointsId, setEditingPointsId] = useState<string | null>(null);
   const [editingPointsVal, setEditingPointsVal] = useState<string>("");
   const [viewingBadge, setViewingBadge] = useState<AdminBadge | null>(null);
+  const [showAddPlayer, setShowAddPlayer] = useState(false);
+  const [addPlayerSearch, setAddPlayerSearch] = useState("");
   const [editingBadge, setEditingBadge] = useState<AdminBadge | null>(null);
   const [editName, setEditName] = useState("");
   const [editBadgePoints, setEditBadgePoints] = useState<string>("");
@@ -1189,6 +1191,19 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
     enabled: !!viewingBadge,
     staleTime: 0,
     refetchOnMount: true,
+  });
+
+  const awardBadgeMutation = useMutation({
+    mutationFn: async ({ badgeId, userId }: { badgeId: string; userId: string }) => {
+      return apiRequest("POST", `/api/admin/badges/${badgeId}/award`, { userIds: [userId] });
+    },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ["/api/admin/badges", variables.badgeId, "recipients"] });
+      toast({ title: "Badge awarded!" });
+      setAddPlayerSearch("");
+      setShowAddPlayer(false);
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const createMutation = useMutation({
@@ -1514,23 +1529,84 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
 
       {viewingBadge && (
         <div className="fixed inset-0 z-50 flex flex-col" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
-          <div className="absolute inset-0 bg-black/70" onClick={() => setViewingBadge(null)} />
+          <div className="absolute inset-0 bg-black/70" onClick={() => { setViewingBadge(null); setShowAddPlayer(false); setAddPlayerSearch(""); }} />
           <div className="relative flex flex-col h-full" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
             <div className="flex items-center gap-3 px-4 py-3" style={{ background: "rgba(8,4,0,0.95)", borderBottom: "1px solid rgba(255,215,0,0.15)" }}>
               <button
                 data-testid="button-close-recipients"
-                onClick={() => setViewingBadge(null)}
+                onClick={() => { setViewingBadge(null); setShowAddPlayer(false); setAddPlayerSearch(""); }}
                 className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
                 style={{ background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,215,0,0.3)", color: "#ffd700", cursor: "pointer" }}
               >✕</button>
               <img src={viewingBadge.imageUrl} alt={viewingBadge.name} className="w-9 h-9 rounded-full object-contain" style={{ border: "1.5px solid rgba(255,215,0,0.4)" }} />
-              <div className="flex flex-col min-w-0">
+              <div className="flex flex-col min-w-0 flex-1">
                 <p className="font-fantasy text-[12px] tracking-wider" style={{ color: "#ffd700" }}>{viewingBadge.name}</p>
                 <p className="font-fantasy text-[9px]" style={{ color: "#6a5840" }}>
                   {recipientsLoading ? "Loading..." : `${recipients.length} holder${recipients.length !== 1 ? "s" : ""}`}
                 </p>
               </div>
+              <button
+                data-testid="button-add-player-badge"
+                onClick={() => { setShowAddPlayer(!showAddPlayer); setAddPlayerSearch(""); }}
+                className="px-3 py-1.5 rounded-lg font-fantasy text-[10px] tracking-wide shrink-0"
+                style={{
+                  background: showAddPlayer ? "rgba(255,215,0,0.2)" : "rgba(255,215,0,0.1)",
+                  border: "1px solid rgba(255,215,0,0.3)",
+                  color: "#ffd700",
+                  cursor: "pointer",
+                }}
+              >{showAddPlayer ? "Cancel" : "+ Add Player"}</button>
             </div>
+            {showAddPlayer && (
+              <div className="px-4 py-3" style={{ background: "rgba(8,4,0,0.95)", borderBottom: "1px solid rgba(255,215,0,0.1)" }}>
+                <input
+                  data-testid="input-search-player-badge"
+                  type="text"
+                  placeholder="Search player by username..."
+                  value={addPlayerSearch}
+                  onChange={(e) => setAddPlayerSearch(e.target.value)}
+                  className="w-full rounded-lg px-3 py-2 font-fantasy text-[11px]"
+                  style={{ background: "rgba(255,215,0,0.06)", border: "1px solid rgba(255,215,0,0.15)", color: "#ffd700", outline: "none" }}
+                  autoFocus
+                />
+                {addPlayerSearch.trim().length > 0 && (
+                  <div className="mt-2 flex flex-col gap-1 max-h-48 overflow-y-auto">
+                    {(() => {
+                      const recipientIds = new Set(recipients.map((r) => r.userId));
+                      const filtered = members.filter(
+                        (m) => m.username.toLowerCase().includes(addPlayerSearch.toLowerCase()) && !recipientIds.has(m.id)
+                      );
+                      if (filtered.length === 0) {
+                        return <p className="font-fantasy text-[10px] py-2 text-center" style={{ color: "#6a5840" }}>No matching players found</p>;
+                      }
+                      return filtered.slice(0, 20).map((m) => (
+                        <button
+                          key={m.id}
+                          data-testid={`button-award-badge-${m.id}`}
+                          onClick={() => awardBadgeMutation.mutate({ badgeId: viewingBadge!.id, userId: m.id })}
+                          disabled={awardBadgeMutation.isPending}
+                          className="flex items-center gap-3 rounded-lg px-3 py-2 w-full text-left"
+                          style={{ background: "rgba(255,215,0,0.04)", border: "1px solid rgba(255,215,0,0.08)", cursor: "pointer" }}
+                        >
+                          <div
+                            className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 overflow-hidden"
+                            style={{ background: "rgba(255,215,0,0.1)", border: "1.5px solid rgba(255,215,0,0.25)" }}
+                          >
+                            {m.profileImage ? (
+                              <img src={m.profileImage} alt={m.username} className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="font-fantasy text-xs" style={{ color: "#ffd700" }}>{m.username[0]?.toUpperCase()}</span>
+                            )}
+                          </div>
+                          <p className="font-fantasy text-[11px] tracking-wide truncate flex-1" style={{ color: "#ffd700" }}>{m.username}</p>
+                          <span className="font-fantasy text-[9px] shrink-0" style={{ color: "#4a7c4a" }}>Award</span>
+                        </button>
+                      ));
+                    })()}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="flex-1 overflow-y-auto px-4 py-3" style={{ background: "rgba(8,4,0,0.9)" }}>
               {recipientsLoading ? (
                 <div className="flex items-center justify-center h-32">
