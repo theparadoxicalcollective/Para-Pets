@@ -259,6 +259,8 @@ function App() {
           >
             <ErrorBoundary>
               <AppRouter />
+            </ErrorBoundary>
+            <ErrorBoundary fallback={null}>
               <GlobalLevelUpOverlay />
             </ErrorBoundary>
           </div>

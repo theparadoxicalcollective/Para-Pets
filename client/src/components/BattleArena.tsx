@@ -297,7 +297,6 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         fireLevelUp(data.newLevel, (pet as any)?.petNickname || pet?.name || "Your pet", (pet as any)?.petTemplateId ?? null);
       }
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
     },
     onError: () => {
       setVictoryData({ error: true, lvlPointsEarned: 0, coinsAwarded: 0, droppedItems: [], levelsGained: 0 });
