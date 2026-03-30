@@ -1,5 +1,4 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { createPortal } from "react-dom";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -157,7 +156,6 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
   const [imgAspect, setImgAspect] = useState(16 / 9);
   const [canvasPxW, setCanvasPxW] = useState(0);
   const [canvasPxH, setCanvasPxH] = useState(BUILDING_REF_H);
-  const [frameScale, setFrameScale] = useState(1);
 
   // ── Refs ──
   const bgRef                  = useRef<HTMLDivElement>(null);
@@ -181,19 +179,6 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
     },
     enabled: !!bundle?.id,
   });
-
-  // ── Frame scale (mirrors App.tsx logic — needed for analytical portal positions) ──
-  useEffect(() => {
-    const compute = () => {
-      if (window.innerWidth < 768) { setFrameScale(1); return; }
-      const scaleByH = (window.innerHeight * 0.92) / 844;
-      const scaleByW = (window.innerWidth * 0.96) / 390;
-      setFrameScale(Math.min(1, scaleByH, scaleByW));
-    };
-    compute();
-    window.addEventListener("resize", compute);
-    return () => window.removeEventListener("resize", compute);
-  }, []);
 
   // ── Background aspect ratio ──
   const activeBgUrl = formBgImage || bundle?.bgImageUrl;
@@ -226,25 +211,6 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
     const min = -(canvasPxW - vpW);
     return Math.min(0, Math.max(min < 0 ? min : 0, val));
   }, [canvasPxW]);
-
-  // ── Analytical screen rect for bgRef ─────────────────────────────────────────
-  // Computes the screen-space position/size of the background div purely from
-  // state (no DOM reads), so portal buildings are ALWAYS in sync with the
-  // background — no 1-frame lag during panning.
-  const { bgSLeft, bgSTop, bgSW, bgSH } = useMemo(() => {
-    const isMobile = window.innerWidth < 768;
-    const vw = window.innerWidth, vh = window.innerHeight;
-    const fW = isMobile ? vw : 390;
-    const fH = isMobile ? vh : 844;
-    const fLeft = isMobile ? 0 : (vw - fW * frameScale) / 2;
-    const fTop  = isMobile ? 0 : (vh - fH * frameScale) / 2;
-    return {
-      bgSLeft: fLeft + panX * frameScale,
-      bgSTop:  fTop,
-      bgSW:    canvasPxW * frameScale,
-      bgSH:    canvasPxH * frameScale,
-    };
-  }, [frameScale, panX, canvasPxW, canvasPxH]);
 
   // ── Mutations ──
   const savePosQuiet = useCallback(async (id: string, px: number, py: number) => {
@@ -445,122 +411,6 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
     e.target.value = "";
   }, [patchBuilding, toast]);
 
-  // ── Portal buildings — rendered into document.body to escape ALL ancestor clipping ──
-  // Positions use analytical bgS* values (from state, no DOM reads) so buildings
-  // are always perfectly in sync with the background — zero frame lag.
-  const buildingsPortal = !showSettings && canvasPxW > 0 && bgSH > 0
-    ? createPortal(
-        <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", pointerEvents: "none", zIndex: 9999 }}>
-          {buildings.map((b) => {
-            const lp      = livePos[b.id];
-            const posX    = lp ? lp.x : b.posX;
-            const posY    = lp ? lp.y : b.posY;
-            const storedW = liveSize[b.id] ?? b.width ?? 80;
-            // Screen-pixel size — bgSH already accounts for desktop scale transform
-            const displayW  = Math.round(storedW * bgSH / BUILDING_REF_H);
-            const flip      = liveFlip[b.id] !== undefined ? liveFlip[b.id] : (b.flippedX ?? false);
-            const isSelected = selectedId === b.id;
-            const isDragging = draggingId === b.id;
-            const moveRank   = moveOrder.indexOf(b.id);
-            // Analytical screen coords — perfectly in sync with current render state
-            const sx = bgSLeft + (posX / 100) * bgSW;
-            const sy = bgSTop  + (posY / 100) * bgSH;
-            const hasInterior = !!b.interiorImageUrl;
-
-            return (
-              <div key={b.id} data-testid={`building-${b.id}`}
-                style={{
-                  position: "absolute", left: sx, top: sy,
-                  transform: "translate(-50%, -100%)",
-                  display: "flex", flexDirection: "column", alignItems: "center",
-                  userSelect: "none",
-                  zIndex: isDragging ? 100 : moveRank >= 0 ? 20 + moveRank + (isSelected ? 50 : 0) : (isSelected ? 25 : 5),
-                }}
-              >
-                {/* Control bar — pointer-events:auto so buttons work */}
-                {isSelected && (
-                  <div
-                    style={{
-                      pointerEvents: "auto", display: "flex", alignItems: "center",
-                      gap: 3, marginBottom: 6, borderRadius: "1rem", padding: "4px 8px",
-                      background: "rgba(0,0,0,0.9)", border: "1px solid rgba(34,211,238,0.4)",
-                      whiteSpace: "nowrap",
-                    }}
-                    onPointerDown={(e) => e.stopPropagation()}
-                  >
-                    {/* Size − */}
-                    <button data-testid={`button-size-down-${b.id}`}
-                      onClick={(e) => { e.stopPropagation(); handleSizeChange(b, -20); }}
-                      style={{ background: "rgba(34,211,238,0.15)", color: "#a5f3fc", borderRadius: "0.6rem", padding: "5px", display: "flex" }}
-                      title="Decrease size"><ZoomOut size={12} /></button>
-                    <span style={{ color: "#e0f7fa", minWidth: 26, textAlign: "center", fontSize: 11, fontWeight: "bold" }}>
-                      {displayW}
-                    </span>
-                    {/* Size + */}
-                    <button data-testid={`button-size-up-${b.id}`}
-                      onClick={(e) => { e.stopPropagation(); handleSizeChange(b, 20); }}
-                      style={{ background: "rgba(34,211,238,0.15)", color: "#a5f3fc", borderRadius: "0.6rem", padding: "5px", display: "flex" }}
-                      title="Increase size"><ZoomIn size={12} /></button>
-
-                    <div style={{ width: 1, height: 14, background: "rgba(34,211,238,0.25)", margin: "0 2px" }} />
-
-                    {/* Flip */}
-                    <button data-testid={`button-flip-${b.id}`}
-                      onClick={(e) => { e.stopPropagation(); handleFlip(b); }}
-                      style={{ background: flip ? "rgba(34,211,238,0.35)" : "rgba(34,211,238,0.15)", color: "#a5f3fc", borderRadius: "0.6rem", padding: "5px", display: "flex" }}
-                      title="Flip horizontal"><FlipHorizontal size={12} /></button>
-
-                    <div style={{ width: 1, height: 14, background: "rgba(34,211,238,0.25)", margin: "0 2px" }} />
-
-                    {/* Interior background */}
-                    <button data-testid={`button-interior-${b.id}`}
-                      onClick={(e) => { e.stopPropagation(); handleInteriorUpload(b.id); }}
-                      style={{ background: hasInterior ? "rgba(168,85,247,0.35)" : "rgba(168,85,247,0.15)", color: "#d8b4fe", borderRadius: "0.6rem", padding: "5px", display: "flex" }}
-                      title={hasInterior ? "Change building background" : "Add building background (opens when player taps)"}>
-                      <ImageIcon size={12} /></button>
-                    {hasInterior && (
-                      <button data-testid={`button-clear-interior-${b.id}`}
-                        onClick={(e) => { e.stopPropagation(); patchBuilding(b.id, { clearInterior: true }); }}
-                        style={{ background: "rgba(220,38,38,0.2)", color: "#fca5a5", borderRadius: "0.6rem", padding: "5px", display: "flex" }}
-                        title="Remove building background"><X size={10} /></button>
-                    )}
-
-                    <div style={{ width: 1, height: 14, background: "rgba(34,211,238,0.25)", margin: "0 2px" }} />
-
-                    {/* Delete */}
-                    <button data-testid={`button-delete-building-${b.id}`}
-                      onClick={(e) => { e.stopPropagation(); deleteBuildingMutation.mutate(b.id); }}
-                      style={{ background: "rgba(220,50,50,0.25)", color: "#f87171", borderRadius: "0.6rem", padding: "5px", display: "flex" }}
-                      title="Delete building"><Trash2 size={12} /></button>
-                  </div>
-                )}
-
-                <img src={b.imageUrl} alt={b.name} draggable={false}
-                  style={{
-                    width: displayW, height: displayW, objectFit: "contain", display: "block",
-                    filter: `drop-shadow(0 4px 14px rgba(0,0,0,0.85))${isSelected ? " drop-shadow(0 0 8px rgba(34,211,238,0.8))" : ""}`,
-                    transform: flip ? "scaleX(-1)" : undefined,
-                    transition: isDragging ? "none" : "width 0.15s, height 0.15s",
-                    cursor: isDragging ? "grabbing" : (isSelected ? "grab" : "pointer"),
-                  }}
-                />
-                {/* Name label + interior indicator */}
-                <span style={{
-                  marginTop: 3, padding: "1px 8px", borderRadius: 999, fontSize: 10, fontWeight: "bold",
-                  background: "rgba(0,0,0,0.7)", color: isSelected ? "#22d3ee" : "#a5f3fc",
-                  whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 4,
-                }}>
-                  {b.name}
-                  {hasInterior && <span style={{ fontSize: 9, color: "#d8b4fe" }}>◈</span>}
-                </span>
-              </div>
-            );
-          })}
-        </div>,
-        document.body
-      )
-    : null;
-
   const currentBgUrl = formBgImage || bundle?.bgImageUrl;
   const isDraggingAny = !!draggingId;
 
@@ -585,7 +435,106 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
               ? `url(${currentBgUrl}) no-repeat left top / 100% 100%`
               : "rgba(15,35,50,1)",
           }}
-        />
+        >
+          {/* Buildings live inside the bg div — they pan with the background automatically,
+              matching WorldPage's approach. No portal, no coordinate conversion. */}
+          {!showSettings && canvasPxW > 0 && buildings.map((b) => {
+            const lp        = livePos[b.id];
+            const posX      = lp ? lp.x : b.posX;
+            const posY      = lp ? lp.y : b.posY;
+            const storedW   = liveSize[b.id] ?? b.width ?? 80;
+            const displayW  = Math.round(storedW * canvasPxH / BUILDING_REF_H);
+            const flip      = liveFlip[b.id] !== undefined ? liveFlip[b.id] : (b.flippedX ?? false);
+            const isSelected = selectedId === b.id;
+            const isDragging = draggingId === b.id;
+            const moveRank   = moveOrder.indexOf(b.id);
+            const hasInterior = !!b.interiorImageUrl;
+
+            return (
+              <div key={b.id} data-testid={`building-${b.id}`}
+                style={{
+                  position: "absolute",
+                  left: `${posX}%`, top: `${posY}%`,
+                  transform: "translate(-50%, -100%)",
+                  display: "flex", flexDirection: "column", alignItems: "center",
+                  userSelect: "none", pointerEvents: "none",
+                  zIndex: isDragging ? 100 : moveRank >= 0 ? 20 + moveRank + (isSelected ? 50 : 0) : (isSelected ? 25 : 5),
+                }}
+              >
+                {isSelected && (
+                  <div
+                    style={{
+                      pointerEvents: "auto", display: "flex", alignItems: "center",
+                      gap: 3, marginBottom: 6, borderRadius: "1rem", padding: "4px 8px",
+                      background: "rgba(0,0,0,0.9)", border: "1px solid rgba(34,211,238,0.4)",
+                      whiteSpace: "nowrap",
+                    }}
+                    onPointerDown={(e) => e.stopPropagation()}
+                  >
+                    <button data-testid={`button-size-down-${b.id}`}
+                      onClick={(e) => { e.stopPropagation(); handleSizeChange(b, -20); }}
+                      style={{ background: "rgba(34,211,238,0.15)", color: "#a5f3fc", borderRadius: "0.6rem", padding: "5px", display: "flex" }}
+                      title="Decrease size"><ZoomOut size={12} /></button>
+                    <span style={{ color: "#e0f7fa", minWidth: 26, textAlign: "center", fontSize: 11, fontWeight: "bold" }}>
+                      {displayW}
+                    </span>
+                    <button data-testid={`button-size-up-${b.id}`}
+                      onClick={(e) => { e.stopPropagation(); handleSizeChange(b, 20); }}
+                      style={{ background: "rgba(34,211,238,0.15)", color: "#a5f3fc", borderRadius: "0.6rem", padding: "5px", display: "flex" }}
+                      title="Increase size"><ZoomIn size={12} /></button>
+
+                    <div style={{ width: 1, height: 14, background: "rgba(34,211,238,0.25)", margin: "0 2px" }} />
+
+                    <button data-testid={`button-flip-${b.id}`}
+                      onClick={(e) => { e.stopPropagation(); handleFlip(b); }}
+                      style={{ background: flip ? "rgba(34,211,238,0.35)" : "rgba(34,211,238,0.15)", color: "#a5f3fc", borderRadius: "0.6rem", padding: "5px", display: "flex" }}
+                      title="Flip horizontal"><FlipHorizontal size={12} /></button>
+
+                    <div style={{ width: 1, height: 14, background: "rgba(34,211,238,0.25)", margin: "0 2px" }} />
+
+                    <button data-testid={`button-interior-${b.id}`}
+                      onClick={(e) => { e.stopPropagation(); handleInteriorUpload(b.id); }}
+                      style={{ background: hasInterior ? "rgba(168,85,247,0.35)" : "rgba(168,85,247,0.15)", color: "#d8b4fe", borderRadius: "0.6rem", padding: "5px", display: "flex" }}
+                      title={hasInterior ? "Change building background" : "Add building background (opens when player taps)"}>
+                      <ImageIcon size={12} /></button>
+                    {hasInterior && (
+                      <button data-testid={`button-clear-interior-${b.id}`}
+                        onClick={(e) => { e.stopPropagation(); patchBuilding(b.id, { clearInterior: true }); }}
+                        style={{ background: "rgba(220,38,38,0.2)", color: "#fca5a5", borderRadius: "0.6rem", padding: "5px", display: "flex" }}
+                        title="Remove building background"><X size={10} /></button>
+                    )}
+
+                    <div style={{ width: 1, height: 14, background: "rgba(34,211,238,0.25)", margin: "0 2px" }} />
+
+                    <button data-testid={`button-delete-building-${b.id}`}
+                      onClick={(e) => { e.stopPropagation(); deleteBuildingMutation.mutate(b.id); }}
+                      style={{ background: "rgba(220,50,50,0.25)", color: "#f87171", borderRadius: "0.6rem", padding: "5px", display: "flex" }}
+                      title="Delete building"><Trash2 size={12} /></button>
+                  </div>
+                )}
+
+                <img src={b.imageUrl} alt={b.name} draggable={false}
+                  style={{
+                    width: displayW, height: displayW, objectFit: "contain", display: "block",
+                    filter: `drop-shadow(0 4px 14px rgba(0,0,0,0.85))${isSelected ? " drop-shadow(0 0 8px rgba(34,211,238,0.8))" : ""}`,
+                    transform: flip ? "scaleX(-1)" : undefined,
+                    transition: isDragging ? "none" : "width 0.15s, height 0.15s",
+                    cursor: isDragging ? "grabbing" : (isSelected ? "grab" : "pointer"),
+                  }}
+                />
+                <span style={{
+                  marginTop: 3, padding: "1px 8px", borderRadius: 999, fontSize: 10, fontWeight: "bold",
+                  background: "rgba(0,0,0,0.7)", color: isSelected ? "#22d3ee" : "#a5f3fc",
+                  whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 4,
+                }}>
+                  {b.name}
+                  {hasInterior && <span style={{ fontSize: 9, color: "#d8b4fe" }}>◈</span>}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
         {!currentBgUrl && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none">
             <p className="text-sm font-semibold" style={{ color: "rgba(165,243,252,0.4)" }}>No background uploaded yet</p>
@@ -600,9 +549,6 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
           </div>
         )}
       </div>
-
-      {/* ── Buildings portal (rendered to document.body) ── */}
-      {buildingsPortal}
 
       {/* Hidden file input for interior background uploads */}
       <input ref={interiorFileRef} type="file" accept="image/png,image/jpeg" className="hidden"
