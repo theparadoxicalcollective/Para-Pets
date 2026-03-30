@@ -50,6 +50,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
 
   // ── Building editor state ──
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [topmostId, setTopmostId] = useState<string | null>(null);
   const [localPos, setLocalPos] = useState<Record<string, { x: number; y: number }>>({});
   const buildingDragRef = useRef<{
     id: string; startX: number; startY: number;
@@ -187,6 +188,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
   const handleBuildingPointerDown = useCallback((e: React.PointerEvent, b: HouseBundleBuilding) => {
     e.stopPropagation();
     buildingDidDrag.current = false;
+    setTopmostId(b.id);
     if (selectedId !== b.id) return; // first tap = select only
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     const cur = localPos[b.id] ?? { x: b.posX, y: b.posY };
@@ -262,7 +264,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
                 style={{
                   left: `${pos.x}%`, top: `${pos.y}%`,
                   transform: "translate(-50%, -100%)",
-                  zIndex: isSelected ? 20 : 4,
+                  zIndex: topmostId === b.id ? 25 : isSelected ? 15 : 4,
                   cursor: isSelected ? "grab" : "pointer",
                   touchAction: "none",
                   pointerEvents: "auto",
