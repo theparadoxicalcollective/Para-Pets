@@ -414,8 +414,6 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
     e.target.value = "";
   }, [patchBuilding, toast]);
 
-  const currentBgUrl = formBgImage || bundle?.bgImageUrl;
-
   if (showSettings) {
     return createPortal(
       <div className="select-none" style={{
@@ -488,8 +486,8 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
         top: 48, bottom: 56,
         overflow: "hidden",
       }}>
-        {currentBgUrl ? (
-          <img src={currentBgUrl} alt="background" draggable={false}
+        {activeBgUrl ? (
+          <img src={activeBgUrl} alt="background" draggable={false}
             style={{
               position: "absolute",
               height: "100%", width: "auto",
