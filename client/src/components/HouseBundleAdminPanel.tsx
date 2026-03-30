@@ -305,14 +305,16 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
   const [canvasPxW, setCanvasPxW]             = useState(0);
   const [canvasPxH, setCanvasPxH]             = useState(BUILDING_REF_H);
 
-  const bgRef               = useRef<HTMLDivElement>(null);
-  const viewportRef         = useRef<HTMLDivElement>(null);
-  const dragOffsetRef       = useRef({ x: 0, y: 0 });
-  const panStartRef         = useRef<{ startX: number; startPanX: number } | null>(null);
-  const draggingBuildingRef = useRef<string | null>(null);
-  const dragCandidateRef    = useRef<string | null>(null);
-  const tapCandidateRef     = useRef<string | null>(null);
-  const pointerDownPosRef   = useRef<{ x: number; y: number } | null>(null);
+  const bgRef                    = useRef<HTMLDivElement>(null);
+  const viewportRef              = useRef<HTMLDivElement>(null);
+  const dragOffsetRef            = useRef({ x: 0, y: 0 });
+  const panStartRef              = useRef<{ startX: number; startPanX: number } | null>(null);
+  const draggingBuildingRef      = useRef<string | null>(null);
+  const dragCandidateRef         = useRef<string | null>(null);
+  const tapCandidateRef          = useRef<string | null>(null);
+  const pointerDownPosRef        = useRef<{ x: number; y: number } | null>(null);
+  // Tracks whether the last pointerdown geometrically hit a building (used for deselect logic)
+  const pointerDownHitBuilding   = useRef<string | null>(null);
 
   useEffect(() => {
     if (!bundle.bgImageUrl) return;
@@ -385,17 +387,48 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
     onSuccess: () => { refetchBuildings(); setSelectedId(null); toast({ title: "Building removed" }); },
   });
 
+  // Geometry-based building hit test. Uses bgRef.getBoundingClientRect() so the result
+  // is in the same screen-coordinate space as e.clientX/Y, accounting for any CSS scale
+  // transforms on ancestor elements (e.g. the desktop phone-frame scale).
+  const findBuildingAtPoint = useCallback((clientX: number, clientY: number): string | null => {
+    const bgRect = bgRef.current?.getBoundingClientRect();
+    if (!bgRect || canvasPxH <= 0 || canvasPxW <= 0) return null;
+    // scale from CSS-px to screen-px (handles the phone-frame desktop scale)
+    const scale = bgRect.height / canvasPxH;
+    // Check in reverse z-order: last-moved first, then selected, then others
+    const priority = [
+      ...buildings.filter(b => !moveOrder.includes(b.id)),
+      ...moveOrder.map(id => buildings.find(b => b.id === id)!).filter(Boolean),
+    ].reverse();
+    for (const b of priority) {
+      const lp = livePos[b.id];
+      const posX = lp ? lp.x : b.posX;
+      const posY = lp ? lp.y : b.posY;
+      const storedW = liveSize[b.id] ?? b.width ?? 80;
+      // Display size in screen-px
+      const dw = Math.round(storedW * bgRect.height / BUILDING_REF_H);
+      // Anchor (center-bottom of image) in screen-px
+      const ax = bgRect.left + (posX / 100) * bgRect.width;
+      const ay = bgRect.top  + (posY / 100) * bgRect.height;
+      const pad = 8 * scale;
+      if (clientX >= ax - dw / 2 - pad && clientX <= ax + dw / 2 + pad &&
+          clientY >= ay - dw - pad     && clientY <= ay + pad) {
+        return b.id;
+      }
+    }
+    return null;
+  }, [buildings, livePos, liveSize, moveOrder, canvasPxH, canvasPxW]);
+
   const handleViewportPointerDown = useCallback((e: React.PointerEvent) => {
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     pointerDownPosRef.current = { x: e.clientX, y: e.clientY };
     tapCandidateRef.current = null;
     dragCandidateRef.current = null;
 
-    const target = e.target as HTMLElement;
-    const buildingEl = target.closest("[data-building]") as HTMLElement | null;
+    const buildingId = findBuildingAtPoint(e.clientX, e.clientY);
+    pointerDownHitBuilding.current = buildingId;
 
-    if (buildingEl) {
-      const buildingId = buildingEl.getAttribute("data-building-id")!;
+    if (buildingId) {
       tapCandidateRef.current = buildingId;
 
       if (selectedId === buildingId) {
@@ -416,7 +449,7 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
       // Background pressed → pan
       panStartRef.current = { startX: e.clientX, startPanX: panX };
     }
-  }, [panX, livePos, buildings, selectedId]);
+  }, [panX, livePos, buildings, selectedId, findBuildingAtPoint]);
 
   const handleViewportPointerMove = useCallback((e: React.PointerEvent) => {
     const down = pointerDownPosRef.current;
@@ -463,10 +496,10 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
       setSelectedId((prev) => prev === id ? null : id);
       tapCandidateRef.current = null;
     } else {
-      // Tap on background → deselect
+      // Tap on background → deselect (only if pointerdown didn't hit a building geometrically)
       const down = pointerDownPosRef.current;
       const moved = down ? Math.abs(e.clientX - down.x) + Math.abs(e.clientY - down.y) : 999;
-      if (moved < 8 && !(e.target as HTMLElement).closest("[data-building]")) {
+      if (moved < 8 && !pointerDownHitBuilding.current) {
         setSelectedId(null);
       }
     }
@@ -536,32 +569,54 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
             </div>
           )}
 
+          {/* Buildings removed from here — rendered in unclipped sibling layer below */}
+        </div>
+
+        {/* Pan hint */}
+        {bundle.bgImageUrl && imgAspect > 1.2 && !draggingId && !selectedId && (
+          <div
+            className="absolute bottom-20 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-xs pointer-events-none"
+            style={{ background: "rgba(0,0,0,0.5)", color: "rgba(165,243,252,0.6)", whiteSpace: "nowrap" }}
+          >
+            ← drag to explore · tap building to edit →
+          </div>
+        )}
+      </div>
+
+      {/* ── Buildings layer — sibling to viewportRef so overflow:hidden does NOT clip them ──
+          pointer-events:none lets drag/tap events fall through to viewportRef (geometry hit-test).
+          Control-bar buttons set pointer-events:auto so they still receive clicks. */}
+      {canvasPxW > 0 && canvasPxH > 0 && (
+        <div
+          className="absolute inset-0"
+          style={{ zIndex: 205, pointerEvents: "none", overflow: "visible" }}
+        >
           {buildings.map((b) => {
             const lp   = livePos[b.id];
-            const x    = lp ? lp.x : b.posX;
-            const y    = lp ? lp.y : b.posY;
-            // stored value is in reference units (based on BUILDING_REF_H canvas height)
+            const posX = lp ? lp.x : b.posX;
+            const posY = lp ? lp.y : b.posY;
             const storedW  = liveSize[b.id] ?? b.width ?? 80;
             const displayW = Math.round(storedW * canvasPxH / BUILDING_REF_H);
-            const flip = liveFlip[b.id] !== undefined ? liveFlip[b.id] : (b.flippedX ?? false);
+            const flip     = liveFlip[b.id] !== undefined ? liveFlip[b.id] : (b.flippedX ?? false);
             const isSelected = selectedId === b.id;
             const isDragging = draggingId === b.id;
-            const moveRank   = moveOrder.indexOf(b.id); // -1 = never moved
+            const moveRank   = moveOrder.indexOf(b.id);
+            // Absolute position in CSS-px units within the outer fixed div (same coordinate
+            // space as viewportRef). Buildings can freely extend beyond viewportRef's edge
+            // because they are NOT inside its overflow:hidden context.
+            const screenX = panX + (posX / 100) * canvasPxW;
+            const screenY = (posY / 100) * canvasPxH;
 
             return (
               <div
                 key={b.id}
                 data-testid={`building-${b.id}`}
-                data-building="true"
-                data-building-id={b.id}
                 className="absolute flex flex-col items-center"
                 style={{
-                  left: `${x}%`,
-                  top: `${y}%`,
+                  left: `${screenX}px`,
+                  top: `${screenY}px`,
                   transform: "translate(-50%, -100%)",
-                  cursor: isDragging ? "grabbing" : (isSelected ? "grab" : "default"),
                   userSelect: "none",
-                  // last-moved building gets highest z; selected floats above others
                   zIndex: isDragging
                     ? 100
                     : moveRank >= 0
@@ -569,11 +624,17 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
                       : (isSelected ? 25 : 5),
                 }}
               >
-                {/* Per-building control bar — shown when selected */}
+                {/* Per-building control bar — shown when selected.
+                    pointer-events:auto so buttons are still clickable. */}
                 {isSelected && (
                   <div
                     className="flex items-center gap-1 mb-1 rounded-2xl px-2 py-1"
-                    style={{ background: "rgba(0,0,0,0.85)", border: "1px solid rgba(34,211,238,0.4)", whiteSpace: "nowrap" }}
+                    style={{
+                      pointerEvents: "auto",
+                      background: "rgba(0,0,0,0.85)",
+                      border: "1px solid rgba(34,211,238,0.4)",
+                      whiteSpace: "nowrap",
+                    }}
                     onPointerDown={(e) => e.stopPropagation()}
                   >
                     <button
@@ -631,6 +692,7 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
                     filter: `drop-shadow(0 4px 12px rgba(0,0,0,0.8))${isSelected ? " drop-shadow(0 0 6px rgba(34,211,238,0.7))" : ""}`,
                     transform: flip ? "scaleX(-1)" : undefined,
                     transition: "width 0.15s, height 0.15s",
+                    cursor: isDragging ? "grabbing" : (isSelected ? "grab" : "default"),
                   }}
                 />
                 <span
@@ -643,17 +705,7 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
             );
           })}
         </div>
-
-        {/* Pan hint */}
-        {bundle.bgImageUrl && imgAspect > 1.2 && !draggingId && !selectedId && (
-          <div
-            className="absolute bottom-20 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-xs pointer-events-none"
-            style={{ background: "rgba(0,0,0,0.5)", color: "rgba(165,243,252,0.6)", whiteSpace: "nowrap" }}
-          >
-            ← drag to explore · tap building to edit →
-          </div>
-        )}
-      </div>
+      )}
 
       {/* ── TOP overlay bar ── */}
       <div
