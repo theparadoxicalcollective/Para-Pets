@@ -864,23 +864,6 @@ export default function ParaPetsHubPage() {
               ))}
             </div>
 
-            {/* Add to Homescreen CTA */}
-            <div className="flex justify-center mt-5">
-              <button
-                data-testid="button-add-to-homescreen"
-                onClick={() => setShowHomescreen(true)}
-                className="flex items-center gap-2 rounded-2xl px-5 py-2.5 font-fantasy text-xs tracking-widest transition-all active:scale-95"
-                style={{
-                  background: "rgba(127,191,176,0.07)",
-                  border: "1px solid rgba(127,191,176,0.2)",
-                  color: "#7fbfb0",
-                  boxShadow: "0 0 14px rgba(127,191,176,0.08)",
-                }}>
-                <img src={hsPhone} alt="" className="w-4 h-4 object-contain"
-                  style={{ filter: "drop-shadow(0 0 5px rgba(127,191,176,0.5))" }} />
-                Add to Your Home Screen
-              </button>
-            </div>
           </div>
 
           <RuneDivider />
@@ -954,6 +937,50 @@ export default function ParaPetsHubPage() {
               </>
             )}
           </div>
+
+          {/* ── Add to Home Screen footer CTA ──────────────────────────────── */}
+          <RuneDivider />
+          <div
+            data-testid="hub-homescreen-cta"
+            className="rounded-3xl px-6 py-8 flex flex-col items-center text-center"
+            style={{
+              background: "linear-gradient(135deg,rgba(8,16,12,0.95),rgba(6,12,10,0.95))",
+              border: "1px solid rgba(127,191,176,0.12)",
+              boxShadow: "0 0 50px rgba(127,191,176,0.04), inset 0 1px 0 rgba(127,191,176,0.07)",
+            }}
+          >
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <img src={hsPhone} alt="" className="w-10 h-10 object-contain"
+                style={{ filter: "drop-shadow(0 0 10px rgba(127,191,176,0.55))" }} />
+              <img src={hsBrowser} alt="" className="w-10 h-10 object-contain opacity-40"
+                style={{ filter: "drop-shadow(0 0 6px rgba(127,191,176,0.25))" }} />
+            </div>
+
+            <h2 className="font-fantasy text-base tracking-widest mb-1"
+              style={{ color: "#7fbfb0", textShadow: "0 0 14px rgba(127,191,176,0.35)" }}>
+              Play Anywhere, Anytime
+            </h2>
+            <p className="font-fantasy text-[10px] mb-6" style={{ color: "#2a5040" }}>
+              Add Para Pets to your home screen for instant one-tap access
+            </p>
+
+            <button
+              data-testid="button-add-to-homescreen"
+              onClick={() => setShowHomescreen(true)}
+              className="flex items-center gap-2 rounded-2xl px-6 py-3 font-fantasy text-xs tracking-widest transition-all active:scale-95"
+              style={{
+                background: "linear-gradient(135deg,rgba(127,191,176,0.12),rgba(26,155,112,0.1))",
+                border: "1px solid rgba(127,191,176,0.28)",
+                color: "#7fbfb0",
+                boxShadow: "0 0 20px rgba(127,191,176,0.1)",
+              }}
+            >
+              <img src={hsPhone} alt="" className="w-4 h-4 object-contain"
+                style={{ filter: "drop-shadow(0 0 5px rgba(127,191,176,0.6))" }} />
+              Add to Home Screen
+            </button>
+          </div>
+
         </main>
       </div>
 
