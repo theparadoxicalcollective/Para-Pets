@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Upload, Plus, ChevronLeft, FlipHorizontal, ZoomIn, ZoomOut, Save } from "lucide-react";
+import { Trash2, Upload, Plus, ChevronLeft, FlipHorizontal, ZoomIn, ZoomOut, Save, GripHorizontal } from "lucide-react";
 
 interface HouseBundle {
   id: string;
@@ -301,13 +301,13 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
   const [imgAspect, setImgAspect]             = useState(16 / 9);
   const [canvasPxW, setCanvasPxW]             = useState(0);
 
-  const bgRef              = useRef<HTMLDivElement>(null);
-  const viewportRef        = useRef<HTMLDivElement>(null);
-  const dragOffsetRef      = useRef({ x: 0, y: 0 });
-  const panStartRef        = useRef<{ startX: number; startPanX: number } | null>(null);
+  const bgRef               = useRef<HTMLDivElement>(null);
+  const viewportRef         = useRef<HTMLDivElement>(null);
+  const dragOffsetRef       = useRef({ x: 0, y: 0 });
+  const panStartRef         = useRef<{ startX: number; startPanX: number } | null>(null);
   const draggingBuildingRef = useRef<string | null>(null);
-  // Track pointer-down position to distinguish tap from drag
-  const pointerDownPosRef  = useRef<{ x: number; y: number } | null>(null);
+  const tapCandidateRef     = useRef<string | null>(null);
+  const pointerDownPosRef   = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (!bundle.bgImageUrl) return;
@@ -337,6 +337,16 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
     return Math.min(0, Math.max(min < 0 ? min : 0, val));
   }, [canvasPxW]);
 
+  // Silent position save — local state is already correct, no need to refetch
+  const savePosQuiet = useCallback(async (id: string, posX: number, posY: number) => {
+    try {
+      await apiRequest("PATCH", `/api/admin/house-bundle-buildings/${id}`, { posX, posY });
+    } catch (err: any) {
+      toast({ title: "Position save failed", description: err.message, variant: "destructive" });
+    }
+  }, [toast]);
+
+  // Refetching patch — used for size/flip/delete where we need fresh server state
   const patchBuilding = useCallback(async (id: string, patch: Record<string, any>) => {
     await apiRequest("PATCH", `/api/admin/house-bundle-buildings/${id}`, patch);
     refetchBuildings();
@@ -370,27 +380,47 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
   const handleViewportPointerDown = useCallback((e: React.PointerEvent) => {
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     pointerDownPosRef.current = { x: e.clientX, y: e.clientY };
-    if (draggingBuildingRef.current) {
+    tapCandidateRef.current = null;
+
+    const target = e.target as HTMLElement;
+    const dragHandle  = target.closest("[data-drag-handle]");
+    const buildingEl  = target.closest("[data-building]") as HTMLElement | null;
+
+    if (dragHandle && buildingEl) {
+      // ── Drag handle pressed → start building drag ──
+      const buildingId = buildingEl.getAttribute("data-building-id")!;
+      draggingBuildingRef.current = buildingId;
+      setDraggingId(buildingId);
       const bgRect = bgRef.current?.getBoundingClientRect();
-      const buildingEl = (e.target as HTMLElement).closest("[data-building]") as HTMLElement | null;
-      if (bgRect && buildingEl) {
-        const elRect = buildingEl.getBoundingClientRect();
-        dragOffsetRef.current = { x: e.clientX - elRect.left - elRect.width / 2, y: e.clientY - elRect.top - elRect.height / 2 };
+      if (bgRect) {
+        const lp = livePos[buildingId];
+        const bld = buildings.find(b => b.id === buildingId);
+        const cx = bgRect.left + ((lp ? lp.x : (bld?.posX ?? 50)) / 100) * bgRect.width;
+        const cy = bgRect.top  + ((lp ? lp.y : (bld?.posY ?? 80)) / 100) * bgRect.height;
+        dragOffsetRef.current = { x: e.clientX - cx, y: e.clientY - cy };
       } else {
         dragOffsetRef.current = { x: 0, y: 0 };
       }
+    } else if (buildingEl) {
+      // ── Body of building pressed → candidate for tap/select (no drag) ──
+      tapCandidateRef.current = buildingEl.getAttribute("data-building-id");
     } else {
+      // ── Background pressed → pan ──
       panStartRef.current = { startX: e.clientX, startPanX: panX };
     }
-  }, [panX]);
+  }, [panX, livePos, buildings]);
 
   const handleViewportPointerMove = useCallback((e: React.PointerEvent) => {
+    const down = pointerDownPosRef.current;
+    const moved = down ? Math.abs(e.clientX - down.x) + Math.abs(e.clientY - down.y) : 0;
+    if (moved > 6) tapCandidateRef.current = null; // definitely not a tap
+
     if (draggingBuildingRef.current) {
       const bgRect = bgRef.current?.getBoundingClientRect();
       if (!bgRect) return;
       const rawX = e.clientX - dragOffsetRef.current.x - bgRect.left;
       const rawY = e.clientY - dragOffsetRef.current.y - bgRect.top;
-      const posX = Math.max(0, Math.min(100, (rawX / bgRect.width) * 100));
+      const posX = Math.max(0, Math.min(100, (rawX / bgRect.width)  * 100));
       const posY = Math.max(0, Math.min(100, (rawY / bgRect.height) * 100));
       setLivePos((prev) => ({ ...prev, [draggingBuildingRef.current!]: { x: posX, y: posY } }));
     } else if (panStartRef.current) {
@@ -398,38 +428,28 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
     }
   }, [clampPan]);
 
-  const handleViewportPointerUp = useCallback(() => {
+  const handleViewportPointerUp = useCallback((e: React.PointerEvent) => {
     if (draggingBuildingRef.current) {
-      const id = draggingBuildingRef.current;
+      const id  = draggingBuildingRef.current;
       const pos = livePos[id];
-      if (pos) patchBuilding(id, { posX: pos.x, posY: pos.y });
+      if (pos) savePosQuiet(id, pos.x, pos.y);
       draggingBuildingRef.current = null;
       setDraggingId(null);
+    } else if (tapCandidateRef.current) {
+      // Tap on building body → toggle selection
+      const id = tapCandidateRef.current;
+      setSelectedId((prev) => prev === id ? null : id);
+      tapCandidateRef.current = null;
+    } else {
+      // Tap on background → deselect
+      const down = pointerDownPosRef.current;
+      const moved = down ? Math.abs(e.clientX - down.x) + Math.abs(e.clientY - down.y) : 999;
+      if (moved < 8 && !(e.target as HTMLElement).closest("[data-building]")) {
+        setSelectedId(null);
+      }
     }
     panStartRef.current = null;
-  }, [livePos, patchBuilding]);
-
-  const handleBuildingPointerDown = useCallback((e: React.PointerEvent, building: HouseBundleBuilding) => {
-    e.stopPropagation();
-    draggingBuildingRef.current = building.id;
-    setDraggingId(building.id);
-    const elRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    dragOffsetRef.current = {
-      x: e.clientX - elRect.left - elRect.width / 2,
-      y: e.clientY - elRect.top - elRect.height / 2,
-    };
-    pointerDownPosRef.current = { x: e.clientX, y: e.clientY };
-  }, []);
-
-  const handleBuildingPointerUp = useCallback((e: React.PointerEvent, building: HouseBundleBuilding) => {
-    e.stopPropagation();
-    // If the pointer barely moved, it's a tap — select the building
-    const down = pointerDownPosRef.current;
-    const moved = down ? Math.abs(e.clientX - down.x) + Math.abs(e.clientY - down.y) : 999;
-    if (moved < 8) {
-      setSelectedId((prev) => prev === building.id ? null : building.id);
-    }
-  }, []);
+  }, [livePos, savePosQuiet]);
 
   const handleSizeChange = useCallback((b: HouseBundleBuilding, delta: number) => {
     const current = liveSize[b.id] ?? b.width ?? 80;
@@ -455,11 +475,6 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
-  // Dismiss selection when tapping the background
-  const handleBackgroundTap = useCallback((e: React.PointerEvent) => {
-    if ((e.target as HTMLElement).closest("[data-building]")) return;
-    setSelectedId(null);
-  }, []);
 
   return (
     <div
@@ -477,7 +492,6 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
         onPointerMove={handleViewportPointerMove}
         onPointerUp={handleViewportPointerUp}
         onPointerCancel={handleViewportPointerUp}
-        onClick={handleBackgroundTap as any}
       >
         {/* Scrollable canvas */}
         <div
@@ -512,17 +526,16 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
                 key={b.id}
                 data-testid={`building-${b.id}`}
                 data-building="true"
+                data-building-id={b.id}
                 className="absolute flex flex-col items-center"
                 style={{
                   left: `${x}%`,
                   top: `${y}%`,
                   transform: "translate(-50%, -100%)",
-                  cursor: isDragging ? "grabbing" : "grab",
+                  cursor: isDragging ? "grabbing" : "default",
                   userSelect: "none",
                   zIndex: isDragging ? 30 : (isSelected ? 25 : 10),
                 }}
-                onPointerDown={(e) => handleBuildingPointerDown(e, b)}
-                onPointerUp={(e) => handleBuildingPointerUp(e, b)}
               >
                 {/* Per-building control bar — shown when selected */}
                 {isSelected && (
@@ -588,6 +601,25 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
                     transition: "width 0.15s, height 0.15s",
                   }}
                 />
+
+                {/* Dedicated drag handle — only this can initiate a move */}
+                <div
+                  data-drag-handle="true"
+                  className="flex items-center justify-center gap-1 rounded-full px-2 py-0.5 mt-0.5"
+                  style={{
+                    background: isDragging ? "rgba(34,211,238,0.45)" : "rgba(0,0,0,0.7)",
+                    border: `1px solid ${isDragging ? "rgba(34,211,238,0.9)" : "rgba(34,211,238,0.35)"}`,
+                    cursor: isDragging ? "grabbing" : "grab",
+                    color: "#a5f3fc",
+                    fontSize: 9,
+                    whiteSpace: "nowrap",
+                    transition: "background 0.15s, border-color 0.15s",
+                  }}
+                  title="Drag to move"
+                >
+                  <GripHorizontal size={11} />
+                  <span style={{ fontSize: 9, opacity: 0.8 }}>{b.name}</span>
+                </div>
                 <span
                   className="mt-0.5 px-2 py-0.5 rounded-full text-xs font-bold"
                   style={{ background: "rgba(0,0,0,0.65)", color: isSelected ? "#22d3ee" : "#a5f3fc", whiteSpace: "nowrap", fontSize: 10 }}
