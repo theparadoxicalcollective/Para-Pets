@@ -1038,6 +1038,7 @@ interface AdminBadge {
   name: string;
   imageUrl: string;
   dailyRewardCoins: number | null;
+  claimType: string;
   badgePoints: number;
   createdAt: string;
 }
@@ -1050,6 +1051,7 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
   const [showUpload, setShowUpload] = useState(false);
   const [uploadName, setUploadName] = useState("");
   const [uploadDailyReward, setUploadDailyReward] = useState<string>("");
+  const [uploadClaimType, setUploadClaimType] = useState<"daily" | "weekly" | "monthly">("daily");
   const [uploadBadgePoints, setUploadBadgePoints] = useState<string>("");
   const [uploadPreview, setUploadPreview] = useState<string | null>(null);
   const [uploadData, setUploadData] = useState<string | null>(null);
@@ -1061,6 +1063,8 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
   const [editingBadge, setEditingBadge] = useState<AdminBadge | null>(null);
   const [editName, setEditName] = useState("");
   const [editBadgePoints, setEditBadgePoints] = useState<string>("");
+  const [editClaimType, setEditClaimType] = useState<"daily" | "weekly" | "monthly">("daily");
+  const [editDailyReward, setEditDailyReward] = useState<string>("");
   const [editImageData, setEditImageData] = useState<string | null>(null);
   const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
   const editFileRef = useRef<HTMLInputElement>(null);
@@ -1073,13 +1077,14 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
       if (!uploadName.trim() || !uploadData) throw new Error("Missing data");
       const dailyRewardCoins = uploadDailyReward.trim() ? parseInt(uploadDailyReward.trim(), 10) : null;
       const badgePoints = uploadBadgePoints.trim() ? parseInt(uploadBadgePoints.trim(), 10) : 0;
-      return apiRequest("POST", "/api/admin/badges", { name: uploadName.trim(), imageData: uploadData, dailyRewardCoins, badgePoints });
+      return apiRequest("POST", "/api/admin/badges", { name: uploadName.trim(), imageData: uploadData, dailyRewardCoins, badgePoints, claimType: uploadClaimType });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/badges"] });
       setShowUpload(false);
       setUploadName("");
       setUploadDailyReward("");
+      setUploadClaimType("daily");
       setUploadBadgePoints("");
       setUploadPreview(null);
       setUploadData(null);
@@ -1111,8 +1116,8 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
   });
 
   const editBadgeMutation = useMutation({
-    mutationFn: ({ id, name, badgePoints, imageData }: { id: string; name: string; badgePoints: number; imageData: string | null }) =>
-      apiRequest("PATCH", `/api/admin/badges/${id}`, { name, badgePoints, ...(imageData ? { imageData } : {}) }),
+    mutationFn: ({ id, name, badgePoints, claimType, dailyRewardCoins, imageData }: { id: string; name: string; badgePoints: number; claimType: string; dailyRewardCoins: number | null; imageData: string | null }) =>
+      apiRequest("PATCH", `/api/admin/badges/${id}`, { name, badgePoints, claimType, dailyRewardCoins, ...(imageData ? { imageData } : {}) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/badges"] });
       setEditingBadge(null);
@@ -1184,12 +1189,33 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
             data-testid="input-badge-daily-reward"
             type="number"
             min="0"
-            placeholder="Daily coins reward (optional)..."
+            placeholder="Coin reward per claim (optional)..."
             value={uploadDailyReward}
             onChange={e => setUploadDailyReward(e.target.value)}
             className="w-full rounded-lg px-3 py-2 font-fantasy text-xs tracking-wider"
             style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,215,0,0.25)", color: "#f0c040", outline: "none" }}
           />
+          <div className="flex flex-col gap-1">
+            <p className="font-fantasy text-[9px] tracking-widest uppercase" style={{ color: "#a89878" }}>Claim Frequency</p>
+            <div className="flex gap-2">
+              {(["daily", "weekly", "monthly"] as const).map(type => (
+                <button
+                  key={type}
+                  data-testid={`button-claim-type-upload-${type}`}
+                  type="button"
+                  onClick={() => setUploadClaimType(type)}
+                  className="flex-1 py-1.5 rounded-lg font-fantasy text-[10px] tracking-wider capitalize transition-all"
+                  style={{
+                    background: uploadClaimType === type ? "linear-gradient(135deg, #4a3800, #7a5c00)" : "rgba(0,0,0,0.3)",
+                    border: uploadClaimType === type ? "1px solid rgba(255,215,0,0.6)" : "1px solid rgba(255,215,0,0.15)",
+                    color: uploadClaimType === type ? "#ffd700" : "#6a5840",
+                  }}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+          </div>
           <input
             data-testid="input-badge-points"
             type="number"
@@ -1292,7 +1318,7 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
                   className="font-fantasy text-[9px] tracking-wide"
                   style={{ background: "none", border: "none", cursor: "pointer", color: badge.dailyRewardCoins ? "#f0c040" : "#6a5840" }}
                 >
-                  {badge.dailyRewardCoins ? `🪙 ${badge.dailyRewardCoins}/day` : "Set daily reward"}
+                  {badge.dailyRewardCoins ? `🪙 ${badge.dailyRewardCoins}/${badge.claimType === "weekly" ? "wk" : badge.claimType === "monthly" ? "mo" : "day"}` : "Set reward"}
                 </button>
               )}
               {editingPointsId === badge.id ? (
@@ -1335,7 +1361,7 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
               <div className="flex gap-1.5 w-full">
                 <button
                   data-testid={`button-edit-badge-${badge.id}`}
-                  onClick={() => { setEditingBadge(badge); setEditName(badge.name); setEditBadgePoints(String(badge.badgePoints ?? 0)); setEditImageData(null); setEditImagePreview(null); }}
+                  onClick={() => { setEditingBadge(badge); setEditName(badge.name); setEditBadgePoints(String(badge.badgePoints ?? 0)); setEditClaimType((badge.claimType === "weekly" ? "weekly" : "daily")); setEditDailyReward(badge.dailyRewardCoins != null ? String(badge.dailyRewardCoins) : ""); setEditImageData(null); setEditImagePreview(null); }}
                   className="flex items-center justify-center gap-1 flex-1 py-1 rounded font-fantasy text-[9px] tracking-wider"
                   style={{ background: "rgba(30,60,80,0.4)", border: "1px solid rgba(100,160,210,0.3)", color: "#8ab4d8", cursor: "pointer" }}
                 >
@@ -1398,6 +1424,45 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
               </div>
 
               <div>
+                <label className="font-fantasy text-[9px] tracking-widest uppercase mb-1 block" style={{ color: "#4a7090" }}>Coin Reward Per Claim</label>
+                <input
+                  data-testid="input-edit-badge-daily-reward"
+                  type="number"
+                  min="0"
+                  value={editDailyReward}
+                  onChange={e => setEditDailyReward(e.target.value)}
+                  placeholder="0 = no coin reward"
+                  className="w-full rounded-lg px-3 py-2 font-fantasy text-xs tracking-wider"
+                  style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,215,0,0.25)", color: "#f0c040", outline: "none" }}
+                />
+              </div>
+
+              <div>
+                <label className="font-fantasy text-[9px] tracking-widest uppercase mb-1 block" style={{ color: "#4a7090" }}>Claim Frequency</label>
+                <div className="flex gap-2">
+                  {(["daily", "weekly", "monthly"] as const).map(type => (
+                    <button
+                      key={type}
+                      data-testid={`button-claim-type-edit-${type}`}
+                      type="button"
+                      onClick={() => setEditClaimType(type)}
+                      className="flex-1 py-1.5 rounded-lg font-fantasy text-[10px] tracking-wider capitalize transition-all"
+                      style={{
+                        background: editClaimType === type ? "linear-gradient(135deg, #0d2540, #1a4070)" : "rgba(0,0,0,0.3)",
+                        border: editClaimType === type ? "1px solid rgba(100,160,210,0.6)" : "1px solid rgba(100,160,210,0.15)",
+                        color: editClaimType === type ? "#8ab4d8" : "#2a4060",
+                      }}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+                <p className="font-fantasy text-[9px] mt-1" style={{ color: "#2a4060" }}>
+                  {editClaimType === "weekly" ? "Players can claim once every 7 days" : editClaimType === "monthly" ? "Players can claim once every 30 days" : "Players can claim once every 24 hours"}
+                </p>
+              </div>
+
+              <div>
                 <label className="font-fantasy text-[9px] tracking-widest uppercase mb-1 block" style={{ color: "#4a7090" }}>Badge Points</label>
                 <input
                   data-testid="input-edit-badge-points"
@@ -1455,7 +1520,7 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
 
               <button
                 data-testid="button-save-badge-edit"
-                onClick={() => editBadgeMutation.mutate({ id: editingBadge.id, name: editName, badgePoints: editBadgePoints.trim() ? parseInt(editBadgePoints.trim(), 10) : 0, imageData: editImageData })}
+                onClick={() => editBadgeMutation.mutate({ id: editingBadge.id, name: editName, badgePoints: editBadgePoints.trim() ? parseInt(editBadgePoints.trim(), 10) : 0, claimType: editClaimType, dailyRewardCoins: editDailyReward.trim() ? parseInt(editDailyReward.trim(), 10) : null, imageData: editImageData })}
                 disabled={!editName.trim() || editBadgeMutation.isPending}
                 className="w-full py-2.5 rounded-xl font-fantasy text-xs tracking-wider mt-1"
                 style={{

@@ -293,6 +293,7 @@ export const badges = pgTable("badges", {
   name: text("name").notNull(),
   imageUrl: text("image_url").notNull(),
   dailyRewardCoins: integer("daily_reward_coins"),
+  claimType: text("claim_type").notNull().default("daily"),
   badgePoints: integer("badge_points").notNull().default(0),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });

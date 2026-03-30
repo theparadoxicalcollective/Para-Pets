@@ -3190,10 +3190,11 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
       if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
-      const { name, imageData, dailyRewardCoins, badgePoints } = req.body;
+      const { name, imageData, dailyRewardCoins, badgePoints, claimType } = req.body;
       if (!name || !imageData) return res.status(400).json({ message: "name and imageData required" });
       const imageUrl = await processWorldImage(imageData, 1000);
-      const badge = await storage.createBadge(name, imageUrl, dailyRewardCoins ? Number(dailyRewardCoins) : null, badgePoints ? Number(badgePoints) : 0);
+      const validClaimType = ["daily", "weekly", "monthly"].includes(claimType) ? claimType : "daily";
+      const badge = await storage.createBadge(name, imageUrl, dailyRewardCoins ? Number(dailyRewardCoins) : null, badgePoints ? Number(badgePoints) : 0, validClaimType);
       return res.json(badge);
     } catch (err: any) {
       return res.status(500).json({ message: err.message || "Failed to create badge" });
@@ -3215,8 +3216,8 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
       if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
-      const { dailyRewardCoins, badgePoints, name, imageData } = req.body;
-      const updateData: { dailyRewardCoins?: number | null; badgePoints?: number; name?: string; imageUrl?: string } = {};
+      const { dailyRewardCoins, badgePoints, name, imageData, claimType } = req.body;
+      const updateData: { dailyRewardCoins?: number | null; badgePoints?: number; name?: string; imageUrl?: string; claimType?: string } = {};
       if (dailyRewardCoins !== undefined) {
         updateData.dailyRewardCoins = dailyRewardCoins != null && dailyRewardCoins !== "" ? Number(dailyRewardCoins) : null;
       }
@@ -3228,6 +3229,9 @@ export async function registerRoutes(
       }
       if (imageData) {
         updateData.imageUrl = await processWorldImage(imageData, 1000);
+      }
+      if (claimType !== undefined) {
+        updateData.claimType = ["daily", "weekly", "monthly"].includes(claimType) ? claimType : "daily";
       }
       await storage.updateBadge(req.params.id, updateData);
       return res.json({ ok: true });
@@ -3308,14 +3312,23 @@ export async function registerRoutes(
       if (!badge) return res.status(403).json({ message: "You don't have this badge" });
 
       const reward = badge.dailyRewardCoins;
-      if (!reward) return res.status(400).json({ message: "This badge has no daily reward" });
+      if (!reward) return res.status(400).json({ message: "This badge has no coin reward" });
 
-      // Check 24h cooldown
+      // Cooldown: 24h for daily, 7 days for weekly, 30 days for monthly
+      const claimType = badge.claimType ?? "daily";
+      const cooldownMs =
+        claimType === "monthly" ? 30 * 24 * 60 * 60 * 1000 :
+        claimType === "weekly"  ?  7 * 24 * 60 * 60 * 1000 :
+                                       24 * 60 * 60 * 1000;
+      const periodLabel =
+        claimType === "monthly" ? "this month" :
+        claimType === "weekly"  ? "this week"  : "today";
+
       if (badge.lastClaimedAt) {
         const msSinceClaim = Date.now() - new Date(badge.lastClaimedAt).getTime();
-        if (msSinceClaim < 24 * 60 * 60 * 1000) {
-          const msLeft = 24 * 60 * 60 * 1000 - msSinceClaim;
-          return res.status(429).json({ message: "Already claimed today", msLeft });
+        if (msSinceClaim < cooldownMs) {
+          const msLeft = cooldownMs - msSinceClaim;
+          return res.status(429).json({ message: `Already claimed ${periodLabel}`, msLeft });
         }
       }
 

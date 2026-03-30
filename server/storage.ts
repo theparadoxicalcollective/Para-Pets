@@ -152,11 +152,11 @@ export interface IStorage {
   createEnemyDrop(data: { enemyId: string; shopItemId: string; dropRate: number }): Promise<EnemyDrop>;
   deleteEnemyDrop(id: string): Promise<void>;
   getAllBadges(): Promise<Badge[]>;
-  createBadge(name: string, imageUrl: string, dailyRewardCoins?: number | null, badgePoints?: number): Promise<Badge>;
+  createBadge(name: string, imageUrl: string, dailyRewardCoins?: number | null, badgePoints?: number, claimType?: string): Promise<Badge>;
   deleteBadge(id: string): Promise<void>;
   updateBadgeDailyReward(id: string, dailyRewardCoins: number | null): Promise<void>;
-  updateBadge(id: string, data: { dailyRewardCoins?: number | null; badgePoints?: number; name?: string; imageUrl?: string }): Promise<void>;
-  getUserBadges(userId: string): Promise<(UserBadge & { name: string; imageUrl: string; dailyRewardCoins: number | null; badgePoints: number; lastClaimedAt: Date | null })[]>;
+  updateBadge(id: string, data: { dailyRewardCoins?: number | null; badgePoints?: number; name?: string; imageUrl?: string; claimType?: string }): Promise<void>;
+  getUserBadges(userId: string): Promise<(UserBadge & { name: string; imageUrl: string; dailyRewardCoins: number | null; claimType: string; badgePoints: number; lastClaimedAt: Date | null })[]>;
   getBadgeRecipients(badgeId: string): Promise<string[]>;
   awardBadge(userId: string, badgeId: string): Promise<UserBadge>;
   revokeBadge(userId: string, badgeId: string): Promise<void>;
@@ -826,8 +826,8 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(badges).orderBy(desc(badges.createdAt));
   }
 
-  async createBadge(name: string, imageUrl: string, dailyRewardCoins?: number | null, badgePoints?: number): Promise<Badge> {
-    const [badge] = await db.insert(badges).values({ name, imageUrl, dailyRewardCoins: dailyRewardCoins ?? null, badgePoints: badgePoints ?? 0 }).returning();
+  async createBadge(name: string, imageUrl: string, dailyRewardCoins?: number | null, badgePoints?: number, claimType?: string): Promise<Badge> {
+    const [badge] = await db.insert(badges).values({ name, imageUrl, dailyRewardCoins: dailyRewardCoins ?? null, badgePoints: badgePoints ?? 0, claimType: claimType ?? "daily" }).returning();
     return badge;
   }
 
@@ -840,11 +840,11 @@ export class DatabaseStorage implements IStorage {
     await db.update(badges).set({ dailyRewardCoins }).where(eq(badges.id, id));
   }
 
-  async updateBadge(id: string, data: { dailyRewardCoins?: number | null; badgePoints?: number; name?: string; imageUrl?: string }): Promise<void> {
+  async updateBadge(id: string, data: { dailyRewardCoins?: number | null; badgePoints?: number; name?: string; imageUrl?: string; claimType?: string }): Promise<void> {
     await db.update(badges).set(data).where(eq(badges.id, id));
   }
 
-  async getUserBadges(userId: string): Promise<(UserBadge & { name: string; imageUrl: string; dailyRewardCoins: number | null; badgePoints: number; lastClaimedAt: Date | null })[]> {
+  async getUserBadges(userId: string): Promise<(UserBadge & { name: string; imageUrl: string; dailyRewardCoins: number | null; claimType: string; badgePoints: number; lastClaimedAt: Date | null })[]> {
     const rows = await db
       .select({
         id: userBadges.id,
@@ -854,6 +854,7 @@ export class DatabaseStorage implements IStorage {
         name: badges.name,
         imageUrl: badges.imageUrl,
         dailyRewardCoins: badges.dailyRewardCoins,
+        claimType: badges.claimType,
         badgePoints: badges.badgePoints,
         lastClaimedAt: badgeRewardClaims.lastClaimedAt,
       })

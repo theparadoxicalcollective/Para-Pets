@@ -26,6 +26,7 @@ interface UserBadge {
   name: string;
   imageUrl: string;
   dailyRewardCoins: number | null;
+  claimType: string;
   lastClaimedAt: string | null;
 }
 
@@ -33,6 +34,18 @@ const GOLD = "#f0c040";
 const GOLD_DIM = "#a89878";
 const GOLD_FAINT = "#6a5840";
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+function cooldownMs(claimType: string): number {
+  if (claimType === "weekly")  return 7  * MS_PER_DAY;
+  if (claimType === "monthly") return 30 * MS_PER_DAY;
+  return MS_PER_DAY;
+}
+
+function claimFrequencyLabel(claimType: string): string {
+  if (claimType === "weekly")  return "week";
+  if (claimType === "monthly") return "month";
+  return "day";
+}
 
 function formatCountdown(ms: number): string {
   if (ms <= 0) return "Ready!";
@@ -57,8 +70,8 @@ function BadgeClaimButton({
   const getMs = useCallback(() => {
     if (!badge.lastClaimedAt) return 0;
     const elapsed = Date.now() - new Date(badge.lastClaimedAt).getTime();
-    return Math.max(0, MS_PER_DAY - elapsed);
-  }, [badge.lastClaimedAt]);
+    return Math.max(0, cooldownMs(badge.claimType) - elapsed);
+  }, [badge.lastClaimedAt, badge.claimType]);
 
   const [msLeft, setMsLeft] = useState(() => getMs());
 
@@ -85,7 +98,7 @@ function BadgeClaimButton({
       queryClient.invalidateQueries({ queryKey: ["/api/user/badges"] });
       toast({
         title: `+${badge.dailyRewardCoins} coins claimed!`,
-        description: `Come back tomorrow for another ${badge.dailyRewardCoins} coins.`,
+        description: `Come back next ${claimFrequencyLabel(badge.claimType)} for another ${badge.dailyRewardCoins} coins.`,
       });
     },
     onError: async (err: any) => {
