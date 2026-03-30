@@ -520,7 +520,8 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
             const posXVal   = lp ? lp.x : b.posX;
             const posYVal   = lp ? lp.y : b.posY;
             const storedW   = liveSize[b.id] ?? b.width ?? 80;
-            const displayW  = Math.round(storedW * containerH / BUILDING_REF_H);
+            const cH = containerRef.current?.offsetHeight || containerH;
+            const displayW  = Math.round(storedW * cH / BUILDING_REF_H);
             const flip      = liveFlip[b.id] !== undefined ? liveFlip[b.id] : (b.flippedX ?? false);
             const isSelected = selectedId === b.id;
             const isDragging = draggingId === b.id;
@@ -592,11 +593,12 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
                 )}
 
                 <img src={b.imageUrl} alt={b.name} draggable={false}
+                  width={displayW} height={displayW}
                   style={{
-                    width: displayW, height: displayW, objectFit: "contain", display: "block",
+                    display: "block", flexShrink: 0,
+                    objectFit: "contain",
                     filter: `drop-shadow(0 4px 14px rgba(0,0,0,0.85))${isSelected ? " drop-shadow(0 0 8px rgba(34,211,238,0.8))" : ""}`,
                     transform: flip ? "scaleX(-1)" : undefined,
-                    transition: isDragging ? "none" : "width 0.15s, height 0.15s",
                     cursor: isDragging ? "grabbing" : (isSelected ? "grab" : "pointer"),
                   }}
                 />
@@ -605,7 +607,7 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
                   background: "rgba(0,0,0,0.7)", color: isSelected ? "#22d3ee" : "#a5f3fc",
                   whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 4,
                 }}>
-                  {b.name}
+                  {b.name} · {displayW}px · cH:{cH}
                   {hasInterior && <span style={{ fontSize: 9, color: "#d8b4fe" }}>◈</span>}
                 </span>
               </div>
