@@ -63,7 +63,6 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
   // ── Interior modal ──
   const [interiorBuilding, setInteriorBuilding] = useState<HouseBundleBuilding | null>(null);
   const [interiorUploading, setInteriorUploading] = useState(false);
-  const interiorFileRef = useRef<HTMLInputElement>(null);
 
   // ── Add building form ──
   const [showAddForm, setShowAddForm] = useState(false);
@@ -581,15 +580,6 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
         </div>
       )}
 
-      {/* ── Hidden interior image file input ── */}
-      <input
-        ref={interiorFileRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleInteriorUpload}
-      />
-
       {/* ── Interior upload modal ── */}
       {interiorBuilding && (
         <div
@@ -631,11 +621,9 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
               </div>
             )}
 
-            {/* Upload button */}
-            <button
-              onClick={() => interiorFileRef.current?.click()}
-              disabled={interiorUploading}
-              className="flex items-center justify-center gap-2 rounded-xl py-3 transition-opacity"
+            {/* Upload button — label wraps input directly (iOS requires this; programmatic .click() on display:none inputs is blocked) */}
+            <label
+              className="flex items-center justify-center gap-2 rounded-xl py-3"
               style={{
                 background: "rgba(255,215,0,0.12)",
                 border: "1.5px dashed rgba(255,215,0,0.4)",
@@ -644,11 +632,18 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
                 cursor: interiorUploading ? "not-allowed" : "pointer",
               }}
             >
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/gif"
+                style={{ display: "none" }}
+                disabled={interiorUploading}
+                onChange={handleInteriorUpload}
+              />
               <Upload className="w-4 h-4" />
               <span className="font-fantasy text-xs tracking-wider">
                 {interiorUploading ? "Uploading…" : interiorBuilding.interiorImageUrl ? "Replace Background" : "Upload Background"}
               </span>
-            </button>
+            </label>
 
             {/* Clear button — only if interior exists */}
             {interiorBuilding.interiorImageUrl && (
