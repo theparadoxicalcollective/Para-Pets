@@ -507,13 +507,14 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
             <p className="text-sm" style={{ color: "rgba(165,243,252,0.3)" }}>No background — go back to upload one</p>
           </div>
         )}
+      </div>
 
-        <div ref={buildingsRef} style={{
-          position: "absolute",
-          left: panX, top: 0,
-          width: imgWidth, height: "100%",
-          pointerEvents: "none",
-        }}>
+      <div ref={buildingsRef} style={{
+        position: "absolute",
+        left: panX, top: 48,
+        width: imgWidth, height: `calc(100% - ${48 + 56}px)`,
+        pointerEvents: "none",
+      }}>
           {buildings.map((b) => {
             const lp        = livePos[b.id];
             const posXVal   = lp ? lp.x : b.posX;
@@ -610,7 +611,6 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
               </div>
             );
           })}
-        </div>
       </div>
 
       <input ref={interiorFileRef} type="file" accept="image/png,image/jpeg" className="hidden"
