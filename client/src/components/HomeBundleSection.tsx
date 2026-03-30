@@ -26,9 +26,13 @@ const BG_CARD = "rgba(255,215,0,0.04)";
 const BUILDING_REF_H = 900;
 
 // ─── BundleBgEditor (full-screen background + building editor) ────────────────
-function BundleBgEditor({ bundle, onClose }: { bundle: HouseBundle; onClose: () => void }) {
+function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle; onClose: () => void; onBgUpdated?: (url: string) => void }) {
   const { toast } = useToast();
   const qc = useQueryClient();
+
+  // ── Local background URL — updated immediately on upload ──
+  const [localBgUrl, setLocalBgUrl] = useState<string | null>(bundle.bgImageUrl);
+  const [bgUploading, setBgUploading] = useState(false);
 
   // ── Background pan state (identical to PetHousePage) ──
   const containerRef = useRef<HTMLDivElement>(null);
@@ -59,7 +63,26 @@ function BundleBgEditor({ bundle, onClose }: { bundle: HouseBundle; onClose: () 
   const addImgRef = useRef<HTMLInputElement>(null);
 
   // ── Fetch buildings ──
-  const bgUrl = bundle.bgImageUrl ?? bundle.shopImageUrl;
+  const bgUrl = localBgUrl ?? bundle.shopImageUrl;
+
+  // ── Immediate background upload (same pattern as Keeper's Central) ──
+  const handleBgFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setBgUploading(true);
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const updated = await apiRequest("PATCH", `/api/admin/house-bundles/${bundle.id}`, { bgImageData: dataUrl }) as HouseBundle;
+      setLocalBgUrl(updated.bgImageUrl);
+      if (updated.bgImageUrl) onBgUpdated?.(updated.bgImageUrl);
+      qc.invalidateQueries({ queryKey: ["/api/admin/house-bundles"] });
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } finally {
+      setBgUploading(false);
+    }
+  }, [bundle.id, onBgUpdated, qc, toast]);
 
   const { data: buildings = [], refetch } = useQuery<HouseBundleBuilding[]>({
     queryKey: ["/api/admin/house-bundles", bundle.id, "buildings"],
@@ -89,10 +112,11 @@ function BundleBgEditor({ bundle, onClose }: { bundle: HouseBundle; onClose: () 
       const imgW = h * bgAspect;
       setContainerH(h);
       setImgWidth(imgW);
-      // All bundle backgrounds are wider than the screen.
-      // Start centered: (w - imgW) / 2 is negative → half-way into the image.
-      // Math.max(min, center) keeps it within [w-imgW, 0].
-      setPanX(Math.max(w - imgW, (w - imgW) / 2));
+      // Center the image regardless of whether it's wider or narrower than the screen.
+      // PetHousePage formula: Math.max(Math.min(0, w-imgW), (w-imgW)/2)
+      //   Wide  (imgW > w): min = w-imgW (neg), center = (w-imgW)/2 (less neg) → center ✓
+      //   Narrow(imgW < w): min = 0 (capped),  center = (w-imgW)/2 (pos)       → center ✓
+      setPanX(Math.max(Math.min(0, w - imgW), (w - imgW) / 2));
     };
     recalc();
     const ro = new ResizeObserver(recalc);
@@ -145,9 +169,11 @@ function BundleBgEditor({ bundle, onClose }: { bundle: HouseBundle; onClose: () 
     if (Math.abs(dx) > 3) isPanningRef.current = true;
     const containerW = container.offsetWidth;
     const imgW = containerHRef.current * bgAspect;
-    // All backgrounds wider than screen: clamp to [containerW - imgW, 0]
-    const min = containerW - imgW;
-    setPanX(Math.min(0, Math.max(min, drag.startPanX + dx)));
+    // Match recalc: center is the anchor for both wide (negative) and narrow (positive) images.
+    const center = (containerW - imgW) / 2;
+    const panMin = Math.min(center, containerW - imgW); // wide→ left-edge, narrow→ center
+    const panMax = Math.max(center, 0);                 // wide→ 0,          narrow→ center
+    setPanX(Math.max(panMin, Math.min(panMax, drag.startPanX + dx)));
   }, [bgAspect]);
 
   const handleContainerPointerUp = useCallback(() => {
@@ -196,7 +222,7 @@ function BundleBgEditor({ bundle, onClose }: { bundle: HouseBundle; onClose: () 
 
   return (
     <div
-      className="fixed inset-0 z-[60] overflow-hidden"
+      className="fixed inset-0 z-[60]"
       style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, touchAction: "none", userSelect: "none" }}
       ref={containerRef}
       onPointerDown={handleContainerPointerDown}
@@ -205,22 +231,23 @@ function BundleBgEditor({ bundle, onClose }: { bundle: HouseBundle; onClose: () 
       onPointerCancel={handleContainerPointerUp}
       onClick={() => setSelectedId(null)}
     >
-      {/* Background */}
-      {bgUrl ? (
-        <img
-          src={bgUrl} alt="" draggable={false}
-          style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: `${imgWidth}px`, objectFit: "cover", pointerEvents: "none" }}
-        />
-      ) : (
-        <div className="absolute inset-0" style={{ background: "#0d1a0a" }} />
-      )}
+      {/* Background — clipped separately so buildings can overflow the screen edge */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {bgUrl ? (
+          <img
+            src={bgUrl} alt="" draggable={false}
+            style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: `${imgWidth}px`, objectFit: "cover" }}
+          />
+        ) : (
+          <div className="absolute inset-0" style={{ background: "#0d1a0a" }} />
+        )}
+        {/* Ambient gradient */}
+        <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.18) 0%, transparent 18%, transparent 72%, rgba(0,0,0,0.45) 100%)" }} />
+      </div>
 
-      {/* Ambient gradient — same as PetHousePage */}
-      <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.18) 0%, transparent 18%, transparent 72%, rgba(0,0,0,0.45) 100%)" }} />
-
-      {/* Buildings layer — moves with panX exactly like PetHousePage */}
+      {/* Buildings layer — NOT inside overflow:hidden so buildings near edges are never clipped */}
       {imgWidth > 0 && buildings.length > 0 && (
-        <div className="absolute" style={{ top: 0, left: `${panX}px`, width: imgWidth, height: "100%", zIndex: 4 }}>
+        <div className="absolute" style={{ top: 0, left: `${panX}px`, width: imgWidth, height: "100%", zIndex: 4, pointerEvents: "none" }}>
           {buildings.map(b => {
             const pos = localPos[b.id] ?? { x: b.posX, y: b.posY };
             const displayW = Math.round((b.width ?? 80) * (containerH || BUILDING_REF_H) / BUILDING_REF_H);
@@ -236,6 +263,7 @@ function BundleBgEditor({ bundle, onClose }: { bundle: HouseBundle; onClose: () 
                   zIndex: isSelected ? 20 : 4,
                   cursor: isSelected ? "grab" : "pointer",
                   touchAction: "none",
+                  pointerEvents: "auto",
                 }}
                 onPointerDown={e => handleBuildingPointerDown(e, b)}
                 onPointerMove={e => { e.stopPropagation(); handleBuildingPointerMove(e); }}
@@ -347,6 +375,25 @@ function BundleBgEditor({ bundle, onClose }: { bundle: HouseBundle; onClose: () 
         <ChevronLeft className="w-4 h-4" />
         Back
       </button>
+
+      {/* ── Upload Background button — top-right, exact same pattern as Keeper's Central ── */}
+      <label
+        data-testid="label-upload-bg"
+        className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-2 rounded-full font-fantasy text-[11px]"
+        style={{ background: "rgba(0,0,0,0.65)", border: `1px solid ${bgUploading ? "rgba(255,215,0,0.7)" : "rgba(255,215,0,0.3)"}`, color: bgUploading ? GOLD : "rgba(255,215,0,0.65)", cursor: bgUploading ? "wait" : "pointer", zIndex: 30 }}
+        onPointerDown={e => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
+      >
+        <Image className="w-4 h-4" />
+        {bgUploading ? "Uploading…" : bgUrl ? "Change BG" : "Upload BG"}
+        <input
+          type="file"
+          accept="image/png,image/jpeg,image/gif"
+          className="hidden"
+          disabled={bgUploading}
+          onChange={handleBgFileChange}
+        />
+      </label>
 
       {/* ── Hint ── */}
       {selectedId === null && buildings.length > 0 && (
@@ -708,7 +755,7 @@ function BundlesSubTab() {
 
   // ── Background editor ──
   if (showBgEditor && editingBundle) {
-    return <BundleBgEditor bundle={{ ...editingBundle, bgImageUrl: bgImagePreview ?? editingBundle.bgImageUrl }} onClose={() => setShowBgEditor(false)} />;
+    return <BundleBgEditor bundle={{ ...editingBundle, bgImageUrl: bgImagePreview ?? editingBundle.bgImageUrl }} onClose={() => setShowBgEditor(false)} onBgUpdated={url => setBgImagePreview(url)} />;
   }
 
   return (
