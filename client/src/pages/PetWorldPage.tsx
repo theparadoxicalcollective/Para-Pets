@@ -11,6 +11,8 @@ import UserProfilePanel from "@/components/UserProfilePanel";
 import bgGround from "@assets/IMG_6459_1774675340089.jpeg";
 import coinIconImg from "@assets/icon_coin.png";
 import petHouseIconImg from "@assets/icon_pet_house.png";
+import joystickBaseImg  from "@assets/Photoroom_20260330_90703_AM_1774879776264.png";
+import joystickThumbImg from "@assets/Photoroom_20260330_90732_AM_1774879776264.png";
 
 const WORLD_ID = "pet_world";
 const ACCENT = "#7fffd4";
@@ -2840,14 +2842,14 @@ function WorldRoamingPet({
 
 // ── Joystick ────────────────────────────────────────────────────────────────
 // Virtual analog stick for walking the player's pet around the map.
-// Positioned bottom-left so it never overlaps the bottom-right FloatingNav button.
-const BASE_R  = 52;
-const THUMB_R = 22;
+// Positioned bottom-right so it never overlaps the bottom-right FloatingNav button.
+const BASE_R  = 56;
+const THUMB_R = 23;
 
 function Joystick({ onChange }: { onChange: (dx: number, dy: number, active: boolean) => void }) {
-  const baseRef  = useRef<HTMLDivElement>(null);
-  const thumbRef = useRef<HTMLDivElement>(null);
-  const pidRef   = useRef<number | null>(null);
+  const baseRef   = useRef<HTMLDivElement>(null);
+  const thumbRef  = useRef<HTMLDivElement>(null);
+  const pidRef    = useRef<number | null>(null);
   const centerRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const release = (pointerId: number) => {
@@ -2860,7 +2862,7 @@ function Joystick({ onChange }: { onChange: (dx: number, dy: number, active: boo
   const move = (cx: number, cy: number) => {
     let dx = cx - centerRef.current.x;
     let dy = cy - centerRef.current.y;
-    const dist   = Math.hypot(dx, dy);
+    const dist    = Math.hypot(dx, dy);
     const maxDist = BASE_R - THUMB_R;
     if (dist > maxDist) { dx = (dx / dist) * maxDist; dy = (dy / dist) * maxDist; }
     if (thumbRef.current) thumbRef.current.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
@@ -2890,22 +2892,28 @@ function Joystick({ onChange }: { onChange: (dx: number, dy: number, active: boo
         right: 20,
         width: BASE_R * 2,
         height: BASE_R * 2,
-        borderRadius: "50%",
-        background: "rgba(4,12,6,0.52)",
-        border: "2px solid rgba(127,255,212,0.35)",
-        backdropFilter: "blur(6px)",
-        boxShadow: "0 4px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(127,255,212,0.1)",
         touchAction: "none",
         zIndex: 60,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
       }}
     >
-      {/* Crosshair guides */}
-      <div style={{ position: "absolute", width: "60%", height: 1, background: "rgba(127,255,212,0.15)" }} />
-      <div style={{ position: "absolute", width: 1, height: "60%", background: "rgba(127,255,212,0.15)" }} />
-      {/* Thumb */}
+      {/* Base ring — mix-blend-mode:screen makes the black background invisible */}
+      <img
+        src={joystickBaseImg}
+        alt=""
+        draggable={false}
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          objectFit: "contain",
+          mixBlendMode: "screen",
+          pointerEvents: "none",
+          userSelect: "none",
+        }}
+      />
+
+      {/* Thumb — golden disc that slides within the ring */}
       <div
         ref={thumbRef}
         style={{
@@ -2914,15 +2922,24 @@ function Joystick({ onChange }: { onChange: (dx: number, dy: number, active: boo
           top: "50%",
           width: THUMB_R * 2,
           height: THUMB_R * 2,
-          borderRadius: "50%",
-          background: "radial-gradient(circle at 35% 35%, rgba(127,255,212,0.75) 0%, rgba(50,160,100,0.55) 60%, rgba(20,80,50,0.4) 100%)",
-          border: "1.5px solid rgba(127,255,212,0.65)",
           transform: "translate(-50%, -50%)",
-          boxShadow: "0 2px 10px rgba(127,255,212,0.35)",
           pointerEvents: "none",
-          transition: "box-shadow 0.1s",
         }}
-      />
+      >
+        <img
+          src={joystickThumbImg}
+          alt=""
+          draggable={false}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "contain",
+            mixBlendMode: "screen",
+            userSelect: "none",
+            display: "block",
+          }}
+        />
+      </div>
     </div>
   );
 }
