@@ -14,6 +14,13 @@ import podiumImg         from "@assets/hub_podium.png";
 import rankCrowns        from "@assets/hub_rank_crowns.png";
 import iconBadges        from "@assets/admin_icon_badges.png";
 import iconMap           from "@assets/nav_icon_map_nobg.png";
+import hsPhone           from "@assets/hs_icon_phone.png";
+import hsBrowser         from "@assets/hs_icon_browser.png";
+import hsShare           from "@assets/hs_icon_share.png";
+import hsPlus            from "@assets/hs_icon_plus.png";
+import hsCheck           from "@assets/hs_icon_check.png";
+import hsGlobe           from "@assets/hs_icon_globe.png";
+import hsMenu            from "@assets/hs_icon_menu.png";
 
 import worldEnchanted    from "@assets/bg_enchanted_grove_map.png";
 import worldHaunted      from "@assets/bg_haunted_woods_map.png";
@@ -328,17 +335,17 @@ function HomeScreenModal({ onClose }: { onClose: () => void }) {
   }, [onClose]);
 
   const IOS_STEPS = [
-    { icon: "🧭", title: "Open in Safari", desc: "This must be done in Safari — not Chrome or another browser." },
-    { icon: "⬆️", title: 'Tap the Share button', desc: 'At the bottom of the screen, tap the box with an arrow pointing up.' },
-    { icon: "➕", title: '"Add to Home Screen"', desc: 'Scroll down the share sheet and tap "Add to Home Screen".' },
-    { icon: "✅", title: "Tap Add", desc: 'Tap "Add" in the top-right corner. Para Pets will appear on your home screen.' },
+    { img: hsBrowser, title: "Open in Safari", desc: "Open parapets.net in Safari — it must be Safari, not Chrome or another browser." },
+    { img: hsShare,   title: "Tap the Share button", desc: "At the bottom of the screen, tap the box with an arrow pointing up." },
+    { img: hsPlus,    title: '"Add to Home Screen"', desc: 'Scroll down the share sheet and tap "Add to Home Screen".' },
+    { img: hsCheck,   title: "Tap Add", desc: 'Tap "Add" in the top-right corner. Para Pets will appear on your home screen.' },
   ];
 
   const ANDROID_STEPS = [
-    { icon: "🌐", title: "Open in Chrome", desc: "Make sure you're using the Chrome browser on your Android device." },
-    { icon: "⋮", title: "Tap the menu", desc: 'Tap the three-dot menu (⋮) in the top-right corner of Chrome.' },
-    { icon: "➕", title: '"Add to Home Screen"', desc: 'Tap "Add to Home Screen" or "Install App" from the menu.' },
-    { icon: "✅", title: "Tap Add", desc: 'Confirm by tapping "Add". The Para Pets icon will appear on your home screen.' },
+    { img: hsGlobe,   title: "Open in Chrome", desc: "Go to parapets.net in Chrome — make sure you're using Chrome on your Android device." },
+    { img: hsMenu,    title: "Tap the menu", desc: "Tap the three-dot menu (⋮) in the top-right corner of Chrome." },
+    { img: hsPlus,    title: '"Add to Home Screen"', desc: 'Tap "Add to Home Screen" or "Install App" from the menu.' },
+    { img: hsCheck,   title: "Tap Add", desc: 'Confirm by tapping "Add". The Para Pets icon will appear on your home screen.' },
   ];
 
   const steps = tab === "ios" ? IOS_STEPS : ANDROID_STEPS;
@@ -369,7 +376,8 @@ function HomeScreenModal({ onClose }: { onClose: () => void }) {
         {/* Header */}
         <div className="relative flex flex-col items-center px-6 pt-3 pb-4"
           style={{ borderBottom: "1px solid rgba(127,191,176,0.07)" }}>
-          <span style={{ fontSize: "2rem" }}>📱</span>
+          <img src={hsPhone} alt="" className="w-10 h-10 object-contain"
+            style={{ filter: "drop-shadow(0 0 10px rgba(127,191,176,0.5))" }} />
           <h2 className="font-fantasy text-base tracking-widest mt-1" style={{ color: "#7fbfb0" }}>
             Add to Home Screen
           </h2>
@@ -400,7 +408,7 @@ function HomeScreenModal({ onClose }: { onClose: () => void }) {
                   : "1px solid rgba(127,191,176,0.08)",
                 color: tab === t ? "#7fbfb0" : "#2a5040",
               }}>
-              {t === "ios" ? "🍎  iPhone / iPad" : "🤖  Android"}
+              {t === "ios" ? "iPhone / iPad" : "Android"}
             </button>
           ))}
         </div>
@@ -410,9 +418,10 @@ function HomeScreenModal({ onClose }: { onClose: () => void }) {
           {steps.map((s, i) => (
             <div key={i} className="flex items-start gap-3"
               data-testid={`homescreen-step-${tab}-${i}`}>
-              <div className="flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center text-base"
+              <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center"
                 style={{ background: "rgba(127,191,176,0.07)", border: "1px solid rgba(127,191,176,0.12)" }}>
-                {s.icon}
+                <img src={s.img} alt="" className="w-6 h-6 object-contain"
+                  style={{ filter: "drop-shadow(0 0 6px rgba(127,191,176,0.4))" }} />
               </div>
               <div className="flex-1 pt-0.5">
                 <p className="font-fantasy text-xs tracking-wide" style={{ color: "#7fbfb0" }}>{s.title}</p>
@@ -767,7 +776,8 @@ export default function ParaPetsHubPage() {
                   color: "#7fbfb0",
                   boxShadow: "0 0 14px rgba(127,191,176,0.08)",
                 }}>
-                <span style={{ fontSize: "1rem" }}>📱</span>
+                <img src={hsPhone} alt="" className="w-4 h-4 object-contain"
+                  style={{ filter: "drop-shadow(0 0 5px rgba(127,191,176,0.5))" }} />
                 Add to Your Home Screen
               </button>
             </div>
