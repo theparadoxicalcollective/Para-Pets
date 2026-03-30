@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect, useRef } from "react";
-import { ChevronDown, ChevronUp, X, Eye, EyeOff, Loader2, Star } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { ChevronDown, ChevronUp, X, Eye, EyeOff, Loader2, Star, Maximize2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -118,82 +118,250 @@ const SCREENSHOTS = [
   { img: ss5, label: "Fish Book",   accent: "#4a9b7a", tilt: -2,  pos: "top center" },
 ];
 
+const SS_FRAME_W  = 118;
+const SS_FRAME_H  = 210;
+const SS_GAP      = 22;
+const SS_STEP     = SS_FRAME_W + SS_GAP;
+const SS_INTERVAL = 3400;
+
 function GameplayShowcase() {
+  const [activeIdx, setActiveIdx]   = useState(0);
+  const [lightbox, setLightbox]     = useState<number | null>(null);
+  const [containerW, setContainerW] = useState(360);
+  const containerRef  = useRef<HTMLDivElement>(null);
+  const intervalRef   = useRef<ReturnType<typeof setInterval> | null>(null);
+  const ptrStartX     = useRef<number | null>(null);
+  const ptrStartY     = useRef<number | null>(null);
+
+  useEffect(() => {
+    const measure = () => {
+      if (containerRef.current) setContainerW(containerRef.current.offsetWidth);
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+
+  const restartTimer = useCallback(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
+      setActiveIdx(i => (i + 1) % SCREENSHOTS.length);
+    }, SS_INTERVAL);
+  }, []);
+
+  useEffect(() => {
+    restartTimer();
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [restartTimer]);
+
+  const goTo = useCallback((idx: number) => {
+    setActiveIdx(((idx % SCREENSHOTS.length) + SCREENSHOTS.length) % SCREENSHOTS.length);
+    restartTimer();
+  }, [restartTimer]);
+
+  // Translate strip so activeIdx is always centred in the container
+  const stripOffset = containerW / 2 - (activeIdx * SS_STEP + SS_FRAME_W / 2);
+
+  const onPtrDown = (e: React.PointerEvent) => {
+    ptrStartX.current = e.clientX;
+    ptrStartY.current = e.clientY;
+  };
+  const onPtrUp = (e: React.PointerEvent) => {
+    if (ptrStartX.current === null) return;
+    const dx = e.clientX - ptrStartX.current;
+    const dy = e.clientY - (ptrStartY.current ?? e.clientY);
+    ptrStartX.current = null;
+    ptrStartY.current = null;
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 28) goTo(activeIdx + (dx < 0 ? 1 : -1));
+  };
+
   return (
-    <div className="mb-2">
+    <div className="mb-2" data-testid="gameplay-showcase">
       <h2
         className="font-fantasy text-center text-sm tracking-widest mb-1"
         style={{ color: "#7fbfb0", textShadow: "0 0 12px rgba(127,191,176,0.3)" }}
       >
         See It in Action
       </h2>
-      <p className="font-fantasy text-center text-[10px] mb-6" style={{ color: "#2a4a38" }}>
-        Real gameplay from the world of Para Pets
+      <p className="font-fantasy text-center text-[10px] mb-5" style={{ color: "#2a4a38" }}>
+        Real gameplay — tap to view full screen
       </p>
 
+      {/* ── Carousel strip ─────────────────────────────────────────────────── */}
       <div
-        className="flex gap-6 overflow-x-auto px-4 pb-6"
-        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-        data-testid="gameplay-showcase"
+        ref={containerRef}
+        style={{ overflow: "hidden", position: "relative", touchAction: "none" }}
+        onPointerDown={onPtrDown}
+        onPointerUp={onPtrUp}
+        onPointerLeave={() => { ptrStartX.current = null; }}
       >
-        {SCREENSHOTS.map((s) => (
-          <div
-            key={s.label}
-            className="flex-shrink-0 flex flex-col items-center gap-2.5"
-            style={{ transform: `rotate(${s.tilt}deg)` }}
-          >
-            {/* Phone frame */}
-            <div
-              style={{
-                width: 118,
-                height: 210,
-                borderRadius: 20,
-                overflow: "hidden",
-                border: `2px solid ${s.accent}55`,
-                boxShadow: [
-                  `0 0 18px ${s.accent}28`,
-                  `0 0 1px ${s.accent}60`,
-                  "0 10px 30px rgba(0,0,0,0.65)",
-                  "inset 0 0 0 1px rgba(255,255,255,0.04)",
-                ].join(", "),
-                background: "#04080c",
-                position: "relative",
-              }}
-            >
-              {/* Subtle top notch strip */}
-              <div style={{
-                position: "absolute", top: 0, left: 0, right: 0, height: 4,
-                background: `linear-gradient(90deg, transparent, ${s.accent}18, transparent)`,
-                zIndex: 2,
-              }} />
-              <img
-                src={s.img}
-                alt={s.label}
-                className="w-full h-full object-cover"
-                style={{ objectPosition: s.pos, display: "block" }}
-              />
-              {/* Bottom shine */}
-              <div style={{
-                position: "absolute", bottom: 0, left: 0, right: 0, height: 32,
-                background: `linear-gradient(to top, rgba(4,8,12,0.45), transparent)`,
-                zIndex: 2,
-              }} />
-            </div>
+        <div
+          style={{
+            display: "flex",
+            gap: SS_GAP,
+            transform: `translateX(${stripOffset}px)`,
+            transition: "transform 0.52s cubic-bezier(0.25,0.46,0.45,0.94)",
+            willChange: "transform",
+            paddingTop: 14,
+            paddingBottom: 28,
+          }}
+        >
+          {SCREENSHOTS.map((sc, i) => {
+            const active = i === activeIdx;
+            return (
+              <div
+                key={sc.label}
+                data-testid={`screenshot-card-${i}`}
+                onClick={() => active ? setLightbox(i) : goTo(i)}
+                style={{
+                  flexShrink: 0,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 10,
+                  opacity: active ? 1 : 0.38,
+                  transform: `scale(${active ? 1 : 0.86}) rotate(${active ? 0 : sc.tilt}deg)`,
+                  transition: "opacity 0.42s ease, transform 0.42s ease",
+                  cursor: active ? "zoom-in" : "pointer",
+                  userSelect: "none",
+                }}
+              >
+                {/* Phone frame */}
+                <div
+                  style={{
+                    width: SS_FRAME_W,
+                    height: SS_FRAME_H,
+                    borderRadius: 20,
+                    overflow: "hidden",
+                    border: `2px solid ${active ? sc.accent + "88" : sc.accent + "28"}`,
+                    boxShadow: active
+                      ? [`0 0 24px ${sc.accent}32`, `0 0 2px ${sc.accent}66`, "0 14px 36px rgba(0,0,0,0.72)", "inset 0 0 0 1px rgba(255,255,255,0.04)"].join(", ")
+                      : "0 6px 18px rgba(0,0,0,0.4)",
+                    background: "#04080c",
+                    position: "relative",
+                    transition: "border-color 0.42s, box-shadow 0.42s",
+                  }}
+                >
+                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 4, background: `linear-gradient(90deg,transparent,${sc.accent}18,transparent)`, zIndex: 2 }} />
+                  <img
+                    src={sc.img}
+                    alt={sc.label}
+                    style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center", display: "block" }}
+                  />
+                  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 36, background: "linear-gradient(to top,rgba(4,8,12,0.5),transparent)", zIndex: 2 }} />
+                  {/* Zoom hint */}
+                  {active && (
+                    <div style={{ position: "absolute", bottom: 9, right: 9, zIndex: 3, width: 24, height: 24, borderRadius: "50%", background: "rgba(4,8,12,0.75)", border: `1px solid ${sc.accent}55`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Maximize2 size={10} color={sc.accent} />
+                    </div>
+                  )}
+                </div>
 
-            {/* Label */}
-            <span
-              className="font-fantasy text-[9px] tracking-widest"
-              style={{
-                color: s.accent,
-                textShadow: `0 0 8px ${s.accent}55`,
-                letterSpacing: "0.18em",
-              }}
-            >
-              {s.label}
-            </span>
-          </div>
+                {/* Label */}
+                <span
+                  className="font-fantasy text-[9px] tracking-widest"
+                  style={{
+                    color: active ? sc.accent : "#1a3028",
+                    textShadow: active ? `0 0 8px ${sc.accent}55` : "none",
+                    transition: "color 0.42s, text-shadow 0.42s",
+                    letterSpacing: "0.18em",
+                  }}
+                >
+                  {sc.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Dot indicators ─────────────────────────────────────────────────── */}
+      <div className="flex justify-center gap-1.5 mt-0">
+        {SCREENSHOTS.map((sc, i) => (
+          <button
+            key={i}
+            data-testid={`gallery-dot-${i}`}
+            onClick={() => goTo(i)}
+            style={{
+              width: i === activeIdx ? 22 : 6,
+              height: 6,
+              borderRadius: 3,
+              background: i === activeIdx ? sc.accent : "rgba(127,191,176,0.15)",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              transition: "width 0.38s ease, background 0.38s ease",
+            }}
+          />
         ))}
       </div>
+
+      {/* ── Lightbox ───────────────────────────────────────────────────────── */}
+      {lightbox !== null && (() => {
+        const ls = SCREENSHOTS[lightbox];
+        return (
+          <div
+            data-testid="lightbox-overlay"
+            onClick={() => setLightbox(null)}
+            style={{
+              position: "fixed", inset: 0, zIndex: 10000,
+              background: "rgba(3,6,10,0.93)",
+              backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+          >
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: 14, maxWidth: "92vw" }}
+            >
+              <img
+                src={ls.img}
+                alt={ls.label}
+                data-testid="lightbox-image"
+                style={{
+                  maxWidth: "100%",
+                  maxHeight: "78vh",
+                  objectFit: "contain",
+                  borderRadius: 26,
+                  border: `2px solid ${ls.accent}50`,
+                  boxShadow: `0 0 70px ${ls.accent}28, 0 28px 80px rgba(0,0,0,0.92)`,
+                  display: "block",
+                }}
+              />
+              <span className="font-fantasy text-sm tracking-widest" style={{ color: ls.accent, textShadow: `0 0 10px ${ls.accent}55` }}>
+                {ls.label}
+              </span>
+
+              {/* Prev / Next */}
+              <div style={{ display: "flex", gap: 12, position: "absolute", bottom: 48, left: "50%", transform: "translateX(-50%)" }}>
+                <button
+                  data-testid="lightbox-prev"
+                  onClick={() => setLightbox(i => i !== null ? ((i - 1 + SCREENSHOTS.length) % SCREENSHOTS.length) : null)}
+                  style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(6,10,16,0.85)", border: `1px solid ${ls.accent}40`, color: ls.accent, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                >
+                  <ChevronDown size={16} style={{ transform: "rotate(90deg)" }} />
+                </button>
+                <button
+                  data-testid="lightbox-next"
+                  onClick={() => setLightbox(i => i !== null ? ((i + 1) % SCREENSHOTS.length) : null)}
+                  style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(6,10,16,0.85)", border: `1px solid ${ls.accent}40`, color: ls.accent, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                >
+                  <ChevronDown size={16} style={{ transform: "rotate(-90deg)" }} />
+                </button>
+              </div>
+
+              {/* Close */}
+              <button
+                data-testid="button-close-lightbox"
+                onClick={() => setLightbox(null)}
+                style={{ position: "absolute", top: -14, right: -14, width: 34, height: 34, borderRadius: "50%", background: "rgba(6,10,16,0.92)", border: "1px solid rgba(127,191,176,0.22)", color: "#7fbfb0", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
