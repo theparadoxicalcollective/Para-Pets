@@ -169,6 +169,8 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
   const pointerDownHitBuilding = useRef<string | null>(null);
   const interiorFileRef        = useRef<HTMLInputElement>(null);
   const interiorBuildingIdRef  = useRef<string | null>(null);
+  const autoPanRAF             = useRef<number | null>(null);
+  const lastPointerX           = useRef(0);
 
   // ── Buildings query ──
   const { data: buildings = [], refetch: refetchBuildings } = useQuery<HouseBundleBuilding[]>({
@@ -304,11 +306,43 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
     return null;
   }, [buildings, livePos, liveSize, moveOrder, canvasPxH, canvasPxW]);
 
+  // ── Auto-pan during drag — scrolls the background when the finger is near an edge ──
+  const stopAutoPan = useCallback(() => {
+    if (autoPanRAF.current) { cancelAnimationFrame(autoPanRAF.current); autoPanRAF.current = null; }
+  }, []);
+
+  const startAutoPan = useCallback(() => {
+    stopAutoPan();
+    const EDGE = 50;
+    const MAX_SPEED = 14;
+    const step = () => {
+      if (!draggingBuildingRef.current) return;
+      const vpRect = viewportRef.current?.getBoundingClientRect();
+      if (!vpRect) { autoPanRAF.current = requestAnimationFrame(step); return; }
+      const relX = lastPointerX.current - vpRect.left;
+      let delta = 0;
+      if (relX < EDGE)                    delta =  Math.round((EDGE - relX) / EDGE * MAX_SPEED);
+      else if (relX > vpRect.width - EDGE) delta = -Math.round((relX - (vpRect.width - EDGE)) / EDGE * MAX_SPEED);
+      if (delta !== 0) {
+        setPanX(prev => {
+          const vpW = viewportRef.current?.offsetWidth ?? 390;
+          const min = -(canvasPxW - vpW);
+          return Math.min(0, Math.max(min < 0 ? min : 0, prev + delta));
+        });
+      }
+      autoPanRAF.current = requestAnimationFrame(step);
+    };
+    autoPanRAF.current = requestAnimationFrame(step);
+  }, [stopAutoPan, canvasPxW]);
+
+  useEffect(() => () => stopAutoPan(), [stopAutoPan]);
+
   // ── Pointer handlers ──
   const handleViewportPointerDown = useCallback((e: React.PointerEvent) => {
     if (showSettings || addingBuilding) return;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     pointerDownPosRef.current = { x: e.clientX, y: e.clientY };
+    lastPointerX.current = e.clientX;
     tapCandidateRef.current = null;
     dragCandidateRef.current = null;
     const buildingId = findBuildingAtPoint(e.clientX, e.clientY);
@@ -334,6 +368,7 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
   }, [panX, livePos, buildings, selectedId, findBuildingAtPoint, showSettings, addingBuilding]);
 
   const handleViewportPointerMove = useCallback((e: React.PointerEvent) => {
+    lastPointerX.current = e.clientX;
     const down = pointerDownPosRef.current;
     const moved = down ? Math.abs(e.clientX - down.x) + Math.abs(e.clientY - down.y) : 0;
     if (moved > 6) {
@@ -342,6 +377,7 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
         draggingBuildingRef.current = dragCandidateRef.current;
         setDraggingId(dragCandidateRef.current);
         dragCandidateRef.current = null;
+        startAutoPan();
       }
     }
     if (draggingBuildingRef.current) {
@@ -355,9 +391,10 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
     } else if (panStartRef.current) {
       setPanX(clampPan(panStartRef.current.startPanX + (e.clientX - panStartRef.current.startX)));
     }
-  }, [clampPan]);
+  }, [clampPan, startAutoPan]);
 
   const handleViewportPointerUp = useCallback((e: React.PointerEvent) => {
+    stopAutoPan();
     dragCandidateRef.current = null;
     if (draggingBuildingRef.current) {
       const id = draggingBuildingRef.current;
@@ -376,7 +413,7 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
       if (moved < 8 && !pointerDownHitBuilding.current) setSelectedId(null);
     }
     panStartRef.current = null;
-  }, [livePos, savePosQuiet]);
+  }, [livePos, savePosQuiet, stopAutoPan]);
 
   const handleSizeChange = useCallback((b: HouseBundleBuilding, delta: number) => {
     const current = liveSize[b.id] ?? b.width ?? 80;
