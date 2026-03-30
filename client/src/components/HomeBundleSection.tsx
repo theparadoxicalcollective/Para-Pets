@@ -236,7 +236,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
         {bgUrl ? (
           <img
             src={bgUrl} alt="" draggable={false}
-            style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: `${imgWidth}px`, objectFit: "cover" }}
+            style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none" }}
           />
         ) : (
           <div className="absolute inset-0" style={{ background: "#0d1a0a" }} />
@@ -382,7 +382,6 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
         className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-2 rounded-full font-fantasy text-[11px]"
         style={{ background: "rgba(0,0,0,0.65)", border: `1px solid ${bgUploading ? "rgba(255,215,0,0.7)" : "rgba(255,215,0,0.3)"}`, color: bgUploading ? GOLD : "rgba(255,215,0,0.65)", cursor: bgUploading ? "wait" : "pointer", zIndex: 30 }}
         onPointerDown={e => e.stopPropagation()}
-        onClick={e => e.stopPropagation()}
       >
         <Image className="w-4 h-4" />
         {bgUploading ? "Uploading…" : bgUrl ? "Change BG" : "Upload BG"}
