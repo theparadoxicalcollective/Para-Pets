@@ -487,10 +487,9 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
             left: `${panX}px`,
             width: canvasPxW > 0 ? `${canvasPxW}px` : "100%",
             minWidth: "100%",
-            backgroundImage: bundle.bgImageUrl ? `url(${bundle.bgImageUrl})` : undefined,
-            backgroundSize: "100% 100%",
-            backgroundRepeat: "no-repeat",
-            background: bundle.bgImageUrl ? undefined : "rgba(15,35,50,1)",
+            background: bundle.bgImageUrl
+              ? `url(${bundle.bgImageUrl}) no-repeat center / 100% 100%`
+              : "rgba(15,35,50,1)",
           }}
         >
           {!bundle.bgImageUrl && (
@@ -613,8 +612,13 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
 
       {/* ── TOP overlay bar ── */}
       <div
-        className="absolute top-0 left-0 right-0 flex items-center gap-3 px-4 py-3 pointer-events-none"
-        style={{ zIndex: 210, background: "linear-gradient(to bottom, rgba(6,18,30,0.92) 70%, transparent)" }}
+        className="absolute top-0 left-0 right-0 flex items-center gap-3 px-4 pointer-events-none"
+        style={{
+          zIndex: 210,
+          background: "linear-gradient(to bottom, rgba(6,18,30,0.92) 70%, transparent)",
+          paddingTop: "max(20px, env(safe-area-inset-top, 20px))",
+          paddingBottom: "16px",
+        }}
       >
         <button
           data-testid="button-back-bundle-editor"
@@ -644,8 +648,12 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
 
       {/* ── BOTTOM overlay — Add Building button / form modal ── */}
       <div
-        className="absolute bottom-0 left-0 right-0 flex flex-col items-start px-4 pb-5 pt-2 pointer-events-none"
-        style={{ zIndex: 210, background: "linear-gradient(to top, rgba(6,18,30,0.92) 60%, transparent)" }}
+        className="absolute bottom-0 left-0 right-0 flex flex-col items-start px-4 pt-2 pointer-events-none"
+        style={{
+          zIndex: 210,
+          background: "linear-gradient(to top, rgba(6,18,30,0.92) 60%, transparent)",
+          paddingBottom: "max(20px, env(safe-area-inset-bottom, 20px))",
+        }}
       >
         {!addingBuilding ? (
           <button
