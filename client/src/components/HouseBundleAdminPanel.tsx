@@ -520,8 +520,7 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
             const posXVal   = lp ? lp.x : b.posX;
             const posYVal   = lp ? lp.y : b.posY;
             const storedW   = liveSize[b.id] ?? b.width ?? 80;
-            const cH = containerRef.current?.offsetHeight || containerH;
-            const displayW  = Math.round(storedW * cH / BUILDING_REF_H);
+            const displayW  = Math.round(storedW * containerH / BUILDING_REF_H);
             const flip      = liveFlip[b.id] !== undefined ? liveFlip[b.id] : (b.flippedX ?? false);
             const isSelected = selectedId === b.id;
             const isDragging = draggingId === b.id;
@@ -534,6 +533,7 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
                   position: "absolute",
                   left: `${posXVal}%`, top: `${posYVal}%`,
                   transform: "translate(-50%, -100%)",
+                  width: displayW,
                   display: "flex", flexDirection: "column", alignItems: "center",
                   userSelect: "none", pointerEvents: "none",
                   zIndex: isDragging ? 100 : moveRank >= 0 ? 20 + moveRank + (isSelected ? 50 : 0) : (isSelected ? 25 : 5),
@@ -593,10 +593,10 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
                 )}
 
                 <img src={b.imageUrl} alt={b.name} draggable={false}
-                  width={displayW} height={displayW}
                   style={{
-                    display: "block", flexShrink: 0,
-                    objectFit: "contain",
+                    width: displayW, height: displayW,
+                    maxWidth: "none",
+                    objectFit: "contain", display: "block", flexShrink: 0,
                     filter: `drop-shadow(0 4px 14px rgba(0,0,0,0.85))${isSelected ? " drop-shadow(0 0 8px rgba(34,211,238,0.8))" : ""}`,
                     transform: flip ? "scaleX(-1)" : undefined,
                     cursor: isDragging ? "grabbing" : (isSelected ? "grab" : "pointer"),
@@ -607,7 +607,7 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
                   background: "rgba(0,0,0,0.7)", color: isSelected ? "#22d3ee" : "#a5f3fc",
                   whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 4,
                 }}>
-                  {b.name} · {displayW}px · cH:{cH}
+                  {b.name}
                   {hasInterior && <span style={{ fontSize: 9, color: "#d8b4fe" }}>◈</span>}
                 </span>
               </div>
