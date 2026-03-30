@@ -4202,6 +4202,15 @@ export async function registerRoutes(
       const outgoingCount = await storage.getOutgoingPendingRequestCount(requesterId);
       if (outgoingCount >= 25) return res.status(400).json({ message: "You have reached the limit of 25 unanswered friend requests. Wait for some to be accepted before sending more." });
       const result = await storage.sendFriendRequest(requesterId, targetUserId);
+      // Notify the recipient about the new friend request
+      const requester = await storage.getUser(requesterId);
+      if (requester) {
+        await storage.createNotification(
+          targetUserId,
+          "friend_request",
+          `${requester.username} sent you a friend request!`
+        );
+      }
       return res.json(result);
     } catch (err) {
       return res.status(500).json({ message: "Failed to send friend request" });
