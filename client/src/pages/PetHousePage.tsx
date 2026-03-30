@@ -50,7 +50,7 @@ interface HouseBundle {
 }
 
 interface ActiveBundle extends HouseBundle {
-  buildings: { id: string; name: string; imageUrl: string; posX: number; posY: number; width: number; flippedX: boolean }[];
+  buildings: { id: string; name: string; imageUrl: string; posX: number; posY: number; width: number; flippedX: boolean; interiorImageUrl?: string | null }[];
 }
 
 interface OwnedBundle {
@@ -120,6 +120,7 @@ function WalkingPetView({ pet, index }: WalkingPetViewProps) {
 export default function PetHousePage({ user }: PetHousePageProps) {
   const { toast } = useToast();
   const [showProfile, setShowProfile] = useState(false);
+  const [interiorBuildingUrl, setInteriorBuildingUrl] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState(user);
   const [openInventory, setOpenInventory] = useState<"home" | "decor" | null>(null);
 
@@ -277,39 +278,41 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       {/* Bundle buildings layer — moves with background */}
       {imgWidth > 0 && activeBundle?.buildings && activeBundle.buildings.length > 0 && (
         <div
-          className="absolute pointer-events-none"
-          style={{ zIndex: 4, top: 0, left: `${panX}px`, width: imgWidth, height: "100%" }}
+          className="absolute"
+          style={{ zIndex: 4, top: 0, left: `${panX}px`, width: imgWidth, height: "100%", pointerEvents: "none" }}
         >
-          {activeBundle.buildings.map((b) => (
-            <div
-              key={b.id}
-              className="absolute flex flex-col items-center gap-0.5 pointer-events-none"
-              style={{
-                left: `${b.posX}%`,
-                top: `${b.posY}%`,
-                transform: "translate(-50%, -100%)",
-              }}
-            >
-              <img
-                src={b.imageUrl}
-                alt={b.name}
-                draggable={false}
+          {activeBundle.buildings.map((b) => {
+            const hasInterior = !!b.interiorImageUrl;
+            const displayW = Math.round((b.width ?? 80) * (containerH || BUILDING_REF_H) / BUILDING_REF_H);
+            return (
+              <div
+                key={b.id}
+                className="absolute flex flex-col items-center gap-0.5"
                 style={{
-                  width:  Math.round((b.width ?? 80) * (containerH || BUILDING_REF_H) / BUILDING_REF_H),
-                  height: Math.round((b.width ?? 80) * (containerH || BUILDING_REF_H) / BUILDING_REF_H),
-                  objectFit: "contain",
-                  filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.7))",
-                  transform: b.flippedX ? "scaleX(-1)" : undefined,
+                  left: `${b.posX}%`, top: `${b.posY}%`,
+                  transform: "translate(-50%, -100%)",
+                  pointerEvents: hasInterior ? "auto" : "none",
+                  cursor: hasInterior ? "pointer" : "default",
                 }}
-              />
-              <span
-                className="px-2 py-0.5 rounded-full text-xs font-bold"
-                style={{ background: "rgba(0,0,0,0.65)", color: "#fff", whiteSpace: "nowrap", textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}
+                onClick={() => hasInterior && setInteriorBuildingUrl(b.interiorImageUrl!)}
               >
-                {b.name}
-              </span>
-            </div>
-          ))}
+                <img
+                  src={b.imageUrl} alt={b.name} draggable={false}
+                  style={{
+                    width: displayW, height: displayW, objectFit: "contain",
+                    filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.7))",
+                    transform: b.flippedX ? "scaleX(-1)" : undefined,
+                  }}
+                />
+                <span
+                  className="px-2 py-0.5 rounded-full text-xs font-bold"
+                  style={{ background: "rgba(0,0,0,0.65)", color: "#fff", whiteSpace: "nowrap", textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}
+                >
+                  {b.name}
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -512,6 +515,33 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Building interior viewer — shown when player taps a building with an interior set */}
+      {interiorBuildingUrl && (
+        <div
+          className="absolute inset-0 flex flex-col"
+          style={{ zIndex: 60, background: "rgba(0,0,0,0.92)" }}
+          onClick={() => setInteriorBuildingUrl(null)}
+        >
+          <div className="absolute inset-0 flex items-center justify-center p-4"
+            onClick={(e) => e.stopPropagation()}>
+            <img
+              src={interiorBuildingUrl}
+              alt="Building interior"
+              draggable={false}
+              className="rounded-2xl max-w-full max-h-full object-contain"
+              style={{ boxShadow: "0 0 60px rgba(0,0,0,0.8)" }}
+            />
+          </div>
+          <button
+            onClick={() => setInteriorBuildingUrl(null)}
+            className="absolute top-4 right-4 rounded-full w-10 h-10 flex items-center justify-center font-bold text-lg transition-all"
+            style={{ background: "rgba(255,255,255,0.12)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)" }}
+          >
+            ✕
+          </button>
         </div>
       )}
 

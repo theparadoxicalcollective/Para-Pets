@@ -4766,7 +4766,7 @@ export async function registerRoutes(
 
   app.patch("/api/admin/house-bundle-buildings/:id", isAdmin, async (req, res) => {
     try {
-      const { name, posX, posY, width, flippedX, imageData } = req.body;
+      const { name, posX, posY, width, flippedX, imageData, interiorImageData, clearInterior } = req.body;
       const updates: Record<string, any> = {};
       if (name     !== undefined) updates.name     = name;
       if (posX     !== undefined) updates.posX     = posX;
@@ -4774,6 +4774,8 @@ export async function registerRoutes(
       if (width    !== undefined) updates.width    = Math.max(20, Math.min(400, Number(width)));
       if (flippedX !== undefined) updates.flippedX = Boolean(flippedX);
       if (imageData) updates.imageUrl = await processWorldImage(imageData, 1000);
+      if (interiorImageData) updates.interiorImageUrl = await processWorldImage(interiorImageData, 1200);
+      if (clearInterior) updates.interiorImageUrl = null;
       const building = await storage.updateHouseBundleBuilding(req.params.id, updates);
       return res.json(building);
     } catch (err: any) {
