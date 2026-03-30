@@ -37,6 +37,7 @@ import {
   petHousePositions,
   type Enemy, type EnemyPart, enemies, enemyParts,
   type InsertEnemy,
+  type WorldBuilding, worldBuildings,
   type HouseBundle, houseBundles,
   type HouseBundleBuilding, houseBundleBuildings,
   type HomeDecorItem, homeDecorItems,
@@ -412,6 +413,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteShopItem(id: string): Promise<void> {
+    // Fish-related data
+    await db.delete(fishTemplateParts).where(eq(fishTemplateParts.fishItemId, id));
+    await db.delete(pondFish).where(eq(pondFish.shopItemId, id));
+    await db.delete(playerFishCatchLog).where(eq(playerFishCatchLog.shopItemId, id));
+    await db.delete(playerFishInventory).where(eq(playerFishInventory.shopItemId, id));
+    // Cross-table references
+    await db.delete(enemyDrops).where(eq(enemyDrops.shopItemId, id));
+    await db.delete(rewardBundleItems).where(eq(rewardBundleItems.shopItemId, id));
+    await db.delete(playerMarketListings).where(eq(playerMarketListings.shopItemId, id));
+    // Inventory rows — must clear accessories, house positions, and equipment refs first
+    const invRows = await db.select({ id: userInventory.id }).from(userInventory).where(eq(userInventory.shopItemId, id));
+    if (invRows.length > 0) {
+      const invIds = invRows.map(r => r.id);
+      await db.delete(petEquippedAccessories).where(inArray(petEquippedAccessories.petInventoryId, invIds));
+      await db.delete(petEquippedAccessories).where(inArray(petEquippedAccessories.accessoryInventoryId, invIds));
+      await db.delete(petHousePositions).where(inArray(petHousePositions.inventoryId, invIds));
+      await db.update(playerFishingEquipment).set({ poleInventoryId: null }).where(inArray(playerFishingEquipment.poleInventoryId, invIds));
+      await db.update(playerFishingEquipment).set({ baitInventoryId: null }).where(inArray(playerFishingEquipment.baitInventoryId, invIds));
+    }
+    await db.delete(userInventory).where(eq(userInventory.shopItemId, id));
     await db.delete(shopItems).where(eq(shopItems.id, id));
   }
 
@@ -597,6 +618,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteWorldLocation(id: string): Promise<void> {
+    // Remove all objects, enemies (with their drops), fish, and bundle/decor assignments
+    await db.delete(locationObjects).where(eq(locationObjects.locationId, id));
+    const locEnemies = await db.select({ id: locationEnemies.id }).from(locationEnemies).where(eq(locationEnemies.locationId, id));
+    if (locEnemies.length > 0) {
+      await db.delete(enemyDrops).where(inArray(enemyDrops.enemyId, locEnemies.map(e => e.id)));
+    }
+    await db.delete(locationEnemies).where(eq(locationEnemies.locationId, id));
+    await db.delete(pondFish).where(eq(pondFish.locationId, id));
+    await db.delete(locationHouseBundles).where(eq(locationHouseBundles.locationId, id));
+    await db.delete(locationHomeDecor).where(eq(locationHomeDecor.locationId, id));
+    // Unassign shop items rather than delete them
+    await db.update(shopItems).set({ locationId: null }).where(eq(shopItems.locationId, id));
     await db.delete(worldLocations).where(eq(worldLocations.id, id));
   }
 
@@ -634,6 +667,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteWorld(id: string): Promise<void> {
+    // Cascade through every location belonging to this world
+    const locs = await db.select({ id: worldLocations.id }).from(worldLocations).where(eq(worldLocations.worldId, id));
+    for (const loc of locs) await this.deleteWorldLocation(loc.id);
+    // World-level decorations and buildings
+    await db.delete(worldBuildings).where(eq(worldBuildings.worldId, id));
+    await db.delete(worldDecorPlacements).where(eq(worldDecorPlacements.worldId, id));
+    // Unassign (not delete) shop items that reference this world
+    await db.update(shopItems).set({ worldId: null }).where(eq(shopItems.worldId, id));
     await db.delete(worlds).where(eq(worlds.id, id));
   }
 
@@ -710,6 +751,8 @@ export class DatabaseStorage implements IStorage {
 
   async deletePetTemplate(id: string): Promise<void> {
     await db.delete(petTemplateParts).where(eq(petTemplateParts.templateId, id));
+    // Detach the template from any shop items rather than deleting the items
+    await db.update(shopItems).set({ petTemplateId: null }).where(eq(shopItems.petTemplateId, id));
     await db.delete(petTemplates).where(eq(petTemplates.id, id));
   }
 
@@ -839,6 +882,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteBadge(id: string): Promise<void> {
     await db.delete(userBadges).where(eq(userBadges.badgeId, id));
+    await db.delete(badgeRewardClaims).where(eq(badgeRewardClaims.badgeId, id));
     await db.delete(badges).where(eq(badges.id, id));
   }
 
@@ -1707,6 +1751,8 @@ export class DatabaseStorage implements IStorage {
 
   async deleteEnemy(id: string): Promise<void> {
     await db.delete(enemyParts).where(eq(enemyParts.enemyId, id));
+    await db.delete(keepersCentralEnemies).where(eq(keepersCentralEnemies.enemyId, id));
+    await db.delete(enemyDrops).where(eq(enemyDrops.enemyId, id));
     await db.delete(enemies).where(eq(enemies.id, id));
   }
 
@@ -1759,6 +1805,8 @@ export class DatabaseStorage implements IStorage {
 
   async deleteHouseBundle(id: string): Promise<void> {
     await db.delete(houseBundleBuildings).where(eq(houseBundleBuildings.bundleId, id));
+    await db.delete(userHouseBundles).where(eq(userHouseBundles.bundleId, id));
+    await db.delete(locationHouseBundles).where(eq(locationHouseBundles.bundleId, id));
     await db.delete(houseBundles).where(eq(houseBundles.id, id));
   }
 
@@ -1802,6 +1850,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteHomeDecorItem(id: string): Promise<void> {
+    await db.delete(locationHomeDecor).where(eq(locationHomeDecor.decorId, id));
     await db.delete(homeDecorItems).where(eq(homeDecorItems.id, id));
   }
 

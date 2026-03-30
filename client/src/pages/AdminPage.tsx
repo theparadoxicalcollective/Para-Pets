@@ -55,7 +55,8 @@ export default function AdminPage({ user }: AdminPageProps) {
   const [coinAmounts, setCoinAmounts] = useState<Record<string, string>>({});
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "welcome" | "items" | "pets" | "messages" | "badges" | "fishing" | "enemies" | "house_bundle" | null>(null);
+  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "welcome" | "items" | "pets" | "messages" | "badges" | "fishing" | "enemies" | "house_bundle" | "maintenance" | null>(null);
+  const [orphanResult, setOrphanResult] = useState<{ summary: string; cleaned: number } | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -112,6 +113,7 @@ export default function AdminPage({ user }: AdminPageProps) {
     { key: "enemies" as const, label: "Enemies", icon: adminIconBadges, desc: "Enemy database", color: "#fca5a5", glow: "rgba(239,68,68,0.30)", bg: "linear-gradient(145deg, rgba(60,8,8,0.92) 0%, rgba(90,12,12,0.88) 100%)", border: "rgba(239,68,68,0.45)" },
     { key: "house_bundle" as const, label: "House Bundle", icon: adminIconHouseBundle, desc: "House item bundles", color: "#a5f3fc", glow: "rgba(34,211,238,0.30)", bg: "linear-gradient(145deg, rgba(8,38,50,0.92) 0%, rgba(12,58,75,0.88) 100%)", border: "rgba(34,211,238,0.45)" },
     { key: "purchases" as const, label: "Purchases", icon: adminIconPurchases, desc: "Coin shop history", color: "#86efac", glow: "rgba(134,239,172,0.30)", bg: "linear-gradient(145deg, rgba(8,45,18,0.92) 0%, rgba(12,70,28,0.88) 100%)", border: "rgba(134,239,172,0.45)" },
+    { key: "maintenance" as const, label: "Maintenance", icon: adminIconWelcome, desc: "DB cleanup tools", color: "#f9a8d4", glow: "rgba(249,168,212,0.30)", bg: "linear-gradient(145deg, rgba(60,8,40,0.92) 0%, rgba(90,12,60,0.88) 100%)", border: "rgba(249,168,212,0.45)" },
   ];
 
   const activeSectionMeta = activeSection ? sections.find(s => s.key === activeSection) : null;
@@ -420,6 +422,10 @@ export default function AdminPage({ user }: AdminPageProps) {
 
               {activeSection === "purchases" && (
                 <CoinPurchasesSection />
+              )}
+
+              {activeSection === "maintenance" && (
+                <MaintenanceSection />
               )}
             </>
           )}
@@ -1721,6 +1727,68 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
               </button>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MaintenanceSection() {
+  const { toast } = useToast();
+  const [result, setResult] = useState<{ summary: string; cleaned: number } | null>(null);
+  const [running, setRunning] = useState(false);
+
+  const runCleanup = async () => {
+    setRunning(true);
+    setResult(null);
+    try {
+      const res = await apiRequest("POST", "/api/admin/cleanup-orphans", {});
+      const data = await res.json();
+      setResult(data);
+      toast({ title: data.cleaned > 0 ? `Cleaned ${data.cleaned} table(s)` : "Database is clean", description: data.cleaned > 0 ? "Orphaned rows removed." : "No orphans found." });
+    } catch (err: any) {
+      toast({ title: "Cleanup failed", description: err.message, variant: "destructive" });
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4 py-2">
+      <p className="font-fantasy text-[#a89878] text-xs tracking-wider text-center">
+        Remove database rows left behind by previous admin deletions.
+      </p>
+
+      <button
+        data-testid="button-cleanup-orphans"
+        onClick={runCleanup}
+        disabled={running}
+        className="w-full py-3 rounded-xl font-fantasy text-sm tracking-wider"
+        style={{
+          background: running ? "rgba(0,0,0,0.3)" : "linear-gradient(135deg, #3d0a2e, #6b1050)",
+          border: "1px solid rgba(249,168,212,0.4)",
+          color: running ? "#6a3a5a" : "#f9a8d4",
+          cursor: running ? "not-allowed" : "pointer",
+          boxShadow: running ? "none" : "0 0 14px rgba(249,168,212,0.12)",
+        }}
+      >
+        {running ? "Scanning database..." : "Clean Up Orphaned Rows"}
+      </button>
+
+      {result && (
+        <div
+          className="rounded-xl p-4 space-y-2"
+          style={{
+            background: "linear-gradient(135deg, rgba(20,10,16,0.85) 0%, rgba(30,10,22,0.85) 100%)",
+            border: `1px solid ${result.cleaned > 0 ? "rgba(249,168,212,0.35)" : "rgba(110,231,183,0.35)"}`,
+          }}
+        >
+          <p className="font-fantasy text-xs tracking-wider" style={{ color: result.cleaned > 0 ? "#f9a8d4" : "#6ee7b7" }}>
+            {result.cleaned > 0 ? `${result.cleaned} table(s) cleaned` : "No orphans found"}
+          </p>
+          <pre className="text-[10px] text-[#a89878] whitespace-pre-wrap leading-5">
+            {result.summary}
+          </pre>
         </div>
       )}
     </div>
