@@ -1318,7 +1318,12 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
                   className="font-fantasy text-[9px] tracking-wide"
                   style={{ background: "none", border: "none", cursor: "pointer", color: badge.dailyRewardCoins ? "#f0c040" : "#6a5840" }}
                 >
-                  {badge.dailyRewardCoins ? `🪙 ${badge.dailyRewardCoins}/${badge.claimType === "weekly" ? "wk" : badge.claimType === "monthly" ? "mo" : "day"}` : "Set reward"}
+                  {badge.dailyRewardCoins ? (
+                    <span className="flex items-center gap-1">
+                      <img src={coinIconImg} alt="coins" style={{ width: 11, height: 11, objectFit: "contain" }} />
+                      {badge.dailyRewardCoins}/{badge.claimType === "weekly" ? "wk" : badge.claimType === "monthly" ? "mo" : "day"}
+                    </span>
+                  ) : "Set reward"}
                 </button>
               )}
               {editingPointsId === badge.id ? (
