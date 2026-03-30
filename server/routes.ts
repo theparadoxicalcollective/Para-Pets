@@ -2676,14 +2676,14 @@ export async function registerRoutes(
   });
 
   async function processWorldImage(imageData: string, maxSize: number): Promise<string> {
-    const mimeMatch = imageData.match(/^data:(image\/(png|gif|jpeg|jpg));base64,/);
+    const mimeMatch = imageData.match(/^data:(image\/[\w+.-]+);base64,/);
     if (!mimeMatch) {
-      throw new Error("Invalid image format. Only PNG, GIF, and JPEG are supported.");
+      throw new Error("Invalid image format.");
     }
     const mimeType = mimeMatch[1];
-    const base64Data = imageData.replace(/^data:image\/\w+;base64,/, "");
-    if (base64Data.length > 15 * 1024 * 1024) {
-      throw new Error("Image data too large. Max 15MB.");
+    const base64Data = imageData.replace(/^data:[^;]+;base64,/, "");
+    if (base64Data.length > 30 * 1024 * 1024) {
+      throw new Error("Image too large. Please use a smaller file.");
     }
     const imageBuffer = Buffer.from(base64Data, "base64");
     const isGif = mimeType === "image/gif";

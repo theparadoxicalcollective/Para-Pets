@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Upload, X, ChevronLeft, Plus, Minus, FlipHorizontal, Image, Copy } from "lucide-react";
+import { Trash2, X, ChevronLeft, Plus, Minus, FlipHorizontal, Image, Copy } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -140,11 +140,9 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
   } | null>(null);
   const buildingDidDrag = useRef(false);
   const isPanningRef = useRef(false);
-  const lastTapRef = useRef<{ id: string; time: number } | null>(null);
 
-  // ── Interior modal ──
-  const [interiorBuilding, setInteriorBuilding] = useState<HouseBundleBuilding | null>(null);
-  const [interiorUploading, setInteriorUploading] = useState(false);
+  // ── Building bg upload state ──
+  const [buildingBgUploading, setBuildingBgUploading] = useState<string | null>(null);
   const [previewInteriorUrl, setPreviewInteriorUrl] = useState<string | null>(null);
 
   // ── Add building form ──
@@ -248,33 +246,24 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
-  const handleInteriorUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBuildingBgUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>, buildingId: string) => {
     const file = e.target.files?.[0];
-    if (!file || !interiorBuilding) return;
+    if (!file) return;
     e.target.value = "";
-    setInteriorUploading(true);
+    setBuildingBgUploading(buildingId);
     try {
       const dataUrl = await readFileAsDataUrl(file);
-      const updated = await apiRequest("PATCH", `/api/admin/house-bundle-buildings/${interiorBuilding.id}`, { interiorImageData: dataUrl }) as HouseBundleBuilding;
+      const res = await apiRequest("PATCH", `/api/admin/house-bundle-buildings/${buildingId}`, { interiorImageData: dataUrl });
+      const updated = await res.json() as HouseBundleBuilding;
       await refetch();
-      setInteriorBuilding(updated); // keep modal open with fresh URL
+      if (updated.interiorImageUrl) setPreviewInteriorUrl(updated.interiorImageUrl);
     } catch (err: any) {
       toast({ title: "Upload failed", description: err.message, variant: "destructive" });
     } finally {
-      setInteriorUploading(false);
+      setBuildingBgUploading(null);
     }
-  }, [interiorBuilding, refetch, toast]);
+  }, [refetch, toast]);
 
-  const handleInteriorClear = useCallback(async () => {
-    if (!interiorBuilding) return;
-    try {
-      await apiRequest("PATCH", `/api/admin/house-bundle-buildings/${interiorBuilding.id}`, { clearInterior: true });
-      await refetch();
-      setInteriorBuilding(null);
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    }
-  }, [interiorBuilding, refetch, toast]);
 
   // ── Background pan handlers ──
   const handleContainerPointerDown = useCallback((e: React.PointerEvent) => {
@@ -337,29 +326,11 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
         const pos = localPos[drag.id] ?? { x: b.posX, y: b.posY };
         patchBuilding.mutate({ id: drag.id, posX: pos.x, posY: pos.y });
       } else {
-        // Tap on selected building — check for double-tap
-        const now = Date.now();
-        const lastTap = lastTapRef.current;
-        if (lastTap?.id === b.id && now - lastTap.time < 350) {
-          lastTapRef.current = null;
-          setInteriorBuilding(b);
-        } else {
-          lastTapRef.current = { id: b.id, time: now };
-          setSelectedId(prev => prev === b.id ? null : b.id);
-        }
+        setSelectedId(prev => prev === b.id ? null : b.id);
       }
       buildingDidDrag.current = false;
     } else {
-      // Tap on unselected building — also check for double-tap (fast double-tap before state updates)
-      const now = Date.now();
-      const lastTap = lastTapRef.current;
-      if (lastTap?.id === b.id && now - lastTap.time < 350) {
-        lastTapRef.current = null;
-        setInteriorBuilding(b);
-      } else {
-        lastTapRef.current = { id: b.id, time: now };
-        setSelectedId(prev => prev === b.id ? null : b.id);
-      }
+      setSelectedId(prev => prev === b.id ? null : b.id);
     }
   }, [localPos, patchBuilding]);
 
@@ -550,7 +521,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
           style={{ zIndex: 10 }}
         >
           <p className="font-fantasy text-[9px] px-3 py-1 rounded-full" style={{ background: "rgba(0,0,0,0.5)", color: "rgba(255,215,0,0.5)" }}>
-            Tap a building to select it · drag to move
+            Tap a building · drag to move · Set BG to add interior
           </p>
         </div>
       )}
@@ -562,22 +533,77 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
         onPointerDown={e => e.stopPropagation()}
         onClick={e => e.stopPropagation()}
       >
-        <button
-          data-testid="button-add-building"
-          onClick={() => setShowAddForm(true)}
-          className="flex-1 py-3 rounded-xl font-fantasy text-sm tracking-widest transition-transform active:scale-95"
-          style={{ background: GOLD_DIM, border: "1px solid rgba(255,215,0,0.4)", color: GOLD, cursor: "pointer" }}
-        >
-          + Add Building
-        </button>
-        <button
-          data-testid="button-save-bundle-editor"
-          onClick={onClose}
-          className="flex-1 py-3 rounded-xl font-fantasy text-sm tracking-widest transition-transform active:scale-95"
-          style={{ background: "rgba(100,200,100,0.15)", border: "1px solid rgba(100,200,100,0.4)", color: "#86efac", cursor: "pointer" }}
-        >
-          Save Bundle ✓
-        </button>
+        {selectedId ? (() => {
+          const selBuilding = buildings.find(b => b.id === selectedId);
+          const hasInterior = !!selBuilding?.interiorImageUrl;
+          return (
+            <>
+              {/* Set BG — same label pattern as the working "Change BG" button */}
+              <label
+                data-testid="label-set-building-bg"
+                className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl font-fantasy text-sm tracking-widest"
+                style={{
+                  background: buildingBgUploading ? "rgba(255,215,0,0.2)" : GOLD_DIM,
+                  border: `1px solid ${buildingBgUploading ? "rgba(255,215,0,0.7)" : "rgba(255,215,0,0.4)"}`,
+                  color: buildingBgUploading ? GOLD : "rgba(255,215,0,0.8)",
+                  cursor: buildingBgUploading ? "wait" : "pointer",
+                }}
+                onPointerDown={e => e.stopPropagation()}
+              >
+                <Image className="w-4 h-4" />
+                {buildingBgUploading ? "Uploading…" : hasInterior ? "Change BG" : "Set BG"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={!!buildingBgUploading}
+                  onChange={e => handleBuildingBgUpload(e, selectedId)}
+                />
+              </label>
+              {/* Preview — only when building has a background */}
+              {hasInterior && (
+                <button
+                  data-testid="button-preview-building-bg"
+                  onPointerDown={e => e.stopPropagation()}
+                  onClick={e => { e.stopPropagation(); if (selBuilding?.interiorImageUrl) setPreviewInteriorUrl(selBuilding.interiorImageUrl); }}
+                  className="flex-1 py-3 rounded-xl font-fantasy text-sm tracking-widest"
+                  style={{ background: "rgba(30,50,120,0.3)", border: "1px solid rgba(100,150,255,0.4)", color: "rgba(150,200,255,0.9)", cursor: "pointer" }}
+                >
+                  Preview
+                </button>
+              )}
+              {/* Done */}
+              <button
+                data-testid="button-done-building"
+                onPointerDown={e => e.stopPropagation()}
+                onClick={e => { e.stopPropagation(); setSelectedId(null); }}
+                className="py-3 px-4 rounded-xl font-fantasy text-sm tracking-widest"
+                style={{ background: "rgba(100,200,100,0.15)", border: "1px solid rgba(100,200,100,0.4)", color: "#86efac", cursor: "pointer" }}
+              >
+                Done
+              </button>
+            </>
+          );
+        })() : (
+          <>
+            <button
+              data-testid="button-add-building"
+              onClick={() => setShowAddForm(true)}
+              className="flex-1 py-3 rounded-xl font-fantasy text-sm tracking-widest transition-transform active:scale-95"
+              style={{ background: GOLD_DIM, border: "1px solid rgba(255,215,0,0.4)", color: GOLD, cursor: "pointer" }}
+            >
+              + Add Building
+            </button>
+            <button
+              data-testid="button-save-bundle-editor"
+              onClick={onClose}
+              className="flex-1 py-3 rounded-xl font-fantasy text-sm tracking-widest transition-transform active:scale-95"
+              style={{ background: "rgba(100,200,100,0.15)", border: "1px solid rgba(100,200,100,0.4)", color: "#86efac", cursor: "pointer" }}
+            >
+              Save Bundle ✓
+            </button>
+          </>
+        )}
       </div>
 
       {/* ── Add Building form ── */}
@@ -659,114 +685,6 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
                 {addBuilding.isPending ? "Adding..." : "Add Building"}
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Interior upload modal ── */}
-      {interiorBuilding && !previewInteriorUrl && (
-        <div
-          className="absolute inset-0 flex items-center justify-center"
-          style={{ zIndex: 80, background: "rgba(0,0,0,0.82)", padding: "0 16px" }}
-          onPointerDown={e => e.stopPropagation()}
-          onClick={() => setInteriorBuilding(null)}
-        >
-          <div
-            className="w-full rounded-2xl flex flex-col gap-4 p-5"
-            style={{ maxWidth: 380, background: "rgba(20,15,5,0.98)", border: "1.5px solid rgba(255,215,0,0.25)", boxShadow: "0 8px 40px rgba(0,0,0,0.8)" }}
-            onPointerDown={e => e.stopPropagation()}
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Title */}
-            <div className="flex items-center justify-between">
-              <p className="font-fantasy text-sm tracking-widest" style={{ color: GOLD }}>Building Background</p>
-              <button
-                onPointerDown={e => e.stopPropagation()}
-                onClick={() => setInteriorBuilding(null)}
-                className="w-7 h-7 rounded-full flex items-center justify-center"
-                style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.5)" }}
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            <p className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>
-              {interiorBuilding.name} — players tap this building to enter. Without a background it's decorative only.
-            </p>
-
-            {/* Thumbnail + Preview button */}
-            {interiorBuilding.interiorImageUrl && (
-              <div className="flex flex-col gap-2">
-                <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,215,0,0.15)" }}>
-                  <img
-                    src={interiorBuilding.interiorImageUrl}
-                    alt="Background"
-                    draggable={false}
-                    className="w-full object-cover"
-                    style={{ maxHeight: 160 }}
-                  />
-                </div>
-                <button
-                  onPointerDown={e => e.stopPropagation()}
-                  onClick={() => setPreviewInteriorUrl(interiorBuilding.interiorImageUrl!)}
-                  className="flex items-center justify-center gap-2 rounded-xl py-2"
-                  style={{
-                    background: "rgba(0,120,200,0.18)",
-                    border: "1px solid rgba(80,180,255,0.4)",
-                    color: "rgba(120,200,255,0.95)",
-                    fontSize: 12,
-                    fontFamily: "Cinzel, serif",
-                    cursor: "pointer",
-                  }}
-                >
-                  Preview as Player
-                </button>
-              </div>
-            )}
-
-            {/* Upload label — wraps input directly so iOS native file picker opens */}
-            <label
-              onPointerDown={e => e.stopPropagation()}
-              className="flex items-center justify-center gap-2 rounded-xl py-3"
-              style={{
-                background: "rgba(255,215,0,0.12)",
-                border: "1.5px dashed rgba(255,215,0,0.4)",
-                color: GOLD,
-                opacity: interiorUploading ? 0.6 : 1,
-                cursor: interiorUploading ? "not-allowed" : "pointer",
-              }}
-            >
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/gif"
-                style={{ display: "none" }}
-                disabled={interiorUploading}
-                onChange={handleInteriorUpload}
-              />
-              <Upload className="w-4 h-4" />
-              <span className="font-fantasy text-xs tracking-wider">
-                {interiorUploading ? "Uploading…" : interiorBuilding.interiorImageUrl ? "Replace Background" : "Upload Background"}
-              </span>
-            </label>
-
-            {/* Remove button */}
-            {interiorBuilding.interiorImageUrl && (
-              <button
-                onPointerDown={e => e.stopPropagation()}
-                onClick={handleInteriorClear}
-                className="flex items-center justify-center gap-2 rounded-xl py-2.5"
-                style={{
-                  background: "rgba(220,38,38,0.12)",
-                  border: "1px solid rgba(220,38,38,0.3)",
-                  color: "rgba(255,120,120,0.9)",
-                  fontSize: 12,
-                  fontFamily: "inherit",
-                }}
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                Remove Background
-              </button>
-            )}
           </div>
         </div>
       )}
