@@ -646,11 +646,11 @@ export default function ParaPetsHubPage() {
           <div data-testid="leaderboard-section">
 
             {/* Leaderboard banner header */}
-            <div className="relative flex flex-col items-center justify-center mb-6 pt-2 pb-4">
+            <div className="flex flex-col items-center mb-6">
               <img src={legendBanner} alt="" aria-hidden="true"
-                className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
-                style={{ opacity: 0.55, filter: "drop-shadow(0 0 18px rgba(127,191,176,0.3))" }} />
-              <div className="relative z-10 flex flex-col items-center gap-1 py-6">
+                className="w-full object-contain pointer-events-none select-none"
+                style={{ maxWidth: 420, marginBottom: -8, opacity: 0.7, filter: "drop-shadow(0 0 18px rgba(127,191,176,0.3))" }} />
+              <div className="flex flex-col items-center gap-1 pt-3">
                 <h2 className="font-fantasy text-2xl tracking-widest"
                   style={{ color: "#ffd700", textShadow: "0 0 24px rgba(255,215,0,0.7), 0 2px 14px rgba(0,0,0,0.95)" }}
                   data-testid="text-leaderboard-title">
