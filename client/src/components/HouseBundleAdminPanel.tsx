@@ -325,9 +325,11 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
     const update = () => {
       if (!viewportRef.current) return;
       const vpH = viewportRef.current.offsetHeight;
-      const vpW = viewportRef.current.offsetWidth;
+      // Canvas width must match PetHousePage's formula exactly: containerH × bgAspect
+      // Never use vpW — that would stretch the background image beyond its natural aspect ratio,
+      // making position percentages not match between admin editor and in-game view.
       setCanvasPxH(vpH || BUILDING_REF_H);
-      setCanvasPxW(Math.max(vpW, Math.round(vpH * imgAspect)));
+      setCanvasPxW(Math.round((vpH || BUILDING_REF_H) * imgAspect));
     };
     update();
     const ro = new ResizeObserver(update);
@@ -513,16 +515,18 @@ function BundleEditor({ bundle, onBack }: { bundle: HouseBundle; onBack: () => v
         onPointerUp={handleViewportPointerUp}
         onPointerCancel={handleViewportPointerUp}
       >
-        {/* Scrollable canvas */}
+        {/* Scrollable canvas — width must always equal canvasPxW so that
+            bgRef.getBoundingClientRect().width matches the coordinate system
+            used when storing position percentages. Never use minWidth to expand
+            bgRef beyond canvasPxW or drag positions will be stored wrong. */}
         <div
           ref={bgRef}
           className="absolute top-0 h-full"
           style={{
             left: `${panX}px`,
             width: canvasPxW > 0 ? `${canvasPxW}px` : "100%",
-            minWidth: "100%",
             background: bundle.bgImageUrl
-              ? `url(${bundle.bgImageUrl}) no-repeat center / 100% 100%`
+              ? `url(${bundle.bgImageUrl}) no-repeat left top / 100% 100%`
               : "rgba(15,35,50,1)",
           }}
         >

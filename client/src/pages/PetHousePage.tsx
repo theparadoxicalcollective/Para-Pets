@@ -196,12 +196,18 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const containerW = container.offsetWidth;
-    const h = container.offsetHeight;
-    const imgW = h * bgAspect;
-    setContainerH(h);
-    setImgWidth(imgW);
-    setPanX(Math.max(Math.min(0, containerW - imgW), -(imgW - containerW) / 2));
+    const recalc = () => {
+      const containerW = container.offsetWidth;
+      const h = container.offsetHeight;
+      const imgW = h * bgAspect;
+      setContainerH(h);
+      setImgWidth(imgW);
+      setPanX(Math.max(Math.min(0, containerW - imgW), -(imgW - containerW) / 2));
+    };
+    recalc();
+    const ro = new ResizeObserver(recalc);
+    ro.observe(container);
+    return () => ro.disconnect();
   }, [bgAspect]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
