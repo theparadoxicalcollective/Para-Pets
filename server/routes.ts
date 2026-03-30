@@ -4953,8 +4953,12 @@ export async function registerRoutes(
       await run("shop_items missing worldId",       "UPDATE shop_items SET world_id = NULL WHERE world_id IS NOT NULL AND world_id NOT IN (SELECT id FROM worlds)");
       await run("shop_items missing locationId",    "UPDATE shop_items SET location_id = NULL WHERE location_id IS NOT NULL AND location_id NOT IN (SELECT id FROM world_locations)");
 
+      const totalRows = steps.reduce((sum, s) => {
+        const m = s.match(/(\d+) row/);
+        return sum + (m ? parseInt(m[1]) : 0);
+      }, 0);
       const summary = steps.length > 0 ? steps.join("\n") : "No orphans found — database is clean.";
-      return res.json({ ok: true, summary, cleaned: steps.length });
+      return res.json({ ok: true, summary, cleaned: steps.length, totalRows, ranAt: new Date().toISOString() });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }

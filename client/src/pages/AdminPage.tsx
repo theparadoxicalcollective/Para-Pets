@@ -1736,7 +1736,7 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
 function MaintenanceSection() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [result, setResult] = useState<{ summary: string; cleaned: number } | null>(null);
+  const [result, setResult] = useState<{ summary: string; cleaned: number; totalRows: number; ranAt: string } | null>(null);
   const [running, setRunning] = useState(false);
 
   const { data: maintenanceData, isLoading: maintenanceLoading } = useQuery<{ maintenance: boolean }>({
@@ -1771,7 +1771,6 @@ function MaintenanceSection() {
       const res = await apiRequest("POST", "/api/admin/cleanup-orphans", {});
       const data = await res.json();
       setResult(data);
-      toast({ title: data.cleaned > 0 ? `Cleaned ${data.cleaned} table(s)` : "Database is clean", description: data.cleaned > 0 ? "Orphaned rows removed." : "No orphans found." });
     } catch (err: any) {
       toast({ title: "Cleanup failed", description: err.message, variant: "destructive" });
     } finally {
@@ -1868,42 +1867,126 @@ function MaintenanceSection() {
       </div>
 
       {/* ── Orphan Cleanup ── */}
-      <p className="font-fantasy text-[#a89878] text-xs tracking-wider text-center">
-        Remove database rows left behind by previous admin deletions.
-      </p>
-
-      <button
-        data-testid="button-cleanup-orphans"
-        onClick={runCleanup}
-        disabled={running}
-        className="w-full py-3 rounded-xl font-fantasy text-sm tracking-wider"
+      <div
+        className="rounded-2xl overflow-hidden"
         style={{
-          background: running ? "rgba(0,0,0,0.3)" : "linear-gradient(135deg, #3d0a2e, #6b1050)",
-          border: "1px solid rgba(249,168,212,0.4)",
-          color: running ? "#6a3a5a" : "#f9a8d4",
-          cursor: running ? "not-allowed" : "pointer",
-          boxShadow: running ? "none" : "0 0 14px rgba(249,168,212,0.12)",
+          background: "linear-gradient(145deg, rgba(20,12,28,0.95) 0%, rgba(30,16,40,0.95) 100%)",
+          border: "1px solid rgba(249,168,212,0.2)",
         }}
       >
-        {running ? "Scanning database..." : "Clean Up Orphaned Rows"}
-      </button>
-
-      {result && (
-        <div
-          className="rounded-xl p-4 space-y-2"
-          style={{
-            background: "linear-gradient(135deg, rgba(20,10,16,0.85) 0%, rgba(30,10,22,0.85) 100%)",
-            border: `1px solid ${result.cleaned > 0 ? "rgba(249,168,212,0.35)" : "rgba(110,231,183,0.35)"}`,
-          }}
-        >
-          <p className="font-fantasy text-xs tracking-wider" style={{ color: result.cleaned > 0 ? "#f9a8d4" : "#6ee7b7" }}>
-            {result.cleaned > 0 ? `${result.cleaned} table(s) cleaned` : "No orphans found"}
+        {/* Header */}
+        <div className="px-4 pt-4 pb-3 flex flex-col gap-1">
+          <p className="font-fantasy text-sm tracking-wide" style={{ color: "#f9a8d4" }}>
+            Orphaned Row Cleanup
           </p>
-          <pre className="text-[10px] text-[#a89878] whitespace-pre-wrap leading-5">
-            {result.summary}
-          </pre>
+          <p className="font-fantasy text-[10px] tracking-wider" style={{ color: "#5a3a50" }}>
+            Removes rows left behind when items, bundles, or templates were deleted
+          </p>
         </div>
-      )}
+
+        {/* Result display — shown before button once run */}
+        {result && (
+          <div
+            className="mx-3 mb-3 rounded-xl p-3 flex flex-col gap-2"
+            style={{
+              background: result.totalRows > 0
+                ? "linear-gradient(135deg, rgba(60,20,50,0.8) 0%, rgba(80,24,60,0.8) 100%)"
+                : "linear-gradient(135deg, rgba(8,40,24,0.8) 0%, rgba(12,60,36,0.8) 100%)",
+              border: `1px solid ${result.totalRows > 0 ? "rgba(249,168,212,0.3)" : "rgba(110,231,183,0.3)"}`,
+            }}
+          >
+            {/* Big number + status */}
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col">
+                <span
+                  className="font-fantasy text-2xl leading-none"
+                  style={{ color: result.totalRows > 0 ? "#f9a8d4" : "#6ee7b7" }}
+                >
+                  {result.totalRows}
+                </span>
+                <span
+                  className="font-fantasy text-[10px] tracking-wider mt-0.5"
+                  style={{ color: result.totalRows > 0 ? "#8a4870" : "#2a6a44" }}
+                >
+                  {result.totalRows === 1 ? "orphaned row removed" : result.totalRows > 0 ? "orphaned rows removed" : "orphaned rows — database is clean"}
+                </span>
+              </div>
+              <div className="flex flex-col items-end gap-0.5">
+                <span
+                  className="font-fantasy text-[10px] tracking-wider"
+                  style={{ color: result.totalRows > 0 ? "#8a4870" : "#2a6a44" }}
+                >
+                  {result.cleaned} table{result.cleaned !== 1 ? "s" : ""} affected
+                </span>
+                <span className="font-fantasy text-[9px]" style={{ color: "#3a2a40" }}>
+                  {new Date(result.ranAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                </span>
+              </div>
+            </div>
+
+            {/* Per-table breakdown */}
+            {result.totalRows > 0 && (
+              <div
+                className="rounded-lg p-2 flex flex-col gap-1"
+                style={{ background: "rgba(0,0,0,0.3)" }}
+              >
+                {result.summary.split("\n").map((line, i) => {
+                  const match = line.match(/^(.+?):\s*(\d+)\s*row/);
+                  if (!match) return null;
+                  const [, label, count] = match;
+                  return (
+                    <div key={i} className="flex items-center justify-between">
+                      <span className="font-fantasy text-[9px] tracking-wide" style={{ color: "#7a5870" }}>
+                        {label.trim()}
+                      </span>
+                      <span className="font-fantasy text-[10px]" style={{ color: "#f9a8d4" }}>
+                        -{count}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Running state indicator */}
+        {running && (
+          <div className="mx-3 mb-3 rounded-xl p-3 flex items-center gap-3"
+            style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(249,168,212,0.15)" }}
+          >
+            <div
+              className="w-4 h-4 rounded-full flex-shrink-0"
+              style={{
+                background: "rgba(249,168,212,0.3)",
+                animation: "pulse 1s ease-in-out infinite",
+              }}
+            />
+            <span className="font-fantasy text-[10px] tracking-wider" style={{ color: "#7a5870" }}>
+              Scanning all tables for orphaned rows...
+            </span>
+          </div>
+        )}
+
+        {/* Button */}
+        <div className="px-3 pb-4">
+          <button
+            data-testid="button-cleanup-orphans"
+            onClick={runCleanup}
+            disabled={running}
+            className="w-full py-2.5 rounded-xl font-fantasy text-xs tracking-wider"
+            style={{
+              background: running ? "rgba(0,0,0,0.2)" : "linear-gradient(135deg, rgba(61,10,46,0.9), rgba(107,16,80,0.9))",
+              border: "1px solid rgba(249,168,212,0.35)",
+              color: running ? "#3a1a30" : "#f9a8d4",
+              cursor: running ? "not-allowed" : "pointer",
+              boxShadow: running ? "none" : "0 0 14px rgba(249,168,212,0.1)",
+            }}
+          >
+            {running ? "Scanning..." : result ? "Run Again" : "Clean Up Orphaned Rows"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
