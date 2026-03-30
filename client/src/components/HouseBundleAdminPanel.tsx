@@ -125,23 +125,23 @@ function AddDecorForm({ onBack }: { onBack: () => void }) {
 }
 
 // ── Bundle Editor ──────────────────────────────────────────────────────────────
-// Full-screen panoramic editor (similar to Keeper's Central page admin mode).
-// Buildings are rendered in a React portal on document.body to escape the phone
-// frame's overflow:hidden clipping. Positions are computed analytically from
-// state (not getBoundingClientRect) to avoid 1-frame lag during panning.
+// Full-screen editor rendered via portal on document.body (escapes phone frame).
+// Uses the same rendering model as PetHousePage for the background and buildings:
+//   - Background <img> fills container height, width is natural (height: 100%, width: auto)
+//   - Buildings in a matching-width container at left: panX
+//   - Building size = storedW * containerH / BUILDING_REF_H  (FIXED px, same everywhere)
+//   - Horizontal pan via left: panX (drag left/right to scroll)
 function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | null; onBack: () => void }) {
   const { toast } = useToast();
   const qc = useQueryClient();
 
-  // ── Bundle metadata state ──
   const [bundle, setBundle]             = useState<HouseBundle | null>(initialBundle);
   const [formName, setFormName]         = useState(initialBundle?.name ?? "");
   const [formPrice, setFormPrice]       = useState(String(initialBundle?.price ?? "0"));
-  const [formShopImage, setFormShopImage] = useState("");  // base64 for new upload
-  const [formBgImage, setFormBgImage]   = useState("");    // base64 for new upload
+  const [formShopImage, setFormShopImage] = useState("");
+  const [formBgImage, setFormBgImage]   = useState("");
   const [showSettings, setShowSettings] = useState(!initialBundle?.bgImageUrl);
 
-  // ── Building interaction state ──
   const [addingBuilding, setAddingBuilding]       = useState(false);
   const [newBuildingName, setNewBuildingName]     = useState("");
   const [newBuildingImageData, setNewBuildingImageData] = useState("");
@@ -152,23 +152,23 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
   const [liveSize, setLiveSize]                   = useState<Record<string, number>>({});
   const [liveFlip, setLiveFlip]                   = useState<Record<string, boolean>>({});
 
-  // ── Viewport state — portal renders at full browser window size ──
-  const [imgAspect, setImgAspect] = useState(16 / 9);
-  const [winW, setWinW] = useState(typeof window !== "undefined" ? window.innerWidth : 1280);
-  const [winH, setWinH] = useState(typeof window !== "undefined" ? window.innerHeight : 720);
+  const [panX, setPanX]         = useState(0);
+  const [imgWidth, setImgWidth] = useState(0);
+  const [containerH, setContainerH] = useState(0);
+  const [bgAspect, setBgAspect] = useState(16 / 9);
 
-  // ── Refs ──
-  const bgRef                  = useRef<HTMLDivElement>(null);
-  const dragOffsetRef          = useRef({ x: 0, y: 0 });
+  const containerRef           = useRef<HTMLDivElement>(null);
+  const buildingsRef           = useRef<HTMLDivElement>(null);
+  const panStartRef            = useRef<{ startX: number; startPanX: number } | null>(null);
   const draggingBuildingRef    = useRef<string | null>(null);
   const dragCandidateRef       = useRef<string | null>(null);
   const tapCandidateRef        = useRef<string | null>(null);
   const pointerDownPosRef      = useRef<{ x: number; y: number } | null>(null);
   const pointerDownHitBuilding = useRef<string | null>(null);
+  const dragOffsetRef          = useRef({ x: 0, y: 0 });
   const interiorFileRef        = useRef<HTMLInputElement>(null);
   const interiorBuildingIdRef  = useRef<string | null>(null);
 
-  // ── Buildings query ──
   const { data: buildings = [], refetch: refetchBuildings } = useQuery<HouseBundleBuilding[]>({
     queryKey: ["/api/admin/house-bundles", bundle?.id, "buildings"],
     queryFn: async () => {
@@ -178,33 +178,40 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
     enabled: !!bundle?.id,
   });
 
-  // ── Background aspect ratio ──
   const activeBgUrl = formBgImage || bundle?.bgImageUrl;
   useEffect(() => {
     if (!activeBgUrl) return;
     const img = new window.Image();
-    img.onload = () => { if (img.naturalHeight > 0) setImgAspect(img.naturalWidth / img.naturalHeight); };
+    img.onload = () => { if (img.naturalHeight > 0) setBgAspect(img.naturalWidth / img.naturalHeight); };
     img.src = activeBgUrl;
   }, [activeBgUrl]);
 
-  // ── Derived: bg dimensions + CONTAIN scale (fits entire bg in the window) ──
-  const BG_W = 1080;
-  const bgH = Math.max(1, Math.round(BG_W / imgAspect));
-  const TOP_BAR_H = 56;
-  const BOT_BAR_H = 64;
-  const availH = winH - TOP_BAR_H - BOT_BAR_H;
-  const bgScale = Math.min(winW / BG_W, availH / bgH);
-  const bgX = (winW - BG_W * bgScale) / 2;
-  const bgY = TOP_BAR_H + (availH - bgH * bgScale) / 2;
-
-  // ── Window resize listener ──
   useEffect(() => {
-    const onResize = () => { setWinW(window.innerWidth); setWinH(window.innerHeight); };
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
+    const el = containerRef.current;
+    if (!el) return;
+    const recalc = () => {
+      const h = el.offsetHeight;
+      const w = el.offsetWidth;
+      const iw = h * bgAspect;
+      setContainerH(h);
+      setImgWidth(iw);
+      setPanX(Math.max(Math.min(0, w - iw), -(iw - w) / 2));
+    };
+    recalc();
+    const ro = new ResizeObserver(recalc);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [bgAspect]);
 
-  // ── Mutations ──
+  const clampPan = useCallback((val: number) => {
+    const el = containerRef.current;
+    if (!el) return val;
+    const w = el.offsetWidth;
+    const iw = el.offsetHeight * bgAspect;
+    const min = Math.min(0, w - iw);
+    return Math.min(0, Math.max(min, val));
+  }, [bgAspect]);
+
   const savePosQuiet = useCallback(async (id: string, px: number, py: number) => {
     try { await apiRequest("PATCH", `/api/admin/house-bundle-buildings/${id}`, { posX: px, posY: py }); }
     catch (err: any) { toast({ title: "Position save failed", description: err.message, variant: "destructive" }); }
@@ -271,22 +278,24 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
-  // ── Building geometry hit test (called in event handlers — DOM is committed) ──
   const findBuildingAtPoint = useCallback((clientX: number, clientY: number): string | null => {
-    const bgRect = bgRef.current?.getBoundingClientRect();
-    if (!bgRect || bgRect.width <= 0 || bgRect.height <= 0) return null;
+    const bDiv = buildingsRef.current;
+    if (!bDiv) return null;
+    const rect = bDiv.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return null;
     const priority = [
       ...buildings.filter(b => !moveOrder.includes(b.id)),
       ...moveOrder.map(id => buildings.find(b => b.id === id)!).filter(Boolean),
     ].reverse();
+    const cH = containerH || rect.height;
     for (const b of priority) {
       const lp = livePos[b.id];
-      const posX = lp ? lp.x : b.posX;
-      const posY = lp ? lp.y : b.posY;
-      const storedW = liveSize[b.id] ?? b.width ?? 80;
-      const dw = Math.round(storedW * bgRect.height / BUILDING_REF_H);
-      const ax = bgRect.left + (posX / 100) * bgRect.width;
-      const ay = bgRect.top  + (posY / 100) * bgRect.height;
+      const px = lp ? lp.x : b.posX;
+      const py = lp ? lp.y : b.posY;
+      const sw = liveSize[b.id] ?? b.width ?? 80;
+      const dw = Math.round(sw * cH / BUILDING_REF_H);
+      const ax = rect.left + (px / 100) * rect.width;
+      const ay = rect.top  + (py / 100) * rect.height;
       const pad = 10;
       if (clientX >= ax - dw / 2 - pad && clientX <= ax + dw / 2 + pad &&
           clientY >= ay - dw - pad     && clientY <= ay + pad) {
@@ -294,9 +303,8 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
       }
     }
     return null;
-  }, [buildings, livePos, liveSize, moveOrder]);
+  }, [buildings, livePos, liveSize, moveOrder, containerH]);
 
-  // ── Pointer handlers — no panning needed (entire bg visible via contain scale) ──
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     if (showSettings || addingBuilding) return;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -309,19 +317,22 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
       tapCandidateRef.current = buildingId;
       if (selectedId === buildingId) {
         dragCandidateRef.current = buildingId;
-        const bgRect = bgRef.current?.getBoundingClientRect();
-        if (bgRect) {
+        const bDiv = buildingsRef.current;
+        if (bDiv) {
+          const rect = bDiv.getBoundingClientRect();
           const lp = livePos[buildingId];
           const bld = buildings.find(b => b.id === buildingId);
-          const cx = bgRect.left + ((lp ? lp.x : (bld?.posX ?? 50)) / 100) * bgRect.width;
-          const cy = bgRect.top  + ((lp ? lp.y : (bld?.posY ?? 80)) / 100) * bgRect.height;
+          const cx = rect.left + ((lp ? lp.x : (bld?.posX ?? 50)) / 100) * rect.width;
+          const cy = rect.top  + ((lp ? lp.y : (bld?.posY ?? 80)) / 100) * rect.height;
           dragOffsetRef.current = { x: e.clientX - cx, y: e.clientY - cy };
         } else {
           dragOffsetRef.current = { x: 0, y: 0 };
         }
       }
+    } else {
+      panStartRef.current = { startX: e.clientX, startPanX: panX };
     }
-  }, [livePos, buildings, selectedId, findBuildingAtPoint, showSettings, addingBuilding]);
+  }, [livePos, buildings, selectedId, findBuildingAtPoint, showSettings, addingBuilding, panX]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     const down = pointerDownPosRef.current;
@@ -335,18 +346,23 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
       }
     }
     if (draggingBuildingRef.current) {
-      const bgRect = bgRef.current?.getBoundingClientRect();
-      if (!bgRect) return;
-      const rawX = e.clientX - dragOffsetRef.current.x - bgRect.left;
-      const rawY = e.clientY - dragOffsetRef.current.y - bgRect.top;
-      const posX = Math.max(0, Math.min(100, (rawX / bgRect.width)  * 100));
-      const posY = Math.max(0, Math.min(100, (rawY / bgRect.height) * 100));
-      setLivePos((prev) => ({ ...prev, [draggingBuildingRef.current!]: { x: posX, y: posY } }));
+      const bDiv = buildingsRef.current;
+      if (!bDiv) return;
+      const rect = bDiv.getBoundingClientRect();
+      const rawX = e.clientX - dragOffsetRef.current.x - rect.left;
+      const rawY = e.clientY - dragOffsetRef.current.y - rect.top;
+      const px = Math.max(0, Math.min(100, (rawX / rect.width)  * 100));
+      const py = Math.max(0, Math.min(100, (rawY / rect.height) * 100));
+      setLivePos((prev) => ({ ...prev, [draggingBuildingRef.current!]: { x: px, y: py } }));
+    } else if (panStartRef.current) {
+      const dx = e.clientX - panStartRef.current.startX;
+      setPanX(clampPan(panStartRef.current.startPanX + dx));
     }
-  }, []);
+  }, [clampPan]);
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
     dragCandidateRef.current = null;
+    panStartRef.current = null;
     if (draggingBuildingRef.current) {
       const id = draggingBuildingRef.current;
       const pos = livePos[id];
@@ -399,9 +415,65 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
   }, [patchBuilding, toast]);
 
   const currentBgUrl = formBgImage || bundle?.bgImageUrl;
-  const isDraggingAny = !!draggingId;
 
-  const editorContent = (
+  if (showSettings) {
+    return createPortal(
+      <div className="select-none" style={{
+        position: "fixed", inset: 0, zIndex: 99999,
+        background: "rgba(6,18,30,1)", touchAction: "none",
+        display: "flex", flexDirection: "column",
+      }}>
+        <div className="flex items-center gap-2 px-4 py-3" style={{
+          background: "rgba(4,14,26,0.97)",
+          borderBottom: "1.5px solid rgba(34,211,238,0.25)",
+        }}>
+          <button data-testid="button-back-bundle-editor"
+            onClick={onBack}
+            className="flex items-center gap-1 rounded-2xl px-3 py-2 text-xs font-bold transition-all"
+            style={{ background: "rgba(34,211,238,0.12)", border: "1px solid rgba(34,211,238,0.3)", color: "#a5f3fc" }}>
+            <ChevronLeft size={14} /> Back
+          </button>
+          <span className="flex-1 text-center text-sm font-bold font-fantasy truncate" style={{ color: "#e0f7fa" }}>
+            {bundle ? "Edit Bundle Details" : "New House Bundle"}
+          </span>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5">
+          <div className="flex flex-col gap-4 max-w-md mx-auto">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold" style={{ color: "#a5f3fc" }}>Bundle Name *</label>
+              <input data-testid="input-bundle-name" value={formName} onChange={(e) => setFormName(e.target.value)}
+                className="rounded-xl px-3 py-2 text-sm" style={inputStyle} placeholder="e.g. Mossy Forest Home" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold" style={{ color: "#a5f3fc" }}>Price (coins)</label>
+              <input data-testid="input-bundle-price" type="number" value={formPrice} onChange={(e) => setFormPrice(e.target.value)}
+                className="rounded-xl px-3 py-2 text-sm" style={inputStyle} placeholder="0" />
+            </div>
+            <ImageUploadField label="Shop Image (used in store)" value={formShopImage}
+              onChange={setFormShopImage} accept="image/png,image/jpeg"
+              helpText={bundle?.shopImageUrl ? "Current image saved — upload to replace" : "Shown in the shop"} />
+            <ImageUploadField label="Background Image *" value={formBgImage}
+              onChange={setFormBgImage} accept="image/png,image/jpeg"
+              helpText={bundle?.bgImageUrl ? "Current BG saved — upload to replace" : "The panoramic pet house background (wide landscape works best)"} />
+
+            <button data-testid="button-save-bundle-settings"
+              onClick={() => saveBundleMutation.mutate(undefined, {
+                onSuccess: () => setShowSettings(false),
+              })}
+              disabled={!formName.trim() || saveBundleMutation.isPending}
+              className="rounded-2xl px-4 py-3 font-bold text-sm transition-all disabled:opacity-40 mt-2"
+              style={primaryBtn}>
+              {saveBundleMutation.isPending ? "Saving..." : (bundle ? "Save & Continue to Edit" : "Create Bundle & Continue →")}
+            </button>
+          </div>
+        </div>
+      </div>,
+      document.body,
+    );
+  }
+
+  return createPortal(
     <div className="select-none" style={{
       position: "fixed", inset: 0, zIndex: 99999,
       background: "rgba(6,18,30,1)", touchAction: "none",
@@ -411,140 +483,147 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
     >
-      {/* ── Background canvas — entire image visible, no clipping ── */}
-      <div ref={bgRef}
-        style={{
+      <div ref={containerRef} style={{
+        position: "absolute", left: 0, right: 0,
+        top: 48, bottom: 56,
+        overflow: "hidden",
+      }}>
+        {currentBgUrl ? (
+          <img src={currentBgUrl} alt="background" draggable={false}
+            style={{
+              position: "absolute",
+              height: "100%", width: "auto",
+              left: panX, top: 0,
+              pointerEvents: "none", userSelect: "none",
+            }}
+          />
+        ) : (
+          <div style={{
+            position: "absolute", inset: 0,
+            background: "rgba(15,35,50,1)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <p className="text-sm" style={{ color: "rgba(165,243,252,0.3)" }}>No background — go back to upload one</p>
+          </div>
+        )}
+
+        <div ref={buildingsRef} style={{
           position: "absolute",
-          width: BG_W,
-          height: bgH,
-          transformOrigin: "0 0",
-          transform: `translate(${bgX}px, ${bgY}px) scale(${bgScale})`,
-          backgroundImage: currentBgUrl ? `url(${currentBgUrl})` : undefined,
-          backgroundSize: "100% 100%",
-          backgroundRepeat: "no-repeat",
-          backgroundColor: currentBgUrl ? undefined : "rgba(15,35,50,1)",
-        }}
-      >
-        {!showSettings && buildings.map((b) => {
-          const lp        = livePos[b.id];
-          const posX      = lp ? lp.x : b.posX;
-          const posY      = lp ? lp.y : b.posY;
-          const storedW   = liveSize[b.id] ?? b.width ?? 80;
-          const displayW  = Math.round(storedW * bgH / BUILDING_REF_H);
-          const flip      = liveFlip[b.id] !== undefined ? liveFlip[b.id] : (b.flippedX ?? false);
-          const isSelected = selectedId === b.id;
-          const isDragging = draggingId === b.id;
-          const moveRank   = moveOrder.indexOf(b.id);
-          const hasInterior = !!b.interiorImageUrl;
+          left: panX, top: 0,
+          width: imgWidth, height: "100%",
+          pointerEvents: "none",
+        }}>
+          {buildings.map((b) => {
+            const lp        = livePos[b.id];
+            const posXVal   = lp ? lp.x : b.posX;
+            const posYVal   = lp ? lp.y : b.posY;
+            const storedW   = liveSize[b.id] ?? b.width ?? 80;
+            const displayW  = Math.round(storedW * containerH / BUILDING_REF_H);
+            const flip      = liveFlip[b.id] !== undefined ? liveFlip[b.id] : (b.flippedX ?? false);
+            const isSelected = selectedId === b.id;
+            const isDragging = draggingId === b.id;
+            const moveRank   = moveOrder.indexOf(b.id);
+            const hasInterior = !!b.interiorImageUrl;
 
-          return (
-            <div key={b.id} data-testid={`building-${b.id}`}
-              style={{
-                position: "absolute",
-                left: `${posX}%`, top: `${posY}%`,
-                transform: "translate(-50%, -100%)",
-                display: "flex", flexDirection: "column", alignItems: "center",
-                userSelect: "none", pointerEvents: "none",
-                zIndex: isDragging ? 100 : moveRank >= 0 ? 20 + moveRank + (isSelected ? 50 : 0) : (isSelected ? 25 : 5),
-              }}
-            >
-              {isSelected && (
-                <div
-                  style={{
-                    pointerEvents: "auto", display: "flex", alignItems: "center",
-                    gap: 3, marginBottom: 6, borderRadius: "1rem", padding: "4px 8px",
-                    background: "rgba(0,0,0,0.9)", border: "1px solid rgba(34,211,238,0.4)",
-                    whiteSpace: "nowrap",
-                  }}
-                  onPointerDown={(e) => e.stopPropagation()}
-                >
-                  <button data-testid={`button-size-down-${b.id}`}
-                    onClick={(e) => { e.stopPropagation(); handleSizeChange(b, -20); }}
-                    style={{ background: "rgba(34,211,238,0.15)", color: "#a5f3fc", borderRadius: "0.6rem", padding: "5px", display: "flex" }}
-                    title="Decrease size"><ZoomOut size={12} /></button>
-                  <span style={{ color: "#e0f7fa", minWidth: 26, textAlign: "center", fontSize: 11, fontWeight: "bold" }}>
-                    {displayW}
-                  </span>
-                  <button data-testid={`button-size-up-${b.id}`}
-                    onClick={(e) => { e.stopPropagation(); handleSizeChange(b, 20); }}
-                    style={{ background: "rgba(34,211,238,0.15)", color: "#a5f3fc", borderRadius: "0.6rem", padding: "5px", display: "flex" }}
-                    title="Increase size"><ZoomIn size={12} /></button>
-
-                  <div style={{ width: 1, height: 14, background: "rgba(34,211,238,0.25)", margin: "0 2px" }} />
-
-                  <button data-testid={`button-flip-${b.id}`}
-                    onClick={(e) => { e.stopPropagation(); handleFlip(b); }}
-                    style={{ background: flip ? "rgba(34,211,238,0.35)" : "rgba(34,211,238,0.15)", color: "#a5f3fc", borderRadius: "0.6rem", padding: "5px", display: "flex" }}
-                    title="Flip horizontal"><FlipHorizontal size={12} /></button>
-
-                  <div style={{ width: 1, height: 14, background: "rgba(34,211,238,0.25)", margin: "0 2px" }} />
-
-                  <button data-testid={`button-interior-${b.id}`}
-                    onClick={(e) => { e.stopPropagation(); handleInteriorUpload(b.id); }}
-                    style={{ background: hasInterior ? "rgba(168,85,247,0.35)" : "rgba(168,85,247,0.15)", color: "#d8b4fe", borderRadius: "0.6rem", padding: "5px", display: "flex" }}
-                    title={hasInterior ? "Change building background" : "Add building background (opens when player taps)"}>
-                    <ImageIcon size={12} /></button>
-                  {hasInterior && (
-                    <button data-testid={`button-clear-interior-${b.id}`}
-                      onClick={(e) => { e.stopPropagation(); patchBuilding(b.id, { clearInterior: true }); }}
-                      style={{ background: "rgba(220,38,38,0.2)", color: "#fca5a5", borderRadius: "0.6rem", padding: "5px", display: "flex" }}
-                      title="Remove building background"><X size={10} /></button>
-                  )}
-
-                  <div style={{ width: 1, height: 14, background: "rgba(34,211,238,0.25)", margin: "0 2px" }} />
-
-                  <button data-testid={`button-delete-building-${b.id}`}
-                    onClick={(e) => { e.stopPropagation(); deleteBuildingMutation.mutate(b.id); }}
-                    style={{ background: "rgba(220,50,50,0.25)", color: "#f87171", borderRadius: "0.6rem", padding: "5px", display: "flex" }}
-                    title="Delete building"><Trash2 size={12} /></button>
-                </div>
-              )}
-
-              <img src={b.imageUrl} alt={b.name} draggable={false}
+            return (
+              <div key={b.id} data-testid={`building-${b.id}`}
                 style={{
-                  width: displayW, height: displayW, objectFit: "contain", display: "block",
-                  filter: `drop-shadow(0 4px 14px rgba(0,0,0,0.85))${isSelected ? " drop-shadow(0 0 8px rgba(34,211,238,0.8))" : ""}`,
-                  transform: flip ? "scaleX(-1)" : undefined,
-                  transition: isDragging ? "none" : "width 0.15s, height 0.15s",
-                  cursor: isDragging ? "grabbing" : (isSelected ? "grab" : "pointer"),
+                  position: "absolute",
+                  left: `${posXVal}%`, top: `${posYVal}%`,
+                  transform: "translate(-50%, -100%)",
+                  display: "flex", flexDirection: "column", alignItems: "center",
+                  userSelect: "none", pointerEvents: "none",
+                  zIndex: isDragging ? 100 : moveRank >= 0 ? 20 + moveRank + (isSelected ? 50 : 0) : (isSelected ? 25 : 5),
                 }}
-              />
-              <span style={{
-                marginTop: 3, padding: "1px 8px", borderRadius: 999, fontSize: 10, fontWeight: "bold",
-                background: "rgba(0,0,0,0.7)", color: isSelected ? "#22d3ee" : "#a5f3fc",
-                whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 4,
-              }}>
-                {b.name}
-                {hasInterior && <span style={{ fontSize: 9, color: "#d8b4fe" }}>◈</span>}
-              </span>
-            </div>
-          );
-        })}
+              >
+                {isSelected && (
+                  <div
+                    style={{
+                      pointerEvents: "auto", display: "flex", alignItems: "center",
+                      gap: 3, marginBottom: 6, borderRadius: "1rem", padding: "4px 8px",
+                      background: "rgba(0,0,0,0.9)", border: "1px solid rgba(34,211,238,0.4)",
+                      whiteSpace: "nowrap",
+                    }}
+                    onPointerDown={(e) => e.stopPropagation()}
+                  >
+                    <button data-testid={`button-size-down-${b.id}`}
+                      onClick={(e) => { e.stopPropagation(); handleSizeChange(b, -20); }}
+                      style={{ background: "rgba(34,211,238,0.15)", color: "#a5f3fc", borderRadius: "0.6rem", padding: "5px", display: "flex" }}
+                      title="Decrease size"><ZoomOut size={12} /></button>
+                    <span style={{ color: "#e0f7fa", minWidth: 26, textAlign: "center", fontSize: 11, fontWeight: "bold" }}>
+                      {storedW}
+                    </span>
+                    <button data-testid={`button-size-up-${b.id}`}
+                      onClick={(e) => { e.stopPropagation(); handleSizeChange(b, 20); }}
+                      style={{ background: "rgba(34,211,238,0.15)", color: "#a5f3fc", borderRadius: "0.6rem", padding: "5px", display: "flex" }}
+                      title="Increase size"><ZoomIn size={12} /></button>
+
+                    <div style={{ width: 1, height: 14, background: "rgba(34,211,238,0.25)", margin: "0 2px" }} />
+
+                    <button data-testid={`button-flip-${b.id}`}
+                      onClick={(e) => { e.stopPropagation(); handleFlip(b); }}
+                      style={{ background: flip ? "rgba(34,211,238,0.35)" : "rgba(34,211,238,0.15)", color: "#a5f3fc", borderRadius: "0.6rem", padding: "5px", display: "flex" }}
+                      title="Flip horizontal"><FlipHorizontal size={12} /></button>
+
+                    <div style={{ width: 1, height: 14, background: "rgba(34,211,238,0.25)", margin: "0 2px" }} />
+
+                    <button data-testid={`button-interior-${b.id}`}
+                      onClick={(e) => { e.stopPropagation(); handleInteriorUpload(b.id); }}
+                      style={{ background: hasInterior ? "rgba(168,85,247,0.35)" : "rgba(168,85,247,0.15)", color: "#d8b4fe", borderRadius: "0.6rem", padding: "5px", display: "flex" }}
+                      title={hasInterior ? "Change building background" : "Add building background (opens when player taps)"}>
+                      <ImageIcon size={12} /></button>
+                    {hasInterior && (
+                      <button data-testid={`button-clear-interior-${b.id}`}
+                        onClick={(e) => { e.stopPropagation(); patchBuilding(b.id, { clearInterior: true }); }}
+                        style={{ background: "rgba(220,38,38,0.2)", color: "#fca5a5", borderRadius: "0.6rem", padding: "5px", display: "flex" }}
+                        title="Remove building background"><X size={10} /></button>
+                    )}
+
+                    <div style={{ width: 1, height: 14, background: "rgba(34,211,238,0.25)", margin: "0 2px" }} />
+
+                    <button data-testid={`button-delete-building-${b.id}`}
+                      onClick={(e) => { e.stopPropagation(); deleteBuildingMutation.mutate(b.id); }}
+                      style={{ background: "rgba(220,50,50,0.25)", color: "#f87171", borderRadius: "0.6rem", padding: "5px", display: "flex" }}
+                      title="Delete building"><Trash2 size={12} /></button>
+                  </div>
+                )}
+
+                <img src={b.imageUrl} alt={b.name} draggable={false}
+                  style={{
+                    width: displayW, height: displayW, objectFit: "contain", display: "block",
+                    filter: `drop-shadow(0 4px 14px rgba(0,0,0,0.85))${isSelected ? " drop-shadow(0 0 8px rgba(34,211,238,0.8))" : ""}`,
+                    transform: flip ? "scaleX(-1)" : undefined,
+                    transition: isDragging ? "none" : "width 0.15s, height 0.15s",
+                    cursor: isDragging ? "grabbing" : (isSelected ? "grab" : "pointer"),
+                  }}
+                />
+                <span style={{
+                  marginTop: 3, padding: "1px 8px", borderRadius: 999, fontSize: 10, fontWeight: "bold",
+                  background: "rgba(0,0,0,0.7)", color: isSelected ? "#22d3ee" : "#a5f3fc",
+                  whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 4,
+                }}>
+                  {b.name}
+                  {hasInterior && <span style={{ fontSize: 9, color: "#d8b4fe" }}>◈</span>}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      {!currentBgUrl && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none">
-          <p className="text-sm font-semibold" style={{ color: "rgba(165,243,252,0.4)" }}>No background uploaded yet</p>
-          <p className="text-xs" style={{ color: "rgba(165,243,252,0.25)" }}>Open Settings ⚙ to upload a background image</p>
-        </div>
-      )}
-
-      {/* Hidden file input for interior background uploads */}
       <input ref={interiorFileRef} type="file" accept="image/png,image/jpeg" className="hidden"
         onChange={handleInteriorFileChange} />
 
-      {/* ── TOP BAR ── */}
-      <div className="absolute top-0 left-0 right-0 flex items-center gap-2 px-3 pointer-events-none"
+      <div className="absolute top-0 left-0 right-0 flex items-center gap-2 px-3"
         style={{
-          zIndex: 220,
-          background: "linear-gradient(to bottom, rgba(6,18,30,0.95) 60%, transparent)",
-          paddingTop: "max(16px, env(safe-area-inset-top, 16px))",
-          paddingBottom: 12,
+          zIndex: 220, height: 48,
+          background: "rgba(6,18,30,0.97)",
+          borderBottom: "1px solid rgba(34,211,238,0.2)",
         }}
       >
         <button data-testid="button-back-bundle-editor"
           onClick={onBack}
-          className="flex items-center gap-1 rounded-2xl px-3 py-2 text-xs font-bold pointer-events-auto transition-all"
+          className="flex items-center gap-1 rounded-2xl px-3 py-2 text-xs font-bold transition-all"
           style={{ background: "rgba(34,211,238,0.12)", border: "1px solid rgba(34,211,238,0.3)", color: "#a5f3fc" }}>
           <ChevronLeft size={14} /> Back
         </button>
@@ -552,102 +631,29 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
           {bundle ? bundle.name : (formName || "New Bundle")}
         </span>
         <button data-testid="button-settings-bundle"
-          onClick={() => setShowSettings(!showSettings)}
-          className="flex items-center gap-1 rounded-2xl px-3 py-2 text-xs font-bold pointer-events-auto transition-all"
-          style={{
-            background: showSettings ? "rgba(34,211,238,0.25)" : "rgba(34,211,238,0.12)",
-            border: "1px solid rgba(34,211,238,0.3)", color: "#a5f3fc",
-          }}>
+          onClick={() => setShowSettings(true)}
+          className="flex items-center gap-1 rounded-2xl px-3 py-2 text-xs font-bold transition-all"
+          style={{ background: "rgba(34,211,238,0.12)", border: "1px solid rgba(34,211,238,0.3)", color: "#a5f3fc" }}>
           <Settings size={14} />
-          {!bundle && <span>Details</span>}
         </button>
       </div>
 
-      {/* ── SETTINGS PANEL ── (slides in below top bar) */}
-      {showSettings && (
-        <div className="absolute left-0 right-0 overflow-y-auto"
-          style={{
-            zIndex: 215,
-            top: "max(58px, calc(env(safe-area-inset-top, 0px) + 58px))",
-            maxHeight: "65%",
-            background: "rgba(4,14,26,0.97)",
-            borderBottom: "1.5px solid rgba(34,211,238,0.25)",
-            padding: "16px",
-          }}
-        >
-          <div className="flex flex-col gap-3 max-w-sm mx-auto">
-            <h3 className="font-fantasy font-bold text-sm" style={{ color: "#a5f3fc" }}>
-              {bundle ? "Edit Bundle Details" : "New House Bundle"}
-            </h3>
-
-            {/* Name */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold" style={{ color: "#a5f3fc" }}>Bundle Name *</label>
-              <input data-testid="input-bundle-name" value={formName} onChange={(e) => setFormName(e.target.value)}
-                className="rounded-xl px-3 py-2 text-sm" style={inputStyle} placeholder="e.g. Mossy Forest Home" />
-            </div>
-
-            {/* Price */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold" style={{ color: "#a5f3fc" }}>Price (coins)</label>
-              <input data-testid="input-bundle-price" type="number" value={formPrice} onChange={(e) => setFormPrice(e.target.value)}
-                className="rounded-xl px-3 py-2 text-sm" style={inputStyle} placeholder="0" />
-            </div>
-
-            {/* Shop image */}
-            <ImageUploadField label="Shop Image (used in store)" value={formShopImage}
-              onChange={setFormShopImage} accept="image/png,image/jpeg"
-              helpText={bundle?.shopImageUrl ? "Current image saved — upload to replace" : "Shown in the shop"} />
-
-            {/* Background image */}
-            <ImageUploadField label="Background Image *" value={formBgImage}
-              onChange={setFormBgImage} accept="image/png,image/jpeg"
-              helpText={bundle?.bgImageUrl ? "Current BG saved — upload to replace" : "The panoramic pet house background (wide landscape works best)"} />
-
-            <div className="flex gap-2 pt-1">
-              {bundle && (
-                <button onClick={() => setShowSettings(false)}
-                  className="flex-1 rounded-xl px-3 py-2 text-xs font-bold"
-                  style={{ background: "rgba(34,211,238,0.1)", border: "1px solid rgba(34,211,238,0.3)", color: "#a5f3fc" }}>
-                  Done
-                </button>
-              )}
-              <button data-testid="button-save-bundle-settings"
-                onClick={() => saveBundleMutation.mutate(undefined, {
-                  onSuccess: () => { if (bundle) setShowSettings(false); },
-                })}
-                disabled={!formName.trim() || saveBundleMutation.isPending}
-                className="flex-1 rounded-xl px-3 py-2 text-xs font-bold transition-all disabled:opacity-40"
-                style={primaryBtn}>
-                {saveBundleMutation.isPending ? "Saving..." : (bundle ? "Save Details" : "Create Bundle →")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── BOTTOM TOOLBAR ── */}
-      <div className="absolute bottom-0 left-0 right-0 flex items-center gap-2 px-4 pointer-events-none"
+      <div className="absolute bottom-0 left-0 right-0 flex items-center gap-2 px-4"
         style={{
-          zIndex: 220,
-          background: "linear-gradient(to top, rgba(6,18,30,0.96) 60%, transparent)",
-          paddingBottom: "max(16px, env(safe-area-inset-bottom, 16px))",
-          paddingTop: 12,
+          zIndex: 220, height: 56,
+          background: "rgba(6,18,30,0.97)",
+          borderTop: "1px solid rgba(34,211,238,0.2)",
         }}
       >
-        {/* Add Building — only available once bundle exists */}
         {bundle && (
           <button data-testid="button-add-building"
             onClick={() => setAddingBuilding(true)}
-            className="flex items-center gap-1.5 rounded-2xl px-4 py-2.5 text-xs font-bold pointer-events-auto transition-all"
+            className="flex items-center gap-1.5 rounded-2xl px-4 py-2.5 text-xs font-bold transition-all"
             style={{ background: "rgba(34,211,238,0.15)", border: "1px solid rgba(34,211,238,0.35)", color: "#a5f3fc" }}>
             <Plus size={14} /> Add Building
           </button>
         )}
-
         <div className="flex-1" />
-
-        {/* Save Bundle */}
         <button data-testid="button-save-bundle"
           onClick={() => {
             if (bundle) {
@@ -657,14 +663,13 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
             }
           }}
           disabled={saveBundleMutation.isPending}
-          className="flex items-center gap-1.5 rounded-2xl px-4 py-2.5 text-xs font-bold pointer-events-auto transition-all disabled:opacity-50"
-          style={bundle ? primaryBtn : { background: "rgba(34,211,238,0.1)", border: "1px solid rgba(34,211,238,0.3)", color: "#a5f3fc" }}>
+          className="flex items-center gap-1.5 rounded-2xl px-4 py-2.5 text-xs font-bold transition-all disabled:opacity-50"
+          style={primaryBtn}>
           <Save size={14} />
-          {saveBundleMutation.isPending ? "Saving..." : (bundle ? "Save Bundle" : "Details →")}
+          {saveBundleMutation.isPending ? "Saving..." : "Save Bundle"}
         </button>
       </div>
 
-      {/* ── ADD BUILDING SHEET ── */}
       {addingBuilding && bundle && (
         <div className="absolute inset-0 flex items-end" style={{ zIndex: 230, background: "rgba(0,0,0,0.65)" }}
           onClick={(e) => { if (e.target === e.currentTarget) setAddingBuilding(false); }}>
@@ -691,7 +696,8 @@ function BundleEditor({ initialBundle, onBack }: { initialBundle: HouseBundle | 
           </div>
         </div>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }
 
