@@ -4807,7 +4807,7 @@ export async function registerRoutes(
       const { name, price, imageData } = req.body;
       if (!name) return res.status(400).json({ message: "name is required" });
       let imageUrl: string | undefined;
-      if (imageData) imageUrl = await processWorldImage(imageData, 1000);
+      if (imageData) imageUrl = await processWorldImage(imageData, 2000);
       const item = await storage.createHomeDecorItem({ name, price: price ?? 0, imageUrl });
       return res.status(201).json(item);
     } catch (err: any) {
