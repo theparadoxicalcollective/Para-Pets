@@ -2724,7 +2724,7 @@ function WorldRoamingPet({
   const maxBotFrac = 0.5 + (rawMaxBotFrac - 0.5) * partScale;
 
   // sz is in map-canvas pixels. Kept small so pets are always in reach.
-  const sz     = 120;
+  const sz     = 150;
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
   const displayName = pet.petNickname || pet.name;
 
