@@ -13,7 +13,7 @@ import legendBanner      from "@assets/hub_legend_banner.png";
 import podiumImg         from "@assets/hub_podium.png";
 import rankCrowns        from "@assets/hub_rank_crowns.png";
 import iconBadges        from "@assets/admin_icon_badges.png";
-import iconMap           from "@assets/icon_map_new.png";
+import iconMap           from "@assets/nav_icon_map_nobg.png";
 
 import worldEnchanted    from "@assets/bg_enchanted_grove_map.png";
 import worldHaunted      from "@assets/bg_haunted_woods_map.png";
