@@ -254,6 +254,72 @@ async function seedWorldBackgrounds() {
   }
 }
 
+function makeBadgeSvgUrl(outerColor: string, innerColor: string, coreColor: string, strokeColor: string, textColor: string, line1: string, line2?: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <circle cx="50" cy="50" r="48" fill="${outerColor}" stroke="${strokeColor}" stroke-width="3"/>
+    <circle cx="50" cy="50" r="37" fill="${innerColor}" stroke="${strokeColor}" stroke-width="2"/>
+    <circle cx="50" cy="50" r="26" fill="${coreColor}" stroke="${strokeColor}" stroke-width="1.5"/>
+    ${line2
+      ? `<text x="50" y="50" text-anchor="middle" fill="${textColor}" font-size="14" font-weight="bold" font-family="serif" dominant-baseline="middle">${line1}</text>
+         <text x="50" y="65" text-anchor="middle" fill="${textColor}" font-size="9" font-family="serif">${line2}</text>`
+      : `<text x="50" y="50" text-anchor="middle" fill="${textColor}" font-size="14" font-weight="bold" font-family="serif" dominant-baseline="middle">${line1}</text>`
+    }
+  </svg>`;
+  return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
+}
+
+const ACQUISITION_BADGES = {
+  minor:     { name: "Minor Acquisition",    points: 10,  svgUrl: makeBadgeSvgUrl("#5a3010","#a06020","#d09040","#e8b050","#fff8dc","$10 Pack") },
+  advanced:  { name: "Advanced Acquisition", points: 25,  svgUrl: makeBadgeSvgUrl("#0a1a30","#1a4070","#2a60b0","#5090d0","#d0e8ff","$100 Pack") },
+  legendary: { name: "Legendary Acquisition",points: 50,  svgUrl: makeBadgeSvgUrl("#1a0030","#3a0870","#5a10a0","#b050f0","#e8d0ff","$500","LIMIT") },
+} as const;
+
+async function getOrCreateAcquisitionBadge(key: keyof typeof ACQUISITION_BADGES): Promise<string> {
+  const meta = ACQUISITION_BADGES[key];
+  const existing = await storage.getBadgeByName(meta.name);
+  if (existing) return existing.id;
+  const badge = await storage.createBadge(meta.name, meta.svgUrl, null, meta.points, "daily");
+  return badge.id;
+}
+
+async function maybeAwardAcquisitionBadges(userId: string, purchaseAmountUsd: number): Promise<void> {
+  try {
+    if (purchaseAmountUsd >= 10) {
+      const id = await getOrCreateAcquisitionBadge("minor");
+      await storage.awardBadge(userId, id);
+    }
+    if (purchaseAmountUsd >= 100) {
+      const id = await getOrCreateAcquisitionBadge("advanced");
+      await storage.awardBadge(userId, id);
+    }
+    const dailyTotal = await storage.getDailyPurchaseTotal(userId);
+    if (dailyTotal >= 500) {
+      const id = await getOrCreateAcquisitionBadge("legendary");
+      await storage.awardBadge(userId, id);
+    }
+  } catch (err) {
+    console.error("Error awarding acquisition badges:", err);
+  }
+}
+
+export async function backfillAdvancedAcquisitionBadge(): Promise<void> {
+  try {
+    const badgeId = await getOrCreateAcquisitionBadge("advanced");
+    const allPurchases = await db.select({ userId: coinPurchases.userId, amountUsd: coinPurchases.amountUsd }).from(coinPurchases);
+    const qualifyingUserIds = [...new Set(allPurchases.filter(p => p.amountUsd >= 100).map(p => p.userId))];
+    let awarded = 0;
+    for (const userId of qualifyingUserIds) {
+      const result = await storage.awardBadge(userId, badgeId);
+      if (result) awarded++;
+    }
+    if (qualifyingUserIds.length > 0) {
+      console.log(`Advanced Acquisition backfill: awarded to ${awarded}/${qualifyingUserIds.length} users.`);
+    }
+  } catch (err) {
+    console.error("Advanced Acquisition backfill error (non-fatal):", err);
+  }
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -1499,6 +1565,9 @@ export async function registerRoutes(
         }
         throw err;
       }
+
+      // Award acquisition badges based on this purchase
+      await maybeAwardAcquisitionBadges(user.id, amountUsd);
 
       const updatedUser = await storage.getUser(user.id);
       const { password: _, ...safeUser } = updatedUser!;

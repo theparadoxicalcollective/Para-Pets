@@ -152,6 +152,7 @@ export interface IStorage {
   createEnemyDrop(data: { enemyId: string; shopItemId: string; dropRate: number }): Promise<EnemyDrop>;
   deleteEnemyDrop(id: string): Promise<void>;
   getAllBadges(): Promise<Badge[]>;
+  getBadgeByName(name: string): Promise<Badge | undefined>;
   createBadge(name: string, imageUrl: string, dailyRewardCoins?: number | null, badgePoints?: number, claimType?: string): Promise<Badge>;
   deleteBadge(id: string): Promise<void>;
   updateBadgeDailyReward(id: string, dailyRewardCoins: number | null): Promise<void>;
@@ -824,6 +825,11 @@ export class DatabaseStorage implements IStorage {
 
   async getAllBadges(): Promise<Badge[]> {
     return db.select().from(badges).orderBy(desc(badges.createdAt));
+  }
+
+  async getBadgeByName(name: string): Promise<Badge | undefined> {
+    const [badge] = await db.select().from(badges).where(eq(badges.name, name));
+    return badge;
   }
 
   async createBadge(name: string, imageUrl: string, dailyRewardCoins?: number | null, badgePoints?: number, claimType?: string): Promise<Badge> {

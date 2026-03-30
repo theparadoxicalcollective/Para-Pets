@@ -4,7 +4,7 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import bcrypt from "bcryptjs";
 import connectPgSimple from "connect-pg-simple";
-import { registerRoutes } from "./routes";
+import { registerRoutes, backfillAdvancedAcquisitionBadge } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { storage } from "./storage";
@@ -732,5 +732,8 @@ app.use((req, res, next) => {
   }
 
   console.log("Background initialization complete.");
+
+  // Backfill Advanced Acquisition badge for users who previously bought a $100 pack
+  await backfillAdvancedAcquisitionBadge();
   })().catch(err => console.error("Background init error:", err));
 })();
