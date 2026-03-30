@@ -316,6 +316,121 @@ function RankRow({ entry, rank }: { entry: LeaderboardEntry; rank: number }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Add to Homescreen modal
+// ─────────────────────────────────────────────────────────────────────────────
+function HomeScreenModal({ onClose }: { onClose: () => void }) {
+  const [tab, setTab] = useState<"ios" | "android">("ios");
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [onClose]);
+
+  const IOS_STEPS = [
+    { icon: "🧭", title: "Open in Safari", desc: "This must be done in Safari — not Chrome or another browser." },
+    { icon: "⬆️", title: 'Tap the Share button', desc: 'At the bottom of the screen, tap the box with an arrow pointing up.' },
+    { icon: "➕", title: '"Add to Home Screen"', desc: 'Scroll down the share sheet and tap "Add to Home Screen".' },
+    { icon: "✅", title: "Tap Add", desc: 'Tap "Add" in the top-right corner. Para Pets will appear on your home screen.' },
+  ];
+
+  const ANDROID_STEPS = [
+    { icon: "🌐", title: "Open in Chrome", desc: "Make sure you're using the Chrome browser on your Android device." },
+    { icon: "⋮", title: "Tap the menu", desc: 'Tap the three-dot menu (⋮) in the top-right corner of Chrome.' },
+    { icon: "➕", title: '"Add to Home Screen"', desc: 'Tap "Add to Home Screen" or "Install App" from the menu.' },
+    { icon: "✅", title: "Tap Add", desc: 'Confirm by tapping "Add". The Para Pets icon will appear on your home screen.' },
+  ];
+
+  const steps = tab === "ios" ? IOS_STEPS : ANDROID_STEPS;
+
+  return (
+    <div
+      className="fixed inset-0 flex items-end justify-center"
+      style={{ zIndex: 99999, background: "rgba(4,6,12,0.85)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+      data-testid="homescreen-modal-backdrop"
+    >
+      <div
+        className="w-full rounded-t-3xl overflow-hidden"
+        style={{
+          maxWidth: 480, margin: "0 auto",
+          background: "linear-gradient(160deg,rgba(8,16,22,0.99),rgba(5,11,8,0.99))",
+          border: "1px solid rgba(127,191,176,0.18)",
+          borderBottom: "none",
+          boxShadow: "0 -8px 60px rgba(34,211,238,0.07), 0 -4px 32px rgba(0,0,0,0.7)",
+        }}
+        data-testid="homescreen-modal"
+      >
+        {/* Handle bar */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 rounded-full" style={{ background: "rgba(127,191,176,0.2)" }} />
+        </div>
+
+        {/* Header */}
+        <div className="relative flex flex-col items-center px-6 pt-3 pb-4"
+          style={{ borderBottom: "1px solid rgba(127,191,176,0.07)" }}>
+          <span style={{ fontSize: "2rem" }}>📱</span>
+          <h2 className="font-fantasy text-base tracking-widest mt-1" style={{ color: "#7fbfb0" }}>
+            Add to Home Screen
+          </h2>
+          <p className="font-fantasy text-[10px] mt-0.5 text-center" style={{ color: "#2a5040" }}>
+            Play Para Pets like a native app — no app store needed
+          </p>
+          <button data-testid="button-close-homescreen-modal" onClick={onClose}
+            className="absolute top-4 right-5 rounded-full p-1.5"
+            style={{ background: "rgba(127,191,176,0.08)", color: "#3a6050" }}>
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* OS tabs */}
+        <div className="flex gap-2 px-6 pt-4">
+          {(["ios", "android"] as const).map(t => (
+            <button
+              key={t}
+              data-testid={`tab-${t}`}
+              onClick={() => setTab(t)}
+              className="flex-1 rounded-xl py-2.5 font-fantasy text-xs tracking-widest transition-all"
+              style={{
+                background: tab === t
+                  ? "linear-gradient(135deg,rgba(127,191,176,0.18),rgba(26,155,112,0.15))"
+                  : "rgba(127,191,176,0.04)",
+                border: tab === t
+                  ? "1px solid rgba(127,191,176,0.35)"
+                  : "1px solid rgba(127,191,176,0.08)",
+                color: tab === t ? "#7fbfb0" : "#2a5040",
+              }}>
+              {t === "ios" ? "🍎  iPhone / iPad" : "🤖  Android"}
+            </button>
+          ))}
+        </div>
+
+        {/* Steps */}
+        <div className="px-6 py-5 flex flex-col gap-3 pb-10">
+          {steps.map((s, i) => (
+            <div key={i} className="flex items-start gap-3"
+              data-testid={`homescreen-step-${tab}-${i}`}>
+              <div className="flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center text-base"
+                style={{ background: "rgba(127,191,176,0.07)", border: "1px solid rgba(127,191,176,0.12)" }}>
+                {s.icon}
+              </div>
+              <div className="flex-1 pt-0.5">
+                <p className="font-fantasy text-xs tracking-wide" style={{ color: "#7fbfb0" }}>{s.title}</p>
+                <p className="font-fantasy text-[10px] leading-relaxed mt-0.5" style={{ color: "#2a4a38" }}>{s.desc}</p>
+              </div>
+              <div className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center mt-1"
+                style={{ background: "rgba(127,191,176,0.07)", border: "1px solid rgba(127,191,176,0.1)" }}>
+                <span className="font-fantasy text-[9px]" style={{ color: "#2a5040" }}>{i + 1}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Sign-in modal
 // ─────────────────────────────────────────────────────────────────────────────
 function SignInModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
@@ -441,10 +556,11 @@ function SignInModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
 // Main page
 // ─────────────────────────────────────────────────────────────────────────────
 export default function ParaPetsHubPage() {
-  const [showSignIn, setShowSignIn] = useState(false);
-  const [, setLocation]             = useLocation();
-  const { toast }                   = useToast();
-  const worldsRef                   = useRef<HTMLDivElement>(null);
+  const [showSignIn, setShowSignIn]         = useState(false);
+  const [showHomescreen, setShowHomescreen] = useState(false);
+  const [, setLocation]                     = useLocation();
+  const { toast }                           = useToast();
+  const worldsRef                           = useRef<HTMLDivElement>(null);
 
   const { data: user } = useQuery<any>({ queryKey: ["/api/auth/me"], retry: false });
 
@@ -638,6 +754,23 @@ export default function ParaPetsHubPage() {
                 </div>
               ))}
             </div>
+
+            {/* Add to Homescreen CTA */}
+            <div className="flex justify-center mt-5">
+              <button
+                data-testid="button-add-to-homescreen"
+                onClick={() => setShowHomescreen(true)}
+                className="flex items-center gap-2 rounded-2xl px-5 py-2.5 font-fantasy text-xs tracking-widest transition-all active:scale-95"
+                style={{
+                  background: "rgba(127,191,176,0.07)",
+                  border: "1px solid rgba(127,191,176,0.2)",
+                  color: "#7fbfb0",
+                  boxShadow: "0 0 14px rgba(127,191,176,0.08)",
+                }}>
+                <span style={{ fontSize: "1rem" }}>📱</span>
+                Add to Your Home Screen
+              </button>
+            </div>
           </div>
 
           <RuneDivider />
@@ -712,6 +845,9 @@ export default function ParaPetsHubPage() {
 
       {showSignIn && (
         <SignInModal onClose={() => setShowSignIn(false)} onSuccess={handleSignInSuccess} />
+      )}
+      {showHomescreen && (
+        <HomeScreenModal onClose={() => setShowHomescreen(false)} />
       )}
     </>
   );
