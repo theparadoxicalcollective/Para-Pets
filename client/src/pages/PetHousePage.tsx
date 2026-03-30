@@ -60,6 +60,7 @@ interface OwnedBundle {
 }
 
 const DEFAULT_BG_RATIO = 1920 / 2400;
+const BUILDING_REF_H   = 900; // must match HouseBundleAdminPanel constant
 
 function randomGroundConfig(index: number) {
   const seed = index * 137.508;
@@ -124,6 +125,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
   const [panX, setPanX] = useState(0);
   const [imgWidth, setImgWidth] = useState(0);
+  const [containerH, setContainerH] = useState(0);
   const [bgAspect, setBgAspect] = useState(DEFAULT_BG_RATIO);
   const containerRef = useRef<HTMLDivElement>(null);
   const panStartRef = useRef<{ startX: number; startPanX: number; pid: number } | null>(null);
@@ -195,8 +197,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     const container = containerRef.current;
     if (!container) return;
     const containerW = container.offsetWidth;
-    const containerH = container.offsetHeight;
-    const imgW = containerH * bgAspect;
+    const h = container.offsetHeight;
+    const imgW = h * bgAspect;
+    setContainerH(h);
     setImgWidth(imgW);
     setPanX(Math.max(Math.min(0, containerW - imgW), -(imgW - containerW) / 2));
   }, [bgAspect]);
@@ -286,8 +289,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                 alt={b.name}
                 draggable={false}
                 style={{
-                  width: b.width ?? 80,
-                  height: b.width ?? 80,
+                  width:  Math.round((b.width ?? 80) * (containerH || BUILDING_REF_H) / BUILDING_REF_H),
+                  height: Math.round((b.width ?? 80) * (containerH || BUILDING_REF_H) / BUILDING_REF_H),
                   objectFit: "contain",
                   filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.7))",
                   transform: b.flippedX ? "scaleX(-1)" : undefined,
