@@ -12,6 +12,7 @@ import ItemDatabaseSection, { ShopItemFull, ItemPickerModal, getItemEffectText }
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import FishingAdminPanel from "@/components/FishingAdminPanel";
 import EnemyDatabasePanel from "@/components/EnemyDatabasePanel";
+import HouseBundleAdminPanel from "@/components/HouseBundleAdminPanel";
 import adminIconMembers from "@assets/admin_icon_members.png";
 import adminIconRewards from "@assets/admin_icon_rewards.png";
 import adminIconItems from "@assets/admin_icon_items.png";
@@ -410,22 +411,7 @@ export default function AdminPage({ user }: AdminPageProps) {
               )}
 
               {activeSection === "house_bundle" && (
-                <div
-                  className="flex flex-col items-center justify-center py-16 gap-4 rounded-2xl"
-                  style={{
-                    background: "linear-gradient(145deg, rgba(8,38,50,0.7) 0%, rgba(12,58,75,0.7) 100%)",
-                    border: "1.5px solid rgba(34,211,238,0.3)",
-                  }}
-                  data-testid="section-house-bundle-placeholder"
-                >
-                  <img src={adminIconRewards} alt="House Bundle" className="w-16 h-16 object-contain opacity-70" style={{ filter: "drop-shadow(0 0 10px rgba(34,211,238,0.4))" }} />
-                  <p className="font-fantasy text-base tracking-widest font-semibold" style={{ color: "#a5f3fc", textShadow: "0 0 12px rgba(34,211,238,0.4)" }}>
-                    House Bundle
-                  </p>
-                  <p className="font-fantasy text-xs tracking-wide text-center px-6" style={{ color: "rgba(165,243,252,0.5)" }}>
-                    Coming soon — house item bundle management will appear here.
-                  </p>
-                </div>
+                <HouseBundleAdminPanel />
               )}
             </>
           )}

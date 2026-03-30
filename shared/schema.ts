@@ -563,3 +563,37 @@ export const kcDoorDecorPlacements = pgTable("kc_door_decor_placements", {
 
 export type KcDoor = typeof kcDoors.$inferSelect;
 export type KcDoorDecorPlacement = typeof kcDoorDecorPlacements.$inferSelect;
+
+// ── House Bundles ─────────────────────────────────────────────────────────────
+export const houseBundles = pgTable("house_bundles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  shopImageUrl: text("shop_image_url"),
+  bgImageUrl: text("bg_image_url"),
+  price: integer("price").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const houseBundleBuildings = pgTable("house_bundle_buildings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bundleId: varchar("bundle_id").notNull(),
+  name: text("name").notNull().default("Building"),
+  imageUrl: text("image_url").notNull(),
+  posX: real("pos_x").notNull().default(50),
+  posY: real("pos_y").notNull().default(50),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export type HouseBundle = typeof houseBundles.$inferSelect;
+export type HouseBundleBuilding = typeof houseBundleBuildings.$inferSelect;
+
+// ── Home Decor Items ──────────────────────────────────────────────────────────
+export const homeDecorItems = pgTable("home_decor_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  imageUrl: text("image_url"),
+  price: integer("price").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export type HomeDecorItem = typeof homeDecorItems.$inferSelect;

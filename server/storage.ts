@@ -37,6 +37,9 @@ import {
   petHousePositions,
   type Enemy, type EnemyPart, enemies, enemyParts,
   type InsertEnemy,
+  type HouseBundle, houseBundles,
+  type HouseBundleBuilding, houseBundleBuildings,
+  type HomeDecorItem, homeDecorItems,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, ne, gte, asc, desc, ilike, or, sql, inArray } from "drizzle-orm";
@@ -1712,6 +1715,74 @@ export class DatabaseStorage implements IStorage {
 
   async deleteEnemyPart(id: string): Promise<void> {
     await db.delete(enemyParts).where(eq(enemyParts.id, id));
+  }
+
+  // ── House Bundles ─────────────────────────────────────────────────────────────
+  async getHouseBundles(): Promise<HouseBundle[]> {
+    return db.select().from(houseBundles).orderBy(asc(houseBundles.createdAt));
+  }
+
+  async getHouseBundle(id: string): Promise<HouseBundle | undefined> {
+    const [b] = await db.select().from(houseBundles).where(eq(houseBundles.id, id));
+    return b;
+  }
+
+  async createHouseBundle(data: { name: string; shopImageUrl?: string; bgImageUrl?: string; price: number }): Promise<HouseBundle> {
+    const [b] = await db.insert(houseBundles).values(data).returning();
+    return b;
+  }
+
+  async updateHouseBundle(id: string, data: Partial<HouseBundle>): Promise<HouseBundle> {
+    const [b] = await db.update(houseBundles).set(data).where(eq(houseBundles.id, id)).returning();
+    return b;
+  }
+
+  async deleteHouseBundle(id: string): Promise<void> {
+    await db.delete(houseBundleBuildings).where(eq(houseBundleBuildings.bundleId, id));
+    await db.delete(houseBundles).where(eq(houseBundles.id, id));
+  }
+
+  async getHouseBundleBuildings(bundleId: string): Promise<HouseBundleBuilding[]> {
+    return db.select().from(houseBundleBuildings).where(eq(houseBundleBuildings.bundleId, bundleId)).orderBy(asc(houseBundleBuildings.createdAt));
+  }
+
+  async createHouseBundleBuilding(data: { bundleId: string; name: string; imageUrl: string; posX?: number; posY?: number }): Promise<HouseBundleBuilding> {
+    const [b] = await db.insert(houseBundleBuildings).values({
+      bundleId: data.bundleId,
+      name: data.name,
+      imageUrl: data.imageUrl,
+      posX: data.posX ?? 50,
+      posY: data.posY ?? 50,
+    }).returning();
+    return b;
+  }
+
+  async updateHouseBundleBuilding(id: string, data: Partial<HouseBundleBuilding>): Promise<HouseBundleBuilding> {
+    const [b] = await db.update(houseBundleBuildings).set(data).where(eq(houseBundleBuildings.id, id)).returning();
+    return b;
+  }
+
+  async deleteHouseBundleBuilding(id: string): Promise<void> {
+    await db.delete(houseBundleBuildings).where(eq(houseBundleBuildings.id, id));
+  }
+
+  // ── Home Decor Items ──────────────────────────────────────────────────────────
+  async getHomeDecorItems(): Promise<HomeDecorItem[]> {
+    return db.select().from(homeDecorItems).orderBy(asc(homeDecorItems.createdAt));
+  }
+
+  async createHomeDecorItem(data: { name: string; imageUrl?: string; price: number }): Promise<HomeDecorItem> {
+    const [d] = await db.insert(homeDecorItems).values(data).returning();
+    return d;
+  }
+
+  async updateHomeDecorItem(id: string, data: Partial<HomeDecorItem>): Promise<HomeDecorItem> {
+    const [d] = await db.update(homeDecorItems).set(data).where(eq(homeDecorItems.id, id)).returning();
+    return d;
+  }
+
+  async deleteHomeDecorItem(id: string): Promise<void> {
+    await db.delete(homeDecorItems).where(eq(homeDecorItems.id, id));
   }
 }
 

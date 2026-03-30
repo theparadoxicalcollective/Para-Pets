@@ -4474,5 +4474,132 @@ export async function registerRoutes(
     }
   });
 
+  // ── House Bundles ─────────────────────────────────────────────────────────────
+  app.get("/api/admin/house-bundles", isAdmin, async (_req, res) => {
+    try {
+      const bundles = await storage.getHouseBundles();
+      return res.json(bundles);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/admin/house-bundles", isAdmin, async (req, res) => {
+    try {
+      const { name, price, shopImageData, bgImageData } = req.body;
+      if (!name) return res.status(400).json({ message: "name is required" });
+      let shopImageUrl: string | undefined;
+      let bgImageUrl: string | undefined;
+      if (shopImageData) shopImageUrl = await processWorldImage(shopImageData, 1000);
+      if (bgImageData)   bgImageUrl   = await processWorldImage(bgImageData, 3000);
+      const bundle = await storage.createHouseBundle({ name, price: price ?? 0, shopImageUrl, bgImageUrl });
+      return res.status(201).json(bundle);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/admin/house-bundles/:id", isAdmin, async (req, res) => {
+    try {
+      const { name, price, shopImageData, bgImageData } = req.body;
+      const updates: Record<string, any> = {};
+      if (name !== undefined)  updates.name  = name;
+      if (price !== undefined) updates.price = price;
+      if (shopImageData) updates.shopImageUrl = await processWorldImage(shopImageData, 1000);
+      if (bgImageData)   updates.bgImageUrl   = await processWorldImage(bgImageData, 3000);
+      const bundle = await storage.updateHouseBundle(req.params.id, updates);
+      return res.json(bundle);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/admin/house-bundles/:id", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteHouseBundle(req.params.id);
+      return res.json({ ok: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── House Bundle Buildings ────────────────────────────────────────────────────
+  app.get("/api/admin/house-bundles/:bundleId/buildings", isAdmin, async (req, res) => {
+    try {
+      const buildings = await storage.getHouseBundleBuildings(req.params.bundleId);
+      return res.json(buildings);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/admin/house-bundles/:bundleId/buildings", isAdmin, async (req, res) => {
+    try {
+      const { name, imageData } = req.body;
+      if (!name || !imageData) return res.status(400).json({ message: "name and imageData are required" });
+      const imageUrl = await processWorldImage(imageData, 1000);
+      const building = await storage.createHouseBundleBuilding({ bundleId: req.params.bundleId, name, imageUrl });
+      return res.status(201).json(building);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/admin/house-bundle-buildings/:id", isAdmin, async (req, res) => {
+    try {
+      const { name, posX, posY, imageData } = req.body;
+      const updates: Record<string, any> = {};
+      if (name  !== undefined) updates.name  = name;
+      if (posX  !== undefined) updates.posX  = posX;
+      if (posY  !== undefined) updates.posY  = posY;
+      if (imageData) updates.imageUrl = await processWorldImage(imageData, 1000);
+      const building = await storage.updateHouseBundleBuilding(req.params.id, updates);
+      return res.json(building);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/admin/house-bundle-buildings/:id", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteHouseBundleBuilding(req.params.id);
+      return res.json({ ok: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Home Decor Items ──────────────────────────────────────────────────────────
+  app.get("/api/admin/home-decor", isAdmin, async (_req, res) => {
+    try {
+      const items = await storage.getHomeDecorItems();
+      return res.json(items);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/admin/home-decor", isAdmin, async (req, res) => {
+    try {
+      const { name, price, imageData } = req.body;
+      if (!name) return res.status(400).json({ message: "name is required" });
+      let imageUrl: string | undefined;
+      if (imageData) imageUrl = await processWorldImage(imageData, 1000);
+      const item = await storage.createHomeDecorItem({ name, price: price ?? 0, imageUrl });
+      return res.status(201).json(item);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/admin/home-decor/:id", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteHomeDecorItem(req.params.id);
+      return res.json({ ok: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
   return httpServer;
 }
