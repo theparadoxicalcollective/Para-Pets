@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { playClick, unlockAudio } from "@/lib/sounds";
 import { initTabSync, teardownTabSync } from "@/lib/tabSync";
 import AuthPage from "@/pages/AuthPage";
+import MaintenancePage from "@/pages/MaintenancePage";
 import HomePage from "@/pages/HomePage";
 import MapPage from "@/pages/MapPage";
 import AdminPage from "@/pages/AdminPage";
@@ -50,6 +51,14 @@ function AppRouter() {
     refetchOnWindowFocus: true,
   });
 
+  const { data: maintenanceData } = useQuery<{ maintenance: boolean }>({
+    queryKey: ["/api/maintenance-status"],
+    retry: false,
+    staleTime: 30 * 1000,
+    refetchInterval: 60 * 1000,
+  });
+  const maintenanceOn = maintenanceData?.maintenance === true;
+
   const [showWelcome, setShowWelcome] = useState(() =>
     localStorage.getItem("para_pets_just_registered") === "true"
   );
@@ -81,6 +90,11 @@ function AppRouter() {
         </div>
       </div>
     );
+  }
+
+  // Show maintenance screen to logged-in non-admin players
+  if (maintenanceOn && user && !user.isAdmin) {
+    return <MaintenancePage />;
   }
 
   if (showWelcome && user) {

@@ -1,12 +1,13 @@
 import { useState, useRef, useCallback } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { useLocation, Link } from "wouter";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import bgImg from "@assets/bg_login.png";
 import signInBtn from "@assets/btn_signin_v2.png";
 import createAccountBtn from "@assets/btn_create_v2.png";
+import MaintenancePage from "@/pages/MaintenancePage";
 
 type Mode = "landing" | "login" | "register" | "forgot" | "support";
 
@@ -40,6 +41,12 @@ export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loginFailed, setLoginFailed] = useState(false);
+
+  const { data: maintenanceData } = useQuery<{ maintenance: boolean }>({
+    queryKey: ["/api/maintenance-status"],
+    retry: false,
+    staleTime: 30 * 1000,
+  });
   const [supportUsername, setSupportUsername] = useState("");
   const [supportEmail, setSupportEmail] = useState("");
   const [supportSubject, setSupportSubject] = useState("");
@@ -205,6 +212,10 @@ export default function AuthPage() {
   };
 
   const isPending = loginMutation.isPending || registerMutation.isPending || supportMutation.isPending || forgotMutation.isPending;
+
+  if (maintenanceData?.maintenance === true) {
+    return <MaintenancePage />;
+  }
 
   return (
     <div

@@ -1735,8 +1735,34 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
 
 function MaintenanceSection() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [result, setResult] = useState<{ summary: string; cleaned: number } | null>(null);
   const [running, setRunning] = useState(false);
+
+  const { data: maintenanceData, isLoading: maintenanceLoading } = useQuery<{ maintenance: boolean }>({
+    queryKey: ["/api/maintenance-status"],
+    staleTime: 10 * 1000,
+  });
+  const maintenanceOn = maintenanceData?.maintenance === true;
+
+  const toggleMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const res = await apiRequest("POST", "/api/admin/maintenance", { enabled });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["/api/maintenance-status"], { maintenance: data.maintenance });
+      toast({
+        title: data.maintenance ? "Maintenance mode ON" : "Maintenance mode OFF",
+        description: data.maintenance
+          ? "Players are now blocked from logging in."
+          : "The realm is open — players can log in again.",
+      });
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed", description: err.message, variant: "destructive" });
+    },
+  });
 
   const runCleanup = async () => {
     setRunning(true);
@@ -1754,7 +1780,94 @@ function MaintenanceSection() {
   };
 
   return (
-    <div className="space-y-4 py-2">
+    <div className="space-y-5 py-2">
+
+      {/* ── Maintenance Mode Toggle ── */}
+      <div
+        className="rounded-2xl p-4 flex flex-col gap-3"
+        style={{
+          background: maintenanceOn
+            ? "linear-gradient(145deg, rgba(60,10,10,0.9) 0%, rgba(90,14,14,0.9) 100%)"
+            : "linear-gradient(145deg, rgba(8,30,20,0.9) 0%, rgba(12,50,30,0.9) 100%)",
+          border: maintenanceOn
+            ? "1px solid rgba(252,165,165,0.4)"
+            : "1px solid rgba(110,231,183,0.3)",
+          boxShadow: maintenanceOn
+            ? "0 0 20px rgba(200,50,50,0.1)"
+            : "0 0 20px rgba(110,231,183,0.06)",
+          transition: "all 0.4s ease",
+        }}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col gap-0.5">
+            <p
+              className="font-fantasy text-sm tracking-wide"
+              style={{ color: maintenanceOn ? "#fca5a5" : "#6ee7b7" }}
+            >
+              Maintenance Mode
+            </p>
+            <p
+              className="font-fantasy text-[10px] tracking-wider"
+              style={{ color: maintenanceOn ? "#7a3030" : "#2a5a3a" }}
+            >
+              {maintenanceLoading ? "Checking status..." : maintenanceOn ? "Realm is closed to players" : "Realm is open to all"}
+            </p>
+          </div>
+
+          {/* Toggle switch */}
+          <button
+            data-testid="button-toggle-maintenance"
+            onClick={() => toggleMutation.mutate(!maintenanceOn)}
+            disabled={maintenanceLoading || toggleMutation.isPending}
+            className="relative flex-shrink-0"
+            style={{
+              width: 52,
+              height: 28,
+              borderRadius: 14,
+              background: maintenanceOn
+                ? "linear-gradient(135deg, #8b1a1a, #c0392b)"
+                : "linear-gradient(135deg, #1a5c38, #27ae60)",
+              border: maintenanceOn ? "1px solid rgba(252,165,165,0.5)" : "1px solid rgba(110,231,183,0.5)",
+              boxShadow: maintenanceOn ? "0 0 10px rgba(200,50,50,0.3)" : "0 0 10px rgba(39,174,96,0.3)",
+              cursor: (maintenanceLoading || toggleMutation.isPending) ? "not-allowed" : "pointer",
+              transition: "all 0.3s ease",
+              opacity: (maintenanceLoading || toggleMutation.isPending) ? 0.5 : 1,
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                top: 3,
+                left: maintenanceOn ? 26 : 3,
+                width: 20,
+                height: 20,
+                borderRadius: "50%",
+                background: "white",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.4)",
+                transition: "left 0.3s ease",
+              }}
+            />
+          </button>
+        </div>
+
+        {maintenanceOn && (
+          <p
+            className="font-fantasy text-[10px] tracking-wider text-center"
+            style={{ color: "#7a3030" }}
+          >
+            Admins can still access the realm normally.
+          </p>
+        )}
+      </div>
+
+      {/* ── Divider ── */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1 h-px" style={{ background: "rgba(168,152,120,0.15)" }} />
+        <p className="font-fantasy text-[10px] text-[#4a3a28] tracking-wider">Database Tools</p>
+        <div className="flex-1 h-px" style={{ background: "rgba(168,152,120,0.15)" }} />
+      </div>
+
+      {/* ── Orphan Cleanup ── */}
       <p className="font-fantasy text-[#a89878] text-xs tracking-wider text-center">
         Remove database rows left behind by previous admin deletions.
       </p>

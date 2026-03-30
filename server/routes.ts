@@ -416,12 +416,41 @@ export async function registerRoutes(
     }
   });
 
+  // ── Public: check maintenance mode ───────────────────────────────────────
+  app.get("/api/maintenance-status", async (_req, res) => {
+    try {
+      const val = await storage.getGameSetting("maintenance_mode");
+      return res.json({ maintenance: val === "true" });
+    } catch {
+      return res.json({ maintenance: false });
+    }
+  });
+
+  // ── Admin: toggle maintenance mode ────────────────────────────────────────
+  app.post("/api/admin/maintenance", isAdmin, async (req, res) => {
+    try {
+      const { enabled } = req.body as { enabled: boolean };
+      await storage.setGameSetting("maintenance_mode", enabled ? "true" : "false");
+      return res.json({ maintenance: enabled });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
   app.post("/api/auth/login", (req, res, next) => {
     passport.authenticate("local", (err: any, user: any, info: any) => {
       if (err) return next(err);
       if (!user) return res.status(401).json({ message: info?.message || "Invalid credentials" });
       req.login(user, async (loginErr) => {
         if (loginErr) return next(loginErr);
+        // Block non-admins when maintenance mode is active
+        if (!user.isAdmin) {
+          const maintenance = await storage.getGameSetting("maintenance_mode");
+          if (maintenance === "true") {
+            req.logout(() => {});
+            return res.status(503).json({ maintenance: true, message: "The realm is currently undergoing maintenance. Please try again soon." });
+          }
+        }
         req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000;
         if (!user.welcomeV2Sent) {
           try { await grantWelcomeV2Bundle(user.id); } catch (e) { console.error("Welcome v2 grant failed:", e); }
