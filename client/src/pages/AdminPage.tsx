@@ -483,7 +483,7 @@ function CoinPurchasesSection() {
     <div className="flex flex-col gap-4 px-1">
       <div className="grid grid-cols-3 gap-2">
         {[
-          { label: "Total Revenue", value: `$${(totalUsd / 100).toFixed(2)}` },
+          { label: "Total Revenue", value: `$${totalUsd.toFixed(2)}` },
           { label: "Coins Sold", value: totalCoins.toLocaleString() },
           { label: "Transactions", value: purchases.length },
         ].map(stat => (
@@ -508,7 +508,7 @@ function CoinPurchasesSection() {
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   <div className="text-right">
-                    <p className="font-fantasy text-[10px]" style={{ color: "#4ade80" }}>${(info.totalUsd / 100).toFixed(2)}</p>
+                    <p className="font-fantasy text-[10px]" style={{ color: "#4ade80" }}>${info.totalUsd.toFixed(2)}</p>
                     <p className="font-fantasy text-[9px]" style={{ color: "#4a7060" }}>{info.count} purchase{info.count !== 1 ? "s" : ""}</p>
                   </div>
                   <div className="flex items-center gap-1">
@@ -529,7 +529,7 @@ function CoinPurchasesSection() {
                   <p className="font-fantasy text-[8px]" style={{ color: "#4a7060" }}>{new Date(p.createdAt).toLocaleDateString()} {new Date(p.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</p>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <p className="font-fantasy text-[10px]" style={{ color: "#4ade80" }}>${(p.amountUsd / 100).toFixed(2)}</p>
+                  <p className="font-fantasy text-[10px]" style={{ color: "#4ade80" }}>${p.amountUsd.toFixed(2)}</p>
                   <div className="flex items-center gap-1">
                     <img src={coinIconImg} alt="coins" style={{ width: 11, height: 11, objectFit: "contain" }} />
                     <p className="font-fantasy text-[10px]" style={{ color: "#f0c040" }}>{p.coinsReceived.toLocaleString()}</p>
