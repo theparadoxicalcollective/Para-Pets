@@ -13,6 +13,7 @@ export const users = pgTable("users", {
   isAdmin: boolean("is_admin").notNull().default(false),
   isBanned: boolean("is_banned").notNull().default(false),
   activePetId: varchar("active_pet_id"),
+  activeHouseBundleId: varchar("active_house_bundle_id"),
   lastUsernameChange: timestamp("last_username_change"),
   lastProfilePicChange: timestamp("last_profile_pic_change"),
   passwordResetToken: text("password_reset_token"),
@@ -597,3 +598,13 @@ export const homeDecorItems = pgTable("home_decor_items", {
 });
 
 export type HomeDecorItem = typeof homeDecorItems.$inferSelect;
+
+// ── User House Bundles (ownership) ────────────────────────────────────────────
+export const userHouseBundles = pgTable("user_house_bundles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  bundleId: varchar("bundle_id").notNull(),
+  purchasedAt: timestamp("purchased_at").notNull().default(sql`now()`),
+});
+
+export type UserHouseBundle = typeof userHouseBundles.$inferSelect;

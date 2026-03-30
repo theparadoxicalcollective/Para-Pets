@@ -40,6 +40,7 @@ import {
   type HouseBundle, houseBundles,
   type HouseBundleBuilding, houseBundleBuildings,
   type HomeDecorItem, homeDecorItems,
+  type UserHouseBundle, userHouseBundles,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, ne, gte, asc, desc, ilike, or, sql, inArray } from "drizzle-orm";
@@ -229,6 +230,11 @@ export interface IStorage {
   createEnemyPart(data: { enemyId: string; partType: string; imageUrl: string; posX?: number; posY?: number; width?: number; height?: number; zIndex?: number }): Promise<EnemyPart>;
   updateEnemyPart(id: string, data: Partial<EnemyPart>): Promise<EnemyPart>;
   deleteEnemyPart(id: string): Promise<void>;
+  getUserHouseBundles(userId: string): Promise<(UserHouseBundle & { bundle: HouseBundle })[]>;
+  hasUserHouseBundle(userId: string, bundleId: string): Promise<boolean>;
+  grantUserHouseBundle(userId: string, bundleId: string): Promise<UserHouseBundle>;
+  setActiveHouseBundle(userId: string, bundleId: string | null): Promise<void>;
+  getActiveBundleWithBuildings(userId: string): Promise<(HouseBundle & { buildings: HouseBundleBuilding[] }) | null>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1783,6 +1789,43 @@ export class DatabaseStorage implements IStorage {
 
   async deleteHomeDecorItem(id: string): Promise<void> {
     await db.delete(homeDecorItems).where(eq(homeDecorItems.id, id));
+  }
+
+  // ── User House Bundle Ownership ───────────────────────────────────────────────
+  async getUserHouseBundles(userId: string): Promise<(UserHouseBundle & { bundle: HouseBundle })[]> {
+    const rows = await db
+      .select()
+      .from(userHouseBundles)
+      .innerJoin(houseBundles, eq(userHouseBundles.bundleId, houseBundles.id))
+      .where(eq(userHouseBundles.userId, userId))
+      .orderBy(asc(userHouseBundles.purchasedAt));
+    return rows.map((r) => ({ ...r.user_house_bundles, bundle: r.house_bundles }));
+  }
+
+  async hasUserHouseBundle(userId: string, bundleId: string): Promise<boolean> {
+    const [row] = await db
+      .select()
+      .from(userHouseBundles)
+      .where(and(eq(userHouseBundles.userId, userId), eq(userHouseBundles.bundleId, bundleId)));
+    return !!row;
+  }
+
+  async grantUserHouseBundle(userId: string, bundleId: string): Promise<UserHouseBundle> {
+    const [row] = await db.insert(userHouseBundles).values({ userId, bundleId }).returning();
+    return row;
+  }
+
+  async setActiveHouseBundle(userId: string, bundleId: string | null): Promise<void> {
+    await db.update(users).set({ activeHouseBundleId: bundleId } as any).where(eq(users.id, userId));
+  }
+
+  async getActiveBundleWithBuildings(userId: string): Promise<(HouseBundle & { buildings: HouseBundleBuilding[] }) | null> {
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    if (!user?.activeHouseBundleId) return null;
+    const [bundle] = await db.select().from(houseBundles).where(eq(houseBundles.id, user.activeHouseBundleId));
+    if (!bundle) return null;
+    const buildings = await db.select().from(houseBundleBuildings).where(eq(houseBundleBuildings.bundleId, bundle.id)).orderBy(asc(houseBundleBuildings.createdAt));
+    return { ...bundle, buildings };
   }
 }
 

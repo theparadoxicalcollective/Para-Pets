@@ -6,7 +6,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { storage } from "./storage";
-import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards, userInventory } from "@shared/schema";
+import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards, userInventory, houseBundles as houseBundlesTable, users as usersTable } from "@shared/schema";
 import { db } from "./db";
 import { and, eq, inArray, lt } from "drizzle-orm";
 import sharp from "sharp";
@@ -4468,6 +4468,80 @@ export async function registerRoutes(
   app.delete("/api/admin/kc-door-decor/:id", isAdmin, async (req, res) => {
     try {
       await storage.deleteKcDoorDecorPlacement(req.params.id);
+      return res.json({ ok: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Player House Bundle Routes ────────────────────────────────────────────────
+  app.get("/api/house-bundles", async (_req, res) => {
+    try {
+      const bundles = await storage.getHouseBundles();
+      return res.json(bundles);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/users/:userId/house-bundles", async (req, res) => {
+    try {
+      const { userId } = req.params as { userId: string };
+      const owned = await storage.getUserHouseBundles(userId);
+      return res.json(owned);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/users/:userId/active-house-bundle", async (req, res) => {
+    try {
+      const { userId } = req.params as { userId: string };
+      const bundle = await storage.getActiveBundleWithBuildings(userId);
+      return res.json(bundle ?? null);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/house-bundles/:bundleId/purchase", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Unauthorized" });
+      const user = req.user as any;
+      const { bundleId } = req.params as { bundleId: string };
+      const [bundle] = await db.select().from(houseBundlesTable).where(eq(houseBundlesTable.id, bundleId));
+      if (!bundle) return res.status(404).json({ message: "Bundle not found" });
+      const alreadyOwns = await storage.hasUserHouseBundle(user.id, bundleId);
+      if (alreadyOwns) return res.status(400).json({ message: "Already owned" });
+      if (user.coins < bundle.price) return res.status(400).json({ message: "Not enough coins" });
+      await db.update(usersTable).set({ coins: user.coins - bundle.price }).where(eq(usersTable.id, user.id));
+      const owned = await storage.grantUserHouseBundle(user.id, bundleId);
+      return res.status(201).json(owned);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/house-bundles/:bundleId/activate", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Unauthorized" });
+      const user = req.user as any;
+      const { bundleId } = req.params as { bundleId: string };
+      const owns = await storage.hasUserHouseBundle(user.id, bundleId);
+      if (!owns) return res.status(403).json({ message: "Bundle not owned" });
+      await storage.setActiveHouseBundle(user.id, bundleId);
+      const bundle = await storage.getActiveBundleWithBuildings(user.id);
+      return res.json(bundle);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/house-bundles/deactivate", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Unauthorized" });
+      const user = req.user as any;
+      await storage.setActiveHouseBundle(user.id, null);
       return res.json({ ok: true });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
