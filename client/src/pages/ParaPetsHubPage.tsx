@@ -9,9 +9,11 @@ import heroBanner        from "@assets/hub_hero_banner.png";
 import mascot            from "@assets/hub_mascot.png";
 import runeCircle        from "@assets/hub_rune_circle.png";
 import eggsImg           from "@assets/hub_eggs.png";
-import lbBanner         from "@assets/hub_leaderboard_banner.png";
+import legendBanner      from "@assets/hub_legend_banner.png";
 import podiumImg         from "@assets/hub_podium.png";
 import rankCrowns        from "@assets/hub_rank_crowns.png";
+import iconBadges        from "@assets/admin_icon_badges.png";
+import iconMap           from "@assets/icon_map_new.png";
 
 import worldEnchanted    from "@assets/bg_enchanted_grove_map.png";
 import worldHaunted      from "@assets/bg_haunted_woods_map.png";
@@ -484,6 +486,7 @@ export default function ParaPetsHubPage() {
             background: "rgba(6,10,16,0.9)",
             backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)",
             borderBottom: "1px solid rgba(127,191,176,0.07)",
+            paddingTop: "env(safe-area-inset-top)",
           }}>
           <div className="max-w-3xl mx-auto px-5 h-14 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -587,14 +590,15 @@ export default function ParaPetsHubPage() {
           {/* Feature pills */}
           <div className="grid grid-cols-3 gap-3 mb-2">
             {[
-              { icon: "🥚", label: "Hatch Pets",     desc: "Discover rare creatures" },
-              { icon: "🗺️", label: "Explore Worlds", desc: "Enchanted realms await" },
-              { icon: "🏅", label: "Earn Badges",    desc: "Climb the legend board" },
+              { img: eggsImg,     label: "Hatch Pets",     desc: "Discover rare creatures" },
+              { img: iconMap,     label: "Explore Worlds", desc: "Enchanted realms await" },
+              { img: iconBadges,  label: "Earn Badges",    desc: "Climb the legend board" },
             ].map(f => (
               <div key={f.label} data-testid={`feature-card-${f.label.replace(" ", "-").toLowerCase()}`}
                 className="rounded-2xl p-3 flex flex-col items-center gap-1.5 text-center"
                 style={{ background: "rgba(8,14,10,0.75)", border: "1px solid rgba(127,191,176,0.09)" }}>
-                <span style={{ fontSize: "1.4rem" }}>{f.icon}</span>
+                <img src={f.img} alt={f.label} className="w-10 h-10 object-contain"
+                  style={{ filter: "drop-shadow(0 0 6px rgba(127,191,176,0.35))" }} />
                 <p className="font-fantasy text-[11px] tracking-wide" style={{ color: "#7fbfb0" }}>{f.label}</p>
                 <p className="font-fantasy text-[9px] leading-tight" style={{ color: "#2a4a38" }}>{f.desc}</p>
               </div>
@@ -642,19 +646,17 @@ export default function ParaPetsHubPage() {
           <div data-testid="leaderboard-section">
 
             {/* Leaderboard banner header */}
-            <div className="relative w-full rounded-2xl overflow-hidden mb-6"
-              style={{ height: 100 }}>
-              <img src={lbBanner} alt="Hall of Legends" className="w-full h-full object-cover"
-                style={{ objectPosition: "center 40%", filter: "brightness(0.65) saturate(1.3)" }} />
-              <div className="absolute inset-0"
-                style={{ background: "linear-gradient(to right,rgba(6,10,16,0.7) 0%,transparent 30%,transparent 70%,rgba(6,10,16,0.7) 100%)" }} />
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
-                <h2 className="font-fantasy text-xl tracking-widest"
-                  style={{ color: "#ffd700", textShadow: "0 0 20px rgba(255,215,0,0.6), 0 2px 12px rgba(0,0,0,0.9)" }}
+            <div className="relative flex flex-col items-center justify-center mb-6 pt-2 pb-4">
+              <img src={legendBanner} alt="" aria-hidden="true"
+                className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
+                style={{ opacity: 0.55, filter: "drop-shadow(0 0 18px rgba(127,191,176,0.3))" }} />
+              <div className="relative z-10 flex flex-col items-center gap-1 py-6">
+                <h2 className="font-fantasy text-2xl tracking-widest"
+                  style={{ color: "#ffd700", textShadow: "0 0 24px rgba(255,215,0,0.7), 0 2px 14px rgba(0,0,0,0.95)" }}
                   data-testid="text-leaderboard-title">
                   Hall of Legends
                 </h2>
-                <p className="font-fantasy text-[10px] tracking-widest" style={{ color: "rgba(200,190,140,0.7)" }}>
+                <p className="font-fantasy text-[10px] tracking-widest" style={{ color: "rgba(200,190,140,0.6)" }}>
                   Ranked by total badge points earned
                 </p>
               </div>
