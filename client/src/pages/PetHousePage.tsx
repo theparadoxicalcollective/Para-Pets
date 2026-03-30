@@ -50,7 +50,7 @@ interface HouseBundle {
 }
 
 interface ActiveBundle extends HouseBundle {
-  buildings: { id: string; name: string; imageUrl: string; posX: number; posY: number }[];
+  buildings: { id: string; name: string; imageUrl: string; posX: number; posY: number; width: number; flippedX: boolean }[];
 }
 
 interface OwnedBundle {
@@ -285,7 +285,13 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                 src={b.imageUrl}
                 alt={b.name}
                 draggable={false}
-                style={{ width: 80, height: 80, objectFit: "contain", filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.7))" }}
+                style={{
+                  width: b.width ?? 80,
+                  height: b.width ?? 80,
+                  objectFit: "contain",
+                  filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.7))",
+                  transform: b.flippedX ? "scaleX(-1)" : undefined,
+                }}
               />
               <span
                 className="px-2 py-0.5 rounded-full text-xs font-bold"
