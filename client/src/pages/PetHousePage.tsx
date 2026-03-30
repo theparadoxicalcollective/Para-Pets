@@ -64,11 +64,16 @@ const DEFAULT_BG_RATIO = 1920 / 2400;
 function randomGroundConfig(index: number) {
   const seed = index * 137.508;
   const pseudo = (n: number) => ((Math.sin(n) * 10000) % 1 + 1) % 1;
+  const size = 140 + pseudo(seed + 2) * 40;
+  // Center position as percentages — pet is anchored at its center via calc()
+  // so these are the safe center ranges (keeps even the largest pet inside the container)
+  const centerX = 20 + pseudo(seed) * 60;      // 20–80% horizontally
+  const centerY = 62 + pseudo(seed + 1) * 22;  // 62–84% vertically (lower half only)
   return {
     wanderIdx: index % 6,
-    left: `${2 + pseudo(seed) * 88}%`,
-    top: `${52 + pseudo(seed + 1) * 40}%`,
-    size: 160 + pseudo(seed + 2) * 60,
+    left: `calc(${centerX}% - ${size / 2}px)`,
+    top: `calc(${centerY}% - ${size / 2}px)`,
+    size,
     duration: `${26 + pseudo(seed + 3) * 18}s`,
     delay: `${pseudo(seed + 4) * 28}s`,
   };
@@ -293,11 +298,11 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         </div>
       )}
 
-      {/* Pets layer — moves with background */}
+      {/* Pets layer — moves with background, clipped to background bounds */}
       {imgWidth > 0 && (
         <div
           className="absolute pointer-events-none"
-          style={{ zIndex: 5, top: 0, left: `${panX}px`, width: imgWidth, height: "100%" }}
+          style={{ zIndex: 5, top: 0, left: `${panX}px`, width: imgWidth, height: "100%", overflow: "hidden" }}
         >
           {pets.map((pet, i) => (
             <WalkingPetView key={pet.inventoryId} pet={pet} index={i} />
