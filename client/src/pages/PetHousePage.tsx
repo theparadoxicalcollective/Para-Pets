@@ -1003,8 +1003,6 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         const yPct = isDraggingThis ? petDragLive.yPct : baseYPct;
         const left = panX + xPct * imgWidth;
         const top = yPct * containerH;
-        // unique negative delay so each pet starts at a different point in its cycle
-        const animDelay = `-${(((Math.sin(i * 97.7 + 3.1) * 10000) % 1 + 1) % 1 * 2.4).toFixed(2)}s`;
         return (
           <div
             key={pet.inventoryId}
@@ -1022,7 +1020,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           >
             <div
               className={isDraggingThis ? undefined : "pet-idle-squish"}
-              style={{ width: "100%", height: "100%", animationDelay: isDraggingThis ? undefined : animDelay }}
+              style={{ width: "100%", height: "100%" }}
             >
               {pet.petTemplateId ? (
                 <PetAnimator petTemplateId={pet.petTemplateId} mode="idle" size={cfg.size} />
