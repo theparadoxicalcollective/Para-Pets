@@ -765,14 +765,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               width: cfg.size,
               height: cfg.size,
               transform: "translate(-50%, -50%)",
-              touchAction: "none",
-              cursor: isDraggingThis ? "grabbing" : "grab",
+              pointerEvents: "none",
               filter: isDraggingThis ? "drop-shadow(0 0 14px rgba(255,215,0,0.7))" : undefined,
             }}
-            onPointerDown={(e) => handlePetDragStart(e, pet.inventoryId, xPct, yPct)}
-            onPointerMove={handlePetDragMove}
-            onPointerUp={handlePetDragEnd}
-            onPointerCancel={handlePetDragEnd}
           >
             {pet.petTemplateId ? (
               <PetAnimator petTemplateId={pet.petTemplateId} mode="idle" size={cfg.size} />
@@ -784,6 +779,24 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                 style={{ width: "100%", height: "100%", objectFit: "contain" }}
               />
             )}
+            {/* Circular hit zone targeting the pet body — avoids transparent edges */}
+            <div
+              style={{
+                position: "absolute",
+                top: "20%",
+                left: "20%",
+                width: "60%",
+                height: "60%",
+                borderRadius: "50%",
+                pointerEvents: "auto",
+                touchAction: "none",
+                cursor: isDraggingThis ? "grabbing" : "grab",
+              }}
+              onPointerDown={(e) => handlePetDragStart(e, pet.inventoryId, xPct, yPct)}
+              onPointerMove={handlePetDragMove}
+              onPointerUp={handlePetDragEnd}
+              onPointerCancel={handlePetDragEnd}
+            />
           </div>
         );
       })}
