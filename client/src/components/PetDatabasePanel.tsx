@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { readFileAsDataUrl } from "@/lib/utils";
-import { Plus, Trash2, X, ArrowLeft, Save, Layers, Link2, Pencil } from "lucide-react";
+import { Plus, Trash2, X, ArrowLeft, Save, Layers, Link2, Pencil, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface PetTemplate {
   id: string;
@@ -134,6 +134,7 @@ export default function PetDatabasePanel() {
   const [renameName, setRenameName] = useState("");
   const [uploadPartType, setUploadPartType] = useState<string | null>(null);
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
+  const [nudgeStep, setNudgeStep] = useState<1 | 5 | 10>(1);
   const [sleepingUploading, setSleepingUploading] = useState(false);
   const [facingMode, setFacingMode] = useState<"front" | "side">("front");
   const [sideFacingDir, setSideFacingDir] = useState<"left" | "right">("left");
@@ -423,6 +424,12 @@ export default function PetDatabasePanel() {
     }
     setDragPos(null);
   }, [dragPos, updatePartMutation]);
+
+  const nudge = useCallback((dx: number, dy: number) => {
+    const part = viewParts.find(p => p.id === selectedPartId);
+    if (!part) return;
+    updatePartMutation.mutate({ partId: part.id, posX: part.posX + dx, posY: part.posY + dy });
+  }, [selectedPartId, viewParts, updatePartMutation]);
 
   const selectedPart = viewParts.find(p => p.id === selectedPartId);
 
@@ -736,30 +743,102 @@ export default function PetDatabasePanel() {
 
         {selectedPart && (
           <div
-            className="flex items-center justify-between px-3 py-2 rounded-lg"
+            className="flex flex-col gap-2 px-3 py-3 rounded-lg"
             style={{ background: "rgba(240,192,64,0.08)", border: "1px solid rgba(240,192,64,0.2)" }}
           >
-            <div className="flex items-center gap-2">
-              <span className="font-fantasy text-[#f0c040] text-xs tracking-wider capitalize">{selectedPart.partType}</span>
-              {(() => {
-                const ptInfo = ALL_PART_DEFS.find(p => p.key === selectedPart.partType);
-                const layerLabel = ptInfo?.layer === "back" ? "Behind Body" : ptInfo?.layer === "body" ? "Body Layer" : "In Front";
-                const layerColor = ptInfo?.layer === "back" ? "#ff9966" : ptInfo?.layer === "body" ? "#7fbfb0" : "#66ccff";
-                return (
-                  <span className="font-fantasy text-[7px] tracking-wider px-1.5 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.3)", border: `1px solid ${layerColor}40`, color: layerColor }}>
-                    {layerLabel}
-                  </span>
-                );
-              })()}
+            {/* Header: part name + layer badge + delete */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="font-fantasy text-[#f0c040] text-xs tracking-wider capitalize">{selectedPart.partType}</span>
+                {(() => {
+                  const ptInfo = ALL_PART_DEFS.find(p => p.key === selectedPart.partType);
+                  const layerLabel = ptInfo?.layer === "back" ? "Behind Body" : ptInfo?.layer === "body" ? "Body Layer" : "In Front";
+                  const layerColor = ptInfo?.layer === "back" ? "#ff9966" : ptInfo?.layer === "body" ? "#7fbfb0" : "#66ccff";
+                  return (
+                    <span className="font-fantasy text-[7px] tracking-wider px-1.5 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.3)", border: `1px solid ${layerColor}40`, color: layerColor }}>
+                      {layerLabel}
+                    </span>
+                  );
+                })()}
+              </div>
+              <button
+                data-testid="button-delete-selected-part"
+                onClick={() => deletePartMutation.mutate(selectedPart.id)}
+                className="w-7 h-7 rounded-full flex items-center justify-center"
+                style={{ background: "rgba(220,38,38,0.3)", cursor: "pointer", color: "#fca5a5" }}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
             </div>
-            <button
-              data-testid="button-delete-selected-part"
-              onClick={() => deletePartMutation.mutate(selectedPart.id)}
-              className="w-7 h-7 rounded-full flex items-center justify-center"
-              style={{ background: "rgba(220,38,38,0.3)", cursor: "pointer", color: "#fca5a5" }}
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
+
+            {/* Nudge controls */}
+            <div className="flex flex-col items-center gap-2 pt-1">
+              {/* Step size selector */}
+              <div className="flex items-center gap-1.5">
+                <span className="font-fantasy text-[8px] tracking-wider" style={{ color: "#6a5840" }}>Step:</span>
+                {([1, 5, 10] as const).map(s => (
+                  <button
+                    key={s}
+                    data-testid={`button-nudge-step-${s}`}
+                    onClick={() => setNudgeStep(s)}
+                    className="rounded-md font-fantasy text-[9px] tracking-wider transition-all active:scale-95"
+                    style={{
+                      padding: "2px 8px",
+                      background: nudgeStep === s ? "rgba(240,192,64,0.25)" : "rgba(0,0,0,0.3)",
+                      border: nudgeStep === s ? "1px solid rgba(240,192,64,0.6)" : "1px solid rgba(240,192,64,0.15)",
+                      color: nudgeStep === s ? "#f0c040" : "#6a5840",
+                      cursor: "pointer",
+                    }}
+                  >{s}px</button>
+                ))}
+              </div>
+
+              {/* D-pad */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 36px)", gap: 4 }}>
+                {/* Row 1: empty | up | empty */}
+                <div />
+                <button
+                  data-testid="button-nudge-up"
+                  onPointerDown={e => { e.stopPropagation(); nudge(0, -nudgeStep); }}
+                  className="flex items-center justify-center rounded-lg transition-all active:scale-90"
+                  style={{ height: 36, background: "rgba(240,192,64,0.12)", border: "1px solid rgba(240,192,64,0.3)", color: "#f0c040", cursor: "pointer" }}
+                ><ChevronUp className="w-4 h-4" /></button>
+                <div />
+
+                {/* Row 2: left | position display | right */}
+                <button
+                  data-testid="button-nudge-left"
+                  onPointerDown={e => { e.stopPropagation(); nudge(-nudgeStep, 0); }}
+                  className="flex items-center justify-center rounded-lg transition-all active:scale-90"
+                  style={{ height: 36, background: "rgba(240,192,64,0.12)", border: "1px solid rgba(240,192,64,0.3)", color: "#f0c040", cursor: "pointer" }}
+                ><ChevronLeft className="w-4 h-4" /></button>
+                <div className="flex flex-col items-center justify-center" style={{ height: 36 }}>
+                  <span className="font-fantasy text-[7px] leading-tight" style={{ color: "#a89878" }}>
+                    {selectedPart.posX}
+                  </span>
+                  <span className="font-fantasy text-[7px] leading-tight" style={{ color: "#6a5840" }}>x,y</span>
+                  <span className="font-fantasy text-[7px] leading-tight" style={{ color: "#a89878" }}>
+                    {selectedPart.posY}
+                  </span>
+                </div>
+                <button
+                  data-testid="button-nudge-right"
+                  onPointerDown={e => { e.stopPropagation(); nudge(nudgeStep, 0); }}
+                  className="flex items-center justify-center rounded-lg transition-all active:scale-90"
+                  style={{ height: 36, background: "rgba(240,192,64,0.12)", border: "1px solid rgba(240,192,64,0.3)", color: "#f0c040", cursor: "pointer" }}
+                ><ChevronRight className="w-4 h-4" /></button>
+
+                {/* Row 3: empty | down | empty */}
+                <div />
+                <button
+                  data-testid="button-nudge-down"
+                  onPointerDown={e => { e.stopPropagation(); nudge(0, nudgeStep); }}
+                  className="flex items-center justify-center rounded-lg transition-all active:scale-90"
+                  style={{ height: 36, background: "rgba(240,192,64,0.12)", border: "1px solid rgba(240,192,64,0.3)", color: "#f0c040", cursor: "pointer" }}
+                ><ChevronDown className="w-4 h-4" /></button>
+                <div />
+              </div>
+            </div>
           </div>
         )}
 
