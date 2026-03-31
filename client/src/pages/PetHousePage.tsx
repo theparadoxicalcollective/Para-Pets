@@ -499,6 +499,29 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/users", user.id, "pets"] }),
   });
 
+  // ── Correct any out-of-bounds saved pet positions ──────────────────────────
+  const correctedPetsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (containerH <= 0 || pets.length === 0) return;
+    const maxYPct = Math.min(0.88, (containerH - 115) / containerH);
+    pets.forEach((pet, i) => {
+      if (correctedPetsRef.current.has(pet.inventoryId)) return;
+      const savedX = parsePetPct(pet.posLeft);
+      const savedY = parsePetPct(pet.posTop);
+      if (savedX === null && savedY === null) return;
+      const cfg = randomGroundConfig(i);
+      const clampedX = Math.max(0.05, Math.min(0.95, savedX ?? cfg.centerX / 100));
+      const clampedY = Math.max(0.05, Math.min(maxYPct, savedY ?? cfg.centerY / 100));
+      const outOfBounds =
+        (savedY !== null && savedY > maxYPct) ||
+        (savedX !== null && (savedX < 0.05 || savedX > 0.95));
+      if (outOfBounds) {
+        correctedPetsRef.current.add(pet.inventoryId);
+        updatePetPositionMutation.mutate({ inventoryId: pet.inventoryId, xPct: clampedX, yPct: clampedY });
+      }
+    });
+  }, [containerH, pets]);
+
   // ── Drag handlers: pet reposition ─────────────────────────────────────────
   const handlePetDragStart = useCallback((e: React.PointerEvent, inventoryId: string, startXPct: number, startYPct: number) => {
     e.stopPropagation();
@@ -749,8 +772,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         const cfg = randomGroundConfig(i);
         const savedX = parsePetPct(pet.posLeft);
         const savedY = parsePetPct(pet.posTop);
-        const baseXPct = savedX ?? (cfg.centerX / 100);
-        const baseYPct = savedY ?? (cfg.centerY / 100);
+        const maxYPct = containerH > 0 ? Math.min(0.88, (containerH - 115) / containerH) : 0.82;
+        const baseXPct = Math.max(0.05, Math.min(0.95, savedX ?? (cfg.centerX / 100)));
+        const baseYPct = Math.max(0.05, Math.min(maxYPct, savedY ?? (cfg.centerY / 100)));
         const isDraggingThis = petDragLive?.inventoryId === pet.inventoryId;
         const xPct = isDraggingThis ? petDragLive.xPct : baseXPct;
         const yPct = isDraggingThis ? petDragLive.yPct : baseYPct;
