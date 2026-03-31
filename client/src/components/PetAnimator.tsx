@@ -100,7 +100,8 @@ const HOUSE_ANIMATIONS: Record<string, string> = {
   back_arm: "petIdleRightArm",
   front_wing: "petIdleLeftWing",
   back_wing: "petIdleRightWing",
-  // head, body, tail, legs intentionally omitted — they use translateY/scale
+  tail: "petHouseTail",
+  // head, body, legs intentionally omitted — they use translateY/scale
 };
 
 // Parts that are hidden by default and only appear during specific animations
@@ -251,6 +252,11 @@ const ANIMATION_STYLES = `
     0%, 100% { transform: rotate(0deg); }
     25% { transform: rotate(22deg); }
     75% { transform: rotate(-18deg); }
+  }
+  @keyframes petHouseTail {
+    0%, 100% { transform: rotate(0deg); }
+    30% { transform: rotate(-3deg); }
+    70% { transform: rotate(2deg); }
   }
 `;
 
