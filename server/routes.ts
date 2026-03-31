@@ -5049,7 +5049,8 @@ export async function registerRoutes(
   app.get("/api/pet-house/decor/placed", isAuthenticated, async (req, res) => {
     try {
       const userId = (req.user as any).id;
-      const items = await storage.getPlacedHomeDecor(userId);
+      const location = req.query.location as string | undefined;
+      const items = await storage.getPlacedHomeDecor(userId, location);
       return res.json(items);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -5059,13 +5060,14 @@ export async function registerRoutes(
   app.post("/api/pet-house/decor/place", isAuthenticated, async (req, res) => {
     try {
       const userId = (req.user as any).id;
-      const { decorItemId, xPct, yPct, size, flipped } = req.body;
+      const { decorItemId, xPct, yPct, size, flipped, location } = req.body;
       if (!decorItemId) return res.status(400).json({ message: "decorItemId required" });
       const row = await storage.placeHomeDecorItem(userId, decorItemId, {
         xPct: xPct ?? 0.5,
         yPct: yPct ?? 0.5,
         size: size ?? 250,
         flipped: flipped ?? false,
+        location: location ?? "outside",
       });
       return res.status(201).json(row);
     } catch (err: any) {

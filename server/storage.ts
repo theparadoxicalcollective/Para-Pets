@@ -1981,8 +1981,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   // ── Placed Home Decor ─────────────────────────────────────────────────────────
-  async getPlacedHomeDecor(userId: string): Promise<(PlacedHomeDecor & { item: HomeDecorItem })[]> {
-    const rows = await db.select().from(placedHomeDecor).where(eq(placedHomeDecor.userId, userId)).orderBy(asc(placedHomeDecor.createdAt));
+  async getPlacedHomeDecor(userId: string, location?: string): Promise<(PlacedHomeDecor & { item: HomeDecorItem })[]> {
+    const rows = await db.select().from(placedHomeDecor)
+      .where(location
+        ? and(eq(placedHomeDecor.userId, userId), eq(placedHomeDecor.location, location))
+        : eq(placedHomeDecor.userId, userId))
+      .orderBy(asc(placedHomeDecor.createdAt));
     const result: (PlacedHomeDecor & { item: HomeDecorItem })[] = [];
     for (const row of rows) {
       const [item] = await db.select().from(homeDecorItems).where(eq(homeDecorItems.id, row.decorItemId));
@@ -1991,9 +1995,9 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async placeHomeDecorItem(userId: string, decorItemId: string, data: { xPct: number; yPct: number; size: number; flipped: boolean }): Promise<PlacedHomeDecor> {
+  async placeHomeDecorItem(userId: string, decorItemId: string, data: { xPct: number; yPct: number; size: number; flipped: boolean; location?: string }): Promise<PlacedHomeDecor> {
     await this.decrementHomeDecorInventory(userId, decorItemId);
-    const [row] = await db.insert(placedHomeDecor).values({ userId, decorItemId, ...data }).returning();
+    const [row] = await db.insert(placedHomeDecor).values({ userId, decorItemId, location: data.location ?? "outside", xPct: data.xPct, yPct: data.yPct, size: data.size, flipped: data.flipped }).returning();
     return row;
   }
 

@@ -650,6 +650,7 @@ export const placedHomeDecor = pgTable("placed_home_decor", {
   yPct: real("y_pct").notNull().default(0.5),
   size: integer("size").notNull().default(250),
   flipped: boolean("flipped").notNull().default(false),
+  location: varchar("location").notNull().default("outside"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 

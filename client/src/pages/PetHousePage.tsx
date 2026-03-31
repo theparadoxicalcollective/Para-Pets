@@ -135,12 +135,33 @@ interface PlacedDecorItem {
 const DEFAULT_BG_RATIO = 1920 / 2400;
 const BUILDING_REF_H   = 900; // must match HouseBundleAdminPanel constant
 
-function InteriorViewer({ url, onClose }: { url: string; onClose: () => void }) {
+function InteriorViewer({
+  url,
+  placedItems,
+  panStateRef,
+  onUpdateItem,
+  onRemoveItem,
+  onClose,
+}: {
+  url: string;
+  placedItems: PlacedDecorItem[];
+  panStateRef: React.MutableRefObject<{ panX: number; imgWidth: number; containerH: number } | null>;
+  onUpdateItem: (id: string, data: { xPct?: number; yPct?: number; size?: number; flipped?: boolean }) => void;
+  onRemoveItem: (id: string) => void;
+  onClose: () => void;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [panX, setPanX] = useState(0);
+  const [imgWidth, setImgWidth] = useState(0);
+  const [containerH, setContainerH] = useState(0);
   const [aspect, setAspect] = useState(16 / 9);
   const aspectRef = useRef(16 / 9);
+  const imgWidthRef = useRef(0);
+  const containerHRef = useRef(0);
   const panStartRef = useRef<{ startX: number; startPanX: number; pid: number } | null>(null);
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [itemDragLive, setItemDragLive] = useState<{ id: string; xPct: number; yPct: number } | null>(null);
+  const itemDragRef = useRef<{ id: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number } | null>(null);
 
   useEffect(() => {
     const img = new window.Image();
@@ -161,7 +182,13 @@ function InteriorViewer({ url, onClose }: { url: string; onClose: () => void }) 
       const w = container.offsetWidth;
       const h = container.offsetHeight;
       const imgW = h * aspectRef.current;
-      setPanX(Math.max(Math.min(0, w - imgW), (w - imgW) / 2));
+      const newPanX = Math.max(Math.min(0, w - imgW), (w - imgW) / 2);
+      setPanX(newPanX);
+      setImgWidth(imgW);
+      setContainerH(h);
+      imgWidthRef.current = imgW;
+      containerHRef.current = h;
+      panStateRef.current = { panX: newPanX, imgWidth: imgW, containerH: h };
     };
     recalc();
     const ro = new ResizeObserver(recalc);
@@ -170,9 +197,10 @@ function InteriorViewer({ url, onClose }: { url: string; onClose: () => void }) 
   }, [aspect]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if (selectedItemId) setSelectedItemId(null);
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     panStartRef.current = { startX: e.clientX, startPanX: panX, pid: e.pointerId };
-  }, [panX]);
+  }, [panX, selectedItemId]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     const drag = panStartRef.current;
@@ -183,10 +211,45 @@ function InteriorViewer({ url, onClose }: { url: string; onClose: () => void }) 
     const h = container.offsetHeight;
     const imgW = h * aspectRef.current;
     const min = Math.min(0, w - imgW);
-    setPanX(Math.min(0, Math.max(min, drag.startPanX + (e.clientX - drag.startX))));
+    const newPanX = Math.min(0, Math.max(min, drag.startPanX + (e.clientX - drag.startX)));
+    setPanX(newPanX);
+    panStateRef.current = { panX: newPanX, imgWidth: imgWidthRef.current, containerH: containerHRef.current };
   }, []);
 
   const handlePointerUp = useCallback(() => { panStartRef.current = null; }, []);
+
+  const handleItemDragStart = useCallback((e: React.PointerEvent, item: PlacedDecorItem) => {
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    itemDragRef.current = { id: item.id, startXPct: item.xPct, startYPct: item.yPct, startPointerX: e.clientX, startPointerY: e.clientY, pid: e.pointerId };
+    setSelectedItemId(item.id);
+  }, []);
+
+  const handleItemDragMove = useCallback((e: React.PointerEvent) => {
+    const drag = itemDragRef.current;
+    if (!drag || drag.pid !== e.pointerId || imgWidthRef.current <= 0) return;
+    const newXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidthRef.current));
+    const newYPct = Math.max(0.02, Math.min(0.98, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current));
+    setItemDragLive({ id: drag.id, xPct: newXPct, yPct: newYPct });
+  }, []);
+
+  const handleItemDragEnd = useCallback((e: React.PointerEvent) => {
+    const drag = itemDragRef.current;
+    itemDragRef.current = null;
+    setItemDragLive(null);
+    if (!drag || imgWidthRef.current <= 0) return;
+    const newXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidthRef.current));
+    const newYPct = Math.max(0.02, Math.min(0.98, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current));
+    const moved = Math.abs(newXPct - drag.startXPct) > 0.005 || Math.abs(newYPct - drag.startYPct) > 0.005;
+    if (moved) onUpdateItem(drag.id, { xPct: newXPct, yPct: newYPct });
+  }, [onUpdateItem]);
+
+  const displayedItems = useMemo(() =>
+    placedItems.map(item =>
+      itemDragLive?.id === item.id
+        ? { ...item, xPct: itemDragLive.xPct, yPct: itemDragLive.yPct }
+        : item
+    ), [placedItems, itemDragLive]);
 
   return (
     <div
@@ -204,6 +267,48 @@ function InteriorViewer({ url, onClose }: { url: string; onClose: () => void }) 
         draggable={false}
         style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none" }}
       />
+
+      {imgWidth > 0 && displayedItems.map((item) => {
+        const isSelected = selectedItemId === item.id;
+        const left = panX + item.xPct * imgWidth;
+        const top = item.yPct * containerH;
+        return (
+          <div
+            key={item.id}
+            className="absolute"
+            style={{ zIndex: 6, left, top, transform: "translate(-50%, -50%)", touchAction: "none" }}
+            onPointerDown={(e) => handleItemDragStart(e, item)}
+            onPointerMove={handleItemDragMove}
+            onPointerUp={handleItemDragEnd}
+            onPointerCancel={handleItemDragEnd}
+            onClick={(e) => { e.stopPropagation(); setSelectedItemId(isSelected ? null : item.id); }}
+          >
+            {isSelected && (
+              <div className="absolute flex gap-2" style={{ bottom: "calc(100% + 10px)", left: "50%", transform: "translateX(-50%)", zIndex: 10, whiteSpace: "nowrap" }}>
+                <DecorControlBtn onClick={() => onUpdateItem(item.id, { size: Math.max(175, item.size - 25) })}><SvgMinus /></DecorControlBtn>
+                <DecorControlBtn onClick={() => onUpdateItem(item.id, { size: Math.min(400, item.size + 25) })}><SvgPlus /></DecorControlBtn>
+                <DecorControlBtn onClick={() => onUpdateItem(item.id, { flipped: !item.flipped })}><SvgFlip /></DecorControlBtn>
+                <DecorControlBtn danger onClick={() => { onRemoveItem(item.id); setSelectedItemId(null); }}><SvgDelete /></DecorControlBtn>
+              </div>
+            )}
+            <img
+              src={item.item.imageUrl ?? ""}
+              alt={item.item.name}
+              draggable={false}
+              style={{
+                width: item.size, height: item.size, objectFit: "contain",
+                transform: item.flipped ? "scaleX(-1)" : undefined,
+                filter: isSelected
+                  ? "drop-shadow(0 0 10px rgba(255,215,0,0.9)) drop-shadow(0 2px 6px rgba(0,0,0,0.5))"
+                  : "drop-shadow(0 2px 6px rgba(0,0,0,0.45))",
+                outline: isSelected ? "2px solid rgba(255,215,0,0.7)" : "none",
+                outlineOffset: "3px", borderRadius: 6, userSelect: "none", cursor: "grab",
+              }}
+            />
+          </div>
+        );
+      })}
+
       <button
         onClick={onClose}
         onPointerDown={e => e.stopPropagation()}
@@ -282,7 +387,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [showProfile, setShowProfile] = useState(false);
-  const [interiorBuildingUrl, setInteriorBuildingUrl] = useState<string | null>(null);
+  const [openInterior, setOpenInterior] = useState<{ url: string; buildingId: string } | null>(null);
+  const interiorPanRef = useRef<{ panX: number; imgWidth: number; containerH: number } | null>(null);
   const [currentUser, setCurrentUser] = useState(user);
   const [openInventory, setOpenInventory] = useState<"home" | "decor" | null>(null);
   const [pendingActivate, setPendingActivate] = useState<{ bundleId: string; bundle: OwnedBundle["bundle"] } | null>(null);
@@ -292,6 +398,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const [placedDragLive, setPlacedDragLive] = useState<{ id: string; xPct: number; yPct: number } | null>(null);
   const [inventoryDragState, setInventoryDragState] = useState<{ decorItemId: string; imageUrl: string | null; ghostX: number; ghostY: number } | null>(null);
   const inventoryDragRef = useRef<{ decorItemId: string; imageUrl: string | null; ghostX: number; ghostY: number; startX: number; startY: number; isDragging: boolean; pid: number } | null>(null);
+  const [isDraggingDecor, setIsDraggingDecor] = useState(false);
   const placedDragRef = useRef<{ id: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number } | null>(null);
 
   const [panX, setPanX] = useState(0);
@@ -346,7 +453,24 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   });
 
   const { data: placedDecorRaw = [] } = useQuery<PlacedDecorItem[]>({
-    queryKey: ["/api/pet-house/decor/placed"],
+    queryKey: ["/api/pet-house/decor/placed", "outside"],
+    queryFn: async () => {
+      const res = await fetch("/api/pet-house/decor/placed?location=outside", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    staleTime: 15000,
+  });
+
+  const { data: interiorPlacedRaw = [] } = useQuery<PlacedDecorItem[]>({
+    queryKey: ["/api/pet-house/decor/placed", openInterior?.buildingId ?? ""],
+    queryFn: async () => {
+      if (!openInterior) return [];
+      const res = await fetch(`/api/pet-house/decor/placed?location=${encodeURIComponent(openInterior.buildingId)}`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!openInterior,
     staleTime: 15000,
   });
 
@@ -359,7 +483,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     ), [placedDecorRaw, placedDragLive]);
 
   const placeDecorMutation = useMutation({
-    mutationFn: async (data: { decorItemId: string; xPct: number; yPct: number; size: number; flipped: boolean }) => {
+    mutationFn: async (data: { decorItemId: string; xPct: number; yPct: number; size: number; flipped: boolean; location?: string }) => {
       const res = await apiRequest("POST", "/api/pet-house/decor/place", data);
       if (!res.ok) { const e = await res.json(); throw new Error(e.message); }
       return res.json();
@@ -407,24 +531,42 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     drag.ghostX = e.clientX;
     drag.ghostY = e.clientY;
     if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > 8) drag.isDragging = true;
-    if (drag.isDragging) setInventoryDragState({ decorItemId: drag.decorItemId, imageUrl: drag.imageUrl, ghostX: e.clientX, ghostY: e.clientY });
+    if (drag.isDragging) {
+      setInventoryDragState({ decorItemId: drag.decorItemId, imageUrl: drag.imageUrl, ghostX: e.clientX, ghostY: e.clientY });
+      setIsDraggingDecor(true);
+    }
   }, []);
 
   const handleInvDragEnd = useCallback((e: React.PointerEvent) => {
     const drag = inventoryDragRef.current;
     inventoryDragRef.current = null;
     setInventoryDragState(null);
-    if (!drag?.isDragging || imgWidth <= 0) return;
-    const container = containerRef.current;
-    if (!container) return;
-    const rect = container.getBoundingClientRect();
-    const localX = e.clientX - rect.left;
-    const localY = e.clientY - rect.top;
-    if (localY < 0 || localY > rect.height) return;
-    const xPct = Math.max(0.03, Math.min(0.97, (localX - panX) / imgWidth));
-    const yPct = Math.max(0.03, Math.min(0.97, localY / containerH));
-    placeDecorMutation.mutate({ decorItemId: drag.decorItemId, xPct, yPct, size: 250, flipped: false });
-  }, [panX, imgWidth, containerH]);
+    setIsDraggingDecor(false);
+    if (!drag?.isDragging) return;
+    const interior = interiorPanRef.current;
+    if (interior && interior.imgWidth > 0 && openInterior) {
+      // Drop into open interior
+      const container = containerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const localX = e.clientX - rect.left;
+      const localY = e.clientY - rect.top;
+      const xPct = Math.max(0.03, Math.min(0.97, (localX - interior.panX) / interior.imgWidth));
+      const yPct = Math.max(0.03, Math.min(0.97, localY / interior.containerH));
+      placeDecorMutation.mutate({ decorItemId: drag.decorItemId, xPct, yPct, size: 250, flipped: false, location: openInterior.buildingId });
+    } else if (imgWidth > 0) {
+      // Drop onto main canvas
+      const container = containerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const localX = e.clientX - rect.left;
+      const localY = e.clientY - rect.top;
+      if (localY < 0 || localY > rect.height) return;
+      const xPct = Math.max(0.03, Math.min(0.97, (localX - panX) / imgWidth));
+      const yPct = Math.max(0.03, Math.min(0.97, localY / containerH));
+      placeDecorMutation.mutate({ decorItemId: drag.decorItemId, xPct, yPct, size: 250, flipped: false, location: "outside" });
+    }
+  }, [openInterior, panX, imgWidth, containerH]);
 
   // ── Drag handlers: placed item reposition ─────────────────────────────────
   const handlePlacedDragStart = useCallback((e: React.PointerEvent, item: PlacedDecorItem) => {
@@ -573,7 +715,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                   pointerEvents: hasInterior ? "auto" : "none",
                   cursor: hasInterior ? "pointer" : "default",
                 }}
-                onClick={() => hasInterior && setInteriorBuildingUrl(b.interiorImageUrl!)}
+                onClick={() => hasInterior && setOpenInterior({ url: b.interiorImageUrl!, buildingId: b.id })}
               >
                 <img
                   src={b.imageUrl} alt={b.name} draggable={false}
@@ -671,7 +813,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       {/* Bottom inventory bar */}
       <div
         className="absolute bottom-0 left-0 right-0 flex justify-center gap-6 pb-5 pt-3"
-        style={{ zIndex: 15, pointerEvents: "auto", background: "linear-gradient(0deg, rgba(0,0,0,0.55) 0%, transparent 100%)" }}
+        style={{ zIndex: openInterior ? 65 : 15, pointerEvents: "auto", background: "linear-gradient(0deg, rgba(0,0,0,0.55) 0%, transparent 100%)" }}
         onPointerDown={(e) => e.stopPropagation()}
       >
         <button
@@ -721,7 +863,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       {openInventory && (
         <div
           className="absolute inset-0 flex flex-col justify-end"
-          style={{ zIndex: 20, pointerEvents: "none" }}
+          style={{ zIndex: openInterior ? 62 : 20, pointerEvents: "none", visibility: isDraggingDecor ? "hidden" : "visible" }}
         >
           {/* Tap-outside to close */}
           <div
@@ -842,7 +984,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                   </div>
                 ) : (
                   <>
-                    <p className="text-white/40 text-xs text-center" style={{ fontFamily: "Cinzel, serif" }}>Hold & drag an item onto your home</p>
+                    <p className="text-white/40 text-xs text-center" style={{ fontFamily: "Cinzel, serif" }}>
+                      {openInterior ? "Hold & drag an item onto the interior" : "Hold & drag an item onto your home"}
+                    </p>
                     <div className="grid grid-cols-3 gap-3">
                       {decorInventory.map((entry) => (
                         <div
@@ -984,8 +1128,15 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       )}
 
       {/* Building interior viewer — shown when player taps a building with an interior set */}
-      {interiorBuildingUrl && (
-        <InteriorViewer url={interiorBuildingUrl} onClose={() => setInteriorBuildingUrl(null)} />
+      {openInterior && (
+        <InteriorViewer
+          url={openInterior.url}
+          placedItems={interiorPlacedRaw}
+          panStateRef={interiorPanRef}
+          onUpdateItem={(id, data) => updateDecorMutation.mutate({ id, ...data })}
+          onRemoveItem={(id) => removeDecorMutation.mutate(id)}
+          onClose={() => { setOpenInterior(null); interiorPanRef.current = null; }}
+        />
       )}
 
       {showProfile && (
