@@ -174,18 +174,7 @@ function InteriorViewer({
   const [petDragLiveInt, setPetDragLiveInt] = useState<{ inventoryId: string; xPct: number; yPct: number } | null>(null);
   const petDragIntRef = useRef<{ inventoryId: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number } | null>(null);
 
-  useEffect(() => {
-    const img = new window.Image();
-    img.onload = () => {
-      if (img.naturalHeight > 0) {
-        const a = img.naturalWidth / img.naturalHeight;
-        aspectRef.current = a;
-        setAspect(a);
-      }
-    };
-    img.src = url;
-  }, [url]);
-
+  // aspect is derived from the <img> onLoad below — no separate Image() needed
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -313,6 +302,14 @@ function InteriorViewer({
         src={url}
         alt="Building interior"
         draggable={false}
+        onLoad={(e) => {
+          const img = e.currentTarget;
+          if (img.naturalHeight > 0) {
+            const a = img.naturalWidth / img.naturalHeight;
+            aspectRef.current = a;
+            setAspect(a);
+          }
+        }}
         style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none" }}
       />
 
@@ -803,15 +800,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   // Determine background URL — Home Bundles are the priority; fall back to a neutral dark if none active
   const bgUrl = activeBundle?.bgImageUrl ?? null;
 
-  // Load image to get natural aspect ratio
-  useEffect(() => {
-    if (!bgUrl) return;
-    const img = new window.Image();
-    img.onload = () => {
-      if (img.naturalHeight > 0) setBgAspect(img.naturalWidth / img.naturalHeight);
-    };
-    img.src = bgUrl;
-  }, [bgUrl]);
+  // bgAspect is set via the background <img> onLoad below — no separate Image() needed
 
   // Recalculate imgWidth and center pan when aspect ratio or container changes
   useEffect(() => {
@@ -967,6 +956,10 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             src={bgUrl}
             alt=""
             draggable={false}
+            onLoad={(e) => {
+              const img = e.currentTarget;
+              if (img.naturalHeight > 0) setBgAspect(img.naturalWidth / img.naturalHeight);
+            }}
             style={{
               position: "absolute",
               top: 0,

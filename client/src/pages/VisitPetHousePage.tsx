@@ -101,18 +101,7 @@ function InteriorViewerVisit({
   const containerHRef = useRef(0);
   const panStartRef = useRef<{ startX: number; startPanX: number; pid: number } | null>(null);
 
-  useEffect(() => {
-    const img = new window.Image();
-    img.onload = () => {
-      if (img.naturalHeight > 0) {
-        const a = img.naturalWidth / img.naturalHeight;
-        aspectRef.current = a;
-        setAspect(a);
-      }
-    };
-    img.src = url;
-  }, [url]);
-
+  // aspect is set via the <img> onLoad below — no separate Image() needed
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -176,6 +165,14 @@ function InteriorViewerVisit({
         src={url}
         alt="Building interior"
         draggable={false}
+        onLoad={(e) => {
+          const img = e.currentTarget;
+          if (img.naturalHeight > 0) {
+            const a = img.naturalWidth / img.naturalHeight;
+            aspectRef.current = a;
+            setAspect(a);
+          }
+        }}
         style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none" }}
       />
 
@@ -332,14 +329,7 @@ export default function VisitPetHousePage() {
   // ── Background aspect + panning ──────────────────────────────────────────────
   const bgUrl = activeBundle?.bgImageUrl ?? null;
 
-  useEffect(() => {
-    if (!bgUrl) return;
-    const img = new window.Image();
-    img.onload = () => {
-      if (img.naturalHeight > 0) setBgAspect(img.naturalWidth / img.naturalHeight);
-    };
-    img.src = bgUrl;
-  }, [bgUrl]);
+  // bgAspect is set via the background <img> onLoad below — no separate Image() needed
 
   useEffect(() => {
     const container = containerRef.current;
@@ -397,6 +387,10 @@ export default function VisitPetHousePage() {
             src={bgUrl}
             alt=""
             draggable={false}
+            onLoad={(e) => {
+              const img = e.currentTarget;
+              if (img.naturalHeight > 0) setBgAspect(img.naturalWidth / img.naturalHeight);
+            }}
             style={{
               position: "absolute",
               top: 0,
