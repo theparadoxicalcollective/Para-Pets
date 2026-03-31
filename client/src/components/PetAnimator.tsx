@@ -54,6 +54,31 @@ const IDLE_ANIMATIONS: Record<string, string> = {
   back_wing: "petIdleRightWing",
 };
 
+// Side-facing idle: distinct animations tuned for the lateral perspective
+const IDLE_ANIMATIONS_SIDE: Record<string, string> = {
+  eyes: "petIdleEyes",
+  eyes_closed: "petIdleEyesClosed",
+  mouth: "petIdleMouth",
+  mouth_closed: "petIdleMouthClosed",
+  head: "petIdleHeadSide",
+  left_ear: "petIdleLeftEar",
+  right_ear: "petIdleRightEar",
+  left_arm: "petIdleLeftArm",
+  right_arm: "petIdleRightArm",
+  body: "petIdleBodySide",
+  left_wing: "petIdleLeftWing",
+  right_wing: "petIdleRightWing",
+  left_leg: "petIdleLeftLeg",
+  right_leg: "petIdleRightLeg",
+  tail: "petIdleTailSide",
+  front_arm: "petIdleFrontArmSide",
+  back_arm: "petIdleBackArmSide",
+  front_leg: "petIdleFrontLegSide",
+  back_leg: "petIdleBackLegSide",
+  front_wing: "petIdleFrontWingSide",
+  back_wing: "petIdleBackWingSide",
+};
+
 const WALK_ANIMATIONS: Record<string, string> = {
   eyes: "petWalkEyes",
   eyes_closed: "petWalkEyesClosed",
@@ -261,6 +286,62 @@ const ANIMATION_STYLES = `
     35% { transform: rotate(-1.5deg); }
     70% { transform: rotate(1deg); }
   }
+
+  /* ── Side-facing idle animations ───────────────────────────────────────── */
+  /* Head: nod forward/back as seen from the side */
+  @keyframes petIdleHeadSide {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    25%       { transform: translateY(-3px) rotate(-4deg); }
+    55%       { transform: translateY(-5px) rotate(0deg); }
+    80%       { transform: translateY(-2px) rotate(3deg); }
+  }
+  /* Body: gentle lean + breathe */
+  @keyframes petIdleBodySide {
+    0%, 100% { transform: scale(1, 1) translateX(0px); }
+    40%       { transform: scale(1.015, 1.025) translateX(1px); }
+    75%       { transform: scale(1.01, 1.015) translateX(-1px); }
+  }
+  /* Front arm (nearer to viewer): natural swing */
+  @keyframes petIdleFrontArmSide {
+    0%, 100% { transform: rotate(0deg); }
+    35%       { transform: rotate(-6deg); }
+    70%       { transform: rotate(5deg); }
+  }
+  /* Back arm (farther from viewer): opposite swing, subtler */
+  @keyframes petIdleBackArmSide {
+    0%, 100% { transform: rotate(0deg); }
+    35%       { transform: rotate(5deg); }
+    70%       { transform: rotate(-4deg); }
+  }
+  /* Front leg: slight weight shift */
+  @keyframes petIdleFrontLegSide {
+    0%, 100% { transform: translateY(0px); }
+    45%       { transform: translateY(1.5px); }
+  }
+  /* Back leg: slight offset weight shift */
+  @keyframes petIdleBackLegSide {
+    0%, 100% { transform: translateY(0px); }
+    30%       { transform: translateY(2px); }
+    70%       { transform: translateY(0.5px); }
+  }
+  /* Front wing */
+  @keyframes petIdleFrontWingSide {
+    0%, 100% { transform: rotate(0deg); }
+    40%       { transform: rotate(-4deg); }
+    75%       { transform: rotate(2.5deg); }
+  }
+  /* Back wing */
+  @keyframes petIdleBackWingSide {
+    0%, 100% { transform: rotate(0deg); }
+    40%       { transform: rotate(4deg); }
+    75%       { transform: rotate(-2.5deg); }
+  }
+  /* Tail: visible wag from side */
+  @keyframes petIdleTailSide {
+    0%, 100% { transform: rotate(0deg); }
+    30%       { transform: rotate(-5deg); }
+    65%       { transform: rotate(4deg); }
+  }
 `;
 
 function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "house"): string {
@@ -467,7 +548,9 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           );
         }
 
-        const animations = mode === "idle" ? IDLE_ANIMATIONS : mode === "zoom" ? ZOOM_ANIMATIONS : WALK_ANIMATIONS;
+        const animations = mode === "idle"
+          ? (resolvedView === "back" ? IDLE_ANIMATIONS_SIDE : IDLE_ANIMATIONS)
+          : mode === "zoom" ? ZOOM_ANIMATIONS : WALK_ANIMATIONS;
         const animName = animations[part.partType] || animations.body;
 
         if (!animName) return null;
