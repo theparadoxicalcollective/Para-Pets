@@ -4,6 +4,7 @@ import { X, HelpCircle } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import bgImg from "@assets/bg_home_v2.png";
+import starImg from "@assets/Photoroom_20260331_20947_PM_1774984267132.png";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import eggMagicIcon from "@assets/generated_images/icon_egg_magic.png";
 import questIcon from "@assets/generated_images/nav_icon_map.png";
@@ -236,26 +237,23 @@ export default function HomePage({ user }: HomePageProps) {
               const curveY = -(1 - t * t) * 12;
               const filled = i < (activePet.rarity || 0);
               return (
-                <svg
+                <img
                   key={i}
-                  width="56"
-                  height="56"
-                  viewBox="0 0 24 24"
-                  fill={filled ? "#f0c040" : "none"}
-                  stroke={filled ? "#d4a017" : "rgba(139,110,78,0.2)"}
-                  strokeWidth="1.5"
+                  src={starImg}
+                  alt="star"
+                  width={52}
+                  height={52}
                   style={{
                     transform: `translateY(${curveY}px)`,
                     margin: "0 2px",
                     position: "relative",
                     zIndex: 1,
+                    opacity: filled ? 1 : 0.15,
                     filter: filled
-                      ? "drop-shadow(0 0 8px rgba(240,192,64,1)) drop-shadow(0 0 22px rgba(240,192,64,0.7))"
-                      : "none",
+                      ? "drop-shadow(0 0 8px rgba(240,192,64,0.9)) drop-shadow(0 0 18px rgba(240,192,64,0.5))"
+                      : "grayscale(1)",
                   }}
-                >
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                </svg>
+                />
               );
             })}
           </div>
