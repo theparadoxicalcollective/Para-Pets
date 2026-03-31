@@ -381,7 +381,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                   src={b.imageUrl} alt={b.name} draggable={false}
                   style={{
                     width: displayW, height: displayW, objectFit: "contain",
-                    filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.7))",
+                    filter: "drop-shadow(0 0 10px rgba(255,210,80,0.3)) drop-shadow(0 3px 6px rgba(0,0,0,0.55))",
                     transform: b.flippedX ? "scaleX(-1)" : undefined,
                   }}
                 />
