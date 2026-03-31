@@ -929,17 +929,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getBadgeLeaderboard(limit = 50): Promise<{ userId: string; username: string; profileImage: string | null; totalPoints: number; topBadges: { id: string; name: string; imageUrl: string }[]; allBadges: { id: string; name: string; imageUrl: string }[] }[]> {
-    // Rank by accumulated total coins earned (in-game + purchased bundles)
+    // Rank by lifetime coins earned. For users who existed before the totalCoinsEarned
+    // column was added (their value is 0), fall back to their current coin balance as
+    // a reasonable proxy so they still appear on the leaderboard.
+    const rankScore = sql<number>`GREATEST(${users.totalCoinsEarned}, ${users.coins})`;
+
     const topUsers = await db
       .select({
         userId: users.id,
         username: users.username,
         profileImage: users.profileImage,
         totalCoinsEarned: users.totalCoinsEarned,
+        coins: users.coins,
       })
       .from(users)
-      .where(sql`${users.totalCoinsEarned} > 0`)
-      .orderBy(desc(users.totalCoinsEarned))
+      .where(sql`GREATEST(${users.totalCoinsEarned}, ${users.coins}) > 0`)
+      .orderBy(desc(rankScore))
       .limit(limit * 2); // fetch extra to account for excluded usernames
 
     const filtered = topUsers
@@ -969,11 +974,12 @@ export class DatabaseStorage implements IStorage {
 
     return filtered.map(u => {
       const allBadges = badgeMap.get(u.userId) ?? [];
+      const score = Math.max(u.totalCoinsEarned, u.coins);
       return {
         userId: u.userId,
         username: u.username,
         profileImage: u.profileImage,
-        totalPoints: u.totalCoinsEarned, // field name kept for API compatibility
+        totalPoints: score, // field name kept for API compatibility
         topBadges: allBadges.slice(0, 3),
         allBadges,
       };
