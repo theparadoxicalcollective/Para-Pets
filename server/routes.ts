@@ -5079,6 +5079,18 @@ export async function registerRoutes(
     }
   });
 
+  // Public endpoint — lets visitors see another player's placed decor
+  app.get("/api/users/:userId/pet-house/decor/placed", async (req, res) => {
+    try {
+      const { userId } = req.params as { userId: string };
+      const location = req.query.location as string | undefined;
+      const items = await storage.getPlacedHomeDecor(userId, location);
+      return res.json(items);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
   app.post("/api/pet-house/decor/place", isAuthenticated, async (req, res) => {
     try {
       const userId = (req.user as any).id;

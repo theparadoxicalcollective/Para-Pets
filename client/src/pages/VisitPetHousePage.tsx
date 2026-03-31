@@ -1,12 +1,10 @@
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
-import petHouseBg from "@assets/generated_images/pethouse_bg.png";
-import insideRoomBg from "@assets/generated_images/inside_room_bg.png";
-import petHouseIconImg from "@assets/icon_pet_house.png";
 
+// ── Types (mirrors PetHousePage) ──────────────────────────────────────────────
 interface VisitedPet {
   inventoryId: string;
   shopItemId: string;
@@ -23,6 +21,7 @@ interface VisitedPet {
   petTemplateId: string | null;
   posLeft: string | null;
   posTop: string | null;
+  location: string | null;
 }
 
 interface UserPetsResponse {
@@ -30,209 +29,242 @@ interface UserPetsResponse {
   pets: VisitedPet[];
 }
 
-// Fallback positions used when owner hasn't placed a pet yet — matches PetHousePage sizes
-const WALK_CONFIGS = [
-  { wanderIdx: 0, left: "8%",  top: "60%", size: 200, duration: "38s", delay: "0s"  },
-  { wanderIdx: 1, left: "55%", top: "52%", size: 190, duration: "42s", delay: "5s"  },
-  { wanderIdx: 2, left: "22%", top: "40%", size: 180, duration: "36s", delay: "11s" },
-  { wanderIdx: 3, left: "50%", top: "30%", size: 170, duration: "44s", delay: "2s"  },
-  { wanderIdx: 4, left: "32%", top: "22%", size: 160, duration: "40s", delay: "16s" },
-  { wanderIdx: 5, left: "40%", top: "47%", size: 185, duration: "45s", delay: "8s"  },
-];
+interface ActiveBundle {
+  id: string;
+  name: string;
+  bgImageUrl: string | null;
+  buildings: {
+    id: string;
+    name: string;
+    imageUrl: string;
+    posX: number;
+    posY: number;
+    width: number;
+    flippedX: boolean;
+    interiorImageUrl?: string | null;
+  }[];
+}
 
-const GROUND_WALK_CONFIGS = [
-  { wanderIdx: 0, left: "4%",  top: "91%", size: 220, duration: "38s", delay: "0s"  },
-  { wanderIdx: 1, left: "58%", top: "91%", size: 220, duration: "42s", delay: "5s"  },
-  { wanderIdx: 2, left: "20%", top: "89%", size: 220, duration: "36s", delay: "11s" },
-  { wanderIdx: 3, left: "52%", top: "89%", size: 220, duration: "44s", delay: "2s"  },
-  { wanderIdx: 4, left: "34%", top: "89%", size: 220, duration: "40s", delay: "16s" },
-  { wanderIdx: 5, left: "40%", top: "91%", size: 220, duration: "45s", delay: "8s"  },
-];
+interface PlacedDecorItem {
+  id: string;
+  decorItemId: string;
+  xPct: number;
+  yPct: number;
+  size: number;
+  flipped: boolean;
+  item: { id: string; name: string; imageUrl: string | null };
+}
 
-function WalkingPetView({ pet, index }: { pet: VisitedPet; index: number }) {
-  const { data: templateData } = useQuery<{ parts: Array<{ partType: string }>; canFly: boolean }>({
-    queryKey: ["/api/pet-template-parts", pet.petTemplateId],
-    queryFn: async () => {
-      const res = await fetch(`/api/pet-template-parts/${pet.petTemplateId}`, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed");
-      return res.json();
-    },
-    enabled: !!pet.petTemplateId,
-    staleTime: 300000,
-  });
+// ── Constants ─────────────────────────────────────────────────────────────────
+const DEFAULT_BG_RATIO = 1920 / 2400;
+const BUILDING_REF_H = 900;
 
-  // Match PetHousePage exactly — use canFly field from the template API
-  const hasWings = !!(templateData?.canFly);
+// Parse saved posLeft/posTop strings → 0–1 float (mirrors PetHousePage)
+function parsePetPct(s: string | null): number | null {
+  if (!s) return null;
+  const v = parseFloat(s);
+  if (!isNaN(v)) return Math.max(0, Math.min(1, v / 100));
+  const m = s.match(/calc\(([\d.]+)%/);
+  if (m) return Math.max(0, Math.min(1, parseFloat(m[1]) / 100));
+  return null;
+}
 
-  const cfg = hasWings
-    ? WALK_CONFIGS[index % WALK_CONFIGS.length]
-    : GROUND_WALK_CONFIGS[index % GROUND_WALK_CONFIGS.length];
+function randomGroundConfig(index: number) {
+  const seed = index * 137.508;
+  const pseudo = (n: number) => ((Math.sin(n) * 10000) % 1 + 1) % 1;
+  const size = 180 + pseudo(seed + 2) * 40;
+  const centerX = 20 + pseudo(seed) * 60;
+  const centerY = 64 + pseudo(seed + 1) * 11;
+  return { size, centerX, centerY };
+}
 
-  // Use owner's saved position if available; otherwise fall back to default layout
-  const hasSavedPos = !!(pet.posLeft && pet.posTop);
-  const posLeft = pet.posLeft ?? cfg.left;
-  const posTop  = pet.posTop  ?? cfg.top;
+// ── Read-only interior viewer ─────────────────────────────────────────────────
+function InteriorViewerVisit({
+  url,
+  placedItems,
+  placedPets,
+  onClose,
+}: {
+  url: string;
+  placedItems: PlacedDecorItem[];
+  placedPets: VisitedPet[];
+  onClose: () => void;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [panX, setPanX] = useState(0);
+  const [imgWidth, setImgWidth] = useState(0);
+  const [containerH, setContainerH] = useState(0);
+  const [aspect, setAspect] = useState(16 / 9);
+  const aspectRef = useRef(16 / 9);
+  const imgWidthRef = useRef(0);
+  const containerHRef = useRef(0);
+  const panStartRef = useRef<{ startX: number; startPanX: number; pid: number } | null>(null);
 
-  const floatAnim = hasWings ? "petFloatSmall" : "petGroundFloat";
-  const wanderPrefix = hasWings ? "petWander" : "petGroundWander";
+  useEffect(() => {
+    const img = new window.Image();
+    img.onload = () => {
+      if (img.naturalHeight > 0) {
+        const a = img.naturalWidth / img.naturalHeight;
+        aspectRef.current = a;
+        setAspect(a);
+      }
+    };
+    img.src = url;
+  }, [url]);
 
-  // Placed pets get a tiny local drift — mirrors PetHousePage exactly
-  const localWanderVariant  = index % 6;
-  const localWanderDuration = 22 + (index % 4) * 3;
-  const localWanderDelay    = (index * 4.7) % 18;
-  const localWanderAnim     = `petLocalWander${localWanderVariant} ${localWanderDuration}s ${localWanderDelay}s ease-in-out infinite`;
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const recalc = () => {
+      const w = container.offsetWidth;
+      const h = container.offsetHeight;
+      const imgW = h * aspectRef.current;
+      const newPanX = Math.max(Math.min(0, w - imgW), (w - imgW) / 2);
+      setPanX(newPanX);
+      setImgWidth(imgW);
+      setContainerH(h);
+      imgWidthRef.current = imgW;
+      containerHRef.current = h;
+    };
+    recalc();
+    const ro = new ResizeObserver(recalc);
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, [aspect]);
 
-  const wanderAnim = hasSavedPos
-    ? localWanderAnim
-    : `${wanderPrefix}${cfg.wanderIdx} ${cfg.duration} ${cfg.delay} ease-in-out infinite`;
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    panStartRef.current = { startX: e.clientX, startPanX: panX, pid: e.pointerId };
+  }, [panX]);
 
-  const petImg = pet.hatchedImageUrl || pet.imageUrl;
-  const sz = cfg.size;
-  const shadowW = Math.round(sz * 0.52);
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    const drag = panStartRef.current;
+    if (!drag || drag.pid !== e.pointerId) return;
+    const container = containerRef.current;
+    if (!container) return;
+    const w = container.offsetWidth;
+    const h = container.offsetHeight;
+    const imgW = h * aspectRef.current;
+    const min = Math.min(0, w - imgW);
+    const newPanX = Math.min(0, Math.max(min, drag.startPanX + (e.clientX - drag.startX)));
+    setPanX(newPanX);
+  }, []);
 
-  const shadow = (
-    <div
-      style={{
-        width: shadowW,
-        height: Math.max(3, Math.round(sz * 0.06)),
-        background: "rgba(0,0,0,0.25)",
-        borderRadius: "50%",
-        margin: "0 auto",
-        filter: `blur(${Math.max(2, Math.round(sz * 0.05))}px)`,
-      }}
-    />
-  );
+  const handlePointerUp = useCallback(() => { panStartRef.current = null; }, []);
 
   return (
     <div
-      data-testid={`visit-pet-${pet.inventoryId}`}
-      className="absolute"
-      style={{
-        left: posLeft,
-        top: posTop,
-        marginTop: -sz,
-        zIndex: parseInt(posTop, 10),
-      }}
+      ref={containerRef}
+      className="fixed inset-0"
+      style={{ zIndex: 60, background: "#000", overflow: "hidden", touchAction: "none", maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
     >
-      <div style={{ animation: wanderAnim, transformOrigin: "bottom center" }}>
-        {/* Float animation only for winged pets — matches PetHousePage exactly */}
-        <div style={hasWings ? { animation: `${floatAnim} 3.2s ease-in-out infinite` } : undefined}>
-          {pet.petTemplateId ? (
-            <>
+      <img
+        src={url}
+        alt="Building interior"
+        draggable={false}
+        style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none" }}
+      />
+
+      {/* Decor items (read-only) */}
+      {imgWidth > 0 && placedItems.map((item) => {
+        const left = panX + item.xPct * imgWidth;
+        const top = item.yPct * containerH;
+        return (
+          <div
+            key={item.id}
+            className="absolute pointer-events-none"
+            style={{ zIndex: 6, left, top, transform: "translate(-50%, -50%)" }}
+          >
+            <img
+              src={item.item.imageUrl ?? ""}
+              alt={item.item.name}
+              draggable={false}
+              style={{
+                width: item.size, height: item.size, objectFit: "contain",
+                transform: item.flipped ? "scaleX(-1)" : undefined,
+                filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.45))",
+                userSelect: "none",
+              }}
+            />
+          </div>
+        );
+      })}
+
+      {/* Pets placed inside this building (read-only) */}
+      {imgWidth > 0 && placedPets.map((pet) => {
+        const xPct = parsePetPct(pet.posLeft) ?? 0.5;
+        const yPct = parsePetPct(pet.posTop) ?? 0.5;
+        const left = panX + xPct * imgWidth;
+        const top = yPct * containerH;
+        const size = 160;
+        return (
+          <div
+            key={pet.inventoryId}
+            className="absolute pointer-events-none"
+            style={{ zIndex: 7, left, top, width: size, height: size, transform: "translate(-50%, -50%)" }}
+          >
+            {pet.petTemplateId ? (
               <PetAnimator
                 petTemplateId={pet.petTemplateId}
-                mode="idle"
-                size={sz}
-                style={{
-                  filter: `drop-shadow(0 ${Math.round(sz * 0.12)}px ${Math.round(sz * 0.15)}px rgba(0,0,0,0.5))`,
-                }}
+                mode="house"
+                size={size}
+                fillContainer
+                className="pet-idle-squish"
+                style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.45))" }}
               />
-              {shadow}
-            </>
-          ) : petImg ? (
-            <>
-              <img
-                src={petImg}
-                alt=""
-                className="pointer-events-none"
-                style={{
-                  width: sz,
-                  height: sz,
-                  objectFit: "contain",
-                  filter: [
-                    `drop-shadow(0 ${Math.round(sz * 0.12)}px ${Math.round(sz * 0.15)}px rgba(0,0,0,0.6))`,
-                    "brightness(1.06) saturate(1.1)",
-                  ].join(" "),
-                }}
-              />
-              {shadow}
-            </>
-          ) : (
-            <>
-              <span
-                className="pointer-events-none flex items-center justify-center"
-                style={{ width: sz, height: sz, fontSize: sz * 0.65 }}
-              >
-                🐾
-              </span>
-              {shadow}
-            </>
-          )}
-        </div>
-      </div>
+            ) : (
+              <div className="pet-idle-squish" style={{ width: "100%", height: "100%" }}>
+                <img
+                  src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
+                  alt={pet.nickname ?? pet.name}
+                  draggable={false}
+                  style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.45))" }}
+                />
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      <button
+        onClick={onClose}
+        onPointerDown={e => e.stopPropagation()}
+        className="absolute right-4 flex items-center justify-center font-bold text-xs tracking-widest rounded-full px-4 py-2"
+        style={{
+          zIndex: 10,
+          top: "max(48px, calc(16px + env(safe-area-inset-top, 0px)))",
+          background: "rgba(0,0,0,0.65)",
+          color: "#fff",
+          border: "1px solid rgba(255,255,255,0.25)",
+          fontFamily: "Cinzel, serif",
+        }}
+      >
+        Leave
+      </button>
     </div>
   );
 }
 
-function ForestRoom() {
-  return (
-    <div className="absolute inset-0" style={{ background: "#1a2a0a" }}>
-      <img
-        src={petHouseBg}
-        alt=""
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{ objectPosition: "center center" }}
-        draggable={false}
-      />
-      <div className="absolute top-0 left-0 right-0 pointer-events-none" style={{ height: "18%", background: "linear-gradient(to bottom, rgba(8,14,5,0.55) 0%, transparent 100%)" }} />
-      <div className="absolute pointer-events-none" style={{ left: 0, right: 0, top: "42%", height: "14%", background: "linear-gradient(to bottom, transparent 0%, rgba(180,220,140,0.06) 50%, transparent 100%)" }} />
-      <div className="absolute pointer-events-none" style={{ left: 0, right: 0, bottom: 0, height: "30%", background: "linear-gradient(to top, rgba(20,35,8,0.38) 0%, transparent 100%)" }} />
-      <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(90deg, rgba(0,0,0,0.18) 0%, transparent 18%, transparent 82%, rgba(0,0,0,0.18) 100%)" }} />
-    </div>
-  );
-}
-
-function InsideRoomVisit({ onClose, username }: { onClose: () => void; username: string }) {
-  return (
-    <div className="absolute inset-0 z-40 overflow-hidden" style={{ background: "#0d0a04" }}>
-      <img src={insideRoomBg} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: "center" }} draggable={false} />
-
-      <div className="absolute top-0 left-0 right-0 pointer-events-none" style={{ height: "18%", background: "linear-gradient(to bottom, rgba(8,5,2,0.55) 0%, transparent 100%)" }} />
-      <div className="absolute bottom-0 left-0 right-0 pointer-events-none" style={{ height: "18%", background: "linear-gradient(to top, rgba(8,5,2,0.65) 0%, transparent 100%)" }} />
-      <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(90deg, rgba(5,3,1,0.3) 0%, transparent 18%, transparent 82%, rgba(5,3,1,0.3) 100%)" }} />
-
-      {/* Title */}
-      <div className="absolute top-0 left-0 right-0 flex flex-col items-center pointer-events-none" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 14px)" }}>
-        <h2 className="font-fantasy text-sm tracking-[0.3em]" style={{ color: "rgba(212,160,23,0.9)", textShadow: "0 0 16px rgba(212,160,23,0.6)" }}>
-          {username}'s Room
-        </h2>
-        <div style={{ height: 1, width: 70, marginTop: 5, background: "linear-gradient(90deg, transparent, rgba(212,160,23,0.5), transparent)" }} />
-      </div>
-
-      <div className="absolute inset-0 flex items-end justify-center pointer-events-none" style={{ paddingBottom: "18%" }}>
-        <p className="font-fantasy text-[10px] tracking-widest text-center px-8 leading-relaxed" style={{ color: "rgba(212,160,23,0.35)" }}>
-          Room decoration coming soon
-        </p>
-      </div>
-
-      {/* Go Back Outside button */}
-      <div className="absolute bottom-0 left-0 right-0 flex justify-center pointer-events-none" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 32px)" }}>
-        <button
-          data-testid="button-go-outside-visit"
-          onClick={onClose}
-          className="pointer-events-auto active:scale-95 transition-transform font-fantasy text-xs tracking-widest px-6 py-3 rounded-full"
-          style={{
-            background: "linear-gradient(160deg, rgba(30,18,4,0.96) 0%, rgba(15,9,2,0.98) 100%)",
-            border: "1.5px solid rgba(212,160,23,0.55)",
-            color: "rgba(212,160,23,0.9)",
-            boxShadow: "0 0 18px rgba(212,160,23,0.18), 0 4px 16px rgba(0,0,0,0.55)",
-            cursor: "pointer",
-            letterSpacing: "0.2em",
-          }}
-        >
-          ← Go Back Outside
-        </button>
-      </div>
-    </div>
-  );
-}
-
+// ── Main page ─────────────────────────────────────────────────────────────────
 export default function VisitPetHousePage() {
   const params = useParams<{ userId: string }>();
   const userId = params.userId;
-  const [showInsideRoom, setShowInsideRoom] = useState(false);
+  const [openInterior, setOpenInterior] = useState<{ url: string; buildingId: string } | null>(null);
 
-  const { data, isLoading, isError } = useQuery<UserPetsResponse>({
+  // Canvas panning state
+  const containerRef = useRef<HTMLDivElement>(null);
+  const panStartRef = useRef<{ startX: number; startPanX: number; pid: number } | null>(null);
+  const [panX, setPanX] = useState(0);
+  const [imgWidth, setImgWidth] = useState(0);
+  const [containerH, setContainerH] = useState(0);
+  const [bgAspect, setBgAspect] = useState(DEFAULT_BG_RATIO);
+
+  // ── Data queries ─────────────────────────────────────────────────────────────
+  const { data: petsData, isLoading, isError } = useQuery<UserPetsResponse>({
     queryKey: ["/api/users", userId, "pets"],
     queryFn: async () => {
       const res = await fetch(`/api/users/${userId}/pets`, { credentials: "include" });
@@ -245,18 +277,244 @@ export default function VisitPetHousePage() {
     refetchOnWindowFocus: true,
   });
 
+  const { data: activeBundle } = useQuery<ActiveBundle | null>({
+    queryKey: ["/api/users", userId, "active-house-bundle"],
+    queryFn: async () => {
+      const res = await fetch(`/api/users/${userId}/active-house-bundle`, { credentials: "include" });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!userId,
+    staleTime: 30000,
+    refetchOnWindowFocus: true,
+  });
+
+  const { data: outdoorDecor = [] } = useQuery<PlacedDecorItem[]>({
+    queryKey: ["/api/users", userId, "pet-house/decor/placed", "outside"],
+    queryFn: async () => {
+      const res = await fetch(`/api/users/${userId}/pet-house/decor/placed?location=outside`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!userId,
+    staleTime: 15000,
+    refetchOnWindowFocus: true,
+  });
+
+  const { data: interiorDecor = [] } = useQuery<PlacedDecorItem[]>({
+    queryKey: ["/api/users", userId, "pet-house/decor/placed", openInterior?.buildingId ?? ""],
+    queryFn: async () => {
+      if (!openInterior) return [];
+      const res = await fetch(`/api/users/${userId}/pet-house/decor/placed?location=${encodeURIComponent(openInterior.buildingId)}`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!openInterior && !!userId,
+    staleTime: 15000,
+  });
+
+  const pets = petsData?.pets ?? [];
+  const outdoorPets = pets.filter(p => p.posLeft !== null && (p.location === "outside" || p.location === null));
+  const interiorPets = openInterior
+    ? pets.filter(p => p.location === openInterior.buildingId && p.posLeft !== null)
+    : [];
+
+  // ── Background aspect + panning ──────────────────────────────────────────────
+  const bgUrl = activeBundle?.bgImageUrl ?? null;
+
+  useEffect(() => {
+    if (!bgUrl) return;
+    const img = new window.Image();
+    img.onload = () => {
+      if (img.naturalHeight > 0) setBgAspect(img.naturalWidth / img.naturalHeight);
+    };
+    img.src = bgUrl;
+  }, [bgUrl]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const recalc = () => {
+      const containerW = container.offsetWidth;
+      const h = container.offsetHeight;
+      const imgW = h * bgAspect;
+      setContainerH(h);
+      setImgWidth(imgW);
+      setPanX(Math.max(Math.min(0, containerW - imgW), -(imgW - containerW) / 2));
+    };
+    recalc();
+    const ro = new ResizeObserver(recalc);
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, [bgAspect]);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    panStartRef.current = { startX: e.clientX, startPanX: panX, pid: e.pointerId };
+  }, [panX]);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    const drag = panStartRef.current;
+    if (!drag || drag.pid !== e.pointerId) return;
+    const container = containerRef.current;
+    if (!container) return;
+    const containerW = container.offsetWidth;
+    const imgW = container.offsetHeight * bgAspect;
+    const min = Math.min(0, containerW - imgW);
+    setPanX(Math.min(0, Math.max(min, drag.startPanX + (e.clientX - drag.startX))));
+  }, [bgAspect]);
+
+  const handlePointerUp = useCallback(() => { panStartRef.current = null; }, []);
+
   return (
     <div
-      className="relative h-screen-frame w-full overflow-hidden flex flex-col"
-      style={{ maxWidth: "768px", margin: "0 auto", background: "#1a2a0a" }}
+      ref={containerRef}
+      className="relative w-full h-screen-frame"
+      style={{ maxWidth: "768px", margin: "0 auto", touchAction: "none", cursor: "grab", overflow: "hidden" }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
     >
-      {/* HUD — only X to close and Inside button */}
+      {/* Background — clipped separately so buildings can overflow */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {bgUrl ? (
+          <img
+            src={bgUrl}
+            alt=""
+            draggable={false}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: `${panX}px`,
+              height: "100%",
+              width: "auto",
+              maxWidth: "none",
+              userSelect: "none",
+            }}
+          />
+        ) : (
+          <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, #0a1a0a 0%, #0d2210 60%, #081408 100%)" }} />
+        )}
+        <div className="absolute inset-0" style={{ zIndex: 1, background: "linear-gradient(180deg, rgba(0,0,0,0.18) 0%, transparent 18%, transparent 72%, rgba(0,0,0,0.45) 100%)" }} />
+      </div>
+
+      {/* Buildings layer — NOT inside overflow:hidden so buildings at edges aren't clipped */}
+      {imgWidth > 0 && activeBundle?.buildings && activeBundle.buildings.length > 0 && (
+        <div
+          className="absolute"
+          style={{ zIndex: 4, top: 0, left: `${panX}px`, width: imgWidth, height: "100%", pointerEvents: "none" }}
+        >
+          {activeBundle.buildings.map((b) => {
+            const hasInterior = !!b.interiorImageUrl;
+            const displayW = Math.round((b.width ?? 120) * (containerH || BUILDING_REF_H) / BUILDING_REF_H);
+            return (
+              <div
+                key={b.id}
+                className="absolute flex flex-col items-center"
+                style={{
+                  left: `${b.posX}%`, top: `${b.posY}%`,
+                  transform: "translate(-50%, -100%)",
+                  minWidth: displayW,
+                  pointerEvents: hasInterior ? "auto" : "none",
+                  cursor: hasInterior ? "pointer" : "default",
+                }}
+                onClick={() => hasInterior && setOpenInterior({ url: b.interiorImageUrl!, buildingId: b.id })}
+              >
+                <img
+                  src={b.imageUrl} alt={b.name} draggable={false}
+                  style={{
+                    width: displayW, height: displayW, objectFit: "contain",
+                    filter: "drop-shadow(0 0 10px rgba(255,210,80,0.3)) drop-shadow(0 3px 6px rgba(0,0,0,0.55))",
+                    transform: b.flippedX ? "scaleX(-1)" : undefined,
+                    flexShrink: 0,
+                  }}
+                />
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Outdoor pets layer (read-only, same rendering as PetHousePage) */}
+      {imgWidth > 0 && outdoorPets.map((pet, i) => {
+        const cfg = randomGroundConfig(i);
+        const savedX = parsePetPct(pet.posLeft);
+        const savedY = parsePetPct(pet.posTop);
+        const xPct = savedX ?? (cfg.centerX / 100);
+        const yPct = savedY ?? (cfg.centerY / 100);
+        const left = panX + xPct * imgWidth;
+        const top = yPct * containerH;
+        return (
+          <div
+            key={pet.inventoryId}
+            data-testid={`visit-pet-outdoor-${pet.inventoryId}`}
+            className="absolute pointer-events-none"
+            style={{
+              zIndex: 5,
+              left,
+              top,
+              width: cfg.size,
+              height: cfg.size,
+              transform: "translate(-50%, -50%)",
+            }}
+          >
+            {pet.petTemplateId ? (
+              <PetAnimator
+                petTemplateId={pet.petTemplateId}
+                mode="house"
+                size={cfg.size}
+                fillContainer
+                className="pet-idle-squish"
+                style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }}
+              />
+            ) : (
+              <div className="pet-idle-squish" style={{ width: "100%", height: "100%" }}>
+                <img
+                  src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
+                  alt={pet.nickname ?? pet.name}
+                  draggable={false}
+                  style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }}
+                />
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {/* Outdoor decor layer (read-only) */}
+      {imgWidth > 0 && outdoorDecor.map((item) => {
+        const left = panX + item.xPct * imgWidth;
+        const top = item.yPct * containerH;
+        return (
+          <div
+            key={item.id}
+            className="absolute pointer-events-none"
+            style={{ zIndex: 6, left, top, transform: "translate(-50%, -50%)" }}
+          >
+            <img
+              src={item.item.imageUrl ?? ""}
+              alt={item.item.name}
+              draggable={false}
+              style={{
+                width: item.size, height: item.size, objectFit: "contain",
+                transform: item.flipped ? "scaleX(-1)" : undefined,
+                filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.45))",
+                userSelect: "none",
+              }}
+            />
+          </div>
+        );
+      })}
+
+      {/* HUD */}
       <div
         className="absolute z-30 left-0 right-0 flex items-center justify-between px-3"
         style={{
           paddingTop: "max(12px, env(safe-area-inset-top, 12px))",
           paddingBottom: 8,
           background: "linear-gradient(180deg, rgba(8,14,5,0.82) 0%, rgba(8,14,5,0.45) 80%, transparent 100%)",
+          pointerEvents: "none",
         }}
       >
         {/* X — close, go back */}
@@ -270,83 +528,55 @@ export default function VisitPetHousePage() {
             boxShadow: "0 2px 12px rgba(0,0,0,0.7)",
             color: "#7fffd4",
             cursor: "pointer",
+            pointerEvents: "auto",
           }}
         >
           <X size={16} />
         </button>
 
         {/* Owner name — centre */}
-        {data && (
+        {petsData && (
           <p
             className="font-fantasy text-xs tracking-widest absolute left-0 right-0 text-center pointer-events-none"
             style={{ color: "rgba(240,192,64,0.85)", textShadow: "0 0 12px rgba(240,192,64,0.4)" }}
             data-testid="text-visit-house-owner"
           >
-            {data.username}'s Pet House
+            {petsData.username}'s Pet House
           </p>
         )}
 
-        {/* Inside button */}
-        <button
-          data-testid="button-visit-inside"
-          onClick={() => setShowInsideRoom(true)}
-          className="flex flex-col items-center gap-0.5 transition-transform active:scale-90"
-          style={{ background: "none", border: "none", cursor: "pointer" }}
-        >
-          <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: "rgba(4,10,6,0.88)",
-            border: "1.5px solid rgba(212,160,23,0.4)",
-            boxShadow: "0 2px 10px rgba(0,0,0,0.6)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            overflow: "hidden",
-          }}>
-            <img src={petHouseIconImg} alt="Inside" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          </div>
-          <span className="font-fantasy text-[8px] tracking-widest" style={{ color: "rgba(212,160,23,0.65)" }}>Inside</span>
-        </button>
+        {/* Spacer to balance the layout */}
+        <div className="w-9 h-9 flex-shrink-0" />
       </div>
 
-      {/* World */}
-      <div className="flex-1 relative overflow-hidden">
-        <ForestRoom />
+      {/* Loading / error states */}
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+          <p className="font-fantasy text-[#8b6a3e] text-xs animate-pulse tracking-widest">Opening the door...</p>
+        </div>
+      )}
+      {isError && (
+        <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+          <p className="font-fantasy text-[#ff6666] text-xs tracking-widest">Could not enter pet house</p>
+        </div>
+      )}
+      {!isLoading && !isError && petsData && outdoorPets.length === 0 && (
+        <div className="absolute inset-0 flex items-end justify-center pointer-events-none" style={{ paddingBottom: "15%" }}>
+          <p className="font-fantasy text-[9px] tracking-wider text-center px-6 z-10" style={{ color: "rgba(200,170,100,0.55)" }}>
+            {petsData.username} hasn't moved any pets outside yet!
+          </p>
+        </div>
+      )}
 
-        {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-            <p className="font-fantasy text-[#8b6a3e] text-xs animate-pulse tracking-widest">Opening the door...</p>
-          </div>
-        )}
-
-        {isError && (
-          <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-            <p className="font-fantasy text-[#ff6666] text-xs tracking-widest">Could not enter pet house</p>
-          </div>
-        )}
-
-        {data && (
-          <div className="absolute inset-0 z-10">
-            {data.pets.length === 0 ? (
-              <div className="w-full h-full flex items-end justify-center pb-16">
-                <p className="font-fantasy text-[9px] tracking-wider text-center px-6" style={{ color: "rgba(200,170,100,0.55)" }}>
-                  {data.username} hasn't moved any pets in yet!
-                </p>
-              </div>
-            ) : (
-              data.pets.map((pet, i) => (
-                <WalkingPetView key={pet.inventoryId} pet={pet} index={i} />
-              ))
-            )}
-          </div>
-        )}
-
-        {/* Inside room overlay */}
-        {showInsideRoom && (
-          <InsideRoomVisit
-            onClose={() => setShowInsideRoom(false)}
-            username={data?.username ?? ""}
-          />
-        )}
-      </div>
+      {/* Read-only interior overlay */}
+      {openInterior && (
+        <InteriorViewerVisit
+          url={openInterior.url}
+          placedItems={interiorDecor}
+          placedPets={interiorPets}
+          onClose={() => setOpenInterior(null)}
+        />
+      )}
     </div>
   );
 }
