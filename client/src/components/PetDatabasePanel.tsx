@@ -645,23 +645,42 @@ export default function PetDatabasePanel() {
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {group.parts.map(pt => {
-                  const exists = viewParts.some(p => p.partType === pt.key);
+                  const existingPart = viewParts.find(p => p.partType === pt.key);
+                  const exists = !!existingPart;
                   return (
-                    <button
-                      key={pt.key}
-                      data-testid={`button-upload-${pt.key}`}
-                      onClick={() => setUploadPartType(pt.key)}
-                      className="px-2 py-1 rounded font-fantasy text-[9px] tracking-wider transition-transform active:scale-95 flex items-center gap-1"
-                      style={{
-                        background: exists ? "rgba(127,255,212,0.15)" : "rgba(240,192,64,0.08)",
-                        border: `1px solid ${exists ? "rgba(127,255,212,0.3)" : "rgba(240,192,64,0.2)"}`,
-                        color: exists ? "#7fffd4" : "#f0c040",
-                        cursor: "pointer",
-                      }}
-                    >
-                      {exists ? "✓" : "+"} {pt.label}
-                      {pt.animOnly && <span style={{ color: "#a89878", fontSize: "7px" }}>anim</span>}
-                    </button>
+                    <div key={pt.key} className="flex items-stretch rounded overflow-hidden" style={{ border: `1px solid ${exists ? "rgba(127,255,212,0.3)" : "rgba(240,192,64,0.2)"}` }}>
+                      <button
+                        data-testid={`button-upload-${pt.key}`}
+                        onClick={() => setUploadPartType(pt.key)}
+                        className="px-2 py-1 font-fantasy text-[9px] tracking-wider transition-transform active:scale-95 flex items-center gap-1"
+                        style={{
+                          background: exists ? "rgba(127,255,212,0.15)" : "rgba(240,192,64,0.08)",
+                          color: exists ? "#7fffd4" : "#f0c040",
+                          cursor: "pointer",
+                          border: "none",
+                        }}
+                      >
+                        {exists ? "✓" : "+"} {pt.label}
+                        {pt.animOnly && <span style={{ color: "#a89878", fontSize: "7px" }}>anim</span>}
+                      </button>
+                      {exists && existingPart && (
+                        <button
+                          data-testid={`button-delete-part-${pt.key}`}
+                          onClick={() => deletePartMutation.mutate(existingPart.id)}
+                          className="flex items-center justify-center px-1.5 transition-all active:scale-95"
+                          style={{
+                            background: "rgba(220,38,38,0.2)",
+                            border: "none",
+                            borderLeft: "1px solid rgba(220,38,38,0.3)",
+                            color: "#fca5a5",
+                            cursor: "pointer",
+                          }}
+                          title={`Delete ${pt.label}`}
+                        >
+                          <Trash2 className="w-2.5 h-2.5" />
+                        </button>
+                      )}
+                    </div>
                   );
                 })}
               </div>
