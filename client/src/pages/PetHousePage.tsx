@@ -357,22 +357,23 @@ function InteriorViewer({
                 </div>
               </>
             )}
-            {/* Animated pets use PetAnimator; static-only pets fall back to image */}
-            {pet.petTemplateId ? (
-              <PetAnimator
-                petTemplateId={pet.petTemplateId}
-                mode="house"
-                size={PET_SIZE}
-                fillContainer
-                className="pet-idle-squish"
-              />
-            ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
+            {/* Interior pets: static image only — interior image + PetAnimator together crash iOS.
+                The idle squish animation still plays on the wrapper div above. */}
+            {(pet.hatchedImageUrl || pet.imageUrl) ? (
               <img
                 src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
                 alt={pet.nickname ?? pet.name}
                 draggable={false}
                 className="pet-idle-squish"
                 style={{ width: "100%", height: "100%", objectFit: "contain" }}
+              />
+            ) : pet.petTemplateId ? (
+              <PetAnimator
+                petTemplateId={pet.petTemplateId}
+                mode="house"
+                size={PET_SIZE}
+                fillContainer
+                className="pet-idle-squish"
               />
             ) : null}
           </div>

@@ -156,15 +156,16 @@ function InteriorViewerVisit({ url, placedItems, placedPets, onClose }: {
             className="absolute pointer-events-none pet-idle-squish"
             style={{ zIndex: 7, left: panX + xPct * imgWidth, top: yPct * containerH, width: INTERIOR_PET_SIZE, height: INTERIOR_PET_SIZE, transform: "translate(-50%, -50%)" }}
           >
-            {pet.petTemplateId ? (
-              <PetAnimator petTemplateId={pet.petTemplateId} mode="house" size={INTERIOR_PET_SIZE} fillContainer className="pet-idle-squish" />
-            ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
+            {/* Interior pets: static image only — interior image + PetAnimator together crash iOS */}
+            {(pet.hatchedImageUrl || pet.imageUrl) ? (
               <img
                 src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
                 alt={pet.nickname ?? pet.name}
                 draggable={false}
                 style={{ width: "100%", height: "100%", objectFit: "contain" }}
               />
+            ) : pet.petTemplateId ? (
+              <PetAnimator petTemplateId={pet.petTemplateId} mode="house" size={INTERIOR_PET_SIZE} fillContainer className="pet-idle-squish" />
             ) : null}
           </div>
         );
