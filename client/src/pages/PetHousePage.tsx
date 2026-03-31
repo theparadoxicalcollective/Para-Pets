@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import PetAnimator from "@/components/PetAnimator";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import homeInventoryIcon from "@assets/icon_home_inventory.png";
 import decorInventoryIcon from "@assets/icon_decor_inventory.png";
 
@@ -189,16 +190,20 @@ function InteriorViewer({
     const container = containerRef.current;
     if (!container) return;
     const recalc = () => {
-      const w = container.offsetWidth;
-      const h = container.offsetHeight;
-      const imgW = h * aspectRef.current;
-      const newPanX = Math.max(Math.min(0, w - imgW), (w - imgW) / 2);
-      setPanX(newPanX);
-      setImgWidth(imgW);
-      setContainerH(h);
-      imgWidthRef.current = imgW;
-      containerHRef.current = h;
-      panStateRef.current = { panX: newPanX, imgWidth: imgW, containerH: h };
+      try {
+        const w = container.offsetWidth;
+        const h = container.offsetHeight;
+        const imgW = h * aspectRef.current;
+        const newPanX = Math.max(Math.min(0, w - imgW), (w - imgW) / 2);
+        setPanX(newPanX);
+        setImgWidth(imgW);
+        setContainerH(h);
+        imgWidthRef.current = imgW;
+        containerHRef.current = h;
+        panStateRef.current = { panX: newPanX, imgWidth: imgW, containerH: h };
+      } catch (err) {
+        console.error("[InteriorViewer] recalc error:", err);
+      }
     };
     recalc();
     const ro = new ResizeObserver(recalc);
@@ -813,12 +818,16 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     const container = containerRef.current;
     if (!container) return;
     const recalc = () => {
-      const containerW = container.offsetWidth;
-      const h = container.offsetHeight;
-      const imgW = h * bgAspect;
-      setContainerH(h);
-      setImgWidth(imgW);
-      setPanX(Math.max(Math.min(0, containerW - imgW), -(imgW - containerW) / 2));
+      try {
+        const containerW = container.offsetWidth;
+        const h = container.offsetHeight;
+        const imgW = h * bgAspect;
+        setContainerH(h);
+        setImgWidth(imgW);
+        setPanX(Math.max(Math.min(0, containerW - imgW), -(imgW - containerW) / 2));
+      } catch (err) {
+        console.error("[PetHousePage] recalc error:", err);
+      }
     };
     recalc();
     const ro = new ResizeObserver(recalc);
@@ -1622,17 +1631,28 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
       {/* Building interior viewer — shown when player taps a building with an interior set */}
       {openInterior && (
-        <InteriorViewer
-          url={openInterior.url}
-          placedItems={interiorPlacedRaw}
-          placedPets={pets.filter(p => p.posLeft !== null && p.location === openInterior.buildingId)}
-          panStateRef={interiorPanRef}
-          onUpdateItem={(id, data) => updateDecorMutation.mutate({ id, ...data })}
-          onRemoveItem={(id) => removeDecorMutation.mutate(id)}
-          onMovePet={(inventoryId, xPct, yPct) => placePetMutation.mutate({ inventoryId, xPct, yPct, location: openInterior.buildingId })}
-          onRemovePet={(inventoryId) => removePetFromSceneMutation.mutate(inventoryId)}
-          onClose={() => { setOpenInterior(null); interiorPanRef.current = null; }}
-        />
+        <ErrorBoundary fallback={
+          <div className="fixed inset-0 flex flex-col items-center justify-center gap-4"
+            style={{ zIndex: 60, background: "#07090f", maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+            <div style={{ fontFamily: "Cinzel, serif", fontSize: 13, color: "#ffd700", letterSpacing: "0.1em" }}>Something went wrong</div>
+            <button onClick={() => { setOpenInterior(null); interiorPanRef.current = null; }}
+              style={{ fontFamily: "Cinzel, serif", fontSize: 11, letterSpacing: "0.15em", color: "#ffd700",
+                background: "rgba(30,18,4,0.9)", border: "1px solid rgba(255,215,0,0.45)",
+                borderRadius: 9999, padding: "8px 20px", cursor: "pointer" }}>Leave</button>
+          </div>
+        }>
+          <InteriorViewer
+            url={openInterior.url}
+            placedItems={interiorPlacedRaw}
+            placedPets={pets.filter(p => p.posLeft !== null && p.location === openInterior.buildingId)}
+            panStateRef={interiorPanRef}
+            onUpdateItem={(id, data) => updateDecorMutation.mutate({ id, ...data })}
+            onRemoveItem={(id) => removeDecorMutation.mutate(id)}
+            onMovePet={(inventoryId, xPct, yPct) => placePetMutation.mutate({ inventoryId, xPct, yPct, location: openInterior.buildingId })}
+            onRemovePet={(inventoryId) => removePetFromSceneMutation.mutate(inventoryId)}
+            onClose={() => { setOpenInterior(null); interiorPanRef.current = null; }}
+          />
+        </ErrorBoundary>
       )}
 
       {showProfile && (

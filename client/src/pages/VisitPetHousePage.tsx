@@ -3,6 +3,7 @@ import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 // ── Types (mirrors PetHousePage) ──────────────────────────────────────────────
 interface VisitedPet {
@@ -116,15 +117,19 @@ function InteriorViewerVisit({
     const container = containerRef.current;
     if (!container) return;
     const recalc = () => {
-      const w = container.offsetWidth;
-      const h = container.offsetHeight;
-      const imgW = h * aspectRef.current;
-      const newPanX = Math.max(Math.min(0, w - imgW), (w - imgW) / 2);
-      setPanX(newPanX);
-      setImgWidth(imgW);
-      setContainerH(h);
-      imgWidthRef.current = imgW;
-      containerHRef.current = h;
+      try {
+        const w = container.offsetWidth;
+        const h = container.offsetHeight;
+        const imgW = h * aspectRef.current;
+        const newPanX = Math.max(Math.min(0, w - imgW), (w - imgW) / 2);
+        setPanX(newPanX);
+        setImgWidth(imgW);
+        setContainerH(h);
+        imgWidthRef.current = imgW;
+        containerHRef.current = h;
+      } catch (err) {
+        console.error("[InteriorViewerVisit] recalc error:", err);
+      }
     };
     recalc();
     const ro = new ResizeObserver(recalc);
@@ -340,12 +345,16 @@ export default function VisitPetHousePage() {
     const container = containerRef.current;
     if (!container) return;
     const recalc = () => {
-      const containerW = container.offsetWidth;
-      const h = container.offsetHeight;
-      const imgW = h * bgAspect;
-      setContainerH(h);
-      setImgWidth(imgW);
-      setPanX(Math.max(Math.min(0, containerW - imgW), -(imgW - containerW) / 2));
+      try {
+        const containerW = container.offsetWidth;
+        const h = container.offsetHeight;
+        const imgW = h * bgAspect;
+        setContainerH(h);
+        setImgWidth(imgW);
+        setPanX(Math.max(Math.min(0, containerW - imgW), -(imgW - containerW) / 2));
+      } catch (err) {
+        console.error("[VisitPetHousePage] recalc error:", err);
+      }
     };
     recalc();
     const ro = new ResizeObserver(recalc);
@@ -575,12 +584,23 @@ export default function VisitPetHousePage() {
 
       {/* Read-only interior overlay */}
       {openInterior && (
-        <InteriorViewerVisit
-          url={openInterior.url}
-          placedItems={interiorDecor}
-          placedPets={interiorPets}
-          onClose={() => setOpenInterior(null)}
-        />
+        <ErrorBoundary fallback={
+          <div className="fixed inset-0 flex flex-col items-center justify-center gap-4"
+            style={{ zIndex: 60, background: "#07090f", maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+            <div style={{ fontFamily: "Cinzel, serif", fontSize: 13, color: "#ffd700", letterSpacing: "0.1em" }}>Something went wrong</div>
+            <button onClick={() => setOpenInterior(null)}
+              style={{ fontFamily: "Cinzel, serif", fontSize: 11, letterSpacing: "0.15em", color: "#ffd700",
+                background: "rgba(30,18,4,0.9)", border: "1px solid rgba(255,215,0,0.45)",
+                borderRadius: 9999, padding: "8px 20px", cursor: "pointer" }}>Leave</button>
+          </div>
+        }>
+          <InteriorViewerVisit
+            url={openInterior.url}
+            placedItems={interiorDecor}
+            placedPets={interiorPets}
+            onClose={() => setOpenInterior(null)}
+          />
+        </ErrorBoundary>
       )}
     </div>
   );

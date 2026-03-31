@@ -156,6 +156,54 @@ function AppRouter() {
   );
 }
 
+function CrashReporter() {
+  const [entry, setEntry] = useState<{ msg: string; source?: string; ts: number } | null>(() => {
+    try {
+      const raw = localStorage.getItem("__para_last_error");
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch (_) { return null; }
+  });
+
+  if (!entry) return null;
+  const ago = Math.round((Date.now() - entry.ts) / 1000);
+
+  return (
+    <div
+      style={{
+        position: "fixed", inset: 0, zIndex: 99999,
+        background: "rgba(0,0,0,0.88)", display: "flex",
+        flexDirection: "column", alignItems: "center", justifyContent: "center",
+        padding: 24, gap: 12,
+      }}
+    >
+      <div style={{ fontFamily: "Cinzel, serif", fontSize: 13, color: "#ffd700", letterSpacing: "0.1em" }}>
+        Crash Report ({ago}s ago)
+      </div>
+      <div style={{
+        background: "rgba(255,80,80,0.12)", border: "1px solid rgba(255,80,80,0.4)",
+        borderRadius: 8, padding: "10px 14px", maxWidth: 340, width: "100%",
+        fontFamily: "monospace", fontSize: 11, color: "#ff9090", lineHeight: 1.6,
+        wordBreak: "break-all",
+      }}>
+        {entry.msg}
+        {entry.source && <div style={{ marginTop: 6, color: "rgba(255,144,144,0.6)" }}>{entry.source}</div>}
+      </div>
+      <button
+        onClick={() => { localStorage.removeItem("__para_last_error"); setEntry(null); }}
+        style={{
+          fontFamily: "Cinzel, serif", fontSize: 11, letterSpacing: "0.15em",
+          color: "#ffd700", background: "rgba(30,18,4,0.9)",
+          border: "1px solid rgba(255,215,0,0.45)", borderRadius: 9999,
+          padding: "8px 20px", cursor: "pointer",
+        }}
+      >
+        Dismiss
+      </button>
+    </div>
+  );
+}
+
 function App() {
   useEffect(() => {
     initTabSync();
@@ -239,6 +287,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
+        <CrashReporter />
         {/* Mobile: full-screen  |  Desktop: phone emulator centered on dark background */}
         <div
           className="w-full h-[100dvh] md:flex md:items-center md:justify-center md:overflow-hidden md:bg-[#07090f]"
