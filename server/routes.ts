@@ -323,6 +323,28 @@ export async function backfillAdvancedAcquisitionBadge(): Promise<void> {
   }
 }
 
+export async function backfillCoinPurchaseEarnings(): Promise<void> {
+  try {
+    const result = await db.execute(sql`
+      UPDATE users
+      SET total_coins_earned = subq.total
+      FROM (
+        SELECT user_id, COALESCE(SUM(coins_received), 0) AS total
+        FROM coin_purchases
+        GROUP BY user_id
+      ) subq
+      WHERE users.id = subq.user_id
+        AND users.total_coins_earned = 0
+        AND subq.total > 0
+    `);
+    if ((result.rowCount ?? 0) > 0) {
+      console.log(`Coin purchase backfill: updated ${result.rowCount} user(s).`);
+    }
+  } catch (err) {
+    console.error("Coin purchase backfill error (non-fatal):", err);
+  }
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -449,6 +471,7 @@ export async function registerRoutes(
       return res.status(500).json({ message: err.message });
     }
   });
+
 
   app.post("/api/auth/login", (req, res, next) => {
     passport.authenticate("local", (err: any, user: any, info: any) => {
