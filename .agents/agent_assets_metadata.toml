@@ -1,5 +1,10 @@
 uploads = []
-generated = []
+
+[[generated]]
+id = "KudqCorqbXPFO9k5MvyIo"
+uri = "file://attached_assets/generated_images/gift_icon_forest.png"
+type = "image"
+title = "forest gift bundle icon"
 
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
@@ -857,7 +862,7 @@ title = "Admin Test Pole"
 id = "RE-ozt5kSFcq-6AoD1WYH"
 uri = "file://attached_assets/generated_images/gift_icon_forest.png"
 type = "image"
-title = "Fantasy Forest Gift Icon (Standalone)"
+title = "Forest Gift Bundle Icon"
 
 [[outputs]]
 id = "8ExEmd7ILllvv0ybZsLLE"
