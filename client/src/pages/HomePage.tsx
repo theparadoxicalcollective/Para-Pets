@@ -225,7 +225,7 @@ export default function HomePage({ user }: HomePageProps) {
               position: "absolute",
               width: "280px",
               height: "65px",
-              background: "radial-gradient(ellipse, rgba(240,192,64,0.5) 0%, rgba(240,160,20,0.2) 50%, transparent 70%)",
+              background: "radial-gradient(ellipse, rgba(240,192,64,0.2) 0%, rgba(240,160,20,0.08) 50%, transparent 70%)",
               filter: "blur(18px)",
               borderRadius: "50%",
               top: "50%",
@@ -250,7 +250,7 @@ export default function HomePage({ user }: HomePageProps) {
                     zIndex: 1,
                     opacity: filled ? 1 : 0.15,
                     filter: filled
-                      ? "drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000) drop-shadow(0 0 8px rgba(240,192,64,0.9)) drop-shadow(0 0 18px rgba(240,192,64,0.5))"
+                      ? "drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000) drop-shadow(0 0 5px rgba(240,192,64,0.5)) drop-shadow(0 0 10px rgba(240,192,64,0.25))"
                       : "grayscale(1) drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000)",
                   }}
                 />
