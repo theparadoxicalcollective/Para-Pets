@@ -928,6 +928,20 @@ function BundlesSubTab() {
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  const grantEveryoneMutation = useMutation({
+    mutationFn: async (bundleId: string) => {
+      const res = await apiRequest("POST", `/api/admin/house-bundles/${bundleId}/grant-everyone`, {});
+      return res.json() as Promise<{ granted: number; activated: number; alreadyOwned: number; total: number }>;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Granted to all players!",
+        description: `${data.granted} new grants · ${data.activated} activated · ${data.alreadyOwned} already had it (${data.total} total players)`,
+      });
+    },
+    onError: (e: any) => toast({ title: "Grant failed", description: e.message, variant: "destructive" }),
+  });
+
   const hasBg = !!(bgImagePreview ?? editingBundle?.bgImageUrl);
   const isEditing = !!editingBundle;
   const showForm = isEditing || showCreateForm;
@@ -1123,6 +1137,29 @@ function BundlesSubTab() {
                 >
                   {hasBg ? "Continue to Edit →" : "Upload a background to continue"}
                 </button>
+              )}
+
+              {/* Grant to All Players */}
+              {isEditing && (
+                <div style={{ borderTop: `1px solid ${GOLD_BORDER}`, paddingTop: 12, marginTop: 4 }}>
+                  <p className="font-fantasy text-[9px] mb-2 text-center" style={{ color: "rgba(255,215,0,0.4)" }}>
+                    Admin Actions
+                  </p>
+                  <button
+                    data-testid="button-grant-bundle-everyone"
+                    onClick={() => grantEveryoneMutation.mutate(editingBundle!.id)}
+                    disabled={grantEveryoneMutation.isPending}
+                    className="w-full py-3 rounded-xl font-fantasy text-sm tracking-widest transition-transform active:scale-95"
+                    style={{
+                      background: "rgba(80,140,255,0.12)",
+                      border: "1px solid rgba(80,140,255,0.35)",
+                      color: grantEveryoneMutation.isPending ? "rgba(150,190,255,0.5)" : "rgba(150,190,255,0.9)",
+                      cursor: grantEveryoneMutation.isPending ? "wait" : "pointer",
+                    }}
+                  >
+                    {grantEveryoneMutation.isPending ? "Granting…" : "Grant to All Players"}
+                  </button>
+                </div>
               )}
             </div>
           </div>

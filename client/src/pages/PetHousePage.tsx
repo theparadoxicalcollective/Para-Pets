@@ -5,7 +5,6 @@ import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import PetAnimator from "@/components/PetAnimator";
-import petHouseBg from "@assets/IMG_6459_1774822089433.jpeg";
 import homeInventoryIcon from "@assets/icon_home_inventory.png";
 import decorInventoryIcon from "@assets/icon_decor_inventory.png";
 
@@ -260,16 +259,15 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     },
   });
 
-  // Determine background URL
-  const bgUrl = activeBundle?.bgImageUrl ?? petHouseBg;
+  // Determine background URL — Home Bundles are the priority; fall back to a neutral dark if none active
+  const bgUrl = activeBundle?.bgImageUrl ?? null;
 
   // Load image to get natural aspect ratio
   useEffect(() => {
+    if (!bgUrl) return;
     const img = new window.Image();
     img.onload = () => {
-      if (img.naturalHeight > 0) {
-        setBgAspect(img.naturalWidth / img.naturalHeight);
-      }
+      if (img.naturalHeight > 0) setBgAspect(img.naturalWidth / img.naturalHeight);
     };
     img.src = bgUrl;
   }, [bgUrl]);
@@ -337,21 +335,25 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       onPointerCancel={handlePointerUp}
     >
       {/* Pannable background */}
-      <img
-        src={bgUrl}
-        alt=""
-        draggable={false}
-        style={{
-          position: "absolute",
-          top: 0,
-          left: `${panX}px`,
-          height: "100%",
-          width: "auto",
-          maxWidth: "none",
-          pointerEvents: "none",
-          userSelect: "none",
-        }}
-      />
+      {bgUrl ? (
+        <img
+          src={bgUrl}
+          alt=""
+          draggable={false}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: `${panX}px`,
+            height: "100%",
+            width: "auto",
+            maxWidth: "none",
+            pointerEvents: "none",
+            userSelect: "none",
+          }}
+        />
+      ) : (
+        <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, #0a1a0a 0%, #0d2210 60%, #081408 100%)" }} />
+      )}
 
       {/* Ambient gradients */}
       <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 1, background: "linear-gradient(180deg, rgba(0,0,0,0.18) 0%, transparent 18%, transparent 72%, rgba(0,0,0,0.45) 100%)" }} />

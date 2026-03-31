@@ -6,7 +6,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { storage } from "./storage";
-import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards, userInventory, houseBundles as houseBundlesTable, users as usersTable, coinPurchases } from "@shared/schema";
+import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards, userInventory, houseBundles as houseBundlesTable, userHouseBundles as userHouseBundlesTable, users as usersTable, coinPurchases } from "@shared/schema";
 import { db } from "./db";
 import { and, eq, inArray, lt, sql } from "drizzle-orm";
 import sharp from "sharp";
@@ -403,6 +403,19 @@ export async function registerRoutes(
         console.error("Failed to create welcome reward, giving coins directly:", rewardErr);
         await storage.addCoins(user.id, 500);
         await storage.setWelcomeV2Sent(user.id);
+      }
+
+      // Auto-grant all free house bundles and set the first one as active
+      try {
+        const freeBundles = await db.select().from(houseBundlesTable).where(eq(houseBundlesTable.price, 0));
+        let firstBundleId: string | null = null;
+        for (const bundle of freeBundles) {
+          await storage.grantUserHouseBundle(user.id, bundle.id);
+          if (!firstBundleId) firstBundleId = bundle.id;
+        }
+        if (firstBundleId) await storage.setActiveHouseBundle(user.id, firstBundleId);
+      } catch (bundleErr) {
+        console.error("Failed to auto-grant free house bundle:", bundleErr);
       }
 
       req.login(user, (err) => {
@@ -4738,6 +4751,42 @@ export async function registerRoutes(
       await storage.deleteHouseBundle(req.params.id);
       return res.json({ ok: true });
     } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Grant a bundle to every existing player and activate it for those with no active bundle
+  app.post("/api/admin/house-bundles/:bundleId/grant-everyone", isAdmin, async (req, res) => {
+    try {
+      const { bundleId } = req.params as { bundleId: string };
+      const [bundle] = await db.select().from(houseBundlesTable).where(eq(houseBundlesTable.id, bundleId));
+      if (!bundle) return res.status(404).json({ message: "Bundle not found" });
+
+      const [allUsers, existingOwners] = await Promise.all([
+        storage.getAllUsers(),
+        db.select({ userId: userHouseBundlesTable.userId }).from(userHouseBundlesTable).where(eq(userHouseBundlesTable.bundleId, bundleId)),
+      ]);
+
+      const ownerSet = new Set(existingOwners.map(r => r.userId));
+      let granted = 0, activated = 0, alreadyOwned = 0;
+
+      for (const user of allUsers) {
+        if (!ownerSet.has(user.id)) {
+          await storage.grantUserHouseBundle(user.id, bundleId);
+          granted++;
+        } else {
+          alreadyOwned++;
+        }
+        if (!user.activeHouseBundleId) {
+          await storage.setActiveHouseBundle(user.id, bundleId);
+          activated++;
+        }
+      }
+
+      console.log(`Grant-everyone "${bundle.name}": granted=${granted}, activated=${activated}, alreadyOwned=${alreadyOwned}`);
+      return res.json({ granted, activated, alreadyOwned, total: allUsers.length });
+    } catch (err: any) {
+      console.error("Grant-everyone error:", err);
       return res.status(500).json({ message: err.message });
     }
   });
