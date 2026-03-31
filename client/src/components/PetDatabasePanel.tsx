@@ -373,33 +373,40 @@ export default function PetDatabasePanel() {
     return data[3] > 10;
   }, []);
 
-  const handlePointerDown = useCallback((e: React.PointerEvent, part: PetTemplatePart, canvasEl: HTMLDivElement | null) => {
-    // Pixel-accurate hit test: ignore transparent areas so clicks fall through to lower parts
-    if (canvasEl) {
-      const rect = canvasEl.getBoundingClientRect();
-      const scale = rect.width / CANVAS_SIZE;
-      const canvasX = (e.clientX - rect.left) / scale;
-      const canvasY = (e.clientY - rect.top) / scale;
+  const handleCanvasPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const canvasEl = canvasRef.current;
+    if (!canvasEl) return;
+    const rect = canvasEl.getBoundingClientRect();
+    const scale = rect.width / CANVAS_SIZE;
+    const canvasX = (e.clientX - rect.left) / scale;
+    const canvasY = (e.clientY - rect.top) / scale;
+    // Only respond to clicks within the canvas bounds
+    if (canvasX < 0 || canvasX > CANVAS_SIZE || canvasY < 0 || canvasY > CANVAS_SIZE) return;
+    // Find topmost opaque part using sync cache
+    const sorted = [...viewParts].sort((a, b) => b.zIndex - a.zIndex);
+    for (const part of sorted) {
+      if (canvasX < part.posX || canvasX > part.posX + part.width ||
+          canvasY < part.posY || canvasY > part.posY + part.height) continue;
       const relX = (canvasX - part.posX) / part.width;
       const relY = (canvasY - part.posY) / part.height;
-      if (!isOpaqueSyncAt(part.imageUrl, relX, relY)) {
-        // Transparent pixel — don't capture; let canvas onClick do the proper hit-test
-        return;
-      }
+      if (!isOpaqueSyncAt(part.imageUrl, relX, relY)) continue;
+      // Found an opaque part — start drag
+      e.preventDefault();
+      e.currentTarget.setPointerCapture(e.pointerId);
+      didDrag.current = false;
+      dragRef.current = {
+        partId: part.id,
+        startX: e.clientX,
+        startY: e.clientY,
+        origX: part.posX,
+        origY: part.posY,
+      };
+      setSelectedPartId(part.id);
+      return;
     }
-    e.preventDefault();
-    e.stopPropagation();
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    didDrag.current = false;
-    dragRef.current = {
-      partId: part.id,
-      startX: e.clientX,
-      startY: e.clientY,
-      origX: part.posX,
-      origY: part.posY,
-    };
-    setSelectedPartId(part.id);
-  }, [isOpaqueSyncAt]);
+    // Clicked on empty canvas space — deselect
+    setSelectedPartId(null);
+  }, [viewParts, isOpaqueSyncAt]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!dragRef.current || !canvasRef.current) return;
@@ -520,7 +527,9 @@ export default function PetDatabasePanel() {
           </span>
         </div>
 
-        {/* Canvas — overflow visible so parts can extend beyond bounds */}
+        {/* Canvas — overflow visible so parts can extend beyond bounds.
+            All pointer handling is on the canvas element itself so parts
+            that visually extend outside cannot block buttons below. */}
         <div
           ref={canvasRef}
           className="relative mx-auto rounded-lg"
@@ -531,30 +540,11 @@ export default function PetDatabasePanel() {
             background: "repeating-conic-gradient(rgba(255,255,255,0.03) 0% 25%, transparent 0% 50%) 0 0 / 20px 20px",
             border: "2px dashed rgba(240,192,64,0.25)",
             touchAction: "none",
-            cursor: "default",
+            cursor: selectedPartId ? "grab" : "default",
           }}
+          onPointerDown={handleCanvasPointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
-          onClick={async (e) => {
-            if (didDrag.current) return;
-            const canvasEl = canvasRef.current;
-            if (!canvasEl) return;
-            const rect = canvasEl.getBoundingClientRect();
-            const scale = rect.width / CANVAS_SIZE;
-            const canvasX = (e.clientX - rect.left) / scale;
-            const canvasY = (e.clientY - rect.top) / scale;
-            // Find topmost part whose pixel at the click is opaque
-            const sorted = [...viewParts].sort((a, b) => b.zIndex - a.zIndex);
-            for (const part of sorted) {
-              if (canvasX < part.posX || canvasX > part.posX + part.width ||
-                  canvasY < part.posY || canvasY > part.posY + part.height) continue;
-              const relX = (canvasX - part.posX) / part.width;
-              const relY = (canvasY - part.posY) / part.height;
-              const opaque = await isOpaqueAt(part.imageUrl, relX, relY);
-              if (opaque) { setSelectedPartId(part.id); return; }
-            }
-            setSelectedPartId(null);
-          }}
         >
           {viewParts.map(part => {
             const pos = dragPos?.id === part.id ? { x: dragPos.x, y: dragPos.y } : { x: part.posX, y: part.posY };
@@ -571,12 +561,11 @@ export default function PetDatabasePanel() {
                   width: `${(part.width / CANVAS_SIZE) * 100}%`,
                   height: `${(part.height / CANVAS_SIZE) * 100}%`,
                   zIndex: part.zIndex + (isDragging ? 100 : 0),
-                  cursor: "grab",
+                  pointerEvents: "none",
                   outline: isSelected ? "2px solid rgba(240,192,64,0.8)" : "none",
                   outlineOffset: "2px",
                   borderRadius: "4px",
                 }}
-                onPointerDown={(e) => handlePointerDown(e, part, canvasRef.current)}
               >
                 <img
                   src={part.imageUrl}
@@ -587,7 +576,7 @@ export default function PetDatabasePanel() {
                 {isSelected && (
                   <div
                     className="absolute -top-5 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded font-fantasy text-[8px] tracking-wider whitespace-nowrap"
-                    style={{ background: "rgba(240,192,64,0.9)", color: "#1a0a00" }}
+                    style={{ background: "rgba(240,192,64,0.9)", color: "#1a0a00", pointerEvents: "none" }}
                   >
                     {part.partType}
                   </div>
