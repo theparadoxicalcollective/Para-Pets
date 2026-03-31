@@ -348,14 +348,10 @@ function InteriorViewer({
             onPointerCancel={onPetUp}
             onClick={(e) => { e.stopPropagation(); setSelectedPetId(isSelected ? null : pet.inventoryId); }}
           >
-            {/* Selection ring — painted only, zero GPU cost */}
             {isSelected && (
-              <>
-                <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 8, outline: "2.5px solid rgba(255,215,0,0.9)", outlineOffset: "4px", borderRadius: 8 }} />
-                <div className="absolute flex gap-2" style={{ bottom: "calc(100% + 10px)", left: "50%", transform: "translateX(-50%)", zIndex: 10, whiteSpace: "nowrap" }}>
-                  <ControlBtn danger onClick={() => { onRemovePet(pet.inventoryId); setSelectedPetId(null); }}><SvgDelete /></ControlBtn>
-                </div>
-              </>
+              <div className="absolute flex gap-2" style={{ bottom: "calc(100% + 10px)", left: "50%", transform: "translateX(-50%)", zIndex: 10, whiteSpace: "nowrap" }}>
+                <ControlBtn danger onClick={() => { onRemovePet(pet.inventoryId); setSelectedPetId(null); }}><SvgDelete /></ControlBtn>
+              </div>
             )}
             {/* Interior pets: house mode = blink + ear/arm/tail only, no body bounce.
                 Falls back to static image when no template. */}
