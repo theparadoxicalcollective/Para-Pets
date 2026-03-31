@@ -137,8 +137,18 @@ export default function HomePage({ user }: HomePageProps) {
     },
   });
 
+  const { data: inventory = [], isLoading: inventoryLoading } = useQuery<InventoryItem[]>({
+    queryKey: ["/api/inventory"],
+    staleTime: 0,
+  });
+
+  const activePet = currentUser.activePetId
+    ? inventory.find((item) => item.shopItemId === currentUser.activePetId && item.type === "pet")
+    : null;
+
   // Dismiss only when both: the 3.5s animation timer is done AND the
   // inventory confirms isHatched=true — so the egg never flickers back.
+  // Must be declared after `activePet` to avoid a TDZ error.
   useEffect(() => {
     if (!hatchTimerDone || !hatchRevealing || !activePet?.isHatched) return;
     setHatchFadingOut(true);
@@ -150,15 +160,6 @@ export default function HomePage({ user }: HomePageProps) {
     }, 600);
     return () => clearTimeout(id);
   }, [hatchTimerDone, hatchRevealing, activePet?.isHatched]);
-
-  const { data: inventory = [], isLoading: inventoryLoading } = useQuery<InventoryItem[]>({
-    queryKey: ["/api/inventory"],
-    staleTime: 0,
-  });
-
-  const activePet = currentUser.activePetId
-    ? inventory.find((item) => item.shopItemId === currentUser.activePetId && item.type === "pet")
-    : null;
 
 
   const hatchTimeItems = inventory.filter(
