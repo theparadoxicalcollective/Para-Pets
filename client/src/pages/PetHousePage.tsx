@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import PetAnimator from "@/components/PetAnimator";
+import PetAnimatorCanvas from "@/components/PetAnimatorCanvas";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import homeInventoryIcon from "@assets/icon_home_inventory.png";
 import decorInventoryIcon from "@assets/icon_decor_inventory.png";
@@ -357,23 +358,23 @@ function InteriorViewer({
                 </div>
               </>
             )}
-            {/* Interior pets: static image only — interior image + PetAnimator together crash iOS.
-                The idle squish animation still plays on the wrapper div above. */}
-            {(pet.hatchedImageUrl || pet.imageUrl) ? (
+            {/* Interior pets: PetAnimatorCanvas composes all parts onto ONE canvas texture
+                (size×size GPU memory) instead of N separate img GPU textures.
+                Falls back to static image if no animated template exists. */}
+            {pet.petTemplateId ? (
+              <PetAnimatorCanvas
+                petTemplateId={pet.petTemplateId}
+                size={PET_SIZE}
+                fillContainer
+                className="pet-idle-squish"
+              />
+            ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
               <img
                 src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
                 alt={pet.nickname ?? pet.name}
                 draggable={false}
                 className="pet-idle-squish"
                 style={{ width: "100%", height: "100%", objectFit: "contain" }}
-              />
-            ) : pet.petTemplateId ? (
-              <PetAnimator
-                petTemplateId={pet.petTemplateId}
-                mode="house"
-                size={PET_SIZE}
-                fillContainer
-                className="pet-idle-squish"
               />
             ) : null}
           </div>
