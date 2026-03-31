@@ -332,56 +332,21 @@ function randomGroundConfig(index: number) {
   const seed = index * 137.508;
   const pseudo = (n: number) => ((Math.sin(n) * 10000) % 1 + 1) % 1;
   const size = 280 + pseudo(seed + 2) * 80;
-  // Center position as percentages — pet is anchored at its center via calc()
-  // so these are the safe center ranges (keeps even the largest pet inside the container)
   const centerX = 20 + pseudo(seed) * 60;      // 20–80% horizontally
-  const centerY = 62 + pseudo(seed + 1) * 22;  // 62–84% vertically (lower half only)
-  return {
-    wanderIdx: index % 6,
-    left: `calc(${centerX}% - ${size / 2}px)`,
-    top: `calc(${centerY}% - ${size / 2}px)`,
-    size,
-    duration: `${26 + pseudo(seed + 3) * 18}s`,
-    delay: `${pseudo(seed + 4) * 28}s`,
-  };
+  const centerY = 62 + pseudo(seed + 1) * 22;  // 62–84% vertically
+  return { size, centerX, centerY };
 }
 
-interface WalkingPetViewProps {
-  pet: HousePet;
-  index: number;
+// Parse saved posLeft/posTop strings (stored as "0–100" percentage strings or legacy calc() strings) into 0–1 floats
+function parsePetPct(s: string | null): number | null {
+  if (!s) return null;
+  const v = parseFloat(s);
+  if (!isNaN(v)) return Math.max(0, Math.min(1, v / 100));
+  const m = s.match(/calc\(([\d.]+)%/);
+  if (m) return Math.max(0, Math.min(1, parseFloat(m[1]) / 100));
+  return null;
 }
 
-function WalkingPetView({ pet, index }: WalkingPetViewProps) {
-  const cfg = useMemo(() => randomGroundConfig(index), [index]);
-
-  return (
-    <div
-      style={{
-        position: "absolute",
-        left: cfg.left,
-        top: cfg.top,
-        width: cfg.size,
-        height: cfg.size,
-        pointerEvents: "none",
-      }}
-    >
-      {pet.petTemplateId ? (
-        <PetAnimator
-          petTemplateId={pet.petTemplateId}
-          mode="idle"
-          size={cfg.size}
-        />
-      ) : (
-        <img
-          src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
-          alt={pet.nickname ?? pet.name}
-          draggable={false}
-          style={{ width: "100%", height: "100%", objectFit: "contain" }}
-        />
-      )}
-    </div>
-  );
-}
 
 export default function PetHousePage({ user }: PetHousePageProps) {
   const { toast } = useToast();
@@ -400,6 +365,10 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const inventoryDragRef = useRef<{ decorItemId: string; imageUrl: string | null; ghostX: number; ghostY: number; startX: number; startY: number; isDragging: boolean; pid: number } | null>(null);
   const [isDraggingDecor, setIsDraggingDecor] = useState(false);
   const placedDragRef = useRef<{ id: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number } | null>(null);
+
+  // Pet drag state
+  const [petDragLive, setPetDragLive] = useState<{ inventoryId: string; xPct: number; yPct: number } | null>(null);
+  const petDragRef = useRef<{ inventoryId: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number; moved: boolean } | null>(null);
 
   const [panX, setPanX] = useState(0);
   const [imgWidth, setImgWidth] = useState(0);
@@ -517,6 +486,47 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     },
     onError: (e: any) => toast({ title: "Could not remove item", description: e.message, variant: "destructive" }),
   });
+
+  const updatePetPositionMutation = useMutation({
+    mutationFn: async ({ inventoryId, xPct, yPct }: { inventoryId: string; xPct: number; yPct: number }) => {
+      const res = await apiRequest("PATCH", `/api/pet-house-positions/${inventoryId}`, {
+        posLeft: String(xPct * 100),
+        posTop: String(yPct * 100),
+      });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/users", user.id, "pets"] }),
+  });
+
+  // ── Drag handlers: pet reposition ─────────────────────────────────────────
+  const handlePetDragStart = useCallback((e: React.PointerEvent, inventoryId: string, startXPct: number, startYPct: number) => {
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    petDragRef.current = { inventoryId, startXPct, startYPct, startPointerX: e.clientX, startPointerY: e.clientY, pid: e.pointerId, moved: false };
+  }, []);
+
+  const handlePetDragMove = useCallback((e: React.PointerEvent) => {
+    const drag = petDragRef.current;
+    if (!drag || drag.pid !== e.pointerId || imgWidth <= 0) return;
+    const dx = e.clientX - drag.startPointerX;
+    const dy = e.clientY - drag.startPointerY;
+    if (Math.hypot(dx, dy) > 8) drag.moved = true;
+    if (!drag.moved) return;
+    const newXPct = Math.max(0.05, Math.min(0.95, drag.startXPct + dx / imgWidth));
+    const newYPct = Math.max(0.05, Math.min(0.95, drag.startYPct + dy / containerH));
+    setPetDragLive({ inventoryId: drag.inventoryId, xPct: newXPct, yPct: newYPct });
+  }, [imgWidth, containerH]);
+
+  const handlePetDragEnd = useCallback((e: React.PointerEvent) => {
+    const drag = petDragRef.current;
+    petDragRef.current = null;
+    setPetDragLive(null);
+    if (!drag?.moved || imgWidth <= 0) return;
+    const newXPct = Math.max(0.05, Math.min(0.95, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidth));
+    const newYPct = Math.max(0.05, Math.min(0.95, drag.startYPct + (e.clientY - drag.startPointerY) / containerH));
+    updatePetPositionMutation.mutate({ inventoryId: drag.inventoryId, xPct: newXPct, yPct: newYPct });
+  }, [imgWidth, containerH]);
 
   // ── Drag handlers: inventory item → canvas ────────────────────────────────
   const handleInvDragStart = useCallback((e: React.PointerEvent, decorItemId: string, imageUrl: string | null) => {
@@ -732,17 +742,51 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         </div>
       )}
 
-      {/* Pets layer — moves with background, clipped to background bounds */}
-      {imgWidth > 0 && (
-        <div
-          className="absolute pointer-events-none"
-          style={{ zIndex: 5, top: 0, left: `${panX}px`, width: imgWidth, height: "100%", overflow: "hidden" }}
-        >
-          {pets.map((pet, i) => (
-            <WalkingPetView key={pet.inventoryId} pet={pet} index={i} />
-          ))}
-        </div>
-      )}
+      {/* Pets layer — absolutely positioned in the main container, draggable */}
+      {imgWidth > 0 && pets.map((pet, i) => {
+        const cfg = randomGroundConfig(i);
+        const savedX = parsePetPct(pet.posLeft);
+        const savedY = parsePetPct(pet.posTop);
+        const baseXPct = savedX ?? (cfg.centerX / 100);
+        const baseYPct = savedY ?? (cfg.centerY / 100);
+        const isDraggingThis = petDragLive?.inventoryId === pet.inventoryId;
+        const xPct = isDraggingThis ? petDragLive.xPct : baseXPct;
+        const yPct = isDraggingThis ? petDragLive.yPct : baseYPct;
+        const left = panX + xPct * imgWidth;
+        const top = yPct * containerH;
+        return (
+          <div
+            key={pet.inventoryId}
+            className="absolute"
+            style={{
+              zIndex: isDraggingThis ? 9 : 5,
+              left,
+              top,
+              width: cfg.size,
+              height: cfg.size,
+              transform: "translate(-50%, -50%)",
+              touchAction: "none",
+              cursor: isDraggingThis ? "grabbing" : "grab",
+              filter: isDraggingThis ? "drop-shadow(0 0 14px rgba(255,215,0,0.7))" : undefined,
+            }}
+            onPointerDown={(e) => handlePetDragStart(e, pet.inventoryId, xPct, yPct)}
+            onPointerMove={handlePetDragMove}
+            onPointerUp={handlePetDragEnd}
+            onPointerCancel={handlePetDragEnd}
+          >
+            {pet.petTemplateId ? (
+              <PetAnimator petTemplateId={pet.petTemplateId} mode="idle" size={cfg.size} />
+            ) : (
+              <img
+                src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
+                alt={pet.nickname ?? pet.name}
+                draggable={false}
+                style={{ width: "100%", height: "100%", objectFit: "contain" }}
+              />
+            )}
+          </div>
+        );
+      })}
 
       {/* Placed home decor layer */}
       {imgWidth > 0 && placedDecor.map((item) => {
