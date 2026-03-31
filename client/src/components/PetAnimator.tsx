@@ -128,7 +128,9 @@ const ANIMATION_STYLES = `
   }
   @keyframes petIdleHead {
     0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-0.4px); }
+    25%       { transform: translateY(-3px); }
+    50%       { transform: translateY(-5px); }
+    75%       { transform: translateY(-3px); }
   }
   @keyframes petIdleLeftEar {
     0%, 100% { transform: rotate(0deg); }
@@ -377,6 +379,45 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   const innerSize = fillContainer ? size / partScale : size;
   const innerOffset = fillContainer ? -((innerSize - size) / 2) : 0;
 
+  // Head group: these parts all move together with the head animation
+  const HEAD_GROUP = new Set(["head", "left_ear", "right_ear", "eyes", "eyes_closed", "mouth", "mouth_closed"]);
+  const bodyParts = viewParts.filter(p => !HEAD_GROUP.has(p.partType));
+  const headGroupParts = viewParts.filter(p => HEAD_GROUP.has(p.partType));
+
+  // Helper: render a single part image with given animation (or none)
+  const renderPartImg = (part: PetPart, animName: string | null, extraOpacity?: number) => {
+    const leftPct = (part.posX / CANVAS_SIZE) * 100;
+    const topPct = (part.posY / CANVAS_SIZE) * 100;
+    const widthPct = (part.width / CANVAS_SIZE) * 100;
+    const heightPct = (part.height / CANVAS_SIZE) * 100;
+    const layerZ = LAYER_ORDER[part.partType] ?? part.zIndex;
+    const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
+    const isEyePart = part.partType === "eyes" || part.partType === "eyes_closed";
+    const delay = isEyePart ? blinkOffset.current : "0s";
+    const duration = getPartDuration(part.partType, mode);
+    return (
+      <img
+        key={part.id}
+        src={part.imageUrl}
+        alt={part.partType}
+        draggable={false}
+        style={{
+          position: "absolute",
+          left: `${leftPct}%`,
+          top: `${topPct}%`,
+          width: `${widthPct}%`,
+          height: `${heightPct}%`,
+          zIndex: layerZ,
+          transformOrigin: `${part.pivotX ?? 50}% ${part.pivotY ?? 50}%`,
+          animation: animName ? `${animName} ${duration} ease-in-out ${delay} infinite` : undefined,
+          opacity: extraOpacity !== undefined ? extraOpacity : (isAnimOnly ? 0 : 1),
+          imageRendering: "auto",
+          pointerEvents: "none",
+        }}
+      />
+    );
+  };
+
   return (
     <div
       className={className}
@@ -385,119 +426,75 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     >
       <style>{ANIMATION_STYLES}</style>
       <div style={{ position: "absolute", top: innerOffset, left: innerOffset, width: innerSize, height: innerSize, transform: `scale(${partScale})`, transformOrigin: "center center" }}>
-      {viewParts.map((part) => {
-        const leftPct = (part.posX / CANVAS_SIZE) * 100;
-        const topPct = (part.posY / CANVAS_SIZE) * 100;
-        const widthPct = (part.width / CANVAS_SIZE) * 100;
-        const heightPct = (part.height / CANVAS_SIZE) * 100;
 
-        const layerZ = LAYER_ORDER[part.partType] ?? part.zIndex;
-        const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
-
-        if (part.partType === "back_full") {
-          return (
-            <img
-              key={part.id}
-              src={part.imageUrl}
-              alt={part.partType}
-              draggable={false}
-              style={{
-                position: "absolute",
-                left: `${leftPct}%`,
-                top: `${topPct}%`,
-                width: `${widthPct}%`,
-                height: `${heightPct}%`,
-                zIndex: layerZ,
-                imageRendering: "auto",
-                pointerEvents: "none",
-              }}
-            />
-          );
-        }
-
-        // House mode: only rotation/opacity animations, no translateY/scale.
-        // Parts without a HOUSE_ANIMATIONS entry render statically (no animation).
-        if (mode === "house") {
-          const animName = HOUSE_ANIMATIONS[part.partType];
-          if (!animName) {
-            // ANIM_ONLY_PARTS (eyes_closed, mouth) have no fallback — keep them hidden
-            if (isAnimOnly) return null;
+        {/* Body parts (back_full, limbs, wings, tail, body) */}
+        {bodyParts.map((part) => {
+          if (part.partType === "back_full") {
+            const leftPct = (part.posX / CANVAS_SIZE) * 100;
+            const topPct = (part.posY / CANVAS_SIZE) * 100;
+            const widthPct = (part.width / CANVAS_SIZE) * 100;
+            const heightPct = (part.height / CANVAS_SIZE) * 100;
+            const layerZ = LAYER_ORDER[part.partType] ?? part.zIndex;
             return (
-              <img
-                key={part.id}
-                src={part.imageUrl}
-                alt={part.partType}
-                draggable={false}
-                style={{
-                  position: "absolute",
-                  left: `${leftPct}%`,
-                  top: `${topPct}%`,
-                  width: `${widthPct}%`,
-                  height: `${heightPct}%`,
-                  zIndex: layerZ,
-                  imageRendering: "auto",
-                  pointerEvents: "none",
-                }}
+              <img key={part.id} src={part.imageUrl} alt={part.partType} draggable={false}
+                style={{ position: "absolute", left: `${leftPct}%`, top: `${topPct}%`, width: `${widthPct}%`, height: `${heightPct}%`, zIndex: layerZ, imageRendering: "auto", pointerEvents: "none" }}
               />
             );
           }
-          const duration = getPartDuration(part.partType, mode);
-          const isEyePart = part.partType === "eyes" || part.partType === "eyes_closed";
-          const delay = isEyePart ? blinkOffset.current : "0s";
+          if (mode === "house") {
+            const animName = HOUSE_ANIMATIONS[part.partType];
+            const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
+            if (!animName) {
+              if (isAnimOnly) return null;
+              return renderPartImg(part, null);
+            }
+            return renderPartImg(part, animName);
+          }
+          const anims = mode === "idle" ? IDLE_ANIMATIONS : mode === "zoom" ? ZOOM_ANIMATIONS : WALK_ANIMATIONS;
+          const animName = anims[part.partType] || anims.body;
+          if (!animName) return null;
+          return renderPartImg(part, animName);
+        })}
+
+        {/* Head group — wrapper carries head movement so all face parts move together */}
+        {headGroupParts.length > 0 && (() => {
+          const anims = mode === "idle" ? IDLE_ANIMATIONS : mode === "zoom" ? ZOOM_ANIMATIONS : WALK_ANIMATIONS;
+          // Wrapper gets the head movement animation (house mode intentionally excludes translateY)
+          const wrapperAnim = mode !== "house" ? anims["head"] : undefined;
+          const wrapperDuration = getPartDuration("head", mode);
+
           return (
-            <img
-              key={part.id}
-              src={part.imageUrl}
-              alt={part.partType}
-              draggable={false}
+            <div
+              key="head-group"
               style={{
                 position: "absolute",
-                left: `${leftPct}%`,
-                top: `${topPct}%`,
-                width: `${widthPct}%`,
-                height: `${heightPct}%`,
-                zIndex: layerZ,
-                transformOrigin: `${part.pivotX ?? 50}% ${part.pivotY ?? 50}%`,
-                animation: `${animName} ${duration} ease-in-out ${delay} infinite`,
-                opacity: isAnimOnly ? 0 : 1,
-                imageRendering: "auto",
+                left: 0, top: 0,
+                width: "100%", height: "100%",
+                animation: wrapperAnim ? `${wrapperAnim} ${wrapperDuration} ease-in-out 0s infinite` : undefined,
+                zIndex: 9,
                 pointerEvents: "none",
               }}
-            />
+            >
+              {headGroupParts.map((part) => {
+                const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
+                if (mode === "house") {
+                  const animName = HOUSE_ANIMATIONS[part.partType];
+                  if (!animName) {
+                    if (isAnimOnly) return null;
+                    return renderPartImg(part, null);
+                  }
+                  return renderPartImg(part, animName);
+                }
+                // Head itself has no additional per-part animation (wrapper handles movement)
+                // Face parts (eyes, mouth, ears) keep their individual opacity/rotation animations
+                const isHead = part.partType === "head";
+                const partAnimName = isHead ? null : (anims[part.partType] ?? null);
+                return renderPartImg(part, partAnimName);
+              })}
+            </div>
           );
-        }
+        })()}
 
-        const animations = mode === "idle" ? IDLE_ANIMATIONS : mode === "zoom" ? ZOOM_ANIMATIONS : WALK_ANIMATIONS;
-        const animName = animations[part.partType] || animations.body;
-
-        if (!animName) return null;
-
-        const duration = getPartDuration(part.partType, mode);
-        const isEyePart = part.partType === "eyes" || part.partType === "eyes_closed";
-        const delay = isEyePart ? blinkOffset.current : "0s";
-
-        return (
-          <img
-            key={part.id}
-            src={part.imageUrl}
-            alt={part.partType}
-            draggable={false}
-            style={{
-              position: "absolute",
-              left: `${leftPct}%`,
-              top: `${topPct}%`,
-              width: `${widthPct}%`,
-              height: `${heightPct}%`,
-              zIndex: layerZ,
-              transformOrigin: `${part.pivotX ?? 50}% ${part.pivotY ?? 50}%`,
-              animation: `${animName} ${duration} ease-in-out ${delay} infinite`,
-              opacity: isAnimOnly ? 0 : 1,
-              imageRendering: "auto",
-              pointerEvents: "none",
-            }}
-          />
-        );
-      })}
       </div>
     </div>
   );
