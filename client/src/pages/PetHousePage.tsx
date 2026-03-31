@@ -1029,18 +1029,18 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       {openInventory && (
         <div
           className="absolute inset-0 flex flex-col justify-end"
-          style={{ zIndex: openInterior ? 62 : 20, pointerEvents: "none", visibility: (isDraggingDecor || isDraggingPet) ? "hidden" : "visible" }}
+          style={{ zIndex: openInterior ? 70 : 25, pointerEvents: "none", visibility: (isDraggingDecor || isDraggingPet) ? "hidden" : "visible" }}
         >
           <div className="absolute inset-0" style={{ pointerEvents: "auto" }} onPointerDown={(e) => { e.stopPropagation(); setOpenInventory(null); }} />
           <div
-            className={`relative rounded-t-3xl ${openInventory === "pets" ? "px-4 pt-3 pb-6" : "px-5 pt-5 pb-28"}`}
+            className={`relative rounded-t-3xl ${openInventory === "pets" ? "px-4 pt-3 pb-4" : "px-5 pt-5 pb-28"}`}
             style={{
               pointerEvents: "auto",
               background: "linear-gradient(180deg, rgba(20,30,20,0.97) 0%, rgba(10,18,10,0.99) 100%)",
               border: "1px solid rgba(255,255,255,0.1)",
               boxShadow: "0 -8px 32px rgba(0,0,0,0.6)",
-              minHeight: openInventory === "pets" ? 170 : 280,
-              maxHeight: openInventory === "pets" ? 210 : "70vh",
+              minHeight: openInventory === "pets" ? 110 : 280,
+              maxHeight: openInventory === "pets" ? 160 : "70vh",
               overflowY: openInventory === "pets" ? "hidden" : "auto",
             }}
           >
