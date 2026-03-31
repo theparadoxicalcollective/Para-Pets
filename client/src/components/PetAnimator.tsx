@@ -170,10 +170,9 @@ const ANIMATION_STYLES = `
     50% { transform: translateY(1px); }
   }
   @keyframes petIdleTail {
-    0%, 100% { transform: translateY(0px); }
-    25% { transform: translateY(-1px); }
-    50% { transform: translateY(0px); }
-    75% { transform: translateY(-0.5px); }
+    0%, 100% { transform: rotate(0deg); }
+    30% { transform: rotate(-1deg); }
+    65% { transform: rotate(0.6deg); }
   }
 
   @keyframes petWalkEyes {
@@ -284,7 +283,7 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "hou
       body: "4s",
       left_wing: "3.5s", right_wing: "3.5s",
       left_leg: "4s", right_leg: "4s",
-      tail: "2.5s",
+      tail: "5s",
       front_arm: "3.5s", back_arm: "3.5s",
       front_leg: "4s", back_leg: "4s",
       front_wing: "3.5s", back_wing: "3.5s",

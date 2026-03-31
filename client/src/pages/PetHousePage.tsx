@@ -357,8 +357,16 @@ function InteriorViewer({
                 </div>
               </>
             )}
-            {/* Interior pets: static image with idle squish — safe GPU footprint */}
-            {(pet.hatchedImageUrl || pet.imageUrl) ? (
+            {/* Interior pets: house mode = blink + ear/arm/tail only, no body bounce.
+                Falls back to static image when no template. */}
+            {pet.petTemplateId ? (
+              <PetAnimator
+                petTemplateId={pet.petTemplateId}
+                mode="house"
+                size={PET_SIZE}
+                fillContainer
+              />
+            ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
               <img
                 src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
                 alt={pet.nickname ?? pet.name}
