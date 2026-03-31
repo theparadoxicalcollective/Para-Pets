@@ -5,7 +5,6 @@ import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import PetAnimator from "@/components/PetAnimator";
-import PetAnimatorCanvas from "@/components/PetAnimatorCanvas";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import homeInventoryIcon from "@assets/icon_home_inventory.png";
 import decorInventoryIcon from "@assets/icon_decor_inventory.png";
@@ -351,15 +350,7 @@ function InteriorViewer({
               if (!drag) setPopupPet(pet);
             }}
           >
-            {/* Interior pets: canvas-composited — 1 GPU texture per pet at display
-                size only, vs N full-source-resolution textures with PetAnimator. */}
-            {pet.petTemplateId ? (
-              <PetAnimatorCanvas
-                petTemplateId={pet.petTemplateId}
-                size={PET_SIZE}
-                fillContainer
-              />
-            ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
+            {(pet.hatchedImageUrl || pet.imageUrl) ? (
               <img
                 src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
                 alt={pet.nickname ?? pet.name}
