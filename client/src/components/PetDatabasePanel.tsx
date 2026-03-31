@@ -643,43 +643,51 @@ export default function PetDatabasePanel() {
                   </button>
                 )}
               </div>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-col gap-1.5">
                 {group.parts.map(pt => {
-                  const existingPart = viewParts.find(p => p.partType === pt.key);
-                  const exists = !!existingPart;
+                  const matchingParts = viewParts.filter(p => p.partType === pt.key);
+                  const exists = matchingParts.length > 0;
                   return (
-                    <div key={pt.key} className="flex items-stretch rounded overflow-hidden" style={{ border: `1px solid ${exists ? "rgba(127,255,212,0.3)" : "rgba(240,192,64,0.2)"}` }}>
-                      <button
-                        data-testid={`button-upload-${pt.key}`}
-                        onClick={() => setUploadPartType(pt.key)}
-                        className="px-2 py-1 font-fantasy text-[9px] tracking-wider transition-transform active:scale-95 flex items-center gap-1"
-                        style={{
-                          background: exists ? "rgba(127,255,212,0.15)" : "rgba(240,192,64,0.08)",
-                          color: exists ? "#7fffd4" : "#f0c040",
-                          cursor: "pointer",
-                          border: "none",
-                        }}
-                      >
-                        {exists ? "✓" : "+"} {pt.label}
-                        {pt.animOnly && <span style={{ color: "#a89878", fontSize: "7px" }}>anim</span>}
-                      </button>
-                      {exists && existingPart && (
+                    <div key={pt.key} className="flex flex-wrap items-center gap-1">
+                      {/* Upload / add button */}
+                      <div className="flex items-stretch rounded overflow-hidden" style={{ border: `1px solid ${exists ? "rgba(127,255,212,0.3)" : "rgba(240,192,64,0.2)"}` }}>
                         <button
-                          data-testid={`button-delete-part-${pt.key}`}
-                          onClick={() => deletePartMutation.mutate(existingPart.id)}
-                          className="flex items-center justify-center px-1.5 transition-all active:scale-95"
+                          data-testid={`button-upload-${pt.key}`}
+                          onClick={() => setUploadPartType(pt.key)}
+                          className="px-2 py-1 font-fantasy text-[9px] tracking-wider transition-transform active:scale-95 flex items-center gap-1"
                           style={{
-                            background: "rgba(220,38,38,0.2)",
+                            background: exists ? "rgba(127,255,212,0.12)" : "rgba(240,192,64,0.08)",
+                            color: exists ? "#7fffd4" : "#f0c040",
+                            cursor: "pointer",
                             border: "none",
-                            borderLeft: "1px solid rgba(220,38,38,0.3)",
+                          }}
+                        >
+                          {exists ? `✓ ${pt.label}` : `+ ${pt.label}`}
+                          {pt.animOnly && <span style={{ color: "#a89878", fontSize: "7px" }}>anim</span>}
+                          {matchingParts.length > 1 && (
+                            <span style={{ color: "#a89878", fontSize: "7px" }}>×{matchingParts.length}</span>
+                          )}
+                        </button>
+                      </div>
+                      {/* One delete button per uploaded part */}
+                      {matchingParts.map((mp, idx) => (
+                        <button
+                          key={mp.id}
+                          data-testid={`button-delete-part-${pt.key}-${idx}`}
+                          onClick={() => deletePartMutation.mutate(mp.id)}
+                          className="flex items-center gap-1 px-1.5 py-1 rounded font-fantasy text-[8px] tracking-wider transition-all active:scale-95"
+                          style={{
+                            background: "rgba(220,38,38,0.18)",
+                            border: "1px solid rgba(220,38,38,0.35)",
                             color: "#fca5a5",
                             cursor: "pointer",
                           }}
-                          title={`Delete ${pt.label}`}
+                          title={`Delete ${pt.label} #${idx + 1}`}
                         >
                           <Trash2 className="w-2.5 h-2.5" />
+                          {matchingParts.length > 1 && <span>#{idx + 1}</span>}
                         </button>
-                      )}
+                      ))}
                     </div>
                   );
                 })}
@@ -877,15 +885,6 @@ export default function PetDatabasePanel() {
                   const isBackFull = uploadPartType === "back_full";
                   const ptConfig = ALL_PART_DEFS.find(p => p.key === uploadPartType);
                   const defaultZ = isBackFull ? 0 : (ptConfig?.defaultZ || 0);
-
-                  // Auto-delete existing part of the same type before replacing
-                  const existingPart = viewParts.find(p => p.partType === uploadPartType);
-                  if (existingPart) {
-                    try {
-                      await apiRequest("DELETE", `/api/admin/pet-template-parts/${existingPart.id}`);
-                      if (selectedPartId === existingPart.id) setSelectedPartId(null);
-                    } catch {}
-                  }
 
                   // Read natural image dimensions and use them directly (capped to canvas size)
                   let naturalW = CANVAS_SIZE;
