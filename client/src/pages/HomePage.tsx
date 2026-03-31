@@ -90,6 +90,8 @@ export default function HomePage({ user }: HomePageProps) {
   }, [user.activePetId, user.coins, user.profileImage, user.username]);
 
   const [hatchRevealing, setHatchRevealing] = useState(false);
+  const [hatchFadingOut, setHatchFadingOut] = useState(false);
+  const [hatchTimerDone, setHatchTimerDone] = useState(false);
   const [hatchedPetCache, setHatchedPetCache] = useState<{ hatchedImageUrl: string | null; imageUrl: string | null; petTemplateId: string | null; name: string } | null>(null);
   const [showPetDetail, setShowPetDetail] = useState(false);
   const [showSpeedUp, setShowSpeedUp] = useState(false);
@@ -110,22 +112,44 @@ export default function HomePage({ user }: HomePageProps) {
     onSuccess: (data: any) => {
       if (data.isHatched) {
         if (activePet) {
-          setHatchedPetCache({
+          const cache = {
             hatchedImageUrl: activePet.hatchedImageUrl,
             imageUrl: activePet.imageUrl,
             petTemplateId: activePet.petTemplateId,
             name: activePet.petNickname || activePet.name,
-          });
+          };
+          setHatchedPetCache(cache);
+          // Preload the hatched image immediately so the browser caches it
+          // before the overlay finishes — avoids a blank flash on reveal.
+          const preloadUrl = cache.hatchedImageUrl || cache.imageUrl;
+          if (preloadUrl) {
+            const img = new Image();
+            img.src = preloadUrl;
+          }
         }
         setHatchRevealing(true);
+        setHatchTimerDone(false);
+        setHatchFadingOut(false);
         queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-        setTimeout(() => {
-          setHatchRevealing(false);
-          setHatchedPetCache(null);
-        }, 3500);
+        // Minimum display time — we also wait for inventory to confirm isHatched
+        setTimeout(() => setHatchTimerDone(true), 3500);
       }
     },
   });
+
+  // Dismiss only when both: the 3.5s animation timer is done AND the
+  // inventory confirms isHatched=true — so the egg never flickers back.
+  useEffect(() => {
+    if (!hatchTimerDone || !hatchRevealing || !activePet?.isHatched) return;
+    setHatchFadingOut(true);
+    const id = setTimeout(() => {
+      setHatchRevealing(false);
+      setHatchFadingOut(false);
+      setHatchTimerDone(false);
+      setHatchedPetCache(null);
+    }, 600);
+    return () => clearTimeout(id);
+  }, [hatchTimerDone, hatchRevealing, activePet?.isHatched]);
 
   const { data: inventory = [], isLoading: inventoryLoading } = useQuery<InventoryItem[]>({
     queryKey: ["/api/inventory"],
@@ -805,7 +829,14 @@ export default function HomePage({ user }: HomePageProps) {
       )}
 
       {hatchRevealing && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none"
+          style={{
+            maxWidth: "768px", margin: "0 auto", left: 0, right: 0,
+            opacity: hatchFadingOut ? 0 : 1,
+            transition: hatchFadingOut ? "opacity 0.6s ease-out" : "none",
+          }}
+        >
           <div
             className="absolute inset-0"
             style={{ animation: "hatchFlashBg 3.5s ease-out forwards" }}
