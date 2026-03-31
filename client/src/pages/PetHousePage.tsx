@@ -249,16 +249,6 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     onError: (e: any) => toast({ title: "Activation failed", description: e.message, variant: "destructive" }),
   });
 
-  const deactivateMutation = useMutation({
-    mutationFn: async () => {
-      await apiRequest("POST", "/api/house-bundles/deactivate", {});
-    },
-    onSuccess: () => {
-      refetchActiveBundle();
-      toast({ title: "Reverted to default background" });
-    },
-  });
-
   // Determine background URL — Home Bundles are the priority; fall back to a neutral dark if none active
   const bgUrl = activeBundle?.bgImageUrl ?? null;
 
@@ -370,7 +360,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             return (
               <div
                 key={b.id}
-                className="absolute flex flex-col items-center gap-0.5"
+                className="absolute"
                 style={{
                   left: `${b.posX}%`, top: `${b.posY}%`,
                   transform: "translate(-50%, -100%)",
@@ -387,12 +377,6 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                     transform: b.flippedX ? "scaleX(-1)" : undefined,
                   }}
                 />
-                <span
-                  className="px-2 py-0.5 rounded-full text-xs font-bold"
-                  style={{ background: "rgba(0,0,0,0.65)", color: "#fff", whiteSpace: "nowrap", textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}
-                >
-                  {b.name}
-                </span>
               </div>
             );
           })}
@@ -525,15 +509,6 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                   >
                     <div className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />
                     <span className="text-green-300 text-xs font-semibold flex-1">Active: {activeBundle.name}</span>
-                    <button
-                      data-testid="button-deactivate-bundle"
-                      onClick={() => deactivateMutation.mutate()}
-                      disabled={deactivateMutation.isPending}
-                      className="text-xs px-2 py-1 rounded-lg"
-                      style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.6)" }}
-                    >
-                      Reset
-                    </button>
                   </div>
                 )}
 
