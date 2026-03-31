@@ -5035,5 +5035,80 @@ export async function registerRoutes(
     }
   });
 
+  // ── Player Home Decor Inventory & Placement ───────────────────────────────────
+  app.get("/api/pet-house/decor/inventory", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const items = await storage.getUserHomeDecorInventory(userId);
+      return res.json(items);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/pet-house/decor/placed", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const items = await storage.getPlacedHomeDecor(userId);
+      return res.json(items);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/pet-house/decor/place", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const { decorItemId, xPct, yPct, size, flipped } = req.body;
+      if (!decorItemId) return res.status(400).json({ message: "decorItemId required" });
+      const row = await storage.placeHomeDecorItem(userId, decorItemId, {
+        xPct: xPct ?? 0.5,
+        yPct: yPct ?? 0.5,
+        size: size ?? 250,
+        flipped: flipped ?? false,
+      });
+      return res.status(201).json(row);
+    } catch (err: any) {
+      return res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/pet-house/decor/placed/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const { xPct, yPct, size, flipped } = req.body;
+      const row = await storage.updatePlacedHomeDecor(req.params.id, userId, { xPct, yPct, size, flipped });
+      return res.json(row);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/pet-house/decor/placed/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const result = await storage.removePlacedHomeDecor(req.params.id, userId);
+      return res.json({ ok: true, ...result });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Admin: grant a home decor item to all players ─────────────────────────────
+  app.post("/api/admin/home-decor/:id/grant-everyone", isAdmin, async (req, res) => {
+    try {
+      const decorItemId = req.params.id;
+      const allUsers = await storage.getAllUsers();
+      let granted = 0;
+      for (const u of allUsers) {
+        await storage.grantHomeDecorToUser(u.id, decorItemId);
+        granted++;
+      }
+      return res.json({ ok: true, granted });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
   return httpServer;
 }

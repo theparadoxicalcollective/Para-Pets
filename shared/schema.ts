@@ -630,3 +630,27 @@ export const locationHomeDecor = pgTable("location_home_decor", {
 });
 
 export type LocationHomeDecor = typeof locationHomeDecor.$inferSelect;
+
+// ── Player Home Decor Inventory ───────────────────────────────────────────────
+export const userHomeDecorInventory = pgTable("user_home_decor_inventory", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  decorItemId: varchar("decor_item_id").notNull(),
+  quantity: integer("quantity").notNull().default(1),
+});
+
+export type UserHomeDecorInventory = typeof userHomeDecorInventory.$inferSelect;
+
+// ── Placed Home Decor (on canvas) ─────────────────────────────────────────────
+export const placedHomeDecor = pgTable("placed_home_decor", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  decorItemId: varchar("decor_item_id").notNull(),
+  xPct: real("x_pct").notNull().default(0.5),
+  yPct: real("y_pct").notNull().default(0.5),
+  size: integer("size").notNull().default(250),
+  flipped: boolean("flipped").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export type PlacedHomeDecor = typeof placedHomeDecor.$inferSelect;

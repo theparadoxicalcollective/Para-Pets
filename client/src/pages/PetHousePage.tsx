@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
@@ -7,6 +7,63 @@ import UserProfilePanel from "@/components/UserProfilePanel";
 import PetAnimator from "@/components/PetAnimator";
 import homeInventoryIcon from "@assets/icon_home_inventory.png";
 import decorInventoryIcon from "@assets/icon_decor_inventory.png";
+
+// ── Game-style decor control buttons ─────────────────────────────────────────
+function SvgMinus() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <path d="M5 11h12" stroke="#ffd700" strokeWidth="2.5" strokeLinecap="round"/>
+      <path d="M11 3 L13 6 L11 5 L9 6 Z" fill="#ffd700" opacity="0.5"/>
+      <path d="M11 19 L13 16 L11 17 L9 16 Z" fill="#ffd700" opacity="0.5"/>
+    </svg>
+  );
+}
+function SvgPlus() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <path d="M5 11h12M11 5v12" stroke="#ffd700" strokeWidth="2.5" strokeLinecap="round"/>
+    </svg>
+  );
+}
+function SvgFlip() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <path d="M3 11h16" stroke="#ffd700" strokeWidth="1.5" strokeDasharray="2 2" strokeLinecap="round"/>
+      <path d="M6 7 L3 11 L6 15" stroke="#ffd700" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M16 7 L19 11 L16 15" stroke="#ffd700" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+function SvgDelete() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <path d="M8 9v7M11 9v7M14 9v7" stroke="#ff8080" strokeWidth="1.8" strokeLinecap="round"/>
+      <path d="M5 7h12M9 7V5.5a.5.5 0 01.5-.5h3a.5.5 0 01.5.5V7" stroke="#ff8080" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+      <rect x="6" y="7" width="10" height="10" rx="1.5" stroke="#ff8080" strokeWidth="1.8"/>
+    </svg>
+  );
+}
+
+function DecorControlBtn({ onClick, danger = false, children }: { onClick: () => void; danger?: boolean; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      onPointerDown={(e) => e.stopPropagation()}
+      className="flex items-center justify-center rounded-xl active:opacity-60"
+      style={{
+        width: 44,
+        height: 44,
+        background: danger ? "rgba(90,10,10,0.92)" : "rgba(8,18,8,0.94)",
+        border: danger ? "1.5px solid rgba(255,80,80,0.55)" : "1.5px solid rgba(255,215,0,0.55)",
+        boxShadow: "0 2px 14px rgba(0,0,0,0.55)",
+        backdropFilter: "blur(6px)",
+        flexShrink: 0,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
 
 interface PetHousePageProps {
   user: {
@@ -56,6 +113,23 @@ interface OwnedBundle {
   id: string;
   bundleId: string;
   bundle: HouseBundle & { shopImageUrl: string | null };
+}
+
+interface DecorInventoryItem {
+  id: string;
+  decorItemId: string;
+  quantity: number;
+  item: { id: string; name: string; imageUrl: string | null; price: number };
+}
+
+interface PlacedDecorItem {
+  id: string;
+  decorItemId: string;
+  xPct: number;
+  yPct: number;
+  size: number;
+  flipped: boolean;
+  item: { id: string; name: string; imageUrl: string | null };
 }
 
 const DEFAULT_BG_RATIO = 1920 / 2400;
@@ -206,11 +280,19 @@ function WalkingPetView({ pet, index }: WalkingPetViewProps) {
 
 export default function PetHousePage({ user }: PetHousePageProps) {
   const { toast } = useToast();
+  const qc = useQueryClient();
   const [showProfile, setShowProfile] = useState(false);
   const [interiorBuildingUrl, setInteriorBuildingUrl] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState(user);
   const [openInventory, setOpenInventory] = useState<"home" | "decor" | null>(null);
   const [pendingActivate, setPendingActivate] = useState<{ bundleId: string; bundle: OwnedBundle["bundle"] } | null>(null);
+
+  // Decor interaction state
+  const [selectedPlacedId, setSelectedPlacedId] = useState<string | null>(null);
+  const [placedDragLive, setPlacedDragLive] = useState<{ id: string; xPct: number; yPct: number } | null>(null);
+  const [inventoryDragState, setInventoryDragState] = useState<{ decorItemId: string; imageUrl: string | null; ghostX: number; ghostY: number } | null>(null);
+  const inventoryDragRef = useRef<{ decorItemId: string; imageUrl: string | null; ghostX: number; ghostY: number; startX: number; startY: number; isDragging: boolean; pid: number } | null>(null);
+  const placedDragRef = useRef<{ id: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number } | null>(null);
 
   const [panX, setPanX] = useState(0);
   const [imgWidth, setImgWidth] = useState(0);
@@ -257,6 +339,120 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     onError: (e: any) => toast({ title: "Activation failed", description: e.message, variant: "destructive" }),
   });
 
+  // Decor inventory & placed decor
+  const { data: decorInventory = [] } = useQuery<DecorInventoryItem[]>({
+    queryKey: ["/api/pet-house/decor/inventory"],
+    staleTime: 15000,
+  });
+
+  const { data: placedDecorRaw = [] } = useQuery<PlacedDecorItem[]>({
+    queryKey: ["/api/pet-house/decor/placed"],
+    staleTime: 15000,
+  });
+
+  // Optimistically merge live drag positions into placed decor list
+  const placedDecor = useMemo(() =>
+    placedDecorRaw.map(item =>
+      placedDragLive?.id === item.id
+        ? { ...item, xPct: placedDragLive.xPct, yPct: placedDragLive.yPct }
+        : item
+    ), [placedDecorRaw, placedDragLive]);
+
+  const placeDecorMutation = useMutation({
+    mutationFn: async (data: { decorItemId: string; xPct: number; yPct: number; size: number; flipped: boolean }) => {
+      const res = await apiRequest("POST", "/api/pet-house/decor/place", data);
+      if (!res.ok) { const e = await res.json(); throw new Error(e.message); }
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/pet-house/decor/inventory"] });
+      qc.invalidateQueries({ queryKey: ["/api/pet-house/decor/placed"] });
+    },
+    onError: (e: any) => toast({ title: "Could not place item", description: e.message, variant: "destructive" }),
+  });
+
+  const updateDecorMutation = useMutation({
+    mutationFn: async ({ id, ...data }: { id: string; xPct?: number; yPct?: number; size?: number; flipped?: boolean }) => {
+      const res = await apiRequest("PATCH", `/api/pet-house/decor/placed/${id}`, data);
+      if (!res.ok) { const e = await res.json(); throw new Error(e.message); }
+      return res.json();
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/pet-house/decor/placed"] }),
+  });
+
+  const removeDecorMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/pet-house/decor/placed/${id}`, {});
+      if (!res.ok) { const e = await res.json(); throw new Error(e.message); }
+      return res.json();
+    },
+    onSuccess: () => {
+      setSelectedPlacedId(null);
+      qc.invalidateQueries({ queryKey: ["/api/pet-house/decor/inventory"] });
+      qc.invalidateQueries({ queryKey: ["/api/pet-house/decor/placed"] });
+    },
+    onError: (e: any) => toast({ title: "Could not remove item", description: e.message, variant: "destructive" }),
+  });
+
+  // ── Drag handlers: inventory item → canvas ────────────────────────────────
+  const handleInvDragStart = useCallback((e: React.PointerEvent, decorItemId: string, imageUrl: string | null) => {
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    inventoryDragRef.current = { decorItemId, imageUrl, ghostX: e.clientX, ghostY: e.clientY, startX: e.clientX, startY: e.clientY, isDragging: false, pid: e.pointerId };
+  }, []);
+
+  const handleInvDragMove = useCallback((e: React.PointerEvent) => {
+    const drag = inventoryDragRef.current;
+    if (!drag || drag.pid !== e.pointerId) return;
+    drag.ghostX = e.clientX;
+    drag.ghostY = e.clientY;
+    if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > 8) drag.isDragging = true;
+    if (drag.isDragging) setInventoryDragState({ decorItemId: drag.decorItemId, imageUrl: drag.imageUrl, ghostX: e.clientX, ghostY: e.clientY });
+  }, []);
+
+  const handleInvDragEnd = useCallback((e: React.PointerEvent) => {
+    const drag = inventoryDragRef.current;
+    inventoryDragRef.current = null;
+    setInventoryDragState(null);
+    if (!drag?.isDragging || imgWidth <= 0) return;
+    const container = containerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const localX = e.clientX - rect.left;
+    const localY = e.clientY - rect.top;
+    if (localY < 0 || localY > rect.height) return;
+    const xPct = Math.max(0.03, Math.min(0.97, (localX - panX) / imgWidth));
+    const yPct = Math.max(0.03, Math.min(0.97, localY / containerH));
+    placeDecorMutation.mutate({ decorItemId: drag.decorItemId, xPct, yPct, size: 250, flipped: false });
+  }, [panX, imgWidth, containerH]);
+
+  // ── Drag handlers: placed item reposition ─────────────────────────────────
+  const handlePlacedDragStart = useCallback((e: React.PointerEvent, item: PlacedDecorItem) => {
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    placedDragRef.current = { id: item.id, startXPct: item.xPct, startYPct: item.yPct, startPointerX: e.clientX, startPointerY: e.clientY, pid: e.pointerId };
+    setSelectedPlacedId(item.id);
+  }, []);
+
+  const handlePlacedDragMove = useCallback((e: React.PointerEvent) => {
+    const drag = placedDragRef.current;
+    if (!drag || drag.pid !== e.pointerId || imgWidth <= 0) return;
+    const newXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidth));
+    const newYPct = Math.max(0.02, Math.min(0.98, drag.startYPct + (e.clientY - drag.startPointerY) / containerH));
+    setPlacedDragLive({ id: drag.id, xPct: newXPct, yPct: newYPct });
+  }, [imgWidth, containerH]);
+
+  const handlePlacedDragEnd = useCallback((e: React.PointerEvent) => {
+    const drag = placedDragRef.current;
+    placedDragRef.current = null;
+    setPlacedDragLive(null);
+    if (!drag || imgWidth <= 0) return;
+    const newXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidth));
+    const newYPct = Math.max(0.02, Math.min(0.98, drag.startYPct + (e.clientY - drag.startPointerY) / containerH));
+    const moved = Math.abs(newXPct - drag.startXPct) > 0.005 || Math.abs(newYPct - drag.startYPct) > 0.005;
+    if (moved) updateDecorMutation.mutate({ id: drag.id, xPct: newXPct, yPct: newYPct });
+  }, [imgWidth, containerH]);
+
   // Determine background URL — Home Bundles are the priority; fall back to a neutral dark if none active
   const bgUrl = activeBundle?.bgImageUrl ?? null;
 
@@ -289,9 +485,10 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   }, [bgAspect]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if (selectedPlacedId) setSelectedPlacedId(null);
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     panStartRef.current = { startX: e.clientX, startPanX: panX, pid: e.pointerId };
-  }, [panX]);
+  }, [panX, selectedPlacedId]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     const drag = panStartRef.current;
@@ -404,6 +601,65 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           ))}
         </div>
       )}
+
+      {/* Placed home decor layer */}
+      {imgWidth > 0 && placedDecor.map((item) => {
+        const isSelected = selectedPlacedId === item.id;
+        const left = panX + item.xPct * imgWidth;
+        const top = item.yPct * containerH;
+        return (
+          <div
+            key={item.id}
+            className="absolute"
+            style={{ zIndex: 6, left, top, transform: "translate(-50%, -50%)", touchAction: "none" }}
+            onPointerDown={(e) => handlePlacedDragStart(e, item)}
+            onPointerMove={handlePlacedDragMove}
+            onPointerUp={handlePlacedDragEnd}
+            onPointerCancel={handlePlacedDragEnd}
+            onClick={(e) => { e.stopPropagation(); setSelectedPlacedId(isSelected ? null : item.id); }}
+          >
+            {/* Control toolbar — above item when selected */}
+            {isSelected && (
+              <div
+                className="absolute flex gap-2"
+                style={{ bottom: "calc(100% + 10px)", left: "50%", transform: "translateX(-50%)", zIndex: 10, whiteSpace: "nowrap" }}
+              >
+                <DecorControlBtn onClick={() => updateDecorMutation.mutate({ id: item.id, size: Math.max(175, item.size - 25) })}>
+                  <SvgMinus />
+                </DecorControlBtn>
+                <DecorControlBtn onClick={() => updateDecorMutation.mutate({ id: item.id, size: Math.min(400, item.size + 25) })}>
+                  <SvgPlus />
+                </DecorControlBtn>
+                <DecorControlBtn onClick={() => updateDecorMutation.mutate({ id: item.id, flipped: !item.flipped })}>
+                  <SvgFlip />
+                </DecorControlBtn>
+                <DecorControlBtn danger onClick={() => removeDecorMutation.mutate(item.id)}>
+                  <SvgDelete />
+                </DecorControlBtn>
+              </div>
+            )}
+            <img
+              src={item.item.imageUrl ?? ""}
+              alt={item.item.name}
+              draggable={false}
+              style={{
+                width: item.size,
+                height: item.size,
+                objectFit: "contain",
+                transform: item.flipped ? "scaleX(-1)" : undefined,
+                filter: isSelected
+                  ? "drop-shadow(0 0 10px rgba(255,215,0,0.9)) drop-shadow(0 2px 6px rgba(0,0,0,0.5))"
+                  : "drop-shadow(0 2px 6px rgba(0,0,0,0.45))",
+                outline: isSelected ? "2px solid rgba(255,215,0,0.7)" : "none",
+                outlineOffset: "3px",
+                borderRadius: 6,
+                userSelect: "none",
+                cursor: "grab",
+              }}
+            />
+          </div>
+        );
+      })}
 
       {/* TopBar */}
       <div className="absolute inset-0 flex flex-col" style={{ zIndex: 10, paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)", pointerEvents: "none" }}>
@@ -578,14 +834,93 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                 )}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-10 gap-3">
-                <img src={decorInventoryIcon} alt="" className="w-14 h-14 object-contain opacity-50" />
-                <p className="text-white/40 text-sm text-center">
-                  No decor items yet.{"\n"}Visit the shop to find some!
-                </p>
+              <div className="flex flex-col gap-4">
+                {decorInventory.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 gap-3">
+                    <img src={decorInventoryIcon} alt="" className="w-14 h-14 object-contain opacity-50" />
+                    <p className="text-white/40 text-sm text-center">No decor items yet.{"\n"}Visit the shop to find some!</p>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-white/40 text-xs text-center" style={{ fontFamily: "Cinzel, serif" }}>Hold & drag an item onto your home</p>
+                    <div className="grid grid-cols-3 gap-3">
+                      {decorInventory.map((entry) => (
+                        <div
+                          key={entry.id}
+                          data-testid={`decor-item-${entry.decorItemId}`}
+                          className="flex flex-col items-center gap-1.5"
+                          onPointerDown={(e) => handleInvDragStart(e, entry.decorItemId, entry.item.imageUrl)}
+                          onPointerMove={handleInvDragMove}
+                          onPointerUp={handleInvDragEnd}
+                          onPointerCancel={handleInvDragEnd}
+                          style={{ touchAction: "none", cursor: "grab" }}
+                        >
+                          <div
+                            className="w-full rounded-2xl overflow-hidden relative"
+                            style={{
+                              aspectRatio: "1 / 1",
+                              background: "rgba(255,255,255,0.05)",
+                              border: "1.5px solid rgba(255,215,0,0.18)",
+                            }}
+                          >
+                            {entry.item.imageUrl ? (
+                              <img src={entry.item.imageUrl} alt={entry.item.name} className="w-full h-full object-contain p-2" draggable={false} />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <img src={decorInventoryIcon} alt="" className="w-10 h-10 object-contain opacity-50" />
+                              </div>
+                            )}
+                            {entry.quantity > 1 && (
+                              <div
+                                className="absolute top-1 right-1 rounded-full flex items-center justify-center"
+                                style={{ minWidth: 20, height: 20, background: "rgba(0,0,0,0.75)", border: "1px solid rgba(255,215,0,0.5)", padding: "0 4px" }}
+                              >
+                                <span style={{ color: "#ffd700", fontSize: 10, fontWeight: 700 }}>×{entry.quantity}</span>
+                              </div>
+                            )}
+                          </div>
+                          <span
+                            className="w-full text-center truncate px-0.5 leading-tight"
+                            style={{ color: "rgba(255,255,255,0.7)", fontSize: 10, fontFamily: "Cinzel, serif", fontWeight: 600 }}
+                          >
+                            {entry.item.name}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Drag ghost — follows pointer when dragging a decor item from inventory */}
+      {inventoryDragState && (
+        <div
+          className="fixed pointer-events-none"
+          style={{
+            zIndex: 100,
+            left: inventoryDragState.ghostX - 65,
+            top: inventoryDragState.ghostY - 65,
+            width: 130,
+            height: 130,
+            opacity: 0.88,
+          }}
+        >
+          {inventoryDragState.imageUrl ? (
+            <img
+              src={inventoryDragState.imageUrl}
+              className="w-full h-full object-contain"
+              draggable={false}
+              style={{ filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.7)) drop-shadow(0 0 8px rgba(255,215,0,0.4))" }}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center rounded-2xl" style={{ background: "rgba(0,0,0,0.4)", border: "2px dashed rgba(255,215,0,0.5)" }}>
+              <img src={decorInventoryIcon} className="w-16 h-16 object-contain opacity-60" />
+            </div>
+          )}
         </div>
       )}
 

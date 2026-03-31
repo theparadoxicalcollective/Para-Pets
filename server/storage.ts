@@ -44,6 +44,8 @@ import {
   type UserHouseBundle, userHouseBundles,
   type LocationHouseBundle, locationHouseBundles,
   type LocationHomeDecor, locationHomeDecor,
+  type UserHomeDecorInventory, userHomeDecorInventory,
+  type PlacedHomeDecor, placedHomeDecor,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, ne, gte, asc, desc, ilike, or, sql, inArray } from "drizzle-orm";
@@ -1938,6 +1940,74 @@ export class DatabaseStorage implements IStorage {
 
   async removeDecorFromShop(locationId: string, decorId: string): Promise<void> {
     await db.delete(locationHomeDecor).where(and(eq(locationHomeDecor.locationId, locationId), eq(locationHomeDecor.decorId, decorId)));
+  }
+
+  // ── Player Home Decor Inventory ───────────────────────────────────────────────
+  async getUserHomeDecorInventory(userId: string): Promise<(UserHomeDecorInventory & { item: HomeDecorItem })[]> {
+    const rows = await db.select().from(userHomeDecorInventory).where(eq(userHomeDecorInventory.userId, userId));
+    const result: (UserHomeDecorInventory & { item: HomeDecorItem })[] = [];
+    for (const row of rows) {
+      const [item] = await db.select().from(homeDecorItems).where(eq(homeDecorItems.id, row.decorItemId));
+      if (item) result.push({ ...row, item });
+    }
+    return result;
+  }
+
+  async grantHomeDecorToUser(userId: string, decorItemId: string): Promise<void> {
+    const [existing] = await db.select().from(userHomeDecorInventory)
+      .where(and(eq(userHomeDecorInventory.userId, userId), eq(userHomeDecorInventory.decorItemId, decorItemId)));
+    if (existing) {
+      await db.update(userHomeDecorInventory).set({ quantity: existing.quantity + 1 })
+        .where(eq(userHomeDecorInventory.id, existing.id));
+    } else {
+      await db.insert(userHomeDecorInventory).values({ userId, decorItemId, quantity: 1 });
+    }
+  }
+
+  async decrementHomeDecorInventory(userId: string, decorItemId: string): Promise<void> {
+    const [existing] = await db.select().from(userHomeDecorInventory)
+      .where(and(eq(userHomeDecorInventory.userId, userId), eq(userHomeDecorInventory.decorItemId, decorItemId)));
+    if (!existing || existing.quantity <= 0) throw new Error("Not enough in inventory");
+    if (existing.quantity === 1) {
+      await db.delete(userHomeDecorInventory).where(eq(userHomeDecorInventory.id, existing.id));
+    } else {
+      await db.update(userHomeDecorInventory).set({ quantity: existing.quantity - 1 })
+        .where(eq(userHomeDecorInventory.id, existing.id));
+    }
+  }
+
+  async incrementHomeDecorInventory(userId: string, decorItemId: string): Promise<void> {
+    await this.grantHomeDecorToUser(userId, decorItemId);
+  }
+
+  // ── Placed Home Decor ─────────────────────────────────────────────────────────
+  async getPlacedHomeDecor(userId: string): Promise<(PlacedHomeDecor & { item: HomeDecorItem })[]> {
+    const rows = await db.select().from(placedHomeDecor).where(eq(placedHomeDecor.userId, userId)).orderBy(asc(placedHomeDecor.createdAt));
+    const result: (PlacedHomeDecor & { item: HomeDecorItem })[] = [];
+    for (const row of rows) {
+      const [item] = await db.select().from(homeDecorItems).where(eq(homeDecorItems.id, row.decorItemId));
+      if (item) result.push({ ...row, item });
+    }
+    return result;
+  }
+
+  async placeHomeDecorItem(userId: string, decorItemId: string, data: { xPct: number; yPct: number; size: number; flipped: boolean }): Promise<PlacedHomeDecor> {
+    await this.decrementHomeDecorInventory(userId, decorItemId);
+    const [row] = await db.insert(placedHomeDecor).values({ userId, decorItemId, ...data }).returning();
+    return row;
+  }
+
+  async updatePlacedHomeDecor(id: string, userId: string, data: Partial<{ xPct: number; yPct: number; size: number; flipped: boolean }>): Promise<PlacedHomeDecor> {
+    const [row] = await db.update(placedHomeDecor).set(data).where(and(eq(placedHomeDecor.id, id), eq(placedHomeDecor.userId, userId))).returning();
+    return row;
+  }
+
+  async removePlacedHomeDecor(id: string, userId: string): Promise<{ decorItemId: string }> {
+    const [existing] = await db.select().from(placedHomeDecor).where(and(eq(placedHomeDecor.id, id), eq(placedHomeDecor.userId, userId)));
+    if (!existing) throw new Error("Placed decor not found");
+    await db.delete(placedHomeDecor).where(eq(placedHomeDecor.id, id));
+    await this.incrementHomeDecorInventory(userId, existing.decorItemId);
+    return { decorItemId: existing.decorItemId };
   }
 }
 
