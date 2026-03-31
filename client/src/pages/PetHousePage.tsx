@@ -206,13 +206,36 @@ function InteriorViewer({
     return () => ro.disconnect();
   }, [aspect]);
 
+  // All pointer events are captured on the container so React re-renders of
+  // pet/item elements never lose pointer capture mid-drag.
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    containerRef.current?.setPointerCapture(e.pointerId);
+    // Pet or item drag starts are initiated from their elements via handlePetDragStartInt
+    // / handleItemDragStart — those set the relevant ref and stopPropagation so we
+    // only reach here for background taps (start pan).
     if (selectedItemId) setSelectedItemId(null);
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    if (petDragIntRef.current || itemDragRef.current) return; // drag already claimed
     panStartRef.current = { startX: e.clientX, startPanX: panX, pid: e.pointerId };
   }, [panX, selectedItemId]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    // Pet drag
+    const petDrag = petDragIntRef.current;
+    if (petDrag && petDrag.pid === e.pointerId && imgWidthRef.current > 0) {
+      const newXPct = Math.max(0.02, Math.min(0.98, petDrag.startXPct + (e.clientX - petDrag.startPointerX) / imgWidthRef.current));
+      const newYPct = Math.max(0.02, Math.min(0.98, petDrag.startYPct + (e.clientY - petDrag.startPointerY) / containerHRef.current));
+      setPetDragLiveInt({ inventoryId: petDrag.inventoryId, xPct: newXPct, yPct: newYPct });
+      return;
+    }
+    // Item drag
+    const itemDrag = itemDragRef.current;
+    if (itemDrag && itemDrag.pid === e.pointerId && imgWidthRef.current > 0) {
+      const newXPct = Math.max(0.02, Math.min(0.98, itemDrag.startXPct + (e.clientX - itemDrag.startPointerX) / imgWidthRef.current));
+      const newYPct = Math.max(0.02, Math.min(0.98, itemDrag.startYPct + (e.clientY - itemDrag.startPointerY) / containerHRef.current));
+      setItemDragLive({ id: itemDrag.id, xPct: newXPct, yPct: newYPct });
+      return;
+    }
+    // Pan
     const drag = panStartRef.current;
     if (!drag || drag.pid !== e.pointerId) return;
     const container = containerRef.current;
@@ -226,61 +249,51 @@ function InteriorViewer({
     panStateRef.current = { panX: newPanX, imgWidth: imgWidthRef.current, containerH: containerHRef.current };
   }, []);
 
-  const handlePointerUp = useCallback(() => { panStartRef.current = null; }, []);
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    // Pet drag end
+    const petDrag = petDragIntRef.current;
+    if (petDrag && petDrag.pid === e.pointerId) {
+      petDragIntRef.current = null;
+      setPetDragLiveInt(null);
+      if (imgWidthRef.current > 0) {
+        const newXPct = Math.max(0.02, Math.min(0.98, petDrag.startXPct + (e.clientX - petDrag.startPointerX) / imgWidthRef.current));
+        const newYPct = Math.max(0.02, Math.min(0.98, petDrag.startYPct + (e.clientY - petDrag.startPointerY) / containerHRef.current));
+        const moved = Math.abs(newXPct - petDrag.startXPct) > 0.005 || Math.abs(newYPct - petDrag.startYPct) > 0.005;
+        if (moved) onMovePet(petDrag.inventoryId, newXPct, newYPct);
+      }
+      return;
+    }
+    // Item drag end
+    const itemDrag = itemDragRef.current;
+    if (itemDrag && itemDrag.pid === e.pointerId) {
+      itemDragRef.current = null;
+      setItemDragLive(null);
+      if (imgWidthRef.current > 0) {
+        const newXPct = Math.max(0.02, Math.min(0.98, itemDrag.startXPct + (e.clientX - itemDrag.startPointerX) / imgWidthRef.current));
+        const newYPct = Math.max(0.02, Math.min(0.98, itemDrag.startYPct + (e.clientY - itemDrag.startPointerY) / containerHRef.current));
+        const moved = Math.abs(newXPct - itemDrag.startXPct) > 0.005 || Math.abs(newYPct - itemDrag.startYPct) > 0.005;
+        if (moved) onUpdateItem(itemDrag.id, { xPct: newXPct, yPct: newYPct });
+      }
+      return;
+    }
+    panStartRef.current = null;
+  }, [onMovePet, onUpdateItem]);
 
   const handleItemDragStart = useCallback((e: React.PointerEvent, item: PlacedDecorItem) => {
     e.stopPropagation();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    containerRef.current?.setPointerCapture(e.pointerId);
     itemDragRef.current = { id: item.id, startXPct: item.xPct, startYPct: item.yPct, startPointerX: e.clientX, startPointerY: e.clientY, pid: e.pointerId };
     setSelectedItemId(item.id);
   }, []);
 
-  const handleItemDragMove = useCallback((e: React.PointerEvent) => {
-    const drag = itemDragRef.current;
-    if (!drag || drag.pid !== e.pointerId || imgWidthRef.current <= 0) return;
-    const newXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidthRef.current));
-    const newYPct = Math.max(0.02, Math.min(0.98, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current));
-    setItemDragLive({ id: drag.id, xPct: newXPct, yPct: newYPct });
-  }, []);
-
-  const handleItemDragEnd = useCallback((e: React.PointerEvent) => {
-    const drag = itemDragRef.current;
-    itemDragRef.current = null;
-    setItemDragLive(null);
-    if (!drag || imgWidthRef.current <= 0) return;
-    const newXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidthRef.current));
-    const newYPct = Math.max(0.02, Math.min(0.98, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current));
-    const moved = Math.abs(newXPct - drag.startXPct) > 0.005 || Math.abs(newYPct - drag.startYPct) > 0.005;
-    if (moved) onUpdateItem(drag.id, { xPct: newXPct, yPct: newYPct });
-  }, [onUpdateItem]);
-
   const handlePetDragStartInt = useCallback((e: React.PointerEvent, pet: HousePet) => {
     e.stopPropagation();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    containerRef.current?.setPointerCapture(e.pointerId);
     const savedX = parsePetPct(pet.posLeft) ?? 0.5;
     const savedY = parsePetPct(pet.posTop) ?? 0.5;
     petDragIntRef.current = { inventoryId: pet.inventoryId, startXPct: savedX, startYPct: savedY, startPointerX: e.clientX, startPointerY: e.clientY, pid: e.pointerId };
     setSelectedPetId(pet.inventoryId);
   }, []);
-
-  const handlePetDragMoveInt = useCallback((e: React.PointerEvent) => {
-    const drag = petDragIntRef.current;
-    if (!drag || drag.pid !== e.pointerId || imgWidthRef.current <= 0) return;
-    const newXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidthRef.current));
-    const newYPct = Math.max(0.02, Math.min(0.98, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current));
-    setPetDragLiveInt({ inventoryId: drag.inventoryId, xPct: newXPct, yPct: newYPct });
-  }, []);
-
-  const handlePetDragEndInt = useCallback((e: React.PointerEvent) => {
-    const drag = petDragIntRef.current;
-    petDragIntRef.current = null;
-    setPetDragLiveInt(null);
-    if (!drag || imgWidthRef.current <= 0) return;
-    const newXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidthRef.current));
-    const newYPct = Math.max(0.02, Math.min(0.98, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current));
-    const moved = Math.abs(newXPct - drag.startXPct) > 0.005 || Math.abs(newYPct - drag.startYPct) > 0.005;
-    if (moved) onMovePet(drag.inventoryId, newXPct, newYPct);
-  }, [onMovePet]);
 
   const displayedItems = useMemo(() =>
     placedItems.map(item =>
@@ -316,9 +329,6 @@ function InteriorViewer({
             className="absolute"
             style={{ zIndex: 6, left, top, transform: "translate(-50%, -50%)", touchAction: "none" }}
             onPointerDown={(e) => handleItemDragStart(e, item)}
-            onPointerMove={handleItemDragMove}
-            onPointerUp={handleItemDragEnd}
-            onPointerCancel={handleItemDragEnd}
             onClick={(e) => { e.stopPropagation(); setSelectedItemId(isSelected ? null : item.id); }}
           >
             {isSelected && (
@@ -355,16 +365,13 @@ function InteriorViewer({
         const yPct = livePos?.yPct ?? (parsePetPct(pet.posTop) ?? 0.5);
         const left = panX + xPct * imgWidth;
         const top = yPct * containerH;
-        const size = 160;
+        const size = 130;
         return (
           <div
             key={pet.inventoryId}
             className="absolute"
             style={{ zIndex: 7, left, top, width: size, height: size, transform: "translate(-50%, -50%)", touchAction: "none", cursor: isSelPet ? "grabbing" : "grab" }}
             onPointerDown={(e) => handlePetDragStartInt(e, pet)}
-            onPointerMove={handlePetDragMoveInt}
-            onPointerUp={handlePetDragEndInt}
-            onPointerCancel={handlePetDragEndInt}
             onClick={(e) => { e.stopPropagation(); setSelectedPetId(isSelPet ? null : pet.inventoryId); }}
           >
             {isSelPet && (
@@ -455,6 +462,11 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const [currentUser, setCurrentUser] = useState(user);
   const [openInventory, setOpenInventory] = useState<"home" | "decor" | "pets" | null>(null);
   const [pendingActivate, setPendingActivate] = useState<{ bundleId: string; bundle: OwnedBundle["bundle"] } | null>(null);
+  const invScrollRef = useRef<HTMLDivElement>(null);
+  const scrollInv = (dir: -1 | 1) => {
+    const el = invScrollRef.current;
+    if (el) el.scrollBy({ left: dir * 180, behavior: "smooth" });
+  };
 
   // Pet inventory drag state
   const [isDraggingPet, setIsDraggingPet] = useState(false);
@@ -1234,74 +1246,62 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             onPointerDown={(e) => { e.stopPropagation(); setOpenInventory(null); }}
           />
 
-          {/* Panel */}
+          {/* Compact panel */}
           <div
-            className="relative rounded-t-3xl px-5 pt-5 pb-28"
+            className="relative rounded-t-2xl"
             style={{
               pointerEvents: "auto",
-              background: "linear-gradient(180deg, rgba(20,30,20,0.97) 0%, rgba(10,18,10,0.99) 100%)",
+              background: "linear-gradient(180deg, rgba(18,26,16,0.98) 0%, rgba(10,16,9,0.99) 100%)",
               border: "1px solid rgba(255,255,255,0.1)",
-              boxShadow: "0 -8px 32px rgba(0,0,0,0.6)",
-              minHeight: 280,
-              maxHeight: "70vh",
-              overflowY: "auto",
+              boxShadow: "0 -6px 24px rgba(0,0,0,0.7)",
+              paddingBottom: "96px",
             }}
           >
-            {/* Handle */}
-            <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-4" />
-
-            {/* Header */}
-            <div className="flex items-center gap-3 mb-5">
-              {openInventory === "pets" ? (
-                <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-                  <ellipse cx="20" cy="30" rx="9" ry="6" fill="#ffcc44" opacity="0.9"/>
-                  <ellipse cx="11" cy="22" rx="4.5" ry="6" fill="#ffcc44" opacity="0.9" transform="rotate(-20 11 22)"/>
-                  <ellipse cx="29" cy="22" rx="4.5" ry="6" fill="#ffcc44" opacity="0.9" transform="rotate(20 29 22)"/>
-                  <ellipse cx="14" cy="13" rx="3.5" ry="4.5" fill="#ffcc44" opacity="0.9" transform="rotate(-35 14 13)"/>
-                  <ellipse cx="26" cy="13" rx="3.5" ry="4.5" fill="#ffcc44" opacity="0.9" transform="rotate(35 26 13)"/>
-                </svg>
-              ) : (
-                <img
-                  src={openInventory === "home" ? homeInventoryIcon : decorInventoryIcon}
-                  alt=""
-                  className="w-10 h-10 object-contain"
-                />
+            {/* Handle + title row */}
+            <div className="flex items-center gap-2 px-4 pt-3 pb-2">
+              <div className="w-8 h-1 rounded-full bg-white/20 mx-auto" />
+            </div>
+            <div className="flex items-center justify-between px-4 pb-2">
+              <span style={{ color: "rgba(255,215,0,0.8)", fontSize: 11, fontFamily: "Cinzel, serif", fontWeight: 700, letterSpacing: "0.06em" }}>
+                {openInventory === "home" ? "Home Bundles" : openInventory === "decor" ? "Decor" : "Pets"}
+              </span>
+              {openInventory === "home" && activeBundle && (
+                <span style={{ color: "#86efac", fontSize: 10, fontFamily: "Cinzel, serif" }}>Active: {activeBundle.name}</span>
               )}
-              <div>
-                <h2 className="text-white font-bold text-lg leading-tight">
-                  {openInventory === "home" ? "Home Inventory" : openInventory === "decor" ? "Decor Inventory" : "Pet Inventory"}
-                </h2>
-                <p className="text-white/50 text-xs">
-                  {openInventory === "home"
-                    ? "House bundles you own"
-                    : openInventory === "decor"
-                    ? "Home decorations you own"
-                    : "Drag a pet onto the scene to place it"}
-                </p>
-              </div>
+              {(openInventory === "decor" || openInventory === "pets") && (
+                <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 10, fontFamily: "Cinzel, serif" }}>
+                  Hold &amp; drag to place
+                </span>
+              )}
             </div>
 
-            {openInventory === "home" ? (
-              <div className="flex flex-col gap-4">
-                {/* Active bundle banner */}
-                {activeBundle && (
-                  <div
-                    className="rounded-2xl p-3 flex items-center gap-3"
-                    style={{ background: "rgba(120,220,80,0.12)", border: "1.5px solid rgba(120,220,80,0.4)" }}
-                  >
-                    <div className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />
-                    <span className="text-green-300 text-xs font-semibold flex-1">Active: {activeBundle.name}</span>
-                  </div>
-                )}
+            {/* Scrollable row with arrows */}
+            <div className="relative flex items-center px-1">
+              {/* Left arrow */}
+              <button
+                onPointerDown={e => e.stopPropagation()}
+                onClick={() => scrollInv(-1)}
+                className="flex-shrink-0 flex items-center justify-center z-10"
+                style={{ width: 28, height: 72, background: "none", border: "none", cursor: "pointer", color: "rgba(255,215,0,0.6)" }}
+                aria-label="Scroll left"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7L9 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </button>
 
-                {ownedBundles.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-10 gap-3">
-                    <img src={homeInventoryIcon} alt="" className="w-14 h-14 object-contain opacity-50" />
-                    <p className="text-white/40 text-sm text-center">No house bundles owned yet.{"\n"}Visit a shop to purchase one!</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-3 gap-3">
-                    {ownedBundles.map(({ bundleId, bundle }) => {
+              {/* Items strip */}
+              <div
+                ref={invScrollRef}
+                className="flex gap-2.5 overflow-x-auto flex-1"
+                style={{ scrollbarWidth: "none", paddingBottom: 4, paddingTop: 4 }}
+                onPointerDown={e => e.stopPropagation()}
+              >
+                {openInventory === "home" && (
+                  <>
+                    {ownedBundles.length === 0 ? (
+                      <div className="flex items-center justify-center w-full py-3">
+                        <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, fontFamily: "Cinzel, serif" }}>No bundles owned yet</span>
+                      </div>
+                    ) : ownedBundles.map(({ bundleId, bundle }) => {
                       const isActive = activeBundle?.id === bundleId;
                       return (
                         <button
@@ -1309,15 +1309,15 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                           data-testid={`bundle-item-${bundleId}`}
                           onClick={() => !isActive && setPendingActivate({ bundleId, bundle })}
                           disabled={activateMutation.isPending}
-                          className="flex flex-col items-center gap-1.5 transition-opacity disabled:opacity-60"
-                          style={{ background: "none", border: "none", cursor: isActive ? "default" : "pointer" }}
+                          className="flex-shrink-0 flex flex-col items-center gap-1 transition-opacity disabled:opacity-60"
+                          style={{ background: "none", border: "none", cursor: isActive ? "default" : "pointer", width: 72 }}
                         >
                           <div
-                            className="w-full rounded-2xl overflow-hidden relative"
+                            className="rounded-xl overflow-hidden relative"
                             style={{
-                              aspectRatio: "1 / 1",
-                              border: isActive ? "2.5px solid rgba(120,220,80,0.85)" : "1.5px solid rgba(255,255,255,0.1)",
-                              boxShadow: isActive ? "0 0 14px rgba(120,220,80,0.35)" : "none",
+                              width: 64, height: 64,
+                              border: isActive ? "2px solid rgba(120,220,80,0.85)" : "1.5px solid rgba(255,255,255,0.1)",
+                              boxShadow: isActive ? "0 0 10px rgba(120,220,80,0.3)" : "none",
                               background: "rgba(255,255,255,0.04)",
                             }}
                           >
@@ -1325,186 +1325,164 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                               <img src={bundle.shopImageUrl} alt={bundle.name} className="w-full h-full object-cover" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center">
-                                <img src={homeInventoryIcon} alt="" className="w-10 h-10 object-contain opacity-60" />
+                                <img src={homeInventoryIcon} alt="" className="w-8 h-8 object-contain opacity-60" />
                               </div>
                             )}
                             {isActive && (
-                              <div
-                                className="absolute bottom-1.5 right-1.5 w-5 h-5 rounded-full flex items-center justify-center"
-                                style={{ background: "rgba(34,197,94,0.9)" }}
-                              >
-                                <span style={{ color: "#fff", fontSize: 9, fontWeight: 700, lineHeight: 1 }}>✓</span>
+                              <div className="absolute bottom-1 right-1 w-4 h-4 rounded-full flex items-center justify-center" style={{ background: "rgba(34,197,94,0.9)" }}>
+                                <span style={{ color: "#fff", fontSize: 8, fontWeight: 700, lineHeight: 1 }}>✓</span>
                               </div>
                             )}
                           </div>
-                          <span
-                            className="w-full text-center leading-tight px-0.5 truncate"
-                            style={{ color: isActive ? "#86efac" : "rgba(255,255,255,0.75)", fontSize: 10, fontFamily: "Cinzel, serif", fontWeight: 600 }}
-                          >
+                          <span className="truncate w-full text-center" style={{ color: isActive ? "#86efac" : "rgba(255,255,255,0.7)", fontSize: 9, fontFamily: "Cinzel, serif", fontWeight: 600, maxWidth: 64 }}>
                             {bundle.name}
                           </span>
                         </button>
                       );
                     })}
-                  </div>
+                  </>
                 )}
-              </div>
-            ) : openInventory === "decor" ? (
-              <div className="flex flex-col gap-4">
-                {decorInventory.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-10 gap-3">
-                    <img src={decorInventoryIcon} alt="" className="w-14 h-14 object-contain opacity-50" />
-                    <p className="text-white/40 text-sm text-center">No decor items yet.{"\n"}Visit the shop to find some!</p>
-                  </div>
-                ) : (
+
+                {openInventory === "decor" && (
                   <>
-                    <p className="text-white/40 text-xs text-center" style={{ fontFamily: "Cinzel, serif" }}>
-                      {openInterior ? "Hold & drag an item onto the interior" : "Hold & drag an item onto your home"}
-                    </p>
-                    <div className="grid grid-cols-3 gap-3">
-                      {decorInventory.map((entry) => (
+                    {decorInventory.length === 0 ? (
+                      <div className="flex items-center justify-center w-full py-3">
+                        <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, fontFamily: "Cinzel, serif" }}>No decor items yet</span>
+                      </div>
+                    ) : decorInventory.map((entry) => (
+                      <div
+                        key={entry.id}
+                        data-testid={`decor-item-${entry.decorItemId}`}
+                        className="flex-shrink-0 flex flex-col items-center gap-1"
+                        onPointerDown={(e) => handleInvDragStart(e, entry.decorItemId, entry.item.imageUrl)}
+                        onPointerMove={handleInvDragMove}
+                        onPointerUp={handleInvDragEnd}
+                        onPointerCancel={handleInvDragEnd}
+                        style={{ touchAction: "none", cursor: "grab", width: 72 }}
+                      >
                         <div
-                          key={entry.id}
-                          data-testid={`decor-item-${entry.decorItemId}`}
-                          className="flex flex-col items-center gap-1.5"
-                          onPointerDown={(e) => handleInvDragStart(e, entry.decorItemId, entry.item.imageUrl)}
-                          onPointerMove={handleInvDragMove}
-                          onPointerUp={handleInvDragEnd}
-                          onPointerCancel={handleInvDragEnd}
-                          style={{ touchAction: "none", cursor: "grab" }}
+                          className="rounded-xl overflow-hidden relative"
+                          style={{
+                            width: 64, height: 64,
+                            background: "rgba(255,255,255,0.05)",
+                            border: "1.5px solid rgba(255,215,0,0.18)",
+                          }}
+                        >
+                          {entry.item.imageUrl ? (
+                            <img src={entry.item.imageUrl} alt={entry.item.name} className="w-full h-full object-contain p-1.5" draggable={false} />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <img src={decorInventoryIcon} alt="" className="w-8 h-8 object-contain opacity-50" />
+                            </div>
+                          )}
+                          {entry.quantity > 1 && (
+                            <div
+                              className="absolute top-0.5 right-0.5 rounded-full flex items-center justify-center"
+                              style={{ minWidth: 17, height: 17, background: "rgba(0,0,0,0.75)", border: "1px solid rgba(255,215,0,0.5)", padding: "0 3px" }}
+                            >
+                              <span style={{ color: "#ffd700", fontSize: 9, fontWeight: 700 }}>×{entry.quantity}</span>
+                            </div>
+                          )}
+                        </div>
+                        <span
+                          className="truncate text-center"
+                          style={{ color: "rgba(255,255,255,0.7)", fontSize: 9, fontFamily: "Cinzel, serif", fontWeight: 600, maxWidth: 64 }}
+                        >
+                          {entry.item.name}
+                        </span>
+                        </div>
+                      ))}
+                  </>
+                )}
+
+                {openInventory === "pets" && (() => {
+                      const unplacedPets = pets.filter(p => p.posLeft === null);
+                      if (pets.length === 0) {
+                        return (
+                          <div className="flex items-center justify-center flex-1 py-3 px-2">
+                            <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, fontFamily: "Cinzel, serif", whiteSpace: "nowrap" }}>No pets yet — hatch some eggs!</span>
+                          </div>
+                        );
+                      }
+                      if (unplacedPets.length === 0) {
+                        return (
+                          <div className="flex items-center justify-center flex-1 py-3 px-2">
+                            <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, fontFamily: "Cinzel, serif", whiteSpace: "nowrap" }}>All pets are on the scene!</span>
+                          </div>
+                        );
+                      }
+                      return unplacedPets.map((pet) => (
+                        <div
+                          key={pet.inventoryId}
+                          data-testid={`pet-inv-item-${pet.inventoryId}`}
+                          className="flex-shrink-0 flex flex-col items-center gap-1"
+                          onPointerDown={(e) => handlePetInvDragStart(e, pet)}
+                          onPointerMove={handlePetInvDragMove}
+                          onPointerUp={handlePetInvDragEnd}
+                          onPointerCancel={handlePetInvDragEnd}
+                          style={{ touchAction: "none", cursor: "grab", width: 72 }}
                         >
                           <div
-                            className="w-full rounded-2xl overflow-hidden relative"
+                            className="rounded-xl overflow-hidden relative"
                             style={{
-                              aspectRatio: "1 / 1",
+                              width: 64, height: 64,
                               background: "rgba(255,255,255,0.05)",
                               border: "1.5px solid rgba(255,215,0,0.18)",
                             }}
                           >
-                            {entry.item.imageUrl ? (
-                              <img src={entry.item.imageUrl} alt={entry.item.name} className="w-full h-full object-contain p-2" draggable={false} />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <img src={decorInventoryIcon} alt="" className="w-10 h-10 object-contain opacity-50" />
-                              </div>
-                            )}
-                            {entry.quantity > 1 && (
-                              <div
-                                className="absolute top-1 right-1 rounded-full flex items-center justify-center"
-                                style={{ minWidth: 20, height: 20, background: "rgba(0,0,0,0.75)", border: "1px solid rgba(255,215,0,0.5)", padding: "0 4px" }}
-                              >
-                                <span style={{ color: "#ffd700", fontSize: 10, fontWeight: 700 }}>×{entry.quantity}</span>
-                              </div>
-                            )}
+                            <img
+                              src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
+                              alt={pet.nickname ?? pet.name}
+                              className="w-full h-full object-contain p-1.5"
+                              draggable={false}
+                            />
                           </div>
                           <span
-                            className="w-full text-center truncate px-0.5 leading-tight"
-                            style={{ color: "rgba(255,255,255,0.7)", fontSize: 10, fontFamily: "Cinzel, serif", fontWeight: 600 }}
+                            className="truncate text-center"
+                            style={{ color: "rgba(255,255,255,0.7)", fontSize: 9, fontFamily: "Cinzel, serif", fontWeight: 600, maxWidth: 64 }}
                           >
-                            {entry.item.name}
+                            {pet.nickname ?? pet.name}
                           </span>
                         </div>
-                      ))}
-                    </div>
-                  </>
+                      ));
+                    })()}
+                  </div>
+
+                  {/* Right arrow */}
+                  <button
+                    onPointerDown={e => e.stopPropagation()}
+                    onClick={() => scrollInv(1)}
+                    className="flex-shrink-0 flex items-center justify-center z-10"
+                    style={{ width: 28, height: 72, background: "none", border: "none", cursor: "pointer", color: "rgba(255,215,0,0.6)" }}
+                    aria-label="Scroll right"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 2L10 7L5 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </button>
+                </div>
+
+                {/* Store all pets — shown compactly when pets are on the scene */}
+                {openInventory === "pets" && pets.some(p => p.posLeft !== null) && (
+                  <div className="px-4 pt-1">
+                    <button
+                      data-testid="button-store-all-pets"
+                      onPointerDown={e => e.stopPropagation()}
+                      onClick={() => storeAllPetsMutation.mutate()}
+                      disabled={storeAllPetsMutation.isPending}
+                      className="w-full py-2 rounded-xl text-xs font-semibold"
+                      style={{
+                        fontFamily: "Cinzel, serif",
+                        background: "rgba(255,100,100,0.15)",
+                        border: "1.5px solid rgba(255,100,100,0.4)",
+                        color: "rgba(255,160,160,0.9)",
+                      }}
+                    >
+                      {storeAllPetsMutation.isPending ? "Storing…" : `Store All Pets (${pets.filter(p => p.posLeft !== null).length})`}
+                    </button>
+                  </div>
                 )}
               </div>
-            ) : openInventory === "pets" ? (
-              /* ─── Pet inventory ─── */
-              <div className="flex flex-col gap-4">
-                {(() => {
-                  const unplacedPets = pets.filter(p => p.posLeft === null);
-                  if (unplacedPets.length === 0 && pets.length === 0) {
-                    return (
-                      <div className="flex flex-col items-center justify-center py-10 gap-3">
-                        <svg width="48" height="48" viewBox="0 0 40 40" fill="none">
-                          <ellipse cx="20" cy="30" rx="9" ry="6" fill="#ffcc44" opacity="0.4"/>
-                          <ellipse cx="11" cy="22" rx="4.5" ry="6" fill="#ffcc44" opacity="0.4" transform="rotate(-20 11 22)"/>
-                          <ellipse cx="29" cy="22" rx="4.5" ry="6" fill="#ffcc44" opacity="0.4" transform="rotate(20 29 22)"/>
-                          <ellipse cx="14" cy="13" rx="3.5" ry="4.5" fill="#ffcc44" opacity="0.4" transform="rotate(-35 14 13)"/>
-                          <ellipse cx="26" cy="13" rx="3.5" ry="4.5" fill="#ffcc44" opacity="0.4" transform="rotate(35 26 13)"/>
-                        </svg>
-                        <p className="text-white/40 text-sm text-center">No pets yet.{"\n"}Hatch some eggs to get started!</p>
-                      </div>
-                    );
-                  }
-                  return (
-                    <>
-                      {unplacedPets.length > 0 && (
-                        <>
-                          <p className="text-white/40 text-xs text-center" style={{ fontFamily: "Cinzel, serif" }}>
-                            Hold & drag a pet onto your home
-                          </p>
-                          <div className="grid grid-cols-3 gap-3">
-                            {unplacedPets.map((pet) => (
-                              <div
-                                key={pet.inventoryId}
-                                data-testid={`pet-inv-item-${pet.inventoryId}`}
-                                className="flex flex-col items-center gap-1.5"
-                                onPointerDown={(e) => handlePetInvDragStart(e, pet)}
-                                onPointerMove={handlePetInvDragMove}
-                                onPointerUp={handlePetInvDragEnd}
-                                onPointerCancel={handlePetInvDragEnd}
-                                style={{ touchAction: "none", cursor: "grab" }}
-                              >
-                                <div
-                                  className="w-full rounded-2xl overflow-hidden relative"
-                                  style={{
-                                    aspectRatio: "1 / 1",
-                                    background: "rgba(255,255,255,0.05)",
-                                    border: "1.5px solid rgba(255,215,0,0.18)",
-                                  }}
-                                >
-                                  <img
-                                    src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
-                                    alt={pet.nickname ?? pet.name}
-                                    className="w-full h-full object-contain p-2"
-                                    draggable={false}
-                                  />
-                                </div>
-                                <span
-                                  className="w-full text-center truncate px-0.5 leading-tight"
-                                  style={{ color: "rgba(255,255,255,0.7)", fontSize: 10, fontFamily: "Cinzel, serif", fontWeight: 600 }}
-                                >
-                                  {pet.nickname ?? pet.name}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </>
-                      )}
-                      {pets.some(p => p.posLeft !== null) && (
-                        <div className="mt-2 flex flex-col gap-2">
-                          <p className="text-white/30 text-xs text-center" style={{ fontFamily: "Cinzel, serif" }}>
-                            {pets.filter(p => p.posLeft !== null).length} pet(s) placed on scene
-                          </p>
-                          <button
-                            data-testid="button-store-all-pets"
-                            onClick={() => storeAllPetsMutation.mutate()}
-                            disabled={storeAllPetsMutation.isPending}
-                            className="w-full py-2.5 rounded-xl text-xs font-semibold"
-                            style={{
-                              fontFamily: "Cinzel, serif",
-                              background: "rgba(255,100,100,0.15)",
-                              border: "1.5px solid rgba(255,100,100,0.4)",
-                              color: "rgba(255,160,160,0.9)",
-                            }}
-                          >
-                            {storeAllPetsMutation.isPending ? "Storing…" : "Store All Pets"}
-                          </button>
-                        </div>
-                      )}
-                      {unplacedPets.length === 0 && pets.length > 0 && (
-                        <p className="text-white/40 text-sm text-center py-4">All pets are on the scene!</p>
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
-            ) : null}
-          </div>
-        </div>
-      )}
+            </div>
+          )}
 
       {/* Drag ghost — follows pointer when dragging a decor item from inventory */}
       {inventoryDragState && (
@@ -1540,10 +1518,10 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           className="fixed pointer-events-none"
           style={{
             zIndex: 100,
-            left: petInvDragState.ghostX - 80,
-            top: petInvDragState.ghostY - 80,
-            width: 160,
-            height: 160,
+            left: petInvDragState.ghostX - 45,
+            top: petInvDragState.ghostY - 45,
+            width: 90,
+            height: 90,
             opacity: 0.88,
           }}
         >
