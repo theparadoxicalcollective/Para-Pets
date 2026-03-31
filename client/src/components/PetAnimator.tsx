@@ -170,9 +170,9 @@ const ANIMATION_STYLES = `
     50% { transform: translateY(1px); }
   }
   @keyframes petIdleTail {
-    0%, 100% { transform: rotate(0deg); }
-    30% { transform: rotate(-1deg); }
-    65% { transform: rotate(0.6deg); }
+    0%, 100% { transform: translateY(0px); }
+    30% { transform: translateY(-0.4px); }
+    65% { transform: translateY(-0.2px); }
   }
 
   @keyframes petWalkEyes {
