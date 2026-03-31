@@ -18,7 +18,7 @@ interface PetPart {
 
 interface PetAnimatorProps {
   petTemplateId: string;
-  mode: "idle" | "walk" | "zoom" | "house";
+  mode: "idle" | "walk" | "zoom" | "house" | "static";
   view?: "front" | "back";
   size?: number;
   /** When true, expands the inner canvas so the visual output fills `size` exactly,
@@ -441,6 +441,11 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
               />
             );
           }
+          if (mode === "static") {
+            const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
+            if (isAnimOnly) return null;
+            return renderPartImg(part, null);
+          }
           if (mode === "house") {
             const animName = HOUSE_ANIMATIONS[part.partType];
             const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
@@ -459,8 +464,8 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
         {/* Head group — wrapper carries head movement so all face parts move together */}
         {headGroupParts.length > 0 && (() => {
           const anims = mode === "idle" ? IDLE_ANIMATIONS : mode === "zoom" ? ZOOM_ANIMATIONS : WALK_ANIMATIONS;
-          // Wrapper gets the head movement animation (house mode intentionally excludes translateY)
-          const wrapperAnim = mode !== "house" ? anims["head"] : undefined;
+          // Wrapper gets the head movement animation; house and static modes skip it
+          const wrapperAnim = (mode !== "house" && mode !== "static") ? anims["head"] : undefined;
           const wrapperDuration = getPartDuration("head", mode);
 
           return (
@@ -477,6 +482,10 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
             >
               {headGroupParts.map((part) => {
                 const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
+                if (mode === "static") {
+                  if (isAnimOnly) return null;
+                  return renderPartImg(part, null);
+                }
                 if (mode === "house") {
                   const animName = HOUSE_ANIMATIONS[part.partType];
                   if (!animName) {

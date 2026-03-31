@@ -897,7 +897,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             {pet.petTemplateId ? (
               <PetAnimator
                 petTemplateId={pet.petTemplateId}
-                mode="house"
+                mode="static"
                 size={cfg.size}
                 fillContainer
                 className={isDraggingThis ? undefined : "pet-idle-squish"}
@@ -912,9 +912,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                 style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }}
               />
             ) : null}
-            {/* Circular hit zone for dragging */}
+            {/* Full-area hit zone for dragging — covers entire pet so top-of-screen pets are still grabbable */}
             <div
-              style={{ position: "absolute", top: "20%", left: "20%", width: "60%", height: "60%", borderRadius: "50%", pointerEvents: "auto", touchAction: "none", cursor: isDraggingThis ? "grabbing" : "grab" }}
+              style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "auto", touchAction: "none", cursor: isDraggingThis ? "grabbing" : "grab" }}
               onPointerDown={(e) => handlePetDragStart(e, pet.inventoryId, xPct, yPct)}
               onPointerMove={handlePetDragMove}
               onPointerUp={handlePetDragEnd}
