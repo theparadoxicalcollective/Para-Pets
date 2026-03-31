@@ -171,8 +171,6 @@ const ANIMATION_STYLES = `
   }
   @keyframes petIdleTail {
     0%, 100% { transform: translateY(0px); }
-    30% { transform: translateY(-0.4px); }
-    65% { transform: translateY(-0.2px); }
   }
 
   @keyframes petWalkEyes {

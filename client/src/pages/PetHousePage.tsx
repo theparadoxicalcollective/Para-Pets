@@ -1033,17 +1033,27 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         >
           <div className="absolute inset-0" style={{ pointerEvents: "auto" }} onPointerDown={(e) => { e.stopPropagation(); setOpenInventory(null); }} />
           <div
-            className={`relative rounded-t-3xl pb-28 ${openInventory === "pets" ? "px-4 pt-3" : "px-5 pt-5"}`}
+            className={`relative rounded-t-3xl ${openInventory === "pets" ? "px-4 pt-3 pb-6" : "px-5 pt-5 pb-28"}`}
             style={{
               pointerEvents: "auto",
               background: "linear-gradient(180deg, rgba(20,30,20,0.97) 0%, rgba(10,18,10,0.99) 100%)",
               border: "1px solid rgba(255,255,255,0.1)",
               boxShadow: "0 -8px 32px rgba(0,0,0,0.6)",
-              minHeight: openInventory === "pets" ? 110 : 280,
-              maxHeight: openInventory === "pets" ? 160 : "70vh",
+              minHeight: openInventory === "pets" ? 170 : 280,
+              maxHeight: openInventory === "pets" ? 210 : "70vh",
               overflowY: openInventory === "pets" ? "hidden" : "auto",
             }}
           >
+            {openInventory === "pets" && (
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-white/50 text-xs" style={{ fontFamily: "Cinzel, serif" }}>Pet Inventory</span>
+                <button
+                  onClick={() => setOpenInventory(null)}
+                  className="w-6 h-6 flex items-center justify-center rounded-full text-xs"
+                  style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.55)", border: "1px solid rgba(255,255,255,0.15)" }}
+                >✕</button>
+              </div>
+            )}
             {openInventory !== "pets" && <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-4" />}
             {openInventory !== "pets" && (
               <div className="flex items-center gap-3 mb-5">
