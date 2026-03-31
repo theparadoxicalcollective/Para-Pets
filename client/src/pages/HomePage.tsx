@@ -63,6 +63,14 @@ interface InventoryItem {
 export default function HomePage({ user }: HomePageProps) {
   const [showProfile, setShowProfile] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
+  // Delay sparkle orbs until after the first browser paint so the container
+  // has its real dimensions — prevents orbs from collapsing to a horizontal
+  // line at y=0 before the layout is settled.
+  const [orbsReady, setOrbsReady] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setOrbsReady(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   useEffect(() => {
     setCurrentUser(prev => ({ ...prev, ...user }));
@@ -262,8 +270,8 @@ export default function HomePage({ user }: HomePageProps) {
         <div className="flex-1 flex flex-col items-center justify-center px-0 py-0 min-h-0">
           <div className="relative flex items-center justify-center w-full max-w-[520px] md:max-w-[680px] lg:max-w-[800px]">
 
-            {/* Rarity sparkle lights (3/4/5 star) */}
-            {activePet && (activePet.rarity || 0) >= 3 && (() => {
+            {/* Rarity sparkle lights (3/4/5 star) — gated until after first paint */}
+            {orbsReady && activePet && (activePet.rarity || 0) >= 3 && (() => {
               const rarity = activePet.rarity || 0;
               const is5 = rarity >= 5;
               const is4 = rarity >= 4;

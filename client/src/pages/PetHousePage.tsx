@@ -8,6 +8,7 @@ import PetAnimator from "@/components/PetAnimator";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import homeInventoryIcon from "@assets/icon_home_inventory.png";
 import decorInventoryIcon from "@assets/icon_decor_inventory.png";
+import LoadingScreen from "@/components/LoadingScreen";
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
 function SvgMinus() {
@@ -452,7 +453,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const [petDragLive, setPetDragLive] = useState<{ inventoryId: string; xPct: number; yPct: number } | null>(null);
 
   // ── Queries ────────────────────────────────────────────────────────────────
-  const { data: activeBundle, refetch: refetchActiveBundle } = useQuery<ActiveBundle | null>({
+  const { data: activeBundle, isLoading: bundleLoading, refetch: refetchActiveBundle } = useQuery<ActiveBundle | null>({
     queryKey: ["/api/users", user.id, "active-house-bundle"],
     queryFn: async () => {
       const res = await fetch(`/api/users/${user.id}/active-house-bundle`, { credentials: "include" });
@@ -811,6 +812,11 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   }, []);
 
   const outdoorPets = pets.filter(p => p.posLeft !== null && (p.location === "outside" || p.location === null));
+
+  // Show loading screen on first load (before bundle data arrives)
+  if (bundleLoading && activeBundle === undefined) {
+    return <LoadingScreen label="Loading your home..." />;
+  }
 
   return (
     <div
