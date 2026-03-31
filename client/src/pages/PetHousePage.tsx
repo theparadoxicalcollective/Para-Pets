@@ -1033,37 +1033,31 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         >
           <div className="absolute inset-0" style={{ pointerEvents: "auto" }} onPointerDown={(e) => { e.stopPropagation(); setOpenInventory(null); }} />
           <div
-            className="relative rounded-t-3xl px-5 pt-5 pb-28"
+            className={`relative rounded-t-3xl pb-28 ${openInventory === "pets" ? "px-4 pt-3" : "px-5 pt-5"}`}
             style={{
               pointerEvents: "auto",
               background: "linear-gradient(180deg, rgba(20,30,20,0.97) 0%, rgba(10,18,10,0.99) 100%)",
               border: "1px solid rgba(255,255,255,0.1)",
               boxShadow: "0 -8px 32px rgba(0,0,0,0.6)",
-              minHeight: 280, maxHeight: "70vh", overflowY: "auto",
+              minHeight: openInventory === "pets" ? 110 : 280,
+              maxHeight: openInventory === "pets" ? 160 : "70vh",
+              overflowY: openInventory === "pets" ? "hidden" : "auto",
             }}
           >
-            <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-4" />
-            <div className="flex items-center gap-3 mb-5">
-              {openInventory === "pets" ? (
-                <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-                  <ellipse cx="20" cy="30" rx="9" ry="6" fill="#ffcc44" opacity="0.9"/>
-                  <ellipse cx="11" cy="22" rx="4.5" ry="6" fill="#ffcc44" opacity="0.9" transform="rotate(-20 11 22)"/>
-                  <ellipse cx="29" cy="22" rx="4.5" ry="6" fill="#ffcc44" opacity="0.9" transform="rotate(20 29 22)"/>
-                  <ellipse cx="14" cy="13" rx="3.5" ry="4.5" fill="#ffcc44" opacity="0.9" transform="rotate(-35 14 13)"/>
-                  <ellipse cx="26" cy="13" rx="3.5" ry="4.5" fill="#ffcc44" opacity="0.9" transform="rotate(35 26 13)"/>
-                </svg>
-              ) : (
+            {openInventory !== "pets" && <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-4" />}
+            {openInventory !== "pets" && (
+              <div className="flex items-center gap-3 mb-5">
                 <img src={openInventory === "home" ? homeInventoryIcon : decorInventoryIcon} alt="" className="w-10 h-10 object-contain" />
-              )}
-              <div>
-                <h2 className="text-white font-bold text-lg leading-tight">
-                  {openInventory === "home" ? "Home Inventory" : openInventory === "decor" ? "Decor Inventory" : "Pet Inventory"}
-                </h2>
-                <p className="text-white/50 text-xs">
-                  {openInventory === "home" ? "House bundles you own" : openInventory === "decor" ? "Home decorations you own" : "Drag a pet onto the scene to place it"}
-                </p>
+                <div>
+                  <h2 className="text-white font-bold text-lg leading-tight">
+                    {openInventory === "home" ? "Home Inventory" : "Decor Inventory"}
+                  </h2>
+                  <p className="text-white/50 text-xs">
+                    {openInventory === "home" ? "House bundles you own" : "Home decorations you own"}
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
 
             {openInventory === "home" && (
               <div className="flex flex-col gap-4">
@@ -1181,75 +1175,49 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             {openInventory === "pets" && (() => {
               const unplacedPets = pets.filter(p => p.posLeft === null);
               if (pets.length === 0) return (
-                <div className="flex flex-col items-center justify-center py-10 gap-3">
-                  <svg width="48" height="48" viewBox="0 0 40 40" fill="none">
-                    <ellipse cx="20" cy="30" rx="9" ry="6" fill="#ffcc44" opacity="0.4"/>
-                    <ellipse cx="11" cy="22" rx="4.5" ry="6" fill="#ffcc44" opacity="0.4" transform="rotate(-20 11 22)"/>
-                    <ellipse cx="29" cy="22" rx="4.5" ry="6" fill="#ffcc44" opacity="0.4" transform="rotate(20 29 22)"/>
-                    <ellipse cx="14" cy="13" rx="3.5" ry="4.5" fill="#ffcc44" opacity="0.4" transform="rotate(-35 14 13)"/>
-                    <ellipse cx="26" cy="13" rx="3.5" ry="4.5" fill="#ffcc44" opacity="0.4" transform="rotate(35 26 13)"/>
-                  </svg>
-                  <p className="text-white/40 text-sm text-center">No pets yet.{"\n"}Hatch some eggs to get started!</p>
-                </div>
+                <p className="text-white/40 text-xs text-center py-3" style={{ fontFamily: "Cinzel, serif" }}>No pets yet — hatch some eggs!</p>
+              );
+              if (unplacedPets.length === 0) return (
+                <p className="text-white/40 text-xs text-center py-3" style={{ fontFamily: "Cinzel, serif" }}>All pets are on the scene!</p>
               );
               return (
-                <div className="flex flex-col gap-4">
-                  {unplacedPets.length > 0 && (
-                    <>
-                      <p className="text-white/40 text-xs text-center" style={{ fontFamily: "Cinzel, serif" }}>Hold & drag a pet onto your home</p>
-                      <div className="grid grid-cols-3 gap-3">
-                        {unplacedPets.map((pet) => (
-                          <div
-                            key={pet.inventoryId}
-                            data-testid={`pet-inv-item-${pet.inventoryId}`}
-                            className="flex flex-col items-center gap-1.5"
-                            onPointerDown={(e) => handlePetInvDragStart(e, pet)}
-                            onPointerMove={(e) => {
-                              const drag = petInvDragRef.current;
-                              if (!drag || drag.pid !== e.pointerId) return;
-                              drag.ghostX = e.clientX; drag.ghostY = e.clientY;
-                              if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > 8) drag.isDragging = true;
-                              if (drag.isDragging) { setPetInvDragState({ pet: drag.pet, ghostX: e.clientX, ghostY: e.clientY }); setIsDraggingPet(true); }
-                            }}
-                            onPointerUp={handlePointerUp}
-                            onPointerCancel={handlePointerUp}
-                            style={{ touchAction: "none", cursor: "grab" }}
-                          >
-                            <div className="w-full rounded-2xl overflow-hidden relative" style={{ aspectRatio: "1 / 1", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,215,0,0.18)" }}>
-                              <img
-                                src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
-                                alt={pet.nickname ?? pet.name}
-                                className="w-full h-full object-contain p-2"
-                                draggable={false}
-                              />
-                            </div>
-                            <span className="w-full text-center truncate px-0.5 leading-tight" style={{ color: "rgba(255,255,255,0.7)", fontSize: 10, fontFamily: "Cinzel, serif", fontWeight: 600 }}>
-                              {pet.nickname ?? pet.name}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                  {pets.some(p => p.posLeft !== null) && (
-                    <div className="mt-2 flex flex-col gap-2">
-                      <p className="text-white/30 text-xs text-center" style={{ fontFamily: "Cinzel, serif" }}>
-                        {pets.filter(p => p.posLeft !== null).length} pet(s) placed on scene
-                      </p>
-                      <button
-                        data-testid="button-store-all-pets"
-                        onClick={() => storeAllPetsMutation.mutate()}
-                        disabled={storeAllPetsMutation.isPending}
-                        className="w-full py-2.5 rounded-xl text-xs font-semibold"
-                        style={{ fontFamily: "Cinzel, serif", background: "rgba(255,100,100,0.15)", border: "1.5px solid rgba(255,100,100,0.4)", color: "rgba(255,160,160,0.9)" }}
+                <div className="flex flex-col gap-2">
+                  <p className="text-white/40 text-xs text-center" style={{ fontFamily: "Cinzel, serif" }}>Hold & drag a pet onto your home</p>
+                  <div
+                    className="flex gap-2 overflow-x-auto"
+                    style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}
+                  >
+                    {unplacedPets.map((pet) => (
+                      <div
+                        key={pet.inventoryId}
+                        data-testid={`pet-inv-item-${pet.inventoryId}`}
+                        className="flex flex-col items-center gap-1"
+                        style={{ flexShrink: 0, width: 64, touchAction: "none", cursor: "grab" }}
+                        onPointerDown={(e) => handlePetInvDragStart(e, pet)}
+                        onPointerMove={(e) => {
+                          const drag = petInvDragRef.current;
+                          if (!drag || drag.pid !== e.pointerId) return;
+                          drag.ghostX = e.clientX; drag.ghostY = e.clientY;
+                          if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > 8) drag.isDragging = true;
+                          if (drag.isDragging) { setPetInvDragState({ pet: drag.pet, ghostX: e.clientX, ghostY: e.clientY }); setIsDraggingPet(true); }
+                        }}
+                        onPointerUp={handlePointerUp}
+                        onPointerCancel={handlePointerUp}
                       >
-                        {storeAllPetsMutation.isPending ? "Storing…" : "Store All Pets"}
-                      </button>
-                    </div>
-                  )}
-                  {unplacedPets.length === 0 && pets.length > 0 && (
-                    <p className="text-white/40 text-sm text-center py-4">All pets are on the scene!</p>
-                  )}
+                        <div className="rounded-xl overflow-hidden" style={{ width: 64, height: 64, background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,215,0,0.18)" }}>
+                          <img
+                            src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
+                            alt={pet.nickname ?? pet.name}
+                            className="w-full h-full object-contain p-1"
+                            draggable={false}
+                          />
+                        </div>
+                        <span className="text-center truncate w-full leading-tight" style={{ color: "rgba(255,255,255,0.65)", fontSize: 9, fontFamily: "Cinzel, serif", fontWeight: 600 }}>
+                          {pet.nickname ?? pet.name}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               );
             })()}
