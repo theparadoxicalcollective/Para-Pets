@@ -622,7 +622,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   // ── Pet inventory drag handlers ─────────────────────────────────────────────
   const handlePetInvDragStart = useCallback((e: React.PointerEvent, pet: HousePet) => {
     e.stopPropagation();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    // Capture on the main container so pointer events remain reliable even when
+    // the panel becomes visibility:hidden during drag.
+    containerRef.current?.setPointerCapture(e.pointerId);
     petInvDragRef.current = { pet, ghostX: e.clientX, ghostY: e.clientY, startX: e.clientX, startY: e.clientY, isDragging: false, pid: e.pointerId };
   }, []);
 
@@ -697,7 +699,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   // ── Drag handlers: inventory item → canvas ────────────────────────────────
   const handleInvDragStart = useCallback((e: React.PointerEvent, decorItemId: string, imageUrl: string | null) => {
     e.stopPropagation();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    // Capture on main container for reliability when panel hides
+    containerRef.current?.setPointerCapture(e.pointerId);
     inventoryDragRef.current = { decorItemId, imageUrl, ghostX: e.clientX, ghostY: e.clientY, startX: e.clientX, startY: e.clientY, isDragging: false, pid: e.pointerId };
   }, []);
 
@@ -803,12 +806,39 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   }, [bgAspect]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    // Don't start pan if a pet inventory drag already claimed this pointer
+    if (petInvDragRef.current?.pid === e.pointerId) return;
     if (selectedPlacedId) setSelectedPlacedId(null);
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     panStartRef.current = { startX: e.clientX, startPanX: panX, pid: e.pointerId };
   }, [panX, selectedPlacedId]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    // Pet inventory drag gets priority
+    const petDrag = petInvDragRef.current;
+    if (petDrag && petDrag.pid === e.pointerId) {
+      petDrag.ghostX = e.clientX;
+      petDrag.ghostY = e.clientY;
+      if (Math.hypot(e.clientX - petDrag.startX, e.clientY - petDrag.startY) > 8) petDrag.isDragging = true;
+      if (petDrag.isDragging) {
+        setPetInvDragState({ pet: petDrag.pet, ghostX: e.clientX, ghostY: e.clientY });
+        setIsDraggingPet(true);
+      }
+      return;
+    }
+    // Decor inventory drag
+    const decorDrag = inventoryDragRef.current;
+    if (decorDrag && decorDrag.pid === e.pointerId) {
+      decorDrag.ghostX = e.clientX;
+      decorDrag.ghostY = e.clientY;
+      if (Math.hypot(e.clientX - decorDrag.startX, e.clientY - decorDrag.startY) > 8) decorDrag.isDragging = true;
+      if (decorDrag.isDragging) {
+        setInventoryDragState({ decorItemId: decorDrag.decorItemId, imageUrl: decorDrag.imageUrl, ghostX: e.clientX, ghostY: e.clientY });
+        setIsDraggingDecor(true);
+      }
+      return;
+    }
+    // Pan
     const drag = panStartRef.current;
     if (!drag || drag.pid !== e.pointerId) return;
     const container = containerRef.current;
@@ -820,9 +850,62 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     setPanX(Math.min(0, Math.max(min, drag.startPanX + (e.clientX - drag.startX))));
   }, [bgAspect]);
 
-  const handlePointerUp = useCallback(() => {
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    // Pet inventory drag end
+    const petDrag = petInvDragRef.current;
+    if (petDrag && petDrag.pid === e.pointerId) {
+      petInvDragRef.current = null;
+      setPetInvDragState(null);
+      setIsDraggingPet(false);
+      if (petDrag.isDragging) {
+        const interior = interiorPanRef.current;
+        const container = containerRef.current;
+        if (container) {
+          const rect = container.getBoundingClientRect();
+          const localX = e.clientX - rect.left;
+          const localY = e.clientY - rect.top;
+          if (interior && interior.imgWidth > 0 && openInterior) {
+            const xPct = Math.max(0.03, Math.min(0.97, (localX - interior.panX) / interior.imgWidth));
+            const yPct = Math.max(0.03, Math.min(0.97, localY / interior.containerH));
+            placePetMutation.mutate({ inventoryId: petDrag.pet.inventoryId, xPct, yPct, location: openInterior.buildingId });
+          } else if (imgWidth > 0) {
+            const maxYPct = containerH > 0 ? Math.min(0.88, (containerH - 115) / containerH) : 0.82;
+            const xPct = Math.max(0.05, Math.min(0.95, (localX - panX) / imgWidth));
+            const yPct = Math.max(0.05, Math.min(maxYPct, localY / containerH));
+            placePetMutation.mutate({ inventoryId: petDrag.pet.inventoryId, xPct, yPct, location: "outside" });
+          }
+        }
+      }
+      return;
+    }
+    // Decor inventory drag end
+    const decorDrag = inventoryDragRef.current;
+    if (decorDrag && decorDrag.pid === e.pointerId) {
+      inventoryDragRef.current = null;
+      setInventoryDragState(null);
+      setIsDraggingDecor(false);
+      if (decorDrag.isDragging) {
+        const interior = interiorPanRef.current;
+        const container = containerRef.current;
+        if (container) {
+          const rect = container.getBoundingClientRect();
+          const localX = e.clientX - rect.left;
+          const localY = e.clientY - rect.top;
+          if (interior && interior.imgWidth > 0 && openInterior) {
+            const xPct = Math.max(0.03, Math.min(0.97, (localX - interior.panX) / interior.imgWidth));
+            const yPct = Math.max(0.03, Math.min(0.97, localY / interior.containerH));
+            placeDecorMutation.mutate({ decorItemId: decorDrag.decorItemId, xPct, yPct, size: 250, flipped: false, location: openInterior.buildingId });
+          } else if (imgWidth > 0) {
+            const xPct = Math.max(0.03, Math.min(0.97, (localX - panX) / imgWidth));
+            const yPct = Math.max(0.03, Math.min(0.97, localY / containerH));
+            placeDecorMutation.mutate({ decorItemId: decorDrag.decorItemId, xPct, yPct, size: 250, flipped: false, location: "outside" });
+          }
+        }
+      }
+      return;
+    }
     panStartRef.current = null;
-  }, []);
+  }, [openInterior, panX, imgWidth, containerH]);
 
   const { data: petsData } = useQuery<{ username: string; pets: HousePet[] }>({
     queryKey: ["/api/users", user.id, "pets"],
