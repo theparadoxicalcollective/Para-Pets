@@ -80,7 +80,7 @@ interface HousePet {
 }
 interface HouseBundle { id: string; name: string; shopImageUrl: string | null; bgImageUrl: string | null; price: number; }
 interface ActiveBundle extends HouseBundle {
-  buildings: { id: string; name: string; imageUrl: string; posX: number; posY: number; width: number; flippedX: boolean; interiorImageUrl?: string | null }[];
+  buildings: { id: string; name: string; imageUrl: string; posX: number; posY: number; width: number; flippedX: boolean; interiorImageUrl?: string | null; leaveButtonX?: number | null; leaveButtonY?: number | null }[];
 }
 interface OwnedBundle { id: string; bundleId: string; bundle: HouseBundle & { shopImageUrl: string | null }; }
 interface DecorInventoryItem { id: string; decorItemId: string; quantity: number; item: { id: string; name: string; imageUrl: string | null; price: number }; }
@@ -114,12 +114,15 @@ function randomGroundConfig(index: number) {
 // so only this one large image occupies GPU memory at a time.
 function InteriorViewer({
   url, placedItems, placedPets, panStateRef,
+  leaveButtonX = 0.92, leaveButtonY = 0.06,
   onUpdateItem, onRemoveItem, onMovePet, onRemovePet, onClose,
 }: {
   url: string;
   placedItems: PlacedDecorItem[];
   placedPets: HousePet[];
   panStateRef: React.MutableRefObject<{ panX: number; imgWidth: number; containerH: number } | null>;
+  leaveButtonX?: number;
+  leaveButtonY?: number;
   onUpdateItem: (id: string, data: { xPct?: number; yPct?: number; size?: number; flipped?: boolean }) => void;
   onRemoveItem: (id: string) => void;
   onMovePet: (inventoryId: string, xPct: number, yPct: number) => void;
@@ -395,14 +398,16 @@ function InteriorViewer({
         </div>
       )}
 
-      {/* Leave button */}
+      {/* Leave button — positioned by admin via leaveButtonX/Y percentages */}
       <button
         onClick={onClose}
         onPointerDown={e => e.stopPropagation()}
-        className="absolute right-4 flex items-center justify-center font-bold text-xs tracking-widest rounded-full px-4 py-2"
+        className="absolute flex items-center justify-center font-bold text-xs tracking-widest rounded-full px-4 py-2"
         style={{
           zIndex: 10,
-          top: "max(48px, calc(16px + env(safe-area-inset-top, 0px)))",
+          left: `${leaveButtonX * 100}%`,
+          top: `${leaveButtonY * 100}%`,
+          transform: "translate(-50%, -50%)",
           background: "rgba(0,0,0,0.65)", color: "#fff",
           border: "1px solid rgba(255,255,255,0.25)",
           fontFamily: "Cinzel, serif",
@@ -420,7 +425,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const qc = useQueryClient();
   const [showProfile, setShowProfile] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
-  const [openInterior, setOpenInterior] = useState<{ url: string; buildingId: string } | null>(null);
+  const [openInterior, setOpenInterior] = useState<{ url: string; buildingId: string; leaveButtonX: number; leaveButtonY: number } | null>(null);
   const interiorPanRef = useRef<{ panX: number; imgWidth: number; containerH: number } | null>(null);
   const [openInventory, setOpenInventory] = useState<"home" | "decor" | "pets" | null>(null);
   const [pendingActivate, setPendingActivate] = useState<{ bundleId: string; bundle: OwnedBundle["bundle"] } | null>(null);
@@ -930,7 +935,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                 }}
                 role={hasInterior ? "button" : undefined}
                 data-testid={hasInterior ? `tile-building-${b.id}` : undefined}
-                onClick={() => hasInterior && setOpenInterior({ url: b.interiorImageUrl!, buildingId: b.id })}
+                onClick={() => hasInterior && setOpenInterior({ url: b.interiorImageUrl!, buildingId: b.id, leaveButtonX: b.leaveButtonX ?? 0.92, leaveButtonY: b.leaveButtonY ?? 0.06 })}
               >
                 <img
                   src={b.imageUrl} alt={b.name} draggable={false}
@@ -1401,6 +1406,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             placedItems={interiorPlacedRaw}
             placedPets={pets.filter(p => p.posLeft !== null && p.location === openInterior.buildingId)}
             panStateRef={interiorPanRef}
+            leaveButtonX={openInterior.leaveButtonX}
+            leaveButtonY={openInterior.leaveButtonY}
             onUpdateItem={(id, data) => updateDecorMutation.mutate({ id, ...data })}
             onRemoveItem={(id) => removeDecorMutation.mutate(id)}
             onMovePet={(inventoryId, xPct, yPct) => placePetMutation.mutate({ inventoryId, xPct, yPct, location: openInterior.buildingId })}

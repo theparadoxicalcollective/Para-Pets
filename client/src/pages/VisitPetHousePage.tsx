@@ -14,7 +14,7 @@ interface VisitedPet {
 }
 interface ActiveBundle {
   id: string; name: string; bgImageUrl: string | null;
-  buildings: { id: string; name: string; imageUrl: string; posX: number; posY: number; width: number; flippedX: boolean; interiorImageUrl?: string | null }[];
+  buildings: { id: string; name: string; imageUrl: string; posX: number; posY: number; width: number; flippedX: boolean; interiorImageUrl?: string | null; leaveButtonX?: number | null; leaveButtonY?: number | null }[];
 }
 interface PlacedDecorItem {
   id: string; decorItemId: string; xPct: number; yPct: number; size: number; flipped: boolean;
@@ -45,10 +45,12 @@ function randomGroundConfig(index: number) {
 
 // ── Read-only Interior Viewer ─────────────────────────────────────────────────
 // MEMORY SAFETY: the background image is NOT rendered while this is mounted.
-function InteriorViewerVisit({ url, placedItems, placedPets, onClose }: {
+function InteriorViewerVisit({ url, placedItems, placedPets, leaveButtonX = 0.92, leaveButtonY = 0.06, onClose }: {
   url: string;
   placedItems: PlacedDecorItem[];
   placedPets: VisitedPet[];
+  leaveButtonX?: number;
+  leaveButtonY?: number;
   onClose: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -171,10 +173,12 @@ function InteriorViewerVisit({ url, placedItems, placedPets, onClose }: {
       <button
         onClick={onClose}
         onPointerDown={e => e.stopPropagation()}
-        className="absolute right-4 flex items-center justify-center font-bold text-xs tracking-widest rounded-full px-4 py-2"
+        className="absolute flex items-center justify-center font-bold text-xs tracking-widest rounded-full px-4 py-2"
         style={{
           zIndex: 10,
-          top: "max(48px, calc(16px + env(safe-area-inset-top, 0px)))",
+          left: `${leaveButtonX * 100}%`,
+          top: `${leaveButtonY * 100}%`,
+          transform: "translate(-50%, -50%)",
           background: "rgba(0,0,0,0.65)", color: "#fff",
           border: "1px solid rgba(255,255,255,0.25)",
           fontFamily: "Cinzel, serif",
@@ -190,7 +194,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, onClose }: {
 export default function VisitPetHousePage() {
   const params = useParams<{ userId: string }>();
   const userId = params.userId;
-  const [openInterior, setOpenInterior] = useState<{ url: string; buildingId: string } | null>(null);
+  const [openInterior, setOpenInterior] = useState<{ url: string; buildingId: string; leaveButtonX: number; leaveButtonY: number } | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const panStartRef = useRef<{ startX: number; startPanX: number; pid: number } | null>(null);
@@ -331,7 +335,7 @@ export default function VisitPetHousePage() {
                 key={b.id}
                 className="absolute flex flex-col items-center"
                 style={{ left: `${b.posX}%`, top: `${b.posY}%`, transform: "translate(-50%, -100%)", minWidth: displayW, pointerEvents: hasInterior ? "auto" : "none", cursor: hasInterior ? "pointer" : "default" }}
-                onClick={() => hasInterior && setOpenInterior({ url: b.interiorImageUrl!, buildingId: b.id })}
+                onClick={() => hasInterior && setOpenInterior({ url: b.interiorImageUrl!, buildingId: b.id, leaveButtonX: b.leaveButtonX ?? 0.92, leaveButtonY: b.leaveButtonY ?? 0.06 })}
               >
                 <img
                   src={b.imageUrl} alt={b.name} draggable={false}
@@ -433,6 +437,8 @@ export default function VisitPetHousePage() {
             url={openInterior.url}
             placedItems={interiorDecor}
             placedPets={interiorPets}
+            leaveButtonX={openInterior.leaveButtonX}
+            leaveButtonY={openInterior.leaveButtonY}
             onClose={() => setOpenInterior(null)}
           />
         </ErrorBoundary>

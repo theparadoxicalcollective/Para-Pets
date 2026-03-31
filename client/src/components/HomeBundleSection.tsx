@@ -15,7 +15,9 @@ interface HouseBundle {
 interface HouseBundleBuilding {
   id: string; bundleId: string; name: string; imageUrl: string;
   posX: number; posY: number; width: number; flippedX: boolean;
-  interiorImageUrl: string | null; size: string; createdAt: string;
+  interiorImageUrl: string | null; size: string;
+  leaveButtonX: number; leaveButtonY: number;
+  createdAt: string;
 }
 
 const BUILDING_SIZES = [
@@ -32,12 +34,30 @@ const BG_CARD = "rgba(255,215,0,0.04)";
 const BUILDING_REF_H = 900;
 
 // ─── AdminInteriorPreview — full-screen pannable preview used by admin ────────
-function AdminInteriorPreview({ url, onLeave }: { url: string; onLeave: () => void }) {
+// Shows a draggable "Leave" button so the admin can position it over the background.
+function AdminInteriorPreview({
+  url, buildingId, initialLeaveX = 0.92, initialLeaveY = 0.06, onClose, onSaveLeavePos,
+}: {
+  url: string;
+  buildingId: string;
+  initialLeaveX?: number;
+  initialLeaveY?: number;
+  onClose: () => void;
+  onSaveLeavePos: (x: number, y: number) => void;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [panX, setPanX] = useState(0);
   const [aspect, setAspect] = useState(16 / 9);
   const aspectRef = useRef(16 / 9);
   const panStartRef = useRef<{ startX: number; startPanX: number; pid: number } | null>(null);
+
+  // Leave button drag state
+  const leaveXRef = useRef(initialLeaveX);
+  const leaveYRef = useRef(initialLeaveY);
+  const [leaveX, setLeaveX] = useState(initialLeaveX);
+  const [leaveY, setLeaveY] = useState(initialLeaveY);
+  const leaveDragRef = useRef<{ startX: number; startY: number; startLX: number; startLY: number; pid: number } | null>(null);
+  const [isDraggingLeave, setIsDraggingLeave] = useState(false);
 
   useEffect(() => {
     const img = new window.Image();
@@ -67,6 +87,7 @@ function AdminInteriorPreview({ url, onLeave }: { url: string; onLeave: () => vo
   }, [aspect]);
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
+    if (leaveDragRef.current) return;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     panStartRef.current = { startX: e.clientX, startPanX: panX, pid: e.pointerId };
   }, [panX]);
@@ -85,6 +106,36 @@ function AdminInteriorPreview({ url, onLeave }: { url: string; onLeave: () => vo
 
   const onPointerUp = useCallback(() => { panStartRef.current = null; }, []);
 
+  const onLeaveBtnDown = useCallback((e: React.PointerEvent) => {
+    e.stopPropagation();
+    panStartRef.current = null;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    leaveDragRef.current = { startX: e.clientX, startY: e.clientY, startLX: leaveXRef.current, startLY: leaveYRef.current, pid: e.pointerId };
+    setIsDraggingLeave(true);
+  }, []);
+
+  const onLeaveBtnMove = useCallback((e: React.PointerEvent) => {
+    const drag = leaveDragRef.current;
+    if (!drag || drag.pid !== e.pointerId) return;
+    const container = containerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const newX = Math.max(0.05, Math.min(0.95, drag.startLX + (e.clientX - drag.startX) / rect.width));
+    const newY = Math.max(0.02, Math.min(0.95, drag.startLY + (e.clientY - drag.startY) / rect.height));
+    leaveXRef.current = newX;
+    leaveYRef.current = newY;
+    setLeaveX(newX);
+    setLeaveY(newY);
+  }, []);
+
+  const onLeaveBtnUp = useCallback((e: React.PointerEvent) => {
+    if (leaveDragRef.current && leaveDragRef.current.pid === e.pointerId) {
+      leaveDragRef.current = null;
+      setIsDraggingLeave(false);
+      onSaveLeavePos(leaveXRef.current, leaveYRef.current);
+    }
+  }, [onSaveLeavePos]);
+
   return (
     <div
       ref={containerRef}
@@ -101,11 +152,55 @@ function AdminInteriorPreview({ url, onLeave }: { url: string; onLeave: () => vo
         draggable={false}
         style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none" }}
       />
+
+      {/* Admin close button — top-left X */}
       <button
-        onClick={onLeave}
+        data-testid="button-close-interior-preview"
+        onClick={onClose}
         onPointerDown={e => e.stopPropagation()}
-        className="absolute top-4 right-4 flex items-center justify-center rounded-full px-4 py-2 text-xs font-bold tracking-widest"
-        style={{ zIndex: 10, background: "rgba(0,0,0,0.65)", color: "#fff", border: "1px solid rgba(255,255,255,0.25)", fontFamily: "Cinzel, serif" }}
+        className="absolute top-4 left-4 w-10 h-10 rounded-full flex items-center justify-center font-bold text-base"
+        style={{ zIndex: 20, background: "rgba(0,0,0,0.7)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)" }}
+      >
+        ✕
+      </button>
+
+      {/* Hint label — top-right */}
+      <div
+        className="absolute top-4 right-4 rounded-xl px-3 py-1.5"
+        style={{ zIndex: 20, background: "rgba(0,0,0,0.6)", border: "1px solid rgba(255,215,0,0.3)", pointerEvents: "none" }}
+      >
+        <p className="font-fantasy text-[10px] tracking-wider" style={{ color: "rgba(255,215,0,0.85)" }}>
+          Drag Leave to reposition
+        </p>
+      </div>
+
+      {/* Draggable Leave button — player-facing */}
+      <button
+        data-testid="button-leave-draggable"
+        style={{
+          position: "absolute",
+          left: `${leaveX * 100}%`,
+          top: `${leaveY * 100}%`,
+          transform: "translate(-50%, -50%)",
+          zIndex: 20,
+          touchAction: "none",
+          cursor: isDraggingLeave ? "grabbing" : "grab",
+          background: "rgba(0,0,0,0.65)",
+          color: "#fff",
+          border: isDraggingLeave ? "2px solid rgba(255,215,0,0.85)" : "1px solid rgba(255,255,255,0.25)",
+          borderRadius: 9999,
+          padding: "8px 18px",
+          fontFamily: "Cinzel, serif",
+          fontWeight: "bold",
+          fontSize: 12,
+          letterSpacing: "0.12em",
+          boxShadow: isDraggingLeave ? "0 0 16px rgba(255,215,0,0.45)" : "none",
+          transition: isDraggingLeave ? "none" : "box-shadow 0.15s",
+        }}
+        onPointerDown={onLeaveBtnDown}
+        onPointerMove={onLeaveBtnMove}
+        onPointerUp={onLeaveBtnUp}
+        onPointerCancel={onLeaveBtnUp}
       >
         Leave
       </button>
@@ -149,7 +244,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
 
   // ── Building bg upload state ──
   const [buildingBgUploading, setBuildingBgUploading] = useState<string | null>(null);
-  const [previewInteriorUrl, setPreviewInteriorUrl] = useState<string | null>(null);
+  const [previewBuilding, setPreviewBuilding] = useState<{ url: string; buildingId: string; leaveButtonX: number; leaveButtonY: number } | null>(null);
 
   // ── Add building form ──
   const [showAddForm, setShowAddForm] = useState(false);
@@ -263,7 +358,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
       const res = await apiRequest("PATCH", `/api/admin/house-bundle-buildings/${buildingId}`, { interiorImageData: dataUrl });
       const updated = await res.json() as HouseBundleBuilding;
       await refetch();
-      if (updated.interiorImageUrl) setPreviewInteriorUrl(updated.interiorImageUrl);
+      if (updated.interiorImageUrl) setPreviewBuilding({ url: updated.interiorImageUrl, buildingId, leaveButtonX: updated.leaveButtonX ?? 0.92, leaveButtonY: updated.leaveButtonY ?? 0.06 });
     } catch (err: any) {
       toast({ title: "Upload failed", description: err.message, variant: "destructive" });
     } finally {
@@ -572,7 +667,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
                 <button
                   data-testid="button-preview-building-bg"
                   onPointerDown={e => e.stopPropagation()}
-                  onClick={e => { e.stopPropagation(); if (selBuilding?.interiorImageUrl) setPreviewInteriorUrl(selBuilding.interiorImageUrl); }}
+                  onClick={e => { e.stopPropagation(); if (selBuilding?.interiorImageUrl) setPreviewBuilding({ url: selBuilding.interiorImageUrl, buildingId: selBuilding.id, leaveButtonX: selBuilding.leaveButtonX ?? 0.92, leaveButtonY: selBuilding.leaveButtonY ?? 0.06 }); }}
                   className="flex-1 py-3 rounded-xl font-fantasy text-sm tracking-widest"
                   style={{ background: "rgba(30,50,120,0.3)", border: "1px solid rgba(100,150,255,0.4)", color: "rgba(150,200,255,0.9)", cursor: "pointer" }}
                 >
@@ -720,9 +815,20 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
         </div>
       )}
 
-      {/* ── Admin interior preview (full-screen panning, same as player view) ── */}
-      {previewInteriorUrl && (
-        <AdminInteriorPreview url={previewInteriorUrl} onLeave={() => setPreviewInteriorUrl(null)} />
+      {/* ── Admin interior preview (full-screen panning with draggable Leave button) ── */}
+      {previewBuilding && (
+        <AdminInteriorPreview
+          url={previewBuilding.url}
+          buildingId={previewBuilding.buildingId}
+          initialLeaveX={previewBuilding.leaveButtonX}
+          initialLeaveY={previewBuilding.leaveButtonY}
+          onClose={() => setPreviewBuilding(null)}
+          onSaveLeavePos={(x, y) => {
+            apiRequest("PATCH", `/api/admin/house-bundle-buildings/${previewBuilding.buildingId}`, { leaveButtonX: x, leaveButtonY: y })
+              .catch(() => {});
+            setPreviewBuilding(prev => prev ? { ...prev, leaveButtonX: x, leaveButtonY: y } : null);
+          }}
+        />
       )}
     </div>
   );
