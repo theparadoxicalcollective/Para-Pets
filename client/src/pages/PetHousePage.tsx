@@ -374,12 +374,19 @@ function InteriorViewer({
             onPointerCancel={handlePetDragEndInt}
             onClick={(e) => { e.stopPropagation(); setSelectedPetId(isSelPet ? null : pet.inventoryId); }}
           >
+            {/* Gold ring selection indicator — uses outline (painted, no GPU layer) */}
             {isSelPet && (
-              <div className="absolute flex gap-2" style={{ bottom: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)", zIndex: 10, whiteSpace: "nowrap" }}>
-                <DecorControlBtn danger onClick={() => { onRemovePet(pet.inventoryId); setSelectedPetId(null); }}>
-                  <SvgDelete />
-                </DecorControlBtn>
-              </div>
+              <>
+                <div
+                  className="absolute inset-0 pointer-events-none rounded"
+                  style={{ zIndex: 8, outline: "2px solid rgba(255,215,0,0.85)", outlineOffset: "3px", boxShadow: "0 0 12px rgba(255,215,0,0.35)" }}
+                />
+                <div className="absolute flex gap-2" style={{ bottom: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)", zIndex: 10, whiteSpace: "nowrap" }}>
+                  <DecorControlBtn danger onClick={() => { onRemovePet(pet.inventoryId); setSelectedPetId(null); }}>
+                    <SvgDelete />
+                  </DecorControlBtn>
+                </div>
+              </>
             )}
             {pet.petTemplateId ? (
               <PetAnimator
@@ -387,26 +394,15 @@ function InteriorViewer({
                 mode="house"
                 size={size}
                 fillContainer
-                className={isSelPet ? undefined : "pet-idle-squish"}
-                style={{
-                  filter: isSelPet ? "drop-shadow(0 0 10px rgba(255,215,0,0.9))" : "drop-shadow(0 2px 6px rgba(0,0,0,0.45))",
-                  outline: isSelPet ? "2px solid rgba(255,215,0,0.7)" : "none",
-                  outlineOffset: isSelPet ? "3px" : undefined,
-                  borderRadius: 6,
-                }}
+                className="pet-idle-squish"
               />
             ) : (
-              <div className={isSelPet ? undefined : "pet-idle-squish"} style={{ width: "100%", height: "100%" }}>
+              <div className="pet-idle-squish" style={{ width: "100%", height: "100%" }}>
                 <img
                   src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
                   alt={pet.nickname ?? pet.name}
                   draggable={false}
-                  style={{
-                    width: "100%", height: "100%", objectFit: "contain",
-                    filter: isSelPet ? "drop-shadow(0 0 10px rgba(255,215,0,0.9))" : "drop-shadow(0 2px 6px rgba(0,0,0,0.45))",
-                    outline: isSelPet ? "2px solid rgba(255,215,0,0.7)" : "none",
-                    outlineOffset: "3px", borderRadius: 6,
-                  }}
+                  style={{ width: "100%", height: "100%", objectFit: "contain" }}
                 />
               </div>
             )}
