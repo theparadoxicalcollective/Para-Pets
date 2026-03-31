@@ -357,22 +357,22 @@ function InteriorViewer({
                 </div>
               </>
             )}
-            {/* Pet image — prefer static hatchedImageUrl to save GPU memory */}
-            {pet.hatchedImageUrl || pet.imageUrl ? (
-              <img
-                src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
-                alt={pet.nickname ?? pet.name}
-                draggable={false}
-                className="pet-idle-squish"
-                style={{ width: "100%", height: "100%", objectFit: "contain" }}
-              />
-            ) : pet.petTemplateId ? (
+            {/* Animated pets use PetAnimator; static-only pets fall back to image */}
+            {pet.petTemplateId ? (
               <PetAnimator
                 petTemplateId={pet.petTemplateId}
                 mode="house"
                 size={PET_SIZE}
                 fillContainer
                 className="pet-idle-squish"
+              />
+            ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
+              <img
+                src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
+                alt={pet.nickname ?? pet.name}
+                draggable={false}
+                className="pet-idle-squish"
+                style={{ width: "100%", height: "100%", objectFit: "contain" }}
               />
             ) : null}
           </div>
@@ -879,15 +879,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             className="absolute"
             style={{ zIndex: isDraggingThis ? 9 : 5, left, top, width: cfg.size, height: cfg.size, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
           >
-            {pet.hatchedImageUrl || pet.imageUrl ? (
-              <img
-                src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
-                alt={pet.nickname ?? pet.name}
-                draggable={false}
-                className={isDraggingThis ? undefined : "pet-idle-squish"}
-                style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }}
-              />
-            ) : pet.petTemplateId ? (
+            {pet.petTemplateId ? (
               <PetAnimator
                 petTemplateId={pet.petTemplateId}
                 mode="house"
@@ -895,6 +887,14 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                 fillContainer
                 className={isDraggingThis ? undefined : "pet-idle-squish"}
                 style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }}
+              />
+            ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
+              <img
+                src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
+                alt={pet.nickname ?? pet.name}
+                draggable={false}
+                className={isDraggingThis ? undefined : "pet-idle-squish"}
+                style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }}
               />
             ) : null}
             {/* Circular hit zone for dragging */}
