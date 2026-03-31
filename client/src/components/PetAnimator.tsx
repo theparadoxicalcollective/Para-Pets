@@ -21,6 +21,9 @@ interface PetAnimatorProps {
   mode: "idle" | "walk" | "zoom" | "house";
   view?: "front" | "back";
   size?: number;
+  /** When true, expands the inner canvas so the visual output fills `size` exactly,
+   *  compensating for the large-style 0.3× scale factor. Use in pet-house contexts. */
+  fillContainer?: boolean;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -255,13 +258,25 @@ const ANIMATION_STYLES = `
   }
   @keyframes petHouseTail {
     0%, 100% { transform: rotate(0deg); }
-    30% { transform: rotate(-3deg); }
-    70% { transform: rotate(2deg); }
+    35% { transform: rotate(-1.5deg); }
+    70% { transform: rotate(1deg); }
   }
 `;
 
 function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "house"): string {
-  if (mode === "idle" || mode === "house") {
+  if (mode === "house") {
+    const durations: Record<string, string> = {
+      eyes: "4s", eyes_closed: "4s", mouth: "5s", mouth_closed: "5s",
+      left_ear: "3.5s", right_ear: "3.5s",
+      left_arm: "3.5s", right_arm: "3.5s",
+      left_wing: "3.5s", right_wing: "3.5s",
+      tail: "4s",
+      front_arm: "3.5s", back_arm: "3.5s",
+      front_wing: "3.5s", back_wing: "3.5s",
+    };
+    return durations[partType] || "3.5s";
+  }
+  if (mode === "idle") {
     const durations: Record<string, string> = {
       eyes: "4s", eyes_closed: "4s", mouth: "5s", mouth_closed: "5s",
       head: "3s", left_ear: "3.5s", right_ear: "3.5s",
@@ -309,7 +324,7 @@ const LAYER_ORDER: Record<string, number> = {
   eyes: 15,
 };
 
-export default function PetAnimator({ petTemplateId, mode, view = "front", size = 200, className = "", style: externalStyle }: PetAnimatorProps) {
+export default function PetAnimator({ petTemplateId, mode, view = "front", size = 200, fillContainer = false, className = "", style: externalStyle }: PetAnimatorProps) {
   // Stable random blink offset per instance — spreads eye animations across the
   // full 4 s blink cycle so pets don't all blink at the same time.
   const blinkOffset = useRef(`-${(Math.random() * 4).toFixed(2)}s`);
@@ -353,6 +368,15 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   const isLargeStyle = viewParts.some(p => p.width >= 500 || p.height >= 500);
   const partScale = isLargeStyle ? 0.3 : 1;
 
+  // When fillContainer=true, expand the inner parts canvas so that after
+  // scale(partScale) it fills `size` exactly.
+  // e.g. large-style (scale 0.3): inner = size/0.3, scale(0.3) → visual = size ✓
+  // When fillContainer=false (default), use the old behaviour where large-style
+  // pets appear at 30% of the container — matching how PetWorldPage and PvpArena
+  // were designed.
+  const innerSize = fillContainer ? size / partScale : size;
+  const innerOffset = fillContainer ? -((innerSize - size) / 2) : 0;
+
   return (
     <div
       className={className}
@@ -360,7 +384,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
       data-testid="pet-animator"
     >
       <style>{ANIMATION_STYLES}</style>
-      <div style={{ position: "absolute", inset: 0, transform: `scale(${partScale})`, transformOrigin: "center center" }}>
+      <div style={{ position: "absolute", top: innerOffset, left: innerOffset, width: innerSize, height: innerSize, transform: `scale(${partScale})`, transformOrigin: "center center" }}>
       {viewParts.map((part) => {
         const leftPct = (part.posX / CANVAS_SIZE) * 100;
         const topPct = (part.posY / CANVAS_SIZE) * 100;

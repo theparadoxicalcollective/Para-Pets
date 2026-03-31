@@ -379,6 +379,7 @@ function InteriorViewer({
                 petTemplateId={pet.petTemplateId}
                 mode="house"
                 size={size}
+                fillContainer
                 className={isSelPet ? undefined : "pet-idle-squish"}
                 style={{
                   filter: isSelPet ? "drop-shadow(0 0 10px rgba(255,215,0,0.9))" : "drop-shadow(0 2px 6px rgba(0,0,0,0.45))",
@@ -1038,6 +1039,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                 petTemplateId={pet.petTemplateId}
                 mode="house"
                 size={cfg.size}
+                fillContainer
                 className={isDraggingThis ? undefined : "pet-idle-squish"}
                 style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }}
               />
