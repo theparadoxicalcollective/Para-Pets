@@ -1832,7 +1832,7 @@ export class DatabaseStorage implements IStorage {
     return b ?? null;
   }
 
-  async createHouseBundleBuilding(data: { bundleId: string; name: string; imageUrl: string; posX?: number; posY?: number; width?: number; flippedX?: boolean; interiorImageUrl?: string | null }): Promise<HouseBundleBuilding> {
+  async createHouseBundleBuilding(data: { bundleId: string; name: string; imageUrl: string; posX?: number; posY?: number; width?: number; flippedX?: boolean; interiorImageUrl?: string | null; size?: string }): Promise<HouseBundleBuilding> {
     const [b] = await db.insert(houseBundleBuildings).values({
       bundleId: data.bundleId,
       name: data.name,
@@ -1842,6 +1842,7 @@ export class DatabaseStorage implements IStorage {
       ...(data.width !== undefined ? { width: data.width } : {}),
       ...(data.flippedX !== undefined ? { flippedX: data.flippedX } : {}),
       ...(data.interiorImageUrl !== undefined ? { interiorImageUrl: data.interiorImageUrl } : {}),
+      ...(data.size !== undefined ? { size: data.size } : {}),
     }).returning();
     return b;
   }

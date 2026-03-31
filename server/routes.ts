@@ -4825,10 +4825,14 @@ export async function registerRoutes(
 
   app.post("/api/admin/house-bundles/:bundleId/buildings", isAdmin, async (req, res) => {
     try {
-      const { name, imageData } = req.body;
+      const { name, imageData, size } = req.body;
       if (!name || !imageData) return res.status(400).json({ message: "name and imageData are required" });
       const imageUrl = await processWorldImage(imageData, 1000);
-      const building = await storage.createHouseBundleBuilding({ bundleId: req.params.bundleId, name, imageUrl });
+      const validSizes = ["small", "medium", "large"];
+      const building = await storage.createHouseBundleBuilding({
+        bundleId: req.params.bundleId, name, imageUrl,
+        ...(size && validSizes.includes(size) ? { size } : {}),
+      });
       return res.status(201).json(building);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -4837,7 +4841,7 @@ export async function registerRoutes(
 
   app.patch("/api/admin/house-bundle-buildings/:id", isAdmin, async (req, res) => {
     try {
-      const { name, posX, posY, width, flippedX, imageData, interiorImageData, clearInterior } = req.body;
+      const { name, posX, posY, width, flippedX, imageData, interiorImageData, clearInterior, size } = req.body;
       const updates: Record<string, any> = {};
       if (name     !== undefined) updates.name     = name;
       if (posX     !== undefined) updates.posX     = posX;
@@ -4847,6 +4851,7 @@ export async function registerRoutes(
       if (imageData) updates.imageUrl = await processWorldImage(imageData, 1000);
       if (interiorImageData) updates.interiorImageUrl = await processWorldImage(interiorImageData, 2000);
       if (clearInterior) updates.interiorImageUrl = null;
+      if (size && ["small", "medium", "large"].includes(size)) updates.size = size;
       const building = await storage.updateHouseBundleBuilding(req.params.id, updates);
       return res.json(building);
     } catch (err: any) {
@@ -4876,6 +4881,7 @@ export async function registerRoutes(
         width: source.width,
         flippedX: source.flippedX,
         interiorImageUrl: source.interiorImageUrl,
+        size: source.size,
       });
       return res.status(201).json(dup);
     } catch (err: any) {

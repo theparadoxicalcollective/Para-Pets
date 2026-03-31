@@ -587,8 +587,17 @@ export const houseBundleBuildings = pgTable("house_bundle_buildings", {
   width: integer("width").notNull().default(120),
   flippedX: boolean("flipped_x").notNull().default(false),
   interiorImageUrl: text("interior_image_url"),
+  size: text("size").notNull().default("medium"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
+
+// Capacity limits per building size (pets, decor items)
+export const BUILDING_SIZE_CAPACITY = {
+  small:  { pets: 2, items: 3 },
+  medium: { pets: 4, items: 6 },
+  large:  { pets: 6, items: 9 },
+} as const;
+export type BuildingSize = keyof typeof BUILDING_SIZE_CAPACITY;
 
 export type HouseBundle = typeof houseBundles.$inferSelect;
 export type HouseBundleBuilding = typeof houseBundleBuildings.$inferSelect;

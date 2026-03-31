@@ -15,8 +15,14 @@ interface HouseBundle {
 interface HouseBundleBuilding {
   id: string; bundleId: string; name: string; imageUrl: string;
   posX: number; posY: number; width: number; flippedX: boolean;
-  interiorImageUrl: string | null; createdAt: string;
+  interiorImageUrl: string | null; size: string; createdAt: string;
 }
+
+const BUILDING_SIZES = [
+  { value: "small",  label: "Small",  caption: "2 pets · 3 items" },
+  { value: "medium", label: "Medium", caption: "4 pets · 6 items" },
+  { value: "large",  label: "Large",  caption: "6 pets · 9 items" },
+] as const;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const GOLD = "#ffd700";
@@ -149,6 +155,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
   const [showAddForm, setShowAddForm] = useState(false);
   const [newName, setNewName] = useState("");
   const [newImage, setNewImage] = useState<string | null>(null);
+  const [newSize, setNewSize] = useState<"small" | "medium" | "large">("medium");
   const addImgRef = useRef<HTMLInputElement>(null);
 
   // ── Fetch buildings ──
@@ -233,10 +240,10 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
     mutationFn: async () => {
       if (!newName.trim() || !newImage) throw new Error("Name and image required");
       return apiRequest("POST", `/api/admin/house-bundles/${bundle.id}/buildings`, {
-        name: newName.trim(), imageData: newImage,
+        name: newName.trim(), imageData: newImage, size: newSize,
       });
     },
-    onSuccess: () => { setShowAddForm(false); setNewName(""); setNewImage(null); refetch(); },
+    onSuccess: () => { setShowAddForm(false); setNewName(""); setNewImage(null); setNewSize("medium"); refetch(); },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
@@ -668,6 +675,30 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
                   className="w-full rounded-xl px-3 py-2.5 font-fantasy text-[11px]"
                   style={{ background: GOLD_DIM, border: `1px solid ${GOLD_BORDER}`, color: GOLD, outline: "none" }}
                 />
+              </div>
+
+              <div>
+                <p className="font-fantasy text-[10px] mb-1.5" style={{ color: GOLD }}>Building Size</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {BUILDING_SIZES.map(s => (
+                    <button
+                      key={s.value}
+                      data-testid={`button-size-${s.value}`}
+                      type="button"
+                      onClick={() => setNewSize(s.value)}
+                      className="py-2.5 rounded-xl flex flex-col items-center gap-0.5 transition-transform active:scale-95"
+                      style={{
+                        background: newSize === s.value ? "rgba(255,215,0,0.18)" : GOLD_DIM,
+                        border: `1px solid ${newSize === s.value ? "rgba(255,215,0,0.55)" : GOLD_BORDER}`,
+                        color: newSize === s.value ? GOLD : "rgba(255,215,0,0.55)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <span className="font-fantasy text-[11px] tracking-wider">{s.label}</span>
+                      <span className="font-fantasy text-[8px] opacity-70">{s.caption}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <button
