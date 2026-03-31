@@ -943,7 +943,10 @@ export class DatabaseStorage implements IStorage {
         coins: users.coins,
       })
       .from(users)
-      .where(sql`GREATEST(${users.totalCoinsEarned}, ${users.coins}) > 0`)
+      .where(and(
+        sql`GREATEST(${users.totalCoinsEarned}, ${users.coins}) > 0`,
+        sql`${users.isAdmin} IS NOT TRUE`,
+      ))
       .orderBy(desc(rankScore))
       .limit(limit * 2); // fetch extra to account for excluded usernames
 
