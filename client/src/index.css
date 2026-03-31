@@ -313,11 +313,11 @@
 }
 
 @keyframes pet-idle-bounce {
-  0%   { transform: translateY(0px)  scaleY(1)    scaleX(1);    }
-  20%  { transform: translateY(1px)  scaleY(0.98) scaleX(1.02); }
-  45%  { transform: translateY(-3px) scaleY(1.02) scaleX(0.99); }
-  70%  { transform: translateY(0px)  scaleY(0.99) scaleX(1.01); }
-  100% { transform: translateY(0px)  scaleY(1)    scaleX(1);    }
+  0%   { transform: scaleY(1)    scaleX(1);    }
+  25%  { transform: scaleY(0.985) scaleX(1.01); }
+  55%  { transform: scaleY(1.025) scaleX(0.99); }
+  80%  { transform: scaleY(0.995) scaleX(1.005); }
+  100% { transform: scaleY(1)    scaleX(1);    }
 }
 
 .pet-idle-squish {
