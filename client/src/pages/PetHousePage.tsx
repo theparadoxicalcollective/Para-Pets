@@ -317,38 +317,38 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-screen-frame overflow-hidden"
+      className="relative w-full h-screen-frame"
       style={{ maxWidth: "768px", margin: "0 auto", touchAction: "none", cursor: "grab" }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
     >
-      {/* Pannable background */}
-      {bgUrl ? (
-        <img
-          src={bgUrl}
-          alt=""
-          draggable={false}
-          style={{
-            position: "absolute",
-            top: 0,
-            left: `${panX}px`,
-            height: "100%",
-            width: "auto",
-            maxWidth: "none",
-            pointerEvents: "none",
-            userSelect: "none",
-          }}
-        />
-      ) : (
-        <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, #0a1a0a 0%, #0d2210 60%, #081408 100%)" }} />
-      )}
+      {/* Background — clipped separately so buildings can overflow the screen edge (same pattern as admin editor) */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {bgUrl ? (
+          <img
+            src={bgUrl}
+            alt=""
+            draggable={false}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: `${panX}px`,
+              height: "100%",
+              width: "auto",
+              maxWidth: "none",
+              userSelect: "none",
+            }}
+          />
+        ) : (
+          <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, #0a1a0a 0%, #0d2210 60%, #081408 100%)" }} />
+        )}
+        {/* Ambient gradient */}
+        <div className="absolute inset-0" style={{ zIndex: 1, background: "linear-gradient(180deg, rgba(0,0,0,0.18) 0%, transparent 18%, transparent 72%, rgba(0,0,0,0.45) 100%)" }} />
+      </div>
 
-      {/* Ambient gradients */}
-      <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 1, background: "linear-gradient(180deg, rgba(0,0,0,0.18) 0%, transparent 18%, transparent 72%, rgba(0,0,0,0.45) 100%)" }} />
-
-      {/* Bundle buildings layer — moves with background */}
+      {/* Bundle buildings layer — NOT inside overflow:hidden so buildings near edges are never clipped */}
       {imgWidth > 0 && activeBundle?.buildings && activeBundle.buildings.length > 0 && (
         <div
           className="absolute"
