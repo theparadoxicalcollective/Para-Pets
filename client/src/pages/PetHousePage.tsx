@@ -331,9 +331,9 @@ function InteriorViewer({
 function randomGroundConfig(index: number) {
   const seed = index * 137.508;
   const pseudo = (n: number) => ((Math.sin(n) * 10000) % 1 + 1) % 1;
-  const size = 252 + pseudo(seed + 2) * 72;    // 252–324px (10% smaller than before)
+  const size = 180 + pseudo(seed + 2) * 40;    // 180–220px (~200px)
   const centerX = 20 + pseudo(seed) * 60;      // 20–80% horizontally
-  const centerY = 65 + pseudo(seed + 1) * 13;  // 65–78% vertically (tighter ground band)
+  const centerY = 64 + pseudo(seed + 1) * 11;  // 64–75% vertically (safely above toolbar)
   return { size, centerX, centerY };
 }
 
@@ -513,8 +513,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     const dy = e.clientY - drag.startPointerY;
     if (Math.hypot(dx, dy) > 8) drag.moved = true;
     if (!drag.moved) return;
+    const maxYPct = containerH > 0 ? Math.min(0.88, (containerH - 115) / containerH) : 0.82;
     const newXPct = Math.max(0.05, Math.min(0.95, drag.startXPct + dx / imgWidth));
-    const newYPct = Math.max(0.05, Math.min(0.95, drag.startYPct + dy / containerH));
+    const newYPct = Math.max(0.05, Math.min(maxYPct, drag.startYPct + dy / containerH));
     setPetDragLive({ inventoryId: drag.inventoryId, xPct: newXPct, yPct: newYPct });
   }, [imgWidth, containerH]);
 
@@ -523,8 +524,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     petDragRef.current = null;
     setPetDragLive(null);
     if (!drag?.moved || imgWidth <= 0) return;
+    const maxYPct = containerH > 0 ? Math.min(0.88, (containerH - 115) / containerH) : 0.82;
     const newXPct = Math.max(0.05, Math.min(0.95, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidth));
-    const newYPct = Math.max(0.05, Math.min(0.95, drag.startYPct + (e.clientY - drag.startPointerY) / containerH));
+    const newYPct = Math.max(0.05, Math.min(maxYPct, drag.startYPct + (e.clientY - drag.startPointerY) / containerH));
     updatePetPositionMutation.mutate({ inventoryId: drag.inventoryId, xPct: newXPct, yPct: newYPct });
   }, [imgWidth, containerH]);
 
@@ -769,16 +771,21 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               filter: isDraggingThis ? "drop-shadow(0 0 14px rgba(255,215,0,0.7))" : undefined,
             }}
           >
-            {pet.petTemplateId ? (
-              <PetAnimator petTemplateId={pet.petTemplateId} mode="idle" size={cfg.size} />
-            ) : (
-              <img
-                src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
-                alt={pet.nickname ?? pet.name}
-                draggable={false}
-                style={{ width: "100%", height: "100%", objectFit: "contain" }}
-              />
-            )}
+            <div
+              className={isDraggingThis ? undefined : "pet-idle-squish"}
+              style={{ width: "100%", height: "100%" }}
+            >
+              {pet.petTemplateId ? (
+                <PetAnimator petTemplateId={pet.petTemplateId} mode="idle" size={cfg.size} />
+              ) : (
+                <img
+                  src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
+                  alt={pet.nickname ?? pet.name}
+                  draggable={false}
+                  style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                />
+              )}
+            </div>
             {/* Circular hit zone targeting the pet body — avoids transparent edges */}
             <div
               style={{

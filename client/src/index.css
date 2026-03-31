@@ -312,6 +312,17 @@
   }
 }
 
+@keyframes pet-squish {
+  0%, 100% { transform: scaleX(1)    scaleY(1);    }
+  30%       { transform: scaleX(1.03) scaleY(0.96); }
+  65%       { transform: scaleX(0.97) scaleY(1.03); }
+}
+
+.pet-idle-squish {
+  animation: pet-squish 3s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
 @keyframes float {
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-6px); }
