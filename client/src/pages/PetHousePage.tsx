@@ -135,7 +135,7 @@ function InteriorViewer({
   const [aspect, setAspect] = useState(16 / 9);
   const panStartRef = useRef<{ startX: number; startPanX: number; pid: number } | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
-  const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
+  const [popupPet, setPopupPet] = useState<HousePet | null>(null);
   const itemDragRef = useRef<{ id: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number } | null>(null);
   const [itemDragLive, setItemDragLive] = useState<{ id: string; xPct: number; yPct: number } | null>(null);
   const petDragRef = useRef<{ inventoryId: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number } | null>(null);
@@ -169,10 +169,10 @@ function InteriorViewer({
   const onContainerDown = useCallback((e: React.PointerEvent) => {
     e.stopPropagation();
     if (selectedItemId) setSelectedItemId(null);
-    if (selectedPetId) setSelectedPetId(null);
+    if (popupPet) setPopupPet(null);
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     panStartRef.current = { startX: e.clientX, startPanX: panX, pid: e.pointerId };
-  }, [panX, selectedItemId, selectedPetId]);
+  }, [panX, selectedItemId, popupPet]);
 
   const onContainerMove = useCallback((e: React.PointerEvent) => {
     e.stopPropagation();
@@ -231,7 +231,6 @@ function InteriorViewer({
     const savedX = parsePetPct(pet.posLeft) ?? 0.5;
     const savedY = parsePetPct(pet.posTop) ?? 0.5;
     petDragRef.current = { inventoryId: pet.inventoryId, startXPct: savedX, startYPct: savedY, startPointerX: e.clientX, startPointerY: e.clientY, pid: e.pointerId };
-    setSelectedPetId(pet.inventoryId);
   }, []);
 
   const onPetMove = useCallback((e: React.PointerEvent) => {
@@ -331,7 +330,6 @@ function InteriorViewer({
 
       {/* Pets inside this building */}
       {imgWidth > 0 && placedPets.map((pet) => {
-        const isSelected = selectedPetId === pet.inventoryId;
         const livePos = petDragLive?.inventoryId === pet.inventoryId ? petDragLive : null;
         const xPct = livePos?.xPct ?? (parsePetPct(pet.posLeft) ?? 0.5);
         const yPct = livePos?.yPct ?? (parsePetPct(pet.posTop) ?? 0.5);
@@ -346,13 +344,12 @@ function InteriorViewer({
             onPointerMove={onPetMove}
             onPointerUp={onPetUp}
             onPointerCancel={onPetUp}
-            onClick={(e) => { e.stopPropagation(); setSelectedPetId(isSelected ? null : pet.inventoryId); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              const drag = petDragRef.current;
+              if (!drag) setPopupPet(pet);
+            }}
           >
-            {isSelected && (
-              <div className="absolute flex gap-2" style={{ bottom: "calc(100% + 10px)", left: "50%", transform: "translateX(-50%)", zIndex: 10, whiteSpace: "nowrap" }}>
-                <ControlBtn danger onClick={() => { onRemovePet(pet.inventoryId); setSelectedPetId(null); }}><SvgDelete /></ControlBtn>
-              </div>
-            )}
             {/* Interior pets: house mode = blink + ear/arm/tail only, no body bounce.
                 Falls back to static image when no template. */}
             {pet.petTemplateId ? (
@@ -374,6 +371,56 @@ function InteriorViewer({
           </div>
         );
       })}
+
+      {/* Pet info popup */}
+      {popupPet && (
+        <div
+          className="absolute inset-0 flex items-center justify-center"
+          style={{ zIndex: 20, background: "rgba(0,0,0,0.55)" }}
+          onPointerDown={e => { e.stopPropagation(); setPopupPet(null); }}
+        >
+          <div
+            className="relative flex flex-col items-center gap-3 rounded-3xl px-6 py-6"
+            style={{ background: "linear-gradient(160deg, #1a1208 0%, #0e0c05 100%)", border: "1.5px solid rgba(255,215,0,0.35)", boxShadow: "0 8px 40px rgba(0,0,0,0.8)", minWidth: 200, maxWidth: 260 }}
+            onPointerDown={e => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setPopupPet(null)}
+              className="absolute top-3 right-3 w-7 h-7 flex items-center justify-center rounded-full text-xs"
+              style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.15)", fontFamily: "Cinzel, serif" }}
+            >✕</button>
+
+            {/* Pet image */}
+            <div style={{ width: 160, height: 160 }}>
+              {popupPet.petTemplateId ? (
+                <PetAnimator petTemplateId={popupPet.petTemplateId} mode="house" size={160} fillContainer />
+              ) : (popupPet.hatchedImageUrl || popupPet.imageUrl) ? (
+                <img src={popupPet.hatchedImageUrl ?? popupPet.imageUrl ?? ""} alt={popupPet.nickname ?? popupPet.name} draggable={false} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+              ) : null}
+            </div>
+
+            {/* Name */}
+            <div className="text-center" style={{ fontFamily: "Cinzel, serif", color: "#ffd700", fontSize: 15, fontWeight: 700, letterSpacing: "0.04em" }}>
+              {popupPet.nickname ?? popupPet.name}
+            </div>
+            {popupPet.nickname && (
+              <div className="text-center" style={{ fontFamily: "Cinzel, serif", color: "rgba(255,255,255,0.45)", fontSize: 11, marginTop: -8 }}>
+                {popupPet.name}
+              </div>
+            )}
+
+            {/* Return to inventory */}
+            <button
+              onClick={() => { onRemovePet(popupPet.inventoryId); setPopupPet(null); }}
+              className="w-full rounded-2xl py-2 text-xs font-bold tracking-widest"
+              style={{ fontFamily: "Cinzel, serif", background: "rgba(255,100,80,0.18)", border: "1.5px solid rgba(255,100,80,0.5)", color: "rgba(255,160,140,0.95)" }}
+            >
+              Return to Inventory
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Leave button */}
       <button
