@@ -257,9 +257,9 @@ const ANIMATION_STYLES = `
     75% { transform: rotate(-18deg); }
   }
   @keyframes petHouseTail {
-    0%, 100% { opacity: 1; }
-    40% { opacity: 0.82; }
-    75% { opacity: 0.92; }
+    0%, 100% { transform: rotate(0deg); }
+    35% { transform: rotate(-1.5deg); }
+    70% { transform: rotate(1deg); }
   }
 `;
 

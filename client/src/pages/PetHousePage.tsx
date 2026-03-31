@@ -429,7 +429,7 @@ function InteriorViewer({
 function randomGroundConfig(index: number) {
   const seed = index * 137.508;
   const pseudo = (n: number) => ((Math.sin(n) * 10000) % 1 + 1) % 1;
-  const size = 80 + pseudo(seed + 2) * 20;    // 80–100px (clearly smaller than 160px interior pets)
+  const size = 120 + pseudo(seed + 2) * 25;    // 120–145px (smaller than 160px interior pets)
   const centerX = 20 + pseudo(seed) * 60;      // 20–80% horizontally
   const centerY = 64 + pseudo(seed + 1) * 11;  // 64–75% vertically (safely above toolbar)
   return { size, centerX, centerY };
