@@ -314,16 +314,14 @@
 
 @keyframes pet-idle-bounce {
   0%   { transform: translateY(0px)  scaleY(1)    scaleX(1);    }
-  15%  { transform: translateY(2px)  scaleY(0.94) scaleX(1.05); }
-  32%  { transform: translateY(-4px) scaleY(1.05) scaleX(0.96); }
-  50%  { transform: translateY(1px)  scaleY(0.97) scaleX(1.02); }
-  68%  { transform: translateY(-2px) scaleY(1.03) scaleX(0.98); }
-  83%  { transform: translateY(0px)  scaleY(0.99) scaleX(1.01); }
+  20%  { transform: translateY(1px)  scaleY(0.98) scaleX(1.02); }
+  45%  { transform: translateY(-3px) scaleY(1.02) scaleX(0.99); }
+  70%  { transform: translateY(0px)  scaleY(0.99) scaleX(1.01); }
   100% { transform: translateY(0px)  scaleY(1)    scaleX(1);    }
 }
 
 .pet-idle-squish {
-  animation: pet-idle-bounce 2.4s ease-in-out infinite;
+  animation: pet-idle-bounce 3s ease-in-out infinite;
   transform-origin: center bottom;
 }
 
