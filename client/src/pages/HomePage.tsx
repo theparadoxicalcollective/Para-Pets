@@ -410,10 +410,10 @@ export default function HomePage({ user }: HomePageProps) {
                           <div style={{ paddingTop: "13vh", width: "100%" }}>
                             <style>{`
                               @keyframes petImgIdle {
-                                0%, 100% { transform: scale(1) translateY(0px) rotate(0deg); filter: brightness(1); }
-                                25%       { transform: scale(1.012, 1.018) translateY(-4px) rotate(-1.2deg); filter: brightness(1.04); }
-                                50%       { transform: scale(1.018, 1.025) translateY(-6px) rotate(0deg); filter: brightness(1.07); }
-                                75%       { transform: scale(1.012, 1.018) translateY(-4px) rotate(1.2deg); filter: brightness(1.04); }
+                                0%, 100% { transform: scale(1) translateY(0px); filter: brightness(1); }
+                                25% { transform: scale(1.012, 1.018) translateY(-2px); filter: brightness(1.04); }
+                                50% { transform: scale(1.018, 1.025) translateY(-3px); filter: brightness(1.07); }
+                                75% { transform: scale(1.012, 1.018) translateY(-2px); filter: brightness(1.04); }
                               }
                               @keyframes petImgBlink {
                                 0%, 88%, 100% { opacity: 1; }
