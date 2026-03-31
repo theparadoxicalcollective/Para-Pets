@@ -3,6 +3,7 @@ import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
+import PetAnimatorCanvas from "@/components/PetAnimatorCanvas";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -156,12 +157,11 @@ function InteriorViewerVisit({ url, placedItems, placedPets, onClose }: {
             className="absolute pointer-events-none pet-idle-squish"
             style={{ zIndex: 7, left: panX + xPct * imgWidth, top: yPct * containerH, width: INTERIOR_PET_SIZE, height: INTERIOR_PET_SIZE, transform: "translate(-50%, -50%)" }}
           >
-            {/* Interior pets: house mode = blink + ear/arm/tail only, no body bounce.
-                Falls back to static image when no template. */}
+            {/* Interior pets: canvas-composited — 1 GPU texture per pet at display
+                size only, vs N full-source-resolution textures with PetAnimator. */}
             {pet.petTemplateId ? (
-              <PetAnimator
+              <PetAnimatorCanvas
                 petTemplateId={pet.petTemplateId}
-                mode="house"
                 size={INTERIOR_PET_SIZE}
                 fillContainer
               />

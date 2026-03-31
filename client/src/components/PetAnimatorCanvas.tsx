@@ -1,26 +1,15 @@
 /**
- * PetAnimatorCanvas
+ * PetAnimatorCanvas — memory-safe interior pet renderer.
  *
- * Memory-safe alternative to PetAnimator for use inside building interiors.
+ * Each PetAnimator <img> part becomes a full-source-resolution GPU texture on iOS.
+ * 4 pets × 12 parts × ~4 MB each = ~192 MB GPU → crash.
  *
- * Why this exists:
- *   PetAnimator renders each pet part as a separate <img> element in the DOM.
- *   On iOS, every DOM <img> becomes a persistent GPU texture at its SOURCE
- *   resolution — not its display size. A 1000×1000 part image = 4 MB of GPU
- *   memory regardless of whether it's shown at 10px or 1000px.
- *   With 10–15 parts per pet and a large interior background already loaded,
- *   this pushes iOS over its GPU memory limit → tab crash.
+ * This component renders all parts onto ONE <canvas> per pet.
+ * GPU cost = (size × dpr)² × 4 bytes ≈ 380 KB (110px, 3× screen).
+ * Part images live in system RAM via `new Image()` — never GPU textures.
  *
- *   This component renders all parts onto a SINGLE <canvas> element instead.
- *   GPU memory = canvas.width × canvas.height × 4 bytes = ~130 KB for a
- *   180×180 interior pet. Part images are held in system memory (CPU-accessible
- *   RAM), which iOS handles far more gracefully than GPU VRAM.
- *
- * Animations supported (house mode):
- *   eyes blink, ears wiggle, arms sway, wings flap, tail wag.
- *   Driven by a requestAnimationFrame loop → evaluated frame-by-frame.
- *
- * Usage: drop-in for <PetAnimator mode="house" fillContainer> in interiors.
+ * Sharp rendering: canvas backing store = size × devicePixelRatio, displayed
+ * at size CSS pixels → identical crispness to a native <img> on retina screens.
  */
 
 import { useEffect, useRef } from "react";
@@ -32,7 +21,6 @@ interface PetPart {
   pivotX: number; pivotY: number;
 }
 
-// Same constants as PetAnimator
 const CANVAS_SIZE = 1000;
 const ANIM_ONLY_PARTS = new Set(["eyes_closed", "mouth"]);
 const LAYER_ORDER: Record<string, number> = {
@@ -42,9 +30,6 @@ const LAYER_ORDER: Record<string, number> = {
   mouth: 12, mouth_closed: 13, eyes_closed: 14, eyes: 15,
 };
 
-// ── Animation evaluator ───────────────────────────────────────────────────────
-// Returns opacity (0–1) and rotation (radians) for each part at a given time.
-// Mirrors the CSS keyframe animations in PetAnimator's HOUSE_ANIMATIONS.
 function kfi(kfs: [number, number][], t: number): number {
   if (t <= kfs[0][0]) return kfs[0][1];
   if (t >= kfs[kfs.length - 1][0]) return kfs[kfs.length - 1][1];
@@ -93,30 +78,32 @@ function evalAnim(partType: string, sec: number, blinkOff: number): { op: number
       return { op: 1, rot: kfi([[0,0],[0.4,3],[0.7,-1.5],[1,0]], t) * D2R };
     }
     case "tail": {
-      const t = (sec % 4) / 4;
-      return { op: 1, rot: kfi([[0,0],[0.35,-1.5],[0.7,1],[1,0]], t) * D2R };
+      const t = (sec % 5) / 5;
+      return { op: 1, rot: kfi([[0,0],[0.5,-0.5],[1,0]], t) * D2R };
     }
     default: return { op: 1, rot: 0 };
   }
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
 interface Props {
   petTemplateId: string;
-  size: number;           // display size in px (canvas will be size×size)
-  fillContainer?: boolean; // same semantics as PetAnimator
+  size: number;
+  fillContainer?: boolean;
   className?: string;
   style?: React.CSSProperties;
 }
 
 export default function PetAnimatorCanvas({ petTemplateId, size, fillContainer = false, className = "", style }: Props) {
-  const canvasRef  = useRef<HTMLCanvasElement>(null);
-  const rafRef     = useRef(0);
-  const t0Ref      = useRef(0);
-  const blinkRef   = useRef(Math.random() * 4);
-  // System-memory images — NOT in the DOM, so they do NOT become GPU textures
-  const partsRef   = useRef<{ part: PetPart; img: HTMLImageElement }[]>([]);
-  const readyRef   = useRef(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const rafRef    = useRef(0);
+  const t0Ref     = useRef(0);
+  const blinkRef  = useRef(Math.random() * 4);
+  const partsRef  = useRef<{ part: PetPart; img: HTMLImageElement }[]>([]);
+  const readyRef  = useRef(false);
+
+  // Cap DPR at 3 — anything higher offers no visible benefit
+  const dpr = typeof window !== "undefined" ? Math.min(window.devicePixelRatio || 1, 3) : 1;
+  const canvasPx = Math.round(size * dpr);
 
   const { data: templateData } = useQuery<{ parts: PetPart[]; facing: string }>({
     queryKey: ["/api/pet-template-parts", petTemplateId],
@@ -129,7 +116,6 @@ export default function PetAnimatorCanvas({ petTemplateId, size, fillContainer =
     staleTime: Infinity,
   });
 
-  // Load part images into system memory (never inserted into the DOM)
   useEffect(() => {
     if (!templateData?.parts?.length) return;
     readyRef.current = false;
@@ -150,20 +136,12 @@ export default function PetAnimatorCanvas({ petTemplateId, size, fillContainer =
 
     const entries = viewParts.map(part => ({ part, img: new Image() }));
     let loaded = 0;
-    const onDone = () => {
-      if (++loaded === entries.length) {
-        partsRef.current = entries;
-        readyRef.current = true;
-      }
-    };
+    const onDone = () => { if (++loaded === entries.length) { partsRef.current = entries; readyRef.current = true; } };
     entries.forEach(e => { e.img.onload = onDone; e.img.onerror = onDone; e.img.src = e.part.imageUrl; });
 
     return () => { readyRef.current = false; partsRef.current = []; };
   }, [templateData]);
 
-  // Canvas animation loop
-  // The canvas GPU texture is size×size — tiny, regardless of source image resolution.
-  // All part images are drawn from system memory via drawImage().
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -179,18 +157,14 @@ export default function PetAnimatorCanvas({ petTemplateId, size, fillContainer =
       const parts = partsRef.current;
       const isLarge = parts.some(({ part: p }) => p.width >= 500 || p.height >= 500);
       const partScale = isLarge ? 0.3 : 1;
-      // Map pet part positions to canvas pixel space.
-      // For fillContainer: parts span the full size.
-      // For non-fillContainer with large-style pets: parts span partScale * size, centered.
-      // Math derivation — for fillContainer=true:
-      //   canvasPx = (partCoord / CANVAS_SIZE) * size  (direct scale)
-      // For fillContainer=false, large-style:
-      //   CSS PetAnimator: scale(0.3) centered → canvasPx = 0.3 * partCoord * (size/CANVAS_SIZE)
-      //   = (partCoord / CANVAS_SIZE) * (size * partScale) + centerOffset
-      const drawSpan = fillContainer ? size : size * partScale;
-      const offset   = fillContainer ? 0 : (size - drawSpan) / 2;
 
-      ctx.clearRect(0, 0, size, size);
+      // canvasPx = size * dpr — the actual pixel buffer dimensions
+      const drawSpan = fillContainer ? canvasPx : canvasPx * partScale;
+      const offset   = fillContainer ? 0 : (canvasPx - drawSpan) / 2;
+
+      ctx.clearRect(0, 0, canvasPx, canvasPx);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
 
       for (const { part, img } of parts) {
         const { op, rot } = evalAnim(part.partType, sec, blinkRef.current);
@@ -206,22 +180,22 @@ export default function PetAnimatorCanvas({ petTemplateId, size, fillContainer =
         ctx.save();
         ctx.globalAlpha = op;
         if (rot !== 0) { ctx.translate(px, py); ctx.rotate(rot); ctx.translate(-px, -py); }
-        try { ctx.drawImage(img, left, top, w, h); } catch { /* image not ready yet */ }
+        try { ctx.drawImage(img, left, top, w, h); } catch { /* image not ready */ }
         ctx.restore();
       }
     };
 
     rafRef.current = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [size, fillContainer]);
+  }, [canvasPx, fillContainer]);
 
   return (
     <canvas
       ref={canvasRef}
-      width={size}
-      height={size}
+      width={canvasPx}
+      height={canvasPx}
       className={className}
-      style={{ width: size, height: size, imageRendering: "auto", ...style }}
+      style={{ width: size, height: size, ...style }}
     />
   );
 }
