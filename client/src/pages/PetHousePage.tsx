@@ -1024,6 +1024,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                 mode="idle"
                 size={cfg.size}
                 className={isDraggingThis ? undefined : "pet-idle-squish"}
+                style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }}
               />
             ) : (
               <div
@@ -1034,7 +1035,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                   src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
                   alt={pet.nickname ?? pet.name}
                   draggable={false}
-                  style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                  style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }}
                 />
               </div>
             )}
