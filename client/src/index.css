@@ -313,15 +313,12 @@
 }
 
 @keyframes pet-idle-bounce {
-  0%   { transform: scaleY(1)    scaleX(1);    }
-  25%  { transform: scaleY(0.985) scaleX(1.01); }
-  55%  { transform: scaleY(1.025) scaleX(0.99); }
-  80%  { transform: scaleY(0.995) scaleX(1.005); }
-  100% { transform: scaleY(1)    scaleX(1);    }
+  0%,  100% { transform: scaleY(1)     scaleX(1);     }
+  50%        { transform: scaleY(0.965) scaleX(1.018); }
 }
 
 .pet-idle-squish {
-  animation: pet-idle-bounce 3s ease-in-out infinite;
+  animation: pet-idle-bounce 3.5s ease-in-out infinite;
   transform-origin: center bottom;
 }
 
