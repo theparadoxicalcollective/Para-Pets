@@ -268,41 +268,65 @@ export default function HomePage({ user }: HomePageProps) {
               const is5 = rarity >= 5;
               const is4 = rarity >= 4;
 
-              // 3-star: 3 tiny whisper motes
-              const orbs3 = [
-                { left: "12%", top: "60%", color: "#f0c040", anim: "sparkOrb0", dur: "4.5s", delay: "0s"   },
-                { right:"13%", top: "58%", color: "#fffde0", anim: "sparkOrb2", dur: "5.2s", delay: "1.4s" },
-                { left: "40%", top: "22%", color: "#f0c040", anim: "sparkOrb4", dur: "4.8s", delay: "0.7s" },
+              // sizes: "xs"=2px core/8 spread, "sm"=4px/16, "md"=8px/28, "lg"=14px/44
+              type Orb = { left?: string; right?: string; top: string; color: string; anim: string; dur: string; delay: string; size: "xs"|"sm"|"md"|"lg" };
+
+              // 3-star: 8 orbs spread around the pet body
+              const orbs3: Orb[] = [
+                { left:"10%",  top:"65%", color:"#f0c040", anim:"sparkOrb0", dur:"4.5s", delay:"0s",   size:"xs" },
+                { right:"11%", top:"62%", color:"#fffde0", anim:"sparkOrb2", dur:"5.2s", delay:"1.4s", size:"xs" },
+                { left:"20%",  top:"40%", color:"#f0c040", anim:"sparkOrb4", dur:"4.8s", delay:"0.7s", size:"sm" },
+                { right:"21%", top:"38%", color:"#fffde0", anim:"sparkOrb6", dur:"4.1s", delay:"2.1s", size:"xs" },
+                { left:"42%",  top:"18%", color:"#f0c040", anim:"sparkOrb8", dur:"5.0s", delay:"1.5s", size:"sm" },
+                { left:"55%",  top:"76%", color:"#fffde0", anim:"sparkOrb3", dur:"4.3s", delay:"0.4s", size:"xs" },
+                { left:"30%",  top:"55%", color:"#f0d060", anim:"sparkOrb1", dur:"3.9s", delay:"2.8s", size:"xs" },
+                { right:"30%", top:"52%", color:"#f0c040", anim:"sparkOrb5", dur:"4.7s", delay:"1.0s", size:"sm" },
               ];
-              // 4-star: 10 motes, gold + warm white
-              const orbs4 = [
-                { left: "7%",  top: "55%", color: "#f0c040", anim: "sparkOrb0", dur: "3.4s", delay: "0s"   },
-                { left: "14%", top: "72%", color: "#fffde0", anim: "sparkOrb1", dur: "4.2s", delay: "0.8s" },
-                { right: "9%", top: "50%", color: "#f0d060", anim: "sparkOrb2", dur: "3.8s", delay: "1.5s" },
-                { right:"17%", top: "70%", color: "#fffde0", anim: "sparkOrb3", dur: "5.1s", delay: "0.3s" },
-                { left: "28%", top: "25%", color: "#f0c040", anim: "sparkOrb4", dur: "4.6s", delay: "2.0s" },
-                { right:"24%", top: "28%", color: "#fffde0", anim: "sparkOrb5", dur: "4.0s", delay: "1.1s" },
-                { left: "5%",  top: "35%", color: "#f0d060", anim: "sparkOrb6", dur: "3.9s", delay: "2.3s" },
-                { right: "5%", top: "32%", color: "#fffde0", anim: "sparkOrb7", dur: "4.7s", delay: "0.5s" },
-                { left: "35%", top: "15%", color: "#f0c040", anim: "sparkOrb1", dur: "5.0s", delay: "1.8s" },
-                { right:"32%", top: "18%", color: "#fffde0", anim: "sparkOrb3", dur: "3.6s", delay: "2.8s" },
+              // 4-star: 20 orbs with xs/sm/md coverage all over
+              const orbs4: Orb[] = [
+                { left:"5%",   top:"50%", color:"#f0c040", anim:"sparkOrb0", dur:"3.4s", delay:"0s",   size:"sm" },
+                { left:"12%",  top:"70%", color:"#fffde0", anim:"sparkOrb1", dur:"4.2s", delay:"0.8s", size:"xs" },
+                { right:"7%",  top:"48%", color:"#f0d060", anim:"sparkOrb2", dur:"3.8s", delay:"1.5s", size:"sm" },
+                { right:"14%", top:"68%", color:"#fffde0", anim:"sparkOrb3", dur:"5.1s", delay:"0.3s", size:"xs" },
+                { left:"24%",  top:"22%", color:"#f0c040", anim:"sparkOrb4", dur:"4.6s", delay:"2.0s", size:"md" },
+                { right:"22%", top:"24%", color:"#fffde0", anim:"sparkOrb5", dur:"4.0s", delay:"1.1s", size:"sm" },
+                { left:"4%",   top:"30%", color:"#f0d060", anim:"sparkOrb6", dur:"3.9s", delay:"2.3s", size:"xs" },
+                { right:"4%",  top:"28%", color:"#fffde0", anim:"sparkOrb7", dur:"4.7s", delay:"0.5s", size:"xs" },
+                { left:"38%",  top:"12%", color:"#f0c040", anim:"sparkOrb8", dur:"5.0s", delay:"1.8s", size:"sm" },
+                { right:"35%", top:"15%", color:"#fffde0", anim:"sparkOrb9", dur:"3.6s", delay:"2.8s", size:"xs" },
+                { left:"55%",  top:"42%", color:"#f0c040", anim:"sparkOrbA", dur:"4.4s", delay:"1.2s", size:"md" },
+                { left:"18%",  top:"50%", color:"#fffde0", anim:"sparkOrbB", dur:"3.7s", delay:"0.6s", size:"xs" },
+                { right:"18%", top:"55%", color:"#f0d060", anim:"sparkOrb0", dur:"4.9s", delay:"2.4s", size:"sm" },
+                { left:"44%",  top:"72%", color:"#f0c040", anim:"sparkOrb2", dur:"3.5s", delay:"3.1s", size:"xs" },
+                { right:"42%", top:"70%", color:"#fffde0", anim:"sparkOrb4", dur:"4.8s", delay:"0.2s", size:"xs" },
+                { left:"62%",  top:"28%", color:"#f0c040", anim:"sparkOrb1", dur:"3.3s", delay:"1.7s", size:"sm" },
+                { left:"8%",   top:"82%", color:"#fffde0", anim:"sparkOrb3", dur:"4.5s", delay:"0.9s", size:"xs" },
+                { right:"8%",  top:"80%", color:"#f0d060", anim:"sparkOrb5", dur:"3.8s", delay:"2.6s", size:"sm" },
+                { left:"50%",  top:"88%", color:"#f0c040", anim:"sparkOrb7", dur:"5.2s", delay:"1.4s", size:"xs" },
+                { left:"33%",  top:"38%", color:"#fffde0", anim:"sparkOrb6", dur:"4.2s", delay:"3.3s", size:"md" },
               ];
-              // 5-star extras: purple + cyan motes
-              const orbs5extra = [
-                { left: "3%",  top: "45%", color: "#c8a0ff", anim: "sparkOrb6", dur: "4.4s", delay: "0.6s"  },
-                { right: "4%", top: "42%", color: "#80e8ff", anim: "sparkOrb7", dur: "5.3s", delay: "1.9s"  },
-                { left: "20%", top: "80%", color: "#c8a0ff", anim: "sparkOrb0", dur: "3.6s", delay: "2.5s"  },
-                { right:"19%", top: "78%", color: "#80e8ff", anim: "sparkOrb1", dur: "4.9s", delay: "0.1s"  },
-                { left: "48%", top: "10%", color: "#e0c0ff", anim: "sparkOrb2", dur: "4.1s", delay: "3.0s"  },
-                { left: "2%",  top: "68%", color: "#80e8ff", anim: "sparkOrb5", dur: "3.7s", delay: "1.3s"  },
+              // 5-star extras: purple + cyan with lg orbs for drama
+              const orbs5extra: Orb[] = [
+                { left:"2%",   top:"44%", color:"#c8a0ff", anim:"sparkOrb6",  dur:"4.4s", delay:"0.6s", size:"md" },
+                { right:"3%",  top:"41%", color:"#80e8ff", anim:"sparkOrb7",  dur:"5.3s", delay:"1.9s", size:"md" },
+                { left:"17%",  top:"78%", color:"#c8a0ff", anim:"sparkOrb0",  dur:"3.6s", delay:"2.5s", size:"sm" },
+                { right:"16%", top:"76%", color:"#80e8ff", anim:"sparkOrb1",  dur:"4.9s", delay:"0.1s", size:"sm" },
+                { left:"46%",  top:"8%",  color:"#e0c0ff", anim:"sparkOrb2",  dur:"4.1s", delay:"3.0s", size:"md" },
+                { left:"1%",   top:"65%", color:"#80e8ff", anim:"sparkOrb5",  dur:"3.7s", delay:"1.3s", size:"sm" },
+                { right:"1%",  top:"60%", color:"#c8a0ff", anim:"sparkOrb8",  dur:"4.6s", delay:"2.2s", size:"lg" },
+                { left:"28%",  top:"88%", color:"#e0c0ff", anim:"sparkOrb9",  dur:"5.1s", delay:"0.7s", size:"sm" },
+                { right:"28%", top:"85%", color:"#80e8ff", anim:"sparkOrbA",  dur:"3.9s", delay:"1.6s", size:"md" },
+                { left:"60%",  top:"60%", color:"#c8a0ff", anim:"sparkOrbB",  dur:"4.3s", delay:"2.9s", size:"lg" },
+                { left:"14%",  top:"25%", color:"#e0c0ff", anim:"sparkOrb3",  dur:"4.8s", delay:"0.4s", size:"md" },
+                { right:"12%", top:"22%", color:"#80e8ff", anim:"sparkOrb4",  dur:"3.5s", delay:"3.4s", size:"lg" },
               ];
 
               const allOrbs = is5 ? [...orbs4, ...orbs5extra] : is4 ? orbs4 : orbs3;
 
-              // Glow bloom: tiny bright core + massive soft spread
-              const renderMote = (orb: typeof orbs3[0], idx: number) => {
-                const isSpecial = (orb.color === "#c8a0ff" || orb.color === "#80e8ff" || orb.color === "#e0c0ff");
-                const spread = is5 && isSpecial ? 22 : is4 ? 16 : 10;
+              // Glow bloom: bright core + layered soft spread, sized by orb.size
+              const renderMote = (orb: Orb, idx: number) => {
+                const sizeMap = { xs: { core: 2, spread: 8 }, sm: { core: 4, spread: 16 }, md: { core: 8, spread: 28 }, lg: { core: 14, spread: 44 } };
+                const { core, spread } = sizeMap[orb.size];
                 return (
                   <div
                     key={idx}
@@ -311,15 +335,15 @@ export default function HomePage({ user }: HomePageProps) {
                       left: (orb as any).left,
                       right: (orb as any).right,
                       top: orb.top,
-                      width: 3,
-                      height: 3,
+                      width: core,
+                      height: core,
                       borderRadius: "50%",
                       background: "white",
                       boxShadow: [
-                        `0 0 3px 2px rgba(255,255,255,0.95)`,
-                        `0 0 ${spread}px ${spread / 2}px ${orb.color}dd`,
-                        `0 0 ${spread * 2}px ${spread}px ${orb.color}66`,
-                        `0 0 ${spread * 3}px ${spread * 1.5}px ${orb.color}22`,
+                        `0 0 ${core * 1.5}px ${core * 0.8}px rgba(255,255,255,0.95)`,
+                        `0 0 ${spread}px ${spread / 2}px ${orb.color}ee`,
+                        `0 0 ${spread * 2}px ${spread}px ${orb.color}88`,
+                        `0 0 ${spread * 3.5}px ${spread * 2}px ${orb.color}33`,
                       ].join(", "),
                       animation: `${orb.anim} ${orb.dur} ease-in-out infinite ${orb.delay}`,
                       pointerEvents: "none",
