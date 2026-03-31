@@ -64,10 +64,10 @@ export default function HomePage({ user }: HomePageProps) {
   const [showProfile, setShowProfile] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
   // Gate sparkle orbs on the pet container having real height.
-  // RAF / fixed delays aren't enough — the pet image may still be loading
-  // (zero-height container) even after the first paint, causing orbs to
-  // collapse into a horizontal line at y=0.  A ResizeObserver fires only
-  // once the container's layout height is actually > 50px.
+  // Uses a continuous ResizeObserver (no disconnect) so if the container
+  // briefly collapses during skeleton→pet transition, the orbs hide instantly
+  // rather than snapping to a horizontal line at y=0.
+  // Threshold of 150px: skeleton is ~88px, a rendered pet is 300px+.
   const petContainerRef = useRef<HTMLDivElement>(null);
   const [orbsReady, setOrbsReady] = useState(false);
   useEffect(() => {
@@ -75,10 +75,7 @@ export default function HomePage({ user }: HomePageProps) {
     if (!el) return;
     const obs = new ResizeObserver(entries => {
       for (const entry of entries) {
-        if (entry.contentRect.height > 50) {
-          setOrbsReady(true);
-          obs.disconnect();
-        }
+        setOrbsReady(entry.contentRect.height > 150);
       }
     });
     obs.observe(el);

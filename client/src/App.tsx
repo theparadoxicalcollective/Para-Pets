@@ -63,6 +63,43 @@ function AppRouter() {
     localStorage.getItem("para_pets_just_registered") === "true"
   );
 
+  // After auth resolves for a logged-in user, fetch inventory and preload the
+  // active pet image before revealing the app.  This prevents any flash of
+  // the orbs in a horizontal line or the egg image before the pet loads.
+  const [isPreloaded, setIsPreloaded] = useState(false);
+  useEffect(() => {
+    if (!user || isPreloaded) return;
+
+    // Hard cap: never block the player for more than 4 seconds total.
+    const timeout = setTimeout(() => setIsPreloaded(true), 4000);
+
+    fetch("/api/inventory", { credentials: "include" })
+      .then(res => res.json())
+      .then((items: any[]) => {
+        // Seed the TanStack Query cache so HomePage's own query is instant.
+        queryClient.setQueryData(["/api/inventory"], items);
+
+        const activePetItem = items.find(
+          (i: any) => i.shopItemId === user.activePetId && i.type === "pet"
+        );
+        const imageUrl = activePetItem?.hatchedImageUrl || activePetItem?.imageUrl;
+
+        if (imageUrl) {
+          const img = new Image();
+          img.onload  = () => { clearTimeout(timeout); setIsPreloaded(true); };
+          img.onerror = () => { clearTimeout(timeout); setIsPreloaded(true); };
+          img.src = imageUrl;
+        } else {
+          clearTimeout(timeout);
+          setIsPreloaded(true);
+        }
+      })
+      .catch(() => { clearTimeout(timeout); setIsPreloaded(true); });
+
+    return () => clearTimeout(timeout);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
   useEffect(() => {
     if (user && localStorage.getItem("para_pets_just_registered") === "true") {
       setShowWelcome(true);
@@ -77,14 +114,21 @@ function AppRouter() {
     queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
   };
 
-  if (isLoading) {
+  // Show loading screen while: auth is in-flight, OR logged-in user's assets
+  // haven't been preloaded yet.
+  const showingLoadScreen = isLoading || (!!user && !isPreloaded);
+
+  if (showingLoadScreen) {
     return (
-      <div className="h-[100dvh] bg-black flex items-center justify-center overflow-hidden">
-        <div className="text-center">
-          <div className="text-4xl font-fantasy text-[#7fbfb0] animate-pulse mb-4">
+      <div className="h-[100dvh] bg-[#07110a] flex items-center justify-center overflow-hidden">
+        <div className="text-center flex flex-col items-center gap-4">
+          <div className="text-4xl font-fantasy text-[#7fbfb0] animate-pulse tracking-widest">
             Para Pets
           </div>
-          <div className="w-48 h-1.5 bg-gray-800 rounded-full mx-auto overflow-hidden">
+          <div className="text-xs text-[#4a7a6a] tracking-[0.25em] uppercase font-sans">
+            Loading…
+          </div>
+          <div className="w-48 h-1.5 bg-[#0d2018] rounded-full overflow-hidden">
             <div className="h-full bg-[#1a6b55] rounded-full animate-loading-bar" />
           </div>
         </div>
