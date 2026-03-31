@@ -241,8 +241,8 @@ export default function HomePage({ user }: HomePageProps) {
                   key={i}
                   src={starImg}
                   alt="star"
-                  width={52}
-                  height={52}
+                  width={64}
+                  height={64}
                   style={{
                     transform: `translateY(${curveY}px)`,
                     margin: "0 2px",
@@ -250,8 +250,8 @@ export default function HomePage({ user }: HomePageProps) {
                     zIndex: 1,
                     opacity: filled ? 1 : 0.15,
                     filter: filled
-                      ? "drop-shadow(0 0 8px rgba(240,192,64,0.9)) drop-shadow(0 0 18px rgba(240,192,64,0.5))"
-                      : "grayscale(1)",
+                      ? "drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000) drop-shadow(0 0 8px rgba(240,192,64,0.9)) drop-shadow(0 0 18px rgba(240,192,64,0.5))"
+                      : "grayscale(1) drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000)",
                   }}
                 />
               );
