@@ -2898,6 +2898,7 @@ function WorldRoamingPet({
                 petTemplateId={pet.petTemplateId}
                 mode="idle"
                 size={sz}
+                className="pet-idle-squish"
                 style={{
                   pointerEvents: "none",
                   overflow: "visible",
@@ -2908,6 +2909,7 @@ function WorldRoamingPet({
                 src={petImg}
                 alt={displayName}
                 draggable={false}
+                className="pet-idle-squish"
                 style={{
                   width: sz, height: sz,
                   objectFit: "contain",
