@@ -131,6 +131,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const [newDecorName,     setNewDecorName]     = useState("");
   const [newDecorImage,    setNewDecorImage]    = useState<string | null>(null);
   const [showFriendsPanel, setShowFriendsPanel] = useState(false);
+  const [acceptedNotifMessages, setAcceptedNotifMessages] = useState<string[]>([]);
 
   // ── location state ─────────────────────────────────────────────────────────
   const [activeLocId,       setActiveLocId]       = useState<string | null>(null);
@@ -222,6 +223,26 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const { data: friendRequestCount = 0 } = useQuery<number>({
     queryKey: ["/api/friends/requests/count"],
     select: (d: any) => (typeof d === "number" ? d : d?.count ?? 0),
+  });
+
+  const { data: unreadFriendNotifs = [] } = useQuery<{ id: string; type: string; message: string }[]>({
+    queryKey: ["/api/notifications/unread"],
+    queryFn: async () => {
+      const res = await fetch("/api/notifications/unread", { credentials: "include" });
+      if (!res.ok) return [];
+      const all = await res.json();
+      return (all as any[]).filter((n: any) => n.type === "friend_accepted");
+    },
+    refetchInterval: 30000,
+    staleTime: 15000,
+  });
+
+  const markNotifsReadMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/notifications/mark-read", {});
+      if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/notifications/unread"] }),
   });
 
   const acceptRequestMutation = useMutation({
@@ -1358,7 +1379,14 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
               <div style={{ position: "relative" }}>
                 <button
                   data-testid="button-friends-panel"
-                  onClick={() => setShowFriendsPanel(p => !p)}
+                  onClick={() => {
+                    if (unreadFriendNotifs.length > 0 && !showFriendsPanel) {
+                      setAcceptedNotifMessages(unreadFriendNotifs.map(n => n.message));
+                      markNotifsReadMutation.mutate();
+                    } else {
+                      setShowFriendsPanel(p => !p);
+                    }
+                  }}
                   className="transition-transform active:scale-90"
                   style={{
                     width: 44, height: 36, borderRadius: 10,
@@ -1377,6 +1405,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                     <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                   </svg>
                 </button>
+                {/* Red badge — incoming friend requests */}
                 {friendRequestCount > 0 && !showFriendsPanel && (
                   <div style={{
                     position: "absolute", top: -4, right: -4,
@@ -1389,6 +1418,22 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                     pointerEvents: "none",
                   }}>
                     {friendRequestCount > 9 ? "9+" : friendRequestCount}
+                  </div>
+                )}
+                {/* Green badge — accepted friend request notifications */}
+                {unreadFriendNotifs.length > 0 && !showFriendsPanel && (
+                  <div style={{
+                    position: "absolute", top: -4, left: -4,
+                    width: 15, height: 15, borderRadius: "50%",
+                    background: "radial-gradient(circle, #4ade80 0%, #16a34a 100%)",
+                    border: "1.5px solid rgba(4,10,6,0.9)",
+                    boxShadow: "0 0 6px rgba(74,222,128,0.7)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 10, fontWeight: "bold", color: "#fff",
+                    pointerEvents: "none",
+                    fontFamily: "serif",
+                  }}>
+                    !
                   </div>
                 )}
               </div>
@@ -1489,6 +1534,85 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
         </div>
 
       </div>
+
+      {/* ── Friend Accepted Notification Modal ────────────────────────────── */}
+      {acceptedNotifMessages.length > 0 && (
+        <div
+          className="absolute pointer-events-auto"
+          style={{
+            inset: 0, zIndex: 80,
+            background: "rgba(0,0,0,0.72)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: "0 24px",
+          }}
+          onClick={() => {
+            setAcceptedNotifMessages([]);
+            setShowFriendsPanel(true);
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: "linear-gradient(160deg, rgba(6,20,10,0.98) 0%, rgba(12,35,18,0.98) 100%)",
+              border: "1.5px solid rgba(74,222,128,0.45)",
+              borderRadius: 18,
+              boxShadow: "0 0 40px rgba(74,222,128,0.18), 0 8px 40px rgba(0,0,0,0.8)",
+              padding: "28px 24px 22px",
+              width: "100%", maxWidth: 340,
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 14,
+            }}
+          >
+            <div style={{
+              width: 48, height: 48, borderRadius: "50%",
+              background: "radial-gradient(circle, #4ade80 0%, #16a34a 100%)",
+              boxShadow: "0 0 20px rgba(74,222,128,0.5)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 26, fontWeight: "bold", color: "#fff",
+              fontFamily: "serif",
+            }}>
+              !
+            </div>
+            <p className="font-fantasy text-center" style={{ color: "#4ade80", fontSize: 13, letterSpacing: "0.04em", marginBottom: 2 }}>
+              Friend Update
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%" }}>
+              {acceptedNotifMessages.map((msg, i) => (
+                <p
+                  key={i}
+                  className="font-fantasy text-center"
+                  style={{ color: "#c8f5d8", fontSize: 13, lineHeight: 1.5 }}
+                  data-testid={`text-friend-accepted-notif-${i}`}
+                >
+                  {msg}
+                </p>
+              ))}
+            </div>
+            <button
+              data-testid="button-close-friend-notif"
+              onClick={() => {
+                setAcceptedNotifMessages([]);
+                setShowFriendsPanel(true);
+              }}
+              className="transition-transform active:scale-95"
+              style={{
+                marginTop: 6,
+                padding: "9px 32px",
+                borderRadius: 10,
+                background: "linear-gradient(135deg, rgba(74,222,128,0.18) 0%, rgba(22,163,74,0.22) 100%)",
+                border: "1.5px solid rgba(74,222,128,0.5)",
+                color: "#4ade80",
+                fontFamily: "Cinzel, serif",
+                fontSize: 13,
+                letterSpacing: "0.06em",
+                cursor: "pointer",
+                boxShadow: "0 0 12px rgba(74,222,128,0.2)",
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Friends Panel ─────────────────────────────────────────────────── */}
       {showFriendsPanel && (
