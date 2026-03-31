@@ -1080,7 +1080,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       {/* Bottom inventory bar */}
       <div
         className="absolute bottom-0 left-0 right-0 flex justify-center gap-4 pb-5 pt-3"
-        style={{ zIndex: openInterior ? 65 : 15, pointerEvents: "auto", background: "linear-gradient(0deg, rgba(0,0,0,0.55) 0%, transparent 100%)" }}
+        style={{ zIndex: openInterior ? 65 : 97, pointerEvents: "auto", background: "linear-gradient(0deg, rgba(0,0,0,0.55) 0%, transparent 100%)" }}
         onPointerDown={(e) => e.stopPropagation()}
       >
         {[
@@ -1121,11 +1121,11 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         })}
       </div>
 
-      {/* Inventory overlay panel */}
+      {/* Inventory overlay panel — z-96 covers the FloatingNav (z-95) */}
       {openInventory && (
         <div
           className="absolute inset-0 flex flex-col justify-end"
-          style={{ zIndex: openInterior ? 70 : 25, pointerEvents: "none", visibility: (isDraggingDecor || isDraggingPet) ? "hidden" : "visible" }}
+          style={{ zIndex: openInterior ? 70 : 96, pointerEvents: "none", visibility: (isDraggingDecor || isDraggingPet) ? "hidden" : "visible" }}
         >
           <div className="absolute inset-0" style={{ pointerEvents: "auto" }} onPointerDown={(e) => { e.stopPropagation(); setOpenInventory(null); }} />
           <div
