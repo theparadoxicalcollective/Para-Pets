@@ -451,6 +451,10 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   // Outdoor pet repositioning drag
   const petDragRef = useRef<{ inventoryId: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number; moved: boolean } | null>(null);
   const [petDragLive, setPetDragLive] = useState<{ inventoryId: string; xPct: number; yPct: number } | null>(null);
+  // Popup for outdoor pet tap
+  const [outdoorPopupPet, setOutdoorPopupPet] = useState<HousePet | null>(null);
+  // Hold-to-drag timer for the pet inventory list
+  const petHoldRef = useRef<{ pet: HousePet; pid: number; startX: number; startY: number; el: HTMLElement; timer: ReturnType<typeof setTimeout> } | null>(null);
 
   // ── Queries ────────────────────────────────────────────────────────────────
   const { data: activeBundle, isLoading: bundleLoading, refetch: refetchActiveBundle } = useQuery<ActiveBundle | null>({
@@ -789,14 +793,21 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     const drag = petDragRef.current;
     petDragRef.current = null;
     setPetDragLive(null);
-    if (!drag?.moved || imgWidth <= 0) return;
+    if (!drag) return;
+    if (!drag.moved) {
+      // Tap with no movement — show the popup for this pet
+      const pet = pets.find(p => p.inventoryId === drag.inventoryId);
+      if (pet) setOutdoorPopupPet(pet);
+      return;
+    }
+    if (imgWidth <= 0) return;
     const maxYPct = containerH > 0 ? Math.min(0.88, (containerH - 115) / containerH) : 0.82;
     updatePetPositionMutation.mutate({
       inventoryId: drag.inventoryId,
       xPct: Math.max(0.05, Math.min(0.95, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidth)),
       yPct: Math.max(0.05, Math.min(maxYPct, drag.startYPct + (e.clientY - drag.startPointerY) / containerH)),
     });
-  }, [imgWidth, containerH]);
+  }, [imgWidth, containerH, pets]);
 
   // ── Inventory drag starters ────────────────────────────────────────────────
   const handleInvDragStart = useCallback((e: React.PointerEvent, decorItemId: string, imageUrl: string | null) => {
@@ -810,6 +821,56 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     containerRef.current?.setPointerCapture(e.pointerId);
     petInvDragRef.current = { pet, ghostX: e.clientX, ghostY: e.clientY, startX: e.clientX, startY: e.clientY, isDragging: false, pid: e.pointerId };
   }, []);
+
+  // Hold-to-drag for the pet inventory scroll list.
+  // Does NOT capture the pointer immediately so the browser can handle
+  // horizontal scroll. After 350ms without significant movement the hold
+  // fires: we capture the pointer, activate the ghost, and begin dragging.
+  const handlePetInvPointerDown = useCallback((e: React.PointerEvent, pet: HousePet) => {
+    e.stopPropagation();
+    const el = e.currentTarget as HTMLElement;
+    const pid = e.pointerId;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    petHoldRef.current = {
+      pet, pid, startX, startY, el,
+      timer: setTimeout(() => {
+        // Hold confirmed: steal pointer from browser scroll and begin drag
+        el.setPointerCapture(pid);
+        petInvDragRef.current = { pet, ghostX: startX, ghostY: startY, startX, startY, isDragging: true, pid };
+        setPetInvDragState({ pet, ghostX: startX, ghostY: startY });
+        setIsDraggingPet(true);
+        petHoldRef.current = null;
+      }, 350),
+    };
+  }, []);
+
+  const handlePetInvPointerMove = useCallback((e: React.PointerEvent) => {
+    const hold = petHoldRef.current;
+    if (hold && hold.pid === e.pointerId) {
+      // Cancel hold if user moves more than 10px (scroll intent)
+      if (Math.hypot(e.clientX - hold.startX, e.clientY - hold.startY) > 10) {
+        clearTimeout(hold.timer);
+        petHoldRef.current = null;
+        return;
+      }
+    }
+    // Update ghost position once drag is active
+    const drag = petInvDragRef.current;
+    if (drag && drag.pid === e.pointerId) {
+      drag.ghostX = e.clientX; drag.ghostY = e.clientY;
+      setPetInvDragState({ pet: drag.pet, ghostX: e.clientX, ghostY: e.clientY });
+    }
+  }, []);
+
+  const handlePetInvPointerUp = useCallback((e: React.PointerEvent) => {
+    const hold = petHoldRef.current;
+    if (hold && hold.pid === e.pointerId) {
+      clearTimeout(hold.timer);
+      petHoldRef.current = null;
+    }
+    handlePointerUp(e);
+  }, [handlePointerUp]);
 
   const outdoorPets = pets.filter(p => p.posLeft !== null && (p.location === "outside" || p.location === null));
 
@@ -898,7 +959,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           <div
             key={pet.inventoryId}
             className="absolute"
-            style={{ zIndex: isDraggingThis ? 9 : 5, left, top, width: cfg.size, height: cfg.size, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
+            style={{ zIndex: isDraggingThis ? 30 : 12, left, top, width: cfg.size, height: cfg.size, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
           >
             {pet.petTemplateId ? (
               <PetAnimator
@@ -929,6 +990,37 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           </div>
         );
       })}
+
+      {/* Outdoor pet tap popup — same pattern as indoor InteriorScene popup */}
+      {outdoorPopupPet && (
+        <div
+          className="absolute inset-0 flex items-center justify-center"
+          style={{ zIndex: 40, background: "rgba(0,0,0,0.45)" }}
+          onPointerDown={e => { e.stopPropagation(); setOutdoorPopupPet(null); }}
+        >
+          <div
+            className="flex flex-col items-center gap-3 rounded-2xl px-5 py-4"
+            style={{ background: "rgba(15,10,5,0.95)", border: "1px solid rgba(255,215,0,0.25)", boxShadow: "0 4px 24px rgba(0,0,0,0.7)" }}
+            onPointerDown={e => e.stopPropagation()}
+          >
+            <div style={{ fontFamily: "Cinzel, serif", color: "#ffd700", fontSize: 14, fontWeight: 700 }}>
+              {outdoorPopupPet.nickname ?? outdoorPopupPet.name}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setOutdoorPopupPet(null)}
+                className="rounded-xl px-4 py-1.5 text-xs font-bold"
+                style={{ fontFamily: "Cinzel, serif", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.6)" }}
+              >Cancel</button>
+              <button
+                onClick={() => { removePetFromSceneMutation.mutate(outdoorPopupPet.inventoryId); setOutdoorPopupPet(null); }}
+                className="rounded-xl px-4 py-1.5 text-xs font-bold"
+                style={{ fontFamily: "Cinzel, serif", background: "rgba(255,100,80,0.18)", border: "1px solid rgba(255,100,80,0.45)", color: "rgba(255,160,140,0.95)" }}
+              >Return to Inventory</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Outdoor placed decor layer */}
       {imgWidth > 0 && placedDecor.map((item) => {
@@ -1192,24 +1284,18 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                   <p className="text-white/40 text-xs text-center" style={{ fontFamily: "Cinzel, serif" }}>Hold & drag a pet onto your home</p>
                   <div
                     className="flex gap-2 overflow-x-auto"
-                    style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}
+                    style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch", touchAction: "pan-x" } as React.CSSProperties}
                   >
                     {unplacedPets.map((pet) => (
                       <div
                         key={pet.inventoryId}
                         data-testid={`pet-inv-item-${pet.inventoryId}`}
                         className="flex flex-col items-center gap-1"
-                        style={{ flexShrink: 0, width: 64, touchAction: "none", cursor: "grab" }}
-                        onPointerDown={(e) => handlePetInvDragStart(e, pet)}
-                        onPointerMove={(e) => {
-                          const drag = petInvDragRef.current;
-                          if (!drag || drag.pid !== e.pointerId) return;
-                          drag.ghostX = e.clientX; drag.ghostY = e.clientY;
-                          if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > 8) drag.isDragging = true;
-                          if (drag.isDragging) { setPetInvDragState({ pet: drag.pet, ghostX: e.clientX, ghostY: e.clientY }); setIsDraggingPet(true); }
-                        }}
-                        onPointerUp={handlePointerUp}
-                        onPointerCancel={handlePointerUp}
+                        style={{ flexShrink: 0, width: 64, touchAction: "pan-x", cursor: "grab" }}
+                        onPointerDown={(e) => handlePetInvPointerDown(e, pet)}
+                        onPointerMove={handlePetInvPointerMove}
+                        onPointerUp={handlePetInvPointerUp}
+                        onPointerCancel={handlePetInvPointerUp}
                       >
                         <div className="rounded-xl overflow-hidden" style={{ width: 64, height: 64, background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,215,0,0.18)" }}>
                           <img
