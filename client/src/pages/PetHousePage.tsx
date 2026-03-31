@@ -331,9 +331,9 @@ function InteriorViewer({
 function randomGroundConfig(index: number) {
   const seed = index * 137.508;
   const pseudo = (n: number) => ((Math.sin(n) * 10000) % 1 + 1) % 1;
-  const size = 280 + pseudo(seed + 2) * 80;
+  const size = 252 + pseudo(seed + 2) * 72;    // 252–324px (10% smaller than before)
   const centerX = 20 + pseudo(seed) * 60;      // 20–80% horizontally
-  const centerY = 62 + pseudo(seed + 1) * 22;  // 62–84% vertically
+  const centerY = 65 + pseudo(seed + 1) * 13;  // 65–78% vertically (tighter ground band)
   return { size, centerX, centerY };
 }
 
