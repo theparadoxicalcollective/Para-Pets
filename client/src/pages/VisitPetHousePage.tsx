@@ -133,11 +133,13 @@ function InteriorViewerVisit({
   }, [aspect]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    e.stopPropagation();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     panStartRef.current = { startX: e.clientX, startPanX: panX, pid: e.pointerId };
   }, [panX]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    e.stopPropagation();
     const drag = panStartRef.current;
     if (!drag || drag.pid !== e.pointerId) return;
     const container = containerRef.current;
@@ -150,7 +152,10 @@ function InteriorViewerVisit({
     setPanX(newPanX);
   }, []);
 
-  const handlePointerUp = useCallback(() => { panStartRef.current = null; }, []);
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    e.stopPropagation();
+    panStartRef.current = null;
+  }, []);
 
   return (
     <div

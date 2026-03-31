@@ -207,12 +207,14 @@ function InteriorViewer({
   }, [aspect]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    e.stopPropagation();
     if (selectedItemId) setSelectedItemId(null);
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     panStartRef.current = { startX: e.clientX, startPanX: panX, pid: e.pointerId };
   }, [panX, selectedItemId]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    e.stopPropagation();
     const drag = panStartRef.current;
     if (!drag || drag.pid !== e.pointerId) return;
     const container = containerRef.current;
@@ -226,7 +228,10 @@ function InteriorViewer({
     panStateRef.current = { panX: newPanX, imgWidth: imgWidthRef.current, containerH: containerHRef.current };
   }, []);
 
-  const handlePointerUp = useCallback(() => { panStartRef.current = null; }, []);
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    e.stopPropagation();
+    panStartRef.current = null;
+  }, []);
 
   const handleItemDragStart = useCallback((e: React.PointerEvent, item: PlacedDecorItem) => {
     e.stopPropagation();
