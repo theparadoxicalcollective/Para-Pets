@@ -4,7 +4,6 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
-import PetAnimator from "@/components/PetAnimator";
 import homeInventoryIcon from "@assets/icon_home_inventory.png";
 import decorInventoryIcon from "@assets/icon_decor_inventory.png";
 
@@ -1022,16 +1021,12 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               className={isDraggingThis ? undefined : "pet-idle-squish"}
               style={{ width: "100%", height: "100%" }}
             >
-              {pet.petTemplateId ? (
-                <PetAnimator petTemplateId={pet.petTemplateId} mode="idle" size={cfg.size} />
-              ) : (
-                <img
-                  src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
-                  alt={pet.nickname ?? pet.name}
-                  draggable={false}
-                  style={{ width: "100%", height: "100%", objectFit: "contain" }}
-                />
-              )}
+              <img
+                src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
+                alt={pet.nickname ?? pet.name}
+                draggable={false}
+                style={{ width: "100%", height: "100%", objectFit: "contain" }}
+              />
             </div>
             {/* Circular hit zone targeting the pet body — avoids transparent edges */}
             <div
