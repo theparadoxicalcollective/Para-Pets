@@ -523,7 +523,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
                 {ownedBundles.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-10 gap-3">
-                    <span className="text-4xl">🏡</span>
+                    <img src={homeInventoryIcon} alt="" className="w-14 h-14 object-contain opacity-50" />
                     <p className="text-white/40 text-sm text-center">No house bundles owned yet.{"\n"}Visit a shop to purchase one!</p>
                   </div>
                 ) : (
@@ -547,9 +547,11 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                           />
                         ) : (
                           <div
-                            className="w-14 h-14 rounded-xl flex-shrink-0 flex items-center justify-center text-2xl"
+                            className="w-14 h-14 rounded-xl flex-shrink-0 flex items-center justify-center"
                             style={{ background: "rgba(255,255,255,0.07)" }}
-                          >🏡</div>
+                          >
+                            <img src={homeInventoryIcon} alt="" className="w-9 h-9 object-contain opacity-70" />
+                          </div>
                         )}
                         <div className="flex flex-col gap-0.5 flex-1 min-w-0">
                           <span className="text-white font-bold text-sm truncate">{bundle.name}</span>
@@ -575,7 +577,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-10 gap-3">
-                <span className="text-4xl">🪴</span>
+                <img src={decorInventoryIcon} alt="" className="w-14 h-14 object-contain opacity-50" />
                 <p className="text-white/40 text-sm text-center">
                   No decor items yet.{"\n"}Visit the shop to find some!
                 </p>
