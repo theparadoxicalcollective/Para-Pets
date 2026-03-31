@@ -509,11 +509,11 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             </div>
 
             {openInventory === "home" ? (
-              <div className="flex flex-col gap-3">
-                {/* Active bundle info */}
+              <div className="flex flex-col gap-4">
+                {/* Active bundle banner */}
                 {activeBundle && (
                   <div
-                    className="rounded-2xl p-3 flex items-center gap-3 mb-1"
+                    className="rounded-2xl p-3 flex items-center gap-3"
                     style={{ background: "rgba(120,220,80,0.12)", border: "1.5px solid rgba(120,220,80,0.4)" }}
                   >
                     <div className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />
@@ -527,52 +527,53 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                     <p className="text-white/40 text-sm text-center">No house bundles owned yet.{"\n"}Visit a shop to purchase one!</p>
                   </div>
                 ) : (
-                  ownedBundles.map(({ bundleId, bundle }) => {
-                    const isActive = activeBundle?.id === bundleId;
-                    return (
-                      <div
-                        key={bundleId}
-                        data-testid={`bundle-item-${bundleId}`}
-                        className="rounded-2xl p-3 flex items-center gap-3"
-                        style={{
-                          background: isActive ? "rgba(120,220,80,0.1)" : "rgba(255,255,255,0.05)",
-                          border: isActive ? "1.5px solid rgba(120,220,80,0.35)" : "1px solid rgba(255,255,255,0.1)",
-                        }}
-                      >
-                        {bundle.shopImageUrl ? (
-                          <img
-                            src={bundle.shopImageUrl}
-                            alt={bundle.name}
-                            className="w-14 h-14 rounded-xl object-cover flex-shrink-0"
-                          />
-                        ) : (
+                  <div className="grid grid-cols-3 gap-3">
+                    {ownedBundles.map(({ bundleId, bundle }) => {
+                      const isActive = activeBundle?.id === bundleId;
+                      return (
+                        <button
+                          key={bundleId}
+                          data-testid={`bundle-item-${bundleId}`}
+                          onClick={() => !isActive && activateMutation.mutate(bundleId)}
+                          disabled={activateMutation.isPending}
+                          className="flex flex-col items-center gap-1.5 transition-opacity disabled:opacity-60"
+                          style={{ background: "none", border: "none", cursor: isActive ? "default" : "pointer" }}
+                        >
                           <div
-                            className="w-14 h-14 rounded-xl flex-shrink-0 flex items-center justify-center"
-                            style={{ background: "rgba(255,255,255,0.07)" }}
+                            className="w-full rounded-2xl overflow-hidden relative"
+                            style={{
+                              aspectRatio: "1 / 1",
+                              border: isActive ? "2.5px solid rgba(120,220,80,0.85)" : "1.5px solid rgba(255,255,255,0.1)",
+                              boxShadow: isActive ? "0 0 14px rgba(120,220,80,0.35)" : "none",
+                              background: "rgba(255,255,255,0.04)",
+                            }}
                           >
-                            <img src={homeInventoryIcon} alt="" className="w-9 h-9 object-contain opacity-70" />
+                            {bundle.shopImageUrl ? (
+                              <img src={bundle.shopImageUrl} alt={bundle.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <img src={homeInventoryIcon} alt="" className="w-10 h-10 object-contain opacity-60" />
+                              </div>
+                            )}
+                            {isActive && (
+                              <div
+                                className="absolute bottom-1.5 right-1.5 w-5 h-5 rounded-full flex items-center justify-center"
+                                style={{ background: "rgba(34,197,94,0.9)" }}
+                              >
+                                <span style={{ color: "#fff", fontSize: 9, fontWeight: 700, lineHeight: 1 }}>✓</span>
+                              </div>
+                            )}
                           </div>
-                        )}
-                        <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-                          <span className="text-white font-bold text-sm truncate">{bundle.name}</span>
-                          <span className="text-green-400 text-xs font-semibold">Owned</span>
-                        </div>
-                        {isActive ? (
-                          <span className="text-green-400 text-xs font-bold flex-shrink-0">✓ Active</span>
-                        ) : (
-                          <button
-                            data-testid={`button-activate-bundle-${bundleId}`}
-                            onClick={() => activateMutation.mutate(bundleId)}
-                            disabled={activateMutation.isPending}
-                            className="flex-shrink-0 rounded-xl px-3 py-1.5 text-xs font-bold transition-opacity disabled:opacity-50"
-                            style={{ background: "rgba(120,220,80,0.25)", color: "#86efac", border: "1px solid rgba(120,220,80,0.4)" }}
+                          <span
+                            className="w-full text-center leading-tight px-0.5 truncate"
+                            style={{ color: isActive ? "#86efac" : "rgba(255,255,255,0.75)", fontSize: 10, fontFamily: "Cinzel, serif", fontWeight: 600 }}
                           >
-                            Activate
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })
+                            {bundle.name}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             ) : (
