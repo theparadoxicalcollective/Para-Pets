@@ -226,7 +226,7 @@ function InteriorViewer({ url, onClose }: { url: string; onClose: () => void }) 
 function randomGroundConfig(index: number) {
   const seed = index * 137.508;
   const pseudo = (n: number) => ((Math.sin(n) * 10000) % 1 + 1) % 1;
-  const size = 140 + pseudo(seed + 2) * 40;
+  const size = 280 + pseudo(seed + 2) * 80;
   // Center position as percentages — pet is anchored at its center via calc()
   // so these are the safe center ranges (keeps even the largest pet inside the container)
   const centerX = 20 + pseudo(seed) * 60;      // 20–80% horizontally
