@@ -126,8 +126,10 @@ const ANIMATION_STYLES = `
     0%, 100% { opacity: 1; }
   }
   @keyframes petIdleHead {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-0.4px); }
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    25%       { transform: translateY(-3px) rotate(-1.5deg); }
+    50%       { transform: translateY(-4px) rotate(0deg); }
+    75%       { transform: translateY(-3px) rotate(1.5deg); }
   }
   @keyframes petIdleLeftEar {
     0%, 100% { transform: rotate(0deg); }
