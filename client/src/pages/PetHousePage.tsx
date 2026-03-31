@@ -360,10 +360,11 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             return (
               <div
                 key={b.id}
-                className="absolute"
+                className="absolute flex flex-col items-center"
                 style={{
                   left: `${b.posX}%`, top: `${b.posY}%`,
                   transform: "translate(-50%, -100%)",
+                  minWidth: displayW,
                   pointerEvents: hasInterior ? "auto" : "none",
                   cursor: hasInterior ? "pointer" : "default",
                 }}
@@ -375,6 +376,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                     width: displayW, height: displayW, objectFit: "contain",
                     filter: "drop-shadow(0 0 10px rgba(255,210,80,0.3)) drop-shadow(0 3px 6px rgba(0,0,0,0.55))",
                     transform: b.flippedX ? "scaleX(-1)" : undefined,
+                    flexShrink: 0,
                   }}
                 />
               </div>
