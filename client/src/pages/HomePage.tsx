@@ -261,6 +261,63 @@ export default function HomePage({ user }: HomePageProps) {
 
         <div className="flex-1 flex flex-col items-center justify-center px-0 py-0 min-h-0">
           <div className="relative flex items-center justify-center w-full max-w-[520px] md:max-w-[680px] lg:max-w-[800px]">
+
+            {/* 4-star & 5-star magical sparkle orbs */}
+            {activePet && (activePet.rarity || 0) >= 4 && (() => {
+              const is5 = (activePet.rarity || 0) >= 5;
+              const orbs4 = [
+                { left: "7%",  top: "55%", size: 6,  color: "#f0c040", anim: "sparkOrb0", dur: "3.4s", delay: "0s"    },
+                { left: "14%", top: "72%", size: 4,  color: "#fffde0", anim: "sparkOrb1", dur: "4.2s", delay: "0.8s"  },
+                { right: "9%", top: "50%", size: 7,  color: "#f0c040", anim: "sparkOrb2", dur: "3.8s", delay: "1.5s"  },
+                { right:"17%", top: "70%", size: 5,  color: "#fffde0", anim: "sparkOrb3", dur: "5.1s", delay: "0.3s"  },
+                { left: "28%", top: "25%", size: 4,  color: "#f0c040", anim: "sparkOrb4", dur: "4.6s", delay: "2.0s"  },
+                { right:"24%", top: "28%", size: 5,  color: "#fffde0", anim: "sparkOrb5", dur: "4.0s", delay: "1.1s"  },
+              ];
+              const orbs5extra = [
+                { left: "4%",  top: "40%", size: 10, color: "#c8a0ff", anim: "sparkOrb6", dur: "4.4s", delay: "0.6s"  },
+                { right: "6%", top: "42%", size: 9,  color: "#80e8ff", anim: "sparkOrb7", dur: "5.3s", delay: "1.9s"  },
+                { left: "20%", top: "80%", size: 7,  color: "#c8a0ff", anim: "sparkOrb0", dur: "3.6s", delay: "2.5s"  },
+                { right:"19%", top: "78%", size: 8,  color: "#80e8ff", anim: "sparkOrb1", dur: "4.9s", delay: "0.1s"  },
+              ];
+              const allOrbs = is5 ? [...orbs4, ...orbs5extra] : orbs4;
+              return (
+                <>
+                  {/* Soft aura behind the pet */}
+                  <div style={{
+                    position: "absolute",
+                    inset: 0,
+                    borderRadius: "50%",
+                    background: is5
+                      ? "radial-gradient(ellipse at center, rgba(180,120,255,0.12) 0%, rgba(240,192,64,0.08) 40%, transparent 70%)"
+                      : "radial-gradient(ellipse at center, rgba(240,192,64,0.1) 0%, transparent 60%)",
+                    animation: is5 ? "sparkAura5 4s ease-in-out infinite" : "sparkAura 4.5s ease-in-out infinite",
+                    pointerEvents: "none",
+                    zIndex: 0,
+                  }} />
+                  {/* Sparkle light balls */}
+                  {allOrbs.map((orb, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        position: "absolute",
+                        left: (orb as any).left,
+                        right: (orb as any).right,
+                        top: orb.top,
+                        width: orb.size,
+                        height: orb.size,
+                        borderRadius: "50%",
+                        background: `radial-gradient(circle, white 0%, ${orb.color} 50%, transparent 100%)`,
+                        boxShadow: `0 0 ${orb.size * 2}px ${orb.size}px ${orb.color}88`,
+                        animation: `${orb.anim} ${orb.dur} ease-in-out infinite ${orb.delay}`,
+                        pointerEvents: "none",
+                        zIndex: 2,
+                      }}
+                    />
+                  ))}
+                </>
+              );
+            })()}
+
             <div
               className="w-full rounded-xl flex flex-col items-center justify-center"
               style={{

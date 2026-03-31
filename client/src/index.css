@@ -1202,3 +1202,68 @@ img[data-interactive], button img, a img {
   from { opacity: 0; transform: scale(1.015); }
   to   { opacity: 1; transform: scale(1); }
 }
+
+@keyframes sparkOrb0 {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0; }
+  20% { opacity: 0.9; }
+  55% { transform: translate(-8px, -45px) scale(1.2); opacity: 0.6; }
+  85% { opacity: 0.1; }
+  95% { transform: translate(4px, -80px) scale(0.5); opacity: 0; }
+}
+@keyframes sparkOrb1 {
+  0%, 100% { transform: translate(0, 0) scale(0.8); opacity: 0; }
+  15% { opacity: 0.8; }
+  48% { transform: translate(10px, -38px) scale(1.15); opacity: 0.55; }
+  78% { opacity: 0.12; }
+  90% { transform: translate(-5px, -70px) scale(0.45); opacity: 0; }
+}
+@keyframes sparkOrb2 {
+  0%, 100% { transform: translate(0, 0) scale(1.1); opacity: 0; }
+  25% { opacity: 0.85; }
+  55% { transform: translate(7px, -50px) scale(0.9); opacity: 0.5; }
+  85% { opacity: 0.1; }
+  96% { transform: translate(-3px, -82px) scale(0.4); opacity: 0; }
+}
+@keyframes sparkOrb3 {
+  0%, 100% { transform: translate(0, 0) scale(0.9); opacity: 0; }
+  12% { opacity: 0.7; }
+  42% { transform: translate(-12px, -32px) scale(1.3); opacity: 0.65; }
+  72% { opacity: 0.18; }
+  88% { transform: translate(6px, -65px) scale(0.5); opacity: 0; }
+}
+@keyframes sparkOrb4 {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0; }
+  28% { opacity: 0.75; }
+  58% { transform: translate(9px, -40px) scale(1.1); opacity: 0.5; }
+  86% { opacity: 0.1; }
+  96% { transform: translate(-4px, -72px) scale(0.55); opacity: 0; }
+}
+@keyframes sparkOrb5 {
+  0%, 100% { transform: translate(0, 0) scale(1.05); opacity: 0; }
+  18% { opacity: 0.7; }
+  50% { transform: translate(-7px, -44px) scale(1); opacity: 0.5; }
+  80% { opacity: 0.12; }
+  93% { transform: translate(5px, -76px) scale(0.4); opacity: 0; }
+}
+@keyframes sparkOrb6 {
+  0%, 100% { transform: translate(0, 0) scale(0.95); opacity: 0; }
+  20% { opacity: 0.95; }
+  50% { transform: translate(12px, -52px) scale(1.25); opacity: 0.7; }
+  80% { opacity: 0.18; }
+  94% { transform: translate(-6px, -85px) scale(0.45); opacity: 0; }
+}
+@keyframes sparkOrb7 {
+  0%, 100% { transform: translate(0, 0) scale(1.1); opacity: 0; }
+  14% { opacity: 0.9; }
+  44% { transform: translate(-10px, -46px) scale(0.85); opacity: 0.72; }
+  74% { opacity: 0.15; }
+  91% { transform: translate(7px, -78px) scale(0.42); opacity: 0; }
+}
+@keyframes sparkAura {
+  0%, 100% { transform: scale(1); opacity: 0.06; }
+  50% { transform: scale(1.1); opacity: 0.16; }
+}
+@keyframes sparkAura5 {
+  0%, 100% { transform: scale(1); opacity: 0.1; }
+  50% { transform: scale(1.12); opacity: 0.25; }
+}
