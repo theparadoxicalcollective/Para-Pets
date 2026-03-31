@@ -181,6 +181,7 @@ export const petTemplates = pgTable("pet_templates", {
   facing: text("facing").default("front"),
   frontAssembled: text("front_assembled"),
   backAssembled: text("back_assembled"),
+  sleepingImageUrl: text("sleeping_image_url"),
   canFly: boolean("can_fly").notNull().default(false),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });

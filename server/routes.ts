@@ -2569,13 +2569,15 @@ export async function registerRoutes(
 
   app.patch("/api/admin/pet-templates/:id", isAdmin, async (req, res) => {
     try {
-      const { name, frontAssembled, backAssembled, facing, canFly } = req.body;
+      const { name, frontAssembled, backAssembled, facing, canFly, sleepingImageData, clearSleepingImage } = req.body;
       const updates: Record<string, any> = {};
       if (name !== undefined) updates.name = name;
       if (frontAssembled !== undefined) updates.frontAssembled = frontAssembled;
       if (backAssembled !== undefined) updates.backAssembled = backAssembled;
       if (facing !== undefined) updates.facing = facing;
       if (canFly !== undefined) updates.canFly = canFly;
+      if (sleepingImageData) updates.sleepingImageUrl = await processWorldImage(sleepingImageData, 1000);
+      if (clearSleepingImage) updates.sleepingImageUrl = null;
       const updated = await storage.updatePetTemplate(req.params.id, updates);
       return res.json(updated);
     } catch (err) {

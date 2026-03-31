@@ -11,6 +11,7 @@ interface PetTemplate {
   facing?: string | null;
   frontAssembled: string | null;
   backAssembled: string | null;
+  sleepingImageUrl: string | null;
   canFly: boolean;
   createdAt: string;
 }
@@ -128,10 +129,12 @@ export default function PetDatabasePanel() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newPetName, setNewPetName] = useState("");
+  const [newSleepingImage, setNewSleepingImage] = useState<string | null>(null);
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [renameName, setRenameName] = useState("");
   const [uploadPartType, setUploadPartType] = useState<string | null>(null);
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
+  const [sleepingUploading, setSleepingUploading] = useState(false);
   const [facingMode, setFacingMode] = useState<"front" | "side">("front");
   const [sideFacingDir, setSideFacingDir] = useState<"left" | "right">("left");
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -189,7 +192,14 @@ export default function PetDatabasePanel() {
       const res = await apiRequest("POST", "/api/admin/pet-templates", { name });
       return res.json();
     },
-    onSuccess: (data: PetTemplate) => {
+    onSuccess: async (data: PetTemplate) => {
+      // If a sleeping image was staged, patch it immediately after creation
+      if (newSleepingImage) {
+        try {
+          await apiRequest("PATCH", `/api/admin/pet-templates/${data.id}`, { sleepingImageData: newSleepingImage });
+        } catch {}
+        setNewSleepingImage(null);
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates"] });
       setShowCreateModal(false);
       setNewPetName("");
@@ -741,6 +751,74 @@ export default function PetDatabasePanel() {
           </div>
         )}
 
+        {/* ── Sleeping Image ── */}
+        <div
+          className="rounded-lg p-3 flex flex-col gap-2"
+          style={{ background: "rgba(240,192,64,0.04)", border: "1px solid rgba(240,192,64,0.15)" }}
+        >
+          <p className="font-fantasy text-[10px] tracking-wider" style={{ color: "#f0c040" }}>Sleeping Image</p>
+          {templateDetail?.sleepingImageUrl ? (
+            <div className="flex items-center gap-3">
+              <img
+                src={templateDetail.sleepingImageUrl}
+                alt="Sleeping"
+                data-testid="preview-sleeping-image"
+                className="w-20 h-20 object-contain rounded-lg flex-shrink-0"
+                style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(240,192,64,0.2)" }}
+              />
+              <div className="flex flex-col gap-1.5 flex-1">
+                <label
+                  data-testid="button-replace-sleeping-image"
+                  className="block w-full py-1.5 rounded-md font-fantasy text-[9px] tracking-wider text-center transition-transform active:scale-95"
+                  style={{ background: "rgba(240,192,64,0.1)", border: "1px solid rgba(240,192,64,0.3)", color: "#f0c040", cursor: sleepingUploading ? "wait" : "pointer" }}
+                >
+                  {sleepingUploading ? "Uploading…" : "Replace"}
+                  <input type="file" accept="image/png,image/jpeg" className="hidden" disabled={sleepingUploading} onChange={async e => {
+                    const file = e.target.files?.[0]; if (!file || !selectedTemplateId) return; e.target.value = "";
+                    setSleepingUploading(true);
+                    try {
+                      const d = await readFileAsDataUrl(file);
+                      await apiRequest("PATCH", `/api/admin/pet-templates/${selectedTemplateId}`, { sleepingImageData: d });
+                      queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates", selectedTemplateId] });
+                    } catch (err: any) { toast({ title: "Upload failed", description: err.message, variant: "destructive" }); }
+                    finally { setSleepingUploading(false); }
+                  }} />
+                </label>
+                <button
+                  data-testid="button-clear-sleeping-image"
+                  onClick={async () => {
+                    if (!selectedTemplateId) return;
+                    await apiRequest("PATCH", `/api/admin/pet-templates/${selectedTemplateId}`, { clearSleepingImage: true });
+                    queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates", selectedTemplateId] });
+                  }}
+                  className="w-full py-1.5 rounded-md font-fantasy text-[9px] tracking-wider transition-transform active:scale-95"
+                  style={{ background: "rgba(220,38,38,0.15)", border: "1px solid rgba(220,38,38,0.3)", color: "#fca5a5", cursor: "pointer" }}
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          ) : (
+            <label
+              data-testid="button-upload-sleeping-image"
+              className="block w-full py-2.5 rounded-md font-fantasy text-[9px] tracking-wider text-center transition-transform active:scale-95"
+              style={{ background: "rgba(240,192,64,0.08)", border: "1px dashed rgba(240,192,64,0.3)", color: sleepingUploading ? "#f0c040" : "rgba(240,192,64,0.7)", cursor: sleepingUploading ? "wait" : "pointer" }}
+            >
+              {sleepingUploading ? "Uploading…" : "+ Upload Sleeping Image"}
+              <input type="file" accept="image/png,image/jpeg" className="hidden" disabled={sleepingUploading} onChange={async e => {
+                const file = e.target.files?.[0]; if (!file || !selectedTemplateId) return; e.target.value = "";
+                setSleepingUploading(true);
+                try {
+                  const d = await readFileAsDataUrl(file);
+                  await apiRequest("PATCH", `/api/admin/pet-templates/${selectedTemplateId}`, { sleepingImageData: d });
+                  queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates", selectedTemplateId] });
+                } catch (err: any) { toast({ title: "Upload failed", description: err.message, variant: "destructive" }); }
+                finally { setSleepingUploading(false); }
+              }} />
+            </label>
+          )}
+        </div>
+
         {uploadPartType && (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
             <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setUploadPartType(null)} />
@@ -999,7 +1077,7 @@ export default function PetDatabasePanel() {
             }}
           >
             <h4 className="font-fantasy text-[#f0c040] text-center text-sm tracking-widest mb-4">Add Pet</h4>
-            <div className="mb-4">
+            <div className="mb-3">
               <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Species</label>
               <input
                 data-testid="input-pet-template-name"
@@ -1011,9 +1089,35 @@ export default function PetDatabasePanel() {
                 style={{ background: "rgba(242,232,208,0.9)", border: "1px solid #8b5e3c", color: "#2a1a0a" }}
               />
             </div>
+            <div className="mb-4">
+              <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1.5">Sleeping Image <span className="opacity-50">(optional)</span></label>
+              {newSleepingImage ? (
+                <div className="relative w-full h-28 rounded-lg overflow-hidden" style={{ border: "1px solid rgba(240,192,64,0.3)" }}>
+                  <img src={newSleepingImage} alt="sleeping preview" className="w-full h-full object-contain" style={{ background: "rgba(0,0,0,0.3)" }} />
+                  <button
+                    data-testid="button-clear-new-sleeping-image"
+                    onClick={() => setNewSleepingImage(null)}
+                    className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center"
+                    style={{ background: "rgba(0,0,0,0.7)", border: "1px solid rgba(255,100,100,0.5)", color: "#f87171", cursor: "pointer" }}
+                  ><X className="w-3 h-3" /></button>
+                </div>
+              ) : (
+                <label
+                  data-testid="button-upload-new-sleeping-image"
+                  className="block w-full py-2.5 rounded-md font-fantasy text-[9px] tracking-wider text-center"
+                  style={{ background: "rgba(240,192,64,0.06)", border: "1px dashed rgba(240,192,64,0.25)", color: "rgba(240,192,64,0.6)", cursor: "pointer" }}
+                >
+                  + Upload Sleeping Image
+                  <input type="file" accept="image/png,image/jpeg" className="hidden" onChange={async e => {
+                    const file = e.target.files?.[0]; if (!file) return; e.target.value = "";
+                    const d = await readFileAsDataUrl(file); setNewSleepingImage(d);
+                  }} />
+                </label>
+              )}
+            </div>
             <div className="flex gap-2">
               <button
-                onClick={() => setShowCreateModal(false)}
+                onClick={() => { setShowCreateModal(false); setNewSleepingImage(null); }}
                 className="flex-1 py-2 rounded-md font-fantasy text-xs tracking-wider"
                 style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.2)", color: "#a89878", cursor: "pointer" }}
               >
