@@ -3,7 +3,6 @@ import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
-import PetAnimatorCanvas from "@/components/PetAnimatorCanvas";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -24,7 +23,7 @@ interface PlacedDecorItem {
 
 const DEFAULT_BG_RATIO = 1920 / 2400;
 const BUILDING_REF_H = 900;
-const INTERIOR_PET_SIZE = 180;
+const INTERIOR_PET_SIZE = 110;
 
 function parsePetPct(s: string | null): number | null {
   if (!s) return null;
@@ -157,20 +156,13 @@ function InteriorViewerVisit({ url, placedItems, placedPets, onClose }: {
             className="absolute pointer-events-none pet-idle-squish"
             style={{ zIndex: 7, left: panX + xPct * imgWidth, top: yPct * containerH, width: INTERIOR_PET_SIZE, height: INTERIOR_PET_SIZE, transform: "translate(-50%, -50%)" }}
           >
-            {/* Interior pets: canvas-composited — one GPU texture at display size instead
-                of N separate GPU textures at source resolution. No more iOS crash. */}
-            {pet.petTemplateId ? (
-              <PetAnimatorCanvas
-                petTemplateId={pet.petTemplateId}
-                size={INTERIOR_PET_SIZE}
-                fillContainer
-                className="pet-idle-squish"
-              />
-            ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
+            {/* Interior pets: static image with idle squish — crisp and memory-safe */}
+            {(pet.hatchedImageUrl || pet.imageUrl) ? (
               <img
                 src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
                 alt={pet.nickname ?? pet.name}
                 draggable={false}
+                className="pet-idle-squish"
                 style={{ width: "100%", height: "100%", objectFit: "contain" }}
               />
             ) : null}

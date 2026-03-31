@@ -5,7 +5,6 @@ import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import PetAnimator from "@/components/PetAnimator";
-import PetAnimatorCanvas from "@/components/PetAnimatorCanvas";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import homeInventoryIcon from "@assets/icon_home_inventory.png";
 import decorInventoryIcon from "@assets/icon_decor_inventory.png";
@@ -261,7 +260,7 @@ function InteriorViewer({
     placedItems.map(item => itemDragLive?.id === item.id ? { ...item, xPct: itemDragLive.xPct, yPct: itemDragLive.yPct } : item),
     [placedItems, itemDragLive]);
 
-  const PET_SIZE = 180;
+  const PET_SIZE = 110;
 
   return (
     <div
@@ -358,17 +357,8 @@ function InteriorViewer({
                 </div>
               </>
             )}
-            {/* Interior pets: PetAnimatorCanvas composes all parts onto ONE canvas texture
-                (size×size GPU memory) instead of N separate img GPU textures.
-                Falls back to static image if no animated template exists. */}
-            {pet.petTemplateId ? (
-              <PetAnimatorCanvas
-                petTemplateId={pet.petTemplateId}
-                size={PET_SIZE}
-                fillContainer
-                className="pet-idle-squish"
-              />
-            ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
+            {/* Interior pets: static image with idle squish — safe GPU footprint */}
+            {(pet.hatchedImageUrl || pet.imageUrl) ? (
               <img
                 src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
                 alt={pet.nickname ?? pet.name}
