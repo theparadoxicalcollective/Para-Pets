@@ -431,6 +431,14 @@ export default function PetDatabasePanel() {
     updatePartMutation.mutate({ partId: part.id, posX: part.posX + dx, posY: part.posY + dy });
   }, [selectedPartId, viewParts, updatePartMutation]);
 
+  const resizePart = useCallback((delta: number) => {
+    const part = viewParts.find(p => p.id === selectedPartId);
+    if (!part) return;
+    const newW = Math.max(4, part.width + delta);
+    const newH = Math.max(4, part.height + delta);
+    updatePartMutation.mutate({ partId: part.id, width: newW, height: newH });
+  }, [selectedPartId, viewParts, updatePartMutation]);
+
   const selectedPart = viewParts.find(p => p.id === selectedPartId);
 
   // Has parts in the OTHER view (the one not currently active)
@@ -837,6 +845,28 @@ export default function PetDatabasePanel() {
                   style={{ height: 36, background: "rgba(240,192,64,0.12)", border: "1px solid rgba(240,192,64,0.3)", color: "#f0c040", cursor: "pointer" }}
                 ><ChevronDown className="w-4 h-4" /></button>
                 <div />
+              </div>
+
+              {/* Size +/- row */}
+              <div className="flex items-center gap-2 pt-1">
+                <span className="font-fantasy text-[8px] tracking-wider" style={{ color: "#6a5840" }}>Size:</span>
+                <button
+                  data-testid="button-size-decrease"
+                  onPointerDown={e => { e.stopPropagation(); resizePart(-nudgeStep); }}
+                  className="flex items-center justify-center rounded-lg font-bold transition-all active:scale-90"
+                  style={{ width: 36, height: 36, fontSize: 18, background: "rgba(240,192,64,0.12)", border: "1px solid rgba(240,192,64,0.3)", color: "#f0c040", cursor: "pointer" }}
+                >−</button>
+                <div className="flex flex-col items-center justify-center flex-1">
+                  <span className="font-fantasy text-[7px]" style={{ color: "#a89878" }}>
+                    {selectedPart.width}×{selectedPart.height}
+                  </span>
+                </div>
+                <button
+                  data-testid="button-size-increase"
+                  onPointerDown={e => { e.stopPropagation(); resizePart(nudgeStep); }}
+                  className="flex items-center justify-center rounded-lg font-bold transition-all active:scale-90"
+                  style={{ width: 36, height: 36, fontSize: 18, background: "rgba(240,192,64,0.12)", border: "1px solid rgba(240,192,64,0.3)", color: "#f0c040", cursor: "pointer" }}
+                >+</button>
               </div>
             </div>
           </div>
