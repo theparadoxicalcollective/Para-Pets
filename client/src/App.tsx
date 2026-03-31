@@ -287,7 +287,12 @@ function App() {
         unlockAudio();
       }
       const target = e.target as Element;
-      const interactive = target.closest('button, [role="button"], [data-testid^="button-"]');
+      const interactive = target.closest(
+        'button, a[href], [role="button"], [role="tab"], [role="option"],' +
+        '[data-testid^="button-"], [data-testid^="card-"], [data-testid^="tab-"],' +
+        '[data-testid^="link-"], [data-testid^="item-"], [data-testid^="tile-"],' +
+        '[data-testid^="nav-"], [data-testid^="select-"]'
+      );
       if (interactive && !interactive.hasAttribute('data-no-click-sound')) playClick();
     };
 

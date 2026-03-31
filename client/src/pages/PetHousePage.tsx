@@ -928,6 +928,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                   pointerEvents: hasInterior ? "auto" : "none",
                   cursor: hasInterior ? "pointer" : "default",
                 }}
+                role={hasInterior ? "button" : undefined}
+                data-testid={hasInterior ? `tile-building-${b.id}` : undefined}
                 onClick={() => hasInterior && setOpenInterior({ url: b.interiorImageUrl!, buildingId: b.id })}
               >
                 <img

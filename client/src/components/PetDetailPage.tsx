@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, type ReactNode } from "react";
 import { Sparkles, Wind, Heart, Swords, Shield, Pencil, TrendingUp } from "lucide-react";
 import { fireLevelUp } from "@/lib/levelUpEvents";
+import { playPowerUp, playSpeedUp } from "@/lib/sounds";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -198,6 +199,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
       return res.json();
     },
     onSuccess: (data) => {
+      playPowerUp();
       const item = confirmItem;
       const boostLabel = item
         ? `+${item.statBoostAmount || "?"} ${item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "LVL"}`
@@ -231,6 +233,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
     onSuccess: (data) => {
       const item = confirmItem;
       const isHatchTime = item?.specialType === "hatch_time";
+      if (isHatchTime) playSpeedUp(); else playPowerUp();
       const label = isHatchTime
         ? `-${item.specialAmount || "?"} min`
         : `+${item?.specialAmount || "?"} LVL pts`;

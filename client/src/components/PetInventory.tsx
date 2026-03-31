@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { playSpeedUp, playPowerUp } from "@/lib/sounds";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -103,6 +104,7 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab }
       return res.json();
     },
     onSuccess: (_data, variables) => {
+      playSpeedUp();
       const item = inventory.find(i => i.inventoryId === variables.itemInvId);
       setSpeedUpTargetId(null);
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
@@ -119,6 +121,7 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab }
       return res.json();
     },
     onSuccess: () => {
+      playPowerUp();
       setDragging(null);
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       toast({ title: "✓ Item Used!", description: "Item applied to your pet!" });

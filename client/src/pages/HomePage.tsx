@@ -12,6 +12,7 @@ import mapIcon from "@assets/generated_images/nav_icon_map_new.png";
 import swordsImg from "@assets/generated_images/nav_icon_pvp.png";
 import eggImg from "@assets/generated_images/nav_icon_pets.png";
 import badgeIcon from "@assets/generated_images/nav_icon_badges.png";
+import { playSpeedUp } from "@/lib/sounds";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import PetAnimator from "@/components/PetAnimator";
@@ -169,6 +170,7 @@ export default function HomePage({ user }: HomePageProps) {
       return res.json();
     },
     onSuccess: (_data, variables) => {
+      playSpeedUp();
       setShowSpeedUp(false);
       setHomeDragging(null);
       setHomeDragOver(false);

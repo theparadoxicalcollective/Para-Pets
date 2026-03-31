@@ -219,6 +219,123 @@ export function playReelTick() {
   } catch {}
 }
 
+export function playLevelUp() {
+  try {
+    const c = getCtx();
+    if (!c) return;
+    // Rising C-major arpeggio — each note gets a main tone + harmonic shimmer
+    const notes = [
+      { freq: 523.25, delay: 0.00, vol: 0.28, hold: 0.55 },
+      { freq: 659.25, delay: 0.09, vol: 0.26, hold: 0.50 },
+      { freq: 783.99, delay: 0.17, vol: 0.23, hold: 0.45 },
+      { freq: 1046.5, delay: 0.24, vol: 0.30, hold: 0.70 },
+      { freq: 1318.5, delay: 0.35, vol: 0.20, hold: 0.85 },
+    ];
+    notes.forEach(({ freq, delay, vol, hold }) => {
+      const t = c.currentTime + delay;
+      const osc = c.createOscillator(); const gain = c.createGain();
+      osc.connect(gain); gain.connect(c.destination);
+      osc.type = "sine"; osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(vol, t + 0.014);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + hold);
+      osc.start(t); osc.stop(t + hold + 0.05);
+      // Octave shimmer
+      const osc2 = c.createOscillator(); const gain2 = c.createGain();
+      osc2.connect(gain2); gain2.connect(c.destination);
+      osc2.type = "sine"; osc2.frequency.setValueAtTime(freq * 2, t);
+      gain2.gain.setValueAtTime(0, t);
+      gain2.gain.linearRampToValueAtTime(vol * 0.22, t + 0.014);
+      gain2.gain.exponentialRampToValueAtTime(0.001, t + hold * 0.55);
+      osc2.start(t); osc2.stop(t + hold + 0.05);
+    });
+    // High sparkle noise burst at the peak
+    const sparkT = c.currentTime + 0.3;
+    const bufLen = Math.floor(c.sampleRate * 0.1);
+    const buf = c.createBuffer(1, bufLen, c.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) d[i] = Math.random() * 2 - 1;
+    const noise = c.createBufferSource();
+    const filter = c.createBiquadFilter();
+    const ng = c.createGain();
+    filter.type = "highpass"; filter.frequency.value = 7000;
+    noise.buffer = buf;
+    noise.connect(filter); filter.connect(ng); ng.connect(c.destination);
+    ng.gain.setValueAtTime(0.09, sparkT);
+    ng.gain.exponentialRampToValueAtTime(0.001, sparkT + 0.1);
+    noise.start(sparkT);
+  } catch {}
+}
+
+export function playPowerUp() {
+  try {
+    const c = getCtx();
+    if (!c) return;
+    // Rising sawtooth sweep — energising charge-up
+    const osc = c.createOscillator(); const gain = c.createGain();
+    osc.connect(gain); gain.connect(c.destination);
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(200, c.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(900, c.currentTime + 0.22);
+    gain.gain.setValueAtTime(0, c.currentTime);
+    gain.gain.linearRampToValueAtTime(0.16, c.currentTime + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.3);
+    osc.start(c.currentTime); osc.stop(c.currentTime + 0.35);
+    // Punch accent at peak
+    const osc2 = c.createOscillator(); const gain2 = c.createGain();
+    osc2.connect(gain2); gain2.connect(c.destination);
+    osc2.type = "sine";
+    osc2.frequency.setValueAtTime(900, c.currentTime + 0.19);
+    osc2.frequency.exponentialRampToValueAtTime(1800, c.currentTime + 0.3);
+    gain2.gain.setValueAtTime(0, c.currentTime + 0.19);
+    gain2.gain.linearRampToValueAtTime(0.22, c.currentTime + 0.21);
+    gain2.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.48);
+    osc2.start(c.currentTime + 0.19); osc2.stop(c.currentTime + 0.52);
+    // High shimmer on top
+    const osc3 = c.createOscillator(); const gain3 = c.createGain();
+    osc3.connect(gain3); gain3.connect(c.destination);
+    osc3.type = "sine"; osc3.frequency.setValueAtTime(2400, c.currentTime + 0.21);
+    gain3.gain.setValueAtTime(0.1, c.currentTime + 0.21);
+    gain3.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.5);
+    osc3.start(c.currentTime + 0.21); osc3.stop(c.currentTime + 0.55);
+  } catch {}
+}
+
+export function playSpeedUp() {
+  try {
+    const c = getCtx();
+    if (!c) return;
+    // Whoosh — bandpass noise sweeping upward in frequency
+    const bufLen = Math.floor(c.sampleRate * 0.28);
+    const buf = c.createBuffer(1, bufLen, c.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) d[i] = Math.random() * 2 - 1;
+    const noise = c.createBufferSource();
+    const filter = c.createBiquadFilter();
+    const ng = c.createGain();
+    filter.type = "bandpass"; filter.Q.value = 3;
+    filter.frequency.setValueAtTime(350, c.currentTime);
+    filter.frequency.exponentialRampToValueAtTime(4500, c.currentTime + 0.22);
+    noise.buffer = buf;
+    noise.connect(filter); filter.connect(ng); ng.connect(c.destination);
+    ng.gain.setValueAtTime(0, c.currentTime);
+    ng.gain.linearRampToValueAtTime(0.22, c.currentTime + 0.04);
+    ng.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.26);
+    noise.start(c.currentTime);
+    // Sparkling ascending dings at the tail
+    [1046.5, 1567.98, 2093.0].forEach((freq, i) => {
+      const t = c.currentTime + 0.13 + i * 0.055;
+      const osc = c.createOscillator(); const g = c.createGain();
+      osc.connect(g); g.connect(c.destination);
+      osc.type = "sine"; osc.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.14, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+      osc.start(t); osc.stop(t + 0.35);
+    });
+  } catch {}
+}
+
 export function playCatch() {
   try {
     const c = getCtx();

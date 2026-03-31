@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { onLevelUp } from "@/lib/levelUpEvents";
+import { playLevelUp } from "@/lib/sounds";
 import { Star } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
 
@@ -18,6 +19,7 @@ export default function GlobalLevelUpOverlay() {
 
   useEffect(() => {
     return onLevelUp(({ newLevel, petName, petTemplateId }) => {
+      playLevelUp();
       const id = ++counterRef.current;
       setEvents(prev => [...prev, { id, newLevel, petName, petTemplateId }]);
       setTimeout(() => {
