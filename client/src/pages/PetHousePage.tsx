@@ -210,6 +210,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const [interiorBuildingUrl, setInteriorBuildingUrl] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState(user);
   const [openInventory, setOpenInventory] = useState<"home" | "decor" | null>(null);
+  const [pendingActivate, setPendingActivate] = useState<{ bundleId: string; bundle: OwnedBundle["bundle"] } | null>(null);
 
   const [panX, setPanX] = useState(0);
   const [imgWidth, setImgWidth] = useState(0);
@@ -534,7 +535,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                         <button
                           key={bundleId}
                           data-testid={`bundle-item-${bundleId}`}
-                          onClick={() => !isActive && activateMutation.mutate(bundleId)}
+                          onClick={() => !isActive && setPendingActivate({ bundleId, bundle })}
                           disabled={activateMutation.isPending}
                           className="flex flex-col items-center gap-1.5 transition-opacity disabled:opacity-60"
                           style={{ background: "none", border: "none", cursor: isActive ? "default" : "pointer" }}
@@ -584,6 +585,65 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                 </p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Bundle activation confirmation modal */}
+      {pendingActivate && (
+        <div
+          className="fixed inset-0 flex items-end justify-center"
+          style={{ zIndex: 80, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
+          onPointerDown={() => setPendingActivate(null)}
+        >
+          <div
+            className="w-full rounded-t-3xl px-6 pt-6 pb-10 flex flex-col gap-5"
+            style={{ background: "linear-gradient(180deg, #141e0f 0%, #0d1509 100%)", border: "1px solid rgba(255,215,0,0.18)", boxShadow: "0 -8px 40px rgba(0,0,0,0.7)" }}
+            onPointerDown={e => e.stopPropagation()}
+          >
+            {/* Handle */}
+            <div className="w-10 h-1 rounded-full bg-white/20 mx-auto" />
+
+            {/* Bundle preview */}
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-2xl overflow-hidden flex-shrink-0" style={{ border: "1.5px solid rgba(255,215,0,0.25)", background: "rgba(255,255,255,0.05)" }}>
+                {pendingActivate.bundle.shopImageUrl ? (
+                  <img src={pendingActivate.bundle.shopImageUrl} alt={pendingActivate.bundle.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <img src={homeInventoryIcon} alt="" className="w-9 h-9 object-contain opacity-60" />
+                  </div>
+                )}
+              </div>
+              <div>
+                <p className="text-white/50 text-xs mb-0.5" style={{ fontFamily: "Cinzel, serif" }}>Switch Home Bundle?</p>
+                <p className="text-white font-bold text-base leading-tight" style={{ fontFamily: "Cinzel Decorative, serif" }}>{pendingActivate.bundle.name}</p>
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="flex gap-3">
+              <button
+                data-testid="button-cancel-activate"
+                onClick={() => setPendingActivate(null)}
+                className="flex-1 py-3 rounded-2xl font-bold text-sm tracking-wide"
+                style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.12)", fontFamily: "Cinzel, serif" }}
+              >
+                Cancel
+              </button>
+              <button
+                data-testid="button-confirm-activate"
+                onClick={() => {
+                  activateMutation.mutate(pendingActivate.bundleId);
+                  setPendingActivate(null);
+                }}
+                disabled={activateMutation.isPending}
+                className="flex-1 py-3 rounded-2xl font-bold text-sm tracking-wide transition-opacity disabled:opacity-50"
+                style={{ background: "rgba(120,220,80,0.25)", color: "#86efac", border: "1.5px solid rgba(120,220,80,0.5)", fontFamily: "Cinzel, serif" }}
+              >
+                {activateMutation.isPending ? "Activating…" : "Activate"}
+              </button>
+            </div>
           </div>
         </div>
       )}
