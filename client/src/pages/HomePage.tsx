@@ -305,20 +305,22 @@ export default function HomePage({ user }: HomePageProps) {
                 { left:"50%",  top:"88%", color:"#f0c040", anim:"sparkOrb7", dur:"5.2s", delay:"1.4s", size:"xs" },
                 { left:"33%",  top:"38%", color:"#fffde0", anim:"sparkOrb6", dur:"4.2s", delay:"3.3s", size:"md" },
               ];
-              // 5-star extras: purple + cyan with lg orbs for drama
+              // 5-star extras: calm gold sparkles in varied shades
               const orbs5extra: Orb[] = [
-                { left:"2%",   top:"44%", color:"#c8a0ff", anim:"sparkOrb6",  dur:"4.4s", delay:"0.6s", size:"md" },
-                { right:"3%",  top:"41%", color:"#80e8ff", anim:"sparkOrb7",  dur:"5.3s", delay:"1.9s", size:"md" },
-                { left:"17%",  top:"78%", color:"#c8a0ff", anim:"sparkOrb0",  dur:"3.6s", delay:"2.5s", size:"sm" },
-                { right:"16%", top:"76%", color:"#80e8ff", anim:"sparkOrb1",  dur:"4.9s", delay:"0.1s", size:"sm" },
-                { left:"46%",  top:"8%",  color:"#e0c0ff", anim:"sparkOrb2",  dur:"4.1s", delay:"3.0s", size:"md" },
-                { left:"1%",   top:"65%", color:"#80e8ff", anim:"sparkOrb5",  dur:"3.7s", delay:"1.3s", size:"sm" },
-                { right:"1%",  top:"60%", color:"#c8a0ff", anim:"sparkOrb8",  dur:"4.6s", delay:"2.2s", size:"lg" },
-                { left:"28%",  top:"88%", color:"#e0c0ff", anim:"sparkOrb9",  dur:"5.1s", delay:"0.7s", size:"sm" },
-                { right:"28%", top:"85%", color:"#80e8ff", anim:"sparkOrbA",  dur:"3.9s", delay:"1.6s", size:"md" },
-                { left:"60%",  top:"60%", color:"#c8a0ff", anim:"sparkOrbB",  dur:"4.3s", delay:"2.9s", size:"lg" },
-                { left:"14%",  top:"25%", color:"#e0c0ff", anim:"sparkOrb3",  dur:"4.8s", delay:"0.4s", size:"md" },
-                { right:"12%", top:"22%", color:"#80e8ff", anim:"sparkOrb4",  dur:"3.5s", delay:"3.4s", size:"lg" },
+                { left:"2%",   top:"44%", color:"#ffd700", anim:"calmSparkle0", dur:"7.2s", delay:"0.6s",  size:"md" },
+                { right:"3%",  top:"41%", color:"#e8a020", anim:"calmSparkle1", dur:"6.5s", delay:"1.9s",  size:"md" },
+                { left:"17%",  top:"78%", color:"#fff0a0", anim:"calmSparkle2", dur:"8.0s", delay:"2.5s",  size:"sm" },
+                { right:"16%", top:"76%", color:"#f0c040", anim:"calmSparkle3", dur:"7.5s", delay:"0.1s",  size:"sm" },
+                { left:"46%",  top:"8%",  color:"#ffeaa0", anim:"calmSparkle4", dur:"6.8s", delay:"3.0s",  size:"md" },
+                { left:"1%",   top:"65%", color:"#ffe080", anim:"calmSparkle5", dur:"7.8s", delay:"1.3s",  size:"sm" },
+                { right:"1%",  top:"60%", color:"#d4a020", anim:"calmSparkle0", dur:"6.3s", delay:"2.2s",  size:"md" },
+                { left:"28%",  top:"88%", color:"#fff0a0", anim:"calmSparkle1", dur:"8.4s", delay:"0.7s",  size:"sm" },
+                { right:"28%", top:"85%", color:"#ffd700", anim:"calmSparkle2", dur:"7.0s", delay:"1.6s",  size:"md" },
+                { left:"60%",  top:"60%", color:"#e8a020", anim:"calmSparkle3", dur:"6.9s", delay:"2.9s",  size:"md" },
+                { left:"14%",  top:"25%", color:"#ffe080", anim:"calmSparkle4", dur:"7.6s", delay:"0.4s",  size:"sm" },
+                { right:"12%", top:"22%", color:"#ffeaa0", anim:"calmSparkle5", dur:"8.1s", delay:"3.4s",  size:"md" },
+                { left:"52%",  top:"32%", color:"#ffd700", anim:"calmSparkle2", dur:"6.6s", delay:"1.0s",  size:"sm" },
+                { right:"50%", top:"48%", color:"#d4a020", anim:"calmSparkle4", dur:"7.3s", delay:"4.0s",  size:"xs" },
               ];
 
               const allOrbs = is5 ? [...orbs4, ...orbs5extra] : is4 ? orbs4 : orbs3;
@@ -360,7 +362,7 @@ export default function HomePage({ user }: HomePageProps) {
                     position: "absolute",
                     inset: 0,
                     background: is5
-                      ? "radial-gradient(ellipse at center, rgba(180,120,255,0.14) 0%, rgba(240,192,64,0.1) 40%, transparent 70%)"
+                      ? "radial-gradient(ellipse at center, rgba(255,215,0,0.18) 0%, rgba(232,160,32,0.1) 45%, transparent 72%)"
                       : is4
                         ? "radial-gradient(ellipse at center, rgba(240,192,64,0.12) 0%, transparent 60%)"
                         : "radial-gradient(ellipse at center, rgba(240,192,64,0.06) 0%, transparent 55%)",

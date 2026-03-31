@@ -1287,11 +1287,53 @@ img[data-interactive], button img, a img {
   88% { opacity: 0.1; }
   97% { transform: translate(-10px, -100px) scale(0.3); opacity: 0; }
 }
+@keyframes calmSparkle0 {
+  0%, 100% { transform: translate(0, 0) scale(0.7); opacity: 0; }
+  20% { opacity: 0.9; }
+  50% { transform: translate(-4px, -14px) scale(1.0); opacity: 0.85; }
+  72% { opacity: 0.65; }
+  90% { transform: translate(2px, -22px) scale(0.8); opacity: 0; }
+}
+@keyframes calmSparkle1 {
+  0%, 100% { transform: translate(0, 0) scale(0.8); opacity: 0; }
+  25% { opacity: 0.88; }
+  55% { transform: translate(5px, -16px) scale(1.05); opacity: 0.8; }
+  76% { opacity: 0.55; }
+  92% { transform: translate(-3px, -24px) scale(0.75); opacity: 0; }
+}
+@keyframes calmSparkle2 {
+  0%, 100% { transform: translate(0, 0) scale(0.75); opacity: 0; }
+  18% { opacity: 0.82; }
+  45% { transform: translate(3px, -10px) scale(1.1); opacity: 0.78; }
+  74% { opacity: 0.5; }
+  88% { transform: translate(-5px, -18px) scale(0.85); opacity: 0; }
+}
+@keyframes calmSparkle3 {
+  0%, 100% { transform: translate(0, 0) scale(0.9); opacity: 0; }
+  22% { opacity: 0.92; }
+  50% { transform: translate(-6px, -12px) scale(0.95); opacity: 0.88; }
+  78% { opacity: 0.48; }
+  94% { transform: translate(4px, -20px) scale(0.7); opacity: 0; }
+}
+@keyframes calmSparkle4 {
+  0%, 100% { transform: translate(0, 0) scale(0.65); opacity: 0; }
+  15% { opacity: 0.95; }
+  48% { transform: translate(7px, -18px) scale(1.0); opacity: 0.9; }
+  74% { opacity: 0.5; }
+  90% { transform: translate(-2px, -26px) scale(0.7); opacity: 0; }
+}
+@keyframes calmSparkle5 {
+  0%, 100% { transform: translate(0, 0) scale(0.8); opacity: 0; }
+  28% { opacity: 0.82; }
+  55% { transform: translate(-3px, -8px) scale(1.15); opacity: 0.72; }
+  80% { opacity: 0.38; }
+  95% { transform: translate(6px, -16px) scale(0.8); opacity: 0; }
+}
 @keyframes sparkAura {
   0%, 100% { transform: scale(1); opacity: 0.06; }
   50% { transform: scale(1.1); opacity: 0.16; }
 }
 @keyframes sparkAura5 {
-  0%, 100% { transform: scale(1); opacity: 0.1; }
-  50% { transform: scale(1.12); opacity: 0.25; }
+  0%, 100% { transform: scale(1); opacity: 0.12; }
+  50% { transform: scale(1.1); opacity: 0.28; }
 }
