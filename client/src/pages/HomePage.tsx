@@ -63,13 +63,26 @@ interface InventoryItem {
 export default function HomePage({ user }: HomePageProps) {
   const [showProfile, setShowProfile] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
-  // Delay sparkle orbs until after the first browser paint so the container
-  // has its real dimensions — prevents orbs from collapsing to a horizontal
-  // line at y=0 before the layout is settled.
+  // Gate sparkle orbs on the pet container having real height.
+  // RAF / fixed delays aren't enough — the pet image may still be loading
+  // (zero-height container) even after the first paint, causing orbs to
+  // collapse into a horizontal line at y=0.  A ResizeObserver fires only
+  // once the container's layout height is actually > 50px.
+  const petContainerRef = useRef<HTMLDivElement>(null);
   const [orbsReady, setOrbsReady] = useState(false);
   useEffect(() => {
-    const id = requestAnimationFrame(() => setOrbsReady(true));
-    return () => cancelAnimationFrame(id);
+    const el = petContainerRef.current;
+    if (!el) return;
+    const obs = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        if (entry.contentRect.height > 50) {
+          setOrbsReady(true);
+          obs.disconnect();
+        }
+      }
+    });
+    obs.observe(el);
+    return () => obs.disconnect();
   }, []);
 
   useEffect(() => {
@@ -268,9 +281,9 @@ export default function HomePage({ user }: HomePageProps) {
         )}
 
         <div className="flex-1 flex flex-col items-center justify-center px-0 py-0 min-h-0">
-          <div className="relative flex items-center justify-center w-full max-w-[520px] md:max-w-[680px] lg:max-w-[800px]">
+          <div ref={petContainerRef} className="relative flex items-center justify-center w-full max-w-[520px] md:max-w-[680px] lg:max-w-[800px]">
 
-            {/* Rarity sparkle lights (3/4/5 star) — gated until after first paint */}
+            {/* Rarity sparkle lights (3/4/5 star) — gated until container has real height */}
             {orbsReady && activePet && (activePet.rarity || 0) >= 3 && (() => {
               const rarity = activePet.rarity || 0;
               const is5 = rarity >= 5;
