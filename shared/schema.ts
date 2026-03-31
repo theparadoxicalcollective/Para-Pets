@@ -20,6 +20,7 @@ export const users = pgTable("users", {
   passwordResetExpires: timestamp("password_reset_expires"),
   marketExtraSlots: integer("market_extra_slots").notNull().default(0),
   welcomeV2Sent: boolean("welcome_v2_sent").notNull().default(false),
+  totalCoinsEarned: integer("total_coins_earned").notNull().default(0),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 

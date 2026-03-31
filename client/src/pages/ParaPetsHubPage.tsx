@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { ChevronDown, ChevronUp, X, Eye, EyeOff, Loader2, Star, Maximize2 } from "lucide-react";
+import { ChevronDown, ChevronUp, X, Eye, EyeOff, Loader2, Coins, Maximize2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -46,8 +46,8 @@ interface LeaderboardEntry {
   username: string;
   profileImage: string | null;
   totalPoints: number;
-  topBadges: { id: string; name: string; imageUrl: string; badgePoints: number }[];
-  allBadges: { id: string; name: string; imageUrl: string; badgePoints: number }[];
+  topBadges: { id: string; name: string; imageUrl: string }[];
+  allBadges: { id: string; name: string; imageUrl: string }[];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -448,7 +448,7 @@ function TopThreePodium({ top3 }: { top3: LeaderboardEntry[] }) {
               </p>
 
               <div className="flex items-center gap-1">
-                <Star size={slot.rank === 1 ? 9 : 7} style={{ color: slot.nameColor, fill: slot.nameColor }} />
+                <Coins size={slot.rank === 1 ? 9 : 7} style={{ color: slot.nameColor }} />
                 <span className="font-fantasy" style={{ color: slot.nameColor, fontSize: slot.rank === 1 ? 11 : 9 }}>
                   {entry.totalPoints.toLocaleString()}
                 </span>
@@ -534,7 +534,7 @@ function RankRow({ entry, rank }: { entry: LeaderboardEntry; rank: number }) {
           <div className="flex items-center gap-1 mt-0.5">
             {entry.topBadges.map(b => (
               <img key={b.id} src={b.imageUrl} alt={b.name}
-                title={`${b.name} (${b.badgePoints} pts)`}
+                title={b.name}
                 className="w-4 h-4 rounded-full object-cover"
                 style={{ border: "1px solid rgba(255,215,0,0.18)" }}
                 data-testid={`badge-icon-${b.id}-${entry.userId}`} />
@@ -550,7 +550,7 @@ function RankRow({ entry, rank }: { entry: LeaderboardEntry; rank: number }) {
         <div className="flex-shrink-0 flex items-center gap-2">
           <div className="flex items-center gap-1 rounded-xl px-2 py-1"
             style={{ background: "rgba(127,191,176,0.08)", border: "1px solid rgba(127,191,176,0.12)" }}>
-            <Star size={9} style={{ color: "#7fbfb0", fill: "#7fbfb0" }} />
+            <Coins size={9} style={{ color: "#7fbfb0" }} />
             <span className="font-fantasy text-xs" style={{ color: "#7fbfb0" }}
               data-testid={`text-points-${entry.userId}`}>
               {entry.totalPoints.toLocaleString()}
@@ -569,7 +569,7 @@ function RankRow({ entry, rank }: { entry: LeaderboardEntry; rank: number }) {
             All Badges ({entry.allBadges.length})
           </p>
           <div className="flex flex-wrap gap-2">
-            {[...entry.allBadges].sort((a, b) => b.badgePoints - a.badgePoints).map(b => (
+            {entry.allBadges.map(b => (
               <div key={b.id} className="flex flex-col items-center gap-1" style={{ minWidth: "2.8rem" }}
                 data-testid={`badge-card-${b.id}-${entry.userId}`}>
                 <img src={b.imageUrl} alt={b.name}
@@ -578,9 +578,6 @@ function RankRow({ entry, rank }: { entry: LeaderboardEntry; rank: number }) {
                 <span className="font-fantasy text-[8px] text-center leading-tight" style={{ color: "#7a6848", maxWidth: "2.8rem" }}>
                   {b.name}
                 </span>
-                {b.badgePoints > 0 && (
-                  <span className="font-fantasy text-[8px]" style={{ color: "#5a8a7a" }}>{b.badgePoints}★</span>
-                )}
               </div>
             ))}
           </div>

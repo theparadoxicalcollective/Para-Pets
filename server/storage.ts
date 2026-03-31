@@ -166,7 +166,7 @@ export interface IStorage {
   revokeBadge(userId: string, badgeId: string): Promise<void>;
   getBadgeRewardClaim(userId: string, badgeId: string): Promise<{ lastClaimedAt: Date } | null>;
   upsertBadgeRewardClaim(userId: string, badgeId: string): Promise<void>;
-  getBadgeLeaderboard(limit?: number): Promise<{ userId: string; username: string; profileImage: string | null; totalPoints: number; topBadges: { id: string; name: string; imageUrl: string; badgePoints: number }[]; allBadges: { id: string; name: string; imageUrl: string; badgePoints: number }[] }[]>;
+  getBadgeLeaderboard(limit?: number): Promise<{ userId: string; username: string; profileImage: string | null; totalPoints: number; topBadges: { id: string; name: string; imageUrl: string }[]; allBadges: { id: string; name: string; imageUrl: string }[] }[]>;
   getKeepersCentralEnemies(): Promise<(KeepersCentralEnemy & { enemyName: string; enemyImageUrl: string | null })[]>;
   addKeepersCentralEnemy(enemyId: string, spawnX: number, spawnY: number): Promise<KeepersCentralEnemy>;
   removeKeepersCentralEnemy(id: string): Promise<void>;
@@ -320,9 +320,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async addCoins(id: string, amount: number): Promise<User> {
+    const updateFields: Record<string, any> = {
+      coins: sql`GREATEST(0, ${users.coins} + ${amount})`,
+    };
+    if (amount > 0) {
+      updateFields.totalCoinsEarned = sql`${users.totalCoinsEarned} + ${amount}`;
+    }
     const [updated] = await db
       .update(users)
-      .set({ coins: sql`GREATEST(0, ${users.coins} + ${amount})` })
+      .set(updateFields)
       .where(eq(users.id, id))
       .returning();
     if (!updated) throw new Error("User not found");
@@ -922,40 +928,56 @@ export class DatabaseStorage implements IStorage {
     return rows;
   }
 
-  async getBadgeLeaderboard(limit = 50): Promise<{ userId: string; username: string; profileImage: string | null; totalPoints: number; topBadges: { id: string; name: string; imageUrl: string; badgePoints: number }[]; allBadges: { id: string; name: string; imageUrl: string; badgePoints: number }[] }[]> {
-    const rows = await db
+  async getBadgeLeaderboard(limit = 50): Promise<{ userId: string; username: string; profileImage: string | null; totalPoints: number; topBadges: { id: string; name: string; imageUrl: string }[]; allBadges: { id: string; name: string; imageUrl: string }[] }[]> {
+    // Rank by accumulated total coins earned (in-game + purchased bundles)
+    const topUsers = await db
       .select({
-        userId: userBadges.userId,
+        userId: users.id,
         username: users.username,
         profileImage: users.profileImage,
+        totalCoinsEarned: users.totalCoinsEarned,
+      })
+      .from(users)
+      .where(sql`${users.totalCoinsEarned} > 0`)
+      .orderBy(desc(users.totalCoinsEarned))
+      .limit(limit * 2); // fetch extra to account for excluded usernames
+
+    const filtered = topUsers
+      .filter(u => !LEADERBOARD_EXCLUDED_USERNAMES.has(u.username.toLowerCase()))
+      .slice(0, limit);
+
+    if (filtered.length === 0) return [];
+
+    // Fetch badges for these users to show on their leaderboard card
+    const userIds = filtered.map(u => u.userId);
+    const badgeRows = await db
+      .select({
+        userId: userBadges.userId,
         badgeId: badges.id,
         badgeName: badges.name,
         badgeImageUrl: badges.imageUrl,
-        badgePoints: badges.badgePoints,
       })
       .from(userBadges)
       .innerJoin(badges, eq(userBadges.badgeId, badges.id))
-      .innerJoin(users, eq(userBadges.userId, users.id))
-      .orderBy(desc(badges.badgePoints));
+      .where(inArray(userBadges.userId, userIds));
 
-    const userMap = new Map<string, { userId: string; username: string; profileImage: string | null; totalPoints: number; allBadges: { id: string; name: string; imageUrl: string; badgePoints: number }[] }>();
-    for (const row of rows) {
-      if (LEADERBOARD_EXCLUDED_USERNAMES.has(row.username.toLowerCase())) continue;
-      if (!userMap.has(row.userId)) {
-        userMap.set(row.userId, { userId: row.userId, username: row.username, profileImage: row.profileImage, totalPoints: 0, allBadges: [] });
-      }
-      const entry = userMap.get(row.userId)!;
-      entry.totalPoints += row.badgePoints ?? 0;
-      entry.allBadges.push({ id: row.badgeId, name: row.badgeName, imageUrl: row.badgeImageUrl, badgePoints: row.badgePoints ?? 0 });
+    const badgeMap = new Map<string, { id: string; name: string; imageUrl: string }[]>();
+    for (const row of badgeRows) {
+      if (!badgeMap.has(row.userId)) badgeMap.set(row.userId, []);
+      badgeMap.get(row.userId)!.push({ id: row.badgeId, name: row.badgeName, imageUrl: row.badgeImageUrl });
     }
 
-    return Array.from(userMap.values())
-      .sort((a, b) => b.totalPoints - a.totalPoints)
-      .slice(0, limit)
-      .map(u => ({
-        ...u,
-        topBadges: [...u.allBadges].sort((a, b) => b.badgePoints - a.badgePoints).slice(0, 3),
-      }));
+    return filtered.map(u => {
+      const allBadges = badgeMap.get(u.userId) ?? [];
+      return {
+        userId: u.userId,
+        username: u.username,
+        profileImage: u.profileImage,
+        totalPoints: u.totalCoinsEarned, // field name kept for API compatibility
+        topBadges: allBadges.slice(0, 3),
+        allBadges,
+      };
+    });
   }
 
   async getKeepersCentralEnemies(): Promise<(KeepersCentralEnemy & { enemyName: string; enemyImageUrl: string | null })[]> {

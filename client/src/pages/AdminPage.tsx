@@ -1168,20 +1168,16 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
   const [uploadName, setUploadName] = useState("");
   const [uploadDailyReward, setUploadDailyReward] = useState<string>("");
   const [uploadClaimType, setUploadClaimType] = useState<"daily" | "weekly" | "monthly">("daily");
-  const [uploadBadgePoints, setUploadBadgePoints] = useState<string>("");
   const [uploadPreview, setUploadPreview] = useState<string | null>(null);
   const [uploadData, setUploadData] = useState<string | null>(null);
 
   const [editingRewardId, setEditingRewardId] = useState<string | null>(null);
   const [editingRewardVal, setEditingRewardVal] = useState<string>("");
-  const [editingPointsId, setEditingPointsId] = useState<string | null>(null);
-  const [editingPointsVal, setEditingPointsVal] = useState<string>("");
   const [viewingBadge, setViewingBadge] = useState<AdminBadge | null>(null);
   const [showAddPlayer, setShowAddPlayer] = useState(false);
   const [addPlayerSearch, setAddPlayerSearch] = useState("");
   const [editingBadge, setEditingBadge] = useState<AdminBadge | null>(null);
   const [editName, setEditName] = useState("");
-  const [editBadgePoints, setEditBadgePoints] = useState<string>("");
   const [editClaimType, setEditClaimType] = useState<"daily" | "weekly" | "monthly">("daily");
   const [editDailyReward, setEditDailyReward] = useState<string>("");
   const [editImageData, setEditImageData] = useState<string | null>(null);
@@ -1216,8 +1212,7 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
     mutationFn: async () => {
       if (!uploadName.trim() || !uploadData) throw new Error("Missing data");
       const dailyRewardCoins = uploadDailyReward.trim() ? parseInt(uploadDailyReward.trim(), 10) : null;
-      const badgePoints = uploadBadgePoints.trim() ? parseInt(uploadBadgePoints.trim(), 10) : 0;
-      return apiRequest("POST", "/api/admin/badges", { name: uploadName.trim(), imageData: uploadData, dailyRewardCoins, badgePoints, claimType: uploadClaimType });
+      return apiRequest("POST", "/api/admin/badges", { name: uploadName.trim(), imageData: uploadData, dailyRewardCoins, claimType: uploadClaimType });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/badges"] });
@@ -1225,7 +1220,6 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
       setUploadName("");
       setUploadDailyReward("");
       setUploadClaimType("daily");
-      setUploadBadgePoints("");
       setUploadPreview(null);
       setUploadData(null);
       toast({ title: "Badge created!" });
@@ -1244,20 +1238,9 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
-  const updatePointsMutation = useMutation({
-    mutationFn: ({ id, points }: { id: string; points: number }) =>
-      apiRequest("PATCH", `/api/admin/badges/${id}`, { badgePoints: points }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["/api/badges"] });
-      setEditingPointsId(null);
-      toast({ title: "Badge points updated!" });
-    },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
-  });
-
   const editBadgeMutation = useMutation({
-    mutationFn: ({ id, name, badgePoints, claimType, dailyRewardCoins, imageData }: { id: string; name: string; badgePoints: number; claimType: string; dailyRewardCoins: number | null; imageData: string | null }) =>
-      apiRequest("PATCH", `/api/admin/badges/${id}`, { name, badgePoints, claimType, dailyRewardCoins, ...(imageData ? { imageData } : {}) }),
+    mutationFn: ({ id, name, claimType, dailyRewardCoins, imageData }: { id: string; name: string; claimType: string; dailyRewardCoins: number | null; imageData: string | null }) =>
+      apiRequest("PATCH", `/api/admin/badges/${id}`, { name, claimType, dailyRewardCoins, ...(imageData ? { imageData } : {}) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/badges"] });
       setEditingBadge(null);
@@ -1356,16 +1339,6 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
               ))}
             </div>
           </div>
-          <input
-            data-testid="input-badge-points"
-            type="number"
-            min="0"
-            placeholder="Badge points (0 = no leaderboard impact)..."
-            value={uploadBadgePoints}
-            onChange={e => setUploadBadgePoints(e.target.value)}
-            className="w-full rounded-lg px-3 py-2 font-fantasy text-xs tracking-wider"
-            style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(100,200,180,0.3)", color: "#7fbfb0", outline: "none" }}
-          />
           <div className="flex gap-3 items-center">
             {uploadPreview && (
               <img src={uploadPreview} alt="preview" className="w-16 h-16 rounded-full object-cover" style={{ border: "2px solid rgba(255,215,0,0.4)" }} />
@@ -1469,47 +1442,10 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
                   ) : "Set reward"}
                 </button>
               )}
-              {editingPointsId === badge.id ? (
-                <div className="flex items-center gap-1">
-                  <input
-                    data-testid={`input-badge-points-${badge.id}`}
-                    type="number"
-                    min="0"
-                    value={editingPointsVal}
-                    onChange={e => setEditingPointsVal(e.target.value)}
-                    className="w-16 rounded px-1.5 py-0.5 font-fantasy text-[9px]"
-                    style={{ background: "rgba(0,0,0,0.5)", border: "1px solid rgba(100,200,180,0.4)", color: "#7fbfb0", outline: "none" }}
-                    autoFocus
-                  />
-                  <span className="font-fantasy text-[8px] text-[#7fbfb0]">pts</span>
-                  <button
-                    onClick={() => {
-                      const points = editingPointsVal.trim() ? parseInt(editingPointsVal.trim(), 10) : 0;
-                      updatePointsMutation.mutate({ id: badge.id, points });
-                    }}
-                    disabled={updatePointsMutation.isPending}
-                    className="px-1.5 rounded font-fantasy text-[9px]"
-                    style={{ background: "rgba(100,200,180,0.15)", border: "1px solid rgba(100,200,180,0.4)", color: "#7fbfb0", cursor: "pointer" }}
-                  >✓</button>
-                  <button
-                    onClick={() => setEditingPointsId(null)}
-                    className="px-1.5 rounded font-fantasy text-[9px]"
-                    style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,100,100,0.3)", color: "#ff9999", cursor: "pointer" }}
-                  >✕</button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => { setEditingPointsId(badge.id); setEditingPointsVal(String(badge.badgePoints ?? 0)); }}
-                  className="font-fantasy text-[9px] tracking-wide"
-                  style={{ background: "none", border: "none", cursor: "pointer", color: (badge.badgePoints ?? 0) > 0 ? "#7fbfb0" : "#4a6860" }}
-                >
-                  {(badge.badgePoints ?? 0) > 0 ? `⭐ ${badge.badgePoints} pts` : "Set badge pts"}
-                </button>
-              )}
               <div className="flex gap-1.5 w-full">
                 <button
                   data-testid={`button-edit-badge-${badge.id}`}
-                  onClick={() => { setEditingBadge(badge); setEditName(badge.name); setEditBadgePoints(String(badge.badgePoints ?? 0)); setEditClaimType((badge.claimType === "weekly" ? "weekly" : "daily")); setEditDailyReward(badge.dailyRewardCoins != null ? String(badge.dailyRewardCoins) : ""); setEditImageData(null); setEditImagePreview(null); }}
+                  onClick={() => { setEditingBadge(badge); setEditName(badge.name); setEditClaimType((badge.claimType === "weekly" ? "weekly" : "daily")); setEditDailyReward(badge.dailyRewardCoins != null ? String(badge.dailyRewardCoins) : ""); setEditImageData(null); setEditImagePreview(null); }}
                   className="flex items-center justify-center gap-1 flex-1 py-1 rounded font-fantasy text-[9px] tracking-wider"
                   style={{ background: "rgba(30,60,80,0.4)", border: "1px solid rgba(100,160,210,0.3)", color: "#8ab4d8", cursor: "pointer" }}
                 >
@@ -1734,21 +1670,6 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
               </div>
 
               <div>
-                <label className="font-fantasy text-[9px] tracking-widest uppercase mb-1 block" style={{ color: "#4a7090" }}>Badge Points</label>
-                <input
-                  data-testid="input-edit-badge-points"
-                  type="number"
-                  min="0"
-                  value={editBadgePoints}
-                  onChange={e => setEditBadgePoints(e.target.value)}
-                  placeholder="0"
-                  className="w-full rounded-lg px-3 py-2 font-fantasy text-xs tracking-wider"
-                  style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(100,200,180,0.25)", color: "#7fbfb0", outline: "none" }}
-                />
-                <p className="font-fantasy text-[9px] mt-1" style={{ color: "#2a5040" }}>Points count toward the Hall of Legends leaderboard</p>
-              </div>
-
-              <div>
                 <label className="font-fantasy text-[9px] tracking-widest uppercase mb-1 block" style={{ color: "#4a7090" }}>Badge Image</label>
                 <div className="flex gap-3 items-center">
                   <div
@@ -1791,7 +1712,7 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
 
               <button
                 data-testid="button-save-badge-edit"
-                onClick={() => editBadgeMutation.mutate({ id: editingBadge.id, name: editName, badgePoints: editBadgePoints.trim() ? parseInt(editBadgePoints.trim(), 10) : 0, claimType: editClaimType, dailyRewardCoins: editDailyReward.trim() ? parseInt(editDailyReward.trim(), 10) : null, imageData: editImageData })}
+                onClick={() => editBadgeMutation.mutate({ id: editingBadge.id, name: editName, claimType: editClaimType, dailyRewardCoins: editDailyReward.trim() ? parseInt(editDailyReward.trim(), 10) : null, imageData: editImageData })}
                 disabled={!editName.trim() || editBadgeMutation.isPending}
                 className="w-full py-2.5 rounded-xl font-fantasy text-xs tracking-wider mt-1"
                 style={{
