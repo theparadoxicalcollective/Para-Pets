@@ -374,19 +374,34 @@ function InteriorViewer({
                 </DecorControlBtn>
               </div>
             )}
-            <div className={isSelPet ? undefined : "pet-idle-squish"} style={{ width: "100%", height: "100%" }}>
-              <img
-                src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
-                alt={pet.nickname ?? pet.name}
-                draggable={false}
+            {pet.petTemplateId ? (
+              <PetAnimator
+                petTemplateId={pet.petTemplateId}
+                mode="house"
+                size={size}
+                className={isSelPet ? undefined : "pet-idle-squish"}
                 style={{
-                  width: "100%", height: "100%", objectFit: "contain",
                   filter: isSelPet ? "drop-shadow(0 0 10px rgba(255,215,0,0.9))" : "drop-shadow(0 2px 6px rgba(0,0,0,0.45))",
                   outline: isSelPet ? "2px solid rgba(255,215,0,0.7)" : "none",
-                  outlineOffset: "3px", borderRadius: 6,
+                  outlineOffset: isSelPet ? "3px" : undefined,
+                  borderRadius: 6,
                 }}
               />
-            </div>
+            ) : (
+              <div className={isSelPet ? undefined : "pet-idle-squish"} style={{ width: "100%", height: "100%" }}>
+                <img
+                  src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
+                  alt={pet.nickname ?? pet.name}
+                  draggable={false}
+                  style={{
+                    width: "100%", height: "100%", objectFit: "contain",
+                    filter: isSelPet ? "drop-shadow(0 0 10px rgba(255,215,0,0.9))" : "drop-shadow(0 2px 6px rgba(0,0,0,0.45))",
+                    outline: isSelPet ? "2px solid rgba(255,215,0,0.7)" : "none",
+                    outlineOffset: "3px", borderRadius: 6,
+                  }}
+                />
+              </div>
+            )}
           </div>
         );
       })}
@@ -1021,7 +1036,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             {pet.petTemplateId ? (
               <PetAnimator
                 petTemplateId={pet.petTemplateId}
-                mode="idle"
+                mode="house"
                 size={cfg.size}
                 className={isDraggingThis ? undefined : "pet-idle-squish"}
                 style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }}

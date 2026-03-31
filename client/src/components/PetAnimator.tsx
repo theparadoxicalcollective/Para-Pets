@@ -18,7 +18,7 @@ interface PetPart {
 
 interface PetAnimatorProps {
   petTemplateId: string;
-  mode: "idle" | "walk" | "zoom";
+  mode: "idle" | "walk" | "zoom" | "house";
   view?: "front" | "back";
   size?: number;
   className?: string;
@@ -81,6 +81,26 @@ const ZOOM_ANIMATIONS: Record<string, string> = {
   right_wing: "petZoomRightWing",
   front_wing: "petZoomLeftWing",
   back_wing: "petZoomRightWing",
+};
+
+// House mode: only blink (opacity) and rotation animations — no translateY or scale
+// so the whole-body squish applied by the parent can keep feet on the ground.
+const HOUSE_ANIMATIONS: Record<string, string> = {
+  eyes: "petIdleEyes",
+  eyes_closed: "petIdleEyesClosed",
+  mouth: "petIdleMouth",
+  mouth_closed: "petIdleMouthClosed",
+  left_ear: "petIdleLeftEar",
+  right_ear: "petIdleRightEar",
+  left_arm: "petIdleLeftArm",
+  right_arm: "petIdleRightArm",
+  left_wing: "petIdleLeftWing",
+  right_wing: "petIdleRightWing",
+  front_arm: "petIdleLeftArm",
+  back_arm: "petIdleRightArm",
+  front_wing: "petIdleLeftWing",
+  back_wing: "petIdleRightWing",
+  // head, body, tail, legs intentionally omitted — they use translateY/scale
 };
 
 // Parts that are hidden by default and only appear during specific animations
@@ -234,8 +254,8 @@ const ANIMATION_STYLES = `
   }
 `;
 
-function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom"): string {
-  if (mode === "idle") {
+function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "house"): string {
+  if (mode === "idle" || mode === "house") {
     const durations: Record<string, string> = {
       eyes: "4s", eyes_closed: "4s", mouth: "5s", mouth_closed: "5s",
       head: "3s", left_ear: "3.5s", right_ear: "3.5s",
@@ -358,6 +378,58 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
                 width: `${widthPct}%`,
                 height: `${heightPct}%`,
                 zIndex: layerZ,
+                imageRendering: "auto",
+                pointerEvents: "none",
+              }}
+            />
+          );
+        }
+
+        // House mode: only rotation/opacity animations, no translateY/scale.
+        // Parts without a HOUSE_ANIMATIONS entry render statically (no animation).
+        if (mode === "house") {
+          const animName = HOUSE_ANIMATIONS[part.partType];
+          if (!animName) {
+            // ANIM_ONLY_PARTS (eyes_closed, mouth) have no fallback — keep them hidden
+            if (isAnimOnly) return null;
+            return (
+              <img
+                key={part.id}
+                src={part.imageUrl}
+                alt={part.partType}
+                draggable={false}
+                style={{
+                  position: "absolute",
+                  left: `${leftPct}%`,
+                  top: `${topPct}%`,
+                  width: `${widthPct}%`,
+                  height: `${heightPct}%`,
+                  zIndex: layerZ,
+                  imageRendering: "auto",
+                  pointerEvents: "none",
+                }}
+              />
+            );
+          }
+          const duration = getPartDuration(part.partType, mode);
+          const isEyePart = part.partType === "eyes" || part.partType === "eyes_closed";
+          const delay = isEyePart ? blinkOffset.current : "0s";
+          return (
+            <img
+              key={part.id}
+              src={part.imageUrl}
+              alt={part.partType}
+              draggable={false}
+              style={{
+                position: "absolute",
+                left: `${leftPct}%`,
+                top: `${topPct}%`,
+                width: `${widthPct}%`,
+                height: `${heightPct}%`,
+                zIndex: layerZ,
+                transformOrigin: `${part.pivotX ?? 50}% ${part.pivotY ?? 50}%`,
+                animation: `${animName} ${duration} ease-in-out ${delay} infinite`,
+                opacity: isAnimOnly ? 0 : 1,
                 imageRendering: "auto",
                 pointerEvents: "none",
               }}
