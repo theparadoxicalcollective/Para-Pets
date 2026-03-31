@@ -372,52 +372,33 @@ function InteriorViewer({
         );
       })}
 
-      {/* Pet info popup */}
+      {/* Pet popup */}
       {popupPet && (
         <div
           className="absolute inset-0 flex items-center justify-center"
-          style={{ zIndex: 20, background: "rgba(0,0,0,0.55)" }}
+          style={{ zIndex: 20, background: "rgba(0,0,0,0.45)" }}
           onPointerDown={e => { e.stopPropagation(); setPopupPet(null); }}
         >
           <div
-            className="relative flex flex-col items-center gap-3 rounded-3xl px-6 py-6"
-            style={{ background: "linear-gradient(160deg, #1a1208 0%, #0e0c05 100%)", border: "1.5px solid rgba(255,215,0,0.35)", boxShadow: "0 8px 40px rgba(0,0,0,0.8)", minWidth: 200, maxWidth: 260 }}
+            className="flex flex-col items-center gap-3 rounded-2xl px-5 py-4"
+            style={{ background: "rgba(15,10,5,0.95)", border: "1px solid rgba(255,215,0,0.25)", boxShadow: "0 4px 24px rgba(0,0,0,0.7)" }}
             onPointerDown={e => e.stopPropagation()}
           >
-            {/* Close button */}
-            <button
-              onClick={() => setPopupPet(null)}
-              className="absolute top-3 right-3 w-7 h-7 flex items-center justify-center rounded-full text-xs"
-              style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.15)", fontFamily: "Cinzel, serif" }}
-            >✕</button>
-
-            {/* Pet image */}
-            <div style={{ width: 160, height: 160 }}>
-              {popupPet.petTemplateId ? (
-                <PetAnimator petTemplateId={popupPet.petTemplateId} mode="house" size={160} fillContainer />
-              ) : (popupPet.hatchedImageUrl || popupPet.imageUrl) ? (
-                <img src={popupPet.hatchedImageUrl ?? popupPet.imageUrl ?? ""} alt={popupPet.nickname ?? popupPet.name} draggable={false} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-              ) : null}
-            </div>
-
-            {/* Name */}
-            <div className="text-center" style={{ fontFamily: "Cinzel, serif", color: "#ffd700", fontSize: 15, fontWeight: 700, letterSpacing: "0.04em" }}>
+            <div style={{ fontFamily: "Cinzel, serif", color: "#ffd700", fontSize: 14, fontWeight: 700 }}>
               {popupPet.nickname ?? popupPet.name}
             </div>
-            {popupPet.nickname && (
-              <div className="text-center" style={{ fontFamily: "Cinzel, serif", color: "rgba(255,255,255,0.45)", fontSize: 11, marginTop: -8 }}>
-                {popupPet.name}
-              </div>
-            )}
-
-            {/* Return to inventory */}
-            <button
-              onClick={() => { onRemovePet(popupPet.inventoryId); setPopupPet(null); }}
-              className="w-full rounded-2xl py-2 text-xs font-bold tracking-widest"
-              style={{ fontFamily: "Cinzel, serif", background: "rgba(255,100,80,0.18)", border: "1.5px solid rgba(255,100,80,0.5)", color: "rgba(255,160,140,0.95)" }}
-            >
-              Return to Inventory
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPopupPet(null)}
+                className="rounded-xl px-4 py-1.5 text-xs font-bold"
+                style={{ fontFamily: "Cinzel, serif", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.6)" }}
+              >Cancel</button>
+              <button
+                onClick={() => { onRemovePet(popupPet.inventoryId); setPopupPet(null); }}
+                className="rounded-xl px-4 py-1.5 text-xs font-bold"
+                style={{ fontFamily: "Cinzel, serif", background: "rgba(255,100,80,0.18)", border: "1px solid rgba(255,100,80,0.45)", color: "rgba(255,160,140,0.95)" }}
+              >Return to Inventory</button>
+            </div>
           </div>
         </div>
       )}
