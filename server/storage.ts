@@ -1620,19 +1620,29 @@ export class DatabaseStorage implements IStorage {
 
   // ── Pet house positions ────────────────────────────────────────────────────
 
-  async getPetHousePositions(userId: string): Promise<{ inventoryId: string; posLeft: string; posTop: string }[]> {
-    return db.select({ inventoryId: petHousePositions.inventoryId, posLeft: petHousePositions.posLeft, posTop: petHousePositions.posTop })
+  async getPetHousePositions(userId: string): Promise<{ inventoryId: string; posLeft: string; posTop: string; location: string }[]> {
+    return db.select({ inventoryId: petHousePositions.inventoryId, posLeft: petHousePositions.posLeft, posTop: petHousePositions.posTop, location: petHousePositions.location })
       .from(petHousePositions)
       .where(eq(petHousePositions.userId, userId));
   }
 
-  async upsertPetHousePosition(userId: string, inventoryId: string, posLeft: string, posTop: string): Promise<void> {
+  async upsertPetHousePosition(userId: string, inventoryId: string, posLeft: string, posTop: string, location: string = "outside"): Promise<void> {
     await db.insert(petHousePositions)
-      .values({ userId, inventoryId, posLeft, posTop })
+      .values({ userId, inventoryId, posLeft, posTop, location })
       .onConflictDoUpdate({
         target: [petHousePositions.userId, petHousePositions.inventoryId],
-        set: { posLeft, posTop, updatedAt: new Date() },
+        set: { posLeft, posTop, location, updatedAt: new Date() },
       });
+  }
+
+  async deletePetHousePosition(userId: string, inventoryId: string): Promise<void> {
+    await db.delete(petHousePositions)
+      .where(and(eq(petHousePositions.userId, userId), eq(petHousePositions.inventoryId, inventoryId)));
+  }
+
+  async deleteAllPetHousePositions(userId: string): Promise<void> {
+    await db.delete(petHousePositions)
+      .where(eq(petHousePositions.userId, userId));
   }
 
   // ── Friendships ────────────────────────────────────────────────────────────

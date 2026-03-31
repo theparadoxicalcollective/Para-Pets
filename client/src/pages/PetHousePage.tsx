@@ -95,6 +95,7 @@ interface HousePet {
   petTemplateId: string | null;
   posLeft: string | null;
   posTop: string | null;
+  location: string | null;
 }
 
 interface HouseBundle {
@@ -138,16 +139,22 @@ const BUILDING_REF_H   = 900; // must match HouseBundleAdminPanel constant
 function InteriorViewer({
   url,
   placedItems,
+  placedPets,
   panStateRef,
   onUpdateItem,
   onRemoveItem,
+  onMovePet,
+  onRemovePet,
   onClose,
 }: {
   url: string;
   placedItems: PlacedDecorItem[];
+  placedPets: HousePet[];
   panStateRef: React.MutableRefObject<{ panX: number; imgWidth: number; containerH: number } | null>;
   onUpdateItem: (id: string, data: { xPct?: number; yPct?: number; size?: number; flipped?: boolean }) => void;
   onRemoveItem: (id: string) => void;
+  onMovePet: (inventoryId: string, xPct: number, yPct: number) => void;
+  onRemovePet: (inventoryId: string) => void;
   onClose: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -162,6 +169,9 @@ function InteriorViewer({
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [itemDragLive, setItemDragLive] = useState<{ id: string; xPct: number; yPct: number } | null>(null);
   const itemDragRef = useRef<{ id: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number } | null>(null);
+  const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
+  const [petDragLiveInt, setPetDragLiveInt] = useState<{ inventoryId: string; xPct: number; yPct: number } | null>(null);
+  const petDragIntRef = useRef<{ inventoryId: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number } | null>(null);
 
   useEffect(() => {
     const img = new window.Image();
@@ -244,6 +254,34 @@ function InteriorViewer({
     if (moved) onUpdateItem(drag.id, { xPct: newXPct, yPct: newYPct });
   }, [onUpdateItem]);
 
+  const handlePetDragStartInt = useCallback((e: React.PointerEvent, pet: HousePet) => {
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    const savedX = parsePetPct(pet.posLeft) ?? 0.5;
+    const savedY = parsePetPct(pet.posTop) ?? 0.5;
+    petDragIntRef.current = { inventoryId: pet.inventoryId, startXPct: savedX, startYPct: savedY, startPointerX: e.clientX, startPointerY: e.clientY, pid: e.pointerId };
+    setSelectedPetId(pet.inventoryId);
+  }, []);
+
+  const handlePetDragMoveInt = useCallback((e: React.PointerEvent) => {
+    const drag = petDragIntRef.current;
+    if (!drag || drag.pid !== e.pointerId || imgWidthRef.current <= 0) return;
+    const newXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidthRef.current));
+    const newYPct = Math.max(0.02, Math.min(0.98, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current));
+    setPetDragLiveInt({ inventoryId: drag.inventoryId, xPct: newXPct, yPct: newYPct });
+  }, []);
+
+  const handlePetDragEndInt = useCallback((e: React.PointerEvent) => {
+    const drag = petDragIntRef.current;
+    petDragIntRef.current = null;
+    setPetDragLiveInt(null);
+    if (!drag || imgWidthRef.current <= 0) return;
+    const newXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidthRef.current));
+    const newYPct = Math.max(0.02, Math.min(0.98, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current));
+    const moved = Math.abs(newXPct - drag.startXPct) > 0.005 || Math.abs(newYPct - drag.startYPct) > 0.005;
+    if (moved) onMovePet(drag.inventoryId, newXPct, newYPct);
+  }, [onMovePet]);
+
   const displayedItems = useMemo(() =>
     placedItems.map(item =>
       itemDragLive?.id === item.id
@@ -309,6 +347,50 @@ function InteriorViewer({
         );
       })}
 
+      {/* Pets placed inside this building */}
+      {imgWidth > 0 && placedPets.map((pet) => {
+        const isSelPet = selectedPetId === pet.inventoryId;
+        const livePos = petDragLiveInt?.inventoryId === pet.inventoryId ? petDragLiveInt : null;
+        const xPct = livePos?.xPct ?? (parsePetPct(pet.posLeft) ?? 0.5);
+        const yPct = livePos?.yPct ?? (parsePetPct(pet.posTop) ?? 0.5);
+        const left = panX + xPct * imgWidth;
+        const top = yPct * containerH;
+        const size = 160;
+        return (
+          <div
+            key={pet.inventoryId}
+            className="absolute"
+            style={{ zIndex: 7, left, top, width: size, height: size, transform: "translate(-50%, -50%)", touchAction: "none", cursor: isSelPet ? "grabbing" : "grab" }}
+            onPointerDown={(e) => handlePetDragStartInt(e, pet)}
+            onPointerMove={handlePetDragMoveInt}
+            onPointerUp={handlePetDragEndInt}
+            onPointerCancel={handlePetDragEndInt}
+            onClick={(e) => { e.stopPropagation(); setSelectedPetId(isSelPet ? null : pet.inventoryId); }}
+          >
+            {isSelPet && (
+              <div className="absolute flex gap-2" style={{ bottom: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)", zIndex: 10, whiteSpace: "nowrap" }}>
+                <DecorControlBtn danger onClick={() => { onRemovePet(pet.inventoryId); setSelectedPetId(null); }}>
+                  <SvgDelete />
+                </DecorControlBtn>
+              </div>
+            )}
+            <div className={isSelPet ? undefined : "pet-idle-squish"} style={{ width: "100%", height: "100%" }}>
+              <img
+                src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
+                alt={pet.nickname ?? pet.name}
+                draggable={false}
+                style={{
+                  width: "100%", height: "100%", objectFit: "contain",
+                  filter: isSelPet ? "drop-shadow(0 0 10px rgba(255,215,0,0.9))" : "drop-shadow(0 2px 6px rgba(0,0,0,0.45))",
+                  outline: isSelPet ? "2px solid rgba(255,215,0,0.7)" : "none",
+                  outlineOffset: "3px", borderRadius: 6,
+                }}
+              />
+            </div>
+          </div>
+        );
+      })}
+
       <button
         onClick={onClose}
         onPointerDown={e => e.stopPropagation()}
@@ -355,8 +437,13 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const [openInterior, setOpenInterior] = useState<{ url: string; buildingId: string } | null>(null);
   const interiorPanRef = useRef<{ panX: number; imgWidth: number; containerH: number } | null>(null);
   const [currentUser, setCurrentUser] = useState(user);
-  const [openInventory, setOpenInventory] = useState<"home" | "decor" | null>(null);
+  const [openInventory, setOpenInventory] = useState<"home" | "decor" | "pets" | null>(null);
   const [pendingActivate, setPendingActivate] = useState<{ bundleId: string; bundle: OwnedBundle["bundle"] } | null>(null);
+
+  // Pet inventory drag state
+  const [isDraggingPet, setIsDraggingPet] = useState(false);
+  const [petInvDragState, setPetInvDragState] = useState<{ pet: HousePet; ghostX: number; ghostY: number } | null>(null);
+  const petInvDragRef = useRef<{ pet: HousePet; ghostX: number; ghostY: number; startX: number; startY: number; isDragging: boolean; pid: number } | null>(null);
 
   // Decor interaction state
   const [selectedPlacedId, setSelectedPlacedId] = useState<string | null>(null);
@@ -492,12 +579,89 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       const res = await apiRequest("PATCH", `/api/pet-house-positions/${inventoryId}`, {
         posLeft: String(xPct * 100),
         posTop: String(yPct * 100),
+        location: "outside",
       });
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/users", user.id, "pets"] }),
   });
+
+  const placePetMutation = useMutation({
+    mutationFn: async ({ inventoryId, xPct, yPct, location }: { inventoryId: string; xPct: number; yPct: number; location: string }) => {
+      const res = await apiRequest("PATCH", `/api/pet-house-positions/${inventoryId}`, {
+        posLeft: String(xPct * 100),
+        posTop: String(yPct * 100),
+        location,
+      });
+      if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/users", user.id, "pets"] }),
+  });
+
+  const storeAllPetsMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("DELETE", "/api/pet-house-positions/all", {});
+      if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/users", user.id, "pets"] });
+      toast({ title: "All pets stored!", description: "Drag them back out anytime." });
+    },
+    onError: () => toast({ title: "Error", description: "Could not store pets.", variant: "destructive" }),
+  });
+
+  const removePetFromSceneMutation = useMutation({
+    mutationFn: async (inventoryId: string) => {
+      const res = await apiRequest("DELETE", `/api/pet-house-positions/${inventoryId}`, {});
+      if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/users", user.id, "pets"] }),
+  });
+
+  // ── Pet inventory drag handlers ─────────────────────────────────────────────
+  const handlePetInvDragStart = useCallback((e: React.PointerEvent, pet: HousePet) => {
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    petInvDragRef.current = { pet, ghostX: e.clientX, ghostY: e.clientY, startX: e.clientX, startY: e.clientY, isDragging: false, pid: e.pointerId };
+  }, []);
+
+  const handlePetInvDragMove = useCallback((e: React.PointerEvent) => {
+    const drag = petInvDragRef.current;
+    if (!drag || drag.pid !== e.pointerId) return;
+    drag.ghostX = e.clientX;
+    drag.ghostY = e.clientY;
+    if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > 8) drag.isDragging = true;
+    if (drag.isDragging) {
+      setPetInvDragState({ pet: drag.pet, ghostX: e.clientX, ghostY: e.clientY });
+      setIsDraggingPet(true);
+    }
+  }, []);
+
+  const handlePetInvDragEnd = useCallback((e: React.PointerEvent) => {
+    const drag = petInvDragRef.current;
+    petInvDragRef.current = null;
+    setPetInvDragState(null);
+    setIsDraggingPet(false);
+    if (!drag?.isDragging) return;
+    const interior = interiorPanRef.current;
+    const container = containerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const localX = e.clientX - rect.left;
+    const localY = e.clientY - rect.top;
+    if (interior && interior.imgWidth > 0 && openInterior) {
+      const xPct = Math.max(0.03, Math.min(0.97, (localX - interior.panX) / interior.imgWidth));
+      const yPct = Math.max(0.03, Math.min(0.97, localY / interior.containerH));
+      placePetMutation.mutate({ inventoryId: drag.pet.inventoryId, xPct, yPct, location: openInterior.buildingId });
+    } else if (imgWidth > 0) {
+      const maxYPct = containerH > 0 ? Math.min(0.88, (containerH - 115) / containerH) : 0.82;
+      if (localY < 0 || localY > rect.height) return;
+      const xPct = Math.max(0.05, Math.min(0.95, (localX - panX) / imgWidth));
+      const yPct = Math.max(0.05, Math.min(maxYPct, localY / containerH));
+      placePetMutation.mutate({ inventoryId: drag.pet.inventoryId, xPct, yPct, location: "outside" });
+    }
+  }, [openInterior, panX, imgWidth, containerH]);
 
   // ── Drag handlers: pet reposition ─────────────────────────────────────────
   const handlePetDragStart = useCallback((e: React.PointerEvent, inventoryId: string, startXPct: number, startYPct: number) => {
@@ -744,8 +908,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         </div>
       )}
 
-      {/* Pets layer — absolutely positioned in the main container, draggable */}
-      {imgWidth > 0 && pets.map((pet, i) => {
+      {/* Pets layer — only shows pets placed outdoors */}
+      {imgWidth > 0 && pets.filter(p => p.posLeft !== null && (p.location === "outside" || p.location === null)).map((pet, i) => {
         const cfg = randomGroundConfig(i);
         const savedX = parsePetPct(pet.posLeft);
         const savedY = parsePetPct(pet.posTop);
@@ -878,10 +1042,38 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
       {/* Bottom inventory bar */}
       <div
-        className="absolute bottom-0 left-0 right-0 flex justify-center gap-6 pb-5 pt-3"
+        className="absolute bottom-0 left-0 right-0 flex justify-center gap-4 pb-5 pt-3"
         style={{ zIndex: openInterior ? 65 : 15, pointerEvents: "auto", background: "linear-gradient(0deg, rgba(0,0,0,0.55) 0%, transparent 100%)" }}
         onPointerDown={(e) => e.stopPropagation()}
       >
+        {/* Pets inventory button */}
+        <button
+          data-testid="button-pets-inventory"
+          onClick={() => setOpenInventory(openInventory === "pets" ? null : "pets")}
+          className="flex flex-col items-center gap-1 group"
+        >
+          <div
+            className="w-16 h-16 rounded-2xl flex items-center justify-center transition-transform group-active:scale-90"
+            style={{
+              background: openInventory === "pets" ? "rgba(255,180,50,0.35)" : "rgba(0,0,0,0.45)",
+              border: openInventory === "pets" ? "2px solid rgba(255,200,80,0.8)" : "2px solid rgba(255,255,255,0.2)",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
+              backdropFilter: "blur(6px)",
+            }}
+          >
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+              <ellipse cx="20" cy="30" rx="9" ry="6" fill={openInventory === "pets" ? "#ffcc44" : "#ccc"} opacity="0.9"/>
+              <ellipse cx="11" cy="22" rx="4.5" ry="6" fill={openInventory === "pets" ? "#ffcc44" : "#ccc"} opacity="0.9" transform="rotate(-20 11 22)"/>
+              <ellipse cx="29" cy="22" rx="4.5" ry="6" fill={openInventory === "pets" ? "#ffcc44" : "#ccc"} opacity="0.9" transform="rotate(20 29 22)"/>
+              <ellipse cx="14" cy="13" rx="3.5" ry="4.5" fill={openInventory === "pets" ? "#ffcc44" : "#ccc"} opacity="0.9" transform="rotate(-35 14 13)"/>
+              <ellipse cx="26" cy="13" rx="3.5" ry="4.5" fill={openInventory === "pets" ? "#ffcc44" : "#ccc"} opacity="0.9" transform="rotate(35 26 13)"/>
+            </svg>
+          </div>
+          <span className="text-white text-xs font-semibold drop-shadow-md" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>
+            Pets
+          </span>
+        </button>
+
         <button
           data-testid="button-home-inventory"
           onClick={() => setOpenInventory(openInventory === "home" ? null : "home")}
@@ -929,7 +1121,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       {openInventory && (
         <div
           className="absolute inset-0 flex flex-col justify-end"
-          style={{ zIndex: openInterior ? 62 : 20, pointerEvents: "none", visibility: isDraggingDecor ? "hidden" : "visible" }}
+          style={{ zIndex: openInterior ? 62 : 20, pointerEvents: "none", visibility: (isDraggingDecor || isDraggingPet) ? "hidden" : "visible" }}
         >
           {/* Tap-outside to close */}
           <div
@@ -956,19 +1148,31 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
             {/* Header */}
             <div className="flex items-center gap-3 mb-5">
-              <img
-                src={openInventory === "home" ? homeInventoryIcon : decorInventoryIcon}
-                alt=""
-                className="w-10 h-10 object-contain"
-              />
+              {openInventory === "pets" ? (
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                  <ellipse cx="20" cy="30" rx="9" ry="6" fill="#ffcc44" opacity="0.9"/>
+                  <ellipse cx="11" cy="22" rx="4.5" ry="6" fill="#ffcc44" opacity="0.9" transform="rotate(-20 11 22)"/>
+                  <ellipse cx="29" cy="22" rx="4.5" ry="6" fill="#ffcc44" opacity="0.9" transform="rotate(20 29 22)"/>
+                  <ellipse cx="14" cy="13" rx="3.5" ry="4.5" fill="#ffcc44" opacity="0.9" transform="rotate(-35 14 13)"/>
+                  <ellipse cx="26" cy="13" rx="3.5" ry="4.5" fill="#ffcc44" opacity="0.9" transform="rotate(35 26 13)"/>
+                </svg>
+              ) : (
+                <img
+                  src={openInventory === "home" ? homeInventoryIcon : decorInventoryIcon}
+                  alt=""
+                  className="w-10 h-10 object-contain"
+                />
+              )}
               <div>
                 <h2 className="text-white font-bold text-lg leading-tight">
-                  {openInventory === "home" ? "Home Inventory" : "Decor Inventory"}
+                  {openInventory === "home" ? "Home Inventory" : openInventory === "decor" ? "Decor Inventory" : "Pet Inventory"}
                 </h2>
                 <p className="text-white/50 text-xs">
                   {openInventory === "home"
                     ? "House bundles you own"
-                    : "Home decorations you own"}
+                    : openInventory === "decor"
+                    ? "Home decorations you own"
+                    : "Drag a pet onto the scene to place it"}
                 </p>
               </div>
             </div>
@@ -1041,7 +1245,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                   </div>
                 )}
               </div>
-            ) : (
+            ) : openInventory === "decor" ? (
               <div className="flex flex-col gap-4">
                 {decorInventory.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-10 gap-3">
@@ -1101,7 +1305,99 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                   </>
                 )}
               </div>
-            )}
+            ) : openInventory === "pets" ? (
+              /* ─── Pet inventory ─── */
+              <div className="flex flex-col gap-4">
+                {(() => {
+                  const unplacedPets = pets.filter(p => p.posLeft === null);
+                  if (unplacedPets.length === 0 && pets.length === 0) {
+                    return (
+                      <div className="flex flex-col items-center justify-center py-10 gap-3">
+                        <svg width="48" height="48" viewBox="0 0 40 40" fill="none">
+                          <ellipse cx="20" cy="30" rx="9" ry="6" fill="#ffcc44" opacity="0.4"/>
+                          <ellipse cx="11" cy="22" rx="4.5" ry="6" fill="#ffcc44" opacity="0.4" transform="rotate(-20 11 22)"/>
+                          <ellipse cx="29" cy="22" rx="4.5" ry="6" fill="#ffcc44" opacity="0.4" transform="rotate(20 29 22)"/>
+                          <ellipse cx="14" cy="13" rx="3.5" ry="4.5" fill="#ffcc44" opacity="0.4" transform="rotate(-35 14 13)"/>
+                          <ellipse cx="26" cy="13" rx="3.5" ry="4.5" fill="#ffcc44" opacity="0.4" transform="rotate(35 26 13)"/>
+                        </svg>
+                        <p className="text-white/40 text-sm text-center">No pets yet.{"\n"}Hatch some eggs to get started!</p>
+                      </div>
+                    );
+                  }
+                  return (
+                    <>
+                      {unplacedPets.length > 0 && (
+                        <>
+                          <p className="text-white/40 text-xs text-center" style={{ fontFamily: "Cinzel, serif" }}>
+                            Hold & drag a pet onto your home
+                          </p>
+                          <div className="grid grid-cols-3 gap-3">
+                            {unplacedPets.map((pet) => (
+                              <div
+                                key={pet.inventoryId}
+                                data-testid={`pet-inv-item-${pet.inventoryId}`}
+                                className="flex flex-col items-center gap-1.5"
+                                onPointerDown={(e) => handlePetInvDragStart(e, pet)}
+                                onPointerMove={handlePetInvDragMove}
+                                onPointerUp={handlePetInvDragEnd}
+                                onPointerCancel={handlePetInvDragEnd}
+                                style={{ touchAction: "none", cursor: "grab" }}
+                              >
+                                <div
+                                  className="w-full rounded-2xl overflow-hidden relative"
+                                  style={{
+                                    aspectRatio: "1 / 1",
+                                    background: "rgba(255,255,255,0.05)",
+                                    border: "1.5px solid rgba(255,215,0,0.18)",
+                                  }}
+                                >
+                                  <img
+                                    src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
+                                    alt={pet.nickname ?? pet.name}
+                                    className="w-full h-full object-contain p-2"
+                                    draggable={false}
+                                  />
+                                </div>
+                                <span
+                                  className="w-full text-center truncate px-0.5 leading-tight"
+                                  style={{ color: "rgba(255,255,255,0.7)", fontSize: 10, fontFamily: "Cinzel, serif", fontWeight: 600 }}
+                                >
+                                  {pet.nickname ?? pet.name}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                      {pets.some(p => p.posLeft !== null) && (
+                        <div className="mt-2 flex flex-col gap-2">
+                          <p className="text-white/30 text-xs text-center" style={{ fontFamily: "Cinzel, serif" }}>
+                            {pets.filter(p => p.posLeft !== null).length} pet(s) placed on scene
+                          </p>
+                          <button
+                            data-testid="button-store-all-pets"
+                            onClick={() => storeAllPetsMutation.mutate()}
+                            disabled={storeAllPetsMutation.isPending}
+                            className="w-full py-2.5 rounded-xl text-xs font-semibold"
+                            style={{
+                              fontFamily: "Cinzel, serif",
+                              background: "rgba(255,100,100,0.15)",
+                              border: "1.5px solid rgba(255,100,100,0.4)",
+                              color: "rgba(255,160,160,0.9)",
+                            }}
+                          >
+                            {storeAllPetsMutation.isPending ? "Storing…" : "Store All Pets"}
+                          </button>
+                        </div>
+                      )}
+                      {unplacedPets.length === 0 && pets.length > 0 && (
+                        <p className="text-white/40 text-sm text-center py-4">All pets are on the scene!</p>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            ) : null}
           </div>
         </div>
       )}
@@ -1131,6 +1427,28 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               <img src={decorInventoryIcon} className="w-16 h-16 object-contain opacity-60" />
             </div>
           )}
+        </div>
+      )}
+
+      {/* Drag ghost — follows pointer when dragging a pet from inventory */}
+      {petInvDragState && (
+        <div
+          className="fixed pointer-events-none"
+          style={{
+            zIndex: 100,
+            left: petInvDragState.ghostX - 80,
+            top: petInvDragState.ghostY - 80,
+            width: 160,
+            height: 160,
+            opacity: 0.88,
+          }}
+        >
+          <img
+            src={petInvDragState.pet.hatchedImageUrl ?? petInvDragState.pet.imageUrl ?? ""}
+            className="w-full h-full object-contain"
+            draggable={false}
+            style={{ filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.7)) drop-shadow(0 0 8px rgba(255,200,0,0.5))" }}
+          />
         </div>
       )}
 
@@ -1198,9 +1516,12 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         <InteriorViewer
           url={openInterior.url}
           placedItems={interiorPlacedRaw}
+          placedPets={pets.filter(p => p.posLeft !== null && p.location === openInterior.buildingId)}
           panStateRef={interiorPanRef}
           onUpdateItem={(id, data) => updateDecorMutation.mutate({ id, ...data })}
           onRemoveItem={(id) => removeDecorMutation.mutate(id)}
+          onMovePet={(inventoryId, xPct, yPct) => placePetMutation.mutate({ inventoryId, xPct, yPct, location: openInterior.buildingId })}
+          onRemovePet={(inventoryId) => removePetFromSceneMutation.mutate(inventoryId)}
           onClose={() => { setOpenInterior(null); interiorPanRef.current = null; }}
         />
       )}

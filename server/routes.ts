@@ -938,7 +938,7 @@ export async function registerRoutes(
         storage.getUserInventoryWithItems(targetUser.id),
         storage.getPetHousePositions(targetUser.id),
       ]);
-      const posMap = new Map(savedPositions.map(p => [p.inventoryId, { posLeft: p.posLeft, posTop: p.posTop }]));
+      const posMap = new Map(savedPositions.map(p => [p.inventoryId, { posLeft: p.posLeft, posTop: p.posTop, location: p.location }]));
 
       const hatchedPets = inventoryRows
         .filter(r => r.inventory.isHatched && r.shopItem?.type === "pet")
@@ -960,6 +960,7 @@ export async function registerRoutes(
             petTemplateId: r.shopItem!.petTemplateId || null,
             posLeft: pos?.posLeft ?? null,
             posTop: pos?.posTop ?? null,
+            location: pos?.location ?? null,
           };
         });
 
@@ -985,14 +986,35 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
       const { inventoryId } = req.params;
-      const { posLeft, posTop } = req.body;
+      const { posLeft, posTop, location } = req.body;
       if (typeof posLeft !== "string" || typeof posTop !== "string") {
         return res.status(400).json({ message: "posLeft and posTop are required strings" });
       }
-      await storage.upsertPetHousePosition(user.id, inventoryId, posLeft, posTop);
+      await storage.upsertPetHousePosition(user.id, inventoryId, posLeft, posTop, location ?? "outside");
       return res.json({ ok: true });
     } catch (err) {
       return res.status(500).json({ message: "Failed to save position" });
+    }
+  });
+
+  app.delete("/api/pet-house-positions/all", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      await storage.deleteAllPetHousePositions(user.id);
+      return res.json({ ok: true });
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to store all pets" });
+    }
+  });
+
+  app.delete("/api/pet-house-positions/:inventoryId", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { inventoryId } = req.params;
+      await storage.deletePetHousePosition(user.id, inventoryId);
+      return res.json({ ok: true });
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to remove pet position" });
     }
   });
 
