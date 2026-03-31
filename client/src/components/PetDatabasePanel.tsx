@@ -321,7 +321,71 @@ export default function PetDatabasePanel() {
     },
   });
 
-  const handlePointerDown = useCallback((e: React.PointerEvent, part: PetTemplatePart) => {
+  const loadImageToCache = useCallback((imageUrl: string): Promise<HTMLCanvasElement> => {
+    const cached = pixelCacheRef.current.get(imageUrl);
+    if (cached) return Promise.resolve(cached);
+    return new Promise<HTMLCanvasElement>((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth || 100;
+        canvas.height = img.naturalHeight || 100;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0);
+        pixelCacheRef.current.set(imageUrl, canvas);
+        resolve(canvas);
+      };
+      img.onerror = () => {
+        const empty = document.createElement("canvas");
+        pixelCacheRef.current.set(imageUrl, empty);
+        resolve(empty);
+      };
+      img.src = imageUrl;
+    });
+  }, []);
+
+  // Preload all visible part images into the pixel cache so hit-testing is synchronous
+  useEffect(() => {
+    viewParts.forEach(p => { if (p.imageUrl) loadImageToCache(p.imageUrl); });
+  }, [viewParts, loadImageToCache]);
+
+  const isOpaqueAt = useCallback(async (imageUrl: string, relX: number, relY: number): Promise<boolean> => {
+    const cv = await loadImageToCache(imageUrl);
+    const ctx = cv.getContext("2d");
+    if (!ctx || cv.width === 0 || cv.height === 0) return true;
+    const px = Math.max(0, Math.min(Math.floor(relX * cv.width), cv.width - 1));
+    const py = Math.max(0, Math.min(Math.floor(relY * cv.height), cv.height - 1));
+    const data = ctx.getImageData(px, py, 1, 1).data;
+    return data[3] > 10;
+  }, [loadImageToCache]);
+
+  // Synchronous version — only works after the image is cached; returns true (safe default) if not cached yet
+  const isOpaqueSyncAt = useCallback((imageUrl: string, relX: number, relY: number): boolean => {
+    const cv = pixelCacheRef.current.get(imageUrl);
+    if (!cv) return true;
+    const ctx = cv.getContext("2d");
+    if (!ctx || cv.width === 0 || cv.height === 0) return true;
+    const px = Math.max(0, Math.min(Math.floor(relX * cv.width), cv.width - 1));
+    const py = Math.max(0, Math.min(Math.floor(relY * cv.height), cv.height - 1));
+    const data = ctx.getImageData(px, py, 1, 1).data;
+    return data[3] > 10;
+  }, []);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent, part: PetTemplatePart, canvasEl: HTMLDivElement | null) => {
+    // Pixel-accurate hit test: ignore transparent areas so clicks fall through to lower parts
+    if (canvasEl) {
+      const rect = canvasEl.getBoundingClientRect();
+      const scale = rect.width / CANVAS_SIZE;
+      const canvasX = (e.clientX - rect.left) / scale;
+      const canvasY = (e.clientY - rect.top) / scale;
+      const relX = (canvasX - part.posX) / part.width;
+      const relY = (canvasY - part.posY) / part.height;
+      if (!isOpaqueSyncAt(part.imageUrl, relX, relY)) {
+        // Transparent pixel — don't capture; let canvas onClick do the proper hit-test
+        return;
+      }
+    }
     e.preventDefault();
     e.stopPropagation();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
@@ -334,7 +398,7 @@ export default function PetDatabasePanel() {
       origY: part.posY,
     };
     setSelectedPartId(part.id);
-  }, []);
+  }, [isOpaqueSyncAt]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!dragRef.current || !canvasRef.current) return;
@@ -359,32 +423,6 @@ export default function PetDatabasePanel() {
     }
     setDragPos(null);
   }, [dragPos, updatePartMutation]);
-
-  const isOpaqueAt = useCallback(async (imageUrl: string, relX: number, relY: number): Promise<boolean> => {
-    let cv = pixelCacheRef.current.get(imageUrl);
-    if (!cv) {
-      cv = await new Promise<HTMLCanvasElement>((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          canvas.width = img.naturalWidth || 100;
-          canvas.height = img.naturalHeight || 100;
-          const ctx = canvas.getContext("2d");
-          ctx?.drawImage(img, 0, 0);
-          resolve(canvas);
-        };
-        img.onerror = () => resolve(document.createElement("canvas"));
-        img.src = imageUrl;
-      });
-      pixelCacheRef.current.set(imageUrl, cv);
-    }
-    const ctx = cv.getContext("2d");
-    if (!ctx || cv.width === 0 || cv.height === 0) return true;
-    const px = Math.max(0, Math.min(Math.floor(relX * cv.width), cv.width - 1));
-    const py = Math.max(0, Math.min(Math.floor(relY * cv.height), cv.height - 1));
-    const data = ctx.getImageData(px, py, 1, 1).data;
-    return data[3] > 10;
-  }, []);
 
   const selectedPart = viewParts.find(p => p.id === selectedPartId);
 
@@ -523,7 +561,7 @@ export default function PetDatabasePanel() {
                   outlineOffset: "2px",
                   borderRadius: "4px",
                 }}
-                onPointerDown={(e) => handlePointerDown(e, part)}
+                onPointerDown={(e) => handlePointerDown(e, part, canvasRef.current)}
               >
                 <img
                   src={part.imageUrl}
