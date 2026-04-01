@@ -11,6 +11,7 @@ interface HomeDecorItem {
 }
 interface HouseBundle {
   id: string; name: string; shopImageUrl: string | null; bgImageUrl: string | null; price: number; createdAt: string;
+  giftNotificationX?: number; giftNotificationY?: number;
 }
 interface HouseBundleBuilding {
   id: string; bundleId: string; name: string; imageUrl: string;
@@ -245,6 +246,56 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
   // ── Building bg upload state ──
   const [buildingBgUploading, setBuildingBgUploading] = useState<string | null>(null);
   const [previewBuilding, setPreviewBuilding] = useState<{ url: string; buildingId: string; leaveButtonX: number; leaveButtonY: number } | null>(null);
+
+  // ── Gift notification position ──
+  const giftXRef = useRef(bundle.giftNotificationX ?? 0.05);
+  const giftYRef = useRef(bundle.giftNotificationY ?? 0.85);
+  const [giftX, setGiftX] = useState(bundle.giftNotificationX ?? 0.05);
+  const [giftY, setGiftY] = useState(bundle.giftNotificationY ?? 0.85);
+  const giftDragRef = useRef<{ startX: number; startY: number; startGX: number; startGY: number; pid: number } | null>(null);
+  const [isDraggingGift, setIsDraggingGift] = useState(false);
+
+  const onGiftBtnDown = useCallback((e: React.PointerEvent) => {
+    e.stopPropagation();
+    buildingDragRef.current = null;
+    isPanningRef.current = false;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    giftDragRef.current = { startX: e.clientX, startY: e.clientY, startGX: giftXRef.current, startGY: giftYRef.current, pid: e.pointerId };
+    setIsDraggingGift(true);
+  }, []);
+
+  const onGiftBtnMove = useCallback((e: React.PointerEvent) => {
+    const drag = giftDragRef.current;
+    if (!drag || drag.pid !== e.pointerId) return;
+    const container = containerRef.current;
+    if (!container) return;
+    const w = container.offsetWidth;
+    const h = container.offsetHeight;
+    const iw = imgWidthRef.current || w;
+    // X is fraction of image width, Y is fraction of container height
+    const newGX = Math.max(0, Math.min(1, drag.startGX + (e.clientX - drag.startX) / iw));
+    const newGY = Math.max(0, Math.min(1, drag.startGY + (e.clientY - drag.startY) / h));
+    giftXRef.current = newGX;
+    giftYRef.current = newGY;
+    setGiftX(newGX);
+    setGiftY(newGY);
+  }, []);
+
+  const onGiftBtnUp = useCallback(async (e: React.PointerEvent) => {
+    if (giftDragRef.current && giftDragRef.current.pid === e.pointerId) {
+      giftDragRef.current = null;
+      setIsDraggingGift(false);
+      try {
+        await apiRequest("PATCH", `/api/admin/house-bundles/${bundle.id}`, {
+          giftNotificationX: giftXRef.current,
+          giftNotificationY: giftYRef.current,
+        });
+        qc.invalidateQueries({ queryKey: ["/api/admin/house-bundles"] });
+      } catch {
+        toast({ title: "Failed to save position", variant: "destructive" });
+      }
+    }
+  }, [bundle.id, qc, toast]);
 
   // ── Add building form ──
   const [showAddForm, setShowAddForm] = useState(false);
@@ -584,6 +635,37 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
             );
           })}
         </div>
+      )}
+
+      {/* ── Draggable gift notification ! button ── */}
+      {localBgUrl && imgWidth > 0 && (
+        <button
+          data-testid="button-gift-notification-drag"
+          style={{
+            position: "absolute",
+            left: panX + giftX * imgWidth,
+            top: giftY * containerH,
+            transform: "translate(-50%, -50%)",
+            zIndex: 30,
+            width: 36,
+            height: 36,
+            borderRadius: "50%",
+            background: "radial-gradient(circle, #22c55e 60%, #15803d 100%)",
+            border: isDraggingGift ? "2.5px solid #ffd700" : "2.5px solid #4ade80",
+            boxShadow: isDraggingGift ? "0 0 16px rgba(255,215,0,0.6)" : "0 0 14px rgba(74,222,128,0.7)",
+            cursor: isDraggingGift ? "grabbing" : "grab",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            touchAction: "none",
+          }}
+          onPointerDown={onGiftBtnDown}
+          onPointerMove={onGiftBtnMove}
+          onPointerUp={onGiftBtnUp}
+          onPointerCancel={onGiftBtnUp}
+        >
+          <span style={{ fontSize: 16, fontWeight: "bold", color: "#fff", lineHeight: 1, pointerEvents: "none" }}>!</span>
+        </button>
       )}
 
       {/* ── Back button ── */}

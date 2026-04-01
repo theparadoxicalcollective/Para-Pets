@@ -9,6 +9,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import homeInventoryIcon from "@assets/icon_home_inventory.png";
 import decorInventoryIcon from "@assets/icon_decor_inventory.png";
 import LoadingScreen from "@/components/LoadingScreen";
+import GiftClaimModal from "@/components/GiftClaimModal";
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
 function SvgMinus() {
@@ -78,7 +79,7 @@ interface HousePet {
   rarity: number | null; petLevel: number; petHealth: number; petAtk: number; petDef: number;
   petTemplateId: string | null; posLeft: string | null; posTop: string | null; location: string | null;
 }
-interface HouseBundle { id: string; name: string; shopImageUrl: string | null; bgImageUrl: string | null; price: number; }
+interface HouseBundle { id: string; name: string; shopImageUrl: string | null; bgImageUrl: string | null; price: number; giftNotificationX?: number; giftNotificationY?: number; }
 interface ActiveBundle extends HouseBundle {
   buildings: { id: string; name: string; imageUrl: string; posX: number; posY: number; width: number; flippedX: boolean; interiorImageUrl?: string | null; leaveButtonX?: number | null; leaveButtonY?: number | null }[];
 }
@@ -429,6 +430,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const interiorPanRef = useRef<{ panX: number; imgWidth: number; containerH: number } | null>(null);
   const [openInventory, setOpenInventory] = useState<"home" | "decor" | "pets" | null>(null);
   const [pendingActivate, setPendingActivate] = useState<{ bundleId: string; bundle: OwnedBundle["bundle"] } | null>(null);
+  const [openGiftModal, setOpenGiftModal] = useState(false);
 
   // Canvas panning
   const containerRef = useRef<HTMLDivElement>(null);
@@ -485,6 +487,13 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const { data: decorInventory = [] } = useQuery<DecorInventoryItem[]>({
     queryKey: ["/api/pet-house/decor/inventory"],
     staleTime: 15000,
+  });
+
+  const { data: pendingGifts = [] } = useQuery<any[]>({
+    queryKey: ["/api/gifts/pending"],
+    queryFn: () => fetch("/api/gifts/pending", { credentials: "include" }).then(r => r.json()),
+    refetchInterval: 30000,
+    staleTime: 0,
   });
 
   const { data: placedDecorRaw = [] } = useQuery<PlacedDecorItem[]>({
@@ -950,6 +959,35 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             );
           })}
         </div>
+      )}
+
+      {/* Gift notification button */}
+      {pendingGifts.length > 0 && imgWidth > 0 && !openInterior && (
+        <button
+          data-testid="button-gift-notification"
+          onClick={(e) => { e.stopPropagation(); setOpenGiftModal(true); }}
+          onPointerDown={(e) => e.stopPropagation()}
+          style={{
+            position: "absolute",
+            left: panX + (activeBundle?.giftNotificationX ?? 0.05) * imgWidth,
+            top: (activeBundle?.giftNotificationY ?? 0.85) * containerH,
+            transform: "translate(-50%, -50%)",
+            zIndex: 30,
+            width: 36,
+            height: 36,
+            borderRadius: "50%",
+            background: "radial-gradient(circle, #22c55e 60%, #15803d 100%)",
+            border: "2.5px solid #4ade80",
+            boxShadow: "0 0 14px rgba(74,222,128,0.7), 0 2px 8px rgba(0,0,0,0.5)",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            animation: "pulse 1.8s ease-in-out infinite",
+          }}
+        >
+          <span style={{ fontSize: 16, fontWeight: "bold", color: "#fff", lineHeight: 1 }}>!</span>
+        </button>
       )}
 
       {/* Outdoor pets layer */}
@@ -1419,6 +1457,10 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
       {showProfile && (
         <UserProfilePanel user={currentUser} onClose={() => setShowProfile(false)} onUserUpdate={(u) => setCurrentUser(u)} />
+      )}
+
+      {openGiftModal && (
+        <GiftClaimModal onClose={() => setOpenGiftModal(false)} />
       )}
     </div>
   );

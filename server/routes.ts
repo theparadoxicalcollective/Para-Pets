@@ -4780,12 +4780,14 @@ export async function registerRoutes(
 
   app.patch("/api/admin/house-bundles/:id", isAdmin, async (req, res) => {
     try {
-      const { name, price, shopImageData, bgImageData } = req.body;
+      const { name, price, shopImageData, bgImageData, giftNotificationX, giftNotificationY } = req.body;
       const updates: Record<string, any> = {};
       if (name !== undefined)  updates.name  = name;
       if (price !== undefined) updates.price = price;
       if (shopImageData) updates.shopImageUrl = await processWorldImage(shopImageData, 1000);
       if (bgImageData)   updates.bgImageUrl   = await processWorldImage(bgImageData, 3000);
+      if (giftNotificationX !== undefined) updates.giftNotificationX = giftNotificationX;
+      if (giftNotificationY !== undefined) updates.giftNotificationY = giftNotificationY;
       const bundle = await storage.updateHouseBundle(req.params.id, updates);
       return res.json(bundle);
     } catch (err: any) {
@@ -5174,6 +5176,41 @@ export async function registerRoutes(
         granted++;
       }
       return res.json({ ok: true, granted });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Gifts ──────────────────────────────────────────────────────────────────
+  app.post("/api/gifts/send", isAuthenticated, async (req, res) => {
+    try {
+      const senderId = (req.user as any).id;
+      const { receiverId, message, coinAmount, itemType, shopItemInventoryId, decorItemId, itemQuantity, itemName, itemImageUrl, shopItemId } = req.body;
+      if (!receiverId) return res.status(400).json({ message: "receiverId required" });
+      if (coinAmount == null || coinAmount < 0) return res.status(400).json({ message: "coinAmount must be >= 0" });
+      if (senderId === receiverId) return res.status(400).json({ message: "Cannot send gift to yourself" });
+      const gift = await storage.sendGift({ senderId, receiverId, message, coinAmount, itemType, shopItemInventoryId, decorItemId, itemQuantity, itemName, itemImageUrl, shopItemId });
+      return res.json(gift);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/gifts/pending", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const pending = await storage.getPendingGifts(userId);
+      return res.json(pending);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/gifts/:id/accept", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const gift = await storage.acceptGift(req.params.id, userId);
+      return res.json(gift);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }

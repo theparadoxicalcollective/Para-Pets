@@ -48,6 +48,7 @@ The application is built as a monolithic web app with a clear separation of conc
     - Stat-boosting items and a pet leveling system with rarity-based caps.
     - Option to reset pet stats.
 - **Reward System**: Admin-created bundles with coins and items, delivered to users via an in-game notification system.
+- **Gift System**: Players can send coins or inventory items to friends via a SendGiftModal (opened from FriendProfileModal). Pending gifts appear as a pulsing green `!` button on the recipient's Pet House page at an admin-configurable position (draggable in the BundleBgEditor). Accepting opens GiftClaimModal which credits coins/items to the recipient. Database table: `gifts`; API routes: `POST /api/gifts/send`, `GET /api/gifts/pending`, `POST /api/gifts/:id/accept`.
 
 ### Feature Specifications
 - **User Management**: User registration, login, profile updates, and admin-managed banning/unbanning.

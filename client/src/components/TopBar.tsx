@@ -573,6 +573,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
         <FriendProfileModal
           friendId={selectedFriend.id}
           friendUsername={selectedFriend.username}
+          senderCoins={user.coins}
           onClose={() => setSelectedFriend(null)}
         />
       )}

@@ -576,6 +576,8 @@ export const houseBundles = pgTable("house_bundles", {
   shopImageUrl: text("shop_image_url"),
   bgImageUrl: text("bg_image_url"),
   price: integer("price").notNull().default(0),
+  giftNotificationX: real("gift_notification_x").notNull().default(0.05),
+  giftNotificationY: real("gift_notification_y").notNull().default(0.85),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
@@ -669,3 +671,23 @@ export const placedHomeDecor = pgTable("placed_home_decor", {
 });
 
 export type PlacedHomeDecor = typeof placedHomeDecor.$inferSelect;
+
+// ── Player Gifts ──────────────────────────────────────────────────────────────
+export const gifts = pgTable("gifts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  senderId: varchar("sender_id").notNull(),
+  receiverId: varchar("receiver_id").notNull(),
+  message: text("message"),
+  coinAmount: integer("coin_amount").notNull().default(0),
+  itemType: text("item_type"), // null (coins only) | 'shop_item' | 'decor'
+  shopItemId: varchar("shop_item_id"),           // shopItems.id — for re-adding to receiver
+  shopItemInventoryId: varchar("shop_item_inventory_id"), // userInventory.id — sender's slot
+  decorItemId: varchar("decor_item_id"),          // homeDecorItems.id
+  itemQuantity: integer("item_quantity").notNull().default(1),
+  itemName: text("item_name"),
+  itemImageUrl: text("item_image_url"),
+  status: text("status").notNull().default("pending"), // 'pending' | 'accepted'
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export type Gift = typeof gifts.$inferSelect;

@@ -46,6 +46,7 @@ import {
   type LocationHomeDecor, locationHomeDecor,
   type UserHomeDecorInventory, userHomeDecorInventory,
   type PlacedHomeDecor, placedHomeDecor,
+  type Gift, gifts,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, ne, gte, asc, desc, ilike, or, sql, inArray } from "drizzle-orm";
@@ -242,6 +243,9 @@ export interface IStorage {
   setActiveHouseBundle(userId: string, bundleId: string | null): Promise<void>;
   getActiveBundleWithBuildings(userId: string): Promise<(HouseBundle & { buildings: HouseBundleBuilding[] }) | null>;
   getHouseBundleBuilding(id: string): Promise<HouseBundleBuilding | null>;
+  sendGift(data: { senderId: string; receiverId: string; message?: string; coinAmount: number; itemType?: string; shopItemInventoryId?: string; decorItemId?: string; itemQuantity?: number; itemName?: string; itemImageUrl?: string; shopItemId?: string }): Promise<Gift>;
+  getPendingGifts(userId: string): Promise<(Gift & { senderName: string; senderProfileImageUrl: string | null })[]>;
+  acceptGift(giftId: string, userId: string): Promise<Gift>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2054,6 +2058,106 @@ export class DatabaseStorage implements IStorage {
     await db.delete(placedHomeDecor).where(eq(placedHomeDecor.id, id));
     await this.incrementHomeDecorInventory(userId, existing.decorItemId);
     return { decorItemId: existing.decorItemId };
+  }
+
+  // ── Gifts ─────────────────────────────────────────────────────────────────
+  async sendGift(data: {
+    senderId: string;
+    receiverId: string;
+    message?: string;
+    coinAmount: number;
+    itemType?: string;
+    shopItemInventoryId?: string;
+    decorItemId?: string;
+    itemQuantity?: number;
+    itemName?: string;
+    itemImageUrl?: string;
+    shopItemId?: string;
+  }): Promise<Gift> {
+    const { senderId, receiverId, message, coinAmount, itemType, shopItemInventoryId, decorItemId, itemQuantity = 1, itemName, itemImageUrl, shopItemId } = data;
+
+    // Deduct coins from sender if sending coins
+    if (coinAmount > 0) {
+      const sender = await this.getUser(senderId);
+      if (!sender || (sender.coins ?? 0) < coinAmount) throw new Error("Insufficient coins");
+      await db.update(users).set({ coins: (sender.coins ?? 0) - coinAmount }).where(eq(users.id, senderId));
+    }
+
+    // Deduct shop item from sender inventory
+    if (itemType === "shop_item" && shopItemInventoryId) {
+      const [inv] = await db.select().from(userInventory).where(and(eq(userInventory.id, shopItemInventoryId), eq(userInventory.userId, senderId)));
+      if (!inv) throw new Error("Item not found in inventory");
+      const qty = inv.quantity ?? 1;
+      if (qty <= 1) {
+        await db.delete(userInventory).where(eq(userInventory.id, shopItemInventoryId));
+      } else {
+        await db.update(userInventory).set({ quantity: qty - itemQuantity }).where(eq(userInventory.id, shopItemInventoryId));
+      }
+    }
+
+    // Deduct decor item from sender inventory
+    if (itemType === "decor" && decorItemId) {
+      await this.decrementHomeDecorInventory(senderId, decorItemId);
+    }
+
+    const [gift] = await db.insert(gifts).values({
+      senderId,
+      receiverId,
+      message: message ?? null,
+      coinAmount,
+      itemType: itemType ?? null,
+      shopItemId: shopItemId ?? null,
+      shopItemInventoryId: shopItemInventoryId ?? null,
+      decorItemId: decorItemId ?? null,
+      itemQuantity,
+      itemName: itemName ?? null,
+      itemImageUrl: itemImageUrl ?? null,
+      status: "pending",
+    }).returning();
+    return gift;
+  }
+
+  async getPendingGifts(userId: string): Promise<(Gift & { senderName: string; senderProfileImageUrl: string | null })[]> {
+    const rows = await db
+      .select({
+        gift: gifts,
+        senderName: users.username,
+        senderProfileImageUrl: users.profileImageUrl,
+      })
+      .from(gifts)
+      .leftJoin(users, eq(gifts.senderId, users.id))
+      .where(and(eq(gifts.receiverId, userId), eq(gifts.status, "pending")))
+      .orderBy(desc(gifts.createdAt));
+    return rows.map((r) => ({
+      ...r.gift,
+      senderName: r.senderName ?? "Unknown",
+      senderProfileImageUrl: r.senderProfileImageUrl ?? null,
+    }));
+  }
+
+  async acceptGift(giftId: string, userId: string): Promise<Gift> {
+    const [gift] = await db.select().from(gifts).where(and(eq(gifts.id, giftId), eq(gifts.receiverId, userId), eq(gifts.status, "pending")));
+    if (!gift) throw new Error("Gift not found");
+
+    // Add coins to receiver
+    if (gift.coinAmount > 0) {
+      await this.addCoins(userId, gift.coinAmount);
+    }
+
+    // Add shop item to receiver inventory
+    if (gift.itemType === "shop_item" && gift.shopItemId) {
+      await this.addToInventory(userId, gift.shopItemId, undefined, gift.itemQuantity);
+    }
+
+    // Add decor item to receiver inventory
+    if (gift.itemType === "decor" && gift.decorItemId) {
+      for (let i = 0; i < gift.itemQuantity; i++) {
+        await this.grantHomeDecorToUser(userId, gift.decorItemId);
+      }
+    }
+
+    const [updated] = await db.update(gifts).set({ status: "accepted" }).where(eq(gifts.id, giftId)).returning();
+    return updated;
   }
 }
 

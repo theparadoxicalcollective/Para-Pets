@@ -1,11 +1,14 @@
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import SendGiftModal from "./SendGiftModal";
 
 interface FriendProfileModalProps {
   friendId: string;
   friendUsername: string;
+  senderCoins?: number;
   onClose: () => void;
 }
 
@@ -17,9 +20,10 @@ const RARITY_COLOR: Record<string, string> = {
   Common:    "#94a3b8",
 };
 
-export default function FriendProfileModal({ friendId, friendUsername, onClose }: FriendProfileModalProps) {
+export default function FriendProfileModal({ friendId, friendUsername, senderCoins = 0, onClose }: FriendProfileModalProps) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const [showSendGift, setShowSendGift] = useState(false);
 
   const { data: profile, isLoading: profileLoading } = useQuery<any>({
     queryKey: ["/api/users", friendId, "profile"],
@@ -182,6 +186,26 @@ export default function FriendProfileModal({ friendId, friendUsername, onClose }
               🏠 Visit Pet House
             </button>
 
+            {/* Send Gift button */}
+            <button
+              data-testid="button-send-gift-open"
+              onClick={() => setShowSendGift(true)}
+              className="font-fantasy tracking-wider w-full"
+              style={{
+                padding: "10px 0",
+                borderRadius: 10,
+                background: "linear-gradient(135deg, rgba(240,192,64,0.18) 0%, rgba(200,150,0,0.14) 100%)",
+                border: "1.5px solid rgba(240,192,64,0.45)",
+                color: "#ffd700",
+                cursor: "pointer",
+                fontSize: 11,
+                letterSpacing: "0.12em",
+                marginBottom: 8,
+              }}
+            >
+              🎁 Send Gift
+            </button>
+
             {/* Remove friend */}
             <button
               data-testid={`button-remove-friend-modal-${friendId}`}
@@ -204,6 +228,15 @@ export default function FriendProfileModal({ friendId, friendUsername, onClose }
           </>
         )}
       </div>
+
+      {showSendGift && (
+        <SendGiftModal
+          friendId={friendId}
+          friendUsername={friendUsername}
+          senderCoins={senderCoins}
+          onClose={() => setShowSendGift(false)}
+        />
+      )}
     </>
   );
 }
