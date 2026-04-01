@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { playClick, unlockAudio } from "@/lib/sounds";
 import { initTabSync, teardownTabSync } from "@/lib/tabSync";
 import desktopBackdrop from "@assets/bg_desktop_backdrop.png";
+import homeBg from "@assets/bg_home_v2.png";
 import AuthPage from "@/pages/AuthPage";
 import MaintenancePage from "@/pages/MaintenancePage";
 import HomePage from "@/pages/HomePage";
@@ -66,14 +67,23 @@ function AppRouter() {
   );
 
   // After auth resolves for a logged-in user, fetch inventory and preload the
-  // active pet image before revealing the app.  This prevents any flash of
-  // the orbs in a horizontal line or the egg image before the pet loads.
+  // home page background + active pet image before revealing the app.
+  // This prevents any flash of the background loading in or the pet image
+  // popping in after the page is already visible.
   const [isPreloaded, setIsPreloaded] = useState(false);
   useEffect(() => {
     if (!user || isPreloaded) return;
 
-    // Hard cap: never block the player for more than 4 seconds total.
-    const timeout = setTimeout(() => setIsPreloaded(true), 4000);
+    // Hard cap: never block the player for more than 5 seconds total.
+    const timeout = setTimeout(() => setIsPreloaded(true), 5000);
+
+    const preloadImage = (url: string) =>
+      new Promise<void>(resolve => {
+        const img = new Image();
+        img.onload = () => resolve();
+        img.onerror = () => resolve();
+        img.src = url;
+      });
 
     fetch("/api/inventory", { credentials: "include" })
       .then(res => res.json())
@@ -84,17 +94,17 @@ function AppRouter() {
         const activePetItem = items.find(
           (i: any) => i.shopItemId === user.activePetId && i.type === "pet"
         );
-        const imageUrl = activePetItem?.hatchedImageUrl || activePetItem?.imageUrl;
+        const petImageUrl = activePetItem?.hatchedImageUrl || activePetItem?.imageUrl;
 
-        if (imageUrl) {
-          const img = new Image();
-          img.onload  = () => { clearTimeout(timeout); setIsPreloaded(true); };
-          img.onerror = () => { clearTimeout(timeout); setIsPreloaded(true); };
-          img.src = imageUrl;
-        } else {
+        // Preload the home page background and the active pet image in parallel.
+        // Both must be ready before the loading screen is dismissed.
+        const preloads: Promise<void>[] = [preloadImage(homeBg)];
+        if (petImageUrl) preloads.push(preloadImage(petImageUrl));
+
+        Promise.all(preloads).then(() => {
           clearTimeout(timeout);
           setIsPreloaded(true);
-        }
+        });
       })
       .catch(() => { clearTimeout(timeout); setIsPreloaded(true); });
 
