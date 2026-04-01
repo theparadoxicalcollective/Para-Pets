@@ -220,7 +220,7 @@ app.use((req, res, next) => {
     console.log('Initializing Stripe...');
     const databaseUrl = process.env.DATABASE_URL;
     if (databaseUrl) {
-      await runMigrations({ databaseUrl, schema: 'stripe' });
+      await runMigrations({ databaseUrl });
       const stripeSync = await getStripeSync();
       const webhookBaseUrl = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`;
       const webhookResult = await stripeSync.findOrCreateManagedWebhook(

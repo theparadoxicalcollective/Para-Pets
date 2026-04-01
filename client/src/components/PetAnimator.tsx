@@ -265,7 +265,7 @@ const ANIMATION_STYLES = `
 
 `;
 
-function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "house"): string {
+function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "house" | "static"): string {
   if (mode === "house") {
     const durations: Record<string, string> = {
       eyes: "4s", eyes_closed: "4s", mouth: "5s", mouth_closed: "5s",

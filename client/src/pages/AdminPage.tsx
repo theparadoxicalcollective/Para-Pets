@@ -56,7 +56,7 @@ export default function AdminPage({ user }: AdminPageProps) {
   const [coinAmounts, setCoinAmounts] = useState<Record<string, string>>({});
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "welcome" | "items" | "pets" | "messages" | "badges" | "fishing" | "enemies" | "maintenance" | "home_bundle" | null>(null);
+  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "welcome" | "items" | "pets" | "messages" | "badges" | "fishing" | "enemies" | "maintenance" | "home_bundle" | "purchases" | null>(null);
   const [orphanResult, setOrphanResult] = useState<{ summary: string; cleaned: number } | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();

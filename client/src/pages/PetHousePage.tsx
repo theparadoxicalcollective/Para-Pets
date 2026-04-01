@@ -1144,7 +1144,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                   backdropFilter: "blur(6px)",
                 }}
               >
-                {icon(active)}
+                {icon()}
               </div>
               <span className="text-white text-xs font-semibold drop-shadow-md" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>{label}</span>
             </button>

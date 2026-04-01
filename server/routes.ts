@@ -530,7 +530,7 @@ export async function registerRoutes(
 
   app.get("/api/auth/reset-password/:token", async (req, res) => {
     try {
-      const user = await storage.getUserByResetToken(req.params.token);
+      const user = await storage.getUserByResetToken((req.params.token as string));
       if (!user) {
         return res.status(404).json({ valid: false, message: "Invalid or expired reset link" });
       }
@@ -882,7 +882,7 @@ export async function registerRoutes(
   // Public profile endpoint — accessible to any authenticated player
   app.get("/api/users/:userId/profile", isAuthenticated, async (req, res) => {
     try {
-      const targetUser = await storage.getUser(req.params.userId);
+      const targetUser = await storage.getUser((req.params.userId as string));
       if (!targetUser || targetUser.isBanned) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -942,7 +942,7 @@ export async function registerRoutes(
 
   app.get("/api/users/:userId/badges", isAuthenticated, async (req, res) => {
     try {
-      const badges = await storage.getUserBadges(req.params.userId);
+      const badges = await storage.getUserBadges((req.params.userId as string));
       return res.json(badges);
     } catch (err) {
       return res.status(500).json({ message: "Failed to fetch badges" });
@@ -952,7 +952,7 @@ export async function registerRoutes(
   // Public pet list for visiting another player's pet house
   app.get("/api/users/:userId/pets", isAuthenticated, async (req, res) => {
     try {
-      const targetUser = await storage.getUser(req.params.userId);
+      const targetUser = await storage.getUser((req.params.userId as string));
       if (!targetUser || targetUser.isBanned) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -1008,7 +1008,7 @@ export async function registerRoutes(
   app.patch("/api/pet-house-positions/:inventoryId", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const { inventoryId } = req.params;
+      const { inventoryId } = req.params as Record<string, string>;
       const { posLeft, posTop, location } = req.body;
       if (typeof posLeft !== "string" || typeof posTop !== "string") {
         return res.status(400).json({ message: "posLeft and posTop are required strings" });
@@ -1033,7 +1033,7 @@ export async function registerRoutes(
   app.delete("/api/pet-house-positions/:inventoryId", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const { inventoryId } = req.params;
+      const { inventoryId } = req.params as Record<string, string>;
       await storage.deletePetHousePosition(user.id, inventoryId);
       return res.json({ ok: true });
     } catch (err) {
@@ -1111,7 +1111,7 @@ export async function registerRoutes(
   app.delete("/api/inventory/:inventoryId", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const { inventoryId } = req.params;
+      const { inventoryId } = req.params as Record<string, string>;
       const allInv = await storage.getUserInventory(user.id);
       const item = allInv.find((inv) => inv.id === inventoryId);
       if (!item) {
@@ -1131,7 +1131,7 @@ export async function registerRoutes(
   app.patch("/api/inventory/:inventoryId/nickname", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const { inventoryId } = req.params;
+      const { inventoryId } = req.params as Record<string, string>;
       const { nickname } = req.body;
       const trimmed = (nickname || "").trim().slice(0, 20);
       const item = await storage.getInventoryItemById(inventoryId);
@@ -1149,7 +1149,7 @@ export async function registerRoutes(
   app.post("/api/shop/:worldId/buy/:itemId", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const { itemId } = req.params;
+      const { itemId } = req.params as Record<string, string>;
       const quantity = Math.min(Math.max(1, parseInt(req.body?.quantity ?? "1") || 1), 20);
 
       const shopItem = await storage.getShopItem(itemId);
@@ -1211,7 +1211,7 @@ export async function registerRoutes(
   app.post("/api/pet/:inventoryId/hatch-check", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const invItem = await storage.getInventoryItemById(req.params.inventoryId);
+      const invItem = await storage.getInventoryItemById((req.params.inventoryId as string));
       if (!invItem || invItem.userId !== user.id) {
         return res.status(404).json({ message: "Pet not found" });
       }
@@ -1243,7 +1243,7 @@ export async function registerRoutes(
   app.get("/api/pet/:inventoryId/accessories", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const { inventoryId } = req.params;
+      const { inventoryId } = req.params as Record<string, string>;
       const petInv = await storage.getInventoryItemById(inventoryId);
       if (!petInv || petInv.userId !== user.id) return res.status(404).json({ message: "Pet not found" });
       const equipped = await storage.getPetEquippedAccessories(inventoryId);
@@ -1256,7 +1256,7 @@ export async function registerRoutes(
   app.post("/api/pet/:inventoryId/equip", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const { inventoryId } = req.params;
+      const { inventoryId } = req.params as Record<string, string>;
       const { accessoryInventoryId } = req.body;
       if (!accessoryInventoryId) return res.status(400).json({ message: "Missing accessoryInventoryId" });
       const petInv = await storage.getInventoryItemById(inventoryId);
@@ -1289,7 +1289,7 @@ export async function registerRoutes(
   app.post("/api/pet/:inventoryId/unequip", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const { inventoryId } = req.params;
+      const { inventoryId } = req.params as Record<string, string>;
       const { accessoryInventoryId } = req.body;
       if (!accessoryInventoryId) return res.status(400).json({ message: "Missing accessoryInventoryId" });
       const petInv = await storage.getInventoryItemById(inventoryId);
@@ -1320,7 +1320,7 @@ export async function registerRoutes(
       const user = req.user as any;
       const { itemInventoryId } = req.body;
 
-      const petInv = await storage.getInventoryItemById(req.params.inventoryId);
+      const petInv = await storage.getInventoryItemById((req.params.inventoryId as string));
       if (!petInv || petInv.userId !== user.id) {
         return res.status(404).json({ message: "Pet not found" });
       }
@@ -1393,7 +1393,7 @@ export async function registerRoutes(
       const user = req.user as any;
       const { itemInventoryId } = req.body;
 
-      const petInv = await storage.getInventoryItemById(req.params.inventoryId);
+      const petInv = await storage.getInventoryItemById((req.params.inventoryId as string));
       if (!petInv || petInv.userId !== user.id) {
         return res.status(404).json({ message: "Pet not found" });
       }
@@ -1458,7 +1458,7 @@ export async function registerRoutes(
       const user = req.user as any;
       const { itemInventoryId } = req.body;
 
-      const petInv = await storage.getInventoryItemById(req.params.inventoryId);
+      const petInv = await storage.getInventoryItemById((req.params.inventoryId as string));
       if (!petInv || petInv.userId !== user.id) {
         return res.status(404).json({ message: "Pet not found" });
       }
@@ -1503,7 +1503,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Not enough coins. Stat reset costs 300 coins." });
       }
 
-      const petInv = await storage.getInventoryItemById(req.params.inventoryId);
+      const petInv = await storage.getInventoryItemById((req.params.inventoryId as string));
       if (!petInv || petInv.userId !== user.id) {
         return res.status(404).json({ message: "Pet not found" });
       }
@@ -1698,7 +1698,7 @@ export async function registerRoutes(
 
   app.patch("/api/admin/support-messages/:id/read", isAdmin, async (req, res) => {
     try {
-      await storage.markSupportMessageRead(req.params.id);
+      await storage.markSupportMessageRead((req.params.id as string));
       return res.json({ message: "Marked as read" });
     } catch (err) {
       return res.status(500).json({ message: "Failed to update message" });
@@ -1707,7 +1707,7 @@ export async function registerRoutes(
 
   app.delete("/api/admin/support-messages/:id", isAdmin, async (req, res) => {
     try {
-      await storage.deleteSupportMessage(req.params.id);
+      await storage.deleteSupportMessage((req.params.id as string));
       return res.json({ message: "Message deleted" });
     } catch (err) {
       return res.status(500).json({ message: "Failed to delete message" });
@@ -1727,7 +1727,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/reset-password/:userId", isAdmin, async (req, res) => {
     try {
-      const target = await storage.getUser(req.params.userId);
+      const target = await storage.getUser((req.params.userId as string));
       if (!target) return res.status(404).json({ message: "User not found" });
       const token = crypto.randomBytes(32).toString("hex");
       const expires = new Date(Date.now() + 60 * 60 * 1000);
@@ -1741,10 +1741,10 @@ export async function registerRoutes(
 
   app.post("/api/admin/ban/:userId", isAdmin, async (req, res) => {
     try {
-      const target = await storage.getUser(req.params.userId);
+      const target = await storage.getUser((req.params.userId as string));
       if (!target) return res.status(404).json({ message: "User not found" });
       if (target.isAdmin) return res.status(400).json({ message: "Cannot banish an admin" });
-      const updated = await storage.banUser(req.params.userId);
+      const updated = await storage.banUser((req.params.userId as string));
       const { password: _, ...safe } = updated;
       return res.json(safe);
     } catch (err) {
@@ -1755,7 +1755,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/unban/:userId", isAdmin, async (req, res) => {
     try {
-      const updated = await storage.unbanUser(req.params.userId);
+      const updated = await storage.unbanUser((req.params.userId as string));
       const { password: _, ...safe } = updated;
       return res.json(safe);
     } catch (err) {
@@ -1792,7 +1792,7 @@ export async function registerRoutes(
       if (typeof amount !== "number" || amount === 0) {
         return res.status(400).json({ message: "Provide a valid coin amount" });
       }
-      const updated = await storage.addCoins(req.params.userId, amount);
+      const updated = await storage.addCoins((req.params.userId as string), amount);
       const { password: _, ...safe } = updated;
       return res.json(safe);
     } catch (err) {
@@ -1813,7 +1813,7 @@ export async function registerRoutes(
 
   app.get("/api/worlds/:worldId", isAuthenticated, async (req, res) => {
     try {
-      const world = await storage.getWorld(req.params.worldId);
+      const world = await storage.getWorld((req.params.worldId as string));
       if (!world) return res.status(404).json({ message: "World not found" });
       return res.json(world);
     } catch (err) {
@@ -1855,7 +1855,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "posX and posY are required numbers" });
       }
       const clamped = { posX: Math.max(-10, Math.min(110, Math.round(posX))), posY: Math.max(-10, Math.min(110, Math.round(posY))) };
-      const updated = await storage.updateWorldPosition(req.params.worldId, clamped.posX, clamped.posY);
+      const updated = await storage.updateWorldPosition((req.params.worldId as string), clamped.posX, clamped.posY);
       return res.json(updated);
     } catch (err) {
       console.error("Update world position error:", err);
@@ -1904,7 +1904,7 @@ export async function registerRoutes(
 
   app.patch("/api/admin/worlds/:worldId", isAdmin, async (req, res) => {
     try {
-      const world = await storage.getWorld(req.params.worldId);
+      const world = await storage.getWorld((req.params.worldId as string));
       if (!world) return res.status(404).json({ message: "World not found" });
 
       const { name, glowColor, iconData, bgData, skyImageData, groundImageData } = req.body;
@@ -1930,7 +1930,7 @@ export async function registerRoutes(
         return res.json(world);
       }
 
-      const updated = await storage.updateWorld(req.params.worldId, updates);
+      const updated = await storage.updateWorld((req.params.worldId as string), updates);
       return res.json(updated);
     } catch (err) {
       console.error("Update world error:", err);
@@ -1940,10 +1940,10 @@ export async function registerRoutes(
 
   app.delete("/api/admin/worlds/:worldId", isAdmin, async (req, res) => {
     try {
-      const world = await storage.getWorld(req.params.worldId);
+      const world = await storage.getWorld((req.params.worldId as string));
       if (!world) return res.status(404).json({ message: "World not found" });
       if (world.isDefault) return res.status(400).json({ message: "Cannot delete default worlds" });
-      await storage.deleteWorld(req.params.worldId);
+      await storage.deleteWorld((req.params.worldId as string));
       return res.json({ message: "World deleted" });
     } catch (err) {
       console.error("Delete world error:", err);
@@ -1953,7 +1953,7 @@ export async function registerRoutes(
 
   app.get("/api/world/:worldId/locations", isAuthenticated, async (req, res) => {
     try {
-      const locations = await storage.getWorldLocations(req.params.worldId);
+      const locations = await storage.getWorldLocations((req.params.worldId as string));
       const slim = locations.map(({ bgUrl, ...rest }) => rest);
       return res.json(slim);
     } catch (err) {
@@ -1964,7 +1964,7 @@ export async function registerRoutes(
 
   app.get("/api/location/:locationId", isAuthenticated, async (req, res) => {
     try {
-      const loc = await storage.getWorldLocation(req.params.locationId);
+      const loc = await storage.getWorldLocation((req.params.locationId as string));
       if (!loc) return res.status(404).json({ message: "Location not found" });
       return res.json(loc);
     } catch (err) {
@@ -1992,7 +1992,7 @@ export async function registerRoutes(
       }
 
       const loc = await storage.createWorldLocation({
-        worldId: req.params.worldId,
+        worldId: (req.params.worldId as string),
         name,
         type: type || (isShop ? "shop" : "battle"),
         iconUrl,
@@ -2014,7 +2014,7 @@ export async function registerRoutes(
 
   app.get("/api/world/:worldId/decor/items", async (req, res) => {
     try {
-      const items = await storage.getWorldDecorItems(req.params.worldId);
+      const items = await storage.getWorldDecorItems((req.params.worldId as string));
       return res.json(items);
     } catch (err) {
       return res.status(500).json({ message: "Failed to get decor items" });
@@ -2025,7 +2025,7 @@ export async function registerRoutes(
     try {
       const { name, imageUrl } = req.body;
       if (!name || !imageUrl) return res.status(400).json({ message: "name and imageUrl required" });
-      const item = await storage.createWorldDecorItem({ worldId: req.params.worldId, name, imageUrl });
+      const item = await storage.createWorldDecorItem({ worldId: (req.params.worldId as string), name, imageUrl });
       return res.status(201).json(item);
     } catch (err) {
       return res.status(500).json({ message: "Failed to create decor item" });
@@ -2035,7 +2035,7 @@ export async function registerRoutes(
   app.patch("/api/admin/world/decor/items/:itemId", isAdmin, async (req, res) => {
     try {
       const { name, imageUrl, message } = req.body;
-      await storage.updateWorldDecorItem(req.params.itemId, { name, imageUrl, message });
+      await storage.updateWorldDecorItem((req.params.itemId as string), { name, imageUrl, message });
       return res.json({ ok: true });
     } catch (err) {
       return res.status(500).json({ message: "Failed to update decor item" });
@@ -2044,7 +2044,7 @@ export async function registerRoutes(
 
   app.delete("/api/admin/world/decor/items/:itemId", isAdmin, async (req, res) => {
     try {
-      await storage.deleteWorldDecorItem(req.params.itemId);
+      await storage.deleteWorldDecorItem((req.params.itemId as string));
       return res.json({ ok: true });
     } catch (err) {
       return res.status(500).json({ message: "Failed to delete decor item" });
@@ -2159,7 +2159,7 @@ export async function registerRoutes(
 
   app.get("/api/world/:worldId/decor/placements", async (req, res) => {
     try {
-      const placements = await storage.getWorldDecorPlacements(req.params.worldId);
+      const placements = await storage.getWorldDecorPlacements((req.params.worldId as string));
       return res.json(placements);
     } catch (err) {
       return res.status(500).json({ message: "Failed to get decor placements" });
@@ -2171,7 +2171,7 @@ export async function registerRoutes(
       const { decorItemId, name, imageUrl, posX, posY } = req.body;
       if (!decorItemId || !name || !imageUrl) return res.status(400).json({ message: "decorItemId, name, imageUrl required" });
       const placement = await storage.createWorldDecorPlacement({
-        worldId: req.params.worldId,
+        worldId: (req.params.worldId as string),
         decorItemId,
         name,
         imageUrl,
@@ -2193,7 +2193,7 @@ export async function registerRoutes(
       if (size !== undefined) update.size = size;
       if (flipped !== undefined) update.flipped = flipped;
       if (message !== undefined) update.message = message || null;
-      const placement = await storage.updateWorldDecorPlacement(req.params.placementId, update);
+      const placement = await storage.updateWorldDecorPlacement((req.params.placementId as string), update);
       return res.json(placement);
     } catch (err) {
       return res.status(500).json({ message: "Failed to update decor placement" });
@@ -2202,7 +2202,7 @@ export async function registerRoutes(
 
   app.delete("/api/admin/world/decor/placements/:placementId", isAdmin, async (req, res) => {
     try {
-      await storage.deleteWorldDecorPlacement(req.params.placementId);
+      await storage.deleteWorldDecorPlacement((req.params.placementId as string));
       return res.json({ ok: true });
     } catch (err) {
       return res.status(500).json({ message: "Failed to delete decor placement" });
@@ -2218,7 +2218,7 @@ export async function registerRoutes(
         iconUrl = `data:image/png;base64,${buf.toString("base64")}`;
       }
       const loc = await storage.createWorldLocation({
-        worldId: req.params.worldId,
+        worldId: (req.params.worldId as string),
         name: "Fishing Spot",
         type: "fishing",
         iconUrl,
@@ -2240,7 +2240,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/world/location/:locationId/duplicate", isAdmin, async (req, res) => {
     try {
-      const orig = await storage.getWorldLocation(req.params.locationId);
+      const orig = await storage.getWorldLocation((req.params.locationId as string));
       if (!orig) return res.status(404).json({ message: "Location not found" });
       const newLoc = await storage.createWorldLocation({
         worldId: orig.worldId,
@@ -2291,7 +2291,7 @@ export async function registerRoutes(
       if (typeof posY === "number") sanitized.posY = Math.max(0, Math.min(85, posY));
       if (typeof req.body.iconSize === "number") sanitized.iconSize = Math.max(64, Math.min(500, req.body.iconSize));
 
-      const updated = await storage.updateWorldLocation(req.params.locationId, sanitized);
+      const updated = await storage.updateWorldLocation((req.params.locationId as string), sanitized);
       return res.json(updated);
     } catch (err) {
       console.error("Update world location error:", err);
@@ -2313,7 +2313,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/world/location/:locationId/reset-bg", isAdmin, async (req, res) => {
     try {
-      const { locationId } = req.params;
+      const { locationId } = req.params as Record<string, string>;
       const bgFile = LOCATION_DEFAULT_BG[locationId];
       if (!bgFile) {
         return res.status(404).json({ message: "No default background found for this location" });
@@ -2339,14 +2339,14 @@ export async function registerRoutes(
       if (typeof posX !== "number" || typeof posY !== "number") {
         return res.status(400).json({ message: "posX and posY are required numbers" });
       }
-      const loc = await storage.getWorldLocation(req.params.locationId);
+      const loc = await storage.getWorldLocation((req.params.locationId as string));
       let nextSortOrder = 0;
       if (loc) {
         const siblings = await storage.getWorldLocations(loc.worldId);
         const maxOrder = siblings.reduce((m, l) => Math.max(m, l.sortOrder ?? 0), 0);
         nextSortOrder = maxOrder + 1;
       }
-      const updated = await storage.updateWorldLocation(req.params.locationId, {
+      const updated = await storage.updateWorldLocation((req.params.locationId as string), {
         posX: Math.max(-10, Math.min(110, posX)),
         posY: Math.max(-10, Math.min(110, posY)),
         sortOrder: nextSortOrder,
@@ -2360,7 +2360,7 @@ export async function registerRoutes(
 
   app.patch("/api/admin/world/location/:locationId/flip", isAdmin, async (req, res) => {
     try {
-      const updated = await storage.flipWorldLocation(req.params.locationId);
+      const updated = await storage.flipWorldLocation((req.params.locationId as string));
       return res.json(updated);
     } catch (err) {
       console.error("Flip location error:", err);
@@ -2370,7 +2370,7 @@ export async function registerRoutes(
 
   app.delete("/api/admin/world/location/:locationId", isAdmin, async (req, res) => {
     try {
-      const locationId = req.params.locationId;
+      const locationId = (req.params.locationId as string);
       await storage.deleteWorldLocation(locationId);
       // Persist deletion so startup script doesn't recreate seed locations
       const raw = await storage.getGameSetting("deleted_seed_location_ids");
@@ -2388,7 +2388,7 @@ export async function registerRoutes(
 
   app.get("/api/shop/:worldId", isAuthenticated, async (req, res) => {
     try {
-      const items = await storage.getShopItemsByWorld(req.params.worldId);
+      const items = await storage.getShopItemsByWorld((req.params.worldId as string));
       return res.json(items);
     } catch (err) {
       console.error("Get shop items error:", err);
@@ -2398,7 +2398,7 @@ export async function registerRoutes(
 
   app.get("/api/location/:locationId/items", isAuthenticated, async (req, res) => {
     try {
-      const items = await storage.getLocationItems(req.params.locationId);
+      const items = await storage.getLocationItems((req.params.locationId as string));
       return res.json(items);
     } catch (err) {
       console.error("Get location items error:", err);
@@ -2408,15 +2408,15 @@ export async function registerRoutes(
 
   app.post("/api/admin/location/:locationId/assign-item/:itemId", isAdmin, async (req, res) => {
     try {
-      const item = await storage.getShopItem(req.params.itemId);
+      const item = await storage.getShopItem((req.params.itemId as string));
       if (!item) return res.status(404).json({ message: "Item not found" });
       // Bait items are catalog templates — copy them so the original stays available for other shops
       if (item.fishingType === "bait") {
         const { id: _id, createdAt: _ca, ...rest } = item as any;
-        const copy = await storage.createShopItem({ ...rest, locationId: req.params.locationId });
+        const copy = await storage.createShopItem({ ...rest, locationId: (req.params.locationId as string) });
         return res.json(copy);
       }
-      const updated = await storage.assignItemToLocation(req.params.itemId, req.params.locationId);
+      const updated = await storage.assignItemToLocation((req.params.itemId as string), (req.params.locationId as string));
       return res.json(updated);
     } catch (err) {
       console.error("Assign item to location error:", err);
@@ -2426,13 +2426,13 @@ export async function registerRoutes(
 
   app.delete("/api/admin/location/:locationId/unassign-item/:itemId", isAdmin, async (req, res) => {
     try {
-      const item = await storage.getShopItem(req.params.itemId);
+      const item = await storage.getShopItem((req.params.itemId as string));
       // Bait copies were created just for this shop — delete them instead of returning to catalog
-      if (item?.fishingType === "bait" && item.locationId === req.params.locationId) {
-        await storage.deleteShopItem(req.params.itemId);
+      if (item?.fishingType === "bait" && item.locationId === (req.params.locationId as string)) {
+        await storage.deleteShopItem((req.params.itemId as string));
         return res.json({ ok: true });
       }
-      const updated = await storage.unassignItemFromLocation(req.params.itemId);
+      const updated = await storage.unassignItemFromLocation((req.params.itemId as string));
       return res.json(updated);
     } catch (err) {
       console.error("Unassign item from location error:", err);
@@ -2444,7 +2444,7 @@ export async function registerRoutes(
     try {
       const { posX, posY, width } = req.body;
       if (posX === undefined || posY === undefined) return res.status(400).json({ message: "posX and posY required" });
-      const updated = await storage.updateShopItemPosition(req.params.itemId, posX, posY, width ?? 72);
+      const updated = await storage.updateShopItemPosition((req.params.itemId as string), posX, posY, width ?? 72);
       return res.json(updated);
     } catch (err) {
       console.error("Update shop item position error:", err);
@@ -2457,9 +2457,9 @@ export async function registerRoutes(
       const { width } = req.body;
       if (typeof width !== "number") return res.status(400).json({ message: "width required" });
       const clamped = Math.max(64, Math.min(300, width));
-      const item = await storage.getShopItem(req.params.itemId);
+      const item = await storage.getShopItem((req.params.itemId as string));
       if (!item) return res.status(404).json({ message: "Item not found" });
-      const updated = await storage.updateShopItemPosition(req.params.itemId, item.shopPosX, item.shopPosY, clamped);
+      const updated = await storage.updateShopItemPosition((req.params.itemId as string), item.shopPosX, item.shopPosY, clamped);
       return res.json(updated);
     } catch (err) {
       console.error("Update shop item size error:", err);
@@ -2469,7 +2469,7 @@ export async function registerRoutes(
 
   app.get("/api/pet-template-parts/:templateId", isAuthenticated, async (req, res) => {
     try {
-      const { templateId } = req.params;
+      const { templateId } = req.params as Record<string, string>;
       const cached = getCachedTemplateParts(templateId);
       if (cached) return res.json(cached);
 
@@ -2488,7 +2488,7 @@ export async function registerRoutes(
 
   app.get("/api/location/:locationId/objects", isAuthenticated, async (req, res) => {
     try {
-      const objects = await storage.getLocationObjects(req.params.locationId);
+      const objects = await storage.getLocationObjects((req.params.locationId as string));
       return res.json(objects);
     } catch (err) {
       console.error("Get location objects error:", err);
@@ -2502,7 +2502,7 @@ export async function registerRoutes(
       if (!imageData) return res.status(400).json({ message: "Image is required" });
       const imageUrl = await processWorldImage(imageData, 500);
       const obj = await storage.createLocationObject({
-        locationId: req.params.locationId,
+        locationId: (req.params.locationId as string),
         imageUrl,
         posX: typeof posX === "number" ? posX : 50,
         posY: typeof posY === "number" ? posY : 50,
@@ -2521,7 +2521,7 @@ export async function registerRoutes(
       if (typeof posX !== "number" || typeof posY !== "number") {
         return res.status(400).json({ message: "posX and posY are required numbers" });
       }
-      const updated = await storage.updateLocationObject(req.params.objectId, {
+      const updated = await storage.updateLocationObject((req.params.objectId as string), {
         posX: Math.max(0, Math.min(100, Math.round(posX))),
         posY: Math.max(0, Math.min(100, Math.round(posY))),
       });
@@ -2536,7 +2536,7 @@ export async function registerRoutes(
     try {
       const { width } = req.body;
       if (typeof width !== "number") return res.status(400).json({ message: "width is required" });
-      const updated = await storage.updateLocationObject(req.params.objectId, { width: Math.max(20, Math.min(600, Math.round(width))) });
+      const updated = await storage.updateLocationObject((req.params.objectId as string), { width: Math.max(20, Math.min(600, Math.round(width))) });
       return res.json(updated);
     } catch (err) {
       console.error("Update object size error:", err);
@@ -2546,7 +2546,7 @@ export async function registerRoutes(
 
   app.delete("/api/admin/location/object/:objectId", isAdmin, async (req, res) => {
     try {
-      await storage.deleteLocationObject(req.params.objectId);
+      await storage.deleteLocationObject((req.params.objectId as string));
       return res.json({ message: "Object deleted" });
     } catch (err) {
       console.error("Delete location object error:", err);
@@ -2566,9 +2566,9 @@ export async function registerRoutes(
 
   app.get("/api/admin/pet-templates/:id", isAdmin, async (req, res) => {
     try {
-      const template = await storage.getPetTemplate(req.params.id);
+      const template = await storage.getPetTemplate((req.params.id as string));
       if (!template) return res.status(404).json({ message: "Template not found" });
-      const parts = await storage.getPetTemplateParts(req.params.id);
+      const parts = await storage.getPetTemplateParts((req.params.id as string));
       return res.json({ ...template, parts });
     } catch (err) {
       console.error("Get pet template error:", err);
@@ -2601,7 +2601,7 @@ export async function registerRoutes(
       if (canFly !== undefined) updates.canFly = canFly;
       if (sleepingImageData) updates.sleepingImageUrl = await processWorldImage(sleepingImageData, 1000);
       if (clearSleepingImage) updates.sleepingImageUrl = null;
-      const updated = await storage.updatePetTemplate(req.params.id, updates);
+      const updated = await storage.updatePetTemplate((req.params.id as string), updates);
       return res.json(updated);
     } catch (err) {
       console.error("Update pet template error:", err);
@@ -2611,7 +2611,7 @@ export async function registerRoutes(
 
   app.delete("/api/admin/pet-templates/:id", isAdmin, async (req, res) => {
     try {
-      await storage.deletePetTemplate(req.params.id);
+      await storage.deletePetTemplate((req.params.id as string));
       return res.json({ message: "Pet template deleted" });
     } catch (err) {
       console.error("Delete pet template error:", err);
@@ -2627,7 +2627,7 @@ export async function registerRoutes(
       }
       const imageUrl = await processWorldImage(imageData, 1000);
       const part = await storage.createPetTemplatePart({
-        templateId: req.params.id,
+        templateId: (req.params.id as string),
         partType,
         view,
         imageUrl,
@@ -2657,7 +2657,7 @@ export async function registerRoutes(
       if (typeof zIndex === "number") updates.zIndex = zIndex;
       if (typeof pivotX === "number") updates.pivotX = Math.max(0, Math.min(100, pivotX));
       if (typeof pivotY === "number") updates.pivotY = Math.max(0, Math.min(100, pivotY));
-      const updated = await storage.updatePetTemplatePart(req.params.partId, updates);
+      const updated = await storage.updatePetTemplatePart((req.params.partId as string), updates);
       templatePartsCache.clear();
       return res.json(updated);
     } catch (err) {
@@ -2668,7 +2668,7 @@ export async function registerRoutes(
 
   app.delete("/api/admin/pet-template-parts/:partId", isAdmin, async (req, res) => {
     try {
-      await storage.deletePetTemplatePart(req.params.partId);
+      await storage.deletePetTemplatePart((req.params.partId as string));
       templatePartsCache.clear();
       return res.json({ message: "Part deleted" });
     } catch (err) {
@@ -2683,10 +2683,10 @@ export async function registerRoutes(
       if (!view || !canvasWidth || !canvasHeight) {
         return res.status(400).json({ message: "view, canvasWidth, canvasHeight required" });
       }
-      const template = await storage.getPetTemplate(req.params.id);
+      const template = await storage.getPetTemplate((req.params.id as string));
       if (!template) return res.status(404).json({ message: "Template not found" });
 
-      const parts = await storage.getPetTemplateParts(req.params.id);
+      const parts = await storage.getPetTemplateParts((req.params.id as string));
       const viewParts = parts.filter(p => p.view === view).sort((a, b) => a.zIndex - b.zIndex);
 
       if (viewParts.length === 0) {
@@ -2727,7 +2727,7 @@ export async function registerRoutes(
       if (view === "front") updates.frontAssembled = assembledDataUrl;
       else updates.backAssembled = assembledDataUrl;
 
-      const updated = await storage.updatePetTemplate(req.params.id, updates);
+      const updated = await storage.updatePetTemplate((req.params.id as string), updates);
       return res.json(updated);
     } catch (err) {
       console.error("Assemble pet template error:", err);
@@ -2819,7 +2819,7 @@ export async function registerRoutes(
         try { updateData.hooklessImageUrl = await processShopItemImage(hooklessImageData); } catch (e) { console.error("Hookless image error:", e); }
       }
 
-      const updated = await storage.updateShopItem(req.params.itemId, updateData);
+      const updated = await storage.updateShopItem((req.params.itemId as string), updateData);
       return res.json(updated);
     } catch (err) {
       console.error("Update shop item error:", err);
@@ -2829,7 +2829,7 @@ export async function registerRoutes(
 
   app.delete("/api/admin/shop/:itemId", isAdmin, async (req, res) => {
     try {
-      await storage.deleteShopItem(req.params.itemId);
+      await storage.deleteShopItem((req.params.itemId as string));
       return res.json({ message: "Item deleted" });
     } catch (err) {
       console.error("Delete shop item error:", err);
@@ -2942,7 +2942,7 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
 
-      const existing = await storage.getUserReward(req.params.rewardId);
+      const existing = await storage.getUserReward((req.params.rewardId as string));
       if (!existing) {
         return res.status(404).json({ message: "Reward not found" });
       }
@@ -2953,7 +2953,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "This reward is not yours" });
       }
 
-      const claimed = await storage.claimReward(req.params.rewardId);
+      const claimed = await storage.claimReward((req.params.rewardId as string));
       if (!claimed) {
         return res.status(404).json({ message: "Reward not found or already claimed" });
       }
@@ -3025,7 +3025,7 @@ export async function registerRoutes(
 
   app.get("/api/location/:locationId/enemies", async (req, res) => {
     try {
-      const { locationId } = req.params;
+      const { locationId } = req.params as Record<string, string>;
       const enemies = await storage.getLocationEnemies(locationId);
       const detailed = await Promise.all(enemies.map(async (enemy) => {
         const drops = await storage.getEnemyDrops(enemy.id);
@@ -3048,7 +3048,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/location/:locationId/enemy", isAdmin, async (req, res) => {
     try {
-      const { locationId } = req.params;
+      const { locationId } = req.params as Record<string, string>;
       const { name, imageData, coinReward, isBoss } = req.body;
       if (!name?.trim()) {
         return res.status(400).json({ message: "Enemy name is required" });
@@ -3067,7 +3067,7 @@ export async function registerRoutes(
 
   app.patch("/api/admin/enemy/:enemyId", isAdmin, async (req, res) => {
     try {
-      const { enemyId } = req.params;
+      const { enemyId } = req.params as Record<string, string>;
       const { name, imageData, coinReward, isBoss } = req.body;
       const updates: any = {};
       if (name !== undefined) updates.name = name.trim();
@@ -3086,7 +3086,7 @@ export async function registerRoutes(
 
   app.delete("/api/admin/enemy/:enemyId", isAdmin, async (req, res) => {
     try {
-      await storage.deleteLocationEnemy(req.params.enemyId);
+      await storage.deleteLocationEnemy((req.params.enemyId as string));
       return res.json({ success: true });
     } catch (err) {
       console.error("Delete enemy error:", err);
@@ -3096,7 +3096,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/enemy/:enemyId/drop", isAdmin, async (req, res) => {
     try {
-      const { enemyId } = req.params;
+      const { enemyId } = req.params as Record<string, string>;
       const { shopItemId, dropRate } = req.body;
       if (!shopItemId) return res.status(400).json({ message: "Item is required" });
       const rate = Math.max(1, Math.min(100, parseInt(dropRate) || 10));
@@ -3110,7 +3110,7 @@ export async function registerRoutes(
 
   app.delete("/api/admin/drop/:dropId", isAdmin, async (req, res) => {
     try {
-      await storage.deleteEnemyDrop(req.params.dropId);
+      await storage.deleteEnemyDrop((req.params.dropId as string));
       return res.json({ success: true });
     } catch (err) {
       console.error("Delete drop error:", err);
@@ -3142,7 +3142,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Keepers must have a hatched pet to explore safely" });
       }
 
-      const { locationId } = req.params;
+      const { locationId } = req.params as Record<string, string>;
       const enemies = await storage.getLocationEnemies(locationId);
       if (enemies.length === 0) {
         return res.json({ encounter: null });
@@ -3233,7 +3233,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "No active hatched pet" });
       }
 
-      const { enemyId } = req.params;
+      const { enemyId } = req.params as Record<string, string>;
       const { enemyLevel: clientEnemyLevel } = req.body;
       const enemy = await storage.getLocationEnemy(enemyId);
       if (!enemy) {
@@ -3388,7 +3388,7 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
       if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
-      await storage.deleteBadge(req.params.id);
+      await storage.deleteBadge((req.params.id as string));
       return res.json({ ok: true });
     } catch (err) {
       return res.status(500).json({ message: "Failed to delete badge" });
@@ -3416,7 +3416,7 @@ export async function registerRoutes(
       if (claimType !== undefined) {
         updateData.claimType = ["daily", "weekly", "monthly"].includes(claimType) ? claimType : "daily";
       }
-      await storage.updateBadge(req.params.id, updateData);
+      await storage.updateBadge((req.params.id as string), updateData);
       return res.json({ ok: true });
     } catch (err: any) {
       return res.status(500).json({ message: err.message || "Failed to update badge" });
@@ -3436,7 +3436,7 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
       if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
-      const recipients = await storage.getBadgeRecipients(req.params.id);
+      const recipients = await storage.getBadgeRecipients((req.params.id as string));
       return res.json(recipients);
     } catch (err) {
       return res.status(500).json({ message: "Failed to fetch recipients" });
@@ -3450,7 +3450,7 @@ export async function registerRoutes(
       const { userIds } = req.body;
       if (!Array.isArray(userIds)) return res.status(400).json({ message: "userIds array required" });
       for (const uid of userIds) {
-        await storage.awardBadge(uid, req.params.id);
+        await storage.awardBadge(uid, (req.params.id as string));
       }
       return res.json({ ok: true });
     } catch (err) {
@@ -3465,7 +3465,7 @@ export async function registerRoutes(
       const { userIds } = req.body;
       if (!Array.isArray(userIds)) return res.status(400).json({ message: "userIds array required" });
       for (const uid of userIds) {
-        await storage.revokeBadge(uid, req.params.id);
+        await storage.revokeBadge(uid, (req.params.id as string));
       }
       return res.json({ ok: true });
     } catch (err) {
@@ -3588,7 +3588,7 @@ export async function registerRoutes(
   app.post("/api/market/:listingId/buy", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const listing = await storage.getMarketListing(req.params.listingId);
+      const listing = await storage.getMarketListing((req.params.listingId as string));
       if (!listing) return res.status(404).json({ message: "Listing not found" });
       if (listing.status !== "active") return res.status(400).json({ message: "This item is no longer available" });
       if (listing.sellerId === user.id) return res.status(400).json({ message: "You cannot buy your own listing" });
@@ -3607,7 +3607,7 @@ export async function registerRoutes(
   app.post("/api/market/:listingId/collect", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const coinsEarned = await storage.collectMarketCoins(req.params.listingId, user.id);
+      const coinsEarned = await storage.collectMarketCoins((req.params.listingId as string), user.id);
       await storage.addCoins(user.id, coinsEarned);
       const updatedUser = await storage.getUser(user.id);
       return res.json({ ok: true, coinsEarned, newBalance: updatedUser?.coins });
@@ -3619,7 +3619,7 @@ export async function registerRoutes(
   app.delete("/api/market/:listingId", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      await storage.cancelMarketListing(req.params.listingId, user.id);
+      await storage.cancelMarketListing((req.params.listingId as string), user.id);
       return res.json({ ok: true });
     } catch (err: any) {
       return res.status(400).json({ message: err.message || "Failed to cancel listing" });
@@ -3638,7 +3638,7 @@ export async function registerRoutes(
 
   app.get("/api/fish-parts/:fishItemId", isAuthenticated, async (req, res) => {
     try {
-      const parts = await storage.getFishTemplateParts(req.params.fishItemId);
+      const parts = await storage.getFishTemplateParts((req.params.fishItemId as string));
       return res.json(parts);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -3649,7 +3649,7 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
       if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
-      const parts = await storage.getFishTemplateParts(req.params.fishItemId);
+      const parts = await storage.getFishTemplateParts((req.params.fishItemId as string));
       return res.json(parts);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -3676,7 +3676,7 @@ export async function registerRoutes(
         .toBuffer();
       const imageUrl = `data:image/png;base64,${resized.toString("base64")}`;
       const part = await storage.createFishTemplatePart({
-        fishItemId: req.params.fishItemId,
+        fishItemId: (req.params.fishItemId as string),
         partType,
         imageUrl,
         posX: posX ?? 100,
@@ -3695,7 +3695,7 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
       if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
-      const part = await storage.updateFishTemplatePart(req.params.partId, req.body);
+      const part = await storage.updateFishTemplatePart((req.params.partId as string), req.body);
       return res.json(part);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -3706,7 +3706,7 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
       if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
-      await storage.deleteFishTemplatePart(req.params.partId);
+      await storage.deleteFishTemplatePart((req.params.partId as string));
       return res.json({ ok: true });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -3717,7 +3717,7 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
       if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
-      const fish = await storage.getPondFish(req.params.locationId);
+      const fish = await storage.getPondFish((req.params.locationId as string));
       return res.json(fish);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -3730,13 +3730,13 @@ export async function registerRoutes(
       if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
       const { shopItemId } = req.body;
       if (!shopItemId) return res.status(400).json({ message: "shopItemId required" });
-      const location = await storage.getWorldLocation(req.params.locationId);
+      const location = await storage.getWorldLocation((req.params.locationId as string));
       if (!location || location.type !== "fishing") return res.status(400).json({ message: "Location must be a fishing-type location" });
       const fishItem = await storage.getShopItem(shopItemId);
       if (!fishItem || fishItem.type !== "fishing" || fishItem.fishingType !== "fish") {
         return res.status(400).json({ message: "Item must be a fish-type fishing item" });
       }
-      const entry = await storage.addFishToPond(req.params.locationId, shopItemId);
+      const entry = await storage.addFishToPond((req.params.locationId as string), shopItemId);
       return res.json(entry);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -3747,7 +3747,7 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
       if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
-      await storage.removeFishFromPond(req.params.locationId, req.params.shopItemId);
+      await storage.removeFishFromPond((req.params.locationId as string), (req.params.shopItemId as string));
       return res.json({ ok: true });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -3790,7 +3790,7 @@ export async function registerRoutes(
 
   app.get("/api/location/:locationId/pond-fish", isAuthenticated, async (req, res) => {
     try {
-      const fish = await storage.getPondFish(req.params.locationId);
+      const fish = await storage.getPondFish((req.params.locationId as string));
       return res.json(fish);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -3996,7 +3996,7 @@ export async function registerRoutes(
   // Fish barrel routes
   app.get("/api/world/:worldId/fish-barrel", isAuthenticated, async (req, res) => {
     try {
-      const barrel = await storage.getFishBarrelByWorld(req.params.worldId);
+      const barrel = await storage.getFishBarrelByWorld((req.params.worldId as string));
       return res.json(barrel || null);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -4007,9 +4007,9 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
       if (!user.isAdmin) return res.status(403).json({ message: "Admin only" });
-      const existing = await storage.getFishBarrelByWorld(req.params.worldId);
+      const existing = await storage.getFishBarrelByWorld((req.params.worldId as string));
       if (existing) return res.status(400).json({ message: "Barrel already exists" });
-      const barrel = await storage.createFishBarrel(req.params.worldId);
+      const barrel = await storage.createFishBarrel((req.params.worldId as string));
       return res.status(201).json(barrel);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -4021,7 +4021,7 @@ export async function registerRoutes(
       const user = req.user as any;
       if (!user.isAdmin) return res.status(403).json({ message: "Admin only" });
       const { posX, posY, size } = req.body;
-      const barrel = await storage.updateFishBarrel(req.params.id, { posX, posY, size });
+      const barrel = await storage.updateFishBarrel((req.params.id as string), { posX, posY, size });
       return res.json(barrel);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -4032,7 +4032,7 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
       if (!user.isAdmin) return res.status(403).json({ message: "Admin only" });
-      await storage.deleteFishBarrel(req.params.id);
+      await storage.deleteFishBarrel((req.params.id as string));
       return res.json({ ok: true });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -4262,7 +4262,7 @@ export async function registerRoutes(
   // Get a specific user's full inventory with pet details (for building opponent battle group)
   app.get("/api/pvp/opponent-pets/:userId", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const { userId } = req.params;
+      const { userId } = req.params as Record<string, string>;
       const group = await storage.getBattleGroup(userId);
       if (!group) return res.json([]);
 
@@ -4286,7 +4286,7 @@ export async function registerRoutes(
   app.post("/api/friends/request/:targetUserId", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const requesterId = (req.user as any).id;
-      const { targetUserId } = req.params;
+      const { targetUserId } = req.params as Record<string, string>;
       if (requesterId === targetUserId) return res.status(400).json({ message: "Cannot friend yourself" });
       const outgoingCount = await storage.getOutgoingPendingRequestCount(requesterId);
       if (outgoingCount >= 25) return res.status(400).json({ message: "You have reached the limit of 25 unanswered friend requests. Wait for some to be accepted before sending more." });
@@ -4329,7 +4329,7 @@ export async function registerRoutes(
   app.post("/api/friends/accept/:requestId", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const userId = (req.user as any).id;
-      const { requestId } = req.params;
+      const { requestId } = req.params as Record<string, string>;
       const result = await storage.acceptFriendRequest(requestId, userId);
       if (!result) return res.status(404).json({ message: "Request not found" });
       const accepter = await storage.getUser(userId);
@@ -4369,7 +4369,7 @@ export async function registerRoutes(
   app.delete("/api/friends/:otherId", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const userId = (req.user as any).id;
-      const { otherId } = req.params;
+      const { otherId } = req.params as Record<string, string>;
       await storage.removeFriendOrRequest(userId, otherId);
       return res.json({ success: true });
     } catch (err) {
@@ -4390,7 +4390,7 @@ export async function registerRoutes(
   app.get("/api/friends/status/:otherId", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const userId = (req.user as any).id;
-      const { otherId } = req.params;
+      const { otherId } = req.params as Record<string, string>;
       const friendship = await storage.getFriendshipStatus(userId, otherId);
       return res.json({ friendship });
     } catch (err) {
@@ -4458,7 +4458,7 @@ export async function registerRoutes(
           .toBuffer();
         updates.imageUrl = `data:image/png;base64,${resized.toString("base64")}`;
       }
-      const enemy = await storage.updateEnemy(req.params.id, updates);
+      const enemy = await storage.updateEnemy((req.params.id as string), updates);
       return res.json(enemy);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -4467,7 +4467,7 @@ export async function registerRoutes(
 
   app.delete("/api/admin/enemies/:id", isAdmin, async (req, res) => {
     try {
-      await storage.deleteEnemy(req.params.id);
+      await storage.deleteEnemy((req.params.id as string));
       return res.json({ ok: true });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -4476,7 +4476,7 @@ export async function registerRoutes(
 
   app.get("/api/admin/enemy-parts/:enemyId", isAdmin, async (req, res) => {
     try {
-      const parts = await storage.getEnemyParts(req.params.enemyId);
+      const parts = await storage.getEnemyParts((req.params.enemyId as string));
       return res.json(parts);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -4495,7 +4495,7 @@ export async function registerRoutes(
         .toBuffer();
       const imageUrl = `data:image/png;base64,${resized.toString("base64")}`;
       const part = await storage.createEnemyPart({
-        enemyId: req.params.enemyId,
+        enemyId: (req.params.enemyId as string),
         partType,
         imageUrl,
         posX: posX ?? 100,
@@ -4512,7 +4512,7 @@ export async function registerRoutes(
 
   app.patch("/api/admin/enemy-parts/:partId", isAdmin, async (req, res) => {
     try {
-      const part = await storage.updateEnemyPart(req.params.partId, req.body);
+      const part = await storage.updateEnemyPart((req.params.partId as string), req.body);
       return res.json(part);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -4521,7 +4521,7 @@ export async function registerRoutes(
 
   app.delete("/api/admin/enemy-parts/:partId", isAdmin, async (req, res) => {
     try {
-      await storage.deleteEnemyPart(req.params.partId);
+      await storage.deleteEnemyPart((req.params.partId as string));
       return res.json({ ok: true });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -4541,8 +4541,7 @@ export async function registerRoutes(
         const [petInv] = await db
           .select()
           .from(userInventory)
-          .where(eq(userInventory.shopItemId, updatedUser.activePetId))
-          .where(eq(userInventory.userId, user.id))
+          .where(and(eq(userInventory.shopItemId, updatedUser.activePetId), eq(userInventory.userId, user.id)))
           .limit(1);
         if (petInv) {
           const { newLevel, newPoints } = applyPetXp(petInv.petLevel || 1, petInv.petLevelPoints || 0, 5);
@@ -4586,7 +4585,7 @@ export async function registerRoutes(
 
   app.delete("/api/admin/kc-enemies/:id", isAdmin, async (req, res) => {
     try {
-      await storage.removeKeepersCentralEnemy(req.params.id);
+      await storage.removeKeepersCentralEnemy((req.params.id as string));
       return res.json({ ok: true });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -4596,7 +4595,7 @@ export async function registerRoutes(
   // ── KC Doors ─────────────────────────────────────────────────────────────────
   app.get("/api/world/:worldId/kc-doors", isAuthenticated, async (req, res) => {
     try {
-      const doors = await storage.getKcDoors(req.params.worldId);
+      const doors = await storage.getKcDoors((req.params.worldId as string));
       return res.json(doors);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -4623,7 +4622,7 @@ export async function registerRoutes(
       if (triggerRadius !== undefined) updates.triggerRadius = triggerRadius;
       if (bgData)                      updates.bgUrl = await processWorldImage(bgData, 2000);
       else if (bgUrl !== undefined)    updates.bgUrl = bgUrl;
-      const door = await storage.updateKcDoor(req.params.id, updates);
+      const door = await storage.updateKcDoor((req.params.id as string), updates);
       return res.json(door);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -4632,7 +4631,7 @@ export async function registerRoutes(
 
   app.delete("/api/admin/kc-doors/:id", isAdmin, async (req, res) => {
     try {
-      await storage.deleteKcDoor(req.params.id);
+      await storage.deleteKcDoor((req.params.id as string));
       return res.json({ ok: true });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -4642,7 +4641,7 @@ export async function registerRoutes(
   // ── KC Door Decor ─────────────────────────────────────────────────────────────
   app.get("/api/kc-doors/:doorId/decor", isAuthenticated, async (req, res) => {
     try {
-      const placements = await storage.getKcDoorDecorPlacements(req.params.doorId);
+      const placements = await storage.getKcDoorDecorPlacements((req.params.doorId as string));
       return res.json(placements);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -4653,7 +4652,7 @@ export async function registerRoutes(
     try {
       const { name, imageUrl, posX = 45, posY = 45, size = 100 } = req.body;
       if (!name || !imageUrl) return res.status(400).json({ message: "name and imageUrl required" });
-      const placement = await storage.createKcDoorDecorPlacement({ doorId: req.params.doorId, name, imageUrl, posX, posY, size });
+      const placement = await storage.createKcDoorDecorPlacement({ doorId: (req.params.doorId as string), name, imageUrl, posX, posY, size });
       return res.json(placement);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -4663,7 +4662,7 @@ export async function registerRoutes(
   app.patch("/api/admin/kc-door-decor/:id", isAdmin, async (req, res) => {
     try {
       const { posX, posY, size, flipped } = req.body;
-      const placement = await storage.updateKcDoorDecorPlacement(req.params.id, { posX, posY, size, flipped });
+      const placement = await storage.updateKcDoorDecorPlacement((req.params.id as string), { posX, posY, size, flipped });
       return res.json(placement);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -4672,7 +4671,7 @@ export async function registerRoutes(
 
   app.delete("/api/admin/kc-door-decor/:id", isAdmin, async (req, res) => {
     try {
-      await storage.deleteKcDoorDecorPlacement(req.params.id);
+      await storage.deleteKcDoorDecorPlacement((req.params.id as string));
       return res.json({ ok: true });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -4788,7 +4787,7 @@ export async function registerRoutes(
       if (bgImageData)   updates.bgImageUrl   = await processWorldImage(bgImageData, 3000);
       if (giftNotificationX !== undefined) updates.giftNotificationX = giftNotificationX;
       if (giftNotificationY !== undefined) updates.giftNotificationY = giftNotificationY;
-      const bundle = await storage.updateHouseBundle(req.params.id, updates);
+      const bundle = await storage.updateHouseBundle((req.params.id as string), updates);
       return res.json(bundle);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -4797,7 +4796,7 @@ export async function registerRoutes(
 
   app.delete("/api/admin/house-bundles/:id", isAdmin, async (req, res) => {
     try {
-      await storage.deleteHouseBundle(req.params.id);
+      await storage.deleteHouseBundle((req.params.id as string));
       return res.json({ ok: true });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -4843,7 +4842,7 @@ export async function registerRoutes(
   // ── House Bundle Buildings ────────────────────────────────────────────────────
   app.get("/api/admin/house-bundles/:bundleId/buildings", isAdmin, async (req, res) => {
     try {
-      const buildings = await storage.getHouseBundleBuildings(req.params.bundleId);
+      const buildings = await storage.getHouseBundleBuildings((req.params.bundleId as string));
       return res.json(buildings);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -4857,7 +4856,7 @@ export async function registerRoutes(
       const imageUrl = await processWorldImage(imageData, 1000);
       const validSizes = ["small", "medium", "large"];
       const building = await storage.createHouseBundleBuilding({
-        bundleId: req.params.bundleId, name, imageUrl,
+        bundleId: (req.params.bundleId as string), name, imageUrl,
         ...(size && validSizes.includes(size) ? { size } : {}),
       });
       return res.status(201).json(building);
@@ -4881,7 +4880,7 @@ export async function registerRoutes(
       if (size && ["small", "medium", "large"].includes(size)) updates.size = size;
       if (leaveButtonX !== undefined) updates.leaveButtonX = Math.max(0, Math.min(1, Number(leaveButtonX)));
       if (leaveButtonY !== undefined) updates.leaveButtonY = Math.max(0, Math.min(1, Number(leaveButtonY)));
-      const building = await storage.updateHouseBundleBuilding(req.params.id, updates);
+      const building = await storage.updateHouseBundleBuilding((req.params.id as string), updates);
       return res.json(building);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -4890,7 +4889,7 @@ export async function registerRoutes(
 
   app.delete("/api/admin/house-bundle-buildings/:id", isAdmin, async (req, res) => {
     try {
-      await storage.deleteHouseBundleBuilding(req.params.id);
+      await storage.deleteHouseBundleBuilding((req.params.id as string));
       return res.json({ ok: true });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -4899,7 +4898,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/house-bundle-buildings/:id/duplicate", isAdmin, async (req, res) => {
     try {
-      const source = await storage.getHouseBundleBuilding(req.params.id);
+      const source = await storage.getHouseBundleBuilding((req.params.id as string));
       if (!source) return res.status(404).json({ message: "Building not found" });
       const dup = await storage.createHouseBundleBuilding({
         bundleId: source.bundleId,
@@ -4943,7 +4942,7 @@ export async function registerRoutes(
 
   app.delete("/api/admin/home-decor/:id", isAdmin, async (req, res) => {
     try {
-      await storage.deleteHomeDecorItem(req.params.id);
+      await storage.deleteHomeDecorItem((req.params.id as string));
       return res.json({ ok: true });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -4953,7 +4952,7 @@ export async function registerRoutes(
   // ── Admin: location house-bundle shop stock ────────────────────────────────
   app.get("/api/admin/location/:locationId/shop-bundles", isAdmin, async (req, res) => {
     try {
-      const rows = await storage.getLocationHouseBundles(req.params.locationId as string);
+      const rows = await storage.getLocationHouseBundles((req.params.locationId as string));
       return res.json(rows);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -4962,7 +4961,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/location/:locationId/assign-bundle/:bundleId", isAdmin, async (req, res) => {
     try {
-      const row = await storage.addBundleToShop(req.params.locationId as string, req.params.bundleId as string);
+      const row = await storage.addBundleToShop((req.params.locationId as string), (req.params.bundleId as string));
       return res.json(row);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -4971,7 +4970,7 @@ export async function registerRoutes(
 
   app.delete("/api/admin/location/:locationId/unassign-bundle/:bundleId", isAdmin, async (req, res) => {
     try {
-      await storage.removeBundleFromShop(req.params.locationId as string, req.params.bundleId as string);
+      await storage.removeBundleFromShop((req.params.locationId as string), (req.params.bundleId as string));
       return res.json({ ok: true });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -4981,7 +4980,7 @@ export async function registerRoutes(
   // ── Player: get bundles available at a shop ────────────────────────────────
   app.get("/api/locations/:locationId/shop-bundles", isAuthenticated, async (req, res) => {
     try {
-      const rows = await storage.getLocationHouseBundles(req.params.locationId as string);
+      const rows = await storage.getLocationHouseBundles((req.params.locationId as string));
       return res.json(rows.map(r => r.bundle));
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -4991,7 +4990,7 @@ export async function registerRoutes(
   // ── Admin: location home-decor shop stock ──────────────────────────────────
   app.get("/api/admin/location/:locationId/shop-decor", isAdmin, async (req, res) => {
     try {
-      const rows = await storage.getLocationHomeDecor(req.params.locationId as string);
+      const rows = await storage.getLocationHomeDecor((req.params.locationId as string));
       return res.json(rows);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -5000,7 +4999,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/location/:locationId/assign-decor/:decorId", isAdmin, async (req, res) => {
     try {
-      const row = await storage.addDecorToShop(req.params.locationId as string, req.params.decorId as string);
+      const row = await storage.addDecorToShop((req.params.locationId as string), (req.params.decorId as string));
       return res.json(row);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -5009,7 +5008,7 @@ export async function registerRoutes(
 
   app.delete("/api/admin/location/:locationId/unassign-decor/:decorId", isAdmin, async (req, res) => {
     try {
-      await storage.removeDecorFromShop(req.params.locationId as string, req.params.decorId as string);
+      await storage.removeDecorFromShop((req.params.locationId as string), (req.params.decorId as string));
       return res.json({ ok: true });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -5019,7 +5018,7 @@ export async function registerRoutes(
   // ── Player: get decor available at a shop ─────────────────────────────────
   app.get("/api/locations/:locationId/shop-decor", isAuthenticated, async (req, res) => {
     try {
-      const rows = await storage.getLocationHomeDecor(req.params.locationId as string);
+      const rows = await storage.getLocationHomeDecor((req.params.locationId as string));
       return res.json(rows.map(r => r.decor));
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -5148,7 +5147,7 @@ export async function registerRoutes(
     try {
       const userId = (req.user as any).id;
       const { xPct, yPct, size, flipped } = req.body;
-      const row = await storage.updatePlacedHomeDecor(req.params.id, userId, { xPct, yPct, size, flipped });
+      const row = await storage.updatePlacedHomeDecor((req.params.id as string), userId, { xPct, yPct, size, flipped });
       return res.json(row);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -5158,7 +5157,7 @@ export async function registerRoutes(
   app.delete("/api/pet-house/decor/placed/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = (req.user as any).id;
-      const result = await storage.removePlacedHomeDecor(req.params.id, userId);
+      const result = await storage.removePlacedHomeDecor((req.params.id as string), userId);
       return res.json({ ok: true, ...result });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -5168,7 +5167,7 @@ export async function registerRoutes(
   // ── Admin: grant a home decor item to all players ─────────────────────────────
   app.post("/api/admin/home-decor/:id/grant-everyone", isAdmin, async (req, res) => {
     try {
-      const decorItemId = req.params.id;
+      const decorItemId = (req.params.id as string);
       const allUsers = await storage.getAllUsers();
       let granted = 0;
       for (const u of allUsers) {
@@ -5209,7 +5208,7 @@ export async function registerRoutes(
   app.post("/api/gifts/:id/accept", isAuthenticated, async (req, res) => {
     try {
       const userId = (req.user as any).id;
-      const gift = await storage.acceptGift(req.params.id, userId);
+      const gift = await storage.acceptGift((req.params.id as string), userId);
       return res.json(gift);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });

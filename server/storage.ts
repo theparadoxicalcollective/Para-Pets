@@ -687,7 +687,7 @@ export class DatabaseStorage implements IStorage {
     await db.delete(worldBuildings).where(eq(worldBuildings.worldId, id));
     await db.delete(worldDecorPlacements).where(eq(worldDecorPlacements.worldId, id));
     // Unassign (not delete) shop items that reference this world
-    await db.update(shopItems).set({ worldId: null }).where(eq(shopItems.worldId, id));
+    await db.update(shopItems).set({ worldId: null as unknown as string }).where(eq(shopItems.worldId, id));
     await db.delete(worlds).where(eq(worlds.id, id));
   }
 
@@ -2122,7 +2122,7 @@ export class DatabaseStorage implements IStorage {
       .select({
         gift: gifts,
         senderName: users.username,
-        senderProfileImageUrl: users.profileImageUrl,
+        senderProfileImageUrl: users.profileImage,
       })
       .from(gifts)
       .leftJoin(users, eq(gifts.senderId, users.id))

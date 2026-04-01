@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, X, ChevronLeft, Plus, Minus, FlipHorizontal, Image, Copy } from "lucide-react";
+import { Trash2, X, ChevronLeft, Plus, Minus, FlipHorizontal, Image, Copy, Upload } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -315,7 +315,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
     setBgUploading(true);
     try {
       const dataUrl = await readFileAsDataUrl(file);
-      const updated = await apiRequest("PATCH", `/api/admin/house-bundles/${bundle.id}`, { bgImageData: dataUrl }) as HouseBundle;
+      const updated = await apiRequest("PATCH", `/api/admin/house-bundles/${bundle.id}`, { bgImageData: dataUrl }) as unknown as HouseBundle;
       setLocalBgUrl(updated.bgImageUrl);
       if (updated.bgImageUrl) onBgUpdated?.(updated.bgImageUrl);
       qc.invalidateQueries({ queryKey: ["/api/admin/house-bundles"] });
