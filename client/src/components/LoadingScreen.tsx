@@ -1,4 +1,4 @@
-import loadingOrb from "@assets/loading_orb.png";
+import loadingOrb from "../assets/loading_orb.png";
 
 export default function LoadingScreen({ label = "Entering the world…" }: { label?: string }) {
   return (
