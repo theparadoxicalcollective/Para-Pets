@@ -404,15 +404,19 @@ function InteriorViewer({
       <button
         onClick={onClose}
         onPointerDown={e => e.stopPropagation()}
-        className="absolute flex items-center justify-center font-bold text-xs tracking-widest rounded-full px-4 py-2"
+        className="absolute flex items-center justify-center font-bold tracking-widest rounded-full"
         style={{
           zIndex: 10,
           left: `${leaveButtonX * 100}%`,
           top: `${leaveButtonY * 100}%`,
           transform: "translate(-50%, -50%)",
-          background: "rgba(0,0,0,0.32)", color: "rgba(255,255,255,0.7)",
-          border: "1px solid rgba(255,255,255,0.18)",
+          background: "rgba(0,0,0,0.28)",
+          border: "1px solid rgba(255,255,255,0.14)",
           fontFamily: "Cinzel, serif",
+          fontSize: 9,
+          color: "rgba(255,255,255,0.38)",
+          padding: "4px 10px",
+          letterSpacing: "0.18em",
         }}
       >
         Outside
@@ -974,20 +978,17 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             top: (activeBundle?.giftNotificationY ?? 0.85) * containerH,
             transform: "translate(-50%, -50%)",
             zIndex: 30,
-            width: 36,
-            height: 36,
-            borderRadius: "50%",
-            background: "radial-gradient(circle, #22c55e 60%, #15803d 100%)",
-            border: "2.5px solid #4ade80",
-            boxShadow: "0 0 14px rgba(74,222,128,0.7), 0 2px 8px rgba(0,0,0,0.5)",
+            background: "none",
+            border: "none",
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            padding: 0,
             animation: "pulse 1.8s ease-in-out infinite",
           }}
         >
-          <span style={{ fontSize: 16, fontWeight: "bold", color: "#fff", lineHeight: 1 }}>!</span>
+          <span style={{ fontSize: 18, fontWeight: "bold", color: "#4ade80", lineHeight: 1, textShadow: "0 0 8px rgba(74,222,128,0.85), 0 0 16px rgba(74,222,128,0.4)" }}>!</span>
         </button>
       )}
 
