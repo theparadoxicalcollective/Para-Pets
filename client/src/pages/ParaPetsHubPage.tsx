@@ -1052,7 +1052,7 @@ export default function ParaPetsHubPage() {
                   Hall of Legends
                 </h2>
                 <p className="font-fantasy text-[10px] tracking-widest" style={{ color: "rgba(200,190,140,0.6)" }}>
-                  Ranked by total badge points earned
+                  Ranked by total coins earned
                 </p>
               </div>
             </div>
@@ -1071,7 +1071,7 @@ export default function ParaPetsHubPage() {
                 <p className="font-fantasy text-3xl mb-3" style={{ filter: "grayscale(0.3)" }}>🏅</p>
                 <p className="font-fantasy text-sm tracking-wider" style={{ color: "#2a5040" }}>No legends yet</p>
                 <p className="font-fantasy text-[10px] mt-1" style={{ color: "#1a3028" }}>
-                  Earn badges with points to claim your place
+                  Earn coins to claim your place
                 </p>
               </div>
 
