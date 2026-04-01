@@ -171,7 +171,7 @@ function AdminInteriorPreview({
         style={{ zIndex: 20, background: "rgba(0,0,0,0.6)", border: "1px solid rgba(255,215,0,0.3)", pointerEvents: "none" }}
       >
         <p className="font-fantasy text-[10px] tracking-wider" style={{ color: "rgba(255,215,0,0.85)" }}>
-          Drag Leave to reposition
+          Drag Outside to reposition
         </p>
       </div>
 
@@ -186,9 +186,9 @@ function AdminInteriorPreview({
           zIndex: 20,
           touchAction: "none",
           cursor: isDraggingLeave ? "grabbing" : "grab",
-          background: "rgba(0,0,0,0.65)",
-          color: "#fff",
-          border: isDraggingLeave ? "2px solid rgba(255,215,0,0.85)" : "1px solid rgba(255,255,255,0.25)",
+          background: "rgba(0,0,0,0.32)",
+          color: "rgba(255,255,255,0.7)",
+          border: isDraggingLeave ? "2px solid rgba(255,215,0,0.85)" : "1px solid rgba(255,255,255,0.18)",
           borderRadius: 9999,
           padding: "8px 18px",
           fontFamily: "Cinzel, serif",
@@ -203,7 +203,7 @@ function AdminInteriorPreview({
         onPointerUp={onLeaveBtnUp}
         onPointerCancel={onLeaveBtnUp}
       >
-        Leave
+        Outside
       </button>
     </div>
   );

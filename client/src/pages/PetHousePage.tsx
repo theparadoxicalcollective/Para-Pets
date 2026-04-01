@@ -410,12 +410,12 @@ function InteriorViewer({
           left: `${leaveButtonX * 100}%`,
           top: `${leaveButtonY * 100}%`,
           transform: "translate(-50%, -50%)",
-          background: "rgba(0,0,0,0.65)", color: "#fff",
-          border: "1px solid rgba(255,255,255,0.25)",
+          background: "rgba(0,0,0,0.32)", color: "rgba(255,255,255,0.7)",
+          border: "1px solid rgba(255,255,255,0.18)",
           fontFamily: "Cinzel, serif",
         }}
       >
-        Leave
+        Outside
       </button>
     </div>
   );
@@ -1428,7 +1428,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             <div style={{ fontFamily: "Cinzel, serif", fontSize: 13, color: "#ffd700", letterSpacing: "0.1em" }}>Something went wrong</div>
             <button onClick={() => { setOpenInterior(null); interiorPanRef.current = null; }}
               style={{ fontFamily: "Cinzel, serif", fontSize: 11, letterSpacing: "0.15em", color: "#ffd700", background: "rgba(30,18,4,0.9)", border: "1px solid rgba(255,215,0,0.45)", borderRadius: 9999, padding: "8px 20px", cursor: "pointer" }}>
-              Leave
+              Outside
             </button>
           </div>
         }>
