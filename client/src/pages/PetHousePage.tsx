@@ -8,6 +8,7 @@ import PetAnimator from "@/components/PetAnimator";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import homeInventoryIcon from "@assets/icon_home_inventory.png";
 import decorInventoryIcon from "@assets/icon_decor_inventory.png";
+import petInventoryIcon from "@assets/icon_pet_inventory.png";
 import LoadingScreen from "@/components/LoadingScreen";
 import GiftClaimModal from "@/components/GiftClaimModal";
 
@@ -1122,15 +1123,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         onPointerDown={(e) => e.stopPropagation()}
       >
         {[
-          { key: "pets" as const, label: "Pets", icon: (active: boolean) => (
-            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-              <ellipse cx="20" cy="30" rx="9" ry="6" fill={active ? "#ffcc44" : "#ccc"} opacity="0.9"/>
-              <ellipse cx="11" cy="22" rx="4.5" ry="6" fill={active ? "#ffcc44" : "#ccc"} opacity="0.9" transform="rotate(-20 11 22)"/>
-              <ellipse cx="29" cy="22" rx="4.5" ry="6" fill={active ? "#ffcc44" : "#ccc"} opacity="0.9" transform="rotate(20 29 22)"/>
-              <ellipse cx="14" cy="13" rx="3.5" ry="4.5" fill={active ? "#ffcc44" : "#ccc"} opacity="0.9" transform="rotate(-35 14 13)"/>
-              <ellipse cx="26" cy="13" rx="3.5" ry="4.5" fill={active ? "#ffcc44" : "#ccc"} opacity="0.9" transform="rotate(35 26 13)"/>
-            </svg>
-          ), bg: "rgba(255,180,50,0.35)", border: "rgba(255,200,80,0.8)" },
+          { key: "pets" as const, label: "Pets", icon: () => <img src={petInventoryIcon} alt="" className="w-12 h-12 object-contain" />, bg: "rgba(255,180,50,0.35)", border: "rgba(255,200,80,0.8)" },
           { key: "home" as const, label: "Home", icon: () => <img src={homeInventoryIcon} alt="" className="w-12 h-12 object-contain" />, bg: "rgba(120,200,100,0.35)", border: "rgba(120,220,80,0.8)" },
           { key: "decor" as const, label: "Decor", icon: () => <img src={decorInventoryIcon} alt="" className="w-12 h-12 object-contain" />, bg: "rgba(180,120,220,0.35)", border: "rgba(200,120,255,0.8)" },
         ].map(({ key, label, icon, bg, border }) => {

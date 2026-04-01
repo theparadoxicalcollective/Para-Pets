@@ -6,6 +6,12 @@ uri = "file://attached_assets/generated_images/gift_icon_forest.png"
 type = "image"
 title = "forest gift bundle icon"
 
+[[generated]]
+id = "JC8MmLztaNTgXR0mMLfeW"
+uri = "file://attached_assets/icon_pet_inventory.png"
+type = "image"
+title = "pet inventory icon"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"
