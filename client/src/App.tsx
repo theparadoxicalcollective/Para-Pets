@@ -120,8 +120,8 @@ function AppRouter() {
 
   if (showingLoadScreen) {
     return (
-      <div className="h-[100dvh] bg-[#07110a] flex items-center justify-center overflow-hidden">
-        <div className="text-center flex flex-col items-center gap-4">
+      <div className="w-full h-full flex items-center justify-center bg-[#07110a] overflow-hidden">
+        <div className="flex flex-col items-center gap-4 text-center">
           <div className="text-4xl font-fantasy text-[#7fbfb0] animate-pulse tracking-widest">
             Para Pets
           </div>
@@ -339,14 +339,14 @@ function App() {
         <CrashReporter />
         {/* Mobile: full-screen  |  Desktop: phone emulator centered on dark background */}
         <div
-          className="w-full h-[100dvh] md:flex md:items-center md:justify-center md:overflow-hidden md:bg-[#07090f]"
+          className="w-full h-[100dvh] overflow-hidden flex items-center justify-center md:bg-[#07090f]"
           style={{
             backgroundImage: "radial-gradient(ellipse at 30% 60%, rgba(58,30,90,0.45) 0%, transparent 60%), radial-gradient(ellipse at 75% 30%, rgba(20,70,55,0.35) 0%, transparent 55%)",
           }}
         >
           <div
             data-phone-frame="true"
-            className="w-full h-full md:w-[390px] md:h-[844px] md:rounded-[2.5rem] md:overflow-hidden md:flex-shrink-0"
+            className="w-full h-full overflow-hidden md:w-[390px] md:h-[844px] md:rounded-[2.5rem] md:flex-shrink-0"
             style={{
               isolation: "isolate",
               /*

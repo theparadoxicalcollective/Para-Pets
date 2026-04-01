@@ -1,7 +1,7 @@
 export default function LoadingScreen({ label = "Loading..." }: { label?: string }) {
   return (
-    <div className="w-full h-screen-frame flex flex-col items-center justify-center bg-[#07110a]">
-      <div className="text-center flex flex-col items-center gap-4">
+    <div className="w-full h-full flex flex-col items-center justify-center bg-[#07110a]">
+      <div className="flex flex-col items-center gap-4 text-center">
         <div className="text-2xl font-fantasy text-[#7fbfb0] animate-pulse tracking-widest">
           Para Pets
         </div>
