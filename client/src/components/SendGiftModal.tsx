@@ -13,15 +13,11 @@ interface SendGiftModalProps {
 type Tab = "coins" | "items";
 
 interface InventoryItem {
-  id: string;
+  inventoryId: string;
   shopItemId: string;
-  quantity: number | null;
-  shopItem: {
-    id: string;
-    name: string;
-    imageUrl: string | null;
-    type: string;
-  };
+  name: string;
+  type: string;
+  imageUrl: string | null;
 }
 
 interface DecorItem {
@@ -48,10 +44,9 @@ export default function SendGiftModal({ friendId, friendUsername, senderCoins, o
 
   const { data: decorInventory = [] } = useQuery<DecorItem[]>({
     queryKey: ["/api/pet-house/decor/inventory"],
-    queryFn: () => fetch("/api/pet-house/decor/inventory", { credentials: "include" }).then(r => r.json()),
   });
 
-  const giftableItems = inventory.filter(i => i.shopItem?.type !== "pet");
+  const giftableItems = inventory.filter(i => i.type !== "pet");
   const giftableDecor = decorInventory.filter(d => d.quantity > 0);
 
   const sendMutation = useMutation({
@@ -82,11 +77,11 @@ export default function SendGiftModal({ friendId, friendUsername, senderCoins, o
           message: message.trim() || undefined,
           coinAmount: 0,
           itemType: "shop_item",
-          shopItemInventoryId: inv.id,
+          shopItemInventoryId: inv.inventoryId,
           shopItemId: inv.shopItemId,
           itemQuantity: 1,
-          itemName: inv.shopItem.name,
-          itemImageUrl: inv.shopItem.imageUrl ?? undefined,
+          itemName: inv.name,
+          itemImageUrl: inv.imageUrl ?? undefined,
         });
       } else {
         const inv = selected.inv;
@@ -197,11 +192,11 @@ export default function SendGiftModal({ friendId, friendUsername, senderCoins, o
             ) : (
               <div className="flex flex-col gap-1">
                 {giftableItems.map((inv) => {
-                  const isSelected = selected?.kind === "shop" && selected.inv.id === inv.id;
+                  const isSelected = selected?.kind === "shop" && selected.inv.inventoryId === inv.inventoryId;
                   return (
                     <button
-                      key={inv.id}
-                      data-testid={`gift-item-shop-${inv.id}`}
+                      key={inv.inventoryId}
+                      data-testid={`gift-item-shop-${inv.inventoryId}`}
                       onClick={() => setSelected(isSelected ? null : { kind: "shop", inv })}
                       className="flex items-center gap-2 text-left"
                       style={{
@@ -212,16 +207,13 @@ export default function SendGiftModal({ friendId, friendUsername, senderCoins, o
                         cursor: "pointer",
                       }}
                     >
-                      {inv.shopItem.imageUrl ? (
-                        <img src={inv.shopItem.imageUrl} alt={inv.shopItem.name} style={{ width: 32, height: 32, objectFit: "contain", borderRadius: 6, background: "rgba(0,0,0,0.3)", flexShrink: 0 }} />
+                      {inv.imageUrl ? (
+                        <img src={inv.imageUrl} alt={inv.name} style={{ width: 32, height: 32, objectFit: "contain", borderRadius: 6, background: "rgba(0,0,0,0.3)", flexShrink: 0 }} />
                       ) : (
                         <div style={{ width: 32, height: 32, borderRadius: 6, background: "rgba(127,255,212,0.08)", flexShrink: 0 }} />
                       )}
                       <div className="min-w-0">
-                        <p className="font-fantasy truncate" style={{ fontSize: 11, color: "#d4e8da" }}>{inv.shopItem.name}</p>
-                        {(inv.quantity ?? 1) > 1 && (
-                          <p className="font-fantasy" style={{ fontSize: 9, color: "rgba(127,255,212,0.5)" }}>×{inv.quantity}</p>
-                        )}
+                        <p className="font-fantasy truncate" style={{ fontSize: 11, color: "#d4e8da" }}>{inv.name}</p>
                       </div>
                     </button>
                   );
