@@ -337,6 +337,18 @@
   to { transform: translateY(0); opacity: 1; }
 }
 
+/* Indeterminate sliding progress bar — loops seamlessly with no jump */
+@keyframes pp-bar {
+  0%   { left: -48%; }
+  100% { left: 110%; }
+}
+
+/* Orb breathing glow for the loading screen */
+@keyframes pp-orb {
+  0%, 100% { transform: scale(1);    opacity: 0.82; }
+  50%       { transform: scale(1.18); opacity: 1;    }
+}
+
 @keyframes loading-bar {
   0% { width: 0%; }
   50% { width: 70%; }

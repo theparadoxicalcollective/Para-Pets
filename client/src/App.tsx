@@ -23,6 +23,7 @@ import ParaPetsHubPage from "@/pages/ParaPetsHubPage";
 import BadgePage from "@/pages/BadgePage";
 import MarketPage from "@/pages/MarketPage";
 import PvpArenaPage from "@/pages/PvpArenaPage";
+import LoadingScreen from "@/components/LoadingScreen";
 import WelcomeGiftScreen from "@/components/WelcomeGiftScreen";
 import GlobalLevelUpOverlay from "@/components/GlobalLevelUpOverlay";
 import FloatingNav from "@/components/FloatingNav";
@@ -120,21 +121,7 @@ function AppRouter() {
   const showingLoadScreen = isLoading || (!!user && !isPreloaded);
 
   if (showingLoadScreen) {
-    return (
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, background: "#07110a", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
-          <div className="font-fantasy animate-pulse" style={{ color: "#7fbfb0", fontSize: "2.25rem", letterSpacing: "0.15em", paddingLeft: "0.15em" }}>
-            Para Pets
-          </div>
-          <div className="font-sans uppercase" style={{ color: "#4a7a6a", fontSize: "0.75rem", letterSpacing: "0.25em", paddingLeft: "0.25em" }}>
-            Loading…
-          </div>
-          <div style={{ width: "12rem", height: "6px", background: "#0d2018", borderRadius: "9999px", overflow: "hidden" }}>
-            <div className="animate-loading-bar" style={{ height: "100%", background: "#1a6b55", borderRadius: "9999px" }} />
-          </div>
-        </div>
-      </div>
-    );
+    return <LoadingScreen label="Loading…" />;
   }
 
   // Show maintenance screen to logged-in non-admin players
