@@ -834,6 +834,13 @@ export default function ParaPetsHubPage() {
   const [showHomescreen, setShowHomescreen] = useState(false);
   const { toast }                           = useToast();
   const worldsRef                           = useRef<HTMLDivElement>(null);
+  const challengersRef                      = useRef<HTMLDivElement>(null);
+
+  const scrollChallengers = (dir: "up" | "down") => {
+    const el = challengersRef.current;
+    if (!el) return;
+    el.scrollBy({ top: dir === "down" ? 64 : -64, behavior: "smooth" });
+  };
 
   const { data: user } = useQuery<any>({ queryKey: ["/api/auth/me"], retry: false });
 
@@ -1095,9 +1102,56 @@ export default function ParaPetsHubPage() {
                       </span>
                       <div style={{ height: 1, flex: 1, background: "linear-gradient(90deg,rgba(127,191,176,0.15),transparent)" }} />
                     </div>
-                    {rest.map((entry, i) => (
-                      <RankRow key={entry.userId} entry={entry} rank={i + 4} />
-                    ))}
+
+                    {/* Scroll up arrow */}
+                    <div className="flex justify-center mb-1.5">
+                      <button
+                        data-testid="button-challengers-scroll-up"
+                        onClick={() => scrollChallengers("up")}
+                        className="flex items-center justify-center rounded-full transition-all active:scale-90"
+                        style={{
+                          width: 36, height: 36,
+                          background: "rgba(127,191,176,0.07)",
+                          border: "1px solid rgba(127,191,176,0.18)",
+                          color: "#4a7a6a",
+                        }}
+                      >
+                        <ChevronUp size={18} />
+                      </button>
+                    </div>
+
+                    {/* Scrollable container */}
+                    <div
+                      ref={challengersRef}
+                      data-testid="challengers-scroll-box"
+                      style={{
+                        maxHeight: 960,
+                        overflowY: "auto",
+                        scrollbarWidth: "none",
+                        msOverflowStyle: "none",
+                      }}
+                    >
+                      {rest.map((entry, i) => (
+                        <RankRow key={entry.userId} entry={entry} rank={i + 4} />
+                      ))}
+                    </div>
+
+                    {/* Scroll down arrow */}
+                    <div className="flex justify-center mt-1.5">
+                      <button
+                        data-testid="button-challengers-scroll-down"
+                        onClick={() => scrollChallengers("down")}
+                        className="flex items-center justify-center rounded-full transition-all active:scale-90"
+                        style={{
+                          width: 36, height: 36,
+                          background: "rgba(127,191,176,0.07)",
+                          border: "1px solid rgba(127,191,176,0.18)",
+                          color: "#4a7a6a",
+                        }}
+                      >
+                        <ChevronDown size={18} />
+                      </button>
+                    </div>
                   </div>
                 )}
               </>
