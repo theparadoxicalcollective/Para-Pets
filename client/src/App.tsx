@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { playClick, unlockAudio } from "@/lib/sounds";
 import { initTabSync, teardownTabSync } from "@/lib/tabSync";
+import desktopBackdrop from "@assets/bg_desktop_backdrop.png";
 import AuthPage from "@/pages/AuthPage";
 import MaintenancePage from "@/pages/MaintenancePage";
 import HomePage from "@/pages/HomePage";
@@ -266,10 +267,12 @@ function App() {
         document.documentElement.style.setProperty("--fh", "100dvh");
         return;
       }
-      // Desktop: shrink frame to fit viewport while keeping 390×844 proportions
-      const scaleByH = (window.innerHeight * 0.92) / 844;
-      const scaleByW = (window.innerWidth * 0.96) / 390;
-      setFrameScale(Math.min(1, scaleByH, scaleByW));
+      // Tablets & desktops: scale the 390×844 frame to fill as much of the
+      // viewport as possible while keeping the exact portrait aspect ratio.
+      // 0.93 breathing room so the frame never kisses the viewport edges.
+      const scaleByH = (window.innerHeight * 0.93) / 844;
+      const scaleByW = (window.innerWidth * 0.93) / 390;
+      setFrameScale(Math.min(scaleByH, scaleByW));
       // Pages use var(--fh) so they always fill exactly the 844px frame height
       document.documentElement.style.setProperty("--fh", "844px");
     };
@@ -337,29 +340,36 @@ function App() {
       <TooltipProvider>
         <Toaster />
         <CrashReporter />
-        {/* Mobile: full-screen  |  Desktop: phone emulator centered on dark background */}
+        {/* Mobile: full-screen  |  Tablet & Desktop: game frame centered on fantasy backdrop */}
         <div
-          className="w-full h-[100dvh] overflow-hidden flex items-center justify-center md:bg-[#07090f]"
+          className="w-full h-[100dvh] overflow-hidden flex items-center justify-center"
           style={{
-            backgroundImage: "radial-gradient(ellipse at 30% 60%, rgba(58,30,90,0.45) 0%, transparent 60%), radial-gradient(ellipse at 75% 30%, rgba(20,70,55,0.35) 0%, transparent 55%)",
+            // On mobile the frame fills the screen so the backdrop is invisible.
+            // On tablets/desktops it shows as the scenic background behind the frame.
+            backgroundImage: `url(${desktopBackdrop})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
           }}
         >
+          {/* Dark overlay to deepen the backdrop slightly so the game frame pops */}
+          <div className="absolute inset-0 pointer-events-none hidden md:block"
+            style={{ background: "rgba(4,8,14,0.45)" }} />
           <div
             data-phone-frame="true"
-            className="w-full h-full overflow-hidden md:w-[390px] md:h-[844px] md:rounded-[2.5rem] md:flex-shrink-0"
+            className="relative w-full h-full overflow-hidden md:w-[390px] md:h-[844px] md:rounded-[2.5rem] md:flex-shrink-0"
             style={{
               isolation: "isolate",
               /*
                * translateZ(0)  → creates a new containing block so every
-               *   position:fixed child stays INSIDE this frame on desktop.
-               * scale(frameScale) → uniformly shrinks the 390×844 frame to fit
-               *   any viewport without clipping the bottom — exactly like
-               *   Chrome DevTools device emulation.
+               *   position:fixed child stays INSIDE this frame on all screens.
+               * scale(frameScale) → scales the 390×844 frame to fill as much of
+               *   the viewport as possible while keeping the exact aspect ratio.
                * On mobile frameScale is always 1, so there's no visual change.
                */
               transform: `translateZ(0) scale(${frameScale})`,
               transformOrigin: "center center",
-              /* gold decorative ring — invisible on mobile (full-screen = off-edge) */
+              /* gold decorative ring — only visible on tablet/desktop where there is backdrop space */
               boxShadow: [
                 "0 0 0 3px rgba(212,175,55,0.88)",
                 "0 0 0 6px rgba(160,110,0,0.32)",
