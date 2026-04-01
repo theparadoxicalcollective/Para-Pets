@@ -123,7 +123,7 @@ function AppRouter() {
     return (
       <div className="w-full h-full flex items-center justify-center bg-[#07110a] overflow-hidden">
         <div className="w-full flex flex-col gap-4" style={{ alignItems: "stretch" }}>
-          <p className="font-fantasy text-[#7fbfb0] animate-pulse w-full text-center" style={{ fontSize: "2.25rem", letterSpacing: "0.15em", margin: 0 }}>
+          <p className="font-fantasy text-[#7fbfb0] animate-pulse w-full text-center" style={{ fontSize: "2.25rem", margin: 0 }}>
             Para Pets
           </p>
           <p className="text-[#4a7a6a] uppercase font-sans w-full text-center" style={{ fontSize: "0.75rem", letterSpacing: "0.25em", margin: 0 }}>
