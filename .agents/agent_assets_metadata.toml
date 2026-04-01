@@ -24,6 +24,12 @@ uri = "file://attached_assets/bg_shop_bayou.png"
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "xY8FEnjD9f7wwBS-DsY2I"
+uri = "file://client/src/assets/loading_orb.png"
+type = "image"
+title = "magical loading orb"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"

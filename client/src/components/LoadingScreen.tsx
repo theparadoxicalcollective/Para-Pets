@@ -1,3 +1,5 @@
+import loadingOrb from "@assets/loading_orb.png";
+
 export default function LoadingScreen({ label = "Entering the world…" }: { label?: string }) {
   return (
     <div
@@ -47,20 +49,43 @@ export default function LoadingScreen({ label = "Entering the world…" }: { lab
           gap: 0,
         }}
       >
-        {/* Orb / sigil */}
-        <div
-          style={{
-            width: 38,
-            height: 38,
-            borderRadius: "50%",
-            background: "radial-gradient(circle at 38% 35%, #62efb8 0%, #1a9965 45%, #0e4d34 100%)",
-            boxShadow:
-              "0 0 18px 6px rgba(40,190,120,0.38), 0 0 60px 16px rgba(20,100,60,0.18)",
-            marginBottom: 20,
-            animation: "pp-orb 2.8s ease-in-out infinite",
-            flexShrink: 0,
-          }}
-        />
+        {/* Orb glow halo — sits behind the image */}
+        <div style={{ position: "relative", marginBottom: 16, flexShrink: 0 }}>
+          <div
+            style={{
+              position: "absolute",
+              inset: "-28px",
+              borderRadius: "50%",
+              background:
+                "radial-gradient(circle, rgba(50,210,140,0.22) 0%, rgba(20,120,80,0.12) 45%, transparent 70%)",
+              animation: "pp-orb 2.8s ease-in-out infinite",
+              pointerEvents: "none",
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              inset: "-10px",
+              borderRadius: "50%",
+              boxShadow: "0 0 28px 10px rgba(40,200,130,0.28), 0 0 60px 20px rgba(20,120,70,0.14)",
+              animation: "pp-orb 2.8s ease-in-out infinite",
+              pointerEvents: "none",
+            }}
+          />
+          <img
+            src={loadingOrb}
+            alt=""
+            style={{
+              width: 80,
+              height: 80,
+              display: "block",
+              animation: "pp-orb 2.8s ease-in-out infinite",
+              filter: "drop-shadow(0 0 14px rgba(60,220,150,0.6)) drop-shadow(0 0 32px rgba(20,150,90,0.35))",
+              userSelect: "none",
+              pointerEvents: "none",
+            }}
+          />
+        </div>
 
         {/* Game title */}
         <div
