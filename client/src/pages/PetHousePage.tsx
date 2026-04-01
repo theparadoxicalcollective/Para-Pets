@@ -1125,7 +1125,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       {openInventory && (
         <div
           className="absolute inset-0 flex flex-col justify-end"
-          style={{ zIndex: openInterior ? 70 : 96, pointerEvents: "none", visibility: (isDraggingDecor || isDraggingPet) ? "hidden" : "visible" }}
+          style={{ zIndex: openInterior ? 70 : (openInventory === "pets" ? 98 : 96), pointerEvents: "none", visibility: (isDraggingDecor || isDraggingPet) ? "hidden" : "visible" }}
         >
           <div className="absolute inset-0" style={{ pointerEvents: "auto" }} onPointerDown={(e) => { e.stopPropagation(); setOpenInventory(null); }} />
           <div
