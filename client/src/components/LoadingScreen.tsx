@@ -1,15 +1,15 @@
 export default function LoadingScreen({ label = "Loading..." }: { label?: string }) {
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center bg-[#07110a]">
-      <div className="w-full flex flex-col gap-4" style={{ alignItems: "stretch" }}>
-        <p className="font-fantasy text-[#7fbfb0] animate-pulse w-full text-center" style={{ fontSize: "1.5rem", margin: 0 }}>
+    <div style={{ position: "absolute", inset: 0, background: "#07110a", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
+        <div className="font-fantasy animate-pulse" style={{ color: "#7fbfb0", fontSize: "1.5rem", letterSpacing: "0.15em", paddingLeft: "0.15em" }}>
           Para Pets
-        </p>
-        <p className="text-[#4a7a6a] uppercase font-sans w-full text-center" style={{ fontSize: "0.75rem", letterSpacing: "0.1em", margin: 0 }}>
+        </div>
+        <div className="font-sans uppercase" style={{ color: "#4a7a6a", fontSize: "0.75rem", letterSpacing: "0.1em", paddingLeft: "0.1em" }}>
           {label}
-        </p>
-        <div className="w-44 h-1.5 bg-[#0d2018] rounded-full overflow-hidden mx-auto">
-          <div className="h-full bg-[#1a6b55] rounded-full animate-loading-bar" />
+        </div>
+        <div style={{ width: "11rem", height: "6px", background: "#0d2018", borderRadius: "9999px", overflow: "hidden" }}>
+          <div className="animate-loading-bar" style={{ height: "100%", background: "#1a6b55", borderRadius: "9999px" }} />
         </div>
       </div>
     </div>

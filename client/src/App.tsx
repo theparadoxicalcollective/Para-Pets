@@ -121,16 +121,16 @@ function AppRouter() {
 
   if (showingLoadScreen) {
     return (
-      <div className="w-full h-full flex items-center justify-center bg-[#07110a] overflow-hidden">
-        <div className="w-full flex flex-col gap-4" style={{ alignItems: "stretch" }}>
-          <p className="font-fantasy text-[#7fbfb0] animate-pulse w-full text-center" style={{ fontSize: "2.25rem", margin: 0 }}>
+      <div style={{ position: "absolute", inset: 0, background: "#07110a", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
+          <div className="font-fantasy animate-pulse" style={{ color: "#7fbfb0", fontSize: "2.25rem", letterSpacing: "0.15em", paddingLeft: "0.15em" }}>
             Para Pets
-          </p>
-          <p className="text-[#4a7a6a] uppercase font-sans w-full text-center" style={{ fontSize: "0.75rem", letterSpacing: "0.25em", margin: 0 }}>
+          </div>
+          <div className="font-sans uppercase" style={{ color: "#4a7a6a", fontSize: "0.75rem", letterSpacing: "0.25em", paddingLeft: "0.25em" }}>
             Loading…
-          </p>
-          <div className="w-48 h-1.5 bg-[#0d2018] rounded-full overflow-hidden mx-auto">
-            <div className="h-full bg-[#1a6b55] rounded-full animate-loading-bar" />
+          </div>
+          <div style={{ width: "12rem", height: "6px", background: "#0d2018", borderRadius: "9999px", overflow: "hidden" }}>
+            <div className="animate-loading-bar" style={{ height: "100%", background: "#1a6b55", borderRadius: "9999px" }} />
           </div>
         </div>
       </div>
