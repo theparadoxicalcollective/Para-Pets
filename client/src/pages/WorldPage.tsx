@@ -256,7 +256,6 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [objDragPos, setObjDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
   const objDragRef = useRef<{ objId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const objDidDrag = useRef(false);
-  const shopDecorFileRef = useRef<HTMLInputElement>(null);
   const [selectedDecorAdminId, setSelectedDecorAdminId] = useState<string | null>(null);
 
   const [showDecorPanel, setShowDecorPanel] = useState(false);
@@ -279,18 +278,10 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [buyStep, setBuyStep] = useState<0 | 1 | 2>(0);
   const [buyQty, setBuyQty] = useState(1);
   const [buyError, setBuyError] = useState<string | null>(null);
-  const [shopItemDragPos, setShopItemDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
-  const [hoveredShopItemId, setHoveredShopItemId] = useState<string | null>(null);
-  const [pressedShopItemId, setPressedShopItemId] = useState<string | null>(null);
   const [selectedLocId, setSelectedLocId] = useState<string | null>(null);
   const [selectedDecorId, setSelectedDecorId] = useState<string | null>(null);
   const [barrelSelected, setBarrelSelected] = useState(false);
   const draggableLocIdRef = useRef<string | null>(null);
-  const draggableShopItemIdRef = useRef<string | null>(null);
-  const [selectedShopItemAdminId, setSelectedShopItemAdminId] = useState<string | null>(null);
-  const shopItemDragRef = useRef<{ itemId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
-  const shopItemDidDrag = useRef(false);
-  const shopCanvasRef = useRef<HTMLDivElement>(null);
   const shopJustOpened = useRef<number>(0);
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -320,10 +311,6 @@ export default function WorldPage({ user }: WorldPageProps) {
   const mapJustPannedRef = useRef(false);
   const [locBgLoaded, setLocBgLoaded] = useState(false);
   const [committedLocBgUrl, setCommittedLocBgUrl] = useState<string | null>(null);
-  const [shopBgNaturalRatio, setShopBgNaturalRatio] = useState<number | null>(null);
-  const [shopPanX, setShopPanX] = useState(0);
-  const shopContainerRef = useRef<HTMLDivElement>(null);
-  const shopPanStartRef = useRef<{ startX: number; startPanX: number; pid: number } | null>(null);
 
   const { data: locations = [], isLoading: locationsLoading } = useQuery<WorldLocationData[]>({
     queryKey: ["/api/world", worldId, "locations"],
@@ -482,25 +469,6 @@ export default function WorldPage({ user }: WorldPageProps) {
       } catch {}
       setBuyError(msg);
     },
-  });
-
-  const shopItemPositionMutation = useMutation({
-    mutationFn: async ({ itemId, posX, posY, width }: { itemId: string; posX: number; posY: number; width: number }) => {
-      const res = await apiRequest("PATCH", `/api/admin/shop-item/${itemId}/position`, { posX, posY, width });
-      return res.json();
-    },
-    onMutate: async ({ itemId, posX, posY, width }) => {
-      await queryClient.cancelQueries({ queryKey: ["/api/location", activeLocationId, "items"] });
-      const previous = queryClient.getQueryData(["/api/location", activeLocationId, "items"]);
-      queryClient.setQueryData(["/api/location", activeLocationId, "items"], (old: any[]) =>
-        old?.map(item => item.id === itemId ? { ...item, shopPosX: posX, shopPosY: posY, shopWidth: width } : item)
-      );
-      return { previous };
-    },
-    onError: (_err: any, _vars: any, ctx: any) => {
-      if (ctx?.previous) queryClient.setQueryData(["/api/location", activeLocationId, "items"], ctx.previous);
-    },
-    onSuccess: () => {},
   });
 
   const addLocationMutation = useMutation({
@@ -1003,7 +971,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   const handleVpPointerDown = useCallback((e: React.PointerEvent) => {
     // Safety: clear any stale drag state that wasn't cleaned up (e.g. after pointerCancel)
     if (dragRef.current && !mapPanPointersRef.current.size) { dragRef.current = null; setDragPos(null); }
-    if (dragRef.current || objDragRef.current || shopItemDragRef.current) return;
+    if (dragRef.current || objDragRef.current) return;
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
     mapPanPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     const ptrs = Array.from(mapPanPointersRef.current.values());
@@ -1015,7 +983,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   }, []);
 
   const handleVpPointerMove = useCallback((e: React.PointerEvent) => {
-    if (dragRef.current || objDragRef.current || shopItemDragRef.current) return;
+    if (dragRef.current || objDragRef.current) return;
     if (!mapPanPointersRef.current.has(e.pointerId)) return;
     mapPanPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     const ptrs = Array.from(mapPanPointersRef.current.values());
@@ -1056,8 +1024,6 @@ export default function WorldPage({ user }: WorldPageProps) {
 
   useEffect(() => {
     setLocBgLoaded(false);
-    setShopBgNaturalRatio(null);
-    setShopPanX(0);
     if (!activeLocationId) return;
     if (!activeLocDetail) return;
     const bgUrl = activeLocDetail.bgUrl;
@@ -1066,9 +1032,6 @@ export default function WorldPage({ user }: WorldPageProps) {
     const img = new Image();
     img.onload = () => {
       if (!cancelled) {
-        if (img.naturalWidth && img.naturalHeight) {
-          setShopBgNaturalRatio(img.naturalHeight / img.naturalWidth);
-        }
         setCommittedLocBgUrl(bgUrl);
         setLocBgLoaded(true);
       }
@@ -1079,25 +1042,8 @@ export default function WorldPage({ user }: WorldPageProps) {
     return () => { cancelled = true; clearTimeout(fallback); };
   }, [activeLocationId, activeLocDetail?.bgUrl]);
 
-  // For landscape shop backgrounds: center the image horizontally after it loads
-  useEffect(() => {
-    if (!locBgLoaded || !shopBgNaturalRatio || shopBgNaturalRatio >= 1) return;
-    const raf = requestAnimationFrame(() => {
-      const canvas = shopCanvasRef.current;
-      const container = shopContainerRef.current;
-      if (!canvas || !container) return;
-      const containerW = container.offsetWidth;
-      const canvasW = canvas.offsetWidth;
-      const minPan = Math.min(0, containerW - canvasW);
-      const centered = Math.max(minPan, -(canvasW - containerW) / 2);
-      setShopPanX(centered);
-    });
-    return () => cancelAnimationFrame(raf);
-  }, [locBgLoaded, shopBgNaturalRatio]);
-
   // Keep ref in sync so handlePointerDown never sees stale state
   useEffect(() => { draggableLocIdRef.current = selectedLocId; }, [selectedLocId]);
-  useEffect(() => { draggableShopItemIdRef.current = selectedShopItemAdminId; }, [selectedShopItemAdminId]);
   useEffect(() => {
     if (showItemPicker) {
       setPickerFilter("all");
@@ -1235,20 +1181,6 @@ export default function WorldPage({ user }: WorldPageProps) {
     setObjDragPos({ id: objDragRef.current.objId, x: newX, y: newY });
   }, []);
 
-  const handleShopObjPointerMove = useCallback((e: React.PointerEvent) => {
-    if (!objDragRef.current || !shopCanvasRef.current) return;
-    e.preventDefault();
-    const rect = shopCanvasRef.current.getBoundingClientRect();
-    const dx = e.clientX - objDragRef.current.startX;
-    const dy = e.clientY - objDragRef.current.startY;
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) objDidDrag.current = true;
-    const pxPerPercX = rect.width / 100;
-    const pxPerPercY = rect.height / 100;
-    const newX = Math.max(-5, Math.min(105, objDragRef.current.origPosX + dx / pxPerPercX));
-    const newY = Math.max(-5, Math.min(105, objDragRef.current.origPosY + dy / pxPerPercY));
-    setObjDragPos({ id: objDragRef.current.objId, x: newX, y: newY });
-  }, []);
-
   const handleObjPointerUp = useCallback((e: React.PointerEvent) => {
     if (!objDragRef.current) return;
     e.preventDefault();
@@ -1363,77 +1295,6 @@ export default function WorldPage({ user }: WorldPageProps) {
     barrelDidDrag.current = false;
     setBarrelDragPos(null);
   }, [barrelDragPos, updateBarrelMutation]);
-
-  const handleShopItemPointerDown = useCallback((e: React.PointerEvent, item: ShopItem) => {
-    if (!currentUser.isAdmin) return;
-    // Always reset drag flag on any pointer down so stale state never blocks a subsequent click
-    shopItemDidDrag.current = false;
-    // Only allow dragging if this item is already selected — prevents accidental drags when tapping to select
-    if (draggableShopItemIdRef.current !== item.id) return;
-    e.preventDefault();
-    e.stopPropagation();
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    shopItemDragRef.current = {
-      itemId: item.id,
-      startX: e.clientX,
-      startY: e.clientY,
-      origPosX: item.shopPosX,
-      origPosY: item.shopPosY,
-    };
-  }, [currentUser.isAdmin]);
-
-  const handleShopItemPointerMove = useCallback((e: React.PointerEvent) => {
-    if (!shopItemDragRef.current || !shopCanvasRef.current) return;
-    e.preventDefault();
-    const rect = shopCanvasRef.current.getBoundingClientRect();
-    const dx = e.clientX - shopItemDragRef.current.startX;
-    const dy = e.clientY - shopItemDragRef.current.startY;
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) shopItemDidDrag.current = true;
-    const newX = Math.max(5, Math.min(95, shopItemDragRef.current.origPosX + (dx / rect.width) * 100));
-    const newY = Math.max(5, Math.min(95, shopItemDragRef.current.origPosY + (dy / rect.height) * 100));
-    setShopItemDragPos({ id: shopItemDragRef.current.itemId, x: newX, y: newY });
-  }, []);
-
-  const handleShopItemPointerUp = useCallback((e: React.PointerEvent, item: ShopItem) => {
-    if (!shopItemDragRef.current) return;
-    e.preventDefault();
-    const d = shopItemDragRef.current;
-    shopItemDragRef.current = null;
-    if (shopItemDidDrag.current && shopItemDragPos) {
-      shopItemPositionMutation.mutate({ itemId: d.itemId, posX: shopItemDragPos.x, posY: shopItemDragPos.y, width: item.shopWidth });
-    }
-    setShopItemDragPos(null);
-  }, [shopItemDragPos, shopItemPositionMutation]);
-
-  const handleShopPanPointerDown = useCallback((e: React.PointerEvent) => {
-    if (shopItemDragRef.current) return;
-    shopPanStartRef.current = { startX: e.clientX, startPanX: shopPanX, pid: e.pointerId };
-  }, [shopPanX]);
-
-  // Document-level pan tracking — avoids pointer capture so item clicks still work
-  useEffect(() => {
-    const onMove = (e: PointerEvent) => {
-      if (!shopPanStartRef.current || e.pointerId !== shopPanStartRef.current.pid) return;
-      if (shopItemDragRef.current) { shopPanStartRef.current = null; return; }
-      const dx = e.clientX - shopPanStartRef.current.startX;
-      const canvas = shopCanvasRef.current;
-      const container = shopContainerRef.current;
-      if (!canvas || !container) return;
-      const minPan = Math.min(0, container.offsetWidth - canvas.offsetWidth);
-      setShopPanX(Math.max(minPan, Math.min(0, shopPanStartRef.current.startPanX + dx)));
-    };
-    const onUp = (e: PointerEvent) => {
-      if (shopPanStartRef.current?.pid === e.pointerId) shopPanStartRef.current = null;
-    };
-    document.addEventListener("pointermove", onMove);
-    document.addEventListener("pointerup", onUp);
-    document.addEventListener("pointercancel", onUp);
-    return () => {
-      document.removeEventListener("pointermove", onMove);
-      document.removeEventListener("pointerup", onUp);
-      document.removeEventListener("pointercancel", onUp);
-    };
-  }, []);
 
   const isShopItemTransparentClick = useCallback((e: React.MouseEvent<HTMLImageElement>): boolean => {
     const img = e.currentTarget;
