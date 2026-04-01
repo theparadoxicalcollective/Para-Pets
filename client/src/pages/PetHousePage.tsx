@@ -961,8 +961,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         </div>
       )}
 
-      {/* Gift notification button */}
-      {pendingGifts.length > 0 && imgWidth > 0 && !openInterior && (
+      {/* Gift notification button — always visible to admin (for position preview), only visible to players when they have pending gifts */}
+      {(pendingGifts.length > 0 || user.isAdmin) && imgWidth > 0 && !openInterior && (
         <button
           data-testid="button-gift-notification"
           onClick={(e) => { e.stopPropagation(); setOpenGiftModal(true); }}
