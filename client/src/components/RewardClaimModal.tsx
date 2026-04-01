@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getNextZ } from "@/lib/layerManager";
 import { Sparkles } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -45,6 +46,7 @@ interface StackedReward {
 export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [myZ] = useState(() => getNextZ());
   const [claimingBundleId, setClaimingBundleId] = useState<string | null>(null);
   const [showSparkle, setShowSparkle] = useState<string | null>(null);
   const [duplicateNotices, setDuplicateNotices] = useState<DuplicateNotice[]>([]);
@@ -118,7 +120,7 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
   };
 
   return (
-    <div className="fixed inset-0 z-[55] flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+    <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: myZ, maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
       <div
         className="relative w-[88%] max-w-sm rounded-lg overflow-hidden animate-slide-up"

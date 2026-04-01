@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import { getNextZ } from "@/lib/layerManager";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
@@ -51,6 +52,7 @@ function cropToCanvas(src: string, offsetX: number, offsetY: number): Promise<st
 }
 
 export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props) {
+  const [myZ] = useState(() => getNextZ());
   const [newUsername, setNewUsername] = useState("");
   const [profilePreview, setProfilePreview] = useState<string | null>(null);
   const [profileImageData, setProfileImageData] = useState<string | null>(null);
@@ -255,7 +257,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+      <div className="fixed inset-0 flex items-end justify-center" style={{ zIndex: myZ, maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
         <div
           className="absolute inset-0 bg-black/60 backdrop-blur-sm"
           onClick={onClose}
@@ -756,8 +758,8 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
       {/* Crop Modal */}
       {cropImageSrc && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center"
-          style={{ background: "rgba(0,0,0,0.88)", maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
+          className="fixed inset-0 flex items-center justify-center"
+          style={{ zIndex: myZ + 1, background: "rgba(0,0,0,0.88)", maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
         >
           <div
             className="flex flex-col items-center gap-4 p-6 rounded-2xl mx-4"

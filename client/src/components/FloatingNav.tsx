@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getNextZ } from "@/lib/layerManager";
 import { useLocation } from "wouter";
 import mainNavIcon from "@assets/generated_images/icon_main_nav.png";
 import petHouseIcon from "@assets/generated_images/nav_icon_home.png";
@@ -63,6 +64,9 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   const [showInv, setShowInv]         = useState<"pets" | "bag" | null>(null);
   const [showAquarium, setShowAquarium]   = useState(false);
   const [showKeepers, setShowKeepers]     = useState(false);
+  const [panelZ, setPanelZ]           = useState(300);
+
+  const openPanel = (fn: () => void) => { closeAll(); setPanelZ(getNextZ()); fn(); };
 
   const closeAll = () => {
     setIsOpen(false);
@@ -76,9 +80,9 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   const handleLeft = (id: string) => {
     closeAll();
     if (id === "map")       { navigate("/map"); return; }
-    if (id === "quest")     { setShowQuest(true); return; }
-    if (id === "pvp")       { user.isAdmin ? navigate("/pvp") : setShowPvpNote(true); return; }
-    if (id === "inventory") { setShowInv("pets"); return; }
+    if (id === "quest")     { openPanel(() => setShowQuest(true)); return; }
+    if (id === "pvp")       { user.isAdmin ? navigate("/pvp") : openPanel(() => setShowPvpNote(true)); return; }
+    if (id === "inventory") { openPanel(() => setShowInv("pets")); return; }
     if (id === "badges")    { navigate("/badges"); return; }
   };
 
@@ -87,9 +91,9 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     if (id === "home")     { navigate("/"); return; }
     if (id === "pethouse") { navigate("/pet-house"); return; }
     if (id === "market")   { navigate("/market"); return; }
-    if (id === "aquarium") { setShowAquarium(true); return; }
-    if (id === "keepers")  { setShowKeepers(true); return; }
-    if (id === "bag")      { setShowInv("bag"); return; }
+    if (id === "aquarium") { openPanel(() => setShowAquarium(true)); return; }
+    if (id === "keepers")  { openPanel(() => setShowKeepers(true)); return; }
+    if (id === "bag")      { openPanel(() => setShowInv("bag")); return; }
   };
 
   return (
@@ -170,7 +174,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
 
       {/* ── Quest scroll overlay ─────────────────────────────────────────── */}
       {showQuest && (
-        <div className="absolute inset-0 z-[200] flex items-center justify-center">
+        <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: panelZ }}>
           <div
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             onClick={() => setShowQuest(false)}
@@ -208,7 +212,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
 
       {/* ── PvP notice overlay ───────────────────────────────────────────── */}
       {showPvpNote && (
-        <div className="absolute inset-0 z-[200] flex items-center justify-center">
+        <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: panelZ }}>
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowPvpNote(false)} />
           <div className="relative w-[80%] max-w-xs rounded-lg p-5 animate-slide-up" style={{ background: "linear-gradient(135deg, rgba(20,10,3,0.98) 0%, rgba(45,25,8,0.98) 100%)", border: "1px solid rgba(212,160,23,0.5)", boxShadow: "0 8px 40px rgba(0,0,0,0.8)" }}>
             <button onClick={() => setShowPvpNote(false)} className="absolute -top-3 -right-3 w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "linear-gradient(135deg, #5c3a1e 0%, #3a2010 100%)", border: "2px solid rgba(212,160,23,0.6)", color: "#f0c040", cursor: "pointer", fontSize: 14, fontWeight: "bold" }}>×</button>
@@ -238,14 +242,14 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
 
       {/* ── Aquarium overlay ─────────────────────────────────────────────── */}
       {showAquarium && (
-        <div className="absolute inset-0 z-[200]">
+        <div className="absolute inset-0" style={{ zIndex: panelZ }}>
           <AquariumPage onClose={() => setShowAquarium(false)} userId={user.id} />
         </div>
       )}
 
       {/* ── Keeper's Central overlay ─────────────────────────────────────── */}
       {showKeepers && (
-        <div className="absolute inset-0 z-[94]">
+        <div className="absolute inset-0" style={{ zIndex: panelZ }}>
           <PetWorldPage user={user} onClose={() => setShowKeepers(false)} />
         </div>
       )}

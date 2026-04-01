@@ -1,4 +1,5 @@
 import { useRef, useState, useCallback, useEffect, useMemo } from "react";
+import { getNextZ } from "@/lib/layerManager";
 import type { ReactNode } from "react";
 import { Star, Clock, Zap } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
@@ -133,6 +134,7 @@ export default function PetPowerUpModal({
   const petZoneRef    = useRef<HTMLDivElement>(null);
   const draggingRef   = useRef<{ item: PowerUpItem; x: number; y: number } | null>(null);
 
+  const [myZ] = useState(() => getNextZ());
   const [dragging,    setDragging]    = useState<{ item: PowerUpItem; x: number; y: number } | null>(null);
   const [dragOverPet, setDragOverPet] = useState(false);
   const [petAnim,     setPetAnim]     = useState<"none" | "bounce" | "flash">("none");
@@ -237,8 +239,8 @@ export default function PetPowerUpModal({
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex flex-col overflow-hidden"
-      style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
+      className="fixed inset-0 flex flex-col overflow-hidden"
+      style={{ zIndex: myZ, maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
     >
       <style>{`
         @keyframes puMBounce {
