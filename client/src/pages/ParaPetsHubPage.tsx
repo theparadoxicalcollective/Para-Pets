@@ -901,7 +901,7 @@ export default function ParaPetsHubPage() {
                   Sign In
                 </button>
               )}
-              <Link href={user ? "/pet-house" : "/auth"} data-testid="button-play-game"
+              <Link href={user ? "/" : "/auth"} data-testid="button-play-game"
                 className="font-fantasy text-xs tracking-widest transition-all active:scale-95"
                 style={{
                   color: "#060a10", borderRadius: 9999, padding: "8px 22px",
