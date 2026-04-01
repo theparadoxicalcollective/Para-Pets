@@ -595,6 +595,23 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
               )}
             </div>
 
+            {/* Para Pets Hub */}
+            <button
+              data-testid="button-para-pets-hub"
+              onClick={() => { onClose(); navigate("/hub"); }}
+              className="w-full py-2.5 rounded-md font-fantasy text-sm tracking-widest transition-all"
+              style={{
+                background: "linear-gradient(135deg, rgba(0,80,65,0.55) 0%, rgba(0,50,42,0.55) 100%)",
+                border: "1px solid rgba(0,200,160,0.45)",
+                color: "#7fffd4",
+                cursor: "pointer",
+                boxShadow: "0 0 14px rgba(0,180,140,0.18), 0 2px 8px rgba(0,0,0,0.35)",
+                textShadow: "0 0 12px rgba(0,220,170,0.5)",
+              }}
+            >
+              ✦ Para Pets Hub ✦
+            </button>
+
             <button
               data-testid="button-logout"
               onClick={() => logoutMutation.mutate()}

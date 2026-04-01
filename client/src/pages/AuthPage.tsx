@@ -323,10 +323,20 @@ export default function AuthPage() {
               <Link
                 data-testid="link-para-pets-hub"
                 href="/hub"
-                className="font-fantasy text-[#7fffd4] text-xs tracking-widest mt-4 hover:text-white transition-colors duration-150"
-                style={{ textShadow: "0 0 14px rgba(0,200,180,0.9), 0 2px 6px rgba(0,0,0,0.9)" }}
+                className="w-[78%] max-w-[310px] mx-auto mt-3 flex items-center justify-center gap-2 py-3 rounded-xl font-fantasy text-sm tracking-widest transition-all duration-150 active:scale-95"
+                style={{
+                  background: "linear-gradient(135deg, rgba(0,90,72,0.72) 0%, rgba(0,58,46,0.72) 100%)",
+                  border: "1px solid rgba(0,210,168,0.55)",
+                  color: "#7fffd4",
+                  boxShadow: "0 0 18px rgba(0,200,160,0.28), inset 0 1px 0 rgba(127,255,212,0.12), 0 4px 12px rgba(0,0,0,0.6)",
+                  textShadow: "0 0 14px rgba(0,220,170,0.7)",
+                  backdropFilter: "blur(6px)",
+                  textDecoration: "none",
+                }}
               >
-                ✦ Para Pets Hub ✦
+                <span style={{ opacity: 0.85, fontSize: "0.9em" }}>✦</span>
+                Para Pets Hub
+                <span style={{ opacity: 0.85, fontSize: "0.9em" }}>✦</span>
               </Link>
             </div>
           </div>
