@@ -122,14 +122,14 @@ function AppRouter() {
   if (showingLoadScreen) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-[#07110a] overflow-hidden">
-        <div className="w-full flex flex-col items-center gap-4 text-center">
-          <div className="text-4xl font-fantasy text-[#7fbfb0] animate-pulse" style={{ letterSpacing: "0.15em", paddingLeft: "0.15em" }}>
+        <div className="w-full flex flex-col gap-4" style={{ alignItems: "stretch" }}>
+          <p className="font-fantasy text-[#7fbfb0] animate-pulse w-full text-center" style={{ fontSize: "2.25rem", letterSpacing: "0.15em", margin: 0 }}>
             Para Pets
-          </div>
-          <div className="text-xs text-[#4a7a6a] uppercase font-sans" style={{ letterSpacing: "0.25em", paddingLeft: "0.25em" }}>
+          </p>
+          <p className="text-[#4a7a6a] uppercase font-sans w-full text-center" style={{ fontSize: "0.75rem", letterSpacing: "0.25em", margin: 0 }}>
             Loading…
-          </div>
-          <div className="w-48 h-1.5 bg-[#0d2018] rounded-full overflow-hidden">
+          </p>
+          <div className="w-48 h-1.5 bg-[#0d2018] rounded-full overflow-hidden mx-auto">
             <div className="h-full bg-[#1a6b55] rounded-full animate-loading-bar" />
           </div>
         </div>
