@@ -18,6 +18,12 @@ uri = "file://attached_assets/bg_desktop_backdrop.png"
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "jlAu4wBHUj7SRQm9QzlLq"
+uri = "file://attached_assets/bg_shop_bayou.png"
+type = "image"
+title = "generated_image"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"

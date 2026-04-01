@@ -19,6 +19,7 @@ import SellFishPage from "@/pages/SellFishPage";
 import fishBarrelImg from "@assets/fish_barrel.png";
 
 import bgShopMystical from "@assets/bg_shop_mystical.png";
+import bgShopBayou from "@assets/bg_shop_bayou.png";
 import shopFrostpeak from "@assets/shop_frostpeak.png";
 import shopSkyRealm from "@assets/shop_sky_realm.png";
 import shopVolcanic from "@assets/shop_volcanic.png";
@@ -2828,22 +2829,25 @@ export default function WorldPage({ user }: WorldPageProps) {
       {showShop && (() => {
         const activeLoc = locations.find(l => l.id === activeLocationId);
         const shopName = activeLoc?.name || world.name;
+        const sortedItems = [...items].sort((a, b) => a.price - b.price);
+        const shopBg = worldId === "swamp" ? bgShopBayou : bgShopMystical;
         return (
-        <div className="fixed inset-0 z-40" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, background: "#050a08", overflow: "hidden" }}>
-          {/* Loading gate — covers shop until bg image is ready */}
-          {!locBgLoaded && (
-            <div className="absolute inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(8,5,20,1)" }}>
-              <div className="animate-spin rounded-full" style={{ width: 48, height: 48, border: `3px solid ${accent}25`, borderTopColor: accent }} />
-            </div>
-          )}
-          {/* Header */}
-          <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 pb-3" style={{ paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
-            <div className="flex items-center gap-2">
+        <div className="fixed inset-0 z-40 flex flex-col" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, background: "#080510", overflow: "hidden" }}>
+          {/* Themed background image — fixed, not admin-uploaded */}
+          <img src={shopBg} alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" style={{ zIndex: 0, opacity: 0.55 }} />
+          {/* Dark overlay for readability */}
+          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 1, background: "linear-gradient(180deg, rgba(4,2,14,0.82) 0%, rgba(8,4,22,0.55) 40%, rgba(6,3,18,0.72) 100%)" }} />
+          {/* Subtle accent shimmer at top */}
+          <div className="absolute top-0 left-0 right-0 h-32 pointer-events-none" style={{ zIndex: 2, background: `linear-gradient(180deg, ${accent}18 0%, transparent 100%)` }} />
+
+          {/* ── Header ─────────────────────────────────────── */}
+          <div className="relative flex items-center justify-between px-4 pb-3 flex-shrink-0" style={{ paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)", zIndex: 10 }}>
+            <div className="flex items-center gap-2.5">
               {activeLoc?.iconUrl && (
-                <img src={activeLoc.iconUrl} alt="" className="w-10 h-10 rounded-lg object-contain" style={{ border: `1px solid ${accent}40` }} />
+                <img src={activeLoc.iconUrl} alt="" className="w-10 h-10 rounded-xl object-contain" style={{ border: `1.5px solid ${accent}50`, boxShadow: `0 0 12px ${accent}30` }} />
               )}
               <div>
-                <h3 className="font-fantasy text-base tracking-widest font-semibold" style={{ color: accent, textShadow: `0 0 10px ${accent}40` }} data-testid="text-shop-name">
+                <h3 className="font-fantasy text-base tracking-widest font-semibold" style={{ color: accent, textShadow: `0 0 14px ${accent}60` }} data-testid="text-shop-name">
                   {shopName}
                 </h3>
                 <div className="flex items-center gap-1">
@@ -2854,25 +2858,14 @@ export default function WorldPage({ user }: WorldPageProps) {
             </div>
             <div className="flex items-center gap-2">
               {currentUser.isAdmin && (
-                <>
-                  <button
-                    data-testid="button-add-shop-decor"
-                    onClick={() => shopDecorFileRef.current?.click()}
-                    className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
-                    style={{ background: "rgba(80,40,120,0.6)", border: "2px solid rgba(180,100,255,0.6)", color: "rgba(200,140,255,1)", cursor: "pointer" }}
-                    title="Add decor"
-                  >
-                    <Palette className="w-4 h-4" />
-                  </button>
-                  <button
-                    data-testid="button-add-shop-item"
-                    onClick={() => { setShowItemPicker(true); refetchAllShopItems(); }}
-                    className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
-                    style={{ background: `${accent}30`, border: `2px solid ${accent}60`, color: accent, cursor: "pointer" }}
-                  >
-                    <Plus className="w-5 h-5" />
-                  </button>
-                </>
+                <button
+                  data-testid="button-add-shop-item"
+                  onClick={() => { setShowItemPicker(true); refetchAllShopItems(); }}
+                  className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                  style={{ background: `${accent}35`, border: `2px solid ${accent}70`, color: accent, cursor: "pointer", boxShadow: `0 0 10px ${accent}25` }}
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
               )}
               <button
                 data-testid="button-close-shop"
@@ -2884,366 +2877,150 @@ export default function WorldPage({ user }: WorldPageProps) {
               </button>
             </div>
           </div>
-          {/* Hidden file input for shop decor uploads */}
-          <input
-            ref={shopDecorFileRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (!file || !activeLocationId) return;
-              const reader = new FileReader();
-              reader.onload = (ev) => {
-                const dataUrl = ev.target?.result as string;
-                if (dataUrl) addObjectMutation.mutate({ locationId: activeLocationId, imageData: dataUrl });
-              };
-              reader.readAsDataURL(file);
-              e.target.value = "";
-            }}
-          />
-          {/* Shop canvas — fixed aspect ratio matches background image, so items stay in position on all screens */}
-          {/* Landscape pan wrapper — only active when background is wider than tall */}
-          <div
-            ref={shopContainerRef}
-            className="absolute inset-0"
-            style={{
-              overflow: "hidden",
-              zIndex: 10,
-              ...(shopBgNaturalRatio !== null && shopBgNaturalRatio < 1 ? {
-                touchAction: "none",
-                cursor: "grab",
-              } : {}),
-            }}
-            onPointerDown={shopBgNaturalRatio !== null && shopBgNaturalRatio < 1 ? handleShopPanPointerDown : undefined}
-          >
-          <div
-            ref={shopCanvasRef}
-            style={shopBgNaturalRatio !== null && shopBgNaturalRatio < 1 ? {
-              position: "absolute",
-              top: 0,
-              left: `${shopPanX}px`,
-              height: "100%",
-              aspectRatio: `${1 / shopBgNaturalRatio}`,
-              touchAction: "none",
-            } : {
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              paddingBottom: shopBgNaturalRatio ? `${shopBgNaturalRatio * 100}%` : "177.78%",
-              minHeight: "100dvh",
-              touchAction: "none",
-            }}
-            onPointerMove={(e) => { handleShopItemPointerMove(e); handleShopObjPointerMove(e); }}
-            onPointerUp={(e) => {
-              if (shopItemDragRef.current) {
-                const dragItem = items.find(i => i.id === shopItemDragRef.current!.itemId);
-                if (dragItem) handleShopItemPointerUp(e, dragItem);
-              }
-              if (objDragRef.current) handleObjPointerUp(e);
-            }}
-            onClick={() => { if (currentUser.isAdmin) { setSelectedShopItemAdminId(null); setSelectedDecorAdminId(null); } }}
-          >
-            {/* Inner absolute fill — background + gradient + decor + items all relative to this fixed-ratio space */}
-            <div className="absolute inset-0">
-            <img src={committedLocBgUrl || bgShopMystical} alt="" className="absolute inset-0 w-full h-full object-cover" />
-            <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 72%, rgba(0,0,0,0.5) 100%)" }} />
-            {/* Shop decor objects — non-clickable for players, draggable for admins */}
-            {locationObjects.map((obj) => {
-              const pos = objDragPos?.id === obj.id ? { x: objDragPos.x, y: objDragPos.y } : { x: obj.posX, y: obj.posY };
-              const isDecorDragging = objDragRef.current?.objId === obj.id;
-              const isDecorSelected = selectedDecorAdminId === obj.id;
-              return (
-                <div
-                  key={obj.id}
-                  className="absolute"
-                  style={{
-                    left: `${pos.x}%`,
-                    top: `${pos.y}%`,
-                    width: `${obj.width}px`,
-                    transform: "translate(-50%, -50%)",
-                    zIndex: isDecorDragging ? 25 : 5,
-                    touchAction: currentUser.isAdmin ? "none" : "auto",
-                    pointerEvents: currentUser.isAdmin ? "auto" : "none",
-                    cursor: currentUser.isAdmin ? (isDecorSelected ? "grab" : "pointer") : "default",
-                  }}
-                  onPointerDown={currentUser.isAdmin ? (e) => { e.stopPropagation(); handleObjPointerDown(e, obj); setSelectedDecorAdminId(obj.id); } : undefined}
-                  onClick={(e) => { e.stopPropagation(); }}
-                >
-                  <img src={obj.imageUrl} alt="" className="w-full h-auto object-contain pointer-events-none" draggable={false}
-                    style={{ filter: `drop-shadow(0 2px 6px rgba(0,0,0,0.5)) drop-shadow(0 0 8px ${accent}20)${isDecorSelected ? " drop-shadow(0 0 8px rgba(255,220,100,0.7))" : ""}` }}
-                  />
-                  {currentUser.isAdmin && isDecorSelected && (
-                    <>
-                      <button onClick={(e) => { e.stopPropagation(); deleteObjectMutation.mutate(obj.id); }}
-                        className="absolute -top-2 -right-2 z-20 w-5 h-5 rounded-full flex items-center justify-center"
-                        style={{ background: "rgba(220,38,38,0.95)", border: "1px solid rgba(255,100,100,0.6)", cursor: "pointer", pointerEvents: "auto" }}>
-                        <X className="w-3 h-3 text-white" />
-                      </button>
-                      <button onClick={(e) => { e.stopPropagation(); objWidthMutation.mutate({ objectId: obj.id, width: Math.max(20, obj.width - 10) }); }}
-                        className="absolute -bottom-2 -left-2 z-20 w-5 h-5 rounded-full flex items-center justify-center"
-                        style={{ background: "rgba(80,40,0,0.95)", border: "1px solid rgba(255,160,50,0.6)", cursor: "pointer", pointerEvents: "auto" }}>
-                        <Minus className="w-2.5 h-2.5 text-white" />
-                      </button>
-                      <button onClick={(e) => { e.stopPropagation(); objWidthMutation.mutate({ objectId: obj.id, width: Math.min(600, obj.width + 10) }); }}
-                        className="absolute -bottom-2 -right-2 z-20 w-5 h-5 rounded-full flex items-center justify-center"
-                        style={{ background: "rgba(80,40,0,0.95)", border: "1px solid rgba(255,160,50,0.6)", cursor: "pointer", pointerEvents: "auto" }}>
-                        <Plus className="w-2.5 h-2.5 text-white" />
-                      </button>
-                      <div className="absolute z-20 flex items-center justify-center"
-                        style={{ top: "-16px", left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.75)", border: "1px solid rgba(255,200,50,0.4)", borderRadius: "4px", padding: "0 4px", pointerEvents: "none" }}>
-                        <span className="font-fantasy text-[9px] text-yellow-300">{obj.width}px</span>
-                      </div>
-                    </>
-                  )}
-                </div>
-              );
-            })}
+
+          {/* ── Divider ─────────────────────────────────────── */}
+          <div className="relative flex-shrink-0 mx-4 mb-3" style={{ zIndex: 10, height: "1px", background: `linear-gradient(90deg, transparent, ${accent}50, transparent)` }} />
+
+          {/* ── Scrollable Items Grid ───────────────────────── */}
+          <div className="relative flex-1 overflow-y-auto px-3 pb-4" style={{ zIndex: 10, scrollbarWidth: "none" }}>
             {itemsLoading ? (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <p className="font-fantasy text-sm animate-pulse" style={{ color: `${accent}cc`, textShadow: `0 0 10px ${accent}50` }}>Loading wares...</p>
+              <div className="flex items-center justify-center py-20">
+                <div className="animate-spin rounded-full" style={{ width: 40, height: 40, border: `3px solid ${accent}25`, borderTopColor: accent }} />
               </div>
-            ) : items.length === 0 ? (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center px-8 py-5 rounded-xl" style={{ background: "rgba(0,0,0,0.6)", border: `1px solid ${accent}20` }}>
+            ) : sortedItems.length === 0 ? (
+              <div className="flex items-center justify-center py-20">
+                <div className="text-center px-8 py-6 rounded-2xl" style={{ background: "rgba(0,0,0,0.55)", border: `1px solid ${accent}20` }}>
                   <p className="font-fantasy text-[#c8b89a] text-sm tracking-wider">No wares yet.</p>
                   {currentUser.isAdmin && (
                     <p className="font-fantasy text-[10px] tracking-wider mt-1" style={{ color: `${accent}60` }}>Tap + to add items</p>
                   )}
                 </div>
               </div>
-            ) : items.map(item => {
-              const isDragging = shopItemDragPos?.id === item.id;
-              const posX = isDragging ? shopItemDragPos!.x : item.shopPosX;
-              const posY = isDragging ? shopItemDragPos!.y : item.shopPosY;
-              const imgSrc = item.type === "pet" ? (item.eggImageUrl || item.imageUrl) : item.imageUrl;
-              const isOwned = item.type === "pet" && ownedItemIds.has(item.id);
-              const isHovered = hoveredShopItemId === item.id;
-              return (
-                <div
-                  key={item.id}
-                  data-testid={`card-shop-item-${item.id}`}
-                  style={{
-                    position: "absolute",
-                    left: `${posX}%`,
-                    top: `${posY}%`,
-                    width: `${item.shopWidth + (item.fishingType === "pole" ? 100 : 0)}px`,
-                    transform: "translate(-50%, -50%)",
-                    touchAction: "none",
-                    zIndex: isDragging ? 30 : 10 + Math.round(posY),
-                    pointerEvents: "none",
-                  }}
-                >
-                  {currentUser.isAdmin && selectedShopItemAdminId === item.id && (
-                    <>
-                      <button
-                        data-testid={`button-unassign-item-${item.id}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (activeLocationId) unassignItemMutation.mutate({ locationId: activeLocationId, itemId: item.id });
-                        }}
-                        className="absolute -top-2 -right-2 z-20 w-5 h-5 rounded-full flex items-center justify-center"
-                        style={{ background: "rgba(220,38,38,0.95)", border: "1px solid rgba(255,100,100,0.6)", cursor: "pointer", pointerEvents: "auto" }}
-                      >
-                        <X className="w-3 h-3 text-white" />
-                      </button>
-                      <button
-                        data-testid={`button-size-down-item-${item.id}`}
-                        onClick={(e) => { e.stopPropagation(); const next = Math.max(64, item.shopWidth - 5); shopItemSizeMutation.mutate({ itemId: item.id, width: next }); }}
-                        className="absolute -bottom-2 -left-2 z-20 w-5 h-5 rounded-full flex items-center justify-center"
-                        style={{ background: "rgba(80,40,0,0.95)", border: "1px solid rgba(255,160,50,0.6)", cursor: "pointer", pointerEvents: "auto" }}
-                      >
-                        <Minus className="w-2.5 h-2.5 text-white" />
-                      </button>
-                      <button
-                        data-testid={`button-size-up-item-${item.id}`}
-                        onClick={(e) => { e.stopPropagation(); const next = Math.min(300, item.shopWidth + 5); shopItemSizeMutation.mutate({ itemId: item.id, width: next }); }}
-                        className="absolute -bottom-2 -right-2 z-20 w-5 h-5 rounded-full flex items-center justify-center"
-                        style={{ background: "rgba(80,40,0,0.95)", border: "1px solid rgba(255,160,50,0.6)", cursor: "pointer", pointerEvents: "auto" }}
-                      >
-                        <Plus className="w-2.5 h-2.5 text-white" />
-                      </button>
-                      <div
-                        className="absolute z-20 flex items-center justify-center"
-                        style={{ top: "-16px", left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.75)", border: "1px solid rgba(255,200,50,0.4)", borderRadius: "4px", padding: "0 4px", pointerEvents: "none" }}
-                      >
-                        <span className="font-fantasy text-[9px] text-yellow-300">{item.shopWidth}px</span>
+            ) : (
+              <div className="grid grid-cols-3 gap-3">
+                {sortedItems.map(item => {
+                  const imgSrc = item.type === "pet" ? (item.eggImageUrl || item.imageUrl) : item.imageUrl;
+                  const isOwned = item.type === "pet" && ownedItemIds.has(item.id);
+                  const canAfford = currentUser.coins >= item.price;
+                  const descLines = getItemDescription(item);
+                  return (
+                    <div
+                      key={item.id}
+                      data-testid={`card-shop-item-${item.id}`}
+                      className="relative flex flex-col items-center rounded-2xl transition-transform active:scale-95"
+                      style={{
+                        background: "linear-gradient(160deg, rgba(255,255,255,0.06) 0%, rgba(0,0,0,0.35) 100%)",
+                        border: `1.5px solid ${accent}30`,
+                        boxShadow: `0 2px 16px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)`,
+                        cursor: "pointer",
+                        padding: "10px 8px 8px",
+                      }}
+                      onClick={() => {
+                        if (currentUser.isAdmin) return;
+                        playTick();
+                        setSelectedShopItem(item);
+                        setBuyStep(1);
+                        setBuyQty(1);
+                        setBuyError(null);
+                      }}
+                    >
+                      {/* Admin remove button */}
+                      {currentUser.isAdmin && (
+                        <button
+                          data-testid={`button-unassign-item-${item.id}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (activeLocationId) unassignItemMutation.mutate({ locationId: activeLocationId, itemId: item.id });
+                          }}
+                          className="absolute -top-2 -right-2 z-10 w-5 h-5 rounded-full flex items-center justify-center"
+                          style={{ background: "rgba(220,38,38,0.95)", border: "1px solid rgba(255,100,100,0.6)", cursor: "pointer" }}
+                        >
+                          <X className="w-3 h-3 text-white" />
+                        </button>
+                      )}
+                      {/* Owned badge */}
+                      {isOwned && (
+                        <div className="absolute top-1 left-1 z-10 px-1.5 py-0.5 rounded-full font-fantasy" style={{ fontSize: "7px", background: "rgba(232,168,0,0.25)", border: "1px solid rgba(232,168,0,0.5)", color: "#e8c84a" }}>
+                          Owned
+                        </div>
+                      )}
+                      {/* Item image */}
+                      <div className="w-full flex items-center justify-center mb-2" style={{ height: "72px" }}>
+                        {imgSrc ? (
+                          <img
+                            src={imgSrc}
+                            alt={item.name}
+                            className="max-w-full max-h-full object-contain"
+                            style={{ filter: `drop-shadow(0 2px 8px rgba(0,0,0,0.7)) drop-shadow(0 0 6px ${accent}30)` }}
+                          />
+                        ) : (
+                          <Package className="w-10 h-10" style={{ color: `${accent}60` }} />
+                        )}
                       </div>
-                    </>
-                  )}
-                  <div
-                    className="w-full flex items-center justify-center relative"
-                    style={{ aspectRatio: "1/1" }}
-                  >
-                    {imgSrc ? (
-                      <img
-                        src={imgSrc}
-                        alt={item.name}
-                        className="w-full h-full object-contain"
-                        style={{
-                          filter: (isHovered && !(currentUser.isAdmin && (isDragging || selectedShopItemAdminId === item.id)))
-                            ? `drop-shadow(0 0 1px rgba(255,255,255,0.75)) drop-shadow(0 0 9px rgba(255,210,120,0.65)) drop-shadow(0 1px 3px rgba(0,0,0,0.75)) drop-shadow(0 0 2px rgba(255,255,255,0.35))`
-                            : `drop-shadow(0 0 1px rgba(255,255,255,0.5)) drop-shadow(0 0 5px rgba(255,200,100,0.35)) drop-shadow(0 1px 3px rgba(0,0,0,0.7)) drop-shadow(0 0 1px rgba(255,255,255,0.3))`,
-                          transform: (!currentUser.isAdmin && pressedShopItemId === item.id) ? "scale(1.1)" : "scale(1)",
-                          transition: isDragging ? "none" : "transform 0.15s ease, filter 0.15s ease",
-                          cursor: currentUser.isAdmin ? (selectedShopItemAdminId === item.id ? "grab" : "pointer") : "pointer",
-                          pointerEvents: (!currentUser.isAdmin && item.fishingType === "pole") ? "none" : "auto",
-                        }}
-                        onMouseEnter={() => { if (!currentUser.isAdmin) setHoveredShopItemId(item.id); }}
-                        onMouseLeave={() => { if (!currentUser.isAdmin) setHoveredShopItemId(null); }}
-                        onTouchStart={() => { if (!currentUser.isAdmin) setHoveredShopItemId(item.id); }}
-                        onTouchEnd={() => { if (!currentUser.isAdmin) setHoveredShopItemId(null); }}
-                        onPointerDown={currentUser.isAdmin ? (e) => handleShopItemPointerDown(e, item) : (e) => {
-                          if (isShopItemTransparentClick(e as unknown as React.MouseEvent<HTMLImageElement>)) return;
-                          setPressedShopItemId(item.id);
-                        }}
-                        onPointerUp={() => { if (!currentUser.isAdmin) setPressedShopItemId(null); }}
-                        onPointerCancel={() => { if (!currentUser.isAdmin) setPressedShopItemId(null); }}
-                        onClick={(e) => {
-                          if (currentUser.isAdmin) {
-                            if (!shopItemDidDrag.current) {
-                              if (isShopItemTransparentClick(e)) return;
-                              e.stopPropagation();
-                              setSelectedShopItemAdminId(prev => prev === item.id ? null : item.id);
-                            }
-                            return;
-                          }
-                          if (!shopItemDidDrag.current) {
-                            if (Date.now() - shopJustOpened.current < 400) return;
-                            if (isShopItemTransparentClick(e)) return;
-                            playTick();
-                            setSelectedShopItem(item);
-                            setBuyStep(1);
-                            setBuyQty(1);
-                            setBuyError(null);
-                          }
-                        }}
-                      />
-                    ) : (
-                      <Package
-                        className="w-8 h-8"
-                        style={{ color: `${accent}80`, pointerEvents: "auto", cursor: "pointer" }}
-                        onClick={() => {
-                          if (!currentUser.isAdmin && !shopItemDidDrag.current) {
-                            if (Date.now() - shopJustOpened.current < 400) return;
-                            playTick();
-                            setSelectedShopItem(item);
-                            setBuyStep(1);
-                            setBuyQty(1);
-                            setBuyError(null);
-                          }
-                        }}
-                      />
-                    )}
-                    {!currentUser.isAdmin && item.fishingType === "pole" && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          top: 0,
-                          left: "50%",
-                          width: `${item.shopWidth}px`,
-                          height: "100%",
-                          transform: "translateX(-50%)",
-                          pointerEvents: "auto",
-                          cursor: "pointer",
-                        }}
-                        onClick={() => {
-                          if (!shopItemDidDrag.current && Date.now() - shopJustOpened.current >= 400) {
-                            playTick();
-                            setSelectedShopItem(item);
-                            setBuyStep(1);
-                            setBuyQty(1);
-                            setBuyError(null);
-                          }
-                        }}
-                      />
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          </div>
-          </div>
-          {activeLoc?.ownerImageUrl && (
-            <div className="absolute bottom-4 left-4 z-20 pointer-events-none" style={{ animation: "locFloat 4s ease-in-out infinite" }}>
-              <img src={activeLoc.ownerImageUrl} alt="Owner" className="w-20 h-20 object-contain" style={{ filter: `drop-shadow(0 2px 8px rgba(0,0,0,0.6)) drop-shadow(0 0 12px ${accent}30)` }} />
-            </div>
-          )}
-          {currentUser.isAdmin && items.length > 0 && (
-            <div className="absolute bottom-4 right-4 z-20 pointer-events-none">
-              <p className="font-fantasy text-[9px] tracking-wider px-2 py-1 rounded" style={{ background: "rgba(0,0,0,0.65)", color: `${accent}70`, border: `1px solid ${accent}20` }}>
-                Drag to reposition
-              </p>
-            </div>
-          )}
-
-          {/* ── House Bundles / Decor for sale shelf ─────────────────────── */}
-          {(shopBundlesForSale.length > 0 || shopDecorForSale.length > 0) && (
-            <div
-              className="absolute bottom-0 left-0 right-0 flex flex-col gap-0"
-              style={{ pointerEvents: "auto", zIndex: 25 }}
-            >
-              <div
-                className="flex gap-3 overflow-x-auto px-4 py-3"
-                style={{
-                  background: "linear-gradient(0deg, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.55) 100%)",
-                  backdropFilter: "blur(8px)",
-                  borderTop: `1px solid ${accent}25`,
-                  scrollbarWidth: "none",
-                }}
-              >
-                {shopBundlesForSale.map(bundle => (
-                  <button
-                    key={bundle.id}
-                    data-testid={`button-buy-bundle-shop-${bundle.id}`}
-                    onClick={() => {
-                      if (!currentUser.isAdmin) buyBundleMutation.mutate(bundle.id);
-                    }}
-                    disabled={buyBundleMutation.isPending || currentUser.isAdmin}
-                    className="flex-shrink-0 flex flex-col items-center gap-1.5 group"
-                    style={{ cursor: currentUser.isAdmin ? "default" : "pointer" }}
-                  >
-                    <div
-                      className="w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center transition-transform group-active:scale-90"
-                      style={{
-                        background: "rgba(255,255,255,0.07)",
-                        border: `1.5px solid ${accent}40`,
-                        boxShadow: `0 2px 10px rgba(0,0,0,0.5)`,
-                      }}
-                    >
-                      {bundle.shopImageUrl
-                        ? <img src={bundle.shopImageUrl} alt={bundle.name} className="w-full h-full object-cover" />
-                        : <span className="text-2xl">🏡</span>}
+                      {/* Item name */}
+                      <p className="font-fantasy text-center text-white leading-tight mb-1.5" style={{ fontSize: "10px", textShadow: "0 1px 4px rgba(0,0,0,0.8)", lineHeight: "1.3" }}>
+                        {item.name}
+                      </p>
+                      {/* Description hint */}
+                      {descLines.length > 0 && (
+                        <p className="font-fantasy text-center leading-tight mb-1.5" style={{ fontSize: "8px", color: `${accent}bb`, lineHeight: "1.2" }}>
+                          {descLines[0]}
+                        </p>
+                      )}
+                      {/* Price */}
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: canAfford ? `${accent}20` : "rgba(80,60,40,0.25)", border: `1px solid ${canAfford ? accent + "50" : "rgba(100,80,50,0.35)"}` }}>
+                        <img src={coinIconImg} alt="" style={{ width: "9px", height: "9px", objectFit: "contain" }} />
+                        <span className="font-fantasy" style={{ fontSize: "9px", color: canAfford ? accent : "#7a6040", fontWeight: 700 }}>{item.price}</span>
+                      </div>
                     </div>
-                    <p className="font-fantasy text-[8px] text-white/80 max-w-[64px] text-center truncate leading-tight">{bundle.name}</p>
-                    <span className="font-fantasy text-[8px] px-2 py-0.5 rounded-full" style={{ background: `${accent}25`, color: accent, border: `1px solid ${accent}40` }}>{bundle.price}c</span>
-                  </button>
-                ))}
-                {shopDecorForSale.map(decor => (
-                  <div
-                    key={decor.id}
-                    data-testid={`button-buy-decor-shop-${decor.id}`}
-                    className="flex-shrink-0 flex flex-col items-center gap-1.5"
-                  >
-                    <div
-                      className="w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center"
-                      style={{
-                        background: "rgba(255,255,255,0.07)",
-                        border: `1.5px solid ${accent}40`,
-                        boxShadow: `0 2px 10px rgba(0,0,0,0.5)`,
-                      }}
-                    >
-                      {decor.imageUrl
-                        ? <img src={decor.imageUrl} alt={decor.name} className="w-full h-full object-cover" />
-                        : <span className="text-2xl">🪴</span>}
-                    </div>
-                    <p className="font-fantasy text-[8px] text-white/80 max-w-[64px] text-center truncate leading-tight">{decor.name}</p>
-                    <span className="font-fantasy text-[8px] px-2 py-0.5 rounded-full" style={{ background: `${accent}25`, color: accent, border: `1px solid ${accent}40` }}>{decor.price}c</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
+            )}
+
+            {/* ── House Bundles / Decor shelf ─────────────── */}
+            {(shopBundlesForSale.length > 0 || shopDecorForSale.length > 0) && (
+              <div className="mt-4">
+                <div className="mb-2 flex items-center gap-2">
+                  <div className="flex-1 h-px" style={{ background: `${accent}30` }} />
+                  <span className="font-fantasy text-[9px] tracking-widest" style={{ color: `${accent}80` }}>HOME GOODS</span>
+                  <div className="flex-1 h-px" style={{ background: `${accent}30` }} />
+                </div>
+                <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
+                  {shopBundlesForSale.map(bundle => (
+                    <button
+                      key={bundle.id}
+                      data-testid={`button-buy-bundle-shop-${bundle.id}`}
+                      onClick={() => { if (!currentUser.isAdmin) buyBundleMutation.mutate(bundle.id); }}
+                      disabled={buyBundleMutation.isPending || currentUser.isAdmin}
+                      className="flex-shrink-0 flex flex-col items-center gap-1.5 group"
+                      style={{ cursor: currentUser.isAdmin ? "default" : "pointer" }}
+                    >
+                      <div className="w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center transition-transform group-active:scale-90" style={{ background: "rgba(255,255,255,0.07)", border: `1.5px solid ${accent}40`, boxShadow: `0 2px 10px rgba(0,0,0,0.5)` }}>
+                        {bundle.shopImageUrl ? <img src={bundle.shopImageUrl} alt={bundle.name} className="w-full h-full object-cover" /> : <span className="text-2xl">🏡</span>}
+                      </div>
+                      <p className="font-fantasy text-[8px] text-white/80 max-w-[64px] text-center truncate leading-tight">{bundle.name}</p>
+                      <span className="font-fantasy text-[8px] px-2 py-0.5 rounded-full" style={{ background: `${accent}25`, color: accent, border: `1px solid ${accent}40` }}>{bundle.price}c</span>
+                    </button>
+                  ))}
+                  {shopDecorForSale.map(decor => (
+                    <div key={decor.id} data-testid={`button-buy-decor-shop-${decor.id}`} className="flex-shrink-0 flex flex-col items-center gap-1.5">
+                      <div className="w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center" style={{ background: "rgba(255,255,255,0.07)", border: `1.5px solid ${accent}40`, boxShadow: `0 2px 10px rgba(0,0,0,0.5)` }}>
+                        {decor.imageUrl ? <img src={decor.imageUrl} alt={decor.name} className="w-full h-full object-cover" /> : <span className="text-2xl">🪴</span>}
+                      </div>
+                      <p className="font-fantasy text-[8px] text-white/80 max-w-[64px] text-center truncate leading-tight">{decor.name}</p>
+                      <span className="font-fantasy text-[8px] px-2 py-0.5 rounded-full" style={{ background: `${accent}25`, color: accent, border: `1px solid ${accent}40` }}>{decor.price}c</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Owner character floating bottom-left */}
+          {activeLoc?.ownerImageUrl && (
+            <div className="absolute bottom-4 left-4 pointer-events-none" style={{ zIndex: 10, animation: "locFloat 4s ease-in-out infinite" }}>
+              <img src={activeLoc.ownerImageUrl} alt="Owner" className="w-20 h-20 object-contain" style={{ filter: `drop-shadow(0 2px 8px rgba(0,0,0,0.6)) drop-shadow(0 0 12px ${accent}30)` }} />
             </div>
           )}
         </div>
