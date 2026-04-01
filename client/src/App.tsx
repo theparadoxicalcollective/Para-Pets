@@ -122,7 +122,7 @@ function AppRouter() {
   if (showingLoadScreen) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-[#07110a] overflow-hidden">
-        <div className="flex flex-col items-center gap-4 text-center">
+        <div className="w-full flex flex-col items-center gap-4 text-center">
           <div className="text-4xl font-fantasy text-[#7fbfb0] animate-pulse" style={{ letterSpacing: "0.15em", paddingLeft: "0.15em" }}>
             Para Pets
           </div>
