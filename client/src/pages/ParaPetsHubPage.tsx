@@ -1,4 +1,4 @@
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { ChevronDown, ChevronUp, X, Eye, EyeOff, Loader2, Coins, Maximize2 } from "lucide-react";
@@ -807,7 +807,7 @@ function SignInModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
               boxShadow: loginMutation.isPending ? "none" : "0 0 22px rgba(127,191,176,0.3)",
             }}>
             {loginMutation.isPending && <Loader2 size={14} className="animate-spin" />}
-            {loginMutation.isPending ? "Entering world..." : "Enter World"}
+            {loginMutation.isPending ? "Signing in..." : "Sign In"}
           </button>
 
           <div className="flex items-center justify-between">
@@ -832,7 +832,6 @@ function SignInModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
 export default function ParaPetsHubPage() {
   const [showSignIn, setShowSignIn]         = useState(false);
   const [showHomescreen, setShowHomescreen] = useState(false);
-  const [, setLocation]                     = useLocation();
   const { toast }                           = useToast();
   const worldsRef                           = useRef<HTMLDivElement>(null);
 
@@ -851,8 +850,7 @@ export default function ParaPetsHubPage() {
 
   const handleSignInSuccess = () => {
     setShowSignIn(false);
-    toast({ title: "Welcome back!", description: "You're now signed in." });
-    setLocation("/pet-house");
+    toast({ title: "Welcome back!", description: "You're now signed in. Hit Play Game to enter the realm." });
   };
 
   return (
