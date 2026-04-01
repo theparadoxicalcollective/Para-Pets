@@ -841,6 +841,9 @@ export default function ParaPetsHubPage() {
   const { data: leaderboard, isLoading: lbLoading } = useQuery<LeaderboardEntry[]>({
     queryKey: ["/api/badges/leaderboard"],
     retry: false,
+    staleTime: 0,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
   });
 
   const top3  = leaderboard?.slice(0, 3)  ?? [];
