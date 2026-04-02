@@ -162,6 +162,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const [doorEditRadius,      setDoorEditRadius]      = useState(6);
   const [doorEditIsShop,      setDoorEditIsShop]      = useState(false);
   const [showDoorItemPicker,  setShowDoorItemPicker]  = useState(false);
+  const [doorPickerTab,       setDoorPickerTab]       = useState<"items"|"house"|"decor">("items");
   const [doorPickerFilter,    setDoorPickerFilter]    = useState("all");
   const [bgPanX,            setBgPanX]            = useState(0);
   const bgPanXRef       = useRef(0);
@@ -170,7 +171,9 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const bgNaturalSizeRef= useRef<{ w: number; h: number } | null>(null);
   const doorDragRef     = useRef<{ doorId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const doorDidDrag     = useRef(false);
+  const doorDragLivePosRef = useRef<{ x: number; y: number } | null>(null);
   const doorDecorDragRef= useRef<{ placementId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
+  const doorDecorDragLivePosRef = useRef<{ x: number; y: number } | null>(null);
   const doorDecorDidDrag= useRef(false);
   const kcDoorsRef      = useRef<KcDoor[]>([]);
   const activeDoorIdRef = useRef<string | null>(null);
@@ -338,6 +341,50 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     staleTime: 30_000,
   });
 
+  const { data: allAdminBundles = [] } = useQuery<{ id: string; name: string; shopImageUrl: string | null; price: number }[]>({
+    queryKey: ["/api/admin/house-bundles"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/house-bundles", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: user?.isAdmin && showDoorItemPicker,
+    staleTime: 30_000,
+  });
+
+  const { data: allAdminDecor = [] } = useQuery<{ id: string; name: string; imageUrl: string | null; price: number }[]>({
+    queryKey: ["/api/admin/home-decor"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/home-decor", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: user?.isAdmin && showDoorItemPicker,
+    staleTime: 30_000,
+  });
+
+  const { data: doorShopBundles = [] } = useQuery<{ id: string; bundleId: string }[]>({
+    queryKey: ["/api/admin/location", activeDoorId, "shop-bundles"],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/location/${activeDoorId}/shop-bundles`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: user?.isAdmin && !!activeDoorId && showDoorItemPicker,
+    staleTime: 0,
+  });
+
+  const { data: doorShopDecor = [] } = useQuery<{ id: string; decorId: string }[]>({
+    queryKey: ["/api/admin/location", activeDoorId, "shop-decor"],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/location/${activeDoorId}/shop-decor`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: user?.isAdmin && !!activeDoorId && showDoorItemPicker,
+    staleTime: 0,
+  });
+
   // ── location mutations ──────────────────────────────────────────────────────
   const addLocMutation = useMutation({
     mutationFn: async (data: { name: string; iconData?: string | null; ownerImageData?: string | null; glowColor?: string }) => {
@@ -502,23 +549,23 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
         localPetPosRef.current = { x: nx, y: ny };
         setLocalPetPos({ x: nx, y: ny });
 
-        // ── Door trigger detection ──────────────────────────────────────────
+        // ── Door trigger detection — always pick the closest door in range ──
         if (!activeDoorIdRef.current) {
+          let closestDoor: KcDoor | null = null;
+          let closestDist = Infinity;
           for (const door of kcDoorsRef.current) {
             if (doorCooldownRef.current === door.id) continue;
-            // Convert to map-pixel space so the trigger zone is a true circle
             const ddxPx = (nx - door.posX) / 100 * MAP_W;
             const ddyPx = (ny - door.posY) / 100 * mapHRef.current;
             const distPx = Math.sqrt(ddxPx * ddxPx + ddyPx * ddyPx);
             const rPx    = door.triggerRadius / 100 * MAP_W;
-            if (distPx < rPx) {
-              activeDoorIdRef.current = door.id;
-              setActiveDoorId(door.id);
-              // Stop the pet immediately — cancel RAF and zero joystick direction
-              joystickDirRef.current = { dx: 0, dy: 0 };
-              if (rafRef.current !== null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
-              break;
-            }
+            if (distPx < rPx && distPx < closestDist) { closestDist = distPx; closestDoor = door; }
+          }
+          if (closestDoor) {
+            activeDoorIdRef.current = closestDoor.id;
+            setActiveDoorId(closestDoor.id);
+            joystickDirRef.current = { dx: 0, dy: 0 };
+            if (rafRef.current !== null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
           }
         }
 
@@ -564,18 +611,17 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
       // Also check door triggers at the resting position — catches cases where the player
       // releases the joystick while standing inside a trigger zone
       if (!activeDoorIdRef.current && pos) {
+        let closestDoor: KcDoor | null = null;
+        let closestDist = Infinity;
         for (const door of kcDoorsRef.current) {
           if (doorCooldownRef.current === door.id) continue;
           const ddxPx = (pos.x - door.posX) / 100 * MAP_W;
           const ddyPx = (pos.y - door.posY) / 100 * mapHRef.current;
           const distPx = Math.sqrt(ddxPx * ddxPx + ddyPx * ddyPx);
           const rPx    = door.triggerRadius / 100 * MAP_W;
-          if (distPx < rPx) {
-            activeDoorIdRef.current = door.id;
-            setActiveDoorId(door.id);
-            break;
-          }
+          if (distPx < rPx && distPx < closestDist) { closestDist = distPx; closestDoor = door; }
         }
+        if (closestDoor) { activeDoorIdRef.current = closestDoor.id; setActiveDoorId(closestDoor.id); }
       }
     }
   }, [ownPet, startRaf]);
@@ -587,19 +633,21 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   // catches positions set by the server, initial load, and joystick-stopped cases.
   useEffect(() => {
     if (!localPetPos || activeDoorIdRef.current) return;
+    let closestDoor: KcDoor | null = null;
+    let closestDist = Infinity;
     for (const door of kcDoorsRef.current) {
       if (doorCooldownRef.current === door.id) continue;
       const ddxPx = (localPetPos.x - door.posX) / 100 * MAP_W;
       const ddyPx = (localPetPos.y - door.posY) / 100 * mapHRef.current;
       const distPx = Math.sqrt(ddxPx * ddxPx + ddyPx * ddyPx);
       const rPx    = door.triggerRadius / 100 * MAP_W;
-      if (distPx < rPx) {
-        activeDoorIdRef.current = door.id;
-        setActiveDoorId(door.id);
-        joystickDirRef.current = { dx: 0, dy: 0 };
-        if (rafRef.current !== null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
-        break;
-      }
+      if (distPx < rPx && distPx < closestDist) { closestDist = distPx; closestDoor = door; }
+    }
+    if (closestDoor) {
+      activeDoorIdRef.current = closestDoor.id;
+      setActiveDoorId(closestDoor.id);
+      joystickDirRef.current = { dx: 0, dy: 0 };
+      if (rafRef.current !== null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localPetPos]);
@@ -746,6 +794,52 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
       toast({ title: "Item Removed" });
     },
     onError: () => toast({ title: "Error", description: "Failed to remove item", variant: "destructive" }),
+  });
+
+  const assignDoorBundleMutation = useMutation({
+    mutationFn: async ({ doorId, bundleId }: { doorId: string; bundleId: string }) => {
+      const res = await apiRequest("POST", `/api/admin/location/${doorId}/assign-bundle/${bundleId}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/location", activeDoorId, "shop-bundles"] });
+      toast({ title: "Bundle Added" });
+    },
+    onError: () => toast({ title: "Error", description: "Failed to add bundle", variant: "destructive" }),
+  });
+
+  const unassignDoorBundleMutation = useMutation({
+    mutationFn: async ({ doorId, bundleId }: { doorId: string; bundleId: string }) => {
+      await apiRequest("DELETE", `/api/admin/location/${doorId}/unassign-bundle/${bundleId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/location", activeDoorId, "shop-bundles"] });
+      toast({ title: "Bundle Removed" });
+    },
+    onError: () => toast({ title: "Error", description: "Failed to remove bundle", variant: "destructive" }),
+  });
+
+  const assignDoorDecorMutation = useMutation({
+    mutationFn: async ({ doorId, decorId }: { doorId: string; decorId: string }) => {
+      const res = await apiRequest("POST", `/api/admin/location/${doorId}/assign-decor/${decorId}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/location", activeDoorId, "shop-decor"] });
+      toast({ title: "Decor Added" });
+    },
+    onError: () => toast({ title: "Error", description: "Failed to add decor", variant: "destructive" }),
+  });
+
+  const unassignDoorDecorMutation = useMutation({
+    mutationFn: async ({ doorId, decorId }: { doorId: string; decorId: string }) => {
+      await apiRequest("DELETE", `/api/admin/location/${doorId}/unassign-decor/${decorId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/location", activeDoorId, "shop-decor"] });
+      toast({ title: "Decor Removed" });
+    },
+    onError: () => toast({ title: "Error", description: "Failed to remove decor", variant: "destructive" }),
   });
 
   const addDoorDecorMutation = useMutation({
@@ -899,6 +993,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) doorDidDrag.current = true;
     const newX = Math.max(2, Math.min(98, doorDragRef.current.origPosX + dx / (rect.width / 100)));
     const newY = Math.max(2, Math.min(98, doorDragRef.current.origPosY + dy / (rect.height / 100)));
+    doorDragLivePosRef.current = { x: newX, y: newY };
     setDoorDragPos({ id: doorDragRef.current.doorId, x: newX, y: newY });
   }, []);
 
@@ -906,12 +1001,14 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     if (!doorDragRef.current) return;
     const d = doorDragRef.current;
     doorDragRef.current = null;
-    if (doorDidDrag.current && doorDragPos) {
-      updateDoorMutation.mutate({ id: d.doorId, posX: Math.round(doorDragPos.x * 10) / 10, posY: Math.round(doorDragPos.y * 10) / 10 });
+    const livePos = doorDragLivePosRef.current;
+    doorDragLivePosRef.current = null;
+    if (doorDidDrag.current && livePos) {
+      updateDoorMutation.mutate({ id: d.doorId, posX: Math.round(livePos.x * 10) / 10, posY: Math.round(livePos.y * 10) / 10 });
     }
     doorDidDrag.current = false;
     setDoorDragPos(null);
-  }, [doorDragPos, updateDoorMutation]);
+  }, [updateDoorMutation]);
 
   // ── door interior decor drag + background pan handlers ──────────────────────
   const interiorRef = useRef<HTMLDivElement>(null);
@@ -985,6 +1082,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) doorDecorDidDrag.current = true;
     const newX = Math.max(0, Math.min(100, doorDecorDragRef.current.origPosX + dx / (bgW / 100)));
     const newY = Math.max(0, Math.min(100, doorDecorDragRef.current.origPosY + dy / (rect.height / 100)));
+    doorDecorDragLivePosRef.current = { x: newX, y: newY };
     setDoorDecorDragPos({ id: doorDecorDragRef.current.placementId, x: newX, y: newY });
   }, []);
 
@@ -993,12 +1091,14 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     if (!doorDecorDragRef.current) return;
     const d = doorDecorDragRef.current;
     doorDecorDragRef.current = null;
-    if (doorDecorDidDrag.current && doorDecorDragPos) {
-      updateDoorDecorMutation.mutate({ id: d.placementId, posX: Math.round(doorDecorDragPos.x), posY: Math.round(doorDecorDragPos.y) });
+    const livePos = doorDecorDragLivePosRef.current;
+    doorDecorDragLivePosRef.current = null;
+    if (doorDecorDidDrag.current && livePos) {
+      updateDoorDecorMutation.mutate({ id: d.placementId, posX: Math.round(livePos.x), posY: Math.round(livePos.y) });
     }
     doorDecorDidDrag.current = false;
     setDoorDecorDragPos(null);
-  }, [doorDecorDragPos, updateDoorDecorMutation]);
+  }, [updateDoorDecorMutation]);
 
   // ── panel drag-to-map ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -2645,78 +2745,201 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                 </button>
               </div>
 
-              {/* Filter tabs */}
-              <div className="flex-shrink-0 px-3 pb-2 flex flex-wrap gap-1 border-b" style={{ borderColor: `${ACCENT}20` }}>
-                {[
-                  { label: "All", value: "all" },
-                  { label: "Potions", value: "potion" },
-                  { label: "Power-Ups", value: "power_up" },
-                  { label: "Special", value: "special" },
-                  { label: "Accessories", value: "accessory" },
-                  { label: "Pets", value: "pet" },
-                  { label: "Fishing", value: "fishing" },
-                ].map(f => (
+              {/* Top-level tabs: Items / House / Decor */}
+              <div className="flex-shrink-0 px-3 pb-2 flex gap-1 border-b" style={{ borderColor: `${ACCENT}20` }}>
+                {(["items", "house", "decor"] as const).map(tab => (
                   <button
-                    key={f.value}
-                    data-testid={`button-door-picker-filter-${f.value}`}
-                    onClick={() => setDoorPickerFilter(f.value)}
-                    className="font-fantasy text-[9px] px-2 py-1 rounded-full transition-all"
+                    key={tab}
+                    data-testid={`button-door-tab-${tab}`}
+                    onClick={() => setDoorPickerTab(tab)}
+                    className="font-fantasy text-[10px] px-3 py-1.5 rounded-t-md transition-all flex-1 capitalize"
                     style={{
-                      background: doorPickerFilter === f.value ? `${ACCENT}35` : "rgba(255,255,255,0.05)",
-                      border: `1px solid ${doorPickerFilter === f.value ? ACCENT + "70" : "rgba(255,255,255,0.1)"}`,
-                      color: doorPickerFilter === f.value ? ACCENT : `${ACCENT}70`,
+                      background: doorPickerTab === tab ? `${ACCENT}25` : "transparent",
+                      borderBottom: doorPickerTab === tab ? `2px solid ${ACCENT}` : "2px solid transparent",
+                      color: doorPickerTab === tab ? ACCENT : `${ACCENT}60`,
                       cursor: "pointer",
                     }}
-                  >{f.label}</button>
+                  >{tab === "items" ? "Items" : tab === "house" ? "House" : "Decor"}</button>
                 ))}
               </div>
 
-              {/* Items list */}
+              {/* Sub-filter tabs (Items only) */}
+              {doorPickerTab === "items" && (
+                <div className="flex-shrink-0 px-3 py-2">
+                  <div className="flex flex-wrap gap-1">
+                    {[
+                      { label: "All", value: "all" },
+                      { label: "Potions", value: "potion" },
+                      { label: "Power-Ups", value: "power_up" },
+                      { label: "Special", value: "special" },
+                      { label: "Accessories", value: "accessory" },
+                      { label: "Pets", value: "pet" },
+                      { label: "Fishing", value: "fishing" },
+                    ].map(f => (
+                      <button
+                        key={f.value}
+                        data-testid={`button-door-picker-filter-${f.value}`}
+                        onClick={() => setDoorPickerFilter(f.value)}
+                        className="font-fantasy text-[9px] px-2 py-1 rounded-full transition-all"
+                        style={{
+                          background: doorPickerFilter === f.value ? `${ACCENT}35` : "rgba(255,255,255,0.05)",
+                          border: `1px solid ${doorPickerFilter === f.value ? ACCENT + "70" : "rgba(255,255,255,0.1)"}`,
+                          color: doorPickerFilter === f.value ? ACCENT : `${ACCENT}70`,
+                          cursor: "pointer",
+                        }}
+                      >{f.label}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Content */}
               <div className="flex-1 overflow-y-auto px-4 pb-4 pt-2">
-                {allDoorShopItemsLoading ? (
-                  <p className="font-fantasy text-[#a89878] text-xs text-center py-6 animate-pulse">Loading items…</p>
-                ) : pickable.length === 0 ? (
-                  <p className="font-fantasy text-[#a89878] text-xs text-center py-6">No items match this filter.</p>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    {pickable.map(si => {
-                      const alreadyAssigned = doorShopItems.some(it => it.id === si.id);
-                      const pickerImg = si.type === "pet" ? (si.eggImageUrl || si.imageUrl) : si.imageUrl;
+                {/* Items tab */}
+                {doorPickerTab === "items" && (
+                  allDoorShopItemsLoading ? (
+                    <p className="font-fantasy text-[#a89878] text-xs text-center py-6 animate-pulse">Loading items…</p>
+                  ) : pickable.length === 0 ? (
+                    <p className="font-fantasy text-[#a89878] text-xs text-center py-6">No items match this filter.</p>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      {pickable.map(si => {
+                        const alreadyAssigned = doorShopItems.some(it => it.id === si.id);
+                        const pickerImg = si.type === "pet" ? (si.eggImageUrl || si.imageUrl) : si.imageUrl;
+                        return (
+                          <div
+                            key={si.id}
+                            data-testid={`door-picker-item-${si.id}`}
+                            className="flex items-center gap-3 p-2 rounded-lg"
+                            style={{
+                              background: alreadyAssigned ? `${ACCENT}15` : "rgba(255,255,255,0.03)",
+                              border: `1px solid ${alreadyAssigned ? ACCENT + "40" : "rgba(255,255,255,0.08)"}`,
+                            }}
+                          >
+                            <div className="w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0"
+                              style={{ background: "rgba(0,0,0,0.3)" }}>
+                              {pickerImg
+                                ? <img src={pickerImg} alt="" className="w-full h-full object-contain rounded-md" />
+                                : <Package className="w-5 h-5" style={{ color: `${ACCENT}40` }} />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-fantasy text-xs truncate" style={{ color: ACCENT }}>{si.name}</p>
+                              <p className="font-fantasy text-[9px]" style={{ color: `${ACCENT}70` }}>
+                                {si.price} coins · {si.fishingType ?? si.type}
+                              </p>
+                            </div>
+                            {alreadyAssigned ? (
+                              <button
+                                data-testid={`button-door-unassign-${si.id}`}
+                                onClick={() => unassignDoorItemMutation.mutate({ doorId: activeDoorId, itemId: si.id })}
+                                disabled={unassignDoorItemMutation.isPending}
+                                className="font-fantasy text-[9px] px-2 py-1 rounded-full transition-transform active:scale-95"
+                                style={{ background: "rgba(220,38,38,0.2)", border: "1px solid rgba(220,38,38,0.4)", color: "#f87171", cursor: "pointer" }}
+                              >Remove</button>
+                            ) : (
+                              <button
+                                data-testid={`button-door-assign-${si.id}`}
+                                onClick={() => assignDoorItemMutation.mutate({ doorId: activeDoorId, itemId: si.id })}
+                                disabled={assignDoorItemMutation.isPending}
+                                className="font-fantasy text-[9px] px-3 py-1 rounded-full transition-transform active:scale-95"
+                                style={{ background: `${ACCENT}30`, border: `1px solid ${ACCENT}50`, color: ACCENT, cursor: "pointer" }}
+                              >Add</button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )
+                )}
+
+                {/* House bundles tab */}
+                {doorPickerTab === "house" && (
+                  <div className="flex flex-col gap-2 pt-1">
+                    {allAdminBundles.length === 0 ? (
+                      <p className="font-fantasy text-[#a89878] text-xs text-center py-6">No house bundles created yet.</p>
+                    ) : allAdminBundles.map(bundle => {
+                      const inShop = doorShopBundles.some(lb => lb.bundleId === bundle.id);
                       return (
                         <div
-                          key={si.id}
-                          data-testid={`door-picker-item-${si.id}`}
+                          key={bundle.id}
+                          data-testid={`door-picker-bundle-${bundle.id}`}
                           className="flex items-center gap-3 p-2 rounded-lg"
                           style={{
-                            background: alreadyAssigned ? `${ACCENT}15` : "rgba(255,255,255,0.03)",
-                            border: `1px solid ${alreadyAssigned ? ACCENT + "40" : "rgba(255,255,255,0.08)"}`,
+                            background: inShop ? `${ACCENT}15` : "rgba(255,255,255,0.03)",
+                            border: `1px solid ${inShop ? ACCENT + "40" : "rgba(255,255,255,0.08)"}`,
                           }}
                         >
-                          <div className="w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0"
-                            style={{ background: "rgba(0,0,0,0.3)" }}>
-                            {pickerImg
-                              ? <img src={pickerImg} alt="" className="w-full h-full object-contain rounded-md" />
-                              : <Package className="w-5 h-5" style={{ color: `${ACCENT}40` }} />}
+                          <div className="w-10 h-10 rounded-md flex-shrink-0 overflow-hidden" style={{ background: "rgba(0,0,0,0.3)" }}>
+                            {bundle.shopImageUrl
+                              ? <img src={bundle.shopImageUrl} alt="" className="w-full h-full object-cover" />
+                              : <span className="w-full h-full flex items-center justify-center text-lg">🏡</span>}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-fantasy text-xs truncate" style={{ color: ACCENT }}>{si.name}</p>
-                            <p className="font-fantasy text-[9px]" style={{ color: `${ACCENT}70` }}>
-                              {si.price} coins · {si.fishingType ?? si.type}
-                            </p>
+                            <p className="font-fantasy text-xs truncate" style={{ color: ACCENT }}>{bundle.name}</p>
+                            <p className="font-fantasy text-[9px]" style={{ color: `${ACCENT}70` }}>{bundle.price} coins · house bundle</p>
                           </div>
-                          {alreadyAssigned ? (
+                          {inShop ? (
                             <button
-                              data-testid={`button-door-unassign-${si.id}`}
-                              onClick={() => unassignDoorItemMutation.mutate({ doorId: activeDoorId, itemId: si.id })}
-                              disabled={unassignDoorItemMutation.isPending}
+                              data-testid={`button-door-unassign-bundle-${bundle.id}`}
+                              onClick={() => unassignDoorBundleMutation.mutate({ doorId: activeDoorId, bundleId: bundle.id })}
+                              disabled={unassignDoorBundleMutation.isPending}
                               className="font-fantasy text-[9px] px-2 py-1 rounded-full transition-transform active:scale-95"
                               style={{ background: "rgba(220,38,38,0.2)", border: "1px solid rgba(220,38,38,0.4)", color: "#f87171", cursor: "pointer" }}
                             >Remove</button>
                           ) : (
                             <button
-                              data-testid={`button-door-assign-${si.id}`}
-                              onClick={() => assignDoorItemMutation.mutate({ doorId: activeDoorId, itemId: si.id })}
-                              disabled={assignDoorItemMutation.isPending}
+                              data-testid={`button-door-assign-bundle-${bundle.id}`}
+                              onClick={() => assignDoorBundleMutation.mutate({ doorId: activeDoorId, bundleId: bundle.id })}
+                              disabled={assignDoorBundleMutation.isPending}
+                              className="font-fantasy text-[9px] px-3 py-1 rounded-full transition-transform active:scale-95"
+                              style={{ background: `${ACCENT}30`, border: `1px solid ${ACCENT}50`, color: ACCENT, cursor: "pointer" }}
+                            >Add</button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Home decor tab */}
+                {doorPickerTab === "decor" && (
+                  <div className="flex flex-col gap-2 pt-1">
+                    {allAdminDecor.length === 0 ? (
+                      <p className="font-fantasy text-[#a89878] text-xs text-center py-6">No decor items created yet.</p>
+                    ) : allAdminDecor.map(decor => {
+                      const inShop = doorShopDecor.some(ld => ld.decorId === decor.id);
+                      return (
+                        <div
+                          key={decor.id}
+                          data-testid={`door-picker-decor-${decor.id}`}
+                          className="flex items-center gap-3 p-2 rounded-lg"
+                          style={{
+                            background: inShop ? `${ACCENT}15` : "rgba(255,255,255,0.03)",
+                            border: `1px solid ${inShop ? ACCENT + "40" : "rgba(255,255,255,0.08)"}`,
+                          }}
+                        >
+                          <div className="w-10 h-10 rounded-md flex-shrink-0 overflow-hidden" style={{ background: "rgba(0,0,0,0.3)" }}>
+                            {decor.imageUrl
+                              ? <img src={decor.imageUrl} alt="" className="w-full h-full object-cover" />
+                              : <span className="w-full h-full flex items-center justify-center text-lg">🪴</span>}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-fantasy text-xs truncate" style={{ color: ACCENT }}>{decor.name}</p>
+                            <p className="font-fantasy text-[9px]" style={{ color: `${ACCENT}70` }}>{decor.price} coins · home decor</p>
+                          </div>
+                          {inShop ? (
+                            <button
+                              data-testid={`button-door-unassign-decor-${decor.id}`}
+                              onClick={() => unassignDoorDecorMutation.mutate({ doorId: activeDoorId, decorId: decor.id })}
+                              disabled={unassignDoorDecorMutation.isPending}
+                              className="font-fantasy text-[9px] px-2 py-1 rounded-full transition-transform active:scale-95"
+                              style={{ background: "rgba(220,38,38,0.2)", border: "1px solid rgba(220,38,38,0.4)", color: "#f87171", cursor: "pointer" }}
+                            >Remove</button>
+                          ) : (
+                            <button
+                              data-testid={`button-door-assign-decor-${decor.id}`}
+                              onClick={() => assignDoorDecorMutation.mutate({ doorId: activeDoorId, decorId: decor.id })}
+                              disabled={assignDoorDecorMutation.isPending}
                               className="font-fantasy text-[9px] px-3 py-1 rounded-full transition-transform active:scale-95"
                               style={{ background: `${ACCENT}30`, border: `1px solid ${ACCENT}50`, color: ACCENT, cursor: "pointer" }}
                             >Add</button>
