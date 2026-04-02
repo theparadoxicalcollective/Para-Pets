@@ -87,7 +87,7 @@ function AppRouter() {
 
     fetch("/api/inventory", { credentials: "include" })
       .then(res => res.json())
-      .then((items: any[]) => {
+      .then(async (items: any[]) => {
         // Seed the TanStack Query cache so HomePage's own query is instant.
         queryClient.setQueryData(["/api/inventory"], items);
 
@@ -104,7 +104,26 @@ function AppRouter() {
           ? document.fonts.ready.then(() => undefined)
           : Promise.resolve();
 
-        const preloads: Promise<void>[] = [preloadImage(homeBg), fontReady];
+        // Also prefetch the active pet's template parts so PetAnimator can
+        // render immediately when the home screen appears, instead of waiting
+        // for a second API round-trip after the loading screen disappears.
+        const petPartsReady: Promise<void> = activePetItem?.petTemplateId
+          ? fetch(`/api/pet-template-parts/${activePetItem.petTemplateId}`, { credentials: "include" })
+              .then(r => r.ok ? r.json() : null)
+              .then((data: any) => {
+                if (!data) return;
+                // Seed the cache so PetAnimator's useQuery is instant.
+                queryClient.setQueryData(["/api/pet-template-parts", activePetItem.petTemplateId], data);
+                // Also kick off image loading for each part so they are in
+                // the browser's memory cache by the time the canvas draws.
+                if (Array.isArray(data.parts)) {
+                  data.parts.forEach((p: any) => { if (p.imageUrl) preloadImage(p.imageUrl); });
+                }
+              })
+              .catch(() => undefined)
+          : Promise.resolve();
+
+        const preloads: Promise<void>[] = [preloadImage(homeBg), fontReady, petPartsReady];
         if (petImageUrl) preloads.push(preloadImage(petImageUrl));
 
         Promise.all(preloads).then(() => {
