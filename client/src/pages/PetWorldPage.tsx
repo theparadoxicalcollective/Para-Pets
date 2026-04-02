@@ -2423,11 +2423,6 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                   background: "linear-gradient(180deg, rgba(4,10,6,0.0) 0%, rgba(4,10,6,0.97) 14%)",
                   paddingTop: 24,
                 }}>
-                  {/* FOR SALE label */}
-                  <div className="flex items-center gap-2 px-4 mb-2 flex-shrink-0">
-                    <Store style={{ width: 13, height: 13, color: `${ACCENT}90` }} />
-                    <span className="font-fantasy text-[10px] tracking-widest" style={{ color: `${ACCENT}88` }}>FOR SALE</span>
-                  </div>
                   {/* Items grid */}
                   <div className="flex-1 overflow-y-auto px-3 pb-4" style={{ scrollbarWidth: "none" }}>
                     {doorShopItems.length === 0 ? (
