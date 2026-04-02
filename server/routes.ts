@@ -1982,13 +1982,13 @@ export async function registerRoutes(
       let bgUrl: string | null = null;
       let ownerImageUrl: string | null = null;
       if (iconData) {
-        iconUrl = await processWorldImage(iconData, 500);
+        iconUrl = await processWorldImage(iconData, 1000);
       }
       if (bgData) {
         bgUrl = await processWorldImage(bgData, 2000);
       }
       if (ownerImageData) {
-        ownerImageUrl = await processWorldImage(ownerImageData, 500);
+        ownerImageUrl = await processWorldImage(ownerImageData, 1000);
       }
 
       const loc = await storage.createWorldLocation({
@@ -2278,13 +2278,13 @@ export async function registerRoutes(
         sanitized.isShop = type === "shop";
       }
       if (iconData) {
-        sanitized.iconUrl = await processWorldImage(iconData, 500);
+        sanitized.iconUrl = await processWorldImage(iconData, 1000);
       }
       if (bgData) {
         sanitized.bgUrl = await processWorldImage(bgData, 2000);
       }
       if (ownerImageData) {
-        sanitized.ownerImageUrl = await processWorldImage(ownerImageData, 500);
+        sanitized.ownerImageUrl = await processWorldImage(ownerImageData, 1000);
       }
       if (glowColor !== undefined) sanitized.glowColor = glowColor || null;
       if (typeof posX === "number") sanitized.posX = Math.max(0, Math.min(85, posX));
