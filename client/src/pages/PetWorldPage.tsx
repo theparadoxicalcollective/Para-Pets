@@ -139,7 +139,6 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const [showPlacesPanel,   setShowPlacesPanel]   = useState(false);
   const [showAddLocForm,    setShowAddLocForm]     = useState(false);
   const [newLocName,        setNewLocName]         = useState("");
-  const [newLocType,        setNewLocType]         = useState("shop");
   const [newLocGlow,        setNewLocGlow]         = useState("#d4a017");
   const [newLocIcon,        setNewLocIcon]         = useState<string | null>(null);
   const [newLocOwner,       setNewLocOwner]        = useState<string | null>(null);
@@ -326,14 +325,14 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
 
   // ── location mutations ──────────────────────────────────────────────────────
   const addLocMutation = useMutation({
-    mutationFn: async (data: { name: string; type: string; iconData?: string | null; ownerImageData?: string | null; glowColor?: string }) => {
-      const res = await apiRequest("POST", `/api/admin/world/${WORLD_ID}/location`, { ...data, isShop: data.type === "shop" });
+    mutationFn: async (data: { name: string; iconData?: string | null; ownerImageData?: string | null; glowColor?: string }) => {
+      const res = await apiRequest("POST", `/api/admin/world/${WORLD_ID}/location`, { ...data, type: "landmark", isShop: false });
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/world", WORLD_ID, "locations"] });
       setShowAddLocForm(false);
-      setNewLocName(""); setNewLocType("shop"); setNewLocIcon(null); setNewLocOwner(null);
+      setNewLocName(""); setNewLocIcon(null); setNewLocOwner(null);
       toast({ title: "Place Added" });
     },
     onError: () => toast({ title: "Error", description: "Failed to add place", variant: "destructive" }),
@@ -1991,19 +1990,6 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
               />
               <div className="flex items-center gap-2">
                 <label className="flex items-center gap-1 cursor-pointer font-fantasy text-[10px]" style={{ color: "#d4a01780" }}>
-                  Type:
-                  <select
-                    value={newLocType}
-                    onChange={e => setNewLocType(e.target.value)}
-                    className="font-fantasy text-[10px] rounded px-1 py-0.5 outline-none"
-                    style={{ background: "rgba(20,16,2,0.85)", border: "1px solid #d4a01740", color: "#d4a017", cursor: "pointer" }}
-                  >
-                    <option value="shop">Shop</option>
-                    <option value="landmark">Landmark</option>
-                    <option value="battle">Battle</option>
-                  </select>
-                </label>
-                <label className="flex items-center gap-1 cursor-pointer font-fantasy text-[10px]" style={{ color: "#d4a01780" }}>
                   Glow:
                   <input type="color" value={newLocGlow} onChange={e => setNewLocGlow(e.target.value)}
                     style={{ width: 24, height: 24, borderRadius: 4, border: "1px solid #d4a01750", cursor: "pointer", background: "none" }} />
@@ -2033,7 +2019,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
               </label>
               <button
                 onClick={() => {
-                  if (newLocName.trim()) addLocMutation.mutate({ name: newLocName.trim(), type: newLocType, iconData: newLocIcon, ownerImageData: newLocOwner, glowColor: newLocGlow });
+                  if (newLocName.trim()) addLocMutation.mutate({ name: newLocName.trim(), iconData: newLocIcon, ownerImageData: newLocOwner, glowColor: newLocGlow });
                 }}
                 disabled={!newLocName.trim() || addLocMutation.isPending}
                 className="font-fantasy text-xs py-2 rounded-lg transition-transform active:scale-95 disabled:opacity-40"
