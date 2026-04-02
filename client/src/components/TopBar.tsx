@@ -218,8 +218,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                 </svg>
               </button>
             )}
-            {!user.isAdmin && (
-              <div className="relative" ref={friendsListRef}>
+            <div className="relative" ref={friendsListRef}>
                 <button
                   data-testid="button-friends-icon"
                   onClick={() => setShowFriendsList(v => !v)}
@@ -343,7 +342,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                   </div>
                 )}
               </div>
-            )}
+            </div>
           </div>
 
           {/* Name + coins stacked to the right of the photo */}

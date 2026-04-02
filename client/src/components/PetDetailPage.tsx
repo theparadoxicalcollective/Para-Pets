@@ -6,10 +6,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import coinIconImg from "@assets/icon_coin.png";
-import friendsIconImg from "@assets/friends_icon.png";
 import PowerUpOverlay, { PowerUpEffectType } from "@/components/PowerUpOverlay";
 import PetPowerUpModal, { PowerUpItem } from "@/components/PetPowerUpModal";
-import FriendProfileModal from "@/components/FriendProfileModal";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import gemCrystalIcon from "@assets/generated_images/icon_gem_crystal.png";
 import powerupBagIcon from "@assets/generated_images/icon_powerup_bag.png";
@@ -72,7 +70,6 @@ interface PetDetailPageProps {
   onUpdate: () => void;
   userCoins: number;
   onUserUpdate: (user: any) => void;
-  isAdmin?: boolean;
 }
 
 const RARITY: Record<number, { label: string; primary: string; glow: string; heroBg: string; dim: string }> = {
@@ -83,7 +80,7 @@ const RARITY: Record<number, { label: string; primary: string; glow: string; her
   5: { label: "Legendary", primary: "#f0c040", glow: "rgba(240,192,64,0.55)",  heroBg: "rgba(75,55,5,0.55)",   dim: "rgba(240,192,64,0.18)"  },
 };
 
-export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUserUpdate, isAdmin }: PetDetailPageProps) {
+export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUserUpdate }: PetDetailPageProps) {
   const [showPowerUpModal, setShowPowerUpModal] = useState(false);
   const showPowerUpModalRef = useRef(false);
   const [powerUpModalMode, setPowerUpModalMode] = useState<"powerup" | "lvlup">("powerup");
@@ -100,51 +97,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
   const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem("petDetailTutorialSeen"));
   const [flipAnim, setFlipAnim] = useState<"idle" | "forward" | "back">("idle");
   const flipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [showFriendsPanel, setShowFriendsPanel] = useState(false);
-  const [selectedFriend, setSelectedFriend] = useState<{ id: string; username: string } | null>(null);
-  const friendsPanelRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-
-  const { data: friendsList = [] } = useQuery<any[]>({
-    queryKey: ["/api/friends"],
-    enabled: isAdmin && showFriendsPanel,
-    refetchInterval: showFriendsPanel ? 15000 : false,
-  });
-
-  const { data: friendRequestsList = [] } = useQuery<any[]>({
-    queryKey: ["/api/friends/requests"],
-    enabled: isAdmin && showFriendsPanel,
-    refetchInterval: showFriendsPanel ? 15000 : false,
-  });
-
-  const acceptFriendMutation = useMutation({
-    mutationFn: ({ requestId }: { requestId: string; username: string }) =>
-      apiRequest("POST", `/api/friends/${requestId}/accept`, {}),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/friends"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/friends/requests"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/friends/requests/count"] });
-    },
-  });
-
-  const declineFriendMutation = useMutation({
-    mutationFn: (requesterId: string) => apiRequest("DELETE", `/api/friends/${requesterId}`, {}),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/friends/requests"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/friends/requests/count"] });
-    },
-  });
-
-  useEffect(() => {
-    if (!showFriendsPanel) return;
-    const handleClick = (e: MouseEvent) => {
-      if (friendsPanelRef.current && !friendsPanelRef.current.contains(e.target as Node)) {
-        setShowFriendsPanel(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [showFriendsPanel]);
 
   const handlePortraitClick = () => {
     if (!pet.eggImageUrl || flipAnim !== "idle") return;
