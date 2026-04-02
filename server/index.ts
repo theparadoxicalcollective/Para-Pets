@@ -22,26 +22,30 @@ app.set('trust proxy', 1);
 app.disable('etag');
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
-// Auth endpoints — strict limit to prevent brute force
-const authLimiter = rateLimit({
+// Brute-force protection: only login + register need strict limits
+const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20,
+  max: 15,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { message: "Too many attempts, please try again later." },
-  skip: (req) => req.path === "/me", // never limit the session check
+  message: { message: "Too many login attempts, please try again later." },
 });
 
-// General API — generous limit, just a safety net against runaway clients
+// General API — safety net against runaway clients.
+// 600/min = 10 req/s: comfortably above normal gameplay bursts (fishing, combat)
+// while still catching truly broken clients.
+// Logout is explicitly excluded so it can never be blocked.
 const apiLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 300,            // 5 req/s per IP — well above normal single-user polling
+  windowMs: 60 * 1000,
+  max: 600,
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: "Too many requests, please slow down." },
+  skip: (req) => req.method === "POST" && req.path === "/auth/logout",
 });
 
-app.use("/api/auth", authLimiter);
+app.use("/api/auth/login",    loginLimiter);
+app.use("/api/auth/register", loginLimiter);
 app.use("/api", apiLimiter);
 const httpServer = createServer(app);
 const PgSession = connectPgSimple(session);
