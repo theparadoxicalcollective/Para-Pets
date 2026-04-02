@@ -728,13 +728,14 @@ app.use((req, res, next) => {
   }
 
   // ── Seed door backgrounds from attached assets ──────────────────────────
+  // Only SETS backgrounds for known doors — never clears manually-set ones.
   try {
     const doorRows = ((await db.execute(sql`SELECT id, name, bg_url FROM kc_doors WHERE world_id = 'pet_world'`)) as any).rows as any[];
-    const DOOR_BG_SEEDS: Array<{ match: string; file: string; mime: string }> = [
-      { match: "welcome",  file: "bg_welcome_center.jpeg",  mime: "image/jpeg" },
-      { match: "fortune",  file: "bg_well_of_fortune.png",  mime: "image/png"  },
+    const DOOR_BG_SEEDS: Array<{ match: string; file: string }> = [
+      { match: "welcome",  file: "bg_welcome_center.jpeg"  },
+      { match: "fortune",  file: "bg_well_of_fortune.png"  },
+      { match: "cellar",   file: "bg_market_cellar.png"    },
     ];
-    const seededIds: string[] = [];
     for (const seed of DOOR_BG_SEEDS) {
       const door = doorRows.find((d: any) =>
         typeof d.name === "string" && d.name.toLowerCase().includes(seed.match)
@@ -742,18 +743,10 @@ app.use((req, res, next) => {
       if (!door) continue;
       const assetPath = path.join(process.cwd(), "attached_assets", seed.file);
       if (!fs.existsSync(assetPath)) continue;
-      // Store a lightweight static-file URL instead of a base64 data URL
       const fileUrl = `/world-assets/${seed.file}`;
+      // Always refresh so a new asset file is picked up automatically
       await db.execute(sql`UPDATE kc_doors SET bg_url = ${fileUrl} WHERE id = ${door.id}`);
-      seededIds.push(door.id);
       console.log(`${door.name} door background seeded (${fileUrl}).`);
-    }
-    // Clear any manually-set backgrounds on doors not covered by seeds
-    for (const door of doorRows) {
-      if (!seededIds.includes(door.id) && door.bg_url) {
-        await db.execute(sql`UPDATE kc_doors SET bg_url = NULL WHERE id = ${door.id}`);
-        console.log(`${door.name} door background cleared.`);
-      }
     }
   } catch (err) {
     console.error("Door background seed error (non-fatal):", err);
