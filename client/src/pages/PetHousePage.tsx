@@ -977,14 +977,14 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             left: panX + (activeBundle?.giftNotificationX ?? 0.05) * imgWidth,
             top: (activeBundle?.giftNotificationY ?? 0.85) * containerH,
             transform: "translate(-50%, -50%)",
-            zIndex: 30,
+            zIndex: 50,
             background: "none",
             border: "none",
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            padding: 0,
+            padding: 20,
             animation: "pulse 1.8s ease-in-out infinite",
           }}
         >
@@ -1120,7 +1120,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       {/* Bottom inventory bar */}
       <div
         className="absolute bottom-0 left-0 right-0 flex justify-center gap-4 pb-5 pt-3"
-        style={{ zIndex: openInterior ? 65 : 97, pointerEvents: "auto", background: "linear-gradient(0deg, rgba(0,0,0,0.55) 0%, transparent 100%)" }}
+        style={{ zIndex: openInterior ? 65 : 40, pointerEvents: "auto", background: "linear-gradient(0deg, rgba(0,0,0,0.55) 0%, transparent 100%)" }}
         onPointerDown={(e) => e.stopPropagation()}
       >
         {[
