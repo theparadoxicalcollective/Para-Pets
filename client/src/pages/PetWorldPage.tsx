@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, X, Trash2, FlipHorizontal, Palette, MapPin, Minus, Store, DoorOpen } from "lucide-react";
+import { Plus, X, Trash2, FlipHorizontal, Palette, MapPin, Minus, Store, DoorOpen, Package } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 import { playShopBell } from "@/lib/sounds";
 import PetAnimator from "@/components/PetAnimator";
@@ -161,6 +161,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const [doorEditName,        setDoorEditName]        = useState("");
   const [doorEditRadius,      setDoorEditRadius]      = useState(6);
   const [doorEditIsShop,      setDoorEditIsShop]      = useState(false);
+  const [showDoorItemPicker,  setShowDoorItemPicker]  = useState(false);
+  const [doorPickerFilter,    setDoorPickerFilter]    = useState("all");
   const [bgPanX,            setBgPanX]            = useState(0);
   const bgPanXRef       = useRef(0);
   const [bgRenderedW,       setBgRenderedW]        = useState(0);
@@ -321,6 +323,18 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
       return res.json();
     },
     enabled: !!activeDoorId,
+    staleTime: 30_000,
+  });
+
+  type AllShopItem = KCShopItem & { locationId?: string | null; fishingType?: string | null };
+  const { data: allDoorShopItems = [], isLoading: allDoorShopItemsLoading } = useQuery<AllShopItem[]>({
+    queryKey: ["/api/admin/shop-items-all"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/shop-items-all", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    enabled: user?.isAdmin && showDoorItemPicker,
     staleTime: 30_000,
   });
 
@@ -707,6 +721,31 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const deleteDoorMutation = useMutation({
     mutationFn: async (id: string) => { await apiRequest("DELETE", `/api/admin/kc-doors/${id}`); },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/world", WORLD_ID, "kc-doors"] }),
+  });
+
+  const assignDoorItemMutation = useMutation({
+    mutationFn: async ({ doorId, itemId }: { doorId: string; itemId: string }) => {
+      const res = await apiRequest("POST", `/api/admin/location/${doorId}/assign-item/${itemId}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/location", activeDoorId, "items"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/shop-items-all"] });
+      toast({ title: "Item Added", description: "Item added to shop" });
+    },
+    onError: () => toast({ title: "Error", description: "Failed to add item", variant: "destructive" }),
+  });
+
+  const unassignDoorItemMutation = useMutation({
+    mutationFn: async ({ doorId, itemId }: { doorId: string; itemId: string }) => {
+      await apiRequest("DELETE", `/api/admin/location/${doorId}/unassign-item/${itemId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/location", activeDoorId, "items"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/shop-items-all"] });
+      toast({ title: "Item Removed" });
+    },
+    onError: () => toast({ title: "Error", description: "Failed to remove item", variant: "destructive" }),
   });
 
   const addDoorDecorMutation = useMutation({
@@ -2276,92 +2315,10 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
         </div>
       )}
 
-      {/* ── Door Shop Panel (bottom sheet) ────────────────────────────────── */}
-      {activeDoorId && (() => {
-        const door = kcDoors.find(d => d.id === activeDoorId);
-        if (!door || !door.isShop) return null;
-        return (
-          <div
-            className="fixed z-[70] flex flex-col"
-            style={{
-              bottom: 0, left: 0, right: 0, maxHeight: "72vh",
-              background: "linear-gradient(180deg, rgba(6,4,1,0.97) 0%, rgba(10,7,2,0.99) 100%)",
-              borderTop: `1.5px solid ${ACCENT}50`,
-              borderLeft: `1.5px solid ${ACCENT}30`,
-              borderRight: `1.5px solid ${ACCENT}30`,
-              borderRadius: "16px 16px 0 0",
-              boxShadow: `0 -8px 40px rgba(0,0,0,0.8), 0 0 40px ${ACCENT}15`,
-            }}
-          >
-            {/* Shop header – optionally show door bgUrl as banner */}
-            {door.bgUrl && (
-              <div style={{
-                height: 80, borderRadius: "16px 16px 0 0", overflow: "hidden",
-                backgroundImage: `url(${door.bgUrl})`,
-                backgroundSize: "cover", backgroundPosition: "center",
-                flexShrink: 0,
-              }}>
-                <div style={{ height: "100%", background: "rgba(0,0,0,0.45)" }} />
-              </div>
-            )}
-            <div className="flex items-center justify-between px-4 py-3 shrink-0"
-              style={{ borderBottom: `1px solid ${ACCENT}25` }}>
-              <div className="flex items-center gap-3">
-                <Store style={{ width: 20, height: 20, color: ACCENT }} />
-                <p className="font-fantasy text-sm tracking-wider" style={{ color: ACCENT, textShadow: `0 0 10px ${ACCENT}50` }}>
-                  {door.name}
-                </p>
-              </div>
-              <button onClick={() => {
-                doorCooldownRef.current = activeDoorId;
-                setTimeout(() => { doorCooldownRef.current = null; }, 3000);
-                activeDoorIdRef.current = null;
-                setActiveDoorId(null);
-              }} style={{ background: "none", border: "none", cursor: "pointer" }}>
-                <X className="w-5 h-5" style={{ color: `${ACCENT}88` }} />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto px-4 py-3">
-              {doorShopItems.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 gap-2">
-                  <Store style={{ width: 36, height: 36, color: `${ACCENT}50` }} />
-                  <p className="font-fantasy text-xs text-center" style={{ color: `${ACCENT}55` }}>No items for sale yet</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-3 gap-3">
-                  {doorShopItems.map(item => {
-                    const img = item.hatchedImageUrl || item.eggImageUrl || item.imageUrl;
-                    const rarityColor = ["", "#a0a0b0", "#4ade80", "#60a5fa", "#c084fc", "#f0c040"][Math.min(5, item.rarity ?? 0)];
-                    return (
-                      <div key={item.id}
-                        data-testid={`door-shop-item-${item.id}`}
-                        className="flex flex-col items-center gap-1 rounded-xl p-2 transition-transform active:scale-95 cursor-pointer"
-                        style={{ background: `rgba(20,14,2,0.85)`, border: `1px solid ${ACCENT}25`, boxShadow: rarityColor ? `0 0 8px ${rarityColor}25` : undefined }}>
-                        <div className="w-14 h-14 flex items-center justify-center rounded-lg overflow-hidden"
-                          style={{ background: "rgba(10,7,1,0.7)" }}>
-                          {img ? <img src={img} alt={item.name} style={{ width: 52, height: 52, objectFit: "contain" }} draggable={false} />
-                            : <Store style={{ width: 28, height: 28, color: `${ACCENT}60` }} />}
-                        </div>
-                        <span className="font-fantasy text-[9px] tracking-wide text-center leading-tight line-clamp-2"
-                          style={{ color: `${ACCENT}cc` }}>{item.name}</span>
-                        <div className="flex items-center gap-1">
-                          <img src={coinIconImg} alt="coins" style={{ width: 10, height: 10, objectFit: "contain" }} />
-                          <span className="font-fantasy text-[9px]" style={{ color: "#f0c040" }}>{item.price}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      })()}
-
       {/* ── Door Interior Overlay ─────────────────────────────────────────── */}
       {activeDoorId && (() => {
         const door = kcDoors.find(d => d.id === activeDoorId);
-        if (!door || door.isShop) return null;
+        if (!door) return null;
         return (
           <div
             className="fixed inset-0 z-50 overflow-hidden"
@@ -2457,37 +2414,73 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
               })}
               </div>{/* end decor scrolling layer */}
 
-              {/* Shop items shelf (if any) */}
-              {doorShopItems.length > 0 && (
-                <div style={{ position: "absolute", bottom: 100, left: 0, right: 0, padding: "0 12px" }}>
-                  <div style={{
-                    background: "rgba(4,10,6,0.88)",
-                    border: `1.5px solid ${ACCENT}40`,
-                    borderRadius: 16,
-                    padding: "10px 12px 12px",
-                    boxShadow: `0 -4px 20px rgba(0,0,0,0.5), 0 0 20px ${ACCENT}10`,
-                  }}>
-                    <p className="font-fantasy text-[10px] tracking-widest mb-2" style={{ color: `${ACCENT}88` }}>FOR SALE</p>
-                    <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
-                      {doorShopItems.map(item => {
-                        const img = item.hatchedImageUrl || item.eggImageUrl || item.imageUrl;
-                        return (
-                          <div key={item.id}
-                            data-testid={`door-shop-item-${item.id}`}
-                            className="flex flex-col items-center gap-1 rounded-xl p-2 flex-shrink-0 transition-transform active:scale-95 cursor-pointer"
-                            style={{ background: "rgba(10,22,12,0.8)", border: `1px solid ${ACCENT}25`, width: 72 }}>
-                            <div className="w-12 h-12 flex items-center justify-center rounded-lg overflow-hidden" style={{ background: "rgba(6,14,8,0.7)" }}>
-                              {img ? <img src={img} alt={item.name} style={{ width: 44, height: 44, objectFit: "contain" }} draggable={false} /> : <Store style={{ width: 24, height: 24, color: `${ACCENT}60` }} />}
+              {/* Shop items panel — shown for shop doors */}
+              {door.isShop && (
+                <div style={{
+                  position: "absolute", bottom: 0, left: 0, right: 0,
+                  maxHeight: "52vh",
+                  display: "flex", flexDirection: "column",
+                  background: "linear-gradient(180deg, rgba(4,10,6,0.0) 0%, rgba(4,10,6,0.97) 14%)",
+                  paddingTop: 24,
+                }}>
+                  {/* FOR SALE label */}
+                  <div className="flex items-center gap-2 px-4 mb-2 flex-shrink-0">
+                    <Store style={{ width: 13, height: 13, color: `${ACCENT}90` }} />
+                    <span className="font-fantasy text-[10px] tracking-widest" style={{ color: `${ACCENT}88` }}>FOR SALE</span>
+                  </div>
+                  {/* Items grid */}
+                  <div className="flex-1 overflow-y-auto px-3 pb-4" style={{ scrollbarWidth: "none" }}>
+                    {doorShopItems.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-6 gap-2">
+                        <Store style={{ width: 32, height: 32, color: `${ACCENT}35` }} />
+                        <p className="font-fantasy text-[10px] text-center" style={{ color: `${ACCENT}50` }}>No items for sale yet</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-3 gap-2.5">
+                        {doorShopItems.map(item => {
+                          const img = item.hatchedImageUrl || item.eggImageUrl || item.imageUrl;
+                          const rarityColor = ["", "#a0a0b0", "#4ade80", "#60a5fa", "#c084fc", "#f0c040"][Math.min(5, item.rarity ?? 0)];
+                          return (
+                            <div key={item.id}
+                              data-testid={`door-shop-item-${item.id}`}
+                              className="relative flex flex-col items-center gap-1 rounded-xl p-2 transition-transform active:scale-95 cursor-pointer"
+                              style={{
+                                background: "rgba(10,22,12,0.88)",
+                                border: `1px solid ${ACCENT}30`,
+                                boxShadow: rarityColor ? `0 0 8px ${rarityColor}20` : undefined,
+                              }}>
+                              {/* Admin unassign button */}
+                              {user.isAdmin && (
+                                <button
+                                  data-testid={`button-unassign-door-item-${item.id}`}
+                                  onPointerDown={e => e.stopPropagation()}
+                                  onClick={e => { e.stopPropagation(); if (activeDoorId) unassignDoorItemMutation.mutate({ doorId: activeDoorId, itemId: item.id }); }}
+                                  style={{
+                                    position: "absolute", top: -8, right: -8,
+                                    width: 20, height: 20, borderRadius: "50%",
+                                    background: "rgba(220,38,38,0.9)", border: "1.5px solid rgba(255,100,100,0.6)",
+                                    display: "flex", alignItems: "center", justifyContent: "center",
+                                    cursor: "pointer", zIndex: 10,
+                                  }}>
+                                  <X style={{ width: 10, height: 10, color: "white" }} />
+                                </button>
+                              )}
+                              <div className="w-14 h-14 flex items-center justify-center rounded-lg overflow-hidden"
+                                style={{ background: "rgba(6,14,8,0.7)" }}>
+                                {img ? <img src={img} alt={item.name} style={{ width: 52, height: 52, objectFit: "contain" }} draggable={false} />
+                                  : <Package style={{ width: 26, height: 26, color: `${ACCENT}50` }} />}
+                              </div>
+                              <span className="font-fantasy text-[8px] tracking-wide text-center leading-tight line-clamp-2"
+                                style={{ color: `${ACCENT}cc` }}>{item.name}</span>
+                              <div className="flex items-center gap-1">
+                                <img src={coinIconImg} alt="coins" style={{ width: 9, height: 9, objectFit: "contain" }} />
+                                <span className="font-fantasy text-[8px]" style={{ color: "#f0c040" }}>{item.price}</span>
+                              </div>
                             </div>
-                            <span className="font-fantasy text-[8px] tracking-wide text-center leading-tight line-clamp-2" style={{ color: `${ACCENT}cc` }}>{item.name}</span>
-                            <div className="flex items-center gap-1">
-                              <img src={coinIconImg} alt="coins" style={{ width: 9, height: 9, objectFit: "contain" }} />
-                              <span className="font-fantasy text-[8px]" style={{ color: "#f0c040" }}>{item.price}</span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -2512,6 +2505,23 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                   {/* Admin: add decor */}
                   {user.isAdmin && (
                     <>
+                      {door.isShop && (
+                        <button
+                          data-testid="button-door-item-picker"
+                          onClick={() => setShowDoorItemPicker(p => !p)}
+                          className="flex items-center gap-1 px-2.5 h-8 rounded-full transition-transform active:scale-90 font-fantasy text-[10px]"
+                          style={{
+                            background: showDoorItemPicker ? `${ACCENT}30` : "rgba(4,10,6,0.82)",
+                            border: `1.5px solid ${ACCENT}50`,
+                            color: ACCENT,
+                            cursor: "pointer",
+                          }}
+                          title="Manage shop items"
+                        >
+                          <Store style={{ width: 12, height: 12 }} />
+                          <Plus style={{ width: 10, height: 10 }} />
+                        </button>
+                      )}
                       <button
                         data-testid="button-door-add-decor"
                         onClick={() => setShowDoorAddDecorForm(p => !p)}
@@ -2533,6 +2543,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                       setActiveDoorId(null);
                       setShowDoorAddDecorForm(false);
                       setSelectedDoorDecorId(null);
+                      setShowDoorItemPicker(false);
                     }}
                     className="flex items-center gap-1.5 px-3 h-8 rounded-full transition-transform active:scale-90 font-fantasy text-xs"
                     style={{ background: "rgba(40,10,10,0.9)", border: "1.5px solid rgba(200,80,80,0.5)", color: "#f87171", cursor: "pointer" }}
@@ -2595,6 +2606,132 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Door Item Picker Modal ────────────────────────────────────────── */}
+      {showDoorItemPicker && user?.isAdmin && activeDoorId && (() => {
+        const door = kcDoors.find(d => d.id === activeDoorId);
+        if (!door?.isShop) return null;
+        const pickable = allDoorShopItems.filter(si => {
+          if (si.fishingType === "fish") return false;
+          if (si.fishingType === "bait" && si.locationId != null) return false;
+          if (doorPickerFilter === "all") return true;
+          if (doorPickerFilter === "fishing") return si.type === "fishing";
+          return si.type === doorPickerFilter;
+        });
+        return (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center"
+            style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowDoorItemPicker(false)} />
+            <div
+              className="relative z-10 w-[90%] max-w-sm rounded-lg max-h-[82vh] flex flex-col"
+              style={{
+                background: "linear-gradient(135deg, rgba(4,10,6,0.98) 0%, rgba(8,18,10,0.98) 100%)",
+                border: `1px solid ${ACCENT}55`,
+                boxShadow: `0 0 40px ${ACCENT}20`,
+              }}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 pt-4 pb-3 flex-shrink-0">
+                <div className="flex items-center gap-2">
+                  <Store style={{ width: 14, height: 14, color: ACCENT }} />
+                  <h3 className="font-fantasy text-sm tracking-widest" style={{ color: ACCENT, textShadow: `0 0 10px ${ACCENT}40` }}>Manage Shop Items</h3>
+                </div>
+                <button
+                  data-testid="button-close-door-item-picker"
+                  onClick={() => setShowDoorItemPicker(false)}
+                  className="w-7 h-7 rounded-full flex items-center justify-center"
+                  style={{ background: `${ACCENT}20`, border: `1px solid ${ACCENT}40`, cursor: "pointer", color: ACCENT }}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Filter tabs */}
+              <div className="flex-shrink-0 px-3 pb-2 flex flex-wrap gap-1 border-b" style={{ borderColor: `${ACCENT}20` }}>
+                {[
+                  { label: "All", value: "all" },
+                  { label: "Potions", value: "potion" },
+                  { label: "Power-Ups", value: "power_up" },
+                  { label: "Special", value: "special" },
+                  { label: "Accessories", value: "accessory" },
+                  { label: "Pets", value: "pet" },
+                  { label: "Fishing", value: "fishing" },
+                ].map(f => (
+                  <button
+                    key={f.value}
+                    data-testid={`button-door-picker-filter-${f.value}`}
+                    onClick={() => setDoorPickerFilter(f.value)}
+                    className="font-fantasy text-[9px] px-2 py-1 rounded-full transition-all"
+                    style={{
+                      background: doorPickerFilter === f.value ? `${ACCENT}35` : "rgba(255,255,255,0.05)",
+                      border: `1px solid ${doorPickerFilter === f.value ? ACCENT + "70" : "rgba(255,255,255,0.1)"}`,
+                      color: doorPickerFilter === f.value ? ACCENT : `${ACCENT}70`,
+                      cursor: "pointer",
+                    }}
+                  >{f.label}</button>
+                ))}
+              </div>
+
+              {/* Items list */}
+              <div className="flex-1 overflow-y-auto px-4 pb-4 pt-2">
+                {allDoorShopItemsLoading ? (
+                  <p className="font-fantasy text-[#a89878] text-xs text-center py-6 animate-pulse">Loading items…</p>
+                ) : pickable.length === 0 ? (
+                  <p className="font-fantasy text-[#a89878] text-xs text-center py-6">No items match this filter.</p>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {pickable.map(si => {
+                      const alreadyAssigned = doorShopItems.some(it => it.id === si.id);
+                      const pickerImg = si.type === "pet" ? (si.eggImageUrl || si.imageUrl) : si.imageUrl;
+                      return (
+                        <div
+                          key={si.id}
+                          data-testid={`door-picker-item-${si.id}`}
+                          className="flex items-center gap-3 p-2 rounded-lg"
+                          style={{
+                            background: alreadyAssigned ? `${ACCENT}15` : "rgba(255,255,255,0.03)",
+                            border: `1px solid ${alreadyAssigned ? ACCENT + "40" : "rgba(255,255,255,0.08)"}`,
+                          }}
+                        >
+                          <div className="w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0"
+                            style={{ background: "rgba(0,0,0,0.3)" }}>
+                            {pickerImg
+                              ? <img src={pickerImg} alt="" className="w-full h-full object-contain rounded-md" />
+                              : <Package className="w-5 h-5" style={{ color: `${ACCENT}40` }} />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-fantasy text-xs truncate" style={{ color: ACCENT }}>{si.name}</p>
+                            <p className="font-fantasy text-[9px]" style={{ color: `${ACCENT}70` }}>
+                              {si.price} coins · {si.fishingType ?? si.type}
+                            </p>
+                          </div>
+                          {alreadyAssigned ? (
+                            <button
+                              data-testid={`button-door-unassign-${si.id}`}
+                              onClick={() => unassignDoorItemMutation.mutate({ doorId: activeDoorId, itemId: si.id })}
+                              disabled={unassignDoorItemMutation.isPending}
+                              className="font-fantasy text-[9px] px-2 py-1 rounded-full transition-transform active:scale-95"
+                              style={{ background: "rgba(220,38,38,0.2)", border: "1px solid rgba(220,38,38,0.4)", color: "#f87171", cursor: "pointer" }}
+                            >Remove</button>
+                          ) : (
+                            <button
+                              data-testid={`button-door-assign-${si.id}`}
+                              onClick={() => assignDoorItemMutation.mutate({ doorId: activeDoorId, itemId: si.id })}
+                              disabled={assignDoorItemMutation.isPending}
+                              className="font-fantasy text-[9px] px-3 py-1 rounded-full transition-transform active:scale-95"
+                              style={{ background: `${ACCENT}30`, border: `1px solid ${ACCENT}50`, color: ACCENT, cursor: "pointer" }}
+                            >Add</button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         );
