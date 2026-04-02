@@ -1915,7 +1915,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
       {/* ── World Decor Panel ────────────────────────────────────────────── */}
       {showDecorPanel && (
         <div
-          className="fixed z-[70] flex flex-col"
+          className="fixed z-[10000] flex flex-col"
           style={{
             bottom: 0,
             left: 0,
@@ -2085,7 +2085,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
       {/* ── Admin Places Panel ────────────────────────────────────────────── */}
       {showPlacesPanel && user.isAdmin && (
         <div
-          className="fixed z-[70] flex flex-col"
+          className="fixed z-[10000] flex flex-col"
           style={{
             bottom: 0, left: 0, right: 0, maxHeight: "58vh",
             background: "linear-gradient(180deg, rgba(8,7,2,0.97) 0%, rgba(12,10,3,0.99) 100%)",
@@ -2209,7 +2209,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
         const glow = activeLoc?.glowColor || "#d4a017";
         return (
           <div
-            className="fixed z-[70] flex flex-col"
+            className="fixed z-[10000] flex flex-col"
             style={{
               bottom: 0, left: 0, right: 0, maxHeight: "68vh",
               background: "linear-gradient(180deg, rgba(6,4,1,0.97) 0%, rgba(10,7,2,0.99) 100%)",
@@ -2292,7 +2292,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
       {/* ── Admin Doors Panel ────────────────────────────────────────────── */}
       {showDoorsPanel && user.isAdmin && (
         <div
-          className="fixed z-[70] flex flex-col"
+          className="fixed z-[10000] flex flex-col"
           style={{
             bottom: 0, left: 0, right: 0, maxHeight: "55vh",
             background: `linear-gradient(180deg, rgba(4,10,6,0.97) 0%, rgba(6,14,7,0.99) 100%)`,
@@ -2718,7 +2718,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           return si.type === doorPickerFilter;
         });
         return (
-          <div className="fixed inset-0 z-[80] flex items-center justify-center"
+          <div className="fixed inset-0 z-[10001] flex items-center justify-center"
             style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
             <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowDoorItemPicker(false)} />
             <div
@@ -3061,7 +3061,7 @@ function PetDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-[80] flex items-center justify-center"
+      className="fixed inset-0 z-[10001] flex items-center justify-center"
       style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, padding: "0 24px" }}
     >
       {/* Backdrop */}
