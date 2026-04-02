@@ -36,6 +36,18 @@ uri = "file://client/src/assets/bg_shop_fishing.png"
 type = "image"
 title = "bayou fishing shop background"
 
+[[generated]]
+id = "ghr3e2JDvg6zmEwiMQD-m"
+uri = "file://attached_assets/joystick_base_vines.png"
+type = "image"
+title = "joystick base vine ring"
+
+[[generated]]
+id = "qW2Eh8ouNRpT5C_RBM-HJ"
+uri = "file://attached_assets/joystick_thumb_vines.png"
+type = "image"
+title = "joystick thumb vine disc"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"

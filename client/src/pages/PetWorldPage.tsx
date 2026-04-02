@@ -11,8 +11,8 @@ import UserProfilePanel from "@/components/UserProfilePanel";
 import bgGround from "@assets/IMG_6459_1774675340089.jpeg";
 import coinIconImg from "@assets/icon_coin.png";
 import petHouseIconImg from "@assets/icon_pet_house.png";
-import joystickBaseImg  from "@assets/Photoroom_20260330_90703_AM_1774879776264.png";
-import joystickThumbImg from "@assets/Photoroom_20260330_90732_AM_1774879776264.png";
+import joystickBaseImg  from "@assets/joystick_base_vines.png";
+import joystickThumbImg from "@assets/joystick_thumb_vines.png";
 
 const WORLD_ID = "pet_world";
 const ACCENT = "#7fffd4";
