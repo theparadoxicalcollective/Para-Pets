@@ -987,7 +987,15 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             padding: 20,
           }}
         >
-          <span style={{ fontSize: 18, fontWeight: "bold", color: "#4ade80", lineHeight: 1, display: "inline-block", animation: "pulse-notif 1.8s ease-in-out infinite" }}>!</span>
+          <div style={{ position: "relative", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {/* Glowing orbs */}
+            <span style={{ position: "absolute", top: -10, left: -8,  width: 5, height: 5, borderRadius: "50%", background: "#4ade80", animation: "gift-orb-drift-1 2.2s ease-in-out infinite, gift-orb-pulse 2.2s ease-in-out infinite", animationDelay: "0s" }} />
+            <span style={{ position: "absolute", top: -6,  right: -10, width: 4, height: 4, borderRadius: "50%", background: "#86efac", animation: "gift-orb-drift-2 1.9s ease-in-out infinite, gift-orb-pulse 1.9s ease-in-out infinite", animationDelay: "0.4s" }} />
+            <span style={{ position: "absolute", bottom: -9, left: -6,  width: 4, height: 4, borderRadius: "50%", background: "#4ade80", animation: "gift-orb-drift-3 2.5s ease-in-out infinite, gift-orb-pulse 2.5s ease-in-out infinite", animationDelay: "0.8s" }} />
+            <span style={{ position: "absolute", bottom: -7, right: -8,  width: 5, height: 5, borderRadius: "50%", background: "#a7f3d0", animation: "gift-orb-drift-4 2.0s ease-in-out infinite, gift-orb-pulse 2.0s ease-in-out infinite", animationDelay: "1.2s" }} />
+            {/* The ! */}
+            <span style={{ fontSize: 22, fontWeight: "900", color: "#4ade80", lineHeight: 1, display: "inline-block", animation: "pulse-notif 1.8s ease-in-out infinite", WebkitTextStroke: "1px #000" }}>!</span>
+          </div>
         </button>
       )}
 
