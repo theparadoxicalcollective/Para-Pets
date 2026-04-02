@@ -21,6 +21,7 @@ import fishBarrelImg from "@assets/fish_barrel.png";
 
 import bgShopMystical from "@assets/bg_shop_mystical.png";
 import bgShopBayou from "@assets/bg_shop_bayou.png";
+import bgShopFishing from "@assets/bg_shop_fishing.png";
 import shopFrostpeak from "@assets/shop_frostpeak.png";
 import shopSkyRealm from "@assets/shop_sky_realm.png";
 import shopVolcanic from "@assets/shop_volcanic.png";
@@ -251,6 +252,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   const prepSlotRefs = useRef<(HTMLDivElement | null)[]>([null, null, null, null, null]);
   const [showFishing, setShowFishing] = useState(false);
   const [showSellFish, setShowSellFish] = useState(false);
+  const [fishingShopTab, setFishingShopTab] = useState<"pole" | "bait" | "aquarium">("pole");
   const [barrelDragPos, setBarrelDragPos] = useState<{ x: number; y: number } | null>(null);
   const barrelDragRef = useRef<{ startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const barrelDidDrag = useRef(false);
@@ -2692,15 +2694,16 @@ export default function WorldPage({ user }: WorldPageProps) {
         const activeLoc = locations.find(l => l.id === activeLocationId);
         const shopName = activeLoc?.name || world.name;
         const sortedItems = [...items].sort((a, b) => a.price - b.price);
-        const shopBg = worldId === "swamp" ? bgShopBayou : bgShopMystical;
+        const isFishingShop = activeLoc?.type === "fishing";
+        const shopBg = isFishingShop ? bgShopFishing : (worldId === "swamp" ? bgShopBayou : bgShopMystical);
         return (
         <div className="fixed inset-0 z-40 flex flex-col" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, background: "#080510", overflow: "hidden" }}>
           {/* Themed background image — fixed, not admin-uploaded */}
           <img src={shopBg} alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" style={{ zIndex: 0, opacity: 0.55 }} />
           {/* Dark overlay for readability */}
-          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 1, background: "linear-gradient(180deg, rgba(4,2,14,0.82) 0%, rgba(8,4,22,0.55) 40%, rgba(6,3,18,0.72) 100%)" }} />
+          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 1, background: isFishingShop ? "linear-gradient(180deg, rgba(2,10,6,0.86) 0%, rgba(4,14,8,0.60) 40%, rgba(2,10,5,0.80) 100%)" : "linear-gradient(180deg, rgba(4,2,14,0.82) 0%, rgba(8,4,22,0.55) 40%, rgba(6,3,18,0.72) 100%)" }} />
           {/* Subtle accent shimmer at top */}
-          <div className="absolute top-0 left-0 right-0 h-32 pointer-events-none" style={{ zIndex: 2, background: `linear-gradient(180deg, ${accent}18 0%, transparent 100%)` }} />
+          <div className="absolute top-0 left-0 right-0 h-32 pointer-events-none" style={{ zIndex: 2, background: isFishingShop ? "linear-gradient(180deg, rgba(40,120,60,0.18) 0%, transparent 100%)" : `linear-gradient(180deg, ${accent}18 0%, transparent 100%)` }} />
 
           {/* ── Header ─────────────────────────────────────── */}
           <div className="relative flex items-center justify-between px-4 pb-3 flex-shrink-0" style={{ paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)", zIndex: 10 }}>
@@ -2741,26 +2744,77 @@ export default function WorldPage({ user }: WorldPageProps) {
           </div>
 
           {/* ── Divider ─────────────────────────────────────── */}
-          <div className="relative flex-shrink-0 mx-4 mb-3" style={{ zIndex: 10, height: "1px", background: `linear-gradient(90deg, transparent, ${accent}50, transparent)` }} />
+          <div className="relative flex-shrink-0 mx-4 mb-3" style={{ zIndex: 10, height: "1px", background: isFishingShop ? "linear-gradient(90deg, transparent, rgba(74,180,100,0.5), transparent)" : `linear-gradient(90deg, transparent, ${accent}50, transparent)` }} />
+
+          {/* ── Fishing Shop Category Tabs ──────────────────── */}
+          {isFishingShop && (
+            <div className="relative flex-shrink-0 flex gap-2 px-3 pb-3" style={{ zIndex: 10 }}>
+              {(["pole", "bait", "aquarium"] as const).map(tab => {
+                const labels: Record<string, string> = { pole: "🎣  Fishing Poles", bait: "🪱  Bait", aquarium: "🐟  Aquarium" };
+                const isActive = fishingShopTab === tab;
+                const isComingSoon = tab === "aquarium";
+                return (
+                  <button
+                    key={tab}
+                    data-testid={`button-fishing-tab-${tab}`}
+                    onClick={() => !isComingSoon && setFishingShopTab(tab)}
+                    style={{
+                      flex: 1,
+                      padding: "7px 4px",
+                      borderRadius: 10,
+                      border: isActive ? "1.5px solid rgba(74,180,100,0.7)" : "1.5px solid rgba(74,180,100,0.2)",
+                      background: isActive ? "linear-gradient(160deg, rgba(40,120,55,0.55) 0%, rgba(20,80,35,0.4) 100%)" : "rgba(10,30,15,0.55)",
+                      cursor: isComingSoon ? "default" : "pointer",
+                      opacity: isComingSoon ? 0.55 : 1,
+                      transition: "all 0.18s ease",
+                    }}
+                  >
+                    <div className="font-fantasy text-center" style={{ fontSize: 10, letterSpacing: "0.05em", color: isActive ? "#7dde9a" : "rgba(150,220,170,0.65)", lineHeight: 1.3 }}>
+                      {labels[tab]}
+                    </div>
+                    {isComingSoon && (
+                      <div className="font-fantasy text-center" style={{ fontSize: 8, color: "rgba(120,200,140,0.45)", letterSpacing: "0.08em", marginTop: 1 }}>coming soon</div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {/* ── Scrollable Items Grid ───────────────────────── */}
           <div className="relative flex-1 overflow-y-auto px-3 pb-4" style={{ zIndex: 10, scrollbarWidth: "none" }}>
-            {itemsLoading ? (
+            {(() => {
+              const displayItems = isFishingShop && fishingShopTab !== "aquarium"
+                ? sortedItems.filter(i => i.fishingType === fishingShopTab)
+                : isFishingShop && fishingShopTab === "aquarium"
+                ? []
+                : sortedItems;
+              const isAquariumTab = isFishingShop && fishingShopTab === "aquarium";
+              return itemsLoading ? (
               <div className="flex items-center justify-center py-20">
-                <div className="animate-spin rounded-full" style={{ width: 40, height: 40, border: `3px solid ${accent}25`, borderTopColor: accent }} />
+                <div className="animate-spin rounded-full" style={{ width: 40, height: 40, border: "3px solid rgba(74,180,100,0.25)", borderTopColor: "rgba(74,180,100,0.9)" }} />
               </div>
-            ) : sortedItems.length === 0 ? (
+            ) : isAquariumTab ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-3">
+                <div className="text-5xl" style={{ filter: "drop-shadow(0 0 12px rgba(74,180,100,0.5))" }}>🐟</div>
+                <div className="text-center px-8 py-5 rounded-2xl" style={{ background: "rgba(10,30,15,0.7)", border: "1px solid rgba(74,180,100,0.2)" }}>
+                  <p className="font-fantasy tracking-widest" style={{ color: "#7dde9a", fontSize: 13 }}>Aquarium</p>
+                  <p className="font-fantasy tracking-wider mt-1" style={{ color: "rgba(150,220,170,0.6)", fontSize: 10 }}>Coming Soon</p>
+                  <p className="font-fantasy mt-2" style={{ color: "rgba(120,190,140,0.45)", fontSize: 9, letterSpacing: "0.04em" }}>A wondrous collection of rare aquatic companions awaits...</p>
+                </div>
+              </div>
+            ) : displayItems.length === 0 ? (
               <div className="flex items-center justify-center py-20">
-                <div className="text-center px-8 py-6 rounded-2xl" style={{ background: "rgba(0,0,0,0.55)", border: `1px solid ${accent}20` }}>
+                <div className="text-center px-8 py-6 rounded-2xl" style={{ background: "rgba(0,0,0,0.55)", border: `1px solid ${isFishingShop ? "rgba(74,180,100,0.2)" : `${accent}20`}` }}>
                   <p className="font-fantasy text-[#c8b89a] text-sm tracking-wider">No wares yet.</p>
                   {currentUser.isAdmin && (
-                    <p className="font-fantasy text-[10px] tracking-wider mt-1" style={{ color: `${accent}60` }}>Tap + to add items</p>
+                    <p className="font-fantasy text-[10px] tracking-wider mt-1" style={{ color: isFishingShop ? "rgba(74,180,100,0.6)" : `${accent}60` }}>Tap + to add items</p>
                   )}
                 </div>
               </div>
             ) : (
               <div className="grid grid-cols-3 gap-3">
-                {sortedItems.map(item => {
+                {displayItems.map(item => {
                   const imgSrc = item.type === "pet" ? (item.eggImageUrl || item.imageUrl) : item.imageUrl;
                   const isOwned = item.type === "pet" && ownedItemIds.has(item.id);
                   const canAfford = currentUser.coins >= item.price;
@@ -2838,7 +2892,8 @@ export default function WorldPage({ user }: WorldPageProps) {
                   );
                 })}
               </div>
-            )}
+            );
+          })()}
 
             {/* ── House Bundles / Decor shelf ─────────────── */}
             {(shopBundlesForSale.length > 0 || shopDecorForSale.length > 0) && (

@@ -30,6 +30,12 @@ uri = "file://client/src/assets/loading_orb.png"
 type = "image"
 title = "magical loading orb"
 
+[[generated]]
+id = "nc3HShTpJrvqx329DLxEm"
+uri = "file://client/src/assets/bg_shop_fishing.png"
+type = "image"
+title = "bayou fishing shop background"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"
