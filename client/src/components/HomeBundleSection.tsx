@@ -48,6 +48,8 @@ function AdminInteriorPreview({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [panX, setPanX] = useState(0);
+  const [imgWidth, setImgWidth] = useState(0);
+  const imgWidthRef = useRef(0);
   const [aspect, setAspect] = useState(16 / 9);
   const aspectRef = useRef(16 / 9);
   const panStartRef = useRef<{ startX: number; startPanX: number; pid: number } | null>(null);
@@ -79,6 +81,8 @@ function AdminInteriorPreview({
       const w = container.offsetWidth;
       const h = container.offsetHeight;
       const imgW = h * aspectRef.current;
+      imgWidthRef.current = imgW;
+      setImgWidth(imgW);
       setPanX(Math.max(Math.min(0, w - imgW), (w - imgW) / 2));
     };
     recalc();
@@ -121,7 +125,8 @@ function AdminInteriorPreview({
     const container = containerRef.current;
     if (!container) return;
     const rect = container.getBoundingClientRect();
-    const newX = Math.max(0.05, Math.min(0.95, drag.startLX + (e.clientX - drag.startX) / rect.width));
+    const iw = imgWidthRef.current || rect.width;
+    const newX = Math.max(0.01, Math.min(0.99, drag.startLX + (e.clientX - drag.startX) / iw));
     const newY = Math.max(0.02, Math.min(0.95, drag.startLY + (e.clientY - drag.startY) / rect.height));
     leaveXRef.current = newX;
     leaveYRef.current = newY;
@@ -180,7 +185,7 @@ function AdminInteriorPreview({
         data-testid="button-leave-draggable"
         style={{
           position: "absolute",
-          left: `${leaveX * 100}%`,
+          left: imgWidth > 0 ? panX + leaveX * imgWidth : `${leaveX * 100}%`,
           top: `${leaveY * 100}%`,
           transform: "translate(-50%, -50%)",
           zIndex: 20,

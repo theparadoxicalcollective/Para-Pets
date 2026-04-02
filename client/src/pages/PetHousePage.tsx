@@ -407,8 +407,8 @@ function InteriorViewer({
         className="absolute flex items-center justify-center font-bold tracking-widest rounded-full"
         style={{
           zIndex: 10,
-          left: `${leaveButtonX * 100}%`,
-          top: `${leaveButtonY * 100}%`,
+          left: imgWidth > 0 ? panX + leaveButtonX * imgWidth : `${leaveButtonX * 100}%`,
+          top: leaveButtonY * containerH,
           transform: "translate(-50%, -50%)",
           background: "rgba(0,0,0,0.28)",
           border: "1px solid rgba(255,255,255,0.14)",
