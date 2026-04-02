@@ -3461,7 +3461,7 @@ function Joystick({ onChange }: { onChange: (dx: number, dy: number, active: boo
         zIndex: 60,
       }}
     >
-      {/* Base ring — mix-blend-mode:screen makes the black background invisible */}
+      {/* Base ring — transparent PNG, no blend mode needed */}
       <img
         src={joystickBaseImg}
         alt=""
@@ -3472,13 +3472,12 @@ function Joystick({ onChange }: { onChange: (dx: number, dy: number, active: boo
           width: "100%",
           height: "100%",
           objectFit: "contain",
-          mixBlendMode: "screen",
           pointerEvents: "none",
           userSelect: "none",
         }}
       />
 
-      {/* Thumb — golden disc that slides within the ring */}
+      {/* Thumb — vine disc with glowing flower */}
       <div
         ref={thumbRef}
         style={{
@@ -3499,7 +3498,6 @@ function Joystick({ onChange }: { onChange: (dx: number, dy: number, active: boo
             width: "100%",
             height: "100%",
             objectFit: "contain",
-            mixBlendMode: "screen",
             userSelect: "none",
             display: "block",
           }}
