@@ -128,9 +128,9 @@ const ANIMATION_STYLES = `
   }
   @keyframes petIdleHead {
     0%, 100% { transform: translateY(0px); }
-    25%       { transform: translateY(-3px); }
-    50%       { transform: translateY(-5px); }
-    75%       { transform: translateY(-3px); }
+    25%       { transform: translateY(-1.5px); }
+    50%       { transform: translateY(-2.5px); }
+    75%       { transform: translateY(-1.5px); }
   }
   @keyframes petIdleLeftEar {
     0%, 100% { transform: rotate(0deg); }
@@ -193,8 +193,8 @@ const ANIMATION_STYLES = `
   }
   @keyframes petWalkHead {
     0%, 100% { transform: translateY(0px); }
-    25% { transform: translateY(-3px); }
-    75% { transform: translateY(-3px); }
+    25% { transform: translateY(-1.5px); }
+    75% { transform: translateY(-1.5px); }
   }
   @keyframes petWalkLeftEar {
     0%, 100% { transform: rotate(0deg); }

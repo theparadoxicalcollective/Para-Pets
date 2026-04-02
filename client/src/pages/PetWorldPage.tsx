@@ -3337,7 +3337,6 @@ function WorldRoamingPet({
                 petTemplateId={pet.petTemplateId}
                 mode="idle"
                 size={sz}
-                className="pet-idle-squish"
                 style={{
                   pointerEvents: "none",
                   overflow: "visible",
