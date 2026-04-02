@@ -336,6 +336,35 @@ export function playSpeedUp() {
   } catch {}
 }
 
+export function playGrab() {
+  try {
+    const c = getCtx();
+    if (!c) return;
+    const osc = c.createOscillator();
+    const gain = c.createGain();
+    osc.connect(gain);
+    gain.connect(c.destination);
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(320, c.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(480, c.currentTime + 0.045);
+    gain.gain.setValueAtTime(0.28, c.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.07);
+    osc.start(c.currentTime);
+    osc.stop(c.currentTime + 0.08);
+    const osc2 = c.createOscillator();
+    const gain2 = c.createGain();
+    osc2.connect(gain2);
+    gain2.connect(c.destination);
+    osc2.type = "triangle";
+    osc2.frequency.setValueAtTime(640, c.currentTime + 0.01);
+    osc2.frequency.exponentialRampToValueAtTime(900, c.currentTime + 0.05);
+    gain2.gain.setValueAtTime(0.12, c.currentTime + 0.01);
+    gain2.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.07);
+    osc2.start(c.currentTime + 0.01);
+    osc2.stop(c.currentTime + 0.08);
+  } catch {}
+}
+
 export function playCatch() {
   try {
     const c = getCtx();

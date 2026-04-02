@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import coinIconImg from "@assets/icon_coin.png";
 import giftIconImg from "@assets/generated_images/gift_icon_forest.png";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
+import { playChime } from "@/lib/sounds";
 
 interface PendingGift {
   id: string;
@@ -36,6 +37,7 @@ export default function GiftClaimModal({ onClose }: GiftClaimModalProps) {
   const acceptMutation = useMutation({
     mutationFn: (giftId: string) => apiRequest("POST", `/api/gifts/${giftId}/accept`, {}),
     onSuccess: (_, giftId) => {
+      playChime();
       queryClient.invalidateQueries({ queryKey: ["/api/gifts/pending"] });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });

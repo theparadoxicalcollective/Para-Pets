@@ -4,6 +4,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import coinIconImg from "@assets/icon_coin.png";
 import giftIconImg from "@assets/generated_images/gift_icon_forest.png";
+import { playShopBell } from "@/lib/sounds";
 
 interface SendGiftModalProps {
   friendId: string;
@@ -56,6 +57,7 @@ export default function SendGiftModal({ friendId, friendUsername, senderCoins, o
   const sendMutation = useMutation({
     mutationFn: (body: any) => apiRequest("POST", "/api/gifts/send", body),
     onSuccess: () => {
+      playShopBell();
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pet-house/decor/inventory"] });

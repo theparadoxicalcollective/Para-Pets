@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { playGrab } from "@/lib/sounds";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -203,6 +204,7 @@ function InteriorViewer({
   // Decor drag handlers
   const onItemDown = useCallback((e: React.PointerEvent, item: PlacedDecorItem) => {
     e.stopPropagation();
+    playGrab();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     itemDragRef.current = { id: item.id, startXPct: item.xPct, startYPct: item.yPct, startPointerX: e.clientX, startPointerY: e.clientY, pid: e.pointerId };
     setSelectedItemId(item.id);
@@ -233,6 +235,7 @@ function InteriorViewer({
   // Pet drag handlers
   const onPetDown = useCallback((e: React.PointerEvent, pet: HousePet) => {
     e.stopPropagation();
+    playGrab();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     const savedX = parsePetPct(pet.posLeft) ?? 0.5;
     const savedY = parsePetPct(pet.posTop) ?? 0.5;
@@ -855,6 +858,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       pet, pid, startX, startY, el,
       timer: setTimeout(() => {
         // Hold confirmed: steal pointer from browser scroll and begin drag
+        playGrab();
         el.setPointerCapture(pid);
         petInvDragRef.current = { pet, ghostX: startX, ghostY: startY, startX, startY, isDragging: true, pid };
         setPetInvDragState({ pet, ghostX: startX, ghostY: startY });

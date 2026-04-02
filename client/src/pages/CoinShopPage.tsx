@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
+import { playShopBell } from "@/lib/sounds";
 import { useLocation, useSearch } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -203,6 +204,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
   }, [searchString]);
 
   const handleBuy = (packId: string) => {
+    playShopBell();
     setBuyingPackId(packId);
     checkoutMutation.mutate(packId);
   };
