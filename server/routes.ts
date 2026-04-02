@@ -2001,8 +2001,8 @@ export async function registerRoutes(
         isShop: !!isShop,
         description: description || null,
         glowColor: glowColor || null,
-        posX: typeof posX === "number" ? Math.max(0, Math.min(85, posX)) : 40,
-        posY: typeof posY === "number" ? Math.max(0, Math.min(85, posY)) : 40,
+        posX: typeof posX === "number" ? Math.max(-10, Math.min(110, posX)) : 40,
+        posY: typeof posY === "number" ? Math.max(-10, Math.min(110, posY)) : 40,
         sortOrder: 0,
       });
       return res.status(201).json(loc);
@@ -2287,8 +2287,8 @@ export async function registerRoutes(
         sanitized.ownerImageUrl = await processWorldImage(ownerImageData, 1000);
       }
       if (glowColor !== undefined) sanitized.glowColor = glowColor || null;
-      if (typeof posX === "number") sanitized.posX = Math.max(0, Math.min(85, posX));
-      if (typeof posY === "number") sanitized.posY = Math.max(0, Math.min(85, posY));
+      if (typeof posX === "number") sanitized.posX = Math.max(-10, Math.min(110, posX));
+      if (typeof posY === "number") sanitized.posY = Math.max(-10, Math.min(110, posY));
       if (typeof req.body.iconSize === "number") sanitized.iconSize = Math.max(64, Math.min(500, req.body.iconSize));
 
       const updated = await storage.updateWorldLocation((req.params.locationId as string), sanitized);

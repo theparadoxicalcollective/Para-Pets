@@ -387,8 +387,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     const dx = e.clientX - locDragRef.current.startX;
     const dy = e.clientY - locDragRef.current.startY;
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) locDidDrag.current = true;
-    const newX = Math.max(0, Math.min(85, locDragRef.current.origPosX + dx / (rect.width / 100)));
-    const newY = Math.max(0, Math.min(85, locDragRef.current.origPosY + dy / (rect.height / 100)));
+    const newX = Math.max(-10, Math.min(110, locDragRef.current.origPosX + dx / (rect.width / 100)));
+    const newY = Math.max(-10, Math.min(110, locDragRef.current.origPosY + dy / (rect.height / 100)));
     setLocDragPos({ id: locDragRef.current.locId, x: newX, y: newY });
   }, []);
 
