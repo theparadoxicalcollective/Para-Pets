@@ -1946,7 +1946,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
       {/* ── Admin Places Panel ────────────────────────────────────────────── */}
       {showPlacesPanel && user.isAdmin && (
         <div
-          className="fixed z-40 flex flex-col"
+          className="fixed z-[70] flex flex-col"
           style={{
             bottom: 0, left: 0, right: 0, maxHeight: "58vh",
             background: "linear-gradient(180deg, rgba(8,7,2,0.97) 0%, rgba(12,10,3,0.99) 100%)",
@@ -2166,7 +2166,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
       {/* ── Admin Doors Panel ────────────────────────────────────────────── */}
       {showDoorsPanel && user.isAdmin && (
         <div
-          className="fixed z-40 flex flex-col"
+          className="fixed z-[70] flex flex-col"
           style={{
             bottom: 0, left: 0, right: 0, maxHeight: "55vh",
             background: `linear-gradient(180deg, rgba(4,10,6,0.97) 0%, rgba(6,14,7,0.99) 100%)`,
