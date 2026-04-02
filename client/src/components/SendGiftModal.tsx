@@ -13,6 +13,7 @@ interface SendGiftModalProps {
 }
 
 type Tab = "coins" | "items";
+type Step = "compose" | "confirm" | "success";
 
 interface InventoryItem {
   inventoryId: string;
@@ -35,6 +36,7 @@ type SelectedItem =
 
 export default function SendGiftModal({ friendId, friendUsername, senderCoins, onClose }: SendGiftModalProps) {
   const { toast } = useToast();
+  const [step, setStep] = useState<Step>("compose");
   const [tab, setTab] = useState<Tab>("coins");
   const [coinInput, setCoinInput] = useState("");
   const [message, setMessage] = useState("");
@@ -57,53 +59,249 @@ export default function SendGiftModal({ friendId, friendUsername, senderCoins, o
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pet-house/decor/inventory"] });
-      toast({ title: "Gift sent!", description: `Your gift is on its way to ${friendUsername}!` });
-      onClose();
+      setStep("success");
     },
     onError: (err: any) => {
       toast({ title: "Failed to send gift", description: err?.message ?? "Please try again", variant: "destructive" });
+      setStep("compose");
     },
   });
 
-  function handleSend() {
-    const coins = parseInt(coinInput || "0", 10) || 0;
+  const coinVal = parseInt(coinInput || "0", 10) || 0;
+  const canSend = tab === "coins" ? coinVal > 0 && coinVal <= senderCoins : !!selected;
+
+  function handleConfirm() {
     if (tab === "coins") {
-      if (coins <= 0) return toast({ title: "Enter a coin amount", variant: "destructive" });
-      if (coins > senderCoins) return toast({ title: "Not enough coins", variant: "destructive" });
-      sendMutation.mutate({ receiverId: friendId, message: message.trim() || undefined, coinAmount: coins });
+      if (coinVal <= 0) return toast({ title: "Enter a coin amount", variant: "destructive" });
+      if (coinVal > senderCoins) return toast({ title: "Not enough coins", variant: "destructive" });
     } else {
       if (!selected) return toast({ title: "Select an item to gift", variant: "destructive" });
-      if (selected.kind === "shop") {
-        const inv = selected.inv;
-        sendMutation.mutate({
-          receiverId: friendId,
-          message: message.trim() || undefined,
-          coinAmount: 0,
-          itemType: "shop_item",
-          shopItemInventoryId: inv.inventoryId,
-          shopItemId: inv.shopItemId,
-          itemQuantity: 1,
-          itemName: inv.name,
-          itemImageUrl: inv.imageUrl ?? undefined,
-        });
-      } else {
-        const inv = selected.inv;
-        sendMutation.mutate({
-          receiverId: friendId,
-          message: message.trim() || undefined,
-          coinAmount: 0,
-          itemType: "decor",
-          decorItemId: inv.decorItemId,
-          itemQuantity: 1,
-          itemName: inv.item.name,
-          itemImageUrl: inv.item.imageUrl ?? undefined,
-        });
-      }
+    }
+    setStep("confirm");
+  }
+
+  function handleSend() {
+    if (tab === "coins") {
+      sendMutation.mutate({ receiverId: friendId, message: message.trim() || undefined, coinAmount: coinVal });
+    } else if (selected?.kind === "shop") {
+      const inv = selected.inv;
+      sendMutation.mutate({
+        receiverId: friendId,
+        message: message.trim() || undefined,
+        coinAmount: 0,
+        itemType: "shop_item",
+        shopItemInventoryId: inv.inventoryId,
+        shopItemId: inv.shopItemId,
+        itemQuantity: 1,
+        itemName: inv.name,
+        itemImageUrl: inv.imageUrl ?? undefined,
+      });
+    } else if (selected?.kind === "decor") {
+      const inv = selected.inv;
+      sendMutation.mutate({
+        receiverId: friendId,
+        message: message.trim() || undefined,
+        coinAmount: 0,
+        itemType: "decor",
+        decorItemId: inv.decorItemId,
+        itemQuantity: 1,
+        itemName: inv.item.name,
+        itemImageUrl: inv.item.imageUrl ?? undefined,
+      });
     }
   }
 
-  const coinVal = parseInt(coinInput || "0", 10) || 0;
-  const canSend = tab === "coins" ? coinVal > 0 && coinVal <= senderCoins : !!selected;
+  const giftLabel = tab === "coins"
+    ? `${coinVal.toLocaleString()} Coins`
+    : selected?.kind === "shop"
+      ? selected.inv.name
+      : selected?.kind === "decor"
+        ? selected.inv.item.name
+        : "";
+
+  const giftImage = tab === "coins"
+    ? coinIconImg
+    : selected?.kind === "shop"
+      ? (selected.inv.imageUrl ?? null)
+      : selected?.kind === "decor"
+        ? (selected.inv.item.imageUrl ?? null)
+        : null;
+
+  const modalStyle: React.CSSProperties = {
+    top: "50%", left: "50%",
+    transform: "translate(-50%, -50%)",
+    width: 300, maxHeight: "82vh",
+    background: "linear-gradient(160deg, rgba(4,14,8,0.99) 0%, rgba(3,10,6,0.99) 100%)",
+    border: "1.5px solid rgba(127,255,212,0.22)",
+    borderRadius: 18,
+    boxShadow: "0 12px 60px rgba(0,0,0,0.9)",
+    padding: "18px 16px 20px",
+    display: "flex", flexDirection: "column",
+  };
+
+  if (step === "success") {
+    return (
+      <>
+        <div className="fixed inset-0 z-[99997]" style={{ background: "rgba(0,0,0,0.6)" }} />
+        <div data-testid="send-gift-success" className="fixed z-[99998] flex flex-col items-center" style={{ ...modalStyle, padding: "28px 20px 24px" }}>
+          <div style={{
+            width: 56, height: 56, borderRadius: "50%",
+            background: "rgba(74,222,128,0.12)",
+            border: "2px solid rgba(74,222,128,0.5)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            marginBottom: 14,
+          }}>
+            <img src={giftIconImg} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />
+          </div>
+          <p className="font-fantasy font-semibold mb-2 text-center" style={{ color: "#4ade80", fontSize: 14, letterSpacing: "0.05em" }}>
+            Gift Sent!
+          </p>
+          <p className="font-fantasy mb-1 text-center" style={{ fontSize: 11, color: "#d4e8da" }}>
+            Your gift to <span style={{ color: "#7fffd4" }}>{friendUsername}</span> is on its way.
+          </p>
+          <div style={{
+            margin: "12px 0 16px",
+            padding: "10px 14px",
+            borderRadius: 10,
+            background: "rgba(127,255,212,0.06)",
+            border: "1px solid rgba(127,255,212,0.18)",
+            width: "100%",
+            display: "flex", alignItems: "center", gap: 10,
+          }}>
+            {giftImage && giftImage !== coinIconImg ? (
+              <img src={giftImage} alt="" style={{ width: 36, height: 36, objectFit: "contain", borderRadius: 7, background: "rgba(0,0,0,0.3)", flexShrink: 0 }} />
+            ) : (
+              <img src={coinIconImg} alt="" style={{ width: 28, height: 28, objectFit: "contain", flexShrink: 0 }} />
+            )}
+            <p className="font-fantasy" style={{ fontSize: 12, color: "#ffd700" }}>{giftLabel}</p>
+          </div>
+          <button
+            data-testid="button-gift-success-ok"
+            onClick={onClose}
+            className="font-fantasy tracking-wider w-full"
+            style={{
+              padding: "10px 0",
+              borderRadius: 10,
+              background: "linear-gradient(135deg, rgba(74,222,128,0.22) 0%, rgba(22,163,74,0.18) 100%)",
+              border: "1.5px solid rgba(74,222,128,0.5)",
+              color: "#4ade80",
+              cursor: "pointer",
+              fontSize: 11,
+              letterSpacing: "0.12em",
+            }}
+          >
+            OK
+          </button>
+        </div>
+      </>
+    );
+  }
+
+  if (step === "confirm") {
+    return (
+      <>
+        <div className="fixed inset-0 z-[99997]" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setStep("compose")} />
+        <div data-testid="send-gift-confirm" className="fixed z-[99998] flex flex-col" style={{ ...modalStyle }}>
+          <button
+            onClick={() => setStep("compose")}
+            style={{ position: "absolute", top: 12, right: 14, background: "none", border: "none", cursor: "pointer", color: "rgba(127,255,212,0.4)", fontSize: 20 }}
+          >×</button>
+
+          <p className="font-fantasy font-semibold mb-1" style={{ color: "#f0e8c8", fontSize: 13, letterSpacing: "0.05em" }}>
+            Confirm Gift
+          </p>
+          <p className="font-fantasy mb-4" style={{ fontSize: 9, color: "rgba(127,255,212,0.5)", letterSpacing: "0.15em" }}>
+            REVIEW BEFORE SENDING
+          </p>
+
+          <p className="font-fantasy mb-2" style={{ fontSize: 10, color: "rgba(127,255,212,0.6)" }}>
+            Sending to: <span style={{ color: "#7fffd4" }}>{friendUsername}</span>
+          </p>
+
+          <div style={{
+            padding: "12px 14px",
+            borderRadius: 12,
+            background: "rgba(127,255,212,0.05)",
+            border: "1px solid rgba(127,255,212,0.18)",
+            marginBottom: 12,
+            display: "flex", alignItems: "center", gap: 12,
+          }}>
+            {tab === "coins" ? (
+              <img src={coinIconImg} alt="" style={{ width: 32, height: 32, objectFit: "contain", flexShrink: 0 }} />
+            ) : giftImage ? (
+              <img src={giftImage} alt="" style={{ width: 36, height: 36, objectFit: "contain", borderRadius: 7, background: "rgba(0,0,0,0.3)", flexShrink: 0 }} />
+            ) : (
+              <div style={{ width: 36, height: 36, borderRadius: 7, background: "rgba(127,255,212,0.08)", flexShrink: 0 }} />
+            )}
+            <div>
+              <p className="font-fantasy" style={{ fontSize: 13, color: tab === "coins" ? "#ffd700" : "#d4e8da", fontWeight: 600 }}>
+                {giftLabel}
+              </p>
+              {tab === "coins" && (
+                <p className="font-fantasy" style={{ fontSize: 9, color: "rgba(127,255,212,0.45)", marginTop: 2 }}>
+                  Remaining balance: {(senderCoins - coinVal).toLocaleString()} coins
+                </p>
+              )}
+            </div>
+          </div>
+
+          {message.trim() && (
+            <div style={{ marginBottom: 14, padding: "8px 12px", borderRadius: 9, background: "rgba(127,255,212,0.04)", border: "1px solid rgba(127,255,212,0.12)" }}>
+              <p className="font-fantasy" style={{ fontSize: 9, color: "rgba(127,255,212,0.5)", letterSpacing: "0.12em", marginBottom: 4 }}>MESSAGE</p>
+              <p className="font-fantasy" style={{ fontSize: 10, color: "rgba(127,255,212,0.75)", fontStyle: "italic", lineHeight: 1.4, wordBreak: "break-word" }}>
+                "{message.trim()}"
+              </p>
+            </div>
+          )}
+
+          <div className="flex gap-2 mt-auto">
+            <button
+              data-testid="button-gift-confirm-back"
+              onClick={() => setStep("compose")}
+              className="font-fantasy tracking-wider flex-1"
+              style={{
+                padding: "10px 0",
+                borderRadius: 10,
+                background: "rgba(127,255,212,0.04)",
+                border: "1px solid rgba(127,255,212,0.18)",
+                color: "rgba(127,255,212,0.55)",
+                cursor: "pointer",
+                fontSize: 11,
+                letterSpacing: "0.1em",
+              }}
+            >
+              Go Back
+            </button>
+            <button
+              data-testid="button-gift-confirm-send"
+              onClick={handleSend}
+              disabled={sendMutation.isPending}
+              className="font-fantasy tracking-wider flex-1"
+              style={{
+                padding: "10px 0",
+                borderRadius: 10,
+                background: sendMutation.isPending
+                  ? "rgba(127,255,212,0.04)"
+                  : "linear-gradient(135deg, rgba(74,222,128,0.22) 0%, rgba(22,163,74,0.18) 100%)",
+                border: sendMutation.isPending ? "1px solid rgba(127,255,212,0.1)" : "1.5px solid rgba(74,222,128,0.5)",
+                color: sendMutation.isPending ? "rgba(127,255,212,0.3)" : "#4ade80",
+                cursor: sendMutation.isPending ? "not-allowed" : "pointer",
+                fontSize: 11,
+                letterSpacing: "0.12em",
+              }}
+            >
+              {sendMutation.isPending ? "Sending…" : (
+                <>
+                  <img src={giftIconImg} alt="" style={{ width: 13, height: 13, objectFit: "contain", display: "inline-block", verticalAlign: "middle", marginRight: 5 }} />
+                  Confirm & Send
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -111,17 +309,7 @@ export default function SendGiftModal({ friendId, friendUsername, senderCoins, o
       <div
         data-testid="send-gift-modal"
         className="fixed z-[99998] flex flex-col"
-        style={{
-          top: "50%", left: "50%",
-          transform: "translate(-50%, -50%)",
-          width: 300, maxHeight: "82vh",
-          background: "linear-gradient(160deg, rgba(4,14,8,0.99) 0%, rgba(3,10,6,0.99) 100%)",
-          border: "1.5px solid rgba(127,255,212,0.22)",
-          borderRadius: 18,
-          boxShadow: "0 12px 60px rgba(0,0,0,0.9)",
-          padding: "18px 16px 20px",
-          display: "flex", flexDirection: "column",
-        }}
+        style={modalStyle}
       >
         <button
           onClick={onClose}
@@ -284,13 +472,13 @@ export default function SendGiftModal({ friendId, friendUsername, senderCoins, o
 
         <button
           data-testid="button-send-gift"
-          onClick={handleSend}
-          disabled={!canSend || sendMutation.isPending}
+          onClick={handleConfirm}
+          disabled={!canSend}
           className="font-fantasy tracking-wider w-full"
           style={{
             padding: "10px 0",
             borderRadius: 10,
-            background: canSend && !sendMutation.isPending
+            background: canSend
               ? "linear-gradient(135deg, rgba(74,222,128,0.22) 0%, rgba(22,163,74,0.18) 100%)"
               : "rgba(127,255,212,0.04)",
             border: canSend ? "1.5px solid rgba(74,222,128,0.5)" : "1px solid rgba(127,255,212,0.1)",
@@ -300,12 +488,8 @@ export default function SendGiftModal({ friendId, friendUsername, senderCoins, o
             letterSpacing: "0.12em",
           }}
         >
-          {sendMutation.isPending ? "Sending…" : (
-            <>
-              <img src={giftIconImg} alt="" style={{ width: 15, height: 15, objectFit: "contain", display: "inline-block", verticalAlign: "middle", marginRight: 6 }} />
-              Send Gift
-            </>
-          )}
+          <img src={giftIconImg} alt="" style={{ width: 15, height: 15, objectFit: "contain", display: "inline-block", verticalAlign: "middle", marginRight: 6, opacity: canSend ? 1 : 0.3 }} />
+          Review Gift
         </button>
       </div>
     </>
