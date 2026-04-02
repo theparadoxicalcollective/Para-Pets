@@ -108,7 +108,7 @@ function itemLabel(item: PowerUpItem) {
     case "health": return `+${amt} HP`;
     case "atk":    return `+${amt} ATK`;
     case "def":    return `+${amt} DEF`;
-    case "lvl":    return `+${amt} LVL`;
+    case "lvl":    return `+${amt} Lvl pts`;
     default:       return `+${amt}`;
   }
 }

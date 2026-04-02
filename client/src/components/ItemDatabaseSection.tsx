@@ -369,7 +369,7 @@ export default function ItemDatabaseSection() {
                       </div>
                       {(item.type === "power_up" || item.type === "item") && item.statBoostType && (
                         <span className="font-fantasy text-[#a89878] text-[7px]">
-                          +{item.statBoostAmount} {item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "LVL"}
+                          +{item.statBoostAmount} {item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "Lvl pts"}
                         </span>
                       )}
                       {item.type === "edibles" && item.statBoostAmount && (
