@@ -3,6 +3,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import coinIconImg from "@assets/icon_coin.png";
 import giftIconImg from "@assets/generated_images/gift_icon_forest.png";
+import { burstGoldenOrbs } from "@/lib/goldenOrbs";
 
 interface PendingGift {
   id: string;
@@ -136,7 +137,7 @@ export default function GiftClaimModal({ onClose }: GiftClaimModalProps) {
 
                 <button
                   data-testid={`button-accept-gift-${gift.id}`}
-                  onClick={() => acceptMutation.mutate(gift.id)}
+                  onClick={(e) => { burstGoldenOrbs(e.clientX, e.clientY); acceptMutation.mutate(gift.id); }}
                   disabled={acceptMutation.isPending}
                   className="font-fantasy tracking-wider w-full"
                   style={{

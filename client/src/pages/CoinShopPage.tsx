@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { burstGoldenOrbs } from "@/lib/goldenOrbs";
 import { useLocation, useSearch } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -332,7 +333,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                 <button
                   key={pack.id}
                   data-testid={`button-buy-pack-${pack.id}`}
-                  onClick={() => !isDisabled && !isBuying && handleBuy(pack.id)}
+                  onClick={(e) => { if (!isDisabled && !isBuying) { burstGoldenOrbs(e.clientX, e.clientY); handleBuy(pack.id); } }}
                   disabled={isDisabled || isBuying}
                   className="relative rounded-xl p-4 flex flex-col items-center gap-2 transition-all active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100"
                   style={{

@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { burstGoldenOrbs } from "@/lib/goldenOrbs";
 import { playChime } from "@/lib/sounds";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -385,7 +386,7 @@ function ConfirmBuyModal({ listing, onClose, onConfirm, isPending, userCoins }: 
           <button
             data-testid="button-confirm-buy"
             disabled={!canAfford || isPending}
-            onClick={onConfirm}
+            onClick={(e) => { burstGoldenOrbs(e.clientX, e.clientY); onConfirm(); }}
             style={{ flex: 1, background: canAfford ? "linear-gradient(135deg, rgba(74,222,128,0.4) 0%, rgba(40,160,80,0.4) 100%)" : "rgba(50,80,55,0.3)", border: `1px solid ${canAfford ? "rgba(74,222,128,0.6)" : "rgba(74,180,100,0.2)"}`, borderRadius: 10, padding: "10px", color: canAfford ? "#4ade80" : "rgba(74,180,100,0.4)", fontFamily: "Georgia, serif", fontSize: 13, cursor: canAfford && !isPending ? "pointer" : "not-allowed" }}
           >
             {isPending ? "Buying..." : "Confirm Buy"}

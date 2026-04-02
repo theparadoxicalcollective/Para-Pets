@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { playChime, playTick, playShopBell } from "@/lib/sounds";
+import { burstGoldenOrbs } from "@/lib/goldenOrbs";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -3092,7 +3093,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                       >Back</button>
                       <button
                         data-testid="button-confirm-buy"
-                        onClick={() => buyMutation.mutate({ itemId: item.id, quantity: buyQty })}
+                        onClick={(e) => { burstGoldenOrbs(e.clientX, e.clientY); buyMutation.mutate({ itemId: item.id, quantity: buyQty }); }}
                         disabled={buyMutation.isPending}
                         className="flex-1 font-fantasy font-bold transition-transform active:scale-95 disabled:opacity-50"
                         style={{
