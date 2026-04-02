@@ -96,9 +96,15 @@ function AppRouter() {
         );
         const petImageUrl = activePetItem?.hatchedImageUrl || activePetItem?.imageUrl;
 
-        // Preload the home page background and the active pet image in parallel.
-        // Both must be ready before the loading screen is dismissed.
-        const preloads: Promise<void>[] = [preloadImage(homeBg)];
+        // Preload the home page background, the active pet image, and fonts
+        // in parallel. All must be ready before the loading screen is dismissed.
+        // document.fonts.ready ensures Cinzel/Open Sans are decoded so there
+        // is no FOUT (flash of unstyled text) the moment the game appears.
+        const fontReady: Promise<void> = document.fonts
+          ? document.fonts.ready.then(() => undefined)
+          : Promise.resolve();
+
+        const preloads: Promise<void>[] = [preloadImage(homeBg), fontReady];
         if (petImageUrl) preloads.push(preloadImage(petImageUrl));
 
         Promise.all(preloads).then(() => {

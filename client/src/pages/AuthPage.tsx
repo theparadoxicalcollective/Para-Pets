@@ -80,7 +80,9 @@ export default function AuthPage() {
     }
   }, [toast]);
 
-  const simulateLoad = () => {
+  // Animate the progress bar from 0→90% over ~1.2 s.
+  // Returns a Promise so it can be awaited alongside the real API call.
+  const animateProgress = () => {
     return new Promise<void>((resolve) => {
       setLoadingProgress(0);
       setIsLoading(true);
@@ -90,21 +92,23 @@ export default function AuthPage() {
         if (progress >= 90) {
           clearInterval(interval);
           setLoadingProgress(90);
+          resolve();
         } else {
           setLoadingProgress(progress);
         }
       }, 120);
-      setTimeout(() => {
-        clearInterval(interval);
-        resolve();
-      }, 1500);
+      // Hard cap — resolve anyway after 1.2 s so the API call is never held up
+      setTimeout(() => { clearInterval(interval); resolve(); }, 1200);
     });
   };
 
   const loginMutation = useMutation({
     mutationFn: async () => {
-      await simulateLoad();
-      const res = await apiRequest("POST", "/api/auth/login", { username, password, rememberMe });
+      // Fire the API call and the animation simultaneously so total wait time
+      // is max(animation, API) instead of animation + API.
+      const apiPromise = apiRequest("POST", "/api/auth/login", { username, password, rememberMe });
+      await animateProgress();
+      const res = await apiPromise;
       return res.json();
     },
     onSuccess: async () => {
@@ -132,8 +136,9 @@ export default function AuthPage() {
 
   const registerMutation = useMutation({
     mutationFn: async () => {
-      await simulateLoad();
-      const res = await apiRequest("POST", "/api/auth/register", { username, email, password, profileImageData });
+      const apiPromise = apiRequest("POST", "/api/auth/register", { username, email, password, profileImageData });
+      await animateProgress();
+      const res = await apiPromise;
       return res.json();
     },
     onSuccess: async () => {
@@ -535,8 +540,10 @@ export default function AuthPage() {
 
                 {/* Loading bar */}
                 {isLoading && (
-                  <div className="space-y-1.5 pt-1">
-                    <div className="relative w-full h-3.5 rounded-full overflow-hidden" style={{ background: "rgba(0,0,0,0.5)", border: "1px solid rgba(0,160,120,0.2)" }}>
+                  <div className="pt-1" style={{ position: "relative" }}>
+                    {/* Bar track */}
+                    <div className="relative w-full rounded-full overflow-hidden" style={{ height: 22, background: "rgba(0,0,0,0.5)", border: "1px solid rgba(0,160,120,0.2)" }}>
+                      {/* Fill */}
                       <div
                         className="absolute inset-y-0 left-0 rounded-full transition-all duration-300 ease-out"
                         style={{
@@ -545,10 +552,22 @@ export default function AuthPage() {
                           boxShadow: "0 0 8px rgba(127,255,212,0.65)",
                         }}
                       />
+                      {/* Label centered over the bar — single source of truth, no separate text element */}
+                      <div
+                        className="absolute inset-0 flex items-center justify-center"
+                        style={{
+                          fontSize: "9px",
+                          fontFamily: "'Cinzel', 'Georgia', serif",
+                          color: "rgba(127,255,212,0.9)",
+                          letterSpacing: "0.18em",
+                          textTransform: "uppercase",
+                          userSelect: "none",
+                          pointerEvents: "none",
+                        }}
+                      >
+                        {mode === "login" ? "Entering the realm..." : "Creating your legend..."}
+                      </div>
                     </div>
-                    <p className="font-fantasy text-[#7fffd4] text-[10px] text-center tracking-widest animate-pulse">
-                      {mode === "login" ? "Entering the realm..." : "Creating your legend..."}
-                    </p>
                   </div>
                 )}
 
