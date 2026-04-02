@@ -52,7 +52,7 @@ function seededRand(seed: string, n: number) {
 }
 
 type DecorItem      = { id: string; worldId: string; name: string; imageUrl: string; createdAt: string };
-type KcDoor         = { id: string; worldId: string; name: string; posX: number; posY: number; triggerRadius: number; bgUrl: string | null; createdAt: string };
+type KcDoor         = { id: string; worldId: string; name: string; posX: number; posY: number; triggerRadius: number; bgUrl: string | null; isShop: boolean; createdAt: string };
 type KcDoorDecorP   = { id: string; doorId: string; name: string; imageUrl: string; posX: number; posY: number; size: number; flipped: boolean; createdAt: string };
 type DecorPlacement = { id: string; worldId: string; decorItemId: string; name: string; imageUrl: string; posX: number; posY: number; size: number; flipped: boolean; message: string | null; createdAt: string };
 type KCLocation     = { id: string; worldId: string; name: string; type: string; iconUrl: string | null; bgUrl: string | null; description: string | null; posX: number; posY: number; isShop: boolean; glowColor: string | null; iconSize: number; flipped: boolean; sortOrder: number; ownerImageUrl: string | null };
@@ -160,6 +160,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const [editingDoor,         setEditingDoor]         = useState<KcDoor | null>(null);
   const [doorEditName,        setDoorEditName]        = useState("");
   const [doorEditRadius,      setDoorEditRadius]      = useState(6);
+  const [doorEditIsShop,      setDoorEditIsShop]      = useState(false);
   const [bgPanX,            setBgPanX]            = useState(0);
   const bgPanXRef       = useRef(0);
   const [bgRenderedW,       setBgRenderedW]        = useState(0);
@@ -695,7 +696,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   });
 
   const updateDoorMutation = useMutation({
-    mutationFn: async ({ id, ...data }: { id: string; name?: string; posX?: number; posY?: number; triggerRadius?: number; bgUrl?: string | null }) => {
+    mutationFn: async ({ id, ...data }: { id: string; name?: string; posX?: number; posY?: number; triggerRadius?: number; bgUrl?: string | null; isShop?: boolean }) => {
       const res = await apiRequest("PATCH", `/api/admin/kc-doors/${id}`, data);
       return res.json();
     },
@@ -1775,7 +1776,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
       {/* ── World Decor Panel ────────────────────────────────────────────── */}
       {showDecorPanel && (
         <div
-          className="fixed z-40 flex flex-col"
+          className="fixed z-[70] flex flex-col"
           style={{
             bottom: 0,
             left: 0,
@@ -2069,7 +2070,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
         const glow = activeLoc?.glowColor || "#d4a017";
         return (
           <div
-            className="fixed z-40 flex flex-col"
+            className="fixed z-[70] flex flex-col"
             style={{
               bottom: 0, left: 0, right: 0, maxHeight: "68vh",
               background: "linear-gradient(180deg, rgba(6,4,1,0.97) 0%, rgba(10,7,2,0.99) 100%)",
@@ -2213,10 +2214,19 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                       <button onClick={() => setDoorEditRadius(r => Math.min(20, r + 1))}
                         style={{ width: 22, height: 22, borderRadius: "50%", background: `${ACCENT}20`, border: `1px solid ${ACCENT}50`, color: ACCENT, cursor: "pointer", fontSize: 14 }}>+</button>
                     </div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={doorEditIsShop}
+                        onChange={e => setDoorEditIsShop(e.target.checked)}
+                        style={{ accentColor: ACCENT, width: 14, height: 14, cursor: "pointer" }}
+                      />
+                      <span className="font-fantasy text-[10px]" style={{ color: `${ACCENT}cc` }}>Mark as shop</span>
+                    </label>
                     <div className="flex gap-2">
                       <button
                         onClick={() => {
-                          updateDoorMutation.mutate({ id: door.id, name: doorEditName, triggerRadius: doorEditRadius });
+                          updateDoorMutation.mutate({ id: door.id, name: doorEditName, triggerRadius: doorEditRadius, isShop: doorEditIsShop });
                           setEditingDoor(null);
                         }}
                         className="font-fantasy text-[10px] flex-1 py-1.5 rounded-lg transition-transform active:scale-95"
@@ -2231,14 +2241,20 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                   <div className="flex items-center gap-3">
                     <DoorOpen style={{ width: 20, height: 20, color: ACCENT, flexShrink: 0 }} />
                     <div className="flex-1 min-w-0">
-                      <p className="font-fantasy text-xs truncate" style={{ color: ACCENT }}>{door.name}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-fantasy text-xs truncate" style={{ color: ACCENT }}>{door.name}</p>
+                        {door.isShop && (
+                          <span className="font-fantasy text-[8px] px-1 py-0.5 rounded shrink-0"
+                            style={{ background: `${ACCENT}22`, border: `1px solid ${ACCENT}50`, color: ACCENT }}>SHOP</span>
+                        )}
+                      </div>
                       <p className="font-fantasy text-[9px]" style={{ color: `${ACCENT}55` }}>
                         radius {door.triggerRadius}% · {door.posX.toFixed(0)}%,{door.posY.toFixed(0)}%
                       </p>
                     </div>
                     <div className="flex gap-1.5 flex-shrink-0">
                       <button
-                        onClick={() => { setEditingDoor(door); setDoorEditName(door.name); setDoorEditRadius(door.triggerRadius); }}
+                        onClick={() => { setEditingDoor(door); setDoorEditName(door.name); setDoorEditRadius(door.triggerRadius); setDoorEditIsShop(door.isShop); }}
                         className="font-fantasy text-[9px] px-2 py-1 rounded-lg"
                         style={{ background: `${ACCENT}15`, border: `1px solid ${ACCENT}40`, color: ACCENT, cursor: "pointer" }}>Edit</button>
                       <button
@@ -2260,10 +2276,92 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
         </div>
       )}
 
+      {/* ── Door Shop Panel (bottom sheet) ────────────────────────────────── */}
+      {activeDoorId && (() => {
+        const door = kcDoors.find(d => d.id === activeDoorId);
+        if (!door || !door.isShop) return null;
+        return (
+          <div
+            className="fixed z-[70] flex flex-col"
+            style={{
+              bottom: 0, left: 0, right: 0, maxHeight: "72vh",
+              background: "linear-gradient(180deg, rgba(6,4,1,0.97) 0%, rgba(10,7,2,0.99) 100%)",
+              borderTop: `1.5px solid ${ACCENT}50`,
+              borderLeft: `1.5px solid ${ACCENT}30`,
+              borderRight: `1.5px solid ${ACCENT}30`,
+              borderRadius: "16px 16px 0 0",
+              boxShadow: `0 -8px 40px rgba(0,0,0,0.8), 0 0 40px ${ACCENT}15`,
+            }}
+          >
+            {/* Shop header – optionally show door bgUrl as banner */}
+            {door.bgUrl && (
+              <div style={{
+                height: 80, borderRadius: "16px 16px 0 0", overflow: "hidden",
+                backgroundImage: `url(${door.bgUrl})`,
+                backgroundSize: "cover", backgroundPosition: "center",
+                flexShrink: 0,
+              }}>
+                <div style={{ height: "100%", background: "rgba(0,0,0,0.45)" }} />
+              </div>
+            )}
+            <div className="flex items-center justify-between px-4 py-3 shrink-0"
+              style={{ borderBottom: `1px solid ${ACCENT}25` }}>
+              <div className="flex items-center gap-3">
+                <Store style={{ width: 20, height: 20, color: ACCENT }} />
+                <p className="font-fantasy text-sm tracking-wider" style={{ color: ACCENT, textShadow: `0 0 10px ${ACCENT}50` }}>
+                  {door.name}
+                </p>
+              </div>
+              <button onClick={() => {
+                doorCooldownRef.current = activeDoorId;
+                setTimeout(() => { doorCooldownRef.current = null; }, 3000);
+                activeDoorIdRef.current = null;
+                setActiveDoorId(null);
+              }} style={{ background: "none", border: "none", cursor: "pointer" }}>
+                <X className="w-5 h-5" style={{ color: `${ACCENT}88` }} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 py-3">
+              {doorShopItems.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 gap-2">
+                  <Store style={{ width: 36, height: 36, color: `${ACCENT}50` }} />
+                  <p className="font-fantasy text-xs text-center" style={{ color: `${ACCENT}55` }}>No items for sale yet</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-3">
+                  {doorShopItems.map(item => {
+                    const img = item.hatchedImageUrl || item.eggImageUrl || item.imageUrl;
+                    const rarityColor = ["", "#a0a0b0", "#4ade80", "#60a5fa", "#c084fc", "#f0c040"][Math.min(5, item.rarity ?? 0)];
+                    return (
+                      <div key={item.id}
+                        data-testid={`door-shop-item-${item.id}`}
+                        className="flex flex-col items-center gap-1 rounded-xl p-2 transition-transform active:scale-95 cursor-pointer"
+                        style={{ background: `rgba(20,14,2,0.85)`, border: `1px solid ${ACCENT}25`, boxShadow: rarityColor ? `0 0 8px ${rarityColor}25` : undefined }}>
+                        <div className="w-14 h-14 flex items-center justify-center rounded-lg overflow-hidden"
+                          style={{ background: "rgba(10,7,1,0.7)" }}>
+                          {img ? <img src={img} alt={item.name} style={{ width: 52, height: 52, objectFit: "contain" }} draggable={false} />
+                            : <Store style={{ width: 28, height: 28, color: `${ACCENT}60` }} />}
+                        </div>
+                        <span className="font-fantasy text-[9px] tracking-wide text-center leading-tight line-clamp-2"
+                          style={{ color: `${ACCENT}cc` }}>{item.name}</span>
+                        <div className="flex items-center gap-1">
+                          <img src={coinIconImg} alt="coins" style={{ width: 10, height: 10, objectFit: "contain" }} />
+                          <span className="font-fantasy text-[9px]" style={{ color: "#f0c040" }}>{item.price}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ── Door Interior Overlay ─────────────────────────────────────────── */}
       {activeDoorId && (() => {
         const door = kcDoors.find(d => d.id === activeDoorId);
-        if (!door) return null;
+        if (!door || door.isShop) return null;
         return (
           <div
             className="fixed inset-0 z-50 overflow-hidden"

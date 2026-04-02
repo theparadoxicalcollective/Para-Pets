@@ -172,8 +172,8 @@ export interface IStorage {
   addKeepersCentralEnemy(enemyId: string, spawnX: number, spawnY: number): Promise<KeepersCentralEnemy>;
   removeKeepersCentralEnemy(id: string): Promise<void>;
   getKcDoors(worldId: string): Promise<KcDoor[]>;
-  createKcDoor(data: { worldId: string; name: string; posX: number; posY: number; triggerRadius: number; bgUrl?: string | null }): Promise<KcDoor>;
-  updateKcDoor(id: string, data: { name?: string; posX?: number; posY?: number; triggerRadius?: number; bgUrl?: string | null }): Promise<KcDoor>;
+  createKcDoor(data: { worldId: string; name: string; posX: number; posY: number; triggerRadius: number; bgUrl?: string | null; isShop?: boolean }): Promise<KcDoor>;
+  updateKcDoor(id: string, data: { name?: string; posX?: number; posY?: number; triggerRadius?: number; bgUrl?: string | null; isShop?: boolean }): Promise<KcDoor>;
   deleteKcDoor(id: string): Promise<void>;
   getKcDoorDecorPlacements(doorId: string): Promise<KcDoorDecorPlacement[]>;
   createKcDoorDecorPlacement(data: { doorId: string; name: string; imageUrl: string; posX: number; posY: number; size?: number }): Promise<KcDoorDecorPlacement>;
@@ -1023,12 +1023,12 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(kcDoors).where(eq(kcDoors.worldId, worldId)).orderBy(kcDoors.createdAt);
   }
 
-  async createKcDoor(data: { worldId: string; name: string; posX: number; posY: number; triggerRadius: number; bgUrl?: string | null }): Promise<KcDoor> {
+  async createKcDoor(data: { worldId: string; name: string; posX: number; posY: number; triggerRadius: number; bgUrl?: string | null; isShop?: boolean }): Promise<KcDoor> {
     const [row] = await db.insert(kcDoors).values(data).returning();
     return row;
   }
 
-  async updateKcDoor(id: string, data: { name?: string; posX?: number; posY?: number; triggerRadius?: number; bgUrl?: string | null }): Promise<KcDoor> {
+  async updateKcDoor(id: string, data: { name?: string; posX?: number; posY?: number; triggerRadius?: number; bgUrl?: string | null; isShop?: boolean }): Promise<KcDoor> {
     const [row] = await db.update(kcDoors).set(data).where(eq(kcDoors.id, id)).returning();
     return row;
   }

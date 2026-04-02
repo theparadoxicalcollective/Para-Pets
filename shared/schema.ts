@@ -551,6 +551,7 @@ export const kcDoors = pgTable("kc_doors", {
   posY: real("pos_y").notNull().default(60),
   triggerRadius: integer("trigger_radius").notNull().default(6),
   bgUrl: text("bg_url"),
+  isShop: boolean("is_shop").notNull().default(false),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
