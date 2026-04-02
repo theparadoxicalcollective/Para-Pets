@@ -985,10 +985,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             alignItems: "center",
             justifyContent: "center",
             padding: 20,
-            animation: "pulse 1.8s ease-in-out infinite",
           }}
         >
-          <span style={{ fontSize: 18, fontWeight: "bold", color: "#4ade80", lineHeight: 1, textShadow: "0 0 8px rgba(74,222,128,0.85), 0 0 16px rgba(74,222,128,0.4)" }}>!</span>
+          <span style={{ fontSize: 18, fontWeight: "bold", color: "#4ade80", lineHeight: 1, display: "inline-block", animation: "pulse-notif 1.8s ease-in-out infinite" }}>!</span>
         </button>
       )}
 

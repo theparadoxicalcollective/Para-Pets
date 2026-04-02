@@ -1,6 +1,8 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import coinIconImg from "@assets/icon_coin.png";
+import giftIconImg from "@assets/generated_images/gift_icon_forest.png";
 
 interface PendingGift {
   id: string;
@@ -66,8 +68,9 @@ export default function GiftClaimModal({ onClose }: GiftClaimModalProps) {
           style={{ position: "absolute", top: 12, right: 14, background: "none", border: "none", cursor: "pointer", color: "rgba(127,255,212,0.4)", fontSize: 20 }}
         >×</button>
 
-        <p className="font-fantasy font-semibold mb-1" style={{ color: "#f0e8c8", fontSize: 13, letterSpacing: "0.05em" }}>
-          Incoming Gifts 🎁
+        <p className="font-fantasy font-semibold mb-1" style={{ color: "#f0e8c8", fontSize: 13, letterSpacing: "0.05em", display: "flex", alignItems: "center", gap: 6 }}>
+          <img src={giftIconImg} alt="" style={{ width: 16, height: 16, objectFit: "contain" }} />
+          Incoming Gifts
         </p>
         <p className="font-fantasy mb-4" style={{ fontSize: 9, color: "rgba(127,255,212,0.5)", letterSpacing: "0.15em" }}>
           {gifts.length} PENDING
@@ -113,7 +116,10 @@ export default function GiftClaimModal({ onClose }: GiftClaimModalProps) {
                   ) : null}
                   <div>
                     {gift.coinAmount > 0 && (
-                      <p className="font-fantasy" style={{ fontSize: 12, color: "#ffd700" }}>🪙 {gift.coinAmount.toLocaleString()} coins</p>
+                      <p className="font-fantasy" style={{ fontSize: 12, color: "#ffd700", display: "flex", alignItems: "center", gap: 4 }}>
+                        <img src={coinIconImg} alt="" style={{ width: 14, height: 14, objectFit: "contain" }} />
+                        {gift.coinAmount.toLocaleString()} coins
+                      </p>
                     )}
                     {gift.itemType && gift.itemName && (
                       <p className="font-fantasy" style={{ fontSize: 11, color: "#d4e8da" }}>{gift.itemName}{gift.itemQuantity > 1 ? ` ×${gift.itemQuantity}` : ""}</p>

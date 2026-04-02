@@ -365,6 +365,11 @@
   50% { transform: translate(-50%, -50%) scale(1.12); box-shadow: 0 0 24px rgba(74,222,128,0.95), 0 2px 8px rgba(0,0,0,0.5); }
 }
 
+@keyframes pulse-notif {
+  0%, 100% { transform: scale(1); text-shadow: 0 0 8px rgba(74,222,128,0.85), 0 0 16px rgba(74,222,128,0.4); }
+  50% { transform: scale(1.18); text-shadow: 0 0 14px rgba(74,222,128,1), 0 0 28px rgba(74,222,128,0.8), 0 0 40px rgba(74,222,128,0.4); }
+}
+
 .animate-float {
   animation: float 3s ease-in-out infinite;
 }

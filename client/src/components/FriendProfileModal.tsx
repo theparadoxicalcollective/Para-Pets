@@ -4,6 +4,9 @@ import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import SendGiftModal from "./SendGiftModal";
+import coinIconImg from "@assets/icon_coin.png";
+import giftIconImg from "@assets/generated_images/gift_icon_forest.png";
+import homeIconImg from "@assets/generated_images/nav_icon_home.png";
 
 interface FriendProfileModalProps {
   friendId: string;
@@ -183,7 +186,8 @@ export default function FriendProfileModal({ friendId, friendUsername, senderCoi
                 marginBottom: 8,
               }}
             >
-              🏠 Visit Pet House
+              <img src={homeIconImg} alt="" style={{ width: 16, height: 16, objectFit: "contain", display: "inline-block", verticalAlign: "middle", marginRight: 6 }} />
+              Visit Pet House
             </button>
 
             {/* Send Gift button */}
@@ -203,7 +207,8 @@ export default function FriendProfileModal({ friendId, friendUsername, senderCoi
                 marginBottom: 8,
               }}
             >
-              🎁 Send Gift
+              <img src={giftIconImg} alt="" style={{ width: 16, height: 16, objectFit: "contain", display: "inline-block", verticalAlign: "middle", marginRight: 6 }} />
+              Send Gift
             </button>
 
             {/* Remove friend */}

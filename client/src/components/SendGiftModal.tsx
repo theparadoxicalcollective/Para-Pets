@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import coinIconImg from "@assets/icon_coin.png";
+import giftIconImg from "@assets/generated_images/gift_icon_forest.png";
 
 interface SendGiftModalProps {
   friendId: string;
@@ -52,9 +54,10 @@ export default function SendGiftModal({ friendId, friendUsername, senderCoins, o
   const sendMutation = useMutation({
     mutationFn: (body: any) => apiRequest("POST", "/api/gifts/send", body),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pet-house/decor/inventory"] });
-      toast({ title: "Gift sent!", description: `Your gift is on its way to ${friendUsername}` });
+      toast({ title: "Gift sent!", description: `Your gift is on its way to ${friendUsername}!` });
       onClose();
     },
     onError: (err: any) => {
@@ -152,7 +155,12 @@ export default function SendGiftModal({ friendId, friendUsername, senderCoins, o
                 textTransform: "uppercase",
               }}
             >
-              {t === "coins" ? "🪙 Coins" : "🎁 Items"}
+              <img
+                src={t === "coins" ? coinIconImg : giftIconImg}
+                alt=""
+                style={{ width: 14, height: 14, objectFit: "contain", display: "inline-block", verticalAlign: "middle", marginRight: 4 }}
+              />
+              {t === "coins" ? "Coins" : "Items"}
             </button>
           ))}
         </div>
@@ -292,7 +300,12 @@ export default function SendGiftModal({ friendId, friendUsername, senderCoins, o
             letterSpacing: "0.12em",
           }}
         >
-          {sendMutation.isPending ? "Sending…" : "Send Gift 🎁"}
+          {sendMutation.isPending ? "Sending…" : (
+            <>
+              <img src={giftIconImg} alt="" style={{ width: 15, height: 15, objectFit: "contain", display: "inline-block", verticalAlign: "middle", marginRight: 6 }} />
+              Send Gift
+            </>
+          )}
         </button>
       </div>
     </>
