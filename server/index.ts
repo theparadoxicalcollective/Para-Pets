@@ -15,10 +15,34 @@ import { getStripeSync } from "./stripeClient";
 import { WebhookHandlers } from "./webhookHandlers";
 import fs from "fs";
 import path from "path";
+import rateLimit from "express-rate-limit";
 
 const app = express();
 app.set('trust proxy', 1);
 app.disable('etag');
+
+// ── Rate limiting ─────────────────────────────────────────────────────────────
+// Auth endpoints — strict limit to prevent brute force
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many attempts, please try again later." },
+  skip: (req) => req.path === "/me", // never limit the session check
+});
+
+// General API — generous limit, just a safety net against runaway clients
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 300,            // 5 req/s per IP — well above normal single-user polling
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many requests, please slow down." },
+});
+
+app.use("/api/auth", authLimiter);
+app.use("/api", apiLimiter);
 const httpServer = createServer(app);
 const PgSession = connectPgSimple(session);
 

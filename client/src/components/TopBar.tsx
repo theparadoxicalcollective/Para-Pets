@@ -41,18 +41,18 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
 
   const { data: pendingRewards = [] } = useQuery<any[]>({
     queryKey: ["/api/rewards/pending"],
-    refetchInterval: 10000,
+    refetchInterval: 30000,
     refetchOnWindowFocus: true,
   });
 
   const { data: friendRequestData, refetch: refetchCount } = useQuery<{ count: number }>({
     queryKey: ["/api/friends/requests/count"],
-    refetchInterval: 10000,
+    refetchInterval: 45000,
   });
 
   const { data: unreadNotifications = [] } = useQuery<any[]>({
     queryKey: ["/api/notifications/unread"],
-    refetchInterval: 12000,
+    refetchInterval: 45000,
     refetchOnWindowFocus: true,
   });
 
