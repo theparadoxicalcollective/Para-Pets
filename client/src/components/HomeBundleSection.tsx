@@ -186,15 +186,15 @@ function AdminInteriorPreview({
           zIndex: 20,
           touchAction: "none",
           cursor: isDraggingLeave ? "grabbing" : "grab",
-          background: "rgba(0,0,0,0.32)",
-          color: "rgba(255,255,255,0.7)",
-          border: isDraggingLeave ? "2px solid rgba(255,215,0,0.85)" : "1px solid rgba(255,255,255,0.18)",
+          background: "rgba(0,0,0,0.28)",
+          color: isDraggingLeave ? "rgba(255,215,0,0.7)" : "rgba(255,255,255,0.38)",
+          border: isDraggingLeave ? "1.5px dashed rgba(255,215,0,0.6)" : "1px solid rgba(255,255,255,0.14)",
           borderRadius: 9999,
-          padding: "8px 18px",
+          padding: "4px 10px",
           fontFamily: "Cinzel, serif",
           fontWeight: "bold",
-          fontSize: 12,
-          letterSpacing: "0.12em",
+          fontSize: 9,
+          letterSpacing: "0.18em",
           boxShadow: isDraggingLeave ? "0 0 16px rgba(255,215,0,0.45)" : "none",
           transition: isDraggingLeave ? "none" : "box-shadow 0.15s",
         }}
@@ -647,16 +647,13 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
             top: giftY * containerH,
             transform: "translate(-50%, -50%)",
             zIndex: 30,
-            width: 36,
-            height: 36,
-            borderRadius: "50%",
-            background: "radial-gradient(circle, #22c55e 60%, #15803d 100%)",
-            border: isDraggingGift ? "2.5px solid #ffd700" : "2.5px solid #4ade80",
-            boxShadow: isDraggingGift ? "0 0 16px rgba(255,215,0,0.6)" : "0 0 14px rgba(74,222,128,0.7)",
+            background: "none",
+            border: isDraggingGift ? "1.5px dashed rgba(255,215,0,0.6)" : "none",
             cursor: isDraggingGift ? "grabbing" : "grab",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            padding: 4,
             touchAction: "none",
           }}
           onPointerDown={onGiftBtnDown}
@@ -664,7 +661,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
           onPointerUp={onGiftBtnUp}
           onPointerCancel={onGiftBtnUp}
         >
-          <span style={{ fontSize: 16, fontWeight: "bold", color: "#fff", lineHeight: 1, pointerEvents: "none" }}>!</span>
+          <span style={{ fontSize: 18, fontWeight: "bold", color: "#4ade80", lineHeight: 1, pointerEvents: "none", textShadow: "0 0 8px rgba(74,222,128,0.85), 0 0 16px rgba(74,222,128,0.4)" }}>!</span>
         </button>
       )}
 
