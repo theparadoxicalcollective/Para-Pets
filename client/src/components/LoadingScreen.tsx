@@ -105,47 +105,59 @@ export default function LoadingScreen({ label = "Entering the world…" }: { lab
           Para Pets
         </div>
 
-        {/* Status label */}
+        {/* Progress bar with label overlaid — unified element, no separate floating text */}
         <div
           style={{
-            fontFamily: "system-ui, -apple-system, 'Segoe UI', sans-serif",
-            fontSize: "0.62rem",
-            color: "#336b52",
-            letterSpacing: "0.28em",
-            textTransform: "uppercase",
-            textAlign: "center",
-            marginBottom: 20,
-            userSelect: "none",
-          }}
-        >
-          {label}
-        </div>
-
-        {/* Progress bar */}
-        <div
-          style={{
-            width: "9.5rem",
-            height: 5,
-            background: "rgba(10,30,20,0.85)",
-            borderRadius: 9999,
-            overflow: "hidden",
-            boxShadow: "inset 0 1px 3px rgba(0,0,0,0.6)",
             position: "relative",
+            width: "9.5rem",
           }}
         >
-          {/* Sliding shimmer — smooth loop, no jump */}
+          {/* Bar track */}
+          <div
+            style={{
+              width: "100%",
+              height: 22,
+              background: "rgba(10,30,20,0.85)",
+              borderRadius: 9999,
+              overflow: "hidden",
+              boxShadow: "inset 0 1px 3px rgba(0,0,0,0.6)",
+              position: "relative",
+            }}
+          >
+            {/* Sliding shimmer — left starts at -48% to prevent position-0 flash on iOS */}
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                bottom: 0,
+                left: "-48%",
+                width: "42%",
+                borderRadius: 9999,
+                background:
+                  "linear-gradient(90deg, transparent 0%, #1db87a 25%, #40eea8 50%, #1db87a 75%, transparent 100%)",
+                animation: "pp-bar 1.9s ease-in-out infinite",
+              }}
+            />
+          </div>
+          {/* Label centered over the bar */}
           <div
             style={{
               position: "absolute",
-              top: 0,
-              bottom: 0,
-              width: "42%",
-              borderRadius: 9999,
-              background:
-                "linear-gradient(90deg, transparent 0%, #1db87a 25%, #40eea8 50%, #1db87a 75%, transparent 100%)",
-              animation: "pp-bar 1.9s ease-in-out infinite",
+              inset: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontFamily: "system-ui, -apple-system, 'Segoe UI', sans-serif",
+              fontSize: "0.58rem",
+              color: "#4aaa80",
+              letterSpacing: "0.22em",
+              textTransform: "uppercase",
+              userSelect: "none",
+              pointerEvents: "none",
             }}
-          />
+          >
+            {label}
+          </div>
         </div>
       </div>
 
