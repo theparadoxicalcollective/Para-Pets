@@ -176,6 +176,7 @@
     color: #f5f5f5;
     overscroll-behavior: none;
     -webkit-tap-highlight-color: transparent;
+    text-rendering: optimizeLegibility;
   }
 
   html {
