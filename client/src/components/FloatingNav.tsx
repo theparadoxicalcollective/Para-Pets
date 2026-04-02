@@ -108,7 +108,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
 
       {/* ── Nav container ────────────────────────────────────────────────── */}
       <div
-        className="absolute z-[95]"
+        className="absolute z-[9999]"
         style={{ bottom: 16, right: 12, width: BUTTON_SIZE, height: BUTTON_SIZE }}
       >
         {/* LEFT items – fan out to the left */}
