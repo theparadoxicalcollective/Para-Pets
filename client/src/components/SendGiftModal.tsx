@@ -56,7 +56,7 @@ export default function SendGiftModal({ friendId, friendUsername, senderCoins, o
   const sendMutation = useMutation({
     mutationFn: (body: any) => apiRequest("POST", "/api/gifts/send", body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pet-house/decor/inventory"] });
       setStep("success");
