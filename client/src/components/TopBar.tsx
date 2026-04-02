@@ -342,7 +342,6 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                   </div>
                 )}
               </div>
-            </div>
           </div>
 
           {/* Name + coins stacked to the right of the photo */}
