@@ -92,7 +92,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
   return (
     <div
       className="fixed inset-0 z-50 flex flex-col overflow-hidden"
-      style={{ fontFamily: "Cinzel, serif" }}
+      style={{ fontFamily: "Lora, serif" }}
     >
       {/* Forest background */}
       <div

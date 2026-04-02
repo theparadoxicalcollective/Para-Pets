@@ -1160,7 +1160,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                     left: "50%",
                     transform: "translateX(-50%)",
                     whiteSpace: "nowrap",
-                    fontFamily: "Cinzel, serif",
+                    fontFamily: "Lora, serif",
                     fontSize: 11,
                     fontWeight: 700,
                     color: "#ff4444",
@@ -1333,7 +1333,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   left: "50%",
                   transform: "translateX(-50%)",
                   whiteSpace: "nowrap",
-                  fontFamily: "Cinzel, serif",
+                  fontFamily: "Lora, serif",
                   fontSize: 11,
                   fontWeight: 800,
                   color: "#ef4444",
@@ -1350,7 +1350,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   left: "50%",
                   transform: "translateX(-50%)",
                   whiteSpace: "nowrap",
-                  fontFamily: "Cinzel, serif",
+                  fontFamily: "Lora, serif",
                   fontSize: 11,
                   fontWeight: 800,
                   color: rarityColor,
@@ -1366,7 +1366,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
             {parryResult === "success" && (
               <div className="absolute inset-0 pointer-events-none z-40 flex items-center justify-center">
                 <div style={{
-                  fontFamily: "Cinzel, serif",
+                  fontFamily: "Lora, serif",
                   fontSize: 28,
                   fontWeight: 900,
                   color: "#4ade80",

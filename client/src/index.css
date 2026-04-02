@@ -417,7 +417,7 @@
 }
 
 .font-fantasy {
-  font-family: 'Cinzel', 'Cinzel Decorative', serif;
+  font-family: 'Lora', 'Lora', serif;
 }
 
 .nav-bar-height {
@@ -1113,7 +1113,7 @@
 }
 
 .para-pets-title {
-  font-family: 'Cinzel Decorative', 'Cinzel', serif;
+  font-family: 'Lora', 'Lora', serif;
   font-weight: 700;
   font-size: clamp(2.2rem, 9.5vw, 3.8rem);
   letter-spacing: 0.06em;

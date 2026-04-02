@@ -1601,7 +1601,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                 background: "linear-gradient(135deg, rgba(74,222,128,0.18) 0%, rgba(22,163,74,0.22) 100%)",
                 border: "1.5px solid rgba(74,222,128,0.5)",
                 color: "#4ade80",
-                fontFamily: "Cinzel, serif",
+                fontFamily: "Lora, serif",
                 fontSize: 13,
                 letterSpacing: "0.06em",
                 cursor: "pointer",

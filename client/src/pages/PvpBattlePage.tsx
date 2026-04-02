@@ -541,7 +541,7 @@ export default function PvpBattlePage({
   const pendingPet = pendingSkill ? pets.find(p => p.uid === pendingSkill.petUid) : null;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col" style={{ fontFamily: "Cinzel, serif" }}>
+    <div className="fixed inset-0 z-50 flex flex-col" style={{ fontFamily: "Lora, serif" }}>
       <style>{`
         @keyframes koSpin { 0%{transform:translate(-50%,-50%) scale(1) rotate(0deg);opacity:1} 100%{transform:translate(-50%,-50%) scale(0.3) rotate(720deg);opacity:0} }
         @keyframes bSpark { to { transform: translate(calc(var(--dx)*14px), calc(var(--dy)*14px)); opacity:0; } }
@@ -737,7 +737,7 @@ export default function PvpBattlePage({
           {/* Float numbers */}
           {floatNums.map(fn => (
             <div key={fn.id} className="absolute pointer-events-none z-40 font-black select-none"
-              style={{ left: `${fn.x}%`, top: `${fn.y}%`, transform: "translate(-50%,-50%)", fontSize: fn.isCrit ? 24 : fn.isHeal ? 20 : 17, color: fn.isHeal ? "#4ade80" : fn.isCrit ? "#fbbf24" : "#f87171", textShadow: fn.isHeal ? "0 0 10px #22c55e" : fn.isCrit ? "0 0 10px #f59e0b" : "0 0 8px rgba(239,68,68,0.8)", animation: "bFloat 0.95s ease-out forwards", fontFamily: "Cinzel, serif" }}>
+              style={{ left: `${fn.x}%`, top: `${fn.y}%`, transform: "translate(-50%,-50%)", fontSize: fn.isCrit ? 24 : fn.isHeal ? 20 : 17, color: fn.isHeal ? "#4ade80" : fn.isCrit ? "#fbbf24" : "#f87171", textShadow: fn.isHeal ? "0 0 10px #22c55e" : fn.isCrit ? "0 0 10px #f59e0b" : "0 0 8px rgba(239,68,68,0.8)", animation: "bFloat 0.95s ease-out forwards", fontFamily: "Lora, serif" }}>
               {fn.isHeal ? "+" : ""}{fn.value}{fn.isCrit ? "!" : ""}
             </div>
           ))}

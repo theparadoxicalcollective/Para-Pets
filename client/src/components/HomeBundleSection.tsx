@@ -196,7 +196,7 @@ function AdminInteriorPreview({
           border: isDraggingLeave ? "1.5px dashed rgba(255,215,0,0.6)" : "1px solid rgba(255,255,255,0.14)",
           borderRadius: 9999,
           padding: "4px 10px",
-          fontFamily: "Cinzel, serif",
+          fontFamily: "Lora, serif",
           fontWeight: "bold",
           fontSize: 9,
           letterSpacing: "0.18em",

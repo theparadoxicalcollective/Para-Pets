@@ -90,7 +90,7 @@ export default function LoadingScreen({ label = "Entering the world…" }: { lab
         {/* Game title */}
         <div
           style={{
-            fontFamily: "'Cinzel', 'Cinzel Decorative', Georgia, serif",
+            fontFamily: "'Lora', 'Lora', Georgia, serif",
             fontSize: "clamp(1.6rem, 7.5vw, 2.1rem)",
             color: "#82efce",
             letterSpacing: "0.22em",

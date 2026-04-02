@@ -557,7 +557,7 @@ export default function AuthPage() {
                         className="absolute inset-0 flex items-center justify-center"
                         style={{
                           fontSize: "9px",
-                          fontFamily: "'Cinzel', 'Georgia', serif",
+                          fontFamily: "'Lora', 'Georgia', serif",
                           color: "rgba(127,255,212,0.9)",
                           letterSpacing: "0.18em",
                           textTransform: "uppercase",

@@ -181,7 +181,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, leaveButtonX = 0.92
           transform: "translate(-50%, -50%)",
           background: "rgba(0,0,0,0.32)", color: "rgba(255,255,255,0.7)",
           border: "1px solid rgba(255,255,255,0.18)",
-          fontFamily: "Cinzel, serif",
+          fontFamily: "Lora, serif",
         }}
       >
         Outside
@@ -429,8 +429,8 @@ export default function VisitPetHousePage() {
       {openInterior && (
         <ErrorBoundary fallback={
           <div className="fixed inset-0 flex flex-col items-center justify-center gap-4" style={{ zIndex: 60, background: "#07090f", maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
-            <div style={{ fontFamily: "Cinzel, serif", fontSize: 13, color: "#ffd700", letterSpacing: "0.1em" }}>Something went wrong</div>
-            <button onClick={() => setOpenInterior(null)} style={{ fontFamily: "Cinzel, serif", fontSize: 11, letterSpacing: "0.15em", color: "#ffd700", background: "rgba(30,18,4,0.9)", border: "1px solid rgba(255,215,0,0.45)", borderRadius: 9999, padding: "8px 20px", cursor: "pointer" }}>Outside</button>
+            <div style={{ fontFamily: "Lora, serif", fontSize: 13, color: "#ffd700", letterSpacing: "0.1em" }}>Something went wrong</div>
+            <button onClick={() => setOpenInterior(null)} style={{ fontFamily: "Lora, serif", fontSize: 11, letterSpacing: "0.15em", color: "#ffd700", background: "rgba(30,18,4,0.9)", border: "1px solid rgba(255,215,0,0.45)", borderRadius: 9999, padding: "8px 20px", cursor: "pointer" }}>Outside</button>
           </div>
         }>
           <InteriorViewerVisit

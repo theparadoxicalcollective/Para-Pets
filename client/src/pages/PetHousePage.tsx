@@ -384,19 +384,19 @@ function InteriorViewer({
             style={{ background: "rgba(15,10,5,0.95)", border: "1px solid rgba(255,215,0,0.25)", boxShadow: "0 4px 24px rgba(0,0,0,0.7)" }}
             onPointerDown={e => e.stopPropagation()}
           >
-            <div style={{ fontFamily: "Cinzel, serif", color: "#ffd700", fontSize: 14, fontWeight: 700 }}>
+            <div style={{ fontFamily: "Lora, serif", color: "#ffd700", fontSize: 14, fontWeight: 700 }}>
               {popupPet.nickname ?? popupPet.name}
             </div>
             <div className="flex gap-2">
               <button
                 onClick={() => setPopupPet(null)}
                 className="rounded-xl px-4 py-1.5 text-xs font-bold"
-                style={{ fontFamily: "Cinzel, serif", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.6)" }}
+                style={{ fontFamily: "Lora, serif", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.6)" }}
               >Cancel</button>
               <button
                 onClick={() => { onRemovePet(popupPet.inventoryId); setPopupPet(null); }}
                 className="rounded-xl px-4 py-1.5 text-xs font-bold"
-                style={{ fontFamily: "Cinzel, serif", background: "rgba(255,100,80,0.18)", border: "1px solid rgba(255,100,80,0.45)", color: "rgba(255,160,140,0.95)" }}
+                style={{ fontFamily: "Lora, serif", background: "rgba(255,100,80,0.18)", border: "1px solid rgba(255,100,80,0.45)", color: "rgba(255,160,140,0.95)" }}
               >Return to Inventory</button>
             </div>
           </div>
@@ -415,7 +415,7 @@ function InteriorViewer({
           transform: "translate(-50%, -50%)",
           background: "rgba(0,0,0,0.28)",
           border: "1px solid rgba(255,255,255,0.14)",
-          fontFamily: "Cinzel, serif",
+          fontFamily: "Lora, serif",
           fontSize: 9,
           color: "rgba(255,255,255,0.38)",
           padding: "4px 10px",
@@ -1061,19 +1061,19 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             style={{ background: "rgba(15,10,5,0.95)", border: "1px solid rgba(255,215,0,0.25)", boxShadow: "0 4px 24px rgba(0,0,0,0.7)" }}
             onPointerDown={e => e.stopPropagation()}
           >
-            <div style={{ fontFamily: "Cinzel, serif", color: "#ffd700", fontSize: 14, fontWeight: 700 }}>
+            <div style={{ fontFamily: "Lora, serif", color: "#ffd700", fontSize: 14, fontWeight: 700 }}>
               {outdoorPopupPet.nickname ?? outdoorPopupPet.name}
             </div>
             <div className="flex gap-2">
               <button
                 onClick={() => setOutdoorPopupPet(null)}
                 className="rounded-xl px-4 py-1.5 text-xs font-bold"
-                style={{ fontFamily: "Cinzel, serif", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.6)" }}
+                style={{ fontFamily: "Lora, serif", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.6)" }}
               >Cancel</button>
               <button
                 onClick={() => { removePetFromSceneMutation.mutate(outdoorPopupPet.inventoryId); setOutdoorPopupPet(null); }}
                 className="rounded-xl px-4 py-1.5 text-xs font-bold"
-                style={{ fontFamily: "Cinzel, serif", background: "rgba(255,100,80,0.18)", border: "1px solid rgba(255,100,80,0.45)", color: "rgba(255,160,140,0.95)" }}
+                style={{ fontFamily: "Lora, serif", background: "rgba(255,100,80,0.18)", border: "1px solid rgba(255,100,80,0.45)", color: "rgba(255,160,140,0.95)" }}
               >Return to Inventory</button>
             </div>
           </div>
@@ -1185,7 +1185,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           >
             {openInventory === "pets" && (
               <div className="flex items-center justify-between mb-2">
-                <span className="text-white/50 text-xs" style={{ fontFamily: "Cinzel, serif" }}>Pet Inventory</span>
+                <span className="text-white/50 text-xs" style={{ fontFamily: "Lora, serif" }}>Pet Inventory</span>
                 <button
                   onClick={() => setOpenInventory(null)}
                   className="w-6 h-6 flex items-center justify-center rounded-full text-xs"
@@ -1255,7 +1255,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                               </div>
                             )}
                           </div>
-                          <span className="w-full text-center leading-tight px-0.5 truncate" style={{ color: isActive ? "#86efac" : "rgba(255,255,255,0.75)", fontSize: 10, fontFamily: "Cinzel, serif", fontWeight: 600 }}>
+                          <span className="w-full text-center leading-tight px-0.5 truncate" style={{ color: isActive ? "#86efac" : "rgba(255,255,255,0.75)", fontSize: 10, fontFamily: "Lora, serif", fontWeight: 600 }}>
                             {bundle.name}
                           </span>
                         </button>
@@ -1275,7 +1275,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                   </div>
                 ) : (
                   <>
-                    <p className="text-white/40 text-xs text-center" style={{ fontFamily: "Cinzel, serif" }}>
+                    <p className="text-white/40 text-xs text-center" style={{ fontFamily: "Lora, serif" }}>
                       {openInterior ? "Hold & drag an item onto the interior" : "Hold & drag an item onto your home"}
                     </p>
                     <div className="grid grid-cols-3 gap-3">
@@ -1310,7 +1310,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                               </div>
                             )}
                           </div>
-                          <span className="w-full text-center truncate px-0.5 leading-tight" style={{ color: "rgba(255,255,255,0.7)", fontSize: 10, fontFamily: "Cinzel, serif", fontWeight: 600 }}>
+                          <span className="w-full text-center truncate px-0.5 leading-tight" style={{ color: "rgba(255,255,255,0.7)", fontSize: 10, fontFamily: "Lora, serif", fontWeight: 600 }}>
                             {entry.item.name}
                           </span>
                         </div>
@@ -1324,14 +1324,14 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             {openInventory === "pets" && (() => {
               const unplacedPets = pets.filter(p => p.posLeft === null);
               if (pets.length === 0) return (
-                <p className="text-white/40 text-xs text-center py-3" style={{ fontFamily: "Cinzel, serif" }}>No pets yet — hatch some eggs!</p>
+                <p className="text-white/40 text-xs text-center py-3" style={{ fontFamily: "Lora, serif" }}>No pets yet — hatch some eggs!</p>
               );
               if (unplacedPets.length === 0) return (
-                <p className="text-white/40 text-xs text-center py-3" style={{ fontFamily: "Cinzel, serif" }}>All pets are on the scene!</p>
+                <p className="text-white/40 text-xs text-center py-3" style={{ fontFamily: "Lora, serif" }}>All pets are on the scene!</p>
               );
               return (
                 <div className="flex flex-col gap-2">
-                  <p className="text-white/40 text-xs text-center" style={{ fontFamily: "Cinzel, serif" }}>Hold & drag a pet onto your home</p>
+                  <p className="text-white/40 text-xs text-center" style={{ fontFamily: "Lora, serif" }}>Hold & drag a pet onto your home</p>
                   <div
                     className="flex gap-2 overflow-x-auto"
                     style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch", touchAction: "pan-x" } as React.CSSProperties}
@@ -1355,7 +1355,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                             draggable={false}
                           />
                         </div>
-                        <span className="text-center truncate w-full leading-tight" style={{ color: "rgba(255,255,255,0.65)", fontSize: 9, fontFamily: "Cinzel, serif", fontWeight: 600 }}>
+                        <span className="text-center truncate w-full leading-tight" style={{ color: "rgba(255,255,255,0.65)", fontSize: 9, fontFamily: "Lora, serif", fontWeight: 600 }}>
                           {pet.nickname ?? pet.name}
                         </span>
                       </div>
@@ -1413,18 +1413,18 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                   : <div className="w-full h-full flex items-center justify-center"><img src={homeInventoryIcon} alt="" className="w-9 h-9 object-contain opacity-60" /></div>}
               </div>
               <div>
-                <p className="text-white/50 text-xs mb-0.5" style={{ fontFamily: "Cinzel, serif" }}>Switch Home Bundle?</p>
-                <p className="text-white font-bold text-base leading-tight" style={{ fontFamily: "Cinzel Decorative, serif" }}>{pendingActivate.bundle.name}</p>
+                <p className="text-white/50 text-xs mb-0.5" style={{ fontFamily: "Lora, serif" }}>Switch Home Bundle?</p>
+                <p className="text-white font-bold text-base leading-tight" style={{ fontFamily: "Lora, serif" }}>{pendingActivate.bundle.name}</p>
               </div>
             </div>
             <div className="flex gap-3">
-              <button data-testid="button-cancel-activate" onClick={() => setPendingActivate(null)} className="flex-1 py-3 rounded-2xl font-bold text-sm tracking-wide" style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.12)", fontFamily: "Cinzel, serif" }}>Cancel</button>
+              <button data-testid="button-cancel-activate" onClick={() => setPendingActivate(null)} className="flex-1 py-3 rounded-2xl font-bold text-sm tracking-wide" style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.12)", fontFamily: "Lora, serif" }}>Cancel</button>
               <button
                 data-testid="button-confirm-activate"
                 onClick={() => { activateMutation.mutate(pendingActivate.bundleId); setPendingActivate(null); }}
                 disabled={activateMutation.isPending}
                 className="flex-1 py-3 rounded-2xl font-bold text-sm tracking-wide transition-opacity disabled:opacity-50"
-                style={{ background: "rgba(120,220,80,0.25)", color: "#86efac", border: "1.5px solid rgba(120,220,80,0.5)", fontFamily: "Cinzel, serif" }}
+                style={{ background: "rgba(120,220,80,0.25)", color: "#86efac", border: "1.5px solid rgba(120,220,80,0.5)", fontFamily: "Lora, serif" }}
               >
                 {activateMutation.isPending ? "Activating…" : "Activate"}
               </button>
@@ -1437,9 +1437,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       {openInterior && (
         <ErrorBoundary fallback={
           <div className="fixed inset-0 flex flex-col items-center justify-center gap-4" style={{ zIndex: 60, background: "#07090f", maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
-            <div style={{ fontFamily: "Cinzel, serif", fontSize: 13, color: "#ffd700", letterSpacing: "0.1em" }}>Something went wrong</div>
+            <div style={{ fontFamily: "Lora, serif", fontSize: 13, color: "#ffd700", letterSpacing: "0.1em" }}>Something went wrong</div>
             <button onClick={() => { setOpenInterior(null); interiorPanRef.current = null; }}
-              style={{ fontFamily: "Cinzel, serif", fontSize: 11, letterSpacing: "0.15em", color: "#ffd700", background: "rgba(30,18,4,0.9)", border: "1px solid rgba(255,215,0,0.45)", borderRadius: 9999, padding: "8px 20px", cursor: "pointer" }}>
+              style={{ fontFamily: "Lora, serif", fontSize: 11, letterSpacing: "0.15em", color: "#ffd700", background: "rgba(30,18,4,0.9)", border: "1px solid rgba(255,215,0,0.45)", borderRadius: 9999, padding: "8px 20px", cursor: "pointer" }}>
               Outside
             </button>
           </div>

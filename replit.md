@@ -29,7 +29,7 @@ The application is built as a monolithic web app with a clear separation of conc
     - **Visit Pet House Page** (`/visit/:userId`): Read-only view of another player's pet house showing their hatched pets with same animations.
     - **PlayerDetailPanel**: Modal overlay showing another player's public profile — username, profile photo, active pet stats (HP/ATK/DEF/Level), accessories inventory, and Visit Pet House button.
     - **PetDetailPage — Accessories Section**: 3-slot accessory grid inside the pet detail panel. Filled slots show item image, name, ATK/DEF boosts, and a "Tap to Remove" label; empty slots show a dashed + button. Tapping an empty slot opens an in-place picker listing unequipped accessories from inventory. Equip/unequip triggers sparkle (✨) or smoke (💨) flash animation. Stats are updated server-side on equip/unequip.
-- **Design Tokens**: Utilizes fantasy fonts (Cinzel, Cinzel Decorative) and a defined color palette (Gold, Wood, Forest, Teal).
+- **Design Tokens**: Utilizes fantasy fonts (Lora) and a defined color palette (Gold, Wood, Forest, Teal).
 - **Image Handling**: All images are stored as base64 data URIs in the database. Profile images are resized to 500x500 JPEG; shop item images (PNG/GIF) are resized to fit within 2000x2000.
 
 ### Technical Implementations

@@ -97,9 +97,9 @@ export default {
         sans: ["Open Sans", "sans-serif"],
         serif: ["Lora", "Georgia", "serif"],
         mono: ["Menlo", "monospace"],
-        fantasy: ["Cinzel", "Georgia", "serif"],
-        "fantasy-deco": ["Cinzel Decorative", "Georgia", "serif"],
-        medieval: ["Cinzel", "Playfair Display", "Georgia", "serif"],
+        fantasy: ["Lora", "Georgia", "serif"],
+        "fantasy-deco": ["Lora", "Georgia", "serif"],
+        medieval: ["Lora", "Playfair Display", "Georgia", "serif"],
       },
       keyframes: {
         "accordion-down": {

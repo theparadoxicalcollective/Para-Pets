@@ -445,7 +445,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
             {pet.eggImageUrl && flipAnim === "idle" && (
               <div style={{
                 position: "absolute", bottom: -14, left: "50%", transform: "translateX(-50%)",
-                fontSize: 8, fontFamily: "Cinzel, serif", letterSpacing: "0.08em",
+                fontSize: 8, fontFamily: "Lora, serif", letterSpacing: "0.08em",
                 color: rc.primary + "80",
                 whiteSpace: "nowrap",
                 pointerEvents: "none",
@@ -547,7 +547,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
               data-testid="button-pet-detail-help"
               onClick={() => setShowTutorial(true)}
               className="w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px]"
-              style={{ background: "rgba(0,0,0,0.5)", border: `1px solid ${rc.primary}55`, color: rc.primary, cursor: "pointer", fontFamily: "Cinzel, serif" }}
+              style={{ background: "rgba(0,0,0,0.5)", border: `1px solid ${rc.primary}55`, color: rc.primary, cursor: "pointer", fontFamily: "Lora, serif" }}
             >
               ?
             </button>

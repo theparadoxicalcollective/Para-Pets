@@ -98,7 +98,7 @@ function AppRouter() {
 
         // Preload the home page background, the active pet image, and fonts
         // in parallel. All must be ready before the loading screen is dismissed.
-        // document.fonts.ready ensures Cinzel/Open Sans are decoded so there
+        // document.fonts.ready ensures Lora/Open Sans are decoded so there
         // is no FOUT (flash of unstyled text) the moment the game appears.
         const fontReady: Promise<void> = document.fonts
           ? document.fonts.ready.then(() => undefined)
@@ -225,7 +225,7 @@ function CrashReporter() {
         padding: 24, gap: 12,
       }}
     >
-      <div style={{ fontFamily: "Cinzel, serif", fontSize: 13, color: "#ffd700", letterSpacing: "0.1em" }}>
+      <div style={{ fontFamily: "Lora, serif", fontSize: 13, color: "#ffd700", letterSpacing: "0.1em" }}>
         Crash Report ({ago}s ago)
       </div>
       <div style={{
@@ -240,7 +240,7 @@ function CrashReporter() {
       <button
         onClick={() => { localStorage.removeItem("__para_last_error"); setEntry(null); }}
         style={{
-          fontFamily: "Cinzel, serif", fontSize: 11, letterSpacing: "0.15em",
+          fontFamily: "Lora, serif", fontSize: 11, letterSpacing: "0.15em",
           color: "#ffd700", background: "rgba(30,18,4,0.9)",
           border: "1px solid rgba(255,215,0,0.45)", borderRadius: 9999,
           padding: "8px 20px", cursor: "pointer",

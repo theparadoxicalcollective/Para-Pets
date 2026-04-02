@@ -1654,7 +1654,7 @@ function FishBookPanel({
                           color: "#1a0a00",
                           boxShadow: "0 0 8px rgba(251,191,36,0.8)",
                           animation: "coinPulse 1s ease-in-out infinite",
-                          fontFamily: "Cinzel, serif",
+                          fontFamily: "Lora, serif",
                         }}
                       >
                         +
@@ -1679,7 +1679,7 @@ function FishBookPanel({
                             background: "linear-gradient(135deg, #fbbf24, #f59e0b)",
                             boxShadow: "0 0 12px rgba(251,191,36,0.9)",
                           }}>
-                          <span style={{ fontFamily: "Cinzel, serif", fontSize: 11, color: "#1a0a00", fontWeight: 700 }}>+10</span>
+                          <span style={{ fontFamily: "Lora, serif", fontSize: 11, color: "#1a0a00", fontWeight: 700 }}>+10</span>
                           <img src={coinIconImg} alt="" style={{ width: 11, height: 11, objectFit: "contain" }} />
                         </div>
                       </div>
@@ -1946,7 +1946,7 @@ function TensionReel({
               pointerEvents: "none",
             }} />
             {/* Sweet spot left tick label */}
-            <div style={{ position: "absolute", top: 2, left: `${sweetLow * 100}%`, transform: "translateX(-50%)", fontFamily: "Cinzel, serif", fontSize: 6, color: "rgba(74,222,128,0.55)", letterSpacing: "0.05em", pointerEvents: "none" }}>▼</div>
+            <div style={{ position: "absolute", top: 2, left: `${sweetLow * 100}%`, transform: "translateX(-50%)", fontFamily: "Lora, serif", fontSize: 6, color: "rgba(74,222,128,0.55)", letterSpacing: "0.05em", pointerEvents: "none" }}>▼</div>
             {/* Tension fill */}
             <div style={{
               height: "100%",
@@ -1973,8 +1973,8 @@ function TensionReel({
         {/* ── CATCH PROGRESS BAR with fish marker ── */}
         <div style={{ width: "100%", position: "relative" }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
-            <span style={{ fontFamily: "Cinzel, serif", fontSize: 8, color: "rgba(239,68,68,0.7)", letterSpacing: "0.1em" }}>ESCAPE</span>
-            <span style={{ fontFamily: "Cinzel, serif", fontSize: 8, color: "rgba(94,234,212,0.7)", letterSpacing: "0.1em" }}>CATCH</span>
+            <span style={{ fontFamily: "Lora, serif", fontSize: 8, color: "rgba(239,68,68,0.7)", letterSpacing: "0.1em" }}>ESCAPE</span>
+            <span style={{ fontFamily: "Lora, serif", fontSize: 8, color: "rgba(94,234,212,0.7)", letterSpacing: "0.1em" }}>CATCH</span>
           </div>
 
           {/* Fish marker row */}
@@ -2034,8 +2034,8 @@ function TensionReel({
         {/* ── ESCAPE METER ── */}
         <div style={{ width: "100%", position: "relative" }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-            <span style={{ fontFamily: "Cinzel, serif", fontSize: 8, color: "rgba(249,115,22,0.8)", letterSpacing: "0.1em" }}>ESCAPE METER</span>
-            <span style={{ fontFamily: "Cinzel, serif", fontSize: 8, color: escapePct > 70 ? "rgba(239,68,68,0.9)" : "rgba(249,115,22,0.6)", letterSpacing: "0.1em" }}>{escapePct}%</span>
+            <span style={{ fontFamily: "Lora, serif", fontSize: 8, color: "rgba(249,115,22,0.8)", letterSpacing: "0.1em" }}>ESCAPE METER</span>
+            <span style={{ fontFamily: "Lora, serif", fontSize: 8, color: escapePct > 70 ? "rgba(239,68,68,0.9)" : "rgba(249,115,22,0.6)", letterSpacing: "0.1em" }}>{escapePct}%</span>
           </div>
           <div style={{
             height: 18, borderRadius: 9,
@@ -2103,7 +2103,7 @@ function TensionReel({
         >
           <div style={{ position: "absolute", inset: 7, borderRadius: "50%", border: held ? "1px solid rgba(94,234,212,0.5)" : "1px solid rgba(160,110,50,0.4)", pointerEvents: "none" }} />
           <div style={{ position: "absolute", inset: 15, borderRadius: "50%", border: held ? "1px dashed rgba(94,234,212,0.35)" : "1px dashed rgba(120,80,30,0.3)", pointerEvents: "none", animation: held ? "runeRotate 2s linear infinite" : undefined }} />
-          <span style={{ fontSize: held ? 11 : 9, fontWeight: 700, letterSpacing: "0.12em", color: held ? "#5eead4" : "rgba(200,160,80,0.9)", fontFamily: "Cinzel, serif", textShadow: held ? "0 0 8px rgba(94,234,212,0.9)" : "0 1px 2px rgba(0,0,0,0.8)", pointerEvents: "none", transition: "font-size 0.1s ease" }}>
+          <span style={{ fontSize: held ? 11 : 9, fontWeight: 700, letterSpacing: "0.12em", color: held ? "#5eead4" : "rgba(200,160,80,0.9)", fontFamily: "Lora, serif", textShadow: held ? "0 0 8px rgba(94,234,212,0.9)" : "0 1px 2px rgba(0,0,0,0.8)", pointerEvents: "none", transition: "font-size 0.1s ease" }}>
             {held ? "REELING" : "HOLD"}
           </span>
           <img src={poleIcon} alt="" style={{ width: 22, height: 22, objectFit: "contain", pointerEvents: "none", filter: held ? "drop-shadow(0 0 8px rgba(94,234,212,0.9)) brightness(1.4)" : undefined, transition: "filter 0.1s ease" }} />
