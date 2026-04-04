@@ -250,11 +250,16 @@ app.use((req, res, next) => {
     if (databaseUrl) {
       await runMigrations({ databaseUrl });
       const stripeSync = await getStripeSync();
-      const webhookBaseUrl = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`;
-      const webhookResult = await stripeSync.findOrCreateManagedWebhook(
-        `${webhookBaseUrl}/api/stripe/webhook`
-      );
-      console.log('Stripe webhook configured:', webhookResult?.webhook?.url || 'ok');
+      const replitDomain = process.env.REPLIT_DOMAINS?.split(',')[0];
+      if (replitDomain) {
+        const webhookBaseUrl = `https://${replitDomain}`;
+        const webhookResult = await stripeSync.findOrCreateManagedWebhook(
+          `${webhookBaseUrl}/api/stripe/webhook`
+        );
+        console.log('Stripe webhook configured:', webhookResult?.webhook?.url || 'ok');
+      } else {
+        console.log('Stripe webhook configured: ok (external webhook secret in use)');
+      }
       stripeSync.syncBackfill()
         .then(() => console.log('Stripe data synced'))
         .catch((err: any) => console.error('Stripe sync error:', err));

@@ -80,10 +80,11 @@ export async function getStripeSync() {
 
     stripeSync = new StripeSync({
       poolConfig: {
-        connectionString: process.env.DATABASE_URL!,
+        connectionString: process.env.RAILWAY_DATABASE_URL || process.env.DATABASE_URL!,
         max: 2,
       },
       stripeSecretKey: secretKey,
+      ...(process.env.STRIPE_WEBHOOK_SECRET ? { stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET } : {}),
     });
   }
   return stripeSync;
