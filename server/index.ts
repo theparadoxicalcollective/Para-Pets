@@ -502,12 +502,13 @@ app.use((req, res, next) => {
       await storage.setGameSetting("seed_isShop_migration_v2", "done");
     }
 
+    const assetRefreshDone = await storage.getGameSetting("location_assets_v1");
     for (const loc of NEW_SWAMP_LOCATIONS) {
       if (deletedSeedIds.includes(loc.id)) continue;
       const existing = swampLocations.find(l => l.id === loc.id);
-      const iconData = loadAssetBase64(loc.iconFile);
-      const bgData = loadAssetBase64(loc.bgFile);
       if (!existing) {
+        const iconData = loadAssetBase64(loc.iconFile);
+        const bgData = loadAssetBase64(loc.bgFile);
         console.log(`Creating new swamp location: ${loc.name}`);
         await storage.createWorldLocation({
           id: loc.id,
@@ -525,8 +526,10 @@ app.use((req, res, next) => {
           ...(bgData ? { bgUrl: bgData } : {}),
         } as any);
         console.log(`${loc.name} created.`);
-      } else {
+      } else if (!assetRefreshDone) {
         // Only refresh asset files — never overwrite admin-editable fields (name, description, type, isShop, glowColor)
+        const iconData = loadAssetBase64(loc.iconFile);
+        const bgData = loadAssetBase64(loc.bgFile);
         const updates: any = {};
         if (iconData) updates.iconUrl = iconData;
         if (bgData) updates.bgUrl = bgData;
@@ -535,7 +538,12 @@ app.use((req, res, next) => {
           await storage.updateWorldLocation(loc.id, updates);
         }
         console.log(`${loc.name} refreshed.`);
+      } else {
+        console.log(`${loc.name} icon refreshed.`);
       }
+    }
+    if (!assetRefreshDone) {
+      await storage.setGameSetting("location_assets_v1", "done");
     }
 
     // One-time: apply the Bayou's Heart background image (admin-created location, not in seed list)
