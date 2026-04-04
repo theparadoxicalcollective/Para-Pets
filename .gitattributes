@@ -1,0 +1,2 @@
+parapets_export.sql filter=lfs diff=lfs merge=lfs -text
+parapets_backup.zip filter=lfs diff=lfs merge=lfs -text

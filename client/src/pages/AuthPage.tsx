@@ -231,13 +231,15 @@ export default function AuthPage() {
         <button
           data-testid="button-admin-login-bypass"
           onClick={() => { setAdminBypass(true); setMode("login"); }}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 font-fantasy text-[10px] tracking-widest uppercase"
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 font-fantasy text-[11px] tracking-widest uppercase"
           style={{
-            color: "rgba(90,90,110,0.5)",
+            color: "rgba(110,110,135,0.7)",
             background: "none",
             border: "none",
             cursor: "pointer",
             letterSpacing: "0.15em",
+            zIndex: 9999,
+            padding: "12px 24px",
           }}
         >
           Admin Login
