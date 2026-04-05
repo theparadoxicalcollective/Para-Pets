@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { playClick, unlockAudio } from "@/lib/sounds";
 import { initTabSync, teardownTabSync } from "@/lib/tabSync";
-import desktopBackdrop from "@assets/bg_desktop_backdrop.png";
+import desktopBackdrop from "@assets/bg_desktop_backdrop.webp";
 import homeBg from "@assets/bg_home_v2.png";
 import AuthPage from "@/pages/AuthPage";
 import MaintenancePage from "@/pages/MaintenancePage";

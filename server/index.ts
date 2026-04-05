@@ -167,6 +167,12 @@ export function log(message: string, source = "express") {
 app.use("/world-assets", express.static(path.join(process.cwd(), "attached_assets"), {
   etag: true,
   lastModified: true,
+  maxAge: "7d",
+  immutable: false,
+  setHeaders(res, filePath) {
+    // Allow versioned URLs (?v=...) to be cached aggressively; others use revalidation
+    res.setHeader("Cache-Control", "public, max-age=604800, stale-while-revalidate=86400");
+  },
 }));
 
 app.use((req, res, next) => {
@@ -317,19 +323,21 @@ app.use((req, res, next) => {
     const assetPath = path.join(process.cwd(), "attached_assets", filename);
     if (!fs.existsSync(assetPath)) return null;
     const buf = fs.readFileSync(assetPath);
-    return `data:image/png;base64,${buf.toString("base64")}`;
+    const ext = filename.split(".").pop()?.toLowerCase();
+    const mime = ext === "webp" ? "image/webp" : ext === "jpeg" || ext === "jpg" ? "image/jpeg" : ext === "svg" ? "image/svg+xml" : "image/png";
+    return `data:${mime};base64,${buf.toString("base64")}`;
   }
 
   // Always refresh all world backgrounds — served as static files under /world-assets/
   const WORLD_BG_ASSETS: Record<string, string> = {
-    swamp: "bg_swamp_map.png",
-    snowy_mountain: "bg_snowy_mountain_map.png",
-    sky_realm: "bg_sky_realm_map.png",
-    volcanic: "bg_volcanic_map.png",
-    haunted_woods: "bg_haunted_woods_map.png",
-    enchanted_grove: "bg_enchanted_grove_map.png",
-    island: "bg_island_map.png",
-    desert: "bg_desert_map.png",
+    swamp: "bg_swamp_map.webp",
+    snowy_mountain: "bg_snowy_mountain_map.webp",
+    sky_realm: "bg_sky_realm_map.webp",
+    volcanic: "bg_volcanic_map.webp",
+    haunted_woods: "bg_haunted_woods_map.webp",
+    enchanted_grove: "bg_enchanted_grove_map.webp",
+    island: "bg_island_map.webp",
+    desert: "bg_desert_map.webp",
   };
   for (const [worldId, filename] of Object.entries(WORLD_BG_ASSETS)) {
     try {
@@ -380,7 +388,7 @@ app.use((req, res, next) => {
     if (thicketLoc && thicketLoc.name === "Testing") {
       console.log("Migrating Testing -> Thicket...");
       const iconData = loadAssetBase64("icon_thicket.png");
-      const bgData = loadAssetBase64("bg_thicket.png");
+      const bgData = loadAssetBase64("bg_thicket.webp");
       await storage.updateWorldLocation(THICKET_ID, {
         name: "Thicket",
         description: "A dense cluster of dark, twisted trees deep in the swamp.",
@@ -434,7 +442,7 @@ app.use((req, res, next) => {
       const generalShopExists = allSwampForRestore.find((l: any) => l.id === "97ff55d1-376b-466a-8fe9-992b09dbaacc");
       if (!generalShopExists) {
         const generalShopIcon = loadAssetBase64("icon_mire_bazaar.png");
-        const generalShopBg = loadAssetBase64("bg_mire_bazaar.png");
+        const generalShopBg = loadAssetBase64("bg_mire_bazaar.webp");
         await storage.createWorldLocation({
           id: "97ff55d1-376b-466a-8fe9-992b09dbaacc",
           worldId: "swamp",
@@ -456,7 +464,7 @@ app.use((req, res, next) => {
       const bayousHeartExists = allSwampForRestore.find((l: any) => l.id === "8e211716-0448-496e-8582-6ce1025ac4e4");
       if (!bayousHeartExists) {
         const bayousHeartIcon = loadAssetBase64("icon_bayous_heart_v2.png");
-        const bayousHeartBg = loadAssetBase64("bg_bayous_heart.png");
+        const bayousHeartBg = loadAssetBase64("bg_bayous_heart.webp");
         await storage.createWorldLocation({
           id: "8e211716-0448-496e-8582-6ce1025ac4e4",
           worldId: "swamp",
@@ -491,7 +499,7 @@ app.use((req, res, next) => {
       console.log("General Shop migration complete");
     }
     // Refresh General Shop background and icon from assets (do not overwrite admin-editable name)
-    const mireBazaarBg = loadAssetBase64("bg_mire_bazaar.png");
+    const mireBazaarBg = loadAssetBase64("bg_mire_bazaar.webp");
     if (mireBazaarBg) {
       await storage.updateWorldLocation(SHOP_ID, { bgUrl: mireBazaarBg } as any);
       console.log("General Shop background refreshed.");
@@ -511,7 +519,7 @@ app.use((req, res, next) => {
         name: "Murk Cave",
         description: "A mysterious cavern deep in the swamp, filled with glowing crystals and ancient magic.",
         iconFile: "icon_murk_cave.png",
-        bgFile: "bg_murk_cave.png",
+        bgFile: "bg_murk_cave.webp",
         posX: 12,
         posY: 35,
         glowColor: "#7b4fc9",
@@ -522,7 +530,7 @@ app.use((req, res, next) => {
         name: "Willowmere",
         description: "An ancient magical swamp tree humming with old power, its twisted branches draped in glowing moss.",
         iconFile: "icon_willowmere_cottage.png",
-        bgFile: "bg_willowmere_cottage.png",
+        bgFile: "bg_willowmere_cottage.webp",
         posX: 65,
         posY: 22,
         glowColor: "#6aab5e",
@@ -533,7 +541,7 @@ app.use((req, res, next) => {
         name: "The Tome & Toad",
         description: "A peculiar bookstore floating above the mire, stocked with rare spells and swamp lore.",
         iconFile: "icon_tome_toad.png",
-        bgFile: "bg_tome_toad.png",
+        bgFile: "bg_tome_toad.webp",
         posX: 35,
         posY: 48,
         glowColor: "#9b5de5",
@@ -545,7 +553,7 @@ app.use((req, res, next) => {
         name: "Swamp Critters",
         description: "A magical pet emporium brimming with exotic swamp creatures and enchanted companions.",
         iconFile: "icon_swamp_critters.png",
-        bgFile: "bg_swamp_critters.png",
+        bgFile: "bg_swamp_critters.webp",
         posX: 10,
         posY: 60,
         glowColor: "#3dc7a0",
@@ -557,7 +565,7 @@ app.use((req, res, next) => {
         name: "The Mossy Cauldron",
         description: "A beloved swamp tavern where adventurers gather, warm brews bubble, and tales are told.",
         iconFile: "icon_mossy_cauldron.png",
-        bgFile: "bg_mossy_cauldron.png",
+        bgFile: "bg_mossy_cauldron.webp",
         posX: 60,
         posY: 65,
         glowColor: "#c9a84c",
@@ -568,7 +576,7 @@ app.use((req, res, next) => {
         name: "FishingRipples",
         description: "A shimmering magical pond deep in the swamp, its glowing waters said to hold ancient secrets.",
         iconFile: "icon_myst_pond_v2.png",
-        bgFile: "bg_myst_pond.png",
+        bgFile: "bg_myst_pond.webp",
         posX: 38,
         posY: 70,
         glowColor: "#3dc7c0",
@@ -580,7 +588,7 @@ app.use((req, res, next) => {
         name: "The Soggy Hook",
         description: "A ramshackle fishing shack perched on stilts above the swamp, stocked with rods, bait, and all manner of magical fishing gear.",
         iconFile: "icon_fishing_shack.png",
-        bgFile: "bg_soggy_hook_v1.png",
+        bgFile: "bg_soggy_hook_v1.webp",
         posX: 75,
         posY: 58,
         glowColor: "#3dc7c0",
@@ -672,7 +680,7 @@ app.use((req, res, next) => {
     const bayousHeartBgDone = await storage.getGameSetting("bayous_heart_bg_v1");
     if (!bayousHeartBgDone) {
       const BAYOUS_HEART_ID = "8e211716-0448-496e-8582-6ce1025ac4e4";
-      const bayousHeartBgData = loadAssetBase64("bg_bayous_heart.png");
+      const bayousHeartBgData = loadAssetBase64("bg_bayous_heart.webp");
       if (bayousHeartBgData) {
         const allSwampLocs = await storage.getWorldLocations("swamp");
         const bayousHeart = allSwampLocs.find((l: any) => l.id === BAYOUS_HEART_ID);
@@ -923,9 +931,9 @@ app.use((req, res, next) => {
   try {
     const doorRows = ((await db.execute(sql`SELECT id, name, bg_url FROM kc_doors WHERE world_id = 'pet_world'`)) as any).rows as any[];
     const DOOR_BG_SEEDS: Array<{ match: string; file: string }> = [
-      { match: "welcome",  file: "bg_welcome_center.jpeg"  },
-      { match: "fortune",  file: "bg_well_of_fortune.png"  },
-      { match: "cellar",   file: "bg_market_cellar.png"    },
+      { match: "welcome",  file: "bg_welcome_center.webp"  },
+      { match: "fortune",  file: "bg_well_of_fortune.webp"  },
+      { match: "cellar",   file: "bg_market_cellar.webp"    },
     ];
     for (const seed of DOOR_BG_SEEDS) {
       const door = doorRows.find((d: any) =>
@@ -1063,6 +1071,37 @@ app.use((req, res, next) => {
     }
   } catch (err) {
     console.error("Bayou layout restore error (non-fatal):", err);
+  }
+
+  // Migration: convert world_location bgUrls from inline base64 to static /world-assets/ URLs
+  // This reduces the /api/world/:id/locations response from ~36MB to ~1KB for backgrounds
+  try {
+    const locBgsUrlDone = await storage.getGameSetting("location_bgs_url_v1");
+    if (!locBgsUrlDone) {
+      const LOCATION_BG_FILES: Record<string, string> = {
+        "a1b2c3d4-0001-4000-8000-000000000001": "bg_murk_cave.webp",
+        "a1b2c3d4-0004-4000-8000-000000000004": "bg_tome_toad.webp",
+        "a1b2c3d4-0005-4000-8000-000000000005": "bg_swamp_critters.webp",
+        "a1b2c3d4-0006-4000-8000-000000000006": "bg_mossy_cauldron.webp",
+        "a1b2c3d4-0007-4000-8000-000000000007": "bg_myst_pond.webp",
+        "a1b2c3d4-0008-4000-8000-000000000008": "bg_soggy_hook_v1.webp",
+        "a1b2c3d4-0002-4000-8000-000000000002": "bg_willowmere_cottage.webp",
+        "3e20ad30-faff-4643-9e80-5e5f30010738": "bg_thicket.webp",
+        "8e211716-0448-496e-8582-6ce1025ac4e4": "bg_bayous_heart.webp",
+        "97ff55d1-376b-466a-8fe9-992b09dbaacc": "bg_mire_bazaar.webp",
+      };
+      for (const [locId, bgFile] of Object.entries(LOCATION_BG_FILES)) {
+        const assetPath = path.join(process.cwd(), "attached_assets", bgFile);
+        if (!fs.existsSync(assetPath)) { console.log(`location_bgs_url: skipping ${locId}, ${bgFile} not found`); continue; }
+        const fileUrl = `/world-assets/${bgFile}`;
+        await db.execute(sql`UPDATE world_locations SET bg_url = ${fileUrl} WHERE id = ${locId}`);
+        console.log(`location_bgs_url: ${locId} bg_url → ${fileUrl}`);
+      }
+      await storage.setGameSetting("location_bgs_url_v1", "done");
+      console.log("Location bgUrl migration to static files complete.");
+    }
+  } catch (err) {
+    console.error("Location bgUrl migration error (non-fatal):", err);
   }
 
   // Migration: restore Elysian Bayou non-fishing location positions, sizes, and sort orders

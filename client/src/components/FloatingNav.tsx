@@ -7,7 +7,7 @@ import activePetIcon from "@assets/generated_images/nav_icon_active_pet_new.png"
 import petsIcon from "@assets/generated_images/nav_icon_pets.png";
 import marketIcon from "@assets/generated_images/nav_icon_market.png";
 import fishbowlIcon from "@assets/icon_fishbowl.png";
-import globeIcon from "@assets/icon_globe_world.png";
+import globeIcon from "@assets/icon_globe_world.webp";
 import bagIcon from "@assets/icon_bag.png";
 import mapIcon from "@assets/generated_images/nav_icon_map_new.png";
 import questIcon from "@assets/generated_images/nav_icon_map.png";

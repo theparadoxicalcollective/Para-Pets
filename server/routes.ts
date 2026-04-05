@@ -209,14 +209,14 @@ async function ensureAdminAccount() {
 }
 
 const WORLD_BG_SEED: Record<string, string> = {
-  sky_realm: "bg_sky_realm_td.png",
-  snowy_mountain: "bg_snowy_mountain_td.png",
-  volcanic: "bg_volcanic_td.png",
-  haunted_woods: "bg_haunted_woods_td.png",
-  enchanted_grove: "bg_enchanted_grove_td.png",
-  island: "bg_island_td.png",
-  desert: "bg_desert_td.png",
-  swamp: "bg_swamp_v5.png",
+  sky_realm: "bg_sky_realm_td.webp",
+  snowy_mountain: "bg_snowy_mountain_td.webp",
+  volcanic: "bg_volcanic_td.webp",
+  haunted_woods: "bg_haunted_woods_td.webp",
+  enchanted_grove: "bg_enchanted_grove_td.webp",
+  island: "bg_island_td.webp",
+  desert: "bg_desert_td.webp",
+  swamp: "bg_swamp_v5.webp",
 };
 
 async function seedWorldBackgrounds() {
@@ -2367,15 +2367,15 @@ export async function registerRoutes(
   });
 
   const LOCATION_DEFAULT_BG: Record<string, string> = {
-    "a1b2c3d4-0001-4000-8000-000000000001": "bg_murk_cave.png",
-    "a1b2c3d4-0002-4000-8000-000000000002": "bg_willowmere_cottage.png",
-    "a1b2c3d4-0003-4000-8000-000000000003": "bg_mosswood_lodge.png",
-    "a1b2c3d4-0004-4000-8000-000000000004": "bg_tome_toad.png",
-    "a1b2c3d4-0005-4000-8000-000000000005": "bg_swamp_critters.png",
-    "a1b2c3d4-0006-4000-8000-000000000006": "bg_mossy_cauldron.png",
-    "a1b2c3d4-0007-4000-8000-000000000007": "bg_myst_pond.png",
-    "3e20ad30-faff-4643-9e80-5e5f30010738": "bg_thicket.png",
-    "8e211716-0448-496e-8582-6ce1025ac4e4": "bg_bayous_heart.png",
+    "a1b2c3d4-0001-4000-8000-000000000001": "bg_murk_cave.webp",
+    "a1b2c3d4-0002-4000-8000-000000000002": "bg_willowmere_cottage.webp",
+    "a1b2c3d4-0003-4000-8000-000000000003": "bg_mosswood_lodge.webp",
+    "a1b2c3d4-0004-4000-8000-000000000004": "bg_tome_toad.webp",
+    "a1b2c3d4-0005-4000-8000-000000000005": "bg_swamp_critters.webp",
+    "a1b2c3d4-0006-4000-8000-000000000006": "bg_mossy_cauldron.webp",
+    "a1b2c3d4-0007-4000-8000-000000000007": "bg_myst_pond.webp",
+    "3e20ad30-faff-4643-9e80-5e5f30010738": "bg_thicket.webp",
+    "8e211716-0448-496e-8582-6ce1025ac4e4": "bg_bayous_heart.webp",
   };
 
   app.post("/api/admin/world/location/:locationId/reset-bg", isAdmin, async (req, res) => {
