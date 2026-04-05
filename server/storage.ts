@@ -78,6 +78,7 @@ export interface IStorage {
   banUser(id: string): Promise<User>;
   unbanUser(id: string): Promise<User>;
   addCoins(id: string, amount: number): Promise<User>;
+  atomicDeductCoins(id: string, amount: number): Promise<User | null>;
   setWelcomeV2Sent(id: string): Promise<void>;
   updatePassword(id: string, hashedPassword: string): Promise<User>;
   deleteAccount(id: string): Promise<void>;
@@ -341,6 +342,16 @@ export class DatabaseStorage implements IStorage {
       .returning();
     if (!updated) throw new Error("User not found");
     return updated;
+  }
+
+  // Atomic: deducts only when coins >= amount in one SQL statement. Returns null if insufficient.
+  async atomicDeductCoins(id: string, amount: number): Promise<User | null> {
+    const [updated] = await db
+      .update(users)
+      .set({ coins: sql`${users.coins} - ${amount}` })
+      .where(and(eq(users.id, id), gte(users.coins, amount)))
+      .returning();
+    return updated ?? null;
   }
 
   async setWelcomeV2Sent(id: string): Promise<void> {
@@ -1183,11 +1194,15 @@ export class DatabaseStorage implements IStorage {
     const user = await this.getUser(userId);
     if (!user) throw new Error("User not found");
     if ((user.marketExtraSlots ?? 0) >= 25) throw new Error("Maximum slot limit reached");
-    if (user.coins < 300) throw new Error("Not enough coins");
+    // Atomic: deduct coins and increment slots only if coins >= 300
     const [updated] = await db.update(users)
-      .set({ coins: user.coins - 300, marketExtraSlots: (user.marketExtraSlots ?? 0) + 1 })
-      .where(eq(users.id, userId))
+      .set({
+        coins: sql`${users.coins} - 300`,
+        marketExtraSlots: sql`COALESCE(${users.marketExtraSlots}, 0) + 1`,
+      })
+      .where(and(eq(users.id, userId), gte(users.coins, 300)))
       .returning();
+    if (!updated) throw new Error("Not enough coins");
     return updated;
   }
 

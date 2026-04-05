@@ -1170,12 +1170,12 @@ export async function registerRoutes(
       }
 
       const totalCost = shopItem.price * (shopItem.type === "pet" ? 1 : quantity);
-      const currentUser = await storage.getUser(user.id);
-      if (!currentUser || currentUser.coins < totalCost) {
+
+      // Atomic check-and-deduct: fails if coins < totalCost, preventing double-spend races
+      const afterDeduct = await storage.atomicDeductCoins(user.id, totalCost);
+      if (!afterDeduct) {
         return res.status(400).json({ message: "Not enough coins" });
       }
-
-      await storage.addCoins(user.id, -totalCost);
 
       const purchaseCount = shopItem.type === "pet" ? 1 : quantity;
       let invItem: any = null;
@@ -1198,8 +1198,7 @@ export async function registerRoutes(
         }
       }
 
-      const updatedUser = await storage.getUser(user.id);
-      const { password: _, ...safeUser } = updatedUser!;
+      const { password: _, ...safeUser } = afterDeduct;
 
       return res.json({ inventory: invItem, user: safeUser, quantity: purchaseCount });
     } catch (err) {
@@ -3653,12 +3652,19 @@ export async function registerRoutes(
       if (listing.status !== "active") return res.status(400).json({ message: "This item is no longer available" });
       if (listing.sellerId === user.id) return res.status(400).json({ message: "You cannot buy your own listing" });
 
-      const fullUser = await storage.getUser(user.id);
-      if (!fullUser || fullUser.coins < listing.price) return res.status(400).json({ message: "Not enough coins" });
+      // Atomic deduct first — prevents two buyers both passing a JS coin check
+      const afterDeduct = await storage.atomicDeductCoins(user.id, listing.price);
+      if (!afterDeduct) return res.status(400).json({ message: "Not enough coins" });
 
-      await storage.addCoins(user.id, -listing.price);
-      const { price } = await storage.buyMarketListing(listing.id, user.id);
-      return res.json({ ok: true, price });
+      try {
+        // buyMarketListing re-checks status = 'active' atomically; throws if already sold
+        const { price } = await storage.buyMarketListing(listing.id, user.id);
+        return res.json({ ok: true, price });
+      } catch (claimErr: any) {
+        // Listing was already sold to someone else — refund the deducted coins
+        await storage.addCoins(user.id, listing.price);
+        return res.status(400).json({ message: "This item was just purchased by someone else" });
+      }
     } catch (err: any) {
       return res.status(500).json({ message: err.message || "Failed to buy listing" });
     }
@@ -4778,10 +4784,18 @@ export async function registerRoutes(
       if (!bundle) return res.status(404).json({ message: "Bundle not found" });
       const alreadyOwns = await storage.hasUserHouseBundle(user.id, bundleId);
       if (alreadyOwns) return res.status(400).json({ message: "Already owned" });
-      if (user.coins < bundle.price) return res.status(400).json({ message: "Not enough coins" });
-      await db.update(usersTable).set({ coins: user.coins - bundle.price }).where(eq(usersTable.id, user.id));
-      const owned = await storage.grantUserHouseBundle(user.id, bundleId);
-      return res.status(201).json(owned);
+      // Atomic deduct using fresh DB coins value (not stale session), prevents double-purchase races
+      const afterDeduct = await storage.atomicDeductCoins(user.id, bundle.price);
+      if (!afterDeduct) return res.status(400).json({ message: "Not enough coins" });
+      try {
+        const owned = await storage.grantUserHouseBundle(user.id, bundleId);
+        return res.status(201).json(owned);
+      } catch (grantErr: any) {
+        // If grant fails (e.g. duplicate), refund coins
+        await storage.addCoins(user.id, bundle.price);
+        if (grantErr.code === "23505") return res.status(400).json({ message: "Already owned" });
+        throw grantErr;
+      }
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }
