@@ -1374,10 +1374,14 @@ export default function WorldPage({ user }: WorldPageProps) {
     return lines;
   };
 
-  if (!world) {
+  if (!world || !worldApiData || !worldBgLoaded || locationsLoading) {
+    const loadAccent = world?.accent ?? "#9370db";
     return (
-      <div className="w-full h-screen-frame flex items-center justify-center bg-black" style={{ maxWidth: "768px", margin: "0 auto" }}>
-        <p className="font-fantasy text-[#f0c040] animate-pulse" style={{ textShadow: "0 0 20px rgba(240,192,64,0.5)" }}>Loading realm...</p>
+      <div className="w-full h-screen-frame flex flex-col items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", background: "rgba(8,5,20,1)" }}>
+        <div
+          className="animate-spin rounded-full"
+          style={{ width: 48, height: 48, border: `3px solid ${loadAccent}25`, borderTopColor: loadAccent }}
+        />
       </div>
     );
   }
@@ -1448,15 +1452,6 @@ export default function WorldPage({ user }: WorldPageProps) {
       >
         <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
       </div>
-
-      {(!worldBgLoaded || locationsLoading || !worldApiData) && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, background: "rgba(8,5,20,1)" }}>
-          <div
-            className="animate-spin rounded-full"
-            style={{ width: 48, height: 48, border: `3px solid ${accent}25`, borderTopColor: accent }}
-          />
-        </div>
-      )}
 
       <div
         ref={vpRef}
