@@ -166,6 +166,9 @@ export default function CoinShopPage({ user }: CoinShopProps) {
   const [verifying, setVerifying] = useState(false);
   const [successCoins, setSuccessCoins] = useState<number | null>(null);
 
+  // Keep local coin display in sync when parent re-fetches updated user data
+  useEffect(() => { setCurrentUser(user); }, [user]);
+
   const { data: packsData, isLoading } = useQuery<PacksResponse>({
     queryKey: ["/api/coins/packs"],
   });
@@ -207,13 +210,14 @@ export default function CoinShopPage({ user }: CoinShopProps) {
         .then(data => {
           if (data.user) {
             setCurrentUser(data.user);
-            queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-            queryClient.invalidateQueries({ queryKey: ["/api/coins/packs"] });
           }
+          // Force immediate re-fetch so coin count updates everywhere in the app
+          queryClient.refetchQueries({ queryKey: ["/api/auth/me"] });
+          queryClient.refetchQueries({ queryKey: ["/api/coins/packs"] });
           if (data.credited) {
             setSuccessCoins(data.coins);
           } else if (data.alreadyCredited) {
-            toast({ title: "Already Credited", description: "These coins were already added to your account" });
+            setSuccessCoins(data.coins);
           }
           window.history.replaceState({}, "", "/coins");
         })
