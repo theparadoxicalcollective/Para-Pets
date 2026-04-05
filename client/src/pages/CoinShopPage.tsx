@@ -163,8 +163,14 @@ export default function CoinShopPage({ user }: CoinShopProps) {
   const [showProfile, setShowProfile] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
   const [buyingPackId, setBuyingPackId] = useState<string | null>(null);
-  const [verifying, setVerifying] = useState(false);
+  // Initialise to true synchronously so the overlay shows on the very first render
+  // when the player is redirected back from Stripe — no flash of the coin shop.
+  const [verifying, setVerifying] = useState(() => {
+    const p = new URLSearchParams(window.location.search);
+    return p.get("success") === "true" && !!p.get("session_id");
+  });
   const [successCoins, setSuccessCoins] = useState<number | null>(null);
+  const [showCanceled, setShowCanceled] = useState(false);
 
   // Keep local coin display in sync when parent re-fetches updated user data
   useEffect(() => { setCurrentUser(user); }, [user]);
@@ -198,32 +204,29 @@ export default function CoinShopPage({ user }: CoinShopProps) {
     const canceled = params.get("canceled");
 
     if (canceled) {
-      toast({ title: "Canceled", description: "Purchase was canceled" });
+      setShowCanceled(true);
       window.history.replaceState({}, "", "/coins");
+      setTimeout(() => setShowCanceled(false), 4000);
       return;
     }
 
-    if (success && sessionId && !verifying) {
+    if (success && sessionId) {
+      // verifying was already set to true synchronously in useState — just do the call
       setVerifying(true);
       apiRequest("POST", "/api/coins/verify", { sessionId })
         .then(res => res.json())
         .then(data => {
-          if (data.user) {
-            setCurrentUser(data.user);
-          }
-          // Force immediate re-fetch so coin count updates everywhere in the app
+          if (data.user) setCurrentUser(data.user);
           queryClient.refetchQueries({ queryKey: ["/api/auth/me"] });
           queryClient.refetchQueries({ queryKey: ["/api/coins/packs"] });
-          if (data.credited) {
-            setSuccessCoins(data.coins);
-          } else if (data.alreadyCredited) {
+          window.history.replaceState({}, "", "/coins");
+          if (data.credited || data.alreadyCredited) {
             setSuccessCoins(data.coins);
           }
-          window.history.replaceState({}, "", "/coins");
         })
         .catch(() => {
-          toast({ title: "Error", description: "Failed to verify purchase. Your coins will be credited shortly.", variant: "destructive" });
           window.history.replaceState({}, "", "/coins");
+          toast({ title: "Hmm, something went wrong", description: "Your coins should arrive shortly. Contact support if they don't appear.", variant: "destructive" });
         })
         .finally(() => setVerifying(false));
     }
@@ -323,11 +326,12 @@ export default function CoinShopPage({ user }: CoinShopProps) {
           </div>
         </div>
 
-        {verifying && (
-          <div className="mx-4 mb-4 rounded-lg p-4 text-center" style={{ background: "rgba(10,40,20,0.6)", border: "1px solid rgba(127,255,212,0.3)" }}>
-            <div className="font-fantasy text-[#7fffd4] text-sm tracking-wider animate-pulse">
-              Verifying purchase...
-            </div>
+        {showCanceled && (
+          <div className="mx-4 mb-3 rounded-xl px-4 py-3 flex items-center justify-between gap-3" style={{ background: "rgba(40,15,5,0.85)", border: "1px solid rgba(200,100,50,0.45)" }}>
+            <span className="font-fantasy text-[11px] tracking-wider" style={{ color: "rgba(255,180,100,0.85)" }}>
+              ✕ &nbsp;Purchase canceled — no charge was made
+            </span>
+            <button onClick={() => setShowCanceled(false)} style={{ background: "none", border: "none", color: "rgba(255,180,100,0.4)", cursor: "pointer", fontSize: 12 }}>✕</button>
           </div>
         )}
 
@@ -454,6 +458,91 @@ export default function CoinShopPage({ user }: CoinShopProps) {
             queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
           }}
         />
+      )}
+
+      {/* Checkout loading overlay — shown while the server creates the Stripe session */}
+      {buyingPackId && checkoutMutation.isPending && (() => {
+        const pack = packsData?.packs.find(p => p.id === buyingPackId);
+        const packImg = PACK_IMAGES[buyingPackId];
+        const glowCol = PACK_GLOW[buyingPackId] || "rgba(127,255,212,0.4)";
+        return (
+          <div
+            style={{
+              position: "fixed", inset: 0, zIndex: 9997,
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+              background: "rgba(2,8,3,0.97)",
+              backdropFilter: "blur(12px)",
+              animation: "overlayFadeIn 0.2s ease-out",
+            }}
+          >
+            {packImg && (
+              <img
+                src={packImg}
+                alt=""
+                style={{
+                  width: 110, height: 110, objectFit: "contain", marginBottom: 24,
+                  filter: `drop-shadow(0 0 28px ${glowCol}) drop-shadow(0 0 60px ${glowCol})`,
+                  animation: "coinSpin 1.8s ease-in-out infinite",
+                }}
+              />
+            )}
+            <div className="font-fantasy tracking-[0.25em] text-base" style={{ color: "#f0c040", marginBottom: 10 }}>
+              {pack ? `${pack.coins.toLocaleString()} Coins` : "Loading..."}
+            </div>
+            <div className="font-fantasy tracking-widest text-sm" style={{ color: "rgba(127,255,212,0.7)", marginBottom: 6 }}>
+              Opening Secure Checkout
+            </div>
+            <div className="font-fantasy text-[10px] tracking-wider" style={{ color: "rgba(127,255,212,0.35)" }}>
+              Connecting to Stripe...
+            </div>
+            <div style={{ marginTop: 32, display: "flex", gap: 6 }}>
+              {[0, 1, 2].map(i => (
+                <div key={i} style={{
+                  width: 6, height: 6, borderRadius: "50%",
+                  background: "rgba(127,255,212,0.6)",
+                  animation: `fireflyDrift${i + 1} 0.9s ease-in-out ${i * 0.3}s infinite alternate`,
+                }} />
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Verification overlay — shown immediately on return from Stripe, before coins are credited */}
+      {verifying && successCoins === null && (
+        <div
+          style={{
+            position: "fixed", inset: 0, zIndex: 9998,
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            background: "rgba(2,8,3,0.97)",
+            backdropFilter: "blur(12px)",
+            animation: "overlayFadeIn 0.15s ease-out",
+          }}
+        >
+          <img
+            src={coinIconImg}
+            alt=""
+            style={{
+              width: 88, height: 88, objectFit: "contain", marginBottom: 28,
+              animation: "coinSpin 2s ease-in-out infinite, coinGlowPulse 1.6s ease-in-out infinite",
+            }}
+          />
+          <div className="font-fantasy tracking-[0.22em] text-base animate-pulse" style={{ color: "#f0c040", marginBottom: 10 }}>
+            Securing Your Coins
+          </div>
+          <div className="font-fantasy text-[10px] tracking-wider" style={{ color: "rgba(127,255,212,0.4)" }}>
+            Verifying your payment with Stripe...
+          </div>
+          <div style={{ marginTop: 32, display: "flex", gap: 6 }}>
+            {[0, 1, 2].map(i => (
+              <div key={i} style={{
+                width: 7, height: 7, borderRadius: "50%",
+                background: "rgba(240,192,64,0.6)",
+                animation: `fireflyDrift${i + 1} 1s ease-in-out ${i * 0.35}s infinite alternate`,
+              }} />
+            ))}
+          </div>
+        </div>
       )}
 
       {successCoins !== null && (
