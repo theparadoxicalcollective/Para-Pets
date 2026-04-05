@@ -177,7 +177,7 @@ function AppRouter() {
           {user ? <MapPage user={user} /> : <Redirect to="/auth" />}
         </Route>
         <Route path="/world/:worldId">
-          {user ? <WorldPage user={user} /> : <Redirect to="/auth" />}
+          {user ? <WorldPage key={location} user={user} /> : <Redirect to="/auth" />}
         </Route>
         <Route path="/coins">
           {user ? <CoinShopPage user={user} /> : <Redirect to="/auth" />}
