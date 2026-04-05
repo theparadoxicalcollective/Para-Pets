@@ -707,6 +707,26 @@ app.use((req, res, next) => {
       await storage.setGameSetting("murk_cave_enemies_v1", "done");
       console.log("Murk Cave enemies seeded.");
     }
+
+    // Restore Cave Wisp if it was lost (murk_cave_enemies_v1 may have run before Cave Wisp was defined)
+    const caveWispRestored = await storage.getGameSetting("missing_cave_wisp_v1");
+    if (!caveWispRestored) {
+      const MURK_CAVE_ID = "a1b2c3d4-0001-4000-8000-000000000001";
+      const existing = await storage.getLocationEnemies(MURK_CAVE_ID);
+      const hasCaveWisp = existing.some((e: any) => e.name === "Cave Wisp");
+      if (!hasCaveWisp) {
+        const imgData = loadAssetBase64("generated_images/enemy_cave_wisp.png");
+        await storage.createLocationEnemy({
+          locationId: MURK_CAVE_ID,
+          name: "Cave Wisp",
+          imageUrl: imgData,
+          isBoss: false,
+          coinReward: 2,
+        });
+        console.log("Cave Wisp added to Murk Cave.");
+      }
+      await storage.setGameSetting("missing_cave_wisp_v1", "done");
+    }
   } catch (err) {
     console.error("Swamp location migration error (non-fatal):", err);
   }
@@ -767,6 +787,47 @@ app.use((req, res, next) => {
       }
       await storage.setGameSetting("soggy_hook_bait_v2", "done");
       console.log("Bait items seeded (unassigned).");
+    }
+
+    // Restore bait items that were lost because soggy_hook_bait_v2 was already marked done
+    const missingBaitRestored = await storage.getGameSetting("missing_bait_restore_v1");
+    if (!missingBaitRestored) {
+      const missingBait = [
+        { name: "Swamp Crawler",    price: 60,  imageFile: "bait_swamp_crawler.png", baitCatchBoost: 0,  rarityBoostPercent: 25 },
+        { name: "Ghost Shrimp Lure", price: 85, imageFile: "bait_ghost_shrimp.png",  baitCatchBoost: 30, rarityBoostPercent: 0  },
+        { name: "Hex Bayou Lure",   price: 150, imageFile: "bait_hex_lure.png",       baitCatchBoost: 20, rarityBoostPercent: 35 },
+      ];
+      for (const b of missingBait) {
+        const exists = await db.execute(sql`SELECT id FROM shop_items WHERE name = ${b.name} AND fishing_type = 'bait'`);
+        if (exists.rows.length === 0) {
+          const imgData = loadAssetBase64(b.imageFile);
+          await storage.createShopItem({
+            name: b.name,
+            price: b.price,
+            type: "fishing",
+            fishingType: "bait",
+            worldId: "all",
+            locationId: null,
+            imageUrl: imgData,
+            baitCatchBoost: b.baitCatchBoost,
+            rarityBoostPercent: b.rarityBoostPercent,
+            rarity: null,
+            hatchTime: null,
+            statBoostType: null,
+            statBoostAmount: null,
+            eggImageUrl: null,
+            hatchedImageUrl: null,
+            specialSkill: null,
+            healthRestored: null,
+            manaRestored: null,
+            petsRevived: null,
+            atkBoost: null,
+            defBoost: null,
+          });
+          console.log(`Restored missing bait item: ${b.name}`);
+        }
+      }
+      await storage.setGameSetting("missing_bait_restore_v1", "done");
     }
   } catch (err) {
     console.error("Bait item seeding error (non-fatal):", err);
