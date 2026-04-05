@@ -346,6 +346,32 @@ app.use((req, res, next) => {
     }
   }
 
+  // Seed world icons from asset files if they are missing (admin-set icons are always preserved)
+  const WORLD_ICON_ASSETS: Record<string, string> = {
+    swamp:           "world_swamp_v3.png",
+    snowy_mountain:  "world_frostpeak_v2.png",
+    sky_realm:       "world_sky_realm_v3.png",
+    volcanic:        "world_volcanic_v3.png",
+    haunted_woods:   "world_haunted_woods_v3.png",
+    enchanted_grove: "world_enchanted_grove_v2.png",
+    island:          "world_lost_island.png",
+    desert:          "world_desert_v3.png",
+  };
+  for (const [worldId, filename] of Object.entries(WORLD_ICON_ASSETS)) {
+    try {
+      const world = await storage.getWorld(worldId);
+      if (world && !(world as any).iconUrl) {
+        const iconData = loadAssetBase64(filename);
+        if (iconData) {
+          await storage.updateWorld(worldId, { iconUrl: iconData } as any);
+          console.log(`${worldId} icon seeded from ${filename}.`);
+        }
+      }
+    } catch (err) {
+      console.error(`World icon seed error for ${worldId} (non-fatal):`, err);
+    }
+  }
+
   try {
     const swampLocations = await storage.getWorldLocations("swamp");
 
