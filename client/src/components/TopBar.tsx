@@ -373,6 +373,121 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                   </div>
                 )}
               </div>
+
+            {/* Admin messages envelope — below friends icon, only when messages exist */}
+            {adminMsgs.length > 0 && (
+              <div className="relative" ref={adminMsgRef}>
+                <button
+                  data-testid="button-admin-messages"
+                  onClick={() => setShowAdminMsgsPopup(v => !v)}
+                  className="topbar-icon-size-sm flex-shrink-0 flex items-center justify-center relative transition-transform duration-150 active:scale-90"
+                  style={{
+                    background: showAdminMsgsPopup
+                      ? "linear-gradient(135deg, rgba(240,192,64,0.35) 0%, rgba(180,130,10,0.3) 100%)"
+                      : "linear-gradient(135deg, rgba(240,192,64,0.12) 0%, rgba(180,130,10,0.12) 100%)",
+                    border: `2px solid ${showAdminMsgsPopup ? "rgba(240,192,64,0.8)" : "rgba(240,192,64,0.45)"}`,
+                    borderRadius: "10px",
+                    cursor: "pointer",
+                    boxShadow: showAdminMsgsPopup
+                      ? "0 2px 10px rgba(0,0,0,0.6), 0 0 18px rgba(240,192,64,0.4)"
+                      : "0 2px 10px rgba(0,0,0,0.6), 0 0 12px rgba(240,192,64,0.2)",
+                  }}
+                  title="Messages from Admin"
+                >
+                  <Mail size={18} color="#f0c040" style={{ filter: "drop-shadow(0 0 4px rgba(240,192,64,0.6))" }} />
+                  {/* Red badge */}
+                  <div
+                    className="absolute -top-1 -right-1 min-w-[14px] h-3.5 rounded-full flex items-center justify-center px-0.5"
+                    style={{
+                      background: "radial-gradient(circle, #f87171 0%, #dc2626 100%)",
+                      border: "1.5px solid rgba(10,5,2,0.8)",
+                      boxShadow: "0 0 5px rgba(248,113,113,0.6)",
+                    }}
+                  >
+                    <span className="font-bold text-[7px] text-white leading-none">{adminMsgs.length}</span>
+                  </div>
+                </button>
+
+                {showAdminMsgsPopup && (
+                  <div
+                    data-testid="popup-admin-messages"
+                    style={{
+                      position: "absolute",
+                      top: "calc(100% + 6px)",
+                      left: 0,
+                      width: "min(270px, calc(100vw - 16px))",
+                      maxHeight: "65vh",
+                      overflowY: "auto",
+                      zIndex: 99999,
+                      background: "linear-gradient(160deg, rgba(20,10,4,0.98) 0%, rgba(40,22,8,0.98) 100%)",
+                      border: "1px solid rgba(240,192,64,0.35)",
+                      borderRadius: 14,
+                      boxShadow: "0 8px 32px rgba(0,0,0,0.7), 0 0 20px rgba(240,192,64,0.1)",
+                      padding: "10px 10px 8px",
+                    }}
+                  >
+                    <p className="font-fantasy tracking-widest text-center mb-2" style={{ fontSize: 9, color: "rgba(240,192,64,0.7)", letterSpacing: "0.2em" }}>
+                      MESSAGES FROM ADMIN
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      {adminMsgs.map(am => {
+                        const isOpen = expandedMsgId === am.id;
+                        return (
+                          <div
+                            key={am.id}
+                            data-testid={`admin-message-${am.id}`}
+                            className="rounded-xl overflow-hidden"
+                            style={{ background: "rgba(240,192,64,0.06)", border: `1px solid ${isOpen ? "rgba(240,192,64,0.35)" : "rgba(240,192,64,0.18)"}` }}
+                          >
+                            {/* Collapsed header */}
+                            <button
+                              data-testid={`button-open-admin-message-${am.id}`}
+                              onClick={() => setExpandedMsgId(isOpen ? null : am.id)}
+                              className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left"
+                              style={{ background: "none", border: "none", cursor: "pointer" }}
+                            >
+                              <p className="font-fantasy text-[#f0c040] text-[10px] tracking-wider truncate flex-1">{am.subject}</p>
+                              <div className="flex items-center gap-1.5 flex-shrink-0">
+                                <span className="font-fantasy text-[#6a5840] text-[9px]">
+                                  {new Date(am.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                                </span>
+                                <span style={{ color: "rgba(240,192,64,0.5)", fontSize: 9 }}>{isOpen ? "▲" : "▼"}</span>
+                              </div>
+                            </button>
+
+                            {/* Expanded body */}
+                            {isOpen && (
+                              <div className="px-3 pb-3 space-y-2" style={{ borderTop: "1px solid rgba(240,192,64,0.12)" }}>
+                                <p className="font-sans text-[#d4b896] text-xs whitespace-pre-wrap break-words leading-relaxed pt-2">{am.message}</p>
+                                <div className="flex items-center justify-between gap-2">
+                                  <button
+                                    data-testid={`button-close-admin-message-${am.id}`}
+                                    onClick={() => setExpandedMsgId(null)}
+                                    className="font-fantasy tracking-wider transition-transform active:scale-90"
+                                    style={{ fontSize: 9, padding: "3px 10px", borderRadius: 6, background: "rgba(240,192,64,0.1)", border: "1px solid rgba(240,192,64,0.25)", color: "rgba(240,192,64,0.7)", cursor: "pointer" }}
+                                  >
+                                    Close
+                                  </button>
+                                  <button
+                                    data-testid={`button-delete-admin-message-${am.id}`}
+                                    onClick={() => deleteAdminMsgMutation.mutate(am.id)}
+                                    disabled={deleteAdminMsgMutation.isPending}
+                                    className="font-fantasy tracking-wider transition-transform active:scale-90"
+                                    style={{ fontSize: 9, padding: "3px 10px", borderRadius: 6, background: "rgba(139,32,32,0.3)", border: "1px solid rgba(255,100,100,0.3)", color: "#ff9999", cursor: "pointer" }}
+                                  >
+                                    Dismiss
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Name + coins stacked to the right of the photo */}
@@ -583,115 +698,6 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                 </div>
               )}
 
-              {/* Admin messages envelope — only visible when messages exist */}
-              {adminMsgs.length > 0 && (
-                <div className="relative" ref={adminMsgRef}>
-                  <button
-                    data-testid="button-admin-messages"
-                    onClick={() => setShowAdminMsgsPopup(v => !v)}
-                    className="relative flex-shrink-0 transition-transform active:scale-90"
-                    style={{ background: "none", border: "none", cursor: "pointer" }}
-                    title="Messages from Admin"
-                  >
-                    <div
-                      className="w-11 h-11 rounded-full flex items-center justify-center"
-                      style={{
-                        background: "linear-gradient(135deg, rgba(30,15,5,0.9) 0%, rgba(60,35,10,0.9) 100%)",
-                        border: `1.5px solid ${showAdminMsgsPopup ? "rgba(240,192,64,0.85)" : "rgba(240,192,64,0.55)"}`,
-                        boxShadow: showAdminMsgsPopup ? "0 0 14px rgba(240,192,64,0.45)" : "0 0 10px rgba(240,192,64,0.25)",
-                      }}
-                    >
-                      <Mail size={20} color="#f0c040" />
-                    </div>
-                    <div
-                      className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full flex items-center justify-center px-1"
-                      style={{
-                        background: "radial-gradient(circle, #f87171 0%, #dc2626 100%)",
-                        border: "1.5px solid rgba(30,15,5,0.8)",
-                        boxShadow: "0 0 6px rgba(248,113,113,0.6)",
-                      }}
-                    >
-                      <span className="font-bold text-[8px] text-white leading-none">{adminMsgs.length}</span>
-                    </div>
-                  </button>
-
-                  {showAdminMsgsPopup && (
-                    <div
-                      data-testid="popup-admin-messages"
-                      className="absolute top-full mt-2 right-0 z-50"
-                      style={{
-                        width: 270,
-                        maxHeight: "65vh",
-                        overflowY: "auto",
-                        background: "linear-gradient(160deg, rgba(20,10,4,0.97) 0%, rgba(40,22,8,0.97) 100%)",
-                        border: "1px solid rgba(240,192,64,0.35)",
-                        borderRadius: 14,
-                        boxShadow: "0 8px 32px rgba(0,0,0,0.7), 0 0 20px rgba(240,192,64,0.1)",
-                        padding: "10px 10px 8px",
-                      }}
-                    >
-                      <p className="font-fantasy tracking-widest text-center mb-2" style={{ fontSize: 9, color: "rgba(240,192,64,0.7)", letterSpacing: "0.2em" }}>
-                        MESSAGES FROM ADMIN
-                      </p>
-                      <div className="flex flex-col gap-2">
-                        {adminMsgs.map(am => {
-                          const isOpen = expandedMsgId === am.id;
-                          return (
-                            <div
-                              key={am.id}
-                              data-testid={`admin-message-${am.id}`}
-                              className="rounded-xl overflow-hidden"
-                              style={{ background: "rgba(240,192,64,0.06)", border: `1px solid ${isOpen ? "rgba(240,192,64,0.35)" : "rgba(240,192,64,0.18)"}` }}
-                            >
-                              {/* Collapsed header — always visible, click to expand */}
-                              <button
-                                data-testid={`button-open-admin-message-${am.id}`}
-                                onClick={() => setExpandedMsgId(isOpen ? null : am.id)}
-                                className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left"
-                                style={{ background: "none", border: "none", cursor: "pointer" }}
-                              >
-                                <p className="font-fantasy text-[#f0c040] text-[10px] tracking-wider truncate flex-1">{am.subject}</p>
-                                <div className="flex items-center gap-1.5 flex-shrink-0">
-                                  <span className="font-fantasy text-[#6a5840] text-[9px]">
-                                    {new Date(am.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                                  </span>
-                                  <span style={{ color: "rgba(240,192,64,0.5)", fontSize: 9 }}>{isOpen ? "▲" : "▼"}</span>
-                                </div>
-                              </button>
-
-                              {/* Expanded body */}
-                              {isOpen && (
-                                <div className="px-3 pb-3 space-y-2" style={{ borderTop: "1px solid rgba(240,192,64,0.12)" }}>
-                                  <p className="font-sans text-[#d4b896] text-xs whitespace-pre-wrap break-words leading-relaxed pt-2">{am.message}</p>
-                                  <div className="flex items-center justify-between gap-2">
-                                    <button
-                                      data-testid={`button-close-admin-message-${am.id}`}
-                                      onClick={() => setExpandedMsgId(null)}
-                                      className="font-fantasy tracking-wider transition-transform active:scale-90"
-                                      style={{ fontSize: 9, padding: "2px 8px", borderRadius: 6, background: "rgba(240,192,64,0.1)", border: "1px solid rgba(240,192,64,0.25)", color: "rgba(240,192,64,0.7)", cursor: "pointer" }}
-                                    >
-                                      Close
-                                    </button>
-                                    <button
-                                      data-testid={`button-delete-admin-message-${am.id}`}
-                                      onClick={() => deleteAdminMsgMutation.mutate(am.id)}
-                                      disabled={deleteAdminMsgMutation.isPending}
-                                      className="font-fantasy tracking-wider transition-transform active:scale-90"
-                                      style={{ fontSize: 9, padding: "2px 8px", borderRadius: 6, background: "rgba(139,32,32,0.3)", border: "1px solid rgba(255,100,100,0.3)", color: "#ff9999", cursor: "pointer" }}
-                                    >
-                                      Dismiss
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           </div>
         </div>
