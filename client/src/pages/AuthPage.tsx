@@ -61,6 +61,7 @@ export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [loginFailed, setLoginFailed] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ username?: string; email?: string; password?: string; general?: string }>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [, setLocation] = useLocation();
