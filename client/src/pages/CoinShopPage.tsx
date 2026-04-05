@@ -80,6 +80,28 @@ const PACK_OUTER_GLOW: Record<string, string> = {
 };
 
 const fireflyKeyframes = `
+@keyframes coinSpin {
+  0% { transform: rotateY(0deg) scale(1); }
+  50% { transform: rotateY(180deg) scale(1.15); }
+  100% { transform: rotateY(360deg) scale(1); }
+}
+@keyframes modalScaleIn {
+  0% { transform: scale(0.7) translateY(20px); opacity: 0; }
+  60% { transform: scale(1.04) translateY(-4px); opacity: 1; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+@keyframes coinGlowPulse {
+  0%, 100% { filter: drop-shadow(0 0 18px rgba(240,192,64,0.9)) drop-shadow(0 0 40px rgba(240,192,64,0.5)); }
+  50% { filter: drop-shadow(0 0 30px rgba(240,192,64,1)) drop-shadow(0 0 70px rgba(240,192,64,0.7)) drop-shadow(0 0 100px rgba(240,192,64,0.3)); }
+}
+@keyframes shimmerText {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 @keyframes fireflyDrift1 {
   0% { transform: translate(0, 0) scale(1); opacity: 0; }
   10% { opacity: 1; }
@@ -203,6 +225,14 @@ export default function CoinShopPage({ user }: CoinShopProps) {
     }
   }, [searchString]);
 
+  useEffect(() => {
+    if (successCoins !== null) {
+      burstGoldenOrbs(window.innerWidth / 2, window.innerHeight / 2);
+      setTimeout(() => burstGoldenOrbs(window.innerWidth / 3, window.innerHeight / 3), 300);
+      setTimeout(() => burstGoldenOrbs((window.innerWidth * 2) / 3, window.innerHeight / 3), 500);
+    }
+  }, [successCoins]);
+
   const handleBuy = (packId: string) => {
     playShopBell();
     setBuyingPackId(packId);
@@ -297,25 +327,6 @@ export default function CoinShopPage({ user }: CoinShopProps) {
           </div>
         )}
 
-        {successCoins !== null && (
-          <div className="mx-4 mb-4 rounded-lg p-4 text-center animate-slide-up" style={{ background: "linear-gradient(135deg, rgba(10,40,15,0.9) 0%, rgba(20,60,25,0.9) 100%)", border: "1px solid rgba(127,255,212,0.5)", boxShadow: "0 4px 30px rgba(127,255,212,0.25), 0 0 60px rgba(74,222,128,0.15)" }}>
-            <img src={coinIconImg} alt="" className="w-10 h-10 mx-auto mb-2" style={{ filter: "drop-shadow(0 0 15px rgba(240,192,64,0.7))" }} />
-            <div className="font-fantasy text-[#7fffd4] text-lg tracking-wider" data-testid="text-success-message">
-              +{successCoins.toLocaleString()} Coins!
-            </div>
-            <p className="font-fantasy text-[10px] tracking-wider mt-1" style={{ color: "rgba(127,255,212,0.5)" }}>
-              Successfully added to your account
-            </p>
-            <button
-              data-testid="button-dismiss-success"
-              onClick={() => setSuccessCoins(null)}
-              className="mt-3 px-6 py-1.5 rounded-md font-fantasy text-[10px] tracking-wider"
-              style={{ background: "rgba(127,255,212,0.15)", border: "1px solid rgba(127,255,212,0.3)", color: "#7fffd4", cursor: "pointer" }}
-            >
-              Continue
-            </button>
-          </div>
-        )}
 
         {isLoading ? (
           <div className="text-center py-12">
@@ -439,6 +450,126 @@ export default function CoinShopPage({ user }: CoinShopProps) {
             queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
           }}
         />
+      )}
+
+      {successCoins !== null && (
+        <div
+          data-testid="modal-purchase-success"
+          style={{
+            position: "fixed", inset: 0, zIndex: 9999,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            background: "rgba(0,8,2,0.88)",
+            animation: "overlayFadeIn 0.25s ease-out",
+            backdropFilter: "blur(6px)",
+          }}
+        >
+          <div style={{
+            position: "relative",
+            width: "min(340px, 90vw)",
+            background: "linear-gradient(160deg, #050f07 0%, #0a1f0d 40%, #081808 70%, #040d05 100%)",
+            border: "1.5px solid rgba(127,255,212,0.45)",
+            borderRadius: "20px",
+            padding: "36px 28px 28px",
+            textAlign: "center",
+            boxShadow: "0 0 60px rgba(74,222,128,0.18), 0 0 120px rgba(127,255,212,0.1), inset 0 1px 0 rgba(127,255,212,0.12)",
+            animation: "modalScaleIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both",
+          }}>
+            <div style={{
+              position: "absolute", top: 0, left: 0, right: 0, height: "60px",
+              background: "linear-gradient(180deg, rgba(74,222,128,0.07) 0%, transparent 100%)",
+              borderRadius: "20px 20px 0 0", pointerEvents: "none",
+            }} />
+
+            <div style={{
+              position: "absolute", top: "-1px", left: "50%", transform: "translateX(-50%)",
+              width: "80px", height: "2px",
+              background: "linear-gradient(90deg, transparent, rgba(127,255,212,0.8), transparent)",
+              borderRadius: "2px",
+            }} />
+
+            <div style={{ marginBottom: "20px" }}>
+              <img
+                src={coinIconImg}
+                alt="coins"
+                style={{
+                  width: "72px", height: "72px",
+                  margin: "0 auto",
+                  display: "block",
+                  animation: "coinSpin 2.5s ease-in-out infinite, coinGlowPulse 1.8s ease-in-out infinite",
+                }}
+              />
+            </div>
+
+            <div
+              className="font-fantasy tracking-widest"
+              style={{
+                fontSize: "11px",
+                color: "rgba(127,255,212,0.6)",
+                letterSpacing: "0.25em",
+                marginBottom: "8px",
+                textTransform: "uppercase",
+              }}
+            >
+              ✦ Purchase Complete ✦
+            </div>
+
+            <div
+              data-testid="text-success-message"
+              className="font-fantasy"
+              style={{
+                fontSize: "32px",
+                fontWeight: "bold",
+                background: "linear-gradient(90deg, #f0c040, #ffe080, #f0c040, #ffd700, #f0c040)",
+                backgroundSize: "200% auto",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+                animation: "shimmerText 2.5s linear infinite",
+                marginBottom: "6px",
+                lineHeight: 1.1,
+              }}
+            >
+              +{successCoins.toLocaleString()}
+            </div>
+
+            <div
+              className="font-fantasy tracking-wider"
+              style={{ fontSize: "16px", color: "#7fffd4", marginBottom: "6px" }}
+            >
+              Coins
+            </div>
+
+            <p
+              className="font-fantasy tracking-wider"
+              style={{ fontSize: "11px", color: "rgba(127,255,212,0.45)", marginBottom: "28px" }}
+            >
+              Added to your treasury
+            </p>
+
+            <button
+              data-testid="button-dismiss-success"
+              onClick={() => { playShopBell(); setSuccessCoins(null); }}
+              className="font-fantasy tracking-widest"
+              style={{
+                width: "100%",
+                padding: "12px 0",
+                borderRadius: "10px",
+                fontSize: "12px",
+                letterSpacing: "0.2em",
+                background: "linear-gradient(135deg, rgba(74,222,128,0.18) 0%, rgba(127,255,212,0.12) 100%)",
+                border: "1.5px solid rgba(127,255,212,0.45)",
+                color: "#7fffd4",
+                cursor: "pointer",
+                boxShadow: "0 0 20px rgba(127,255,212,0.12)",
+                transition: "all 0.15s ease",
+              }}
+              onMouseEnter={e => { (e.target as HTMLElement).style.background = "linear-gradient(135deg, rgba(74,222,128,0.28) 0%, rgba(127,255,212,0.2) 100%)"; }}
+              onMouseLeave={e => { (e.target as HTMLElement).style.background = "linear-gradient(135deg, rgba(74,222,128,0.18) 0%, rgba(127,255,212,0.12) 100%)"; }}
+            >
+              ✦ Wondrous! ✦
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
