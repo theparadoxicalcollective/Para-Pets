@@ -122,6 +122,8 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
     },
   });
 
+  const [expandedMsgId, setExpandedMsgId] = useState<string | null>(null);
+
   const { data: friendsList = [] } = useQuery<any[]>({
     queryKey: ["/api/friends"],
     enabled: showFriendsList,
@@ -616,10 +618,10 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                   {showAdminMsgsPopup && (
                     <div
                       data-testid="popup-admin-messages"
-                      className="absolute top-full mt-2 left-0 z-50"
+                      className="absolute top-full mt-2 right-0 z-50"
                       style={{
-                        width: 260,
-                        maxHeight: "60vh",
+                        width: 270,
+                        maxHeight: "65vh",
                         overflowY: "auto",
                         background: "linear-gradient(160deg, rgba(20,10,4,0.97) 0%, rgba(40,22,8,0.97) 100%)",
                         border: "1px solid rgba(240,192,64,0.35)",
@@ -632,33 +634,59 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                         MESSAGES FROM ADMIN
                       </p>
                       <div className="flex flex-col gap-2">
-                        {adminMsgs.map(am => (
-                          <div
-                            key={am.id}
-                            data-testid={`admin-message-${am.id}`}
-                            className="rounded-xl p-3 space-y-1.5"
-                            style={{ background: "rgba(240,192,64,0.06)", border: "1px solid rgba(240,192,64,0.18)" }}
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <p className="font-fantasy text-[#f0c040] text-[10px] tracking-wider truncate">{am.subject}</p>
-                              <span className="font-fantasy text-[#6a5840] text-[9px] flex-shrink-0">
-                                {new Date(am.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                              </span>
-                            </div>
-                            <p className="font-sans text-[#d4b896] text-xs whitespace-pre-wrap break-words leading-relaxed">{am.message}</p>
-                            <div className="flex justify-end">
+                        {adminMsgs.map(am => {
+                          const isOpen = expandedMsgId === am.id;
+                          return (
+                            <div
+                              key={am.id}
+                              data-testid={`admin-message-${am.id}`}
+                              className="rounded-xl overflow-hidden"
+                              style={{ background: "rgba(240,192,64,0.06)", border: `1px solid ${isOpen ? "rgba(240,192,64,0.35)" : "rgba(240,192,64,0.18)"}` }}
+                            >
+                              {/* Collapsed header — always visible, click to expand */}
                               <button
-                                data-testid={`button-delete-admin-message-${am.id}`}
-                                onClick={() => deleteAdminMsgMutation.mutate(am.id)}
-                                disabled={deleteAdminMsgMutation.isPending}
-                                className="font-fantasy tracking-wider transition-transform active:scale-90"
-                                style={{ fontSize: 9, padding: "2px 8px", borderRadius: 6, background: "rgba(139,32,32,0.3)", border: "1px solid rgba(255,100,100,0.3)", color: "#ff9999", cursor: "pointer" }}
+                                data-testid={`button-open-admin-message-${am.id}`}
+                                onClick={() => setExpandedMsgId(isOpen ? null : am.id)}
+                                className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left"
+                                style={{ background: "none", border: "none", cursor: "pointer" }}
                               >
-                                Dismiss
+                                <p className="font-fantasy text-[#f0c040] text-[10px] tracking-wider truncate flex-1">{am.subject}</p>
+                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                  <span className="font-fantasy text-[#6a5840] text-[9px]">
+                                    {new Date(am.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                                  </span>
+                                  <span style={{ color: "rgba(240,192,64,0.5)", fontSize: 9 }}>{isOpen ? "▲" : "▼"}</span>
+                                </div>
                               </button>
+
+                              {/* Expanded body */}
+                              {isOpen && (
+                                <div className="px-3 pb-3 space-y-2" style={{ borderTop: "1px solid rgba(240,192,64,0.12)" }}>
+                                  <p className="font-sans text-[#d4b896] text-xs whitespace-pre-wrap break-words leading-relaxed pt-2">{am.message}</p>
+                                  <div className="flex items-center justify-between gap-2">
+                                    <button
+                                      data-testid={`button-close-admin-message-${am.id}`}
+                                      onClick={() => setExpandedMsgId(null)}
+                                      className="font-fantasy tracking-wider transition-transform active:scale-90"
+                                      style={{ fontSize: 9, padding: "2px 8px", borderRadius: 6, background: "rgba(240,192,64,0.1)", border: "1px solid rgba(240,192,64,0.25)", color: "rgba(240,192,64,0.7)", cursor: "pointer" }}
+                                    >
+                                      Close
+                                    </button>
+                                    <button
+                                      data-testid={`button-delete-admin-message-${am.id}`}
+                                      onClick={() => deleteAdminMsgMutation.mutate(am.id)}
+                                      disabled={deleteAdminMsgMutation.isPending}
+                                      className="font-fantasy tracking-wider transition-transform active:scale-90"
+                                      style={{ fontSize: 9, padding: "2px 8px", borderRadius: 6, background: "rgba(139,32,32,0.3)", border: "1px solid rgba(255,100,100,0.3)", color: "#ff9999", cursor: "pointer" }}
+                                    >
+                                      Dismiss
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
