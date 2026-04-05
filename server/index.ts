@@ -943,6 +943,128 @@ app.use((req, res, next) => {
     console.error("Door background seed error (non-fatal):", err);
   }
 
+  // Migration: restore Elysian Bayou layout to pre-migration state
+  // Removes wrongly-recreated locations, restores 6 original fishing spots,
+  // populates pond_fish for all fishing locations, and fixes deleted_seed_location_ids.
+  try {
+    const bayouLayoutDone = await storage.getGameSetting("bayou_layout_restore_v1");
+    if (!bayouLayoutDone) {
+      // 1. Remove the 3 seed locations that were admin-deleted before migration
+      const wrongIds = [
+        "a1b2c3d4-0002-4000-8000-000000000002", // Willowmere
+        "a1b2c3d4-0006-4000-8000-000000000006", // The Mossy Cauldron
+        "a1b2c3d4-0007-4000-8000-000000000007", // FishingRipples
+      ];
+      for (const id of wrongIds) {
+        await storage.deleteWorldLocation(id);
+        console.log(`Bayou restore: removed wrongly-recreated location ${id}`);
+      }
+
+      // 2. Restore deleted_seed_location_ids from backup so seeder won't re-create them
+      const backupDeletedIds = [
+        "a1b2c3d4-0002-4000-8000-000000000002",
+        "a1b2c3d4-0003-4000-8000-000000000003",
+        "a1b2c3d4-0006-4000-8000-000000000006",
+        "a1b2c3d4-0007-4000-8000-000000000007",
+        "4f20f0d9-ce58-4352-b336-bbd13953f1d4",
+        "a942db14-d495-4da0-a894-c93b25214d42",
+        "28ba1fb8-7f06-476f-96e0-3880e8a2a142",
+        "38b27978-07f0-4b97-bd15-7bb10ce7b088",
+        "b1a64e3b-2ced-4f0c-b426-519f4bc2fc29",
+        "2552cd0d-5c4b-495d-9e91-a747d2c77f54",
+        "1a9ce75c-3b93-40d0-b0fb-6ecd8d239493",
+        "55a321e5-7d86-46ca-a0e2-de872b81bacd",
+        "d33f82ed-ed29-4f8a-8f03-eece095f8cd1",
+        "0be415d3-e6ef-4e9e-859c-e90d4ddeffc1",
+        "21df41d7-13a9-4662-a952-fda47c85f9f2",
+        "dfab54ba-b62e-418b-afab-6f0f723842f0",
+        "ab548ea4-ce02-435c-9fd3-b1d2ae7fcd95",
+        "4582fe67-8f80-4012-8cc0-198eeff572de",
+        "957c227c-1dfe-4dd3-8307-2e8adabc8df0",
+      ];
+      await storage.setGameSetting("deleted_seed_location_ids", JSON.stringify(backupDeletedIds));
+      console.log("Bayou restore: deleted_seed_location_ids restored from backup.");
+
+      // 3. Restore the 6 original fishing spot locations (from backup, replaced FishingRipples)
+      const pondIcon = loadAssetBase64("icon_myst_pond_v2.png");
+      const SWAMP_FISHING_SPOTS = [
+        { id: "d0538c24-8700-4f36-b0c8-5f551cd9a78f", posX: 32.53, posY: 43.12, iconSize: 100, sortOrder: 44 },
+        { id: "6ec73ccd-4501-49dd-b776-9d249810e541", posX: 38.89, posY: 51.87, iconSize: 120, sortOrder: 47 },
+        { id: "9d68bca6-4e79-41a7-b172-a4f48e94bfba", posX: 52.59, posY: 36.10, iconSize: 90,  sortOrder: 51 },
+        { id: "4824fc13-bbd4-4024-b1d4-1e5a377a5204", posX: 59.20, posY: 74.88, iconSize: 160, sortOrder: 56 },
+        { id: "581b3d74-3e1b-4f08-bf3e-50097e78a87b", posX: 83.78, posY: 66.62, iconSize: 160, sortOrder: 66 },
+        { id: "4084917e-8665-4330-8b7c-15cf5db30944", posX: 34.53, posY: 32.14, iconSize: 100, sortOrder: 108 },
+      ];
+      for (const spot of SWAMP_FISHING_SPOTS) {
+        const existing = await db.execute(sql`SELECT id FROM world_locations WHERE id = ${spot.id}`);
+        if ((existing as any).rows?.length === 0) {
+          await db.execute(sql`
+            INSERT INTO world_locations (id, world_id, name, type, description, pos_x, pos_y, glow_color, icon_size, sort_order, is_shop, icon_url)
+            VALUES (
+              ${spot.id}, 'swamp', 'Fishing Spot', 'fishing',
+              'A mystical fishing spot in the bayou.',
+              ${spot.posX}, ${spot.posY}, '#3dc7c0', ${spot.iconSize}, ${spot.sortOrder},
+              false, ${pondIcon}
+            )
+          `);
+          console.log(`Bayou restore: created Fishing Spot ${spot.id} at (${spot.posX}, ${spot.posY}) size ${spot.iconSize}`);
+        }
+      }
+
+      // 4. Populate pond_fish for all fishing locations (6 swamp spots + volcanic)
+      const ALL_FISH_IDS = [
+        "bf49598e-a4da-4281-b209-5c19538a1a34", // Camouflaged Marshland Fish (1★)
+        "fffaec70-88c6-4150-a056-998186cbfc87", // Crystal Koi (1★)
+        "4c3006d2-a95f-4764-9864-3223f9b1f56e", // Cursed Koi (1★)
+        "cb943744-42de-471d-9d0d-47ee3f725dbc", // Ghast Guppy (1★)
+        "f6b76285-501a-454a-b7f6-98d93c9708f8", // Golden Sunfish (1★)
+        "ae705fe6-1c59-4109-8abf-5147cf760a62", // Grunge Goldfish (1★)
+        "7e84601c-c371-46a5-90be-f5a443e8cb7e", // Pleco (1★)
+        "c66f251d-f229-47d2-b5b0-841169e82755", // Rainbow Mahi (1★)
+        "eaed34c5-3c13-4dc5-8acd-6691f6f8b5f8", // Spectrum Goldfish (1★)
+        "0ae3771e-0a5e-4aa1-8979-0ae56aa17102", // Crystal Crab (2★)
+        "f2b2c0bf-aacc-48c9-b175-b774fb6d7e05", // Diamond Carp (2★)
+        "c7898ee3-c5b8-4c0b-b126-2f6e4224b7e4", // Electric Rock Fish (2★)
+        "8d0299ed-1343-47ec-87e7-7a156f1a6d64", // Mossy Catfish (2★)
+        "a923d64b-39fa-4df9-bab5-c9c821969b0c", // Red Mood Koi (2★)
+        "6eae0bcd-b35d-4bea-a01e-05e0eb2b026f", // Volcanic Goldfish (2★)
+        "c0d614c3-913a-44a3-84d4-94f7168d00a5", // Astral Koi (3★)
+        "80744a58-bc93-4672-a261-7c458a5382b1", // Dark Mist Koi (3★)
+        "67b02877-4a0d-4c7b-9817-ae2461806b2c", // Dragon Eel (3★)
+        "2b52c81b-1683-436c-bbb3-f065edaa9c50", // Gentle Ray (3★)
+        "6ff4308b-a48c-49ed-8334-0a88c0925bf6", // Hook Fanged Lantern (3★)
+        "23c9cf5f-9ca9-4906-8e81-f704396855c3", // Pink Axolotl (3★)
+        "1ea55a62-1e5b-4ea1-bb4e-f23063d6c389", // Deep Sea Guardian (4★)
+        "03ff6356-7ff3-406d-b917-24b9b666ad6e", // The Ancient (4★)
+        "a27601ef-9186-435b-9e5d-70d92afc2330", // Water Spirit (5★)
+      ];
+      const ALL_FISHING_LOCATION_IDS = [
+        ...SWAMP_FISHING_SPOTS.map(s => s.id),
+        "3b3bb453-e012-4ba3-9308-71c1376d84a8", // Volcanic Fishing Spot
+      ];
+      let pondFishInserted = 0;
+      for (const locId of ALL_FISHING_LOCATION_IDS) {
+        for (const fishId of ALL_FISH_IDS) {
+          const existing = await db.execute(sql`
+            SELECT id FROM pond_fish WHERE location_id = ${locId} AND shop_item_id = ${fishId}
+          `);
+          if ((existing as any).rows?.length === 0) {
+            await db.execute(sql`
+              INSERT INTO pond_fish (location_id, shop_item_id) VALUES (${locId}, ${fishId})
+            `);
+            pondFishInserted++;
+          }
+        }
+      }
+      console.log(`Bayou restore: inserted ${pondFishInserted} pond_fish rows across ${ALL_FISHING_LOCATION_IDS.length} locations.`);
+
+      await storage.setGameSetting("bayou_layout_restore_v1", "done");
+      console.log("Elysian Bayou layout restoration complete.");
+    }
+  } catch (err) {
+    console.error("Bayou layout restore error (non-fatal):", err);
+  }
+
   console.log("Background initialization complete.");
 
   // Backfill Advanced Acquisition badge for users who previously bought a $100 pack
