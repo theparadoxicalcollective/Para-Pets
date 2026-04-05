@@ -1726,10 +1726,12 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Username is required" });
       }
       const messageSubject = subject ? `Re: ${subject}` : "Message from Admin";
+      console.log(`[admin-respond] Writing admin message for username="${username.trim()}" subject="${messageSubject}"`);
       await storage.createAdminMessage(username.trim(), messageSubject, response.trim());
+      console.log(`[admin-respond] Success — message stored for "${username.trim()}"`);
       return res.json({ message: "Response sent" });
     } catch (err) {
-      console.error("Admin respond error:", err);
+      console.error("[admin-respond] DB error:", err);
       return res.status(500).json({ message: "Failed to send response" });
     }
   });
@@ -1738,9 +1740,12 @@ export async function registerRoutes(
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Unauthorized" });
     try {
       const user = req.user as any;
+      console.log(`[admin-messages] Fetching messages for username="${user.username}"`);
       const msgs = await storage.getAdminMessagesByUsername(user.username);
+      console.log(`[admin-messages] Found ${msgs.length} message(s) for "${user.username}"`);
       return res.json(msgs);
     } catch (err) {
+      console.error("[admin-messages] DB error:", err);
       return res.status(500).json({ message: "Failed to get messages" });
     }
   });
