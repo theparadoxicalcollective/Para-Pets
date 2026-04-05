@@ -708,6 +708,18 @@ app.use((req, res, next) => {
       await storage.setGameSetting("bayous_heart_icon_v2", "done");
     }
 
+    // Migration: restore Bayou's Heart icon to original from pre-migration backup
+    const bayousHeartIconV3Done = await storage.getGameSetting("bayous_heart_icon_v3");
+    if (!bayousHeartIconV3Done) {
+      const BAYOUS_HEART_ID = "8e211716-0448-496e-8582-6ce1025ac4e4";
+      const originalIcon = loadAssetBase64("icon_bayous_heart_original.png");
+      if (originalIcon) {
+        await storage.updateWorldLocation(BAYOUS_HEART_ID, { iconUrl: originalIcon } as any);
+        console.log("Bayou's Heart icon restored to original pre-migration version.");
+      }
+      await storage.setGameSetting("bayous_heart_icon_v3", "done");
+    }
+
     // Seed Murk Cave enemies (one-time)
     const murkEnemiesDone = await storage.getGameSetting("murk_cave_enemies_v1");
     if (!murkEnemiesDone) {
