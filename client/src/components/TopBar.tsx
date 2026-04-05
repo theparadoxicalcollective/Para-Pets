@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Mail } from "lucide-react";
 import coinIconImg from "@assets/icon_coin.png";
 import giftIconImg from "@assets/generated_images/gift_icon_forest.png";
 import RewardClaimModal from "./RewardClaimModal";
@@ -32,9 +33,11 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
   const [showRewards, setShowRewards] = useState(false);
   const [showRequestsPopup, setShowRequestsPopup] = useState(false);
   const [showFriendsList, setShowFriendsList] = useState(false);
+  const [showAdminMsgsPopup, setShowAdminMsgsPopup] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<{ id: string; username: string } | null>(null);
   const popupRef = useRef<HTMLDivElement>(null);
   const friendsListRef = useRef<HTMLDivElement>(null);
+  const adminMsgRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const seenNotifIds = useRef<Set<string>>(new Set());
@@ -49,6 +52,14 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
     queryKey: ["/api/friends/requests/count"],
     refetchInterval: 45000,
   });
+
+  interface AdminMsg { id: string; subject: string; message: string; createdAt: string; }
+  const { data: adminMsgsRaw } = useQuery<AdminMsg[]>({
+    queryKey: ["/api/admin-messages"],
+    staleTime: 0,
+    refetchInterval: 60000,
+  });
+  const adminMsgs: AdminMsg[] = Array.isArray(adminMsgsRaw) ? adminMsgsRaw : [];
 
   const { data: unreadNotifications = [] } = useQuery<any[]>({
     queryKey: ["/api/notifications/unread"],
@@ -104,6 +115,13 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
     },
   });
 
+  const deleteAdminMsgMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/admin-messages/${id}`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin-messages"] });
+    },
+  });
+
   const { data: friendsList = [] } = useQuery<any[]>({
     queryKey: ["/api/friends"],
     enabled: showFriendsList,
@@ -144,6 +162,17 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showFriendsList]);
+
+  useEffect(() => {
+    if (!showAdminMsgsPopup) return;
+    function handleClick(e: MouseEvent) {
+      if (adminMsgRef.current && !adminMsgRef.current.contains(e.target as Node)) {
+        setShowAdminMsgsPopup(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showAdminMsgsPopup]);
 
   // Auto-close the popup once all requests have been handled
   useEffect(() => {
@@ -547,6 +576,90 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                           ))}
                         </div>
                       )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Admin messages envelope — only visible when messages exist */}
+              {adminMsgs.length > 0 && (
+                <div className="relative" ref={adminMsgRef}>
+                  <button
+                    data-testid="button-admin-messages"
+                    onClick={() => setShowAdminMsgsPopup(v => !v)}
+                    className="relative flex-shrink-0 transition-transform active:scale-90"
+                    style={{ background: "none", border: "none", cursor: "pointer" }}
+                    title="Messages from Admin"
+                  >
+                    <div
+                      className="w-11 h-11 rounded-full flex items-center justify-center"
+                      style={{
+                        background: "linear-gradient(135deg, rgba(30,15,5,0.9) 0%, rgba(60,35,10,0.9) 100%)",
+                        border: `1.5px solid ${showAdminMsgsPopup ? "rgba(240,192,64,0.85)" : "rgba(240,192,64,0.55)"}`,
+                        boxShadow: showAdminMsgsPopup ? "0 0 14px rgba(240,192,64,0.45)" : "0 0 10px rgba(240,192,64,0.25)",
+                      }}
+                    >
+                      <Mail size={20} color="#f0c040" />
+                    </div>
+                    <div
+                      className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full flex items-center justify-center px-1"
+                      style={{
+                        background: "radial-gradient(circle, #f87171 0%, #dc2626 100%)",
+                        border: "1.5px solid rgba(30,15,5,0.8)",
+                        boxShadow: "0 0 6px rgba(248,113,113,0.6)",
+                      }}
+                    >
+                      <span className="font-bold text-[8px] text-white leading-none">{adminMsgs.length}</span>
+                    </div>
+                  </button>
+
+                  {showAdminMsgsPopup && (
+                    <div
+                      data-testid="popup-admin-messages"
+                      className="absolute top-full mt-2 left-0 z-50"
+                      style={{
+                        width: 260,
+                        maxHeight: "60vh",
+                        overflowY: "auto",
+                        background: "linear-gradient(160deg, rgba(20,10,4,0.97) 0%, rgba(40,22,8,0.97) 100%)",
+                        border: "1px solid rgba(240,192,64,0.35)",
+                        borderRadius: 14,
+                        boxShadow: "0 8px 32px rgba(0,0,0,0.7), 0 0 20px rgba(240,192,64,0.1)",
+                        padding: "10px 10px 8px",
+                      }}
+                    >
+                      <p className="font-fantasy tracking-widest text-center mb-2" style={{ fontSize: 9, color: "rgba(240,192,64,0.7)", letterSpacing: "0.2em" }}>
+                        MESSAGES FROM ADMIN
+                      </p>
+                      <div className="flex flex-col gap-2">
+                        {adminMsgs.map(am => (
+                          <div
+                            key={am.id}
+                            data-testid={`admin-message-${am.id}`}
+                            className="rounded-xl p-3 space-y-1.5"
+                            style={{ background: "rgba(240,192,64,0.06)", border: "1px solid rgba(240,192,64,0.18)" }}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="font-fantasy text-[#f0c040] text-[10px] tracking-wider truncate">{am.subject}</p>
+                              <span className="font-fantasy text-[#6a5840] text-[9px] flex-shrink-0">
+                                {new Date(am.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                              </span>
+                            </div>
+                            <p className="font-sans text-[#d4b896] text-xs whitespace-pre-wrap break-words leading-relaxed">{am.message}</p>
+                            <div className="flex justify-end">
+                              <button
+                                data-testid={`button-delete-admin-message-${am.id}`}
+                                onClick={() => deleteAdminMsgMutation.mutate(am.id)}
+                                disabled={deleteAdminMsgMutation.isPending}
+                                className="font-fantasy tracking-wider transition-transform active:scale-90"
+                                style={{ fontSize: 9, padding: "2px 8px", borderRadius: 6, background: "rgba(139,32,32,0.3)", border: "1px solid rgba(255,100,100,0.3)", color: "#ff9999", cursor: "pointer" }}
+                              >
+                                Dismiss
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
