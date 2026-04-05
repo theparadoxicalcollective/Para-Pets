@@ -1060,8 +1060,8 @@ function SupportMessagesSection() {
   });
 
   const respondMutation = useMutation({
-    mutationFn: async ({ id, response }: { id: string; response: string }) => {
-      await apiRequest("POST", `/api/admin/support-messages/${id}/respond`, { response });
+    mutationFn: async ({ id, response, username, subject }: { id: string; response: string; username: string; subject: string }) => {
+      await apiRequest("POST", `/api/admin/support-messages/${id}/respond`, { response, username, subject });
     },
     onSuccess: (_data, variables) => {
       toast({ title: "Response Sent", description: "Your reply has been delivered to the player." });
@@ -1164,6 +1164,7 @@ function SupportMessagesSection() {
                     </div>
                     <div className="flex gap-2 justify-end">
                       <button
+                        type="button"
                         data-testid={`button-cancel-respond-${msg.id}`}
                         onClick={() => setRespondingId(null)}
                         className="px-3 py-1.5 rounded-md font-fantasy text-[9px] tracking-wider"
@@ -1172,11 +1173,12 @@ function SupportMessagesSection() {
                         Cancel
                       </button>
                       <button
+                        type="button"
                         data-testid={`button-send-response-${msg.id}`}
                         onClick={() => {
                           const text = (responseText[msg.id] || "").trim();
                           if (!text) return;
-                          respondMutation.mutate({ id: msg.id, response: text });
+                          respondMutation.mutate({ id: msg.id, response: text, username: msg.username, subject: msg.subject });
                         }}
                         disabled={respondMutation.isPending || !(responseText[msg.id] || "").trim()}
                         className="px-3 py-1.5 rounded-md font-fantasy text-[9px] tracking-wider"

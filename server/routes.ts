@@ -1718,14 +1718,15 @@ export async function registerRoutes(
 
   app.post("/api/admin/support-messages/:id/respond", isAdmin, async (req, res) => {
     try {
-      const messages = await storage.getAllSupportMessages();
-      const msg = messages.find(m => m.id === req.params.id);
-      if (!msg) return res.status(404).json({ message: "Message not found" });
-      const { response } = req.body;
+      const { response, username, subject } = req.body;
       if (!response || typeof response !== "string" || !response.trim()) {
         return res.status(400).json({ message: "Response is required" });
       }
-      await storage.createAdminMessage(msg.username, `Re: ${msg.subject}`, response.trim());
+      if (!username || typeof username !== "string") {
+        return res.status(400).json({ message: "Username is required" });
+      }
+      const messageSubject = subject ? `Re: ${subject}` : "Message from Admin";
+      await storage.createAdminMessage(username.trim(), messageSubject, response.trim());
       return res.json({ message: "Response sent" });
     } catch (err) {
       console.error("Admin respond error:", err);
