@@ -1,0 +1,52 @@
+I need you to investigate and fully fix an asset/background caching or stale-reference issue in my web app game.
+
+Problem:
+Sometimes when players log in and enter certain areas — especially Keeper’s Central and Elysian Bayou — they see old assets/backgrounds that are no longer supposed to be there. This is intermittent, so it may be caused by stale cache, old references, or outdated preloaded files being served instead of the current ones.
+
+I need you to check for all likely causes and fix them, not just guess.
+
+Please investigate these specifically:
+	1.	Old file references in code
+	•	Search the entire project for any references to old background or asset filenames/paths related to Keeper’s Central and Elysian Bayou.
+	•	Check area config files, scene loaders, map definitions, preload lists, asset manifests, sprite/background assignments, and fallback/default asset logic.
+	2.	Caching problems
+	•	Check whether the browser, service worker, PWA caching, local storage, session storage, indexed DB, or any asset cache is keeping old files.
+	•	If a service worker exists, verify whether it is serving outdated cached assets.
+	•	Make sure updated assets are forced to refresh properly after deploys.
+	3.	Duplicate filenames / reused paths
+	•	Check whether old and new assets share similar names or paths that could cause the wrong file to be reused.
+	•	If needed, update the system so changed assets use cache-busting versioning like background-bayou-v2.png or query/hash versioning.
+	4.	Build/deploy mismatch
+	•	Check whether old assets still exist in the build output or public/static folders and are being included accidentally.
+	•	Make sure removed assets are actually removed from production output and not left behind.
+	5.	Login / area transition logic
+	•	Check whether login, preload, or area transition code is sometimes loading a previously cached scene/background before the correct one is applied.
+	•	Look for race conditions where old assets briefly win during initial load.
+	6.	Fallback logic
+	•	Check whether missing/slow asset loads trigger a fallback to an old background or default image.
+	•	If so, update the fallback to use the current correct asset only.
+
+What I want changed:
+	•	Remove all outdated references to old area assets.
+	•	Make the correct current backgrounds/assets load consistently every time.
+	•	Add proper cache busting/versioning for changed assets.
+	•	Clear or invalidate stale caches if necessary.
+	•	Make sure future asset replacements do not keep showing old files to players after deploy.
+
+Also add debug logging temporarily so we can see:
+	•	exactly which background/asset file path is being requested,
+	•	which one actually loads,
+	•	whether it came from cache,
+	•	and which scene/area triggered it.
+
+For debugging, log this when entering Keeper’s Central and Elysian Bayou:
+	•	area name
+	•	selected background filename/path
+	•	preload source
+	•	whether asset was already cached
+	•	final rendered asset
+
+Then give me:
+	1.	the root cause you found,
+	2.	the exact files/code you changed,
+	3.	and how you made sure this won’t keep happening after future updates.

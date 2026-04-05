@@ -358,6 +358,36 @@ app.use((req, res, next) => {
   // We intentionally keep worlds.icon_url null so the frontend uses the correct static icons.
   // Only admin-uploaded custom icons are stored in icon_url.
 
+  // Always refresh ALL location backgrounds as versioned static URLs on every restart.
+  // This ensures:
+  //   1. No location bg_url ever stays as a base64 blob (causes huge API responses).
+  //   2. All bg_urls have ?v= cache-busting so browsers reload changed files automatically.
+  //   3. Self-healing: any rogue base64 overwrite is corrected on next restart.
+  const LOC_BG_ALWAYS_REFRESH: Record<string, string> = {
+    "3e20ad30-faff-4643-9e80-5e5f30010738": "bg_thicket.webp",
+    "97ff55d1-376b-466a-8fe9-992b09dbaacc": "bg_mire_bazaar.webp",
+    "8e211716-0448-496e-8582-6ce1025ac4e4": "bg_bayous_heart.webp",
+    "a1b2c3d4-0001-4000-8000-000000000001": "bg_murk_cave.webp",
+    "a1b2c3d4-0004-4000-8000-000000000004": "bg_tome_toad.webp",
+    "a1b2c3d4-0005-4000-8000-000000000005": "bg_swamp_critters.webp",
+    "a1b2c3d4-0006-4000-8000-000000000006": "bg_mossy_cauldron.webp",
+    "a1b2c3d4-0008-4000-8000-000000000008": "bg_soggy_hook_v1.webp",
+    "a1b2c3d4-0002-4000-8000-000000000002": "bg_willowmere_cottage.webp",
+  };
+  for (const [locId, bgFile] of Object.entries(LOC_BG_ALWAYS_REFRESH)) {
+    try {
+      const assetPath = path.join(process.cwd(), "attached_assets", bgFile);
+      if (!fs.existsSync(assetPath)) continue;
+      const mtime = fs.statSync(assetPath).mtimeMs;
+      const v = Math.floor(mtime / 1000);
+      const bgUrl = `/world-assets/${bgFile}?v=${v}`;
+      await db.execute(sql`UPDATE world_locations SET bg_url = ${bgUrl} WHERE id = ${locId} AND (bg_url IS NULL OR bg_url NOT LIKE ${`/world-assets/${bgFile}?v=${v}`})`);
+    } catch (err) {
+      console.error(`Location bg refresh error for ${locId} (non-fatal):`, err);
+    }
+  }
+  console.log("Location backgrounds refreshed with versioned static URLs.");
+
   try {
     const swampLocations = await storage.getWorldLocations("swamp");
 
@@ -476,12 +506,8 @@ app.use((req, res, next) => {
       } as any);
       console.log("General Shop migration complete");
     }
-    // Refresh General Shop background and icon from assets (do not overwrite admin-editable name)
-    const mireBazaarBg = loadAssetBase64("bg_mire_bazaar.webp");
-    if (mireBazaarBg) {
-      await storage.updateWorldLocation(SHOP_ID, { bgUrl: mireBazaarBg } as any);
-      console.log("General Shop background refreshed.");
-    }
+    // General Shop bg_url is maintained by the LOC_BG_ALWAYS_REFRESH block above (versioned static URL).
+    // Refresh icon from asset (do not overwrite admin-editable name)
     const mireBazaarIcon = loadAssetBase64("icon_mire_bazaar.png");
     if (mireBazaarIcon) {
       const shopLocFresh = swampLocations.find(l => l.id === SHOP_ID);
@@ -982,6 +1008,7 @@ app.use((req, res, next) => {
     const doorRows = ((await db.execute(sql`SELECT id, name, bg_url FROM kc_doors WHERE world_id = 'pet_world'`)) as any).rows as any[];
     const DOOR_BG_SEEDS: Array<{ match: string; file: string }> = [
       { match: "welcome",  file: "bg_welcome_center.webp"  },
+      { match: "cottage",  file: "bg_welcome_center.webp"  },
       { match: "fortune",  file: "bg_well_of_fortune.webp"  },
       { match: "cellar",   file: "bg_market_cellar.webp"    },
     ];
@@ -992,8 +1019,10 @@ app.use((req, res, next) => {
       if (!door) continue;
       const assetPath = path.join(process.cwd(), "attached_assets", seed.file);
       if (!fs.existsSync(assetPath)) continue;
-      const fileUrl = `/world-assets/${seed.file}`;
-      // Always refresh so a new asset file is picked up automatically
+      const mtime = fs.statSync(assetPath).mtimeMs;
+      const v = Math.floor(mtime / 1000);
+      const fileUrl = `/world-assets/${seed.file}?v=${v}`;
+      // Always refresh so a new asset file and its version are picked up automatically
       await db.execute(sql`UPDATE kc_doors SET bg_url = ${fileUrl} WHERE id = ${door.id}`);
       console.log(`${door.name} door background seeded (${fileUrl}).`);
     }
