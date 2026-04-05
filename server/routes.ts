@@ -1760,6 +1760,20 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/admin/debug-admin-messages", isAdmin, async (_req, res) => {
+    try {
+      const result = await db.execute(sql`
+        SELECT id, username, subject, left(message, 40) as message_preview, created_at
+        FROM admin_messages
+        ORDER BY created_at DESC
+        LIMIT 20
+      `);
+      return res.json({ tableExists: true, rows: result.rows, count: result.rows.length });
+    } catch (err: any) {
+      return res.json({ tableExists: false, error: err.message });
+    }
+  });
+
   app.get("/api/admin/users", isAdmin, async (_req, res) => {
     try {
       const allUsers = await storage.getAllUsers();
