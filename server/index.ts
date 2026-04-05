@@ -290,14 +290,14 @@ app.use((req, res, next) => {
   }
 
   const DEFAULT_WORLDS = [
-    { id: "sky_realm", name: "Sky Realm", posX: 45, posY: 3, glowColor: "#ffd700" },
-    { id: "snowy_mountain", name: "Frostpeak", posX: 5, posY: 15, glowColor: "#88ccff" },
-    { id: "enchanted_grove", name: "Enchanted Grove", posX: 60, posY: 18, glowColor: "#7fffd4" },
-    { id: "island", name: "Lost Island", posX: 3, posY: 38, glowColor: "#20b2aa" },
-    { id: "volcanic", name: "Volcanic Isle", posX: 56, posY: 40, glowColor: "#ff4500" },
-    { id: "desert", name: "Scorched Desert", posX: 25, posY: 54, glowColor: "#daa520" },
-    { id: "swamp", name: "Elysian Bayou", posX: 62, posY: 62, glowColor: "#9370db" },
-    { id: "haunted_woods", name: "Haunted Woods", posX: 15, posY: 74, glowColor: "#8b008b" },
+    { id: "sky_realm",       name: "Sky Realm",       posX: 3,  posY: 5,  glowColor: "#ffd700" },
+    { id: "snowy_mountain",  name: "Frostpeak",        posX: 40, posY: 0,  glowColor: "#88ccff" },
+    { id: "enchanted_grove", name: "Enchanted Grove",  posX: 1,  posY: 45, glowColor: "#7fffd4" },
+    { id: "island",          name: "Lost Island",      posX: 52, posY: 84, glowColor: "#20b2aa" },
+    { id: "volcanic",        name: "Volcanic Isle",    posX: 66, posY: 20, glowColor: "#690300" },
+    { id: "desert",          name: "Scorched Desert",  posX: 64, posY: 53, glowColor: "#daa520" },
+    { id: "swamp",           name: "Elysian Bayou",    posX: 33, posY: 32, glowColor: "#42531d" },
+    { id: "haunted_woods",   name: "Haunted Woods",    posX: 10, posY: 75, glowColor: "#8b008b" },
   ];
   for (const w of DEFAULT_WORLDS) {
     const existing = await storage.getWorld(w.id);
@@ -718,6 +718,41 @@ app.use((req, res, next) => {
         console.log("Bayou's Heart icon restored to original pre-migration version.");
       }
       await storage.setGameSetting("bayous_heart_icon_v3", "done");
+    }
+
+    // Migration: restore world positions and glow colors from pre-migration production backup
+    const worldPositionsDone = await storage.getGameSetting("world_positions_restore_v1");
+    if (!worldPositionsDone) {
+      const BACKUP_WORLD_DATA = [
+        { id: "swamp",           posX: 33, posY: 32, glowColor: "#42531d" },
+        { id: "snowy_mountain",  posX: 40, posY: 0,  glowColor: "#88ccff" },
+        { id: "sky_realm",       posX: 3,  posY: 5,  glowColor: "#ffd700" },
+        { id: "volcanic",        posX: 66, posY: 20, glowColor: "#690300" },
+        { id: "haunted_woods",   posX: 10, posY: 75, glowColor: "#8b008b" },
+        { id: "enchanted_grove", posX: 1,  posY: 45, glowColor: "#7fffd4" },
+        { id: "island",          posX: 52, posY: 84, glowColor: "#20b2aa" },
+        { id: "desert",          posX: 64, posY: 53, glowColor: "#daa520" },
+      ];
+      for (const w of BACKUP_WORLD_DATA) {
+        await db.execute(sql`
+          UPDATE worlds SET pos_x = ${w.posX}, pos_y = ${w.posY}, glow_color = ${w.glowColor}
+          WHERE id = ${w.id}
+        `);
+      }
+      // Save as the admin_pos_worlds snapshot so it persists on future restarts
+      const posSnapshot = BACKUP_WORLD_DATA.map(w => ({ id: w.id, posX: w.posX, posY: w.posY }));
+      await storage.setGameSetting("admin_pos_worlds", JSON.stringify(posSnapshot));
+      await storage.setGameSetting("world_positions_restore_v1", "done");
+      console.log("World positions restored from pre-migration backup.");
+    }
+
+    // Migration: remove The Welcome Shop from Keeper's Central (not in original backup)
+    const kcWelcomeShopDone = await storage.getGameSetting("kc_welcome_shop_remove_v1");
+    if (!kcWelcomeShopDone) {
+      const WELCOME_SHOP_ID = "8a26b535-dded-44b1-b83a-1c2f55d8ac7d";
+      await db.execute(sql`DELETE FROM world_locations WHERE id = ${WELCOME_SHOP_ID}`);
+      await storage.setGameSetting("kc_welcome_shop_remove_v1", "done");
+      console.log("The Welcome Shop removed from Keeper's Central.");
     }
 
     // Seed Murk Cave enemies (one-time)
