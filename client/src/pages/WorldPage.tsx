@@ -31,14 +31,6 @@ import shopEnchantedGrove from "@assets/shop_enchanted_grove_v2.png";
 import shopHauntedWoods from "@assets/shop_haunted_woods.png";
 import shopSwamp from "@assets/shop_swamp.png";
 
-import bgSnowyMountain from "@assets/bg_snowy_mountain_td.png";
-import bgSkyRealm from "@assets/bg_sky_realm_td.png";
-import bgVolcanic from "@assets/bg_volcanic_td.png";
-import bgIsland from "@assets/bg_island_td.png";
-import bgDesert from "@assets/bg_desert_td.png";
-import bgMagicalForest from "@assets/bg_enchanted_grove_td.png";
-import bgHauntedWoods from "@assets/bg_haunted_woods_td.png";
-import bgSwamp from "@assets/bg_swamp_v5.png";
 
 const LIGHT_ORB_SENTINEL = "__light_orb__";
 const LIGHT_ORB_BLUE_SENTINEL = "__light_orb_blue__";
@@ -65,15 +57,15 @@ function seededRand(seed: string, n: number): number {
   return (h >>> 0) / 4294967295;
 }
 
-const WORLD_CONFIG: Record<string, { name: string; shopIcon: string; bg: string; accent: string; bgGradient: string }> = {
-  snowy_mountain: { name: "Frostpeak", shopIcon: shopFrostpeak, bg: bgSnowyMountain, accent: "#88ccff", bgGradient: "linear-gradient(180deg, rgba(20,30,60,0.7) 0%, rgba(40,80,120,0.3) 50%, rgba(10,15,30,0.7) 100%)" },
-  sky_realm: { name: "Sky Realm", shopIcon: shopSkyRealm, bg: bgSkyRealm, accent: "#ffd700", bgGradient: "linear-gradient(180deg, rgba(40,30,10,0.7) 0%, rgba(80,60,20,0.3) 50%, rgba(20,15,5,0.7) 100%)" },
-  volcanic: { name: "Volcanic Isle", shopIcon: shopVolcanic, bg: bgVolcanic, accent: "#ff4500", bgGradient: "linear-gradient(180deg, rgba(40,10,5,0.7) 0%, rgba(80,20,10,0.3) 50%, rgba(20,5,2,0.7) 100%)" },
-  island: { name: "The Lost Island", shopIcon: shopIsland, bg: bgIsland, accent: "#20b2aa", bgGradient: "linear-gradient(180deg, rgba(5,30,30,0.7) 0%, rgba(10,60,60,0.3) 50%, rgba(5,15,15,0.7) 100%)" },
-  desert: { name: "Scorched Desert", shopIcon: shopDesert, bg: bgDesert, accent: "#daa520", bgGradient: "linear-gradient(180deg, rgba(40,25,5,0.7) 0%, rgba(80,50,10,0.3) 50%, rgba(20,12,3,0.7) 100%)" },
-  enchanted_grove: { name: "Enchanted Grove", shopIcon: shopEnchantedGrove, bg: bgMagicalForest, accent: "#7fffd4", bgGradient: "linear-gradient(180deg, rgba(5,30,20,0.7) 0%, rgba(10,60,40,0.3) 50%, rgba(5,15,10,0.7) 100%)" },
-  haunted_woods: { name: "Haunted Woods", shopIcon: shopHauntedWoods, bg: bgHauntedWoods, accent: "#8b008b", bgGradient: "linear-gradient(180deg, rgba(30,5,30,0.7) 0%, rgba(60,10,60,0.3) 50%, rgba(15,3,15,0.7) 100%)" },
-  swamp: { name: "Elysian Swamplands", shopIcon: shopSwamp, bg: bgSwamp, accent: "#9370db", bgGradient: "linear-gradient(180deg, rgba(20,15,35,0.7) 0%, rgba(40,30,70,0.3) 50%, rgba(10,8,18,0.7) 100%)" },
+const WORLD_CONFIG: Record<string, { name: string; shopIcon: string; accent: string; bgGradient: string }> = {
+  snowy_mountain: { name: "Frostpeak", shopIcon: shopFrostpeak, accent: "#88ccff", bgGradient: "linear-gradient(180deg, rgba(20,30,60,0.7) 0%, rgba(40,80,120,0.3) 50%, rgba(10,15,30,0.7) 100%)" },
+  sky_realm: { name: "Sky Realm", shopIcon: shopSkyRealm, accent: "#ffd700", bgGradient: "linear-gradient(180deg, rgba(40,30,10,0.7) 0%, rgba(80,60,20,0.3) 50%, rgba(20,15,5,0.7) 100%)" },
+  volcanic: { name: "Volcanic Isle", shopIcon: shopVolcanic, accent: "#ff4500", bgGradient: "linear-gradient(180deg, rgba(40,10,5,0.7) 0%, rgba(80,20,10,0.3) 50%, rgba(20,5,2,0.7) 100%)" },
+  island: { name: "The Lost Island", shopIcon: shopIsland, accent: "#20b2aa", bgGradient: "linear-gradient(180deg, rgba(5,30,30,0.7) 0%, rgba(10,60,60,0.3) 50%, rgba(5,15,15,0.7) 100%)" },
+  desert: { name: "Scorched Desert", shopIcon: shopDesert, accent: "#daa520", bgGradient: "linear-gradient(180deg, rgba(40,25,5,0.7) 0%, rgba(80,50,10,0.3) 50%, rgba(20,12,3,0.7) 100%)" },
+  enchanted_grove: { name: "Enchanted Grove", shopIcon: shopEnchantedGrove, accent: "#7fffd4", bgGradient: "linear-gradient(180deg, rgba(5,30,20,0.7) 0%, rgba(10,60,40,0.3) 50%, rgba(5,15,10,0.7) 100%)" },
+  haunted_woods: { name: "Haunted Woods", shopIcon: shopHauntedWoods, accent: "#8b008b", bgGradient: "linear-gradient(180deg, rgba(30,5,30,0.7) 0%, rgba(60,10,60,0.3) 50%, rgba(15,3,15,0.7) 100%)" },
+  swamp: { name: "Elysian Swamplands", shopIcon: shopSwamp, accent: "#9370db", bgGradient: "linear-gradient(180deg, rgba(20,15,35,0.7) 0%, rgba(40,30,70,0.3) 50%, rgba(10,8,18,0.7) 100%)" },
 };
 
 interface ShopItem {
@@ -203,11 +195,11 @@ export default function WorldPage({ user }: WorldPageProps) {
   const world = staticWorld ? {
     ...staticWorld,
     name: dbName || staticWorld.name,
-    bg: worldApiData?.bgUrl || staticWorld.bg,
+    bg: worldApiData?.bgUrl ?? null,
   } : (worldApiData ? {
     name: worldApiData.name,
     shopIcon: worldApiData.iconUrl || "",
-    bg: worldApiData.bgUrl || "",
+    bg: worldApiData.bgUrl || null,
     accent: worldApiData.glowColor || "#ffd700",
     bgGradient: "linear-gradient(180deg, rgba(20,15,10,0.7) 0%, rgba(40,30,15,0.3) 50%, rgba(10,8,5,0.7) 100%)",
   } : null);
