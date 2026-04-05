@@ -746,6 +746,19 @@ app.use((req, res, next) => {
       console.log("World positions restored from pre-migration backup.");
     }
 
+    // Migration: restore world map background from pre-migration production backup
+    const mapBgRestoreDone = await storage.getGameSetting("map_background_restore_v1");
+    if (!mapBgRestoreDone) {
+      const mapBgFile = path.join(process.cwd(), "attached_assets", "bg_world_map.png");
+      if (fs.existsSync(mapBgFile)) {
+        const mtime = fs.statSync(mapBgFile).mtimeMs;
+        const v = Math.floor(mtime / 1000);
+        await storage.setGameSetting("map_background", `/world-assets/bg_world_map.png?v=${v}`);
+        console.log("World map background restored from pre-migration backup.");
+      }
+      await storage.setGameSetting("map_background_restore_v1", "done");
+    }
+
     // Migration: remove The Welcome Shop from Keeper's Central (not in original backup)
     const kcWelcomeShopDone = await storage.getGameSetting("kc_welcome_shop_remove_v1");
     if (!kcWelcomeShopDone) {
