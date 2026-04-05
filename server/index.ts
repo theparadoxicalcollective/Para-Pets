@@ -400,6 +400,58 @@ app.use((req, res, next) => {
       }
     }
 
+    // Restore admin-created locations wiped during Railway migration (one-time, idempotent)
+    const missingLocsRestored = await storage.getGameSetting("missing_locs_restore_v1");
+    if (!missingLocsRestored) {
+      const allSwampForRestore = await storage.getWorldLocations("swamp");
+
+      const generalShopExists = allSwampForRestore.find((l: any) => l.id === "97ff55d1-376b-466a-8fe9-992b09dbaacc");
+      if (!generalShopExists) {
+        const generalShopIcon = loadAssetBase64("icon_mire_bazaar.png");
+        const generalShopBg = loadAssetBase64("bg_mire_bazaar.png");
+        await storage.createWorldLocation({
+          id: "97ff55d1-376b-466a-8fe9-992b09dbaacc",
+          worldId: "swamp",
+          name: "General Shop",
+          description: "A rickety potion shop perched on stilts above the murky swamp waters.",
+          type: "shop",
+          isShop: true,
+          posX: 50,
+          posY: 45,
+          glowColor: "#c9a030",
+          sortOrder: 5,
+          iconSize: 350,
+          ...(generalShopIcon ? { iconUrl: generalShopIcon } : {}),
+          ...(generalShopBg ? { bgUrl: generalShopBg } : {}),
+        } as any);
+        console.log("General Shop restored (was missing from DB).");
+      }
+
+      const bayousHeartExists = allSwampForRestore.find((l: any) => l.id === "8e211716-0448-496e-8582-6ce1025ac4e4");
+      if (!bayousHeartExists) {
+        const bayousHeartIcon = loadAssetBase64("icon_bayous_heart_v2.png");
+        const bayousHeartBg = loadAssetBase64("bg_bayous_heart.png");
+        await storage.createWorldLocation({
+          id: "8e211716-0448-496e-8582-6ce1025ac4e4",
+          worldId: "swamp",
+          name: "Bayou's Heart",
+          description: "The mystical heart of the bayou, pulsing with ancient power and hidden secrets.",
+          type: "quest",
+          isShop: false,
+          posX: 75,
+          posY: 80,
+          glowColor: "#e05252",
+          sortOrder: 11,
+          iconSize: 350,
+          ...(bayousHeartIcon ? { iconUrl: bayousHeartIcon } : {}),
+          ...(bayousHeartBg ? { bgUrl: bayousHeartBg } : {}),
+        } as any);
+        console.log("Bayou's Heart restored (was missing from DB).");
+      }
+
+      await storage.setGameSetting("missing_locs_restore_v1", "done");
+    }
+
     const SHOP_ID = "97ff55d1-376b-466a-8fe9-992b09dbaacc";
     const shopLoc = swampLocations.find(l => l.id === SHOP_ID);
     if (shopLoc && shopLoc.name === "Shop Test") {
