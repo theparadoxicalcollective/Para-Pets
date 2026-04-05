@@ -1065,6 +1065,77 @@ app.use((req, res, next) => {
     console.error("Bayou layout restore error (non-fatal):", err);
   }
 
+  // Migration: restore Keeper's Central world_locations (map icons) to pre-migration state
+  // Restores Well of Fortune, Central Market, and Welcome Center icons missing after migration
+  try {
+    const kcLayoutDone = await storage.getGameSetting("kc_layout_restore_v1");
+    if (!kcLayoutDone) {
+      const KC_LOCATIONS = [
+        {
+          id: "707d872b-0a93-4369-ba8d-3d8b4b4bd09a",
+          name: "Well of Fortune",
+          type: "shop",
+          posX: 66.532616,
+          posY: 37.843616,
+          iconSize: 170,
+          isShop: true,
+          glowColor: "#d4a017",
+          flipped: false,
+          sortOrder: 140,
+          iconFile: "icon_kc_well_of_fortune.png",
+        },
+        {
+          id: "4146afef-828a-4bc1-8e1b-015c7073f895",
+          name: "Central Market",
+          type: "landmark",
+          posX: 30.195574,
+          posY: 42.409153,
+          iconSize: 340,
+          isShop: false,
+          glowColor: "#d4a017",
+          flipped: false,
+          sortOrder: 121,
+          iconFile: "icon_kc_central_market.png",
+        },
+        {
+          id: "de656c2e-4ada-405a-8cfb-a59c9f6b318b",
+          name: "Welcome Center",
+          type: "shop",
+          posX: 90.58449,
+          posY: 43.688786,
+          iconSize: 260,
+          isShop: true,
+          glowColor: "#d4a017",
+          flipped: true,
+          sortOrder: 125,
+          iconFile: "icon_kc_welcome_center.png",
+        },
+      ];
+      for (const loc of KC_LOCATIONS) {
+        const existing = await db.execute(sql`SELECT id FROM world_locations WHERE id = ${loc.id}`);
+        if ((existing as any).rows?.length > 0) {
+          console.log(`KC restore: ${loc.name} already exists, skipping.`);
+          continue;
+        }
+        const iconData = loadAssetBase64(loc.iconFile);
+        const iconUrl = iconData ? `data:image/png;base64,${iconData}` : null;
+        await db.execute(sql`
+          INSERT INTO world_locations
+            (id, world_id, name, type, icon_url, pos_x, pos_y, icon_size, is_shop, glow_color, flipped, sort_order)
+          VALUES
+            (${loc.id}, 'pet_world', ${loc.name}, ${loc.type}, ${iconUrl},
+             ${loc.posX}, ${loc.posY}, ${loc.iconSize}, ${loc.isShop},
+             ${loc.glowColor}, ${loc.flipped}, ${loc.sortOrder})
+        `);
+        console.log(`KC restore: created ${loc.name} at (${loc.posX}, ${loc.posY}) size ${loc.iconSize}`);
+      }
+      await storage.setGameSetting("kc_layout_restore_v1", "done");
+      console.log("Keeper's Central layout restoration complete.");
+    }
+  } catch (err) {
+    console.error("KC layout restore error (non-fatal):", err);
+  }
+
   console.log("Background initialization complete.");
 
   // Backfill Advanced Acquisition badge for users who previously bought a $100 pack
