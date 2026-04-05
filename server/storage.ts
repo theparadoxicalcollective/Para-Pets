@@ -13,6 +13,7 @@ import {
   type PetTemplate, petTemplates,
   type PetTemplatePart, petTemplateParts,
   type SupportMessage, type InsertSupportMessage, supportMessages,
+  type AdminMessage, adminMessages,
   type LocationEnemy, locationEnemies,
   type EnemyDrop, enemyDrops,
   type Badge, type UserBadge, badges, userBadges, badgeRewardClaims,
@@ -147,6 +148,9 @@ export interface IStorage {
   getAllSupportMessages(): Promise<SupportMessage[]>;
   markSupportMessageRead(id: string): Promise<void>;
   deleteSupportMessage(id: string): Promise<void>;
+  createAdminMessage(username: string, subject: string, message: string): Promise<AdminMessage>;
+  getAdminMessagesByUsername(username: string): Promise<AdminMessage[]>;
+  deleteAdminMessage(id: string): Promise<void>;
   getLocationEnemies(locationId: string): Promise<LocationEnemy[]>;
   getLocationEnemy(id: string): Promise<LocationEnemy | undefined>;
   createLocationEnemy(data: { locationId: string; name: string; imageUrl?: string | null; isBoss?: boolean; coinReward?: number }): Promise<LocationEnemy>;
@@ -834,6 +838,19 @@ export class DatabaseStorage implements IStorage {
 
   async deleteSupportMessage(id: string): Promise<void> {
     await db.delete(supportMessages).where(eq(supportMessages.id, id));
+  }
+
+  async createAdminMessage(username: string, subject: string, message: string): Promise<AdminMessage> {
+    const [msg] = await db.insert(adminMessages).values({ username, subject, message }).returning();
+    return msg;
+  }
+
+  async getAdminMessagesByUsername(username: string): Promise<AdminMessage[]> {
+    return db.select().from(adminMessages).where(eq(adminMessages.username, username)).orderBy(desc(adminMessages.createdAt));
+  }
+
+  async deleteAdminMessage(id: string): Promise<void> {
+    await db.delete(adminMessages).where(eq(adminMessages.id, id));
   }
 
   async getLocationEnemies(locationId: string): Promise<LocationEnemy[]> {

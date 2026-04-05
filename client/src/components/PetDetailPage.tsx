@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, type ReactNode } from "react";
-import { Sparkles, Wind, Heart, Swords, Shield, Pencil, TrendingUp } from "lucide-react";
+import { Sparkles, Wind, Heart, Swords, Shield, Pencil, TrendingUp, Mail } from "lucide-react";
 import { fireLevelUp } from "@/lib/levelUpEvents";
 import { playPowerUp, playSpeedUp } from "@/lib/sounds";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -97,6 +97,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
   const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem("petDetailTutorialSeen"));
   const [flipAnim, setFlipAnim] = useState<"idle" | "forward" | "back">("idle");
   const flipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [showAdminMsgs, setShowAdminMsgs] = useState(false);
   const { toast } = useToast();
 
   const handlePortraitClick = () => {
@@ -112,6 +113,21 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
 
   useEffect(() => { showPowerUpModalRef.current = showPowerUpModal; }, [showPowerUpModal]);
   const queryClient = useQueryClient();
+
+  interface AdminMsg { id: string; subject: string; message: string; createdAt: string; }
+  const { data: adminMsgs = [] } = useQuery<AdminMsg[]>({
+    queryKey: ["/api/admin-messages"],
+    staleTime: 30000,
+  });
+
+  const deleteAdminMsgMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/admin-messages/${id}`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin-messages"] });
+    },
+  });
 
   const nicknameMutation = useMutation({
     mutationFn: async (nickname: string) => {
@@ -543,6 +559,22 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
 
           {/* Help + Close buttons */}
           <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5">
+            {adminMsgs.length > 0 && (
+              <button
+                data-testid="button-admin-messages"
+                onClick={() => setShowAdminMsgs(true)}
+                className="relative w-7 h-7 rounded-full flex items-center justify-center"
+                style={{ background: "rgba(0,0,0,0.55)", border: "1px solid rgba(240,192,64,0.5)", color: "#f0c040", cursor: "pointer" }}
+              >
+                <Mail size={13} />
+                <span
+                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center font-bold text-[9px]"
+                  style={{ background: "#e03333", color: "#fff", border: "1px solid rgba(0,0,0,0.4)" }}
+                >
+                  {adminMsgs.length}
+                </span>
+              </button>
+            )}
             <button
               data-testid="button-pet-detail-help"
               onClick={() => setShowTutorial(true)}
@@ -560,6 +592,68 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
               ✕
             </button>
           </div>
+
+          {/* Admin Messages Modal */}
+          {showAdminMsgs && (
+            <div className="absolute inset-0 z-30 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.82)" }}>
+              <div
+                className="w-full rounded-2xl overflow-hidden"
+                style={{
+                  background: "linear-gradient(160deg, rgba(18,10,4,0.99) 0%, rgba(30,18,8,0.99) 100%)",
+                  border: "1px solid rgba(240,192,64,0.25)",
+                  maxHeight: "70vh",
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
+                <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid rgba(240,192,64,0.15)" }}>
+                  <div className="flex items-center gap-2">
+                    <Mail size={14} style={{ color: "#f0c040" }} />
+                    <span className="font-fantasy text-[#f0c040] text-xs tracking-widest">MESSAGES FROM ADMIN</span>
+                  </div>
+                  <button
+                    data-testid="button-close-admin-messages"
+                    onClick={() => setShowAdminMsgs(false)}
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-xs"
+                    style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.6)", cursor: "pointer" }}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="overflow-y-auto flex-1 p-3 space-y-3">
+                  {adminMsgs.map(am => {
+                    const dateStr = new Date(am.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+                    return (
+                      <div
+                        key={am.id}
+                        data-testid={`admin-message-${am.id}`}
+                        className="rounded-xl p-3 space-y-2"
+                        style={{ background: "rgba(240,192,64,0.06)", border: "1px solid rgba(240,192,64,0.18)" }}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-fantasy text-[#f0c040] text-[10px] tracking-wider truncate">{am.subject}</p>
+                          <span className="font-fantasy text-[#6a5840] text-[9px] flex-shrink-0">{dateStr}</span>
+                        </div>
+                        <p className="font-sans text-[#d4b896] text-xs whitespace-pre-wrap break-words leading-relaxed">{am.message}</p>
+                        <div className="flex justify-end">
+                          <button
+                            data-testid={`button-delete-admin-message-${am.id}`}
+                            onClick={() => deleteAdminMsgMutation.mutate(am.id)}
+                            disabled={deleteAdminMsgMutation.isPending}
+                            className="px-3 py-1 rounded-lg font-fantasy text-[9px] tracking-wider"
+                            style={{ background: "rgba(139,32,32,0.3)", border: "1px solid rgba(255,100,100,0.3)", color: "#ff9999", cursor: "pointer" }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="px-4 pb-5 space-y-3 mt-1">

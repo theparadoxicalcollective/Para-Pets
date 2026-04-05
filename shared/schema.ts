@@ -271,6 +271,16 @@ export const insertSupportMessageSchema = createInsertSchema(supportMessages).om
 export type InsertSupportMessage = z.infer<typeof insertSupportMessageSchema>;
 export type SupportMessage = typeof supportMessages.$inferSelect;
 
+export const adminMessages = pgTable("admin_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  username: text("username").notNull(),
+  subject: text("subject").notNull(),
+  message: text("message").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export type AdminMessage = typeof adminMessages.$inferSelect;
+
 export const locationEnemies = pgTable("location_enemies", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   locationId: varchar("location_id").notNull(),

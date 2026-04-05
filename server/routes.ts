@@ -1716,6 +1716,44 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/admin/support-messages/:id/respond", isAdmin, async (req, res) => {
+    try {
+      const messages = await storage.getAllSupportMessages();
+      const msg = messages.find(m => m.id === req.params.id);
+      if (!msg) return res.status(404).json({ message: "Message not found" });
+      const { response } = req.body;
+      if (!response || typeof response !== "string" || !response.trim()) {
+        return res.status(400).json({ message: "Response is required" });
+      }
+      await storage.createAdminMessage(msg.username, `Re: ${msg.subject}`, response.trim());
+      return res.json({ message: "Response sent" });
+    } catch (err) {
+      console.error("Admin respond error:", err);
+      return res.status(500).json({ message: "Failed to send response" });
+    }
+  });
+
+  app.get("/api/admin-messages", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Unauthorized" });
+    try {
+      const user = req.user as any;
+      const msgs = await storage.getAdminMessagesByUsername(user.username);
+      return res.json(msgs);
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to get messages" });
+    }
+  });
+
+  app.delete("/api/admin-messages/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Unauthorized" });
+    try {
+      await storage.deleteAdminMessage(req.params.id as string);
+      return res.json({ message: "Deleted" });
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to delete message" });
+    }
+  });
+
   app.get("/api/admin/users", isAdmin, async (_req, res) => {
     try {
       const allUsers = await storage.getAllUsers();

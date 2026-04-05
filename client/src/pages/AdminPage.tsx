@@ -1033,6 +1033,8 @@ function SupportMessagesSection() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [respondingId, setRespondingId] = useState<string | null>(null);
+  const [responseText, setResponseText] = useState<Record<string, string>>({});
 
   const { data: messages = [], isLoading } = useQuery<SupportMsg[]>({
     queryKey: ["/api/admin/support-messages"],
@@ -1054,6 +1056,20 @@ function SupportMessagesSection() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/support-messages"] });
       toast({ title: "Deleted", description: "Message removed" });
+    },
+  });
+
+  const respondMutation = useMutation({
+    mutationFn: async ({ id, response }: { id: string; response: string }) => {
+      await apiRequest("POST", `/api/admin/support-messages/${id}/respond`, { response });
+    },
+    onSuccess: (_data, variables) => {
+      toast({ title: "Response Sent", description: "Your reply has been delivered to the player." });
+      setRespondingId(null);
+      setResponseText(prev => ({ ...prev, [variables.id]: "" }));
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to send response", variant: "destructive" });
     },
   });
 
@@ -1080,6 +1096,7 @@ function SupportMessagesSection() {
       )}
       {messages.map(msg => {
         const isExpanded = expandedId === msg.id;
+        const isResponding = respondingId === msg.id;
         const date = new Date(msg.createdAt);
         const timeStr = date.toLocaleDateString() + " " + date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
@@ -1101,6 +1118,7 @@ function SupportMessagesSection() {
               data-testid={`button-expand-message-${msg.id}`}
               onClick={() => {
                 setExpandedId(isExpanded ? null : msg.id);
+                if (isExpanded) setRespondingId(null);
                 if (!msg.isRead) markReadMutation.mutate(msg.id);
               }}
               className="w-full text-left px-3 py-2.5 flex items-center gap-2"
@@ -1129,17 +1147,66 @@ function SupportMessagesSection() {
                   <p className="font-fantasy text-[#a89878] text-[9px] tracking-wider mb-1">MESSAGE</p>
                   <p className="font-sans text-[#d4b896] text-xs whitespace-pre-wrap break-words">{msg.message}</p>
                 </div>
-                <div className="flex justify-end">
-                  <button
-                    data-testid={`button-delete-message-${msg.id}`}
-                    onClick={() => deleteMutation.mutate(msg.id)}
-                    disabled={deleteMutation.isPending}
-                    className="px-3 py-1.5 rounded-md font-fantasy text-[9px] tracking-wider"
-                    style={{ background: "rgba(139,32,32,0.3)", border: "1px solid rgba(255,100,100,0.3)", color: "#ff9999", cursor: "pointer" }}
-                  >
-                    Delete
-                  </button>
-                </div>
+
+                {isResponding ? (
+                  <div className="space-y-2">
+                    <div className="rounded-md p-2.5" style={{ background: "rgba(20,40,20,0.3)", border: "1px solid rgba(100,200,100,0.2)" }}>
+                      <p className="font-fantasy text-[#a89878] text-[9px] tracking-wider mb-1.5">YOUR RESPONSE TO {msg.username.toUpperCase()}</p>
+                      <textarea
+                        data-testid={`textarea-response-${msg.id}`}
+                        value={responseText[msg.id] || ""}
+                        onChange={e => setResponseText(prev => ({ ...prev, [msg.id]: e.target.value }))}
+                        placeholder="Type your response here..."
+                        rows={4}
+                        className="w-full rounded-md px-2 py-1.5 font-sans text-xs resize-none focus:outline-none"
+                        style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(168,152,120,0.3)", color: "#d4b896" }}
+                      />
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <button
+                        data-testid={`button-cancel-respond-${msg.id}`}
+                        onClick={() => setRespondingId(null)}
+                        className="px-3 py-1.5 rounded-md font-fantasy text-[9px] tracking-wider"
+                        style={{ background: "rgba(40,30,20,0.4)", border: "1px solid rgba(168,152,120,0.2)", color: "#a89878", cursor: "pointer" }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        data-testid={`button-send-response-${msg.id}`}
+                        onClick={() => {
+                          const text = (responseText[msg.id] || "").trim();
+                          if (!text) return;
+                          respondMutation.mutate({ id: msg.id, response: text });
+                        }}
+                        disabled={respondMutation.isPending || !(responseText[msg.id] || "").trim()}
+                        className="px-3 py-1.5 rounded-md font-fantasy text-[9px] tracking-wider"
+                        style={{ background: "rgba(20,80,20,0.4)", border: "1px solid rgba(100,200,100,0.3)", color: "#88dd88", cursor: "pointer", opacity: !(responseText[msg.id] || "").trim() ? 0.5 : 1 }}
+                      >
+                        {respondMutation.isPending ? "Sending..." : "Send Response"}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      data-testid={`button-respond-${msg.id}`}
+                      onClick={() => setRespondingId(msg.id)}
+                      className="px-3 py-1.5 rounded-md font-fantasy text-[9px] tracking-wider"
+                      style={{ background: "rgba(20,60,80,0.4)", border: "1px solid rgba(100,180,220,0.3)", color: "#88ccee", cursor: "pointer" }}
+                    >
+                      Respond
+                    </button>
+                    <button
+                      data-testid={`button-delete-message-${msg.id}`}
+                      onClick={() => deleteMutation.mutate(msg.id)}
+                      disabled={deleteMutation.isPending}
+                      className="px-3 py-1.5 rounded-md font-fantasy text-[9px] tracking-wider"
+                      style={{ background: "rgba(139,32,32,0.3)", border: "1px solid rgba(255,100,100,0.3)", color: "#ff9999", cursor: "pointer" }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
