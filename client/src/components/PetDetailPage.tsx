@@ -117,7 +117,8 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
   interface AdminMsg { id: string; subject: string; message: string; createdAt: string; }
   const { data: adminMsgs = [] } = useQuery<AdminMsg[]>({
     queryKey: ["/api/admin-messages"],
-    staleTime: 30000,
+    staleTime: 0,
+    refetchInterval: 60000,
   });
 
   const deleteAdminMsgMutation = useMutation({
