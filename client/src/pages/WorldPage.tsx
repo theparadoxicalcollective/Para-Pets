@@ -1453,7 +1453,7 @@ export default function WorldPage({ user }: WorldPageProps) {
         <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
       </div>
 
-      {(!worldBgLoaded || locationsLoading) && (
+      {(!worldBgLoaded || locationsLoading || !worldApiData) && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, background: "rgba(8,5,20,1)" }}>
           <div
             className="animate-spin rounded-full"
