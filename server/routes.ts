@@ -864,9 +864,6 @@ export async function registerRoutes(
         if (!invItem || invItem.userId !== user.id) {
           return res.status(400).json({ message: "You don't own this pet" });
         }
-        if (!invItem.isHatched) {
-          return res.status(400).json({ message: "This egg has not hatched yet" });
-        }
         const shopItem = await storage.getShopItem(invItem.shopItemId);
         if (!shopItem || shopItem.type !== "pet") {
           return res.status(400).json({ message: "This item is not a pet" });
