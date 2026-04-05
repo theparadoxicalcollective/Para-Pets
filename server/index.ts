@@ -696,6 +696,18 @@ app.use((req, res, next) => {
       await storage.setGameSetting("bayous_heart_type_quest_v1", "done");
     }
 
+    // Migration: reset Bayou's Heart icon to the correct preview version
+    const bayousHeartIconDone = await storage.getGameSetting("bayous_heart_icon_v2");
+    if (!bayousHeartIconDone) {
+      const BAYOUS_HEART_ID = "8e211716-0448-496e-8582-6ce1025ac4e4";
+      const correctIcon = loadAssetBase64("icon_bayous_heart_preview.png");
+      if (correctIcon) {
+        await storage.updateWorldLocation(BAYOUS_HEART_ID, { iconUrl: correctIcon } as any);
+        console.log("Bayou's Heart icon reset to correct version.");
+      }
+      await storage.setGameSetting("bayous_heart_icon_v2", "done");
+    }
+
     // Seed Murk Cave enemies (one-time)
     const murkEnemiesDone = await storage.getGameSetting("murk_cave_enemies_v1");
     if (!murkEnemiesDone) {
@@ -1192,7 +1204,7 @@ app.use((req, res, next) => {
           continue;
         }
         const iconData = loadAssetBase64(loc.iconFile);
-        const iconUrl = iconData ? `data:image/png;base64,${iconData}` : null;
+        const iconUrl = iconData ?? null;
         await db.execute(sql`
           INSERT INTO world_locations
             (id, world_id, name, type, icon_url, pos_x, pos_y, icon_size, is_shop, glow_color, flipped, sort_order)

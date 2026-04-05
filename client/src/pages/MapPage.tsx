@@ -82,6 +82,8 @@ export default function MapPage({ user }: MapPageProps) {
 
   const { data: worldsList = [], isLoading } = useQuery<WorldData[]>({
     queryKey: ["/api/worlds"],
+    refetchOnMount: true,
+    staleTime: 0,
   });
 
   const { data: mapBgData } = useQuery<{ bgUrl: string | null }>({

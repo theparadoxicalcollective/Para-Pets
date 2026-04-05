@@ -195,7 +195,8 @@ export default function WorldPage({ user }: WorldPageProps) {
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
-    staleTime: 5 * 60 * 1000,
+    refetchOnMount: true,
+    staleTime: 0,
   });
 
   const dbName = worldApiData?.name;
@@ -322,7 +323,8 @@ export default function WorldPage({ user }: WorldPageProps) {
       if (!res.ok) throw new Error("Failed to fetch locations");
       return res.json();
     },
-    staleTime: 5 * 60 * 1000,
+    refetchOnMount: true,
+    staleTime: 0,
   });
 
   const { data: activeLocDetail } = useQuery<WorldLocationData>({
