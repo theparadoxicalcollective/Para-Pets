@@ -361,9 +361,9 @@
   50% { opacity: 1; transform: scale(1.05); }
 }
 
-@keyframes pulse {
-  0%, 100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 14px rgba(74,222,128,0.7), 0 2px 8px rgba(0,0,0,0.5); }
-  50% { transform: translate(-50%, -50%) scale(1.12); box-shadow: 0 0 24px rgba(74,222,128,0.95), 0 2px 8px rgba(0,0,0,0.5); }
+@keyframes pp-glow-pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 14px rgba(74,222,128,0.7), 0 2px 8px rgba(0,0,0,0.5); }
+  50% { transform: scale(1.12); box-shadow: 0 0 24px rgba(74,222,128,0.95), 0 2px 8px rgba(0,0,0,0.5); }
 }
 
 @keyframes pulse-notif {

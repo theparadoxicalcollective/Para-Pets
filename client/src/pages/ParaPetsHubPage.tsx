@@ -84,7 +84,7 @@ function StarField() {
             left: `${s.x}%`, top: `${s.y}%`,
             width: s.size, height: s.size,
             background: "#a5f3fc", opacity: s.opacity,
-            animation: `pulse ${s.dur}s ease-in-out infinite alternate`,
+            animation: `pp-glow-pulse ${s.dur}s ease-in-out infinite alternate`,
           }} />
       ))}
     </div>

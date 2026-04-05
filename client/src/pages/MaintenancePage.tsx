@@ -22,7 +22,7 @@ export default function MaintenancePage() {
               top: `${Math.random() * 55}%`,
               left: `${Math.random() * 100}%`,
               opacity: Math.random() * 0.6 + 0.2,
-              animation: `pulse ${Math.random() * 3 + 2}s ease-in-out infinite`,
+              animation: `pp-glow-pulse ${Math.random() * 3 + 2}s ease-in-out infinite`,
               animationDelay: `${Math.random() * 3}s`,
             }}
           />

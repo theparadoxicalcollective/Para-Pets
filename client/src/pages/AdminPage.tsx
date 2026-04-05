@@ -2028,7 +2028,7 @@ function MaintenanceSection() {
               className="w-4 h-4 rounded-full flex-shrink-0"
               style={{
                 background: "rgba(249,168,212,0.3)",
-                animation: "pulse 1s ease-in-out infinite",
+                animation: "pp-glow-pulse 1s ease-in-out infinite",
               }}
             />
             <span className="font-fantasy text-[10px] tracking-wider" style={{ color: "#7a5870" }}>
