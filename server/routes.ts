@@ -4625,7 +4625,7 @@ export async function registerRoutes(
         const [petInv] = await db
           .select()
           .from(userInventory)
-          .where(and(eq(userInventory.shopItemId, updatedUser.activePetId), eq(userInventory.userId, user.id)))
+          .where(and(eq(userInventory.id, updatedUser.activePetId), eq(userInventory.userId, user.id)))
           .limit(1);
         if (petInv) {
           const { newLevel, newPoints } = applyPetXp(petInv.petLevel || 1, petInv.petLevelPoints || 0, 5);

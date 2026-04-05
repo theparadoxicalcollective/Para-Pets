@@ -92,7 +92,7 @@ function AppRouter() {
         queryClient.setQueryData(["/api/inventory"], items);
 
         const activePetItem = items.find(
-          (i: any) => i.shopItemId === user.activePetId && i.type === "pet"
+          (i: any) => i.inventoryId === user.activePetId && i.type === "pet"
         );
         const petImageUrl = activePetItem?.hatchedImageUrl || activePetItem?.imageUrl;
 

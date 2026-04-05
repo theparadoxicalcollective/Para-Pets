@@ -1,0 +1,47 @@
+I compared screenshots and this does not look like only a simple browser cache issue.
+
+What players see on first entry into Elysian Bayou:
+- an old world background/layout appears
+- the UI/icons are present but much too large
+- if the player backs out and re-enters, the area then loads correctly
+
+That suggests a stale state / scene initialization / load-order issue, not just static asset caching.
+
+Please investigate Elysian Bayou scene loading specifically and verify all of the following:
+
+1. Scene cleanup / state reset
+- Make sure previous area/world state is fully cleared before entering Elysian Bayou
+- Clear old background layers, old map data, old scale values, and old scene objects before rendering the new area
+
+2. Full remount on area entry
+- Ensure the Bayou scene fully remounts when entered
+- Check whether React/game state is reusing an old component instance instead of rebuilding it fresh
+
+3. Async loading order
+- Verify background, world config, object placements, and UI scaling are not rendering before the correct area data is loaded
+- Prevent the scene from displaying until the correct area config is fully ready
+
+4. Area-specific config
+- Check whether Elysian Bayou is accidentally using old background/layout data on first load
+- Confirm there is only one active source of truth for that area’s background, scene layout, and object positions
+
+5. UI scaling / viewport calculation
+- Investigate why the icons/UI appear oversized in the bad load
+- Check whether viewport dimensions, zoom scale, or device scale are calculated before the correct scene finishes loading
+
+6. Stale in-memory cache
+- Check for any client-side memoized state, local cached scene data, Zustand/Redux/context state, or retained variables that persist old area data between navigations
+
+7. Logging
+- Add logs on area entry showing:
+  - area name
+  - background asset path actually used
+  - scene config version
+  - viewport size
+  - UI scale value
+  - whether scene was remounted or reused
+
+8. Guard against partial render
+- Do not render Elysian Bayou until the correct background asset, area config, and scale values are all confirmed loaded
+
+Please find the exact root cause and do not mark it fixed unless first-entry behavior matches re-entry behavior.

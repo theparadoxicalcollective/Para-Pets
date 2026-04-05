@@ -921,8 +921,23 @@ export default function WorldPage({ user }: WorldPageProps) {
     },
   });
 
+  // On world change: immediately clear stale bg and reset map height so the
+  // old world's background and wrong icon scale never flash on first entry.
+  // This runs before the bg-load effect, ensuring worldBgLoaded stays false
+  // (showing the spinner) until the correct background is confirmed loaded.
   useEffect(() => {
-    if (!world?.bg) { setWorldBgLoaded(true); return; }
+    mapHRef.current = MAP_H_DEFAULT;
+    setMapH(MAP_H_DEFAULT);
+    setWorldBgLoaded(false);
+    setCommittedWorldBg("");
+    lastLoadedBgRef.current = "";
+  }, [worldId]);
+
+  useEffect(() => {
+    // If world data hasn't resolved yet (API-only world on first visit),
+    // stay in loading state — the spinner will show until data arrives.
+    if (!world) return;
+    if (!world.bg) { setWorldBgLoaded(true); return; }
     // If we already loaded this exact URL (e.g. stale cache returned same bg),
     // skip the reload entirely to prevent a flash of the loading screen.
     if (world.bg === lastLoadedBgRef.current) { setWorldBgLoaded(true); return; }
@@ -944,7 +959,7 @@ export default function WorldPage({ user }: WorldPageProps) {
       setWorldBgLoaded(true);
     };
     img.src = world.bg;
-  }, [world?.bg]);
+  }, [worldId, world?.bg]);
 
   const clampTransform = useCallback((x: number, y: number, sc: number) => {
     const mw = MAP_W * sc;
@@ -1109,7 +1124,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   }, [dragPos, positionMutation]);
 
   const activePetInv = currentUser.activePetId
-    ? inventory.find((item) => item.shopItemId === currentUser.activePetId && item.type === "pet")
+    ? inventory.find((item) => item.inventoryId === currentUser.activePetId && item.type === "pet")
     : null;
   const hasHatchedActivePet = activePetInv && activePetInv.isHatched;
 

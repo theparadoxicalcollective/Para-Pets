@@ -1613,7 +1613,7 @@ export class DatabaseStorage implements IStorage {
         userInventory,
         and(
           eq(userInventory.userId, users.id),
-          sql`${userInventory.shopItemId} = ${users.activePetId}`,
+          sql`${userInventory.id} = ${users.activePetId}`,
           eq(userInventory.isHatched, true),
         ),
       )
@@ -1656,7 +1656,7 @@ export class DatabaseStorage implements IStorage {
         userInventory,
         and(
           eq(userInventory.userId, users.id),
-          sql`${userInventory.shopItemId} = ${users.activePetId}`,
+          sql`${userInventory.id} = ${users.activePetId}`,
           eq(userInventory.isHatched, true),
         ),
       )
