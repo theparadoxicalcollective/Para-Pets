@@ -245,6 +245,21 @@ app.use((req, res, next) => {
   }
 
   try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS admin_messages (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        username text NOT NULL,
+        subject text NOT NULL,
+        message text NOT NULL,
+        created_at timestamp NOT NULL DEFAULT now()
+      )
+    `);
+    console.log("admin_messages table ready.");
+  } catch (err) {
+    console.error("admin_messages table setup error (non-fatal):", err);
+  }
+
+  try {
     console.log('Initializing Stripe...');
     const databaseUrl = process.env.DATABASE_URL;
     if (databaseUrl) {
