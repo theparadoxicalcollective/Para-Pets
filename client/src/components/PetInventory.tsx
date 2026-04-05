@@ -215,11 +215,11 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab }
   const selectedPet = selectedPetId ? (inventory.find((item) => item.inventoryId === selectedPetId) ?? null) : null;
   const speedUpTargetPet = speedUpTargetId ? (inventory.find(i => i.inventoryId === speedUpTargetId) ?? null) : null;
 
-  const handlePetToggle = (shopItemId: string) => {
-    if (user.activePetId === shopItemId) {
+  const handlePetToggle = (inventoryId: string) => {
+    if (user.activePetId === inventoryId) {
       setActivePetMutation.mutate(null);
     } else {
-      setActivePetMutation.mutate(shopItemId);
+      setActivePetMutation.mutate(inventoryId);
     }
   };
 
@@ -641,7 +641,7 @@ function PetView({
   return (
     <div className="grid grid-cols-2 gap-3">
       {sortedPets.map((pet) => {
-        const isActive = activePetId === pet.shopItemId;
+        const isActive = activePetId === pet.inventoryId;
         const isEgg = !pet.isHatched;
         const displayImage = isEgg ? pet.eggImageUrl : (pet.hatchedImageUrl || pet.imageUrl);
 
@@ -813,7 +813,7 @@ function PetView({
 
               <button
                 data-testid={`button-select-pet-${pet.shopItemId}`}
-                onClick={() => onToggle(pet.shopItemId)}
+                onClick={() => onToggle(pet.inventoryId)}
                 disabled={isPending}
                 className="w-full py-2 rounded-lg font-fantasy text-xs tracking-wider transition-transform active:scale-95 disabled:opacity-50"
                 style={{

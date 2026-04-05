@@ -1002,6 +1002,51 @@ app.use((req, res, next) => {
     console.error("Swamp Crawler image migration error (non-fatal):", err);
   }
 
+  // Migration: convert activePetId from shopItemId to inventoryId
+  try {
+    const activePetMigrated = await storage.getGameSetting("active_pet_id_to_inventory_id_v1");
+    if (!activePetMigrated) {
+      const usersWithActivePet = ((await db.execute(sql`
+        SELECT id, active_pet_id FROM users WHERE active_pet_id IS NOT NULL
+      `)) as any).rows as Array<{ id: string; active_pet_id: string }>;
+
+      let converted = 0;
+      let cleared = 0;
+
+      for (const u of usersWithActivePet) {
+        const currentId = u.active_pet_id;
+        // Check if it already looks like a UUID (inventoryId) — skip if so
+        const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (uuidPattern.test(currentId)) {
+          converted++;
+          continue;
+        }
+        // It's still a shopItemId — find the first hatched inventory item for this user with that shopItemId
+        const match = ((await db.execute(sql`
+          SELECT id FROM inventory
+          WHERE user_id = ${u.id}
+            AND shop_item_id = ${currentId}
+            AND is_hatched = true
+          ORDER BY created_at ASC
+          LIMIT 1
+        `)) as any).rows as Array<{ id: string }>;
+
+        if (match.length > 0) {
+          await db.execute(sql`UPDATE users SET active_pet_id = ${match[0].id} WHERE id = ${u.id}`);
+          converted++;
+        } else {
+          await db.execute(sql`UPDATE users SET active_pet_id = NULL WHERE id = ${u.id}`);
+          cleared++;
+        }
+      }
+
+      await storage.setGameSetting("active_pet_id_to_inventory_id_v1", "done");
+      console.log(`activePetId migration: ${converted} converted, ${cleared} cleared.`);
+    }
+  } catch (err) {
+    console.error("activePetId migration error (non-fatal):", err);
+  }
+
   // ── Seed door backgrounds from attached assets ──────────────────────────
   // Only SETS backgrounds for known doors — never clears manually-set ones.
   try {

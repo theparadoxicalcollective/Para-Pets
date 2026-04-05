@@ -141,7 +141,7 @@ export default function HomePage({ user }: HomePageProps) {
   });
 
   const activePet = currentUser.activePetId
-    ? inventory.find((item) => item.shopItemId === currentUser.activePetId && item.type === "pet")
+    ? inventory.find((item) => item.inventoryId === currentUser.activePetId && item.type === "pet")
     : null;
 
   // Dismiss only when both: the 3.5s animation timer is done AND the

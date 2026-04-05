@@ -860,11 +860,14 @@ export async function registerRoutes(
       const { activePetId } = req.body;
 
       if (activePetId !== null) {
-        const invItem = await storage.getInventoryItem(user.id, activePetId);
-        if (!invItem) {
+        const invItem = await storage.getInventoryItemById(activePetId);
+        if (!invItem || invItem.userId !== user.id) {
           return res.status(400).json({ message: "You don't own this pet" });
         }
-        const shopItem = await storage.getShopItem(activePetId);
+        if (!invItem.isHatched) {
+          return res.status(400).json({ message: "This egg has not hatched yet" });
+        }
+        const shopItem = await storage.getShopItem(invItem.shopItemId);
         if (!shopItem || shopItem.type !== "pet") {
           return res.status(400).json({ message: "This item is not a pet" });
         }
@@ -892,7 +895,7 @@ export async function registerRoutes(
       let activePet = null;
       if (targetUser.activePetId) {
         const activePetRow = inventoryRows.find(
-          r => r.inventory.shopItemId === targetUser.activePetId && r.inventory.isHatched
+          r => r.inventory.id === targetUser.activePetId && r.inventory.isHatched
         );
         if (activePetRow && activePetRow.shopItem) {
           const { shopItem, inventory: inv } = activePetRow;
@@ -1117,7 +1120,7 @@ export async function registerRoutes(
       if (!item) {
         return res.status(404).json({ message: "Item not found in your inventory" });
       }
-      if (item.shopItemId === user.activePetId) {
+      if (item.id === user.activePetId) {
         return res.status(400).json({ message: "Cannot delete your active pet" });
       }
       await storage.removeFromInventory(inventoryId);
@@ -3214,7 +3217,7 @@ export async function registerRoutes(
         skillHealPercent: shopItem?.skillHealPercent ?? null,
         rarity: shopItem?.rarity ?? null,
       }));
-      const activePet = inventoryJoined.find((inv: any) => inv.shopItemId === user.activePetId && inv.isHatched);
+      const activePet = inventoryJoined.find((inv: any) => inv.id === user.activePetId && inv.isHatched);
       if (!activePet) {
         return res.status(400).json({ message: "Keepers must have a hatched pet to explore safely" });
       }
@@ -3305,7 +3308,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "No active pet" });
       }
       const inventory = await storage.getUserInventory(user.id);
-      const activePet = inventory.find((inv: any) => inv.shopItemId === user.activePetId && inv.isHatched);
+      const activePet = inventory.find((inv: any) => inv.id === user.activePetId && inv.isHatched);
       if (!activePet) {
         return res.status(400).json({ message: "No active hatched pet" });
       }
@@ -4206,10 +4209,10 @@ export async function registerRoutes(
       const activePet = inventory
         .map((inv: any) => {
           const shopItem = shopItemsData.find((s: any) => s.id === inv.shopItemId);
-          return shopItem ? { ...inv, ...shopItem } : null;
+          return shopItem ? { ...shopItem, ...inv, shopItemId: inv.shopItemId } : null;
         })
         .filter(Boolean)
-        .find((inv: any) => inv.shopItemId === user.activePetId && inv.isHatched);
+        .find((inv: any) => inv.id === user.activePetId && inv.isHatched);
 
       const playerLevel = activePet?.petLevel || 1;
       const playerAtk = activePet?.petAtk || 50;
