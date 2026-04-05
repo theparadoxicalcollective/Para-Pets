@@ -40,7 +40,7 @@ export default function AuthPage() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loginFailed, setLoginFailed] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const [adminBypass, setAdminBypass] = useState(false);
 
   const { data: maintenanceData } = useQuery<{ maintenance: boolean }>({
@@ -121,15 +121,14 @@ export default function AuthPage() {
     onError: (err: any) => {
       setIsLoading(false);
       setLoadingProgress(0);
-      setLoginFailed(true);
       const msg = err.message?.includes(":") ? err.message.split(": ").slice(1).join(": ") : err.message;
       let parsed: any = {};
       try { parsed = JSON.parse(msg); } catch {}
       if (parsed.maintenance === true) {
-        toast({ title: "Realm Restricted", description: "Only admins can enter at this time. The realm is under maintenance.", variant: "destructive" });
         setAdminBypass(false);
+        setLoginError("The realm is under maintenance. Only admins may enter.");
       } else {
-        toast({ title: "Login Failed", description: parsed.message || msg || "Invalid credentials", variant: "destructive" });
+        setLoginError("Invalid username or password. Please try again.");
       }
     },
   });
@@ -206,6 +205,7 @@ export default function AuthPage() {
   const handleSubmit = () => {
     if (isLoading) return;
     if (mode === "login") {
+      setLoginError(null);
       loginMutation.mutate();
     } else {
       const errs: typeof fieldErrors = {};
@@ -456,7 +456,7 @@ export default function AuthPage() {
                     data-testid="input-username"
                     type="text"
                     value={username}
-                    onChange={e => { setUsername(e.target.value); setFieldErrors(prev => ({ ...prev, username: undefined })); }}
+                    onChange={e => { setUsername(e.target.value); setFieldErrors(prev => ({ ...prev, username: undefined })); setLoginError(null); }}
                     disabled={isPending}
                     placeholder={mode === "login" ? "Username or email" : "HeroName123"}
                     className="w-full px-4 py-2.5 rounded-lg font-sans text-sm text-[#1a0e04] placeholder-[#8a7060] outline-none disabled:opacity-60"
@@ -483,7 +483,7 @@ export default function AuthPage() {
                       data-testid="input-password"
                       type={showPassword ? "text" : "password"}
                       value={password}
-                      onChange={e => { setPassword(e.target.value); setFieldErrors(prev => ({ ...prev, password: undefined })); }}
+                      onChange={e => { setPassword(e.target.value); setFieldErrors(prev => ({ ...prev, password: undefined })); setLoginError(null); }}
                       disabled={isPending}
                       placeholder="••••••••"
                       className="w-full px-4 py-2.5 pr-11 rounded-lg font-sans text-sm text-[#1a0e04] placeholder-[#8a7060] outline-none disabled:opacity-60"
@@ -513,6 +513,29 @@ export default function AuthPage() {
                     <p className="font-sans text-[10px] mt-1 ml-1" style={{ color: "#5aafaf" }}>Minimum 6 characters</p>
                   ) : null}
                 </div>
+
+                {/* Login error banner */}
+                {mode === "login" && loginError && (
+                  <button
+                    data-testid="banner-login-error"
+                    type="button"
+                    onClick={() => setLoginError(null)}
+                    className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-left transition-opacity hover:opacity-80 active:scale-[0.99]"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(80,12,12,0.72) 0%, rgba(60,8,8,0.72) 100%)",
+                      border: "1px solid rgba(200,60,60,0.5)",
+                      boxShadow: "0 0 16px rgba(160,30,30,0.3)",
+                    }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span style={{ fontSize: 14 }}>⚔️</span>
+                      <span className="font-fantasy text-[11px] tracking-wider" style={{ color: "#ffaaaa" }}>
+                        {loginError}
+                      </span>
+                    </div>
+                    <span className="font-fantasy text-[10px] flex-shrink-0" style={{ color: "rgba(255,140,140,0.55)" }}>✕</span>
+                  </button>
+                )}
 
                 {/* Remember me */}
                 {mode === "login" && (
@@ -608,7 +631,7 @@ export default function AuthPage() {
 
                   {mode === "login" && (
                     <>
-                      {loginFailed && (
+                      {loginError !== null && (
                         <button
                           data-testid="button-forgot-password"
                           onClick={() => { setMode("forgot"); setForgotSent(false); setForgotInput(email); }}
