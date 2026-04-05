@@ -1258,15 +1258,18 @@ function HomeHatchBar({ hatchStartedAt, hatchTime }: { hatchStartedAt: string; h
     <div className="w-full">
       <div className="flex items-center gap-1.5 w-full">
         <span className="font-fantasy text-[8px] tracking-wider w-5 text-right" style={{ color: isReady ? "#4ade80" : "#f0c040" }}>🥚</span>
-        <div className="flex-1 h-1.5 rounded-full" style={{ background: "rgba(0,0,0,0.4)" }}>
+        <div
+          className={`flex-1 h-1.5 rounded-full overflow-hidden${isReady ? " animate-pulse" : ""}`}
+          style={{
+            background: "rgba(0,0,0,0.4)",
+            boxShadow: isReady ? "0 0 6px rgba(74,222,128,0.5)" : "none",
+          }}
+        >
           <div
-            className={isReady ? "animate-pulse" : ""}
             style={{
               width: `${progress * 100}%`,
               background: isReady ? "linear-gradient(90deg, #4ade80, #22c55e)" : "linear-gradient(90deg, #f0c040, #d4a017)",
               height: "100%",
-              borderRadius: "4px",
-              boxShadow: isReady ? "0 0 6px rgba(74,222,128,0.6)" : "0 0 4px rgba(240,192,64,0.4)",
               transition: "width 1s linear",
             }}
           />
