@@ -1065,6 +1065,63 @@ app.use((req, res, next) => {
     console.error("Bayou layout restore error (non-fatal):", err);
   }
 
+  // Migration: restore Elysian Bayou non-fishing location positions, sizes, and sort orders
+  // These were reset to seeder defaults after Railway migration; backup has the real values
+  try {
+    const bayouMainLocsDone = await storage.getGameSetting("bayou_main_locs_restore_v1");
+    if (!bayouMainLocsDone) {
+      const BAYOU_MAIN_LOCS = [
+        {
+          id: "a1b2c3d4-0001-4000-8000-000000000001",
+          posX: 7.4470196, posY: 58.508682,
+          iconSize: 350, sortOrder: 138, type: "battle",
+        },
+        {
+          id: "97ff55d1-376b-466a-8fe9-992b09dbaacc",
+          posX: -10, posY: 38.554417,
+          iconSize: 460, sortOrder: 105, type: "shop",
+        },
+        {
+          id: "a1b2c3d4-0004-4000-8000-000000000004",
+          posX: 66.562294, posY: 23.236858,
+          iconSize: 490, sortOrder: 112, type: "shop",
+        },
+        {
+          id: "a1b2c3d4-0005-4000-8000-000000000005",
+          posX: 38.909138, posY: 13.0801525,
+          iconSize: 500, sortOrder: 111, type: "shop",
+        },
+        {
+          id: "a1b2c3d4-0008-4000-8000-000000000008",
+          posX: -9.926378, posY: 22.46119,
+          iconSize: 500, sortOrder: 139, type: "battle",
+        },
+        {
+          id: "8e211716-0448-496e-8582-6ce1025ac4e4",
+          posX: 55.70539, posY: 50.631107,
+          iconSize: 460, sortOrder: 131, type: "quest",
+        },
+      ];
+      for (const loc of BAYOU_MAIN_LOCS) {
+        await db.execute(sql`
+          UPDATE world_locations
+          SET pos_x = ${loc.posX}, pos_y = ${loc.posY},
+              icon_size = ${loc.iconSize}, sort_order = ${loc.sortOrder},
+              type = ${loc.type}
+          WHERE id = ${loc.id}
+        `);
+        console.log(`Bayou restore: updated location ${loc.id} to pos (${loc.posX}, ${loc.posY})`);
+      }
+      // Save admin position snapshot so the auto-restore mechanism preserves them on future restarts
+      const posSnapshot = BAYOU_MAIN_LOCS.map(l => ({ id: l.id, posX: l.posX, posY: l.posY }));
+      await storage.setGameSetting("admin_pos_locs__swamp", JSON.stringify(posSnapshot));
+      await storage.setGameSetting("bayou_main_locs_restore_v1", "done");
+      console.log("Elysian Bayou main location positions restored from backup.");
+    }
+  } catch (err) {
+    console.error("Bayou main locs restore error (non-fatal):", err);
+  }
+
   // Migration: restore Keeper's Central world_locations (map icons) to pre-migration state
   // Restores Well of Fortune, Central Market, and Welcome Center icons missing after migration
   try {
