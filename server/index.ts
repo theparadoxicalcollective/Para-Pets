@@ -302,6 +302,17 @@ app.use((req, res, next) => {
     }
   }
 
+  // Re-apply admin-set world positions over whatever the seed just wrote
+  const worldPosSnapshot = await storage.getGameSetting("admin_pos_worlds");
+  if (worldPosSnapshot) {
+    const snap: Array<{ id: string; posX: number; posY: number }> = JSON.parse(worldPosSnapshot);
+    for (const s of snap) {
+      const exists = await storage.getWorld(s.id);
+      if (exists) await storage.updateWorldPosition(s.id, s.posX, s.posY);
+    }
+    console.log(`Admin world positions restored (${snap.length} worlds).`);
+  }
+
   function loadAssetBase64(filename: string): string | null {
     const assetPath = path.join(process.cwd(), "attached_assets", filename);
     if (!fs.existsSync(assetPath)) return null;
@@ -564,6 +575,19 @@ app.use((req, res, next) => {
     }
     if (!assetRefreshDone) {
       await storage.setGameSetting("location_assets_v1", "done");
+    }
+
+    // Re-apply admin-set location positions over whatever the seed just wrote
+    const allWorldsForRestore = await storage.getAllWorlds();
+    for (const w of allWorldsForRestore) {
+      const locSnapshot = await storage.getGameSetting(`admin_pos_locs__${w.id}`);
+      if (locSnapshot) {
+        const snap: Array<{ id: string; posX: number; posY: number }> = JSON.parse(locSnapshot);
+        for (const s of snap) {
+          await storage.updateWorldLocation(s.id, { posX: s.posX, posY: s.posY });
+        }
+        console.log(`Admin location positions for ${w.id} restored (${snap.length} locations).`);
+      }
     }
 
     // One-time: apply the Bayou's Heart background image (admin-created location, not in seed list)

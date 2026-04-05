@@ -1915,6 +1915,14 @@ export async function registerRoutes(
       }
       const clamped = { posX: Math.max(-10, Math.min(110, Math.round(posX))), posY: Math.max(-10, Math.min(110, Math.round(posY))) };
       const updated = await storage.updateWorldPosition((req.params.worldId as string), clamped.posX, clamped.posY);
+
+      // Persist admin-set positions as the new defaults — restored automatically on every startup
+      const allWorlds = await storage.getAllWorlds();
+      await storage.setGameSetting(
+        "admin_pos_worlds",
+        JSON.stringify(allWorlds.map(w => ({ id: w.id, posX: w.posX, posY: w.posY })))
+      );
+
       return res.json(updated);
     } catch (err) {
       console.error("Update world position error:", err);
@@ -2410,6 +2418,16 @@ export async function registerRoutes(
         posY: Math.max(-10, Math.min(110, posY)),
         sortOrder: nextSortOrder,
       });
+
+      // Persist admin-set positions as the new defaults — restored automatically on every startup
+      if (loc) {
+        const allLocsForWorld = await storage.getWorldLocations(loc.worldId);
+        await storage.setGameSetting(
+          `admin_pos_locs__${loc.worldId}`,
+          JSON.stringify(allLocsForWorld.map(l => ({ id: l.id, posX: l.posX, posY: l.posY })))
+        );
+      }
+
       return res.json(updated);
     } catch (err) {
       console.error("Update location position error:", err);
