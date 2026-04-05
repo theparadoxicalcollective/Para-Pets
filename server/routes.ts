@@ -521,6 +521,17 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Message too long (max 2000 characters)" });
       }
       const msg = await storage.createSupportMessage({ username, email, subject, message });
+      // Notify all admin users so they see a toast alert (mirrors how players are notified of admin replies)
+      try {
+        const adminUsers = await storage.getAdminUsers();
+        await Promise.all(
+          adminUsers.map(admin =>
+            storage.createNotification(admin.id, "support_message", `New support message from ${username}: "${subject}"`)
+          )
+        );
+      } catch (notifErr) {
+        console.error("Failed to notify admins of support message:", notifErr);
+      }
       return res.json({ message: "Your message has been sent! An admin will reach out to help you.", id: msg.id });
     } catch (err) {
       console.error("Support message error:", err);

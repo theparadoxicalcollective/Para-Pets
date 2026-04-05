@@ -65,6 +65,12 @@ export default function AdminPage({ user }: AdminPageProps) {
     queryKey: ["/api/admin/users"],
   });
 
+  const { data: supportMsgsAll = [] } = useQuery<SupportMsg[]>({
+    queryKey: ["/api/admin/support-messages"],
+    refetchInterval: 60000,
+  });
+  const unreadSupportCount = supportMsgsAll.filter((m: SupportMsg) => !m.isRead).length;
+
   const sortedMembers = [...members].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const banMutation = useMutation({
@@ -107,7 +113,7 @@ export default function AdminPage({ user }: AdminPageProps) {
     { key: "rewards" as const, label: "Rewards", icon: adminIconRewards, desc: "Send bundles", color: "#c4b5fd", glow: "rgba(192,132,252,0.35)", bg: "linear-gradient(145deg, rgba(50,18,88,0.92) 0%, rgba(80,28,120,0.88) 100%)", border: "rgba(192,132,252,0.5)" },
     { key: "items" as const, label: "Pets & Items", icon: adminIconPets, desc: "Item database", color: "#fdba74", glow: "rgba(251,146,60,0.30)", bg: "linear-gradient(145deg, rgba(72,32,8,0.92) 0%, rgba(110,52,12,0.88) 100%)", border: "rgba(251,146,60,0.45)" },
     { key: "pets" as const, label: "Animation Parts", icon: adminIconItems, desc: "Pet database", color: "#5eead4", glow: "rgba(94,234,212,0.30)", bg: "linear-gradient(145deg, rgba(8,45,42,0.92) 0%, rgba(14,70,65,0.88) 100%)", border: "rgba(94,234,212,0.45)" },
-    { key: "messages" as const, label: "Messages", icon: adminIconMessages, desc: "Support inbox", color: "#fca5a5", glow: "rgba(252,165,165,0.30)", bg: "linear-gradient(145deg, rgba(80,18,18,0.92) 0%, rgba(110,28,28,0.88) 100%)", border: "rgba(252,165,165,0.45)" },
+    { key: "messages" as const, label: "Messages", count: unreadSupportCount || undefined, icon: adminIconMessages, desc: "Support inbox", color: "#fca5a5", glow: "rgba(252,165,165,0.30)", bg: "linear-gradient(145deg, rgba(80,18,18,0.92) 0%, rgba(110,28,28,0.88) 100%)", border: "rgba(252,165,165,0.45)" },
     { key: "badges" as const, label: "Badges", icon: adminIconBadges, desc: "Award badges", color: "#fde68a", glow: "rgba(253,230,138,0.30)", bg: "linear-gradient(145deg, rgba(72,54,0,0.92) 0%, rgba(108,80,0,0.88) 100%)", border: "rgba(253,230,138,0.45)" },
     { key: "fishing" as const, label: "Fishing", icon: adminIconFishing, desc: "Fish & ponds", color: "#93c5fd", glow: "rgba(147,197,253,0.30)", bg: "linear-gradient(145deg, rgba(12,22,60,0.92) 0%, rgba(18,36,90,0.88) 100%)", border: "rgba(147,197,253,0.45)" },
     { key: "welcome" as const, label: "Welcome Bundle", icon: adminIconWelcome, desc: "New user gifts", color: "#6ee7b7", glow: "rgba(110,231,183,0.35)", bg: "linear-gradient(145deg, rgba(8,50,35,0.92) 0%, rgba(14,80,55,0.88) 100%)", border: "rgba(110,231,183,0.45)" },

@@ -145,6 +145,7 @@ export interface IStorage {
   updatePetTemplatePart(id: string, data: Partial<PetTemplatePart>): Promise<PetTemplatePart>;
   deletePetTemplatePart(id: string): Promise<void>;
   deletePetTemplatePartsByTemplate(templateId: string): Promise<void>;
+  getAdminUsers(): Promise<User[]>;
   createSupportMessage(data: InsertSupportMessage): Promise<SupportMessage>;
   getAllSupportMessages(): Promise<SupportMessage[]>;
   markSupportMessageRead(id: string): Promise<void>;
@@ -832,6 +833,10 @@ export class DatabaseStorage implements IStorage {
         )
       );
     return rows.length;
+  }
+
+  async getAdminUsers(): Promise<User[]> {
+    return db.select().from(users).where(eq(users.isAdmin, true));
   }
 
   async createSupportMessage(data: InsertSupportMessage): Promise<SupportMessage> {

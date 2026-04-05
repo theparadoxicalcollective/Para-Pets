@@ -77,7 +77,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
     if (newOnes.length === 0) return;
     newOnes.forEach(n => {
       seenNotifIds.current.add(n.id);
-      const title = n.type === "friend_accepted" ? "🐾 Friend Request Accepted" : "✨ Notification";
+      const title = n.type === "friend_accepted" ? "🐾 Friend Request Accepted" : n.type === "support_message" ? "📬 New Support Message" : "✨ Notification";
       toast({ title, description: n.message });
     });
     markReadMutation.mutate();
