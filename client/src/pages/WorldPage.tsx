@@ -942,8 +942,10 @@ export default function WorldPage({ user }: WorldPageProps) {
     // skip the reload entirely to prevent a flash of the loading screen.
     if (world.bg === lastLoadedBgRef.current) { setWorldBgLoaded(true); return; }
     setWorldBgLoaded(false);
+    let cancelled = false;
     const img = new Image();
     img.onload = () => {
+      if (cancelled) return;
       if (img.naturalWidth > 0 && img.naturalHeight > 0) {
         const h = Math.round(MAP_W * img.naturalHeight / img.naturalWidth);
         mapHRef.current = h;
@@ -954,11 +956,13 @@ export default function WorldPage({ user }: WorldPageProps) {
       setWorldBgLoaded(true);
     };
     img.onerror = () => {
+      if (cancelled) return;
       lastLoadedBgRef.current = world.bg;
       setCommittedWorldBg(world.bg);
       setWorldBgLoaded(true);
     };
     img.src = world.bg;
+    return () => { cancelled = true; };
   }, [worldId, world?.bg]);
 
   const clampTransform = useCallback((x: number, y: number, sc: number) => {
