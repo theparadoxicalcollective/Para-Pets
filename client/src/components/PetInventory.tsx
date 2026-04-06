@@ -763,15 +763,7 @@ function PetView({
             data-testid={`card-pet-${pet.shopItemId}`}
             data-pet-inv-id={pet.inventoryId}
             className="relative flex flex-col"
-            style={{
-              borderRadius: 18,
-              boxShadow: isDragging
-                ? "0 0 22px rgba(240,192,64,0.4)"
-                : isActive
-                  ? "0 0 26px rgba(240,192,64,0.32), 0 4px 20px rgba(0,0,0,0.6)"
-                  : `${rs.glow}, 0 4px 16px rgba(0,0,0,0.5)`,
-              transition: "box-shadow 0.2s",
-            }}
+            style={{ borderRadius: 18 }}
           >
             {/* Circular pet image — floating above info box */}
             <div
@@ -886,7 +878,7 @@ function PetView({
             <div
               className="relative flex flex-col items-center rounded-2xl overflow-hidden"
               onClick={handleInfoBoxClick}
-              style={{ cursor: "pointer", background: rs.bg, border: isDragging ? "1.5px solid rgba(240,192,64,0.85)" : isActive ? "1.5px solid rgba(240,192,64,0.82)" : rs.border, paddingTop: 50, paddingBottom: 10, paddingLeft: 8, paddingRight: 8 }}
+              style={{ cursor: "pointer", background: rs.bg, border: isDragging ? "1.5px solid rgba(240,192,64,0.85)" : isActive ? "1.5px solid rgba(240,192,64,0.82)" : rs.border, boxShadow: isDragging ? "0 0 22px rgba(240,192,64,0.4)" : isActive ? "0 0 26px rgba(240,192,64,0.32), 0 4px 20px rgba(0,0,0,0.6)" : `${rs.glow}, 0 4px 16px rgba(0,0,0,0.5)`, transition: "box-shadow 0.2s", paddingTop: 50, paddingBottom: 10, paddingLeft: 8, paddingRight: 8 }}
             >
               {/* Texture overlay */}
               <img
