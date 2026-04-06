@@ -677,63 +677,6 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
             </div>
           </div>
 
-          {/* ── Boost your pet — usable items from bag ─────────── */}
-          {(usableItems.length > 0 || specialItems.length > 0) && (
-            <div
-              className="rounded-2xl overflow-hidden"
-              style={{ background: "rgba(0,0,0,0.38)", border: `1px solid ${rc.primary}22` }}
-            >
-              <div className="flex items-center gap-2 px-3 pt-3 pb-2" style={{ borderBottom: `1px solid ${rc.primary}14` }}>
-                <img src={powerupBagIcon} alt="" style={{ width: 18, height: 18, objectFit: "contain", opacity: 0.85 }} />
-                <span className="font-fantasy text-[10px] tracking-widest font-semibold" style={{ color: rc.primary + "cc" }}>BOOST YOUR PET</span>
-                {showRemainingCount && (
-                  <span className="ml-auto font-fantasy text-[8px] px-2 py-0.5 rounded-full" style={{ background: rc.dim, color: rc.primary, border: `1px solid ${rc.primary}33` }}>
-                    {itemsRemaining} slots left
-                  </span>
-                )}
-              </div>
-              <div className="px-3 py-2.5">
-                {[...usableItems, ...specialItems].length > 0 ? (
-                  <div className="grid grid-cols-4 gap-1.5">
-                    {[...usableItems, ...specialItems].map((item) => {
-                      const isSpecial = item.type === "special";
-                      const boostLabel = isSpecial
-                        ? (item.specialType === "hatch_time" ? `-${item.specialAmount}min` : `+${item.specialAmount} xp`)
-                        : `+${item.statBoostAmount} ${item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "pts"}`;
-                      const labelColor = isSpecial ? "#f0c040" : item.statBoostType === "health" ? "#86c98a" : item.statBoostType === "atk" ? "#d4956a" : "#8fc4b0";
-                      return (
-                        <button
-                          key={item.inventoryId}
-                          data-testid={`button-use-item-${item.inventoryId}`}
-                          onClick={() => setConfirmItem(item)}
-                          className="rounded-xl flex flex-col items-center gap-1 py-2 px-1 transition-all active:scale-95"
-                          style={{
-                            background: "rgba(20,10,3,0.7)",
-                            border: `1px solid ${rc.primary}2a`,
-                            cursor: "pointer",
-                          }}
-                        >
-                          <div className="w-9 h-9 rounded-lg flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.4)" }}>
-                            {item.imageUrl
-                              ? <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
-                              : isSpecial
-                                ? <Sparkles style={{ width: 20, height: 20, color: "#f0c040" }} />
-                                : <img src={powerupBagIcon} alt="" style={{ width: 22, height: 22, objectFit: "contain" }} />
-                            }
-                          </div>
-                          <span className="font-fantasy text-[7px] tracking-wider text-center leading-tight truncate w-full px-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>{item.name}</span>
-                          <span className="font-fantasy text-[8px] font-bold" style={{ color: labelColor, textShadow: `0 0 6px ${labelColor}66` }}>{boostLabel}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="font-fantasy text-center text-[10px] py-2" style={{ color: "rgba(255,255,255,0.2)" }}>No items in bag</p>
-                )}
-              </div>
-            </div>
-          )}
-
           {/* ── Accessories ─────────────────────────────────────── */}
           <div
             className="rounded-2xl p-4"
