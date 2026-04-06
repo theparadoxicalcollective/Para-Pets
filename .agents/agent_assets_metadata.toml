@@ -48,6 +48,36 @@ uri = "file://attached_assets/joystick_thumb_vines.png"
 type = "image"
 title = "joystick thumb vine disc"
 
+[[generated]]
+id = "KcMMlLhfb57YNshC3Xr2I"
+uri = "file://attached_assets/generated_images/icon_stat_atk.png"
+type = "image"
+title = "stat atk sword icon"
+
+[[generated]]
+id = "tGS85GOu3ZhUN3c81Ko0k"
+uri = "file://attached_assets/generated_images/icon_stat_def.png"
+type = "image"
+title = "stat def shield icon"
+
+[[generated]]
+id = "xzJZJSendkdxYd6NuyU_t"
+uri = "file://attached_assets/generated_images/icon_stat_hp.png"
+type = "image"
+title = "stat hp heart icon"
+
+[[generated]]
+id = "EQaFDypL8PLsKraQbT7UQ"
+uri = "file://attached_assets/generated_images/pet_card_divider.png"
+type = "image"
+title = "fantasy ornamental divider"
+
+[[generated]]
+id = "skeg3pftqr-McMJGwpAHB"
+uri = "file://attached_assets/generated_images/pet_inventory_banner.png"
+type = "image"
+title = "pet inventory header banner"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"
