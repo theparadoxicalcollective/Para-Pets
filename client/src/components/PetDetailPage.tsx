@@ -1160,7 +1160,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
           itemsRemaining={powerUpModalMode === "lvlup" ? Infinity : itemsRemaining}
           items={powerUpModalMode === "lvlup" ? lvlUpModalItems : powerUpModalItems}
           title={powerUpModalMode === "lvlup" ? "LVL UP" : "POWER UP"}
-          subtitle={powerUpModalMode === "lvlup" ? "Drag a level-up item onto your pet · or tap to use" : undefined}
+          subtitle={powerUpModalMode === "lvlup" ? "Drag a level-up item onto your pet to use it" : undefined}
           isPending={powerUpMutation.isPending || useSpecialMutation.isPending}
           successEffect={modalSuccessEffect}
           onUseItem={handlePowerUpModalUse}

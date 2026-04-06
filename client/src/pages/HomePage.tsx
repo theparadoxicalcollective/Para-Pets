@@ -92,6 +92,9 @@ export default function HomePage({ user }: HomePageProps) {
   const [hatchTimerDone, setHatchTimerDone] = useState(false);
   const [hatchedPetCache, setHatchedPetCache] = useState<{ hatchedImageUrl: string | null; imageUrl: string | null; petTemplateId: string | null; name: string } | null>(null);
   const [showPetDetail, setShowPetDetail] = useState(false);
+  // Keep last known activePet so PetDetailPage doesn't unmount mid-action
+  // when inventory refetches and activePetId hasn't been migrated yet.
+  const frozenActivePetRef = useRef<InventoryItem | null>(null);
   const [showSpeedUp, setShowSpeedUp] = useState(false);
   const [showSpeedEffect, setShowSpeedEffect] = useState(false);
   const [speedEffectLabel, setSpeedEffectLabel] = useState("");
@@ -143,6 +146,11 @@ export default function HomePage({ user }: HomePageProps) {
   const activePet = currentUser.activePetId
     ? inventory.find((item) => item.inventoryId === currentUser.activePetId && item.type === "pet")
     : null;
+
+  // Freeze the last valid activePet so PetDetailPage stays mounted during
+  // inventory refetches (avoids modal closing mid power-up).
+  if (activePet) frozenActivePetRef.current = activePet;
+  const petForDetail = activePet ?? frozenActivePetRef.current;
 
   // Dismiss only when both: the 3.5s animation timer is done AND the
   // inventory confirms isHatched=true — so the egg never flickers back.
@@ -788,27 +796,27 @@ export default function HomePage({ user }: HomePageProps) {
         </div>
       )}
 
-      {showPetDetail && activePet && activePet.isHatched && (
+      {showPetDetail && petForDetail && petForDetail.isHatched && (
         <PetDetailPage
           pet={{
-            inventoryId: activePet.inventoryId,
-            shopItemId: activePet.shopItemId,
-            name: activePet.name,
-            imageUrl: activePet.imageUrl,
-            eggImageUrl: activePet.eggImageUrl,
-            hatchedImageUrl: activePet.hatchedImageUrl,
-            petTemplateId: activePet.petTemplateId,
-            petNickname: activePet.petNickname,
-            rarity: activePet.rarity,
-            petHealth: activePet.petHealth,
-            petAtk: activePet.petAtk,
-            petDef: activePet.petDef,
-            petLevel: activePet.petLevel,
-            petLevelPoints: activePet.petLevelPoints,
-            itemsUsedThisLevel: activePet.itemsUsedThisLevel,
-            isHatched: activePet.isHatched,
+            inventoryId: petForDetail.inventoryId,
+            shopItemId: petForDetail.shopItemId,
+            name: petForDetail.name,
+            imageUrl: petForDetail.imageUrl,
+            eggImageUrl: petForDetail.eggImageUrl,
+            hatchedImageUrl: petForDetail.hatchedImageUrl,
+            petTemplateId: petForDetail.petTemplateId,
+            petNickname: petForDetail.petNickname,
+            rarity: petForDetail.rarity,
+            petHealth: petForDetail.petHealth,
+            petAtk: petForDetail.petAtk,
+            petDef: petForDetail.petDef,
+            petLevel: petForDetail.petLevel,
+            petLevelPoints: petForDetail.petLevelPoints,
+            itemsUsedThisLevel: petForDetail.itemsUsedThisLevel,
+            isHatched: petForDetail.isHatched,
           }}
-          onClose={() => setShowPetDetail(false)}
+          onClose={() => { setShowPetDetail(false); frozenActivePetRef.current = null; }}
           onUpdate={() => {
             queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
           }}

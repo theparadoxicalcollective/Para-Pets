@@ -507,7 +507,7 @@ export default function PetPowerUpModal({
               style={{ background: "rgba(10,25,12,0.7)", border: "1px solid rgba(134,239,172,0.15)" }}>
               <span style={{ fontSize: 13, color: "#86efac" }}>✦</span>
               <p className="font-fantasy text-[#86efac] text-[11px] tracking-wider">
-                Tap <span className="font-bold text-[#fcd34d]">USE</span> on an item — or drag it onto your pet
+                Drag an item onto your pet to use it
               </p>
               <span style={{ fontSize: 13, color: "#86efac" }}>✦</span>
             </div>
@@ -561,25 +561,13 @@ export default function PetPowerUpModal({
                         {label}
                       </span>
 
-                      {/* USE button */}
-                      <button
-                        data-testid={`button-tap-use-${item.inventoryId}`}
-                        onClick={locked || isPending ? undefined : () => useItem(item)}
-                        disabled={locked || isPending}
-                        className="relative w-full py-1.5 rounded-lg font-fantasy text-[10px] tracking-widest font-bold transition-transform active:scale-95 disabled:opacity-30"
-                        style={{
-                          background: locked
-                            ? "rgba(40,30,15,0.7)"
-                            : `linear-gradient(135deg, ${color}40, ${color}20)`,
-                          border: `1px solid ${locked ? "rgba(80,60,20,0.4)" : color + "60"}`,
-                          color: locked ? "#4a4030" : color,
-                          cursor: locked ? "not-allowed" : "pointer",
-                          textShadow: locked ? "none" : `0 0 8px ${color}80`,
-                          boxShadow: locked ? "none" : `0 0 8px ${color}20`,
-                        }}
-                      >
-                        {locked ? "LOCKED" : isPending ? "..." : "USE"}
-                      </button>
+                      {/* Locked indicator */}
+                      {locked && (
+                        <div className="relative w-full py-1.5 rounded-lg font-fantasy text-[10px] tracking-widest font-bold text-center"
+                          style={{ background: "rgba(40,30,15,0.7)", border: "1px solid rgba(80,60,20,0.4)", color: "#4a4030" }}>
+                          LOCKED
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
