@@ -899,48 +899,31 @@ app.use((req, res, next) => {
       console.log("Bait items seeded (unassigned).");
     }
 
-    // Restore bait items that were lost because soggy_hook_bait_v2 was already marked done
+    // Mark missing_bait_restore_v1 as done without creating items — production bait items
+    // are admin-managed (Moss Grub, Enchanted Lure, Mystic Calling) and should not be overwritten.
     const missingBaitRestored = await storage.getGameSetting("missing_bait_restore_v1");
     if (!missingBaitRestored) {
-      const missingBait = [
-        { name: "Swamp Crawler",    price: 60,  imageFile: "bait_swamp_crawler.png", baitCatchBoost: 0,  rarityBoostPercent: 25 },
-        { name: "Ghost Shrimp Lure", price: 85, imageFile: "bait_ghost_shrimp.png",  baitCatchBoost: 30, rarityBoostPercent: 0  },
-        { name: "Hex Bayou Lure",   price: 150, imageFile: "bait_hex_lure.png",       baitCatchBoost: 20, rarityBoostPercent: 35 },
-      ];
-      for (const b of missingBait) {
-        const exists = await db.execute(sql`SELECT id FROM shop_items WHERE name = ${b.name} AND fishing_type = 'bait'`);
-        if (exists.rows.length === 0) {
-          const imgData = loadAssetBase64(b.imageFile);
-          await storage.createShopItem({
-            name: b.name,
-            price: b.price,
-            type: "fishing",
-            fishingType: "bait",
-            worldId: "all",
-            locationId: null,
-            imageUrl: imgData,
-            baitCatchBoost: b.baitCatchBoost,
-            rarityBoostPercent: b.rarityBoostPercent,
-            rarity: null,
-            hatchTime: null,
-            statBoostType: null,
-            statBoostAmount: null,
-            eggImageUrl: null,
-            hatchedImageUrl: null,
-            specialSkill: null,
-            healthRestored: null,
-            manaRestored: null,
-            petsRevived: null,
-            atkBoost: null,
-            defBoost: null,
-          });
-          console.log(`Restored missing bait item: ${b.name}`);
-        }
-      }
       await storage.setGameSetting("missing_bait_restore_v1", "done");
     }
   } catch (err) {
     console.error("Bait item seeding error (non-fatal):", err);
+  }
+
+  // Cleanup: remove old code-seeded bait items that were replaced by admin-managed ones.
+  // Safe no-op on production (these items don't exist there); removes duplicates from dev.
+  try {
+    const baitCleanupDone = await storage.getGameSetting("bait_cleanup_v1");
+    if (!baitCleanupDone) {
+      await db.execute(sql`
+        DELETE FROM shop_items
+        WHERE name IN ('Swamp Crawler', 'Ghost Shrimp Lure', 'Hex Bayou Lure')
+          AND fishing_type = 'bait'
+      `);
+      await storage.setGameSetting("bait_cleanup_v1", "done");
+      console.log("Old seeded bait items cleaned up.");
+    }
+  } catch (err) {
+    console.error("Bait cleanup error (non-fatal):", err);
   }
 
   // One-time cleanup: remove the admin test pole if it still exists
