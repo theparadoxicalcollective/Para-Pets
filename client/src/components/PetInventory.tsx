@@ -291,26 +291,26 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
                   </div>
                 </div>
               )}
-              <button
-                data-testid="button-close-inventory"
-                onClick={onClose}
-                className="flex items-center gap-1.5 transition-transform active:scale-90"
-                style={{
-                  background: "linear-gradient(135deg, #5c3a1e 0%, #3a2010 100%)",
-                  border: "2px solid rgba(212,160,23,0.6)",
-                  color: "#f0c040",
-                  cursor: "pointer",
-                  fontSize: pageMode ? "11px" : "14px",
-                  fontWeight: "bold",
-                  borderRadius: pageMode ? "8px" : "50%",
-                  padding: pageMode ? "5px 10px" : "0",
-                  width: pageMode ? "auto" : "36px",
-                  height: pageMode ? "auto" : "36px",
-                  justifyContent: "center",
-                }}
-              >
-                {pageMode ? "← BACK" : "✕"}
-              </button>
+              {!pageMode && (
+                <button
+                  data-testid="button-close-inventory"
+                  onClick={onClose}
+                  className="flex items-center justify-center transition-transform active:scale-90"
+                  style={{
+                    background: "linear-gradient(135deg, #5c3a1e 0%, #3a2010 100%)",
+                    border: "2px solid rgba(212,160,23,0.6)",
+                    color: "#f0c040",
+                    cursor: "pointer",
+                    fontSize: "14px",
+                    fontWeight: "bold",
+                    borderRadius: "50%",
+                    width: "36px",
+                    height: "36px",
+                  }}
+                >
+                  ✕
+                </button>
+              )}
             </div>
 
             {/* Tabs — hidden in page mode */}
@@ -381,6 +381,30 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
               />
             )}
           </div>
+
+          {/* Bottom back button — page mode only */}
+          {pageMode && (
+            <div className="flex-shrink-0 px-5 pb-6 pt-3">
+              <button
+                data-testid="button-close-inventory"
+                onClick={onClose}
+                className="w-full flex items-center justify-center gap-2 transition-transform active:scale-95 font-fantasy tracking-wider"
+                style={{
+                  background: "linear-gradient(135deg, #5c3a1e 0%, #3a2010 100%)",
+                  border: "2px solid rgba(212,160,23,0.6)",
+                  color: "#f0c040",
+                  cursor: "pointer",
+                  fontSize: "13px",
+                  fontWeight: "bold",
+                  borderRadius: "12px",
+                  padding: "12px 0",
+                  boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
+                }}
+              >
+                ← BACK
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -401,6 +425,14 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
           30% { transform: translateY(0px) scale(1.1); opacity: 1; }
           70% { transform: translateY(-4px) scale(1); opacity: 1; }
           100% { transform: translateY(-12px) scale(0.9); opacity: 0; }
+        }
+        @keyframes petImgSpin {
+          0% { transform: rotate(0deg) scale(1); }
+          40% { transform: rotate(200deg) scale(1.08); }
+          100% { transform: rotate(360deg) scale(1); }
+        }
+        .pet-img-spin {
+          animation: petImgSpin 0.55s cubic-bezier(0.34,1.56,0.64,1) forwards;
         }
       `}</style>
 
@@ -645,6 +677,7 @@ function PetView({
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [hatchingId, setHatchingId] = useState<string | null>(null);
+  const [spinId, setSpinId] = useState<string | null>(null);
 
   const hatchCheckMutation = useMutation({
     mutationFn: async (inventoryId: string) => {
@@ -700,6 +733,8 @@ function PetView({
 
         const handleCardClick = () => {
           if (isDragging) return;
+          setSpinId(pet.inventoryId);
+          setTimeout(() => setSpinId(null), 600);
           if (isEgg && hatchReady) {
             hatchCheckMutation.mutate(pet.inventoryId);
           } else if (isEgg && !hatchReady) {
@@ -718,56 +753,34 @@ function PetView({
             key={pet.inventoryId}
             data-testid={`card-pet-${pet.shopItemId}`}
             data-pet-inv-id={pet.inventoryId}
-            className="relative rounded-2xl flex flex-col overflow-hidden"
+            className="relative flex flex-col"
             style={{
-              background: rs.bg,
-              border: isDragging
-                ? "1.5px solid rgba(240,192,64,0.85)"
-                : isActive
-                  ? "1.5px solid rgba(240,192,64,0.82)"
-                  : rs.border,
               boxShadow: isDragging
                 ? "0 0 22px rgba(240,192,64,0.4)"
                 : isActive
                   ? "0 0 26px rgba(240,192,64,0.32), 0 4px 20px rgba(0,0,0,0.6)"
                   : `${rs.glow}, 0 4px 16px rgba(0,0,0,0.5)`,
-              transition: "border 0.2s, box-shadow 0.2s",
+              transition: "box-shadow 0.2s",
             }}
           >
-            {/* Dark forest texture overlay — very subtle, adds depth */}
-            <img
-              src={petCardTextureImg}
-              alt=""
-              aria-hidden="true"
-              className="absolute inset-0 w-full h-full object-cover pointer-events-none rounded-2xl"
-              style={{ opacity: 0.10, mixBlendMode: "soft-light" }}
-            />
-
-            {/* Active shimmer along top edge */}
-            {isActive && (
-              <div style={{ height: 2, background: "linear-gradient(90deg, transparent, rgba(240,192,64,0.55), transparent)", flexShrink: 0 }} />
-            )}
-
-            {/* Circular pet image — centered */}
+            {/* Circular pet image — floating above info box */}
             <div
-              className="flex justify-center pt-3 pb-3"
+              className="flex justify-center"
+              style={{ position: "relative", zIndex: 2, marginBottom: -42 }}
               onClick={handleCardClick}
-              style={{ cursor: "pointer" }}
             >
-              <div style={{ position: "relative", width: 88, height: 88 }}>
-                {/* Circle frame */}
+              <div style={{ position: "relative", width: 90, height: 90, cursor: "pointer" }}>
+                {/* Circle — no border, semi-transparent bg */}
                 <div
+                  className={spinId === pet.inventoryId ? "pet-img-spin" : ""}
                   style={{
-                    width: 88, height: 88,
+                    width: 90, height: 90,
                     borderRadius: "50%",
                     overflow: "hidden",
-                    border: isActive
-                      ? "2px solid rgba(240,192,64,0.88)"
-                      : `2px solid rgba(240,192,64,${rs.borderOpacity})`,
+                    background: "rgba(8,5,2,0.52)",
                     boxShadow: isActive
-                      ? "0 0 22px rgba(240,192,64,0.5), inset 0 0 14px rgba(0,0,0,0.45)"
-                      : `0 0 ${8 + (pet.rarity ?? 1) * 3}px rgba(240,192,64,${rs.glowStrength}), inset 0 0 14px rgba(0,0,0,0.5)`,
-                    background: "radial-gradient(ellipse at 40% 30%, rgba(240,192,64,0.07) 0%, rgba(0,0,0,0.72) 75%)",
+                      ? "0 0 22px rgba(240,192,64,0.45)"
+                      : `0 0 ${6 + (pet.rarity ?? 1) * 3}px rgba(240,192,64,${rs.glowStrength})`,
                   }}
                 >
                   {displayImage ? (
@@ -778,7 +791,7 @@ function PetView({
                       style={{
                         padding: "6px",
                         filter: isActive
-                          ? "drop-shadow(0 0 8px rgba(240,192,64,0.65)) drop-shadow(0 0 18px rgba(240,192,64,0.28))"
+                          ? "drop-shadow(0 0 8px rgba(240,192,64,0.65))"
                           : "drop-shadow(0 0 5px rgba(240,192,64,0.35))",
                       }}
                     />
@@ -789,7 +802,7 @@ function PetView({
                   )}
                 </div>
 
-                {/* Hatch ready ring overlay */}
+                {/* Hatch ready ring */}
                 {!isDragging && hatchReady && hatchingId !== pet.inventoryId && (
                   <div
                     className="absolute inset-0 rounded-full flex items-center justify-center animate-pulse"
@@ -809,7 +822,7 @@ function PetView({
                   </div>
                 )}
 
-                {/* Hatch burst (particles overflow the circle, clipped by card edge) */}
+                {/* Hatch burst particles */}
                 {hatchingId === pet.inventoryId && (
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20" style={{ overflow: "visible" }}>
                     {[...Array(10)].map((_, i) => {
@@ -827,59 +840,58 @@ function PetView({
                   </div>
                 )}
 
-                {/* EGG label pinned below circle */}
+                {/* EGG label */}
                 {isEgg && !hatchReady && (
                   <div style={{ position: "absolute", bottom: -9, left: "50%", transform: "translateX(-50%)", background: "rgba(8,4,1,0.92)", border: "1px solid rgba(240,192,64,0.42)", borderRadius: 20, padding: "1px 8px", whiteSpace: "nowrap" }}>
                     <span className="font-fantasy text-[7px] text-[#f0c040] tracking-wider">EGG</span>
                   </div>
                 )}
-
-                {/* Ornate gold portrait frame — overlaid above everything */}
-                <img
-                  src={petCardFrameImg}
-                  alt=""
-                  aria-hidden="true"
-                  style={{
-                    position: "absolute",
-                    top: -10, left: -10,
-                    width: 108, height: 108,
-                    objectFit: "contain",
-                    pointerEvents: "none",
-                    zIndex: 6,
-                    opacity: isActive
-                      ? 1.0
-                      : 0.60 + (pet.rarity ?? 1) * 0.07,
-                    filter: isActive
-                      ? "drop-shadow(0 0 12px rgba(240,192,64,0.8)) brightness(1.25)"
-                      : `brightness(${0.75 + (pet.rarity ?? 1) * 0.07})`,
-                    transition: "opacity 0.3s, filter 0.3s",
-                  }}
-                />
               </div>
             </div>
 
-            {/* Info section — centered below circle */}
+            {/* Info box — pet image overlaps top */}
             <div
-              className="px-2 pb-3 flex flex-col items-center gap-0.5"
+              className="relative flex flex-col items-center rounded-2xl overflow-hidden"
               onClick={!isEgg ? handleCardClick : undefined}
-              style={{ cursor: !isEgg ? "pointer" : "default", marginTop: isEgg && !hatchReady ? 8 : 0 }}
+              style={{ cursor: !isEgg ? "pointer" : "default", background: rs.bg, border: isDragging ? "1.5px solid rgba(240,192,64,0.85)" : isActive ? "1.5px solid rgba(240,192,64,0.82)" : rs.border, paddingTop: 50, paddingBottom: 10, paddingLeft: 8, paddingRight: 8 }}
             >
-              {/* Name */}
+              {/* Texture overlay */}
+              <img
+                src={petCardTextureImg}
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+                style={{ opacity: 0.10, mixBlendMode: "soft-light" }}
+              />
+
+              {/* Active shimmer */}
+              {isActive && (
+                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, transparent, rgba(240,192,64,0.55), transparent)" }} />
+              )}
+
+              {/* Name — largest */}
               <p
                 className="font-fantasy font-semibold leading-tight truncate text-center w-full"
-                style={{ fontSize: 11, color: "#f0c040", textShadow: "0 0 8px rgba(240,192,64,0.38)", letterSpacing: "0.04em" }}
+                style={{ fontSize: 14, color: "#f0c040", textShadow: "0 0 8px rgba(240,192,64,0.38)", letterSpacing: "0.04em" }}
                 data-testid={`text-pet-name-${pet.shopItemId}`}
               >
                 {pet.petNickname || pet.name}
               </p>
 
-              {/* Stars — all 5 shown, filled/dim */}
-              <div className="flex items-center gap-0.5">
+              {/* Species — shown smaller when pet has a nickname */}
+              {pet.petNickname && (
+                <p className="font-fantasy leading-tight truncate text-center w-full" style={{ fontSize: 10, color: "#a89878", letterSpacing: "0.03em", marginTop: 1 }}>
+                  {pet.name}
+                </p>
+              )}
+
+              {/* Stars */}
+              <div className="flex items-center gap-0.5 mt-1">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <span
                     key={i}
                     style={{
-                      fontSize: 8,
+                      fontSize: 11,
                       color: i < (pet.rarity ?? 1) ? "#f0c040" : "rgba(240,192,64,0.14)",
                       textShadow: i < (pet.rarity ?? 1) ? "0 0 4px rgba(240,192,64,0.6)" : "none",
                     }}
@@ -891,39 +903,39 @@ function PetView({
               {isEgg && pet.hatchStartedAt && pet.hatchTime ? (
                 <HatchProgressBar hatchStartedAt={pet.hatchStartedAt} hatchTime={pet.hatchTime} />
               ) : isEgg ? (
-                <p className="font-fantasy text-[#a89878] text-[8px] tracking-wider mt-0.5">Tap to hatch</p>
+                <p className="font-fantasy text-[#a89878] text-[9px] tracking-wider mt-1">Tap to hatch</p>
               ) : (
                 <>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="font-fantasy text-[#c8a84b]" style={{ fontSize: 9, letterSpacing: "0.06em" }}>LV {pet.petLevel}</span>
-                    {isActive && <span style={{ fontSize: 7, color: "rgba(240,192,64,0.55)" }}>✦ ACTIVE</span>}
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    <span className="font-fantasy text-[#c8a84b]" style={{ fontSize: 10, letterSpacing: "0.06em" }}>LV {pet.petLevel}</span>
+                    {isActive && <span style={{ fontSize: 8, color: "rgba(240,192,64,0.55)" }}>✦ ACTIVE</span>}
                   </div>
-                  <div className="flex items-center gap-1 flex-wrap justify-center">
+                  <div className="flex items-center gap-1.5 flex-wrap justify-center mt-0.5">
                     <div className="flex items-center gap-0.5">
-                      <img src={statHpIcon} alt="HP" style={{ width: 10, height: 10, objectFit: "contain" }} />
-                      <span className="font-fantasy text-[#9ecfa0]" style={{ fontSize: 9, fontWeight: 700 }}>{pet.petHealth}</span>
+                      <img src={statHpIcon} alt="HP" style={{ width: 12, height: 12, objectFit: "contain" }} />
+                      <span className="font-fantasy text-[#9ecfa0]" style={{ fontSize: 10, fontWeight: 700 }}>{pet.petHealth}</span>
                     </div>
-                    <span style={{ color: "rgba(240,192,64,0.18)", fontSize: 9 }}>·</span>
+                    <span style={{ color: "rgba(240,192,64,0.18)", fontSize: 10 }}>·</span>
                     <div className="flex items-center gap-0.5">
-                      <img src={statAtkIcon} alt="ATK" style={{ width: 10, height: 10, objectFit: "contain" }} />
-                      <span className="font-fantasy text-[#d4956a]" style={{ fontSize: 9, fontWeight: 700 }}>{pet.petAtk}</span>
+                      <img src={statAtkIcon} alt="ATK" style={{ width: 12, height: 12, objectFit: "contain" }} />
+                      <span className="font-fantasy text-[#d4956a]" style={{ fontSize: 10, fontWeight: 700 }}>{pet.petAtk}</span>
                     </div>
-                    <span style={{ color: "rgba(240,192,64,0.18)", fontSize: 9 }}>·</span>
+                    <span style={{ color: "rgba(240,192,64,0.18)", fontSize: 10 }}>·</span>
                     <div className="flex items-center gap-0.5">
-                      <img src={statDefIcon} alt="DEF" style={{ width: 10, height: 10, objectFit: "contain" }} />
-                      <span className="font-fantasy text-[#8ab4c8]" style={{ fontSize: 9, fontWeight: 700 }}>{pet.petDef}</span>
+                      <img src={statDefIcon} alt="DEF" style={{ width: 12, height: 12, objectFit: "contain" }} />
+                      <span className="font-fantasy text-[#8ab4c8]" style={{ fontSize: 10, fontWeight: 700 }}>{pet.petDef}</span>
                     </div>
                   </div>
                 </>
               )}
 
-              {/* SELECT / ACTIVE button — bottom of card */}
+              {/* SELECT / ACTIVE button */}
               {!isEgg && (
                 <button
                   data-testid={`button-select-pet-${pet.shopItemId}`}
                   onClick={(e) => { e.stopPropagation(); onToggle(pet.inventoryId); }}
                   disabled={isPending}
-                  className="w-full mt-1.5 flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-40"
+                  className="w-full mt-2 flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-40"
                   style={{
                     background: isActive
                       ? "linear-gradient(135deg, rgba(240,192,64,0.22) 0%, rgba(240,192,64,0.10) 100%)"
@@ -932,7 +944,7 @@ function PetView({
                       ? "1px solid rgba(240,192,64,0.65)"
                       : "1px solid rgba(240,192,64,0.18)",
                     borderRadius: 8,
-                    padding: "4px 0",
+                    padding: "5px 0",
                     cursor: "pointer",
                   }}
                 >
@@ -948,7 +960,7 @@ function PetView({
                   />
                   <span
                     className="font-fantasy"
-                    style={{ fontSize: 8, color: isActive ? "#f0c040" : "rgba(240,192,64,0.38)", letterSpacing: "0.08em" }}
+                    style={{ fontSize: 9, color: isActive ? "#f0c040" : "rgba(240,192,64,0.38)", letterSpacing: "0.08em" }}
                   >
                     {isActive ? "ACTIVE" : "SELECT"}
                   </span>
