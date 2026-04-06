@@ -345,6 +345,23 @@ export async function backfillCoinPurchaseEarnings(): Promise<void> {
   }
 }
 
+// Ensures totalCoinsEarned is always >= the user's current coin balance.
+// This seeds legacy users whose in-game earnings were never recorded in the column.
+export async function syncTotalCoinsEarnedFloor(): Promise<void> {
+  try {
+    const result = await db.execute(sql`
+      UPDATE users
+      SET total_coins_earned = coins
+      WHERE coins > total_coins_earned
+    `);
+    if ((result.rowCount ?? 0) > 0) {
+      console.log(`totalCoinsEarned floor sync: updated ${result.rowCount} user(s).`);
+    }
+  } catch (err) {
+    console.error("totalCoinsEarned floor sync error (non-fatal):", err);
+  }
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express

@@ -4,7 +4,7 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import bcrypt from "bcryptjs";
 import connectPgSimple from "connect-pg-simple";
-import { registerRoutes, backfillAdvancedAcquisitionBadge, backfillCoinPurchaseEarnings } from "./routes";
+import { registerRoutes, backfillAdvancedAcquisitionBadge, backfillCoinPurchaseEarnings, syncTotalCoinsEarnedFloor } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { storage } from "./storage";
@@ -1345,5 +1345,7 @@ app.use((req, res, next) => {
   // Backfill Advanced Acquisition badge for users who previously bought a $100 pack
   await backfillAdvancedAcquisitionBadge();
   await backfillCoinPurchaseEarnings();
+  // Ensure totalCoinsEarned >= current balance for all users (seeds legacy in-game earners)
+  await syncTotalCoinsEarnedFloor();
   })().catch(err => console.error("Background init error:", err));
 })();
