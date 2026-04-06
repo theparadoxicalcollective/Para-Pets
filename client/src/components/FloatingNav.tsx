@@ -118,7 +118,6 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
             delay={i * 45}
             translateX={-(SPACING * (i + 1))}
             translateY={0}
-            labelDir="up"
             fillIcon={!!(item as any).fill}
             onClick={() => handleLeft(item.id)}
           />
@@ -134,7 +133,6 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
             delay={i * 45}
             translateX={0}
             translateY={-(SPACING * (i + 1))}
-            labelDir="left"
             onClick={() => handleRight(item.id)}
           />
         ))}
@@ -246,7 +244,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
 
 // ── Individual nav icon button ────────────────────────────────────────────────
 function NavButton({
-  icon, label, isOpen, delay, translateX, translateY, labelDir, fillIcon = false, onClick,
+  icon, label, isOpen, delay, translateX, translateY, fillIcon = false, onClick,
 }: {
   icon: string;
   label: string;
@@ -254,7 +252,6 @@ function NavButton({
   delay: number;
   translateX: number;
   translateY: number;
-  labelDir: "up" | "left";
   fillIcon?: boolean;
   onClick: () => void;
 }) {
@@ -291,23 +288,6 @@ function NavButton({
         }}
       />
 
-      {/* Label tooltip */}
-      {isOpen && (
-        <span
-          className="absolute font-fantasy pointer-events-none whitespace-nowrap"
-          style={{
-            fontSize: 8,
-            color: "#f0c040",
-            textShadow: "0 1px 4px rgba(0,0,0,0.9)",
-            letterSpacing: "0.1em",
-            ...(labelDir === "up"
-              ? { bottom: "calc(100% + 3px)", left: "50%", transform: "translateX(-50%)" }
-              : { right: "calc(100% + 4px)", top: "50%", transform: "translateY(-50%)" }),
-          }}
-        >
-          {label}
-        </span>
-      )}
     </button>
   );
 }
