@@ -1,14 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { Sparkles, Wind, Pencil } from "lucide-react";
-import { fireLevelUp } from "@/lib/levelUpEvents";
-import { playPowerUp, playSpeedUp } from "@/lib/sounds";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import PowerUpOverlay, { PowerUpEffectType } from "@/components/PowerUpOverlay";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import gemCrystalIcon from "@assets/generated_images/icon_gem_crystal.png";
-import powerupBagIcon from "@assets/generated_images/icon_powerup_bag.png";
 import statHpIcon from "@assets/generated_images/icon_stat_hp.png";
 import statAtkIcon from "@assets/generated_images/icon_stat_atk.png";
 import statDefIcon from "@assets/generated_images/icon_stat_def.png";
@@ -84,11 +80,6 @@ const RARITY: Record<number, { label: string; primary: string; glow: string; her
 };
 
 export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUserUpdate }: PetDetailPageProps) {
-  const [confirmItem, setConfirmItem] = useState<BagItem | null>(null);
-  const pendingUseItemRef = useRef<any | null>(null);
-  const [showSuccessAnim, setShowSuccessAnim] = useState(false);
-  const [successBoostLabel, setSuccessBoostLabel] = useState("");
-  const [successAnimType, setSuccessAnimType] = useState<PowerUpEffectType>("stat");
   const [editingNickname, setEditingNickname] = useState(false);
   const [nicknameInput, setNicknameInput] = useState(pet.petNickname || "");
   const [showAccessoryPicker, setShowAccessoryPicker] = useState(false);
@@ -178,81 +169,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
     },
   });
 
-  const usableItems = inventory.filter(
-    (item) => (item.type === "item" || item.type === "power_up") && item.statBoostType
-  );
-
-  const specialItems = inventory.filter(
-    (item) => item.type === "special" && item.specialType
-  );
-
   const rarity = pet.rarity || 1;
-  // 1-2 star pets: 2 slots/level; 3-5 star pets: 3 slots/level
-  const maxItemsPerLevel = rarity <= 2 ? 2 : 3;
-  const totalUsed = Math.max(0, pet.itemsUsedThisLevel);
-  const totalAllowances = pet.petLevel * maxItemsPerLevel;
-  const itemsRemaining = totalAllowances - totalUsed;
-  const showRemainingCount = itemsRemaining < 26;
-
-  const powerUpMutation = useMutation({
-    mutationFn: async (itemInventoryId: string) => {
-      const res = await apiRequest("POST", `/api/pet/${pet.inventoryId}/power-up`, { itemInventoryId });
-      return res.json();
-    },
-    onSuccess: (data) => {
-      playPowerUp();
-      const item = pendingUseItemRef.current ?? confirmItem;
-      pendingUseItemRef.current = null;
-      const boostLabel = item
-        ? `+${item.statBoostAmount || "?"} ${item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "Lvl pts"}`
-        : "Power Up!";
-      setConfirmItem(null);
-      setSuccessBoostLabel(boostLabel);
-      setSuccessAnimType("stat");
-      setShowSuccessAnim(true);
-      if (data?.petLevel && data.petLevel > pet.petLevel) {
-        fireLevelUp(data.petLevel, pet.petNickname || pet.name, pet.petTemplateId);
-      }
-      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-      onUpdate();
-    },
-    onError: (err: any) => {
-      pendingUseItemRef.current = null;
-      setConfirmItem(null);
-      toast({ title: "Failed", description: err?.message || "Could not power up", variant: "destructive" });
-    },
-  });
-
-  const useSpecialMutation = useMutation({
-    mutationFn: async (itemInventoryId: string) => {
-      const res = await apiRequest("POST", `/api/pet/${pet.inventoryId}/use-special`, { itemInventoryId });
-      return res.json();
-    },
-    onSuccess: (data) => {
-      const item = pendingUseItemRef.current ?? confirmItem;
-      pendingUseItemRef.current = null;
-      const isHatchTime = item?.specialType === "hatch_time";
-      if (isHatchTime) playSpeedUp(); else playPowerUp();
-      const label = isHatchTime
-        ? `-${item?.specialAmount || "?"} min`
-        : `+${item?.specialAmount || "?"} LVL pts`;
-      const effectType: PowerUpEffectType = isHatchTime ? "hatch" : "level";
-      setConfirmItem(null);
-      setSuccessBoostLabel(label);
-      setSuccessAnimType(effectType);
-      setShowSuccessAnim(true);
-      if (data?.petLevel && data.petLevel > pet.petLevel) {
-        fireLevelUp(data.petLevel, pet.petNickname || pet.name, pet.petTemplateId);
-      }
-      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-      onUpdate();
-    },
-    onError: (err: any) => {
-      pendingUseItemRef.current = null;
-      setConfirmItem(null);
-      toast({ title: "Failed", description: err?.message || "Could not use special item", variant: "destructive" });
-    },
-  });
 
   const petImage = pet.hatchedImageUrl || pet.imageUrl;
   const rc = RARITY[Math.min(5, Math.max(1, rarity))] || RARITY[1];
@@ -603,23 +520,6 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                     </span>
                   </div>
                 )}
-                {/* Power-up slots */}
-                <div className="flex items-center justify-between mt-1.5">
-                  <span className="font-fantasy text-[8px] tracking-widest" style={{ color: "rgba(255,255,255,0.22)" }}>POWER-UP SLOTS</span>
-                  <span className="font-fantasy text-[8px]" style={{ color: rc.primary + "99" }} data-testid="text-items-used">
-                    {showRemainingCount ? `${itemsRemaining} remaining` : "✦ unlimited"}
-                  </span>
-                </div>
-                <div className="w-full rounded-full overflow-hidden mt-0.5" style={{ height: 4, background: "rgba(0,0,0,0.5)" }}>
-                  <div style={{
-                    width: totalAllowances > 0 ? `${Math.min(100, (totalUsed / totalAllowances) * 100)}%` : "0%",
-                    background: `linear-gradient(90deg, ${rc.primary}66, ${rc.primary})`,
-                    height: "100%",
-                    borderRadius: 4,
-                    transition: "width 0.5s ease",
-                    boxShadow: `0 0 5px ${rc.glow}`,
-                  }} />
-                </div>
               </div>
             </div>
           </div>
@@ -800,84 +700,6 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
 
         </div>
 
-        {/* ── Confirm use item ────────────────────────────────────── */}
-        {confirmItem && (() => {
-          const isSpecial = confirmItem.type === "special";
-          const isPending = isSpecial ? useSpecialMutation.isPending : powerUpMutation.isPending;
-          const effectLabel = isSpecial
-            ? (confirmItem.specialType === "hatch_time" ? `-${confirmItem.specialAmount || "?"}min hatch time` : `+${confirmItem.specialAmount || "?"} LVL pts`)
-            : `+${confirmItem.statBoostAmount || "?"} ${confirmItem.statBoostType === "health" ? "HP" : confirmItem.statBoostType === "atk" ? "ATK" : confirmItem.statBoostType === "def" ? "DEF" : "Lvl pts"}`;
-          const effectColor = isSpecial ? "#f0c040" : (confirmItem.statBoostType === "health" ? "#4ade80" : confirmItem.statBoostType === "atk" ? "#f87171" : confirmItem.statBoostType === "def" ? "#60a5fa" : "#c084fc");
-          const effectBg = isSpecial ? "rgba(240,192,64,0.2)" : (confirmItem.statBoostType === "health" ? "rgba(74,222,128,0.2)" : confirmItem.statBoostType === "atk" ? "rgba(248,113,113,0.2)" : confirmItem.statBoostType === "def" ? "rgba(96,165,250,0.2)" : "rgba(192,132,252,0.2)");
-          return (
-            <div className="fixed inset-0 z-[60] flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
-              <div className="absolute inset-0 bg-black/60" onClick={() => setConfirmItem(null)} />
-              <div
-                className="relative w-[80%] max-w-xs rounded-2xl p-5 animate-slide-up"
-                style={{
-                  background: "linear-gradient(135deg, rgba(10,40,25,0.97) 0%, rgba(20,60,35,0.97) 100%)",
-                  border: "1px solid rgba(127,255,212,0.5)",
-                  boxShadow: "0 8px 40px rgba(0,0,0,0.8), 0 0 30px rgba(127,255,212,0.15)",
-                }}
-              >
-                <h4 className="font-fantasy text-[#7fffd4] text-sm tracking-wider text-center mb-3" data-testid="text-confirm-use-title">
-                  {isSpecial ? "Use Special Item?" : "Use Item?"}
-                </h4>
-                <div className="flex flex-col items-center gap-2 mb-4">
-                  <div className="w-14 h-14 rounded-xl flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.3)" }}>
-                    {confirmItem.imageUrl ? (
-                      <img src={confirmItem.imageUrl} alt={confirmItem.name} className="w-full h-full object-contain" />
-                    ) : isSpecial ? (
-                      <Sparkles className="w-7 h-7" style={{ color: "#f0c040" }} />
-                    ) : (
-                      <img src={powerupBagIcon} alt="" style={{ width: 32, height: 32, objectFit: "contain" }} />
-                    )}
-                  </div>
-                  <p className="font-fantasy text-[#f0c040] text-xs font-semibold">{confirmItem.name}</p>
-                  <span
-                    className="font-fantasy text-xs tracking-wider px-3 py-1 rounded-full"
-                    style={{ background: effectBg, color: effectColor, border: `1px solid ${effectColor}44` }}
-                  >
-                    {effectLabel}
-                  </span>
-                  {isSpecial && (
-                    <p className="font-fantasy text-[#f0c040] text-[9px] text-center">
-                      Does NOT count toward power-up limit
-                    </p>
-                  )}
-                  <p className="font-fantasy text-[#a89878] text-[10px] text-center">
-                    This item will be consumed and cannot be undone.
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setConfirmItem(null)}
-                    className="flex-1 py-2 rounded-xl font-fantasy text-xs tracking-wider"
-                    style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#ccc", cursor: "pointer" }}
-                    data-testid="button-cancel-use-item"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => isSpecial ? useSpecialMutation.mutate(confirmItem.inventoryId) : powerUpMutation.mutate(confirmItem.inventoryId)}
-                    disabled={isPending}
-                    className="flex-1 py-2 rounded-xl font-fantasy text-xs tracking-wider disabled:opacity-50"
-                    style={{
-                      background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
-                      border: "1px solid rgba(127,255,212,0.5)",
-                      color: "#7fffd4",
-                      cursor: "pointer",
-                      boxShadow: "0 0 15px rgba(127,255,212,0.2)",
-                    }}
-                    data-testid="button-confirm-use-item"
-                  >
-                    {isPending ? "Using..." : "Use Item"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
 
       </div>
 
@@ -1062,13 +884,6 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
           </div>
         </div>
       )}
-
-      <PowerUpOverlay
-        visible={showSuccessAnim}
-        effectType={successAnimType}
-        label={successBoostLabel}
-        onDone={() => setShowSuccessAnim(false)}
-      />
 
     </div>
   );
