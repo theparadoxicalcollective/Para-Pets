@@ -241,7 +241,7 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
             className="w-full h-full object-cover"
             style={{ objectPosition: "center top" }}
           />
-          <div className="absolute inset-0" style={{ background: pageMode ? "rgba(0,0,0,0.48)" : "rgba(0,0,0,0.78)" }} />
+          <div className="absolute inset-0" style={{ background: pageMode ? "rgba(0,0,0,0.38)" : "rgba(0,0,0,0.78)" }} />
         </div>
 
         <div className="relative z-10 flex flex-col h-full overflow-hidden">
