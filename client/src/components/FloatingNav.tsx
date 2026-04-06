@@ -14,7 +14,6 @@ import questIcon from "@assets/generated_images/nav_icon_map.png";
 import questScrollBg from "@assets/IMG_6427_1774545779530.png";
 import pvpIcon from "@assets/generated_images/nav_icon_pvp.png";
 import badgesIcon from "@assets/generated_images/nav_icon_badges.png";
-import PetInventory from "@/components/PetInventory";
 import PetWorldPage from "@/pages/PetWorldPage";
 import { AquariumPage } from "@/pages/AquariumPage";
 
@@ -61,7 +60,6 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   const [isOpen, setIsOpen]           = useState(false);
   const [showQuest, setShowQuest]     = useState(false);
   const [showPvpNote, setShowPvpNote] = useState(false);
-  const [showInv, setShowInv]         = useState<"pets" | "bag" | null>(null);
   const [showAquarium, setShowAquarium]   = useState(false);
   const [showKeepers, setShowKeepers]     = useState(false);
   const [panelZ, setPanelZ]           = useState(300);
@@ -72,7 +70,6 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     setIsOpen(false);
     setShowQuest(false);
     setShowPvpNote(false);
-    setShowInv(null);
     setShowAquarium(false);
     setShowKeepers(false);
   };
@@ -82,7 +79,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     if (id === "map")       { navigate("/map"); return; }
     if (id === "quest")     { openPanel(() => setShowQuest(true)); return; }
     if (id === "pvp")       { user.isAdmin ? navigate("/pvp") : openPanel(() => setShowPvpNote(true)); return; }
-    if (id === "inventory") { openPanel(() => setShowInv("pets")); return; }
+    if (id === "inventory") { closeAll(); navigate("/pets"); return; }
     if (id === "badges")    { navigate("/badges"); return; }
   };
 
@@ -93,7 +90,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     if (id === "market")   { navigate("/market"); return; }
     if (id === "aquarium") { openPanel(() => setShowAquarium(true)); return; }
     if (id === "keepers")  { openPanel(() => setShowKeepers(true)); return; }
-    if (id === "bag")      { openPanel(() => setShowInv("bag")); return; }
+    if (id === "bag")      { closeAll(); navigate("/bag"); return; }
   };
 
   return (
@@ -228,16 +225,6 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
             </div>
           </div>
         </div>
-      )}
-
-      {/* ── Pet Inventory / Bag modal ────────────────────────────────────── */}
-      {showInv && (
-        <PetInventory
-          user={user}
-          onClose={() => setShowInv(null)}
-          onUserUpdate={(u) => { onUserUpdate?.(u); }}
-          defaultTab={showInv}
-        />
       )}
 
       {/* ── Aquarium overlay ─────────────────────────────────────────────── */}

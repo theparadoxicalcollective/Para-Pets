@@ -24,6 +24,8 @@ import ParaPetsHubPage from "@/pages/ParaPetsHubPage";
 import BadgePage from "@/pages/BadgePage";
 import MarketPage from "@/pages/MarketPage";
 import PvpArenaPage from "@/pages/PvpArenaPage";
+import PetInventoryPage from "@/pages/PetInventoryPage";
+import BagInventoryPage from "@/pages/BagInventoryPage";
 import LoadingScreen from "@/components/LoadingScreen";
 import WelcomeGiftScreen from "@/components/WelcomeGiftScreen";
 import GlobalLevelUpOverlay from "@/components/GlobalLevelUpOverlay";
@@ -205,6 +207,12 @@ function AppRouter() {
         </Route>
         <Route path="/pvp">
           {user ? <PvpArenaWrapper /> : <Redirect to="/auth" />}
+        </Route>
+        <Route path="/pets">
+          {user ? <PetInventoryPage /> : <Redirect to="/auth" />}
+        </Route>
+        <Route path="/bag">
+          {user ? <BagInventoryPage /> : <Redirect to="/auth" />}
         </Route>
         <Route path="/">
           {user ? <HomePage user={user} /> : <Redirect to="/auth" />}

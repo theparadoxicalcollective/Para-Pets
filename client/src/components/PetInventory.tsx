@@ -63,9 +63,10 @@ interface PetInventoryProps {
   onClose: () => void;
   onUserUpdate: (user: any) => void;
   defaultTab?: "pets" | "bag";
+  pageMode?: boolean;
 }
 
-export default function PetInventory({ user, onClose, onUserUpdate, defaultTab }: PetInventoryProps) {
+export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, pageMode }: PetInventoryProps) {
   const [showBag, setShowBag] = useState(defaultTab === "bag");
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
   const frozenSelectedPetRef = useRef<any | null>(null);
@@ -228,9 +229,9 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab }
 
   return (
     <>
-      <div className="fixed inset-0 z-40 flex flex-col" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+      <div className={pageMode ? "absolute inset-0 flex flex-col" : "fixed inset-0 z-40 flex flex-col"} style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
         {/* Background */}
-        <div className="absolute inset-0" onClick={onClose}>
+        <div className="absolute inset-0" onClick={pageMode ? undefined : onClose}>
           <img src={forestBg} alt="" className="w-full h-full object-cover" style={{ objectPosition: "center top" }} />
           <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.78)" }} />
         </div>
@@ -275,45 +276,47 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab }
                   fontWeight: "bold",
                 }}
               >
-                ✕
+                {pageMode ? "←" : "✕"}
               </button>
             </div>
 
-            {/* Tabs */}
-            <div className="flex gap-2 mb-3">
-              <button
-                data-testid="button-tab-pets"
-                onClick={() => setShowBag(false)}
-                className="flex-1 py-2 flex items-center justify-center gap-2 font-fantasy text-sm tracking-wider transition-all"
-                style={{
-                  background: !showBag ? "linear-gradient(135deg, rgba(45,106,79,0.5) 0%, rgba(26,74,46,0.35) 100%)" : "rgba(255,255,255,0.04)",
-                  border: !showBag ? "1.5px solid rgba(74,222,128,0.55)" : "1.5px solid rgba(255,255,255,0.08)",
-                  borderRadius: "12px",
-                  color: !showBag ? "#4ade80" : "#6a8a78",
-                  cursor: "pointer",
-                  boxShadow: !showBag ? "0 0 12px rgba(74,222,128,0.15)" : "none",
-                }}
-              >
-                <img src={petPawIcon} alt="" style={{ width: 16, height: 16, objectFit: "contain" }} />
-                Pets
-              </button>
-              <button
-                data-testid="button-tab-bag"
-                onClick={() => setShowBag(true)}
-                className="flex-1 py-2 flex items-center justify-center gap-2 font-fantasy text-sm tracking-wider transition-all"
-                style={{
-                  background: showBag ? "linear-gradient(135deg, rgba(92,58,30,0.5) 0%, rgba(60,35,10,0.35) 100%)" : "rgba(255,255,255,0.04)",
-                  border: showBag ? "1.5px solid rgba(240,192,64,0.55)" : "1.5px solid rgba(255,255,255,0.08)",
-                  borderRadius: "12px",
-                  color: showBag ? "#f0c040" : "#6a5840",
-                  cursor: "pointer",
-                  boxShadow: showBag ? "0 0 12px rgba(240,192,64,0.15)" : "none",
-                }}
-              >
-                <img src={bagIconImg} alt="" style={{ width: 16, height: 16, objectFit: "contain" }} />
-                Bag
-              </button>
-            </div>
+            {/* Tabs — hidden in page mode */}
+            {!pageMode && (
+              <div className="flex gap-2 mb-3">
+                <button
+                  data-testid="button-tab-pets"
+                  onClick={() => setShowBag(false)}
+                  className="flex-1 py-2 flex items-center justify-center gap-2 font-fantasy text-sm tracking-wider transition-all"
+                  style={{
+                    background: !showBag ? "linear-gradient(135deg, rgba(45,106,79,0.5) 0%, rgba(26,74,46,0.35) 100%)" : "rgba(255,255,255,0.04)",
+                    border: !showBag ? "1.5px solid rgba(74,222,128,0.55)" : "1.5px solid rgba(255,255,255,0.08)",
+                    borderRadius: "12px",
+                    color: !showBag ? "#4ade80" : "#6a8a78",
+                    cursor: "pointer",
+                    boxShadow: !showBag ? "0 0 12px rgba(74,222,128,0.15)" : "none",
+                  }}
+                >
+                  <img src={petPawIcon} alt="" style={{ width: 16, height: 16, objectFit: "contain" }} />
+                  Pets
+                </button>
+                <button
+                  data-testid="button-tab-bag"
+                  onClick={() => setShowBag(true)}
+                  className="flex-1 py-2 flex items-center justify-center gap-2 font-fantasy text-sm tracking-wider transition-all"
+                  style={{
+                    background: showBag ? "linear-gradient(135deg, rgba(92,58,30,0.5) 0%, rgba(60,35,10,0.35) 100%)" : "rgba(255,255,255,0.04)",
+                    border: showBag ? "1.5px solid rgba(240,192,64,0.55)" : "1.5px solid rgba(255,255,255,0.08)",
+                    borderRadius: "12px",
+                    color: showBag ? "#f0c040" : "#6a5840",
+                    cursor: "pointer",
+                    boxShadow: showBag ? "0 0 12px rgba(240,192,64,0.15)" : "none",
+                  }}
+                >
+                  <img src={bagIconImg} alt="" style={{ width: 16, height: 16, objectFit: "contain" }} />
+                  Bag
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="flex-1 overflow-y-auto px-4 pb-6">
