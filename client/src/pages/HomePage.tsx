@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
-import { X, HelpCircle } from "lucide-react";
+import { X, HelpCircle, Zap, Star, RotateCcw } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import bgImg from "@assets/bg_home_v2.png";
@@ -13,10 +13,12 @@ import swordsImg from "@assets/generated_images/nav_icon_pvp.png";
 import eggImg from "@assets/generated_images/nav_icon_pets.png";
 import badgeIcon from "@assets/generated_images/nav_icon_badges.png";
 import { playSpeedUp } from "@/lib/sounds";
+import { fireLevelUp } from "@/lib/levelUpEvents";
+import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import PetAnimator from "@/components/PetAnimator";
-import PetDetailPage from "@/components/PetDetailPage";
+import PetPowerUpModal, { PowerUpItem } from "@/components/PetPowerUpModal";
 import PowerUpOverlay from "@/components/PowerUpOverlay";
 
 interface HomePageProps {
@@ -91,10 +93,14 @@ export default function HomePage({ user }: HomePageProps) {
   const [hatchFadingOut, setHatchFadingOut] = useState(false);
   const [hatchTimerDone, setHatchTimerDone] = useState(false);
   const [hatchedPetCache, setHatchedPetCache] = useState<{ hatchedImageUrl: string | null; imageUrl: string | null; petTemplateId: string | null; name: string } | null>(null);
-  const [showPetDetail, setShowPetDetail] = useState(false);
-  // Keep last known activePet so PetDetailPage doesn't unmount mid-action
+  const [showActionMenu, setShowActionMenu] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [activePetModal, setActivePetModal] = useState<"power_up" | "level_up" | null>(null);
+  const [petModalSuccess, setPetModalSuccess] = useState<{ type: "stat" | "level" | "hatch"; label: string } | null>(null);
+  // Keep last known activePet so modals don't unmount mid-action
   // when inventory refetches and activePetId hasn't been migrated yet.
   const frozenActivePetRef = useRef<InventoryItem | null>(null);
+  const { toast } = useToast();
   const [showSpeedUp, setShowSpeedUp] = useState(false);
   const [showSpeedEffect, setShowSpeedEffect] = useState(false);
   const [speedEffectLabel, setSpeedEffectLabel] = useState("");
@@ -147,10 +153,9 @@ export default function HomePage({ user }: HomePageProps) {
     ? inventory.find((item) => item.inventoryId === currentUser.activePetId && item.type === "pet")
     : null;
 
-  // Freeze the last valid activePet so PetDetailPage stays mounted during
+  // Freeze the last valid activePet so power-up modals stay mounted during
   // inventory refetches (avoids modal closing mid power-up).
   if (activePet) frozenActivePetRef.current = activePet;
-  const petForDetail = activePet ?? frozenActivePetRef.current;
 
   // Dismiss only when both: the 3.5s animation timer is done AND the
   // inventory confirms isHatched=true — so the egg never flickers back.
@@ -187,6 +192,98 @@ export default function HomePage({ user }: HomePageProps) {
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
     },
   });
+
+  // ── Active pet action mutations ──────────────────────────────────────────────
+  const toModalItem = (i: InventoryItem): PowerUpItem => ({
+    inventoryId: i.inventoryId,
+    shopItemId: i.shopItemId,
+    name: i.name,
+    type: i.type,
+    imageUrl: i.imageUrl,
+    statBoostType: i.statBoostType,
+    statBoostAmount: i.statBoostAmount,
+    specialType: i.specialType,
+    specialAmount: i.specialAmount,
+  });
+
+  const statBoostItems = inventory
+    .filter(i => i.type === "power_up" && i.statBoostType !== "lvl")
+    .map(toModalItem);
+
+  const levelItems = inventory
+    .filter(i => (i.type === "power_up" && i.statBoostType === "lvl") || (i.type === "special" && i.specialType === "level"))
+    .map(toModalItem);
+
+  const activePetForModal = activePet ?? frozenActivePetRef.current;
+
+  const powerUpMutation = useMutation({
+    mutationFn: async ({ petInvId, itemInvId }: { petInvId: string; itemInvId: string }) => {
+      const res = await apiRequest("POST", `/api/pet/${petInvId}/power-up`, { itemInventoryId: itemInvId });
+      return res.json();
+    },
+    onSuccess: (data, variables) => {
+      const item = inventory.find(i => i.inventoryId === variables.itemInvId);
+      const boostLabel = item
+        ? `+${item.statBoostAmount || "?"} ${item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "Lvl pts"}`
+        : "Power Up!";
+      setPetModalSuccess({ type: item?.statBoostType === "lvl" ? "level" : "stat", label: boostLabel });
+      if (data?.petLevel && activePetForModal && data.petLevel > activePetForModal.petLevel) {
+        fireLevelUp(data.petLevel, activePetForModal.petNickname || activePetForModal.name, activePetForModal.petTemplateId);
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed", description: err?.message || "Could not use item", variant: "destructive" });
+    },
+  });
+
+  const useSpecialMutation = useMutation({
+    mutationFn: async ({ petInvId, itemInvId }: { petInvId: string; itemInvId: string }) => {
+      const res = await apiRequest("POST", `/api/pet/${petInvId}/use-special`, { itemInventoryId: itemInvId });
+      return res.json();
+    },
+    onSuccess: (data, variables) => {
+      const item = inventory.find(i => i.inventoryId === variables.itemInvId);
+      const isHatchTime = item?.specialType === "hatch_time";
+      const label = isHatchTime ? `-${item?.specialAmount || "?"} min` : `+${item?.specialAmount || "?"} LVL pts`;
+      const effectType: "stat" | "level" | "hatch" = isHatchTime ? "hatch" : "level";
+      setPetModalSuccess({ type: effectType, label });
+      if (data?.petLevel && activePetForModal && data.petLevel > activePetForModal.petLevel) {
+        fireLevelUp(data.petLevel, activePetForModal.petNickname || activePetForModal.name, activePetForModal.petTemplateId);
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed", description: err?.message || "Could not use item", variant: "destructive" });
+    },
+  });
+
+  const resetMutation = useMutation({
+    mutationFn: async (petInvId: string) => {
+      const res = await apiRequest("POST", `/api/pet/${petInvId}/reset-stats`);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setShowResetConfirm(false);
+      setShowActionMenu(false);
+      toast({ title: "Stats Reset", description: "Pet stats have been reset to base values" });
+      if (data.user) setCurrentUser(data.user);
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed", description: err?.message || "Could not reset stats", variant: "destructive" });
+    },
+  });
+
+  const handleModalUseItem = useCallback((item: PowerUpItem) => {
+    if (!activePetForModal) return;
+    if (item.type === "special") {
+      useSpecialMutation.mutate({ petInvId: activePetForModal.inventoryId, itemInvId: item.inventoryId });
+    } else {
+      powerUpMutation.mutate({ petInvId: activePetForModal.inventoryId, itemInvId: item.inventoryId });
+    }
+  }, [activePetForModal?.inventoryId, powerUpMutation.mutate, useSpecialMutation.mutate]);
+  // ────────────────────────────────────────────────────────────────────────────
 
   const handleHomeSheetItemPointerDown = (e: React.PointerEvent, item: InventoryItem) => {
     if (!activePet) return;
@@ -478,10 +575,10 @@ export default function HomePage({ user }: HomePageProps) {
                   >
                     {activePet.isHatched ? (
                       <div
-                        onClick={() => setShowPetDetail(true)}
+                        onClick={() => setShowActionMenu(true)}
                         style={{ cursor: "pointer" }}
                         className="w-full flex items-center justify-center"
-                        data-testid="button-open-pet-detail"
+                        data-testid="button-open-pet-actions"
                       >
                         {activePet.petTemplateId ? (
                           <PetAnimator petTemplateId={activePet.petTemplateId} mode="idle" view="front" size={1000} className="w-full" style={{ aspectRatio: "1/1" }} />
@@ -796,32 +893,188 @@ export default function HomePage({ user }: HomePageProps) {
         </div>
       )}
 
-      {showPetDetail && petForDetail && petForDetail.isHatched && (
-        <PetDetailPage
-          pet={{
-            inventoryId: petForDetail.inventoryId,
-            shopItemId: petForDetail.shopItemId,
-            name: petForDetail.name,
-            imageUrl: petForDetail.imageUrl,
-            eggImageUrl: petForDetail.eggImageUrl,
-            hatchedImageUrl: petForDetail.hatchedImageUrl,
-            petTemplateId: petForDetail.petTemplateId,
-            petNickname: petForDetail.petNickname,
-            rarity: petForDetail.rarity,
-            petHealth: petForDetail.petHealth,
-            petAtk: petForDetail.petAtk,
-            petDef: petForDetail.petDef,
-            petLevel: petForDetail.petLevel,
-            petLevelPoints: petForDetail.petLevelPoints,
-            itemsUsedThisLevel: petForDetail.itemsUsedThisLevel,
-            isHatched: petForDetail.isHatched,
-          }}
-          onClose={() => { setShowPetDetail(false); frozenActivePetRef.current = null; }}
-          onUpdate={() => {
-            queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-          }}
-          userCoins={currentUser.coins}
-          onUserUpdate={(updatedUser) => setCurrentUser(updatedUser)}
+      {/* ── Active pet action menu ── */}
+      {showActionMenu && activePetForModal && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+          <div
+            className="absolute inset-0 bg-black/65 backdrop-blur-sm"
+            onClick={() => { setShowActionMenu(false); setShowResetConfirm(false); }}
+          />
+          <div
+            className="relative w-full rounded-t-3xl overflow-hidden"
+            style={{
+              background: "linear-gradient(180deg, rgba(10,20,12,0.99) 0%, rgba(6,14,8,0.99) 100%)",
+              border: "1.5px solid rgba(74,222,128,0.18)",
+              borderBottom: "none",
+              boxShadow: "0 -8px 40px rgba(0,0,0,0.7), 0 -2px 0 rgba(74,222,128,0.15)",
+            }}
+          >
+            {/* Handle */}
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 rounded-full" style={{ background: "rgba(74,222,128,0.3)" }} />
+            </div>
+
+            {/* Pet identity header */}
+            <div className="flex items-center justify-between px-5 pt-2 pb-4">
+              <div>
+                <p className="font-fantasy text-lg font-bold tracking-wider" style={{ color: "#fcd34d", textShadow: "0 0 14px rgba(252,211,77,0.4)" }}>
+                  {activePetForModal.petNickname || activePetForModal.name}
+                </p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="font-fantasy text-[10px] px-2 py-0.5 rounded-full" style={{ background: "rgba(192,132,252,0.15)", color: "#c084fc", border: "1px solid rgba(192,132,252,0.3)" }}>
+                    LV {activePetForModal.petLevel}
+                  </span>
+                  <span style={{ color: "#fcd34d", fontSize: 11 }}>
+                    {"★".repeat(activePetForModal.rarity || 1)}
+                  </span>
+                </div>
+              </div>
+              <button
+                data-testid="button-close-action-menu"
+                onClick={() => { setShowActionMenu(false); setShowResetConfirm(false); }}
+                className="w-9 h-9 rounded-full flex items-center justify-center"
+                style={{ background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", color: "#888", cursor: "pointer" }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {!showResetConfirm ? (
+              <div className="px-5 pb-10 flex flex-col gap-3">
+                {/* Power Up */}
+                <button
+                  data-testid="button-action-power-up"
+                  onClick={() => { setShowActionMenu(false); setActivePetModal("power_up"); }}
+                  className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all active:scale-95"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(74,222,128,0.15) 0%, rgba(34,197,94,0.08) 100%)",
+                    border: "1.5px solid rgba(74,222,128,0.35)",
+                    boxShadow: "0 0 20px rgba(74,222,128,0.1)",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(74,222,128,0.2)", border: "1px solid rgba(74,222,128,0.4)" }}>
+                    <Zap size={22} style={{ color: "#4ade80", filter: "drop-shadow(0 0 6px rgba(74,222,128,0.8))" }} />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-fantasy font-bold tracking-wider" style={{ color: "#4ade80", fontSize: 14, textShadow: "0 0 10px rgba(74,222,128,0.5)" }}>POWER UP</p>
+                    <p className="font-fantasy text-[#6a9a6a] text-[10px] tracking-wide mt-0.5">Boost HP, ATK, or DEF stats</p>
+                  </div>
+                  <span className="ml-auto font-fantasy text-[#4ade80] text-lg opacity-50">›</span>
+                </button>
+
+                {/* Level Up */}
+                <button
+                  data-testid="button-action-level-up"
+                  onClick={() => { setShowActionMenu(false); setActivePetModal("level_up"); }}
+                  className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all active:scale-95"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(252,211,77,0.15) 0%, rgba(240,192,64,0.08) 100%)",
+                    border: "1.5px solid rgba(252,211,77,0.35)",
+                    boxShadow: "0 0 20px rgba(252,211,77,0.1)",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(252,211,77,0.2)", border: "1px solid rgba(252,211,77,0.4)" }}>
+                    <Star size={22} style={{ color: "#fcd34d", filter: "drop-shadow(0 0 6px rgba(252,211,77,0.8))" }} />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-fantasy font-bold tracking-wider" style={{ color: "#fcd34d", fontSize: 14, textShadow: "0 0 10px rgba(252,211,77,0.5)" }}>LEVEL UP</p>
+                    <p className="font-fantasy text-[#8a7a3a] text-[10px] tracking-wide mt-0.5">Use XP items to raise your pet's level</p>
+                  </div>
+                  <span className="ml-auto font-fantasy text-[#fcd34d] text-lg opacity-50">›</span>
+                </button>
+
+                {/* Reset Stats */}
+                <button
+                  data-testid="button-action-reset-stats"
+                  onClick={() => setShowResetConfirm(true)}
+                  className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all active:scale-95"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(248,113,113,0.1) 0%, rgba(220,60,60,0.06) 100%)",
+                    border: "1.5px solid rgba(248,113,113,0.25)",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(248,113,113,0.15)", border: "1px solid rgba(248,113,113,0.3)" }}>
+                    <RotateCcw size={20} style={{ color: "#f87171" }} />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-fantasy font-bold tracking-wider" style={{ color: "#f87171", fontSize: 14 }}>RESET STATS</p>
+                    <p className="font-fantasy text-[#8a4a4a] text-[10px] tracking-wide mt-0.5">Restore base stats (costs coins)</p>
+                  </div>
+                  <span className="ml-auto font-fantasy text-[#f87171] text-lg opacity-50">›</span>
+                </button>
+              </div>
+            ) : (
+              <div className="px-5 pb-10 flex flex-col gap-4">
+                <div className="rounded-2xl p-4" style={{ background: "rgba(248,113,113,0.08)", border: "1.5px solid rgba(248,113,113,0.25)" }}>
+                  <p className="font-fantasy text-[#f87171] text-sm font-bold tracking-wider mb-1">Confirm Reset?</p>
+                  <p className="font-fantasy text-[#8a5a5a] text-[11px] leading-relaxed">
+                    This will restore {activePetForModal.petNickname || activePetForModal.name}'s stats to their base values. This action costs coins and cannot be undone.
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowResetConfirm(false)}
+                    className="flex-1 py-3 rounded-xl font-fantasy text-sm tracking-wider"
+                    style={{ background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", color: "#888", cursor: "pointer" }}
+                  >
+                    CANCEL
+                  </button>
+                  <button
+                    data-testid="button-confirm-reset"
+                    onClick={() => resetMutation.mutate(activePetForModal.inventoryId)}
+                    disabled={resetMutation.isPending}
+                    className="flex-1 py-3 rounded-xl font-fantasy text-sm tracking-wider transition-all active:scale-95 disabled:opacity-50"
+                    style={{ background: "linear-gradient(135deg, rgba(220,60,60,0.4) 0%, rgba(180,40,40,0.4) 100%)", border: "1.5px solid rgba(248,113,113,0.5)", color: "#f87171", cursor: "pointer", boxShadow: "0 0 14px rgba(248,113,113,0.2)" }}
+                  >
+                    {resetMutation.isPending ? "RESETTING..." : "CONFIRM RESET"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Power Up modal ── */}
+      {activePetModal === "power_up" && activePetForModal && (
+        <PetPowerUpModal
+          petName={activePetForModal.petNickname || activePetForModal.name}
+          petImage={activePetForModal.hatchedImageUrl || activePetForModal.imageUrl}
+          petTemplateId={activePetForModal.petTemplateId}
+          rarity={activePetForModal.rarity || 1}
+          petLevel={activePetForModal.petLevel}
+          itemsRemaining={Math.max(0, (activePetForModal.rarity || 1) + 2 - (activePetForModal.itemsUsedThisLevel || 0))}
+          items={statBoostItems}
+          isPending={powerUpMutation.isPending || useSpecialMutation.isPending}
+          title="POWER UP"
+          subtitle={`Drag an item onto ${activePetForModal.petNickname || activePetForModal.name} to boost their stats`}
+          successEffect={petModalSuccess}
+          onUseItem={handleModalUseItem}
+          onSuccessAnimEnd={() => setPetModalSuccess(null)}
+          onClose={() => setActivePetModal(null)}
+        />
+      )}
+
+      {/* ── Level Up modal ── */}
+      {activePetModal === "level_up" && activePetForModal && (
+        <PetPowerUpModal
+          petName={activePetForModal.petNickname || activePetForModal.name}
+          petImage={activePetForModal.hatchedImageUrl || activePetForModal.imageUrl}
+          petTemplateId={activePetForModal.petTemplateId}
+          rarity={activePetForModal.rarity || 1}
+          petLevel={activePetForModal.petLevel}
+          itemsRemaining={Infinity}
+          items={levelItems}
+          isPending={powerUpMutation.isPending || useSpecialMutation.isPending}
+          title="LEVEL UP"
+          subtitle={`Drag an XP item onto ${activePetForModal.petNickname || activePetForModal.name} to gain levels`}
+          successEffect={petModalSuccess}
+          onUseItem={handleModalUseItem}
+          onSuccessAnimEnd={() => setPetModalSuccess(null)}
+          onClose={() => setActivePetModal(null)}
         />
       )}
 
@@ -988,7 +1241,7 @@ export default function HomePage({ user }: HomePageProps) {
       `}</style>
 
       {/* ? button — shown after tutorial is dismissed */}
-      {!showHomePageTutorial && !showProfile && !showPetDetail && (
+      {!showHomePageTutorial && !showProfile && !showActionMenu && !activePetModal && (
         <button
           data-testid="button-open-homepage-tutorial"
           onClick={() => setShowHomePageTutorial(true)}
