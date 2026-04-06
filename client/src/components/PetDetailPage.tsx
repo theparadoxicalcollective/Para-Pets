@@ -212,7 +212,6 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
         setSuccessBoostLabel(boostLabel);
         setSuccessAnimType("stat");
         setShowSuccessAnim(true);
-        setShowPowerUpModal(false);
       }
       if (data?.petLevel && data.petLevel > pet.petLevel) {
         fireLevelUp(data.petLevel, pet.petNickname || pet.name, pet.petTemplateId);
@@ -246,7 +245,6 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
         setSuccessBoostLabel(label);
         setSuccessAnimType(effectType);
         setShowSuccessAnim(true);
-        setShowPowerUpModal(false);
       }
       if (data?.petLevel && data.petLevel > pet.petLevel) {
         fireLevelUp(data.petLevel, pet.petNickname || pet.name, pet.petTemplateId);
@@ -309,7 +307,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
-      <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={showPowerUpModal ? undefined : onClose} />
 
       <div
         className="relative w-full sm:w-[92%] sm:max-w-sm rounded-t-3xl sm:rounded-2xl overflow-y-auto animate-slide-up"
