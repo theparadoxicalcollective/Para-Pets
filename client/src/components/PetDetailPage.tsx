@@ -1,13 +1,11 @@
 import { useState, useRef, useEffect, useCallback, type ReactNode } from "react";
-import { Sparkles, Wind, Heart, Swords, Shield, Pencil, TrendingUp } from "lucide-react";
+import { Sparkles, Wind, Heart, Swords, Shield, Pencil } from "lucide-react";
 import { fireLevelUp } from "@/lib/levelUpEvents";
 import { playPowerUp, playSpeedUp } from "@/lib/sounds";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import coinIconImg from "@assets/icon_coin.png";
 import PowerUpOverlay, { PowerUpEffectType } from "@/components/PowerUpOverlay";
-import PetPowerUpModal, { PowerUpItem } from "@/components/PetPowerUpModal";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import gemCrystalIcon from "@assets/generated_images/icon_gem_crystal.png";
 import powerupBagIcon from "@assets/generated_images/icon_powerup_bag.png";
@@ -81,16 +79,11 @@ const RARITY: Record<number, { label: string; primary: string; glow: string; her
 };
 
 export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUserUpdate }: PetDetailPageProps) {
-  const [showPowerUpModal, setShowPowerUpModal] = useState(false);
-  const showPowerUpModalRef = useRef(false);
-  const [powerUpModalMode, setPowerUpModalMode] = useState<"powerup" | "lvlup">("powerup");
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [confirmItem, setConfirmItem] = useState<BagItem | null>(null);
-  const pendingUseItemRef = useRef<PowerUpItem | null>(null);
+  const pendingUseItemRef = useRef<any | null>(null);
   const [showSuccessAnim, setShowSuccessAnim] = useState(false);
   const [successBoostLabel, setSuccessBoostLabel] = useState("");
   const [successAnimType, setSuccessAnimType] = useState<PowerUpEffectType>("stat");
-  const [modalSuccessEffect, setModalSuccessEffect] = useState<{ type: PowerUpEffectType; label: string } | null>(null);
   const [editingNickname, setEditingNickname] = useState(false);
   const [nicknameInput, setNicknameInput] = useState(pet.petNickname || "");
   const [showAccessoryPicker, setShowAccessoryPicker] = useState(false);
@@ -111,12 +104,8 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
   };
   useEffect(() => () => { if (flipTimerRef.current) clearTimeout(flipTimerRef.current); }, []);
 
-  useEffect(() => { showPowerUpModalRef.current = showPowerUpModal; }, [showPowerUpModal]);
   const queryClient = useQueryClient();
 
-  const handleSuccessAnimEnd = useCallback(() => {
-    setModalSuccessEffect(null);
-  }, []);
 
 
   const nicknameMutation = useMutation({
@@ -212,13 +201,9 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
         ? `+${item.statBoostAmount || "?"} ${item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "Lvl pts"}`
         : "Power Up!";
       setConfirmItem(null);
-      if (showPowerUpModalRef.current) {
-        setModalSuccessEffect({ type: "stat", label: boostLabel });
-      } else {
-        setSuccessBoostLabel(boostLabel);
-        setSuccessAnimType("stat");
-        setShowSuccessAnim(true);
-      }
+      setSuccessBoostLabel(boostLabel);
+      setSuccessAnimType("stat");
+      setShowSuccessAnim(true);
       if (data?.petLevel && data.petLevel > pet.petLevel) {
         fireLevelUp(data.petLevel, pet.petNickname || pet.name, pet.petTemplateId);
       }
@@ -247,13 +232,9 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
         : `+${item?.specialAmount || "?"} LVL pts`;
       const effectType: PowerUpEffectType = isHatchTime ? "hatch" : "level";
       setConfirmItem(null);
-      if (showPowerUpModalRef.current) {
-        setModalSuccessEffect({ type: effectType, label });
-      } else {
-        setSuccessBoostLabel(label);
-        setSuccessAnimType(effectType);
-        setShowSuccessAnim(true);
-      }
+      setSuccessBoostLabel(label);
+      setSuccessAnimType(effectType);
+      setShowSuccessAnim(true);
       if (data?.petLevel && data.petLevel > pet.petLevel) {
         fireLevelUp(data.petLevel, pet.petNickname || pet.name, pet.petTemplateId);
       }
@@ -266,35 +247,6 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
       toast({ title: "Failed", description: err?.message || "Could not use special item", variant: "destructive" });
     },
   });
-
-  const resetMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", `/api/pet/${pet.inventoryId}/reset-stats`);
-      return res.json();
-    },
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-      if (data.user) onUserUpdate(data.user);
-      onUpdate();
-      toast({ title: "Stats Reset", description: "Pet stats have been reset to base values" });
-      setShowResetConfirm(false);
-    },
-    onError: (err: any) => {
-      toast({ title: "Failed", description: err?.message || "Could not reset stats", variant: "destructive" });
-    },
-  });
-
-  const powerUpModalItems: PowerUpItem[] = usableItems.filter(i => i.statBoostType !== "lvl");
-  const lvlUpModalItems: PowerUpItem[] = specialItems.filter(i => i.specialType === "level");
-
-  const handlePowerUpModalUse = useCallback((item: PowerUpItem) => {
-    pendingUseItemRef.current = item;
-    if (item.type === "special") {
-      useSpecialMutation.mutate(item.inventoryId);
-    } else {
-      powerUpMutation.mutate(item.inventoryId);
-    }
-  }, [powerUpMutation.mutate, useSpecialMutation.mutate]);
 
   const petImage = pet.hatchedImageUrl || pet.imageUrl;
   const rc = RARITY[Math.min(5, Math.max(1, rarity))] || RARITY[1];
@@ -316,7 +268,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
-      <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={showPowerUpModal ? undefined : onClose} />
+      <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={onClose} />
 
       <div
         className="relative w-full sm:w-[92%] sm:max-w-sm rounded-t-3xl sm:rounded-2xl overflow-y-auto animate-slide-up"
@@ -776,61 +728,6 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
             </div>
           </div>
 
-          {/* ── Action buttons ──────────────────────────────────── */}
-          <div className="flex gap-2.5">
-            <button
-              data-testid="button-power-up"
-              onClick={() => { setPowerUpModalMode("powerup"); setShowPowerUpModal(true); }}
-              disabled={pet.petLevel >= 100}
-              className="flex-1 py-3 rounded-xl font-fantasy text-xs tracking-widest transition-transform active:scale-95 disabled:opacity-40 flex items-center justify-center gap-1.5"
-              style={{
-                background: pet.petLevel >= 100
-                  ? "rgba(20,40,30,0.4)"
-                  : "linear-gradient(135deg, rgba(20,90,60,0.9) 0%, rgba(10,55,35,0.9) 100%)",
-                border: "1px solid rgba(74,222,128,0.4)",
-                color: "#4ade80",
-                boxShadow: pet.petLevel < 100 ? "0 0 20px rgba(74,222,128,0.15), inset 0 1px 0 rgba(255,255,255,0.05)" : "none",
-                cursor: pet.petLevel >= 100 ? "not-allowed" : "pointer",
-              }}
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              {pet.petLevel >= 100 ? "MAX" : "Power Up"}
-            </button>
-            <button
-              data-testid="button-lvl-up"
-              onClick={() => { setPowerUpModalMode("lvlup"); setShowPowerUpModal(true); }}
-              disabled={pet.petLevel >= 100}
-              className="flex-1 py-3 rounded-xl font-fantasy text-xs tracking-widest transition-transform active:scale-95 disabled:opacity-40 flex items-center justify-center gap-1.5"
-              style={{
-                background: pet.petLevel >= 100
-                  ? "rgba(30,25,5,0.4)"
-                  : `linear-gradient(135deg, ${rc.primary}28 0%, ${rc.primary}12 100%)`,
-                border: `1px solid ${rc.primary}50`,
-                color: rc.primary,
-                boxShadow: pet.petLevel < 100 ? `0 0 20px ${rc.dim}, inset 0 1px 0 rgba(255,255,255,0.05)` : "none",
-                cursor: pet.petLevel >= 100 ? "not-allowed" : "pointer",
-              }}
-            >
-              <span className="flex items-center justify-center gap-1">
-                <TrendingUp size={11} />
-                {pet.petLevel >= 100 ? "MAX" : "LVL Up"}
-              </span>
-            </button>
-          </div>
-
-          <button
-            data-testid="button-reset-stats"
-            onClick={() => setShowResetConfirm(true)}
-            className="w-full py-2 rounded-xl font-fantasy text-[9px] tracking-widest transition-transform active:scale-95"
-            style={{
-              background: "rgba(80,5,5,0.25)",
-              border: "1px solid rgba(200,50,50,0.2)",
-              color: "rgba(255,120,120,0.6)",
-              cursor: "pointer",
-            }}
-          >
-            Reset Stats
-          </button>
         </div>
 
         {/* ── Confirm use item ────────────────────────────────────── */}
@@ -912,60 +809,6 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
           );
         })()}
 
-        {/* ── Reset confirm ───────────────────────────────────────── */}
-        {showResetConfirm && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
-            <div className="absolute inset-0 bg-black/60" onClick={() => setShowResetConfirm(false)} />
-            <div
-              className="relative w-[80%] max-w-xs rounded-2xl p-5 animate-slide-up"
-              style={{
-                background: "linear-gradient(135deg, rgba(60,10,10,0.97) 0%, rgba(30,5,5,0.97) 100%)",
-                border: "1px solid rgba(200,50,50,0.5)",
-                boxShadow: "0 8px 40px rgba(0,0,0,0.8)",
-              }}
-            >
-              <h4 className="font-fantasy text-[#ff6666] text-sm tracking-wider text-center mb-3" data-testid="text-reset-warning-title">
-                ⚠ RESET STATS ⚠
-              </h4>
-              <p className="font-fantasy text-[#ffaaaa] text-xs text-center leading-relaxed mb-2">
-                This will reset ALL of {pet.name}'s stats to base values:
-              </p>
-              <div className="text-center mb-3 space-y-1">
-                <p className="font-fantasy text-[#ff9999] text-[10px]">HP → 1,000 | ATK → 50 | DEF → 50</p>
-                <p className="font-fantasy text-[#ff9999] text-[10px]">Level → 1 | Accessories Removed</p>
-              </div>
-              <div className="flex items-center justify-center gap-1 mb-4">
-                <span className="font-fantasy text-[#ffaaaa] text-xs">Cost:</span>
-                <img src={coinIconImg} alt="" className="w-4 h-4" />
-                <span className="font-fantasy text-[#f0c040] text-sm font-bold">300</span>
-              </div>
-              {userCoins < 300 && (
-                <p className="font-fantasy text-[#ff6666] text-[10px] text-center mb-3">
-                  Not enough coins! You have {userCoins}
-                </p>
-              )}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowResetConfirm(false)}
-                  className="flex-1 py-2 rounded-xl font-fantasy text-xs tracking-wider"
-                  style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#ccc", cursor: "pointer" }}
-                  data-testid="button-cancel-reset"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => resetMutation.mutate()}
-                  disabled={resetMutation.isPending || userCoins < 300}
-                  className="flex-1 py-2 rounded-xl font-fantasy text-xs tracking-wider disabled:opacity-40"
-                  style={{ background: "linear-gradient(135deg, #8b0000 0%, #500000 100%)", border: "1px solid rgba(200,50,50,0.5)", color: "#ff6666", cursor: userCoins < 300 ? "not-allowed" : "pointer" }}
-                  data-testid="button-confirm-reset"
-                >
-                  {resetMutation.isPending ? "Resetting..." : "RESET"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       <style>{`
@@ -1157,24 +1000,6 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
         onDone={() => setShowSuccessAnim(false)}
       />
 
-      {showPowerUpModal && (
-        <PetPowerUpModal
-          petName={pet.petNickname || pet.name}
-          petImage={petImage}
-          petTemplateId={pet.petTemplateId}
-          rarity={pet.rarity || 1}
-          petLevel={pet.petLevel}
-          itemsRemaining={powerUpModalMode === "lvlup" ? Infinity : itemsRemaining}
-          items={powerUpModalMode === "lvlup" ? lvlUpModalItems : powerUpModalItems}
-          title={powerUpModalMode === "lvlup" ? "LVL UP" : "POWER UP"}
-          subtitle={powerUpModalMode === "lvlup" ? "Drag a level-up item onto your pet to use it" : undefined}
-          isPending={powerUpMutation.isPending || useSpecialMutation.isPending}
-          successEffect={modalSuccessEffect}
-          onUseItem={handlePowerUpModalUse}
-          onSuccessAnimEnd={handleSuccessAnimEnd}
-          onClose={() => { setShowPowerUpModal(false); setModalSuccessEffect(null); }}
-        />
-      )}
     </div>
   );
 }
