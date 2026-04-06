@@ -8,10 +8,10 @@ import eggMagicIcon from "@assets/generated_images/icon_egg_magic.png";
 import powerupBagIcon from "@assets/generated_images/icon_powerup_bag.png";
 import bagIconImg from "@assets/icon_bag.png";
 import forestBg from "@assets/generated_images/powerup_forest_bg.png";
+import petInvForestBg from "@assets/generated_images/pet_inventory_bg.png";
 import statAtkIcon from "@assets/generated_images/icon_stat_atk.png";
 import statDefIcon from "@assets/generated_images/icon_stat_def.png";
 import statHpIcon from "@assets/generated_images/icon_stat_hp.png";
-import petInvBanner from "@assets/generated_images/pet_inventory_banner.png";
 import PetDetailPage from "./PetDetailPage";
 
 function getRarityStyle(rarity: number | null): { border: string; glow: string; bg: string; starColor: string } {
@@ -235,29 +235,16 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
       <div className={pageMode ? "absolute inset-0 flex flex-col" : "fixed inset-0 z-40 flex flex-col"} style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
         {/* Background */}
         <div className="absolute inset-0" onClick={pageMode ? undefined : onClose}>
-          {!pageMode && <img src={forestBg} alt="" className="w-full h-full object-cover" style={{ objectPosition: "center top" }} />}
-          <div className="absolute inset-0" style={{ background: pageMode ? "rgba(8,4,2,1)" : "rgba(0,0,0,0.78)" }} />
+          <img
+            src={pageMode ? petInvForestBg : forestBg}
+            alt=""
+            className="w-full h-full object-cover"
+            style={{ objectPosition: "center top" }}
+          />
+          <div className="absolute inset-0" style={{ background: pageMode ? "rgba(0,0,0,0.48)" : "rgba(0,0,0,0.78)" }} />
         </div>
 
         <div className="relative z-10 flex flex-col h-full overflow-hidden">
-          {/* Banner — only shown on pets page mode */}
-          {pageMode && !showBag && (
-            <div className="relative w-full overflow-hidden flex-shrink-0" style={{ height: 110 }}>
-              <img
-                src={petInvBanner}
-                alt=""
-                className="w-full h-full object-cover"
-                style={{ objectPosition: "center 30%", filter: "brightness(0.85) saturate(1.1)" }}
-              />
-              <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.65) 100%)" }} />
-              <div className="absolute bottom-0 left-0 right-0 px-4 pb-3">
-                <h2 className="font-fantasy text-[#f0c040] text-xl font-bold tracking-widest" style={{ textShadow: "0 0 18px rgba(240,192,64,0.6), 0 2px 8px rgba(0,0,0,0.8)" }}>
-                  PET COMPANIONS
-                </h2>
-                <p className="font-fantasy text-[#a89878] text-[10px] tracking-[0.3em] mt-0.5">YOUR FOREST ALLIES</p>
-              </div>
-            </div>
-          )}
 
           {/* Header */}
           <div className="px-4 pb-0" style={{ paddingTop: pageMode && !showBag ? 8 : 40 }}>

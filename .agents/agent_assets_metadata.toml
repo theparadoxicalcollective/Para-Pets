@@ -78,6 +78,12 @@ uri = "file://attached_assets/generated_images/pet_inventory_banner.png"
 type = "image"
 title = "pet inventory header banner"
 
+[[generated]]
+id = "DvB2hF7IAriigOxeKo2Dz"
+uri = "file://attached_assets/generated_images/pet_inventory_bg.png"
+type = "image"
+title = "lush mystical forest background"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"
