@@ -182,7 +182,8 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
   );
 
   const rarity = pet.rarity || 1;
-  const maxItemsPerLevel = rarity + 2;
+  // 1-2 star pets: 2 slots/level; 3-5 star pets: 3 slots/level
+  const maxItemsPerLevel = rarity <= 2 ? 2 : 3;
   const totalUsed = Math.max(0, pet.itemsUsedThisLevel);
   const totalAllowances = pet.petLevel * maxItemsPerLevel;
   const itemsRemaining = totalAllowances - totalUsed;

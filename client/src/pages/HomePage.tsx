@@ -1046,7 +1046,7 @@ export default function HomePage({ user }: HomePageProps) {
           petTemplateId={activePetForModal.petTemplateId}
           rarity={activePetForModal.rarity || 1}
           petLevel={activePetForModal.petLevel}
-          itemsRemaining={Math.max(0, (activePetForModal.rarity || 1) + 2 - (activePetForModal.itemsUsedThisLevel || 0))}
+          itemsRemaining={Math.max(0, (activePetForModal.petLevel || 1) * ((activePetForModal.rarity || 1) <= 2 ? 2 : 3) - (activePetForModal.itemsUsedThisLevel || 0))}
           items={statBoostItems}
           isPending={powerUpMutation.isPending || useSpecialMutation.isPending}
           title="POWER UP"

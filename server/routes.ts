@@ -1381,7 +1381,8 @@ export async function registerRoutes(
       }
 
       const rarity = petShopItem.rarity || 1;
-      const maxItemsPerLevel = rarity + 2;
+      // 1-2 star pets: 2 slots/level; 3-5 star pets: 3 slots/level
+      const maxItemsPerLevel = rarity <= 2 ? 2 : 3;
       const petLevel = petInv.petLevel || 1;
       const totalUsed = Math.max(0, petInv.itemsUsedThisLevel || 0);
       const totalAllowances = petLevel * maxItemsPerLevel;
