@@ -764,7 +764,7 @@ function PetView({
                   className="font-fantasy"
                   style={{ fontSize: 8, color: isActive ? rs.starColor : "rgba(255,255,255,0.4)", letterSpacing: "0.06em" }}
                 >
-                  {isActive ? "ON" : "OFF"}
+                  {isActive ? "ACTIVE" : "SELECT"}
                 </span>
               </button>
             )}
