@@ -150,6 +150,15 @@ export default function PetPowerUpModal({
     return () => clearTimeout(t);
   }, [successEffect, onSuccessAnimEnd]);
 
+  useEffect(() => {
+    if (!dragging) return;
+    const stillInList = items.some(i => i.inventoryId === dragging.item.inventoryId);
+    if (!stillInList) {
+      setDragging(null);
+      setDragOverPet(false);
+    }
+  }, [items, dragging]);
+
   const animParticles = useMemo(() => {
     if (!successEffect) return [];
     const cfg = EFFECT_CONFIGS[successEffect.type];
@@ -240,7 +249,7 @@ export default function PetPowerUpModal({
   return (
     <div
       className="fixed inset-0 flex flex-col overflow-hidden"
-      style={{ zIndex: myZ, maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
+      style={{ zIndex: myZ, maxWidth: "768px", margin: "0 auto", left: 0, right: 0, overscrollBehavior: "none" }}
     >
       <style>{`
         @keyframes puMBounce {

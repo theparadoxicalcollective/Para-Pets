@@ -22,6 +22,14 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: { componentStack: string }) {
     console.error("[ErrorBoundary] Caught render error:", error, info.componentStack);
+    try {
+      const entry = JSON.stringify({
+        msg: String(error?.message ?? error).slice(0, 500),
+        source: String(info?.componentStack ?? "").slice(0, 400),
+        ts: Date.now(),
+      });
+      localStorage.setItem("__para_last_error", entry);
+    } catch (_) {}
   }
 
   handleReset = () => {

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, type ReactNode } from "react";
+import { useState, useRef, useEffect, useCallback, type ReactNode } from "react";
 import { Sparkles, Wind, Heart, Swords, Shield, Pencil, TrendingUp } from "lucide-react";
 import { fireLevelUp } from "@/lib/levelUpEvents";
 import { playPowerUp, playSpeedUp } from "@/lib/sounds";
@@ -112,6 +112,10 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
 
   useEffect(() => { showPowerUpModalRef.current = showPowerUpModal; }, [showPowerUpModal]);
   const queryClient = useQueryClient();
+
+  const handleSuccessAnimEnd = useCallback(() => {
+    setModalSuccessEffect(null);
+  }, []);
 
 
   const nicknameMutation = useMutation({
@@ -278,14 +282,14 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
   const powerUpModalItems: PowerUpItem[] = usableItems.filter(i => i.statBoostType !== "lvl");
   const lvlUpModalItems: PowerUpItem[] = specialItems.filter(i => i.specialType === "level");
 
-  const handlePowerUpModalUse = (item: PowerUpItem) => {
+  const handlePowerUpModalUse = useCallback((item: PowerUpItem) => {
     setConfirmItem(item as BagItem);
     if (item.type === "special") {
       useSpecialMutation.mutate(item.inventoryId);
     } else {
       powerUpMutation.mutate(item.inventoryId);
     }
-  };
+  }, [powerUpMutation.mutate, useSpecialMutation.mutate]);
 
   const petImage = pet.hatchedImageUrl || pet.imageUrl;
   const rc = RARITY[Math.min(5, Math.max(1, rarity))] || RARITY[1];
@@ -1162,7 +1166,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
           isPending={powerUpMutation.isPending || useSpecialMutation.isPending}
           successEffect={modalSuccessEffect}
           onUseItem={handlePowerUpModalUse}
-          onSuccessAnimEnd={() => setModalSuccessEffect(null)}
+          onSuccessAnimEnd={handleSuccessAnimEnd}
           onClose={() => { setShowPowerUpModal(false); setModalSuccessEffect(null); }}
         />
       )}
