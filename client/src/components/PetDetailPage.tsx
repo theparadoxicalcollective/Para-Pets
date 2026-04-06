@@ -1173,8 +1173,9 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
 }
 
 function StatRow({ icon, label, value, color, testId }: { icon: ReactNode; label: string; value: number; color: string; testId: string }) {
-  const maxDisplay = Math.max(value, label === "HP" ? 5000 : 500);
-  const pct = Math.min(100, (value / maxDisplay) * 100);
+  const safeValue = value ?? 0;
+  const maxDisplay = Math.max(safeValue, label === "HP" ? 5000 : 500);
+  const pct = Math.min(100, (safeValue / maxDisplay) * 100);
   return (
     <div className="flex items-center gap-2.5">
       <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center" style={{ color }}>
@@ -1184,7 +1185,7 @@ function StatRow({ icon, label, value, color, testId }: { icon: ReactNode; label
         <div className="flex items-center justify-between mb-1">
           <span className="font-fantasy text-[9px] tracking-widest" style={{ color: `${color}aa` }}>{label}</span>
           <span className="font-fantasy text-[11px] font-semibold" style={{ color }} data-testid={testId}>
-            {value.toLocaleString()}
+            {safeValue.toLocaleString()}
           </span>
         </div>
         <div className="w-full rounded-full overflow-hidden" style={{ height: 5, background: "rgba(0,0,0,0.45)" }}>

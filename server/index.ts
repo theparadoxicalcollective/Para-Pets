@@ -998,19 +998,20 @@ app.use((req, res, next) => {
 
       for (const u of usersWithActivePet) {
         const currentId = u.active_pet_id;
-        // Check if it already looks like a UUID (inventoryId) — skip if so
-        const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        if (uuidPattern.test(currentId)) {
+        // Check if this ID is already a valid inventory item ID (i.e., already migrated)
+        const alreadyInv = ((await db.execute(sql`
+          SELECT id FROM user_inventory WHERE id = ${currentId} AND user_id = ${u.id} LIMIT 1
+        `)) as any).rows as Array<{ id: string }>;
+        if (alreadyInv.length > 0) {
           converted++;
           continue;
         }
-        // It's still a shopItemId — find the first hatched inventory item for this user with that shopItemId
+        // It's still a shopItemId — find the first inventory item for this user with that shopItemId
         const match = ((await db.execute(sql`
-          SELECT id FROM inventory
+          SELECT id FROM user_inventory
           WHERE user_id = ${u.id}
             AND shop_item_id = ${currentId}
-            AND is_hatched = true
-          ORDER BY created_at ASC
+          ORDER BY acquired_at ASC
           LIMIT 1
         `)) as any).rows as Array<{ id: string }>;
 

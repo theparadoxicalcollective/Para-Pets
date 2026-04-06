@@ -1365,8 +1365,9 @@ export async function registerRoutes(
 
       const rarity = petShopItem.rarity || 1;
       const maxItemsPerLevel = rarity + 2;
-      const totalUsed = Math.max(0, petInv.itemsUsedThisLevel);
-      const totalAllowances = petInv.petLevel * maxItemsPerLevel;
+      const petLevel = petInv.petLevel || 1;
+      const totalUsed = Math.max(0, petInv.itemsUsedThisLevel || 0);
+      const totalAllowances = petLevel * maxItemsPerLevel;
       if (boostType !== "lvl" && totalUsed >= totalAllowances) {
         return res.status(400).json({ message: `No power-up slots available. Level up your pet to earn more!` });
       }
@@ -1375,15 +1376,15 @@ export async function registerRoutes(
       const boostAmount = itemShopItem.statBoostAmount || 10;
 
       if (boostType === "health") {
-        updates.petHealth = petInv.petHealth + boostAmount;
+        updates.petHealth = (petInv.petHealth || 1000) + boostAmount;
       } else if (boostType === "atk") {
-        updates.petAtk = petInv.petAtk + boostAmount;
+        updates.petAtk = (petInv.petAtk || 50) + boostAmount;
       } else if (boostType === "def") {
-        updates.petDef = petInv.petDef + boostAmount;
+        updates.petDef = (petInv.petDef || 50) + boostAmount;
       } else if (boostType === "lvl") {
-        const { newLevel, newPoints } = applyPetXp(petInv.petLevel, petInv.petLevelPoints || 0, boostAmount);
+        const { newLevel, newPoints } = applyPetXp(petLevel, petInv.petLevelPoints || 0, boostAmount);
         updates.petLevelPoints = newPoints;
-        if (newLevel > petInv.petLevel) {
+        if (newLevel > petLevel) {
           updates.petLevel = newLevel;
         }
       }
@@ -1441,12 +1442,13 @@ export async function registerRoutes(
         if (!petInv.isHatched) {
           return res.status(400).json({ message: "Pet has not hatched yet" });
         }
-        if (petInv.petLevel >= 100) {
+        const currentLevel = petInv.petLevel || 1;
+        if (currentLevel >= 100) {
           return res.status(400).json({ message: "Pet is at max level" });
         }
-        const { newLevel, newPoints } = applyPetXp(petInv.petLevel, petInv.petLevelPoints || 0, specialAmount);
+        const { newLevel, newPoints } = applyPetXp(currentLevel, petInv.petLevelPoints || 0, specialAmount);
         const updates: any = { petLevelPoints: newPoints };
-        if (newLevel !== petInv.petLevel) {
+        if (newLevel !== currentLevel) {
           updates.petLevel = newLevel;
         }
         await storage.updateInventoryItem(petInv.id, updates);
@@ -1475,7 +1477,8 @@ export async function registerRoutes(
       if (!petInv.isHatched) {
         return res.status(400).json({ message: "Pet has not hatched yet" });
       }
-      if (petInv.petLevel >= 100) {
+      const ediblePetLevel = petInv.petLevel || 1;
+      if (ediblePetLevel >= 100) {
         return res.status(400).json({ message: "Pet is already at max level" });
       }
 
@@ -1490,9 +1493,9 @@ export async function registerRoutes(
       }
 
       const lvlPoints = itemShopItem.statBoostAmount || 5;
-      const { newLevel, newPoints } = applyPetXp(petInv.petLevel, petInv.petLevelPoints || 0, lvlPoints);
+      const { newLevel, newPoints } = applyPetXp(ediblePetLevel, petInv.petLevelPoints || 0, lvlPoints);
       const updates: any = { petLevelPoints: newPoints };
-      if (newLevel > petInv.petLevel) {
+      if (newLevel > ediblePetLevel) {
         updates.petLevel = newLevel;
       }
 
