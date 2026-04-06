@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, useCallback, type ReactNode } from "react";
-import { Sparkles, Wind, Heart, Swords, Shield, Pencil } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Sparkles, Wind, Pencil } from "lucide-react";
 import { fireLevelUp } from "@/lib/levelUpEvents";
 import { playPowerUp, playSpeedUp } from "@/lib/sounds";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -9,6 +9,10 @@ import PowerUpOverlay, { PowerUpEffectType } from "@/components/PowerUpOverlay";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import gemCrystalIcon from "@assets/generated_images/icon_gem_crystal.png";
 import powerupBagIcon from "@assets/generated_images/icon_powerup_bag.png";
+import statHpIcon from "@assets/generated_images/icon_stat_hp.png";
+import statAtkIcon from "@assets/generated_images/icon_stat_atk.png";
+import statDefIcon from "@assets/generated_images/icon_stat_def.png";
+import profileFrameImg from "@assets/frame_profile.png";
 import tutIconRarity from "@assets/generated_images/icon_tut_rarity.png";
 import tutIconLevelup from "@assets/generated_images/icon_tut_levelup.png";
 import tutIconStats from "@assets/generated_images/icon_tut_stats.png";
@@ -403,14 +407,30 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                 </div>
               </div>
             </div>
+            {/* Portrait frame overlay — sits on top of the flip, doesn't flip */}
+            <img
+              src={profileFrameImg}
+              alt=""
+              style={{
+                position: "absolute",
+                inset: -14,
+                width: "calc(100% + 28px)",
+                height: "calc(100% + 28px)",
+                objectFit: "contain",
+                pointerEvents: "none",
+                zIndex: 3,
+                filter: `drop-shadow(0 0 10px ${rc.glow})`,
+              }}
+            />
             {/* Tap hint */}
             {pet.eggImageUrl && flipAnim === "idle" && (
               <div style={{
-                position: "absolute", bottom: -14, left: "50%", transform: "translateX(-50%)",
+                position: "absolute", bottom: -18, left: "50%", transform: "translateX(-50%)",
                 fontSize: 8, fontFamily: "Lora, serif", letterSpacing: "0.08em",
                 color: rc.primary + "80",
                 whiteSpace: "nowrap",
                 pointerEvents: "none",
+                zIndex: 4,
               }}>tap to reveal</div>
             )}
           </div>
@@ -527,87 +547,192 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
 
         <div className="px-4 pb-5 space-y-3 mt-1">
 
-          {/* ── Level + XP + Stats card ──────────────────────────── */}
+          {/* ── Level progression ──────────────────────────────── */}
           <div
             className="rounded-2xl overflow-hidden"
-            style={{ background: "rgba(0,0,0,0.35)", border: `1px solid ${rc.primary}22` }}
+            style={{ background: "rgba(0,0,0,0.40)", border: `1px solid ${rc.primary}28` }}
           >
-            {/* Level badge row */}
-            <div
-              className="flex items-center justify-between px-3 py-2"
-              style={{ borderBottom: `1px solid ${rc.primary}18` }}
-            >
-              <div className="flex flex-col">
-                <span className="font-fantasy text-[9px] tracking-widest" style={{ color: "rgba(255,255,255,0.3)" }}>LEVEL</span>
+            <div className="flex items-center gap-3 px-3 pt-3 pb-2">
+              {/* Level medallion */}
+              <div
+                className="flex-shrink-0 flex flex-col items-center justify-center rounded-full"
+                style={{
+                  width: 54, height: 54,
+                  background: `radial-gradient(circle at 35% 35%, ${rc.primary}44, rgba(0,0,0,0.7))`,
+                  border: `2px solid ${rc.primary}88`,
+                  boxShadow: `0 0 16px ${rc.glow}, inset 0 0 10px rgba(0,0,0,0.5)`,
+                }}
+              >
+                <span className="font-fantasy text-[8px] tracking-widest" style={{ color: rc.primary + "aa", lineHeight: 1 }}>LVL</span>
                 <span
-                  className="font-fantasy text-2xl font-bold leading-none"
-                  style={{ color: rc.primary, textShadow: `0 0 20px ${rc.glow}` }}
+                  className="font-fantasy font-bold leading-none"
+                  style={{ color: rc.primary, textShadow: `0 0 14px ${rc.glow}`, fontSize: pet.petLevel >= 100 ? 16 : 22 }}
                   data-testid="text-pet-level"
                 >
                   {pet.petLevel}
                 </span>
               </div>
-
-              {pet.petLevel < 100 && (
-                <div className="flex-1 ml-4">
-                  <div className="flex justify-between mb-1">
-                    <span className="font-fantasy text-[9px] tracking-widest" style={{ color: "rgba(255,255,255,0.3)" }}>NEXT LEVEL</span>
-                    <span className="font-fantasy text-[9px]" style={{ color: rc.primary }} data-testid="text-level-points">
-                      {current.toLocaleString()} / {needed.toLocaleString()}
+              {/* XP bar area */}
+              <div className="flex-1 min-w-0">
+                {pet.petLevel < 100 ? (
+                  <>
+                    <div className="flex justify-between mb-1">
+                      <span className="font-fantasy text-[9px] tracking-widest" style={{ color: "rgba(255,255,255,0.3)" }}>EXPERIENCE</span>
+                      <span className="font-fantasy text-[9px]" style={{ color: rc.primary + "cc" }} data-testid="text-level-points">
+                        {current.toLocaleString()} / {needed.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="relative w-full rounded-full overflow-hidden" style={{ height: 8, background: "rgba(0,0,0,0.55)", border: `1px solid ${rc.primary}18` }}>
+                      <div
+                        data-testid="bar-level-progress"
+                        style={{
+                          width: `${Math.max(xpPct > 0 ? 2 : 0, xpPct)}%`,
+                          background: `linear-gradient(90deg, ${rc.primary}88, ${rc.primary})`,
+                          height: "100%",
+                          borderRadius: 4,
+                          transition: "width 0.6s ease",
+                          boxShadow: xpPct > 0 ? `0 0 10px ${rc.glow}` : "none",
+                        }}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="font-fantasy text-xs tracking-widest px-3 py-1 rounded-full" style={{ background: rc.dim, color: rc.primary, border: `1px solid ${rc.primary}55` }}>
+                      ✦ MAX LEVEL ✦
                     </span>
                   </div>
-                  <div className="relative w-full rounded-full overflow-hidden" style={{ height: 7, background: "rgba(0,0,0,0.5)" }}>
-                    <div
-                      data-testid="bar-level-progress"
-                      style={{
-                        width: `${Math.max(xpPct > 0 ? 2 : 0, xpPct)}%`,
-                        background: `linear-gradient(90deg, ${rc.primary}99, ${rc.primary})`,
-                        height: "100%",
-                        borderRadius: 4,
-                        transition: "width 0.6s ease",
-                        boxShadow: xpPct > 0 ? `0 0 8px ${rc.glow}` : "none",
-                      }}
-                    />
-                  </div>
+                )}
+                {/* Power-up slots */}
+                <div className="flex items-center justify-between mt-1.5">
+                  <span className="font-fantasy text-[8px] tracking-widest" style={{ color: "rgba(255,255,255,0.22)" }}>POWER-UP SLOTS</span>
+                  <span className="font-fantasy text-[8px]" style={{ color: rc.primary + "99" }} data-testid="text-items-used">
+                    {showRemainingCount ? `${itemsRemaining} remaining` : "✦ unlimited"}
+                  </span>
                 </div>
-              )}
-              {pet.petLevel >= 100 && (
-                <span
-                  className="font-fantasy text-xs tracking-widest px-3 py-1 rounded-full"
-                  style={{ background: rc.dim, color: rc.primary, border: `1px solid ${rc.primary}44` }}
-                >
-                  MAX LEVEL
-                </span>
-              )}
-            </div>
-
-            {/* Stat rows */}
-            <div className="px-3 py-2 space-y-2">
-              <StatRow icon={<Heart className="w-3.5 h-3.5" />} label="HP"  value={pet.petHealth} color="#86c98a" testId="bar-pet-health" />
-              <StatRow icon={<Swords className="w-3.5 h-3.5" />} label="ATK" value={pet.petAtk}   color="#d4956a" testId="bar-pet-atk"    />
-              <StatRow icon={<Shield className="w-3.5 h-3.5" />} label="DEF" value={pet.petDef}   color="#8fc4b0" testId="bar-pet-def"    />
-            </div>
-
-            {/* Power-up slots */}
-            <div className="px-3 pb-2.5">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="font-fantasy text-[9px] tracking-widest" style={{ color: "rgba(255,255,255,0.25)" }}>POWER-UP SLOTS</span>
-                <span className="font-fantasy text-[9px]" style={{ color: "rgba(200,168,75,0.75)" }} data-testid="text-items-used">
-                  {showRemainingCount ? `${itemsRemaining} remaining` : "✦ unlimited"}
-                </span>
-              </div>
-              <div className="w-full rounded-full overflow-hidden" style={{ height: 5, background: "rgba(0,0,0,0.5)" }}>
-                <div style={{
-                  width: totalAllowances > 0 ? `${Math.min(100, (totalUsed / totalAllowances) * 100)}%` : "0%",
-                  background: "linear-gradient(90deg, #a07020, #f0c040)",
-                  height: "100%",
-                  borderRadius: 4,
-                  transition: "width 0.5s ease",
-                  boxShadow: "0 0 6px rgba(240,192,64,0.45)",
-                }} />
+                <div className="w-full rounded-full overflow-hidden mt-0.5" style={{ height: 4, background: "rgba(0,0,0,0.5)" }}>
+                  <div style={{
+                    width: totalAllowances > 0 ? `${Math.min(100, (totalUsed / totalAllowances) * 100)}%` : "0%",
+                    background: `linear-gradient(90deg, ${rc.primary}66, ${rc.primary})`,
+                    height: "100%",
+                    borderRadius: 4,
+                    transition: "width 0.5s ease",
+                    boxShadow: `0 0 5px ${rc.glow}`,
+                  }} />
+                </div>
               </div>
             </div>
           </div>
+
+          {/* ── Combat stats — three glowing plates ──────────────── */}
+          <div>
+            <div className="flex items-center gap-2 mb-2 px-0.5">
+              <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, transparent, ${rc.primary}44)` }} />
+              <span className="font-fantasy text-[9px] tracking-widest" style={{ color: rc.primary + "88" }}>COMBAT STATS</span>
+              <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${rc.primary}44, transparent)` }} />
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {/* HP plate */}
+              <div
+                className="rounded-xl flex flex-col items-center py-3 gap-1"
+                style={{
+                  background: "linear-gradient(160deg, rgba(34,80,40,0.55) 0%, rgba(10,30,14,0.6) 100%)",
+                  border: "1px solid rgba(134,201,138,0.35)",
+                  boxShadow: "0 0 18px rgba(74,222,128,0.10)",
+                }}
+                data-testid="bar-pet-health"
+              >
+                <img src={statHpIcon} alt="HP" style={{ width: 28, height: 28, objectFit: "contain", filter: "drop-shadow(0 0 6px rgba(74,222,128,0.6))" }} />
+                <span className="font-fantasy font-bold" style={{ color: "#86c98a", fontSize: 20, lineHeight: 1, textShadow: "0 0 12px rgba(74,222,128,0.5)" }}>{pet.petHealth}</span>
+                <span className="font-fantasy text-[8px] tracking-widest" style={{ color: "rgba(134,201,138,0.6)" }}>HP</span>
+              </div>
+              {/* ATK plate */}
+              <div
+                className="rounded-xl flex flex-col items-center py-3 gap-1"
+                style={{
+                  background: "linear-gradient(160deg, rgba(90,40,20,0.55) 0%, rgba(35,10,5,0.6) 100%)",
+                  border: "1px solid rgba(212,149,106,0.35)",
+                  boxShadow: "0 0 18px rgba(248,113,113,0.10)",
+                }}
+                data-testid="bar-pet-atk"
+              >
+                <img src={statAtkIcon} alt="ATK" style={{ width: 28, height: 28, objectFit: "contain", filter: "drop-shadow(0 0 6px rgba(248,113,113,0.6))" }} />
+                <span className="font-fantasy font-bold" style={{ color: "#d4956a", fontSize: 20, lineHeight: 1, textShadow: "0 0 12px rgba(248,113,113,0.5)" }}>{pet.petAtk}</span>
+                <span className="font-fantasy text-[8px] tracking-widest" style={{ color: "rgba(212,149,106,0.6)" }}>ATK</span>
+              </div>
+              {/* DEF plate */}
+              <div
+                className="rounded-xl flex flex-col items-center py-3 gap-1"
+                style={{
+                  background: "linear-gradient(160deg, rgba(20,48,80,0.55) 0%, rgba(5,18,35,0.6) 100%)",
+                  border: "1px solid rgba(143,196,176,0.35)",
+                  boxShadow: "0 0 18px rgba(96,165,250,0.10)",
+                }}
+                data-testid="bar-pet-def"
+              >
+                <img src={statDefIcon} alt="DEF" style={{ width: 28, height: 28, objectFit: "contain", filter: "drop-shadow(0 0 6px rgba(96,165,250,0.6))" }} />
+                <span className="font-fantasy font-bold" style={{ color: "#8fc4b0", fontSize: 20, lineHeight: 1, textShadow: "0 0 12px rgba(96,165,250,0.5)" }}>{pet.petDef}</span>
+                <span className="font-fantasy text-[8px] tracking-widest" style={{ color: "rgba(143,196,176,0.6)" }}>DEF</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Boost your pet — usable items from bag ─────────── */}
+          {(usableItems.length > 0 || specialItems.length > 0) && (
+            <div
+              className="rounded-2xl overflow-hidden"
+              style={{ background: "rgba(0,0,0,0.38)", border: `1px solid ${rc.primary}22` }}
+            >
+              <div className="flex items-center gap-2 px-3 pt-3 pb-2" style={{ borderBottom: `1px solid ${rc.primary}14` }}>
+                <img src={powerupBagIcon} alt="" style={{ width: 18, height: 18, objectFit: "contain", opacity: 0.85 }} />
+                <span className="font-fantasy text-[10px] tracking-widest font-semibold" style={{ color: rc.primary + "cc" }}>BOOST YOUR PET</span>
+                {showRemainingCount && (
+                  <span className="ml-auto font-fantasy text-[8px] px-2 py-0.5 rounded-full" style={{ background: rc.dim, color: rc.primary, border: `1px solid ${rc.primary}33` }}>
+                    {itemsRemaining} slots left
+                  </span>
+                )}
+              </div>
+              <div className="px-3 py-2.5">
+                {[...usableItems, ...specialItems].length > 0 ? (
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {[...usableItems, ...specialItems].map((item) => {
+                      const isSpecial = item.type === "special";
+                      const boostLabel = isSpecial
+                        ? (item.specialType === "hatch_time" ? `-${item.specialAmount}min` : `+${item.specialAmount} xp`)
+                        : `+${item.statBoostAmount} ${item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "pts"}`;
+                      const labelColor = isSpecial ? "#f0c040" : item.statBoostType === "health" ? "#86c98a" : item.statBoostType === "atk" ? "#d4956a" : "#8fc4b0";
+                      return (
+                        <button
+                          key={item.inventoryId}
+                          data-testid={`button-use-item-${item.inventoryId}`}
+                          onClick={() => setConfirmItem(item)}
+                          className="rounded-xl flex flex-col items-center gap-1 py-2 px-1 transition-all active:scale-95"
+                          style={{
+                            background: "rgba(20,10,3,0.7)",
+                            border: `1px solid ${rc.primary}2a`,
+                            cursor: "pointer",
+                          }}
+                        >
+                          <div className="w-9 h-9 rounded-lg flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.4)" }}>
+                            {item.imageUrl
+                              ? <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
+                              : isSpecial
+                                ? <Sparkles style={{ width: 20, height: 20, color: "#f0c040" }} />
+                                : <img src={powerupBagIcon} alt="" style={{ width: 22, height: 22, objectFit: "contain" }} />
+                            }
+                          </div>
+                          <span className="font-fantasy text-[7px] tracking-wider text-center leading-tight truncate w-full px-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>{item.name}</span>
+                          <span className="font-fantasy text-[8px] font-bold" style={{ color: labelColor, textShadow: `0 0 6px ${labelColor}66` }}>{boostLabel}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="font-fantasy text-center text-[10px] py-2" style={{ color: "rgba(255,255,255,0.2)" }}>No items in bag</p>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* ── Accessories ─────────────────────────────────────── */}
           <div
@@ -1006,33 +1131,3 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
   );
 }
 
-function StatRow({ icon, label, value, color, testId }: { icon: ReactNode; label: string; value: number; color: string; testId: string }) {
-  const safeValue = value ?? 0;
-  const maxDisplay = Math.max(safeValue, label === "HP" ? 5000 : 500);
-  const pct = Math.min(100, (safeValue / maxDisplay) * 100);
-  return (
-    <div className="flex items-center gap-2.5">
-      <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center" style={{ color }}>
-        {icon}
-      </div>
-      <div className="flex-1">
-        <div className="flex items-center justify-between mb-1">
-          <span className="font-fantasy text-[9px] tracking-widest" style={{ color: `${color}aa` }}>{label}</span>
-          <span className="font-fantasy text-[11px] font-semibold" style={{ color }} data-testid={testId}>
-            {safeValue.toLocaleString()}
-          </span>
-        </div>
-        <div className="w-full rounded-full overflow-hidden" style={{ height: 5, background: "rgba(0,0,0,0.45)" }}>
-          <div style={{
-            width: `${Math.max(pct > 0 ? 2 : 0, pct)}%`,
-            background: `linear-gradient(90deg, ${color}88, ${color})`,
-            height: "100%",
-            borderRadius: 4,
-            transition: "width 0.6s ease",
-            boxShadow: pct > 0 ? `0 0 6px ${color}55` : "none",
-          }} />
-        </div>
-      </div>
-    </div>
-  );
-}
