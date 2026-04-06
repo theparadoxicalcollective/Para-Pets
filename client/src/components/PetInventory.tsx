@@ -235,8 +235,8 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
       <div className={pageMode ? "absolute inset-0 flex flex-col" : "fixed inset-0 z-40 flex flex-col"} style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
         {/* Background */}
         <div className="absolute inset-0" onClick={pageMode ? undefined : onClose}>
-          <img src={forestBg} alt="" className="w-full h-full object-cover" style={{ objectPosition: "center top" }} />
-          <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.78)" }} />
+          {!pageMode && <img src={forestBg} alt="" className="w-full h-full object-cover" style={{ objectPosition: "center top" }} />}
+          <div className="absolute inset-0" style={{ background: pageMode ? "rgba(8,4,2,1)" : "rgba(0,0,0,0.78)" }} />
         </div>
 
         <div className="relative z-10 flex flex-col h-full overflow-hidden">
