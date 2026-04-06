@@ -426,14 +426,6 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
           70% { transform: translateY(-4px) scale(1); opacity: 1; }
           100% { transform: translateY(-12px) scale(0.9); opacity: 0; }
         }
-        @keyframes petImgSpin {
-          0% { transform: rotate(0deg) scale(1); }
-          40% { transform: rotate(200deg) scale(1.08); }
-          100% { transform: rotate(360deg) scale(1); }
-        }
-        .pet-img-spin {
-          animation: petImgSpin 0.55s cubic-bezier(0.34,1.56,0.64,1) forwards;
-        }
       `}</style>
 
       {/* Egg detail sheet — egg at top as drop zone, items below to tap or drag */}
@@ -677,7 +669,7 @@ function PetView({
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [hatchingId, setHatchingId] = useState<string | null>(null);
-  const [spinId, setSpinId] = useState<string | null>(null);
+  const [flippedPets, setFlippedPets] = useState<Set<string>>(new Set());
 
   const hatchCheckMutation = useMutation({
     mutationFn: async (inventoryId: string) => {
@@ -731,15 +723,29 @@ function PetView({
           ? (Date.now() - new Date(pet.hatchStartedAt).getTime()) >= pet.hatchTime * 3600000
           : false;
 
-        const handleCardClick = () => {
+        const handleImageClick = () => {
           if (isDragging) return;
-          setSpinId(pet.inventoryId);
-          setTimeout(() => setSpinId(null), 600);
           if (isEgg && hatchReady) {
             hatchCheckMutation.mutate(pet.inventoryId);
           } else if (isEgg && !hatchReady) {
             onEggSpeedUp?.(pet.inventoryId);
-          } else if (!isEgg) {
+          } else {
+            // Coin flip: show egg for 2.5 seconds then flip back
+            if (flippedPets.has(pet.inventoryId)) return;
+            setFlippedPets(prev => new Set([...prev, pet.inventoryId]));
+            setTimeout(() => {
+              setFlippedPets(prev => { const n = new Set(prev); n.delete(pet.inventoryId); return n; });
+            }, 2800);
+          }
+        };
+
+        const handleInfoBoxClick = () => {
+          if (isDragging) return;
+          if (isEgg && hatchReady) {
+            hatchCheckMutation.mutate(pet.inventoryId);
+          } else if (isEgg && !hatchReady) {
+            onEggSpeedUp?.(pet.inventoryId);
+          } else {
             onPetClick(pet);
           }
         };
@@ -748,6 +754,9 @@ function PetView({
 
         const rarityLabel = pet.rarity === 5 ? "Legendary" : pet.rarity === 4 ? "Epic" : pet.rarity === 3 ? "Rare" : pet.rarity === 2 ? "Uncommon" : "Common";
 
+        const isFlipped = flippedPets.has(pet.inventoryId);
+        const eggDisplayImage = pet.eggImageUrl;
+
         return (
           <div
             key={pet.inventoryId}
@@ -755,6 +764,7 @@ function PetView({
             data-pet-inv-id={pet.inventoryId}
             className="relative flex flex-col"
             style={{
+              borderRadius: 18,
               boxShadow: isDragging
                 ? "0 0 22px rgba(240,192,64,0.4)"
                 : isActive
@@ -767,57 +777,80 @@ function PetView({
             <div
               className="flex justify-center"
               style={{ position: "relative", zIndex: 2, marginBottom: -42 }}
-              onClick={handleCardClick}
+              onClick={handleImageClick}
             >
-              <div style={{ position: "relative", width: 90, height: 90, cursor: "pointer" }}>
-                {/* Circle — no border, semi-transparent bg */}
+              <div style={{ position: "relative", width: 90, height: 90, cursor: "pointer", perspective: "400px" }}>
+
+                {/* 3D coin flipper */}
                 <div
-                  className={spinId === pet.inventoryId ? "pet-img-spin" : ""}
                   style={{
                     width: 90, height: 90,
-                    borderRadius: "50%",
-                    overflow: "hidden",
-                    background: "rgba(8,5,2,0.52)",
-                    boxShadow: isActive
-                      ? "0 0 22px rgba(240,192,64,0.45)"
-                      : `0 0 ${6 + (pet.rarity ?? 1) * 3}px rgba(240,192,64,${rs.glowStrength})`,
+                    position: "relative",
+                    transformStyle: "preserve-3d",
+                    transition: "transform 0.45s cubic-bezier(0.455,0.03,0.515,0.955)",
+                    transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
                   }}
                 >
-                  {displayImage ? (
-                    <img
-                      src={displayImage}
-                      alt={pet.name}
-                      className="w-full h-full object-contain"
-                      style={{
-                        padding: "6px",
-                        filter: isActive
-                          ? "drop-shadow(0 0 8px rgba(240,192,64,0.65))"
-                          : "drop-shadow(0 0 5px rgba(240,192,64,0.35))",
-                      }}
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <img src={isEgg ? eggMagicIcon : petPawIcon} alt="" style={{ width: 44, height: 44, objectFit: "contain" }} />
-                    </div>
-                  )}
+                  {/* Front face — pet image */}
+                  <div
+                    style={{
+                      position: "absolute", inset: 0,
+                      backfaceVisibility: "hidden",
+                      WebkitBackfaceVisibility: "hidden",
+                      borderRadius: "50%",
+                      overflow: "hidden",
+                      background: "rgba(8,5,2,0.52)",
+                      boxShadow: isActive
+                        ? "0 0 22px rgba(240,192,64,0.45)"
+                        : `0 0 ${6 + (pet.rarity ?? 1) * 3}px rgba(240,192,64,${rs.glowStrength})`,
+                    }}
+                  >
+                    {displayImage ? (
+                      <img src={displayImage} alt={pet.name} className="w-full h-full object-contain"
+                        style={{ padding: "6px", filter: isActive ? "drop-shadow(0 0 8px rgba(240,192,64,0.65))" : "drop-shadow(0 0 5px rgba(240,192,64,0.35))" }} />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <img src={isEgg ? eggMagicIcon : petPawIcon} alt="" style={{ width: 44, height: 44, objectFit: "contain" }} />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Back face — egg image */}
+                  <div
+                    style={{
+                      position: "absolute", inset: 0,
+                      backfaceVisibility: "hidden",
+                      WebkitBackfaceVisibility: "hidden",
+                      transform: "rotateY(180deg)",
+                      borderRadius: "50%",
+                      overflow: "hidden",
+                      background: "rgba(8,5,2,0.52)",
+                      boxShadow: "0 0 14px rgba(240,192,64,0.3)",
+                    }}
+                  >
+                    {eggDisplayImage ? (
+                      <img src={eggDisplayImage} alt="egg" className="w-full h-full object-contain"
+                        style={{ padding: "6px", filter: "drop-shadow(0 0 6px rgba(240,192,64,0.5))" }} />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <img src={eggMagicIcon} alt="egg" style={{ width: 44, height: 44, objectFit: "contain" }} />
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* Hatch ready ring */}
+                {/* Hatch ready ring — on top of flipper */}
                 {!isDragging && hatchReady && hatchingId !== pet.inventoryId && (
-                  <div
-                    className="absolute inset-0 rounded-full flex items-center justify-center animate-pulse"
-                    style={{ background: "rgba(240,192,64,0.18)", border: "2px solid rgba(240,192,64,0.72)", borderRadius: "50%" }}
-                  >
+                  <div className="absolute inset-0 rounded-full flex items-center justify-center animate-pulse"
+                    style={{ background: "rgba(240,192,64,0.18)", border: "2px solid rgba(240,192,64,0.72)", borderRadius: "50%" }}>
                     <span className="font-fantasy text-[#f0c040] text-[9px] font-bold tracking-widest" style={{ textShadow: "0 0 10px rgba(240,192,64,0.9)" }}>READY!</span>
                   </div>
                 )}
 
                 {/* Drag-drop ring */}
                 {isDragging && (
-                  <div
-                    className="absolute inset-0 rounded-full flex items-center justify-center"
-                    style={{ background: "rgba(240,192,64,0.16)", border: "2px dashed rgba(240,192,64,0.8)", borderRadius: "50%", pointerEvents: "none" }}
-                  >
+                  <div className="absolute inset-0 rounded-full flex items-center justify-center"
+                    style={{ background: "rgba(240,192,64,0.16)", border: "2px dashed rgba(240,192,64,0.8)", borderRadius: "50%", pointerEvents: "none" }}>
                     <span className="font-fantasy text-[#f0c040] text-[9px] font-bold" style={{ textShadow: "0 0 8px rgba(240,192,64,0.9)" }}>DROP</span>
                   </div>
                 )}
@@ -852,8 +885,8 @@ function PetView({
             {/* Info box — pet image overlaps top */}
             <div
               className="relative flex flex-col items-center rounded-2xl overflow-hidden"
-              onClick={!isEgg ? handleCardClick : undefined}
-              style={{ cursor: !isEgg ? "pointer" : "default", background: rs.bg, border: isDragging ? "1.5px solid rgba(240,192,64,0.85)" : isActive ? "1.5px solid rgba(240,192,64,0.82)" : rs.border, paddingTop: 50, paddingBottom: 10, paddingLeft: 8, paddingRight: 8 }}
+              onClick={handleInfoBoxClick}
+              style={{ cursor: "pointer", background: rs.bg, border: isDragging ? "1.5px solid rgba(240,192,64,0.85)" : isActive ? "1.5px solid rgba(240,192,64,0.82)" : rs.border, paddingTop: 50, paddingBottom: 10, paddingLeft: 8, paddingRight: 8 }}
             >
               {/* Texture overlay */}
               <img
