@@ -86,6 +86,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
   const [powerUpModalMode, setPowerUpModalMode] = useState<"powerup" | "lvlup">("powerup");
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [confirmItem, setConfirmItem] = useState<BagItem | null>(null);
+  const pendingUseItemRef = useRef<PowerUpItem | null>(null);
   const [showSuccessAnim, setShowSuccessAnim] = useState(false);
   const [successBoostLabel, setSuccessBoostLabel] = useState("");
   const [successAnimType, setSuccessAnimType] = useState<PowerUpEffectType>("stat");
@@ -205,7 +206,8 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
     },
     onSuccess: (data) => {
       playPowerUp();
-      const item = confirmItem;
+      const item = pendingUseItemRef.current ?? confirmItem;
+      pendingUseItemRef.current = null;
       const boostLabel = item
         ? `+${item.statBoostAmount || "?"} ${item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "Lvl pts"}`
         : "Power Up!";
@@ -224,6 +226,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
       onUpdate();
     },
     onError: (err: any) => {
+      pendingUseItemRef.current = null;
       setConfirmItem(null);
       toast({ title: "Failed", description: err?.message || "Could not power up", variant: "destructive" });
     },
@@ -235,11 +238,12 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
       return res.json();
     },
     onSuccess: (data) => {
-      const item = confirmItem;
+      const item = pendingUseItemRef.current ?? confirmItem;
+      pendingUseItemRef.current = null;
       const isHatchTime = item?.specialType === "hatch_time";
       if (isHatchTime) playSpeedUp(); else playPowerUp();
       const label = isHatchTime
-        ? `-${item.specialAmount || "?"} min`
+        ? `-${item?.specialAmount || "?"} min`
         : `+${item?.specialAmount || "?"} LVL pts`;
       const effectType: PowerUpEffectType = isHatchTime ? "hatch" : "level";
       setConfirmItem(null);
@@ -257,6 +261,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
       onUpdate();
     },
     onError: (err: any) => {
+      pendingUseItemRef.current = null;
       setConfirmItem(null);
       toast({ title: "Failed", description: err?.message || "Could not use special item", variant: "destructive" });
     },
@@ -283,7 +288,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
   const lvlUpModalItems: PowerUpItem[] = specialItems.filter(i => i.specialType === "level");
 
   const handlePowerUpModalUse = useCallback((item: PowerUpItem) => {
-    setConfirmItem(item as BagItem);
+    pendingUseItemRef.current = item;
     if (item.type === "special") {
       useSpecialMutation.mutate(item.inventoryId);
     } else {

@@ -68,6 +68,25 @@ export default class ErrorBoundary extends Component<Props, State> {
           >
             Something went wrong
           </div>
+          {this.state.error?.message && (
+            <div
+              style={{
+                fontFamily: "monospace",
+                fontSize: 11,
+                color: "#f87171",
+                background: "rgba(248,113,113,0.08)",
+                border: "1px solid rgba(248,113,113,0.3)",
+                borderRadius: 8,
+                padding: "8px 12px",
+                maxWidth: 320,
+                wordBreak: "break-word",
+                lineHeight: 1.6,
+                textAlign: "left",
+              }}
+            >
+              {this.state.error.message}
+            </div>
+          )}
           <div
             style={{
               fontFamily: "fantasy, serif",

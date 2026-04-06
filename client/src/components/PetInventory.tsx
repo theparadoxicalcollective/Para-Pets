@@ -68,6 +68,7 @@ interface PetInventoryProps {
 export default function PetInventory({ user, onClose, onUserUpdate, defaultTab }: PetInventoryProps) {
   const [showBag, setShowBag] = useState(defaultTab === "bag");
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
+  const frozenSelectedPetRef = useRef<any | null>(null);
   const [speedUpTargetId, setSpeedUpTargetId] = useState<string | null>(null);
   const [dragging, setDragging] = useState<{ item: InventoryItem; x: number; y: number } | null>(null);
   const [sheetDragOver, setSheetDragOver] = useState(false);
@@ -212,7 +213,9 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab }
   const pets = inventory.filter((item) => item.type === "pet");
   const bagItems = inventory.filter((item) => item.type !== "pet" && item.fishingType !== "fish");
   const hatchTimeItems = inventory.filter(i => i.type === "special" && i.specialType === "hatch_time");
-  const selectedPet = selectedPetId ? (inventory.find((item) => item.inventoryId === selectedPetId) ?? null) : null;
+  const livePet = selectedPetId ? (inventory.find((item) => item.inventoryId === selectedPetId) ?? null) : null;
+  if (livePet) frozenSelectedPetRef.current = livePet;
+  const selectedPet = selectedPetId ? (frozenSelectedPetRef.current ?? livePet) : null;
   const speedUpTargetPet = speedUpTargetId ? (inventory.find(i => i.inventoryId === speedUpTargetId) ?? null) : null;
 
   const handlePetToggle = (inventoryId: string) => {
@@ -500,7 +503,7 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab }
       {selectedPet && (
         <PetDetailPage
           pet={selectedPet}
-          onClose={() => setSelectedPetId(null)}
+          onClose={() => { frozenSelectedPetRef.current = null; setSelectedPetId(null); }}
           onUpdate={() => {
             queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
           }}
