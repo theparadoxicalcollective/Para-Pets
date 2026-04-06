@@ -70,12 +70,13 @@ interface PetDetailPageProps {
   onUserUpdate: (user: any) => void;
 }
 
+// Unified warm gold palette across all rarities — intensity increases with rarity
 const RARITY: Record<number, { label: string; primary: string; glow: string; heroBg: string; dim: string }> = {
-  1: { label: "Common",    primary: "#94a3b8", glow: "rgba(148,163,184,0.55)", heroBg: "rgba(60,70,80,0.45)",  dim: "rgba(148,163,184,0.18)" },
-  2: { label: "Uncommon",  primary: "#4ade80", glow: "rgba(74,222,128,0.55)",  heroBg: "rgba(15,70,45,0.5)",   dim: "rgba(74,222,128,0.15)"  },
-  3: { label: "Rare",      primary: "#60a5fa", glow: "rgba(96,165,250,0.55)",  heroBg: "rgba(15,45,90,0.5)",   dim: "rgba(96,165,250,0.15)"  },
-  4: { label: "Epic",      primary: "#c084fc", glow: "rgba(192,132,252,0.55)", heroBg: "rgba(55,15,85,0.55)",  dim: "rgba(192,132,252,0.18)" },
-  5: { label: "Legendary", primary: "#f0c040", glow: "rgba(240,192,64,0.55)",  heroBg: "rgba(75,55,5,0.55)",   dim: "rgba(240,192,64,0.18)"  },
+  1: { label: "Common",    primary: "#a89878", glow: "rgba(168,152,120,0.45)", heroBg: "rgba(38,26,8,0.45)",  dim: "rgba(168,152,120,0.15)" },
+  2: { label: "Uncommon",  primary: "#c8a84b", glow: "rgba(200,168,75,0.50)",  heroBg: "rgba(48,34,5,0.48)",  dim: "rgba(200,168,75,0.16)"  },
+  3: { label: "Rare",      primary: "#ddb840", glow: "rgba(221,184,64,0.55)",  heroBg: "rgba(54,38,5,0.52)",  dim: "rgba(221,184,64,0.17)"  },
+  4: { label: "Epic",      primary: "#f0c040", glow: "rgba(240,192,64,0.60)",  heroBg: "rgba(60,44,5,0.55)",  dim: "rgba(240,192,64,0.20)"  },
+  5: { label: "Legendary", primary: "#ffd700", glow: "rgba(255,215,0,0.68)",   heroBg: "rgba(68,50,5,0.60)",  dim: "rgba(255,215,0,0.22)"   },
 };
 
 export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUserUpdate }: PetDetailPageProps) {
@@ -582,27 +583,27 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
 
             {/* Stat rows */}
             <div className="px-3 py-2 space-y-2">
-              <StatRow icon={<Heart className="w-3.5 h-3.5" />} label="HP"  value={pet.petHealth} color="#4ade80" testId="bar-pet-health" />
-              <StatRow icon={<Swords className="w-3.5 h-3.5" />} label="ATK" value={pet.petAtk}   color="#f87171" testId="bar-pet-atk"    />
-              <StatRow icon={<Shield className="w-3.5 h-3.5" />} label="DEF" value={pet.petDef}   color="#60a5fa" testId="bar-pet-def"    />
+              <StatRow icon={<Heart className="w-3.5 h-3.5" />} label="HP"  value={pet.petHealth} color="#86c98a" testId="bar-pet-health" />
+              <StatRow icon={<Swords className="w-3.5 h-3.5" />} label="ATK" value={pet.petAtk}   color="#d4956a" testId="bar-pet-atk"    />
+              <StatRow icon={<Shield className="w-3.5 h-3.5" />} label="DEF" value={pet.petDef}   color="#8fc4b0" testId="bar-pet-def"    />
             </div>
 
             {/* Power-up slots */}
             <div className="px-3 pb-2.5">
               <div className="flex items-center justify-between mb-1.5">
                 <span className="font-fantasy text-[9px] tracking-widest" style={{ color: "rgba(255,255,255,0.25)" }}>POWER-UP SLOTS</span>
-                <span className="font-fantasy text-[9px]" style={{ color: "rgba(192,132,252,0.7)" }} data-testid="text-items-used">
+                <span className="font-fantasy text-[9px]" style={{ color: "rgba(200,168,75,0.75)" }} data-testid="text-items-used">
                   {showRemainingCount ? `${itemsRemaining} remaining` : "✦ unlimited"}
                 </span>
               </div>
               <div className="w-full rounded-full overflow-hidden" style={{ height: 5, background: "rgba(0,0,0,0.5)" }}>
                 <div style={{
                   width: totalAllowances > 0 ? `${Math.min(100, (totalUsed / totalAllowances) * 100)}%` : "0%",
-                  background: "linear-gradient(90deg, #7c3aed, #c084fc)",
+                  background: "linear-gradient(90deg, #a07020, #f0c040)",
                   height: "100%",
                   borderRadius: 4,
                   transition: "width 0.5s ease",
-                  boxShadow: "0 0 6px rgba(192,132,252,0.5)",
+                  boxShadow: "0 0 6px rgba(240,192,64,0.45)",
                 }} />
               </div>
             </div>

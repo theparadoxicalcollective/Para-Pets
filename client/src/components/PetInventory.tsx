@@ -14,14 +14,20 @@ import statDefIcon from "@assets/generated_images/icon_stat_def.png";
 import statHpIcon from "@assets/generated_images/icon_stat_hp.png";
 import PetDetailPage from "./PetDetailPage";
 
-function getRarityStyle(rarity: number | null): { border: string; glow: string; bg: string; starColor: string } {
-  switch (rarity) {
-    case 5: return { border: "2px solid rgba(240,192,64,0.85)",  glow: "0 0 22px rgba(240,192,64,0.35)",  bg: "linear-gradient(135deg, rgba(40,25,5,0.97) 0%, rgba(60,38,5,0.97) 100%)",   starColor: "#f0c040" };
-    case 4: return { border: "2px solid rgba(192,132,252,0.8)",  glow: "0 0 18px rgba(192,132,252,0.3)", bg: "linear-gradient(135deg, rgba(25,10,45,0.97) 0%, rgba(40,15,65,0.97) 100%)", starColor: "#c084fc" };
-    case 3: return { border: "2px solid rgba(96,165,250,0.8)",   glow: "0 0 16px rgba(96,165,250,0.28)",  bg: "linear-gradient(135deg, rgba(5,18,40,0.97) 0%, rgba(8,28,58,0.97) 100%)",   starColor: "#60a5fa" };
-    case 2: return { border: "2px solid rgba(74,222,128,0.75)",  glow: "0 0 14px rgba(74,222,128,0.25)", bg: "linear-gradient(135deg, rgba(5,25,12,0.97) 0%, rgba(8,38,18,0.97) 100%)",   starColor: "#4ade80" };
-    default: return { border: "1.5px solid rgba(200,210,225,0.55)", glow: "0 0 10px rgba(200,210,225,0.15)", bg: "linear-gradient(135deg, rgba(22,25,32,0.97) 0%, rgba(30,34,44,0.97) 100%)", starColor: "#c8d2e1" };
-  }
+function getRarityStyle(rarity: number | null): { border: string; glow: string; bg: string; starColor: string; borderOpacity: number; glowStrength: number } {
+  // Unified gold palette — intensity scales with rarity, no rainbow colors
+  const r = Math.min(5, Math.max(1, rarity ?? 1));
+  const borderOpacity = [0.22, 0.34, 0.50, 0.66, 0.86][r - 1];
+  const glowStrength  = [0.09, 0.14, 0.20, 0.28, 0.42][r - 1];
+  const glowRadius    = [8, 11, 15, 19, 25][r - 1];
+  return {
+    border:        `1.5px solid rgba(240,192,64,${borderOpacity})`,
+    glow:          `0 0 ${glowRadius}px rgba(240,192,64,${glowStrength})`,
+    bg:            "linear-gradient(160deg, rgba(14,10,3,0.97) 0%, rgba(22,14,4,0.97) 100%)",
+    starColor:     "#f0c040",
+    borderOpacity,
+    glowStrength,
+  };
 }
 
 interface InventoryItem {
@@ -699,156 +705,141 @@ function PetView({
             key={pet.inventoryId}
             data-testid={`card-pet-${pet.shopItemId}`}
             data-pet-inv-id={pet.inventoryId}
-            className="relative rounded-2xl overflow-hidden"
+            className="relative rounded-2xl flex flex-col overflow-hidden"
             style={{
               background: rs.bg,
               border: isDragging
-                ? "2px solid rgba(240,192,64,0.85)"
+                ? "1.5px solid rgba(240,192,64,0.85)"
                 : isActive
-                  ? `2px solid ${rs.starColor}`
+                  ? "1.5px solid rgba(240,192,64,0.82)"
                   : rs.border,
               boxShadow: isDragging
-                ? "0 0 24px rgba(240,192,64,0.5)"
+                ? "0 0 22px rgba(240,192,64,0.4)"
                 : isActive
-                  ? `0 0 32px ${rs.starColor}55, 0 4px 20px rgba(0,0,0,0.6), inset 0 0 60px ${rs.starColor}08`
+                  ? "0 0 26px rgba(240,192,64,0.32), 0 4px 20px rgba(0,0,0,0.6)"
                   : `${rs.glow}, 0 4px 16px rgba(0,0,0,0.5)`,
               transition: "border 0.2s, box-shadow 0.2s",
             }}
           >
-            {/* Rarity accent stripe on left edge */}
-            <div
-              className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl"
-              style={{ background: `linear-gradient(180deg, ${rs.starColor}cc 0%, ${rs.starColor}22 100%)` }}
-            />
-
-            {/* Active glow overlay */}
+            {/* Active shimmer along top edge */}
             {isActive && (
-              <div
-                className="absolute inset-0 pointer-events-none rounded-2xl"
-                style={{ background: `radial-gradient(ellipse at 15% 50%, ${rs.starColor}12 0%, transparent 60%)` }}
-              />
+              <div style={{ height: 2, background: "linear-gradient(90deg, transparent, rgba(240,192,64,0.55), transparent)", flexShrink: 0 }} />
             )}
 
-            {/* Compact toggle — top right corner */}
-            {!isEgg && (
-              <button
-                data-testid={`button-select-pet-${pet.shopItemId}`}
-                onClick={(e) => { e.stopPropagation(); onToggle(pet.inventoryId); }}
-                disabled={isPending}
-                className="absolute top-2 right-2 z-10 flex items-center gap-1 transition-all active:scale-90 disabled:opacity-40"
-                style={{
-                  background: isActive
-                    ? `linear-gradient(135deg, ${rs.starColor}38 0%, ${rs.starColor}20 100%)`
-                    : "rgba(0,0,0,0.55)",
-                  border: isActive
-                    ? `1.5px solid ${rs.starColor}99`
-                    : "1.5px solid rgba(255,255,255,0.14)",
-                  borderRadius: 6,
-                  padding: "2px 6px",
-                  cursor: "pointer",
-                  backdropFilter: "blur(4px)",
-                }}
-              >
+            {/* Circular pet image — centered */}
+            <div
+              className="flex justify-center pt-3 pb-1.5"
+              onClick={handleCardClick}
+              style={{ cursor: "pointer" }}
+            >
+              <div style={{ position: "relative", width: 88, height: 88 }}>
+                {/* Circle frame */}
                 <div
                   style={{
-                    width: 7,
-                    height: 7,
+                    width: 88, height: 88,
                     borderRadius: "50%",
-                    background: isActive ? rs.starColor : "rgba(255,255,255,0.25)",
-                    boxShadow: isActive ? `0 0 5px ${rs.starColor}` : "none",
-                    transition: "all 0.2s",
-                    flexShrink: 0,
+                    overflow: "hidden",
+                    border: isActive
+                      ? "2px solid rgba(240,192,64,0.88)"
+                      : `2px solid rgba(240,192,64,${rs.borderOpacity})`,
+                    boxShadow: isActive
+                      ? "0 0 22px rgba(240,192,64,0.5), inset 0 0 14px rgba(0,0,0,0.45)"
+                      : `0 0 ${8 + (pet.rarity ?? 1) * 3}px rgba(240,192,64,${rs.glowStrength}), inset 0 0 14px rgba(0,0,0,0.5)`,
+                    background: "radial-gradient(ellipse at 40% 30%, rgba(240,192,64,0.07) 0%, rgba(0,0,0,0.72) 75%)",
                   }}
-                />
-                <span
-                  className="font-fantasy"
-                  style={{ fontSize: 8, color: isActive ? rs.starColor : "rgba(255,255,255,0.4)", letterSpacing: "0.06em" }}
                 >
-                  {isActive ? "ACTIVE" : "SELECT"}
-                </span>
-              </button>
-            )}
+                  {displayImage ? (
+                    <img
+                      src={displayImage}
+                      alt={pet.name}
+                      className="w-full h-full object-contain"
+                      style={{
+                        padding: "6px",
+                        filter: isActive
+                          ? "drop-shadow(0 0 8px rgba(240,192,64,0.65)) drop-shadow(0 0 18px rgba(240,192,64,0.28))"
+                          : "drop-shadow(0 0 5px rgba(240,192,64,0.35))",
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <img src={isEgg ? eggMagicIcon : petPawIcon} alt="" style={{ width: 44, height: 44, objectFit: "contain" }} />
+                    </div>
+                  )}
+                </div>
 
-            {/* Square pet image area */}
-            <div
-              className="relative mx-2 mt-2 rounded-xl overflow-hidden cursor-pointer"
-              style={{ aspectRatio: "1 / 1" }}
-              onClick={handleCardClick}
-            >
-              <div
-                className="w-full h-full flex items-center justify-center"
-                style={{
-                  background: `radial-gradient(ellipse at 40% 35%, ${rs.starColor}1a 0%, rgba(0,0,0,0.55) 70%)`,
-                  border: `1px solid ${rs.starColor}33`,
-                }}
-              >
-                {displayImage ? (
-                  <img
-                    src={displayImage}
-                    alt={pet.name}
-                    className="w-full h-full object-contain p-1.5"
-                    style={{ filter: `drop-shadow(0 0 8px ${rs.starColor}bb) drop-shadow(0 0 18px ${rs.starColor}44)` }}
-                  />
-                ) : (
-                  <img src={isEgg ? eggMagicIcon : petPawIcon} alt="" style={{ width: 48, height: 48, objectFit: "contain" }} />
+                {/* Hatch ready ring overlay */}
+                {!isDragging && hatchReady && hatchingId !== pet.inventoryId && (
+                  <div
+                    className="absolute inset-0 rounded-full flex items-center justify-center animate-pulse"
+                    style={{ background: "rgba(240,192,64,0.18)", border: "2px solid rgba(240,192,64,0.72)", borderRadius: "50%" }}
+                  >
+                    <span className="font-fantasy text-[#f0c040] text-[9px] font-bold tracking-widest" style={{ textShadow: "0 0 10px rgba(240,192,64,0.9)" }}>READY!</span>
+                  </div>
+                )}
+
+                {/* Drag-drop ring */}
+                {isDragging && (
+                  <div
+                    className="absolute inset-0 rounded-full flex items-center justify-center"
+                    style={{ background: "rgba(240,192,64,0.16)", border: "2px dashed rgba(240,192,64,0.8)", borderRadius: "50%", pointerEvents: "none" }}
+                  >
+                    <span className="font-fantasy text-[#f0c040] text-[9px] font-bold" style={{ textShadow: "0 0 8px rgba(240,192,64,0.9)" }}>DROP</span>
+                  </div>
+                )}
+
+                {/* Hatch burst (particles overflow the circle, clipped by card edge) */}
+                {hatchingId === pet.inventoryId && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20" style={{ overflow: "visible" }}>
+                    {[...Array(10)].map((_, i) => {
+                      const angle = (i / 10) * 360;
+                      const rad = (angle * Math.PI) / 180;
+                      const endX = Math.cos(rad) * 52;
+                      const endY = Math.sin(rad) * 52;
+                      const size = 6 + Math.random() * 6;
+                      const delay = i * 0.04;
+                      return (
+                        <div key={i} style={{ position: "absolute", width: `${size}px`, height: `${size}px`, borderRadius: "50%", background: "radial-gradient(circle, #ffe566 0%, #f0c040 40%, rgba(240,192,64,0) 70%)", boxShadow: "0 0 10px rgba(240,192,64,0.8)", animation: `hatchOrbBurst 1.4s ${delay}s ease-out forwards`, opacity: 0, ["--endX" as any]: `${endX}px`, ["--endY" as any]: `${endY}px` }} />
+                      );
+                    })}
+                    <span className="font-fantasy text-sm font-bold tracking-widest absolute" style={{ color: "#f0c040", textShadow: "0 0 12px rgba(240,192,64,0.8)", animation: "hatchTextRise 2s 0.3s ease-out forwards", opacity: 0 }}>HATCHED!</span>
+                  </div>
+                )}
+
+                {/* EGG label pinned below circle */}
+                {isEgg && !hatchReady && (
+                  <div style={{ position: "absolute", bottom: -9, left: "50%", transform: "translateX(-50%)", background: "rgba(8,4,1,0.92)", border: "1px solid rgba(240,192,64,0.42)", borderRadius: 20, padding: "1px 8px", whiteSpace: "nowrap" }}>
+                    <span className="font-fantasy text-[7px] text-[#f0c040] tracking-wider">EGG</span>
+                  </div>
                 )}
               </div>
-
-              {/* Egg badge */}
-              {isEgg && !hatchReady && (
-                <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-full" style={{ background: "rgba(8,4,1,0.9)", border: "1px solid rgba(240,192,64,0.5)" }}>
-                  <span className="font-fantasy text-[9px] text-[#f0c040] tracking-wider">EGG</span>
-                </div>
-              )}
-
-              {/* Hatch ready */}
-              {!isDragging && hatchReady && hatchingId !== pet.inventoryId && (
-                <div className="absolute inset-0 flex items-center justify-center animate-pulse" style={{ background: "rgba(74,222,128,0.15)", border: "2px solid rgba(74,222,128,0.6)" }}>
-                  <span className="font-fantasy text-[#4ade80] text-xs font-bold tracking-widest" style={{ textShadow: "0 0 10px rgba(74,222,128,0.9)" }}>READY!</span>
-                </div>
-              )}
-
-              {/* Drag drop */}
-              {isDragging && (
-                <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(240,192,64,0.18)", border: "2px dashed rgba(240,192,64,0.8)", pointerEvents: "none" }}>
-                  <span className="font-fantasy text-[#f0c040] text-[10px] font-bold" style={{ textShadow: "0 0 8px rgba(240,192,64,0.9)" }}>DROP</span>
-                </div>
-              )}
-
-              {/* Hatch burst */}
-              {hatchingId === pet.inventoryId && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20 overflow-hidden">
-                  {[...Array(10)].map((_, i) => {
-                    const angle = (i / 10) * 360;
-                    const rad = (angle * Math.PI) / 180;
-                    const endX = Math.cos(rad) * 50;
-                    const endY = Math.sin(rad) * 50;
-                    const size = 6 + Math.random() * 6;
-                    const delay = i * 0.04;
-                    return (
-                      <div key={i} style={{ position: "absolute", width: `${size}px`, height: `${size}px`, borderRadius: "50%", background: "radial-gradient(circle, #ffe566 0%, #f0c040 40%, rgba(240,192,64,0) 70%)", boxShadow: "0 0 10px rgba(240,192,64,0.8)", animation: `hatchOrbBurst 1.4s ${delay}s ease-out forwards`, opacity: 0, ["--endX" as any]: `${endX}px`, ["--endY" as any]: `${endY}px` }} />
-                    );
-                  })}
-                  <span className="font-fantasy text-sm font-bold tracking-widest absolute" style={{ color: "#f0c040", textShadow: "0 0 12px rgba(240,192,64,0.8)", animation: "hatchTextRise 2s 0.3s ease-out forwards", opacity: 0 }}>HATCHED!</span>
-                </div>
-              )}
             </div>
 
-            {/* Info below image */}
-            <div className="px-2 pt-2 pb-2.5 flex flex-col gap-1" onClick={!isEgg ? handleCardClick : undefined} style={{ cursor: !isEgg ? "pointer" : "default" }}>
+            {/* Info section — centered below circle */}
+            <div
+              className="px-2 pb-3 flex flex-col items-center gap-0.5"
+              onClick={!isEgg ? handleCardClick : undefined}
+              style={{ cursor: !isEgg ? "pointer" : "default", marginTop: isEgg && !hatchReady ? 8 : 0 }}
+            >
               {/* Name */}
               <p
-                className="font-fantasy font-semibold leading-tight truncate"
-                style={{ fontSize: 12, color: rs.starColor, textShadow: `0 0 8px ${rs.starColor}55`, letterSpacing: "0.03em" }}
+                className="font-fantasy font-semibold leading-tight truncate text-center w-full"
+                style={{ fontSize: 11, color: "#f0c040", textShadow: "0 0 8px rgba(240,192,64,0.38)", letterSpacing: "0.04em" }}
                 data-testid={`text-pet-name-${pet.shopItemId}`}
               >
                 {pet.petNickname || pet.name}
               </p>
 
-              {/* Stars */}
+              {/* Stars — all 5 shown, filled/dim */}
               <div className="flex items-center gap-0.5">
-                {Array.from({ length: pet.rarity ?? 1 }).map((_, i) => (
-                  <span key={i} style={{ fontSize: 9, color: rs.starColor, textShadow: `0 0 4px ${rs.starColor}88` }}>★</span>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <span
+                    key={i}
+                    style={{
+                      fontSize: 8,
+                      color: i < (pet.rarity ?? 1) ? "#f0c040" : "rgba(240,192,64,0.14)",
+                      textShadow: i < (pet.rarity ?? 1) ? "0 0 4px rgba(240,192,64,0.6)" : "none",
+                    }}
+                  >★</span>
                 ))}
               </div>
 
@@ -856,28 +847,68 @@ function PetView({
               {isEgg && pet.hatchStartedAt && pet.hatchTime ? (
                 <HatchProgressBar hatchStartedAt={pet.hatchStartedAt} hatchTime={pet.hatchTime} />
               ) : isEgg ? (
-                <p className="font-fantasy text-[#5a6a58] text-[9px] tracking-wider">Tap to hatch</p>
+                <p className="font-fantasy text-[#a89878] text-[8px] tracking-wider mt-0.5">Tap to hatch</p>
               ) : (
                 <>
-                  <div className="flex items-center justify-between">
-                    <span className="font-fantasy text-[#c084fc]" style={{ fontSize: 9, letterSpacing: "0.06em" }}>LV {pet.petLevel}</span>
-                    {isActive && <span style={{ fontSize: 8, color: rs.starColor }}>✦ ACTIVE</span>}
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="font-fantasy text-[#c8a84b]" style={{ fontSize: 9, letterSpacing: "0.06em" }}>LV {pet.petLevel}</span>
+                    {isActive && <span style={{ fontSize: 7, color: "rgba(240,192,64,0.55)" }}>✦ ACTIVE</span>}
                   </div>
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-1 flex-wrap justify-center">
                     <div className="flex items-center gap-0.5">
-                      <img src={statHpIcon} alt="HP" style={{ width: 11, height: 11, objectFit: "contain" }} />
-                      <span className="font-fantasy text-[#f87171]" style={{ fontSize: 10, fontWeight: 700 }}>{pet.petHealth}</span>
+                      <img src={statHpIcon} alt="HP" style={{ width: 10, height: 10, objectFit: "contain" }} />
+                      <span className="font-fantasy text-[#9ecfa0]" style={{ fontSize: 9, fontWeight: 700 }}>{pet.petHealth}</span>
                     </div>
+                    <span style={{ color: "rgba(240,192,64,0.18)", fontSize: 9 }}>·</span>
                     <div className="flex items-center gap-0.5">
-                      <img src={statAtkIcon} alt="ATK" style={{ width: 11, height: 11, objectFit: "contain" }} />
-                      <span className="font-fantasy text-[#4ade80]" style={{ fontSize: 10, fontWeight: 700 }}>{pet.petAtk}</span>
+                      <img src={statAtkIcon} alt="ATK" style={{ width: 10, height: 10, objectFit: "contain" }} />
+                      <span className="font-fantasy text-[#d4956a]" style={{ fontSize: 9, fontWeight: 700 }}>{pet.petAtk}</span>
                     </div>
+                    <span style={{ color: "rgba(240,192,64,0.18)", fontSize: 9 }}>·</span>
                     <div className="flex items-center gap-0.5">
-                      <img src={statDefIcon} alt="DEF" style={{ width: 11, height: 11, objectFit: "contain" }} />
-                      <span className="font-fantasy text-[#60a5fa]" style={{ fontSize: 10, fontWeight: 700 }}>{pet.petDef}</span>
+                      <img src={statDefIcon} alt="DEF" style={{ width: 10, height: 10, objectFit: "contain" }} />
+                      <span className="font-fantasy text-[#8ab4c8]" style={{ fontSize: 9, fontWeight: 700 }}>{pet.petDef}</span>
                     </div>
                   </div>
                 </>
+              )}
+
+              {/* SELECT / ACTIVE button — bottom of card */}
+              {!isEgg && (
+                <button
+                  data-testid={`button-select-pet-${pet.shopItemId}`}
+                  onClick={(e) => { e.stopPropagation(); onToggle(pet.inventoryId); }}
+                  disabled={isPending}
+                  className="w-full mt-1.5 flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-40"
+                  style={{
+                    background: isActive
+                      ? "linear-gradient(135deg, rgba(240,192,64,0.22) 0%, rgba(240,192,64,0.10) 100%)"
+                      : "rgba(240,192,64,0.05)",
+                    border: isActive
+                      ? "1px solid rgba(240,192,64,0.65)"
+                      : "1px solid rgba(240,192,64,0.18)",
+                    borderRadius: 8,
+                    padding: "4px 0",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 5, height: 5,
+                      borderRadius: "50%",
+                      background: isActive ? "#f0c040" : "rgba(240,192,64,0.22)",
+                      boxShadow: isActive ? "0 0 5px rgba(240,192,64,0.8)" : "none",
+                      transition: "all 0.2s",
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span
+                    className="font-fantasy"
+                    style={{ fontSize: 8, color: isActive ? "#f0c040" : "rgba(240,192,64,0.38)", letterSpacing: "0.08em" }}
+                  >
+                    {isActive ? "ACTIVE" : "SELECT"}
+                  </span>
+                </button>
               )}
             </div>
           </div>
