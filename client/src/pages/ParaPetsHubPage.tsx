@@ -830,16 +830,25 @@ function SignInModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
 // Main page
 // ─────────────────────────────────────────────────────────────────────────────
 export default function ParaPetsHubPage() {
-  const [showSignIn, setShowSignIn]         = useState(false);
-  const [showHomescreen, setShowHomescreen] = useState(false);
-  const { toast }                           = useToast();
-  const worldsRef                           = useRef<HTMLDivElement>(null);
-  const challengersRef                      = useRef<HTMLDivElement>(null);
+  const [showSignIn, setShowSignIn]               = useState(false);
+  const [showHomescreen, setShowHomescreen]       = useState(false);
+  const [challengersAtTop, setChallengersAtTop]   = useState(true);
+  const [challengersAtBottom, setChallengersAtBottom] = useState(false);
+  const { toast }                                 = useToast();
+  const worldsRef                                 = useRef<HTMLDivElement>(null);
+  const challengersRef                            = useRef<HTMLDivElement>(null);
 
   const scrollChallengers = (dir: "up" | "down") => {
     const el = challengersRef.current;
     if (!el) return;
-    el.scrollBy({ top: dir === "down" ? 64 : -64, behavior: "smooth" });
+    el.scrollBy({ top: dir === "down" ? 200 : -200, behavior: "smooth" });
+  };
+
+  const handleChallengersScroll = () => {
+    const el = challengersRef.current;
+    if (!el) return;
+    setChallengersAtTop(el.scrollTop <= 4);
+    setChallengersAtBottom(el.scrollTop + el.clientHeight >= el.scrollHeight - 4);
   };
 
   const { data: user } = useQuery<any>({ queryKey: ["/api/auth/me"], retry: false });
@@ -854,6 +863,18 @@ export default function ParaPetsHubPage() {
 
   const top3  = leaderboard?.slice(0, 3)  ?? [];
   const rest  = leaderboard?.slice(3)     ?? [];
+
+  // Re-check scroll bounds whenever the challengers list changes (data load / refetch)
+  useEffect(() => {
+    const el = challengersRef.current;
+    if (!el) return;
+    // Run after paint so the DOM has updated heights
+    const raf = requestAnimationFrame(() => {
+      setChallengersAtTop(el.scrollTop <= 4);
+      setChallengersAtBottom(el.scrollTop + el.clientHeight >= el.scrollHeight - 4);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [rest.length]);
 
   const handleSignInSuccess = () => {
     setShowSignIn(false);
@@ -1103,8 +1124,9 @@ export default function ParaPetsHubPage() {
                       <div style={{ height: 1, flex: 1, background: "linear-gradient(90deg,rgba(127,191,176,0.15),transparent)" }} />
                     </div>
 
-                    {/* Scroll up arrow */}
-                    <div className="flex justify-center mb-1.5">
+                    {/* Scroll up arrow — hidden when already at top */}
+                    <div className="flex justify-center mb-1.5"
+                      style={{ opacity: challengersAtTop ? 0 : 1, pointerEvents: challengersAtTop ? "none" : "auto", transition: "opacity 0.2s" }}>
                       <button
                         data-testid="button-challengers-scroll-up"
                         onClick={() => scrollChallengers("up")}
@@ -1120,24 +1142,39 @@ export default function ParaPetsHubPage() {
                       </button>
                     </div>
 
-                    {/* Scrollable container */}
-                    <div
-                      ref={challengersRef}
-                      data-testid="challengers-scroll-box"
-                      style={{
-                        maxHeight: 960,
-                        overflowY: "auto",
-                        scrollbarWidth: "none",
-                        msOverflowStyle: "none",
-                      }}
-                    >
-                      {rest.map((entry, i) => (
-                        <RankRow key={entry.userId} entry={entry} rank={i + 4} />
-                      ))}
+                    {/* Scrollable container — natural overscroll so page scroll takes over at the bottom */}
+                    <div style={{ position: "relative" }}>
+                      <div
+                        ref={challengersRef}
+                        data-testid="challengers-scroll-box"
+                        onScroll={handleChallengersScroll}
+                        style={{
+                          maxHeight: 640,
+                          overflowY: "auto",
+                          scrollbarWidth: "none",
+                          msOverflowStyle: "none",
+                          overscrollBehavior: "auto",
+                        }}
+                      >
+                        {rest.map((entry, i) => (
+                          <RankRow key={entry.userId} entry={entry} rank={i + 4} />
+                        ))}
+                      </div>
+
+                      {/* Bottom fade — disappears when scrolled to the end */}
+                      {!challengersAtBottom && rest.length > 10 && (
+                        <div style={{
+                          position: "absolute", bottom: 0, left: 0, right: 0, height: 56,
+                          pointerEvents: "none",
+                          background: "linear-gradient(to bottom, transparent, rgba(6,12,10,0.92))",
+                          borderRadius: "0 0 12px 12px",
+                        }} />
+                      )}
                     </div>
 
-                    {/* Scroll down arrow */}
-                    <div className="flex justify-center mt-1.5">
+                    {/* Scroll down arrow — hidden when at the bottom */}
+                    <div className="flex justify-center mt-1.5"
+                      style={{ opacity: challengersAtBottom ? 0 : 1, pointerEvents: challengersAtBottom ? "none" : "auto", transition: "opacity 0.2s" }}>
                       <button
                         data-testid="button-challengers-scroll-down"
                         onClick={() => scrollChallengers("down")}
