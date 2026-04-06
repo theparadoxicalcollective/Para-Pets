@@ -12,6 +12,9 @@ import petInvForestBg from "@assets/generated_images/pet_inventory_bg.png";
 import statAtkIcon from "@assets/generated_images/icon_stat_atk.png";
 import statDefIcon from "@assets/generated_images/icon_stat_def.png";
 import statHpIcon from "@assets/generated_images/icon_stat_hp.png";
+import petCardFrameImg from "@assets/generated_images/pet_card_frame.png";
+import petCardTextureImg from "@assets/generated_images/pet_card_texture.png";
+import petInvDividerImg from "@assets/generated_images/pet_inventory_divider.png";
 import PetDetailPage from "./PetDetailPage";
 
 function getRarityStyle(rarity: number | null): { border: string; glow: string; bg: string; starColor: string; borderOpacity: number; glowStrength: number } {
@@ -318,12 +321,12 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
                   onClick={() => setShowBag(false)}
                   className="flex-1 py-2 flex items-center justify-center gap-2 font-fantasy text-sm tracking-wider transition-all"
                   style={{
-                    background: !showBag ? "linear-gradient(135deg, rgba(45,106,79,0.5) 0%, rgba(26,74,46,0.35) 100%)" : "rgba(255,255,255,0.04)",
-                    border: !showBag ? "1.5px solid rgba(74,222,128,0.55)" : "1.5px solid rgba(255,255,255,0.08)",
+                    background: !showBag ? "linear-gradient(135deg, rgba(92,62,8,0.5) 0%, rgba(60,40,5,0.35) 100%)" : "rgba(255,255,255,0.04)",
+                    border: !showBag ? "1.5px solid rgba(240,192,64,0.55)" : "1.5px solid rgba(255,255,255,0.08)",
                     borderRadius: "12px",
-                    color: !showBag ? "#4ade80" : "#6a8a78",
+                    color: !showBag ? "#f0c040" : "#6a7868",
                     cursor: "pointer",
-                    boxShadow: !showBag ? "0 0 12px rgba(74,222,128,0.15)" : "none",
+                    boxShadow: !showBag ? "0 0 12px rgba(240,192,64,0.15)" : "none",
                   }}
                 >
                   <img src={petPawIcon} alt="" style={{ width: 16, height: 16, objectFit: "contain" }} />
@@ -347,6 +350,16 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
                 </button>
               </div>
             )}
+          </div>
+
+          {/* Decorative gold divider between header and content */}
+          <div className="px-6 -mt-1 mb-1 flex justify-center">
+            <img
+              src={petInvDividerImg}
+              alt=""
+              aria-hidden="true"
+              style={{ width: "100%", maxWidth: 340, height: 22, objectFit: "contain", opacity: 0.55 }}
+            />
           </div>
 
           <div className="flex-1 overflow-y-auto px-4 pb-6">
@@ -721,6 +734,15 @@ function PetView({
               transition: "border 0.2s, box-shadow 0.2s",
             }}
           >
+            {/* Dark forest texture overlay — very subtle, adds depth */}
+            <img
+              src={petCardTextureImg}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full object-cover pointer-events-none rounded-2xl"
+              style={{ opacity: 0.10, mixBlendMode: "soft-light" }}
+            />
+
             {/* Active shimmer along top edge */}
             {isActive && (
               <div style={{ height: 2, background: "linear-gradient(90deg, transparent, rgba(240,192,64,0.55), transparent)", flexShrink: 0 }} />
@@ -728,7 +750,7 @@ function PetView({
 
             {/* Circular pet image — centered */}
             <div
-              className="flex justify-center pt-3 pb-1.5"
+              className="flex justify-center pt-3 pb-3"
               onClick={handleCardClick}
               style={{ cursor: "pointer" }}
             >
@@ -811,6 +833,28 @@ function PetView({
                     <span className="font-fantasy text-[7px] text-[#f0c040] tracking-wider">EGG</span>
                   </div>
                 )}
+
+                {/* Ornate gold portrait frame — overlaid above everything */}
+                <img
+                  src={petCardFrameImg}
+                  alt=""
+                  aria-hidden="true"
+                  style={{
+                    position: "absolute",
+                    top: -10, left: -10,
+                    width: 108, height: 108,
+                    objectFit: "contain",
+                    pointerEvents: "none",
+                    zIndex: 6,
+                    opacity: isActive
+                      ? 1.0
+                      : 0.60 + (pet.rarity ?? 1) * 0.07,
+                    filter: isActive
+                      ? "drop-shadow(0 0 12px rgba(240,192,64,0.8)) brightness(1.25)"
+                      : `brightness(${0.75 + (pet.rarity ?? 1) * 0.07})`,
+                    transition: "opacity 0.3s, filter 0.3s",
+                  }}
+                />
               </div>
             </div>
 

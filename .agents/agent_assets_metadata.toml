@@ -84,6 +84,24 @@ uri = "file://attached_assets/generated_images/pet_inventory_bg.png"
 type = "image"
 title = "lush magical rainforest background"
 
+[[generated]]
+id = "rFVjj9ATLVfodweEKBQYH"
+uri = "file://attached_assets/generated_images/pet_card_frame.png"
+type = "image"
+title = "pet card portrait frame"
+
+[[generated]]
+id = "5othTi9QcZMN7gXROB60A"
+uri = "file://attached_assets/generated_images/pet_card_texture.png"
+type = "image"
+title = "dark forest card texture"
+
+[[generated]]
+id = "fM0yDrsUakzsGLG_qz_74"
+uri = "file://attached_assets/generated_images/pet_inventory_divider.png"
+type = "image"
+title = "gold fantasy divider"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"
