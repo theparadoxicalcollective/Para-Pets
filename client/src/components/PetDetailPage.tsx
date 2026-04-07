@@ -8,7 +8,6 @@ import gemCrystalIcon from "@assets/generated_images/icon_gem_crystal.png";
 import statHpIcon from "@assets/generated_images/icon_stat_hp.png";
 import statAtkIcon from "@assets/generated_images/icon_stat_atk.png";
 import statDefIcon from "@assets/generated_images/icon_stat_def.png";
-import profileFrameImg from "@assets/frame_profile.png";
 import tutIconRarity from "@assets/generated_images/icon_tut_rarity.png";
 import tutIconLevelup from "@assets/generated_images/icon_tut_levelup.png";
 import tutIconStats from "@assets/generated_images/icon_tut_stats.png";
@@ -324,21 +323,6 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                 </div>
               </div>
             </div>
-            {/* Portrait frame overlay — sits on top of the flip, doesn't flip */}
-            <img
-              src={profileFrameImg}
-              alt=""
-              style={{
-                position: "absolute",
-                inset: -14,
-                width: "calc(100% + 28px)",
-                height: "calc(100% + 28px)",
-                objectFit: "contain",
-                pointerEvents: "none",
-                zIndex: 3,
-                filter: `drop-shadow(0 0 10px ${rc.glow})`,
-              }}
-            />
             {/* Tap hint */}
             {pet.eggImageUrl && flipAnim === "idle" && (
               <div style={{
