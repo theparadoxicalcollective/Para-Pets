@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { fireLevelUp } from "@/lib/levelUpEvents";
+import { playHit, playBlock, playPlayerHurt, playDefeat, playBattleVictory, playPowerUp, playChime } from "@/lib/sounds";
 import { Swords, Star, Coins, X, ChevronRight, ArrowLeft, Heart, HelpCircle, Droplets } from "lucide-react";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import PetAnimator from "./PetAnimator";
@@ -386,6 +387,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           setPetHit(true);
           setShakeScreen(true);
           setParryResult("fail");
+          playPlayerHurt();
           setTimeout(() => { setPetHit(false); setShakeScreen(false); setParryResult(null); }, 600);
 
           // Mana gain on being hit
@@ -427,6 +429,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       if (isBossRef.current && !bossRageRef.current && enemyHpRef.current > 0 && enemyHpRef.current <= enemyMaxHpRef.current * 0.5) {
         bossRageRef.current = true;
         setBossRage(true);
+        playPlayerHurt();
         chargeDurationRef.current = 980;
       }
 
@@ -443,6 +446,12 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
 
     animFrameRef.current = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animFrameRef.current);
+  }, [phase]);
+
+  // ── Battle outcome sounds ────────────────────────────────────────────────
+  useEffect(() => {
+    if (phase === "victory") playBattleVictory();
+    else if (phase === "defeat") playDefeat();
   }, [phase]);
 
   // ── Cleanup on unmount ───────────────────────────────────────────────────
@@ -487,6 +496,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     if (dist >= hitRadius) return;
 
     hitEnemiesRef.current.add(enemy.enemyId);
+    playHit();
 
     const now = Date.now();
     let combo = comboCount;
@@ -613,6 +623,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     setEnemyCharging(false);
     setParryWindowOpen(false);
     setParryResult("success");
+    playBlock();
     setTimeout(() => setParryResult(null), 900);
 
     // DEF determines bleed-through damage even on a successful block
@@ -663,6 +674,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     setMana(0);
     setSkillCooldown(true);
     setSkillEffect(skill);
+    playPowerUp();
     setTimeout(() => setSkillEffect(null), 1200);
     setTimeout(() => setSkillCooldown(false), 3000);
 
@@ -767,6 +779,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       const healAmt = slot.healthRestored!;
       petHpRef.current = Math.min(petStatsRef.current.maxHp, petHpRef.current + healAmt);
       setPetHp(petHpRef.current);
+      playChime();
       const nd: DamageNumber = { id: dmgIdRef.current++, x: PET_X, y: PET_Y - 14, value: healAmt, isHeal: true };
       setDamageNumbers(prev => [...prev, nd]);
       setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== nd.id)), 1200);

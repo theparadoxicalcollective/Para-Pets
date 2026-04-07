@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { playHit, playPlayerHurt, playBattleVictory, playDefeat } from "@/lib/sounds";
 import { ArrowLeft, X } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
@@ -220,6 +221,7 @@ export default function PvpBattlePage({
 
   const doKo = useCallback((pet: BattlePet) => {
     pet.isDead = true;
+    if (pet.isPlayer) playPlayerHurt(); else playHit();
     setKoSet(prev => new Set([...prev, pet.uid]));
     setTimeout(() => {
       petsRef.current = petsRef.current.filter(p => p.uid !== pet.uid);
@@ -295,6 +297,7 @@ export default function PvpBattlePage({
   const endBattle = useCallback((outcome: "win" | "loss") => {
     battleActiveRef.current = false;
     cancelAnimationFrame(animFrameRef.current);
+    if (outcome === "win") playBattleVictory(); else playDefeat();
     setResultOutcome(outcome);
     setPhase("result");
     setPendingSkill(null);
@@ -518,6 +521,7 @@ export default function PvpBattlePage({
       spawnSparks(opp.x, opp.y, colors);
       spawnFloatNum(opp.x, opp.y - 8, dmg, false, isCrit);
       flashHit(opp.uid);
+      playHit();
 
       const sdx = bx - ax, sdy = by - ay, sl = Math.hypot(sdx, sdy) || 1;
       opp.vx = (sdx / sl) * 3; opp.vy = (sdy / sl) * 3;

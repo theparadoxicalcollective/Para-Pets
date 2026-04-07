@@ -4,6 +4,7 @@ import { Sparkles } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { playChime } from "@/lib/sounds";
 import coinIconImg from "@assets/icon_coin.png";
 import giftIconImg from "@assets/generated_images/gift_icon_forest.png";
 
@@ -86,6 +87,7 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
       return { user: lastUser, duplicatePets: allDups };
     },
     onSuccess: (data: any, rewardIds: string[]) => {
+      playChime();
       setShowSparkle(rewardIds[0]);
       setTimeout(() => {
         setShowSparkle(null);

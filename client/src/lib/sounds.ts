@@ -386,3 +386,142 @@ export function playCatch() {
     });
   } catch {}
 }
+
+export function playHit() {
+  try {
+    const c = getCtx();
+    if (!c) return;
+    const compressor = c.createDynamicsCompressor();
+    compressor.connect(c.destination);
+    const noise = c.createOscillator();
+    const noiseGain = c.createGain();
+    noise.connect(noiseGain);
+    noiseGain.connect(compressor);
+    noise.type = "sawtooth";
+    noise.frequency.setValueAtTime(180, c.currentTime);
+    noise.frequency.exponentialRampToValueAtTime(60, c.currentTime + 0.07);
+    noiseGain.gain.setValueAtTime(0.55, c.currentTime);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.1);
+    noise.start(c.currentTime);
+    noise.stop(c.currentTime + 0.12);
+    const snap = c.createOscillator();
+    const snapGain = c.createGain();
+    snap.connect(snapGain);
+    snapGain.connect(compressor);
+    snap.type = "square";
+    snap.frequency.setValueAtTime(420, c.currentTime);
+    snap.frequency.exponentialRampToValueAtTime(200, c.currentTime + 0.04);
+    snapGain.gain.setValueAtTime(0.35, c.currentTime);
+    snapGain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.06);
+    snap.start(c.currentTime);
+    snap.stop(c.currentTime + 0.08);
+  } catch {}
+}
+
+export function playBlock() {
+  try {
+    const c = getCtx();
+    if (!c) return;
+    const compressor = c.createDynamicsCompressor();
+    compressor.connect(c.destination);
+    [320, 480, 640].forEach((freq, i) => {
+      const osc = c.createOscillator();
+      const gain = c.createGain();
+      osc.connect(gain);
+      gain.connect(compressor);
+      osc.type = "triangle";
+      const t = c.currentTime + i * 0.018;
+      osc.frequency.setValueAtTime(freq, t);
+      osc.frequency.exponentialRampToValueAtTime(freq * 1.25, t + 0.05);
+      gain.gain.setValueAtTime(0.0, t);
+      gain.gain.linearRampToValueAtTime(0.3, t + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+      osc.start(t);
+      osc.stop(t + 0.22);
+    });
+  } catch {}
+}
+
+export function playPlayerHurt() {
+  try {
+    const c = getCtx();
+    if (!c) return;
+    const osc = c.createOscillator();
+    const gain = c.createGain();
+    osc.connect(gain);
+    gain.connect(c.destination);
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(240, c.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(90, c.currentTime + 0.15);
+    gain.gain.setValueAtTime(0.45, c.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.2);
+    osc.start(c.currentTime);
+    osc.stop(c.currentTime + 0.22);
+    const osc2 = c.createOscillator();
+    const gain2 = c.createGain();
+    osc2.connect(gain2);
+    gain2.connect(c.destination);
+    osc2.type = "sine";
+    osc2.frequency.setValueAtTime(120, c.currentTime + 0.05);
+    osc2.frequency.exponentialRampToValueAtTime(60, c.currentTime + 0.2);
+    gain2.gain.setValueAtTime(0.3, c.currentTime + 0.05);
+    gain2.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.25);
+    osc2.start(c.currentTime + 0.05);
+    osc2.stop(c.currentTime + 0.28);
+  } catch {}
+}
+
+export function playDefeat() {
+  try {
+    const c = getCtx();
+    if (!c) return;
+    const notes = [330, 277, 220, 165];
+    notes.forEach((freq, i) => {
+      const osc = c.createOscillator();
+      const gain = c.createGain();
+      osc.connect(gain);
+      gain.connect(c.destination);
+      osc.type = "sine";
+      const t = c.currentTime + i * 0.22;
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(0.0, t);
+      gain.gain.linearRampToValueAtTime(0.28, t + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+      osc.start(t);
+      osc.stop(t + 0.6);
+    });
+  } catch {}
+}
+
+export function playBattleVictory() {
+  try {
+    const c = getCtx();
+    if (!c) return;
+    const notes = [523.25, 659.25, 783.99, 1046.5];
+    notes.forEach((freq, i) => {
+      const osc = c.createOscillator();
+      const gain = c.createGain();
+      osc.connect(gain);
+      gain.connect(c.destination);
+      osc.type = "triangle";
+      const t = c.currentTime + i * 0.14;
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(0.0, t);
+      gain.gain.linearRampToValueAtTime(0.22, t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+      osc.start(t);
+      osc.stop(t + 0.6);
+    });
+    const shimmer = c.createOscillator();
+    const shimGain = c.createGain();
+    shimmer.connect(shimGain);
+    shimGain.connect(c.destination);
+    shimmer.type = "sine";
+    shimmer.frequency.setValueAtTime(2093, c.currentTime + 0.5);
+    shimGain.gain.setValueAtTime(0.0, c.currentTime + 0.5);
+    shimGain.gain.linearRampToValueAtTime(0.18, c.currentTime + 0.54);
+    shimGain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 1.1);
+    shimmer.start(c.currentTime + 0.5);
+    shimmer.stop(c.currentTime + 1.2);
+  } catch {}
+}

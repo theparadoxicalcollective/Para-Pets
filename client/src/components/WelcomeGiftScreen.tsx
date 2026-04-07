@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { playChime } from "@/lib/sounds";
 import coinIconImg from "@assets/icon_coin.png";
 import giftTreasureIcon from "@assets/generated_images/icon_gift_treasure.png";
 import eggMagicIcon from "@assets/generated_images/icon_egg_magic.png";
@@ -83,6 +84,7 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
       onComplete(null);
       return;
     }
+    playChime();
     setPhase("claiming");
     claimMutation.mutate(welcomeReward.rewardId);
   };
