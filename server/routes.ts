@@ -328,25 +328,9 @@ const ACQUISITION_BADGES = {
 async function getOrCreateAcquisitionBadge(key: keyof typeof ACQUISITION_BADGES): Promise<string> {
   const meta = ACQUISITION_BADGES[key];
   const existing = await storage.getBadgeByName(meta.name);
-  if (existing) {
-    if (existing.dailyRewardCoins == null) {
-      await storage.updateBadge(existing.id, { dailyRewardCoins: meta.dailyRewardCoins, claimType: meta.claimType, badgePoints: meta.points });
-    }
-    return existing.id;
-  }
+  if (existing) return existing.id;
   const badge = await storage.createBadge(meta.name, meta.svgUrl, meta.dailyRewardCoins, meta.points, meta.claimType);
   return badge.id;
-}
-
-async function healAcquisitionBadges(): Promise<void> {
-  try {
-    for (const key of Object.keys(ACQUISITION_BADGES) as (keyof typeof ACQUISITION_BADGES)[]) {
-      await getOrCreateAcquisitionBadge(key);
-    }
-    console.log("[badges] Acquisition badge heal complete");
-  } catch (err) {
-    console.error("[badges] Heal error:", err);
-  }
 }
 
 async function maybeAwardAcquisitionBadges(userId: string, purchaseAmountUsd: number): Promise<void> {
@@ -435,7 +419,6 @@ export async function registerRoutes(
 ): Promise<Server> {
   await ensureAdminAccount();
   seedWorldBackgrounds();
-  await healAcquisitionBadges();
 
   app.use("/api/admin", (_req, res, next) => {
     res.set("Cache-Control", "no-store");
