@@ -254,32 +254,99 @@ async function seedWorldBackgrounds() {
   }
 }
 
-function makeBadgeSvgUrl(outerColor: string, innerColor: string, coreColor: string, strokeColor: string, textColor: string, line1: string, line2?: string): string {
+function makeBadgeSvgUrl(
+  bg1: string, bg2: string,
+  ribbon1: string, ribbon2: string,
+  medalBg: string, medalStroke: string,
+  starFill: string, starStroke: string,
+  gemFill: string,
+  textColor: string,
+  line1: string, line2?: string
+): string {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-    <circle cx="50" cy="50" r="48" fill="${outerColor}" stroke="${strokeColor}" stroke-width="3"/>
-    <circle cx="50" cy="50" r="37" fill="${innerColor}" stroke="${strokeColor}" stroke-width="2"/>
-    <circle cx="50" cy="50" r="26" fill="${coreColor}" stroke="${strokeColor}" stroke-width="1.5"/>
-    ${line2
-      ? `<text x="50" y="50" text-anchor="middle" fill="${textColor}" font-size="14" font-weight="bold" font-family="serif" dominant-baseline="middle">${line1}</text>
-         <text x="50" y="65" text-anchor="middle" fill="${textColor}" font-size="9" font-family="serif">${line2}</text>`
-      : `<text x="50" y="50" text-anchor="middle" fill="${textColor}" font-size="14" font-weight="bold" font-family="serif" dominant-baseline="middle">${line1}</text>`
-    }
-  </svg>`;
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="${bg1}"/>
+      <stop offset="100%" stop-color="${bg2}"/>
+    </radialGradient>
+    <radialGradient id="med" cx="40%" cy="35%" r="60%">
+      <stop offset="0%" stop-color="${ribbon1}"/>
+      <stop offset="50%" stop-color="${ribbon2}"/>
+      <stop offset="100%" stop-color="${medalBg}"/>
+    </radialGradient>
+    <radialGradient id="gem" cx="40%" cy="35%" r="60%">
+      <stop offset="0%" stop-color="${gemFill}"/>
+      <stop offset="100%" stop-color="${medalBg}"/>
+    </radialGradient>
+    <filter id="gl">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+  <rect width="100" height="100" rx="16" fill="url(#bg)"/>
+  <polygon points="50,7 53,17 63,17 55,23 58,33 50,27 42,33 45,23 37,17 47,17"
+           fill="url(#med)" filter="url(#gl)" opacity="0.95"/>
+  <polygon points="50,9 52.5,16.5 60.5,16.5 54.2,21 56.8,28.5 50,24 43.2,28.5 45.8,21 39.5,16.5 47.5,16.5"
+           fill="none" stroke="${starStroke}" stroke-width="0.6" opacity="0.7"/>
+  <line x1="30" y1="29" x2="42" y2="37" stroke="url(#med)" stroke-width="4.5" stroke-linecap="round"/>
+  <line x1="70" y1="29" x2="58" y2="37" stroke="url(#med)" stroke-width="4.5" stroke-linecap="round"/>
+  <circle cx="50" cy="62" r="26" fill="${medalBg}" stroke="${medalStroke}" stroke-width="2.5"/>
+  <circle cx="50" cy="62" r="23" fill="url(#med)" opacity="0.18"/>
+  <circle cx="50" cy="62" r="21" fill="none" stroke="${ribbon2}" stroke-width="1" opacity="0.7"/>
+  <circle cx="50" cy="62" r="19" fill="none" stroke="${starStroke}" stroke-width="0.5" opacity="0.4"/>
+  <circle cx="50" cy="62" r="26" fill="none" stroke="${starStroke}" stroke-width="1.5" opacity="0.85"/>
+  <polygon points="50,46 52.5,54 61,54 54.5,59 57,67 50,62 43,67 45.5,59 39,54 47.5,54"
+           fill="url(#med)" filter="url(#gl)"/>
+  <polygon points="50,48 52,55 59.5,55 53.5,59.5 55.5,67 50,63.5 44.5,67 46.5,59.5 40.5,55 48,55"
+           fill="none" stroke="${starStroke}" stroke-width="0.5" opacity="0.7"/>
+  <circle cx="50" cy="56" r="2.8" fill="url(#gem)" opacity="0.95"/>
+  ${line2
+    ? `<text x="50" y="72" text-anchor="middle" fill="${textColor}" font-size="7.5" font-weight="bold" font-family="serif">${line1}</text>
+       <text x="50" y="80" text-anchor="middle" fill="${textColor}" font-size="6" font-family="serif" opacity="0.8">${line2}</text>`
+    : `<text x="50" y="76" text-anchor="middle" fill="${textColor}" font-size="7.5" font-weight="bold" font-family="serif">${line1}</text>`
+  }
+  <circle cx="50" cy="62" r="26" fill="none" stroke="${starStroke}" stroke-width="0.8" stroke-dasharray="3,4" opacity="0.3"/>
+</svg>`;
   return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
 }
 
 const ACQUISITION_BADGES = {
-  minor:     { name: "Minor Acquisition",    points: 10,  svgUrl: makeBadgeSvgUrl("#5a3010","#a06020","#d09040","#e8b050","#fff8dc","$10 Pack") },
-  advanced:  { name: "Advanced Acquisition", points: 25,  svgUrl: makeBadgeSvgUrl("#0a1a30","#1a4070","#2a60b0","#5090d0","#d0e8ff","$100 Pack") },
-  legendary: { name: "Legendary Acquisition",points: 50,  svgUrl: makeBadgeSvgUrl("#1a0030","#3a0870","#5a10a0","#b050f0","#e8d0ff","$500","LIMIT") },
+  minor: {
+    name: "Minor Acquisition", points: 1500, dailyRewardCoins: 10, claimType: "daily" as const,
+    svgUrl: makeBadgeSvgUrl("#3a1a05","#1a0a02","#f5c850","#c88820","#2a1005","#8b5e10","#f5d060","#f5e070","#ff9090","#fff0c0","$10 Pack"),
+  },
+  advanced: {
+    name: "Advanced Acquisition", points: 3000, dailyRewardCoins: 500, claimType: "weekly" as const,
+    svgUrl: makeBadgeSvgUrl("#0a1830","#050e1e","#70b8f0","#1a70d0","#081830","#1a60c0","#80c8ff","#a0d8ff","#70e8ff","#d0f0ff","$100 Pack"),
+  },
+  legendary: {
+    name: "Legendary Acquisition", points: 3500, dailyRewardCoins: 1000, claimType: "weekly" as const,
+    svgUrl: makeBadgeSvgUrl("#1a0030","#0e001e","#d080f0","#6010c0","#180028","#5010a0","#e090ff","#f0b0ff","#c060ff","#f0e0ff","$500 Pack","LIMIT"),
+  },
 } as const;
 
 async function getOrCreateAcquisitionBadge(key: keyof typeof ACQUISITION_BADGES): Promise<string> {
   const meta = ACQUISITION_BADGES[key];
   const existing = await storage.getBadgeByName(meta.name);
-  if (existing) return existing.id;
-  const badge = await storage.createBadge(meta.name, meta.svgUrl, null, meta.points, "daily");
+  if (existing) {
+    if (existing.dailyRewardCoins == null) {
+      await storage.updateBadge(existing.id, { dailyRewardCoins: meta.dailyRewardCoins, claimType: meta.claimType, badgePoints: meta.points });
+    }
+    return existing.id;
+  }
+  const badge = await storage.createBadge(meta.name, meta.svgUrl, meta.dailyRewardCoins, meta.points, meta.claimType);
   return badge.id;
+}
+
+async function healAcquisitionBadges(): Promise<void> {
+  try {
+    for (const key of Object.keys(ACQUISITION_BADGES) as (keyof typeof ACQUISITION_BADGES)[]) {
+      await getOrCreateAcquisitionBadge(key);
+    }
+    console.log("[badges] Acquisition badge heal complete");
+  } catch (err) {
+    console.error("[badges] Heal error:", err);
+  }
 }
 
 async function maybeAwardAcquisitionBadges(userId: string, purchaseAmountUsd: number): Promise<void> {
@@ -368,6 +435,7 @@ export async function registerRoutes(
 ): Promise<Server> {
   await ensureAdminAccount();
   seedWorldBackgrounds();
+  await healAcquisitionBadges();
 
   app.use("/api/admin", (_req, res, next) => {
     res.set("Cache-Control", "no-store");
