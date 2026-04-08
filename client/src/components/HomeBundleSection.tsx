@@ -12,12 +12,14 @@ interface HomeDecorItem {
 interface HouseBundle {
   id: string; name: string; shopImageUrl: string | null; bgImageUrl: string | null; price: number; createdAt: string;
   giftNotificationX?: number; giftNotificationY?: number;
+  maxOutdoorPets?: number;
 }
 interface HouseBundleBuilding {
   id: string; bundleId: string; name: string; imageUrl: string;
   posX: number; posY: number; width: number; flippedX: boolean;
   interiorImageUrl: string | null; size: string;
   leaveButtonX: number; leaveButtonY: number;
+  maxPets?: number | null;
   createdAt: string;
 }
 
@@ -251,6 +253,16 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
   // ── Building bg upload state ──
   const [buildingBgUploading, setBuildingBgUploading] = useState<string | null>(null);
   const [previewBuilding, setPreviewBuilding] = useState<{ url: string; buildingId: string; leaveButtonX: number; leaveButtonY: number } | null>(null);
+
+  // ── Max outdoor pets (bundle-level) ──
+  const [localMaxOutdoor, setLocalMaxOutdoor] = useState<string>(String(bundle.maxOutdoorPets ?? 6));
+
+  // ── Max pets per building (local edit state, synced on selection change) ──
+  const [buildingMaxPets, setBuildingMaxPets] = useState<string>("");
+  useEffect(() => {
+    const b = buildings.find(b => b.id === selectedId);
+    setBuildingMaxPets(b?.maxPets != null ? String(b.maxPets) : "");
+  }, [selectedId, buildings]);
 
   // ── Gift notification position ──
   const giftXRef = useRef(bundle.giftNotificationX ?? 0.05);
@@ -724,6 +736,26 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
           const hasInterior = !!selBuilding?.interiorImageUrl;
           return (
             <>
+              {/* Max pets row for selected building */}
+              <div className="absolute bottom-full left-0 right-0 px-4 pb-2 flex items-center gap-3" style={{ pointerEvents: "auto" }} onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
+                <span className="font-fantasy text-[10px]" style={{ color: GOLD, whiteSpace: "nowrap" }}>Max pets in building</span>
+                <input
+                  data-testid="input-building-max-pets"
+                  type="number"
+                  min="0"
+                  value={buildingMaxPets}
+                  onChange={e => setBuildingMaxPets(e.target.value)}
+                  onBlur={() => {
+                    if (!selectedId) return;
+                    const val = buildingMaxPets.trim() === "" ? null : Number(buildingMaxPets);
+                    apiRequest("PATCH", `/api/admin/house-bundle-buildings/${selectedId}`, { maxPets: val }).then(() => refetch()).catch(() => {});
+                  }}
+                  placeholder={(() => { const b = buildings.find(b => b.id === selectedId); const cap = { small: 2, medium: 4, large: 6 } as Record<string, number>; return String(cap[b?.size ?? "medium"] ?? 4); })()}
+                  className="w-16 text-center rounded-lg py-1 font-fantasy text-[11px]"
+                  style={{ background: "rgba(255,215,0,0.08)", border: `1px solid ${GOLD_BORDER}`, color: GOLD, outline: "none" }}
+                />
+                <span className="font-fantasy text-[9px]" style={{ color: "rgba(255,215,0,0.45)" }}>(blank = size default)</span>
+              </div>
               {/* Set BG — same label pattern as the working "Change BG" button */}
               <label
                 data-testid="label-set-building-bg"
@@ -772,6 +804,24 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
           );
         })() : (
           <>
+            {/* Max outdoor pets row */}
+            <div className="absolute bottom-full left-0 right-0 px-4 pb-2 flex items-center gap-3" onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
+              <span className="font-fantasy text-[10px]" style={{ color: GOLD, whiteSpace: "nowrap" }}>Max outdoor pets</span>
+              <input
+                data-testid="input-max-outdoor-pets"
+                type="number"
+                min="0"
+                value={localMaxOutdoor}
+                onChange={e => setLocalMaxOutdoor(e.target.value)}
+                onBlur={() => {
+                  const val = Math.max(0, Number(localMaxOutdoor) || 0);
+                  setLocalMaxOutdoor(String(val));
+                  apiRequest("PATCH", `/api/admin/house-bundles/${bundle.id}`, { maxOutdoorPets: val }).catch(() => {});
+                }}
+                className="w-16 text-center rounded-lg py-1 font-fantasy text-[11px]"
+                style={{ background: "rgba(255,215,0,0.08)", border: `1px solid ${GOLD_BORDER}`, color: GOLD, outline: "none" }}
+              />
+            </div>
             <button
               data-testid="button-add-building"
               onClick={() => setShowAddForm(true)}

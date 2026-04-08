@@ -589,6 +589,7 @@ export const houseBundles = pgTable("house_bundles", {
   price: integer("price").notNull().default(0),
   giftNotificationX: real("gift_notification_x").notNull().default(0.05),
   giftNotificationY: real("gift_notification_y").notNull().default(0.85),
+  maxOutdoorPets: integer("max_outdoor_pets").notNull().default(6),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
@@ -605,6 +606,7 @@ export const houseBundleBuildings = pgTable("house_bundle_buildings", {
   size: text("size").notNull().default("medium"),
   leaveButtonX: real("leave_button_x").notNull().default(0.92),
   leaveButtonY: real("leave_button_y").notNull().default(0.06),
+  maxPets: integer("max_pets"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 

@@ -4955,7 +4955,7 @@ export async function registerRoutes(
 
   app.patch("/api/admin/house-bundles/:id", isAdmin, async (req, res) => {
     try {
-      const { name, price, shopImageData, bgImageData, giftNotificationX, giftNotificationY } = req.body;
+      const { name, price, shopImageData, bgImageData, giftNotificationX, giftNotificationY, maxOutdoorPets } = req.body;
       const updates: Record<string, any> = {};
       if (name !== undefined)  updates.name  = name;
       if (price !== undefined) updates.price = price;
@@ -4963,6 +4963,7 @@ export async function registerRoutes(
       if (bgImageData)   updates.bgImageUrl   = await processWorldImage(bgImageData, 3000);
       if (giftNotificationX !== undefined) updates.giftNotificationX = giftNotificationX;
       if (giftNotificationY !== undefined) updates.giftNotificationY = giftNotificationY;
+      if (maxOutdoorPets !== undefined) updates.maxOutdoorPets = Math.max(0, Number(maxOutdoorPets));
       const bundle = await storage.updateHouseBundle((req.params.id as string), updates);
       return res.json(bundle);
     } catch (err: any) {
@@ -5043,7 +5044,7 @@ export async function registerRoutes(
 
   app.patch("/api/admin/house-bundle-buildings/:id", isAdmin, async (req, res) => {
     try {
-      const { name, posX, posY, width, flippedX, imageData, interiorImageData, clearInterior, size, leaveButtonX, leaveButtonY } = req.body;
+      const { name, posX, posY, width, flippedX, imageData, interiorImageData, clearInterior, size, leaveButtonX, leaveButtonY, maxPets } = req.body;
       const updates: Record<string, any> = {};
       if (name     !== undefined) updates.name     = name;
       if (posX     !== undefined) updates.posX     = posX;
@@ -5056,6 +5057,7 @@ export async function registerRoutes(
       if (size && ["small", "medium", "large"].includes(size)) updates.size = size;
       if (leaveButtonX !== undefined) updates.leaveButtonX = Math.max(0, Math.min(1, Number(leaveButtonX)));
       if (leaveButtonY !== undefined) updates.leaveButtonY = Math.max(0, Math.min(1, Number(leaveButtonY)));
+      if (maxPets !== undefined) updates.maxPets = maxPets === null ? null : Math.max(0, Number(maxPets));
       const building = await storage.updateHouseBundleBuilding((req.params.id as string), updates);
       return res.json(building);
     } catch (err: any) {

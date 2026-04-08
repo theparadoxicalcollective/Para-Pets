@@ -470,6 +470,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const [outdoorPopupPet, setOutdoorPopupPet] = useState<HousePet | null>(null);
   // Hold-to-drag timer for the pet inventory list
   const petHoldRef = useRef<{ pet: HousePet; pid: number; startX: number; startY: number; el: HTMLElement; timer: ReturnType<typeof setTimeout> } | null>(null);
+  const petScrollRef = useRef<HTMLDivElement>(null);
+  const petScrollTrackerRef = useRef<{ scrollLeft: number; startX: number; pid: number } | null>(null);
 
   // ── Queries ────────────────────────────────────────────────────────────────
   const { data: activeBundle, isLoading: bundleLoading, refetch: refetchActiveBundle } = useQuery<ActiveBundle | null>({
@@ -845,15 +847,16 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   }, []);
 
   // Hold-to-drag for the pet inventory scroll list.
-  // Does NOT capture the pointer immediately so the browser can handle
-  // horizontal scroll. After 350ms without significant movement the hold
-  // fires: we capture the pointer, activate the ghost, and begin dragging.
+  // Does NOT capture the pointer immediately. After 150ms without significant
+  // movement the hold fires and drag begins. If the user moves horizontally
+  // before the hold fires, we cancel it and instead manually scroll the list.
   const handlePetInvPointerDown = useCallback((e: React.PointerEvent, pet: HousePet) => {
     e.stopPropagation();
     const el = e.currentTarget as HTMLElement;
     const pid = e.pointerId;
     const startX = e.clientX;
     const startY = e.clientY;
+    petScrollTrackerRef.current = null;
     petHoldRef.current = {
       pet, pid, startX, startY, el,
       timer: setTimeout(() => {
@@ -864,19 +867,28 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         setPetInvDragState({ pet, ghostX: startX, ghostY: startY });
         setIsDraggingPet(true);
         petHoldRef.current = null;
-      }, 350),
+      }, 150),
     };
   }, []);
 
   const handlePetInvPointerMove = useCallback((e: React.PointerEvent) => {
     const hold = petHoldRef.current;
     if (hold && hold.pid === e.pointerId) {
-      // Cancel hold if user moves more than 10px (scroll intent)
+      // Cancel hold if user moves more than 10px
       if (Math.hypot(e.clientX - hold.startX, e.clientY - hold.startY) > 10) {
         clearTimeout(hold.timer);
         petHoldRef.current = null;
+        // If primarily horizontal, start manual scroll tracking
+        if (petScrollRef.current && Math.abs(e.clientX - hold.startX) >= Math.abs(e.clientY - hold.startY)) {
+          petScrollTrackerRef.current = { scrollLeft: petScrollRef.current.scrollLeft, startX: e.clientX, pid: e.pointerId };
+        }
         return;
       }
+    }
+    // Apply manual scroll if tracking
+    const scrollTrack = petScrollTrackerRef.current;
+    if (scrollTrack && scrollTrack.pid === e.pointerId && petScrollRef.current) {
+      petScrollRef.current.scrollLeft = scrollTrack.scrollLeft - (e.clientX - scrollTrack.startX);
     }
     // Update ghost position once drag is active
     const drag = petInvDragRef.current;
@@ -891,6 +903,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     if (hold && hold.pid === e.pointerId) {
       clearTimeout(hold.timer);
       petHoldRef.current = null;
+    }
+    if (petScrollTrackerRef.current?.pid === e.pointerId) {
+      petScrollTrackerRef.current = null;
     }
     handlePointerUp(e);
   }, [handlePointerUp]);
@@ -1164,11 +1179,11 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         })}
       </div>
 
-      {/* Inventory overlay panel — z-96 covers the FloatingNav (z-95) */}
+      {/* Inventory overlay panel — always z-96 so FloatingNav (z-9999) shows above it */}
       {openInventory && (
         <div
           className="absolute inset-0 flex flex-col justify-end"
-          style={{ zIndex: openInterior ? 70 : (openInventory === "pets" ? 98 : 96), pointerEvents: "none", visibility: (isDraggingDecor || isDraggingPet) ? "hidden" : "visible" }}
+          style={{ zIndex: openInterior ? 70 : 96, pointerEvents: "none", visibility: (isDraggingDecor || isDraggingPet) ? "hidden" : "visible" }}
         >
           <div className="absolute inset-0" style={{ pointerEvents: "auto" }} onPointerDown={(e) => { e.stopPropagation(); setOpenInventory(null); }} />
           <div
@@ -1333,6 +1348,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                 <div className="flex flex-col gap-2">
                   <p className="text-white/40 text-xs text-center" style={{ fontFamily: "Lora, serif" }}>Hold & drag a pet onto your home</p>
                   <div
+                    ref={petScrollRef}
                     className="flex gap-2 overflow-x-auto"
                     style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch", touchAction: "pan-x" } as React.CSSProperties}
                   >
