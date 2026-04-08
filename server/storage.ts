@@ -85,6 +85,9 @@ export interface IStorage {
   setPasswordResetToken(id: string, token: string, expires: Date): Promise<void>;
   getUserByResetToken(token: string): Promise<User | undefined>;
   clearPasswordResetToken(id: string): Promise<void>;
+  setEmailVerificationToken(id: string, token: string, expires: Date): Promise<void>;
+  getUserByEmailVerificationToken(token: string): Promise<User | undefined>;
+  verifyEmail(id: string): Promise<void>;
   getShopItemsByWorld(worldId: string): Promise<ShopItem[]>;
   getAllShopItems(): Promise<ShopItem[]>;
   getShopItem(id: string): Promise<ShopItem | undefined>;
@@ -409,6 +412,28 @@ export class DatabaseStorage implements IStorage {
     await db
       .update(users)
       .set({ passwordResetToken: null, passwordResetExpires: null })
+      .where(eq(users.id, id));
+  }
+
+  async setEmailVerificationToken(id: string, token: string, expires: Date): Promise<void> {
+    await db
+      .update(users)
+      .set({ emailVerificationToken: token, emailVerificationExpires: expires })
+      .where(eq(users.id, id));
+  }
+
+  async getUserByEmailVerificationToken(token: string): Promise<User | undefined> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.emailVerificationToken, token));
+    return user;
+  }
+
+  async verifyEmail(id: string): Promise<void> {
+    await db
+      .update(users)
+      .set({ emailVerified: true, emailVerificationToken: null, emailVerificationExpires: null })
       .where(eq(users.id, id));
   }
 

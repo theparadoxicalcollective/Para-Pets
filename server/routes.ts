@@ -53,6 +53,157 @@ function setCachedTemplateParts(templateId: string, data: any) {
 }
 const APP_URL = process.env.APP_URL || "https://parapets.net";
 
+// ── Email verification helper ─────────────────────────────────────────────────
+async function sendVerificationEmail(userId: string, email: string, username: string): Promise<void> {
+  const token = crypto.randomBytes(32).toString("hex");
+  const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+  await storage.setEmailVerificationToken(userId, token, expires);
+  const verifyUrl = `${APP_URL}/api/auth/verify-email/${token}`;
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: email,
+    subject: "🐾 Para Pets — Verify Your Email",
+    html: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Para Pets — Verify Your Email</title>
+</head>
+<body style="margin:0;padding:0;background-color:#0d0805;font-family:Georgia,serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0d0805;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;">
+
+          <!-- Logo -->
+          <tr>
+            <td align="center" style="padding-bottom:24px;">
+              <img src="${APP_URL}/logo_parapets.png" alt="Para Pets" width="180" style="display:block;max-width:180px;" />
+            </td>
+          </tr>
+
+          <!-- Main card -->
+          <tr>
+            <td style="background:linear-gradient(180deg,#1e1208 0%,#150d06 100%);border-radius:16px;border:1px solid #6a4a20;box-shadow:0 0 40px rgba(0,0,0,0.8),inset 0 1px 0 rgba(212,160,23,0.2);overflow:hidden;">
+
+              <!-- Gold top accent line -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="height:3px;background:linear-gradient(90deg,transparent,#d4a017,#f0c040,#d4a017,transparent);"></td>
+                </tr>
+              </table>
+
+              <!-- Header -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center" style="padding:28px 32px 20px;background:linear-gradient(180deg,rgba(212,160,23,0.08) 0%,transparent 100%);">
+                    <p style="margin:0 0 6px;font-size:11px;letter-spacing:4px;color:#8a6a30;text-transform:uppercase;">Account Setup</p>
+                    <h1 style="margin:0;font-size:26px;color:#f0c040;letter-spacing:2px;text-shadow:0 0 20px rgba(240,192,64,0.3);">Verify Your Email</h1>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Divider -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding:0 32px;">
+                    <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(212,160,23,0.4),transparent);"></div>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Body -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding:28px 32px;">
+                    <p style="margin:0 0 8px;font-size:15px;color:#c8a870;">
+                      Welcome, <strong style="color:#f0c040;">${username}</strong>!
+                    </p>
+                    <p style="margin:0 0 24px;font-size:14px;color:#a89878;line-height:1.7;">
+                      Thanks for joining Para Pets! Click the button below to verify your email address and unlock all rewards. This link is valid for <strong style="color:#d4b896;">24 hours</strong>.
+                    </p>
+
+                    <!-- CTA button -->
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td align="center" style="padding:8px 0 28px;">
+                          <a href="${verifyUrl}"
+                            style="display:inline-block;padding:16px 40px;background:linear-gradient(135deg,#4a2d6f 0%,#2d1a4a 100%);color:#d4a8ff;text-decoration:none;border-radius:10px;font-size:16px;font-family:Georgia,serif;letter-spacing:1px;border:1px solid rgba(180,120,255,0.4);box-shadow:0 0 20px rgba(180,120,255,0.15),0 4px 16px rgba(0,0,0,0.5);">
+                            ✦ &nbsp;Verify My Email&nbsp; ✦
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <!-- Divider -->
+                    <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(212,160,23,0.2),transparent);margin-bottom:20px;"></div>
+
+                    <!-- Note -->
+                    <table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(0,0,0,0.3);border-radius:8px;border:1px solid rgba(106,72,32,0.3);">
+                      <tr>
+                        <td style="padding:16px 18px;">
+                          <p style="margin:0 0 6px;font-size:11px;letter-spacing:3px;color:#6a4820;text-transform:uppercase;">Didn't sign up?</p>
+                          <p style="margin:0;font-size:13px;color:#7a6040;line-height:1.6;">
+                            You can safely ignore this email — no account will be active without verification.
+                          </p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Bottom divider -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding:0 32px;">
+                    <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(212,160,23,0.3),transparent);"></div>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Footer link -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding:20px 32px 28px;" align="center">
+                    <p style="margin:0 0 10px;font-size:11px;color:#4a3820;letter-spacing:2px;">BUTTON NOT WORKING?</p>
+                    <p style="margin:0;font-size:11px;color:#5a4828;word-break:break-all;line-height:1.6;">
+                      <a href="${verifyUrl}" style="color:#6a7a50;">${verifyUrl}</a>
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Gold bottom accent line -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="height:3px;background:linear-gradient(90deg,transparent,#d4a017,#f0c040,#d4a017,transparent);"></td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <!-- Footer below card -->
+          <tr>
+            <td align="center" style="padding:24px 16px 8px;">
+              <p style="margin:0;font-size:11px;color:#3a2a18;letter-spacing:3px;">PARA PETS &copy; 2026</p>
+              <p style="margin:6px 0 0;font-size:11px;color:#2a1e10;">
+                <a href="${APP_URL}" style="color:#4a3820;text-decoration:none;">parapets.net</a>
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`,
+  });
+}
+
 const COIN_PACKS = [
   { id: "pack_100", coins: 100, priceUsd: 1, label: "100 Coins" },
   { id: "pack_500", coins: 500, priceUsd: 5, label: "500 Coins" },
@@ -510,6 +661,12 @@ export async function registerRoutes(
 
       req.login(user, (err) => {
         if (err) return res.status(500).json({ message: "Login failed after registration" });
+        if (shouldBeAdmin) {
+          storage.verifyEmail(user.id).catch(e => console.error("Admin auto-verify failed:", e));
+        } else {
+          sendVerificationEmail(user.id, user.email, user.username)
+            .catch(e => console.error("Verification email failed:", e));
+        }
         const { password: _, ...safeUser } = user;
         return res.status(201).json(safeUser);
       });
@@ -821,6 +978,58 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Forgot password error:", err);
       return res.status(500).json({ message: "Failed to send reset email" });
+    }
+  });
+
+  // ── Email verification — click link from email ────────────────────────────
+  app.get("/api/auth/verify-email/:token", async (req, res) => {
+    try {
+      const { token } = req.params as { token: string };
+      const user = await storage.getUserByEmailVerificationToken(token);
+      if (!user) {
+        return res.redirect(`${APP_URL}/?verified=invalid`);
+      }
+      if (!user.emailVerificationExpires || user.emailVerificationExpires < new Date()) {
+        return res.redirect(`${APP_URL}/?verified=expired`);
+      }
+      if (user.emailVerified) {
+        return res.redirect(`${APP_URL}/?verified=already`);
+      }
+      await storage.verifyEmail(user.id);
+      // Update session user if logged in as this user
+      if ((req.user as any)?.id === user.id) {
+        (req.user as any).emailVerified = true;
+      }
+      return res.redirect(`${APP_URL}/?verified=1`);
+    } catch (err) {
+      console.error("Verify email error:", err);
+      return res.redirect(`${APP_URL}/?verified=error`);
+    }
+  });
+
+  // ── Resend verification email (60-second cooldown) ────────────────────────
+  app.post("/api/auth/resend-verification", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const fullUser = await storage.getUser(user.id);
+      if (!fullUser) return res.status(404).json({ message: "User not found" });
+      if (fullUser.emailVerified) {
+        return res.status(400).json({ message: "Email is already verified" });
+      }
+      // Cooldown: if token was issued less than 60 seconds ago, reject
+      if (fullUser.emailVerificationExpires) {
+        const issuedAt = fullUser.emailVerificationExpires.getTime() - 24 * 60 * 60 * 1000;
+        const cooldownUntil = issuedAt + 60 * 1000;
+        if (Date.now() < cooldownUntil) {
+          const secondsLeft = Math.ceil((cooldownUntil - Date.now()) / 1000);
+          return res.status(429).json({ message: `Please wait ${secondsLeft}s before resending`, secondsLeft });
+        }
+      }
+      await sendVerificationEmail(fullUser.id, fullUser.email, fullUser.username);
+      return res.json({ message: "Verification email sent" });
+    } catch (err) {
+      console.error("Resend verification error:", err);
+      return res.status(500).json({ message: "Failed to send verification email" });
     }
   });
 
@@ -3102,6 +3311,10 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
 
+      if (!user.emailVerified) {
+        return res.status(403).json({ message: "Please verify your email before claiming rewards", code: "EMAIL_UNVERIFIED" });
+      }
+
       const existing = await storage.getUserReward((req.params.rewardId as string));
       if (!existing) {
         return res.status(404).json({ message: "Reward not found" });
@@ -3646,6 +3859,9 @@ export async function registerRoutes(
   app.post("/api/badges/claim-daily", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
+      if (!user.emailVerified) {
+        return res.status(403).json({ message: "Please verify your email before claiming rewards", code: "EMAIL_UNVERIFIED" });
+      }
       const { badgeId } = req.body;
       if (!badgeId) return res.status(400).json({ message: "badgeId required" });
 

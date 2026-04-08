@@ -1,11 +1,13 @@
 import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useMutation } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { playClick, unlockAudio } from "@/lib/sounds";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { initTabSync, teardownTabSync } from "@/lib/tabSync";
 import desktopBackdrop from "@assets/bg_desktop_backdrop.webp";
 import homeBg from "@assets/bg_home_v2.png";
@@ -31,6 +33,71 @@ import WelcomeGiftScreen from "@/components/WelcomeGiftScreen";
 import GlobalLevelUpOverlay from "@/components/GlobalLevelUpOverlay";
 import FloatingNav from "@/components/FloatingNav";
 import ErrorBoundary from "@/components/ErrorBoundary";
+
+// ── Email verification banner ─────────────────────────────────────────────────
+function VerificationBanner() {
+  const { toast } = useToast();
+  const [dismissed, setDismissed] = useState(false);
+  const [cooldownSecs, setCooldownSecs] = useState(0);
+
+  useEffect(() => {
+    if (cooldownSecs <= 0) return;
+    const t = setTimeout(() => setCooldownSecs(s => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldownSecs]);
+
+  const resend = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/auth/resend-verification"),
+    onSuccess: () => {
+      setCooldownSecs(60);
+      toast({ title: "Verification email sent", description: "Check your inbox and click the link to verify." });
+    },
+    onError: (err: any) => {
+      const secs = err?.secondsLeft ?? 60;
+      setCooldownSecs(secs);
+      toast({ title: "Please wait", description: `Try again in ${secs} seconds.`, variant: "destructive" });
+    },
+  });
+
+  if (dismissed) return null;
+
+  return (
+    <div
+      data-testid="banner-verify-email"
+      className="absolute top-0 left-0 right-0 flex items-center gap-2 px-3 py-2"
+      style={{
+        zIndex: 9990,
+        background: "linear-gradient(90deg,rgba(120,60,0,0.97),rgba(80,35,0,0.97))",
+        borderBottom: "1px solid rgba(255,180,50,0.35)",
+        fontFamily: "Lora, serif",
+      }}
+    >
+      <span style={{ fontSize: 13, color: "#ffd580", flex: 1, lineHeight: 1.3 }}>
+        📬 Verify your email to unlock rewards
+      </span>
+      <button
+        data-testid="button-resend-verification"
+        disabled={resend.isPending || cooldownSecs > 0}
+        onClick={() => resend.mutate()}
+        style={{
+          fontSize: 11, color: cooldownSecs > 0 ? "rgba(255,200,80,0.45)" : "#ffd700",
+          background: "rgba(255,215,0,0.1)", border: "1px solid rgba(255,215,0,0.3)",
+          borderRadius: 6, padding: "3px 10px", cursor: cooldownSecs > 0 ? "default" : "pointer",
+          fontFamily: "Lora, serif", whiteSpace: "nowrap", flexShrink: 0,
+        }}
+      >
+        {resend.isPending ? "Sending…" : cooldownSecs > 0 ? `Resend (${cooldownSecs}s)` : "Resend"}
+      </button>
+      <button
+        data-testid="button-dismiss-verify-banner"
+        onClick={() => setDismissed(true)}
+        style={{ fontSize: 14, color: "rgba(255,215,0,0.4)", background: "none", border: "none", cursor: "pointer", padding: "0 2px", flexShrink: 0 }}
+      >
+        ×
+      </button>
+    </div>
+  );
+}
 
 function PvpArenaWrapper() {
   const [, setLocation] = useLocation();
@@ -153,6 +220,27 @@ function AppRouter() {
     queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
   };
 
+  // Handle ?verified= query param — show toast and refresh user
+  const { toast } = useToast();
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const v = params.get("verified");
+    if (!v) return;
+    // Clean the URL without a page reload
+    const clean = window.location.pathname;
+    window.history.replaceState({}, "", clean);
+    if (v === "1") {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      toast({ title: "Email verified!", description: "Your email has been confirmed. Enjoy Para Pets! 🐾" });
+    } else if (v === "expired") {
+      toast({ title: "Link expired", description: "That verification link has expired. Please request a new one.", variant: "destructive" });
+    } else if (v === "invalid") {
+      toast({ title: "Invalid link", description: "That verification link is not valid.", variant: "destructive" });
+    } else if (v === "already") {
+      toast({ title: "Already verified", description: "Your email is already confirmed." });
+    }
+  }, []);
+
   // Show loading screen while: auth is in-flight, OR logged-in user's assets
   // haven't been preloaded yet.
   const showingLoadScreen = isLoading || (!!user && !isPreloaded);
@@ -170,8 +258,11 @@ function AppRouter() {
     return <WelcomeGiftScreen user={user} onComplete={handleWelcomeComplete} />;
   }
 
+  const showBanner = !!user && !user.emailVerified && !shouldHideNav(location);
+
   return (
     <>
+      {showBanner && <VerificationBanner />}
       <Switch>
         <Route path="/auth" component={AuthPage} />
         <Route path="/reset-password/:token" component={ResetPasswordPage} />
