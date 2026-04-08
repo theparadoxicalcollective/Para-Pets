@@ -1090,7 +1090,7 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-2">
         {displayItems.map(({ item, count }) => {
           const typeColor = typeColors[item.type] || "#f0c040";
           return (
