@@ -955,42 +955,40 @@ function PetView({
               )}
 
               {/* SELECT / ACTIVE button */}
-              {!isEgg && (
-                <button
-                  data-testid={`button-select-pet-${pet.shopItemId}`}
-                  onClick={(e) => { e.stopPropagation(); onToggle(pet.inventoryId); }}
-                  disabled={isPending}
-                  className="w-full mt-2 flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-40"
+              <button
+                data-testid={`button-select-pet-${pet.shopItemId}`}
+                onClick={(e) => { e.stopPropagation(); onToggle(pet.inventoryId); }}
+                disabled={isPending}
+                className="w-full mt-2 flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-40"
+                style={{
+                  background: isActive
+                    ? "linear-gradient(135deg, rgba(240,192,64,0.22) 0%, rgba(240,192,64,0.10) 100%)"
+                    : "rgba(240,192,64,0.05)",
+                  border: isActive
+                    ? "1px solid rgba(240,192,64,0.65)"
+                    : "1px solid rgba(240,192,64,0.18)",
+                  borderRadius: 8,
+                  padding: "5px 0",
+                  cursor: "pointer",
+                }}
+              >
+                <div
                   style={{
-                    background: isActive
-                      ? "linear-gradient(135deg, rgba(240,192,64,0.22) 0%, rgba(240,192,64,0.10) 100%)"
-                      : "rgba(240,192,64,0.05)",
-                    border: isActive
-                      ? "1px solid rgba(240,192,64,0.65)"
-                      : "1px solid rgba(240,192,64,0.18)",
-                    borderRadius: 8,
-                    padding: "5px 0",
-                    cursor: "pointer",
+                    width: 5, height: 5,
+                    borderRadius: "50%",
+                    background: isActive ? "#f0c040" : "rgba(240,192,64,0.22)",
+                    boxShadow: isActive ? "0 0 5px rgba(240,192,64,0.8)" : "none",
+                    transition: "all 0.2s",
+                    flexShrink: 0,
                   }}
+                />
+                <span
+                  className="font-fantasy"
+                  style={{ fontSize: 9, color: isActive ? "#f0c040" : "rgba(240,192,64,0.38)", letterSpacing: "0.08em" }}
                 >
-                  <div
-                    style={{
-                      width: 5, height: 5,
-                      borderRadius: "50%",
-                      background: isActive ? "#f0c040" : "rgba(240,192,64,0.22)",
-                      boxShadow: isActive ? "0 0 5px rgba(240,192,64,0.8)" : "none",
-                      transition: "all 0.2s",
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span
-                    className="font-fantasy"
-                    style={{ fontSize: 9, color: isActive ? "#f0c040" : "rgba(240,192,64,0.38)", letterSpacing: "0.08em" }}
-                  >
-                    {isActive ? "ACTIVE" : "SELECT"}
-                  </span>
-                </button>
-              )}
+                  {isActive ? "ACTIVE" : "SELECT"}
+                </span>
+              </button>
             </div>
           </div>
         );
