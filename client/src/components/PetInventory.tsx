@@ -368,7 +368,7 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
                 <p className="font-fantasy text-[#7fbfb0] text-sm animate-pulse">Loading inventory...</p>
               </div>
             ) : showBag ? (
-              <BagView items={bagItems} onItemPointerDown={handleItemPointerDown} />
+              <BagView items={bagItems} onItemPointerDown={pageMode ? undefined : handleItemPointerDown} />
             ) : (
               <PetView
                 pets={pets}
@@ -1102,8 +1102,8 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
                 background: "linear-gradient(135deg, rgba(28,14,4,0.97) 0%, rgba(48,28,8,0.97) 100%)",
                 border: `1px solid ${typeColor}55`,
                 boxShadow: `0 0 10px ${typeColor}18`,
-                cursor: item.type === "special" ? "grab" : "pointer",
-                touchAction: "none",
+                cursor: (item.type === "special" && onItemPointerDown) ? "grab" : "pointer",
+                touchAction: (item.type === "special" && onItemPointerDown) ? "none" : "auto",
               }}
               onClick={() => { setSelectedItem(item); setSelectedStackCount(count); setConfirmDelete(false); }}
               onPointerDown={item.type === "special" ? (e) => onItemPointerDown?.(e, item) : undefined}
