@@ -562,7 +562,7 @@ export default function PvpBattlePage({
       <div className="absolute inset-0" style={{ background: "linear-gradient(180deg,rgba(5,8,15,.4) 0%,rgba(5,8,15,.65) 100%)" }} />
 
       {/* Header */}
-      <div className="relative z-10 flex items-center gap-3 px-4 pt-safe pt-3 pb-2.5 shrink-0" style={{ background: "rgba(5,8,15,0.72)", borderBottom: "1px solid rgba(167,139,250,0.1)" }}>
+      <div className="relative z-10 flex items-center gap-3 px-4 pb-2.5 shrink-0" style={{ background: "rgba(5,8,15,0.72)", borderBottom: "1px solid rgba(167,139,250,0.1)", paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
         <button onClick={() => onClose(null)} data-testid="button-close-battle" className="w-10 h-10 flex items-center justify-center rounded-lg text-white/40 hover:text-white/70 transition-colors active:scale-90 shrink-0" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
           <ArrowLeft size={18} />
         </button>
