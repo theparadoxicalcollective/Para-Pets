@@ -612,9 +612,9 @@ export const houseBundleBuildings = pgTable("house_bundle_buildings", {
 
 // Capacity limits per building size (pets, decor items)
 export const BUILDING_SIZE_CAPACITY = {
-  small:  { pets: 2, items: 3 },
-  medium: { pets: 4, items: 6 },
-  large:  { pets: 6, items: 9 },
+  small:  { pets: 3, items: 3 },
+  medium: { pets: 5, items: 6 },
+  large:  { pets: 7, items: 9 },
 } as const;
 export type BuildingSize = keyof typeof BUILDING_SIZE_CAPACITY;
 

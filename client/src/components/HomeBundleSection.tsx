@@ -24,9 +24,9 @@ interface HouseBundleBuilding {
 }
 
 const BUILDING_SIZES = [
-  { value: "small",  label: "Small",  caption: "2 pets · 3 items" },
-  { value: "medium", label: "Medium", caption: "4 pets · 6 items" },
-  { value: "large",  label: "Large",  caption: "6 pets · 9 items" },
+  { value: "small",  label: "Small",  caption: "3 pets · 3 items" },
+  { value: "medium", label: "Medium", caption: "5 pets · 6 items" },
+  { value: "large",  label: "Large",  caption: "7 pets · 9 items" },
 ] as const;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -256,13 +256,6 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
 
   // ── Max outdoor pets (bundle-level) ──
   const [localMaxOutdoor, setLocalMaxOutdoor] = useState<string>(String(bundle.maxOutdoorPets ?? 6));
-
-  // ── Max pets per building (local edit state, synced on selection change) ──
-  const [buildingMaxPets, setBuildingMaxPets] = useState<string>("");
-  useEffect(() => {
-    const b = buildings.find(b => b.id === selectedId);
-    setBuildingMaxPets(b?.maxPets != null ? String(b.maxPets) : "");
-  }, [selectedId, buildings]);
 
   // ── Gift notification position ──
   const giftXRef = useRef(bundle.giftNotificationX ?? 0.05);
@@ -736,25 +729,34 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
           const hasInterior = !!selBuilding?.interiorImageUrl;
           return (
             <>
-              {/* Max pets row for selected building */}
-              <div className="absolute bottom-full left-0 right-0 px-4 pb-2 flex items-center gap-3" style={{ pointerEvents: "auto" }} onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
-                <span className="font-fantasy text-[10px]" style={{ color: GOLD, whiteSpace: "nowrap" }}>Max pets in building</span>
-                <input
-                  data-testid="input-building-max-pets"
-                  type="number"
-                  min="0"
-                  value={buildingMaxPets}
-                  onChange={e => setBuildingMaxPets(e.target.value)}
-                  onBlur={() => {
-                    if (!selectedId) return;
-                    const val = buildingMaxPets.trim() === "" ? null : Number(buildingMaxPets);
-                    apiRequest("PATCH", `/api/admin/house-bundle-buildings/${selectedId}`, { maxPets: val }).then(() => refetch()).catch(() => {});
-                  }}
-                  placeholder={(() => { const b = buildings.find(b => b.id === selectedId); const cap = { small: 2, medium: 4, large: 6 } as Record<string, number>; return String(cap[b?.size ?? "medium"] ?? 4); })()}
-                  className="w-16 text-center rounded-lg py-1 font-fantasy text-[11px]"
-                  style={{ background: "rgba(255,215,0,0.08)", border: `1px solid ${GOLD_BORDER}`, color: GOLD, outline: "none" }}
-                />
-                <span className="font-fantasy text-[9px]" style={{ color: "rgba(255,215,0,0.45)" }}>(blank = size default)</span>
+              {/* Size selector for selected building */}
+              <div className="absolute bottom-full left-0 right-0 px-4 pb-2 flex items-center gap-2" style={{ pointerEvents: "auto" }} onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
+                <span className="font-fantasy text-[10px] shrink-0" style={{ color: GOLD }}>Size:</span>
+                {BUILDING_SIZES.map(s => {
+                  const current = selBuilding?.size ?? "medium";
+                  const isSelected = current === s.value;
+                  return (
+                    <button
+                      key={s.value}
+                      data-testid={`button-change-size-${s.value}`}
+                      type="button"
+                      onClick={() => {
+                        if (!selectedId || isSelected) return;
+                        apiRequest("PATCH", `/api/admin/house-bundle-buildings/${selectedId}`, { size: s.value }).then(() => refetch()).catch(() => {});
+                      }}
+                      className="flex-1 py-1.5 rounded-lg flex flex-col items-center transition-transform active:scale-95"
+                      style={{
+                        background: isSelected ? "rgba(255,215,0,0.18)" : GOLD_DIM,
+                        border: `1px solid ${isSelected ? "rgba(255,215,0,0.55)" : GOLD_BORDER}`,
+                        color: isSelected ? GOLD : "rgba(255,215,0,0.55)",
+                        cursor: isSelected ? "default" : "pointer",
+                      }}
+                    >
+                      <span className="font-fantasy text-[10px] tracking-wider">{s.label}</span>
+                      <span className="font-fantasy text-[8px] opacity-70">{s.caption}</span>
+                    </button>
+                  );
+                })}
               </div>
               {/* Set BG — same label pattern as the working "Change BG" button */}
               <label
