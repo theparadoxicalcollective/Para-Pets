@@ -125,7 +125,12 @@ passport.use(
         return done(null, false, { message: "Invalid username or password" });
       }
       if (user.isBanned) {
-        return done(null, false, { message: "This account has been banished from the realm" });
+        if (user.banUntil && new Date(user.banUntil) <= new Date()) {
+          await storage.unbanUser(user.id);
+        } else {
+          const expiry = user.banUntil ? ` until ${new Date(user.banUntil).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}` : "";
+          return done(null, false, { message: `This account has been banished from the realm${expiry}.` });
+        }
       }
       const isValid = await bcrypt.compare(password, user.password);
       if (!isValid) {

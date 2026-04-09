@@ -78,7 +78,7 @@ export interface IStorage {
   updateProfileImage(id: string, profileImage: string): Promise<User>;
   updateActivePet(id: string, activePetId: string | null): Promise<User>;
   getAllUsers(): Promise<User[]>;
-  banUser(id: string): Promise<User>;
+  banUser(id: string, days?: number): Promise<User>;
   unbanUser(id: string): Promise<User>;
   setModerator(id: string, isModerator: boolean): Promise<User>;
   getTeamMembers(): Promise<{ id: string; username: string; profileImage: string | null; isAdmin: boolean; isModerator: boolean }[]>;
@@ -326,10 +326,11 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(users);
   }
 
-  async banUser(id: string): Promise<User> {
+  async banUser(id: string, days?: number): Promise<User> {
+    const banUntil = days ? new Date(Date.now() + days * 24 * 60 * 60 * 1000) : null;
     const [user] = await db
       .update(users)
-      .set({ isBanned: true })
+      .set({ isBanned: true, banUntil })
       .where(eq(users.id, id))
       .returning();
     return user;
@@ -338,7 +339,7 @@ export class DatabaseStorage implements IStorage {
   async unbanUser(id: string): Promise<User> {
     const [user] = await db
       .update(users)
-      .set({ isBanned: false })
+      .set({ isBanned: false, banUntil: null })
       .where(eq(users.id, id))
       .returning();
     return user;

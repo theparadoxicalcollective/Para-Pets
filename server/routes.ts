@@ -245,10 +245,14 @@ async function getOrCreateStripePrice(stripe: any, pack: typeof COIN_PACKS[0]): 
 const MAX_PER_SESSION = 100;
 const MAX_PER_DAY = 500;
 
-function isAuthenticated(req: Request, res: Response, next: any) {
+async function isAuthenticated(req: Request, res: Response, next: any) {
   if (!req.isAuthenticated()) return res.status(401).json({ message: "Unauthorized" });
   const user = req.user as any;
   if (user.isBanned) {
+    if (user.banUntil && new Date(user.banUntil) <= new Date()) {
+      await storage.unbanUser(user.id);
+      return next();
+    }
     req.logout(() => {});
     return res.status(403).json({ message: "This account has been banished from the realm" });
   }
@@ -2155,7 +2159,8 @@ export async function registerRoutes(
       const target = await storage.getUser((req.params.userId as string));
       if (!target) return res.status(404).json({ message: "User not found" });
       if (target.isAdmin) return res.status(400).json({ message: "Cannot banish an admin" });
-      const updated = await storage.banUser((req.params.userId as string));
+      const days = typeof req.body.days === "number" && req.body.days > 0 ? req.body.days : undefined;
+      const updated = await storage.banUser((req.params.userId as string), days);
       const { password: _, ...safe } = updated;
       return res.json(safe);
     } catch (err) {
@@ -2172,6 +2177,19 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Unban user error:", err);
       return res.status(500).json({ message: "Failed to unbanish user" });
+    }
+  });
+
+  app.post("/api/admin/delete-account/:userId", isAdmin, async (req, res) => {
+    try {
+      const target = await storage.getUser((req.params.userId as string));
+      if (!target) return res.status(404).json({ message: "User not found" });
+      if (target.isAdmin) return res.status(400).json({ message: "Cannot delete an admin account" });
+      await storage.deleteAccount((req.params.userId as string));
+      return res.json({ success: true });
+    } catch (err) {
+      console.error("Admin delete account error:", err);
+      return res.status(500).json({ message: "Failed to delete account" });
     }
   });
 

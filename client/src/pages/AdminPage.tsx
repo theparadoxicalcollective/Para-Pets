@@ -48,6 +48,7 @@ interface MemberUser {
   isAdmin: boolean;
   isModerator: boolean;
   isBanned: boolean;
+  banUntil: string | null;
   createdAt: string;
 }
 
@@ -57,6 +58,9 @@ export default function AdminPage({ user }: AdminPageProps) {
   const [coinAmounts, setCoinAmounts] = useState<Record<string, string>>({});
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
+  const [banModalUserId, setBanModalUserId] = useState<string | null>(null);
+  const [banDays, setBanDays] = useState<string>("");
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [activeSection, setActiveSection] = useState<"members" | "rewards" | "welcome" | "items" | "pets" | "messages" | "badges" | "fishing" | "enemies" | "maintenance" | "home_bundle" | "purchases" | "chat_filter" | null>(null);
   const [orphanResult, setOrphanResult] = useState<{ summary: string; cleaned: number } | null>(null);
   const { toast } = useToast();
@@ -75,16 +79,34 @@ export default function AdminPage({ user }: AdminPageProps) {
   const sortedMembers = [...members].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const banMutation = useMutation({
-    mutationFn: async ({ userId, ban }: { userId: string; ban: boolean }) => {
-      const res = await apiRequest("POST", `/api/admin/${ban ? "ban" : "unban"}/${userId}`, {});
+    mutationFn: async ({ userId, ban, days }: { userId: string; ban: boolean; days?: number }) => {
+      const res = await apiRequest("POST", `/api/admin/${ban ? "ban" : "unban"}/${userId}`, ban && days ? { days } : {});
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      setBanModalUserId(null);
+      setBanDays("");
       toast({ title: "Updated", description: "User status changed" });
     },
     onError: (err: any) => {
       toast({ title: "Failed", description: err.message || "Action failed", variant: "destructive" });
+    },
+  });
+
+  const deleteAccountMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await apiRequest("POST", `/api/admin/delete-account/${userId}`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      setBanModalUserId(null);
+      setDeleteConfirm(false);
+      toast({ title: "Account Deleted", description: "The account has been permanently removed." });
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed", description: err.message || "Deletion failed", variant: "destructive" });
     },
   });
 
@@ -331,7 +353,11 @@ export default function AdminPage({ user }: AdminPageProps) {
                             {member.isAdmin && <span className="text-yellow-400 text-xs">&#9733;</span>}
                             {member.isModerator && <span className="font-fantasy text-[10px] tracking-wider" style={{ color: "#c084fc" }}>MOD</span>}
                             {member.isBanned && (
-                              <span className="font-fantasy text-[#ff6666] text-[10px] tracking-wider">BANISHED</span>
+                              <span className="font-fantasy text-[#ff6666] text-[10px] tracking-wider">
+                                {member.banUntil
+                                  ? `BANNED (${Math.max(1, Math.ceil((new Date(member.banUntil).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))}d left)`
+                                  : "BANISHED"}
+                              </span>
                             )}
                           </div>
                           <p className="text-[#a89878] text-[10px] truncate">{member.email}</p>
@@ -344,24 +370,36 @@ export default function AdminPage({ user }: AdminPageProps) {
                           className="px-3 pb-3 pt-1 flex items-center gap-2 flex-wrap"
                           style={{ borderTop: "1px solid rgba(212,160,23,0.15)" }}
                         >
-                          <button
-                            data-testid={`button-ban-${member.id}`}
-                            onClick={() => banMutation.mutate({ userId: member.id, ban: !member.isBanned })}
-                            disabled={banMutation.isPending}
-                            className="px-3 py-1.5 rounded-md font-fantasy text-[10px] tracking-wider transition-opacity disabled:opacity-50"
-                            style={{
-                              background: member.isBanned
-                                ? "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)"
-                                : "linear-gradient(135deg, rgba(139,0,0,0.6) 0%, rgba(80,0,0,0.6) 100%)",
-                              border: member.isBanned
-                                ? "1px solid rgba(45,154,100,0.5)"
-                                : "1px solid rgba(200,50,50,0.4)",
-                              color: member.isBanned ? "#7fffd4" : "#ff9999",
-                              cursor: "pointer",
-                            }}
-                          >
-                            {member.isBanned ? "Unbanish" : "Banish"}
-                          </button>
+                          {member.isBanned ? (
+                            <button
+                              data-testid={`button-unban-${member.id}`}
+                              onClick={() => banMutation.mutate({ userId: member.id, ban: false })}
+                              disabled={banMutation.isPending}
+                              className="px-3 py-1.5 rounded-md font-fantasy text-[10px] tracking-wider transition-opacity disabled:opacity-50"
+                              style={{
+                                background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
+                                border: "1px solid rgba(45,154,100,0.5)",
+                                color: "#7fffd4",
+                                cursor: "pointer",
+                              }}
+                            >
+                              Unbanish
+                            </button>
+                          ) : (
+                            <button
+                              data-testid={`button-ban-${member.id}`}
+                              onClick={() => { setBanModalUserId(member.id); setBanDays(""); setDeleteConfirm(false); }}
+                              className="px-3 py-1.5 rounded-md font-fantasy text-[10px] tracking-wider transition-opacity"
+                              style={{
+                                background: "linear-gradient(135deg, rgba(139,0,0,0.6) 0%, rgba(80,0,0,0.6) 100%)",
+                                border: "1px solid rgba(200,50,50,0.4)",
+                                color: "#ff9999",
+                                cursor: "pointer",
+                              }}
+                            >
+                              Banish
+                            </button>
+                          )}
 
                           <button
                             data-testid={`button-moderator-${member.id}`}
@@ -499,6 +537,177 @@ export default function AdminPage({ user }: AdminPageProps) {
           onClose={() => setViewingUserId(null)}
         />
       )}
+
+      {/* ── Ban Modal ─────────────────────────────────────────────────────── */}
+      {banModalUserId && (() => {
+        const target = members.find(m => m.id === banModalUserId);
+        if (!target) return null;
+        return (
+          <div
+            data-testid="modal-ban"
+            style={{
+              position: "fixed", inset: 0, zIndex: 99999,
+              background: "rgba(0,0,0,0.75)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              padding: 16,
+            }}
+            onClick={e => { if (e.target === e.currentTarget) { setBanModalUserId(null); setDeleteConfirm(false); } }}
+          >
+            <div
+              style={{
+                background: "linear-gradient(160deg, #1a0d04 0%, #100805 100%)",
+                border: "1px solid rgba(212,160,23,0.35)",
+                borderRadius: 14,
+                padding: "20px 20px 16px",
+                width: "100%", maxWidth: 360,
+                boxShadow: "0 8px 40px rgba(0,0,0,0.8)",
+              }}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="font-fantasy text-[#f0c040] text-sm font-bold">Banish Actions</p>
+                  <p className="text-[#a89878] text-[10px] mt-0.5">@{target.username}</p>
+                </div>
+                <button
+                  data-testid="button-close-ban-modal"
+                  onClick={() => { setBanModalUserId(null); setDeleteConfirm(false); }}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(168,152,120,0.6)", fontSize: 18, lineHeight: 1, padding: 4 }}
+                >✕</button>
+              </div>
+
+              {/* ── Temporary Ban ─────────────────────────────────── */}
+              <div
+                style={{
+                  background: "rgba(139,0,0,0.15)",
+                  border: "1px solid rgba(200,50,50,0.25)",
+                  borderRadius: 10,
+                  padding: "14px 14px 12px",
+                  marginBottom: 10,
+                }}
+              >
+                <p className="font-fantasy text-[#ff9999] text-[11px] tracking-wider mb-1">Temporary Ban</p>
+                <p className="text-[#a89878] text-[9px] mb-3 leading-relaxed">
+                  The account will be automatically unbanned after the set number of days.
+                </p>
+                <div className="flex items-center gap-2">
+                  <input
+                    data-testid="input-ban-days"
+                    type="number"
+                    min={1}
+                    max={3650}
+                    value={banDays}
+                    onChange={e => setBanDays(e.target.value)}
+                    placeholder="Days (e.g. 7)"
+                    style={{
+                      flex: 1,
+                      background: "rgba(0,0,0,0.4)",
+                      border: "1px solid rgba(200,50,50,0.35)",
+                      borderRadius: 6,
+                      padding: "6px 10px",
+                      fontSize: 12,
+                      color: "#f0c040",
+                      outline: "none",
+                    }}
+                  />
+                  <button
+                    data-testid="button-apply-temp-ban"
+                    onClick={() => {
+                      const d = parseInt(banDays, 10);
+                      if (!d || d < 1) return;
+                      banMutation.mutate({ userId: banModalUserId, ban: true, days: d });
+                    }}
+                    disabled={!banDays || parseInt(banDays, 10) < 1 || banMutation.isPending}
+                    className="font-fantasy text-[10px] tracking-wider disabled:opacity-40"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(139,0,0,0.7) 0%, rgba(80,0,0,0.7) 100%)",
+                      border: "1px solid rgba(200,50,50,0.5)",
+                      borderRadius: 6,
+                      padding: "6px 12px",
+                      color: "#ff9999",
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Apply Ban
+                  </button>
+                </div>
+              </div>
+
+              {/* ── Permanent Delete ──────────────────────────────── */}
+              <div
+                style={{
+                  background: "rgba(60,10,10,0.3)",
+                  border: "1px solid rgba(180,30,30,0.3)",
+                  borderRadius: 10,
+                  padding: "14px 14px 12px",
+                }}
+              >
+                <p className="font-fantasy text-[#ff6666] text-[11px] tracking-wider mb-1">Delete Account Permanently</p>
+                <p className="text-[#a89878] text-[9px] mb-3 leading-relaxed">
+                  All account data will be erased. The email address will be blocked from registering a new account for <span style={{ color: "#f0c040" }}>30 days</span>.
+                </p>
+                {!deleteConfirm ? (
+                  <button
+                    data-testid="button-delete-account-confirm"
+                    onClick={() => setDeleteConfirm(true)}
+                    className="w-full font-fantasy text-[10px] tracking-wider"
+                    style={{
+                      background: "rgba(100,10,10,0.5)",
+                      border: "1px solid rgba(180,30,30,0.4)",
+                      borderRadius: 6,
+                      padding: "7px 12px",
+                      color: "#ff6666",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Delete Account
+                  </button>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-[10px] text-center" style={{ color: "#ff9999" }}>
+                      Are you sure? This cannot be undone.
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        data-testid="button-delete-account-final"
+                        onClick={() => deleteAccountMutation.mutate(banModalUserId)}
+                        disabled={deleteAccountMutation.isPending}
+                        className="flex-1 font-fantasy text-[10px] tracking-wider disabled:opacity-40"
+                        style={{
+                          background: "linear-gradient(135deg, #8b0000 0%, #500000 100%)",
+                          border: "1px solid rgba(200,50,50,0.6)",
+                          borderRadius: 6,
+                          padding: "7px",
+                          color: "#ff9999",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {deleteAccountMutation.isPending ? "Deleting…" : "Yes, Delete"}
+                      </button>
+                      <button
+                        data-testid="button-delete-cancel"
+                        onClick={() => setDeleteConfirm(false)}
+                        className="font-fantasy text-[10px] tracking-wider"
+                        style={{
+                          background: "rgba(40,30,15,0.6)",
+                          border: "1px solid rgba(212,160,23,0.25)",
+                          borderRadius: 6,
+                          padding: "7px 14px",
+                          color: "#a89878",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

@@ -13,6 +13,7 @@ export const users = pgTable("users", {
   isAdmin: boolean("is_admin").notNull().default(false),
   isModerator: boolean("is_moderator").notNull().default(false),
   isBanned: boolean("is_banned").notNull().default(false),
+  banUntil: timestamp("ban_until"),
   activePetId: varchar("active_pet_id"),
   activeHouseBundleId: varchar("active_house_bundle_id"),
   lastUsernameChange: timestamp("last_username_change"),
