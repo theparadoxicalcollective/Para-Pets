@@ -73,6 +73,7 @@ type WorldActivePet = {
   petDef: number | null;
   rarity: number | null;
   petTemplateId: string | null;
+  facingDirection: string | null;
   posX: number | null;
   posY: number | null;
 };
@@ -1182,6 +1183,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                 isOwn={isOwn}
                 isMoving={isOwn ? petIsMoving : false}
                 facingLeft={isOwn ? facingLeft : false}
+                facingDirection={pet.facingDirection}
                 onTap={() => setSelectedPet(pet)}
               />
             );
@@ -3247,6 +3249,7 @@ function WorldRoamingPet({
   isOwn,
   isMoving,
   facingLeft,
+  facingDirection,
   onTap,
 }: {
   pet: WorldActivePet;
@@ -3255,6 +3258,7 @@ function WorldRoamingPet({
   isOwn: boolean;
   isMoving: boolean;
   facingLeft: boolean;
+  facingDirection: string | null;
   onTap: () => void;
 }) {
   const { data: templateData } = useQuery<{
@@ -3345,8 +3349,8 @@ function WorldRoamingPet({
               coordinates — no guessing, no invisible-box problem. */}
           <div style={{ position: "relative", width: sz, height: sz, pointerEvents: "none" }}>
 
-            {/* Pet sprite — flipped based on horizontal movement direction */}
-            <div style={{ transform: facingLeft ? "scaleX(-1)" : undefined, transition: "transform 0.1s ease" }}>
+            {/* Pet sprite — XOR flip: movement direction vs natural facing direction */}
+            <div style={{ transform: (facingLeft !== (facingDirection === "left")) ? "scaleX(-1)" : undefined, transition: "transform 0.1s ease" }}>
               {pet.petTemplateId ? (
                 <PetAnimator
                   petTemplateId={pet.petTemplateId}

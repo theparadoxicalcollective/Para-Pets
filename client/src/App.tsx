@@ -330,7 +330,7 @@ function AppRouter() {
     <>
       {/* Base: always mounted, always visible when no overlay is active */}
       <div style={{ position: "absolute", inset: 0 }}>
-        <HomePage user={user} />
+        <HomePage user={user} isOverlayActive={location !== "/"} />
       </div>
 
       {/* Game overlays — each fades in quickly to smooth page-to-page transitions */}

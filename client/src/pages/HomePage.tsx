@@ -33,6 +33,7 @@ interface HomePageProps {
     lastUsernameChange: string | null;
     lastProfilePicChange: string | null;
   };
+  isOverlayActive?: boolean;
 }
 
 interface InventoryItem {
@@ -63,7 +64,7 @@ interface InventoryItem {
   itemsUsedThisLevel: number;
 }
 
-export default function HomePage({ user }: HomePageProps) {
+export default function HomePage({ user, isOverlayActive = false }: HomePageProps) {
   const [showProfile, setShowProfile] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
   // Gate sparkle orbs on the pet container having real height.
@@ -357,8 +358,10 @@ export default function HomePage({ user }: HomePageProps) {
         <div className="absolute" style={{ left: "65%", top: "35%", width: "4px", height: "4px", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,240,180,0.7) 0%, rgba(255,240,180,0) 70%)", boxShadow: "0 0 6px rgba(255,240,180,0.3)", animation: "orbFloat1 6s ease-in-out infinite 5s", willChange: "transform" }} />
       </div>
 
-      <div className="relative z-10 flex flex-col h-full" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
-        <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
+      <div className="relative z-10 flex flex-col h-full" style={{ paddingTop: "env(safe-area-inset-top, 0px)", visibility: isOverlayActive ? "hidden" : "visible" }}>
+        <div style={{ visibility: "visible" }}>
+          <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
+        </div>
 
         {activePet && (
           <div
@@ -740,7 +743,7 @@ export default function HomePage({ user }: HomePageProps) {
       </div>
 
 
-      {showSpeedUp && activePet && !activePet.isHatched && (
+      {!isOverlayActive && showSpeedUp && activePet && !activePet.isHatched && (
         <div className="fixed inset-0 z-[55] flex items-end justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
           <div className="absolute inset-0 bg-black/60" onClick={() => { setShowSpeedUp(false); setHomeDragging(null); setHomeDragOver(false); }} />
           <div
@@ -874,7 +877,7 @@ export default function HomePage({ user }: HomePageProps) {
       )}
 
       {/* ── Active pet action menu ── */}
-      {showActionMenu && activePetForModal && (
+      {!isOverlayActive && showActionMenu && activePetForModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
           <div
             className="absolute inset-0 bg-black/65 backdrop-blur-sm"
@@ -1069,7 +1072,7 @@ export default function HomePage({ user }: HomePageProps) {
         />
       )}
 
-      {hatchRevealing && (
+      {!isOverlayActive && hatchRevealing && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none"
           style={{

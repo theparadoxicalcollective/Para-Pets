@@ -1642,6 +1642,7 @@ export class DatabaseStorage implements IStorage {
         petDef:          userInventory.petDef,
         rarity:          shopItems.rarity,
         petTemplateId:   shopItems.petTemplateId,
+        facingDirection: shopItems.facingDirection,
       })
       .from(users)
       .innerJoin(
@@ -1683,6 +1684,7 @@ export class DatabaseStorage implements IStorage {
         petDef:          userInventory.petDef,
         rarity:          shopItems.rarity,
         petTemplateId:   shopItems.petTemplateId,
+        facingDirection: shopItems.facingDirection,
         posX:            worldPetPositions.posX,
         posY:            worldPetPositions.posY,
       })
