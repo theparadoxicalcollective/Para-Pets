@@ -1,10 +1,14 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import petHouseBg from "@assets/generated_images/pet_world_bg.png";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import powerupBagIconPDP from "@assets/generated_images/icon_powerup_bag.png";
 import houseCottageIcon from "@assets/generated_images/house_cottage.png";
+import giftIconImg from "@assets/generated_images/gift_icon_forest.png";
+import SendGiftModal from "@/components/SendGiftModal";
 
 interface PlayerDetailPanelProps {
   userId: string;
@@ -81,6 +85,26 @@ function StatPill({ label, value, color }: { label: string; value: number; color
 export default function PlayerDetailPanel({ userId, currentUserId, onClose }: PlayerDetailPanelProps) {
   const [, navigate] = useLocation();
   const qc = useQueryClient();
+  const { toast } = useToast();
+  const [showGiftModal, setShowGiftModal] = useState(false);
+  const [showMessageCompose, setShowMessageCompose] = useState(false);
+  const [messageText, setMessageText] = useState("");
+
+  const { data: me } = useQuery<any>({ queryKey: ["/api/auth/me"], retry: false });
+
+  const sendMessageMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/gifts/send", {
+      receiverId: userId,
+      coinAmount: 0,
+      message: messageText.trim(),
+    }),
+    onSuccess: () => {
+      toast({ title: "Message Sent!", description: "Your message is waiting in their mailbox." });
+      setMessageText("");
+      setShowMessageCompose(false);
+    },
+    onError: (e: any) => toast({ title: "Failed to send", description: e.message, variant: "destructive" }),
+  });
 
   const { data: profile, isLoading, isError } = useQuery<PublicProfile>({
     queryKey: ["/api/users", userId, "profile"],
@@ -308,6 +332,85 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose }: Pl
                 </div>
               )}
             </div>
+
+            {/* Send Message + Send Gift buttons — logged-in users viewing another player */}
+            {!!currentUserId && !isSelf && (
+              <div className="flex flex-col gap-2 w-full">
+                {/* Send Message */}
+                <button
+                  data-testid="button-send-message"
+                  onClick={() => setShowMessageCompose(v => !v)}
+                  className="w-full font-fantasy text-xs tracking-widest rounded-xl py-2.5 transition-all active:scale-95"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(127,191,176,0.12), rgba(80,160,140,0.08))",
+                    border: "1px solid rgba(127,191,176,0.35)",
+                    color: "#7fbfb0",
+                  }}
+                >
+                  Send Message
+                </button>
+
+                {/* Inline compose */}
+                {showMessageCompose && (
+                  <div className="flex flex-col gap-2 w-full">
+                    <textarea
+                      data-testid="input-message-text"
+                      value={messageText}
+                      onChange={e => setMessageText(e.target.value)}
+                      maxLength={300}
+                      rows={3}
+                      placeholder="Write your message..."
+                      className="w-full rounded-xl px-3 py-2 font-fantasy text-xs resize-none"
+                      style={{
+                        background: "rgba(10,8,4,0.7)",
+                        border: "1px solid rgba(127,191,176,0.25)",
+                        color: "#d4c89a",
+                        outline: "none",
+                      }}
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        data-testid="button-cancel-message"
+                        onClick={() => { setShowMessageCompose(false); setMessageText(""); }}
+                        className="flex-1 font-fantasy text-xs rounded-xl py-2 transition-all active:scale-95"
+                        style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "#6a5a4a" }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        data-testid="button-send-message-confirm"
+                        disabled={!messageText.trim() || sendMessageMutation.isPending}
+                        onClick={() => sendMessageMutation.mutate()}
+                        className="flex-1 font-fantasy text-xs rounded-xl py-2 transition-all active:scale-95"
+                        style={{
+                          background: messageText.trim() ? "linear-gradient(135deg, #1a6a5a, #2a9a7a)" : "rgba(127,191,176,0.08)",
+                          border: "1px solid rgba(127,191,176,0.3)",
+                          color: messageText.trim() ? "#c0ffe0" : "#3a6a5a",
+                          opacity: sendMessageMutation.isPending ? 0.6 : 1,
+                        }}
+                      >
+                        {sendMessageMutation.isPending ? "Sending..." : "Send"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Send Gift */}
+                <button
+                  data-testid="button-send-gift-open"
+                  onClick={() => setShowGiftModal(true)}
+                  className="w-full font-fantasy text-xs tracking-widest rounded-xl py-2.5 transition-all active:scale-95 flex items-center justify-center gap-2"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(212,160,23,0.14), rgba(160,100,10,0.1))",
+                    border: "1px solid rgba(212,160,23,0.35)",
+                    color: "#f0c040",
+                  }}
+                >
+                  <img src={giftIconImg} alt="" className="w-4 h-4 object-contain" />
+                  Send Gift
+                </button>
+              </div>
+            )}
 
             {/* Divider */}
             <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(212,160,23,0.25), transparent)" }} />
