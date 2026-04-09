@@ -6,9 +6,9 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { storage } from "./storage";
-import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards, userInventory, houseBundles as houseBundlesTable, userHouseBundles as userHouseBundlesTable, users as usersTable, coinPurchases } from "@shared/schema";
+import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards, userInventory, houseBundles as houseBundlesTable, userHouseBundles as userHouseBundlesTable, users as usersTable, coinPurchases, deletedAccounts } from "@shared/schema";
 import { db } from "./db";
-import { and, eq, inArray, lt, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, lt, sql } from "drizzle-orm";
 import sharp from "sharp";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
 import { Resend } from "resend";
@@ -608,6 +608,18 @@ export async function registerRoutes(
       const existingEmail = await storage.getUserByEmail(email);
       if (existingEmail) {
         return res.status(400).json({ field: "email", message: "That email is already registered. Try logging in instead." });
+      }
+
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const deletedRows = await db
+        .select({ deletedAt: deletedAccounts.deletedAt })
+        .from(deletedAccounts)
+        .where(and(eq(deletedAccounts.email, email.toLowerCase()), gt(deletedAccounts.deletedAt, thirtyDaysAgo)))
+        .limit(1);
+      if (deletedRows.length > 0) {
+        const eligibleAt = new Date(deletedRows[0].deletedAt.getTime() + 30 * 24 * 60 * 60 * 1000);
+        const daysLeft = Math.ceil((eligibleAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+        return res.status(400).json({ field: "email", message: `This email was used on a recently deleted account. You can register again in ${daysLeft} day${daysLeft !== 1 ? "s" : ""}.` });
       }
 
       let profileImagePath: string | null = null;

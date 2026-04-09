@@ -707,3 +707,12 @@ export const gifts = pgTable("gifts", {
 });
 
 export type Gift = typeof gifts.$inferSelect;
+
+// ── Deleted Account Email Cooldown ────────────────────────────────────────────
+export const deletedAccounts = pgTable("deleted_accounts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: text("email").notNull(),
+  deletedAt: timestamp("deleted_at").notNull().default(sql`now()`),
+});
+
+export type DeletedAccount = typeof deletedAccounts.$inferSelect;

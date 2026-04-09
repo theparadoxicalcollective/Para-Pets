@@ -48,6 +48,7 @@ import {
   type UserHomeDecorInventory, userHomeDecorInventory,
   type PlacedHomeDecor, placedHomeDecor,
   type Gift, gifts,
+  deletedAccounts,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, ne, gte, asc, desc, ilike, or, sql, inArray } from "drizzle-orm";
@@ -372,6 +373,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteAccount(id: string): Promise<void> {
+    const userRow = await db.select({ email: users.email }).from(users).where(eq(users.id, id));
+    if (userRow.length > 0 && userRow[0].email) {
+      await db.insert(deletedAccounts).values({ email: userRow[0].email.toLowerCase() });
+    }
     await db.delete(playerMarketListings).where(eq(playerMarketListings.sellerId, id));
     await db.delete(playerFishInventory).where(eq(playerFishInventory.userId, id));
     await db.delete(playerFishCatchLog).where(eq(playerFishCatchLog.userId, id));

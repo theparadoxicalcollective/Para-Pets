@@ -731,7 +731,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                   <div className="text-center space-y-2">
                     <p className="font-fantasy text-[#ff6b6b] text-sm tracking-wider">Are you sure?</p>
                     <p className="font-sans text-[#c08080] text-[11px] leading-relaxed">
-                      Your password, username, email, and <span style={{ color: "#ff8888", fontWeight: 600 }}>all account data</span> will be permanently deleted. There is no way to recover your account after this.
+                      Your password, username, email, and <span style={{ color: "#ff8888", fontWeight: 600 }}>all account data</span> will be permanently deleted. There is no way to recover your account after this. You will not be able to register a new account with this email for <span style={{ color: "#ffaaaa", fontWeight: 600 }}>30 days</span>.
                     </p>
                   </div>
 
