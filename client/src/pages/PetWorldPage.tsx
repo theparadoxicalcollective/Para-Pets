@@ -1528,68 +1528,6 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                   </div>
                 )}
               </div>
-              {/* Friends button */}
-              <div style={{ position: "relative" }}>
-                <button
-                  data-testid="button-friends-panel"
-                  onClick={() => {
-                    if (unreadFriendNotifs.length > 0 && !showFriendsPanel) {
-                      setAcceptedNotifMessages(unreadFriendNotifs.map(n => n.message));
-                      markNotifsReadMutation.mutate();
-                    } else {
-                      setShowFriendsPanel(p => !p);
-                    }
-                  }}
-                  className="transition-transform active:scale-90"
-                  style={{
-                    width: 44, height: 36, borderRadius: 10,
-                    background: showFriendsPanel ? "rgba(127,255,212,0.18)" : "rgba(4,10,6,0.82)",
-                    border: `1.5px solid ${showFriendsPanel ? ACCENT + "88" : ACCENT + "44"}`,
-                    boxShadow: "0 2px 10px rgba(0,0,0,0.6)",
-                    cursor: "pointer",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    overflow: "hidden",
-                  }}
-                >
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: `drop-shadow(0 0 4px ${ACCENT}80)` }}>
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                    <circle cx="9" cy="7" r="4"/>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                  </svg>
-                </button>
-                {/* Red badge — incoming friend requests */}
-                {friendRequestCount > 0 && !showFriendsPanel && (
-                  <div style={{
-                    position: "absolute", top: -4, right: -4,
-                    width: 15, height: 15, borderRadius: "50%",
-                    background: "radial-gradient(circle, #f87171 0%, #dc2626 100%)",
-                    border: "1.5px solid rgba(4,10,6,0.9)",
-                    boxShadow: "0 0 6px rgba(248,113,113,0.6)",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 8, fontWeight: "bold", color: "#fff",
-                    pointerEvents: "none",
-                  }}>
-                    {friendRequestCount > 9 ? "9+" : friendRequestCount}
-                  </div>
-                )}
-                {/* Green badge — accepted friend request notifications */}
-                {unreadFriendNotifs.length > 0 && !showFriendsPanel && (
-                  <div style={{
-                    position: "absolute", top: -4, left: -4,
-                    width: 15, height: 15, borderRadius: "50%",
-                    background: "radial-gradient(circle, #4ade80 0%, #16a34a 100%)",
-                    border: "1.5px solid rgba(4,10,6,0.9)",
-                    boxShadow: "0 0 6px rgba(74,222,128,0.7)",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 10, fontWeight: "bold", color: "#fff",
-                    pointerEvents: "none",
-                    fontFamily: "serif",
-                  }}>
-                    !
-                  </div>
-                )}
-              </div>
             </div>
 
             {/* Username + coins stacked */}

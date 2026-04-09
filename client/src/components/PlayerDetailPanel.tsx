@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import petHouseBg from "@assets/generated_images/pet_world_bg.png";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import powerupBagIconPDP from "@assets/generated_images/icon_powerup_bag.png";
-import houseCottageIcon from "@assets/generated_images/house_cottage.png";
+import houseCottageIcon from "@assets/generated_images/nav_icon_home.png";
 import giftIconImg from "@assets/generated_images/gift_icon_forest.png";
 import SendGiftModal from "@/components/SendGiftModal";
 
