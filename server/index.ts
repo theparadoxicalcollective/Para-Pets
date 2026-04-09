@@ -1358,8 +1358,8 @@ app.use((req, res, next) => {
   // so it overrides any loadAssetBase64 calls that re-set base64 icons during startup.
   const LOC_ICON_ALWAYS_REFRESH: Record<string, string> = {
     "3e20ad30-faff-4643-9e80-5e5f30010738": "icon_thicket.png",
-    "97ff55d1-376b-466a-8fe9-992b09dbaacc": "icon_mire_bazaar_trimmed.png",
-    "8e211716-0448-496e-8582-6ce1025ac4e4": "icon_bayous_heart_v2.png",
+    "97ff55d1-376b-466a-8fe9-992b09dbaacc": "icon_mire_bazaar.png",
+    "8e211716-0448-496e-8582-6ce1025ac4e4": "icon_bayous_heart_original.png",
     "a1b2c3d4-0001-4000-8000-000000000001": "icon_murk_cave.png",
     "a1b2c3d4-0002-4000-8000-000000000002": "icon_willowmere_cottage.png",
     "a1b2c3d4-0004-4000-8000-000000000004": "icon_tome_toad.png",
