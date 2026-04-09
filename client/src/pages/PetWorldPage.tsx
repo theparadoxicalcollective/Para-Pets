@@ -124,6 +124,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const [decorMoveOrder, setDecorMoveOrder] = useState<string[]>([]);
 
   const [petIsMoving,         setPetIsMoving]          = useState(false);
+  const [facingLeft,          setFacingLeft]           = useState(false);
+  const facingLeftRef = useRef(false);
 
   // ── panel state ────────────────────────────────────────────────────────────
   const [showDecorPanel,   setShowDecorPanel]   = useState(false);
@@ -601,6 +603,14 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     joystickDirRef.current = { dx, dy };
     joystickActRef.current = active;
     setPetIsMoving(active);
+    // Flip pet sprite based on horizontal movement; only re-render when it actually changes
+    if (active && dx !== 0) {
+      const newFacingLeft = dx < 0;
+      if (newFacingLeft !== facingLeftRef.current) {
+        facingLeftRef.current = newFacingLeft;
+        setFacingLeft(newFacingLeft);
+      }
+    }
     if (active) {
       startRaf();
     } else {
@@ -1171,6 +1181,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                 posY={resolvedY}
                 isOwn={isOwn}
                 isMoving={isOwn ? petIsMoving : false}
+                facingLeft={isOwn ? facingLeft : false}
                 onTap={() => setSelectedPet(pet)}
               />
             );
@@ -3235,6 +3246,7 @@ function WorldRoamingPet({
   posY,
   isOwn,
   isMoving,
+  facingLeft,
   onTap,
 }: {
   pet: WorldActivePet;
@@ -3242,6 +3254,7 @@ function WorldRoamingPet({
   posY: number;
   isOwn: boolean;
   isMoving: boolean;
+  facingLeft: boolean;
   onTap: () => void;
 }) {
   const { data: templateData } = useQuery<{
@@ -3332,30 +3345,32 @@ function WorldRoamingPet({
               coordinates — no guessing, no invisible-box problem. */}
           <div style={{ position: "relative", width: sz, height: sz, pointerEvents: "none" }}>
 
-            {/* Pet sprite */}
-            {pet.petTemplateId ? (
-              <PetAnimator
-                petTemplateId={pet.petTemplateId}
-                mode="idle"
-                size={sz}
-                style={{
-                  pointerEvents: "none",
-                  overflow: "visible",
-                }}
-              />
-            ) : petImg ? (
-              <img
-                src={petImg}
-                alt={displayName}
-                draggable={false}
-                className="pet-idle-squish"
-                style={{
-                  width: sz, height: sz,
-                  objectFit: "contain",
-                  pointerEvents: "none",
-                }}
-              />
-            ) : null}
+            {/* Pet sprite — flipped based on horizontal movement direction */}
+            <div style={{ transform: facingLeft ? "scaleX(-1)" : undefined, transition: "transform 0.1s ease" }}>
+              {pet.petTemplateId ? (
+                <PetAnimator
+                  petTemplateId={pet.petTemplateId}
+                  mode="idle"
+                  size={sz}
+                  style={{
+                    pointerEvents: "none",
+                    overflow: "visible",
+                  }}
+                />
+              ) : petImg ? (
+                <img
+                  src={petImg}
+                  alt={displayName}
+                  draggable={false}
+                  className="pet-idle-squish"
+                  style={{
+                    width: sz, height: sz,
+                    objectFit: "contain",
+                    pointerEvents: "none",
+                  }}
+                />
+              ) : null}
+            </div>
 
             {/* Username badge — sits just above the topmost visible part */}
             <span
