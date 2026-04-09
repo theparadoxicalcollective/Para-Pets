@@ -717,3 +717,15 @@ export const deletedAccounts = pgTable("deleted_accounts", {
 });
 
 export type DeletedAccount = typeof deletedAccounts.$inferSelect;
+
+// ── World Chat ────────────────────────────────────────────────────────────────
+export const worldChatMessages = pgTable("world_chat_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  username: varchar("username").notNull(),
+  profileImage: text("profile_image"),
+  message: text("message").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export type WorldChatMessage = typeof worldChatMessages.$inferSelect;

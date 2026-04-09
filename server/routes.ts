@@ -584,8 +584,8 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Username, email, and password are required" });
       }
 
-      if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-        return res.status(400).json({ field: "username", message: "Username can only contain letters, numbers, and underscores" });
+      if (!/^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)*$/.test(username)) {
+        return res.status(400).json({ field: "username", message: "Username can only contain letters, numbers, underscores, and periods (periods cannot be at the start or end)" });
       }
       if (username.length < 3 || username.length > 20) {
         return res.status(400).json({ field: "username", message: "Username must be between 3 and 20 characters" });
@@ -5671,6 +5671,62 @@ export async function registerRoutes(
       const userId = (req.user as any).id;
       const gift = await storage.acceptGift((req.params.id as string), userId);
       return res.json(gift);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── World Chat ─────────────────────────────────────────────────────────────
+  const BAD_WORDS = ["fuck","shit","bitch","asshole","cunt","nigger","faggot","retard","slut","whore","dick","cock","pussy","bastard","motherfucker","fag","kike","spic","chink","wetback","gook","twat","wanker","damn","crap","piss","arse","bollocks"];
+  const CHAT_COOLDOWN_MS = 8000;
+  const CHAT_MAX_LENGTH = 150;
+
+  function containsBadWord(text: string): boolean {
+    const lower = text.toLowerCase().replace(/[^a-z0-9\s]/g, "");
+    return BAD_WORDS.some(w => {
+      const re = new RegExp(`\\b${w}\\b`, "i");
+      return re.test(lower);
+    });
+  }
+
+  app.get("/api/world-chat", isAuthenticated, async (req, res) => {
+    try {
+      await storage.purgeOldWorldChatMessages();
+      const messages = await storage.getWorldChatMessages();
+      return res.json(messages);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/world-chat", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { message } = req.body;
+      if (!message || typeof message !== "string") return res.status(400).json({ message: "Message required" });
+      const trimmed = message.trim();
+      if (!trimmed || trimmed.length > CHAT_MAX_LENGTH) {
+        return res.status(400).json({ message: `Message must be 1–${CHAT_MAX_LENGTH} characters` });
+      }
+      if (containsBadWord(trimmed)) {
+        return res.status(400).json({ message: "Message contains inappropriate content" });
+      }
+      const last = await storage.getLastWorldChatByUser(user.id);
+      if (last) {
+        const elapsed = Date.now() - new Date(last.createdAt).getTime();
+        if (elapsed < CHAT_COOLDOWN_MS) {
+          const wait = Math.ceil((CHAT_COOLDOWN_MS - elapsed) / 1000);
+          return res.status(429).json({ message: `Please wait ${wait}s before sending another message`, retryAfter: wait });
+        }
+      }
+      const fullUser = await storage.getUser(user.id);
+      const msg = await storage.addWorldChatMessage({
+        userId: user.id,
+        username: fullUser?.username ?? user.username,
+        profileImage: fullUser?.profileImage ?? null,
+        message: trimmed,
+      });
+      return res.json(msg);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }

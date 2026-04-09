@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
-import { X, HelpCircle, Zap, Star, RotateCcw } from "lucide-react";
+import { X, HelpCircle, Zap, Star, RotateCcw, MessageCircle } from "lucide-react";
+import WorldChatPanel from "@/components/WorldChatPanel";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import bgImg from "@assets/bg_home_v2.png";
@@ -109,6 +110,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const [homeDragging, setHomeDragging] = useState<{ item: InventoryItem; x: number; y: number } | null>(null);
   const homeEggDropRef = useRef<HTMLDivElement>(null);
   const [showHomePageTutorial, setShowHomePageTutorial] = useState(() => !localStorage.getItem("homePageTutorialSeen"));
+  const [showWorldChat, setShowWorldChat] = useState(false);
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
 
@@ -1223,26 +1225,56 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         }
       `}</style>
 
-      {/* ? button — shown after tutorial is dismissed */}
+      {/* Chat + Tutorial buttons — top-right corner */}
       {!showHomePageTutorial && !showProfile && !showActionMenu && !activePetModal && (
-        <button
-          data-testid="button-open-homepage-tutorial"
-          onClick={() => setShowHomePageTutorial(true)}
-          className="absolute z-30 flex items-center justify-center rounded-full transition-transform active:scale-90"
-          style={{
-            top: "68px",
-            right: "16px",
-            width: "30px",
-            height: "30px",
-            background: "rgba(10,5,2,0.82)",
-            border: "1.5px solid rgba(212,160,23,0.45)",
-            color: "rgba(212,160,23,0.75)",
-            cursor: "pointer",
-            boxShadow: "0 2px 10px rgba(0,0,0,0.5)",
-          }}
-        >
-          <HelpCircle className="w-4 h-4" />
-        </button>
+        <>
+          {/* World Chat toggle button */}
+          <button
+            data-testid="button-open-world-chat"
+            onClick={() => setShowWorldChat(v => !v)}
+            className="absolute z-30 flex items-center justify-center rounded-full transition-transform active:scale-90"
+            style={{
+              top: "68px",
+              right: "52px",
+              width: "30px",
+              height: "30px",
+              background: showWorldChat ? "rgba(240,192,64,0.18)" : "rgba(10,5,2,0.82)",
+              border: `1.5px solid ${showWorldChat ? "rgba(240,192,64,0.7)" : "rgba(212,160,23,0.45)"}`,
+              color: showWorldChat ? "rgba(240,192,64,1)" : "rgba(212,160,23,0.75)",
+              cursor: "pointer",
+              boxShadow: showWorldChat ? "0 2px 10px rgba(0,0,0,0.5), 0 0 12px rgba(240,192,64,0.3)" : "0 2px 10px rgba(0,0,0,0.5)",
+            }}
+          >
+            <MessageCircle className="w-4 h-4" />
+          </button>
+          {/* Tutorial ? button */}
+          <button
+            data-testid="button-open-homepage-tutorial"
+            onClick={() => setShowHomePageTutorial(true)}
+            className="absolute z-30 flex items-center justify-center rounded-full transition-transform active:scale-90"
+            style={{
+              top: "68px",
+              right: "16px",
+              width: "30px",
+              height: "30px",
+              background: "rgba(10,5,2,0.82)",
+              border: "1.5px solid rgba(212,160,23,0.45)",
+              color: "rgba(212,160,23,0.75)",
+              cursor: "pointer",
+              boxShadow: "0 2px 10px rgba(0,0,0,0.5)",
+            }}
+          >
+            <HelpCircle className="w-4 h-4" />
+          </button>
+        </>
+      )}
+
+      {/* World Chat Panel */}
+      {showWorldChat && (
+        <WorldChatPanel
+          currentUserId={currentUser.id}
+          onClose={() => setShowWorldChat(false)}
+        />
       )}
 
       {/* Home page tutorial overlay */}

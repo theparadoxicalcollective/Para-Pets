@@ -49,6 +49,7 @@ import {
   type PlacedHomeDecor, placedHomeDecor,
   type Gift, gifts,
   deletedAccounts,
+  type WorldChatMessage, worldChatMessages,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, ne, gte, asc, desc, ilike, or, sql, inArray } from "drizzle-orm";
@@ -258,6 +259,10 @@ export interface IStorage {
   sendGift(data: { senderId: string; receiverId: string; message?: string; coinAmount: number; itemType?: string; shopItemInventoryId?: string; decorItemId?: string; itemQuantity?: number; itemName?: string; itemImageUrl?: string; shopItemId?: string }): Promise<Gift>;
   getPendingGifts(userId: string): Promise<(Gift & { senderName: string; senderProfileImageUrl: string | null })[]>;
   acceptGift(giftId: string, userId: string): Promise<Gift>;
+  getWorldChatMessages(): Promise<WorldChatMessage[]>;
+  addWorldChatMessage(data: { userId: string; username: string; profileImage?: string | null; message: string }): Promise<WorldChatMessage>;
+  getLastWorldChatByUser(userId: string): Promise<WorldChatMessage | null>;
+  purgeOldWorldChatMessages(): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2247,6 +2252,33 @@ export class DatabaseStorage implements IStorage {
 
     const [updated] = await db.update(gifts).set({ status: "accepted" }).where(eq(gifts.id, giftId)).returning();
     return updated;
+  }
+
+  async getWorldChatMessages(): Promise<WorldChatMessage[]> {
+    return db.select().from(worldChatMessages).orderBy(asc(worldChatMessages.createdAt)).limit(80);
+  }
+
+  async addWorldChatMessage(data: { userId: string; username: string; profileImage?: string | null; message: string }): Promise<WorldChatMessage> {
+    const [msg] = await db.insert(worldChatMessages).values({
+      userId: data.userId,
+      username: data.username,
+      profileImage: data.profileImage ?? null,
+      message: data.message,
+    }).returning();
+    return msg;
+  }
+
+  async getLastWorldChatByUser(userId: string): Promise<WorldChatMessage | null> {
+    const [msg] = await db.select().from(worldChatMessages)
+      .where(eq(worldChatMessages.userId, userId))
+      .orderBy(desc(worldChatMessages.createdAt))
+      .limit(1);
+    return msg ?? null;
+  }
+
+  async purgeOldWorldChatMessages(): Promise<void> {
+    const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    await db.delete(worldChatMessages).where(sql`${worldChatMessages.createdAt} < ${cutoff}`);
   }
 }
 
