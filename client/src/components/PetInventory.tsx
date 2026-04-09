@@ -1148,15 +1148,15 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
               onClick={() => setBagTab(tab.key)}
               className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full font-fantasy text-[11px] tracking-wider transition-all active:scale-95"
               style={{
-                background: active ? "rgba(240,192,64,0.18)" : "rgba(255,255,255,0.04)",
-                border: active ? "1px solid rgba(240,192,64,0.45)" : "1px solid rgba(255,255,255,0.08)",
-                color: active ? "#f0c040" : "#7a6a50",
+                background: active ? "rgba(240,192,64,0.18)" : "rgba(255,255,255,0.07)",
+                border: active ? "1px solid rgba(240,192,64,0.45)" : "1px solid rgba(255,255,255,0.15)",
+                color: active ? "#f0c040" : "rgba(210,185,145,0.75)",
               }}
             >
               <img
                 src={tab.icon}
                 alt=""
-                style={{ width: 16, height: 16, objectFit: "contain", opacity: active ? 1 : 0.45, filter: active ? "drop-shadow(0 0 4px rgba(240,192,64,0.5))" : "none" }}
+                style={{ width: 16, height: 16, objectFit: "contain", opacity: active ? 1 : 0.65, filter: active ? "drop-shadow(0 0 4px rgba(240,192,64,0.5))" : "none" }}
               />
               {tab.label}
             </button>

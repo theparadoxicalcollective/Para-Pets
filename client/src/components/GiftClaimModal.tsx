@@ -71,13 +71,22 @@ export default function GiftClaimModal({ onClose }: GiftClaimModalProps) {
           style={{ position: "absolute", top: 12, right: 14, background: "none", border: "none", cursor: "pointer", color: "rgba(127,255,212,0.4)", fontSize: 20 }}
         >×</button>
 
-        <p className="font-fantasy font-semibold mb-1" style={{ color: "#f0e8c8", fontSize: 13, letterSpacing: "0.05em", display: "flex", alignItems: "center", gap: 6 }}>
-          <img src={giftIconImg} alt="" style={{ width: 16, height: 16, objectFit: "contain" }} />
-          Incoming Gifts
-        </p>
-        <p className="font-fantasy mb-4" style={{ fontSize: 9, color: "rgba(127,255,212,0.5)", letterSpacing: "0.15em" }}>
-          {gifts.length} PENDING
-        </p>
+        {(() => {
+          const hasGifts = gifts.some(g => g.coinAmount > 0 || !!g.itemType);
+          const hasMessages = gifts.some(g => g.coinAmount === 0 && !g.itemType);
+          const titleText = hasGifts && hasMessages ? "Gifts & Messages" : hasGifts ? "Incoming Gifts" : "Incoming Messages";
+          return (
+            <>
+              <p className="font-fantasy font-semibold mb-1" style={{ color: "#f0e8c8", fontSize: 13, letterSpacing: "0.05em", display: "flex", alignItems: "center", gap: 6 }}>
+                <img src={giftIconImg} alt="" style={{ width: 16, height: 16, objectFit: "contain" }} />
+                {titleText}
+              </p>
+              <p className="font-fantasy mb-4" style={{ fontSize: 9, color: "rgba(127,255,212,0.5)", letterSpacing: "0.15em" }}>
+                {gifts.length} PENDING
+              </p>
+            </>
+          );
+        })()}
 
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
@@ -153,7 +162,7 @@ export default function GiftClaimModal({ onClose }: GiftClaimModalProps) {
                     letterSpacing: "0.1em",
                   }}
                 >
-                  {acceptMutation.isPending ? "Accepting…" : "Accept Gift"}
+                  {acceptMutation.isPending ? "Accepting…" : (gift.coinAmount === 0 && !gift.itemType ? "Read Message" : "Accept Gift")}
                 </button>
               </div>
             ))}

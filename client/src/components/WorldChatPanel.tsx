@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { X, Send, ShieldAlert } from "lucide-react";
 import RoleBadge from "@/components/RoleBadge";
+import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 
 interface WorldChatMessage {
   id: string;
@@ -35,6 +36,7 @@ export default function WorldChatPanel({ currentUserId, onClose }: WorldChatPane
   const [cooldown, setCooldown] = useState(0);
   const [popupMsg, setPopupMsg] = useState<string | null>(null);
   const [popupIsRestricted, setPopupIsRestricted] = useState(false);
+  const [viewingPlayerId, setViewingPlayerId] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const qc = useQueryClient();
@@ -172,10 +174,13 @@ export default function WorldChatPanel({ currentUserId, onClose }: WorldChatPane
               {/* Avatar */}
               <div
                 className="flex-shrink-0 rounded-full overflow-hidden flex items-center justify-center"
+                data-testid={`button-chat-avatar-${msg.userId}`}
+                onClick={() => !isMe && setViewingPlayerId(msg.userId)}
                 style={{
                   width: 28, height: 28,
                   background: "linear-gradient(135deg, #2a1a0a 0%, #4a2e18 100%)",
                   border: `1.5px solid ${isMe ? "rgba(240,192,64,0.5)" : "rgba(127,255,212,0.3)"}`,
+                  cursor: isMe ? "default" : "pointer",
                 }}
               >
                 {msg.profileImage ? (
@@ -345,6 +350,14 @@ export default function WorldChatPanel({ currentUserId, onClose }: WorldChatPane
             </button>
           </div>
         </div>
+      )}
+
+      {viewingPlayerId && (
+        <PlayerDetailPanel
+          userId={viewingPlayerId}
+          currentUserId={currentUserId}
+          onClose={() => setViewingPlayerId(null)}
+        />
       )}
     </div>
   );

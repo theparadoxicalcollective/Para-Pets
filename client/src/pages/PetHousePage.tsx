@@ -524,6 +524,17 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     refetchInterval: openInventory === "friends" ? 20000 : false,
   });
 
+  const { data: friendNotifications = [], refetch: refetchFriendNotifs } = useQuery<any[]>({
+    queryKey: ["/api/notifications/unread"],
+    enabled: openInventory === "friends",
+    select: (data: any[]) => data.filter((n: any) => n.type === "friend_accepted"),
+  });
+
+  const dismissFriendNotifsMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/notifications/mark-read", {}),
+    onSuccess: () => { refetchFriendNotifs(); qc.invalidateQueries({ queryKey: ["/api/notifications/unread"] }); },
+  });
+
   const { data: friendRequestCountData } = useQuery<{ count: number }>({
     queryKey: ["/api/friends/requests/count"],
     refetchInterval: 45000,
@@ -1417,6 +1428,37 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             {openInventory === "friends" && (
               <div className="flex flex-col gap-4 pb-4">
                 {/* Pending requests */}
+                {friendNotifications.length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-[9px] tracking-widest uppercase" style={{ color: "rgba(240,192,64,0.7)", fontFamily: "Lora, serif" }}>
+                        Accepted ({friendNotifications.length})
+                      </p>
+                      <button
+                        data-testid="button-dismiss-friend-notifs"
+                        onClick={() => dismissFriendNotifsMutation.mutate()}
+                        style={{ background: "none", border: "none", cursor: "pointer", fontSize: 10, color: "rgba(240,192,64,0.4)", fontFamily: "Lora, serif" }}
+                      >
+                        dismiss all
+                      </button>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {friendNotifications.map((notif: any) => (
+                        <div
+                          key={notif.id}
+                          data-testid={`notif-friend-accepted-${notif.id}`}
+                          className="flex items-center gap-2 rounded-xl px-3 py-2.5"
+                          style={{ background: "rgba(240,192,64,0.06)", border: "1px solid rgba(240,192,64,0.18)" }}
+                        >
+                          <span style={{ fontSize: 14, flexShrink: 0 }}>🤝</span>
+                          <span className="flex-1 text-xs leading-snug" style={{ color: "#d4c89a", fontFamily: "Lora, serif" }}>{notif.message}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(240,192,64,0.15), transparent)", margin: "12px 0" }} />
+                  </div>
+                )}
+
                 {friendRequestsList.length > 0 && (
                   <div>
                     <p className="text-[9px] tracking-widest uppercase mb-2" style={{ color: "rgba(74,222,128,0.6)", fontFamily: "Lora, serif" }}>
