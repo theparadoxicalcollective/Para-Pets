@@ -50,6 +50,7 @@ import {
   type Gift, gifts,
   deletedAccounts,
   type WorldChatMessage, worldChatMessages,
+  type ChatFilterWord, chatFilterWords,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, ne, gte, asc, desc, ilike, or, sql, inArray } from "drizzle-orm";
@@ -263,6 +264,9 @@ export interface IStorage {
   addWorldChatMessage(data: { userId: string; username: string; profileImage?: string | null; message: string }): Promise<WorldChatMessage>;
   getLastWorldChatByUser(userId: string): Promise<WorldChatMessage | null>;
   purgeOldWorldChatMessages(): Promise<void>;
+  getChatFilterWords(): Promise<ChatFilterWord[]>;
+  addChatFilterWord(word: string, addedBy?: string): Promise<ChatFilterWord>;
+  deleteChatFilterWord(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2279,6 +2283,19 @@ export class DatabaseStorage implements IStorage {
   async purgeOldWorldChatMessages(): Promise<void> {
     const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000);
     await db.delete(worldChatMessages).where(sql`${worldChatMessages.createdAt} < ${cutoff}`);
+  }
+
+  async getChatFilterWords(): Promise<ChatFilterWord[]> {
+    return db.select().from(chatFilterWords).orderBy(asc(chatFilterWords.word));
+  }
+
+  async addChatFilterWord(word: string, addedBy?: string): Promise<ChatFilterWord> {
+    const [row] = await db.insert(chatFilterWords).values({ word: word.toLowerCase().trim(), addedBy }).returning();
+    return row;
+  }
+
+  async deleteChatFilterWord(id: string): Promise<void> {
+    await db.delete(chatFilterWords).where(eq(chatFilterWords.id, id));
   }
 }
 

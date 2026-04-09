@@ -5677,16 +5677,93 @@ export async function registerRoutes(
   });
 
   // ── World Chat ─────────────────────────────────────────────────────────────
-  const BAD_WORDS = ["fuck","shit","bitch","asshole","cunt","nigger","faggot","retard","slut","whore","dick","cock","pussy","bastard","motherfucker","fag","kike","spic","chink","wetback","gook","twat","wanker","damn","crap","piss","arse","bollocks"];
+  // Base profanity / slur / explicit-sexual word list (all lowercase).
+  // Admins can extend this list via /api/admin/chat-filter.
+  const BASE_BAD_WORDS = [
+    // Profanity
+    "fuck","fucking","fucker","fucked","fucks","fuk","fck","f u c k",
+    "shit","shitting","shitter","shits","sht",
+    "bitch","bitches","bitching","btch",
+    "asshole","assholes","ass hole",
+    "cunt","cunts",
+    "bastard","bastards",
+    "motherfucker","motherfuckers","mf",
+    "damn","damned",
+    "crap",
+    "piss","pissed","pisser",
+    "arse","arsehole","arseholes",
+    "bollocks",
+    "twat","twats",
+    "wanker","wankers","wank",
+    "dick","dicks","dik",
+    "cock","cocks",
+    "pussy","pussies",
+    "whore","whores",
+    "slut","sluts",
+    // Racist / slurs
+    "nigger","niggers","nigga","niggas","nigg",
+    "faggot","faggots","fag","fags",
+    "retard","retards","retarded",
+    "kike","kikes",
+    "spic","spics",
+    "chink","chinks",
+    "wetback","wetbacks",
+    "gook","gooks",
+    "coon","coons",
+    "towelhead","towelheads",
+    "raghead","ragheads",
+    "beaner","beaners",
+    "cracker",
+    "honky","honkey",
+    "jigaboo",
+    "porch monkey",
+    "zipperhead",
+    "slope",
+    "redskin",
+    // Explicit sexual
+    "cum","cumming","cumshot",
+    "jizz","jizzing",
+    "blowjob","blowjobs",
+    "handjob","handjobs",
+    "creampie","creampies",
+    "dildo","dildos",
+    "anal sex",
+    "rape","raping","rapist","raped",
+    "molest","molesting","molester","molested",
+    "pedophile","pedophilia","pedo",
+    "paedophile","paedophilia",
+    "cp",
+  ];
+
   const CHAT_COOLDOWN_MS = 8000;
   const CHAT_MAX_LENGTH = 150;
 
-  function containsBadWord(text: string): boolean {
-    const lower = text.toLowerCase().replace(/[^a-z0-9\s]/g, "");
-    return BAD_WORDS.some(w => {
-      const re = new RegExp(`\\b${w}\\b`, "i");
-      return re.test(lower);
-    });
+  // Strip only ASCII punctuation / leet-speak substitutions for detection pass.
+  // Emojis (Unicode > 127) are intentionally preserved so they are NOT treated
+  // as bad-word fragments, and messages consisting purely of emojis still pass.
+  function normaliseForCheck(text: string): string {
+    return text
+      .toLowerCase()
+      .replace(/[@!1|]/g, "")          // remove common leet-speak substitution chars
+      .replace(/[^a-z0-9\s\u0080-\uFFFF]/g, " ") // keep emoji/unicode, replace ASCII punctuation with space
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function buildWordRegex(word: string): RegExp {
+    // Use word boundaries; for multi-word phrases use a simple includes check instead
+    if (word.includes(" ")) return new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+    return new RegExp(`(?<![a-z])${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![a-z])`, "i");
+  }
+
+  async function containsBadWord(text: string): Promise<boolean> {
+    const normalised = normaliseForCheck(text);
+    const allWords = [...BASE_BAD_WORDS];
+    try {
+      const custom = await storage.getChatFilterWords();
+      custom.forEach(r => allWords.push(r.word));
+    } catch {}
+    return allWords.some(w => buildWordRegex(w).test(normalised));
   }
 
   app.get("/api/world-chat", isAuthenticated, async (req, res) => {
@@ -5708,8 +5785,8 @@ export async function registerRoutes(
       if (!trimmed || trimmed.length > CHAT_MAX_LENGTH) {
         return res.status(400).json({ message: `Message must be 1–${CHAT_MAX_LENGTH} characters` });
       }
-      if (containsBadWord(trimmed)) {
-        return res.status(400).json({ message: "Message contains inappropriate content" });
+      if (await containsBadWord(trimmed)) {
+        return res.status(400).json({ message: "Your message contains restricted content and could not be sent.", restricted: true });
       }
       const last = await storage.getLastWorldChatByUser(user.id);
       if (last) {
@@ -5727,6 +5804,43 @@ export async function registerRoutes(
         message: trimmed,
       });
       return res.json(msg);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Admin: Chat Filter Word Management ──────────────────────────────────────
+  app.get("/api/admin/chat-filter", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin && !user.isModerator) return res.status(403).json({ message: "Forbidden" });
+      const custom = await storage.getChatFilterWords();
+      return res.json({ baseWords: BASE_BAD_WORDS, customWords: custom });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/admin/chat-filter", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin && !user.isModerator) return res.status(403).json({ message: "Forbidden" });
+      const { word } = req.body;
+      if (!word || typeof word !== "string" || !word.trim()) return res.status(400).json({ message: "Word required" });
+      const row = await storage.addChatFilterWord(word.trim(), user.username);
+      return res.json(row);
+    } catch (err: any) {
+      if (err.message?.includes("unique")) return res.status(409).json({ message: "Word already in filter list" });
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/admin/chat-filter/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin && !user.isModerator) return res.status(403).json({ message: "Forbidden" });
+      await storage.deleteChatFilterWord(req.params.id);
+      return res.json({ ok: true });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }

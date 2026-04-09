@@ -57,7 +57,7 @@ export default function AdminPage({ user }: AdminPageProps) {
   const [coinAmounts, setCoinAmounts] = useState<Record<string, string>>({});
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "welcome" | "items" | "pets" | "messages" | "badges" | "fishing" | "enemies" | "maintenance" | "home_bundle" | "purchases" | null>(null);
+  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "welcome" | "items" | "pets" | "messages" | "badges" | "fishing" | "enemies" | "maintenance" | "home_bundle" | "purchases" | "chat_filter" | null>(null);
   const [orphanResult, setOrphanResult] = useState<{ summary: string; cleaned: number } | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -138,6 +138,7 @@ export default function AdminPage({ user }: AdminPageProps) {
     { key: "home_bundle" as const, label: "Home Bundle", icon: adminIconWelcome, desc: "Decor & bundles", color: "#fbbf24", glow: "rgba(251,191,36,0.30)", bg: "linear-gradient(145deg, rgba(60,40,4,0.92) 0%, rgba(90,60,8,0.88) 100%)", border: "rgba(251,191,36,0.45)" },
     { key: "purchases" as const, label: "Purchases", icon: adminIconPurchases, desc: "Coin shop history", color: "#86efac", glow: "rgba(134,239,172,0.30)", bg: "linear-gradient(145deg, rgba(8,45,18,0.92) 0%, rgba(12,70,28,0.88) 100%)", border: "rgba(134,239,172,0.45)" },
     { key: "maintenance" as const, label: "Maintenance", icon: adminIconWelcome, desc: "DB cleanup tools", color: "#f9a8d4", glow: "rgba(249,168,212,0.30)", bg: "linear-gradient(145deg, rgba(60,8,40,0.92) 0%, rgba(90,12,60,0.88) 100%)", border: "rgba(249,168,212,0.45)" },
+    { key: "chat_filter" as const, label: "Chat Filter", icon: adminIconMessages, desc: "Blocked word list", color: "#fca5a5", glow: "rgba(252,165,165,0.30)", bg: "linear-gradient(145deg, rgba(60,8,8,0.92) 0%, rgba(90,12,12,0.88) 100%)", border: "rgba(252,165,165,0.45)" },
   ];
 
   const activeSectionMeta = activeSection ? sections.find(s => s.key === activeSection) : null;
@@ -471,6 +472,10 @@ export default function AdminPage({ user }: AdminPageProps) {
 
               {activeSection === "maintenance" && (
                 <MaintenanceSection />
+              )}
+
+              {activeSection === "chat_filter" && (
+                <ChatFilterSection currentUsername={user.username} />
               )}
             </>
           )}
@@ -2097,6 +2102,201 @@ function MaintenanceSection() {
             {running ? "Scanning..." : result ? "Run Again" : "Clean Up Orphaned Rows"}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Chat Filter Section ───────────────────────────────────────────────────────
+interface ChatFilterData {
+  baseWords: string[];
+  customWords: { id: string; word: string; addedBy?: string | null; createdAt: string }[];
+}
+
+function ChatFilterSection({ currentUsername }: { currentUsername: string }) {
+  const [newWord, setNewWord] = useState("");
+  const [showBase, setShowBase] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const qc = useQueryClient();
+  const { toast } = useToast();
+
+  const { data, isLoading } = useQuery<ChatFilterData>({
+    queryKey: ["/api/admin/chat-filter"],
+  });
+
+  const addMutation = useMutation({
+    mutationFn: (word: string) => apiRequest("POST", "/api/admin/chat-filter", { word }),
+    onSuccess: () => {
+      setNewWord("");
+      qc.invalidateQueries({ queryKey: ["/api/admin/chat-filter"] });
+      toast({ title: "Word added to filter" });
+    },
+    onError: (err: any) => {
+      const raw = err?.message ?? "";
+      const jsonStart = raw.indexOf("{");
+      let body: any = {};
+      try { if (jsonStart !== -1) body = JSON.parse(raw.slice(jsonStart)); } catch {}
+      toast({ title: body?.message ?? "Error adding word", variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/admin/chat-filter/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/admin/chat-filter"] });
+    },
+    onError: () => {
+      toast({ title: "Could not remove word", variant: "destructive" });
+    },
+  });
+
+  const ACCENT = "#fca5a5";
+  const filteredBase = (data?.baseWords ?? []).filter(w =>
+    !searchTerm || w.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  const filteredCustom = (data?.customWords ?? []).filter(w =>
+    !searchTerm || w.word.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="flex flex-col gap-4 px-2 pb-4">
+      {/* Add new word */}
+      <div
+        className="rounded-xl p-3 flex flex-col gap-2"
+        style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(252,165,165,0.2)" }}
+      >
+        <p className="font-fantasy text-xs tracking-wider" style={{ color: ACCENT }}>Add Word to Filter</p>
+        <div className="flex gap-2">
+          <input
+            data-testid="input-new-filter-word"
+            type="text"
+            value={newWord}
+            onChange={e => setNewWord(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && newWord.trim()) addMutation.mutate(newWord.trim()); }}
+            placeholder="Enter word or phrase..."
+            className="flex-1 font-sans text-xs rounded-lg px-3 py-2"
+            style={{
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(252,165,165,0.25)",
+              color: "#e8dcc8",
+              outline: "none",
+            }}
+          />
+          <button
+            data-testid="button-add-filter-word"
+            onClick={() => { if (newWord.trim()) addMutation.mutate(newWord.trim()); }}
+            disabled={!newWord.trim() || addMutation.isPending}
+            className="px-3 py-2 rounded-lg font-fantasy text-xs"
+            style={{
+              background: "rgba(252,165,165,0.15)",
+              border: "1px solid rgba(252,165,165,0.35)",
+              color: ACCENT,
+              cursor: newWord.trim() ? "pointer" : "not-allowed",
+            }}
+          >
+            Add
+          </button>
+        </div>
+      </div>
+
+      {/* Search */}
+      <input
+        data-testid="input-search-filter-words"
+        type="text"
+        value={searchTerm}
+        onChange={e => setSearchTerm(e.target.value)}
+        placeholder="Search words..."
+        className="font-sans text-xs rounded-lg px-3 py-2"
+        style={{
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(252,165,165,0.15)",
+          color: "#e8dcc8",
+          outline: "none",
+        }}
+      />
+
+      {isLoading && (
+        <p className="font-fantasy text-xs text-center" style={{ color: "rgba(200,184,150,0.5)" }}>Loading...</p>
+      )}
+
+      {/* Custom words (admin-added) */}
+      {filteredCustom.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <p className="font-fantasy text-xs tracking-wider" style={{ color: ACCENT }}>
+            Custom Words ({filteredCustom.length})
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {filteredCustom.map(row => (
+              <div
+                key={row.id}
+                data-testid={`filter-word-custom-${row.id}`}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+                style={{
+                  background: "rgba(252,165,165,0.12)",
+                  border: "1px solid rgba(252,165,165,0.3)",
+                }}
+              >
+                <span className="font-sans text-xs" style={{ color: "#fecaca" }}>{row.word}</span>
+                {row.addedBy && (
+                  <span className="font-sans" style={{ color: "rgba(200,184,150,0.4)", fontSize: 9 }}>by {row.addedBy}</span>
+                )}
+                <button
+                  data-testid={`button-remove-filter-word-${row.id}`}
+                  onClick={() => deleteMutation.mutate(row.id)}
+                  className="flex items-center justify-center rounded-full ml-0.5"
+                  style={{
+                    width: 14, height: 14,
+                    background: "rgba(252,165,165,0.15)",
+                    border: "none",
+                    cursor: "pointer",
+                    color: ACCENT,
+                  }}
+                >
+                  <X size={9} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {filteredCustom.length === 0 && !isLoading && (
+        <p className="font-fantasy text-xs" style={{ color: "rgba(200,184,150,0.4)" }}>
+          No custom words added yet. Words in the base list below are always filtered.
+        </p>
+      )}
+
+      {/* Base word list (collapsible) */}
+      <div>
+        <button
+          data-testid="button-toggle-base-words"
+          onClick={() => setShowBase(v => !v)}
+          className="font-fantasy text-xs tracking-wider flex items-center gap-2"
+          style={{ color: "rgba(252,165,165,0.6)", background: "none", border: "none", cursor: "pointer" }}
+        >
+          <span style={{ fontSize: 8 }}>{showBase ? "▼" : "▶"}</span>
+          Built-in filter list ({filteredBase.length} words)
+        </button>
+
+        {showBase && (
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {filteredBase.map(word => (
+              <span
+                key={word}
+                data-testid={`filter-word-base-${word}`}
+                className="font-sans px-2 py-0.5 rounded-full text-xs"
+                style={{
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(252,165,165,0.15)",
+                  color: "rgba(200,184,150,0.6)",
+                  fontSize: 10,
+                }}
+              >
+                {word}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

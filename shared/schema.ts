@@ -729,3 +729,13 @@ export const worldChatMessages = pgTable("world_chat_messages", {
 });
 
 export type WorldChatMessage = typeof worldChatMessages.$inferSelect;
+
+// ── Chat Filter Words ─────────────────────────────────────────────────────────
+export const chatFilterWords = pgTable("chat_filter_words", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  word: varchar("word", { length: 100 }).notNull().unique(),
+  addedBy: varchar("added_by"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export type ChatFilterWord = typeof chatFilterWords.$inferSelect;

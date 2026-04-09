@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import { X, Send } from "lucide-react";
+import { X, Send, ShieldAlert } from "lucide-react";
 
 interface WorldChatMessage {
   id: string;
@@ -31,10 +30,11 @@ function timeAgo(dateStr: string): string {
 export default function WorldChatPanel({ currentUserId, onClose }: WorldChatPanelProps) {
   const [input, setInput] = useState("");
   const [cooldown, setCooldown] = useState(0);
+  const [popupMsg, setPopupMsg] = useState<string | null>(null);
+  const [popupIsRestricted, setPopupIsRestricted] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const qc = useQueryClient();
-  const { toast } = useToast();
 
   const { data: messages = [] } = useQuery<WorldChatMessage[]>({
     queryKey: ["/api/world-chat"],
@@ -69,8 +69,12 @@ export default function WorldChatPanel({ currentUserId, onClose }: WorldChatPane
       } catch {}
       if (body?.retryAfter) {
         setCooldown(body.retryAfter);
+        setPopupIsRestricted(false);
+        setPopupMsg(`Please wait ${body.retryAfter}s before sending again.`);
+      } else {
+        setPopupIsRestricted(!!body?.restricted);
+        setPopupMsg(body?.message ?? "Something went wrong. Please try again.");
       }
-      toast({ title: "Cannot send", description: body?.message ?? "Something went wrong", variant: "destructive" });
     },
   });
 
@@ -229,7 +233,7 @@ export default function WorldChatPanel({ currentUserId, onClose }: WorldChatPane
               value={input}
               onChange={e => setInput(e.target.value.slice(0, MAX_LENGTH))}
               onKeyDown={handleKeyDown}
-              placeholder="Say something..."
+              placeholder="Say something... (emojis welcome!)"
               rows={2}
               enterKeyHint="send"
               inputMode="text"
@@ -282,6 +286,62 @@ export default function WorldChatPanel({ currentUserId, onClose }: WorldChatPane
           </button>
         </div>
       </form>
+
+      {/* In-panel error/restricted popup */}
+      {popupMsg && (
+        <div
+          className="absolute inset-0 flex items-center justify-center px-4"
+          style={{ background: "rgba(4,2,1,0.92)", zIndex: 10 }}
+        >
+          <div
+            className="w-full rounded-2xl px-4 py-5 flex flex-col items-center gap-3"
+            style={{
+              background: popupIsRestricted
+                ? "linear-gradient(160deg, rgba(80,10,10,0.98) 0%, rgba(40,5,5,0.98) 100%)"
+                : "linear-gradient(160deg, rgba(20,12,4,0.98) 0%, rgba(10,6,2,0.98) 100%)",
+              border: `1.5px solid ${popupIsRestricted ? "rgba(248,113,113,0.5)" : "rgba(212,160,23,0.4)"}`,
+              boxShadow: popupIsRestricted
+                ? "0 0 30px rgba(248,113,113,0.15)"
+                : "0 0 30px rgba(212,160,23,0.1)",
+            }}
+          >
+            <div
+              className="w-10 h-10 rounded-full flex items-center justify-center"
+              style={{
+                background: popupIsRestricted ? "rgba(248,113,113,0.15)" : "rgba(240,192,64,0.12)",
+                border: `1.5px solid ${popupIsRestricted ? "rgba(248,113,113,0.4)" : "rgba(240,192,64,0.3)"}`,
+              }}
+            >
+              <ShieldAlert size={18} style={{ color: popupIsRestricted ? "#f87171" : GOLD }} />
+            </div>
+            <p
+              className="font-fantasy text-center text-xs leading-relaxed"
+              style={{ color: popupIsRestricted ? "#f87171" : GOLD }}
+            >
+              {popupIsRestricted ? "Message Restricted" : "Cannot Send"}
+            </p>
+            <p
+              className="font-sans text-center leading-relaxed"
+              style={{ color: "rgba(200,184,150,0.8)", fontSize: 11 }}
+            >
+              {popupMsg}
+            </p>
+            <button
+              data-testid="button-dismiss-chat-popup"
+              onClick={() => setPopupMsg(null)}
+              className="px-6 py-1.5 rounded-full font-fantasy text-xs tracking-wider transition-transform active:scale-95"
+              style={{
+                background: popupIsRestricted ? "rgba(248,113,113,0.15)" : "rgba(240,192,64,0.12)",
+                border: `1px solid ${popupIsRestricted ? "rgba(248,113,113,0.4)" : "rgba(240,192,64,0.3)"}`,
+                color: popupIsRestricted ? "#f87171" : GOLD,
+                cursor: "pointer",
+              }}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

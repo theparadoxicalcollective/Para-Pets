@@ -1233,25 +1233,25 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           <button
             data-testid="button-open-world-chat"
             onClick={() => setShowWorldChat(v => !v)}
-            className="absolute z-30 flex items-center justify-center rounded-full transition-transform active:scale-90"
+            className="absolute z-30 rounded-full overflow-hidden transition-transform active:scale-90"
             style={{
               top: "62px",
               right: "54px",
               width: "38px",
               height: "38px",
-              background: showWorldChat ? "rgba(127,255,212,0.15)" : "rgba(10,5,2,0.82)",
               border: `1.5px solid ${showWorldChat ? "rgba(127,255,212,0.7)" : "rgba(127,255,212,0.35)"}`,
               cursor: "pointer",
               boxShadow: showWorldChat
                 ? "0 2px 14px rgba(0,0,0,0.6), 0 0 16px rgba(127,255,212,0.35)"
                 : "0 2px 10px rgba(0,0,0,0.5), 0 0 8px rgba(127,255,212,0.15)",
-              padding: 2,
+              padding: 0,
+              background: "transparent",
             }}
           >
             <img
               src={worldChatIconImg}
               alt="World Chat"
-              style={{ width: "100%", height: "100%", objectFit: "contain", filter: showWorldChat ? "brightness(1.2)" : "brightness(0.9)" }}
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", filter: showWorldChat ? "brightness(1.15)" : "brightness(0.95)" }}
             />
           </button>
           {/* Tutorial ? button */}
