@@ -521,7 +521,7 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
       <div style={{ position: "absolute", inset: 0, zIndex: 1, background: "linear-gradient(to bottom, rgba(5,20,10,0.7) 0%, rgba(5,15,8,0.4) 40%, rgba(5,15,8,0.85) 100%)" }} />
 
       <div style={{ position: "relative", zIndex: 2, display: "flex", flexDirection: "column", height: "100dvh" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px 0", paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px 0", paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 52px)" }}>
           <button
             data-testid="button-back-home"
             onClick={() => navigate("/")}

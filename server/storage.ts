@@ -78,6 +78,8 @@ export interface IStorage {
   getAllUsers(): Promise<User[]>;
   banUser(id: string): Promise<User>;
   unbanUser(id: string): Promise<User>;
+  setModerator(id: string, isModerator: boolean): Promise<User>;
+  getTeamMembers(): Promise<{ id: string; username: string; profileImage: string | null; isAdmin: boolean; isModerator: boolean }[]>;
   addCoins(id: string, amount: number): Promise<User>;
   atomicDeductCoins(id: string, amount: number): Promise<User | null>;
   setWelcomeV2Sent(id: string): Promise<void>;
@@ -331,6 +333,23 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, id))
       .returning();
     return user;
+  }
+
+  async setModerator(id: string, isModerator: boolean): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ isModerator })
+      .where(eq(users.id, id))
+      .returning();
+    return user;
+  }
+
+  async getTeamMembers(): Promise<{ id: string; username: string; profileImage: string | null; isAdmin: boolean; isModerator: boolean }[]> {
+    const members = await db
+      .select({ id: users.id, username: users.username, profileImage: users.profileImage, isAdmin: users.isAdmin, isModerator: users.isModerator })
+      .from(users)
+      .where(sql`${users.isAdmin} IS TRUE OR ${users.isModerator} IS TRUE`);
+    return members;
   }
 
   async addCoins(id: string, amount: number): Promise<User> {
@@ -1013,6 +1032,7 @@ export class DatabaseStorage implements IStorage {
       .where(and(
         sql`GREATEST(${users.totalCoinsEarned}, ${users.coins}) > 0`,
         sql`${users.isAdmin} IS NOT TRUE`,
+        sql`${users.isModerator} IS NOT TRUE`,
       ))
       .orderBy(desc(rankScore))
       .limit(limit * 2); // fetch extra to account for excluded usernames
@@ -1559,7 +1579,7 @@ export class DatabaseStorage implements IStorage {
       result: pvpBattles.result,
       battlePointsDelta: pvpBattles.battlePointsDelta,
     }).from(pvpBattles)
-      .leftJoin(users, and(eq(pvpBattles.userId, users.id), eq(users.isAdmin, false)));
+      .leftJoin(users, and(eq(pvpBattles.userId, users.id), eq(users.isAdmin, false), eq(users.isModerator, false)));
 
     const byUser: Record<string, { userId: string; username: string; profileImage: string | null; battlePoints: number; wins: number; losses: number }> = {};
     for (const row of rows) {

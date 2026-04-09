@@ -46,6 +46,7 @@ interface MemberUser {
   profileImage: string | null;
   coins: number;
   isAdmin: boolean;
+  isModerator: boolean;
   isBanned: boolean;
   createdAt: string;
 }
@@ -95,6 +96,21 @@ export default function AdminPage({ user }: AdminPageProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       toast({ title: "Coins Updated", description: "Coins modified successfully" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed", description: err.message || "Action failed", variant: "destructive" });
+    },
+  });
+
+  const moderatorMutation = useMutation({
+    mutationFn: async ({ userId, isModerator }: { userId: string; isModerator: boolean }) => {
+      const res = await apiRequest("PATCH", `/api/admin/moderator/${userId}`, { isModerator });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/team"] });
+      toast({ title: "Updated", description: "Moderator status changed" });
     },
     onError: (err: any) => {
       toast({ title: "Failed", description: err.message || "Action failed", variant: "destructive" });
@@ -312,6 +328,7 @@ export default function AdminPage({ user }: AdminPageProps) {
                               {member.username}
                             </p>
                             {member.isAdmin && <span className="text-yellow-400 text-xs">&#9733;</span>}
+                            {member.isModerator && <span className="font-fantasy text-[10px] tracking-wider" style={{ color: "#c084fc" }}>MOD</span>}
                             {member.isBanned && (
                               <span className="font-fantasy text-[#ff6666] text-[10px] tracking-wider">BANISHED</span>
                             )}
@@ -343,6 +360,25 @@ export default function AdminPage({ user }: AdminPageProps) {
                             }}
                           >
                             {member.isBanned ? "Unbanish" : "Banish"}
+                          </button>
+
+                          <button
+                            data-testid={`button-moderator-${member.id}`}
+                            onClick={() => moderatorMutation.mutate({ userId: member.id, isModerator: !member.isModerator })}
+                            disabled={moderatorMutation.isPending}
+                            className="px-3 py-1.5 rounded-md font-fantasy text-[10px] tracking-wider transition-opacity disabled:opacity-50"
+                            style={{
+                              background: member.isModerator
+                                ? "linear-gradient(135deg, rgba(80,10,80,0.6) 0%, rgba(40,5,40,0.6) 100%)"
+                                : "linear-gradient(135deg, rgba(60,20,80,0.4) 0%, rgba(40,10,60,0.4) 100%)",
+                              border: member.isModerator
+                                ? "1px solid rgba(192,132,252,0.5)"
+                                : "1px solid rgba(192,132,252,0.2)",
+                              color: member.isModerator ? "#e9d5ff" : "#c084fc",
+                              cursor: "pointer",
+                            }}
+                          >
+                            {member.isModerator ? "Remove Mod" : "Make Mod"}
                           </button>
 
                           <div className="flex items-center gap-1 flex-1">

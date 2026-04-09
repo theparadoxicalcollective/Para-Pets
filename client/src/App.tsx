@@ -329,7 +329,7 @@ function AppRouter() {
   return (
     <>
       {/* Base: always mounted, always visible when no overlay is active */}
-      <div style={{ position: "absolute", inset: 0 }}>
+      <div style={{ position: "absolute", inset: 0, isolation: "isolate" }}>
         <HomePage user={user} isOverlayActive={location !== "/"} />
       </div>
 

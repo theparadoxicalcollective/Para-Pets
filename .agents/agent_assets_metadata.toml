@@ -108,6 +108,18 @@ uri = "file://attached_assets/icon_friends_inventory.png"
 type = "image"
 title = "friends inventory icon cartoon"
 
+[[generated]]
+id = "FghVy78Yqf-OParFSCtv3"
+uri = "file://attached_assets/generated_images/badge_admin.png"
+type = "image"
+title = "admin badge gold crown"
+
+[[generated]]
+id = "cdwpEOwIMD4Qs_hPoAjMk"
+uri = "file://attached_assets/generated_images/badge_moderator.png"
+type = "image"
+title = "moderator badge shield swords"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"

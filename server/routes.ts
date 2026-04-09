@@ -2106,6 +2106,34 @@ export async function registerRoutes(
     }
   });
 
+  // ── Team endpoint (public) ────────────────────────────────────────────────
+  app.get("/api/team", async (_req, res) => {
+    try {
+      const team = await storage.getTeamMembers();
+      return res.json(team);
+    } catch (err) {
+      console.error("Get team error:", err);
+      return res.status(500).json({ message: "Failed to get team" });
+    }
+  });
+
+  // ── Moderator management ──────────────────────────────────────────────────
+  app.patch("/api/admin/moderator/:userId", isAdmin, async (req: Request, res: Response) => {
+    try {
+      const target = await storage.getUser((req.params.userId as string));
+      if (!target) return res.status(404).json({ message: "User not found" });
+      if (target.isAdmin) return res.status(400).json({ message: "Cannot change role of admin" });
+      const { isModerator } = req.body;
+      if (typeof isModerator !== "boolean") return res.status(400).json({ message: "isModerator must be boolean" });
+      const updated = await storage.setModerator(target.id, isModerator);
+      const { password: _, ...safe } = updated;
+      return res.json(safe);
+    } catch (err) {
+      console.error("Set moderator error:", err);
+      return res.status(500).json({ message: "Failed to update moderator status" });
+    }
+  });
+
   app.post("/api/admin/reset-password/:userId", isAdmin, async (req, res) => {
     try {
       const target = await storage.getUser((req.params.userId as string));

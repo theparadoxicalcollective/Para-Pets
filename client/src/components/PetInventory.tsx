@@ -261,7 +261,7 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
         <div className="relative z-10 flex flex-col h-full overflow-hidden">
 
           {/* Header */}
-          <div className="px-4 pb-0" style={{ paddingTop: pageMode && !showBag ? 8 : 40 }}>
+          <div className="px-4 pb-0" style={{ paddingTop: pageMode && !showBag ? 8 : 56 }}>
             <div className="flex items-center justify-between mb-3">
               {pageMode ? (
                 /* Page mode: slim count row */

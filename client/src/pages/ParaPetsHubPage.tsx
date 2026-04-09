@@ -865,6 +865,12 @@ export default function ParaPetsHubPage() {
 
   const { data: user } = useQuery<any>({ queryKey: ["/api/auth/me"], retry: false });
 
+  const { data: team } = useQuery<{ id: string; username: string; profileImage: string | null; isAdmin: boolean; isModerator: boolean }[]>({
+    queryKey: ["/api/team"],
+    retry: false,
+    staleTime: 60_000,
+  });
+
   const { data: leaderboard, isLoading: lbLoading } = useQuery<LeaderboardEntry[]>({
     queryKey: ["/api/badges/leaderboard"],
     retry: false,
@@ -1206,6 +1212,102 @@ export default function ParaPetsHubPage() {
               </>
             )}
           </div>
+
+          {/* ── Meet the Team ─────────────────────────────────────────────── */}
+          {team && team.length > 0 && (
+            <>
+              <RuneDivider />
+              <div data-testid="team-section" className="flex flex-col items-center gap-5 mb-2">
+                <div className="flex flex-col items-center gap-1">
+                  <h2 className="font-fantasy text-lg tracking-widest"
+                    style={{ color: "#c084fc", textShadow: "0 0 18px rgba(192,132,252,0.5), 0 2px 10px rgba(0,0,0,0.9)" }}>
+                    The Guardians
+                  </h2>
+                  <p className="font-fantasy text-[10px] tracking-widest" style={{ color: "rgba(192,132,252,0.45)" }}>
+                    The team behind Para Pets
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap justify-center gap-5">
+                  {[...team].sort((a, b) => (b.isAdmin ? 1 : 0) - (a.isAdmin ? 1 : 0)).map(member => {
+                    const isAdmin = member.isAdmin;
+                    const roleLabel = isAdmin ? "Realm Admin" : "Moderator";
+                    const roleColor = isAdmin ? "#f0c040" : "#c084fc";
+                    const roleBorder = isAdmin ? "rgba(240,192,64,0.5)" : "rgba(192,132,252,0.4)";
+                    const roleGlow  = isAdmin ? "rgba(240,192,64,0.35)" : "rgba(192,132,252,0.3)";
+                    const statusLabel = isAdmin ? "Online & Watching" : "Moderating";
+
+                    return (
+                      <div
+                        key={member.id}
+                        data-testid={`team-card-${member.id}`}
+                        className="flex flex-col items-center gap-2"
+                        style={{ minWidth: 90 }}
+                      >
+                        <div
+                          className="relative"
+                          style={{
+                            width: isAdmin ? 72 : 60,
+                            height: isAdmin ? 72 : 60,
+                            borderRadius: "50%",
+                            border: `2.5px solid ${roleBorder}`,
+                            boxShadow: `0 0 20px ${roleGlow}, 0 4px 12px rgba(0,0,0,0.7)`,
+                            overflow: "hidden",
+                            background: isAdmin
+                              ? "linear-gradient(135deg, #2a1a00, #4a3000)"
+                              : "linear-gradient(135deg, #1a0a2a, #2a1040)",
+                          }}
+                        >
+                          {member.profileImage ? (
+                            <img
+                              src={member.profileImage}
+                              alt={member.username}
+                              data-testid={`img-team-${member.id}`}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center font-fantasy font-bold"
+                              style={{ color: roleColor, fontSize: isAdmin ? 24 : 20 }}>
+                              {member.username[0]?.toUpperCase()}
+                            </div>
+                          )}
+                          <div className="absolute inset-0 rounded-full pointer-events-none"
+                            style={{ boxShadow: `inset 0 0 12px ${roleGlow}` }} />
+                        </div>
+
+                        <p className="font-fantasy text-xs text-center tracking-wide"
+                          style={{ color: roleColor, textShadow: `0 0 8px ${roleGlow}`, maxWidth: 90 }}
+                          data-testid={`text-team-name-${member.id}`}>
+                          {member.username}
+                        </p>
+
+                        <div
+                          className="flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-xl"
+                          style={{
+                            background: isAdmin
+                              ? "linear-gradient(135deg, rgba(40,24,0,0.9), rgba(60,36,0,0.9))"
+                              : "linear-gradient(135deg, rgba(20,8,36,0.9), rgba(30,10,52,0.9))",
+                            border: `1px solid ${roleBorder}`,
+                            boxShadow: `0 2px 8px rgba(0,0,0,0.5)`,
+                          }}
+                        >
+                          <span className="font-fantasy text-[9px] tracking-widest" style={{ color: roleColor }}>
+                            {roleLabel}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#4ade80", boxShadow: "0 0 4px rgba(74,222,128,0.8)" }} />
+                            <span className="font-fantasy text-[8px] tracking-wider" style={{ color: "rgba(180,220,180,0.7)" }}>
+                              {statusLabel}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          )}
 
           {/* ── Add to Home Screen footer CTA ──────────────────────────────── */}
           <RuneDivider />
