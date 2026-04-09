@@ -249,132 +249,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                 </svg>
               </button>
             )}
-            <div className="relative" ref={friendsListRef}>
-                <button
-                  data-testid="button-friends-icon"
-                  onClick={() => setShowFriendsList(v => !v)}
-                  className="topbar-icon-size-sm flex-shrink-0 flex items-center justify-center transition-transform duration-150 active:scale-90"
-                  style={{
-                    background: showFriendsList
-                      ? "linear-gradient(135deg, rgba(74,222,128,0.35) 0%, rgba(22,163,74,0.3) 100%)"
-                      : "linear-gradient(135deg, rgba(74,222,128,0.12) 0%, rgba(22,163,74,0.12) 100%)",
-                    border: `2px solid ${showFriendsList ? "rgba(74,222,128,0.8)" : "rgba(74,222,128,0.45)"}`,
-                    cursor: "pointer",
-                    boxShadow: showFriendsList
-                      ? "0 2px 10px rgba(0,0,0,0.6), 0 0 18px rgba(74,222,128,0.35)"
-                      : "0 2px 10px rgba(0,0,0,0.6), 0 0 14px rgba(74,222,128,0.12)",
-                    borderRadius: "10px",
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: "drop-shadow(0 0 4px rgba(74,222,128,0.5))" }}>
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                    <circle cx="9" cy="7" r="4"/>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                  </svg>
-                </button>
-
-                {showFriendsList && (
-                  <div
-                    data-testid="popup-friends-list"
-                    style={{
-                      position: "absolute",
-                      top: "calc(100% + 6px)",
-                      left: 0,
-                      width: 250,
-                      maxHeight: "55vh",
-                      overflowY: "auto",
-                      zIndex: 99999,
-                      background: "rgba(4,10,6,0.98)",
-                      border: "1.5px solid rgba(127,255,212,0.2)",
-                      borderRadius: 14,
-                      boxShadow: "0 8px 40px rgba(0,0,0,0.85), 0 0 30px rgba(127,255,212,0.06)",
-                      padding: "10px 12px 14px",
-                    }}
-                  >
-                    <p className="font-fantasy tracking-widest mb-3" style={{ fontSize: 9, color: "rgba(127,255,212,0.7)", letterSpacing: "0.2em" }}>
-                      FRIENDS
-                    </p>
-
-                    {/* Pending requests */}
-                    {friendRequestsList.length > 0 && (
-                      <div style={{ marginBottom: 12 }}>
-                        <p className="font-fantasy text-[9px] tracking-widest uppercase" style={{ color: "rgba(127,255,212,0.6)", marginBottom: 6 }}>
-                          Requests ({friendRequestsList.length})
-                        </p>
-                        <div className="flex flex-col gap-2">
-                          {friendRequestsList.map((req: any) => (
-                            <div
-                              key={req.id}
-                              data-testid={`friend-request-${req.id}`}
-                              style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 10, background: "rgba(127,255,212,0.06)", border: "1px solid rgba(127,255,212,0.12)" }}
-                            >
-                              {req.profileImage ? (
-                                <img src={req.profileImage} alt={req.username} style={{ width: 26, height: 26, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(127,255,212,0.3)", flexShrink: 0 }} />
-                              ) : (
-                                <div style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(127,255,212,0.1)", border: "1px solid rgba(127,255,212,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                                  <span style={{ fontSize: 10, color: "#7fffd4", fontWeight: "bold" }}>{(req.username ?? "?").charAt(0).toUpperCase()}</span>
-                                </div>
-                              )}
-                              <span className="font-fantasy text-xs flex-1 truncate" style={{ color: "#d4e8da", fontSize: 11 }}>{req.username}</span>
-                              <button
-                                data-testid={`button-accept-${req.id}`}
-                                onClick={() => acceptMutation.mutate({ requestId: req.id, username: req.username })}
-                                disabled={acceptMutation.isPending}
-                                className="font-fantasy tracking-wider"
-                                style={{ fontSize: 9, padding: "2px 6px", borderRadius: 6, background: "rgba(74,222,128,0.2)", border: "1px solid rgba(74,222,128,0.45)", color: "#4ade80", cursor: "pointer" }}
-                              >✓</button>
-                              <button
-                                data-testid={`button-decline-${req.id}`}
-                                onClick={() => declineMutation.mutate(req.requesterId)}
-                                disabled={declineMutation.isPending}
-                                className="font-fantasy tracking-wider"
-                                style={{ fontSize: 9, padding: "2px 6px", borderRadius: 6, background: "rgba(248,113,113,0.15)", border: "1px solid rgba(248,113,113,0.35)", color: "#f87171", cursor: "pointer" }}
-                              >✕</button>
-                            </div>
-                          ))}
-                        </div>
-                        <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(127,255,212,0.2), transparent)", margin: "10px 0" }} />
-                      </div>
-                    )}
-
-                    {/* Friends list */}
-                    <p className="font-fantasy text-[9px] tracking-widest uppercase" style={{ color: "rgba(127,255,212,0.6)", marginBottom: 6 }}>
-                      My Friends ({friendsList.length})
-                    </p>
-                    {friendsList.length === 0 && friendRequestsList.length === 0 && (
-                      <p className="font-fantasy text-xs text-center" style={{ color: "#5a8070", padding: "10px 0", fontSize: 11 }}>No friends yet — explore and add some!</p>
-                    )}
-                    {friendsList.length === 0 && friendRequestsList.length > 0 && (
-                      <p className="font-fantasy text-xs text-center" style={{ color: "#5a8070", padding: "4px 0", fontSize: 11 }}>No friends yet</p>
-                    )}
-                    <div className="flex flex-col gap-1.5">
-                      {friendsList.map((f: any) => (
-                        <button
-                          key={f.id}
-                          data-testid={`friend-row-${f.friendId}`}
-                          onClick={() => { setShowFriendsList(false); setSelectedFriend({ id: f.friendId, username: f.username }); }}
-                          style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 8px", borderRadius: 10, background: "rgba(127,255,212,0.04)", border: "1px solid rgba(127,255,212,0.1)", cursor: "pointer", width: "100%", textAlign: "left", transition: "background 0.15s" }}
-                          onMouseEnter={e => (e.currentTarget.style.background = "rgba(127,255,212,0.09)")}
-                          onMouseLeave={e => (e.currentTarget.style.background = "rgba(127,255,212,0.04)")}
-                        >
-                          {f.profileImage ? (
-                            <img src={f.profileImage} alt={f.username} style={{ width: 26, height: 26, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(212,160,23,0.35)", flexShrink: 0 }} />
-                          ) : (
-                            <div style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(212,160,23,0.1)", border: "1px solid rgba(212,160,23,0.35)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                              <span style={{ fontSize: 10, color: "#d4a017", fontWeight: "bold" }}>{(f.username ?? "?").charAt(0).toUpperCase()}</span>
-                            </div>
-                          )}
-                          <span className="font-fantasy flex-1 truncate" style={{ color: "#d4e8da", fontSize: 11 }}>{f.username}</span>
-                          <span style={{ fontSize: 9, color: "rgba(127,255,212,0.3)" }}>›</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-            {/* Admin messages envelope — below friends icon, only when messages exist */}
+            {/* Admin messages envelope — below profile photo, only when messages exist */}
             {adminMsgs.length > 0 && (
               <div className="relative" ref={adminMsgRef}>
                 <button
@@ -537,6 +412,132 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                 </span>
                 <span className="font-fantasy text-[#d4a017] text-[8px]">+</span>
               </button>
+
+              {/* Friends list button — moved here to avoid adding height to the photo column */}
+              <div className="relative" ref={friendsListRef}>
+                <button
+                  data-testid="button-friends-icon"
+                  onClick={() => setShowFriendsList(v => !v)}
+                  className="w-7 h-7 flex-shrink-0 flex items-center justify-center transition-transform duration-150 active:scale-90"
+                  style={{
+                    background: showFriendsList
+                      ? "linear-gradient(135deg, rgba(74,222,128,0.35) 0%, rgba(22,163,74,0.3) 100%)"
+                      : "linear-gradient(135deg, rgba(74,222,128,0.12) 0%, rgba(22,163,74,0.12) 100%)",
+                    border: `1.5px solid ${showFriendsList ? "rgba(74,222,128,0.8)" : "rgba(74,222,128,0.45)"}`,
+                    cursor: "pointer",
+                    boxShadow: showFriendsList
+                      ? "0 2px 8px rgba(0,0,0,0.6), 0 0 12px rgba(74,222,128,0.35)"
+                      : "0 2px 6px rgba(0,0,0,0.5), 0 0 8px rgba(74,222,128,0.12)",
+                    borderRadius: "8px",
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: "drop-shadow(0 0 3px rgba(74,222,128,0.5))" }}>
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                  </svg>
+                </button>
+
+                {showFriendsList && (
+                  <div
+                    data-testid="popup-friends-list"
+                    style={{
+                      position: "absolute",
+                      top: "calc(100% + 6px)",
+                      left: 0,
+                      width: 250,
+                      maxHeight: "55vh",
+                      overflowY: "auto",
+                      zIndex: 99999,
+                      background: "rgba(4,10,6,0.98)",
+                      border: "1.5px solid rgba(127,255,212,0.2)",
+                      borderRadius: 14,
+                      boxShadow: "0 8px 40px rgba(0,0,0,0.85), 0 0 30px rgba(127,255,212,0.06)",
+                      padding: "10px 12px 14px",
+                    }}
+                  >
+                    <p className="font-fantasy tracking-widest mb-3" style={{ fontSize: 9, color: "rgba(127,255,212,0.7)", letterSpacing: "0.2em" }}>
+                      FRIENDS
+                    </p>
+
+                    {/* Pending requests */}
+                    {friendRequestsList.length > 0 && (
+                      <div style={{ marginBottom: 12 }}>
+                        <p className="font-fantasy text-[9px] tracking-widest uppercase" style={{ color: "rgba(127,255,212,0.6)", marginBottom: 6 }}>
+                          Requests ({friendRequestsList.length})
+                        </p>
+                        <div className="flex flex-col gap-2">
+                          {friendRequestsList.map((req: any) => (
+                            <div
+                              key={req.id}
+                              data-testid={`friend-request-${req.id}`}
+                              style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 10, background: "rgba(127,255,212,0.06)", border: "1px solid rgba(127,255,212,0.12)" }}
+                            >
+                              {req.profileImage ? (
+                                <img src={req.profileImage} alt={req.username} style={{ width: 26, height: 26, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(127,255,212,0.3)", flexShrink: 0 }} />
+                              ) : (
+                                <div style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(127,255,212,0.1)", border: "1px solid rgba(127,255,212,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                  <span style={{ fontSize: 10, color: "#7fffd4", fontWeight: "bold" }}>{(req.username ?? "?").charAt(0).toUpperCase()}</span>
+                                </div>
+                              )}
+                              <span className="font-fantasy text-xs flex-1 truncate" style={{ color: "#d4e8da", fontSize: 11 }}>{req.username}</span>
+                              <button
+                                data-testid={`button-accept-${req.id}`}
+                                onClick={() => acceptMutation.mutate({ requestId: req.id, username: req.username })}
+                                disabled={acceptMutation.isPending}
+                                className="font-fantasy tracking-wider"
+                                style={{ fontSize: 9, padding: "2px 6px", borderRadius: 6, background: "rgba(74,222,128,0.2)", border: "1px solid rgba(74,222,128,0.45)", color: "#4ade80", cursor: "pointer" }}
+                              >✓</button>
+                              <button
+                                data-testid={`button-decline-${req.id}`}
+                                onClick={() => declineMutation.mutate(req.requesterId)}
+                                disabled={declineMutation.isPending}
+                                className="font-fantasy tracking-wider"
+                                style={{ fontSize: 9, padding: "2px 6px", borderRadius: 6, background: "rgba(248,113,113,0.15)", border: "1px solid rgba(248,113,113,0.35)", color: "#f87171", cursor: "pointer" }}
+                              >✕</button>
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(127,255,212,0.2), transparent)", margin: "10px 0" }} />
+                      </div>
+                    )}
+
+                    {/* Friends list */}
+                    <p className="font-fantasy text-[9px] tracking-widest uppercase" style={{ color: "rgba(127,255,212,0.6)", marginBottom: 6 }}>
+                      My Friends ({friendsList.length})
+                    </p>
+                    {friendsList.length === 0 && friendRequestsList.length === 0 && (
+                      <p className="font-fantasy text-xs text-center" style={{ color: "#5a8070", padding: "10px 0", fontSize: 11 }}>No friends yet — explore and add some!</p>
+                    )}
+                    {friendsList.length === 0 && friendRequestsList.length > 0 && (
+                      <p className="font-fantasy text-xs text-center" style={{ color: "#5a8070", padding: "4px 0", fontSize: 11 }}>No friends yet</p>
+                    )}
+                    <div className="flex flex-col gap-1.5">
+                      {friendsList.map((f: any) => (
+                        <button
+                          key={f.id}
+                          data-testid={`friend-row-${f.friendId}`}
+                          onClick={() => { setShowFriendsList(false); setSelectedFriend({ id: f.friendId, username: f.username }); }}
+                          style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 8px", borderRadius: 10, background: "rgba(127,255,212,0.04)", border: "1px solid rgba(127,255,212,0.1)", cursor: "pointer", width: "100%", textAlign: "left", transition: "background 0.15s" }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "rgba(127,255,212,0.09)")}
+                          onMouseLeave={e => (e.currentTarget.style.background = "rgba(127,255,212,0.04)")}
+                        >
+                          {f.profileImage ? (
+                            <img src={f.profileImage} alt={f.username} style={{ width: 26, height: 26, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(212,160,23,0.35)", flexShrink: 0 }} />
+                          ) : (
+                            <div style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(212,160,23,0.1)", border: "1px solid rgba(212,160,23,0.35)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                              <span style={{ fontSize: 10, color: "#d4a017", fontWeight: "bold" }}>{(f.username ?? "?").charAt(0).toUpperCase()}</span>
+                            </div>
+                          )}
+                          <span className="font-fantasy flex-1 truncate" style={{ color: "#d4e8da", fontSize: 11 }}>{f.username}</span>
+                          <span style={{ fontSize: 9, color: "rgba(127,255,212,0.3)" }}>›</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {hasRewards && (
                 <button
