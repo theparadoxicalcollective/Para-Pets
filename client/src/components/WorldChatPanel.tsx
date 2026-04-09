@@ -102,7 +102,7 @@ export default function WorldChatPanel({ currentUserId, onClose }: WorldChatPane
       data-testid="panel-world-chat"
       className="absolute flex flex-col"
       style={{
-        top: 12,
+        top: 56,
         right: 12,
         width: "min(320px, calc(100vw - 24px))",
         height: "min(420px, 58vh)",
