@@ -2829,74 +2829,98 @@ export default function WorldPage({ user }: WorldPageProps) {
                   const canAfford = currentUser.coins >= item.price;
                   const descLines = getItemDescription(item);
                   return (
-                    <div
-                      key={item.id}
-                      data-testid={`card-shop-item-${item.id}`}
-                      className="relative flex flex-col items-center rounded-2xl transition-transform active:scale-95"
-                      style={{
-                        background: "linear-gradient(160deg, rgba(255,255,255,0.06) 0%, rgba(0,0,0,0.35) 100%)",
-                        border: `1.5px solid ${accent}30`,
-                        boxShadow: `0 2px 16px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)`,
-                        cursor: "pointer",
-                        padding: "10px 8px 8px",
-                      }}
-                      onClick={() => {
-                        if (currentUser.isAdmin) return;
-                        playTick();
-                        setSelectedShopItem(item);
-                        setBuyStep(1);
-                        setBuyQty(1);
-                        setBuyError(null);
-                      }}
-                    >
-                      {/* Admin remove button */}
-                      {currentUser.isAdmin && (
+                    <div key={item.id} className="flex flex-col items-stretch gap-1.5">
+                      {/* ── Price tag card (display only) ── */}
+                      <div
+                        data-testid={`card-shop-item-${item.id}`}
+                        className="relative flex flex-col items-center rounded-2xl"
+                        style={{
+                          background: "linear-gradient(160deg, rgba(255,255,255,0.06) 0%, rgba(0,0,0,0.35) 100%)",
+                          border: `1.5px solid ${accent}30`,
+                          boxShadow: `0 2px 16px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)`,
+                          padding: "10px 8px 8px",
+                        }}
+                      >
+                        {/* Admin remove button */}
+                        {currentUser.isAdmin && (
+                          <button
+                            data-testid={`button-unassign-item-${item.id}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (activeLocationId) unassignItemMutation.mutate({ locationId: activeLocationId, itemId: item.id });
+                            }}
+                            className="absolute -top-2 -right-2 z-10 w-5 h-5 rounded-full flex items-center justify-center"
+                            style={{ background: "rgba(220,38,38,0.95)", border: "1px solid rgba(255,100,100,0.6)", cursor: "pointer" }}
+                          >
+                            <X className="w-3 h-3 text-white" />
+                          </button>
+                        )}
+                        {/* Owned badge */}
+                        {isOwned && (
+                          <div className="absolute top-1 left-1 z-10 px-1.5 py-0.5 rounded-full font-fantasy" style={{ fontSize: "7px", background: "rgba(232,168,0,0.25)", border: "1px solid rgba(232,168,0,0.5)", color: "#e8c84a" }}>
+                            Owned
+                          </div>
+                        )}
+                        {/* Item image */}
+                        <div className="w-full flex items-center justify-center mb-2" style={{ height: "72px" }}>
+                          {imgSrc ? (
+                            <img
+                              src={imgSrc}
+                              alt={item.name}
+                              className="max-w-full max-h-full object-contain"
+                              style={{ filter: `drop-shadow(0 2px 8px rgba(0,0,0,0.7)) drop-shadow(0 0 6px ${accent}30)` }}
+                            />
+                          ) : (
+                            <Package className="w-10 h-10" style={{ color: `${accent}60` }} />
+                          )}
+                        </div>
+                        {/* Item name */}
+                        <p className="font-fantasy text-center text-white leading-tight mb-1" style={{ fontSize: "10px", textShadow: "0 1px 4px rgba(0,0,0,0.8)", lineHeight: "1.3" }}>
+                          {item.name}
+                        </p>
+                        {/* All description lines */}
+                        {descLines.length > 0 && (
+                          <div className="w-full mb-1.5">
+                            {descLines.map((line, i) => (
+                              <p key={i} className="font-fantasy text-center leading-tight" style={{ fontSize: "8px", color: `${accent}bb`, lineHeight: "1.3" }}>
+                                {line}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+                        {/* Price */}
+                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-full mt-auto" style={{ background: canAfford ? `${accent}20` : "rgba(80,60,40,0.25)", border: `1px solid ${canAfford ? accent + "50" : "rgba(100,80,50,0.35)"}` }}>
+                          <img src={coinIconImg} alt="" style={{ width: "9px", height: "9px", objectFit: "contain" }} />
+                          <span className="font-fantasy" style={{ fontSize: "9px", color: canAfford ? accent : "#7a6040", fontWeight: 700 }}>{item.price}</span>
+                        </div>
+                      </div>
+
+                      {/* ── Buy button below the tag ── */}
+                      {!currentUser.isAdmin && (
                         <button
-                          data-testid={`button-unassign-item-${item.id}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (activeLocationId) unassignItemMutation.mutate({ locationId: activeLocationId, itemId: item.id });
+                          data-testid={`button-buy-${item.id}`}
+                          onClick={() => {
+                            playTick();
+                            setSelectedShopItem(item);
+                            setBuyStep(1);
+                            setBuyQty(1);
+                            setBuyError(null);
                           }}
-                          className="absolute -top-2 -right-2 z-10 w-5 h-5 rounded-full flex items-center justify-center"
-                          style={{ background: "rgba(220,38,38,0.95)", border: "1px solid rgba(255,100,100,0.6)", cursor: "pointer" }}
+                          className="w-full font-fantasy font-bold tracking-wide rounded-xl transition-transform active:scale-95"
+                          style={{
+                            padding: "7px 0",
+                            fontSize: "10px",
+                            letterSpacing: "0.08em",
+                            background: canAfford ? `linear-gradient(135deg, rgba(115,62,10,0.95) 0%, rgba(78,40,6,0.95) 100%)` : "rgba(60,45,25,0.4)",
+                            border: `1.5px solid ${canAfford ? "rgba(220,148,42,0.85)" : "rgba(100,75,40,0.25)"}`,
+                            color: canAfford ? "#ffd04a" : "#5a4830",
+                            cursor: canAfford ? "pointer" : "default",
+                            boxShadow: canAfford ? "0 3px 10px rgba(90,45,0,0.4)" : "none",
+                          }}
                         >
-                          <X className="w-3 h-3 text-white" />
+                          Buy
                         </button>
                       )}
-                      {/* Owned badge */}
-                      {isOwned && (
-                        <div className="absolute top-1 left-1 z-10 px-1.5 py-0.5 rounded-full font-fantasy" style={{ fontSize: "7px", background: "rgba(232,168,0,0.25)", border: "1px solid rgba(232,168,0,0.5)", color: "#e8c84a" }}>
-                          Owned
-                        </div>
-                      )}
-                      {/* Item image */}
-                      <div className="w-full flex items-center justify-center mb-2" style={{ height: "72px" }}>
-                        {imgSrc ? (
-                          <img
-                            src={imgSrc}
-                            alt={item.name}
-                            className="max-w-full max-h-full object-contain"
-                            style={{ filter: `drop-shadow(0 2px 8px rgba(0,0,0,0.7)) drop-shadow(0 0 6px ${accent}30)` }}
-                          />
-                        ) : (
-                          <Package className="w-10 h-10" style={{ color: `${accent}60` }} />
-                        )}
-                      </div>
-                      {/* Item name */}
-                      <p className="font-fantasy text-center text-white leading-tight mb-1.5" style={{ fontSize: "10px", textShadow: "0 1px 4px rgba(0,0,0,0.8)", lineHeight: "1.3" }}>
-                        {item.name}
-                      </p>
-                      {/* Description hint */}
-                      {descLines.length > 0 && (
-                        <p className="font-fantasy text-center leading-tight mb-1.5" style={{ fontSize: "8px", color: `${accent}bb`, lineHeight: "1.2" }}>
-                          {descLines[0]}
-                        </p>
-                      )}
-                      {/* Price */}
-                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: canAfford ? `${accent}20` : "rgba(80,60,40,0.25)", border: `1px solid ${canAfford ? accent + "50" : "rgba(100,80,50,0.35)"}` }}>
-                        <img src={coinIconImg} alt="" style={{ width: "9px", height: "9px", objectFit: "contain" }} />
-                        <span className="font-fantasy" style={{ fontSize: "9px", color: canAfford ? accent : "#7a6040", fontWeight: 700 }}>{item.price}</span>
-                      </div>
                     </div>
                   );
                 })}
