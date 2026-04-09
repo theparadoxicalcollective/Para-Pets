@@ -245,7 +245,7 @@ export const loginSchema = z.object({
 });
 
 export const updateUsernameSchema = z.object({
-  username: z.string().min(3).max(20).regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
+  username: z.string().min(3).max(20).regex(/^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)*$/, "Username can only contain letters, numbers, underscores, and periods (periods cannot be at the start or end)"),
 });
 
 export const updateProfilePicSchema = z.object({

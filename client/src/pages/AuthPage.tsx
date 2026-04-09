@@ -213,7 +213,7 @@ export default function AuthPage() {
       if (!email.trim()) errs.email = "Email is required";
       else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = "Please enter a valid email address";
       if (!username.trim()) errs.username = "Username is required";
-      else if (!/^[a-zA-Z0-9_]+$/.test(username)) errs.username = "Letters, numbers and underscores only";
+      else if (!/^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)*$/.test(username)) errs.username = "Letters, numbers, underscores, and periods only (periods cannot be at the start or end)";
       else if (username.length < 3 || username.length > 20) errs.username = "Must be between 3 and 20 characters";
       if (!password) errs.password = "Password is required";
       else if (password.length < 6) errs.password = "Must be at least 6 characters";
