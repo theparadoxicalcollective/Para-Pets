@@ -37,6 +37,7 @@ export default function WorldChatPanel({ currentUserId, onClose }: WorldChatPane
   const [popupMsg, setPopupMsg] = useState<string | null>(null);
   const [popupIsRestricted, setPopupIsRestricted] = useState(false);
   const [viewingPlayerId, setViewingPlayerId] = useState<string | null>(null);
+  const [inputFocused, setInputFocused] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const qc = useQueryClient();
@@ -101,7 +102,7 @@ export default function WorldChatPanel({ currentUserId, onClose }: WorldChatPane
       data-testid="panel-world-chat"
       className="absolute flex flex-col"
       style={{
-        bottom: 80,
+        top: 12,
         right: 12,
         width: "min(320px, calc(100vw - 24px))",
         height: "min(420px, 58vh)",
@@ -226,6 +227,13 @@ export default function WorldChatPanel({ currentUserId, onClose }: WorldChatPane
             </div>
           );
         })}
+        {/* Blinking typing cursor */}
+        {inputFocused && (
+          <div className="px-3 pt-1 pb-0.5 flex items-center gap-1.5">
+            <span className="chat-cursor-blink" style={{ fontSize: 13, color: "rgba(240,192,64,0.55)", lineHeight: 1 }}>𖤓</span>
+            <span style={{ fontSize: 9, color: "rgba(200,184,150,0.35)", fontFamily: "Lora, serif", letterSpacing: "0.05em" }}>composing…</span>
+          </div>
+        )}
       </div>
 
       {/* Input area */}
@@ -242,6 +250,8 @@ export default function WorldChatPanel({ currentUserId, onClose }: WorldChatPane
               value={input}
               onChange={e => setInput(e.target.value.slice(0, MAX_LENGTH))}
               onKeyDown={handleKeyDown}
+              onFocus={() => setInputFocused(true)}
+              onBlur={() => setInputFocused(false)}
               placeholder="Say something... (emojis welcome!)"
               rows={2}
               enterKeyHint="send"
