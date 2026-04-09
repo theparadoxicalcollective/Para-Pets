@@ -3043,7 +3043,7 @@ export default function WorldPage({ user }: WorldPageProps) {
               {buyStep === 1 && (
                 <div
                   className="absolute flex flex-col justify-between"
-                  style={{ top: "41%", left: "29%", right: "29%", bottom: "18%", overflow: "hidden" }}
+                  style={{ top: "41%", left: "29%", right: "29%", bottom: "11%", overflow: "hidden" }}
                 >
                   {/* TOP: item name */}
                   <div className="text-center">
