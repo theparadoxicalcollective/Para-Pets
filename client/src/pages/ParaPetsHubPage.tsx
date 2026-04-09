@@ -850,6 +850,21 @@ export default function ParaPetsHubPage() {
   const worldsRef                                 = useRef<HTMLDivElement>(null);
   const challengersRef                            = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    const el = worldsRef.current;
+    if (!el) return;
+    const CARD_STEP = 130 + 12;
+    const timer = setInterval(() => {
+      const maxScroll = el.scrollWidth - el.clientWidth;
+      if (el.scrollLeft >= maxScroll - 8) {
+        el.scrollTo({ left: 0, behavior: "smooth" });
+      } else {
+        el.scrollTo({ left: el.scrollLeft + CARD_STEP, behavior: "smooth" });
+      }
+    }, 3000);
+    return () => clearInterval(timer);
+  }, []);
+
   const scrollChallengers = (dir: "up" | "down") => {
     const el = challengersRef.current;
     if (!el) return;

@@ -4,6 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import petHouseBg from "@assets/generated_images/pet_world_bg.png";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import powerupBagIconPDP from "@assets/generated_images/icon_powerup_bag.png";
+import houseCottageIcon from "@assets/generated_images/house_cottage.png";
 
 interface PlayerDetailPanelProps {
   userId: string;
@@ -162,6 +163,7 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose }: Pl
         data-testid="panel-player-detail"
         className="w-full rounded-t-3xl overflow-hidden"
         style={{
+          position: "relative",
           maxWidth: 480,
           maxHeight: "88dvh",
           overflowY: "auto",
@@ -337,7 +339,8 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose }: Pl
                 }}
               />
               <div className="relative z-10 px-4 pb-3 flex items-center gap-2">
-                <span className="text-lg">🏡</span>
+                <img src={houseCottageIcon} alt="" className="w-7 h-7 object-contain"
+                  style={{ filter: "drop-shadow(0 0 6px rgba(134,239,172,0.5))" }} />
                 <p
                   className="font-fantasy text-sm font-semibold tracking-wide"
                   style={{ color: "#86efac", textShadow: "0 1px 8px rgba(0,0,0,0.9)" }}
