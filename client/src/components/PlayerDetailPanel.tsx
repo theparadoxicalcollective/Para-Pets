@@ -9,6 +9,7 @@ import powerupBagIconPDP from "@assets/generated_images/icon_powerup_bag.png";
 import houseCottageIcon from "@assets/generated_images/nav_icon_home.png";
 import giftIconImg from "@assets/generated_images/gift_icon_forest.png";
 import SendGiftModal from "@/components/SendGiftModal";
+import RoleBadge from "@/components/RoleBadge";
 
 interface PlayerDetailPanelProps {
   userId: string;
@@ -47,6 +48,8 @@ interface PublicProfile {
   id: string;
   username: string;
   profileImage: string | null;
+  isAdmin?: boolean;
+  isModerator?: boolean;
   activePet: ActivePet | null;
   accessories: Accessory[];
 }
@@ -256,13 +259,16 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose }: Pl
                 )}
               </div>
 
-              <p
-                className="font-fantasy text-lg font-semibold tracking-wide"
-                style={{ color: "#f0c040" }}
-                data-testid="text-player-username"
-              >
-                {profile.username}
-              </p>
+              <div className="flex items-center gap-2 flex-wrap justify-center">
+                <p
+                  className="font-fantasy text-lg font-semibold tracking-wide"
+                  style={{ color: "#f0c040" }}
+                  data-testid="text-player-username"
+                >
+                  {profile.username}
+                </p>
+                <RoleBadge isAdmin={profile.isAdmin} isModerator={profile.isModerator} size="sm" />
+              </div>
 
               {/* Friend button — only for logged-in users viewing another player */}
               {!!currentUserId && !isSelf && (

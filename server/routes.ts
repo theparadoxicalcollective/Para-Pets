@@ -1249,6 +1249,8 @@ export async function registerRoutes(
         id: targetUser.id,
         username: targetUser.username,
         profileImage: targetUser.profileImage,
+        isAdmin: targetUser.isAdmin ?? false,
+        isModerator: targetUser.isModerator ?? false,
         activePet,
         accessories,
       });

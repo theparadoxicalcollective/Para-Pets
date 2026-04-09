@@ -9,6 +9,7 @@ import PetAnimator from "@/components/PetAnimator";
 import PvpBattlePage from "./PvpBattlePage";
 import forestBgImg from "@assets/generated_images/pvp_arena_forest_bg.png";
 import swordImg from "@assets/generated_images/pvp_battle_sword.png";
+import RoleBadge from "@/components/RoleBadge";
 
 interface LeaderboardEntry {
   userId: string;
@@ -17,6 +18,8 @@ interface LeaderboardEntry {
   battlePoints: number;
   wins: number;
   losses: number;
+  isAdmin?: boolean;
+  isModerator?: boolean;
 }
 
 interface Opponent {
@@ -24,6 +27,8 @@ interface Opponent {
   username: string;
   profileImage: string | null;
   petInventoryIds: string[];
+  isAdmin?: boolean;
+  isModerator?: boolean;
 }
 
 export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
@@ -187,7 +192,10 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                         <img src={petPawIcon} alt="" style={{ width: 18, height: 18, objectFit: "contain", opacity: 0.5 }} />
                       </div>}
                   <div className="flex-1 min-w-0">
-                    <div className="text-white/90 text-xs font-bold truncate">{entry.username}</div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="text-white/90 text-xs font-bold truncate">{entry.username}</div>
+                      <RoleBadge isAdmin={entry.isAdmin} isModerator={entry.isModerator} />
+                    </div>
                     <div className="text-white/30 text-[9px]">{entry.wins}W · {entry.losses}L</div>
                   </div>
                   <div className="text-right shrink-0">
@@ -358,7 +366,10 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                           <img src={petPawIcon} alt="" style={{ width: 26, height: 26, objectFit: "contain", opacity: 0.5 }} />
                         </div>}
                     <div className="flex-1 text-left">
-                      <div className="text-white/90 text-sm font-bold">{opp.username}</div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="text-white/90 text-sm font-bold">{opp.username}</div>
+                        <RoleBadge isAdmin={opp.isAdmin} isModerator={opp.isModerator} />
+                      </div>
                       <div className="text-white/30 text-[9px]">{opp.petInventoryIds.length} pets in group</div>
                     </div>
                     <div className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 shrink-0" style={{ background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)" }}>

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { X, Send, ShieldAlert } from "lucide-react";
+import RoleBadge from "@/components/RoleBadge";
 
 interface WorldChatMessage {
   id: string;
@@ -10,6 +11,8 @@ interface WorldChatMessage {
   profileImage: string | null;
   message: string;
   createdAt: string;
+  isAdmin?: boolean;
+  isModerator?: boolean;
 }
 
 interface WorldChatPanelProps {
@@ -192,6 +195,7 @@ export default function WorldChatPanel({ currentUserId, onClose }: WorldChatPane
                   >
                     {msg.username}
                   </span>
+                  <RoleBadge isAdmin={msg.isAdmin} isModerator={msg.isModerator} />
                   <span style={{ color: "rgba(200,184,150,0.3)", fontSize: 8 }}>{timeAgo(msg.createdAt)}</span>
                 </div>
                 <div

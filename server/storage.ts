@@ -1632,6 +1632,8 @@ export class DatabaseStorage implements IStorage {
       updatedAt: pvpBattleGroups.updatedAt,
       username: users.username,
       profileImage: users.profileImage,
+      isAdmin: users.isAdmin,
+      isModerator: users.isModerator,
     }).from(pvpBattleGroups)
       .innerJoin(users, and(eq(pvpBattleGroups.userId, users.id), eq(users.isAdmin, false)))
       .orderBy(sql`${pvpBattleGroups.updatedAt} desc`);
@@ -1833,6 +1835,8 @@ export class DatabaseStorage implements IStorage {
       friendId: friendships.receiverId,
       username: users.username,
       profileImage: users.profileImage,
+      isAdmin: users.isAdmin,
+      isModerator: users.isModerator,
     }).from(friendships)
       .leftJoin(users, eq(friendships.receiverId, users.id))
       .where(and(eq(friendships.requesterId, userId), eq(friendships.status, "accepted")));
@@ -1842,6 +1846,8 @@ export class DatabaseStorage implements IStorage {
       friendId: friendships.requesterId,
       username: users.username,
       profileImage: users.profileImage,
+      isAdmin: users.isAdmin,
+      isModerator: users.isModerator,
     }).from(friendships)
       .leftJoin(users, eq(friendships.requesterId, users.id))
       .where(and(eq(friendships.receiverId, userId), eq(friendships.status, "accepted")));
@@ -2258,8 +2264,21 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async getWorldChatMessages(): Promise<WorldChatMessage[]> {
-    return db.select().from(worldChatMessages).orderBy(asc(worldChatMessages.createdAt)).limit(80);
+  async getWorldChatMessages(): Promise<(WorldChatMessage & { isAdmin: boolean; isModerator: boolean })[]> {
+    const rows = await db.select({
+      id: worldChatMessages.id,
+      userId: worldChatMessages.userId,
+      username: worldChatMessages.username,
+      profileImage: worldChatMessages.profileImage,
+      message: worldChatMessages.message,
+      createdAt: worldChatMessages.createdAt,
+      isAdmin: users.isAdmin,
+      isModerator: users.isModerator,
+    }).from(worldChatMessages)
+      .leftJoin(users, eq(worldChatMessages.userId, users.id))
+      .orderBy(asc(worldChatMessages.createdAt))
+      .limit(80);
+    return rows.map(r => ({ ...r, isAdmin: r.isAdmin ?? false, isModerator: r.isModerator ?? false }));
   }
 
   async addWorldChatMessage(data: { userId: string; username: string; profileImage?: string | null; message: string }): Promise<WorldChatMessage> {

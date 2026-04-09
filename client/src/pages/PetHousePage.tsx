@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { MailOpen } from "lucide-react";
+import RoleBadge from "@/components/RoleBadge";
 import { playGrab } from "@/lib/sounds";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -1482,6 +1483,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                         </div>
                       )}
                       <span className="flex-1 truncate text-sm" style={{ color: "#d4e8da", fontFamily: "Lora, serif" }}>{f.username}</span>
+                      <RoleBadge isAdmin={f.isAdmin} isModerator={f.isModerator} />
                       <span style={{ fontSize: 11, color: "rgba(127,255,212,0.3)" }}>›</span>
                     </button>
                   ))}
