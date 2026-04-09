@@ -686,6 +686,24 @@ export async function registerRoutes(
     }
   });
 
+  // ── Public: serve stored media blobs by ID ────────────────────────────────
+  app.get("/api/media/:id", async (req, res) => {
+    try {
+      const result = await db.execute(
+        sql`SELECT mime_type, data FROM media_blobs WHERE id = ${req.params.id}`
+      );
+      if (!result.rows.length) return res.status(404).end();
+      const row = result.rows[0] as any;
+      const buf = Buffer.from(row.data as string, "base64");
+      res.setHeader("Content-Type", row.mime_type);
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      return res.send(buf);
+    } catch (err) {
+      console.error("Media blob serve error:", err);
+      return res.status(500).end();
+    }
+  });
+
   // ── Admin: toggle maintenance mode ────────────────────────────────────────
   app.post("/api/admin/maintenance", isAdmin, async (req, res) => {
     try {
@@ -3116,19 +3134,28 @@ export async function registerRoutes(
     }
     const imageBuffer = Buffer.from(base64Data, "base64");
     const isGif = mimeType === "image/gif";
+    let resizedBase64: string;
+    let finalMime: string;
     if (isGif) {
       const resized = await sharp(imageBuffer, { animated: true })
         .resize(maxSize, maxSize, { fit: "inside", withoutEnlargement: true })
         .gif()
         .toBuffer();
-      return `data:image/gif;base64,${resized.toString("base64")}`;
+      resizedBase64 = resized.toString("base64");
+      finalMime = "image/gif";
     } else {
       const resized = await sharp(imageBuffer)
         .resize(maxSize, maxSize, { fit: "inside", withoutEnlargement: true })
         .png({ quality: 90 })
         .toBuffer();
-      return `data:image/png;base64,${resized.toString("base64")}`;
+      resizedBase64 = resized.toString("base64");
+      finalMime = "image/png";
     }
+    const result = await db.execute(
+      sql`INSERT INTO media_blobs (mime_type, data) VALUES (${finalMime}, ${resizedBase64}) RETURNING id`
+    );
+    const blobId = (result.rows[0] as any).id as string;
+    return `/api/media/${blobId}`;
   }
 
   function processShopItemImage(imageData: string): Promise<string> {

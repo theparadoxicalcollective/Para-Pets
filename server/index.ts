@@ -215,6 +215,20 @@ app.use((req, res, next) => {
     console.error("Session table setup error (non-fatal):", err);
   }
 
+  // Create media_blobs before routes register so processWorldImage can use it immediately
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS media_blobs (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        mime_type text NOT NULL,
+        data text NOT NULL,
+        created_at timestamp DEFAULT now()
+      )
+    `);
+  } catch (err) {
+    console.error("media_blobs table setup error (non-fatal):", err);
+  }
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
@@ -1338,6 +1352,87 @@ app.use((req, res, next) => {
     }
   } catch (err) {
     console.error("KC layout restore error (non-fatal):", err);
+  }
+
+  // Always refresh known location icons as versioned static URLs — runs AFTER all seeding code
+  // so it overrides any loadAssetBase64 calls that re-set base64 icons during startup.
+  const LOC_ICON_ALWAYS_REFRESH: Record<string, string> = {
+    "3e20ad30-faff-4643-9e80-5e5f30010738": "icon_thicket.png",
+    "97ff55d1-376b-466a-8fe9-992b09dbaacc": "icon_mire_bazaar_trimmed.png",
+    "8e211716-0448-496e-8582-6ce1025ac4e4": "icon_bayous_heart_v2.png",
+    "a1b2c3d4-0001-4000-8000-000000000001": "icon_murk_cave.png",
+    "a1b2c3d4-0002-4000-8000-000000000002": "icon_willowmere_cottage.png",
+    "a1b2c3d4-0004-4000-8000-000000000004": "icon_tome_toad.png",
+    "a1b2c3d4-0005-4000-8000-000000000005": "icon_swamp_critters.png",
+    "a1b2c3d4-0006-4000-8000-000000000006": "icon_mossy_cauldron.png",
+    "a1b2c3d4-0007-4000-8000-000000000007": "icon_myst_pond_v2.png",
+    "a1b2c3d4-0008-4000-8000-000000000008": "icon_fishing_shack.png",
+    "4146afef-828a-4bc1-8e1b-015c7073f895": "icon_kc_central_market.png",
+    "de656c2e-4ada-405a-8cfb-a59c9f6b318b": "icon_kc_welcome_center.png",
+    "707d872b-0a93-4369-ba8d-3d8b4b4bd09a": "icon_kc_well_of_fortune.png",
+  };
+  for (const [locId, iconFile] of Object.entries(LOC_ICON_ALWAYS_REFRESH)) {
+    try {
+      const assetPath = path.join(process.cwd(), "attached_assets", iconFile);
+      if (!fs.existsSync(assetPath)) continue;
+      const mtime = fs.statSync(assetPath).mtimeMs;
+      const v = Math.floor(mtime / 1000);
+      const iconUrl = `/world-assets/${iconFile}?v=${v}`;
+      await db.execute(sql`UPDATE world_locations SET icon_url = ${iconUrl} WHERE id = ${locId}`);
+    } catch (err) {
+      console.error(`Location icon refresh error for ${locId} (non-fatal):`, err);
+    }
+  }
+  console.log("Location icons refreshed with versioned static URLs.");
+
+  // Migrate all remaining base64 image URLs to media_blobs (idempotent: skips non-base64 values)
+  try {
+    async function migrateBase64Column(table: string, idCol: string, imgCol: string): Promise<number> {
+      const { rows } = await pool.query(
+        `SELECT "${idCol}", "${imgCol}" FROM ${table} WHERE "${imgCol}" LIKE 'data:%'`
+      );
+      for (const row of rows) {
+        const dataUrl: string = row[imgCol];
+        const mimeMatch = dataUrl.match(/^data:(image\/[\w+.-]+);base64,/);
+        if (!mimeMatch) continue;
+        const mimeType = mimeMatch[1];
+        const b64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
+        const ins = await pool.query(
+          `INSERT INTO media_blobs (mime_type, data) VALUES ($1, $2) RETURNING id`,
+          [mimeType, b64]
+        );
+        const blobId = ins.rows[0].id;
+        await pool.query(
+          `UPDATE ${table} SET "${imgCol}" = $1 WHERE "${idCol}" = $2`,
+          [`/api/media/${blobId}`, row[idCol]]
+        );
+      }
+      return rows.length;
+    }
+
+    const tasks: Array<[string, string, string]> = [
+      ["shop_items",       "id", "image_url"],
+      ["shop_items",       "id", "egg_image_url"],
+      ["shop_items",       "id", "hatched_image_url"],
+      ["shop_items",       "id", "hookless_image_url"],
+      ["badges",           "id", "image_url"],
+      ["enemies",          "id", "image_url"],
+      ["location_enemies", "id", "image_url"],
+      ["house_bundles",    "id", "shop_image_url"],
+      ["house_bundles",    "id", "bg_image_url"],
+      ["pet_templates",    "id", "sleeping_image_url"],
+      ["world_locations",  "id", "icon_url"],
+    ];
+    let totalMigrated = 0;
+    for (const [table, idCol, imgCol] of tasks) {
+      const n = await migrateBase64Column(table, idCol, imgCol);
+      if (n > 0) console.log(`media_blobs: migrated ${n} rows in ${table}.${imgCol}`);
+      totalMigrated += n;
+    }
+    if (totalMigrated > 0) console.log(`media_blobs migration complete: ${totalMigrated} images converted to URLs.`);
+    else console.log("media_blobs migration: no base64 images found (already up to date).");
+  } catch (err) {
+    console.error("media_blobs migration error (non-fatal):", err);
   }
 
   console.log("Background initialization complete.");
