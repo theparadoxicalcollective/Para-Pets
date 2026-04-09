@@ -1389,3 +1389,14 @@ img[data-interactive], button img, a img {
   0%, 100% { transform: scale(1); opacity: 0.12; }
   50% { transform: scale(1.1); opacity: 0.28; }
 }
+
+@keyframes nav-spark {
+  0%   { transform: translate(0, 0) scale(1.2); opacity: 1; }
+  60%  { opacity: 0.7; }
+  100% { transform: translate(var(--spark-tx), var(--spark-ty)) scale(0); opacity: 0; }
+}
+
+@keyframes nav-spark-ring {
+  0%   { transform: scale(0.4); opacity: 0.9; }
+  100% { transform: scale(2.2); opacity: 0; }
+}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { getNextZ } from "@/lib/layerManager";
 import { useLocation } from "wouter";
 import mainNavIcon from "@assets/generated_images/icon_main_nav.png";
@@ -242,6 +242,19 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   );
 }
 
+// ── Sparkle burst directions (8 angles) ──────────────────────────────────────
+const SPARK_DIRS = [
+  { tx: "0px",   ty: "-34px" },
+  { tx: "24px",  ty: "-24px" },
+  { tx: "34px",  ty: "0px"   },
+  { tx: "24px",  ty: "24px"  },
+  { tx: "0px",   ty: "34px"  },
+  { tx: "-24px", ty: "24px"  },
+  { tx: "-34px", ty: "0px"   },
+  { tx: "-24px", ty: "-24px" },
+];
+const SPARK_COLORS = ["#f0c040", "#ffffff", "#a8ffcc", "#f0c040", "#ffe9a0", "#ffffff", "#f0c040", "#c8ffea"];
+
 // ── Individual nav icon button ────────────────────────────────────────────────
 function NavButton({
   icon, label, isOpen, delay, translateX, translateY, fillIcon = false, onClick,
@@ -255,9 +268,18 @@ function NavButton({
   fillIcon?: boolean;
   onClick: () => void;
 }) {
+  const [sparks, setSparks] = useState<number[]>([]);
+
+  const handleClick = useCallback(() => {
+    const id = Date.now();
+    setSparks(prev => [...prev, id]);
+    setTimeout(() => setSparks(prev => prev.filter(s => s !== id)), 650);
+    onClick();
+  }, [onClick]);
+
   return (
     <button
-      onClick={onClick}
+      onClick={handleClick}
       className="absolute flex flex-col items-center justify-center rounded-full active:scale-90"
       style={{
         width: ICON_SIZE,
@@ -268,7 +290,7 @@ function NavButton({
         border: "1.5px solid rgba(212,160,23,0.55)",
         boxShadow: "0 2px 12px rgba(0,0,0,0.7), 0 0 10px rgba(212,160,23,0.15)",
         cursor: "pointer",
-        overflow: fillIcon ? "hidden" : "visible",
+        overflow: "visible",
         transform: isOpen ? `translate(${translateX}px, ${translateY}px) scale(1)` : "translate(0,0) scale(0.5)",
         opacity: isOpen ? 1 : 0,
         pointerEvents: isOpen ? "auto" : "none",
@@ -276,18 +298,59 @@ function NavButton({
         zIndex: 96,
       }}
     >
-      <img
-        src={icon}
-        alt={label}
-        style={{
-          width: fillIcon ? ICON_SIZE : ICON_SIZE - 10,
-          height: fillIcon ? ICON_SIZE : ICON_SIZE - 10,
-          objectFit: fillIcon ? "cover" : "contain",
-          borderRadius: fillIcon ? 0 : "50%",
-          filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.7))",
-        }}
-      />
+      <span style={fillIcon ? { display: "block", width: ICON_SIZE, height: ICON_SIZE, borderRadius: "50%", overflow: "hidden", flexShrink: 0 } : undefined}>
+        <img
+          src={icon}
+          alt={label}
+          style={{
+            width: fillIcon ? ICON_SIZE : ICON_SIZE - 10,
+            height: fillIcon ? ICON_SIZE : ICON_SIZE - 10,
+            objectFit: fillIcon ? "cover" : "contain",
+            borderRadius: fillIcon ? 0 : "50%",
+            filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.7))",
+            display: "block",
+          }}
+        />
+      </span>
 
+      {/* Sparkle burst particles */}
+      {sparks.map(id => (
+        <span key={id} style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 200 }}>
+          {/* Ring flash */}
+          <span style={{
+            position: "absolute",
+            inset: "50%",
+            width: ICON_SIZE * 0.9,
+            height: ICON_SIZE * 0.9,
+            marginLeft: -(ICON_SIZE * 0.9) / 2,
+            marginTop: -(ICON_SIZE * 0.9) / 2,
+            borderRadius: "50%",
+            border: "1.5px solid rgba(240,192,64,0.7)",
+            animation: "nav-spark-ring 0.5s ease-out forwards",
+          }} />
+          {/* Individual spark dots */}
+          {SPARK_DIRS.map((dir, di) => (
+            <span
+              key={di}
+              style={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                width: di % 2 === 0 ? 5 : 4,
+                height: di % 2 === 0 ? 5 : 4,
+                marginLeft: di % 2 === 0 ? -2.5 : -2,
+                marginTop: di % 2 === 0 ? -2.5 : -2,
+                borderRadius: "50%",
+                background: SPARK_COLORS[di],
+                boxShadow: `0 0 4px 1px ${SPARK_COLORS[di]}cc`,
+                ["--spark-tx" as any]: dir.tx,
+                ["--spark-ty" as any]: dir.ty,
+                animation: `nav-spark ${0.5 + di * 0.02}s cubic-bezier(0.25,0.46,0.45,0.94) forwards`,
+              }}
+            />
+          ))}
+        </span>
+      ))}
     </button>
   );
 }
