@@ -997,6 +997,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         <div className="absolute" style={{ zIndex: 4, top: 0, left: `${panX}px`, width: imgWidth, height: "100%", pointerEvents: "none" }}>
           {activeBundle.buildings.map((b) => {
             const hasInterior = !!b.interiorImageUrl;
+            const isMailbox = b.name.toLowerCase().includes("mailbox");
+            const isClickable = hasInterior || isMailbox;
             const displayW = Math.round((b.width ?? 120) * (containerH || BUILDING_REF_H) / BUILDING_REF_H);
             return (
               <div
@@ -1006,12 +1008,22 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                   left: `${b.posX}%`, top: `${b.posY}%`,
                   transform: "translate(-50%, -100%)",
                   minWidth: displayW,
-                  pointerEvents: hasInterior ? "auto" : "none",
-                  cursor: hasInterior ? "pointer" : "default",
+                  pointerEvents: isClickable ? "auto" : "none",
+                  cursor: isClickable ? "pointer" : "default",
                 }}
-                role={hasInterior ? "button" : undefined}
-                data-testid={hasInterior ? `tile-building-${b.id}` : undefined}
-                onClick={() => hasInterior && setOpenInterior({ url: b.interiorImageUrl!, buildingId: b.id, leaveButtonX: b.leaveButtonX ?? 0.92, leaveButtonY: b.leaveButtonY ?? 0.06 })}
+                role={isClickable ? "button" : undefined}
+                data-testid={isClickable ? `tile-building-${b.id}` : undefined}
+                onClick={() => {
+                  if (hasInterior) {
+                    setOpenInterior({ url: b.interiorImageUrl!, buildingId: b.id, leaveButtonX: b.leaveButtonX ?? 0.92, leaveButtonY: b.leaveButtonY ?? 0.06 });
+                  } else if (isMailbox) {
+                    if (pendingGifts.length > 0) {
+                      setOpenGiftModal(true);
+                    } else {
+                      toast({ title: "No Mail Yet", description: "Check back later for gifts and letters." });
+                    }
+                  }
+                }}
               >
                 <img
                   src={b.imageUrl} alt={b.name} draggable={false}
