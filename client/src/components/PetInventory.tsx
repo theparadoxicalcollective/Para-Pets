@@ -7,6 +7,11 @@ import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import eggMagicIcon from "@assets/generated_images/icon_egg_magic.png";
 import powerupBagIcon from "@assets/generated_images/icon_powerup_bag.png";
 import bagIconImg from "@assets/icon_bag.png";
+import tabIconAll from "@assets/icon_bag.png";
+import tabIconPotion from "@assets/potion_health.png";
+import tabIconItem from "@assets/item_crystal_charm.png";
+import tabIconAccessory from "@assets/acc_gem_amulet.png";
+import tabIconSpecial from "@assets/generated_images/icon_egg_magic.png";
 import forestBg from "@assets/generated_images/powerup_forest_bg.png";
 import petInvForestBg from "@assets/generated_images/pet_inventory_bg.png";
 import statAtkIcon from "@assets/generated_images/icon_stat_atk.png";
@@ -1020,44 +1025,38 @@ function getItemDescription(item: InventoryItem): string {
   return parts.join(" ");
 }
 
-function getItemUsageHint(item: InventoryItem): { emoji: string; where: string; how: string } {
+function getItemUsageHint(item: InventoryItem): { where: string; how: string } {
   if (item.type === "potion") {
     return {
-      emoji: "🧪",
       where: "Pet Companions tab",
       how: "Tap any of your pets, open their detail card, and use this potion to restore their HP!",
     };
   }
   if (item.type === "accessory") {
     return {
-      emoji: "✨",
       where: "Pet Companions tab",
       how: "Tap a pet and equip this accessory to give them a stat boost in battles!",
     };
   }
   if (item.type === "special" && item.specialType === "hatch_time") {
     return {
-      emoji: "🥚",
       where: "Pet Companions tab",
-      how: "Tap an egg that's still hatching — you'll see a sparkle button to apply this and speed it up!",
+      how: "Tap an egg that's still hatching — you'll see a button to apply this and speed it up!",
     };
   }
   if (item.type === "special" && item.specialType === "level") {
     return {
-      emoji: "⭐",
       where: "Pet Companions tab",
       how: "Tap any hatched pet and apply this to grant them instant level points!",
     };
   }
   if (item.type === "special") {
     return {
-      emoji: "🌟",
       where: "Pet Companions tab",
       how: "Tap a pet and look for the apply button to use this special item on them!",
     };
   }
   return {
-    emoji: "🎒",
     where: "Your collection",
     how: "This is a rare collectible from Veridia. Hold onto it — it may have special uses in future updates!",
   };
@@ -1067,12 +1066,12 @@ const POTION_STACK_MAX = 50;
 
 type BagTabKey = "all" | "potion" | "item" | "accessory" | "special";
 
-const BAG_TABS: { key: BagTabKey; label: string; emoji: string }[] = [
-  { key: "all",       label: "All",        emoji: "🎒" },
-  { key: "potion",    label: "Potions",    emoji: "🧪" },
-  { key: "item",      label: "Items",      emoji: "💎" },
-  { key: "accessory", label: "Gear",       emoji: "✨" },
-  { key: "special",   label: "Special",    emoji: "⭐" },
+const BAG_TABS: { key: BagTabKey; label: string; icon: string }[] = [
+  { key: "all",       label: "All",     icon: tabIconAll       },
+  { key: "potion",    label: "Potions", icon: tabIconPotion    },
+  { key: "item",      label: "Items",   icon: tabIconItem      },
+  { key: "accessory", label: "Gear",    icon: tabIconAccessory },
+  { key: "special",   label: "Special", icon: tabIconSpecial   },
 ];
 
 function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemPointerDown?: (e: React.PointerEvent, item: InventoryItem) => void }) {
@@ -1154,8 +1153,12 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
                 color: active ? "#f0c040" : "#7a6a50",
               }}
             >
-              <span>{tab.emoji}</span>
-              <span>{tab.label}</span>
+              <img
+                src={tab.icon}
+                alt=""
+                style={{ width: 16, height: 16, objectFit: "contain", opacity: active ? 1 : 0.45, filter: active ? "drop-shadow(0 0 4px rgba(240,192,64,0.5))" : "none" }}
+              />
+              {tab.label}
             </button>
           );
         })}
@@ -1355,7 +1358,17 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
                     data-testid="section-item-usage-hint"
                   >
                     <div className="flex items-center gap-2 mb-0.5">
-                      <span style={{ fontSize: 16 }}>{hint.emoji}</span>
+                      <img
+                        src={
+                          selectedItem.type === "potion" ? tabIconPotion
+                          : selectedItem.type === "accessory" ? tabIconAccessory
+                          : selectedItem.type === "special" ? tabIconSpecial
+                          : selectedItem.type === "item" ? tabIconItem
+                          : tabIconAll
+                        }
+                        alt=""
+                        style={{ width: 18, height: 18, objectFit: "contain", opacity: 0.85 }}
+                      />
                       <span className="font-fantasy text-[10px] tracking-[0.2em] text-[#f0c040] uppercase opacity-70">How to use</span>
                     </div>
                     <p className="font-fantasy text-[#e8d4a0] text-xs leading-relaxed">
