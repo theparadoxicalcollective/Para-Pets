@@ -102,6 +102,12 @@ uri = "file://attached_assets/generated_images/pet_inventory_divider.png"
 type = "image"
 title = "gold fantasy divider"
 
+[[generated]]
+id = "idVx02-hsmmj-XZzJadR5"
+uri = "file://attached_assets/icon_friends_inventory.png"
+type = "image"
+title = "friends inventory icon cartoon"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"

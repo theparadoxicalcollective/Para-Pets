@@ -7,7 +7,6 @@ import { Mail } from "lucide-react";
 import coinIconImg from "@assets/icon_coin.png";
 import giftIconImg from "@assets/generated_images/gift_icon_forest.png";
 import RewardClaimModal from "./RewardClaimModal";
-import FriendProfileModal from "./FriendProfileModal";
 
 interface TopBarProps {
   user: {
@@ -21,22 +20,10 @@ interface TopBarProps {
   onUserUpdate?: (user: any) => void;
 }
 
-interface FriendRequest {
-  id: string;
-  requesterId: string;
-  username: string;
-  createdAt: string;
-}
-
 export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarProps) {
   const [location, navigate] = useLocation();
   const [showRewards, setShowRewards] = useState(false);
-  const [showRequestsPopup, setShowRequestsPopup] = useState(false);
-  const [showFriendsList, setShowFriendsList] = useState(false);
   const [showAdminMsgsPopup, setShowAdminMsgsPopup] = useState(false);
-  const [selectedFriend, setSelectedFriend] = useState<{ id: string; username: string } | null>(null);
-  const popupRef = useRef<HTMLDivElement>(null);
-  const friendsListRef = useRef<HTMLDivElement>(null);
   const adminMsgRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -46,11 +33,6 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
     queryKey: ["/api/rewards/pending"],
     refetchInterval: 30000,
     refetchOnWindowFocus: true,
-  });
-
-  const { data: friendRequestData, refetch: refetchCount } = useQuery<{ count: number }>({
-    queryKey: ["/api/friends/requests/count"],
-    refetchInterval: 45000,
   });
 
   interface AdminMsg { id: string; subject: string; message: string; createdAt: string; }
@@ -77,43 +59,11 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
     if (newOnes.length === 0) return;
     newOnes.forEach(n => {
       seenNotifIds.current.add(n.id);
-      const title = n.type === "friend_accepted" ? "🐾 Friend Request Accepted" : n.type === "support_message" ? "📬 New Support Message" : "✨ Notification";
+      const title = n.type === "friend_accepted" ? "Friend Request Accepted" : n.type === "support_message" ? "New Support Message" : "Notification";
       toast({ title, description: n.message });
     });
     markReadMutation.mutate();
   }, [unreadNotifications]);
-
-  const { data: pendingRequests = [], refetch: refetchRequests } = useQuery<FriendRequest[]>({
-    queryKey: ["/api/friends/requests"],
-    enabled: showRequestsPopup,
-  });
-
-  const hasRewards = pendingRewards.length > 0;
-  const friendRequestCount = friendRequestData?.count ?? 0;
-  const hasFriendRequests = friendRequestCount > 0;
-
-  const acceptMutation = useMutation({
-    mutationFn: ({ requestId }: { requestId: string; username: string }) =>
-      apiRequest("POST", `/api/friends/accept/${requestId}`, {}),
-    onSuccess: (_, variables) => {
-      toast({ title: "🐾 Friend Added!", description: `You and ${variables.username} are now friends.` });
-      refetchRequests();
-      refetchCount();
-      queryClient.invalidateQueries({ queryKey: ["/api/friends"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/friends/requests"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/friends/requests/count"] });
-    },
-  });
-
-  const declineMutation = useMutation({
-    mutationFn: (requesterId: string) => apiRequest("DELETE", `/api/friends/${requesterId}`, {}),
-    onSuccess: () => {
-      refetchRequests();
-      refetchCount();
-      queryClient.invalidateQueries({ queryKey: ["/api/friends/requests"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/friends/requests/count"] });
-    },
-  });
 
   const deleteAdminMsgMutation = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/admin-messages/${id}`, {}),
@@ -123,47 +73,6 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
   });
 
   const [expandedMsgId, setExpandedMsgId] = useState<string | null>(null);
-
-  const { data: friendsList = [] } = useQuery<any[]>({
-    queryKey: ["/api/friends"],
-    enabled: showFriendsList,
-    refetchInterval: showFriendsList ? 15000 : false,
-  });
-
-  const { data: friendRequestsList = [] } = useQuery<any[]>({
-    queryKey: ["/api/friends/requests"],
-    enabled: showFriendsList,
-    refetchInterval: showFriendsList ? 15000 : false,
-  });
-
-  const removeFriendMutation = useMutation({
-    mutationFn: (friendId: string) => apiRequest("DELETE", `/api/friends/${friendId}`, {}),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/friends"] });
-    },
-  });
-
-  useEffect(() => {
-    if (!showRequestsPopup) return;
-    function handleClick(e: MouseEvent) {
-      if (popupRef.current && !popupRef.current.contains(e.target as Node)) {
-        setShowRequestsPopup(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [showRequestsPopup]);
-
-  useEffect(() => {
-    if (!showFriendsList) return;
-    function handleClick(e: MouseEvent) {
-      if (friendsListRef.current && !friendsListRef.current.contains(e.target as Node)) {
-        setShowFriendsList(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [showFriendsList]);
 
   useEffect(() => {
     if (!showAdminMsgsPopup) return;
@@ -176,13 +85,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showAdminMsgsPopup]);
 
-  // Auto-close the popup once all requests have been handled
-  useEffect(() => {
-    if (showRequestsPopup && pendingRequests.length === 0 && friendRequestCount === 0) {
-      const t = setTimeout(() => setShowRequestsPopup(false), 800);
-      return () => clearTimeout(t);
-    }
-  }, [showRequestsPopup, pendingRequests.length, friendRequestCount]);
+  const hasRewards = pendingRewards.length > 0;
 
   return (
     <>
@@ -270,7 +173,6 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                   title="Messages from Admin"
                 >
                   <Mail size={18} color="#f0c040" style={{ filter: "drop-shadow(0 0 4px rgba(240,192,64,0.6))" }} />
-                  {/* Red badge */}
                   <div
                     className="absolute -top-1 -right-1 min-w-[14px] h-3.5 rounded-full flex items-center justify-center px-0.5"
                     style={{
@@ -314,7 +216,6 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                             className="rounded-xl overflow-hidden"
                             style={{ background: "rgba(240,192,64,0.06)", border: `1px solid ${isOpen ? "rgba(240,192,64,0.35)" : "rgba(240,192,64,0.18)"}` }}
                           >
-                            {/* Collapsed header */}
                             <button
                               data-testid={`button-open-admin-message-${am.id}`}
                               onClick={() => setExpandedMsgId(isOpen ? null : am.id)}
@@ -330,7 +231,6 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                               </div>
                             </button>
 
-                            {/* Expanded body */}
                             {isOpen && (
                               <div className="px-3 pb-3 space-y-2" style={{ borderTop: "1px solid rgba(240,192,64,0.12)" }}>
                                 <p className="font-sans text-[#d4b896] text-xs whitespace-pre-wrap break-words leading-relaxed pt-2">{am.message}</p>
@@ -412,298 +312,38 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                 </span>
                 <span className="font-fantasy text-[#d4a017] text-[8px]">+</span>
               </button>
-
-              {/* Friends list button — moved here to avoid adding height to the photo column */}
-              <div className="relative" ref={friendsListRef}>
-                <button
-                  data-testid="button-friends-icon"
-                  onClick={() => setShowFriendsList(v => !v)}
-                  className="w-7 h-7 flex-shrink-0 flex items-center justify-center transition-transform duration-150 active:scale-90"
-                  style={{
-                    background: showFriendsList
-                      ? "linear-gradient(135deg, rgba(74,222,128,0.35) 0%, rgba(22,163,74,0.3) 100%)"
-                      : "linear-gradient(135deg, rgba(74,222,128,0.12) 0%, rgba(22,163,74,0.12) 100%)",
-                    border: `1.5px solid ${showFriendsList ? "rgba(74,222,128,0.8)" : "rgba(74,222,128,0.45)"}`,
-                    cursor: "pointer",
-                    boxShadow: showFriendsList
-                      ? "0 2px 8px rgba(0,0,0,0.6), 0 0 12px rgba(74,222,128,0.35)"
-                      : "0 2px 6px rgba(0,0,0,0.5), 0 0 8px rgba(74,222,128,0.12)",
-                    borderRadius: "8px",
-                  }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: "drop-shadow(0 0 3px rgba(74,222,128,0.5))" }}>
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                    <circle cx="9" cy="7" r="4"/>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                  </svg>
-                </button>
-
-                {showFriendsList && (
-                  <div
-                    data-testid="popup-friends-list"
-                    style={{
-                      position: "absolute",
-                      top: "calc(100% + 6px)",
-                      left: 0,
-                      width: 250,
-                      maxHeight: "55vh",
-                      overflowY: "auto",
-                      zIndex: 99999,
-                      background: "rgba(4,10,6,0.98)",
-                      border: "1.5px solid rgba(127,255,212,0.2)",
-                      borderRadius: 14,
-                      boxShadow: "0 8px 40px rgba(0,0,0,0.85), 0 0 30px rgba(127,255,212,0.06)",
-                      padding: "10px 12px 14px",
-                    }}
-                  >
-                    <p className="font-fantasy tracking-widest mb-3" style={{ fontSize: 9, color: "rgba(127,255,212,0.7)", letterSpacing: "0.2em" }}>
-                      FRIENDS
-                    </p>
-
-                    {/* Pending requests */}
-                    {friendRequestsList.length > 0 && (
-                      <div style={{ marginBottom: 12 }}>
-                        <p className="font-fantasy text-[9px] tracking-widest uppercase" style={{ color: "rgba(127,255,212,0.6)", marginBottom: 6 }}>
-                          Requests ({friendRequestsList.length})
-                        </p>
-                        <div className="flex flex-col gap-2">
-                          {friendRequestsList.map((req: any) => (
-                            <div
-                              key={req.id}
-                              data-testid={`friend-request-${req.id}`}
-                              style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 10, background: "rgba(127,255,212,0.06)", border: "1px solid rgba(127,255,212,0.12)" }}
-                            >
-                              {req.profileImage ? (
-                                <img src={req.profileImage} alt={req.username} style={{ width: 26, height: 26, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(127,255,212,0.3)", flexShrink: 0 }} />
-                              ) : (
-                                <div style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(127,255,212,0.1)", border: "1px solid rgba(127,255,212,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                                  <span style={{ fontSize: 10, color: "#7fffd4", fontWeight: "bold" }}>{(req.username ?? "?").charAt(0).toUpperCase()}</span>
-                                </div>
-                              )}
-                              <span className="font-fantasy text-xs flex-1 truncate" style={{ color: "#d4e8da", fontSize: 11 }}>{req.username}</span>
-                              <button
-                                data-testid={`button-accept-${req.id}`}
-                                onClick={() => acceptMutation.mutate({ requestId: req.id, username: req.username })}
-                                disabled={acceptMutation.isPending}
-                                className="font-fantasy tracking-wider"
-                                style={{ fontSize: 9, padding: "2px 6px", borderRadius: 6, background: "rgba(74,222,128,0.2)", border: "1px solid rgba(74,222,128,0.45)", color: "#4ade80", cursor: "pointer" }}
-                              >✓</button>
-                              <button
-                                data-testid={`button-decline-${req.id}`}
-                                onClick={() => declineMutation.mutate(req.requesterId)}
-                                disabled={declineMutation.isPending}
-                                className="font-fantasy tracking-wider"
-                                style={{ fontSize: 9, padding: "2px 6px", borderRadius: 6, background: "rgba(248,113,113,0.15)", border: "1px solid rgba(248,113,113,0.35)", color: "#f87171", cursor: "pointer" }}
-                              >✕</button>
-                            </div>
-                          ))}
-                        </div>
-                        <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(127,255,212,0.2), transparent)", margin: "10px 0" }} />
-                      </div>
-                    )}
-
-                    {/* Friends list */}
-                    <p className="font-fantasy text-[9px] tracking-widest uppercase" style={{ color: "rgba(127,255,212,0.6)", marginBottom: 6 }}>
-                      My Friends ({friendsList.length})
-                    </p>
-                    {friendsList.length === 0 && friendRequestsList.length === 0 && (
-                      <p className="font-fantasy text-xs text-center" style={{ color: "#5a8070", padding: "10px 0", fontSize: 11 }}>No friends yet — explore and add some!</p>
-                    )}
-                    {friendsList.length === 0 && friendRequestsList.length > 0 && (
-                      <p className="font-fantasy text-xs text-center" style={{ color: "#5a8070", padding: "4px 0", fontSize: 11 }}>No friends yet</p>
-                    )}
-                    <div className="flex flex-col gap-1.5">
-                      {friendsList.map((f: any) => (
-                        <button
-                          key={f.id}
-                          data-testid={`friend-row-${f.friendId}`}
-                          onClick={() => { setShowFriendsList(false); setSelectedFriend({ id: f.friendId, username: f.username }); }}
-                          style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 8px", borderRadius: 10, background: "rgba(127,255,212,0.04)", border: "1px solid rgba(127,255,212,0.1)", cursor: "pointer", width: "100%", textAlign: "left", transition: "background 0.15s" }}
-                          onMouseEnter={e => (e.currentTarget.style.background = "rgba(127,255,212,0.09)")}
-                          onMouseLeave={e => (e.currentTarget.style.background = "rgba(127,255,212,0.04)")}
-                        >
-                          {f.profileImage ? (
-                            <img src={f.profileImage} alt={f.username} style={{ width: 26, height: 26, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(212,160,23,0.35)", flexShrink: 0 }} />
-                          ) : (
-                            <div style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(212,160,23,0.1)", border: "1px solid rgba(212,160,23,0.35)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                              <span style={{ fontSize: 10, color: "#d4a017", fontWeight: "bold" }}>{(f.username ?? "?").charAt(0).toUpperCase()}</span>
-                            </div>
-                          )}
-                          <span className="font-fantasy flex-1 truncate" style={{ color: "#d4e8da", fontSize: 11 }}>{f.username}</span>
-                          <span style={{ fontSize: 9, color: "rgba(127,255,212,0.3)" }}>›</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {hasRewards && (
-                <button
-                  data-testid="button-gift-rewards"
-                  onClick={() => setShowRewards(true)}
-                  className="relative flex-shrink-0 transition-transform active:scale-90 animate-bounce"
-                  style={{ background: "none", border: "none", cursor: "pointer", animationDuration: "2s" }}
-                >
-                  <img
-                    src={giftIconImg}
-                    alt="Gifts"
-                    className="w-12 h-12 object-contain"
-                    style={{ filter: "drop-shadow(0 0 8px rgba(120,200,80,0.7)) drop-shadow(0 0 16px rgba(192,132,252,0.4))" }}
-                  />
-                  <div
-                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
-                    style={{
-                      background: "radial-gradient(circle, #f87171 0%, #dc2626 100%)",
-                      border: "1.5px solid rgba(30,15,5,0.8)",
-                      boxShadow: "0 0 6px rgba(248,113,113,0.6)",
-                    }}
-                  >
-                    <span className="font-bold text-[8px] text-white leading-none">{pendingRewards.length}</span>
-                  </div>
-                </button>
-              )}
-
-              {/* Friend request badge — opens inline popup on click */}
-              {(hasFriendRequests || showRequestsPopup) && (
-                <div className="relative" ref={popupRef}>
-                  <button
-                    data-testid="button-friend-requests"
-                    onClick={() => setShowRequestsPopup(v => !v)}
-                    className="relative flex-shrink-0 transition-transform active:scale-90"
-                    style={{ background: "none", border: "none", cursor: "pointer" }}
-                    title="Friend requests"
-                  >
-                    <div
-                      className="w-11 h-11 rounded-full flex items-center justify-center"
-                      style={{
-                        background: "linear-gradient(135deg, rgba(30,15,5,0.9) 0%, rgba(60,35,10,0.9) 100%)",
-                        border: `1.5px solid ${showRequestsPopup ? "rgba(74,222,128,0.85)" : "rgba(74,222,128,0.55)"}`,
-                        boxShadow: showRequestsPopup ? "0 0 14px rgba(74,222,128,0.45)" : "0 0 10px rgba(74,222,128,0.25)",
-                      }}
-                    >
-                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-                        <circle cx="9" cy="7" r="4"/>
-                        <line x1="19" y1="8" x2="19" y2="14"/>
-                        <line x1="22" y1="11" x2="16" y2="11"/>
-                      </svg>
-                    </div>
-                    {friendRequestCount > 0 && (
-                      <div
-                        className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full flex items-center justify-center px-1"
-                        style={{
-                          background: "radial-gradient(circle, #4ade80 0%, #16a34a 100%)",
-                          border: "1.5px solid rgba(30,15,5,0.8)",
-                          boxShadow: "0 0 6px rgba(74,222,128,0.6)",
-                        }}
-                      >
-                        <span className="font-bold text-[8px] text-white leading-none">{friendRequestCount}</span>
-                      </div>
-                    )}
-                  </button>
-
-                  {/* Inline popup */}
-                  {showRequestsPopup && (
-                    <div
-                      data-testid="popup-friend-requests"
-                      className="absolute top-full mt-2 left-0 z-50 min-w-[220px]"
-                      style={{
-                        background: "linear-gradient(160deg, rgba(20,10,4,0.97) 0%, rgba(40,22,8,0.97) 100%)",
-                        border: "1px solid rgba(74,222,128,0.35)",
-                        borderRadius: 14,
-                        boxShadow: "0 8px 32px rgba(0,0,0,0.7), 0 0 20px rgba(74,222,128,0.1)",
-                        padding: "10px 10px 8px",
-                      }}
-                    >
-                      {/* Header */}
-                      <p
-                        className="font-fantasy tracking-widest text-center mb-2"
-                        style={{ fontSize: 9, color: "rgba(74,222,128,0.7)", letterSpacing: "0.2em" }}
-                      >
-                        FRIEND REQUESTS
-                      </p>
-
-                      {pendingRequests.length === 0 ? (
-                        <p className="text-center text-xs" style={{ color: "rgba(255,255,255,0.35)", padding: "6px 0" }}>
-                          No pending requests
-                        </p>
-                      ) : (
-                        <div className="flex flex-col gap-2">
-                          {pendingRequests.map(req => (
-                            <div
-                              key={req.id}
-                              data-testid={`friend-request-${req.id}`}
-                              className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5"
-                              style={{
-                                background: "rgba(74,222,128,0.06)",
-                                border: "1px solid rgba(74,222,128,0.15)",
-                              }}
-                            >
-                              {/* Requester name */}
-                              <span
-                                className="font-fantasy truncate flex-1"
-                                style={{ fontSize: 11, color: "#7fffd4" }}
-                              >
-                                {req.username}
-                              </span>
-
-                              {/* Accept */}
-                              <button
-                                data-testid={`button-accept-${req.id}`}
-                                onClick={() => acceptMutation.mutate({ requestId: req.id, username: req.username })}
-                                disabled={acceptMutation.isPending || declineMutation.isPending}
-                                className="flex-shrink-0 transition-transform active:scale-90"
-                                style={{
-                                  background: "linear-gradient(135deg, rgba(74,222,128,0.25) 0%, rgba(22,163,74,0.25) 100%)",
-                                  border: "1px solid rgba(74,222,128,0.5)",
-                                  borderRadius: 8,
-                                  padding: "3px 8px",
-                                  cursor: "pointer",
-                                  color: "#4ade80",
-                                  fontSize: 10,
-                                  fontWeight: 700,
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                ✓ Accept
-                              </button>
-
-                              {/* Decline */}
-                              <button
-                                data-testid={`button-decline-${req.id}`}
-                                onClick={() => declineMutation.mutate(req.requesterId)}
-                                disabled={acceptMutation.isPending || declineMutation.isPending}
-                                className="flex-shrink-0 transition-transform active:scale-90"
-                                style={{
-                                  background: "linear-gradient(135deg, rgba(248,113,113,0.15) 0%, rgba(185,28,28,0.15) 100%)",
-                                  border: "1px solid rgba(248,113,113,0.4)",
-                                  borderRadius: 8,
-                                  padding: "3px 8px",
-                                  cursor: "pointer",
-                                  color: "#f87171",
-                                  fontSize: 10,
-                                  fontWeight: 700,
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                ✕ Decline
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 flex-shrink-0" />
+        {/* RIGHT: gifts */}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {hasRewards && (
+            <button
+              data-testid="button-gift-rewards"
+              onClick={() => setShowRewards(true)}
+              className="relative flex-shrink-0 transition-transform active:scale-90 animate-bounce"
+              style={{ background: "none", border: "none", cursor: "pointer", animationDuration: "2s" }}
+            >
+              <img
+                src={giftIconImg}
+                alt="Gifts"
+                className="w-12 h-12 object-contain"
+                style={{ filter: "drop-shadow(0 0 8px rgba(120,200,80,0.7)) drop-shadow(0 0 16px rgba(192,132,252,0.4))" }}
+              />
+              <div
+                className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
+                style={{
+                  background: "radial-gradient(circle, #f87171 0%, #dc2626 100%)",
+                  border: "1.5px solid rgba(30,15,5,0.8)",
+                  boxShadow: "0 0 6px rgba(248,113,113,0.6)",
+                }}
+              >
+                <span className="font-bold text-[8px] text-white leading-none">{pendingRewards.length}</span>
+              </div>
+            </button>
+          )}
+        </div>
       </div>
 
       {showRewards && (
@@ -712,15 +352,6 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
           onUserUpdate={(updatedUser) => {
             onUserUpdate?.(updatedUser);
           }}
-        />
-      )}
-
-      {selectedFriend && (
-        <FriendProfileModal
-          friendId={selectedFriend.id}
-          friendUsername={selectedFriend.username}
-          senderCoins={user.coins}
-          onClose={() => setSelectedFriend(null)}
         />
       )}
     </>
