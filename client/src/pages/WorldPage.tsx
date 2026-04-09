@@ -2829,98 +2829,74 @@ export default function WorldPage({ user }: WorldPageProps) {
                   const canAfford = currentUser.coins >= item.price;
                   const descLines = getItemDescription(item);
                   return (
-                    <div key={item.id} className="flex flex-col items-stretch gap-1.5">
-                      {/* ── Price tag card (display only) ── */}
-                      <div
-                        data-testid={`card-shop-item-${item.id}`}
-                        className="relative flex flex-col items-center rounded-2xl"
-                        style={{
-                          background: "linear-gradient(160deg, rgba(255,255,255,0.06) 0%, rgba(0,0,0,0.35) 100%)",
-                          border: `1.5px solid ${accent}30`,
-                          boxShadow: `0 2px 16px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)`,
-                          padding: "10px 8px 8px",
-                        }}
-                      >
-                        {/* Admin remove button */}
-                        {currentUser.isAdmin && (
-                          <button
-                            data-testid={`button-unassign-item-${item.id}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (activeLocationId) unassignItemMutation.mutate({ locationId: activeLocationId, itemId: item.id });
-                            }}
-                            className="absolute -top-2 -right-2 z-10 w-5 h-5 rounded-full flex items-center justify-center"
-                            style={{ background: "rgba(220,38,38,0.95)", border: "1px solid rgba(255,100,100,0.6)", cursor: "pointer" }}
-                          >
-                            <X className="w-3 h-3 text-white" />
-                          </button>
-                        )}
-                        {/* Owned badge */}
-                        {isOwned && (
-                          <div className="absolute top-1 left-1 z-10 px-1.5 py-0.5 rounded-full font-fantasy" style={{ fontSize: "7px", background: "rgba(232,168,0,0.25)", border: "1px solid rgba(232,168,0,0.5)", color: "#e8c84a" }}>
-                            Owned
-                          </div>
-                        )}
-                        {/* Item image */}
-                        <div className="w-full flex items-center justify-center mb-2" style={{ height: "72px" }}>
-                          {imgSrc ? (
-                            <img
-                              src={imgSrc}
-                              alt={item.name}
-                              className="max-w-full max-h-full object-contain"
-                              style={{ filter: `drop-shadow(0 2px 8px rgba(0,0,0,0.7)) drop-shadow(0 0 6px ${accent}30)` }}
-                            />
-                          ) : (
-                            <Package className="w-10 h-10" style={{ color: `${accent}60` }} />
-                          )}
-                        </div>
-                        {/* Item name */}
-                        <p className="font-fantasy text-center text-white leading-tight mb-1" style={{ fontSize: "10px", textShadow: "0 1px 4px rgba(0,0,0,0.8)", lineHeight: "1.3" }}>
-                          {item.name}
-                        </p>
-                        {/* All description lines */}
-                        {descLines.length > 0 && (
-                          <div className="w-full mb-1.5">
-                            {descLines.map((line, i) => (
-                              <p key={i} className="font-fantasy text-center leading-tight" style={{ fontSize: "8px", color: `${accent}bb`, lineHeight: "1.3" }}>
-                                {line}
-                              </p>
-                            ))}
-                          </div>
-                        )}
-                        {/* Price */}
-                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-full mt-auto" style={{ background: canAfford ? `${accent}20` : "rgba(80,60,40,0.25)", border: `1px solid ${canAfford ? accent + "50" : "rgba(100,80,50,0.35)"}` }}>
-                          <img src={coinIconImg} alt="" style={{ width: "9px", height: "9px", objectFit: "contain" }} />
-                          <span className="font-fantasy" style={{ fontSize: "9px", color: canAfford ? accent : "#7a6040", fontWeight: 700 }}>{item.price}</span>
-                        </div>
-                      </div>
-
-                      {/* ── Buy button below the tag ── */}
-                      {!currentUser.isAdmin && (
+                    <div
+                      key={item.id}
+                      data-testid={`card-shop-item-${item.id}`}
+                      className="relative flex flex-col items-center rounded-2xl transition-transform active:scale-95"
+                      style={{
+                        background: "linear-gradient(160deg, rgba(255,255,255,0.06) 0%, rgba(0,0,0,0.35) 100%)",
+                        border: `1.5px solid ${accent}30`,
+                        boxShadow: `0 2px 16px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)`,
+                        cursor: "pointer",
+                        padding: "10px 8px 8px",
+                      }}
+                      onClick={() => {
+                        if (currentUser.isAdmin) return;
+                        playTick();
+                        setSelectedShopItem(item);
+                        setBuyStep(1);
+                        setBuyQty(1);
+                        setBuyError(null);
+                      }}
+                    >
+                      {/* Admin remove button */}
+                      {currentUser.isAdmin && (
                         <button
-                          data-testid={`button-buy-${item.id}`}
-                          onClick={() => {
-                            playTick();
-                            setSelectedShopItem(item);
-                            setBuyStep(1);
-                            setBuyQty(1);
-                            setBuyError(null);
+                          data-testid={`button-unassign-item-${item.id}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (activeLocationId) unassignItemMutation.mutate({ locationId: activeLocationId, itemId: item.id });
                           }}
-                          className="w-full font-fantasy font-bold tracking-wide rounded-xl transition-transform active:scale-95"
-                          style={{
-                            padding: "7px 0",
-                            fontSize: "10px",
-                            letterSpacing: "0.08em",
-                            background: canAfford ? `linear-gradient(135deg, rgba(115,62,10,0.95) 0%, rgba(78,40,6,0.95) 100%)` : "rgba(60,45,25,0.4)",
-                            border: `1.5px solid ${canAfford ? "rgba(220,148,42,0.85)" : "rgba(100,75,40,0.25)"}`,
-                            color: canAfford ? "#ffd04a" : "#5a4830",
-                            cursor: canAfford ? "pointer" : "default",
-                            boxShadow: canAfford ? "0 3px 10px rgba(90,45,0,0.4)" : "none",
-                          }}
+                          className="absolute -top-2 -right-2 z-10 w-5 h-5 rounded-full flex items-center justify-center"
+                          style={{ background: "rgba(220,38,38,0.95)", border: "1px solid rgba(255,100,100,0.6)", cursor: "pointer" }}
                         >
-                          Buy
+                          <X className="w-3 h-3 text-white" />
                         </button>
                       )}
+                      {/* Owned badge */}
+                      {isOwned && (
+                        <div className="absolute top-1 left-1 z-10 px-1.5 py-0.5 rounded-full font-fantasy" style={{ fontSize: "7px", background: "rgba(232,168,0,0.25)", border: "1px solid rgba(232,168,0,0.5)", color: "#e8c84a" }}>
+                          Owned
+                        </div>
+                      )}
+                      {/* Item image */}
+                      <div className="w-full flex items-center justify-center mb-2" style={{ height: "72px" }}>
+                        {imgSrc ? (
+                          <img
+                            src={imgSrc}
+                            alt={item.name}
+                            className="max-w-full max-h-full object-contain"
+                            style={{ filter: `drop-shadow(0 2px 8px rgba(0,0,0,0.7)) drop-shadow(0 0 6px ${accent}30)` }}
+                          />
+                        ) : (
+                          <Package className="w-10 h-10" style={{ color: `${accent}60` }} />
+                        )}
+                      </div>
+                      {/* Item name */}
+                      <p className="font-fantasy text-center text-white leading-tight mb-1.5" style={{ fontSize: "10px", textShadow: "0 1px 4px rgba(0,0,0,0.8)", lineHeight: "1.3" }}>
+                        {item.name}
+                      </p>
+                      {/* Description hint */}
+                      {descLines.length > 0 && (
+                        <p className="font-fantasy text-center leading-tight mb-1.5" style={{ fontSize: "8px", color: `${accent}bb`, lineHeight: "1.2" }}>
+                          {descLines[0]}
+                        </p>
+                      )}
+                      {/* Price */}
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: canAfford ? `${accent}20` : "rgba(80,60,40,0.25)", border: `1px solid ${canAfford ? accent + "50" : "rgba(100,80,50,0.35)"}` }}>
+                        <img src={coinIconImg} alt="" style={{ width: "9px", height: "9px", objectFit: "contain" }} />
+                        <span className="font-fantasy" style={{ fontSize: "9px", color: canAfford ? accent : "#7a6040", fontWeight: 700 }}>{item.price}</span>
+                      </div>
                     </div>
                   );
                 })}
@@ -2999,13 +2975,15 @@ export default function WorldPage({ user }: WorldPageProps) {
                 top=41%  left=29%  right=29%  bottom=5%
               Close button is INSIDE the content div so it cannot escape the wooden body.
             */}
-            <div
-              className="relative z-10"
-              style={{
-                width: "min(480px, 98vw)",
-                height: "min(480px, 98vw)",
-              }}
-            >
+            <div className="relative z-10 flex flex-col items-center" style={{ gap: "14px" }}>
+              {/* ── Wooden price tag image container ── */}
+              <div
+                className="relative"
+                style={{
+                  width: buyStep === 1 ? "min(360px, 88vw)" : "min(480px, 98vw)",
+                  height: buyStep === 1 ? "min(360px, 88vw)" : "min(480px, 98vw)",
+                }}
+              >
               <img
                 src={priceTagImg}
                 alt=""
@@ -3061,13 +3039,13 @@ export default function WorldPage({ user }: WorldPageProps) {
                 </div>
               )}
 
-              {/* ── STEP 1: Text content (name top, abilities + buy bottom) ── */}
+              {/* ── STEP 1: Text content — name top, special info + price bottom ── */}
               {buyStep === 1 && (
                 <div
                   className="absolute flex flex-col justify-between"
                   style={{ top: "41%", left: "29%", right: "29%", bottom: "5%", overflow: "hidden" }}
                 >
-                  {/* TOP: item name centered bold */}
+                  {/* TOP: item name */}
                   <div className="text-center">
                     <h3
                       className="font-fantasy font-bold leading-tight"
@@ -3078,7 +3056,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                     </h3>
                   </div>
 
-                  {/* BOTTOM: abilities + buy button */}
+                  {/* BOTTOM: special info lines + price */}
                   <div>
                     {descLines.length > 0 && (
                       <div style={{ marginBottom: "5px" }}>
@@ -3089,38 +3067,14 @@ export default function WorldPage({ user }: WorldPageProps) {
                         ))}
                       </div>
                     )}
-                    <div style={{ borderTop: "1px solid rgba(100,50,10,0.28)", marginBottom: "5px" }} />
-                    {isMaxOwned ? (
-                      <div className="text-center font-fantasy" style={{ fontSize: "9px", padding: "7px 0", borderRadius: "8px", background: "rgba(80,50,10,0.18)", color: "#7a5010", border: "1px solid rgba(120,80,20,0.3)" }}>
-                        Max owned (3)
-                      </div>
-                    ) : (
-                      <>
-                        <button
-                          data-testid="button-price-buy"
-                          onClick={() => { setBuyStep(2); setBuyQty(1); }}
-                          className="w-full font-fantasy font-bold tracking-wide transition-transform active:scale-95"
-                          style={{
-                            padding: "8px 0",
-                            fontSize: "12px",
-                            borderRadius: "9px",
-                            background: canAfford ? "linear-gradient(135deg, rgba(115,62,10,0.95) 0%, rgba(78,40,6,0.95) 100%)" : "rgba(90,70,45,0.28)",
-                            border: `2px solid ${canAfford ? "rgba(220,148,42,0.85)" : "rgba(100,75,40,0.25)"}`,
-                            color: canAfford ? "#ffd04a" : "#7a6040",
-                            cursor: "pointer",
-                            boxShadow: canAfford ? "0 3px 10px rgba(90,45,0,0.4)" : "none",
-                          }}
-                        >
-                          <div className="flex items-center justify-center" style={{ gap: "5px" }}>
-                            <img src={coinIconImg} alt="" style={{ width: "13px", height: "13px", objectFit: "contain" }} />
-                            <span>{item.price} coins — Buy</span>
-                          </div>
-                        </button>
-                        {!canAfford && (
-                          <p className="font-fantasy text-center" style={{ fontSize: "8.5px", color: "#9a1800", marginTop: "2px" }} data-testid="text-not-enough-coins">Not enough coins</p>
-                        )}
-                      </>
-                    )}
+                    <div style={{ borderTop: "1px solid rgba(100,50,10,0.28)", marginBottom: "6px" }} />
+                    {/* Price display */}
+                    <div className="flex items-center justify-center" style={{ gap: "5px" }}>
+                      <img src={coinIconImg} alt="" style={{ width: "14px", height: "14px", objectFit: "contain" }} />
+                      <span className="font-fantasy font-bold" style={{ fontSize: "15px", color: "#1e0800", textShadow: "-1px -1px 0 rgba(255,225,150,0.85), 1px -1px 0 rgba(255,225,150,0.85), -1px 1px 0 rgba(255,225,150,0.85), 1px 1px 0 rgba(255,225,150,0.85)" }}>
+                        {item.price} coins
+                      </span>
+                    </div>
                   </div>
                 </div>
               )}
@@ -3199,7 +3153,44 @@ export default function WorldPage({ user }: WorldPageProps) {
                   </div>
                 </div>
               )}
-            </div>
+              </div>{/* end inner tag container */}
+
+              {/* ── Buy button below the price tag — step 1 only ── */}
+              {buyStep === 1 && (
+                isMaxOwned ? (
+                  <div
+                    className="text-center font-fantasy"
+                    style={{ fontSize: "11px", padding: "10px 24px", borderRadius: "10px", background: "rgba(80,50,10,0.55)", color: "#a07830", border: "1px solid rgba(160,110,40,0.4)" }}
+                  >
+                    Max owned (3)
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center" style={{ gap: "4px" }}>
+                    <button
+                      data-testid="button-price-buy"
+                      onClick={() => { setBuyStep(2); setBuyQty(1); }}
+                      className="font-fantasy font-bold tracking-wide transition-transform active:scale-95"
+                      style={{
+                        padding: "11px 40px",
+                        fontSize: "14px",
+                        borderRadius: "12px",
+                        background: canAfford ? "linear-gradient(135deg, rgba(115,62,10,0.97) 0%, rgba(78,40,6,0.97) 100%)" : "rgba(60,42,18,0.55)",
+                        border: `2px solid ${canAfford ? "rgba(220,148,42,0.9)" : "rgba(100,75,40,0.3)"}`,
+                        color: canAfford ? "#ffd04a" : "#7a6040",
+                        cursor: "pointer",
+                        boxShadow: canAfford ? "0 4px 16px rgba(90,45,0,0.5)" : "none",
+                        letterSpacing: "0.08em",
+                      }}
+                    >
+                      Buy
+                    </button>
+                    {!canAfford && (
+                      <p className="font-fantasy text-center" style={{ fontSize: "10px", color: "#e84040", textShadow: "0 1px 4px rgba(0,0,0,0.8)" }} data-testid="text-not-enough-coins">Not enough coins</p>
+                    )}
+                  </div>
+                )
+              )}
+            </div>{/* end outer flex-col wrapper */}
           </div>
         );
       })()}
