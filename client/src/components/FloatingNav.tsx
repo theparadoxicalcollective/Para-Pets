@@ -74,23 +74,25 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     setShowKeepers(false);
   };
 
+  const NAV_DELAY = 360; // ms — lets the sparkle play before transitioning
+
   const handleLeft = (id: string) => {
     closeAll();
-    if (id === "map")       { navigate("/map"); return; }
-    if (id === "quest")     { openPanel(() => setShowQuest(true)); return; }
-    if (id === "pvp")       { user.isAdmin ? navigate("/pvp") : openPanel(() => setShowPvpNote(true)); return; }
-    if (id === "inventory") { closeAll(); navigate("/pets"); return; }
-    if (id === "badges")    { navigate("/badges"); return; }
+    if (id === "map")       { setTimeout(() => navigate("/map"), NAV_DELAY); return; }
+    if (id === "quest")     { setTimeout(() => openPanel(() => setShowQuest(true)), NAV_DELAY); return; }
+    if (id === "pvp")       { user.isAdmin ? setTimeout(() => navigate("/pvp"), NAV_DELAY) : setTimeout(() => openPanel(() => setShowPvpNote(true)), NAV_DELAY); return; }
+    if (id === "inventory") { setTimeout(() => navigate("/pets"), NAV_DELAY); return; }
+    if (id === "badges")    { setTimeout(() => navigate("/badges"), NAV_DELAY); return; }
   };
 
   const handleRight = (id: string) => {
     closeAll();
-    if (id === "home")     { navigate("/"); return; }
-    if (id === "pethouse") { navigate("/pet-house"); return; }
-    if (id === "market")   { navigate("/market"); return; }
-    if (id === "aquarium") { openPanel(() => setShowAquarium(true)); return; }
-    if (id === "keepers")  { openPanel(() => setShowKeepers(true)); return; }
-    if (id === "bag")      { closeAll(); navigate("/bag"); return; }
+    if (id === "home")     { setTimeout(() => navigate("/"), NAV_DELAY); return; }
+    if (id === "pethouse") { setTimeout(() => navigate("/pet-house"), NAV_DELAY); return; }
+    if (id === "market")   { setTimeout(() => navigate("/market"), NAV_DELAY); return; }
+    if (id === "aquarium") { setTimeout(() => openPanel(() => setShowAquarium(true)), NAV_DELAY); return; }
+    if (id === "keepers")  { setTimeout(() => openPanel(() => setShowKeepers(true)), NAV_DELAY); return; }
+    if (id === "bag")      { setTimeout(() => navigate("/bag"), NAV_DELAY); return; }
   };
 
   return (
@@ -244,16 +246,16 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
 
 // ── Sparkle burst directions (8 angles) ──────────────────────────────────────
 const SPARK_DIRS = [
-  { tx: "0px",   ty: "-34px" },
-  { tx: "24px",  ty: "-24px" },
-  { tx: "34px",  ty: "0px"   },
-  { tx: "24px",  ty: "24px"  },
-  { tx: "0px",   ty: "34px"  },
-  { tx: "-24px", ty: "24px"  },
-  { tx: "-34px", ty: "0px"   },
-  { tx: "-24px", ty: "-24px" },
+  { tx: "0px",   ty: "-52px" },
+  { tx: "37px",  ty: "-37px" },
+  { tx: "52px",  ty: "0px"   },
+  { tx: "37px",  ty: "37px"  },
+  { tx: "0px",   ty: "52px"  },
+  { tx: "-37px", ty: "37px"  },
+  { tx: "-52px", ty: "0px"   },
+  { tx: "-37px", ty: "-37px" },
 ];
-const SPARK_COLORS = ["#f0c040", "#ffffff", "#a8ffcc", "#f0c040", "#ffe9a0", "#ffffff", "#f0c040", "#c8ffea"];
+const SPARK_COLORS = ["#f0c040", "#ffd966", "#ffe599", "#f0c040", "#ffcc00", "#ffd966", "#f0c040", "#ffe599"];
 
 // ── Individual nav icon button ────────────────────────────────────────────────
 function NavButton({
