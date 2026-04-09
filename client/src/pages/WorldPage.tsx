@@ -2980,8 +2980,8 @@ export default function WorldPage({ user }: WorldPageProps) {
               <div
                 className="relative"
                 style={{
-                  width: buyStep === 1 ? "min(360px, 88vw)" : "min(480px, 98vw)",
-                  height: buyStep === 1 ? "min(360px, 88vw)" : "min(480px, 98vw)",
+                  width: buyStep === 1 ? "min(440px, 94vw)" : "min(480px, 98vw)",
+                  height: buyStep === 1 ? "min(440px, 94vw)" : "min(480px, 98vw)",
                 }}
               >
               <img
