@@ -347,14 +347,14 @@ export default function HomePage({ user }: HomePageProps) {
 
 
       <div className="absolute inset-0 z-[1] pointer-events-none overflow-hidden">
-        <div className="absolute" style={{ left: "12%", top: "25%", width: "8px", height: "8px", borderRadius: "50%", background: "radial-gradient(circle, rgba(127,255,212,0.8) 0%, rgba(127,255,212,0) 70%)", boxShadow: "0 0 12px rgba(127,255,212,0.5), 0 0 25px rgba(127,255,212,0.2)", animation: "orbFloat1 8s ease-in-out infinite" }} />
-        <div className="absolute" style={{ right: "15%", top: "20%", width: "6px", height: "6px", borderRadius: "50%", background: "radial-gradient(circle, rgba(200,230,255,0.8) 0%, rgba(200,230,255,0) 70%)", boxShadow: "0 0 10px rgba(200,230,255,0.4), 0 0 20px rgba(200,230,255,0.15)", animation: "orbFloat2 10s ease-in-out infinite 1s" }} />
-        <div className="absolute" style={{ left: "25%", top: "55%", width: "5px", height: "5px", borderRadius: "50%", background: "radial-gradient(circle, rgba(180,255,200,0.7) 0%, rgba(180,255,200,0) 70%)", boxShadow: "0 0 8px rgba(180,255,200,0.4), 0 0 18px rgba(180,255,200,0.15)", animation: "orbFloat3 9s ease-in-out infinite 2s" }} />
-        <div className="absolute" style={{ right: "20%", top: "45%", width: "7px", height: "7px", borderRadius: "50%", background: "radial-gradient(circle, rgba(240,220,130,0.7) 0%, rgba(240,220,130,0) 70%)", boxShadow: "0 0 10px rgba(240,220,130,0.4), 0 0 22px rgba(240,220,130,0.15)", animation: "orbFloat1 11s ease-in-out infinite 3s" }} />
-        <div className="absolute" style={{ left: "8%", top: "40%", width: "4px", height: "4px", borderRadius: "50%", background: "radial-gradient(circle, rgba(127,255,212,0.6) 0%, rgba(127,255,212,0) 70%)", boxShadow: "0 0 6px rgba(127,255,212,0.3)", animation: "orbFloat2 7s ease-in-out infinite 4s" }} />
-        <div className="absolute" style={{ right: "10%", top: "65%", width: "5px", height: "5px", borderRadius: "50%", background: "radial-gradient(circle, rgba(160,200,255,0.6) 0%, rgba(160,200,255,0) 70%)", boxShadow: "0 0 8px rgba(160,200,255,0.3)", animation: "orbFloat3 12s ease-in-out infinite 1.5s" }} />
-        <div className="absolute" style={{ left: "45%", top: "15%", width: "10px", height: "10px", borderRadius: "50%", background: "radial-gradient(circle, rgba(200,255,220,0.4) 0%, rgba(200,255,220,0) 70%)", boxShadow: "0 0 15px rgba(200,255,220,0.2), 0 0 30px rgba(200,255,220,0.1)", animation: "orbPulse 5s ease-in-out infinite" }} />
-        <div className="absolute" style={{ left: "65%", top: "35%", width: "4px", height: "4px", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,240,180,0.7) 0%, rgba(255,240,180,0) 70%)", boxShadow: "0 0 6px rgba(255,240,180,0.3)", animation: "orbFloat1 6s ease-in-out infinite 5s" }} />
+        <div className="absolute" style={{ left: "12%", top: "25%", width: "8px", height: "8px", borderRadius: "50%", background: "radial-gradient(circle, rgba(127,255,212,0.8) 0%, rgba(127,255,212,0) 70%)", boxShadow: "0 0 18px rgba(127,255,212,0.35)", animation: "orbFloat1 8s ease-in-out infinite", willChange: "transform" }} />
+        <div className="absolute" style={{ right: "15%", top: "20%", width: "6px", height: "6px", borderRadius: "50%", background: "radial-gradient(circle, rgba(200,230,255,0.8) 0%, rgba(200,230,255,0) 70%)", boxShadow: "0 0 14px rgba(200,230,255,0.3)", animation: "orbFloat2 10s ease-in-out infinite 1s", willChange: "transform" }} />
+        <div className="absolute" style={{ left: "25%", top: "55%", width: "5px", height: "5px", borderRadius: "50%", background: "radial-gradient(circle, rgba(180,255,200,0.7) 0%, rgba(180,255,200,0) 70%)", boxShadow: "0 0 12px rgba(180,255,200,0.3)", animation: "orbFloat3 9s ease-in-out infinite 2s", willChange: "transform" }} />
+        <div className="absolute" style={{ right: "20%", top: "45%", width: "7px", height: "7px", borderRadius: "50%", background: "radial-gradient(circle, rgba(240,220,130,0.7) 0%, rgba(240,220,130,0) 70%)", boxShadow: "0 0 16px rgba(240,220,130,0.3)", animation: "orbFloat1 11s ease-in-out infinite 3s", willChange: "transform" }} />
+        <div className="absolute" style={{ left: "8%", top: "40%", width: "4px", height: "4px", borderRadius: "50%", background: "radial-gradient(circle, rgba(127,255,212,0.6) 0%, rgba(127,255,212,0) 70%)", boxShadow: "0 0 8px rgba(127,255,212,0.25)", animation: "orbFloat2 7s ease-in-out infinite 4s", willChange: "transform" }} />
+        <div className="absolute" style={{ right: "10%", top: "65%", width: "5px", height: "5px", borderRadius: "50%", background: "radial-gradient(circle, rgba(160,200,255,0.6) 0%, rgba(160,200,255,0) 70%)", boxShadow: "0 0 10px rgba(160,200,255,0.25)", animation: "orbFloat3 12s ease-in-out infinite 1.5s", willChange: "transform" }} />
+        <div className="absolute" style={{ left: "45%", top: "15%", width: "10px", height: "10px", borderRadius: "50%", background: "radial-gradient(circle, rgba(200,255,220,0.4) 0%, rgba(200,255,220,0) 70%)", boxShadow: "0 0 18px rgba(200,255,220,0.15)", animation: "orbPulse 5s ease-in-out infinite", willChange: "transform, opacity" }} />
+        <div className="absolute" style={{ left: "65%", top: "35%", width: "4px", height: "4px", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,240,180,0.7) 0%, rgba(255,240,180,0) 70%)", boxShadow: "0 0 6px rgba(255,240,180,0.3)", animation: "orbFloat1 6s ease-in-out infinite 5s", willChange: "transform" }} />
       </div>
 
       <div className="relative z-10 flex flex-col h-full" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
@@ -421,61 +421,43 @@ export default function HomePage({ user }: HomePageProps) {
               // sizes: "xs"=2px core/8 spread, "sm"=4px/16, "md"=8px/28, "lg"=14px/44
               type Orb = { left?: string; right?: string; top: string; color: string; anim: string; dur: string; delay: string; size: "xs"|"sm"|"md"|"lg" };
 
-              // 3-star: 8 orbs spread around the pet body
+              // 3-star: 6 orbs spread around the pet body
               const orbs3: Orb[] = [
                 { left:"10%",  top:"65%", color:"#f0c040", anim:"sparkOrb0", dur:"4.5s", delay:"0s",   size:"xs" },
                 { right:"11%", top:"62%", color:"#fffde0", anim:"sparkOrb2", dur:"5.2s", delay:"1.4s", size:"xs" },
                 { left:"20%",  top:"40%", color:"#f0c040", anim:"sparkOrb4", dur:"4.8s", delay:"0.7s", size:"sm" },
-                { right:"21%", top:"38%", color:"#fffde0", anim:"sparkOrb6", dur:"4.1s", delay:"2.1s", size:"xs" },
                 { left:"42%",  top:"18%", color:"#f0c040", anim:"sparkOrb8", dur:"5.0s", delay:"1.5s", size:"sm" },
-                { left:"55%",  top:"76%", color:"#fffde0", anim:"sparkOrb3", dur:"4.3s", delay:"0.4s", size:"xs" },
                 { left:"30%",  top:"55%", color:"#f0d060", anim:"sparkOrb1", dur:"3.9s", delay:"2.8s", size:"xs" },
                 { right:"30%", top:"52%", color:"#f0c040", anim:"sparkOrb5", dur:"4.7s", delay:"1.0s", size:"sm" },
               ];
-              // 4-star: 20 orbs with xs/sm/md coverage all over
+              // 4-star: 10 orbs with xs/sm/md coverage
               const orbs4: Orb[] = [
                 { left:"5%",   top:"50%", color:"#f0c040", anim:"sparkOrb0", dur:"3.4s", delay:"0s",   size:"sm" },
-                { left:"12%",  top:"70%", color:"#fffde0", anim:"sparkOrb1", dur:"4.2s", delay:"0.8s", size:"xs" },
                 { right:"7%",  top:"48%", color:"#f0d060", anim:"sparkOrb2", dur:"3.8s", delay:"1.5s", size:"sm" },
-                { right:"14%", top:"68%", color:"#fffde0", anim:"sparkOrb3", dur:"5.1s", delay:"0.3s", size:"xs" },
                 { left:"24%",  top:"22%", color:"#f0c040", anim:"sparkOrb4", dur:"4.6s", delay:"2.0s", size:"md" },
                 { right:"22%", top:"24%", color:"#fffde0", anim:"sparkOrb5", dur:"4.0s", delay:"1.1s", size:"sm" },
-                { left:"4%",   top:"30%", color:"#f0d060", anim:"sparkOrb6", dur:"3.9s", delay:"2.3s", size:"xs" },
-                { right:"4%",  top:"28%", color:"#fffde0", anim:"sparkOrb7", dur:"4.7s", delay:"0.5s", size:"xs" },
                 { left:"38%",  top:"12%", color:"#f0c040", anim:"sparkOrb8", dur:"5.0s", delay:"1.8s", size:"sm" },
-                { right:"35%", top:"15%", color:"#fffde0", anim:"sparkOrb9", dur:"3.6s", delay:"2.8s", size:"xs" },
                 { left:"55%",  top:"42%", color:"#f0c040", anim:"sparkOrbA", dur:"4.4s", delay:"1.2s", size:"md" },
-                { left:"18%",  top:"50%", color:"#fffde0", anim:"sparkOrbB", dur:"3.7s", delay:"0.6s", size:"xs" },
-                { right:"18%", top:"55%", color:"#f0d060", anim:"sparkOrb0", dur:"4.9s", delay:"2.4s", size:"sm" },
-                { left:"44%",  top:"72%", color:"#f0c040", anim:"sparkOrb2", dur:"3.5s", delay:"3.1s", size:"xs" },
-                { right:"42%", top:"70%", color:"#fffde0", anim:"sparkOrb4", dur:"4.8s", delay:"0.2s", size:"xs" },
-                { left:"62%",  top:"28%", color:"#f0c040", anim:"sparkOrb1", dur:"3.3s", delay:"1.7s", size:"sm" },
-                { left:"8%",   top:"82%", color:"#fffde0", anim:"sparkOrb3", dur:"4.5s", delay:"0.9s", size:"xs" },
-                { right:"8%",  top:"80%", color:"#f0d060", anim:"sparkOrb5", dur:"3.8s", delay:"2.6s", size:"sm" },
-                { left:"50%",  top:"88%", color:"#f0c040", anim:"sparkOrb7", dur:"5.2s", delay:"1.4s", size:"xs" },
-                { left:"33%",  top:"38%", color:"#fffde0", anim:"sparkOrb6", dur:"4.2s", delay:"3.3s", size:"md" },
+                { left:"12%",  top:"70%", color:"#fffde0", anim:"sparkOrb1", dur:"4.2s", delay:"0.8s", size:"xs" },
+                { right:"14%", top:"68%", color:"#fffde0", anim:"sparkOrb3", dur:"5.1s", delay:"0.3s", size:"xs" },
+                { left:"44%",  top:"72%", color:"#f0c040", anim:"sparkOrb6", dur:"3.5s", delay:"3.1s", size:"xs" },
+                { left:"33%",  top:"38%", color:"#fffde0", anim:"sparkOrbB", dur:"4.2s", delay:"3.3s", size:"xs" },
               ];
-              // 5-star extras: calm gold sparkles in varied shades
+              // 5-star extras: 8 calm gold sparkles
               const orbs5extra: Orb[] = [
                 { left:"2%",   top:"44%", color:"#ffd700", anim:"calmSparkle0", dur:"7.2s", delay:"0.6s",  size:"md" },
                 { right:"3%",  top:"41%", color:"#e8a020", anim:"calmSparkle1", dur:"6.5s", delay:"1.9s",  size:"md" },
                 { left:"17%",  top:"78%", color:"#fff0a0", anim:"calmSparkle2", dur:"8.0s", delay:"2.5s",  size:"sm" },
                 { right:"16%", top:"76%", color:"#f0c040", anim:"calmSparkle3", dur:"7.5s", delay:"0.1s",  size:"sm" },
                 { left:"46%",  top:"8%",  color:"#ffeaa0", anim:"calmSparkle4", dur:"6.8s", delay:"3.0s",  size:"md" },
-                { left:"1%",   top:"65%", color:"#ffe080", anim:"calmSparkle5", dur:"7.8s", delay:"1.3s",  size:"sm" },
                 { right:"1%",  top:"60%", color:"#d4a020", anim:"calmSparkle0", dur:"6.3s", delay:"2.2s",  size:"md" },
-                { left:"28%",  top:"88%", color:"#fff0a0", anim:"calmSparkle1", dur:"8.4s", delay:"0.7s",  size:"sm" },
-                { right:"28%", top:"85%", color:"#ffd700", anim:"calmSparkle2", dur:"7.0s", delay:"1.6s",  size:"md" },
                 { left:"60%",  top:"60%", color:"#e8a020", anim:"calmSparkle3", dur:"6.9s", delay:"2.9s",  size:"md" },
-                { left:"14%",  top:"25%", color:"#ffe080", anim:"calmSparkle4", dur:"7.6s", delay:"0.4s",  size:"sm" },
-                { right:"12%", top:"22%", color:"#ffeaa0", anim:"calmSparkle5", dur:"8.1s", delay:"3.4s",  size:"md" },
-                { left:"52%",  top:"32%", color:"#ffd700", anim:"calmSparkle2", dur:"6.6s", delay:"1.0s",  size:"sm" },
-                { right:"50%", top:"48%", color:"#d4a020", anim:"calmSparkle4", dur:"7.3s", delay:"4.0s",  size:"xs" },
+                { right:"12%", top:"22%", color:"#ffeaa0", anim:"calmSparkle5", dur:"8.1s", delay:"3.4s",  size:"sm" },
               ];
 
               const allOrbs = is5 ? [...orbs4, ...orbs5extra] : is4 ? orbs4 : orbs3;
 
-              // Glow bloom: bright core + layered soft spread, sized by orb.size
+              // Glow bloom: bright core + single soft spread — 2 layers for GPU performance
               const renderMote = (orb: Orb, idx: number) => {
                 const sizeMap = { xs: { core: 2, spread: 8 }, sm: { core: 4, spread: 16 }, md: { core: 8, spread: 28 }, lg: { core: 14, spread: 44 } };
                 const { core, spread } = sizeMap[orb.size];
@@ -491,13 +473,9 @@ export default function HomePage({ user }: HomePageProps) {
                       height: core,
                       borderRadius: "50%",
                       background: "white",
-                      boxShadow: [
-                        `0 0 ${core * 1.5}px ${core * 0.8}px rgba(255,255,255,0.95)`,
-                        `0 0 ${spread}px ${spread / 2}px ${orb.color}ee`,
-                        `0 0 ${spread * 2}px ${spread}px ${orb.color}88`,
-                        `0 0 ${spread * 3.5}px ${spread * 2}px ${orb.color}33`,
-                      ].join(", "),
+                      boxShadow: `0 0 ${core * 1.5}px ${core * 0.8}px rgba(255,255,255,0.9), 0 0 ${spread * 2}px ${spread}px ${orb.color}88`,
                       animation: `${orb.anim} ${orb.dur} ease-in-out infinite ${orb.delay}`,
+                      willChange: "transform, opacity",
                       pointerEvents: "none",
                       zIndex: 2,
                     }}
@@ -517,6 +495,7 @@ export default function HomePage({ user }: HomePageProps) {
                         ? "radial-gradient(ellipse at center, rgba(240,192,64,0.12) 0%, transparent 60%)"
                         : "radial-gradient(ellipse at center, rgba(240,192,64,0.06) 0%, transparent 55%)",
                     animation: is5 ? "sparkAura5 4s ease-in-out infinite" : "sparkAura 4.5s ease-in-out infinite",
+                    willChange: "transform, opacity",
                     pointerEvents: "none",
                     zIndex: 0,
                   }} />
@@ -561,6 +540,7 @@ export default function HomePage({ user }: HomePageProps) {
                           : "radial-gradient(ellipse, rgba(240,192,64,0.12) 0%, transparent 70%)",
                       filter: "blur(14px)",
                       animation: "sparkAura 5s ease-in-out infinite",
+                      willChange: "transform, opacity",
                       pointerEvents: "none",
                       zIndex: 0,
                     }} />

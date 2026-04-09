@@ -56,7 +56,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
   interface AdminMsg { id: string; subject: string; message: string; createdAt: string; }
   const { data: adminMsgsRaw } = useQuery<AdminMsg[]>({
     queryKey: ["/api/admin-messages"],
-    staleTime: 0,
+    staleTime: 60000,
     refetchInterval: 60000,
   });
   const adminMsgs: AdminMsg[] = Array.isArray(adminMsgsRaw) ? adminMsgsRaw : [];

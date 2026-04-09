@@ -943,14 +943,14 @@ export default function WorldPage({ user }: WorldPageProps) {
         mapHRef.current = h;
         setMapH(h);
       }
-      lastLoadedBgRef.current = world.bg;
-      setCommittedWorldBg(world.bg);
+      lastLoadedBgRef.current = world.bg!;
+      setCommittedWorldBg(world.bg!);
       setWorldBgLoaded(true);
     };
     img.onerror = () => {
       if (cancelled) return;
-      lastLoadedBgRef.current = world.bg;
-      setCommittedWorldBg(world.bg);
+      lastLoadedBgRef.current = world.bg!;
+      setCommittedWorldBg(world.bg!);
       setWorldBgLoaded(true);
     };
     img.src = world.bg;
