@@ -1053,7 +1053,7 @@ export default function ParaPetsHubPage() {
             <div
               ref={worldsRef}
               className="flex gap-3 overflow-x-auto pb-2"
-              style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+              style={{ scrollbarWidth: "none", msOverflowStyle: "none", touchAction: "pan-x" }}
               data-testid="worlds-showcase"
             >
               {WORLDS.map(w => (
@@ -1353,21 +1353,21 @@ export default function ParaPetsHubPage() {
           </div>
 
         </main>
-      </div>
 
-      {showSignIn && (
-        <SignInModal onClose={() => setShowSignIn(false)} onSuccess={handleSignInSuccess} />
-      )}
-      {showHomescreen && (
-        <HomeScreenModal onClose={() => setShowHomescreen(false)} />
-      )}
-      {selectedPlayerId && (
-        <PlayerDetailPanel
-          userId={selectedPlayerId}
-          currentUserId={user?.id}
-          onClose={() => setSelectedPlayerId(null)}
-        />
-      )}
+        {showSignIn && (
+          <SignInModal onClose={() => setShowSignIn(false)} onSuccess={handleSignInSuccess} />
+        )}
+        {showHomescreen && (
+          <HomeScreenModal onClose={() => setShowHomescreen(false)} />
+        )}
+        {selectedPlayerId && (
+          <PlayerDetailPanel
+            userId={selectedPlayerId}
+            currentUserId={user?.id}
+            onClose={() => setSelectedPlayerId(null)}
+          />
+        )}
+      </div>
     </>
   );
 }
