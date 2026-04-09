@@ -177,6 +177,7 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose }: Pl
   const petImg = profile?.activePet?.hatchedImageUrl || profile?.activePet?.imageUrl;
 
   return (
+    <>
     <div
       data-testid="overlay-player-detail"
       className="fixed inset-0 z-50 flex items-end justify-center"
@@ -659,5 +660,15 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose }: Pl
         )}
       </div>
     </div>
+
+    {showGiftModal && profile && (
+      <SendGiftModal
+        friendId={userId}
+        friendUsername={profile.username}
+        senderCoins={me?.coins ?? 0}
+        onClose={() => setShowGiftModal(false)}
+      />
+    )}
+    </>
   );
 }
