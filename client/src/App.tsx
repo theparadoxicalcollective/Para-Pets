@@ -361,7 +361,13 @@ function CrashReporter() {
     try {
       const raw = localStorage.getItem("__para_last_error");
       if (!raw) return null;
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      // Only show errors from the last 2 minutes — older ones are from past sessions
+      if (Date.now() - parsed.ts > 2 * 60 * 1000) {
+        localStorage.removeItem("__para_last_error");
+        return null;
+      }
+      return parsed;
     } catch (_) { return null; }
   });
 

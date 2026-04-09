@@ -13,9 +13,32 @@ window.addEventListener("resize", setAppHeight);
 // ErrorBoundary (e.g. ResizeObserver callbacks, native event handlers).
 // Stored in localStorage so it survives a full page reload / PWA restart.
 
+// Patterns that are browser quirks or handled gracefully — never worth showing to players
+const BENIGN_ERROR_PATTERNS = [
+  /ResizeObserver loop/i,
+  /ResizeObserver/i,
+  /Non-Error promise rejection captured/i,
+  /NetworkError/i,
+  /Failed to fetch/i,
+  /Load failed/i,
+  /fetch.*cancelled/i,
+  /AbortError/i,
+  /cancelled/i,
+  /The operation was aborted/i,
+  /401/,
+  /403/,
+  /404/,
+];
+
+function isBenign(msg: string): boolean {
+  return BENIGN_ERROR_PATTERNS.some((p) => p.test(msg));
+}
+
 function storeError(msg: string, source?: string) {
   try {
-    const entry = JSON.stringify({ msg: String(msg).slice(0, 500), source: String(source ?? "").slice(0, 200), ts: Date.now() });
+    const message = String(msg).slice(0, 500);
+    if (isBenign(message)) return;
+    const entry = JSON.stringify({ msg: message, source: String(source ?? "").slice(0, 200), ts: Date.now() });
     localStorage.setItem("__para_last_error", entry);
   } catch (_) {}
 }
