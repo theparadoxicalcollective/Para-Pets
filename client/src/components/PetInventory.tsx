@@ -770,116 +770,106 @@ function PetView({
             className="relative flex flex-col"
             style={{ borderRadius: 18 }}
           >
-            {/* Info box — image lives inside at top */}
+            {/* Pet image — floating free above the stat card, no container */}
+            <div
+              className="flex justify-center"
+              style={{ position: "relative", zIndex: 2, marginBottom: -60 }}
+              onClick={handleImageClick}
+            >
+              <div style={{ position: "relative", width: 140, height: 140, cursor: "pointer", perspective: "400px" }}>
+
+                {/* 3D coin flipper */}
+                <div
+                  style={{
+                    width: 140, height: 140,
+                    position: "relative",
+                    transformStyle: "preserve-3d",
+                    transition: "transform 0.45s cubic-bezier(0.455,0.03,0.515,0.955)",
+                    transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
+                  }}
+                >
+                  {/* Front face — bare image, no container */}
+                  <div
+                    style={{
+                      position: "absolute", inset: 0,
+                      backfaceVisibility: "hidden",
+                      WebkitBackfaceVisibility: "hidden",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    {displayImage ? (
+                      <img src={displayImage} alt={pet.name} style={{ width: 140, height: 140, objectFit: "contain", filter: isActive ? "drop-shadow(0 0 12px rgba(240,192,64,0.8))" : `drop-shadow(0 0 ${4 + (pet.rarity ?? 1) * 2}px rgba(240,192,64,${rs.glowStrength}))` }} />
+                    ) : (
+                      <img src={isEgg ? eggMagicIcon : petPawIcon} alt="" style={{ width: 100, height: 100, objectFit: "contain", filter: "drop-shadow(0 0 8px rgba(240,192,64,0.4))" }} />
+                    )}
+                  </div>
+
+                  {/* Back face — egg image, bare */}
+                  <div
+                    style={{
+                      position: "absolute", inset: 0,
+                      backfaceVisibility: "hidden",
+                      WebkitBackfaceVisibility: "hidden",
+                      transform: "rotateY(180deg)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    {eggDisplayImage ? (
+                      <img src={eggDisplayImage} alt="egg" style={{ width: 140, height: 140, objectFit: "contain", filter: "drop-shadow(0 0 10px rgba(240,192,64,0.6))" }} />
+                    ) : (
+                      <img src={eggMagicIcon} alt="egg" style={{ width: 100, height: 100, objectFit: "contain", filter: "drop-shadow(0 0 8px rgba(240,192,64,0.5))" }} />
+                    )}
+                  </div>
+                </div>
+
+                {/* Hatch ready glow ring */}
+                {!isDragging && hatchReady && hatchingId !== pet.inventoryId && (
+                  <div className="absolute inset-0 flex items-center justify-center animate-pulse pointer-events-none">
+                    <span className="font-fantasy text-[#f0c040] text-[10px] font-bold tracking-widest" style={{ textShadow: "0 0 10px rgba(240,192,64,0.9)", position: "absolute", bottom: 0 }}>READY!</span>
+                  </div>
+                )}
+
+                {/* Drag-drop indicator */}
+                {isDragging && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                    style={{ border: "2px dashed rgba(240,192,64,0.7)", borderRadius: 12 }}>
+                    <span className="font-fantasy text-[#f0c040] text-[10px] font-bold" style={{ textShadow: "0 0 8px rgba(240,192,64,0.9)" }}>DROP</span>
+                  </div>
+                )}
+
+                {/* Hatch burst particles */}
+                {hatchingId === pet.inventoryId && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20" style={{ overflow: "visible" }}>
+                    {[...Array(10)].map((_, i) => {
+                      const angle = (i / 10) * 360;
+                      const rad = (angle * Math.PI) / 180;
+                      const endX = Math.cos(rad) * 70;
+                      const endY = Math.sin(rad) * 70;
+                      const size = 6 + Math.random() * 6;
+                      const delay = i * 0.04;
+                      return (
+                        <div key={i} style={{ position: "absolute", width: `${size}px`, height: `${size}px`, borderRadius: "50%", background: "radial-gradient(circle, #ffe566 0%, #f0c040 40%, rgba(240,192,64,0) 70%)", boxShadow: "0 0 10px rgba(240,192,64,0.8)", animation: `hatchOrbBurst 1.4s ${delay}s ease-out forwards`, opacity: 0, ["--endX" as any]: `${endX}px`, ["--endY" as any]: `${endY}px` }} />
+                      );
+                    })}
+                    <span className="font-fantasy text-sm font-bold tracking-widest absolute" style={{ color: "#f0c040", textShadow: "0 0 12px rgba(240,192,64,0.8)", animation: "hatchTextRise 2s 0.3s ease-out forwards", opacity: 0 }}>HATCHED!</span>
+                  </div>
+                )}
+
+                {/* EGG label */}
+                {isEgg && !hatchReady && (
+                  <div style={{ position: "absolute", bottom: -10, left: "50%", transform: "translateX(-50%)", background: "rgba(8,4,1,0.92)", border: "1px solid rgba(240,192,64,0.42)", borderRadius: 20, padding: "1px 8px", whiteSpace: "nowrap" }}>
+                    <span className="font-fantasy text-[7px] text-[#f0c040] tracking-wider">EGG</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Stat card below the floating image */}
             <div
               className="relative flex flex-col items-center rounded-2xl overflow-hidden"
               onClick={handleInfoBoxClick}
-              style={{ cursor: "pointer", background: rs.bg, border: isDragging ? "1.5px solid rgba(240,192,64,0.85)" : isActive ? "1.5px solid rgba(240,192,64,0.82)" : rs.border, boxShadow: isDragging ? "0 0 22px rgba(240,192,64,0.4)" : isActive ? "0 0 26px rgba(240,192,64,0.32), 0 4px 20px rgba(0,0,0,0.6)" : `${rs.glow}, 0 4px 16px rgba(0,0,0,0.5)`, transition: "box-shadow 0.2s", paddingTop: 0, paddingBottom: 10, paddingLeft: 8, paddingRight: 8 }}
+              style={{ cursor: "pointer", background: rs.bg, border: isDragging ? "1.5px solid rgba(240,192,64,0.85)" : isActive ? "1.5px solid rgba(240,192,64,0.82)" : rs.border, boxShadow: isDragging ? "0 0 22px rgba(240,192,64,0.4)" : isActive ? "0 0 26px rgba(240,192,64,0.32), 0 4px 20px rgba(0,0,0,0.6)" : `${rs.glow}, 0 4px 16px rgba(0,0,0,0.5)`, transition: "box-shadow 0.2s", paddingTop: 68, paddingBottom: 10, paddingLeft: 8, paddingRight: 8 }}
             >
-              {/* Pet image — full width, tappable to flip/see egg */}
-              <div
-                className="w-full relative"
-                style={{ height: 120, cursor: "pointer", marginBottom: 6 }}
-                onClick={(e) => { e.stopPropagation(); handleImageClick(); }}
-              >
-                <div style={{ position: "relative", width: "100%", height: "100%", perspective: "400px" }}>
-
-                  {/* 3D coin flipper */}
-                  <div
-                    style={{
-                      width: "100%", height: "100%",
-                      position: "relative",
-                      transformStyle: "preserve-3d",
-                      transition: "transform 0.45s cubic-bezier(0.455,0.03,0.515,0.955)",
-                      transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
-                    }}
-                  >
-                    {/* Front face — pet image, no circle */}
-                    <div
-                      style={{
-                        position: "absolute", inset: 0,
-                        backfaceVisibility: "hidden",
-                        WebkitBackfaceVisibility: "hidden",
-                        background: "rgba(8,5,2,0.52)",
-                        boxShadow: isActive
-                          ? "0 0 22px rgba(240,192,64,0.45)"
-                          : `0 0 ${6 + (pet.rarity ?? 1) * 3}px rgba(240,192,64,${rs.glowStrength})`,
-                      }}
-                    >
-                      {displayImage ? (
-                        <img src={displayImage} alt={pet.name} className="w-full h-full object-contain"
-                          style={{ padding: "8px", filter: isActive ? "drop-shadow(0 0 10px rgba(240,192,64,0.65))" : "drop-shadow(0 0 6px rgba(240,192,64,0.35))" }} />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <img src={isEgg ? eggMagicIcon : petPawIcon} alt="" style={{ width: 60, height: 60, objectFit: "contain" }} />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Back face — egg image, no circle */}
-                    <div
-                      style={{
-                        position: "absolute", inset: 0,
-                        backfaceVisibility: "hidden",
-                        WebkitBackfaceVisibility: "hidden",
-                        transform: "rotateY(180deg)",
-                        background: "rgba(8,5,2,0.52)",
-                        boxShadow: "0 0 14px rgba(240,192,64,0.3)",
-                      }}
-                    >
-                      {eggDisplayImage ? (
-                        <img src={eggDisplayImage} alt="egg" className="w-full h-full object-contain"
-                          style={{ padding: "8px", filter: "drop-shadow(0 0 6px rgba(240,192,64,0.5))" }} />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <img src={eggMagicIcon} alt="egg" style={{ width: 60, height: 60, objectFit: "contain" }} />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Hatch ready overlay */}
-                  {!isDragging && hatchReady && hatchingId !== pet.inventoryId && (
-                    <div className="absolute inset-0 flex items-center justify-center animate-pulse"
-                      style={{ background: "rgba(240,192,64,0.18)", border: "2px solid rgba(240,192,64,0.72)" }}>
-                      <span className="font-fantasy text-[#f0c040] text-[10px] font-bold tracking-widest" style={{ textShadow: "0 0 10px rgba(240,192,64,0.9)" }}>READY!</span>
-                    </div>
-                  )}
-
-                  {/* Drag-drop overlay */}
-                  {isDragging && (
-                    <div className="absolute inset-0 flex items-center justify-center"
-                      style={{ background: "rgba(240,192,64,0.16)", border: "2px dashed rgba(240,192,64,0.8)", pointerEvents: "none" }}>
-                      <span className="font-fantasy text-[#f0c040] text-[10px] font-bold" style={{ textShadow: "0 0 8px rgba(240,192,64,0.9)" }}>DROP</span>
-                    </div>
-                  )}
-
-                  {/* Hatch burst particles */}
-                  {hatchingId === pet.inventoryId && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20" style={{ overflow: "visible" }}>
-                      {[...Array(10)].map((_, i) => {
-                        const angle = (i / 10) * 360;
-                        const rad = (angle * Math.PI) / 180;
-                        const endX = Math.cos(rad) * 60;
-                        const endY = Math.sin(rad) * 60;
-                        const size = 6 + Math.random() * 6;
-                        const delay = i * 0.04;
-                        return (
-                          <div key={i} style={{ position: "absolute", width: `${size}px`, height: `${size}px`, borderRadius: "50%", background: "radial-gradient(circle, #ffe566 0%, #f0c040 40%, rgba(240,192,64,0) 70%)", boxShadow: "0 0 10px rgba(240,192,64,0.8)", animation: `hatchOrbBurst 1.4s ${delay}s ease-out forwards`, opacity: 0, ["--endX" as any]: `${endX}px`, ["--endY" as any]: `${endY}px` }} />
-                        );
-                      })}
-                      <span className="font-fantasy text-sm font-bold tracking-widest absolute" style={{ color: "#f0c040", textShadow: "0 0 12px rgba(240,192,64,0.8)", animation: "hatchTextRise 2s 0.3s ease-out forwards", opacity: 0 }}>HATCHED!</span>
-                    </div>
-                  )}
-
-                  {/* EGG label */}
-                  {isEgg && !hatchReady && (
-                    <div style={{ position: "absolute", bottom: 4, left: "50%", transform: "translateX(-50%)", background: "rgba(8,4,1,0.92)", border: "1px solid rgba(240,192,64,0.42)", borderRadius: 20, padding: "1px 8px", whiteSpace: "nowrap" }}>
-                      <span className="font-fantasy text-[7px] text-[#f0c040] tracking-wider">EGG</span>
-                    </div>
-                  )}
-                </div>
-              </div>
               {/* Texture overlay */}
               <img
                 src={petCardTextureImg}
