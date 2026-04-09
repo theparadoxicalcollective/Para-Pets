@@ -295,58 +295,93 @@ function AppRouter() {
     return <WelcomeGiftScreen user={user} onComplete={handleWelcomeComplete} />;
   }
 
-  return (
-    <>
+  // Full-screen paths that completely replace the game view (no HomePage base)
+  const isFullScreenPath =
+    location === "/auth" ||
+    location.startsWith("/reset-password/") ||
+    location === "/privacy" ||
+    location === "/hub" ||
+    location === "/admin" ||
+    location.startsWith("/visit/");
+
+  if (isFullScreenPath || !user) {
+    return (
       <Switch>
         <Route path="/auth" component={AuthPage} />
         <Route path="/reset-password/:token" component={ResetPasswordPage} />
-        <Route path="/map">
-          {user ? <MapPage user={user} /> : <Redirect to="/auth" />}
-        </Route>
-        <Route path="/world/:worldId">
-          {user ? <WorldPage key={location} user={user} /> : <Redirect to="/auth" />}
-        </Route>
-        <Route path="/coins">
-          {user ? <CoinShopPage user={user} /> : <Redirect to="/auth" />}
-        </Route>
+        <Route path="/privacy"><PrivacyPolicyPage user={user ?? null} /></Route>
+        <Route path="/hub"><ParaPetsHubPage /></Route>
         <Route path="/admin">
-          {user && user.isAdmin ? <AdminPage user={user} /> : <Redirect to="/" />}
-        </Route>
-        <Route path="/pet-house">
-          {user ? <PetHousePage user={user} /> : <Redirect to="/auth" />}
+          {user?.isAdmin ? <AdminPage user={user} /> : <Redirect to="/" />}
         </Route>
         <Route path="/visit/:userId">
           {user ? <VisitPetHousePage /> : <Redirect to="/auth" />}
         </Route>
-        <Route path="/privacy">
-          <PrivacyPolicyPage user={user ?? null} />
-        </Route>
-        <Route path="/hub">
-          <ParaPetsHubPage />
-        </Route>
-        <Route path="/badges">
-          {user ? <BadgePage user={user} /> : <Redirect to="/auth" />}
-        </Route>
-        <Route path="/market">
-          {user ? <MarketPage user={user} onUserUpdate={u => queryClient.setQueryData(["/api/auth/me"], u)} /> : <Redirect to="/auth" />}
-        </Route>
-        <Route path="/pvp">
-          {user ? <PvpArenaWrapper /> : <Redirect to="/auth" />}
-        </Route>
-        <Route path="/pets">
-          {user ? <PetInventoryPage /> : <Redirect to="/auth" />}
-        </Route>
-        <Route path="/bag">
-          {user ? <BagInventoryPage /> : <Redirect to="/auth" />}
-        </Route>
-        <Route path="/">
-          {user ? <HomePage user={user} /> : <Redirect to="/auth" />}
-        </Route>
-        <Route>
-          <Redirect to="/" />
-        </Route>
+        <Route><Redirect to={user ? "/" : "/auth"} /></Route>
       </Switch>
-      {user && !isLoading && !shouldHideNav(location) && (
+    );
+  }
+
+  // ── Game layout ────────────────────────────────────────────────────────────
+  // HomePage is permanently mounted as the base layer so navigating back to "/"
+  // is instant — no unmount/remount gap, no blank-screen flash.
+  // All other game pages render as absolute overlays on top of it.
+  return (
+    <>
+      {/* Base: always mounted, always visible when no overlay is active */}
+      <div style={{ position: "absolute", inset: 0 }}>
+        <HomePage user={user} />
+      </div>
+
+      {/* Game overlays — each fades in quickly to smooth page-to-page transitions */}
+      {location === "/map" && (
+        <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+          <MapPage user={user} />
+        </div>
+      )}
+      {location.startsWith("/world/") && (
+        <div key={location} className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+          <WorldPage user={user} />
+        </div>
+      )}
+      {location === "/coins" && (
+        <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+          <CoinShopPage user={user} />
+        </div>
+      )}
+      {location === "/pet-house" && (
+        <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+          <PetHousePage user={user} />
+        </div>
+      )}
+      {location === "/badges" && (
+        <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+          <BadgePage user={user} />
+        </div>
+      )}
+      {location === "/market" && (
+        <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+          <MarketPage user={user} onUserUpdate={u => queryClient.setQueryData(["/api/auth/me"], u)} />
+        </div>
+      )}
+      {location === "/pvp" && (
+        <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+          <PvpArenaWrapper />
+        </div>
+      )}
+      {location === "/pets" && (
+        <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+          <PetInventoryPage />
+        </div>
+      )}
+      {location === "/bag" && (
+        <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+          <BagInventoryPage />
+        </div>
+      )}
+
+      {/* FloatingNav sits above all overlays */}
+      {!shouldHideNav(location) && (
         <FloatingNav
           user={user}
           onUserUpdate={(u) => queryClient.setQueryData(["/api/auth/me"], u)}
