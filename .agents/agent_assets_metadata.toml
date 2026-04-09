@@ -120,6 +120,12 @@ uri = "file://attached_assets/generated_images/badge_moderator.png"
 type = "image"
 title = "moderator badge shield swords"
 
+[[generated]]
+id = "HpD7rlw4W8iYwYe299oYZ"
+uri = "file://attached_assets/generated_images/nav_icon_world_chat.png"
+type = "image"
+title = "world chat icon"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"

@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { MailOpen } from "lucide-react";
 import { playGrab } from "@/lib/sounds";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -441,6 +442,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const [openInventory, setOpenInventory] = useState<"home" | "decor" | "pets" | "friends" | null>(null);
   const [pendingActivate, setPendingActivate] = useState<{ bundleId: string; bundle: OwnedBundle["bundle"] } | null>(null);
   const [openGiftModal, setOpenGiftModal] = useState(false);
+  const [showNoMailPopup, setShowNoMailPopup] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<{ id: string; username: string } | null>(null);
 
   // Canvas panning
@@ -1020,7 +1022,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                     if (pendingGifts.length > 0) {
                       setOpenGiftModal(true);
                     } else {
-                      toast({ title: "No Mail Yet", description: "Check back later for gifts and letters." });
+                      setShowNoMailPopup(true);
                     }
                   }
                 }}
@@ -1633,6 +1635,51 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
       {openGiftModal && (
         <GiftClaimModal onClose={() => setOpenGiftModal(false)} />
+      )}
+
+      {showNoMailPopup && (
+        <div
+          className="absolute inset-0 flex items-center justify-center"
+          style={{ zIndex: 9000, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(3px)" }}
+          onClick={() => setShowNoMailPopup(false)}
+        >
+          <div
+            className="flex flex-col items-center gap-3 px-8 py-6 rounded-2xl"
+            style={{
+              background: "linear-gradient(160deg, rgba(14,8,3,0.98) 0%, rgba(35,20,6,0.98) 100%)",
+              border: "1.5px solid rgba(212,160,23,0.4)",
+              boxShadow: "0 8px 40px rgba(0,0,0,0.8), 0 0 20px rgba(212,160,23,0.08)",
+              maxWidth: 260,
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div
+              className="w-12 h-12 rounded-full flex items-center justify-center"
+              style={{ background: "radial-gradient(ellipse, rgba(212,160,23,0.15) 0%, rgba(60,35,10,0.4) 100%)", border: "1.5px solid rgba(212,160,23,0.3)" }}
+            >
+              <MailOpen size={24} color="rgba(212,160,23,0.7)" />
+            </div>
+            <div className="text-center">
+              <p className="font-fantasy tracking-widest mb-1" style={{ color: "#f0c040", fontSize: 13, letterSpacing: "0.15em" }}>NO MAIL YET</p>
+              <p className="font-sans" style={{ color: "#c8b896", fontSize: 12, lineHeight: 1.5 }}>Check back later for gifts and messages from friends.</p>
+            </div>
+            <button
+              data-testid="button-close-no-mail"
+              onClick={() => setShowNoMailPopup(false)}
+              className="font-fantasy tracking-widest transition-transform active:scale-90"
+              style={{
+                fontSize: 10, padding: "6px 20px", borderRadius: 8,
+                background: "rgba(212,160,23,0.12)",
+                border: "1px solid rgba(212,160,23,0.35)",
+                color: "rgba(240,192,64,0.8)",
+                cursor: "pointer",
+                letterSpacing: "0.1em",
+              }}
+            >
+              OK
+            </button>
+          </div>
+        </div>
       )}
 
       {selectedFriend && (

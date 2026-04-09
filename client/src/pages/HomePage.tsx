@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
-import { X, HelpCircle, Zap, Star, RotateCcw, MessageCircle } from "lucide-react";
+import { X, HelpCircle, Zap, Star, RotateCcw } from "lucide-react";
 import WorldChatPanel from "@/components/WorldChatPanel";
+import worldChatIconImg from "@assets/generated_images/nav_icon_world_chat.png";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import bgImg from "@assets/bg_home_v2.png";
@@ -1234,18 +1235,24 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             onClick={() => setShowWorldChat(v => !v)}
             className="absolute z-30 flex items-center justify-center rounded-full transition-transform active:scale-90"
             style={{
-              top: "68px",
-              right: "52px",
-              width: "30px",
-              height: "30px",
-              background: showWorldChat ? "rgba(240,192,64,0.18)" : "rgba(10,5,2,0.82)",
-              border: `1.5px solid ${showWorldChat ? "rgba(240,192,64,0.7)" : "rgba(212,160,23,0.45)"}`,
-              color: showWorldChat ? "rgba(240,192,64,1)" : "rgba(212,160,23,0.75)",
+              top: "62px",
+              right: "54px",
+              width: "38px",
+              height: "38px",
+              background: showWorldChat ? "rgba(127,255,212,0.15)" : "rgba(10,5,2,0.82)",
+              border: `1.5px solid ${showWorldChat ? "rgba(127,255,212,0.7)" : "rgba(127,255,212,0.35)"}`,
               cursor: "pointer",
-              boxShadow: showWorldChat ? "0 2px 10px rgba(0,0,0,0.5), 0 0 12px rgba(240,192,64,0.3)" : "0 2px 10px rgba(0,0,0,0.5)",
+              boxShadow: showWorldChat
+                ? "0 2px 14px rgba(0,0,0,0.6), 0 0 16px rgba(127,255,212,0.35)"
+                : "0 2px 10px rgba(0,0,0,0.5), 0 0 8px rgba(127,255,212,0.15)",
+              padding: 2,
             }}
           >
-            <MessageCircle className="w-4 h-4" />
+            <img
+              src={worldChatIconImg}
+              alt="World Chat"
+              style={{ width: "100%", height: "100%", objectFit: "contain", filter: showWorldChat ? "brightness(1.2)" : "brightness(0.9)" }}
+            />
           </button>
           {/* Tutorial ? button */}
           <button
@@ -1371,12 +1378,23 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               </div>
 
               {/* Badges */}
-              <div className="flex items-start gap-3">
+              <div className="flex items-start gap-3 pb-3" style={{ borderBottom: "1px solid rgba(212,160,23,0.12)" }}>
                 <img src={badgeIcon} alt="Badges" style={{ width: 26, height: 26, objectFit: "contain", flexShrink: 0, marginTop: 1, borderRadius: "6px" }} />
                 <div>
                   <p className="font-fantasy text-[#f0c040] text-[11px] tracking-wider mb-0.5">Badges  <span style={{ color: "#6a5840", fontSize: "9px" }}>— bottom right</span></p>
                   <p className="font-fantasy text-[#a89878] text-[10px] tracking-wide leading-relaxed">
                     Track your achievements and show off the badges you've earned on your journey.
+                  </p>
+                </div>
+              </div>
+
+              {/* World Chat */}
+              <div className="flex items-start gap-3">
+                <img src={worldChatIconImg} alt="World Chat" style={{ width: 26, height: 26, objectFit: "contain", flexShrink: 0, marginTop: 1, borderRadius: "6px" }} />
+                <div>
+                  <p className="font-fantasy text-[#f0c040] text-[11px] tracking-wider mb-0.5">World Chat  <span style={{ color: "#6a5840", fontSize: "9px" }}>— top right</span></p>
+                  <p className="font-fantasy text-[#a89878] text-[10px] tracking-wide leading-relaxed">
+                    Tap the glowing chat orb to talk with all keepers across the world in real time.
                   </p>
                 </div>
               </div>

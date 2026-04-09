@@ -92,7 +92,7 @@ export default function WorldChatPanel({ currentUserId, onClose }: WorldChatPane
       data-testid="panel-world-chat"
       className="absolute flex flex-col"
       style={{
-        bottom: 72,
+        bottom: 80,
         right: 12,
         width: "min(320px, calc(100vw - 24px))",
         height: "min(420px, 58vh)",
@@ -100,10 +100,11 @@ export default function WorldChatPanel({ currentUserId, onClose }: WorldChatPane
         background: "linear-gradient(160deg, rgba(8,4,2,0.97) 0%, rgba(22,12,4,0.97) 100%)",
         border: "1.5px solid rgba(240,192,64,0.35)",
         boxShadow: "0 8px 40px rgba(0,0,0,0.85), 0 0 20px rgba(240,192,64,0.08)",
-        zIndex: 8000,
+        zIndex: 10001,
         overflow: "hidden",
       }}
       onClick={e => e.stopPropagation()}
+      onPointerDown={e => e.stopPropagation()}
     >
       {/* Header */}
       <div
@@ -215,9 +216,10 @@ export default function WorldChatPanel({ currentUserId, onClose }: WorldChatPane
       </div>
 
       {/* Input area */}
-      <div
+      <form
         className="flex-shrink-0 px-2 pb-2 pt-1.5"
         style={{ borderTop: "1px solid rgba(240,192,64,0.12)" }}
+        onSubmit={e => { e.preventDefault(); handleSend(); }}
       >
         <div className="flex gap-2 items-end">
           <div className="flex-1 relative">
@@ -228,7 +230,9 @@ export default function WorldChatPanel({ currentUserId, onClose }: WorldChatPane
               onChange={e => setInput(e.target.value.slice(0, MAX_LENGTH))}
               onKeyDown={handleKeyDown}
               placeholder="Say something..."
-              rows={1}
+              rows={2}
+              enterKeyHint="send"
+              inputMode="text"
               className="w-full font-sans resize-none"
               style={{
                 background: "rgba(255,255,255,0.05)",
@@ -254,8 +258,8 @@ export default function WorldChatPanel({ currentUserId, onClose }: WorldChatPane
             )}
           </div>
           <button
+            type="submit"
             data-testid="button-send-world-chat"
-            onClick={handleSend}
             disabled={!input.trim() || cooldown > 0 || sendMutation.isPending}
             className="flex-shrink-0 flex items-center justify-center rounded-xl transition-transform active:scale-90"
             style={{
@@ -277,7 +281,7 @@ export default function WorldChatPanel({ currentUserId, onClose }: WorldChatPane
             )}
           </button>
         </div>
-      </div>
+      </form>
     </div>
   );
 }
