@@ -37,6 +37,7 @@ import worldIsland       from "@assets/bg_island_map.png";
 import worldSwamp        from "@assets/bg_swamp_map.png";
 import worldVolcanic     from "@assets/bg_volcanic_map.png";
 import worldSnowy        from "@assets/bg_snowy_mountain_map.png";
+import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -375,7 +376,7 @@ const PODIUM_SLOT = [
   { rank: 3, order: 2, scale: 0.78, yOffset: 30, glowColor: "rgba(205,127,50,0.5)",   borderColor: "rgba(205,127,50,0.7)",   nameColor: "#cd9f5c" },
 ];
 
-function TopThreePodium({ top3 }: { top3: LeaderboardEntry[] }) {
+function TopThreePodium({ top3, onPlayerClick }: { top3: LeaderboardEntry[]; onPlayerClick?: (userId: string) => void }) {
   return (
     <div className="relative w-full" style={{ maxWidth: 560, margin: "0 auto" }}>
       {/* Rank crowns strip */}
@@ -397,6 +398,7 @@ function TopThreePodium({ top3 }: { top3: LeaderboardEntry[] }) {
               key={slot.rank}
               data-testid={`podium-slot-${slot.rank}`}
               className="flex flex-col items-center gap-1.5 rounded-2xl px-3 py-4"
+              onClick={() => onPlayerClick?.(entry.userId)}
               style={{
                 flex: slot.rank === 1 ? "0 0 38%" : "0 0 28%",
                 marginBottom: slot.yOffset,
@@ -406,6 +408,7 @@ function TopThreePodium({ top3 }: { top3: LeaderboardEntry[] }) {
                 transform: `scale(${slot.scale})`,
                 transformOrigin: "bottom center",
                 transition: "transform 0.2s",
+                cursor: onPlayerClick ? "pointer" : "default",
               }}
             >
               {/* Avatar */}
@@ -489,7 +492,7 @@ function TopThreePodium({ top3 }: { top3: LeaderboardEntry[] }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Ranks 4+ row
 // ─────────────────────────────────────────────────────────────────────────────
-function RankRow({ entry, rank }: { entry: LeaderboardEntry; rank: number }) {
+function RankRow({ entry, rank, onPlayerClick }: { entry: LeaderboardEntry; rank: number; onPlayerClick?: (userId: string) => void }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -502,19 +505,19 @@ function RankRow({ entry, rank }: { entry: LeaderboardEntry; rank: number }) {
         boxShadow: "inset 0 1px 0 rgba(127,191,176,0.05)",
       }}
     >
-      <button
-        data-testid={`button-expand-player-${entry.userId}`}
-        className="w-full flex items-center gap-3 px-4 py-3 text-left"
-        style={{ background: "none", border: "none", cursor: "pointer" }}
-        onClick={() => setExpanded(v => !v)}
-      >
+      <div className="w-full flex items-center gap-3 px-4 py-3">
         {/* Rank number in a gem-style badge */}
         <div className="flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center"
           style={{ background: "rgba(127,191,176,0.07)", border: "1px solid rgba(127,191,176,0.15)" }}>
           <span className="font-fantasy text-xs" style={{ color: "#4a7a6a" }}>{rank}</span>
         </div>
 
-        {/* Avatar */}
+        {/* Avatar — clickable to open PlayerDetailPanel */}
+        <button
+          data-testid={`button-player-avatar-${entry.userId}`}
+          onClick={() => onPlayerClick?.(entry.userId)}
+          style={{ background: "none", border: "none", padding: 0, cursor: onPlayerClick ? "pointer" : "default" }}
+        >
         {entry.profileImage ? (
           <img src={entry.profileImage} alt={entry.username}
             className="w-9 h-9 rounded-full flex-shrink-0 object-cover"
@@ -525,42 +528,50 @@ function RankRow({ entry, rank }: { entry: LeaderboardEntry; rank: number }) {
             {entry.username[0]?.toUpperCase()}
           </div>
         )}
+        </button>
 
-        <div className="flex-1 min-w-0">
-          <p className="font-fantasy text-sm tracking-wide truncate" style={{ color: "#b0c8b0" }}
-            data-testid={`text-username-${entry.userId}`}>
-            {entry.username}
-          </p>
-          <div className="flex items-center gap-1 mt-0.5">
-            {entry.topBadges.map(b => (
-              <img key={b.id} src={b.imageUrl} alt={b.name}
-                title={b.name}
-                className="w-4 h-4 rounded-full object-cover"
-                style={{ border: "1px solid rgba(255,215,0,0.18)" }}
-                data-testid={`badge-icon-${b.id}-${entry.userId}`} />
-            ))}
-            {entry.allBadges.length > 3 && (
-              <span className="font-fantasy text-[9px]" style={{ color: "#3a5a4a" }}>
-                +{entry.allBadges.length - 3}
+        <button
+          data-testid={`button-expand-player-${entry.userId}`}
+          className="flex-1 min-w-0 flex items-center gap-2 text-left"
+          style={{ background: "none", border: "none", cursor: "pointer" }}
+          onClick={() => setExpanded(v => !v)}
+        >
+          <div className="flex-1 min-w-0">
+            <p className="font-fantasy text-sm tracking-wide truncate" style={{ color: "#b0c8b0" }}
+              data-testid={`text-username-${entry.userId}`}>
+              {entry.username}
+            </p>
+            <div className="flex items-center gap-1 mt-0.5">
+              {entry.topBadges.map(b => (
+                <img key={b.id} src={b.imageUrl} alt={b.name}
+                  title={b.name}
+                  className="w-4 h-4 rounded-full object-cover"
+                  style={{ border: "1px solid rgba(255,215,0,0.18)" }}
+                  data-testid={`badge-icon-${b.id}-${entry.userId}`} />
+              ))}
+              {entry.allBadges.length > 3 && (
+                <span className="font-fantasy text-[9px]" style={{ color: "#3a5a4a" }}>
+                  +{entry.allBadges.length - 3}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex-shrink-0 flex items-center gap-2">
+            <div className="flex items-center gap-1 rounded-xl px-2 py-1"
+              style={{ background: "rgba(127,191,176,0.08)", border: "1px solid rgba(127,191,176,0.12)" }}>
+              <Coins size={9} style={{ color: "#7fbfb0" }} />
+              <span className="font-fantasy text-xs" style={{ color: "#7fbfb0" }}
+                data-testid={`text-points-${entry.userId}`}>
+                {entry.totalPoints.toLocaleString()}
               </span>
-            )}
+            </div>
+            {expanded
+              ? <ChevronUp className="w-3.5 h-3.5" style={{ color: "#3a5a4a" }} />
+              : <ChevronDown className="w-3.5 h-3.5" style={{ color: "#3a5a4a" }} />}
           </div>
-        </div>
-
-        <div className="flex-shrink-0 flex items-center gap-2">
-          <div className="flex items-center gap-1 rounded-xl px-2 py-1"
-            style={{ background: "rgba(127,191,176,0.08)", border: "1px solid rgba(127,191,176,0.12)" }}>
-            <Coins size={9} style={{ color: "#7fbfb0" }} />
-            <span className="font-fantasy text-xs" style={{ color: "#7fbfb0" }}
-              data-testid={`text-points-${entry.userId}`}>
-              {entry.totalPoints.toLocaleString()}
-            </span>
-          </div>
-          {expanded
-            ? <ChevronUp className="w-3.5 h-3.5" style={{ color: "#3a5a4a" }} />
-            : <ChevronDown className="w-3.5 h-3.5" style={{ color: "#3a5a4a" }} />}
-        </div>
-      </button>
+        </button>
+      </div>
 
       {expanded && (
         <div data-testid={`expanded-badges-${entry.userId}`} className="px-4 pb-4"
@@ -834,6 +845,7 @@ export default function ParaPetsHubPage() {
   const [showHomescreen, setShowHomescreen]       = useState(false);
   const [challengersAtTop, setChallengersAtTop]   = useState(true);
   const [challengersAtBottom, setChallengersAtBottom] = useState(false);
+  const [selectedPlayerId, setSelectedPlayerId]   = useState<string | null>(null);
   const { toast }                                 = useToast();
   const worldsRef                                 = useRef<HTMLDivElement>(null);
   const challengersRef                            = useRef<HTMLDivElement>(null);
@@ -1109,7 +1121,7 @@ export default function ParaPetsHubPage() {
                 {/* Top 3 podium */}
                 {top3.length > 0 && (
                   <div className="mb-6">
-                    <TopThreePodium top3={top3} />
+                    <TopThreePodium top3={top3} onPlayerClick={id => setSelectedPlayerId(id)} />
                   </div>
                 )}
 
@@ -1157,7 +1169,7 @@ export default function ParaPetsHubPage() {
                         }}
                       >
                         {rest.map((entry, i) => (
-                          <RankRow key={entry.userId} entry={entry} rank={i + 4} />
+                          <RankRow key={entry.userId} entry={entry} rank={i + 4} onPlayerClick={id => setSelectedPlayerId(id)} />
                         ))}
                       </div>
 
@@ -1246,6 +1258,13 @@ export default function ParaPetsHubPage() {
       )}
       {showHomescreen && (
         <HomeScreenModal onClose={() => setShowHomescreen(false)} />
+      )}
+      {selectedPlayerId && (
+        <PlayerDetailPanel
+          userId={selectedPlayerId}
+          currentUserId={user?.id}
+          onClose={() => setSelectedPlayerId(null)}
+        />
       )}
     </>
   );

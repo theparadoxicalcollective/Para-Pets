@@ -1,11 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
+import { apiRequest } from "@/lib/queryClient";
 import petHouseBg from "@assets/generated_images/pet_world_bg.png";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import powerupBagIconPDP from "@assets/generated_images/icon_powerup_bag.png";
 
 interface PlayerDetailPanelProps {
   userId: string;
+  currentUserId?: string;
   onClose: () => void;
 }
 
@@ -75,8 +77,9 @@ function StatPill({ label, value, color }: { label: string; value: number; color
   );
 }
 
-export default function PlayerDetailPanel({ userId, onClose }: PlayerDetailPanelProps) {
+export default function PlayerDetailPanel({ userId, currentUserId, onClose }: PlayerDetailPanelProps) {
   const [, navigate] = useLocation();
+  const qc = useQueryClient();
 
   const { data: profile, isLoading, isError } = useQuery<PublicProfile>({
     queryKey: ["/api/users", userId, "profile"],
@@ -95,6 +98,55 @@ export default function PlayerDetailPanel({ userId, onClose }: PlayerDetailPanel
       return res.json();
     },
     enabled: !!userId,
+  });
+
+  // Friend status — only when logged in and viewing someone else
+  const isSelf = !!currentUserId && currentUserId === userId;
+  const { data: friendStatusData, refetch: refetchFriendStatus } = useQuery<{ friendship: any | null }>({
+    queryKey: ["/api/friends/status", userId],
+    queryFn: async () => {
+      const res = await fetch(`/api/friends/status/${userId}`, { credentials: "include" });
+      if (!res.ok) return { friendship: null };
+      return res.json();
+    },
+    enabled: !!currentUserId && !isSelf,
+    staleTime: 10000,
+  });
+
+  const friendship = friendStatusData?.friendship ?? null;
+  const friendStatus: "none" | "friends" | "pending_sent" | "pending_received" = !friendship
+    ? "none"
+    : friendship.status === "accepted"
+      ? "friends"
+      : friendship.requesterId === currentUserId
+        ? "pending_sent"
+        : "pending_received";
+
+  const sendRequestMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/friends/request/${userId}`, {}),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/friends/status", userId] });
+      refetchFriendStatus();
+    },
+  });
+
+  const cancelRequestMutation = useMutation({
+    mutationFn: () => apiRequest("DELETE", `/api/friends/${userId}`, {}),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/friends/status", userId] });
+      qc.invalidateQueries({ queryKey: ["/api/friends/requests/count"] });
+      refetchFriendStatus();
+    },
+  });
+
+  const acceptRequestMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/friends/accept/${friendship?.id}`, {}),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/friends/status", userId] });
+      qc.invalidateQueries({ queryKey: ["/api/friends"] });
+      qc.invalidateQueries({ queryKey: ["/api/friends/requests/count"] });
+      refetchFriendStatus();
+    },
   });
 
   const petImg = profile?.activePet?.hatchedImageUrl || profile?.activePet?.imageUrl;
@@ -184,6 +236,75 @@ export default function PlayerDetailPanel({ userId, onClose }: PlayerDetailPanel
               >
                 {profile.username}
               </p>
+
+              {/* Friend button — only for logged-in users viewing another player */}
+              {!!currentUserId && !isSelf && (
+                <div className="mt-1">
+                  {friendStatus === "none" && (
+                    <button
+                      data-testid="button-add-friend"
+                      disabled={sendRequestMutation.isPending}
+                      onClick={() => sendRequestMutation.mutate()}
+                      className="px-4 py-1.5 rounded-full font-fantasy text-xs tracking-wider transition-all active:scale-95"
+                      style={{
+                        background: "linear-gradient(135deg, #b87d08, #f0c040)",
+                        color: "#0a0600",
+                        border: "none",
+                        boxShadow: "0 2px 12px rgba(240,192,64,0.35)",
+                        opacity: sendRequestMutation.isPending ? 0.6 : 1,
+                      }}
+                    >
+                      {sendRequestMutation.isPending ? "Sending..." : "+ Add Friend"}
+                    </button>
+                  )}
+                  {friendStatus === "pending_sent" && (
+                    <button
+                      data-testid="button-cancel-request"
+                      disabled={cancelRequestMutation.isPending}
+                      onClick={() => cancelRequestMutation.mutate()}
+                      className="px-4 py-1.5 rounded-full font-fantasy text-xs tracking-wider transition-all active:scale-95"
+                      style={{
+                        background: "rgba(240,192,64,0.1)",
+                        color: "#a89058",
+                        border: "1px solid rgba(240,192,64,0.3)",
+                        opacity: cancelRequestMutation.isPending ? 0.6 : 1,
+                      }}
+                    >
+                      {cancelRequestMutation.isPending ? "Cancelling..." : "Request Sent — Cancel"}
+                    </button>
+                  )}
+                  {friendStatus === "pending_received" && (
+                    <button
+                      data-testid="button-accept-request"
+                      disabled={acceptRequestMutation.isPending}
+                      onClick={() => acceptRequestMutation.mutate()}
+                      className="px-4 py-1.5 rounded-full font-fantasy text-xs tracking-wider transition-all active:scale-95"
+                      style={{
+                        background: "linear-gradient(135deg, #1a7a3a, #34a85a)",
+                        color: "#e0ffe8",
+                        border: "none",
+                        boxShadow: "0 2px 12px rgba(52,168,90,0.3)",
+                        opacity: acceptRequestMutation.isPending ? 0.6 : 1,
+                      }}
+                    >
+                      {acceptRequestMutation.isPending ? "Accepting..." : "Accept Friend Request"}
+                    </button>
+                  )}
+                  {friendStatus === "friends" && (
+                    <div
+                      data-testid="text-already-friends"
+                      className="px-4 py-1.5 rounded-full font-fantasy text-xs tracking-wider"
+                      style={{
+                        background: "rgba(52,168,90,0.12)",
+                        color: "#4ade80",
+                        border: "1px solid rgba(52,168,90,0.25)",
+                      }}
+                    >
+                      Friends
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Divider */}
