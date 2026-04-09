@@ -485,7 +485,7 @@ app.use((req, res, next) => {
 
       const bayousHeartExists = allSwampForRestore.find((l: any) => l.id === "8e211716-0448-496e-8582-6ce1025ac4e4");
       if (!bayousHeartExists) {
-        const bayousHeartIcon = loadAssetBase64("icon_bayous_heart_v2.png");
+        const bayousHeartIcon = loadAssetBase64("icon_bayous_heart_original.png");
         const bayousHeartBg = loadAssetBase64("bg_bayous_heart.webp");
         await storage.createWorldLocation({
           id: "8e211716-0448-496e-8582-6ce1025ac4e4",
@@ -740,7 +740,7 @@ app.use((req, res, next) => {
     const bayousHeartIconDone = await storage.getGameSetting("bayous_heart_icon_v2");
     if (!bayousHeartIconDone) {
       const BAYOUS_HEART_ID = "8e211716-0448-496e-8582-6ce1025ac4e4";
-      const correctIcon = loadAssetBase64("icon_bayous_heart_preview.png");
+      const correctIcon = loadAssetBase64("icon_bayous_heart_original.png");
       if (correctIcon) {
         await storage.updateWorldLocation(BAYOUS_HEART_ID, { iconUrl: correctIcon } as any);
         console.log("Bayou's Heart icon reset to correct version.");
