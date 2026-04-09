@@ -1020,12 +1020,66 @@ function getItemDescription(item: InventoryItem): string {
   return parts.join(" ");
 }
 
+function getItemUsageHint(item: InventoryItem): { emoji: string; where: string; how: string } {
+  if (item.type === "potion") {
+    return {
+      emoji: "🧪",
+      where: "Pet Companions tab",
+      how: "Tap any of your pets, open their detail card, and use this potion to restore their HP!",
+    };
+  }
+  if (item.type === "accessory") {
+    return {
+      emoji: "✨",
+      where: "Pet Companions tab",
+      how: "Tap a pet and equip this accessory to give them a stat boost in battles!",
+    };
+  }
+  if (item.type === "special" && item.specialType === "hatch_time") {
+    return {
+      emoji: "🥚",
+      where: "Pet Companions tab",
+      how: "Tap an egg that's still hatching — you'll see a sparkle button to apply this and speed it up!",
+    };
+  }
+  if (item.type === "special" && item.specialType === "level") {
+    return {
+      emoji: "⭐",
+      where: "Pet Companions tab",
+      how: "Tap any hatched pet and apply this to grant them instant level points!",
+    };
+  }
+  if (item.type === "special") {
+    return {
+      emoji: "🌟",
+      where: "Pet Companions tab",
+      how: "Tap a pet and look for the apply button to use this special item on them!",
+    };
+  }
+  return {
+    emoji: "🎒",
+    where: "Your collection",
+    how: "This is a rare collectible from Veridia. Hold onto it — it may have special uses in future updates!",
+  };
+}
+
 const POTION_STACK_MAX = 50;
+
+type BagTabKey = "all" | "potion" | "item" | "accessory" | "special";
+
+const BAG_TABS: { key: BagTabKey; label: string; emoji: string }[] = [
+  { key: "all",       label: "All",        emoji: "🎒" },
+  { key: "potion",    label: "Potions",    emoji: "🧪" },
+  { key: "item",      label: "Items",      emoji: "💎" },
+  { key: "accessory", label: "Gear",       emoji: "✨" },
+  { key: "special",   label: "Special",    emoji: "⭐" },
+];
 
 function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemPointerDown?: (e: React.PointerEvent, item: InventoryItem) => void }) {
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [selectedStackCount, setSelectedStackCount] = useState<number>(1);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [bagTab, setBagTab] = useState<BagTabKey>("all");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -1045,30 +1099,14 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
     },
   });
 
-  if (items.length === 0) {
-    return (
-      <div className="text-center py-16">
-        <div
-          className="w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-4"
-          style={{
-            background: "radial-gradient(ellipse at center, rgba(92,58,30,0.3) 0%, rgba(30,15,5,0.4) 100%)",
-            border: "2px dashed rgba(139,94,60,0.3)",
-          }}
-        >
-          <img src={powerupBagIcon} alt="" style={{ width: 48, height: 48, objectFit: "contain", filter: "grayscale(100%) opacity(0.4)" }} />
-        </div>
-        <p className="font-fantasy text-[#a89878] text-sm tracking-wider mb-2">Bag is empty</p>
-        <p className="font-fantasy text-[#6a5840] text-xs tracking-wider">Purchase items from world shops!</p>
-      </div>
-    );
-  }
-
   const typeColors: Record<string, string> = {
     item: "#f0c040",
     accessory: "#c084fc",
     potion: "#60d394",
+    special: "#fb923c",
   };
 
+  // Build stacked display items first (potions stack)
   const potionStacks: { item: InventoryItem; count: number }[] = [];
   const nonPotionItems: InventoryItem[] = [];
   for (const item of items) {
@@ -1083,91 +1121,136 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
       nonPotionItems.push(item);
     }
   }
-  const displayItems: { item: InventoryItem; count: number }[] = [
+  const allDisplayItems: { item: InventoryItem; count: number }[] = [
     ...potionStacks,
     ...nonPotionItems.map(i => ({ item: i, count: 1 })),
   ];
 
+  // Which tabs actually have items (hide empty tabs)
+  const tabsWithItems = new Set(allDisplayItems.map(({ item }) => item.type));
+
+  // Filter by selected tab; sort alphabetically for "all"
+  const displayItems = allDisplayItems
+    .filter(({ item }) => bagTab === "all" || item.type === bagTab)
+    .sort((a, b) => bagTab === "all" ? a.item.name.localeCompare(b.item.name) : 0);
+
+  const isEmpty = items.length === 0;
+
   return (
     <>
-      <div className="grid grid-cols-3 gap-2">
-        {displayItems.map(({ item, count }) => {
-          const typeColor = typeColors[item.type] || "#f0c040";
+      {/* ── Type tabs ─────────────────────────────────────────────── */}
+      <div className="flex gap-1.5 mb-3 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+        {BAG_TABS.filter(t => t.key === "all" || tabsWithItems.has(t.key)).map(tab => {
+          const active = bagTab === tab.key;
           return (
-            <div
-              key={item.inventoryId}
-              data-testid={`card-bag-item-${item.shopItemId}`}
-              className="rounded-xl overflow-hidden relative"
+            <button
+              key={tab.key}
+              data-testid={`button-bag-tab-${tab.key}`}
+              onClick={() => setBagTab(tab.key)}
+              className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full font-fantasy text-[11px] tracking-wider transition-all active:scale-95"
               style={{
-                background: "linear-gradient(135deg, rgba(28,14,4,0.97) 0%, rgba(48,28,8,0.97) 100%)",
-                border: `1px solid ${typeColor}55`,
-                boxShadow: `0 0 10px ${typeColor}18`,
-                cursor: (item.type === "special" && onItemPointerDown) ? "grab" : "pointer",
-                touchAction: (item.type === "special" && onItemPointerDown) ? "none" : "auto",
+                background: active ? "rgba(240,192,64,0.18)" : "rgba(255,255,255,0.04)",
+                border: active ? "1px solid rgba(240,192,64,0.45)" : "1px solid rgba(255,255,255,0.08)",
+                color: active ? "#f0c040" : "#7a6a50",
               }}
-              onClick={() => { setSelectedItem(item); setSelectedStackCount(count); setConfirmDelete(false); }}
-              onPointerDown={item.type === "special" ? (e) => onItemPointerDown?.(e, item) : undefined}
             >
-              <div className="p-3 flex flex-col items-center gap-2">
-                <div className="relative w-full">
-                  <div
-                    className="w-full aspect-square rounded-lg flex items-center justify-center"
-                    style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.05)" }}
-                  >
-                    {item.imageUrl ? (
-                      <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain rounded-lg" />
-                    ) : (
-                      <img src={powerupBagIcon} alt="" style={{ width: 44, height: 44, objectFit: "contain" }} />
-                    )}
-                  </div>
-                  {count > 1 && (
-                    <span
-                      className="absolute bottom-1.5 right-1.5 font-fantasy text-xs font-bold px-2 py-0.5 rounded-md"
-                      style={{ background: "rgba(10,6,0,0.9)", color: "#60d394", border: "1px solid rgba(96,211,148,0.5)" }}
-                      data-testid={`text-stack-count-${item.shopItemId}`}
-                    >
-                      ×{count}
-                    </span>
-                  )}
-                </div>
-                <p className="font-fantasy text-[#f0c040] text-sm font-semibold text-center truncate w-full" data-testid={`text-bag-item-name-${item.shopItemId}`}>
-                  {item.name}
-                </p>
-                {item.statBoostType && (
-                  <span
-                    className="font-fantasy text-xs tracking-wider px-2 py-0.5 rounded-full font-bold"
-                    style={{
-                      background: item.statBoostType === "health" ? "rgba(74,222,128,0.15)" : item.statBoostType === "atk" ? "rgba(248,113,113,0.15)" : item.statBoostType === "def" ? "rgba(96,165,250,0.15)" : "rgba(192,132,252,0.15)",
-                      color: item.statBoostType === "health" ? "#4ade80" : item.statBoostType === "atk" ? "#f87171" : item.statBoostType === "def" ? "#60a5fa" : "#c084fc",
-                      border: `1px solid ${item.statBoostType === "health" ? "rgba(74,222,128,0.4)" : item.statBoostType === "atk" ? "rgba(248,113,113,0.4)" : item.statBoostType === "def" ? "rgba(96,165,250,0.4)" : "rgba(192,132,252,0.4)"}`,
-                    }}
-                  >
-                    +{item.statBoostAmount || "?"} {item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "Lvl pts"}
-                  </span>
-                )}
-                <span
-                  className="font-fantasy text-xs tracking-wider px-2 py-0.5 rounded-full capitalize"
-                  style={{
-                    background: `${typeColor}18`,
-                    color: typeColor,
-                    border: `1px solid ${typeColor}45`,
-                  }}
-                >
-                  {item.type}
-                </span>
-                {item.type === "special" && (
-                  <span
-                    className="font-fantasy text-[9px] tracking-wider px-2 py-0.5 rounded-full"
-                    style={{ background: "rgba(255,255,255,0.06)", color: "#a89878", border: "1px solid rgba(168,152,120,0.25)" }}
-                  >
-                    drag to use
-                  </span>
-                )}
-              </div>
-            </div>
+              <span>{tab.emoji}</span>
+              <span>{tab.label}</span>
+            </button>
           );
         })}
       </div>
+
+      {isEmpty ? (
+        <div className="text-center py-16">
+          <div
+            className="w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-4"
+            style={{
+              background: "radial-gradient(ellipse at center, rgba(92,58,30,0.3) 0%, rgba(30,15,5,0.4) 100%)",
+              border: "2px dashed rgba(139,94,60,0.3)",
+            }}
+          >
+            <img src={powerupBagIcon} alt="" style={{ width: 48, height: 48, objectFit: "contain", filter: "grayscale(100%) opacity(0.4)" }} />
+          </div>
+          <p className="font-fantasy text-[#a89878] text-sm tracking-wider mb-2">Bag is empty</p>
+          <p className="font-fantasy text-[#6a5840] text-xs tracking-wider">Purchase items from world shops!</p>
+        </div>
+      ) : displayItems.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="font-fantasy text-[#6a5840] text-xs tracking-wider">No {bagTab}s in your bag</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-2">
+          {displayItems.map(({ item, count }) => {
+            const typeColor = typeColors[item.type] || "#f0c040";
+            return (
+              <div
+                key={item.inventoryId}
+                data-testid={`card-bag-item-${item.shopItemId}`}
+                className="rounded-xl overflow-hidden relative"
+                style={{
+                  background: "linear-gradient(135deg, rgba(28,14,4,0.97) 0%, rgba(48,28,8,0.97) 100%)",
+                  border: `1px solid ${typeColor}55`,
+                  boxShadow: `0 0 10px ${typeColor}18`,
+                  cursor: "pointer",
+                  touchAction: (item.type === "special" && onItemPointerDown) ? "none" : "auto",
+                }}
+                onClick={() => { setSelectedItem(item); setSelectedStackCount(count); setConfirmDelete(false); }}
+                onPointerDown={item.type === "special" ? (e) => onItemPointerDown?.(e, item) : undefined}
+              >
+                <div className="p-3 flex flex-col items-center gap-2">
+                  <div className="relative w-full">
+                    <div
+                      className="w-full aspect-square rounded-lg flex items-center justify-center"
+                      style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.05)" }}
+                    >
+                      {item.imageUrl ? (
+                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain rounded-lg" />
+                      ) : (
+                        <img src={powerupBagIcon} alt="" style={{ width: 44, height: 44, objectFit: "contain" }} />
+                      )}
+                    </div>
+                    {count > 1 && (
+                      <span
+                        className="absolute bottom-1.5 right-1.5 font-fantasy text-xs font-bold px-2 py-0.5 rounded-md"
+                        style={{ background: "rgba(10,6,0,0.9)", color: "#60d394", border: "1px solid rgba(96,211,148,0.5)" }}
+                        data-testid={`text-stack-count-${item.shopItemId}`}
+                      >
+                        ×{count}
+                      </span>
+                    )}
+                  </div>
+                  <p className="font-fantasy text-[#f0c040] text-sm font-semibold text-center truncate w-full" data-testid={`text-bag-item-name-${item.shopItemId}`}>
+                    {item.name}
+                  </p>
+                  {item.statBoostType && (
+                    <span
+                      className="font-fantasy text-xs tracking-wider px-2 py-0.5 rounded-full font-bold"
+                      style={{
+                        background: item.statBoostType === "health" ? "rgba(74,222,128,0.15)" : item.statBoostType === "atk" ? "rgba(248,113,113,0.15)" : item.statBoostType === "def" ? "rgba(96,165,250,0.15)" : "rgba(192,132,252,0.15)",
+                        color: item.statBoostType === "health" ? "#4ade80" : item.statBoostType === "atk" ? "#f87171" : item.statBoostType === "def" ? "#60a5fa" : "#c084fc",
+                        border: `1px solid ${item.statBoostType === "health" ? "rgba(74,222,128,0.4)" : item.statBoostType === "atk" ? "rgba(248,113,113,0.4)" : item.statBoostType === "def" ? "rgba(96,165,250,0.4)" : "rgba(192,132,252,0.4)"}`,
+                      }}
+                    >
+                      +{item.statBoostAmount || "?"} {item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "Lvl pts"}
+                    </span>
+                  )}
+                  <span
+                    className="font-fantasy text-[10px] tracking-wider px-2 py-0.5 rounded-full capitalize"
+                    style={{
+                      background: `${typeColor}18`,
+                      color: typeColor,
+                      border: `1px solid ${typeColor}45`,
+                    }}
+                  >
+                    {item.type}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {selectedItem && (
         <div
@@ -1261,6 +1344,35 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
                   </span>
                 </div>
               )}
+
+              {/* ── Usage tutorial hint ─────────────────────────────── */}
+              {(() => {
+                const hint = getItemUsageHint(selectedItem);
+                return (
+                  <div
+                    className="w-full rounded-xl p-3 flex flex-col gap-2"
+                    style={{ background: "linear-gradient(135deg, rgba(30,20,5,0.9), rgba(50,35,10,0.9))", border: "1px solid rgba(240,192,64,0.2)" }}
+                    data-testid="section-item-usage-hint"
+                  >
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span style={{ fontSize: 16 }}>{hint.emoji}</span>
+                      <span className="font-fantasy text-[10px] tracking-[0.2em] text-[#f0c040] uppercase opacity-70">How to use</span>
+                    </div>
+                    <p className="font-fantasy text-[#e8d4a0] text-xs leading-relaxed">
+                      {hint.how}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="font-fantasy text-[9px] tracking-wider text-[#8a7050]">Find it in:</span>
+                      <span
+                        className="font-fantasy text-[9px] tracking-wider px-2 py-0.5 rounded-full"
+                        style={{ background: "rgba(240,192,64,0.12)", color: "#c8a848", border: "1px solid rgba(240,192,64,0.25)" }}
+                      >
+                        {hint.where}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div className="w-full pt-2 border-t" style={{ borderColor: "rgba(212,160,23,0.15)" }}>
                 {!confirmDelete ? (
