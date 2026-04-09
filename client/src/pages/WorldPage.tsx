@@ -2715,7 +2715,7 @@ export default function WorldPage({ user }: WorldPageProps) {
           <div className="absolute top-0 left-0 right-0 h-32 pointer-events-none" style={{ zIndex: 2, background: isFishingShop ? "linear-gradient(180deg, rgba(40,120,60,0.18) 0%, transparent 100%)" : `linear-gradient(180deg, ${accent}18 0%, transparent 100%)` }} />
 
           {/* ── Header ─────────────────────────────────────── */}
-          <div className="relative flex items-center justify-between px-4 pb-3 flex-shrink-0" style={{ paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)", zIndex: 10 }}>
+          <div className="relative flex items-center justify-between px-4 pb-3 flex-shrink-0" style={{ paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 72px)", zIndex: 10 }}>
             <div className="flex items-center gap-2.5">
               {activeLoc?.iconUrl && (
                 <img src={activeLoc.iconUrl} alt="" className="w-10 h-10 rounded-xl object-contain" style={{ border: `1.5px solid ${accent}50`, boxShadow: `0 0 12px ${accent}30` }} />
