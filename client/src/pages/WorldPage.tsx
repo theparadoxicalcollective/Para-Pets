@@ -177,7 +177,8 @@ const isMobilePhone = () => true;
 
 export default function WorldPage({ user }: WorldPageProps) {
   const params = useParams<{ worldId: string }>();
-  const worldId = params.worldId || "";
+  const [rawLocation] = useLocation();
+  const worldId = params.worldId || rawLocation.replace(/^\/world\//, "").split("/")[0] || "";
   const staticWorld = WORLD_CONFIG[worldId];
 
   const { data: worldApiData } = useQuery<WorldApiData>({
