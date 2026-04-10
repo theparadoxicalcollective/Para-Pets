@@ -87,8 +87,16 @@ interface HousePet {
 }
 interface HouseBundle { id: string; name: string; shopImageUrl: string | null; bgImageUrl: string | null; price: number; giftNotificationX?: number; giftNotificationY?: number; }
 interface ActiveBundle extends HouseBundle {
-  buildings: { id: string; name: string; imageUrl: string; posX: number; posY: number; width: number; flippedX: boolean; interiorImageUrl?: string | null; leaveButtonX?: number | null; leaveButtonY?: number | null }[];
+  maxOutdoorPets: number;
+  buildings: { id: string; name: string; imageUrl: string; posX: number; posY: number; width: number; flippedX: boolean; interiorImageUrl?: string | null; leaveButtonX?: number | null; leaveButtonY?: number | null; maxPets?: number | null; size?: string | null }[];
 }
+
+const BUILDING_CAPACITY: Record<string, { pets: number; items: number }> = {
+  small:  { pets: 3, items: 3 },
+  medium: { pets: 5, items: 6 },
+  large:  { pets: 7, items: 9 },
+};
+const MAX_OUTDOOR_DECOR = 8;
 interface OwnedBundle { id: string; bundleId: string; bundle: HouseBundle & { shopImageUrl: string | null }; }
 interface DecorInventoryItem { id: string; decorItemId: string; quantity: number; item: { id: string; name: string; imageUrl: string | null; price: number }; }
 interface PlacedDecorItem { id: string; decorItemId: string; xPct: number; yPct: number; size: number; flipped: boolean; item: { id: string; name: string; imageUrl: string | null }; }
@@ -764,20 +772,32 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           const localX = e.clientX - rect.left;
           const localY = e.clientY - rect.top;
           if (interior && interior.imgWidth > 0 && openInterior) {
-            placePetMutation.mutate({
-              inventoryId: petDrag.pet.inventoryId,
-              xPct: Math.max(0.03, Math.min(0.97, (localX - interior.panX) / interior.imgWidth)),
-              yPct: Math.max(0.03, Math.min(0.97, localY / interior.containerH)),
-              location: openInterior.buildingId,
-            });
+            const building = activeBundle?.buildings.find(b => b.id === openInterior.buildingId);
+            const maxPets = building?.maxPets ?? (building?.size ? BUILDING_CAPACITY[building.size]?.pets : undefined) ?? 5;
+            const currentCount = pets.filter(p => p.location === openInterior.buildingId && p.posLeft !== null).length;
+            if (currentCount >= maxPets) {
+              toast({ title: "Pet limit reached!", description: `This building can hold up to ${maxPets} pets.` });
+            } else {
+              placePetMutation.mutate({
+                inventoryId: petDrag.pet.inventoryId,
+                xPct: Math.max(0.03, Math.min(0.97, (localX - interior.panX) / interior.imgWidth)),
+                yPct: Math.max(0.03, Math.min(0.97, localY / interior.containerH)),
+                location: openInterior.buildingId,
+              });
+            }
           } else if (imgWidth > 0) {
-            const maxYPct = containerH > 0 ? Math.min(0.88, (containerH - 115) / containerH) : 0.82;
-            placePetMutation.mutate({
-              inventoryId: petDrag.pet.inventoryId,
-              xPct: Math.max(0.05, Math.min(0.95, (localX - panX) / imgWidth)),
-              yPct: Math.max(0.05, Math.min(maxYPct, localY / containerH)),
-              location: "outside",
-            });
+            const maxOutdoor = activeBundle?.maxOutdoorPets ?? 6;
+            if (outdoorPets.length >= maxOutdoor) {
+              toast({ title: "Pet limit reached!", description: `Your yard can hold up to ${maxOutdoor} pets outdoors.` });
+            } else {
+              const maxYPct = containerH > 0 ? Math.min(0.88, (containerH - 115) / containerH) : 0.82;
+              placePetMutation.mutate({
+                inventoryId: petDrag.pet.inventoryId,
+                xPct: Math.max(0.05, Math.min(0.95, (localX - panX) / imgWidth)),
+                yPct: Math.max(0.05, Math.min(maxYPct, localY / containerH)),
+                location: "outside",
+              });
+            }
           }
         }
       }
@@ -797,19 +817,29 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           const localX = e.clientX - rect.left;
           const localY = e.clientY - rect.top;
           if (interior && interior.imgWidth > 0 && openInterior) {
-            placeDecorMutation.mutate({
-              decorItemId: decorDrag.decorItemId, size: 220, flipped: false,
-              xPct: Math.max(0.03, Math.min(0.97, (localX - interior.panX) / interior.imgWidth)),
-              yPct: Math.max(0.03, Math.min(0.97, localY / interior.containerH)),
-              location: openInterior.buildingId,
-            });
+            const building = activeBundle?.buildings.find(b => b.id === openInterior.buildingId);
+            const maxItems = building?.size ? BUILDING_CAPACITY[building.size]?.items : 6;
+            if (interiorPlacedRaw.length >= (maxItems ?? 6)) {
+              toast({ title: "Decor limit reached!", description: `This building can hold up to ${maxItems ?? 6} decorations.` });
+            } else {
+              placeDecorMutation.mutate({
+                decorItemId: decorDrag.decorItemId, size: 220, flipped: false,
+                xPct: Math.max(0.03, Math.min(0.97, (localX - interior.panX) / interior.imgWidth)),
+                yPct: Math.max(0.03, Math.min(0.97, localY / interior.containerH)),
+                location: openInterior.buildingId,
+              });
+            }
           } else if (imgWidth > 0) {
-            placeDecorMutation.mutate({
-              decorItemId: decorDrag.decorItemId, size: 220, flipped: false,
-              xPct: Math.max(0.03, Math.min(0.97, (localX - panX) / imgWidth)),
-              yPct: Math.max(0.03, Math.min(0.97, localY / containerH)),
-              location: "outside",
-            });
+            if (placedDecorRaw.length >= MAX_OUTDOOR_DECOR) {
+              toast({ title: "Decor limit reached!", description: `Your yard can hold up to ${MAX_OUTDOOR_DECOR} decorations outdoors.` });
+            } else {
+              placeDecorMutation.mutate({
+                decorItemId: decorDrag.decorItemId, size: 220, flipped: false,
+                xPct: Math.max(0.03, Math.min(0.97, (localX - panX) / imgWidth)),
+                yPct: Math.max(0.03, Math.min(0.97, localY / containerH)),
+                location: "outside",
+              });
+            }
           }
         }
       }
@@ -1212,17 +1242,17 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         </div>
       </div>
 
-      {/* Bottom inventory bar */}
+      {/* Bottom inventory bar — left-aligned to avoid FloatingNav (bottom-right) */}
       <div
-        className="absolute bottom-0 left-0 right-0 flex justify-center gap-4 pb-5 pt-3"
-        style={{ zIndex: openInterior ? 65 : 40, pointerEvents: "auto", background: "linear-gradient(0deg, rgba(0,0,0,0.55) 0%, transparent 100%)" }}
+        className="absolute bottom-0 left-0 flex gap-3 pb-5 pt-3 pl-3"
+        style={{ zIndex: openInterior ? 65 : 40, pointerEvents: "auto", right: 80, background: "linear-gradient(0deg, rgba(0,0,0,0.55) 0%, transparent 100%)" }}
         onPointerDown={(e) => e.stopPropagation()}
       >
         {[
-          { key: "pets" as const, label: "Pets", icon: () => <img src={petInventoryIcon} alt="" className="w-12 h-12 object-contain" />, bg: "rgba(255,180,50,0.35)", border: "rgba(255,200,80,0.8)" },
-          { key: "home" as const, label: "Home", icon: () => <img src={homeInventoryIcon} alt="" className="w-12 h-12 object-contain" />, bg: "rgba(120,200,100,0.35)", border: "rgba(120,220,80,0.8)" },
-          { key: "decor" as const, label: "Decor", icon: () => <img src={decorInventoryIcon} alt="" className="w-12 h-12 object-contain" />, bg: "rgba(180,120,220,0.35)", border: "rgba(200,120,255,0.8)" },
-          { key: "friends" as const, label: "Friends", icon: () => <img src={friendsInventoryIcon} alt="" className="w-12 h-12 object-contain" />, bg: "rgba(74,222,128,0.3)", border: "rgba(74,222,128,0.8)" },
+          { key: "pets" as const, label: "Pets", icon: () => <img src={petInventoryIcon} alt="" className="w-8 h-8 object-contain" />, bg: "rgba(255,180,50,0.35)", border: "rgba(255,200,80,0.8)" },
+          { key: "home" as const, label: "Home", icon: () => <img src={homeInventoryIcon} alt="" className="w-8 h-8 object-contain" />, bg: "rgba(120,200,100,0.35)", border: "rgba(120,220,80,0.8)" },
+          { key: "decor" as const, label: "Decor", icon: () => <img src={decorInventoryIcon} alt="" className="w-8 h-8 object-contain" />, bg: "rgba(180,120,220,0.35)", border: "rgba(200,120,255,0.8)" },
+          { key: "friends" as const, label: "Friends", icon: () => <img src={friendsInventoryIcon} alt="" className="w-8 h-8 object-contain" />, bg: "rgba(74,222,128,0.3)", border: "rgba(74,222,128,0.8)" },
         ].map(({ key, label, icon, bg, border }) => {
           const active = openInventory === key;
           return (
@@ -1230,10 +1260,10 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               key={key}
               data-testid={`button-${key}-inventory`}
               onClick={() => setOpenInventory(active ? null : key)}
-              className="flex flex-col items-center gap-1 group relative"
+              className="flex flex-col items-center gap-0.5 group relative"
             >
               <div
-                className="w-16 h-16 rounded-2xl flex items-center justify-center transition-transform group-active:scale-90"
+                className="w-11 h-11 rounded-xl flex items-center justify-center transition-transform group-active:scale-90"
                 style={{
                   background: active ? bg : "rgba(0,0,0,0.45)",
                   border: `2px solid ${active ? border : "rgba(255,255,255,0.2)"}`,
@@ -1257,7 +1287,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                   <span className="font-bold text-[9px] text-white leading-none">{friendRequestCount}</span>
                 </div>
               )}
-              <span className="text-white text-xs font-semibold drop-shadow-md" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>{label}</span>
+              <span className="text-white font-semibold drop-shadow-md" style={{ fontSize: 9, textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>{label}</span>
             </button>
           );
         })}
