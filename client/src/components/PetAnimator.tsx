@@ -338,6 +338,13 @@ const HEAD_GROUP_STAGGER = [0, 0.55, 1.1, 1.65];
 // Blink cycle offset per head group so they blink at different times
 const HEAD_BLINK_OFFSETS = [0, 1.6, 3.0, 0.8];
 
+/** Compute the overlap area between two axis-aligned bounding boxes. Returns 0 if they don't overlap. */
+function overlapArea(a: PetPart, b: PetPart): number {
+  const xOverlap = Math.max(0, Math.min(a.posX + a.width, b.posX + b.width) - Math.max(a.posX, b.posX));
+  const yOverlap = Math.max(0, Math.min(a.posY + a.height, b.posY + b.height) - Math.max(a.posY, b.posY));
+  return xOverlap * yOverlap;
+}
+
 function centerOf(p: PetPart) {
   return { x: p.posX + p.width / 2, y: p.posY + p.height / 2 };
 }
@@ -346,7 +353,9 @@ function dist(a: { x: number; y: number }, b: { x: number; y: number }) {
   return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
 }
 
-/** Group face parts with their nearest head by spatial proximity. */
+/** Group face parts with their head by overlap. If a face part overlaps a head,
+ *  it goes to the head it overlaps most. If it overlaps none, fall back to
+ *  nearest center distance. */
 function buildHeadGroups(parts: PetPart[]): { head: PetPart; faceParts: PetPart[] }[] {
   const headParts = parts.filter(p => p.partType === "head");
   if (headParts.length === 0) return [];
@@ -355,14 +364,28 @@ function buildHeadGroups(parts: PetPart[]): { head: PetPart; faceParts: PetPart[
   const faceParts = parts.filter(p => FACE_PART_TYPES.has(p.partType));
 
   for (const fp of faceParts) {
-    const c = centerOf(fp);
-    let minDist = Infinity;
-    let minIdx = 0;
+    // First try overlap-based assignment
+    let bestOverlap = 0;
+    let bestIdx = -1;
     for (let i = 0; i < headParts.length; i++) {
-      const d = dist(c, centerOf(headParts[i]));
-      if (d < minDist) { minDist = d; minIdx = i; }
+      const area = overlapArea(fp, headParts[i]);
+      if (area > bestOverlap) { bestOverlap = area; bestIdx = i; }
     }
-    groups[minIdx].faceParts.push(fp);
+
+    if (bestIdx >= 0) {
+      // Overlaps at least one head — assign to the most-overlapping one
+      groups[bestIdx].faceParts.push(fp);
+    } else {
+      // No overlap — fall back to nearest center distance
+      const c = centerOf(fp);
+      let minDist = Infinity;
+      let minIdx = 0;
+      for (let i = 0; i < headParts.length; i++) {
+        const d = dist(c, centerOf(headParts[i]));
+        if (d < minDist) { minDist = d; minIdx = i; }
+      }
+      groups[minIdx].faceParts.push(fp);
+    }
   }
 
   return groups;
