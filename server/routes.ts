@@ -1380,7 +1380,9 @@ export async function registerRoutes(
       }));
 
       const itemsWithDetails = filteredRows.map(({ inventory: inv, shopItem }) => ({
+        id: inv.id,
         inventoryId: inv.id,
+        isListed: inv.isListed,
         shopItemId: inv.shopItemId,
         acquiredAt: inv.acquiredAt,
         name: shopItem?.name || "Unknown",
