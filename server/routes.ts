@@ -568,6 +568,23 @@ export async function syncTotalCoinsEarnedFloor(): Promise<void> {
   }
 }
 
+// ── Veridian Watcher ─────────────────────────────────────────────────────────
+const VERIDIAN_WATCHER_ID = "veridian-watcher";
+
+async function postWatcherMessage(message: string): Promise<void> {
+  try {
+    await storage.addWorldChatMessage({
+      userId: VERIDIAN_WATCHER_ID,
+      username: "Veridian Watcher",
+      profileImage: null,
+      message,
+      isBot: true,
+    });
+  } catch (err) {
+    console.error("[VW] Failed to post message:", err);
+  }
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -1034,6 +1051,8 @@ export async function registerRoutes(
       if ((req.user as any)?.id === user.id) {
         (req.user as any).emailVerified = true;
       }
+      // Veridian Watcher welcome message (fire-and-forget)
+      postWatcherMessage(`🌿 A new soul stirs in the realm — welcome, ${user.username}! May your journey through Para Pets be filled with wonder and discovery. The wilds await you...`).catch(() => {});
       return res.redirect(`${APP_URL}/?verified=1`);
     } catch (err) {
       console.error("Verify email error:", err);
@@ -1483,11 +1502,13 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Item not found" });
       }
 
+      let isFirstPetAcquisition = false;
       if (shopItem.type === "pet") {
         const petCount = await storage.countInventoryPetCopies(user.id, itemId);
         if (petCount >= 3) {
           return res.status(400).json({ message: "You already own the maximum (3) of this pet" });
         }
+        isFirstPetAcquisition = petCount === 0;
       } else {
         const dailyCount = await storage.getDailyItemPurchaseCount(user.id);
         if (dailyCount + quantity > 100) {
@@ -1525,6 +1546,12 @@ export async function registerRoutes(
       }
 
       const { password: _, ...safeUser } = afterDeduct;
+
+      // Veridian Watcher congratulation for first 4/5-star pet acquisition
+      if (shopItem.type === "pet" && isFirstPetAcquisition && (shopItem.starRarity ?? 0) >= 4) {
+        const stars = "⭐".repeat(shopItem.starRarity ?? 4);
+        postWatcherMessage(`✨ The stars align! ${user.username} has just acquired the rare ${stars} ${shopItem.name}! A magnificent addition to their collection — well done, adventurer!`).catch(() => {});
+      }
 
       return res.json({ inventory: invItem, user: safeUser, quantity: purchaseCount });
     } catch (err) {
@@ -5875,6 +5902,73 @@ export async function registerRoutes(
       return res.status(500).json({ message: err.message });
     }
   });
+
+  // ── Veridian Watcher Quote Admin Routes ───────────────────────────────────
+  app.get("/api/admin/vw-quotes", async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user?.isAdmin && !user?.isModerator) return res.status(403).json({ message: "Forbidden" });
+      const quotes = await storage.getVWQuotes();
+      return res.json(quotes);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/admin/vw-quotes", async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user?.isAdmin && !user?.isModerator) return res.status(403).json({ message: "Forbidden" });
+      const { message } = req.body;
+      if (!message?.trim()) return res.status(400).json({ message: "Message is required" });
+      const quote = await storage.addVWQuote(message.trim(), user.username);
+      return res.json(quote);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/admin/vw-quotes/:id", async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user?.isAdmin && !user?.isModerator) return res.status(403).json({ message: "Forbidden" });
+      await storage.deleteVWQuote(req.params.id);
+      return res.json({ ok: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Veridian Watcher Background Jobs ──────────────────────────────────────
+  // Hourly quote poster
+  setInterval(async () => {
+    try {
+      const quotes = await storage.getVWQuotes();
+      if (quotes.length === 0) return;
+      const pick = quotes[Math.floor(Math.random() * quotes.length)];
+      await postWatcherMessage(`🌿 ${pick.message}`);
+    } catch (err) {
+      console.error("[VW] Hourly quote error:", err);
+    }
+  }, 60 * 60 * 1000);
+
+  // Leaderboard monitor — checks every 10 min for top-3 changes
+  let lastLeaderboardTop3: string[] = [];
+  setInterval(async () => {
+    try {
+      const leaderboard = await storage.getBadgeLeaderboard(3);
+      const top3 = leaderboard.slice(0, 3).map((u: any) => u.username);
+      const changed = top3.some((name, i) => name !== lastLeaderboardTop3[i]);
+      if (lastLeaderboardTop3.length > 0 && changed) {
+        const medals = ["🥇", "🥈", "🥉"];
+        const formatted = top3.map((name, i) => `${medals[i]} ${name}`).join("  ");
+        await postWatcherMessage(`👁️ The Watcher observes... the leaderboard shifts! The current champions stand as: ${formatted}. Will you rise to challenge them?`);
+      }
+      lastLeaderboardTop3 = top3;
+    } catch (err) {
+      console.error("[VW] Leaderboard monitor error:", err);
+    }
+  }, 10 * 60 * 1000);
 
   return httpServer;
 }

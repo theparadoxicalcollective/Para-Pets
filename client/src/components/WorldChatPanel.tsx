@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { X, Send, ShieldAlert } from "lucide-react";
+import { X, Send, ShieldAlert, BellOff, Bell } from "lucide-react";
 import RoleBadge from "@/components/RoleBadge";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 
@@ -14,14 +14,19 @@ interface WorldChatMessage {
   createdAt: string;
   isAdmin?: boolean;
   isModerator?: boolean;
+  isBot?: boolean;
 }
 
 interface WorldChatPanelProps {
   currentUserId: string;
   onClose: () => void;
+  onNewMessage?: () => void;
 }
 
 const GOLD = "#f0c040";
+const VW_COLOR = "#5eead4";
+const VW_BG = "linear-gradient(135deg, rgba(20,80,70,0.55) 0%, rgba(10,50,44,0.55) 100%)";
+const VW_BORDER = "1px solid rgba(94,234,212,0.35)";
 const MAX_LENGTH = 150;
 
 function timeAgo(dateStr: string): string {
@@ -31,13 +36,15 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(diff / 3600)}h`;
 }
 
-export default function WorldChatPanel({ currentUserId, onClose }: WorldChatPanelProps) {
+export default function WorldChatPanel({ currentUserId, onClose, onNewMessage }: WorldChatPanelProps) {
   const [input, setInput] = useState("");
   const [cooldown, setCooldown] = useState(0);
   const [popupMsg, setPopupMsg] = useState<string | null>(null);
   const [popupIsRestricted, setPopupIsRestricted] = useState(false);
   const [viewingPlayerId, setViewingPlayerId] = useState<string | null>(null);
   const [inputFocused, setInputFocused] = useState(false);
+  const [mutedBot, setMutedBot] = useState(false);
+  const lastMsgCountRef = useRef(0);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const qc = useQueryClient();
@@ -48,11 +55,23 @@ export default function WorldChatPanel({ currentUserId, onClose }: WorldChatPane
     staleTime: 0,
   });
 
+  const visibleMessages = mutedBot ? messages.filter(m => !m.isBot) : messages;
+
   useEffect(() => {
     if (listRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight;
     }
-  }, [messages.length]);
+  }, [visibleMessages.length]);
+
+  // Notify parent when new messages arrive (for glow effect on chat button)
+  useEffect(() => {
+    if (messages.length > lastMsgCountRef.current) {
+      if (lastMsgCountRef.current > 0 && onNewMessage) {
+        onNewMessage();
+      }
+      lastMsgCountRef.current = messages.length;
+    }
+  }, [messages.length, onNewMessage]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -133,20 +152,38 @@ export default function WorldChatPanel({ currentUserId, onClose }: WorldChatPane
             WORLD CHAT
           </span>
         </div>
-        <button
-          data-testid="button-close-world-chat"
-          onClick={onClose}
-          className="flex items-center justify-center rounded-full transition-transform active:scale-90"
-          style={{
-            width: 24, height: 24,
-            background: "rgba(240,192,64,0.08)",
-            border: "1px solid rgba(240,192,64,0.25)",
-            cursor: "pointer",
-            color: "rgba(240,192,64,0.6)",
-          }}
-        >
-          <X size={12} />
-        </button>
+        <div className="flex items-center gap-1.5">
+          {/* Mute bot toggle */}
+          <button
+            data-testid="button-toggle-bot-mute"
+            onClick={() => setMutedBot(v => !v)}
+            title={mutedBot ? "Unmute Veridian Watcher" : "Mute Veridian Watcher"}
+            className="flex items-center justify-center rounded-full transition-transform active:scale-90"
+            style={{
+              width: 24, height: 24,
+              background: mutedBot ? "rgba(94,234,212,0.12)" : "rgba(94,234,212,0.06)",
+              border: `1px solid ${mutedBot ? "rgba(94,234,212,0.45)" : "rgba(94,234,212,0.2)"}`,
+              cursor: "pointer",
+              color: mutedBot ? VW_COLOR : "rgba(94,234,212,0.4)",
+            }}
+          >
+            {mutedBot ? <BellOff size={11} /> : <Bell size={11} />}
+          </button>
+          <button
+            data-testid="button-close-world-chat"
+            onClick={onClose}
+            className="flex items-center justify-center rounded-full transition-transform active:scale-90"
+            style={{
+              width: 24, height: 24,
+              background: "rgba(240,192,64,0.08)",
+              border: "1px solid rgba(240,192,64,0.25)",
+              cursor: "pointer",
+              color: "rgba(240,192,64,0.6)",
+            }}
+          >
+            <X size={12} />
+          </button>
+        </div>
       </div>
 
       {/* Message list */}
@@ -155,7 +192,7 @@ export default function WorldChatPanel({ currentUserId, onClose }: WorldChatPane
         className="flex-1 overflow-y-auto px-3 py-2 space-y-2"
         style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(240,192,64,0.15) transparent" }}
       >
-        {messages.length === 0 && (
+        {visibleMessages.length === 0 && (
           <p
             className="font-fantasy text-center"
             style={{ color: "rgba(200,184,150,0.4)", fontSize: 11, marginTop: 60 }}
@@ -163,45 +200,71 @@ export default function WorldChatPanel({ currentUserId, onClose }: WorldChatPane
             No messages yet. Say hello!
           </p>
         )}
-        {messages.map(msg => {
+        {visibleMessages.map(msg => {
           const isMe = msg.userId === currentUserId;
+          const isBot = !!msg.isBot;
           return (
             <div
               key={msg.id}
               data-testid={`chat-message-${msg.id}`}
               className="flex gap-2 items-start"
-              style={{ flexDirection: isMe ? "row-reverse" : "row" }}
+              style={{ flexDirection: isBot ? "row" : isMe ? "row-reverse" : "row" }}
             >
               {/* Avatar */}
               <div
                 className="flex-shrink-0 rounded-full overflow-hidden flex items-center justify-center"
                 data-testid={`button-chat-avatar-${msg.userId}`}
-                onClick={() => !isMe && setViewingPlayerId(msg.userId)}
+                onClick={() => !isMe && !isBot && setViewingPlayerId(msg.userId)}
                 style={{
                   width: 28, height: 28,
-                  background: "linear-gradient(135deg, #2a1a0a 0%, #4a2e18 100%)",
-                  border: `1.5px solid ${isMe ? "rgba(240,192,64,0.5)" : "rgba(127,255,212,0.3)"}`,
-                  cursor: isMe ? "default" : "pointer",
+                  background: isBot
+                    ? "linear-gradient(135deg, #0a3a32 0%, #1a5a4e 100%)"
+                    : "linear-gradient(135deg, #2a1a0a 0%, #4a2e18 100%)",
+                  border: isBot
+                    ? `1.5px solid rgba(94,234,212,0.55)`
+                    : `1.5px solid ${isMe ? "rgba(240,192,64,0.5)" : "rgba(127,255,212,0.3)"}`,
+                  cursor: isMe || isBot ? "default" : "pointer",
+                  boxShadow: isBot ? "0 0 8px rgba(94,234,212,0.3)" : undefined,
                 }}
               >
                 {msg.profileImage ? (
                   <img src={msg.profileImage} alt={msg.username} className="w-full h-full object-cover" />
                 ) : (
-                  <span style={{ color: GOLD, fontSize: 10, fontWeight: "bold" }}>
-                    {msg.username.charAt(0).toUpperCase()}
+                  <span style={{ color: isBot ? VW_COLOR : GOLD, fontSize: 10, fontWeight: "bold" }}>
+                    {isBot ? "👁️" : msg.username.charAt(0).toUpperCase()}
                   </span>
                 )}
               </div>
               {/* Bubble */}
-              <div style={{ maxWidth: "72%", textAlign: isMe ? "right" : "left" }}>
-                <div className="flex items-center gap-1.5 mb-0.5" style={{ flexDirection: isMe ? "row-reverse" : "row" }}>
+              <div style={{ maxWidth: "80%", textAlign: isBot ? "left" : isMe ? "right" : "left" }}>
+                <div className="flex items-center gap-1.5 mb-0.5" style={{ flexDirection: isBot ? "row" : isMe ? "row-reverse" : "row" }}>
                   <span
                     className="font-fantasy"
-                    style={{ color: isMe ? GOLD : "#7fffd4", fontSize: 9, letterSpacing: "0.05em" }}
+                    style={{
+                      color: isBot ? VW_COLOR : isMe ? GOLD : "#7fffd4",
+                      fontSize: 9,
+                      letterSpacing: "0.05em",
+                    }}
                   >
                     {msg.username}
                   </span>
-                  <RoleBadge isAdmin={msg.isAdmin} isModerator={msg.isModerator} />
+                  {isBot && (
+                    <span
+                      style={{
+                        fontSize: 7,
+                        padding: "1px 4px",
+                        borderRadius: 4,
+                        background: "rgba(94,234,212,0.15)",
+                        border: "1px solid rgba(94,234,212,0.4)",
+                        color: VW_COLOR,
+                        letterSpacing: "0.08em",
+                        fontFamily: "Lora, serif",
+                      }}
+                    >
+                      WATCHER
+                    </span>
+                  )}
+                  {!isBot && <RoleBadge isAdmin={msg.isAdmin} isModerator={msg.isModerator} />}
                   <span style={{ color: "rgba(200,184,150,0.3)", fontSize: 8 }}>{timeAgo(msg.createdAt)}</span>
                 </div>
                 <div
@@ -209,16 +272,23 @@ export default function WorldChatPanel({ currentUserId, onClose }: WorldChatPane
                   style={{
                     display: "inline-block",
                     padding: "5px 9px",
-                    borderRadius: isMe ? "12px 12px 4px 12px" : "12px 12px 12px 4px",
-                    background: isMe
-                      ? "linear-gradient(135deg, rgba(240,192,64,0.18) 0%, rgba(180,130,10,0.15) 100%)"
-                      : "rgba(255,255,255,0.06)",
-                    border: isMe ? "1px solid rgba(240,192,64,0.25)" : "1px solid rgba(255,255,255,0.08)",
-                    color: "#e8dcc8",
+                    borderRadius: isMe && !isBot ? "12px 12px 4px 12px" : "12px 12px 12px 4px",
+                    background: isBot
+                      ? VW_BG
+                      : isMe
+                        ? "linear-gradient(135deg, rgba(240,192,64,0.18) 0%, rgba(180,130,10,0.15) 100%)"
+                        : "rgba(255,255,255,0.06)",
+                    border: isBot
+                      ? VW_BORDER
+                      : isMe
+                        ? "1px solid rgba(240,192,64,0.25)"
+                        : "1px solid rgba(255,255,255,0.08)",
+                    color: isBot ? "#b2f5e8" : "#e8dcc8",
                     fontSize: 12,
                     lineHeight: 1.4,
                     maxWidth: "100%",
                     wordBreak: "break-word",
+                    boxShadow: isBot ? "0 0 12px rgba(94,234,212,0.1)" : undefined,
                   }}
                 >
                   {msg.message}

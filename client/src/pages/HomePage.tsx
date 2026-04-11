@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
 import { X, HelpCircle, Zap, Star, RotateCcw } from "lucide-react";
 import WorldChatPanel from "@/components/WorldChatPanel";
-import worldChatIconImg from "@assets/generated_images/nav_icon_world_chat.png";
+import worldChatIconImg from "@assets/icon_world_chat_new.png";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import bgImg from "@assets/bg_home_v2.png";
@@ -112,6 +112,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const homeEggDropRef = useRef<HTMLDivElement>(null);
   const [showHomePageTutorial, setShowHomePageTutorial] = useState(() => !localStorage.getItem("homePageTutorialSeen"));
   const [showWorldChat, setShowWorldChat] = useState(false);
+  const [chatHasNewMsg, setChatHasNewMsg] = useState(false);
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
 
@@ -1232,18 +1233,20 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           {/* World Chat toggle button */}
           <button
             data-testid="button-open-world-chat"
-            onClick={() => setShowWorldChat(v => !v)}
+            onClick={() => { setShowWorldChat(v => !v); setChatHasNewMsg(false); }}
             className="absolute z-30 rounded-full overflow-hidden transition-transform active:scale-90"
             style={{
               top: "62px",
               right: "54px",
               width: "38px",
               height: "38px",
-              border: `1.5px solid ${showWorldChat ? "rgba(127,255,212,0.7)" : "rgba(127,255,212,0.35)"}`,
+              border: `1.5px solid ${showWorldChat ? "rgba(127,255,212,0.7)" : chatHasNewMsg ? "rgba(94,234,212,0.85)" : "rgba(127,255,212,0.35)"}`,
               cursor: "pointer",
               boxShadow: showWorldChat
                 ? "0 2px 14px rgba(0,0,0,0.6), 0 0 16px rgba(127,255,212,0.35)"
-                : "0 2px 10px rgba(0,0,0,0.5), 0 0 8px rgba(127,255,212,0.15)",
+                : chatHasNewMsg
+                  ? "0 2px 14px rgba(0,0,0,0.6), 0 0 18px rgba(94,234,212,0.55)"
+                  : "0 2px 10px rgba(0,0,0,0.5), 0 0 8px rgba(127,255,212,0.15)",
               padding: 0,
               background: "transparent",
             }}
@@ -1251,7 +1254,17 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             <img
               src={worldChatIconImg}
               alt="World Chat"
-              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", filter: showWorldChat ? "brightness(1.15)" : "brightness(0.95)" }}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                display: "block",
+                filter: showWorldChat
+                  ? "brightness(1.15)"
+                  : chatHasNewMsg
+                    ? "brightness(1.2) drop-shadow(0 0 6px rgba(94,234,212,0.8))"
+                    : "brightness(0.95)",
+              }}
             />
           </button>
           {/* Tutorial ? button */}
@@ -1281,6 +1294,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         <WorldChatPanel
           currentUserId={currentUser.id}
           onClose={() => setShowWorldChat(false)}
+          onNewMessage={() => setChatHasNewMsg(true)}
         />
       )}
 

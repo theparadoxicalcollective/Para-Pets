@@ -51,6 +51,7 @@ import {
   deletedAccounts,
   type WorldChatMessage, worldChatMessages,
   type ChatFilterWord, chatFilterWords,
+  type VeridianWatcherQuote, veridianWatcherQuotes,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, ne, gte, asc, desc, ilike, or, sql, inArray } from "drizzle-orm";
@@ -261,12 +262,15 @@ export interface IStorage {
   getPendingGifts(userId: string): Promise<(Gift & { senderName: string; senderProfileImageUrl: string | null })[]>;
   acceptGift(giftId: string, userId: string): Promise<Gift>;
   getWorldChatMessages(): Promise<WorldChatMessage[]>;
-  addWorldChatMessage(data: { userId: string; username: string; profileImage?: string | null; message: string }): Promise<WorldChatMessage>;
+  addWorldChatMessage(data: { userId: string; username: string; profileImage?: string | null; message: string; isBot?: boolean }): Promise<WorldChatMessage>;
   getLastWorldChatByUser(userId: string): Promise<WorldChatMessage | null>;
   purgeOldWorldChatMessages(): Promise<void>;
   getChatFilterWords(): Promise<ChatFilterWord[]>;
   addChatFilterWord(word: string, addedBy?: string): Promise<ChatFilterWord>;
   deleteChatFilterWord(id: string): Promise<void>;
+  getVWQuotes(): Promise<VeridianWatcherQuote[]>;
+  addVWQuote(message: string, addedBy?: string): Promise<VeridianWatcherQuote>;
+  deleteVWQuote(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2282,12 +2286,13 @@ export class DatabaseStorage implements IStorage {
     return rows.map(r => ({ ...r, isAdmin: r.isAdmin ?? false, isModerator: r.isModerator ?? false }));
   }
 
-  async addWorldChatMessage(data: { userId: string; username: string; profileImage?: string | null; message: string }): Promise<WorldChatMessage> {
+  async addWorldChatMessage(data: { userId: string; username: string; profileImage?: string | null; message: string; isBot?: boolean }): Promise<WorldChatMessage> {
     const [msg] = await db.insert(worldChatMessages).values({
       userId: data.userId,
       username: data.username,
       profileImage: data.profileImage ?? null,
       message: data.message,
+      isBot: data.isBot ?? false,
     }).returning();
     return msg;
   }
@@ -2316,6 +2321,19 @@ export class DatabaseStorage implements IStorage {
 
   async deleteChatFilterWord(id: string): Promise<void> {
     await db.delete(chatFilterWords).where(eq(chatFilterWords.id, id));
+  }
+
+  async getVWQuotes(): Promise<VeridianWatcherQuote[]> {
+    return db.select().from(veridianWatcherQuotes).orderBy(asc(veridianWatcherQuotes.createdAt));
+  }
+
+  async addVWQuote(message: string, addedBy?: string): Promise<VeridianWatcherQuote> {
+    const [row] = await db.insert(veridianWatcherQuotes).values({ message, addedBy }).returning();
+    return row;
+  }
+
+  async deleteVWQuote(id: string): Promise<void> {
+    await db.delete(veridianWatcherQuotes).where(eq(veridianWatcherQuotes.id, id));
   }
 }
 

@@ -161,6 +161,7 @@ export default function AdminPage({ user }: AdminPageProps) {
     { key: "purchases" as const, label: "Purchases", icon: adminIconPurchases, desc: "Coin shop history", color: "#86efac", glow: "rgba(134,239,172,0.30)", bg: "linear-gradient(145deg, rgba(8,45,18,0.92) 0%, rgba(12,70,28,0.88) 100%)", border: "rgba(134,239,172,0.45)" },
     { key: "maintenance" as const, label: "Maintenance", icon: adminIconWelcome, desc: "DB cleanup tools", color: "#f9a8d4", glow: "rgba(249,168,212,0.30)", bg: "linear-gradient(145deg, rgba(60,8,40,0.92) 0%, rgba(90,12,60,0.88) 100%)", border: "rgba(249,168,212,0.45)" },
     { key: "chat_filter" as const, label: "Chat Filter", icon: adminIconMessages, desc: "Blocked word list", color: "#fca5a5", glow: "rgba(252,165,165,0.30)", bg: "linear-gradient(145deg, rgba(60,8,8,0.92) 0%, rgba(90,12,12,0.88) 100%)", border: "rgba(252,165,165,0.45)" },
+    { key: "veridian_watcher" as const, label: "Veridian Watcher", icon: adminIconMessages, desc: "Bot quotes", color: "#5eead4", glow: "rgba(94,234,212,0.30)", bg: "linear-gradient(145deg, rgba(8,45,42,0.92) 0%, rgba(14,70,65,0.88) 100%)", border: "rgba(94,234,212,0.45)" },
   ];
 
   const activeSectionMeta = activeSection ? sections.find(s => s.key === activeSection) : null;
@@ -514,6 +515,10 @@ export default function AdminPage({ user }: AdminPageProps) {
 
               {activeSection === "chat_filter" && (
                 <ChatFilterSection currentUsername={user.username} />
+              )}
+
+              {activeSection === "veridian_watcher" && (
+                <VeridianWatcherSection currentUsername={user.username} />
               )}
             </>
           )}
@@ -2312,6 +2317,158 @@ function MaintenanceSection() {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Veridian Watcher Section ─────────────────────────────────────────────────
+interface VWQuote {
+  id: string;
+  message: string;
+  addedBy?: string | null;
+  createdAt: string;
+}
+
+function VeridianWatcherSection({ currentUsername }: { currentUsername: string }) {
+  const [newQuote, setNewQuote] = useState("");
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const ACCENT = "#5eead4";
+
+  const { data: quotes = [], isLoading } = useQuery<VWQuote[]>({
+    queryKey: ["/api/admin/vw-quotes"],
+  });
+
+  const addMutation = useMutation({
+    mutationFn: (message: string) => apiRequest("POST", "/api/admin/vw-quotes", { message }),
+    onSuccess: () => {
+      setNewQuote("");
+      qc.invalidateQueries({ queryKey: ["/api/admin/vw-quotes"] });
+      toast({ title: "Quote added" });
+    },
+    onError: () => {
+      toast({ title: "Failed to add quote", variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/admin/vw-quotes/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/admin/vw-quotes"] });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete quote", variant: "destructive" });
+    },
+  });
+
+  return (
+    <div className="flex flex-col gap-4 px-2 pb-4">
+      {/* Description */}
+      <div
+        className="rounded-xl p-3"
+        style={{ background: "rgba(94,234,212,0.06)", border: "1px solid rgba(94,234,212,0.18)" }}
+      >
+        <p className="font-fantasy text-xs tracking-wider mb-1" style={{ color: ACCENT }}>👁️ About the Veridian Watcher</p>
+        <p className="font-sans text-xs leading-relaxed" style={{ color: "rgba(200,184,150,0.7)" }}>
+          The Watcher is a bot that posts motivational quotes to World Chat every hour. It also welcomes new verified players and congratulates players who acquire rare (4★+) pets.
+        </p>
+      </div>
+
+      {/* Add new quote */}
+      <div
+        className="rounded-xl p-3 flex flex-col gap-2"
+        style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(94,234,212,0.2)" }}
+      >
+        <p className="font-fantasy text-xs tracking-wider" style={{ color: ACCENT }}>Add Hourly Quote</p>
+        <textarea
+          data-testid="input-new-vw-quote"
+          value={newQuote}
+          onChange={e => setNewQuote(e.target.value.slice(0, 280))}
+          placeholder="Enter a motivational quote or message..."
+          rows={3}
+          className="w-full font-sans text-xs rounded-lg px-3 py-2 resize-none"
+          style={{
+            background: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(94,234,212,0.25)",
+            color: "#e8dcc8",
+            outline: "none",
+            lineHeight: 1.5,
+          }}
+        />
+        <div className="flex items-center justify-between">
+          <span style={{ fontSize: 9, color: "rgba(200,184,150,0.4)" }}>{newQuote.length}/280</span>
+          <button
+            data-testid="button-add-vw-quote"
+            onClick={() => { if (newQuote.trim()) addMutation.mutate(newQuote.trim()); }}
+            disabled={!newQuote.trim() || addMutation.isPending}
+            className="px-4 py-1.5 rounded-lg font-fantasy text-xs"
+            style={{
+              background: "rgba(94,234,212,0.15)",
+              border: "1px solid rgba(94,234,212,0.35)",
+              color: ACCENT,
+              cursor: newQuote.trim() ? "pointer" : "not-allowed",
+            }}
+          >
+            Add Quote
+          </button>
+        </div>
+      </div>
+
+      {isLoading && (
+        <p className="font-fantasy text-xs text-center" style={{ color: "rgba(200,184,150,0.5)" }}>Loading...</p>
+      )}
+
+      {/* Quote list */}
+      {quotes.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <p className="font-fantasy text-xs tracking-wider" style={{ color: ACCENT }}>
+            Quotes ({quotes.length})
+          </p>
+          {quotes.map(q => (
+            <div
+              key={q.id}
+              data-testid={`vw-quote-${q.id}`}
+              className="rounded-xl p-3 flex items-start gap-2"
+              style={{
+                background: "rgba(94,234,212,0.05)",
+                border: "1px solid rgba(94,234,212,0.18)",
+              }}
+            >
+              <div className="flex-1 min-w-0">
+                <p className="font-sans text-xs leading-relaxed break-words" style={{ color: "#e8dcc8" }}>
+                  🌿 {q.message}
+                </p>
+                {q.addedBy && (
+                  <p style={{ fontSize: 9, color: "rgba(200,184,150,0.4)", marginTop: 4 }}>
+                    Added by {q.addedBy}
+                  </p>
+                )}
+              </div>
+              <button
+                data-testid={`button-delete-vw-quote-${q.id}`}
+                onClick={() => deleteMutation.mutate(q.id)}
+                disabled={deleteMutation.isPending}
+                className="flex-shrink-0 flex items-center justify-center rounded-full"
+                style={{
+                  width: 22, height: 22,
+                  background: "rgba(252,165,165,0.1)",
+                  border: "1px solid rgba(252,165,165,0.25)",
+                  cursor: "pointer",
+                  color: "#fca5a5",
+                }}
+              >
+                <X size={10} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {quotes.length === 0 && !isLoading && (
+        <p className="font-fantasy text-xs" style={{ color: "rgba(200,184,150,0.4)" }}>
+          No custom quotes yet. Add one above to get started.
+        </p>
+      )}
     </div>
   );
 }

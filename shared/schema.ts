@@ -726,10 +726,21 @@ export const worldChatMessages = pgTable("world_chat_messages", {
   username: varchar("username").notNull(),
   profileImage: text("profile_image"),
   message: text("message").notNull(),
+  isBot: boolean("is_bot").notNull().default(false),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
 export type WorldChatMessage = typeof worldChatMessages.$inferSelect;
+
+// ── Veridian Watcher Quotes ───────────────────────────────────────────────────
+export const veridianWatcherQuotes = pgTable("veridian_watcher_quotes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  message: text("message").notNull(),
+  addedBy: varchar("added_by"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export type VeridianWatcherQuote = typeof veridianWatcherQuotes.$inferSelect;
 
 // ── Chat Filter Words ─────────────────────────────────────────────────────────
 export const chatFilterWords = pgTable("chat_filter_words", {
