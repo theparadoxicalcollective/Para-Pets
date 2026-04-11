@@ -111,6 +111,9 @@ const HOUSE_ANIMATIONS: Record<string, string> = {
 // Parts that are hidden by default and only appear during specific animations
 const ANIM_ONLY_PARTS = new Set(["eyes_closed", "mouth"]);
 
+// Face parts that belong to a head group
+const FACE_PART_TYPES = new Set(["eyes", "eyes_closed", "left_ear", "right_ear", "mouth", "mouth_closed"]);
+
 const ANIMATION_STYLES = `
   @keyframes petIdleEyes {
     0%, 92%, 100% { opacity: 1; }
@@ -326,6 +329,45 @@ const LAYER_ORDER: Record<string, number> = {
   eyes: 15,
 };
 
+// Stagger offsets for duplicate same-type non-head parts
+const DUP_STAGGER_OFFSETS = [0, 0.4, 0.75, 1.1, 1.4];
+
+// Stagger offsets (in seconds) for multiple head groups
+const HEAD_GROUP_STAGGER = [0, 0.55, 1.1, 1.65];
+
+// Blink cycle offset per head group so they blink at different times
+const HEAD_BLINK_OFFSETS = [0, 1.6, 3.0, 0.8];
+
+function centerOf(p: PetPart) {
+  return { x: p.posX + p.width / 2, y: p.posY + p.height / 2 };
+}
+
+function dist(a: { x: number; y: number }, b: { x: number; y: number }) {
+  return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+}
+
+/** Group face parts with their nearest head by spatial proximity. */
+function buildHeadGroups(parts: PetPart[]): { head: PetPart; faceParts: PetPart[] }[] {
+  const headParts = parts.filter(p => p.partType === "head");
+  if (headParts.length === 0) return [];
+
+  const groups = headParts.map(h => ({ head: h, faceParts: [] as PetPart[] }));
+  const faceParts = parts.filter(p => FACE_PART_TYPES.has(p.partType));
+
+  for (const fp of faceParts) {
+    const c = centerOf(fp);
+    let minDist = Infinity;
+    let minIdx = 0;
+    for (let i = 0; i < headParts.length; i++) {
+      const d = dist(c, centerOf(headParts[i]));
+      if (d < minDist) { minDist = d; minIdx = i; }
+    }
+    groups[minIdx].faceParts.push(fp);
+  }
+
+  return groups;
+}
+
 export default function PetAnimator({ petTemplateId, mode, view = "front", size = 200, fillContainer = false, className = "", style: externalStyle }: PetAnimatorProps) {
   // Stable random blink offset per instance — spreads eye animations across the
   // full 4 s blink cycle so pets don't all blink at the same time.
@@ -379,13 +421,29 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   const innerSize = fillContainer ? size / partScale : size;
   const innerOffset = fillContainer ? -((innerSize - size) / 2) : 0;
 
-  // Head group: these parts all move together with the head animation
-  const HEAD_GROUP = new Set(["head", "left_ear", "right_ear", "eyes", "eyes_closed", "mouth", "mouth_closed"]);
-  const bodyParts = viewParts.filter(p => !HEAD_GROUP.has(p.partType));
-  const headGroupParts = viewParts.filter(p => HEAD_GROUP.has(p.partType));
+  // Build head groups (each head gets its own associated face parts by proximity)
+  const headGroups = buildHeadGroups(viewParts);
+  const headGroupPartIds = new Set(headGroups.flatMap(g => [g.head.id, ...g.faceParts.map(p => p.id)]));
+
+  // Non-head-group body parts
+  const bodyParts = viewParts.filter(p => !headGroupPartIds.has(p.id));
+
+  // Track per-type index for duplicate same-type parts (for staggering)
+  const typeCountMap = new Map<string, number>();
+  const typeIndexMap = new Map<string, number>();
+  for (const part of bodyParts) {
+    const idx = typeCountMap.get(part.partType) ?? 0;
+    typeIndexMap.set(part.id, idx);
+    typeCountMap.set(part.partType, idx + 1);
+  }
 
   // Helper: render a single part image with given animation (or none)
-  const renderPartImg = (part: PetPart, animName: string | null, extraOpacity?: number) => {
+  const renderPartImg = (
+    part: PetPart,
+    animName: string | null,
+    extraOpacity?: number,
+    delayOverride?: string,
+  ) => {
     const leftPct = (part.posX / CANVAS_SIZE) * 100;
     const topPct = (part.posY / CANVAS_SIZE) * 100;
     const widthPct = (part.width / CANVAS_SIZE) * 100;
@@ -393,7 +451,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     const layerZ = LAYER_ORDER[part.partType] ?? part.zIndex;
     const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
     const isEyePart = part.partType === "eyes" || part.partType === "eyes_closed";
-    const delay = isEyePart ? blinkOffset.current : "0s";
+    const delay = delayOverride !== undefined ? delayOverride : (isEyePart ? blinkOffset.current : "0s");
     const duration = getPartDuration(part.partType, mode);
     return (
       <img
@@ -441,6 +499,11 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
               />
             );
           }
+
+          // Stagger duplicate same-type parts so they don't move in perfect sync
+          const typeIdx = typeIndexMap.get(part.id) ?? 0;
+          const dupDelay = typeIdx > 0 ? `${DUP_STAGGER_OFFSETS[Math.min(typeIdx, DUP_STAGGER_OFFSETS.length - 1)]}s` : "0s";
+
           if (mode === "static") {
             const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
             if (isAnimOnly) return null;
@@ -453,35 +516,44 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
               if (isAnimOnly) return null;
               return renderPartImg(part, null);
             }
-            return renderPartImg(part, animName);
+            return renderPartImg(part, animName, undefined, typeIdx > 0 ? dupDelay : undefined);
           }
           const anims = mode === "idle" ? IDLE_ANIMATIONS : mode === "zoom" ? ZOOM_ANIMATIONS : WALK_ANIMATIONS;
           const animName = anims[part.partType] || anims.body;
           if (!animName) return null;
-          return renderPartImg(part, animName);
+          return renderPartImg(part, animName, undefined, typeIdx > 0 ? dupDelay : undefined);
         })}
 
-        {/* Head group — wrapper carries head movement so all face parts move together */}
-        {headGroupParts.length > 0 && (() => {
+        {/* Head groups — each head gets its own wrapper with associated face parts */}
+        {headGroups.map((group, groupIdx) => {
           const anims = mode === "idle" ? IDLE_ANIMATIONS : mode === "zoom" ? ZOOM_ANIMATIONS : WALK_ANIMATIONS;
-          // Wrapper gets the head movement animation; house and static modes skip it
+          // Each head group has a staggered start so multiple heads bob at different times
+          const groupDelay = HEAD_GROUP_STAGGER[Math.min(groupIdx, HEAD_GROUP_STAGGER.length - 1)];
           const wrapperAnim = (mode !== "house" && mode !== "static") ? anims["head"] : undefined;
           const wrapperDuration = getPartDuration("head", mode);
 
+          // Per-group blink offset: combines the global random offset with a per-group phase
+          const blinkBase = parseFloat(blinkOffset.current.replace("s", "")) || 0;
+          const groupBlinkOffset = `${(blinkBase - HEAD_BLINK_OFFSETS[Math.min(groupIdx, HEAD_BLINK_OFFSETS.length - 1)]).toFixed(2)}s`;
+
+          const allGroupParts = [group.head, ...group.faceParts];
+
           return (
             <div
-              key="head-group"
+              key={`head-group-${groupIdx}`}
               style={{
                 position: "absolute",
                 left: 0, top: 0,
                 width: "100%", height: "100%",
-                animation: wrapperAnim ? `${wrapperAnim} ${wrapperDuration} ease-in-out 0s infinite` : undefined,
+                animation: wrapperAnim ? `${wrapperAnim} ${wrapperDuration} ease-in-out ${groupDelay}s infinite` : undefined,
                 zIndex: 9,
                 pointerEvents: "none",
               }}
             >
-              {headGroupParts.map((part) => {
+              {allGroupParts.map((part) => {
                 const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
+                const isEyePart = part.partType === "eyes" || part.partType === "eyes_closed";
+
                 if (mode === "static") {
                   if (isAnimOnly) return null;
                   return renderPartImg(part, null);
@@ -492,17 +564,18 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
                     if (isAnimOnly) return null;
                     return renderPartImg(part, null);
                   }
-                  return renderPartImg(part, animName);
+                  const delay = isEyePart ? groupBlinkOffset : `${groupDelay}s`;
+                  return renderPartImg(part, animName, undefined, delay);
                 }
-                // Head itself has no additional per-part animation (wrapper handles movement)
-                // Face parts (eyes, mouth, ears) keep their individual opacity/rotation animations
+                // Head itself has no per-part animation (wrapper handles the bobbing)
                 const isHead = part.partType === "head";
                 const partAnimName = isHead ? null : (anims[part.partType] ?? null);
-                return renderPartImg(part, partAnimName);
+                const delay = isEyePart ? groupBlinkOffset : `${groupDelay}s`;
+                return renderPartImg(part, partAnimName, undefined, delay);
               })}
             </div>
           );
-        })()}
+        })}
 
       </div>
     </div>
