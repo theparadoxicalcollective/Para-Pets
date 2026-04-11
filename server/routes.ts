@@ -3146,8 +3146,16 @@ export async function registerRoutes(
       const composites: { input: Buffer; left: number; top: number; width: number; height: number }[] = [];
 
       for (const part of viewParts) {
-        const base64Data = part.imageUrl.replace(/^data:image\/\w+;base64,/, "");
-        const buf = Buffer.from(base64Data, "base64");
+        let buf: Buffer;
+        if (part.imageUrl.startsWith("/api/media/")) {
+          const blobId = part.imageUrl.slice("/api/media/".length);
+          const blobResult = await db.execute(sql`SELECT data FROM media_blobs WHERE id = ${blobId}`);
+          if (!blobResult.rows.length) throw new Error(`Media blob not found: ${blobId}`);
+          buf = Buffer.from((blobResult.rows[0] as any).data as string, "base64");
+        } else {
+          const base64Data = part.imageUrl.replace(/^data:image\/\w+;base64,/, "");
+          buf = Buffer.from(base64Data, "base64");
+        }
         const resized = await sharp(buf)
           .resize(Math.max(1, Math.round(part.width)), Math.max(1, Math.round(part.height)), { fit: "fill" })
           .png()
