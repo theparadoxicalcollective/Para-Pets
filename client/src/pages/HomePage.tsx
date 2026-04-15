@@ -1234,19 +1234,19 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           <button
             data-testid="button-open-world-chat"
             onClick={() => { setShowWorldChat(v => !v); setChatHasNewMsg(false); }}
-            className="absolute z-30 rounded-full overflow-hidden transition-transform active:scale-90"
+            className="absolute z-30 transition-transform active:scale-90"
             style={{
               top: "62px",
               right: "54px",
               width: "38px",
               height: "38px",
-              border: `1.5px solid ${showWorldChat ? "rgba(127,255,212,0.7)" : chatHasNewMsg ? "rgba(94,234,212,0.85)" : "rgba(127,255,212,0.35)"}`,
+              border: "none",
               cursor: "pointer",
               boxShadow: showWorldChat
-                ? "0 2px 14px rgba(0,0,0,0.6), 0 0 16px rgba(127,255,212,0.35)"
+                ? "0 0 16px rgba(127,255,212,0.35)"
                 : chatHasNewMsg
-                  ? "0 2px 14px rgba(0,0,0,0.6), 0 0 18px rgba(94,234,212,0.55)"
-                  : "0 2px 10px rgba(0,0,0,0.5), 0 0 8px rgba(127,255,212,0.15)",
+                  ? "0 0 18px rgba(94,234,212,0.55)"
+                  : "none",
               padding: 0,
               background: "transparent",
             }}
@@ -1257,7 +1257,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               style={{
                 width: "100%",
                 height: "100%",
-                objectFit: "cover",
+                objectFit: "contain",
                 display: "block",
                 filter: showWorldChat
                   ? "brightness(1.15)"
