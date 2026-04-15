@@ -3263,7 +3263,7 @@ function WorldRoamingPet({
         left: `${posX}%`,
         top:  `${posY}%`,
         transform: "translate(-50%, -100%)",
-        zIndex: 11 + Math.round((posY / 100) * 60),
+        zIndex: 9 + Math.round((posY / 100) * 60),
         pointerEvents: "none",
         userSelect: "none",
         // Smooth glide between SSE position updates for other players' pets;
@@ -3287,8 +3287,10 @@ function WorldRoamingPet({
               coordinates — no guessing, no invisible-box problem. */}
           <div style={{ position: "relative", width: sz, height: sz, pointerEvents: "none" }}>
 
-            {/* Pet sprite — XOR flip: movement direction vs natural facing direction */}
-            <div style={{ transform: (facingLeft !== (facingDirection === "left")) ? "scaleX(-1)" : undefined, transition: "transform 0.1s ease" }}>
+            {/* Pet sprite — XOR flip: movement direction vs natural facing direction.
+                Use the template's 'facing' (already resolved above) so that side-view
+                pets with facing="left" are not incorrectly mirrored when moving left. */}
+            <div style={{ transform: (facingLeft !== (facing === "left")) ? "scaleX(-1)" : undefined, transition: "transform 0.1s ease" }}>
               {pet.petTemplateId ? (
                 <PetAnimator
                   petTemplateId={pet.petTemplateId}
