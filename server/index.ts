@@ -285,6 +285,34 @@ app.use((req, res, next) => {
   }
 
   try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS veridian_watcher_quotes (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        message text NOT NULL,
+        added_by varchar,
+        created_at timestamp NOT NULL DEFAULT now()
+      )
+    `);
+    console.log("veridian_watcher_quotes table ready.");
+  } catch (err) {
+    console.error("veridian_watcher_quotes table setup error (non-fatal):", err);
+  }
+
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS chat_filter_words (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        word varchar(100) NOT NULL UNIQUE,
+        added_by varchar,
+        created_at timestamp NOT NULL DEFAULT now()
+      )
+    `);
+    console.log("chat_filter_words table ready.");
+  } catch (err) {
+    console.error("chat_filter_words table setup error (non-fatal):", err);
+  }
+
+  try {
     console.log('Initializing Stripe...');
     const databaseUrl = process.env.DATABASE_URL;
     if (databaseUrl) {
