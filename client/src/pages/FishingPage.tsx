@@ -207,10 +207,18 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
       });
       return res.json();
     },
-    onSuccess: (data: { caught: CaughtFish | null; item?: ShopItem; reason?: string }) => {
+    onSuccess: (data: { caught: CaughtFish | null; item?: ShopItem | null; reason?: string }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/fishing/equipment"] });
-      if (data.caught && data.item) {
-        setCaughtItem(data.item);
+      if (data.caught) {
+        setCaughtItem(data.item ?? {
+          id: data.caught.shopItemId,
+          name: "Mystery Fish",
+          imageUrl: null,
+          type: "fishing",
+          fishingType: "fish",
+          starRarity: null,
+          rarityBoostPercent: null,
+        });
         setPhase("caught");
         queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] });
         queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
