@@ -580,6 +580,7 @@ async function postWatcherMessage(message: string): Promise<void> {
       message,
       isBot: true,
     });
+    storage.purgeOldWorldChatMessages().catch(() => {});
   } catch (err) {
     console.error("[VW] Failed to post message:", err);
   }
@@ -5839,7 +5840,6 @@ export async function registerRoutes(
 
   app.get("/api/world-chat", isAuthenticated, async (req, res) => {
     try {
-      await storage.purgeOldWorldChatMessages();
       const messages = await storage.getWorldChatMessages();
       return res.json(messages);
     } catch (err: any) {
@@ -5874,6 +5874,8 @@ export async function registerRoutes(
         profileImage: fullUser?.profileImage ?? null,
         message: trimmed,
       });
+      // Count-based purge: wipe ALL messages once 50 have accumulated
+      storage.purgeOldWorldChatMessages().catch(() => {});
       return res.json(msg);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });

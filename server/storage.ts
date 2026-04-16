@@ -2276,13 +2276,14 @@ export class DatabaseStorage implements IStorage {
       username: worldChatMessages.username,
       profileImage: worldChatMessages.profileImage,
       message: worldChatMessages.message,
+      isBot: worldChatMessages.isBot,
       createdAt: worldChatMessages.createdAt,
       isAdmin: users.isAdmin,
       isModerator: users.isModerator,
     }).from(worldChatMessages)
       .leftJoin(users, eq(worldChatMessages.userId, users.id))
       .orderBy(asc(worldChatMessages.createdAt))
-      .limit(80);
+      .limit(50);
     return rows.map(r => ({ ...r, isAdmin: r.isAdmin ?? false, isModerator: r.isModerator ?? false }));
   }
 
@@ -2306,8 +2307,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async purgeOldWorldChatMessages(): Promise<void> {
-    const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000);
-    await db.delete(worldChatMessages).where(sql`${worldChatMessages.createdAt} < ${cutoff}`);
+    // Count total messages; if 50 or more have accumulated, wipe the whole table
+    const [{ count }] = await db.select({ count: sql<number>`COUNT(*)::int` }).from(worldChatMessages);
+    if (count >= 50) {
+      await db.delete(worldChatMessages);
+    }
   }
 
   async getChatFilterWords(): Promise<ChatFilterWord[]> {

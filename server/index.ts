@@ -327,6 +327,10 @@ app.use((req, res, next) => {
     await db.execute(sql`
       CREATE INDEX IF NOT EXISTS idx_world_chat_created ON world_chat_messages(created_at)
     `);
+    // Add is_bot column if it was missing from an older table version
+    await db.execute(sql`
+      ALTER TABLE world_chat_messages ADD COLUMN IF NOT EXISTS is_bot boolean NOT NULL DEFAULT false
+    `);
     console.log("world_chat_messages table ready.");
   } catch (err) {
     console.error("world_chat_messages table setup error (non-fatal):", err);
