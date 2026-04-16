@@ -210,6 +210,12 @@ uri = "file://attached_assets/icon_battle_hitmark.png"
 type = "image"
 title = "battle hit mark rune"
 
+[[generated]]
+id = "AAXrJnkk3CejH95Hnz8r2"
+uri = "file://attached_assets/generated_images/generated_image.png"
+type = "image"
+title = "generated_image"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"

@@ -30,6 +30,7 @@ import PetInventoryPage from "@/pages/PetInventoryPage";
 import BagInventoryPage from "@/pages/BagInventoryPage";
 import LoadingScreen from "@/components/LoadingScreen";
 import WelcomeGiftScreen from "@/components/WelcomeGiftScreen";
+import DevelopmentNoticeScreen from "@/components/DevelopmentNoticeScreen";
 import GlobalLevelUpOverlay from "@/components/GlobalLevelUpOverlay";
 import FloatingNav from "@/components/FloatingNav";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -165,6 +166,9 @@ function AppRouter() {
   const [showWelcome, setShowWelcome] = useState(() =>
     localStorage.getItem("para_pets_just_registered") === "true"
   );
+  const [showDevNotice, setShowDevNotice] = useState(() =>
+    localStorage.getItem("para_pets_just_registered") === "true"
+  );
 
   // After auth resolves for a logged-in user, fetch inventory and preload the
   // home page background + active pet image before revealing the app.
@@ -240,6 +244,7 @@ function AppRouter() {
   useEffect(() => {
     if (user && localStorage.getItem("para_pets_just_registered") === "true") {
       setShowWelcome(true);
+      setShowDevNotice(true);
     }
   }, [user]);
 
@@ -289,6 +294,10 @@ function AppRouter() {
   // dissolves automatically the moment the user clicks the link (any tab).
   if (user && !user.emailVerified && !shouldHideNav(location)) {
     return <EmailGateScreen email={user.email} />;
+  }
+
+  if (showDevNotice && user) {
+    return <DevelopmentNoticeScreen onContinue={() => setShowDevNotice(false)} />;
   }
 
   if (showWelcome && user) {
