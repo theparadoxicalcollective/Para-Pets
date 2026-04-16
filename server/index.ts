@@ -262,21 +262,24 @@ app.use((req, res, next) => {
 
   // All heavy seeding/refresh runs in the background — does NOT block requests
   (async () => {
-  // Schema migrations must run first, before any seeding
-  try {
-    await db.execute(sql`ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS bait_rarity_boost_star INTEGER`);
-    await db.execute(sql`ALTER TABLE enemies ADD COLUMN IF NOT EXISTS archetype TEXT NOT NULL DEFAULT 'balanced'`);
-    await db.execute(sql`ALTER TABLE location_enemies ADD COLUMN IF NOT EXISTS archetype TEXT NOT NULL DEFAULT 'balanced'`);
-    await db.execute(sql`ALTER TABLE location_enemies ADD COLUMN IF NOT EXISTS boss_special_attack TEXT`);
-  } catch (err) {
-    console.error("bait_rarity_boost_star migration error (non-fatal):", err);
-  }
+  // Schema migrations — each in its own try/catch so one failure never blocks others
+  const runMigration = async (label: string, fn: () => Promise<unknown>) => {
+    try { await fn(); console.log(`migration ok: ${label}`); }
+    catch (err: any) { console.error(`migration FAILED [${label}]:`, err?.message ?? err); }
+  };
 
-  try {
-    await db.execute(sql`ALTER TABLE pet_templates ADD COLUMN IF NOT EXISTS facing TEXT DEFAULT 'front'`);
-  } catch (err) {
-    console.error("pet_templates facing migration error (non-fatal):", err);
-  }
+  await runMigration("shop_items.bait_rarity_boost_star",
+    () => db.execute(sql`ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS bait_rarity_boost_star INTEGER`));
+  await runMigration("enemies.archetype",
+    () => db.execute(sql`ALTER TABLE enemies ADD COLUMN IF NOT EXISTS archetype TEXT NOT NULL DEFAULT 'balanced'`));
+  await runMigration("location_enemies.archetype",
+    () => db.execute(sql`ALTER TABLE location_enemies ADD COLUMN IF NOT EXISTS archetype TEXT NOT NULL DEFAULT 'balanced'`));
+  await runMigration("location_enemies.boss_special_attack",
+    () => db.execute(sql`ALTER TABLE location_enemies ADD COLUMN IF NOT EXISTS boss_special_attack TEXT`));
+  await runMigration("pet_templates.facing",
+    () => db.execute(sql`ALTER TABLE pet_templates ADD COLUMN IF NOT EXISTS facing TEXT DEFAULT 'front'`));
+  await runMigration("users.watcher_shoutouts_enabled",
+    () => db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS watcher_shoutouts_enabled boolean NOT NULL DEFAULT true`));
 
   try {
     await db.execute(sql`
