@@ -314,6 +314,26 @@ app.use((req, res, next) => {
 
   try {
     await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS world_chat_messages (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id varchar NOT NULL,
+        username varchar NOT NULL,
+        profile_image text,
+        message text NOT NULL,
+        is_bot boolean NOT NULL DEFAULT false,
+        created_at timestamp NOT NULL DEFAULT now()
+      )
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS idx_world_chat_created ON world_chat_messages(created_at)
+    `);
+    console.log("world_chat_messages table ready.");
+  } catch (err) {
+    console.error("world_chat_messages table setup error (non-fatal):", err);
+  }
+
+  try {
+    await db.execute(sql`
       CREATE TABLE IF NOT EXISTS daily_login_rewards (
         day_number integer PRIMARY KEY CHECK (day_number >= 1 AND day_number <= 7),
         coin_amount integer NOT NULL DEFAULT 0,
