@@ -261,6 +261,7 @@ app.use((req, res, next) => {
     await db.execute(sql`ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS bait_rarity_boost_star INTEGER`);
     await db.execute(sql`ALTER TABLE enemies ADD COLUMN IF NOT EXISTS archetype TEXT NOT NULL DEFAULT 'balanced'`);
     await db.execute(sql`ALTER TABLE location_enemies ADD COLUMN IF NOT EXISTS archetype TEXT NOT NULL DEFAULT 'balanced'`);
+    await db.execute(sql`ALTER TABLE location_enemies ADD COLUMN IF NOT EXISTS boss_special_attack TEXT`);
   } catch (err) {
     console.error("bait_rarity_boost_star migration error (non-fatal):", err);
   }

@@ -3561,7 +3561,7 @@ export async function registerRoutes(
   app.post("/api/admin/location/:locationId/enemy", isAdmin, async (req, res) => {
     try {
       const { locationId } = req.params as Record<string, string>;
-      const { name, imageData, coinReward, isBoss, archetype } = req.body;
+      const { name, imageData, coinReward, isBoss, archetype, bossSpecialAttack } = req.body;
       if (!name?.trim()) {
         return res.status(400).json({ message: "Enemy name is required" });
       }
@@ -3571,7 +3571,9 @@ export async function registerRoutes(
       }
       const validArchetypes = ["balanced", "attacker", "tank"];
       const safeArchetype = validArchetypes.includes(archetype) ? archetype : "balanced";
-      const enemy = await storage.createLocationEnemy({ locationId, name: name.trim(), imageUrl, isBoss: !!isBoss, archetype: safeArchetype, coinReward: coinReward || 0 });
+      const validSpecials = ["slash", "bolt"];
+      const safeBossSpecial = (isBoss && validSpecials.includes(bossSpecialAttack)) ? bossSpecialAttack : null;
+      const enemy = await storage.createLocationEnemy({ locationId, name: name.trim(), imageUrl, isBoss: !!isBoss, archetype: safeArchetype, bossSpecialAttack: safeBossSpecial, coinReward: coinReward || 0 });
       return res.status(201).json(enemy);
     } catch (err) {
       console.error("Create enemy error:", err);
@@ -3582,13 +3584,17 @@ export async function registerRoutes(
   app.patch("/api/admin/enemy/:enemyId", isAdmin, async (req, res) => {
     try {
       const { enemyId } = req.params as Record<string, string>;
-      const { name, imageData, coinReward, isBoss, archetype } = req.body;
+      const { name, imageData, coinReward, isBoss, archetype, bossSpecialAttack } = req.body;
       const validArchetypes = ["balanced", "attacker", "tank"];
       const updates: any = {};
       if (name !== undefined) updates.name = name.trim();
       if (coinReward !== undefined) updates.coinReward = coinReward;
       if (isBoss !== undefined) updates.isBoss = !!isBoss;
       if (archetype !== undefined && validArchetypes.includes(archetype)) updates.archetype = archetype;
+      if (bossSpecialAttack !== undefined) {
+        const validSpecials = ["slash", "bolt"];
+        updates.bossSpecialAttack = (updates.isBoss !== false && validSpecials.includes(bossSpecialAttack)) ? bossSpecialAttack : null;
+      }
       if (imageData) {
         try { updates.imageUrl = await processWorldImage(imageData, 1000); } catch (e) { console.error("Enemy image error:", e); }
       }
@@ -3794,6 +3800,7 @@ export async function registerRoutes(
           imageUrl: enemy.imageUrl,
           isBoss: enemy.isBoss,
           archetype,
+          bossSpecialAttack: enemy.isBoss ? ((enemy as any).bossSpecialAttack ?? null) : null,
           level: enemyLevel,
           hp: Math.max(BATTLE_CFG.minHp, Math.floor(enemyHp)),
           atk: Math.max(BATTLE_CFG.minAtk, Math.floor(enemyAtk)),

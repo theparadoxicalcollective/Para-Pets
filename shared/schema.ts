@@ -293,6 +293,7 @@ export const locationEnemies = pgTable("location_enemies", {
   imageUrl: text("image_url"),
   isBoss: boolean("is_boss").notNull().default(false),
   archetype: text("archetype").notNull().default("balanced"),
+  bossSpecialAttack: text("boss_special_attack"),
   coinReward: integer("coin_reward").notNull().default(0),
   sortOrder: integer("sort_order").notNull().default(0),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),

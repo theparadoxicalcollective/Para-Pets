@@ -26,6 +26,7 @@ interface EnemyData {
   imageUrl: string | null;
   isBoss: boolean;
   archetype: string;
+  bossSpecialAttack: string | null;
   coinReward: number;
   sortOrder: number;
   drops: DropData[];
@@ -35,6 +36,11 @@ const ARCHETYPES = [
   { value: "balanced", label: "Balanced", desc: "Equal HP / ATK / DEF" },
   { value: "attacker", label: "Attacker", desc: "High ATK, low HP & DEF" },
   { value: "tank",     label: "Tank",     desc: "High HP & DEF, low ATK" },
+] as const;
+
+const BOSS_SPECIAL_ATTACKS = [
+  { value: "bolt", label: "⚡ Bolt Volley", desc: "Fires energy bolts that hit ALL pets" },
+  { value: "slash", label: "⚔ Fury Slash",  desc: "Sweeping slash that strikes ALL pets" },
 ] as const;
 
 interface ExploreAdminPanelProps {
@@ -58,7 +64,9 @@ export default function ExploreAdminPanel({ locationId, locationType, accent, on
   const [newEnemyCoinReward, setNewEnemyCoinReward] = useState("");
   const [newEnemyIsBoss, setNewEnemyIsBoss] = useState(false);
   const [newEnemyArchetype, setNewEnemyArchetype] = useState("balanced");
+  const [newEnemyBossSpecialAttack, setNewEnemyBossSpecialAttack] = useState<string | null>(null);
   const [editArchetype, setEditArchetype] = useState("balanced");
+  const [editBossSpecialAttack, setEditBossSpecialAttack] = useState<string | null>(null);
   const [showDropPicker, setShowDropPicker] = useState<string | null>(null);
   const [dropRate, setDropRate] = useState("10");
   const [selectedDropItem, setSelectedDropItem] = useState<string>("");
@@ -90,6 +98,7 @@ export default function ExploreAdminPanel({ locationId, locationType, accent, on
         coinReward: parseInt(newEnemyCoinReward) || 0,
         isBoss: newEnemyIsBoss,
         archetype: newEnemyArchetype,
+        bossSpecialAttack: newEnemyIsBoss ? newEnemyBossSpecialAttack : null,
       });
       return res.json();
     },
@@ -171,11 +180,12 @@ export default function ExploreAdminPanel({ locationId, locationType, accent, on
     setEditCoinReward(String(enemy.coinReward));
     setEditIsBoss(enemy.isBoss);
     setEditArchetype(enemy.archetype || "balanced");
+    setEditBossSpecialAttack(enemy.bossSpecialAttack || null);
     setEditImage(null);
   };
 
   const saveEdit = (enemyId: string) => {
-    const data: any = { name: editName.trim(), coinReward: parseInt(editCoinReward) || 0, isBoss: editIsBoss, archetype: editArchetype };
+    const data: any = { name: editName.trim(), coinReward: parseInt(editCoinReward) || 0, isBoss: editIsBoss, archetype: editArchetype, bossSpecialAttack: editIsBoss ? editBossSpecialAttack : null };
     if (editImage) data.imageData = editImage;
     updateEnemyMutation.mutate({ enemyId, data });
   };
@@ -404,6 +414,37 @@ export default function ExploreAdminPanel({ locationId, locationType, accent, on
                           ))}
                         </div>
                       </div>
+                      {editIsBoss && (
+                        <div>
+                          <label className="font-fantasy text-[8px] tracking-wider block mb-1" style={{ color: "rgba(220,38,38,0.9)" }}>Boss Special Attack</label>
+                          <div className="grid grid-cols-2 gap-1">
+                            <button
+                              data-testid="boss-special-edit-none"
+                              type="button"
+                              onClick={() => setEditBossSpecialAttack(null)}
+                              className="px-1 py-1 rounded-md font-fantasy text-[8px] tracking-wider text-center transition-colors"
+                              style={{ background: editBossSpecialAttack === null ? "rgba(100,100,100,0.4)" : "rgba(255,255,255,0.04)", border: editBossSpecialAttack === null ? "1px solid rgba(150,150,150,0.6)" : "1px solid rgba(255,255,255,0.1)", color: editBossSpecialAttack === null ? "#ccc" : "rgba(255,255,255,0.4)", cursor: "pointer" }}>
+                              None
+                            </button>
+                            {BOSS_SPECIAL_ATTACKS.map((s) => (
+                              <button
+                                key={s.value}
+                                data-testid={`boss-special-edit-${s.value}`}
+                                type="button"
+                                onClick={() => setEditBossSpecialAttack(s.value)}
+                                className="px-1 py-1 rounded-md font-fantasy text-[8px] tracking-wider text-center transition-colors"
+                                style={{ background: editBossSpecialAttack === s.value ? "rgba(220,38,38,0.3)" : "rgba(255,255,255,0.04)", border: editBossSpecialAttack === s.value ? "1px solid rgba(220,38,38,0.7)" : "1px solid rgba(220,38,38,0.15)", color: editBossSpecialAttack === s.value ? "#ff6666" : "rgba(220,38,38,0.6)", cursor: "pointer" }}>
+                                {s.label}
+                              </button>
+                            ))}
+                          </div>
+                          {editBossSpecialAttack && (
+                            <p className="font-fantasy text-[7px] mt-0.5" style={{ color: "rgba(220,38,38,0.6)" }}>
+                              {BOSS_SPECIAL_ATTACKS.find(s => s.value === editBossSpecialAttack)?.desc}
+                            </p>
+                          )}
+                        </div>
+                      )}
                       <label
                         className="block w-full py-1.5 rounded-md font-fantasy text-[9px] tracking-wider text-center"
                         style={{ background: `${accent}15`, border: `1px dashed ${accent}40`, color: `${accent}aa`, cursor: "pointer" }}
@@ -626,6 +667,37 @@ export default function ExploreAdminPanel({ locationId, locationType, accent, on
                   {ARCHETYPES.find(a => a.value === newEnemyArchetype)?.desc}
                 </p>
               </div>
+              {newEnemyIsBoss && (
+                <div>
+                  <label className="font-fantasy text-[9px] tracking-wider block mb-1" style={{ color: "rgba(220,38,38,0.9)" }}>Boss Special Attack</label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button
+                      data-testid="boss-special-add-none"
+                      type="button"
+                      onClick={() => setNewEnemyBossSpecialAttack(null)}
+                      className="px-1 py-1.5 rounded-md font-fantasy text-[8px] tracking-wider text-center transition-colors"
+                      style={{ background: newEnemyBossSpecialAttack === null ? "rgba(100,100,100,0.4)" : "rgba(255,255,255,0.04)", border: newEnemyBossSpecialAttack === null ? "1px solid rgba(150,150,150,0.6)" : "1px solid rgba(255,255,255,0.1)", color: newEnemyBossSpecialAttack === null ? "#ccc" : "rgba(255,255,255,0.4)", cursor: "pointer" }}>
+                      None
+                    </button>
+                    {BOSS_SPECIAL_ATTACKS.map((s) => (
+                      <button
+                        key={s.value}
+                        data-testid={`boss-special-add-${s.value}`}
+                        type="button"
+                        onClick={() => setNewEnemyBossSpecialAttack(s.value)}
+                        className="px-1 py-1.5 rounded-md font-fantasy text-[8px] tracking-wider text-center transition-colors"
+                        style={{ background: newEnemyBossSpecialAttack === s.value ? "rgba(220,38,38,0.3)" : "rgba(255,255,255,0.04)", border: newEnemyBossSpecialAttack === s.value ? "1px solid rgba(220,38,38,0.7)" : "1px solid rgba(220,38,38,0.15)", color: newEnemyBossSpecialAttack === s.value ? "#ff6666" : "rgba(220,38,38,0.6)", cursor: "pointer" }}>
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                  {newEnemyBossSpecialAttack && (
+                    <p className="font-fantasy text-[7px] mt-1" style={{ color: "rgba(220,38,38,0.6)" }}>
+                      {BOSS_SPECIAL_ATTACKS.find(s => s.value === newEnemyBossSpecialAttack)?.desc}
+                    </p>
+                  )}
+                </div>
+              )}
               <button
                 data-testid="button-submit-add-enemy"
                 onClick={() => {

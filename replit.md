@@ -96,6 +96,17 @@ The application is built as a monolithic web app with a clear separation of conc
   - Shop items for a door use the door's ID as `locationId` (reuses existing `/api/location/:id/items` route)
   - Tables: `kc_doors`, `kc_door_decor_placements`; API routes: `/api/world/:worldId/kc-doors`, `/api/admin/kc-doors`, `/api/kc-doors/:doorId/decor`, `/api/admin/kc-door-decor`
 
+- **Battle System Overhaul** (BattleArena.tsx — completed):
+  - **Multi-pet support**: Up to 3 pets equipped for battle (WorldPage `battlePets` → `equippedPets` prop). Slot 0 = active pet (player-controlled swipes + skill), slots 1-2 = auto-attack pets. Enemy targets a random alive pet per charge.
+  - **Enemy charge animation**: Enemy lerps from float position toward target pet (ease-in cubic), then returns with ease-out. Shows "⚠ INCOMING!" label when charging, "⚠ HOLD BLOCK!" or "🛡 BLOCKING!" hint above targeted active pet.
+  - **Hold-block mechanic**: Block button is now hold-to-block (3s max, 2s cooldown). While held → `blockHeldRef = true`; damage reduced 75%. Button glows blue. Old tap-parry window removed entirely.
+  - **Auto-attack (slots 2-3)**: Each extra pet fires an orb projectile at the enemy every 3.5–5.5s using their own `petAtk`. Orbs animate via `autoOrbs` state. Extra pet mana builds up and auto-fires skill at full.
+  - **Boss special attacks**: `bossSpecialAttack` field in DB (`slash` / `bolt`). Bolt fires projectiles to ALL alive pets (staggered, animated via `boltProjectiles`); Slash shows a red overlay and damages all pets. Block reduces boss special damage by 60%.
+  - **Defeat condition**: Battle ends when ALL equipped pets are defeated (active + all extras). Extra pets show HP bars + "FAINTED" label when at 0 HP.
+  - `getPetPos(idx, total)` helper function positions pets based on count: 1 pet = center-left, 2 pets = evenly split left half, 3 pets = left/center/right.
+  - `EquippedPet` interface exported from BattleArena.tsx; `bossSpecialAttack` field added to `location_enemies` schema and API routes.
+  - Admin panel (`ExploreAdminPanel.tsx`): Boss special attack selector (None / ⚡ Bolt Volley / ⚔ Fury Slash) appears in both Add and Edit enemy forms when isBoss is toggled on.
+
 ## External Dependencies
 - **Database**: PostgreSQL (via Neon)
 - **ORM**: Drizzle ORM

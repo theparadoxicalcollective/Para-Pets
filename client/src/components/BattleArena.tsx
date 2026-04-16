@@ -10,11 +10,52 @@ import blockIconPng from "@assets/icon_battle_block.png";
 import skillIconPng from "@assets/icon_battle_skill.png";
 import PetAnimator from "./PetAnimator";
 
+export interface EquippedPet {
+  inventoryId: string;
+  name: string;
+  petNickname?: string | null;
+  imageUrl?: string | null;
+  hatchedImageUrl?: string | null;
+  petLevel?: number | null;
+  petAtk?: number | null;
+  petDef?: number | null;
+  petHealth?: number | null;
+  petTemplateId?: string | null;
+  specialSkill?: string | null;
+  rarity?: number | null;
+}
+
+interface BoltProjectile {
+  id: number;
+  fromX: number; fromY: number;
+  toX: number; toY: number;
+  startTime: number;
+  duration: number;
+  petTargetIdx: number;
+  isBossSpecial: boolean;
+}
+
+interface AutoOrb {
+  id: number;
+  fromX: number; fromY: number;
+  toX: number; toY: number;
+  startTime: number;
+  duration: number;
+  petIdx: number;
+}
+
+function getPetPos(idx: number, total: number): { x: number; y: number } {
+  if (total <= 1) return { x: 20, y: 70 };
+  if (total === 2) return [{ x: 16, y: 70 }, { x: 52, y: 70 }][idx] ?? { x: 20, y: 70 };
+  return [{ x: 13, y: 70 }, { x: 46, y: 70 }, { x: 75, y: 70 }][idx] ?? { x: 20, y: 70 };
+}
+
 interface EncounterEnemy {
   enemyId: string;
   name: string;
   imageUrl: string | null;
   isBoss: boolean;
+  bossSpecialAttack?: string | null;
   level: number;
   hp: number;
   atk: number;
@@ -56,6 +97,7 @@ interface BattleArenaProps {
   onClose: () => void;
   onBattleEnd: () => void;
   battlePotionSlots?: (BattlePotionSlot | null)[];
+  equippedPets?: (EquippedPet | null)[];
 }
 
 interface SlashEffect {
@@ -102,11 +144,7 @@ function buildSlashPath(pts: { x: number; y: number }[]): string {
   return d;
 }
 
-// Fixed pet position (% of arena)
-const PET_X = 25;
-const PET_Y = 70;
-
-export default function BattleArena({ locationId, locationName, bgUrl, accent, onClose, onBattleEnd, battlePotionSlots = [] }: BattleArenaProps) {
+export default function BattleArena({ locationId, locationName, bgUrl, accent, onClose, onBattleEnd, battlePotionSlots = [], equippedPets = [] }: BattleArenaProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -129,6 +167,31 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const enemyOscRef = useRef(0);
   const isBossRef = useRef(false);
 
+  // ── Multi-pet state ───────────────────────────────────────────────────────
+  const [extraPetHps, setExtraPetHps] = useState<[number, number]>([0, 0]);
+  const [extraPetMaxHps, setExtraPetMaxHps] = useState<[number, number]>([0, 0]);
+  const extraPetHpsRef = useRef<[number, number]>([0, 0]);
+  const equippedExtraPetsRef = useRef<[EquippedPet | null, EquippedPet | null]>([null, null]);
+  const equippedPetsCountRef = useRef(1);
+  const extraPetManas = useRef<[number, number]>([0, 0]);
+  const extraAutoTimers = useRef<[number, number]>([0, 0]);
+
+  // ── Boss special attack ───────────────────────────────────────────────────
+  const bossSpecialAttackRef = useRef<string | null>(null);
+  const nextBossSpecialRef = useRef(0);
+  const [boltProjectiles, setBoltProjectiles] = useState<BoltProjectile[]>([]);
+  const [autoOrbs, setAutoOrbs] = useState<AutoOrb[]>([]);
+  const [bossSlashActive, setBossSlashActive] = useState(false);
+  const boltIdRef = useRef(0);
+  const orbIdRef = useRef(0);
+
+  // ── Hold-block state ──────────────────────────────────────────────────────
+  const blockHeldRef = useRef(false);
+  const [blockHeld, setBlockHeld] = useState(false);
+  const blockCooldownRef = useRef(false);
+  const [blockCooling, setBlockCooling] = useState(false);
+  const blockHoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // ── Charge / parry system ────────────────────────────────────────────────
   const [enemyCharging, setEnemyCharging] = useState(false);
   const [parryWindowOpen, setParryWindowOpen] = useState(false);
@@ -142,6 +205,13 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const counterActiveRef = useRef(false);
   const counterHitsLeftRef = useRef(0);
   const nextChargeTimeRef = useRef(0);
+
+  // ── Charge target / return ────────────────────────────────────────────────
+  const chargeTargetIdxRef = useRef(0);
+  const chargeHomePosRef = useRef({ x: 50, y: 18 });
+  const chargeReturningRef = useRef(false);
+  const chargeReturnStartRef = useRef(0);
+  const chargeReturnFromRef = useRef({ x: 50, y: 18 });
 
   // ── Boss rage ────────────────────────────────────────────────────────────
   const [bossRage, setBossRage] = useState(false);
@@ -217,6 +287,32 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         setPetMaxHp(data.pet.hp);
         petHpRef.current = data.pet.hp;
         petStatsRef.current = { atk: data.pet.atk, def: data.pet.def, maxHp: data.pet.hp };
+
+        // Initialize extra pets (slots 1 and 2 from equippedPets)
+        const extraSlots: [EquippedPet | null, EquippedPet | null] = [
+          (equippedPets[1] ?? null) as EquippedPet | null,
+          (equippedPets[2] ?? null) as EquippedPet | null,
+        ];
+        equippedExtraPetsRef.current = extraSlots;
+        const totalPets = 1 + extraSlots.filter(Boolean).length;
+        equippedPetsCountRef.current = totalPets;
+
+        const initExtraHps: [number, number] = [0, 0];
+        const initExtraMaxHps: [number, number] = [0, 0];
+        for (let i = 0; i < 2; i++) {
+          const ep = extraSlots[i];
+          if (ep) {
+            const hp = Math.max(50, Math.floor((ep.petHealth ?? 80) * 1.0));
+            initExtraHps[i] = hp;
+            initExtraMaxHps[i] = hp;
+          }
+        }
+        extraPetHpsRef.current = initExtraHps;
+        setExtraPetHps(initExtraHps);
+        setExtraPetMaxHps(initExtraMaxHps);
+        extraPetManas.current = [0, 0];
+        extraAutoTimers.current = [Date.now() + 4000, Date.now() + 5000];
+
         const slots = battlePotionSlots
           .filter((s): s is BattlePotionSlot => s !== null && s !== undefined)
           .map(s => ({ ...s, remaining: [...s.inventoryIds] }));
@@ -241,11 +337,15 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     enemyMaxHpRef.current = enc.hp;
     enemyStatsRef.current = { atk: enc.atk, def: enc.def };
     isBossRef.current = enc.isBoss;
+    bossSpecialAttackRef.current = enc.isBoss ? (enc.bossSpecialAttack ?? null) : null;
     setVictoryData(null);
     setComboCount(0);
     setLastHitTime(0);
     setSlashEffects([]);
     setDamageNumbers([]);
+    setBoltProjectiles([]);
+    setAutoOrbs([]);
+    setBossSlashActive(false);
     manaRef.current = 0;
     setMana(0);
     setSkillCooldown(false);
@@ -259,13 +359,19 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     counterHitsLeftRef.current = 0;
     setEnemyCharging(false);
     enemyChargingRef.current = false;
+    chargeReturningRef.current = false;
     setParryWindowOpen(false);
     parryWindowOpenRef.current = false;
     setParryResult(null);
     if (poisonTimerRef.current) { clearInterval(poisonTimerRef.current); poisonTimerRef.current = null; }
     difficultyRef.current = 0.3 + Math.random() * 0.7;
-    chargeDurationRef.current = enc.isBoss ? 1100 : 1350;
+    chargeDurationRef.current = enc.isBoss ? 1000 : 1300;
     enemyOscRef.current = Math.random() * Math.PI * 2;
+    const startX = 45 + Math.random() * 20;
+    const startY = 16 + Math.random() * 6;
+    enemyPosRef.current = { x: startX, y: startY };
+    setEnemyPos({ x: startX, y: startY });
+    chargeHomePosRef.current = { x: startX, y: startY };
     setPhase("intro");
   }, []);
 
@@ -333,96 +439,197 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   useEffect(() => {
     if (phase !== "battle") return;
 
+    const checkAllDead = () => {
+      const activeAlive = petHpRef.current > 0;
+      const extra1Alive = equippedExtraPetsRef.current[0] !== null && extraPetHpsRef.current[0] > 0;
+      const extra2Alive = equippedExtraPetsRef.current[1] !== null && extraPetHpsRef.current[1] > 0;
+      if (!activeAlive && !extra1Alive && !extra2Alive) {
+        battleActiveRef.current = false;
+        setPhase("defeat");
+        return true;
+      }
+      return false;
+    };
+
+    const applyDmgToPet = (targetIdx: number, dmg: number, isBlocked: boolean) => {
+      const total = equippedPetsCountRef.current;
+      const pos = getPetPos(targetIdx, total);
+      const finalDmg = isBlocked ? Math.max(2, Math.floor(dmg * 0.25)) : dmg;
+      if (isBlocked) {
+        setParryResult("success");
+        playBlock();
+        setTimeout(() => setParryResult(null), 600);
+      }
+      if (targetIdx === 0) {
+        petHpRef.current = Math.max(0, petHpRef.current - finalDmg);
+        setPetHp(petHpRef.current);
+      } else {
+        const newHps = [...extraPetHpsRef.current] as [number, number];
+        newHps[targetIdx - 1] = Math.max(0, newHps[targetIdx - 1] - finalDmg);
+        extraPetHpsRef.current = newHps;
+        setExtraPetHps(newHps);
+      }
+      setPetHit(true);
+      setShakeScreen(true);
+      if (!isBlocked) {
+        setParryResult("fail");
+        playPlayerHurt();
+      }
+      setTimeout(() => { setPetHit(false); setShakeScreen(false); if (!isBlocked) setParryResult(null); }, 600);
+      manaRef.current = Math.min(MAX_MANA, manaRef.current + 14);
+      setMana(Math.floor(manaRef.current));
+      const pColors = ["#c084fc", "#a855f7", "#818cf8", "#f472b6", "#60a5fa"];
+      const newP: SparkParticle[] = Array.from({ length: 8 }, (_, i) => {
+        const angle = (i / 8) * Math.PI * 2 + Math.random() * 0.5;
+        const spd = 1.4 + Math.random() * 2.2;
+        return { id: slashIdRef.current++, x: pos.x + (Math.random() * 8 - 4), y: pos.y + (Math.random() * 8 - 4), dx: Math.cos(angle) * spd, dy: Math.sin(angle) * spd, color: pColors[Math.floor(Math.random() * pColors.length)] };
+      });
+      setPetHitParticles(prev => [...prev, ...newP]);
+      const pids = new Set(newP.map(p => p.id));
+      setTimeout(() => setPetHitParticles(prev => prev.filter(p => !pids.has(p.id))), 520);
+      const nd: DamageNumber = { id: dmgIdRef.current++, x: pos.x + (Math.random() * 16 - 8), y: pos.y - 12, value: finalDmg };
+      setDamageNumbers(prev => [...prev, nd]);
+      setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== nd.id)), 1000);
+    };
+
+    const fireBossSpecial = (now: number) => {
+      const specialType = bossSpecialAttackRef.current;
+      if (!specialType) return;
+      const total = equippedPetsCountRef.current;
+      if (specialType === "bolt") {
+        for (let pi = 0; pi < total; pi++) {
+          const targetPos = getPetPos(pi, total);
+          const delay = pi * 300;
+          setTimeout(() => {
+            if (!battleActiveRef.current) return;
+            const bid = boltIdRef.current++;
+            const dur = 800;
+            const fromX = enemyPosRef.current.x;
+            const fromY = enemyPosRef.current.y;
+            setBoltProjectiles(prev => [...prev, { id: bid, fromX, fromY, toX: targetPos.x, toY: targetPos.y, startTime: Date.now(), duration: dur, petTargetIdx: pi, isBossSpecial: true }]);
+            setTimeout(() => {
+              if (!battleActiveRef.current) return;
+              setBoltProjectiles(prev => prev.filter(b => b.id !== bid));
+              const rawDmg = Math.max(12, Math.floor(enemyStatsRef.current.atk * 0.75 + Math.random() * 6));
+              applyDmgToPet(pi, rawDmg, blockHeldRef.current);
+              checkAllDead();
+            }, dur);
+          }, delay);
+        }
+      } else if (specialType === "slash") {
+        setBossSlashActive(true);
+        setTimeout(() => {
+          if (!battleActiveRef.current) return;
+          const rawDmg = Math.max(14, Math.floor(enemyStatsRef.current.atk * 0.9 + Math.random() * 8));
+          const isBlocked = blockHeldRef.current;
+          for (let pi = 0; pi < total; pi++) {
+            applyDmgToPet(pi, rawDmg, isBlocked);
+          }
+          setBossSlashActive(false);
+          checkAllDead();
+        }, 650);
+      }
+      const nextInterval = bossRageRef.current ? 5000 + Math.random() * 2000 : 9000 + Math.random() * 4000;
+      nextBossSpecialRef.current = now + nextInterval;
+    };
+
     const animate = () => {
       if (!battleActiveRef.current) return;
       const now = Date.now();
 
-      // Smooth sinusoidal enemy movement
-      enemyOscRef.current += 0.016;
-      const osc = enemyOscRef.current;
-      let newX: number, newY: number;
-      if (isBossRef.current) {
-        newX = 50 + Math.sin(osc * 0.42) * 30;
-        newY = 17 + Math.sin(osc * 0.28) * 5;
-      } else {
-        newX = 50 + Math.sin(osc * 0.52) * 26 + Math.sin(osc * 1.35) * 11;
-        newY = 27 + Math.sin(osc * 0.74) * 13 + Math.cos(osc * 0.38) * 6;
-      }
-      const ex = Math.max(12, Math.min(88, newX));
-      const ey = Math.max(8, Math.min(isBossRef.current ? 26 : 50, newY));
-      enemyPosRef.current = { x: ex, y: ey };
-      setEnemyPos({ x: ex, y: ey });
-
-      // ── Charge initiation ─────────────────────────────────────────────
-      if (!enemyChargingRef.current && nextChargeTimeRef.current > 0 && now >= nextChargeTimeRef.current) {
-        enemyChargingRef.current = true;
-        chargeStartRef.current = now;
-        parryWindowOpenRef.current = false;
-        setEnemyCharging(true);
-        setParryWindowOpen(false);
-      }
-
-      // ── Charge resolution ─────────────────────────────────────────────
-      if (enemyChargingRef.current) {
-        const elapsed = now - chargeStartRef.current;
-
-        // Open parry window at 320ms
-        if (elapsed >= 320 && !parryWindowOpenRef.current) {
-          parryWindowOpenRef.current = true;
-          setParryWindowOpen(true);
+      // ── Enemy movement (float or charge) ─────────────────────────────
+      if (!enemyChargingRef.current && !chargeReturningRef.current) {
+        // Sinusoidal float
+        enemyOscRef.current += 0.016;
+        const osc = enemyOscRef.current;
+        let newX: number, newY: number;
+        if (isBossRef.current) {
+          newX = chargeHomePosRef.current.x + Math.sin(osc * 0.42) * 12;
+          newY = chargeHomePosRef.current.y + Math.sin(osc * 0.25) * 4;
+        } else {
+          newX = 50 + Math.sin(osc * 0.55) * 18 + Math.sin(osc * 1.1) * 8;
+          newY = 19 + Math.sin(osc * 0.7) * 6 + Math.cos(osc * 0.35) * 3;
         }
+        const ex = Math.max(10, Math.min(90, newX));
+        const ey = Math.max(8, Math.min(28, newY));
+        enemyPosRef.current = { x: ex, y: ey };
+        setEnemyPos({ x: ex, y: ey });
+      } else if (enemyChargingRef.current) {
+        // Lerp toward target pet
+        const elapsed = now - chargeStartRef.current;
+        const total = equippedPetsCountRef.current;
+        const targetPos = getPetPos(chargeTargetIdxRef.current, total);
+        const progress = Math.min(1, elapsed / chargeDurationRef.current);
+        const ease = progress * progress * progress; // ease-in cubic
+        const ex = chargeHomePosRef.current.x + (targetPos.x - chargeHomePosRef.current.x) * ease;
+        const ey = chargeHomePosRef.current.y + (targetPos.y - chargeHomePosRef.current.y) * ease;
+        enemyPosRef.current = { x: ex, y: ey };
+        setEnemyPos({ x: ex, y: ey });
 
-        // Attack fires when charge completes
-        if (elapsed >= chargeDurationRef.current) {
+        if (progress >= 1) {
+          // Impact!
           enemyChargingRef.current = false;
-          parryWindowOpenRef.current = false;
           setEnemyCharging(false);
+          parryWindowOpenRef.current = false;
           setParryWindowOpen(false);
+          chargeReturningRef.current = true;
+          chargeReturnStartRef.current = now;
+          chargeReturnFromRef.current = { x: ex, y: ey };
 
-          // DamageToPet = max(8, EnemyATK - (PetDEF * 0.45))
           const rawDmg = Math.max(8, enemyStatsRef.current.atk - (petStatsRef.current.def * 0.45));
           const dmg = Math.max(1, Math.floor(rawDmg + Math.random() * 8 - 4));
-          petHpRef.current = Math.max(0, petHpRef.current - dmg);
-          setPetHp(petHpRef.current);
-          setPetHit(true);
-          setShakeScreen(true);
-          setParryResult("fail");
-          playPlayerHurt();
-          setTimeout(() => { setPetHit(false); setShakeScreen(false); setParryResult(null); }, 600);
-
-          // Mana gain on being hit
-          manaRef.current = Math.min(MAX_MANA, manaRef.current + 14);
-          setMana(Math.floor(manaRef.current));
-
-          // Hit particles on pet
-          const pColors = ["#c084fc", "#a855f7", "#818cf8", "#f472b6", "#60a5fa"];
-          const newP: SparkParticle[] = Array.from({ length: 9 }, (_, i) => {
-            const angle = (i / 9) * Math.PI * 2 + Math.random() * 0.5;
-            const spd = 1.6 + Math.random() * 2.4;
-            return { id: slashIdRef.current++, x: PET_X + (Math.random() * 8 - 4), y: PET_Y + (Math.random() * 8 - 4), dx: Math.cos(angle) * spd, dy: Math.sin(angle) * spd, color: pColors[Math.floor(Math.random() * pColors.length)] };
-          });
-          setPetHitParticles(prev => [...prev, ...newP]);
-          const pids = new Set(newP.map(p => p.id));
-          setTimeout(() => setPetHitParticles(prev => prev.filter(p => !pids.has(p.id))), 520);
-
-          // Damage number at pet
-          const nd: DamageNumber = { id: dmgIdRef.current++, x: PET_X + (Math.random() * 16 - 8), y: PET_Y - 12, value: dmg };
-          setDamageNumbers(prev => [...prev, nd]);
-          setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== nd.id)), 1000);
-
-          if (petHpRef.current <= 0) {
-            battleActiveRef.current = false;
-            setPhase("defeat");
-          } else {
-            // Schedule next charge
+          applyDmgToPet(chargeTargetIdxRef.current, dmg, blockHeldRef.current);
+          if (!checkAllDead()) {
             const diff = difficultyRef.current;
             const isRage = bossRageRef.current;
             const baseInterval = isBossRef.current
-              ? (isRage ? 1600 + Math.random() * 1000 : 3000 + Math.random() * 1500)
-              : 2600 + Math.random() * 2200 - diff * 900;
-            nextChargeTimeRef.current = now + Math.max(1100, baseInterval);
+              ? (isRage ? 1400 + Math.random() * 800 : 2800 + Math.random() * 1200)
+              : 2400 + Math.random() * 2000 - diff * 800;
+            nextChargeTimeRef.current = now + Math.max(1000, baseInterval);
           }
         }
+      } else if (chargeReturningRef.current) {
+        // Return to home position
+        const elapsed = now - chargeReturnStartRef.current;
+        const returnDur = 550;
+        const progress = Math.min(1, elapsed / returnDur);
+        const ease = 1 - (1 - progress) * (1 - progress) * (1 - progress); // ease-out cubic
+        const ex = chargeReturnFromRef.current.x + (chargeHomePosRef.current.x - chargeReturnFromRef.current.x) * ease;
+        const ey = chargeReturnFromRef.current.y + (chargeHomePosRef.current.y - chargeReturnFromRef.current.y) * ease;
+        enemyPosRef.current = { x: ex, y: ey };
+        setEnemyPos({ x: ex, y: ey });
+        if (progress >= 1) {
+          chargeReturningRef.current = false;
+          // Update home position with small drift
+          const nx = 40 + Math.random() * 25;
+          const ny = 14 + Math.random() * 8;
+          chargeHomePosRef.current = { x: nx, y: ny };
+        }
+      }
+
+      // ── Charge initiation ─────────────────────────────────────────────
+      if (!enemyChargingRef.current && !chargeReturningRef.current && nextChargeTimeRef.current > 0 && now >= nextChargeTimeRef.current) {
+        // Pick a random alive pet to target
+        const total = equippedPetsCountRef.current;
+        const aliveIdxs: number[] = [];
+        if (petHpRef.current > 0) aliveIdxs.push(0);
+        for (let i = 0; i < 2; i++) {
+          if (equippedExtraPetsRef.current[i] && extraPetHpsRef.current[i] > 0) aliveIdxs.push(i + 1);
+        }
+        if (aliveIdxs.length > 0) {
+          chargeTargetIdxRef.current = aliveIdxs[Math.floor(Math.random() * aliveIdxs.length)];
+          chargeHomePosRef.current = { ...enemyPosRef.current };
+          enemyChargingRef.current = true;
+          chargeStartRef.current = now;
+          parryWindowOpenRef.current = false;
+          setEnemyCharging(true);
+          setParryWindowOpen(false);
+        }
+      }
+
+      // ── Boss special attack ────────────────────────────────────────────
+      if (isBossRef.current && bossSpecialAttackRef.current && !enemyChargingRef.current && !chargeReturningRef.current && nextBossSpecialRef.current > 0 && now >= nextBossSpecialRef.current) {
+        fireBossSpecial(now);
       }
 
       // ── Boss rage at 50% HP ───────────────────────────────────────────
@@ -430,7 +637,56 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         bossRageRef.current = true;
         setBossRage(true);
         playPlayerHurt();
-        chargeDurationRef.current = 980;
+        chargeDurationRef.current = 900;
+      }
+
+      // ── Extra pet auto-attacks ─────────────────────────────────────────
+      const total = equippedPetsCountRef.current;
+      for (let i = 0; i < 2; i++) {
+        const ep = equippedExtraPetsRef.current[i];
+        if (!ep || extraPetHpsRef.current[i] <= 0) continue;
+        if (now >= extraAutoTimers.current[i]) {
+          const petIdx = i + 1;
+          const fromPos = getPetPos(petIdx, total);
+          const toPos = { x: enemyPosRef.current.x, y: enemyPosRef.current.y };
+          const orbId = orbIdRef.current++;
+          const orbDur = 400 + Math.random() * 200;
+          setAutoOrbs(prev => [...prev, { id: orbId, fromX: fromPos.x, fromY: fromPos.y, toX: toPos.x, toY: toPos.y, startTime: now, duration: orbDur, petIdx }]);
+          setTimeout(() => {
+            setAutoOrbs(prev => prev.filter(o => o.id !== orbId));
+            if (!battleActiveRef.current) return;
+            const petAtk = Math.max(10, ep.petAtk ?? 15);
+            const rawDmg = Math.max(10, petAtk - enemyStatsRef.current.def * 0.4);
+            const dmg = Math.max(1, Math.floor(rawDmg + Math.random() * 6 - 3));
+            enemyHpRef.current = Math.max(0, enemyHpRef.current - dmg);
+            setEnemyHp(enemyHpRef.current);
+            const nd: DamageNumber = { id: dmgIdRef.current++, x: toPos.x + (Math.random() * 12 - 6), y: toPos.y - 8, value: dmg };
+            setDamageNumbers(prev => [...prev, nd]);
+            setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== nd.id)), 900);
+            setEnemyHit(true);
+            setTimeout(() => setEnemyHit(false), 250);
+            if (enemyHpRef.current <= 0) handleEnemyDeathRef.current();
+          }, orbDur);
+
+          // Mana for extra pet (auto-fire skill when full)
+          extraPetManas.current[i] = Math.min(MAX_MANA, extraPetManas.current[i] + 22);
+          if (extraPetManas.current[i] >= MAX_MANA) {
+            extraPetManas.current[i] = 0;
+            const skillDmg = Math.max(15, Math.floor((ep.petAtk ?? 15) * 1.6));
+            setTimeout(() => {
+              if (!battleActiveRef.current) return;
+              enemyHpRef.current = Math.max(0, enemyHpRef.current - skillDmg);
+              setEnemyHp(enemyHpRef.current);
+              const snd: DamageNumber = { id: dmgIdRef.current++, x: enemyPosRef.current.x + (Math.random() * 14 - 7), y: enemyPosRef.current.y - 10, value: skillDmg };
+              setDamageNumbers(prev => [...prev, snd]);
+              setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== snd.id)), 900);
+              if (enemyHpRef.current <= 0) handleEnemyDeathRef.current();
+            }, orbDur + 100);
+          }
+
+          const nextAutoMs = 3500 + Math.random() * 2000;
+          extraAutoTimers.current[i] = now + nextAutoMs;
+        }
       }
 
       // ── Passive mana trickle ──────────────────────────────────────────
@@ -443,6 +699,13 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
 
       animFrameRef.current = requestAnimationFrame(animate);
     };
+
+    // Init boss special timer
+    if (bossSpecialAttackRef.current) {
+      nextBossSpecialRef.current = Date.now() + 8000;
+    } else {
+      nextBossSpecialRef.current = 0;
+    }
 
     animFrameRef.current = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animFrameRef.current);
@@ -616,53 +879,29 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     lastSwipePointRef.current = null;
   }, []);
 
-  // ── Block handler ────────────────────────────────────────────────────────
-  const handleParry = useCallback(() => {
-    if (!battleActiveRef.current || !parryWindowOpenRef.current) return;
-    parryWindowOpenRef.current = false;
-    enemyChargingRef.current = false;
-    setEnemyCharging(false);
-    setParryWindowOpen(false);
-    setParryResult("success");
-    playBlock();
-    setTimeout(() => setParryResult(null), 900);
-
-    // DEF determines bleed-through damage even on a successful block
-    const def = petStatsRef.current.def;
-    const blockAbsorb = Math.min(0.95, def / (def + 30)); // def=30→50%, def=90→75%, def=180→86%
-    const bleedDmg = Math.max(0, Math.floor(enemyStatsRef.current.atk * (1 - blockAbsorb) * 0.5));
-    if (bleedDmg > 0) {
-      petHpRef.current = Math.max(0, petHpRef.current - bleedDmg);
-      setPetHp(petHpRef.current);
-      const nd: DamageNumber = { id: dmgIdRef.current++, x: PET_X + (Math.random() * 16 - 8), y: PET_Y - 12, value: bleedDmg };
-      setDamageNumbers(prev => [...prev, nd]);
-      setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== nd.id)), 1000);
-      if (petHpRef.current <= 0) {
-        battleActiveRef.current = false;
-        setPhase("defeat");
-        return;
-      }
-    }
-
-    // Open counter window: next 2 swipes deal 2× damage for 3 seconds
-    counterActiveRef.current = true;
-    counterHitsLeftRef.current = 2;
-    setCounterActive(true);
-    setCounterHitsLeft(2);
-    if (counterTimerRef.current) clearTimeout(counterTimerRef.current);
-    counterTimerRef.current = setTimeout(() => {
-      if (counterHitsLeftRef.current > 0) {
-        counterActiveRef.current = false;
-        counterHitsLeftRef.current = 0;
-        setCounterActive(false);
-        setCounterHitsLeft(0);
-      }
+  // ── Hold-block functions ──────────────────────────────────────────────────
+  const startBlock = useCallback(() => {
+    if (!battleActiveRef.current || blockCooldownRef.current) return;
+    blockHeldRef.current = true;
+    setBlockHeld(true);
+    // Auto-release after 3s max hold
+    if (blockHoldTimerRef.current) clearTimeout(blockHoldTimerRef.current);
+    blockHoldTimerRef.current = setTimeout(() => {
+      endBlock();
     }, 3000);
+  }, []);
 
-    // Enemy recovery before next charge
-    const diff = difficultyRef.current;
-    const baseRecovery = isBossRef.current ? 2200 : 2600;
-    nextChargeTimeRef.current = Date.now() + baseRecovery - diff * 400;
+  const endBlock = useCallback(() => {
+    if (!blockHeldRef.current) return;
+    blockHeldRef.current = false;
+    setBlockHeld(false);
+    if (blockHoldTimerRef.current) { clearTimeout(blockHoldTimerRef.current); blockHoldTimerRef.current = null; }
+    blockCooldownRef.current = true;
+    setBlockCooling(true);
+    setTimeout(() => {
+      blockCooldownRef.current = false;
+      setBlockCooling(false);
+    }, 2000);
   }, []);
 
   // ── Special skill ────────────────────────────────────────────────────────
@@ -754,17 +993,17 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   // ── Rarity color for pet skill glow ──────────────────────────────────────
   const RARITY_COLORS = ["", "#a0a0b0", "#4ade80", "#60a5fa", "#c084fc", "#f0c040"];
   const rarityColor = RARITY_COLORS[Math.min(5, Math.max(1, pet?.rarity ?? 1))] ?? "#a78bfa";
+  const PET_X = getPetPos(0, equippedPetsCountRef.current).x;
+  const PET_Y = getPetPos(0, equippedPetsCountRef.current).y;
 
   // ── Pet click: block takes priority over skill ────────────────────────────
   const handlePetClick = useCallback((e: React.PointerEvent) => {
     e.stopPropagation();
     if (!battleActiveRef.current) return;
-    if (parryWindowOpenRef.current) {
-      handleParry();
-    } else if (manaRef.current >= MAX_MANA && !skillCooldown && pet?.specialSkill) {
+    if (manaRef.current >= MAX_MANA && !skillCooldown && pet?.specialSkill) {
       useSpecialSkill();
     }
-  }, [handleParry, useSpecialSkill, skillCooldown, pet?.specialSkill]);
+  }, [useSpecialSkill, skillCooldown, pet?.specialSkill]);
 
   // ── Potion usage ─────────────────────────────────────────────────────────
   const usePotion = useCallback((slotIndex: number) => {
@@ -1166,8 +1405,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   </div>
                 )}
 
-                {/* Parry open label */}
-                {parryWindowOpen && (
+                {/* Charging label */}
+                {enemyCharging && (
                   <div style={{
                     position: "absolute",
                     top: enemy.isBoss ? -48 : -32,
@@ -1181,7 +1420,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                     textShadow: "0 0 10px rgba(255,60,60,0.9), 0 1px 0 #000",
                     letterSpacing: "0.12em",
                     animation: "tensionPulse 0.4s ease-in-out infinite",
-                  }}>⚠ ATTACK!</div>
+                  }}>⚠ INCOMING!</div>
                 )}
 
                 {/* Boss rage glow overlay */}
@@ -1251,44 +1490,74 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               </div>
             )}
 
-            {/* ── Pet sprite (fixed position) ─────────────────────────── */}
+            {/* ── Extra pet sprites (slots 1 & 2) ──────────────────────── */}
+            {([0, 1] as const).map((si) => {
+              const ep = equippedExtraPetsRef.current[si];
+              if (!ep) return null;
+              const pidx = si + 1;
+              const total = equippedPetsCountRef.current;
+              const epos = getPetPos(pidx, total);
+              const eHp = extraPetHps[si];
+              const eMaxHp = extraPetMaxHps[si];
+              const isDead = eHp <= 0;
+              return (
+                <div key={`extra-pet-${si}`} className="absolute z-10 flex flex-col items-center" style={{ left: `${epos.x}%`, top: `${epos.y}%`, transform: "translate(-50%,-50%)", filter: isDead ? "grayscale(1) opacity(0.35)" : undefined }}>
+                  {(ep as any).petTemplateId ? (
+                    <PetAnimator petTemplateId={(ep as any).petTemplateId} mode="idle" view="front" size={130} />
+                  ) : (ep.hatchedImageUrl || ep.imageUrl) ? (
+                    <img src={(ep.hatchedImageUrl || ep.imageUrl)!} alt={ep.name} className="object-contain" style={{ width: 130, height: 130 }} />
+                  ) : (
+                    <img src={petPawIcon} alt="" style={{ width: 60, height: 60, objectFit: "contain" }} />
+                  )}
+                  {/* HP bar for extra pet */}
+                  <div className="w-20 h-1.5 rounded-full overflow-hidden mt-1" style={{ background: "rgba(0,0,0,0.5)" }}>
+                    <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(0, (eHp / Math.max(1, eMaxHp)) * 100)}%`, background: eHp / Math.max(1, eMaxHp) > 0.5 ? "#4ade80" : eHp / Math.max(1, eMaxHp) > 0.2 ? "#facc15" : "#ef4444" }} />
+                  </div>
+                  {isDead && (
+                    <div className="text-[9px] font-black text-red-400" style={{ textShadow: "0 0 6px rgba(239,68,68,0.8)" }}>FAINTED</div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* ── Pet sprite (active, slot 0) ─────────────────────────── */}
             <div
               className="absolute z-10"
               style={{
                 left: `${PET_X}%`,
                 top: `${PET_Y}%`,
                 transform: "translate(-50%, -50%)",
-                animation: petHit
-                  ? "petHitBounce 0.42s ease-out"
-                  : parryWindowOpen
-                    ? "blockReadyPulse 0.55s ease-in-out infinite"
-                    : undefined,
+                animation: petHit ? "petHitBounce 0.42s ease-out" : undefined,
                 filter: petHit
                   ? "drop-shadow(0 0 14px rgba(239,68,68,0.9))"
-                  : undefined,
-                pointerEvents: (phase === "battle" && (parryWindowOpen || (mana >= MAX_MANA && !skillCooldown && !!pet.specialSkill))) ? "auto" : "none",
-                cursor: (parryWindowOpen || (mana >= MAX_MANA && !skillCooldown && !!pet.specialSkill)) ? "pointer" : "default",
+                  : petHp <= 0
+                    ? "grayscale(1) opacity(0.35)"
+                    : undefined,
+                pointerEvents: (phase === "battle" && (mana >= MAX_MANA && !skillCooldown && !!pet.specialSkill) && petHp > 0) ? "auto" : "none",
+                cursor: (mana >= MAX_MANA && !skillCooldown && !!pet.specialSkill && petHp > 0) ? "pointer" : "default",
               }}
               onPointerDown={handlePetClick}
               data-testid="pet-battle-sprite"
             >
-              {/* Block-ready red ring */}
-              {parryWindowOpen && (
+              {/* Block-held blue shield ring */}
+              {blockHeld && (
                 <div style={{
                   position: "absolute", left: "50%", top: "50%",
                   width: 210, height: 210, borderRadius: "50%",
-                  border: "3px solid rgba(239,68,68,0.9)",
-                  boxShadow: "0 0 28px rgba(239,68,68,0.8), 0 0 10px rgba(239,68,68,0.5)",
+                  border: "3px solid rgba(96,165,250,0.9)",
+                  boxShadow: "0 0 28px rgba(96,165,250,0.8), 0 0 10px rgba(96,165,250,0.5)",
+                  transform: "translate(-50%,-50%)",
                   animation: "chargeRingPulse 0.55s ease-in-out infinite",
                 }} />
               )}
               {/* Skill-ready rarity aura */}
-              {!parryWindowOpen && mana >= MAX_MANA && !skillCooldown && pet.specialSkill && (
+              {mana >= MAX_MANA && !skillCooldown && pet.specialSkill && petHp > 0 && (
                 <div style={{
                   position: "absolute", left: "50%", top: "50%",
                   width: 200, height: 200, borderRadius: "50%",
                   border: `2.5px solid ${rarityColor}cc`,
                   boxShadow: `0 0 24px ${rarityColor}99, 0 0 10px ${rarityColor}55`,
+                  transform: "translate(-50%,-50%)",
                   animation: "manaAura 1s ease-in-out infinite",
                 }} />
               )}
@@ -1339,8 +1608,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                 }}>⚡×{counterHitsLeft} 2×</div>
               )}
 
-              {/* Tap action hint above pet */}
-              {phase === "battle" && parryWindowOpen && (
+              {/* Charge incoming hint above active pet */}
+              {phase === "battle" && enemyCharging && chargeTargetIdxRef.current === 0 && petHp > 0 && (
                 <div style={{
                   position: "absolute",
                   top: -36,
@@ -1350,14 +1619,14 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   fontFamily: "Lora, serif",
                   fontSize: 11,
                   fontWeight: 800,
-                  color: "#ef4444",
-                  textShadow: "0 0 10px rgba(239,68,68,0.9), 0 1px 0 #000",
+                  color: blockHeld ? "#60a5fa" : "#ef4444",
+                  textShadow: blockHeld ? "0 0 10px rgba(96,165,250,0.9), 0 1px 0 #000" : "0 0 10px rgba(239,68,68,0.9), 0 1px 0 #000",
                   letterSpacing: "0.1em",
                   animation: "tensionPulse 0.4s ease-in-out infinite",
                   pointerEvents: "none",
-                }}>🛡 TAP TO BLOCK</div>
+                }}>{blockHeld ? "🛡 BLOCKING!" : "⚠ HOLD BLOCK!"}</div>
               )}
-              {phase === "battle" && !parryWindowOpen && mana >= MAX_MANA && !skillCooldown && pet.specialSkill && (
+              {phase === "battle" && mana >= MAX_MANA && !skillCooldown && pet.specialSkill && (
                 <div style={{
                   position: "absolute",
                   top: -36,
@@ -1381,36 +1650,40 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               <div className="absolute z-20 flex flex-col gap-4"
                 style={{ right: "4%", top: "52%", transform: "translateY(-50%)", pointerEvents: "auto" }}>
 
-                {/* Block button */}
+                {/* Block button — hold to shield */}
                 <div className="flex flex-col items-center gap-1">
                   <button
                     data-testid="button-battle-block"
-                    onPointerDown={(e) => { e.stopPropagation(); triggerBlock(); }}
+                    onPointerDown={(e) => { e.stopPropagation(); startBlock(); }}
+                    onPointerUp={() => endBlock()}
+                    onPointerLeave={() => endBlock()}
                     className="relative rounded-2xl flex items-center justify-center transition-all active:scale-90"
                     style={{
                       width: 58, height: 58,
-                      background: parryWindowOpen
-                        ? "linear-gradient(135deg, #7f1d1d 0%, #dc2626 100%)"
-                        : "rgba(0,0,0,0.55)",
-                      border: parryWindowOpen
-                        ? "2.5px solid rgba(239,68,68,0.9)"
+                      background: blockHeld
+                        ? "linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%)"
+                        : blockCooling
+                          ? "rgba(50,50,80,0.55)"
+                          : "rgba(0,0,0,0.55)",
+                      border: blockHeld
+                        ? "2.5px solid rgba(96,165,250,0.9)"
                         : "2px solid rgba(255,255,255,0.12)",
-                      boxShadow: parryWindowOpen
-                        ? "0 0 18px rgba(239,68,68,0.7), 0 2px 8px rgba(0,0,0,0.6)"
+                      boxShadow: blockHeld
+                        ? "0 0 18px rgba(96,165,250,0.7), 0 2px 8px rgba(0,0,0,0.6)"
                         : "0 2px 8px rgba(0,0,0,0.5)",
-                      opacity: parryWindowOpen ? 1 : 0.45,
-                      animation: parryWindowOpen ? "blockReadyPulse 0.55s ease-in-out infinite" : undefined,
+                      opacity: blockCooling ? 0.3 : 0.85,
+                      animation: blockHeld ? "blockReadyPulse 0.55s ease-in-out infinite" : undefined,
                     }}
                   >
-                    <img src={blockIconPng} alt="Block" style={{ width: 36, height: 36, objectFit: "contain" }} />
-                    {parryWindowOpen && (
+                    <img src={blockIconPng} alt="Block" style={{ width: 36, height: 36, objectFit: "contain", opacity: blockCooling ? 0.4 : 1 }} />
+                    {blockHeld && (
                       <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full"
-                        style={{ background: "#ef4444", boxShadow: "0 0 8px rgba(239,68,68,0.9)" }} />
+                        style={{ background: "#60a5fa", boxShadow: "0 0 8px rgba(96,165,250,0.9)" }} />
                     )}
                   </button>
                   <span className="font-fantasy text-[8px] tracking-widest"
-                    style={{ color: parryWindowOpen ? "#ef4444" : "rgba(255,255,255,0.25)", textShadow: parryWindowOpen ? "0 0 8px rgba(239,68,68,0.7)" : undefined }}>
-                    BLOCK
+                    style={{ color: blockHeld ? "#60a5fa" : blockCooling ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.25)", textShadow: blockHeld ? "0 0 8px rgba(96,165,250,0.7)" : undefined }}>
+                    {blockCooling ? "CD..." : "BLOCK"}
                   </span>
                 </div>
 
@@ -1633,6 +1906,53 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               ["--spark-dx" as any]: `${spark.dx * 14}px`, ["--spark-dy" as any]: `${spark.dy * 14}px`,
             }} />
         ))}
+
+        {/* Boss slash overlay */}
+        {bossSlashActive && (
+          <div className="absolute inset-0 z-30 pointer-events-none flex items-center justify-center"
+            style={{ background: "rgba(220,38,38,0.18)", animation: "parryFailFlash 0.65s ease-out forwards" }}>
+            <div style={{ fontSize: 80, fontWeight: 900, color: "rgba(255,80,80,0.7)", textShadow: "0 0 40px rgba(220,38,38,0.9)", letterSpacing: "-0.05em", lineHeight: 1 }}>⚔</div>
+          </div>
+        )}
+
+        {/* Bolt projectiles (auto-attack and boss special) */}
+        {boltProjectiles.map(bolt => {
+          const elapsed = Date.now() - bolt.startTime;
+          const progress = Math.min(1, elapsed / bolt.duration);
+          const currentX = bolt.fromX + (bolt.toX - bolt.fromX) * progress;
+          const currentY = bolt.fromY + (bolt.toY - bolt.fromY) * progress;
+          return (
+            <div key={bolt.id} className="absolute z-30 pointer-events-none"
+              style={{ left: `${currentX}%`, top: `${currentY}%`, transform: "translate(-50%, -50%)" }}>
+              <div style={{
+                width: bolt.isBossSpecial ? 18 : 11, height: bolt.isBossSpecial ? 18 : 11, borderRadius: "50%",
+                background: bolt.isBossSpecial ? "radial-gradient(circle, #ff8800, #ff2200)" : "radial-gradient(circle, #88aaff, #4466ff)",
+                boxShadow: bolt.isBossSpecial ? "0 0 16px #ff6600, 0 0 6px white" : "0 0 10px #88aaff, 0 0 4px white",
+              }} />
+            </div>
+          );
+        })}
+
+        {/* Auto-attack orbs from extra pets */}
+        {autoOrbs.map(orb => {
+          const elapsed = Date.now() - orb.startTime;
+          const progress = Math.min(1, elapsed / orb.duration);
+          const currentX = orb.fromX + (orb.toX - orb.fromX) * progress;
+          const currentY = orb.fromY + (orb.toY - orb.fromY) * progress;
+          const colors = ["#88ffaa", "#ffaa88"];
+          const color = colors[(orb.petIdx - 1) % colors.length];
+          return (
+            <div key={orb.id} className="absolute z-28 pointer-events-none"
+              style={{ left: `${currentX}%`, top: `${currentY}%`, transform: "translate(-50%, -50%)" }}>
+              <div style={{
+                width: 9, height: 9, borderRadius: "50%",
+                background: `radial-gradient(circle, ${color}, ${color}88)`,
+                boxShadow: `0 0 9px ${color}`,
+                opacity: 1 - progress * 0.3,
+              }} />
+            </div>
+          );
+        })}
 
         {/* Boss impact shockwave ring */}
         {bossShockwave && (

@@ -132,6 +132,8 @@ interface InventoryItem {
   petDef?: number | null;
   petHealth?: number | null;
   petTemplateId?: string | null;
+  specialSkill?: string | null;
+  rarity?: number | null;
 }
 
 interface WorldLocationData {
@@ -4504,6 +4506,7 @@ export default function WorldPage({ user }: WorldPageProps) {
               bgUrl={battleLocDetail?.bgUrl ?? null}
               accent={accent}
               battlePotionSlots={battlePotionSlots}
+              equippedPets={battlePets as any}
               onClose={() => {
                 setShowBattle(false);
                 setBattleLocationId(null);
