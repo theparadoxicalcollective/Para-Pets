@@ -3931,13 +3931,21 @@ export async function registerRoutes(
       });
 
       // Grant XP to extra battle pets
+      const extraPetResults: Array<{
+        inventoryId: string;
+        newLevel: number;
+        levelsGained: number;
+        petName: string;
+        petTemplateId: string | null;
+      }> = [];
       if (Array.isArray(extraPetInventoryIds) && extraPetInventoryIds.length > 0) {
         for (const extraId of extraPetInventoryIds) {
           if (!extraId || extraId === activePet.id) continue;
           const extraPet = inventory.find((inv: any) => inv.id === extraId && inv.isHatched);
           if (!extraPet) continue;
+          const prevLevel = extraPet.petLevel || 1;
           let eTotalPoints = (extraPet.petLevelPoints || 0) + lvlPointsEarned;
-          let eNewLevel = extraPet.petLevel || 1;
+          let eNewLevel = prevLevel;
           while (eNewLevel < 100) {
             const needed = Math.floor(100 + eNewLevel * 30 + eNewLevel * eNewLevel * 5);
             if (eTotalPoints < needed) break;
@@ -3946,6 +3954,13 @@ export async function registerRoutes(
           }
           if (eNewLevel >= 100) { eNewLevel = 100; eTotalPoints = 0; }
           await storage.updateInventoryItem(extraPet.id, { petLevel: eNewLevel, petLevelPoints: eTotalPoints });
+          extraPetResults.push({
+            inventoryId: extraPet.id,
+            newLevel: eNewLevel,
+            levelsGained: Math.max(0, eNewLevel - prevLevel),
+            petName: (extraPet as any).petNickname || (extraPet as any).name || "Pet",
+            petTemplateId: (extraPet as any).petTemplateId ?? null,
+          });
         }
       }
 
@@ -3954,11 +3969,17 @@ export async function registerRoutes(
         await storage.addCoins(user.id, coinsAwarded);
       }
 
+      // Item drops — guarantee 1 per regular kill, 2-3 per boss kill.
+      // Randomize selection from the admin-configured drop list.
       const drops = await storage.getEnemyDrops(enemy.id);
       const droppedItems: any[] = [];
-      for (const drop of drops) {
-        const roll = Math.random() * 100;
-        if (roll < drop.dropRate) {
+      if (drops.length > 0) {
+        const guaranteedCount = enemy.isBoss ? (2 + Math.floor(Math.random() * 2)) : 1;
+        const picks: typeof drops = [];
+        for (let i = 0; i < guaranteedCount; i++) {
+          picks.push(drops[Math.floor(Math.random() * drops.length)]);
+        }
+        for (const drop of picks) {
           const shopItem = await storage.getShopItem(drop.shopItemId);
           if (shopItem) {
             const invItem = await storage.addToInventory(user.id, shopItem.id);
@@ -3980,6 +4001,7 @@ export async function registerRoutes(
         levelsGained: newLevel - activePet.petLevel,
         coinsAwarded,
         droppedItems,
+        extraPetResults,
         user: updatedUser,
       });
     } catch (err) {

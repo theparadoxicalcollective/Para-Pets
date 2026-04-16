@@ -49,10 +49,12 @@ interface AutoOrb {
   petIdx: number;
 }
 
+const PET_SPRITE_SIZE = 190;
+
 function getPetPos(idx: number, total: number): { x: number; y: number } {
-  if (total <= 1) return { x: 20, y: 70 };
-  if (total === 2) return [{ x: 16, y: 70 }, { x: 52, y: 70 }][idx] ?? { x: 20, y: 70 };
-  return [{ x: 13, y: 70 }, { x: 46, y: 70 }, { x: 75, y: 70 }][idx] ?? { x: 20, y: 70 };
+  if (total <= 1) return { x: 22, y: 72 };
+  if (total === 2) return [{ x: 22, y: 72 }, { x: 58, y: 72 }][idx] ?? { x: 22, y: 72 };
+  return [{ x: 16, y: 72 }, { x: 46, y: 72 }, { x: 76, y: 72 }][idx] ?? { x: 22, y: 72 };
 }
 
 interface EncounterEnemy {
@@ -413,6 +415,16 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       }));
       if ((data.levelsGained || 0) > 0) {
         fireLevelUp(data.newLevel, (pet as any)?.petNickname || pet?.name || "Your pet", (pet as any)?.petTemplateId ?? null);
+      }
+      if (Array.isArray(data.extraPetResults)) {
+        data.extraPetResults.forEach((r: any, idx: number) => {
+          if ((r.levelsGained || 0) > 0) {
+            // Stagger overlays so they don't stack on top of each other
+            setTimeout(() => {
+              fireLevelUp(r.newLevel, r.petName || "Pet", r.petTemplateId ?? null);
+            }, 600 * (idx + 1));
+          }
+        });
       }
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
     },
@@ -1609,19 +1621,34 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               const eHp = extraPetHps[si];
               const eMaxHp = extraPetMaxHps[si];
               const isDead = eHp <= 0;
+              const epName = (ep as any).petNickname || ep.name || "Pet";
+              const epRarity = Math.max(0, Math.min(5, (ep as any).rarity || 0));
               return (
                 <div key={`extra-pet-${si}`} className="absolute z-10 flex flex-col items-center" style={{ left: `${epos.x}%`, top: `${epos.y}%`, transform: "translate(-50%,-50%)", filter: isDead ? "grayscale(1) opacity(0.35)" : undefined }}>
                   {(ep as any).petTemplateId ? (
-                    <PetAnimator petTemplateId={(ep as any).petTemplateId} mode="idle" view="front" size={170} />
+                    <PetAnimator petTemplateId={(ep as any).petTemplateId} mode="idle" view="front" size={PET_SPRITE_SIZE} />
                   ) : (ep.hatchedImageUrl || ep.imageUrl) ? (
-                    <img src={(ep.hatchedImageUrl || ep.imageUrl)!} alt={ep.name} className="object-contain" style={{ width: 170, height: 170 }} />
+                    <img src={(ep.hatchedImageUrl || ep.imageUrl)!} alt={ep.name} className="object-contain" style={{ width: PET_SPRITE_SIZE, height: PET_SPRITE_SIZE }} />
                   ) : (
-                    <img src={petPawIcon} alt="" style={{ width: 78, height: 78, objectFit: "contain" }} />
+                    <img src={petPawIcon} alt="" style={{ width: PET_SPRITE_SIZE * 0.5, height: PET_SPRITE_SIZE * 0.5, objectFit: "contain" }} />
                   )}
                   {/* HP bar for extra pet */}
-                  <div className="w-20 h-1.5 rounded-full overflow-hidden mt-1" style={{ background: "rgba(0,0,0,0.5)" }}>
+                  <div className="h-1.5 rounded-full overflow-hidden mt-1" style={{ width: 92, background: "rgba(0,0,0,0.5)" }}>
                     <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(0, (eHp / Math.max(1, eMaxHp)) * 100)}%`, background: eHp / Math.max(1, eMaxHp) > 0.5 ? "#4ade80" : eHp / Math.max(1, eMaxHp) > 0.2 ? "#facc15" : "#ef4444" }} />
                   </div>
+                  {/* Name */}
+                  <div className="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide whitespace-nowrap"
+                    style={{ color: "#fff", background: "rgba(0,0,0,0.55)", textShadow: "0 0 6px rgba(0,0,0,0.9)", maxWidth: 110, overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {epName}
+                  </div>
+                  {/* Stars */}
+                  {epRarity > 0 && (
+                    <div className="flex items-center gap-[1px] mt-0.5" style={{ filter: "drop-shadow(0 0 3px rgba(0,0,0,0.9))" }}>
+                      {Array.from({ length: epRarity }).map((_, k) => (
+                        <Star key={k} style={{ width: 10, height: 10, color: "#fbbf24", fill: "#fbbf24" }} />
+                      ))}
+                    </div>
+                  )}
                   {isDead && (
                     <div className="text-[9px] font-black text-red-400" style={{ textShadow: "0 0 6px rgba(239,68,68,0.8)" }}>FAINTED</div>
                   )}
@@ -1663,7 +1690,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   petTemplateId={pet.petTemplateId}
                   mode="idle"
                   view="front"
-                  size={240}
+                  size={PET_SPRITE_SIZE}
                   style={mana >= MAX_MANA && !skillCooldown ? { animation: "manaGlow 1s ease-in-out infinite" } : undefined}
                 />
               ) : pet.imageUrl ? (
@@ -1671,11 +1698,26 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   src={pet.imageUrl}
                   alt={pet.name}
                   className="object-contain drop-shadow-lg"
-                  style={{ width: 240, height: 240, animation: mana >= MAX_MANA && !skillCooldown ? "manaGlow 1s ease-in-out infinite" : undefined }}
+                  style={{ width: PET_SPRITE_SIZE, height: PET_SPRITE_SIZE, animation: mana >= MAX_MANA && !skillCooldown ? "manaGlow 1s ease-in-out infinite" : undefined }}
                 />
               ) : (
-                <img src={petPawIcon} alt="" style={{ width: 120, height: 120, objectFit: "contain" }} />
+                <img src={petPawIcon} alt="" style={{ width: PET_SPRITE_SIZE * 0.5, height: PET_SPRITE_SIZE * 0.5, objectFit: "contain" }} />
               )}
+
+              {/* Active pet name + stars */}
+              <div className="absolute flex flex-col items-center" style={{ left: "50%", top: "100%", transform: "translate(-50%, 4px)", pointerEvents: "none" }}>
+                <div className="px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide whitespace-nowrap"
+                  style={{ color: "#fff", background: "rgba(0,0,0,0.55)", textShadow: "0 0 6px rgba(0,0,0,0.9)", maxWidth: 130, overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {(pet as any).petNickname || pet.name}
+                </div>
+                {((pet as any).rarity || 0) > 0 && (
+                  <div className="flex items-center gap-[1px] mt-0.5" style={{ filter: "drop-shadow(0 0 3px rgba(0,0,0,0.9))" }}>
+                    {Array.from({ length: Math.min(5, Math.max(0, (pet as any).rarity || 0)) }).map((_, k) => (
+                      <Star key={k} style={{ width: 10, height: 10, color: "#fbbf24", fill: "#fbbf24" }} />
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {/* Counter hits badge */}
               {counterActive && counterHitsLeft > 0 && (
