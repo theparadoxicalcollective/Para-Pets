@@ -1035,6 +1035,12 @@ function getItemUsageHint(item: InventoryItem): { where: string; how: string } {
       how: "Tap any hatched pet and apply this to grant them instant level points!",
     };
   }
+  if (item.type === "special" && item.specialType === "pvp_ticket") {
+    return {
+      where: "Special Items tab",
+      how: "Your entry pass to the Meridia Arena! Use this when PvP battles become available to compete against other players.",
+    };
+  }
   if (item.type === "special") {
     return {
       where: "Pet Companions tab",

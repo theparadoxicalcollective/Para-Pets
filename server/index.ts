@@ -371,6 +371,38 @@ app.use((req, res, next) => {
     console.error("daily_login_rewards table setup error (non-fatal):", err);
   }
 
+  // ── Seed: PvP Ticket (Meridia Arena Entry Pass) ───────────────────────────
+  try {
+    const PVP_TICKET_ID = "a1b2c3d4-9001-4000-8000-000000000099";
+    const pvpTicketAsset = path.join(process.cwd(), "attached_assets", "Photoroom_20260415_83701_PM_1776304592941.png");
+    const pvpTicketV = fs.existsSync(pvpTicketAsset)
+      ? Math.floor(fs.statSync(pvpTicketAsset).mtimeMs / 1000)
+      : 0;
+    const pvpTicketImageUrl = `/world-assets/Photoroom_20260415_83701_PM_1776304592941.png?v=${pvpTicketV}`;
+    await db.execute(sql`
+      INSERT INTO shop_items (
+        id, name, price, type, world_id, location_id,
+        image_url, special_type,
+        shop_pos_x, shop_pos_y, shop_width
+      ) VALUES (
+        ${PVP_TICKET_ID},
+        'Meridia Arena Ticket',
+        0,
+        'special',
+        'swamp',
+        NULL,
+        ${pvpTicketImageUrl},
+        'pvp_ticket',
+        50, 50, 72
+      )
+      ON CONFLICT (id) DO UPDATE SET
+        image_url = ${pvpTicketImageUrl}
+    `);
+    console.log("PvP Ticket item seeded.");
+  } catch (err) {
+    console.error("PvP Ticket seed error (non-fatal):", err);
+  }
+
   try {
     console.log('Initializing Stripe...');
     const databaseUrl = process.env.DATABASE_URL;
