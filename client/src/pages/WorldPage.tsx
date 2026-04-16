@@ -123,8 +123,15 @@ interface InventoryItem {
   type: string;
   isHatched?: boolean;
   imageUrl?: string | null;
+  hatchedImageUrl?: string | null;
   healthRestored?: number | null;
   manaRestored?: number | null;
+  petNickname?: string | null;
+  petLevel?: number | null;
+  petAtk?: number | null;
+  petDef?: number | null;
+  petHealth?: number | null;
+  petTemplateId?: string | null;
 }
 
 interface WorldLocationData {
@@ -240,6 +247,8 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [showBattle, setShowBattle] = useState(false);
   const [battleLocationId, setBattleLocationId] = useState<string | null>(null);
   const [battlePotionSlots, setBattlePotionSlots] = useState<(BattlePotionSlot | null)[]>([null, null, null, null, null]);
+  const [battlePets, setBattlePets] = useState<(InventoryItem | null)[]>([null, null, null]);
+  const [petPickerSlot, setPetPickerSlot] = useState<number | null>(null);
   const [prepDrag, setPrepDrag] = useState<{ shopItemId: string; name: string; imageUrl?: string | null; healthRestored?: number | null; manaRestored?: number | null; x: number; y: number; offsetX: number; offsetY: number } | null>(null);
   const [prepHoverSlot, setPrepHoverSlot] = useState<number | null>(null);
   const prepDragRef = useRef<typeof prepDrag>(null);
@@ -1168,6 +1177,15 @@ export default function WorldPage({ user }: WorldPageProps) {
     }
     openLocation(loc);
   }, [currentUser.activePetId, currentUser.isAdmin, hasHatchedActivePet, openLocation]);
+
+  useEffect(() => {
+    if (showBattlePrep) {
+      const activePet = inventory.find(
+        (i) => i.inventoryId === currentUser.activePetId && i.type === "pet" && i.isHatched
+      ) || null;
+      setBattlePets([activePet, null, null]);
+    }
+  }, [showBattlePrep]);
 
   const handleObjPointerDown = useCallback((e: React.PointerEvent, obj: LocationObjectData) => {
     if (!currentUser.isAdmin) return;
@@ -4231,6 +4249,72 @@ export default function WorldPage({ user }: WorldPageProps) {
 
               <div className="border-t border-white/5 flex-shrink-0" />
 
+              {/* ── Equip Pets ── */}
+              <div className="px-5 py-3 flex-shrink-0">
+                <p className="font-fantasy text-[9px] tracking-widest text-white/40 mb-2">EQUIP PETS — up to 3 pets in battle</p>
+                <div className="flex gap-3 justify-start">
+                  {[0, 1, 2].map((slotIdx) => {
+                    const petSlot = battlePets[slotIdx];
+                    const petImg = petSlot?.hatchedImageUrl || petSlot?.imageUrl || null;
+                    const petName = petSlot?.petNickname || petSlot?.name || null;
+                    const isActive = slotIdx === 0;
+                    return (
+                      <div key={slotIdx} className="flex flex-col items-center gap-1">
+                        <div
+                          data-testid={`div-battle-pet-slot-${slotIdx}`}
+                          onClick={() => {
+                            if (isActive) return;
+                            setPetPickerSlot(slotIdx);
+                          }}
+                          className="relative flex items-center justify-center rounded-2xl border-2 transition-all"
+                          style={{
+                            width: 64, height: 64, flexShrink: 0,
+                            background: petSlot
+                              ? "rgba(120,80,220,0.25)"
+                              : "rgba(0,0,0,0.3)",
+                            borderColor: petSlot
+                              ? "rgba(167,139,250,0.6)"
+                              : isActive
+                                ? "rgba(167,139,250,0.25)"
+                                : "rgba(255,255,255,0.12)",
+                            boxShadow: petSlot ? "0 0 12px rgba(167,139,250,0.3)" : undefined,
+                            cursor: isActive ? "default" : "pointer",
+                          }}
+                        >
+                          {petImg ? (
+                            <img src={petImg} alt={petName || ""} className="w-12 h-12 object-contain" />
+                          ) : petSlot ? (
+                            <span className="text-white/60 text-xl">🐾</span>
+                          ) : (
+                            <span className="text-2xl font-bold" style={{ color: isActive ? "rgba(167,139,250,0.3)" : "rgba(255,255,255,0.15)" }}>+</span>
+                          )}
+                          {isActive && (
+                            <div className="absolute -top-1 -right-1 rounded-full text-[7px] font-bold px-1 py-0.5"
+                              style={{ background: "#7c3aed", color: "white", boxShadow: "0 1px 4px rgba(0,0,0,0.5)" }}>
+                              ★
+                            </div>
+                          )}
+                          {!isActive && petSlot && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); const updated = [...battlePets]; updated[slotIdx] = null; setBattlePets(updated); }}
+                              className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold"
+                              style={{ background: "rgba(220,38,38,0.8)", color: "white", border: "1px solid rgba(220,38,38,0.5)" }}
+                            >✕</button>
+                          )}
+                        </div>
+                        <p className="font-fantasy text-[8px] tracking-wide text-center truncate"
+                          style={{ color: "rgba(167,139,250,0.7)", maxWidth: 64 }}>
+                          {petName ? petName.split(" ")[0] : isActive ? "Active" : "Empty"}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="font-fantasy text-[8px] tracking-wider text-white/20 mt-1.5">Slot 1 is your active pet · tap + to add more</p>
+              </div>
+
+              <div className="border-t border-white/5 flex-shrink-0" />
+
               {/* Available potions — scrollable */}
               <div className="flex-1 overflow-y-auto px-5 py-3">
                 {potionGroups.length === 0 ? (
@@ -4316,6 +4400,72 @@ export default function WorldPage({ user }: WorldPageProps) {
                 </button>
               </div>
             </div>
+
+            {/* Pet picker modal */}
+            {petPickerSlot !== null && (() => {
+              const hatchedPets = inventory.filter(i => i.type === "pet" && i.isHatched && i.inventoryId !== battlePets[0]?.inventoryId && !battlePets.some(bp => bp?.inventoryId === i.inventoryId));
+              return (
+                <div className="absolute inset-0 z-[70] flex items-end justify-center" style={{ background: "rgba(0,0,0,0.7)" }}
+                  onClick={() => setPetPickerSlot(null)}>
+                  <div
+                    className="w-full max-w-sm rounded-t-3xl overflow-hidden"
+                    style={{ background: "linear-gradient(180deg, #1a0a2e 0%, #0f0a1a 100%)", border: "1px solid rgba(167,139,250,0.25)", borderBottom: "none", maxHeight: "55vh" }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-between px-5 pt-4 pb-3">
+                      <p className="font-fantasy text-xs tracking-widest" style={{ color: "#a78bfa" }}>CHOOSE PET — SLOT {petPickerSlot + 1}</p>
+                      <button data-testid="button-close-pet-picker" onClick={() => setPetPickerSlot(null)}
+                        className="w-7 h-7 rounded-full flex items-center justify-center bg-white/10">
+                        <X className="w-3.5 h-3.5 text-white/60" />
+                      </button>
+                    </div>
+                    <div className="overflow-y-auto px-5 pb-6" style={{ maxHeight: "44vh" }}>
+                      {hatchedPets.length === 0 ? (
+                        <div className="text-center py-8">
+                          <p className="font-fantasy text-[10px] tracking-wider text-white/30">No other hatched pets available</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-3 gap-3">
+                          {hatchedPets.map((pet) => {
+                            const petImg = pet.hatchedImageUrl || pet.imageUrl || null;
+                            const petName = pet.petNickname || pet.name;
+                            return (
+                              <div
+                                key={pet.inventoryId}
+                                data-testid={`button-pick-pet-${pet.inventoryId}`}
+                                onClick={() => {
+                                  if (petPickerSlot === null) return;
+                                  const updated = [...battlePets];
+                                  updated[petPickerSlot] = pet;
+                                  setBattlePets(updated);
+                                  setPetPickerSlot(null);
+                                }}
+                                className="flex flex-col items-center gap-1.5 cursor-pointer"
+                              >
+                                <div className="w-18 h-18 rounded-xl flex items-center justify-center border-2 transition-all active:scale-95"
+                                  style={{ width: 72, height: 72, background: "rgba(120,80,220,0.2)", borderColor: "rgba(167,139,250,0.35)" }}>
+                                  {petImg ? (
+                                    <img src={petImg} alt={petName} className="w-14 h-14 object-contain" />
+                                  ) : (
+                                    <span className="text-3xl">🐾</span>
+                                  )}
+                                </div>
+                                <p className="font-fantasy text-[8px] tracking-wide text-center truncate text-white/70" style={{ maxWidth: 72 }}>
+                                  {petName}
+                                </p>
+                                {pet.petLevel && (
+                                  <p className="font-fantasy text-[7px]" style={{ color: "#a78bfa" }}>Lv.{pet.petLevel}</p>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Floating drag ghost — anchored to exact click position within the icon */}
             {prepDrag && (

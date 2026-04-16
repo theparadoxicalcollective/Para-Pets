@@ -3687,14 +3687,16 @@ export async function registerRoutes(
         enemyPowerBlend: { zone: 0.75, pet: 0.25 },
 
         // Archetype multipliers for HP / ATK / DEF
+        // HP is scaled ~4× vs single-pet baseline to stay challenging with up to 3 pets.
+        // ATK tuned to hit a tad harder than before; boss difficulty bumped separately.
         archetypes: {
-          balanced: { hpMult: 5.5,  atkMult: 0.26, defMult: 0.22 },
-          attacker: { hpMult: 4.6,  atkMult: 0.33, defMult: 0.17 },
-          tank:     { hpMult: 6.5,  atkMult: 0.21, defMult: 0.28 },
+          balanced: { hpMult: 20,   atkMult: 0.30, defMult: 0.42 },
+          attacker: { hpMult: 17,   atkMult: 0.38, defMult: 0.32 },
+          tank:     { hpMult: 24,   atkMult: 0.24, defMult: 0.55 },
         } as Record<string, { hpMult: number; atkMult: number; defMult: number }>,
 
-        // Encounter difficulty multipliers
-        difficulty: { normal: 1.0, strong: 1.12, elite: 1.25, boss: 1.45 },
+        // Encounter difficulty multipliers — boss bumped to 1.75 (was 1.45)
+        difficulty: { normal: 1.0, strong: 1.12, elite: 1.25, boss: 1.75 },
 
         // Per-wave escalation (wave 0 = ×1.0, wave 1 = ×1.12, ...)
         waveEscalation: 0.12,

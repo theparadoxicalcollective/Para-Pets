@@ -168,6 +168,18 @@ uri = "file://attached_assets/daily_login_claimed_icon.png"
 type = "image"
 title = "daily login claimed check icon"
 
+[[generated]]
+id = "8qqEkzFMKufK71bhn0PBv"
+uri = "file://attached_assets/icon_battle_block.png"
+type = "image"
+title = "magical rainforest shield block icon"
+
+[[generated]]
+id = "jSOeqqxm8XitKfNrwPNHn"
+uri = "file://attached_assets/icon_battle_skill.png"
+type = "image"
+title = "magical rainforest spellbook skill icon"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"

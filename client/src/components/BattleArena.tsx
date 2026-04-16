@@ -6,6 +6,8 @@ import { fireLevelUp } from "@/lib/levelUpEvents";
 import { playHit, playBlock, playPlayerHurt, playDefeat, playBattleVictory, playPowerUp, playChime } from "@/lib/sounds";
 import { Swords, Star, Coins, X, ChevronRight, ArrowLeft, Heart, HelpCircle, Droplets } from "lucide-react";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
+import blockIconPng from "@assets/icon_battle_block.png";
+import skillIconPng from "@assets/icon_battle_skill.png";
 import PetAnimator from "./PetAnimator";
 
 interface EncounterEnemy {
@@ -1374,6 +1376,81 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               )}
             </div>
 
+            {/* ── Block & Skill buttons on the right ─────────────────── */}
+            {phase === "battle" && (
+              <div className="absolute z-20 flex flex-col gap-4"
+                style={{ right: "4%", top: "52%", transform: "translateY(-50%)", pointerEvents: "auto" }}>
+
+                {/* Block button */}
+                <div className="flex flex-col items-center gap-1">
+                  <button
+                    data-testid="button-battle-block"
+                    onPointerDown={(e) => { e.stopPropagation(); triggerBlock(); }}
+                    className="relative rounded-2xl flex items-center justify-center transition-all active:scale-90"
+                    style={{
+                      width: 58, height: 58,
+                      background: parryWindowOpen
+                        ? "linear-gradient(135deg, #7f1d1d 0%, #dc2626 100%)"
+                        : "rgba(0,0,0,0.55)",
+                      border: parryWindowOpen
+                        ? "2.5px solid rgba(239,68,68,0.9)"
+                        : "2px solid rgba(255,255,255,0.12)",
+                      boxShadow: parryWindowOpen
+                        ? "0 0 18px rgba(239,68,68,0.7), 0 2px 8px rgba(0,0,0,0.6)"
+                        : "0 2px 8px rgba(0,0,0,0.5)",
+                      opacity: parryWindowOpen ? 1 : 0.45,
+                      animation: parryWindowOpen ? "blockReadyPulse 0.55s ease-in-out infinite" : undefined,
+                    }}
+                  >
+                    <img src={blockIconPng} alt="Block" style={{ width: 36, height: 36, objectFit: "contain" }} />
+                    {parryWindowOpen && (
+                      <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full"
+                        style={{ background: "#ef4444", boxShadow: "0 0 8px rgba(239,68,68,0.9)" }} />
+                    )}
+                  </button>
+                  <span className="font-fantasy text-[8px] tracking-widest"
+                    style={{ color: parryWindowOpen ? "#ef4444" : "rgba(255,255,255,0.25)", textShadow: parryWindowOpen ? "0 0 8px rgba(239,68,68,0.7)" : undefined }}>
+                    BLOCK
+                  </span>
+                </div>
+
+                {/* Skill button */}
+                {pet.specialSkill && (
+                  <div className="flex flex-col items-center gap-1">
+                    <button
+                      data-testid="button-battle-skill"
+                      onPointerDown={(e) => { e.stopPropagation(); useSpecialSkill(); }}
+                      className="relative rounded-2xl flex items-center justify-center transition-all active:scale-90"
+                      style={{
+                        width: 58, height: 58,
+                        background: mana >= MAX_MANA && !skillCooldown
+                          ? `linear-gradient(135deg, ${rarityColor}44 0%, ${rarityColor}22 100%)`
+                          : "rgba(0,0,0,0.55)",
+                        border: mana >= MAX_MANA && !skillCooldown
+                          ? `2.5px solid ${rarityColor}cc`
+                          : "2px solid rgba(255,255,255,0.12)",
+                        boxShadow: mana >= MAX_MANA && !skillCooldown
+                          ? `0 0 18px ${rarityColor}66, 0 2px 8px rgba(0,0,0,0.6)`
+                          : "0 2px 8px rgba(0,0,0,0.5)",
+                        opacity: mana >= MAX_MANA && !skillCooldown ? 1 : 0.4,
+                        animation: mana >= MAX_MANA && !skillCooldown ? "manaAura 1s ease-in-out infinite" : undefined,
+                      }}
+                    >
+                      <img src={skillIconPng} alt="Skill" style={{ width: 36, height: 36, objectFit: "contain" }} />
+                      {mana >= MAX_MANA && !skillCooldown && (
+                        <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full"
+                          style={{ background: rarityColor, boxShadow: `0 0 8px ${rarityColor}` }} />
+                      )}
+                    </button>
+                    <span className="font-fantasy text-[8px] tracking-widest"
+                      style={{ color: mana >= MAX_MANA && !skillCooldown ? rarityColor : "rgba(255,255,255,0.25)", textShadow: mana >= MAX_MANA && !skillCooldown ? `0 0 8px ${rarityColor}88` : undefined }}>
+                      SKILL
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Block result flash */}
             {parryResult === "success" && (
               <div className="absolute inset-0 pointer-events-none z-40 flex items-center justify-center">
@@ -1398,7 +1475,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               <div className="absolute z-10 pointer-events-none"
                 style={{ bottom: "22%", left: "50%", transform: "translateX(-50%)", whiteSpace: "nowrap" }}>
                 <div className="text-white/22 text-[10px] font-medium animate-pulse tracking-widest text-center">
-                  Swipe through the enemy · tap your pet to block or use skills
+                  Swipe through the enemy · use the buttons on the right to block or cast skills
                 </div>
               </div>
             )}
