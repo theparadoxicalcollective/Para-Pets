@@ -390,7 +390,7 @@ app.use((req, res, next) => {
         shop_pos_x, shop_pos_y, shop_width
       ) VALUES (
         ${PVP_TICKET_ID},
-        'Meridia Arena Ticket',
+        'Veridia Arena Ticket',
         0,
         'special',
         'swamp',
@@ -400,6 +400,7 @@ app.use((req, res, next) => {
         50, 50, 72
       )
       ON CONFLICT (id) DO UPDATE SET
+        name = 'Veridia Arena Ticket',
         image_url = ${pvpTicketImageUrl}
     `);
     console.log("PvP Ticket item seeded.");
