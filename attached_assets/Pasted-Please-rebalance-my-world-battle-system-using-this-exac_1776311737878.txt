@@ -1,0 +1,76 @@
+Please rebalance my world battle system using this exact scaling structure.
+
+Pet starting stats:
+- Level 1 pets start with 1000 HP, 50 ATK, and 50 DEF
+- Pets gain up to 3 stat increases each level
+- Players can customize how those stats are distributed, so some pets may be tanky, balanced, or attack-focused
+
+Goals:
+- Keep enemies challenging as pets level up
+- Do not require me to create many separate enemies for every level range
+- Make world/zone progression matter more than direct player stat matching
+- Let stronger pets still feel stronger
+- Prevent ATK-heavy builds from making combat too easy
+
+Use this system:
+
+1. Calculate pet power:
+PetPower = (HP * 0.08) + (ATK * 1.2) + (DEF * 1.0) + (Level * 4)
+
+2. Assign each zone a base difficulty:
+Zone1 = 180
+Zone2 = 230
+Zone3 = 290
+Zone4 = 360
+Zone5 = 440
+Zone6 = 530
+
+3. Calculate enemy power:
+EnemyPower = (ZoneBase * 0.75) + (PetPower * 0.25)
+
+4. Generate enemy stats based on archetype:
+
+Balanced:
+EnemyHP = EnemyPower * 5.5
+EnemyATK = EnemyPower * 0.26
+EnemyDEF = EnemyPower * 0.22
+
+Attacker:
+EnemyHP = EnemyPower * 4.6
+EnemyATK = EnemyPower * 0.33
+EnemyDEF = EnemyPower * 0.17
+
+Tank:
+EnemyHP = EnemyPower * 6.5
+EnemyATK = EnemyPower * 0.21
+EnemyDEF = EnemyPower * 0.28
+
+5. Apply encounter difficulty multiplier:
+Normal = 1.0
+Strong = 1.12
+Elite = 1.25
+Boss = 1.45
+
+6. Use these damage formulas:
+
+Pet attacks enemy:
+DamageToEnemy = max(10, PetATK - (EnemyDEF * 0.55))
+
+Enemy attacks pet:
+DamageToPet = max(8, EnemyATK - (PetDEF * 0.45))
+
+7. Add small random variance after generating stats:
+Each enemy stat should vary by 0.95 to 1.05
+
+8. Add mild counter-scaling for extreme builds:
+- If PetATK > PetDEF * 1.5, increase enemy HP by 8%
+- If PetHP is more than 25% above expected for the level, increase enemy ATK by 6%
+
+9. Make sure old zones still become easier over time. Do not fully scale enemies to the player.
+
+Please implement this in a clean, editable way so I can easily adjust:
+- zone base values
+- pet power weights
+- enemy archetype multipliers
+- difficulty multipliers
+- damage formula constants

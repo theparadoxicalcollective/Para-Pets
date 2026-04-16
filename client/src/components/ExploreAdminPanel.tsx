@@ -25,10 +25,17 @@ interface EnemyData {
   name: string;
   imageUrl: string | null;
   isBoss: boolean;
+  archetype: string;
   coinReward: number;
   sortOrder: number;
   drops: DropData[];
 }
+
+const ARCHETYPES = [
+  { value: "balanced", label: "Balanced", desc: "Equal HP / ATK / DEF" },
+  { value: "attacker", label: "Attacker", desc: "High ATK, low HP & DEF" },
+  { value: "tank",     label: "Tank",     desc: "High HP & DEF, low ATK" },
+] as const;
 
 interface ExploreAdminPanelProps {
   locationId: string;
@@ -50,6 +57,8 @@ export default function ExploreAdminPanel({ locationId, locationType, accent, on
   const [newEnemyImage, setNewEnemyImage] = useState<string | null>(null);
   const [newEnemyCoinReward, setNewEnemyCoinReward] = useState("");
   const [newEnemyIsBoss, setNewEnemyIsBoss] = useState(false);
+  const [newEnemyArchetype, setNewEnemyArchetype] = useState("balanced");
+  const [editArchetype, setEditArchetype] = useState("balanced");
   const [showDropPicker, setShowDropPicker] = useState<string | null>(null);
   const [dropRate, setDropRate] = useState("10");
   const [selectedDropItem, setSelectedDropItem] = useState<string>("");
@@ -80,6 +89,7 @@ export default function ExploreAdminPanel({ locationId, locationType, accent, on
         imageData: newEnemyImage,
         coinReward: parseInt(newEnemyCoinReward) || 0,
         isBoss: newEnemyIsBoss,
+        archetype: newEnemyArchetype,
       });
       return res.json();
     },
@@ -90,6 +100,7 @@ export default function ExploreAdminPanel({ locationId, locationType, accent, on
       setNewEnemyImage(null);
       setNewEnemyCoinReward("");
       setNewEnemyIsBoss(false);
+      setNewEnemyArchetype("balanced");
       toast({ title: "Enemy Added" });
     },
     onError: () => toast({ title: "Failed to add enemy", variant: "destructive" }),
@@ -159,11 +170,12 @@ export default function ExploreAdminPanel({ locationId, locationType, accent, on
     setEditName(enemy.name);
     setEditCoinReward(String(enemy.coinReward));
     setEditIsBoss(enemy.isBoss);
+    setEditArchetype(enemy.archetype || "balanced");
     setEditImage(null);
   };
 
   const saveEdit = (enemyId: string) => {
-    const data: any = { name: editName.trim(), coinReward: parseInt(editCoinReward) || 0, isBoss: editIsBoss };
+    const data: any = { name: editName.trim(), coinReward: parseInt(editCoinReward) || 0, isBoss: editIsBoss, archetype: editArchetype };
     if (editImage) data.imageData = editImage;
     updateEnemyMutation.mutate({ enemyId, data });
   };
@@ -310,6 +322,9 @@ export default function ExploreAdminPanel({ locationId, locationType, accent, on
                       <img src={coinIconImg} alt="" className="w-3 h-3" />
                       <span className="font-fantasy text-[10px]" style={{ color: "#f0c040" }}>{enemy.coinReward}</span>
                     </div>
+                    <span className="font-fantasy text-[9px] px-1 py-0.5 rounded" style={{ background: `${accent}18`, color: `${accent}99`, border: `1px solid ${accent}25` }}>
+                      {(enemy.archetype || "balanced")}
+                    </span>
                     <span className="font-fantasy text-[9px]" style={{ color: isBattle ? "rgba(220,38,38,0.5)" : `${accent}66` }}>{enemy.drops.length} drop{enemy.drops.length !== 1 ? "s" : ""}</span>
                   </div>
                 </div>
@@ -366,6 +381,28 @@ export default function ExploreAdminPanel({ locationId, locationType, accent, on
                           {editIsBoss && <span className="text-white text-[8px] font-bold">&#10003;</span>}
                         </div>
                         <span className="font-fantasy text-[9px] tracking-wider" style={{ color: editIsBoss ? "#ff6666" : `${accent}88` }}>Boss Enemy (up to 5 levels above pet)</span>
+                      </div>
+                      <div>
+                        <label className="font-fantasy text-[8px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>Archetype</label>
+                        <div className="grid grid-cols-3 gap-1">
+                          {ARCHETYPES.map((a) => (
+                            <button
+                              key={a.value}
+                              data-testid={`archetype-edit-${a.value}`}
+                              type="button"
+                              onClick={() => setEditArchetype(a.value)}
+                              className="px-1 py-1 rounded-md font-fantasy text-[8px] tracking-wider text-center transition-colors"
+                              style={{
+                                background: editArchetype === a.value ? `${accent}35` : "rgba(255,255,255,0.04)",
+                                border: editArchetype === a.value ? `1px solid ${accent}70` : `1px solid ${accent}20`,
+                                color: editArchetype === a.value ? accent : `${accent}77`,
+                                cursor: "pointer",
+                              }}
+                            >
+                              {a.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                       <label
                         className="block w-full py-1.5 rounded-md font-fantasy text-[9px] tracking-wider text-center"
@@ -563,6 +600,31 @@ export default function ExploreAdminPanel({ locationId, locationType, accent, on
                   <span className="font-fantasy text-[10px] tracking-wider block" style={{ color: newEnemyIsBoss ? "#ff6666" : `${accent}bb` }}>Boss Enemy</span>
                   <span className="font-fantasy text-[8px] tracking-wider" style={{ color: `${accent}66` }}>Can be up to 5 levels above pet (regular: 2)</span>
                 </div>
+              </div>
+              <div>
+                <label className="font-fantasy text-[9px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>Archetype</label>
+                <div className="grid grid-cols-3 gap-1">
+                  {ARCHETYPES.map((a) => (
+                    <button
+                      key={a.value}
+                      data-testid={`archetype-add-${a.value}`}
+                      type="button"
+                      onClick={() => setNewEnemyArchetype(a.value)}
+                      className="px-1 py-1.5 rounded-md font-fantasy text-[9px] tracking-wider text-center transition-colors"
+                      style={{
+                        background: newEnemyArchetype === a.value ? `${accent}35` : "rgba(255,255,255,0.04)",
+                        border: newEnemyArchetype === a.value ? `1px solid ${accent}70` : `1px solid ${accent}20`,
+                        color: newEnemyArchetype === a.value ? accent : `${accent}77`,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {a.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="font-fantasy text-[8px] mt-1" style={{ color: `${accent}55` }}>
+                  {ARCHETYPES.find(a => a.value === newEnemyArchetype)?.desc}
+                </p>
               </div>
               <button
                 data-testid="button-submit-add-enemy"

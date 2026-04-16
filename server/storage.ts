@@ -941,18 +941,19 @@ export class DatabaseStorage implements IStorage {
     return enemy;
   }
 
-  async createLocationEnemy(data: { locationId: string; name: string; imageUrl?: string | null; isBoss?: boolean; coinReward?: number }): Promise<LocationEnemy> {
+  async createLocationEnemy(data: { locationId: string; name: string; imageUrl?: string | null; isBoss?: boolean; archetype?: string; coinReward?: number }): Promise<LocationEnemy> {
     const [enemy] = await db.insert(locationEnemies).values({
       locationId: data.locationId,
       name: data.name,
       imageUrl: data.imageUrl || null,
       isBoss: data.isBoss || false,
+      archetype: data.archetype || "balanced",
       coinReward: data.coinReward || 0,
     }).returning();
     return enemy;
   }
 
-  async updateLocationEnemy(id: string, data: Partial<{ name: string; imageUrl: string | null; isBoss: boolean; coinReward: number }>): Promise<LocationEnemy> {
+  async updateLocationEnemy(id: string, data: Partial<{ name: string; imageUrl: string | null; isBoss: boolean; archetype: string; coinReward: number }>): Promise<LocationEnemy> {
     const [updated] = await db.update(locationEnemies).set(data).where(eq(locationEnemies.id, id)).returning();
     return updated;
   }

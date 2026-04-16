@@ -3561,7 +3561,7 @@ export async function registerRoutes(
   app.post("/api/admin/location/:locationId/enemy", isAdmin, async (req, res) => {
     try {
       const { locationId } = req.params as Record<string, string>;
-      const { name, imageData, coinReward, isBoss } = req.body;
+      const { name, imageData, coinReward, isBoss, archetype } = req.body;
       if (!name?.trim()) {
         return res.status(400).json({ message: "Enemy name is required" });
       }
@@ -3569,7 +3569,9 @@ export async function registerRoutes(
       if (imageData) {
         try { imageUrl = await processWorldImage(imageData, 1000); } catch (e) { console.error("Enemy image error:", e); }
       }
-      const enemy = await storage.createLocationEnemy({ locationId, name: name.trim(), imageUrl, isBoss: !!isBoss, coinReward: coinReward || 0 });
+      const validArchetypes = ["balanced", "attacker", "tank"];
+      const safeArchetype = validArchetypes.includes(archetype) ? archetype : "balanced";
+      const enemy = await storage.createLocationEnemy({ locationId, name: name.trim(), imageUrl, isBoss: !!isBoss, archetype: safeArchetype, coinReward: coinReward || 0 });
       return res.status(201).json(enemy);
     } catch (err) {
       console.error("Create enemy error:", err);
@@ -3580,11 +3582,13 @@ export async function registerRoutes(
   app.patch("/api/admin/enemy/:enemyId", isAdmin, async (req, res) => {
     try {
       const { enemyId } = req.params as Record<string, string>;
-      const { name, imageData, coinReward, isBoss } = req.body;
+      const { name, imageData, coinReward, isBoss, archetype } = req.body;
+      const validArchetypes = ["balanced", "attacker", "tank"];
       const updates: any = {};
       if (name !== undefined) updates.name = name.trim();
       if (coinReward !== undefined) updates.coinReward = coinReward;
       if (isBoss !== undefined) updates.isBoss = !!isBoss;
+      if (archetype !== undefined && validArchetypes.includes(archetype)) updates.archetype = archetype;
       if (imageData) {
         try { updates.imageUrl = await processWorldImage(imageData, 1000); } catch (e) { console.error("Enemy image error:", e); }
       }
@@ -3660,23 +3664,121 @@ export async function registerRoutes(
         return res.json({ encounter: null });
       }
 
-      const petLevel = activePet.petLevel || 0;
+      // ── Battle Balance Configuration ────────────────────────────────────────
+      // All constants are here — adjust freely without touching formulas.
+      const BATTLE_CFG = {
+        // Pet power formula weights
+        petPower: { hpWeight: 0.08, atkWeight: 1.2, defWeight: 1.0, levelWeight: 4 },
+
+        // Zone base difficulty — higher = harder location
+        // Zone1=180  Zone2=230  Zone3=290  Zone4=360  Zone5=440  Zone6=530
+        zoneBases: {
+          swamp:           180,
+          island:          230,
+          enchanted_grove: 290,
+          haunted_woods:   360,
+          snowy_mountain:  440,
+          desert:          440,
+          volcanic:        530,
+        } as Record<string, number>,
+        defaultZoneBase: 180,
+
+        // How much zone vs pet stats drive enemy power (must sum to 1.0)
+        enemyPowerBlend: { zone: 0.75, pet: 0.25 },
+
+        // Archetype multipliers for HP / ATK / DEF
+        archetypes: {
+          balanced: { hpMult: 5.5,  atkMult: 0.26, defMult: 0.22 },
+          attacker: { hpMult: 4.6,  atkMult: 0.33, defMult: 0.17 },
+          tank:     { hpMult: 6.5,  atkMult: 0.21, defMult: 0.28 },
+        } as Record<string, { hpMult: number; atkMult: number; defMult: number }>,
+
+        // Encounter difficulty multipliers
+        difficulty: { normal: 1.0, strong: 1.12, elite: 1.25, boss: 1.45 },
+
+        // Per-wave escalation (wave 0 = ×1.0, wave 1 = ×1.12, ...)
+        waveEscalation: 0.12,
+
+        // Random variance applied per stat (uniform between min and max)
+        variance: { min: 0.95, max: 1.05 },
+
+        // Counter-scaling: punish extreme builds slightly
+        counterScale: {
+          atkHeavyRatio: 1.5,   // if petATK > petDEF × ratio → enemy gains bonus HP
+          atkHeavyHpBonus: 0.08,
+          tankHpRatio: 1.25,    // if petHP > expected × ratio → enemy gains bonus ATK
+          tankAtkBonus: 0.06,
+          expectedHpPerLevel: 30, // rough HP gained per level above 1
+        },
+
+        // Stat floors
+        minHp: 200, minAtk: 10, minDef: 5,
+      };
+      // ───────────────────────────────────────────────────────────────────────
+
+      const petLevel = activePet.petLevel || 1;
       const petHp = activePet.petHealth || 1000;
       const petAtk = activePet.petAtk || 50;
       const petDef = activePet.petDef || 50;
+
+      // 1. Pet power score
+      const petPower =
+        (petHp  * BATTLE_CFG.petPower.hpWeight)  +
+        (petAtk * BATTLE_CFG.petPower.atkWeight)  +
+        (petDef * BATTLE_CFG.petPower.defWeight)  +
+        (petLevel * BATTLE_CFG.petPower.levelWeight);
+
+      // 2. Zone base (look up via the location's worldId)
+      const locationData = await storage.getWorldLocation(locationId);
+      const zoneBase = BATTLE_CFG.zoneBases[locationData?.worldId ?? ""] ?? BATTLE_CFG.defaultZoneBase;
+
+      // 3. Base enemy power (blend zone difficulty + pet contribution)
+      const baseEnemyPower =
+        (zoneBase * BATTLE_CFG.enemyPowerBlend.zone) +
+        (petPower * BATTLE_CFG.enemyPowerBlend.pet);
+
+      // 8. Counter-scaling factors (computed once, applied per enemy)
+      const expectedPetHp = 1000 + (petLevel - 1) * BATTLE_CFG.counterScale.expectedHpPerLevel;
+      const atkHeavyBonus = petAtk > petDef * BATTLE_CFG.counterScale.atkHeavyRatio
+        ? 1 + BATTLE_CFG.counterScale.atkHeavyHpBonus : 1;
+      const tankBonus = petHp > expectedPetHp * BATTLE_CFG.counterScale.tankHpRatio
+        ? 1 + BATTLE_CFG.counterScale.tankAtkBonus : 1;
 
       const normals = enemies.filter(e => !e.isBoss).sort(() => Math.random() - 0.5);
       const bosses = enemies.filter(e => e.isBoss).sort(() => Math.random() - 0.5);
       const ordered = [...normals, ...bosses];
       const encounters = await Promise.all(ordered.map(async (enemy, waveIndex) => {
-        const waveScaling = 1 + (waveIndex * 0.15);
+        // Wave escalation: each subsequent enemy in the queue is a bit harder
+        const waveScale = 1 + waveIndex * BATTLE_CFG.waveEscalation;
+
+        // 3. Enemy power for this wave
+        const enemyPower = baseEnemyPower * waveScale;
+
+        // 4. Archetype stat multipliers
+        const archetype = (enemy as any).archetype || "balanced";
+        const arc = BATTLE_CFG.archetypes[archetype] ?? BATTLE_CFG.archetypes.balanced;
+
+        // 5. Difficulty multiplier (boss gets the boss tier; others get normal)
+        const diffMult = enemy.isBoss
+          ? BATTLE_CFG.difficulty.boss
+          : BATTLE_CFG.difficulty.normal;
+
+        // 7. Variance helper
+        const variance = () =>
+          BATTLE_CFG.variance.min +
+          Math.random() * (BATTLE_CFG.variance.max - BATTLE_CFG.variance.min);
+
+        // Generate base stats
+        let enemyHp  = enemyPower * arc.hpMult  * diffMult * variance();
+        let enemyAtk = enemyPower * arc.atkMult * diffMult * variance();
+        let enemyDef = enemyPower * arc.defMult * diffMult * variance();
+
+        // 8. Apply counter-scaling
+        enemyHp  *= atkHeavyBonus;
+        enemyAtk *= tankBonus;
+
         const maxLevelOffset = enemy.isBoss ? 5 : 2;
         const enemyLevel = Math.max(1, petLevel + Math.floor(Math.random() * (maxLevelOffset + 1)));
-        const bossHpMult = enemy.isBoss ? 4.0 : 1.0;
-        const bossStatMult = enemy.isBoss ? 2.5 : 1.0;
-        const enemyHp = Math.max(200, Math.floor(petHp * 2 * bossHpMult * waveScaling));
-        const enemyAtk = Math.max(10, Math.floor(petAtk * (2 / 3) * bossStatMult * waveScaling));
-        const enemyDef = Math.max(5, Math.floor(petDef * (2 / 3) * bossStatMult * waveScaling));
 
         const drops = await storage.getEnemyDrops(enemy.id);
         const dropDetails = await Promise.all(drops.map(async (drop) => {
@@ -3689,10 +3791,11 @@ export async function registerRoutes(
           name: enemy.name,
           imageUrl: enemy.imageUrl,
           isBoss: enemy.isBoss,
+          archetype,
           level: enemyLevel,
-          hp: enemyHp,
-          atk: enemyAtk,
-          def: enemyDef,
+          hp: Math.max(BATTLE_CFG.minHp, Math.floor(enemyHp)),
+          atk: Math.max(BATTLE_CFG.minAtk, Math.floor(enemyAtk)),
+          def: Math.max(BATTLE_CFG.minDef, Math.floor(enemyDef)),
           coinReward: enemy.coinReward,
           drops: dropDetails.filter(Boolean),
         };

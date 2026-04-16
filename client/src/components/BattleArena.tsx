@@ -377,10 +377,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           setEnemyCharging(false);
           setParryWindowOpen(false);
 
-          // Damage — DEF meaningfully reduces incoming hit (missed block)
-          const def = petStatsRef.current.def;
-          const defReduction = def / (def + 60); // def=20→25%, def=60→50%, def=120→67%
-          const rawDmg = enemyStatsRef.current.atk * (1 - defReduction);
+          // DamageToPet = max(8, EnemyATK - (PetDEF * 0.45))
+          const rawDmg = Math.max(8, enemyStatsRef.current.atk - (petStatsRef.current.def * 0.45));
           const dmg = Math.max(1, Math.floor(rawDmg + Math.random() * 8 - 4));
           petHpRef.current = Math.max(0, petHpRef.current - dmg);
           setPetHp(petHpRef.current);
@@ -509,7 +507,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     const critMult = isCrit ? 1.9 : 1;
     const wasCounter = counterActiveRef.current;
     const counterMult = wasCounter ? 2.0 : 1.0;
-    const rawDmg = petStatsRef.current.atk - Math.floor(enemyStatsRef.current.def * 0.3);
+    // DamageToEnemy = max(10, PetATK - (EnemyDEF * 0.55))
+    const rawDmg = Math.max(10, petStatsRef.current.atk - (enemyStatsRef.current.def * 0.55));
     const dmg = Math.max(1, Math.floor((rawDmg + Math.floor(Math.random() * 10) - 4) * comboMult * critMult * counterMult));
 
     const isBossHit = !!enemy.isBoss;
