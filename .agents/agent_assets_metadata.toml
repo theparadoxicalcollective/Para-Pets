@@ -180,6 +180,36 @@ uri = "file://attached_assets/icon_battle_skill.png"
 type = "image"
 title = "magical rainforest spellbook skill icon"
 
+[[generated]]
+id = "OnuaAqSK_frImWeVLx5ju"
+uri = "file://attached_assets/icon_battle_warning.png"
+type = "image"
+title = "battle warning rune"
+
+[[generated]]
+id = "oAx8EEa2FvIEZa3otiGXl"
+uri = "file://attached_assets/icon_battle_rage.png"
+type = "image"
+title = "battle rage flame"
+
+[[generated]]
+id = "RYCncKK6gD1LwlsxXct-u"
+uri = "file://attached_assets/icon_battle_counter.png"
+type = "image"
+title = "battle counter lightning"
+
+[[generated]]
+id = "1smZ_akR3sNvQB66iZVEm"
+uri = "file://attached_assets/icon_battle_crossed_swords.png"
+type = "image"
+title = "battle crossed swords"
+
+[[generated]]
+id = "zW--hQF4wF2ZjXPWrx9Ij"
+uri = "file://attached_assets/icon_battle_hitmark.png"
+type = "image"
+title = "battle hit mark rune"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"

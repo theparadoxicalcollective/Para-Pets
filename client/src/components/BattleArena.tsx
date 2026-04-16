@@ -8,6 +8,11 @@ import { Swords, Star, Coins, X, ChevronRight, ArrowLeft, Heart, HelpCircle, Dro
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import blockIconPng from "@assets/icon_battle_block.png";
 import skillIconPng from "@assets/icon_battle_skill.png";
+import warningRunePng from "@assets/icon_battle_warning.png";
+import rageFlamePng from "@assets/icon_battle_rage.png";
+import counterLightningPng from "@assets/icon_battle_counter.png";
+import crossedSwordsPng from "@assets/icon_battle_crossed_swords.png";
+import hitMarkPng from "@assets/icon_battle_hitmark.png";
 import PetAnimator from "./PetAnimator";
 
 export interface EquippedPet {
@@ -1420,7 +1425,10 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                     textShadow: "0 0 10px rgba(255,60,60,0.9), 0 1px 0 #000",
                     letterSpacing: "0.12em",
                     animation: "tensionPulse 0.4s ease-in-out infinite",
-                  }}>⚠ INCOMING!</div>
+                  }}>
+                    <img src={warningRunePng} alt="" style={{ width: 13, height: 13, objectFit: "contain", verticalAlign: "middle", marginRight: 4, display: "inline-block" }} />
+                    INCOMING!
+                  </div>
                 )}
 
                 {/* Boss rage glow overlay */}
@@ -1484,7 +1492,9 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                       textShadow: bossRage ? "0 0 14px rgba(255,140,20,0.9)" : "0 0 10px rgba(255,0,0,0.8)",
                       animation: bossRage ? "tensionPulse 0.5s ease-in-out infinite" : undefined,
                     }}>
-                    {bossRage ? "🔥 RAGE 🔥" : "⚠ BOSS ⚠"}
+                    <img src={bossRage ? rageFlamePng : warningRunePng} alt="" style={{ width: 13, height: 13, objectFit: "contain", verticalAlign: "middle", marginRight: 4, display: "inline-block" }} />
+                    {bossRage ? "RAGE" : "BOSS"}
+                    <img src={bossRage ? rageFlamePng : warningRunePng} alt="" style={{ width: 13, height: 13, objectFit: "contain", verticalAlign: "middle", marginLeft: 4, display: "inline-block" }} />
                   </div>
                 )}
               </div>
@@ -1605,7 +1615,10 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   boxShadow: "0 0 10px rgba(253,230,138,0.8)",
                   letterSpacing: "0.05em",
                   whiteSpace: "nowrap",
-                }}>⚡×{counterHitsLeft} 2×</div>
+                }}>
+                  <img src={counterLightningPng} alt="" style={{ width: 12, height: 12, objectFit: "contain", verticalAlign: "middle", marginRight: 3, display: "inline-block" }} />
+                  ×{counterHitsLeft} 2×
+                </div>
               )}
 
               {/* Charge incoming hint above active pet */}
@@ -1624,7 +1637,10 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   letterSpacing: "0.1em",
                   animation: "tensionPulse 0.4s ease-in-out infinite",
                   pointerEvents: "none",
-                }}>{blockHeld ? "🛡 BLOCKING!" : "⚠ HOLD BLOCK!"}</div>
+                }}>
+                  <img src={blockHeld ? blockIconPng : warningRunePng} alt="" style={{ width: 13, height: 13, objectFit: "contain", verticalAlign: "middle", marginRight: 4, display: "inline-block" }} />
+                  {blockHeld ? "BLOCKING!" : "HOLD BLOCK!"}
+                </div>
               )}
               {phase === "battle" && mana >= MAX_MANA && !skillCooldown && pet.specialSkill && (
                 <div style={{
@@ -1911,7 +1927,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         {bossSlashActive && (
           <div className="absolute inset-0 z-30 pointer-events-none flex items-center justify-center"
             style={{ background: "rgba(220,38,38,0.18)", animation: "parryFailFlash 0.65s ease-out forwards" }}>
-            <div style={{ fontSize: 80, fontWeight: 900, color: "rgba(255,80,80,0.7)", textShadow: "0 0 40px rgba(220,38,38,0.9)", letterSpacing: "-0.05em", lineHeight: 1 }}>⚔</div>
+            <img src={crossedSwordsPng} alt="" style={{ width: 100, height: 100, objectFit: "contain", filter: "drop-shadow(0 0 28px rgba(220,38,38,0.95)) drop-shadow(0 0 10px rgba(255,80,80,0.7))", opacity: 0.9 }} />
           </div>
         )}
 
@@ -1973,7 +1989,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         {slashEffects.map(slash => (
           <div key={slash.id} className="absolute z-30 pointer-events-none"
             style={{ left: `${slash.x}%`, top: `${slash.y}%`, transform: "translate(-50%, -50%)" }}>
-            <div style={{ animation: "slashMarkAnim 0.45s ease-out forwards", fontSize: 36, lineHeight: 1, color: counterActive ? "#fde68a" : accent, textShadow: `0 0 18px ${counterActive ? "#fde68a" : accent}, 0 0 8px white`, fontWeight: 900 }}>✕</div>
+            <img src={hitMarkPng} alt="" style={{ animation: "slashMarkAnim 0.45s ease-out forwards", width: 44, height: 44, objectFit: "contain", filter: `drop-shadow(0 0 10px ${counterActive ? "#fde68a" : accent}) drop-shadow(0 0 4px white)` }} />
             <div className="absolute inset-0 w-14 h-14 -m-3 rounded-full" style={{ animation: "slashRingAnim 0.4s ease-out forwards", border: `2px solid ${counterActive ? "#fde68a" : accent}`, boxShadow: `0 0 12px ${counterActive ? "#fde68a" : accent}` }} />
           </div>
         ))}
