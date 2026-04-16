@@ -3163,7 +3163,6 @@ export default function WorldPage({ user }: WorldPageProps) {
                       <p className="font-fantasy text-center" style={{ fontSize: "10px", color: "#e84040", textShadow: "0 1px 4px rgba(0,0,0,0.8)" }} data-testid="text-not-enough-coins">Not enough coins</p>
                     )}
                   </div>
-                )
               )}
               {/* ── Step 2 buttons below the price tag ── */}
               {buyStep === 2 && (

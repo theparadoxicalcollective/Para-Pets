@@ -6362,7 +6362,21 @@ export async function registerRoutes(
     }
   });
 
-  // Leaderboard monitor — checks every 10 min for top-3 changes
+  // World chat cleanup — delete messages older than 5 hours, runs every 30 min
+  setInterval(async () => {
+    try {
+      const result = await db.execute(sql`
+        DELETE FROM world_chat_messages
+        WHERE created_at < NOW() - INTERVAL '5 hours'
+      `);
+      const count = (result as any).rowCount ?? 0;
+      if (count > 0) console.log(`[WorldChat] Cleaned up ${count} old messages (>5h)`);
+    } catch (err) {
+      console.error("[WorldChat] Cleanup error:", err);
+    }
+  }, 30 * 60 * 1000);
+
+  // Leaderboard monitor — checks every 30 min for top-3 changes
   let lastLeaderboardTop3: string[] = [];
   setInterval(async () => {
     try {
