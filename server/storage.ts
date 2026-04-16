@@ -2307,10 +2307,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async purgeOldWorldChatMessages(): Promise<void> {
-    // Count total messages; if 50 or more have accumulated, wipe the whole table
+    // When count reaches 50, delete the 10 oldest messages so recent chat stays visible
     const [{ count }] = await db.select({ count: sql<number>`COUNT(*)::int` }).from(worldChatMessages);
     if (count >= 50) {
-      await db.delete(worldChatMessages);
+      await db.execute(sql`
+        DELETE FROM world_chat_messages
+        WHERE id IN (
+          SELECT id FROM world_chat_messages
+          ORDER BY created_at ASC
+          LIMIT 10
+        )
+      `);
     }
   }
 
