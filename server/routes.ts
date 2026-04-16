@@ -767,6 +767,20 @@ export async function registerRoutes(
         if (!user.welcomeV2Sent) {
           try { await grantWelcomeV2Bundle(user.id); } catch (e) { console.error("Welcome v2 grant failed:", e); }
         }
+        // Veridian Watcher login greeting
+        try {
+          const greetings = [
+            `🌿 Welcome back, ${user.username}! The realm stirs at your return.`,
+            `🌿 Ah, ${user.username} arrives. The wilds have missed you.`,
+            `🌿 ${user.username} steps into the realm once more. Adventure awaits!`,
+            `🌿 The Watcher sees you, ${user.username}. May fortune guide your path.`,
+            `🌿 ${user.username} has returned! The creatures of the realm rejoice.`,
+            `🌿 Greetings, ${user.username}. The enchanted forests are yours to explore.`,
+            `🌿 ${user.username} walks among us again. Good to have you back, traveller.`,
+          ];
+          const msg = greetings[Math.floor(Math.random() * greetings.length)];
+          await postWatcherMessage(msg);
+        } catch (e) { console.error("[VW] Login greeting failed:", e); }
         const freshUser = await storage.getUser(user.id);
         const { password: _, ...safeUser } = freshUser ?? user;
         return res.json(safeUser);
@@ -5940,7 +5954,7 @@ export async function registerRoutes(
   });
 
   // ── Veridian Watcher Background Jobs ──────────────────────────────────────
-  // Hourly quote poster
+  // 30-minute quote poster
   setInterval(async () => {
     try {
       const quotes = await storage.getVWQuotes();
@@ -5948,9 +5962,9 @@ export async function registerRoutes(
       const pick = quotes[Math.floor(Math.random() * quotes.length)];
       await postWatcherMessage(`🌿 ${pick.message}`);
     } catch (err) {
-      console.error("[VW] Hourly quote error:", err);
+      console.error("[VW] Quote error:", err);
     }
-  }, 60 * 60 * 1000);
+  }, 30 * 60 * 1000);
 
   // ── Daily Login Rewards ───────────────────────────────────────────────────
   // Public: get all 7 days config with items
