@@ -205,13 +205,22 @@ async function sendVerificationEmail(userId: string, email: string, username: st
 }
 
 const COIN_PACKS = [
-  { id: "pack_100", coins: 100, priceUsd: 1, label: "100 Coins" },
-  { id: "pack_500", coins: 500, priceUsd: 5, label: "500 Coins" },
-  { id: "pack_1000", coins: 1000, priceUsd: 10, label: "1,000 Coins" },
-  { id: "pack_2500", coins: 2500, priceUsd: 25, label: "2,500 Coins" },
-  { id: "pack_5000", coins: 5000, priceUsd: 50, label: "5,000 Coins" },
-  { id: "pack_10000", coins: 10000, priceUsd: 100, label: "10,000 Coins" },
+  { id: "pack_v2_1000",  coins: 1000,  priceUsd: 5,   label: "1,000 Coins" },
+  { id: "pack_v2_2500",  coins: 2500,  priceUsd: 10,  label: "2,500 Coins" },
+  { id: "pack_v2_7500",  coins: 7500,  priceUsd: 25,  label: "7,500 Coins" },
+  { id: "pack_v2_20000", coins: 20000, priceUsd: 50,  label: "20,000 Coins" },
+  { id: "pack_v2_50000", coins: 50000, priceUsd: 100, label: "50,000 Coins" },
 ];
+
+// Spirit-of-Veridia community gift: scales with the new bundle progression.
+// Roughly 1/10 of the purchaser's coin pack so bigger purchases bless the
+// realm more generously without trivializing smaller ones.
+function communityRewardCoinsForUsd(amountUsd: number): number {
+  const pack = COIN_PACKS.find(p => p.priceUsd === amountUsd);
+  if (pack) return Math.max(1, Math.floor(pack.coins / 10));
+  // Fallback for any non-standard amount: 20 coins per dollar.
+  return Math.max(1, amountUsd * 20);
+}
 
 const stripePriceCache: Record<string, string> = {};
 
@@ -593,7 +602,7 @@ async function postWatcherMessage(message: string): Promise<void> {
 // All OTHER players receive coins via a gift bundle (10 coins per $1 spent)
 async function grantCommunityPurchaseReward(purchaserId: string, amountUsd: number): Promise<void> {
   try {
-    const rewardCoins = Math.max(1, amountUsd * 10);
+    const rewardCoins = communityRewardCoinsForUsd(amountUsd);
     const allUsers = await storage.getAllUsers();
     // Admins are excluded from the Spirit of Veridia community gift
     const recipients = allUsers.filter(u => !u.isAdmin);

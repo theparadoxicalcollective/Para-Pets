@@ -5,7 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Mail } from "lucide-react";
 import coinIconImg from "@assets/icon_coin.png";
-import giftIconImg from "@assets/generated_images/gift_icon_forest.png";
+import giftIconImg from "@assets/generated_images/gift_icon_forest_nobg.png";
 import RewardClaimModal from "./RewardClaimModal";
 
 interface TopBarProps {

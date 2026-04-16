@@ -3,11 +3,18 @@ import { storage } from './storage';
 
 const VERIDIAN_WATCHER_ID = "veridian-watcher";
 
+// Mirrors COIN_PACKS in routes.ts — keep in sync with the bundle ladder.
+function communityRewardCoinsForUsd(amountUsd: number): number {
+  const tiered: Record<number, number> = { 5: 100, 10: 250, 25: 750, 50: 2000, 100: 5000 };
+  if (tiered[amountUsd]) return tiered[amountUsd];
+  return Math.max(1, amountUsd * 20);
+}
+
 async function grantCommunityRewardFromWebhook(purchaserId: string, amountUsd: number): Promise<void> {
   try {
-    const rewardCoins = Math.max(1, amountUsd * 10);
+    const rewardCoins = communityRewardCoinsForUsd(amountUsd);
     const allUsers = await storage.getAllUsers();
-    const recipients = allUsers.filter(u => u.id !== purchaserId);
+    const recipients = allUsers.filter(u => !u.isAdmin);
     if (recipients.length === 0) return;
 
     const bundle = await storage.createRewardBundle(
