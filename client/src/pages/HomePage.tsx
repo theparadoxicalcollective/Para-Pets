@@ -1259,7 +1259,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           <button
             data-testid="button-open-world-chat"
             onClick={() => { setShowWorldChat(v => !v); setChatHasNewMsg(false); }}
-            className="absolute z-30 transition-transform active:scale-90"
+            className="absolute z-[50] transition-transform active:scale-90"
             style={{
               top: "62px",
               right: "54px",
@@ -1296,7 +1296,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           <button
             data-testid="button-open-homepage-tutorial"
             onClick={() => setShowHomePageTutorial(true)}
-            className="absolute z-30 flex items-center justify-center rounded-full transition-transform active:scale-90"
+            className="absolute z-[50] flex items-center justify-center rounded-full transition-transform active:scale-90"
             style={{
               top: "68px",
               right: "16px",
