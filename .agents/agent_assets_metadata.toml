@@ -216,6 +216,12 @@ uri = "file://attached_assets/generated_images/generated_image.png"
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "jBPBH8NEfHPcBOE4gTaQJ"
+uri = "file://attached_assets/generated_images/veridian_watcher_avatar.png"
+type = "image"
+title = "generated_image"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"
@@ -1133,3 +1139,9 @@ id = "UlfsVHPBWKCk8caQqTWJA"
 uri = "file://attached_assets/bg_login.png"
 type = "image"
 title = "Login Page Background (bg_login.png)"
+
+[[outputs]]
+id = "NUktNglD7VS2oHnTMSHAL"
+uri = "file://attached_assets/generated_images/veridian_watcher_avatar.png"
+type = "image"
+title = "New Veridian Watcher portrait"

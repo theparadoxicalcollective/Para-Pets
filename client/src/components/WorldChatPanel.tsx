@@ -4,6 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { X, Send, ShieldAlert, BellOff, Bell } from "lucide-react";
 import RoleBadge from "@/components/RoleBadge";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
+import veridianWatcherAvatar from "@assets/generated_images/veridian_watcher_avatar.png";
 
 interface WorldChatMessage {
   id: string;
@@ -281,11 +282,18 @@ export default function WorldChatPanel({ currentUserId, onClose, onNewMessage }:
                   boxShadow: isBot ? "0 0 8px rgba(94,234,212,0.3)" : undefined,
                 }}
               >
-                {msg.profileImage ? (
+                {isBot ? (
+                  <img
+                    src={veridianWatcherAvatar}
+                    alt="Veridian Watcher"
+                    className="w-full h-full object-cover"
+                    data-testid={`img-watcher-avatar-${msg.id}`}
+                  />
+                ) : msg.profileImage ? (
                   <img src={msg.profileImage} alt={msg.username} className="w-full h-full object-cover" />
                 ) : (
-                  <span style={{ color: isBot ? VW_COLOR : GOLD, fontSize: 10, fontWeight: "bold" }}>
-                    {isBot ? "👁️" : msg.username.charAt(0).toUpperCase()}
+                  <span style={{ color: GOLD, fontSize: 10, fontWeight: "bold" }}>
+                    {msg.username.charAt(0).toUpperCase()}
                   </span>
                 )}
               </div>
