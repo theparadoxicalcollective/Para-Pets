@@ -104,6 +104,15 @@ interface PlacedDecorItem { id: string; decorItemId: string; xPct: number; yPct:
 // ── Constants ────────────────────────────────────────────────────────────────
 const DEFAULT_BG_RATIO = 1920 / 2400;
 const BUILDING_REF_H = 900;
+// Space (in CSS px) reserved at the bottom of the scene so pets & decor
+// cannot be dragged behind the bottom inventory toolbar.
+const BOTTOM_TOOLBAR_RESERVE_PX = 140;
+
+// Clamp helper for Y drag limits — reserves the bottom toolbar area.
+function maxYForHeight(containerH: number, reservePx = BOTTOM_TOOLBAR_RESERVE_PX): number {
+  if (containerH <= 0) return 0.82;
+  return Math.min(0.92, (containerH - reservePx) / containerH);
+}
 
 function parsePetPct(s: string | null): number | null {
   if (!s) return null;
@@ -155,6 +164,8 @@ function InteriorViewer({
   const panStartRef = useRef<{ startX: number; startPanX: number; pid: number } | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [popupPet, setPopupPet] = useState<HousePet | null>(null);
+  const [topPetId, setTopPetId] = useState<string | null>(null);
+  const [topItemId, setTopItemId] = useState<string | null>(null);
   const itemDragRef = useRef<{ id: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number } | null>(null);
   const [itemDragLive, setItemDragLive] = useState<{ id: string; xPct: number; yPct: number } | null>(null);
   const petDragRef = useRef<{ inventoryId: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number } | null>(null);
@@ -240,6 +251,7 @@ function InteriorViewer({
     const newXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidthRef.current));
     const newYPct = Math.max(0.02, Math.min(0.98, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current));
     if (Math.abs(newXPct - drag.startXPct) > 0.005 || Math.abs(newYPct - drag.startYPct) > 0.005) {
+      setTopItemId(drag.id);
       onUpdateItem(drag.id, { xPct: newXPct, yPct: newYPct });
     }
   }, [onUpdateItem]);
@@ -257,10 +269,11 @@ function InteriorViewer({
   const onPetMove = useCallback((e: React.PointerEvent) => {
     const drag = petDragRef.current;
     if (!drag || drag.pid !== e.pointerId || imgWidthRef.current <= 0) return;
+    const maxY = maxYForHeight(containerHRef.current);
     setPetDragLive({
       inventoryId: drag.inventoryId,
       xPct: Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidthRef.current)),
-      yPct: Math.max(0.02, Math.min(0.98, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current)),
+      yPct: Math.max(0.02, Math.min(maxY, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current)),
     });
   }, []);
 
@@ -269,9 +282,11 @@ function InteriorViewer({
     petDragRef.current = null;
     setPetDragLive(null);
     if (!drag || imgWidthRef.current <= 0) return;
+    const maxY = maxYForHeight(containerHRef.current);
     const newXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidthRef.current));
-    const newYPct = Math.max(0.02, Math.min(0.98, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current));
+    const newYPct = Math.max(0.02, Math.min(maxY, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current));
     if (Math.abs(newXPct - drag.startXPct) > 0.005 || Math.abs(newYPct - drag.startYPct) > 0.005) {
+      setTopPetId(drag.inventoryId);
       onMovePet(drag.inventoryId, newXPct, newYPct);
     }
   }, [onMovePet]);
@@ -317,7 +332,7 @@ function InteriorViewer({
           <div
             key={item.id}
             className="absolute"
-            style={{ zIndex: 6, left, top, transform: "translate(-50%, -50%)", touchAction: "none" }}
+            style={{ zIndex: topItemId === item.id ? 8 : 6, left, top, transform: "translate(-50%, -50%)", touchAction: "none" }}
             onPointerDown={(e) => onItemDown(e, item)}
             onPointerMove={onItemMove}
             onPointerUp={onItemUp}
@@ -360,7 +375,7 @@ function InteriorViewer({
           <div
             key={pet.inventoryId}
             className="absolute"
-            style={{ zIndex: 7, left, top, width: PET_SIZE, height: PET_SIZE, transform: "translate(-50%, -50%)", touchAction: "none", cursor: "grab" }}
+            style={{ zIndex: topPetId === pet.inventoryId ? 9 : 7, left, top, width: PET_SIZE, height: PET_SIZE, transform: "translate(-50%, -50%)", touchAction: "none", cursor: "grab" }}
             onPointerDown={(e) => onPetDown(e, pet)}
             onPointerMove={onPetMove}
             onPointerUp={onPetUp}
@@ -482,6 +497,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const [petDragLive, setPetDragLive] = useState<{ inventoryId: string; xPct: number; yPct: number } | null>(null);
   // Popup for outdoor pet tap
   const [outdoorPopupPet, setOutdoorPopupPet] = useState<HousePet | null>(null);
+  // Last-moved pet / decor id — these render above their peers (higher z-index).
+  const [topOutdoorPetId, setTopOutdoorPetId] = useState<string | null>(null);
+  const [topOutdoorDecorId, setTopOutdoorDecorId] = useState<string | null>(null);
   // Hold-to-drag timer for the pet inventory list
   const petHoldRef = useRef<{ pet: HousePet; pid: number; startX: number; startY: number; el: HTMLElement; timer: ReturnType<typeof setTimeout> } | null>(null);
   const petScrollRef = useRef<HTMLDivElement>(null);
@@ -790,7 +808,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             if (outdoorPets.length >= maxOutdoor) {
               toast({ title: "Pet limit reached!", description: `Your yard can hold up to ${maxOutdoor} pets outdoors.` });
             } else {
-              const maxYPct = containerH > 0 ? Math.min(0.88, (containerH - 115) / containerH) : 0.82;
+              const maxYPct = maxYForHeight(containerH);
               placePetMutation.mutate({
                 inventoryId: petDrag.pet.inventoryId,
                 xPct: Math.max(0.05, Math.min(0.95, (localX - panX) / imgWidth)),
@@ -874,6 +892,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     const newXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidth));
     const newYPct = Math.max(0.02, Math.min(0.98, drag.startYPct + (e.clientY - drag.startPointerY) / containerH));
     if (Math.abs(newXPct - drag.startXPct) > 0.005 || Math.abs(newYPct - drag.startYPct) > 0.005) {
+      setTopOutdoorDecorId(drag.id);
       updateDecorMutation.mutate({ id: drag.id, xPct: newXPct, yPct: newYPct });
     }
   }, [imgWidth, containerH]);
@@ -892,7 +911,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     const dy = e.clientY - drag.startPointerY;
     if (Math.hypot(dx, dy) > 8) drag.moved = true;
     if (!drag.moved) return;
-    const maxYPct = containerH > 0 ? Math.min(0.88, (containerH - 115) / containerH) : 0.82;
+    const maxYPct = maxYForHeight(containerH);
     setPetDragLive({
       inventoryId: drag.inventoryId,
       xPct: Math.max(0.05, Math.min(0.95, drag.startXPct + dx / imgWidth)),
@@ -912,7 +931,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       return;
     }
     if (imgWidth <= 0) return;
-    const maxYPct = containerH > 0 ? Math.min(0.88, (containerH - 115) / containerH) : 0.82;
+    const maxYPct = maxYForHeight(containerH);
+    setTopOutdoorPetId(drag.inventoryId);
     updatePetPositionMutation.mutate({
       inventoryId: drag.inventoryId,
       xPct: Math.max(0.05, Math.min(0.95, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidth)),
@@ -1131,7 +1151,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           <div
             key={pet.inventoryId}
             className="absolute"
-            style={{ zIndex: isDraggingThis ? 30 : 12, left, top, width: cfg.size, height: cfg.size, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
+            style={{ zIndex: isDraggingThis ? 30 : (topOutdoorPetId === pet.inventoryId ? 14 : 12), left, top, width: cfg.size, height: cfg.size, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
           >
             {pet.petTemplateId ? (
               <PetAnimator
@@ -1203,7 +1223,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           <div
             key={item.id}
             className="absolute"
-            style={{ zIndex: 6, left, top, transform: "translate(-50%, -50%)", touchAction: "none" }}
+            style={{ zIndex: topOutdoorDecorId === item.id ? 8 : 6, left, top, transform: "translate(-50%, -50%)", touchAction: "none" }}
             onPointerDown={(e) => handlePlacedDragStart(e, item)}
             onPointerMove={handlePlacedDragMove}
             onPointerUp={handlePlacedDragEnd}
@@ -1565,15 +1585,40 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
             {openInventory === "pets" && (() => {
               const unplacedPets = pets.filter(p => p.posLeft === null);
+              const placedCount = pets.length - unplacedPets.length;
               if (pets.length === 0) return (
                 <p className="text-white/40 text-xs text-center py-3" style={{ fontFamily: "Lora, serif" }}>No pets yet — hatch some eggs!</p>
               );
+              const recallButton = placedCount > 0 ? (
+                <button
+                  data-testid="button-recall-all-pets"
+                  onClick={() => storeAllPetsMutation.mutate()}
+                  disabled={storeAllPetsMutation.isPending}
+                  className="rounded-lg px-3 py-1 text-[10px] font-bold transition-transform active:scale-95 disabled:opacity-50"
+                  style={{
+                    background: "rgba(255,100,80,0.18)",
+                    border: "1px solid rgba(255,100,80,0.4)",
+                    color: "rgba(255,170,150,0.95)",
+                    fontFamily: "Lora, serif",
+                    letterSpacing: "0.05em",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {storeAllPetsMutation.isPending ? "Recalling…" : `Recall All (${placedCount})`}
+                </button>
+              ) : null;
               if (unplacedPets.length === 0) return (
-                <p className="text-white/40 text-xs text-center py-3" style={{ fontFamily: "Lora, serif" }}>All pets are on the scene!</p>
+                <div className="flex items-center justify-between gap-2 py-2">
+                  <p className="text-white/40 text-xs" style={{ fontFamily: "Lora, serif" }}>All pets are on the scene!</p>
+                  {recallButton}
+                </div>
               );
               return (
                 <div className="flex flex-col gap-2">
-                  <p className="text-white/40 text-xs text-center" style={{ fontFamily: "Lora, serif" }}>Hold & drag a pet onto your home</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-white/40 text-xs" style={{ fontFamily: "Lora, serif" }}>Hold &amp; drag a pet onto your home</p>
+                    {recallButton}
+                  </div>
                   <div
                     ref={petScrollRef}
                     className="flex gap-2 overflow-x-auto"
