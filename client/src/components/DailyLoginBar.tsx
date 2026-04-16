@@ -620,12 +620,9 @@ export default function DailyLoginBar({
                     <div className="flex items-center justify-center gap-0.5 mt-auto">
                       <span style={{ fontSize: 8, color: "#4ade80", fontFamily: "inherit" }}>✓ Done</span>
                     </div>
-                  ) : isCurrent ? (
+                  ) : isCurrent && status?.canClaim ? (
                     <button
-                      onClick={() => {
-                        if (!user) { onSignInRequest?.(); return; }
-                        claimMut.mutate();
-                      }}
+                      onClick={() => claimMut.mutate()}
                       disabled={claimMut.isPending}
                       data-testid={`button-claim-day-${reward.day_number}`}
                       className="w-full rounded-xl font-fantasy tracking-wider transition-all active:scale-90"
