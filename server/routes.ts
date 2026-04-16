@@ -586,6 +586,31 @@ async function postWatcherMessage(message: string): Promise<void> {
   }
 }
 
+// Community reward — triggered when any player buys a coin bundle
+// All OTHER players receive coins via a gift bundle (10 coins per $1 spent)
+async function grantCommunityPurchaseReward(purchaserId: string, amountUsd: number): Promise<void> {
+  try {
+    const rewardCoins = Math.max(1, amountUsd * 10);
+    const allUsers = await storage.getAllUsers();
+    const recipients = allUsers.filter(u => u.id !== purchaserId);
+    if (recipients.length === 0) return;
+
+    const bundle = await storage.createRewardBundle(
+      "A Gift from a Special Patron",
+      rewardCoins,
+      `A kind patron purchased coins and shared their fortune with the realm! Claim your gift of ${rewardCoins} coins.`
+    );
+    await Promise.all(recipients.map(u => storage.createUserReward(u.id, bundle.id)));
+
+    await postWatcherMessage(
+      `🌟 A generous soul has purchased coins and chosen to share their fortune with the realm! Every adventurer has received a gift — check your gift inbox to claim your coins. May your journeys prosper!`
+    );
+    console.log(`[Community Reward] Granted ${rewardCoins} coins to ${recipients.length} players (purchase: $${amountUsd})`);
+  } catch (err) {
+    console.error("[Community Reward] Failed to grant community reward:", err);
+  }
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -768,19 +793,21 @@ export async function registerRoutes(
         if (!user.welcomeV2Sent) {
           try { await grantWelcomeV2Bundle(user.id); } catch (e) { console.error("Welcome v2 grant failed:", e); }
         }
-        // Veridian Watcher login greeting
+        // Veridian Watcher login greeting (only if player has shoutouts enabled)
         try {
-          const greetings = [
-            `🌿 Welcome back, ${user.username}! The realm stirs at your return.`,
-            `🌿 Ah, ${user.username} arrives. The wilds have missed you.`,
-            `🌿 ${user.username} steps into the realm once more. Adventure awaits!`,
-            `🌿 The Watcher sees you, ${user.username}. May fortune guide your path.`,
-            `🌿 ${user.username} has returned! The creatures of the realm rejoice.`,
-            `🌿 Greetings, ${user.username}. The enchanted forests are yours to explore.`,
-            `🌿 ${user.username} walks among us again. Good to have you back, traveller.`,
-          ];
-          const msg = greetings[Math.floor(Math.random() * greetings.length)];
-          await postWatcherMessage(msg);
+          if (user.watcherShoutoutsEnabled !== false) {
+            const greetings = [
+              `🌿 Welcome back, ${user.username}! The realm stirs at your return.`,
+              `🌿 Ah, ${user.username} arrives. The wilds have missed you.`,
+              `🌿 ${user.username} steps into the realm once more. Adventure awaits!`,
+              `🌿 The Watcher sees you, ${user.username}. May fortune guide your path.`,
+              `🌿 ${user.username} has returned! The creatures of the realm rejoice.`,
+              `🌿 Greetings, ${user.username}. The enchanted forests are yours to explore.`,
+              `🌿 ${user.username} walks among us again. Good to have you back, traveller.`,
+            ];
+            const msg = greetings[Math.floor(Math.random() * greetings.length)];
+            await postWatcherMessage(msg);
+          }
         } catch (e) { console.error("[VW] Login greeting failed:", e); }
         const freshUser = await storage.getUser(user.id);
         const { password: _, ...safeUser } = freshUser ?? user;
@@ -1067,7 +1094,9 @@ export async function registerRoutes(
         (req.user as any).emailVerified = true;
       }
       // Veridian Watcher welcome message (fire-and-forget)
-      postWatcherMessage(`🌿 A new soul stirs in the realm — welcome, ${user.username}! May your journey through Para Pets be filled with wonder and discovery. The wilds await you...`).catch(() => {});
+      if (user.watcherShoutoutsEnabled !== false) {
+        postWatcherMessage(`🌿 A new soul stirs in the realm — welcome, ${user.username}! May your journey through Para Pets be filled with wonder and discovery. The wilds await you...`).catch(() => {});
+      }
       return res.redirect(`${APP_URL}/?verified=1`);
     } catch (err) {
       console.error("Verify email error:", err);
@@ -1565,7 +1594,9 @@ export async function registerRoutes(
       // Veridian Watcher congratulation for first 4/5-star pet acquisition
       if (shopItem.type === "pet" && isFirstPetAcquisition && (shopItem.starRarity ?? 0) >= 4) {
         const stars = "⭐".repeat(shopItem.starRarity ?? 4);
-        postWatcherMessage(`✨ The stars align! ${user.username} has just acquired the rare ${stars} ${shopItem.name}! A magnificent addition to their collection — well done, adventurer!`).catch(() => {});
+        if (user.watcherShoutoutsEnabled !== false) {
+          postWatcherMessage(`✨ The stars align! ${user.username} has just acquired the rare ${stars} ${shopItem.name}! A magnificent addition to their collection — well done, adventurer!`).catch(() => {});
+        }
       }
 
       return res.json({ inventory: invItem, user: safeUser, quantity: purchaseCount });
@@ -2020,6 +2051,8 @@ export async function registerRoutes(
       try {
         await storage.createCoinPurchase(user.id, amountUsd, coins, sessionId);
         await storage.addCoins(user.id, coins);
+        // Fire community reward for all other players (non-blocking)
+        grantCommunityPurchaseReward(user.id, amountUsd).catch(() => {});
       } catch (err: any) {
         if (err.code === '23505') {
           const updatedUser = await storage.getUser(user.id);
@@ -5983,6 +6016,29 @@ export async function registerRoutes(
     return allWords.some(w => buildWordRegex(w).test(normalised));
   }
 
+  // ── Watcher shoutout preference ───────────────────────────────────────────
+  app.get("/api/user/watcher-shoutouts", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const fresh = await storage.getUser(user.id);
+      return res.json({ enabled: fresh?.watcherShoutoutsEnabled ?? true });
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to get preference" });
+    }
+  });
+
+  app.post("/api/user/watcher-shoutouts", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { enabled } = req.body;
+      if (typeof enabled !== "boolean") return res.status(400).json({ message: "enabled must be a boolean" });
+      await storage.setWatcherShoutoutsEnabled(user.id, enabled);
+      return res.json({ enabled });
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to update preference" });
+    }
+  });
+
   app.get("/api/world-chat", isAuthenticated, async (req, res) => {
     try {
       const messages = await storage.getWorldChatMessages();
@@ -6311,14 +6367,19 @@ export async function registerRoutes(
   setInterval(async () => {
     try {
       const leaderboard = await storage.getBadgeLeaderboard(3);
-      const top3 = leaderboard.slice(0, 3).map((u: any) => u.username);
-      const changed = top3.some((name, i) => name !== lastLeaderboardTop3[i]);
+      const top3 = leaderboard.slice(0, 3) as any[];
+      const top3Names = top3.map((u: any) => u.username);
+      const changed = top3Names.some((name, i) => name !== lastLeaderboardTop3[i]);
       if (lastLeaderboardTop3.length > 0 && changed) {
         const medals = ["🥇", "🥈", "🥉"];
-        const formatted = top3.map((name, i) => `${medals[i]} ${name}`).join("  ");
-        await postWatcherMessage(`👁️ The Watcher observes... the leaderboard shifts! The current champions stand as: ${formatted}. Will you rise to challenge them?`);
+        const formatted = await Promise.all(top3.map(async (u: any, i: number) => {
+          const fullUser = await storage.getUser(u.userId).catch(() => null);
+          const displayName = fullUser?.watcherShoutoutsEnabled !== false ? u.username : "a brave champion";
+          return `${medals[i]} ${displayName}`;
+        }));
+        await postWatcherMessage(`👁️ The Watcher observes... the leaderboard shifts! The current champions stand as: ${formatted.join("  ")}. Will you rise to challenge them?`);
       }
-      lastLeaderboardTop3 = top3;
+      lastLeaderboardTop3 = top3Names;
     } catch (err) {
       console.error("[VW] Leaderboard monitor error:", err);
     }

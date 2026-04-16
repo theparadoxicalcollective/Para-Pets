@@ -43,11 +43,25 @@ export default function WorldChatPanel({ currentUserId, onClose, onNewMessage }:
   const [popupIsRestricted, setPopupIsRestricted] = useState(false);
   const [viewingPlayerId, setViewingPlayerId] = useState<string | null>(null);
   const [inputFocused, setInputFocused] = useState(false);
-  const [mutedBot, setMutedBot] = useState(false);
+  const [showShoutoutConfirm, setShowShoutoutConfirm] = useState(false);
   const lastMsgCountRef = useRef(0);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const qc = useQueryClient();
+
+  const { data: shoutoutPref } = useQuery<{ enabled: boolean }>({
+    queryKey: ["/api/user/watcher-shoutouts"],
+    staleTime: 60_000,
+  });
+  const shoutoutsEnabled = shoutoutPref?.enabled ?? true;
+
+  const shoutoutMutation = useMutation({
+    mutationFn: (enabled: boolean) => apiRequest("POST", "/api/user/watcher-shoutouts", { enabled }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/user/watcher-shoutouts"] });
+      setShowShoutoutConfirm(false);
+    },
+  });
 
   const { data: messages = [] } = useQuery<WorldChatMessage[]>({
     queryKey: ["/api/world-chat"],
@@ -55,7 +69,7 @@ export default function WorldChatPanel({ currentUserId, onClose, onNewMessage }:
     staleTime: 0,
   });
 
-  const visibleMessages = mutedBot ? messages.filter(m => !m.isBot) : messages;
+  const visibleMessages = messages;
 
   useEffect(() => {
     if (listRef.current) {
@@ -135,6 +149,46 @@ export default function WorldChatPanel({ currentUserId, onClose, onNewMessage }:
       onClick={e => e.stopPropagation()}
       onPointerDown={e => e.stopPropagation()}
     >
+      {/* Shoutout confirmation overlay */}
+      {showShoutoutConfirm && (
+        <div
+          className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6 text-center"
+          style={{
+            background: "rgba(6,3,1,0.97)",
+            zIndex: 10,
+            borderRadius: 15,
+          }}
+        >
+          <Bell size={28} style={{ color: VW_COLOR }} />
+          <p className="text-sm font-semibold" style={{ color: "#f0c040" }}>
+            {shoutoutsEnabled ? "Turn off world chat shout outs?" : "Turn on world chat shout outs?"}
+          </p>
+          <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
+            {shoutoutsEnabled
+              ? "The Veridian Watcher will no longer mention your name in world chat announcements."
+              : "Allow the Veridian Watcher to mention your name in world chat announcements."}
+          </p>
+          <div className="flex gap-3 mt-1">
+            <button
+              data-testid="button-shoutout-confirm"
+              onClick={() => shoutoutMutation.mutate(!shoutoutsEnabled)}
+              disabled={shoutoutMutation.isPending}
+              className="px-4 py-1.5 rounded-full text-xs font-bold transition-opacity hover:opacity-80"
+              style={{ background: VW_COLOR, color: "#050200" }}
+            >
+              {shoutoutMutation.isPending ? "Saving…" : "Confirm"}
+            </button>
+            <button
+              data-testid="button-shoutout-cancel"
+              onClick={() => setShowShoutoutConfirm(false)}
+              className="px-4 py-1.5 rounded-full text-xs font-bold transition-opacity hover:opacity-80"
+              style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.6)" }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div
         className="flex items-center justify-between px-3 py-2 flex-shrink-0"
@@ -153,21 +207,21 @@ export default function WorldChatPanel({ currentUserId, onClose, onNewMessage }:
           </span>
         </div>
         <div className="flex items-center gap-1.5">
-          {/* Mute bot toggle */}
+          {/* Shoutout toggle — opens confirmation */}
           <button
-            data-testid="button-toggle-bot-mute"
-            onClick={() => setMutedBot(v => !v)}
-            title={mutedBot ? "Unmute Veridian Watcher" : "Mute Veridian Watcher"}
+            data-testid="button-toggle-shoutouts"
+            onClick={() => setShowShoutoutConfirm(true)}
+            title={shoutoutsEnabled ? "Manage shout-out settings" : "Shout-outs are off"}
             className="flex items-center justify-center rounded-full transition-transform active:scale-90"
             style={{
               width: 24, height: 24,
-              background: mutedBot ? "rgba(94,234,212,0.12)" : "rgba(94,234,212,0.06)",
-              border: `1px solid ${mutedBot ? "rgba(94,234,212,0.45)" : "rgba(94,234,212,0.2)"}`,
+              background: !shoutoutsEnabled ? "rgba(94,234,212,0.12)" : "rgba(94,234,212,0.06)",
+              border: `1px solid ${!shoutoutsEnabled ? "rgba(94,234,212,0.45)" : "rgba(94,234,212,0.2)"}`,
               cursor: "pointer",
-              color: mutedBot ? VW_COLOR : "rgba(94,234,212,0.4)",
+              color: !shoutoutsEnabled ? VW_COLOR : "rgba(94,234,212,0.4)",
             }}
           >
-            {mutedBot ? <BellOff size={11} /> : <Bell size={11} />}
+            {shoutoutsEnabled ? <Bell size={11} /> : <BellOff size={11} />}
           </button>
           <button
             data-testid="button-close-world-chat"

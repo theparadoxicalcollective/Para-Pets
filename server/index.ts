@@ -234,6 +234,12 @@ app.use((req, res, next) => {
     console.error("media_blobs table setup error (non-fatal):", err);
   }
 
+  try {
+    await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS watcher_shoutouts_enabled boolean NOT NULL DEFAULT true`);
+  } catch (err) {
+    console.error("watcher_shoutouts_enabled migration error (non-fatal):", err);
+  }
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {

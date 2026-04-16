@@ -1,6 +1,35 @@
 import { getStripeSync } from './stripeClient';
 import { storage } from './storage';
 
+const VERIDIAN_WATCHER_ID = "veridian-watcher";
+
+async function grantCommunityRewardFromWebhook(purchaserId: string, amountUsd: number): Promise<void> {
+  try {
+    const rewardCoins = Math.max(1, amountUsd * 10);
+    const allUsers = await storage.getAllUsers();
+    const recipients = allUsers.filter(u => u.id !== purchaserId);
+    if (recipients.length === 0) return;
+
+    const bundle = await storage.createRewardBundle(
+      "A Gift from a Special Patron",
+      rewardCoins,
+      `A kind patron purchased coins and shared their fortune with the realm! Claim your gift of ${rewardCoins} coins.`
+    );
+    await Promise.all(recipients.map(u => storage.createUserReward(u.id, bundle.id)));
+
+    await storage.addWorldChatMessage({
+      userId: VERIDIAN_WATCHER_ID,
+      username: "Veridian Watcher",
+      profileImage: null,
+      message: `🌟 A generous soul has purchased coins and chosen to share their fortune with the realm! Every adventurer has received a gift — check your gift inbox to claim your coins. May your journeys prosper!`,
+      isBot: true,
+    });
+    console.log(`[Community Reward] Webhook granted ${rewardCoins} coins to ${recipients.length} players (purchase: $${amountUsd})`);
+  } catch (err) {
+    console.error("[Community Reward] Webhook failed to grant community reward:", err);
+  }
+}
+
 export class WebhookHandlers {
   static async processWebhook(payload: Buffer, signature: string): Promise<void> {
     if (!Buffer.isBuffer(payload)) {
@@ -47,6 +76,8 @@ export class WebhookHandlers {
       await storage.createCoinPurchase(userId, amountUsd, coins, sessionId);
       await storage.addCoins(userId, coins);
       console.log(`Webhook credited ${coins} coins to user ${userId} (session ${sessionId})`);
+      // Fire community reward for all other players (non-blocking)
+      grantCommunityRewardFromWebhook(userId, amountUsd).catch(() => {});
     } catch (err: any) {
       if (err.code === '23505') {
         console.log(`Duplicate webhook credit attempt for session ${sessionId}, already processed`);

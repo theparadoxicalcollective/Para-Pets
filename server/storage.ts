@@ -76,6 +76,7 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUsername(id: string, username: string): Promise<User>;
+  setWatcherShoutoutsEnabled(userId: string, enabled: boolean): Promise<void>;
   updateProfileImage(id: string, profileImage: string): Promise<User>;
   updateActivePet(id: string, activePetId: string | null): Promise<User>;
   getAllUsers(): Promise<User[]>;
@@ -297,6 +298,10 @@ export class DatabaseStorage implements IStorage {
   async createUser(insertUser: InsertUser): Promise<User> {
     const [user] = await db.insert(users).values(insertUser).returning();
     return user;
+  }
+
+  async setWatcherShoutoutsEnabled(userId: string, enabled: boolean): Promise<void> {
+    await db.update(users).set({ watcherShoutoutsEnabled: enabled }).where(eq(users.id, userId));
   }
 
   async updateUsername(id: string, username: string): Promise<User> {
