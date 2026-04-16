@@ -362,8 +362,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         <div className="absolute" style={{ left: "65%", top: "35%", width: "4px", height: "4px", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,240,180,0.7) 0%, rgba(255,240,180,0) 70%)", boxShadow: "0 0 6px rgba(255,240,180,0.3)", animation: "orbFloat1 6s ease-in-out infinite 5s", willChange: "transform" }} />
       </div>
 
-      <div className="relative z-10 flex flex-col h-full" style={{ paddingTop: "env(safe-area-inset-top, 0px)", visibility: isOverlayActive ? "hidden" : "visible" }}>
-        <div style={{ visibility: "visible" }}>
+      <div className="relative flex flex-col h-full" style={{ paddingTop: "env(safe-area-inset-top, 0px)", visibility: isOverlayActive ? "hidden" : "visible" }}>
+        <div style={{ position: "relative", zIndex: 40, visibility: "visible" }}>
           <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
         </div>
 
