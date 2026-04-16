@@ -1016,15 +1016,6 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         extraPetHpsRef.current = newExtraHps;
         setExtraPetHps(newExtraHps);
       }
-      // Also top up the active pet if they survived
-      if (petHpRef.current > 0) {
-        const maxHp = petStatsRef.current.maxHp;
-        petHpRef.current = Math.min(maxHp, petHpRef.current + reviveAmt);
-        setPetHp(petHpRef.current);
-        const arnd: DamageNumber = { id: dmgIdRef.current++, x: PET_X, y: PET_Y - 14, value: reviveAmt, isHeal: true };
-        setDamageNumbers(prev => [...prev, arnd]);
-        setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== arnd.id)), 1200);
-      }
 
     } else if (skill === "Poison") {
       if (poisonActive) return;
