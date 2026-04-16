@@ -194,8 +194,6 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   // ── Hold-block state ──────────────────────────────────────────────────────
   const blockHeldRef = useRef(false);
   const [blockHeld, setBlockHeld] = useState(false);
-  const blockCooldownRef = useRef(false);
-  const [blockCooling, setBlockCooling] = useState(false);
   const blockHoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Charge / parry system ────────────────────────────────────────────────
@@ -373,8 +371,10 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     difficultyRef.current = 0.3 + Math.random() * 0.7;
     chargeDurationRef.current = enc.isBoss ? 1000 : 1300;
     enemyOscRef.current = Math.random() * Math.PI * 2;
-    const startX = 45 + Math.random() * 20;
-    const startY = 16 + Math.random() * 6;
+    // Bosses anchor dead-center at the top of the arena so they feel massive
+    // and dramatic; regular enemies still spawn with a bit of randomness.
+    const startX = enc.isBoss ? 50 : 45 + Math.random() * 20;
+    const startY = enc.isBoss ? 20 : 16 + Math.random() * 6;
     enemyPosRef.current = { x: startX, y: startY };
     setEnemyPos({ x: startX, y: startY });
     chargeHomePosRef.current = { x: startX, y: startY };
@@ -553,8 +553,10 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         const osc = enemyOscRef.current;
         let newX: number, newY: number;
         if (isBossRef.current) {
-          newX = chargeHomePosRef.current.x + Math.sin(osc * 0.42) * 12;
-          newY = chargeHomePosRef.current.y + Math.sin(osc * 0.25) * 4;
+          // Bosses stay anchored dead-center at the top with only a tiny
+          // idle hover so they feel imposing rather than bouncy.
+          newX = 50;
+          newY = chargeHomePosRef.current.y + Math.sin(osc * 0.35) * 1.2;
         } else {
           newX = 50 + Math.sin(osc * 0.55) * 18 + Math.sin(osc * 1.1) * 8;
           newY = 19 + Math.sin(osc * 0.7) * 6 + Math.cos(osc * 0.35) * 3;
@@ -868,7 +870,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     const last = lastSwipePointRef.current;
     if (Math.hypot(pos.x - last.x, pos.y - last.y) < 0.5) return;
     swipePathRef.current.push(pos);
-    if (swipePathRef.current.length > 7) swipePathRef.current = swipePathRef.current.slice(-7);
+    // Keep a shorter trail so the slash feels snappy instead of a long streak
+    if (swipePathRef.current.length > 4) swipePathRef.current = swipePathRef.current.slice(-4);
     lastSwipePointRef.current = pos;
     setSlashTrail([...swipePathRef.current]);
     const path = swipePathRef.current;
@@ -889,15 +892,16 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   }, []);
 
   // ── Hold-block functions ──────────────────────────────────────────────────
+  // No cooldown: players hold the button (up to 5s), release, and can re-hold
+  // immediately to block again.
   const startBlock = useCallback(() => {
-    if (!battleActiveRef.current || blockCooldownRef.current) return;
+    if (!battleActiveRef.current) return;
     blockHeldRef.current = true;
     setBlockHeld(true);
-    // Auto-release after 3s max hold
     if (blockHoldTimerRef.current) clearTimeout(blockHoldTimerRef.current);
     blockHoldTimerRef.current = setTimeout(() => {
       endBlock();
-    }, 3000);
+    }, 5000);
   }, []);
 
   const endBlock = useCallback(() => {
@@ -905,12 +909,6 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     blockHeldRef.current = false;
     setBlockHeld(false);
     if (blockHoldTimerRef.current) { clearTimeout(blockHoldTimerRef.current); blockHoldTimerRef.current = null; }
-    blockCooldownRef.current = true;
-    setBlockCooling(true);
-    setTimeout(() => {
-      blockCooldownRef.current = false;
-      setBlockCooling(false);
-    }, 2000);
   }, []);
 
   // ── Special skill ────────────────────────────────────────────────────────
@@ -1316,6 +1314,10 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           0%,100% { filter: drop-shadow(0 0 22px rgba(255,40,40,0.85)); }
           50%      { filter: drop-shadow(0 0 42px rgba(255,100,20,1)); }
         }
+        @keyframes bossAuraPulse {
+          0%,100% { opacity: 0.75; transform: translate(-50%, -50%) scale(1); }
+          50%     { opacity: 1;    transform: translate(-50%, -50%) scale(1.08); }
+        }
         @keyframes bossFloat {
           0%   { transform: translateY(0px); }
           50%  { transform: translateY(-7px); }
@@ -1538,13 +1540,31 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   }} />
                 )}
 
+                {/* Boss radial aura — dark red/orange halo for dramatic weight */}
+                {enemy.isBoss && (
+                  <div style={{
+                    position: "absolute",
+                    left: "50%", top: "50%",
+                    width: 320, height: 320,
+                    transform: "translate(-50%, -50%)",
+                    borderRadius: "50%",
+                    background: bossRage
+                      ? "radial-gradient(circle, rgba(255,60,20,0.45) 0%, rgba(200,20,0,0.22) 35%, transparent 70%)"
+                      : "radial-gradient(circle, rgba(160,20,20,0.38) 0%, rgba(90,10,10,0.18) 40%, transparent 72%)",
+                    filter: "blur(2px)",
+                    animation: "bossAuraPulse 2.8s ease-in-out infinite",
+                    pointerEvents: "none",
+                    zIndex: -1,
+                  }} />
+                )}
+
                 {enemy.imageUrl ? (
                   <img
                     src={enemy.imageUrl}
                     alt={enemy.name}
                     style={{
-                      width: enemy.isBoss ? 148 : 84,
-                      height: enemy.isBoss ? 148 : 84,
+                      width: enemy.isBoss ? 230 : 120,
+                      height: enemy.isBoss ? 230 : 120,
                       display: "block",
                       filter: bossRage && enemy.isBoss
                         ? "drop-shadow(0 0 18px rgba(255,40,40,0.9))"
@@ -1558,9 +1578,9 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                 ) : (
                   <div
                     className="flex items-center justify-center bg-red-900/50 border-2 border-red-500 rounded-full"
-                    style={{ width: enemy.isBoss ? 148 : 84, height: enemy.isBoss ? 148 : 84 }}
+                    style={{ width: enemy.isBoss ? 230 : 120, height: enemy.isBoss ? 230 : 120 }}
                   >
-                    <Swords style={{ width: enemy.isBoss ? 56 : 32, height: enemy.isBoss ? 56 : 32, color: "#f87171" }} />
+                    <Swords style={{ width: enemy.isBoss ? 80 : 44, height: enemy.isBoss ? 80 : 44, color: "#f87171" }} />
                   </div>
                 )}
 
@@ -1592,11 +1612,11 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               return (
                 <div key={`extra-pet-${si}`} className="absolute z-10 flex flex-col items-center" style={{ left: `${epos.x}%`, top: `${epos.y}%`, transform: "translate(-50%,-50%)", filter: isDead ? "grayscale(1) opacity(0.35)" : undefined }}>
                   {(ep as any).petTemplateId ? (
-                    <PetAnimator petTemplateId={(ep as any).petTemplateId} mode="idle" view="front" size={130} />
+                    <PetAnimator petTemplateId={(ep as any).petTemplateId} mode="idle" view="front" size={170} />
                   ) : (ep.hatchedImageUrl || ep.imageUrl) ? (
-                    <img src={(ep.hatchedImageUrl || ep.imageUrl)!} alt={ep.name} className="object-contain" style={{ width: 130, height: 130 }} />
+                    <img src={(ep.hatchedImageUrl || ep.imageUrl)!} alt={ep.name} className="object-contain" style={{ width: 170, height: 170 }} />
                   ) : (
-                    <img src={petPawIcon} alt="" style={{ width: 60, height: 60, objectFit: "contain" }} />
+                    <img src={petPawIcon} alt="" style={{ width: 78, height: 78, objectFit: "contain" }} />
                   )}
                   {/* HP bar for extra pet */}
                   <div className="w-20 h-1.5 rounded-full overflow-hidden mt-1" style={{ background: "rgba(0,0,0,0.5)" }}>
@@ -1643,7 +1663,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   petTemplateId={pet.petTemplateId}
                   mode="idle"
                   view="front"
-                  size={190}
+                  size={240}
                   style={mana >= MAX_MANA && !skillCooldown ? { animation: "manaGlow 1s ease-in-out infinite" } : undefined}
                 />
               ) : pet.imageUrl ? (
@@ -1651,10 +1671,10 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   src={pet.imageUrl}
                   alt={pet.name}
                   className="object-contain drop-shadow-lg"
-                  style={{ width: 190, height: 190, animation: mana >= MAX_MANA && !skillCooldown ? "manaGlow 1s ease-in-out infinite" : undefined }}
+                  style={{ width: 240, height: 240, animation: mana >= MAX_MANA && !skillCooldown ? "manaGlow 1s ease-in-out infinite" : undefined }}
                 />
               ) : (
-                <img src={petPawIcon} alt="" style={{ width: 90, height: 90, objectFit: "contain" }} />
+                <img src={petPawIcon} alt="" style={{ width: 120, height: 120, objectFit: "contain" }} />
               )}
 
               {/* Counter hits badge */}
@@ -1678,44 +1698,6 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                 </div>
               )}
 
-              {/* Charge incoming hint above active pet */}
-              {phase === "battle" && enemyCharging && chargeTargetIdxRef.current === 0 && petHp > 0 && (
-                <div style={{
-                  position: "absolute",
-                  top: -36,
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  whiteSpace: "nowrap",
-                  fontFamily: "Lora, serif",
-                  fontSize: 11,
-                  fontWeight: 800,
-                  color: blockHeld ? "#60a5fa" : "#ef4444",
-                  textShadow: blockHeld ? "0 0 10px rgba(96,165,250,0.9), 0 1px 0 #000" : "0 0 10px rgba(239,68,68,0.9), 0 1px 0 #000",
-                  letterSpacing: "0.1em",
-                  animation: "tensionPulse 0.4s ease-in-out infinite",
-                  pointerEvents: "none",
-                }}>
-                  <img src={blockHeld ? blockIconPng : warningRunePng} alt="" style={{ width: 13, height: 13, objectFit: "contain", verticalAlign: "middle", marginRight: 4, display: "inline-block" }} />
-                  {blockHeld ? "BLOCKING!" : "HOLD BLOCK!"}
-                </div>
-              )}
-              {phase === "battle" && mana >= MAX_MANA && !skillCooldown && pet.specialSkill && (
-                <div style={{
-                  position: "absolute",
-                  top: -36,
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  whiteSpace: "nowrap",
-                  fontFamily: "Lora, serif",
-                  fontSize: 11,
-                  fontWeight: 800,
-                  color: rarityColor,
-                  textShadow: `0 0 10px ${rarityColor}cc, 0 1px 0 #000`,
-                  letterSpacing: "0.1em",
-                  animation: "tensionPulse 0.7s ease-in-out infinite",
-                  pointerEvents: "none",
-                }}>✦ TAP FOR SKILL</div>
-              )}
             </div>
 
             {/* ── Block & Skill buttons on the right ─────────────────── */}
@@ -1723,7 +1705,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               <div className="absolute z-20 flex flex-col gap-4"
                 style={{ right: "4%", top: "52%", transform: "translateY(-50%)", pointerEvents: "auto" }}>
 
-                {/* Block button — hold to shield */}
+                {/* Block button — hold to shield (no cooldown, 5s max per hold) */}
                 <div className="flex flex-col items-center gap-1">
                   <button
                     data-testid="button-battle-block"
@@ -1732,31 +1714,29 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                     onPointerLeave={() => endBlock()}
                     className="relative rounded-2xl flex items-center justify-center transition-all active:scale-90"
                     style={{
-                      width: 58, height: 58,
+                      width: 64, height: 64,
                       background: blockHeld
                         ? "linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%)"
-                        : blockCooling
-                          ? "rgba(50,50,80,0.55)"
-                          : "rgba(0,0,0,0.55)",
+                        : "linear-gradient(135deg, rgba(30,58,138,0.55) 0%, rgba(37,99,235,0.35) 100%)",
                       border: blockHeld
-                        ? "2.5px solid rgba(96,165,250,0.9)"
-                        : "2px solid rgba(255,255,255,0.12)",
+                        ? "2.5px solid rgba(147,197,253,1)"
+                        : "2px solid rgba(96,165,250,0.55)",
                       boxShadow: blockHeld
-                        ? "0 0 18px rgba(96,165,250,0.7), 0 2px 8px rgba(0,0,0,0.6)"
-                        : "0 2px 8px rgba(0,0,0,0.5)",
-                      opacity: blockCooling ? 0.3 : 0.85,
+                        ? "0 0 22px rgba(96,165,250,0.85), 0 0 10px rgba(147,197,253,0.6), 0 2px 8px rgba(0,0,0,0.6)"
+                        : "0 0 12px rgba(96,165,250,0.45), 0 2px 8px rgba(0,0,0,0.55)",
+                      opacity: 1,
                       animation: blockHeld ? "blockReadyPulse 0.55s ease-in-out infinite" : undefined,
                     }}
                   >
-                    <img src={blockIconPng} alt="Block" style={{ width: 36, height: 36, objectFit: "contain", opacity: blockCooling ? 0.4 : 1 }} />
+                    <img src={blockIconPng} alt="Block" style={{ width: 40, height: 40, objectFit: "contain" }} />
                     {blockHeld && (
                       <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full"
                         style={{ background: "#60a5fa", boxShadow: "0 0 8px rgba(96,165,250,0.9)" }} />
                     )}
                   </button>
-                  <span className="font-fantasy text-[8px] tracking-widest"
-                    style={{ color: blockHeld ? "#60a5fa" : blockCooling ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.25)", textShadow: blockHeld ? "0 0 8px rgba(96,165,250,0.7)" : undefined }}>
-                    {blockCooling ? "CD..." : "BLOCK"}
+                  <span className="font-fantasy text-[9px] tracking-widest"
+                    style={{ color: blockHeld ? "#93c5fd" : "#60a5fa", textShadow: blockHeld ? "0 0 8px rgba(147,197,253,0.9)" : "0 0 6px rgba(96,165,250,0.5)" }}>
+                    BLOCK
                   </span>
                 </div>
 
@@ -1768,26 +1748,28 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                       onPointerDown={(e) => { e.stopPropagation(); useSpecialSkill(); }}
                       className="relative rounded-2xl flex items-center justify-center transition-colors active:scale-90"
                       style={{
-                        width: 58, height: 58,
+                        width: 64, height: 64,
                         background: mana >= MAX_MANA && !skillCooldown
-                          ? `linear-gradient(135deg, ${rarityColor}55 0%, ${rarityColor}33 100%)`
-                          : "rgba(0,0,0,0.55)",
+                          ? `linear-gradient(135deg, ${rarityColor}77 0%, ${rarityColor}44 100%)`
+                          : `linear-gradient(135deg, ${rarityColor}33 0%, ${rarityColor}1a 100%)`,
                         border: mana >= MAX_MANA && !skillCooldown
-                          ? `2.5px solid ${rarityColor}dd`
-                          : "2px solid rgba(255,255,255,0.12)",
-                        boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
-                        opacity: skillCooldown ? 0.35 : 0.75,
+                          ? `2.5px solid ${rarityColor}`
+                          : `2px solid ${rarityColor}80`,
+                        boxShadow: mana >= MAX_MANA && !skillCooldown
+                          ? `0 0 22px ${rarityColor}cc, 0 2px 8px rgba(0,0,0,0.6)`
+                          : `0 0 10px ${rarityColor}55, 0 2px 8px rgba(0,0,0,0.55)`,
+                        opacity: skillCooldown ? 0.5 : 1,
                         animation: mana >= MAX_MANA && !skillCooldown ? "skillBtnReadyGlow 1s ease-in-out infinite" : undefined,
                       }}
                     >
-                      <img src={skillIconPng} alt="Skill" style={{ width: 36, height: 36, objectFit: "contain", opacity: mana >= MAX_MANA && !skillCooldown ? 1 : 0.6 }} />
+                      <img src={skillIconPng} alt="Skill" style={{ width: 40, height: 40, objectFit: "contain", opacity: mana >= MAX_MANA && !skillCooldown ? 1 : 0.75 }} />
                       {mana >= MAX_MANA && !skillCooldown && (
                         <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full"
                           style={{ background: rarityColor, boxShadow: `0 0 8px ${rarityColor}` }} />
                       )}
                     </button>
-                    <span className="font-fantasy text-[8px] tracking-widest"
-                      style={{ color: mana >= MAX_MANA && !skillCooldown ? rarityColor : "rgba(255,255,255,0.25)", textShadow: mana >= MAX_MANA && !skillCooldown ? `0 0 8px ${rarityColor}88` : undefined }}>
+                    <span className="font-fantasy text-[9px] tracking-widest"
+                      style={{ color: rarityColor, textShadow: `0 0 8px ${rarityColor}aa` }}>
                       SKILL
                     </span>
                   </div>
