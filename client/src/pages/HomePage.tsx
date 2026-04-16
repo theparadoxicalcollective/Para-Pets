@@ -615,11 +615,11 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                           }}
                         >
                           {activePet.eggImageUrl ? (
-                            <div style={{ paddingTop: "13vh", width: "100%" }}>
+                            <div style={{ paddingTop: "13vh", width: "100%", display: "flex", justifyContent: "center" }}>
                               <img
                                 src={activePet.eggImageUrl}
                                 alt={activePet.name}
-                                className="w-full max-h-[50vh] object-contain"
+                                className="w-4/5 max-h-[40vh] object-contain"
                                 style={{
                                   animation: "petImgIdle 3.5s ease-in-out infinite",
                                   transformOrigin: "center bottom",

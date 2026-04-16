@@ -315,6 +315,25 @@ function NavButton({
         />
       </span>
 
+      {/* Icon label */}
+      <span style={{
+        position: "absolute",
+        bottom: -14,
+        left: "50%",
+        transform: "translateX(-50%)",
+        fontSize: 8,
+        fontFamily: "'Cinzel', 'Palatino Linotype', serif",
+        fontWeight: 600,
+        letterSpacing: "0.05em",
+        color: "#f0c040",
+        whiteSpace: "nowrap",
+        textShadow: "0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.8)",
+        pointerEvents: "none",
+        lineHeight: 1,
+      }}>
+        {label}
+      </span>
+
       {/* Sparkle burst particles */}
       {sparks.map(id => (
         <span key={id} style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 200 }}>

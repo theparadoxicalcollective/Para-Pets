@@ -126,6 +126,30 @@ uri = "file://attached_assets/generated_images/nav_icon_world_chat.png"
 type = "image"
 title = "world chat icon"
 
+[[generated]]
+id = "kzLdhyWnaCY_YgUgwUZVB"
+uri = "file://attached_assets/admin_icon_enemies.png"
+type = "image"
+title = "admin enemies icon"
+
+[[generated]]
+id = "KmC3M15bbocYVoHp5CtZc"
+uri = "file://attached_assets/admin_icon_maintenance.png"
+type = "image"
+title = "admin maintenance icon"
+
+[[generated]]
+id = "GD-xQSFX1v6q0PSkG0Vws"
+uri = "file://attached_assets/admin_icon_chat_filter.png"
+type = "image"
+title = "admin chat filter icon"
+
+[[generated]]
+id = "46Ng4hL6azXaOUU2GUAR_"
+uri = "file://attached_assets/admin_icon_veridian_watcher.png"
+type = "image"
+title = "admin veridian watcher icon"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"

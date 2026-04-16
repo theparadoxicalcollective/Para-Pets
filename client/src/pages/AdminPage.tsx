@@ -22,6 +22,11 @@ import adminIconMessages from "@assets/admin_icon_messages.png";
 import adminIconBadges from "@assets/admin_icon_badges.png";
 import adminIconFishing from "@assets/admin_icon_fishing.png";
 import adminIconWelcome from "@assets/admin_icon_welcome.png";
+import adminIconEnemies from "@assets/admin_icon_enemies.png";
+import adminIconHouseBundle from "@assets/admin_icon_house_bundle.png";
+import adminIconMaintenance from "@assets/admin_icon_maintenance.png";
+import adminIconChatFilter from "@assets/admin_icon_chat_filter.png";
+import adminIconVeridianWatcher from "@assets/admin_icon_veridian_watcher.png";
 
 import adminIconPurchases from "@assets/admin_icon_purchases.png";
 
@@ -155,13 +160,13 @@ export default function AdminPage({ user }: AdminPageProps) {
     { key: "badges" as const, label: "Badges", icon: adminIconBadges, desc: "Award badges", color: "#fde68a", glow: "rgba(253,230,138,0.30)", bg: "linear-gradient(145deg, rgba(72,54,0,0.92) 0%, rgba(108,80,0,0.88) 100%)", border: "rgba(253,230,138,0.45)" },
     { key: "fishing" as const, label: "Fishing", icon: adminIconFishing, desc: "Fish & ponds", color: "#93c5fd", glow: "rgba(147,197,253,0.30)", bg: "linear-gradient(145deg, rgba(12,22,60,0.92) 0%, rgba(18,36,90,0.88) 100%)", border: "rgba(147,197,253,0.45)" },
     { key: "welcome" as const, label: "Welcome Bundle", icon: adminIconWelcome, desc: "New user gifts", color: "#6ee7b7", glow: "rgba(110,231,183,0.35)", bg: "linear-gradient(145deg, rgba(8,50,35,0.92) 0%, rgba(14,80,55,0.88) 100%)", border: "rgba(110,231,183,0.45)" },
-    { key: "enemies" as const, label: "Enemies", icon: adminIconBadges, desc: "Enemy database", color: "#fca5a5", glow: "rgba(239,68,68,0.30)", bg: "linear-gradient(145deg, rgba(60,8,8,0.92) 0%, rgba(90,12,12,0.88) 100%)", border: "rgba(239,68,68,0.45)" },
+    { key: "enemies" as const, label: "Enemies", icon: adminIconEnemies, desc: "Enemy database", color: "#fca5a5", glow: "rgba(239,68,68,0.30)", bg: "linear-gradient(145deg, rgba(60,8,8,0.92) 0%, rgba(90,12,12,0.88) 100%)", border: "rgba(239,68,68,0.45)" },
 
-    { key: "home_bundle" as const, label: "Home Bundle", icon: adminIconWelcome, desc: "Decor & bundles", color: "#fbbf24", glow: "rgba(251,191,36,0.30)", bg: "linear-gradient(145deg, rgba(60,40,4,0.92) 0%, rgba(90,60,8,0.88) 100%)", border: "rgba(251,191,36,0.45)" },
+    { key: "home_bundle" as const, label: "Home Bundle", icon: adminIconHouseBundle, desc: "Decor & bundles", color: "#fbbf24", glow: "rgba(251,191,36,0.30)", bg: "linear-gradient(145deg, rgba(60,40,4,0.92) 0%, rgba(90,60,8,0.88) 100%)", border: "rgba(251,191,36,0.45)" },
     { key: "purchases" as const, label: "Purchases", icon: adminIconPurchases, desc: "Coin shop history", color: "#86efac", glow: "rgba(134,239,172,0.30)", bg: "linear-gradient(145deg, rgba(8,45,18,0.92) 0%, rgba(12,70,28,0.88) 100%)", border: "rgba(134,239,172,0.45)" },
-    { key: "maintenance" as const, label: "Maintenance", icon: adminIconWelcome, desc: "DB cleanup tools", color: "#f9a8d4", glow: "rgba(249,168,212,0.30)", bg: "linear-gradient(145deg, rgba(60,8,40,0.92) 0%, rgba(90,12,60,0.88) 100%)", border: "rgba(249,168,212,0.45)" },
-    { key: "chat_filter" as const, label: "Chat Filter", icon: adminIconMessages, desc: "Blocked word list", color: "#fca5a5", glow: "rgba(252,165,165,0.30)", bg: "linear-gradient(145deg, rgba(60,8,8,0.92) 0%, rgba(90,12,12,0.88) 100%)", border: "rgba(252,165,165,0.45)" },
-    { key: "veridian_watcher" as const, label: "Veridian Watcher", icon: adminIconMessages, desc: "Bot quotes", color: "#5eead4", glow: "rgba(94,234,212,0.30)", bg: "linear-gradient(145deg, rgba(8,45,42,0.92) 0%, rgba(14,70,65,0.88) 100%)", border: "rgba(94,234,212,0.45)" },
+    { key: "maintenance" as const, label: "Maintenance", icon: adminIconMaintenance, desc: "DB cleanup tools", color: "#f9a8d4", glow: "rgba(249,168,212,0.30)", bg: "linear-gradient(145deg, rgba(60,8,40,0.92) 0%, rgba(90,12,60,0.88) 100%)", border: "rgba(249,168,212,0.45)" },
+    { key: "chat_filter" as const, label: "Chat Filter", icon: adminIconChatFilter, desc: "Blocked word list", color: "#fca5a5", glow: "rgba(252,165,165,0.30)", bg: "linear-gradient(145deg, rgba(60,8,8,0.92) 0%, rgba(90,12,12,0.88) 100%)", border: "rgba(252,165,165,0.45)" },
+    { key: "veridian_watcher" as const, label: "Veridian Watcher", icon: adminIconVeridianWatcher, desc: "Bot quotes", color: "#5eead4", glow: "rgba(94,234,212,0.30)", bg: "linear-gradient(145deg, rgba(8,45,42,0.92) 0%, rgba(14,70,65,0.88) 100%)", border: "rgba(94,234,212,0.45)" },
   ];
 
   const activeSectionMeta = activeSection ? sections.find(s => s.key === activeSection) : null;
