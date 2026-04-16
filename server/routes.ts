@@ -6008,9 +6008,9 @@ export async function registerRoutes(
         SELECT
           COUNT(*)::int AS total,
           MAX(claimed_at) AS last_claimed,
-          (MAX(claimed_at) IS NULL OR NOW() AT TIME ZONE 'UTC' - MAX(claimed_at) >= INTERVAL '24 hours') AS can_claim,
+          (MAX(claimed_at) IS NULL OR NOW() - MAX(claimed_at) >= INTERVAL '24 hours') AS can_claim,
           CASE WHEN MAX(claimed_at) IS NOT NULL
-            THEN (MAX(claimed_at) + INTERVAL '24 hours') AT TIME ZONE 'UTC'
+            THEN MAX(claimed_at) + INTERVAL '24 hours'
             ELSE NULL
           END AS next_claim_at
         FROM player_daily_login_claims
@@ -6050,7 +6050,7 @@ export async function registerRoutes(
       const totalResult = await db.execute(sql`
         SELECT
           COUNT(*)::int AS total,
-          (MAX(claimed_at) IS NULL OR NOW() AT TIME ZONE 'UTC' - MAX(claimed_at) >= INTERVAL '24 hours') AS can_claim
+          (MAX(claimed_at) IS NULL OR NOW() - MAX(claimed_at) >= INTERVAL '24 hours') AS can_claim
         FROM player_daily_login_claims
         WHERE user_id = ${user.id}
       `);

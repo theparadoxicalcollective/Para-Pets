@@ -149,10 +149,22 @@ function AdminDayEditor({
     onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/daily-login/config"] }),
   });
 
-  const filtered = allItems.filter(it =>
-    matchTab(it.type, tab) &&
-    (!search || it.name.toLowerCase().includes(search.toLowerCase()))
-  );
+  const TYPE_ORDER: Record<string, number> = {
+    special: 0, pet: 1, fish: 2, bait: 3, fishing_pole: 4,
+    heal: 5, stat_boost: 5, potion: 5, revive: 5,
+    decoration: 6, house_bundle: 6,
+  };
+  const filtered = allItems
+    .filter(it =>
+      matchTab(it.type, tab) &&
+      (!search || it.name.toLowerCase().includes(search.toLowerCase()))
+    )
+    .sort((a, b) => {
+      const ao = TYPE_ORDER[a.type] ?? 7;
+      const bo = TYPE_ORDER[b.type] ?? 7;
+      if (ao !== bo) return ao - bo;
+      return a.name.localeCompare(b.name);
+    });
 
   const existingIds = new Set(reward.items.map(i => i.id));
 
@@ -321,7 +333,7 @@ function AdminDayEditor({
 
           {/* Item grid */}
           <div className="grid grid-cols-2 gap-2 pb-4">
-            {filtered.slice(0, 60).map(item => {
+            {filtered.map(item => {
               const alreadyAdded = existingIds.has(item.id);
               return (
                 <button
