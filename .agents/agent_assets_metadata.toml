@@ -150,6 +150,24 @@ uri = "file://attached_assets/admin_icon_veridian_watcher.png"
 type = "image"
 title = "admin veridian watcher icon"
 
+[[generated]]
+id = "YU1OtsQnycDcdXRvp_94s"
+uri = "file://attached_assets/daily_login_rainforest_banner.png"
+type = "image"
+title = "daily login rainforest banner"
+
+[[generated]]
+id = "MOUffgLV4CkT7cO7zSpEZ"
+uri = "file://attached_assets/daily_login_chest_icon.png"
+type = "image"
+title = "daily login chest icon"
+
+[[generated]]
+id = "460e7Av_39SVmfouNSZkw"
+uri = "file://attached_assets/daily_login_claimed_icon.png"
+type = "image"
+title = "daily login claimed check icon"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"

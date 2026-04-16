@@ -313,6 +313,45 @@ app.use((req, res, next) => {
   }
 
   try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS daily_login_rewards (
+        day_number integer PRIMARY KEY CHECK (day_number >= 1 AND day_number <= 7),
+        coin_amount integer NOT NULL DEFAULT 0,
+        updated_at timestamp NOT NULL DEFAULT now()
+      )
+    `);
+    await db.execute(sql`
+      INSERT INTO daily_login_rewards (day_number, coin_amount) VALUES
+        (1, 25),(2, 50),(3, 75),(4, 100),(5, 150),(6, 200),(7, 500)
+      ON CONFLICT (day_number) DO NOTHING
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS daily_login_reward_items (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        day_number integer NOT NULL REFERENCES daily_login_rewards(day_number) ON DELETE CASCADE,
+        shop_item_id varchar NOT NULL,
+        quantity integer NOT NULL DEFAULT 1,
+        UNIQUE (day_number, shop_item_id)
+      )
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS player_daily_login_claims (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id varchar NOT NULL,
+        cycle_number integer NOT NULL DEFAULT 0,
+        day_number integer NOT NULL,
+        claimed_at timestamp NOT NULL DEFAULT now()
+      )
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS idx_player_daily_login_user ON player_daily_login_claims(user_id)
+    `);
+    console.log("daily_login_rewards tables ready.");
+  } catch (err) {
+    console.error("daily_login_rewards table setup error (non-fatal):", err);
+  }
+
+  try {
     console.log('Initializing Stripe...');
     const databaseUrl = process.env.DATABASE_URL;
     if (databaseUrl) {

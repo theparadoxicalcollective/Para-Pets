@@ -38,6 +38,7 @@ import worldSwamp        from "@assets/bg_swamp_map.png";
 import worldVolcanic     from "@assets/bg_volcanic_map.png";
 import worldSnowy        from "@assets/bg_snowy_mountain_map.png";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
+import DailyLoginBar from "@/components/DailyLoginBar";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -1003,6 +1004,12 @@ export default function ParaPetsHubPage() {
 
         {/* ── Main content ─────────────────────────────────────────────────── */}
         <main className="relative max-w-3xl mx-auto px-5 py-8 pb-28" data-testid="hub-main" style={{ zIndex: 1 }}>
+
+          {/* Daily Login Rewards */}
+          <DailyLoginBar
+            user={user}
+            onSignInRequest={() => setShowSignIn(true)}
+          />
 
           {/* Guest CTA */}
           {!user && (
