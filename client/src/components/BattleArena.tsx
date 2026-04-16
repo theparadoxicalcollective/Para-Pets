@@ -992,31 +992,6 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         }
       }
 
-    } else if (skill === "Revive Party") {
-      // Revive fainted extra pets; also heals active pet if they're below 50% HP
-      const healMult = healPctOverride !== null ? healPctOverride / 100 : (pct !== null ? pct / 100 : 0.4);
-      const reviveAmt = Math.max(1, Math.floor(petStatsRef.current.atk * healMult));
-      const newExtraHps = [...extraPetHpsRef.current] as [number, number];
-      let reviveChanged = false;
-      for (let i = 0; i < 2; i++) {
-        const ep = equippedExtraPetsRef.current[i];
-        if (!ep) continue;
-        const epMaxHp = (ep as any).petMaxHp ?? petStatsRef.current.maxHp;
-        if (newExtraHps[i] <= 0) {
-          // Revive fainted pet with partial HP
-          newExtraHps[i] = Math.min(epMaxHp, reviveAmt);
-          reviveChanged = true;
-          const epos = getPetPos(i + 1, equippedPetsCountRef.current);
-          const rnd: DamageNumber = { id: dmgIdRef.current++, x: epos.x, y: epos.y - 14, value: reviveAmt, isHeal: true };
-          setDamageNumbers(prev => [...prev, rnd]);
-          setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== rnd.id)), 1400);
-        }
-      }
-      if (reviveChanged) {
-        extraPetHpsRef.current = newExtraHps;
-        setExtraPetHps(newExtraHps);
-      }
-
     } else if (skill === "Poison") {
       if (poisonActive) return;
       setPoisonActive(true);

@@ -757,7 +757,6 @@ function AdminItemForm({
                   <option value="Bubble">Bubble</option>
                   <option value="Heal Self">Heal Self</option>
                   <option value="Heal Party">Heal Party</option>
-                  <option value="Revive Party">Revive Party</option>
                   <option value="Poison">Poison</option>
                 </select>
                 <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Skill Display Name</label>
@@ -798,7 +797,7 @@ function AdminItemForm({
                   style={inputStyle}
                 />
                 <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">
-                  All values use ATK × % — Damage %: used by Lazer, Bubble, Poison · Heal %: used by Heal Self, Heal Party, Revive Party
+                  All values use ATK × % — Damage %: used by Lazer, Bubble, Poison · Heal %: used by Heal Self, Heal Party
                 </p>
               </div>
               <div>
