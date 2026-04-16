@@ -3858,7 +3858,7 @@ export async function registerRoutes(
       }
 
       const { enemyId } = req.params as Record<string, string>;
-      const { enemyLevel: clientEnemyLevel } = req.body;
+      const { enemyLevel: clientEnemyLevel, extraPetInventoryIds } = req.body;
       const enemy = await storage.getLocationEnemy(enemyId);
       if (!enemy) {
         return res.status(404).json({ message: "Enemy not found" });
@@ -3890,6 +3890,25 @@ export async function registerRoutes(
         petLevel: newLevel,
         petLevelPoints: totalPoints,
       });
+
+      // Grant XP to extra battle pets
+      if (Array.isArray(extraPetInventoryIds) && extraPetInventoryIds.length > 0) {
+        for (const extraId of extraPetInventoryIds) {
+          if (!extraId || extraId === activePet.id) continue;
+          const extraPet = inventory.find((inv: any) => inv.id === extraId && inv.isHatched);
+          if (!extraPet) continue;
+          let eTotalPoints = (extraPet.petLevelPoints || 0) + lvlPointsEarned;
+          let eNewLevel = extraPet.petLevel || 1;
+          while (eNewLevel < 100) {
+            const needed = Math.floor(100 + eNewLevel * 30 + eNewLevel * eNewLevel * 5);
+            if (eTotalPoints < needed) break;
+            eTotalPoints -= needed;
+            eNewLevel++;
+          }
+          if (eNewLevel >= 100) { eNewLevel = 100; eTotalPoints = 0; }
+          await storage.updateInventoryItem(extraPet.id, { petLevel: eNewLevel, petLevelPoints: eTotalPoints });
+        }
+      }
 
       let coinsAwarded = enemy.coinReward || 0;
       if (coinsAwarded > 0) {

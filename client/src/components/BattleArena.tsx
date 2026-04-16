@@ -396,7 +396,10 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   // ── Mutations ────────────────────────────────────────────────────────────
   const defeatMutation = useMutation({
     mutationFn: async ({ enemyId, enemyLevel }: { enemyId: string; enemyLevel: number }) => {
-      const res = await apiRequest("POST", `/api/explore/defeat/${enemyId}`, { enemyLevel });
+      const extraPetInventoryIds = equippedExtraPetsRef.current
+        .filter(Boolean)
+        .map(ep => ep!.inventoryId);
+      const res = await apiRequest("POST", `/api/explore/defeat/${enemyId}`, { enemyLevel, extraPetInventoryIds });
       return res.json();
     },
     onSuccess: (data) => {
@@ -689,7 +692,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
             }, orbDur + 100);
           }
 
-          const nextAutoMs = 3500 + Math.random() * 2000;
+          const nextAutoMs = 1500 + Math.random() * 1000;
           extraAutoTimers.current[i] = now + nextAutoMs;
         }
       }
@@ -968,6 +971,34 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       const nd: DamageNumber = { id: dmgIdRef.current++, x: PET_X, y: PET_Y - 14, value: healAmt, isHeal: true };
       setDamageNumbers(prev => [...prev, nd]);
       setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== nd.id)), 1200);
+      // Heal Party: also heal all extra pets that are alive
+      if (skill === "Heal Party") {
+        const newExtraHps = [...extraPetHpsRef.current] as [number, number];
+        let partyChanged = false;
+        for (let i = 0; i < 2; i++) {
+          const ep = equippedExtraPetsRef.current[i];
+          if (!ep) continue;
+          const epMaxHp = (ep as any).petMaxHp ?? petStatsRef.current.maxHp;
+          const prevHp = newExtraHps[i];
+          // Revive fainted pets with half heal, heal alive pets fully
+          if (prevHp <= 0 && ep) {
+            newExtraHps[i] = Math.min(epMaxHp, Math.floor(healAmt * 0.5));
+          } else if (prevHp > 0) {
+            newExtraHps[i] = Math.min(epMaxHp, prevHp + healAmt);
+          } else {
+            continue;
+          }
+          partyChanged = true;
+          const epos = getPetPos(i + 1, equippedPetsCountRef.current);
+          const end2: DamageNumber = { id: dmgIdRef.current++, x: epos.x, y: epos.y - 14, value: prevHp <= 0 ? Math.floor(healAmt * 0.5) : healAmt, isHeal: true };
+          setDamageNumbers(prev => [...prev, end2]);
+          setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== end2.id)), 1200);
+        }
+        if (partyChanged) {
+          extraPetHpsRef.current = newExtraHps;
+          setExtraPetHps(newExtraHps);
+        }
+      }
 
     } else if (skill === "Poison") {
       if (poisonActive) return;
@@ -1196,6 +1227,10 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           0%   { transform: translate(-50%,-50%) scale(1);    opacity: 0.25; }
           50%  { transform: translate(-50%,-50%) scale(1.18); opacity: 0.5; }
           100% { transform: translate(-50%,-50%) scale(1);    opacity: 0.25; }
+        }
+        @keyframes skillBtnReadyGlow {
+          0%,100% { filter: brightness(1); box-shadow: 0 0 10px rgba(167,139,250,0.4), 0 2px 8px rgba(0,0,0,0.6); }
+          50%     { filter: brightness(1.2); box-shadow: 0 0 24px rgba(167,139,250,0.9), 0 0 8px rgba(200,180,255,0.5), 0 2px 8px rgba(0,0,0,0.6); }
         }
         @keyframes chargeRingPulse {
           0%   { transform: translate(-50%,-50%) scale(1);    opacity: 0.5; box-shadow: 0 0 0 0 rgba(255,60,60,0.6); }
@@ -1549,28 +1584,6 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               onPointerDown={handlePetClick}
               data-testid="pet-battle-sprite"
             >
-              {/* Block-held blue shield ring */}
-              {blockHeld && (
-                <div style={{
-                  position: "absolute", left: "50%", top: "50%",
-                  width: 210, height: 210, borderRadius: "50%",
-                  border: "3px solid rgba(96,165,250,0.9)",
-                  boxShadow: "0 0 28px rgba(96,165,250,0.8), 0 0 10px rgba(96,165,250,0.5)",
-                  transform: "translate(-50%,-50%)",
-                  animation: "chargeRingPulse 0.55s ease-in-out infinite",
-                }} />
-              )}
-              {/* Skill-ready rarity aura */}
-              {mana >= MAX_MANA && !skillCooldown && pet.specialSkill && petHp > 0 && (
-                <div style={{
-                  position: "absolute", left: "50%", top: "50%",
-                  width: 200, height: 200, borderRadius: "50%",
-                  border: `2.5px solid ${rarityColor}cc`,
-                  boxShadow: `0 0 24px ${rarityColor}99, 0 0 10px ${rarityColor}55`,
-                  transform: "translate(-50%,-50%)",
-                  animation: "manaAura 1s ease-in-out infinite",
-                }} />
-              )}
               {/* Counter window golden ring */}
               {counterActive && (
                 <div style={{
@@ -1709,23 +1722,21 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                     <button
                       data-testid="button-battle-skill"
                       onPointerDown={(e) => { e.stopPropagation(); useSpecialSkill(); }}
-                      className="relative rounded-2xl flex items-center justify-center transition-all active:scale-90"
+                      className="relative rounded-2xl flex items-center justify-center transition-colors active:scale-90"
                       style={{
                         width: 58, height: 58,
                         background: mana >= MAX_MANA && !skillCooldown
-                          ? `linear-gradient(135deg, ${rarityColor}44 0%, ${rarityColor}22 100%)`
+                          ? `linear-gradient(135deg, ${rarityColor}55 0%, ${rarityColor}33 100%)`
                           : "rgba(0,0,0,0.55)",
                         border: mana >= MAX_MANA && !skillCooldown
-                          ? `2.5px solid ${rarityColor}cc`
+                          ? `2.5px solid ${rarityColor}dd`
                           : "2px solid rgba(255,255,255,0.12)",
-                        boxShadow: mana >= MAX_MANA && !skillCooldown
-                          ? `0 0 18px ${rarityColor}66, 0 2px 8px rgba(0,0,0,0.6)`
-                          : "0 2px 8px rgba(0,0,0,0.5)",
-                        opacity: mana >= MAX_MANA && !skillCooldown ? 1 : 0.4,
-                        animation: mana >= MAX_MANA && !skillCooldown ? "manaAura 1s ease-in-out infinite" : undefined,
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
+                        opacity: skillCooldown ? 0.35 : 0.75,
+                        animation: mana >= MAX_MANA && !skillCooldown ? "skillBtnReadyGlow 1s ease-in-out infinite" : undefined,
                       }}
                     >
-                      <img src={skillIconPng} alt="Skill" style={{ width: 36, height: 36, objectFit: "contain" }} />
+                      <img src={skillIconPng} alt="Skill" style={{ width: 36, height: 36, objectFit: "contain", opacity: mana >= MAX_MANA && !skillCooldown ? 1 : 0.6 }} />
                       {mana >= MAX_MANA && !skillCooldown && (
                         <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full"
                           style={{ background: rarityColor, boxShadow: `0 0 8px ${rarityColor}` }} />
