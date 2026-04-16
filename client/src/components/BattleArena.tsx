@@ -992,6 +992,29 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         }
       }
 
+    } else if (skill === "Revive Party") {
+      const healMult = healPctOverride !== null ? healPctOverride / 100 : (pct !== null ? pct / 100 : 0.4);
+      const reviveAmt = Math.max(1, Math.floor(petStatsRef.current.atk * healMult));
+      const newExtraHps = [...extraPetHpsRef.current] as [number, number];
+      let anyRevived = false;
+      for (let i = 0; i < 2; i++) {
+        const ep = equippedExtraPetsRef.current[i];
+        if (!ep) continue;
+        const epMaxHp = (ep as any).petMaxHp ?? petStatsRef.current.maxHp;
+        if (newExtraHps[i] <= 0) {
+          newExtraHps[i] = Math.min(epMaxHp, reviveAmt);
+          anyRevived = true;
+          const epos = getPetPos(i + 1, equippedPetsCountRef.current);
+          const rnd: DamageNumber = { id: dmgIdRef.current++, x: epos.x, y: epos.y - 14, value: reviveAmt, isHeal: true };
+          setDamageNumbers(prev => [...prev, rnd]);
+          setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== rnd.id)), 1400);
+        }
+      }
+      if (anyRevived) {
+        extraPetHpsRef.current = newExtraHps;
+        setExtraPetHps(newExtraHps);
+      }
+
     } else if (skill === "Poison") {
       if (poisonActive) return;
       setPoisonActive(true);
