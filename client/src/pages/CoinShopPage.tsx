@@ -211,14 +211,18 @@ export default function CoinShopPage({ user }: CoinShopProps) {
     }
 
     if (success && sessionId) {
-      // verifying was already set to true synchronously in useState — just do the call
-      setVerifying(true);
+      // verifying was already set true synchronously via useState initializer
       apiRequest("POST", "/api/coins/verify", { sessionId })
         .then(res => res.json())
         .then(data => {
-          if (data.user) setCurrentUser(data.user);
-          queryClient.refetchQueries({ queryKey: ["/api/auth/me"] });
-          queryClient.refetchQueries({ queryKey: ["/api/coins/packs"] });
+          if (data.user) {
+            setCurrentUser(data.user);
+            // Optimistically push the fresh user into the cache so other pages
+            // see updated coins instantly — no flicker from a refetch.
+            queryClient.setQueryData(["/api/auth/me"], data.user);
+          }
+          // Refresh daily-spent counter in the background (non-blocking)
+          queryClient.invalidateQueries({ queryKey: ["/api/coins/packs"] });
           window.history.replaceState({}, "", "/coins");
           if (data.credited || data.alreadyCredited) {
             setSuccessCoins(data.coins);
@@ -470,9 +474,9 @@ export default function CoinShopPage({ user }: CoinShopProps) {
             style={{
               position: "fixed", inset: 0, zIndex: 9997,
               display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-              background: "rgba(2,8,3,0.97)",
-              backdropFilter: "blur(12px)",
+              background: "rgba(2,8,3,0.985)",
               animation: "overlayFadeIn 0.2s ease-out",
+              willChange: "opacity",
             }}
           >
             {packImg && (
@@ -514,9 +518,9 @@ export default function CoinShopPage({ user }: CoinShopProps) {
           style={{
             position: "fixed", inset: 0, zIndex: 9998,
             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-            background: "rgba(2,8,3,0.97)",
-            backdropFilter: "blur(12px)",
+            background: "rgba(2,8,3,0.985)",
             animation: "overlayFadeIn 0.15s ease-out",
+            willChange: "opacity",
           }}
         >
           <img

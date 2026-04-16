@@ -2055,26 +2055,25 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Payment amount mismatch" });
       }
 
+      let updatedUser;
       try {
         await storage.createCoinPurchase(user.id, amountUsd, coins, sessionId);
-        await storage.addCoins(user.id, coins);
-        // Fire community reward for all other players (non-blocking)
+        // addCoins returns the updated user — avoid an extra round-trip
+        updatedUser = await storage.addCoins(user.id, coins);
+        // Fire community reward + badge awards in the background so the player's
+        // verification overlay closes as fast as possible.
         grantCommunityPurchaseReward(user.id, amountUsd).catch(() => {});
+        maybeAwardAcquisitionBadges(user.id, amountUsd).catch(() => {});
       } catch (err: any) {
         if (err.code === '23505') {
-          const updatedUser = await storage.getUser(user.id);
-          const { password: _, ...safeUser } = updatedUser!;
-          return res.json({ alreadyCredited: true, coins, user: safeUser });
+          const u = await storage.getUser(user.id);
+          const { password: _, ...safeU } = u!;
+          return res.json({ alreadyCredited: true, coins, user: safeU });
         }
         throw err;
       }
 
-      // Award acquisition badges based on this purchase
-      await maybeAwardAcquisitionBadges(user.id, amountUsd);
-
-      const updatedUser = await storage.getUser(user.id);
       const { password: _, ...safeUser } = updatedUser!;
-
       return res.json({ credited: true, coins, user: safeUser });
     } catch (err) {
       console.error("Verify purchase error:", err);
@@ -6407,6 +6406,18 @@ export async function registerRoutes(
       console.error("[VW] Leaderboard monitor error:", err);
     }
   }, 5 * 60 * 1000);
+
+  // Pre-warm the Stripe price cache in the background so the first checkout
+  // request after server boot doesn't pay the cost of a slow prices.list call.
+  (async () => {
+    try {
+      const stripe = await getUncachableStripeClient();
+      await Promise.all(COIN_PACKS.map(p => getOrCreateStripePrice(stripe, p).catch(() => null)));
+      console.log(`[Stripe] Pre-warmed price cache for ${Object.keys(stripePriceCache).length} coin packs`);
+    } catch (err) {
+      // Stripe may not be configured in dev; ignore
+    }
+  })();
 
   return httpServer;
 }
