@@ -3981,6 +3981,19 @@ export async function registerRoutes(
     }
   });
 
+  // Public egg showcase — returns pet eggs for the hub page (no auth required)
+  app.get("/api/public/eggs", async (_req, res) => {
+    try {
+      const allItems = await storage.getAllShopItems();
+      const eggs = allItems
+        .filter((i: any) => i.type === "pet" && i.eggImageUrl)
+        .map((i: any) => ({ id: i.id, eggImageUrl: i.eggImageUrl }));
+      return res.json(eggs);
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to load eggs" });
+    }
+  });
+
   // Privacy policy — public read, admin write
   app.get("/api/privacy-policy", async (_req, res) => {
     try {

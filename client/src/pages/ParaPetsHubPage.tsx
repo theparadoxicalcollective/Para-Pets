@@ -9,7 +9,6 @@ import heroBanner        from "@assets/hub_hero_banner.png";
 import mascot            from "@assets/hub_mascot.png";
 import runeCircle        from "@assets/hub_rune_circle.png";
 import eggsImg           from "@assets/hub_eggs.png";
-import legendBanner      from "@assets/hub_legend_banner.png";
 import podiumImg         from "@assets/hub_podium.png";
 import rankCrowns        from "@assets/hub_rank_crowns.png";
 import iconBadges        from "@assets/admin_icon_badges.png";
@@ -717,6 +716,140 @@ function HomeScreenModal({ onClose }: { onClose: () => void }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Egg showcase carousel (public, no names)
+// ─────────────────────────────────────────────────────────────────────────────
+const EGG_SIZE  = 88;
+const EGG_GAP   = 14;
+const EGG_STEP  = EGG_SIZE + EGG_GAP;
+const EGG_INTERVAL = 2600;
+
+function EggShowcase() {
+  const { data: eggs = [] } = useQuery<{ id: string; eggImageUrl: string }[]>({
+    queryKey: ["/api/public/eggs"],
+    staleTime: 300_000,
+    retry: false,
+  });
+
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [containerW, setContainerW] = useState(360);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const intervalRef  = useRef<ReturnType<typeof setInterval> | null>(null);
+  const ptrStartX    = useRef<number | null>(null);
+
+  useEffect(() => {
+    const measure = () => { if (containerRef.current) setContainerW(containerRef.current.offsetWidth); };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+
+  const restartTimer = useCallback(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    if (eggs.length < 2) return;
+    intervalRef.current = setInterval(() => {
+      setActiveIdx(i => (i + 1) % eggs.length);
+    }, EGG_INTERVAL);
+  }, [eggs.length]);
+
+  useEffect(() => {
+    restartTimer();
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [restartTimer]);
+
+  const goTo = useCallback((idx: number) => {
+    setActiveIdx(((idx % (eggs.length || 1)) + (eggs.length || 1)) % (eggs.length || 1));
+    restartTimer();
+  }, [eggs.length, restartTimer]);
+
+  if (eggs.length === 0) return null;
+
+  const stripOffset = containerW / 2 - (activeIdx * EGG_STEP + EGG_SIZE / 2);
+
+  return (
+    <div className="mb-2" data-testid="egg-showcase">
+      <h2 className="font-fantasy text-center text-sm tracking-widest mb-1"
+        style={{ color: "#7fbfb0", textShadow: "0 0 12px rgba(127,191,176,0.3)" }}>
+        Eggs of the Realm
+      </h2>
+      <p className="font-fantasy text-center text-[10px] mb-4" style={{ color: "#2a4a38" }}>
+        What mysteries lie within?
+      </p>
+
+      <div
+        ref={containerRef}
+        style={{ overflow: "hidden", position: "relative", touchAction: "none" }}
+        onPointerDown={e => { ptrStartX.current = e.clientX; }}
+        onPointerUp={e => {
+          if (ptrStartX.current === null) return;
+          const dx = e.clientX - ptrStartX.current;
+          ptrStartX.current = null;
+          if (Math.abs(dx) > 24) goTo(activeIdx + (dx < 0 ? 1 : -1));
+        }}
+        onPointerLeave={() => { ptrStartX.current = null; }}
+      >
+        <div style={{
+          display: "flex", gap: EGG_GAP,
+          transform: `translateX(${stripOffset}px)`,
+          transition: "transform 0.48s cubic-bezier(0.25,0.46,0.45,0.94)",
+          willChange: "transform",
+          paddingTop: 10, paddingBottom: 20,
+        }}>
+          {eggs.map((egg, i) => {
+            const active = i === activeIdx;
+            return (
+              <div
+                key={egg.id}
+                data-testid={`egg-card-${i}`}
+                onClick={() => !active && goTo(i)}
+                style={{
+                  flexShrink: 0,
+                  width: EGG_SIZE, height: EGG_SIZE,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  borderRadius: 20,
+                  background: active ? "rgba(127,191,176,0.07)" : "rgba(10,18,14,0.5)",
+                  border: `1.5px solid ${active ? "rgba(127,191,176,0.35)" : "rgba(127,191,176,0.08)"}`,
+                  boxShadow: active ? "0 0 22px rgba(127,191,176,0.18), 0 6px 20px rgba(0,0,0,0.6)" : "0 3px 10px rgba(0,0,0,0.4)",
+                  opacity: active ? 1 : 0.38,
+                  transform: `scale(${active ? 1 : 0.82})`,
+                  transition: "opacity 0.4s ease, transform 0.4s ease, border-color 0.4s, box-shadow 0.4s",
+                  cursor: active ? "default" : "pointer",
+                }}
+              >
+                <img
+                  src={egg.eggImageUrl}
+                  alt="Mystery Egg"
+                  style={{ width: 62, height: 62, objectFit: "contain",
+                    filter: active ? "drop-shadow(0 0 10px rgba(127,191,176,0.5))" : "none",
+                    transition: "filter 0.4s" }}
+                />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Dot indicators */}
+      <div className="flex justify-center gap-1.5 mt-0">
+        {eggs.map((_, i) => (
+          <button
+            key={i}
+            data-testid={`egg-dot-${i}`}
+            onClick={() => goTo(i)}
+            style={{
+              width: i === activeIdx ? 18 : 5, height: 5,
+              borderRadius: 3,
+              background: i === activeIdx ? "#7fbfb0" : "rgba(127,191,176,0.15)",
+              border: "none", padding: 0, cursor: "pointer",
+              transition: "width 0.35s ease, background 0.35s ease",
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Sign-in modal
 // ─────────────────────────────────────────────────────────────────────────────
 function SignInModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
@@ -1005,13 +1138,7 @@ export default function ParaPetsHubPage() {
         {/* ── Main content ─────────────────────────────────────────────────── */}
         <main className="relative max-w-3xl mx-auto px-5 py-8 pb-28" data-testid="hub-main" style={{ zIndex: 1 }}>
 
-          {/* Daily Login Rewards */}
-          <DailyLoginBar
-            user={user}
-            onSignInRequest={() => setShowSignIn(true)}
-          />
-
-          {/* Guest CTA */}
+          {/* Guest CTA — shown above daily rewards when not logged in */}
           {!user && (
             <div className="rounded-3xl p-6 mb-4 text-center"
               style={{
@@ -1045,6 +1172,12 @@ export default function ParaPetsHubPage() {
               </div>
             </div>
           )}
+
+          {/* Daily Login Rewards — below guest CTA when logged out */}
+          <DailyLoginBar
+            user={user}
+            onSignInRequest={() => setShowSignIn(true)}
+          />
 
           {/* Feature pills */}
           <div className="grid grid-cols-3 gap-3 mb-2">
@@ -1106,24 +1239,24 @@ export default function ParaPetsHubPage() {
 
           <RuneDivider />
 
+          {/* ── Egg showcase ─────────────────────────────────────────────── */}
+          <EggShowcase />
+
+          <RuneDivider />
+
           {/* ── Leaderboard ─────────────────────────────────────────────────── */}
           <div data-testid="leaderboard-section">
 
-            {/* Leaderboard banner header */}
-            <div className="flex flex-col items-center mb-6">
-              <img src={legendBanner} alt="" aria-hidden="true"
-                className="w-full object-contain pointer-events-none select-none"
-                style={{ maxWidth: 420, marginBottom: -8, opacity: 0.7, filter: "drop-shadow(0 0 18px rgba(127,191,176,0.3))" }} />
-              <div className="flex flex-col items-center gap-1 pt-3">
-                <h2 className="font-fantasy text-2xl tracking-widest"
-                  style={{ color: "#ffd700", textShadow: "0 0 24px rgba(255,215,0,0.7), 0 2px 14px rgba(0,0,0,0.95)" }}
-                  data-testid="text-leaderboard-title">
-                  Hall of Legends
-                </h2>
-                <p className="font-fantasy text-[10px] tracking-widest" style={{ color: "rgba(200,190,140,0.6)" }}>
-                  Ranked by total coins earned
-                </p>
-              </div>
+            {/* Leaderboard header */}
+            <div className="flex flex-col items-center gap-1 mb-6">
+              <h2 className="font-fantasy text-2xl tracking-widest"
+                style={{ color: "#ffd700", textShadow: "0 0 24px rgba(255,215,0,0.7), 0 2px 14px rgba(0,0,0,0.95)" }}
+                data-testid="text-leaderboard-title">
+                Hall of Legends
+              </h2>
+              <p className="font-fantasy text-[10px] tracking-widest" style={{ color: "rgba(200,190,140,0.6)" }}>
+                Ranked by total coins earned
+              </p>
             </div>
 
             {lbLoading ? (
