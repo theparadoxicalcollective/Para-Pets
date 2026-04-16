@@ -23,6 +23,7 @@ interface LoginStatus {
   nextDay: number;
   canClaim: boolean;
   lastClaimedAt: string | null;
+  nextClaimAt: string | null;
   claimedDaysInCycle: number[];
 }
 
@@ -55,12 +56,15 @@ function matchTab(type: string, tab: string): boolean {
 }
 
 // ── Countdown label ───────────────────────────────────────────────────────────
-function useCountdown(lastClaimedAt: string | null): string {
+// nextClaimAt is the server-computed timestamp at which the next claim unlocks,
+// so no client-side timezone arithmetic is needed.
+function useCountdown(nextClaimAt: string | null): string {
   const [label, setLabel] = useState("");
   useEffect(() => {
-    if (!lastClaimedAt) { setLabel(""); return; }
+    if (!nextClaimAt) { setLabel(""); return; }
+    const target = new Date(nextClaimAt).getTime();
     const tick = () => {
-      const ms = 24 * 60 * 60 * 1000 - (Date.now() - new Date(lastClaimedAt).getTime());
+      const ms = target - Date.now();
       if (ms <= 0) { setLabel(""); return; }
       const h = Math.floor(ms / 3600000);
       const m = Math.floor((ms % 3600000) / 60000);
@@ -70,7 +74,7 @@ function useCountdown(lastClaimedAt: string | null): string {
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [lastClaimedAt]);
+  }, [nextClaimAt]);
   return label;
 }
 
@@ -404,7 +408,7 @@ export default function DailyLoginBar({
     },
   });
 
-  const countdown = useCountdown(status?.lastClaimedAt ?? null);
+  const countdown = useCountdown(status?.nextClaimAt ?? null);
   const isAdmin = user?.isAdmin;
 
   const getDayState = (dayNum: number): "claimed" | "current" | "locked" => {
@@ -639,6 +643,11 @@ export default function DailyLoginBar({
                     >
                       {claimMut.isPending ? "..." : "CLAIM"}
                     </button>
+                  ) : isCurrent && countdown ? (
+                    <div className="flex flex-col items-center justify-center mt-auto gap-0.5">
+                      <span style={{ fontSize: 7, color: "#4a7060", fontFamily: "inherit", letterSpacing: "0.05em" }}>Next in</span>
+                      <span style={{ fontSize: 7, color: "#5a9070", fontFamily: "inherit", fontWeight: 600, letterSpacing: "0.02em", lineHeight: 1.2 }}>{countdown}</span>
+                    </div>
                   ) : !user ? (
                     <button
                       onClick={onSignInRequest}

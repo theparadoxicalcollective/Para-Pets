@@ -113,6 +113,29 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const [showHomePageTutorial, setShowHomePageTutorial] = useState(() => !localStorage.getItem("homePageTutorialSeen"));
   const [showWorldChat, setShowWorldChat] = useState(false);
   const [chatHasNewMsg, setChatHasNewMsg] = useState(false);
+  const bgChatCountRef = useRef(-1);
+
+  // Background poll for world chat — detects new messages even when the panel is closed
+  // so the icon can glow when Veridian Watcher or other players post.
+  const { data: bgChatData } = useQuery<any[]>({
+    queryKey: ["/api/world-chat"],
+    refetchInterval: showWorldChat ? false : 15000,
+    enabled: !!currentUser,
+    staleTime: 0,
+  });
+  useEffect(() => {
+    if (!bgChatData) return;
+    const count = bgChatData.length;
+    if (bgChatCountRef.current === -1) {
+      bgChatCountRef.current = count;
+      return;
+    }
+    if (!showWorldChat && count > bgChatCountRef.current) {
+      setChatHasNewMsg(true);
+    }
+    bgChatCountRef.current = count;
+  }, [bgChatData, showWorldChat]);
+
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
 
@@ -363,8 +386,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       </div>
 
       <div className="relative flex flex-col h-full" style={{ paddingTop: "env(safe-area-inset-top, 0px)", visibility: isOverlayActive ? "hidden" : "visible" }}>
-        <div style={{ position: "relative", zIndex: 40, visibility: "visible" }}>
-          <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
+        <div style={{ position: "relative", zIndex: 40, visibility: "visible", pointerEvents: "none" }}>
+          <div style={{ pointerEvents: "auto" }}>
+            <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
+          </div>
         </div>
 
         {activePet && (

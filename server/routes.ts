@@ -6001,17 +6001,25 @@ export async function registerRoutes(
   app.get("/api/daily-login/status", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
+      // Do timing check fully in SQL to avoid JS timezone discrepancies with PG timestamps
       const totalResult = await db.execute(sql`
-        SELECT COUNT(*)::int AS total, MAX(claimed_at) AS last_claimed
+        SELECT
+          COUNT(*)::int AS total,
+          MAX(claimed_at) AS last_claimed,
+          (MAX(claimed_at) IS NULL OR NOW() - MAX(claimed_at) >= INTERVAL '24 hours') AS can_claim,
+          CASE WHEN MAX(claimed_at) IS NOT NULL
+            THEN (MAX(claimed_at) + INTERVAL '24 hours')
+            ELSE NULL
+          END AS next_claim_at
         FROM player_daily_login_claims
         WHERE user_id = ${user.id}
       `);
       const total: number = totalResult.rows[0].total as number;
-      const lastClaimed: Date | null = totalResult.rows[0].last_claimed as Date | null;
+      const lastClaimed = totalResult.rows[0].last_claimed;
+      const canClaim: boolean = totalResult.rows[0].can_claim as boolean;
+      const nextClaimAt = totalResult.rows[0].next_claim_at;
       const currentCycle = Math.floor(total / 7);
       const nextDay = (total % 7) + 1;
-      const canClaim = !lastClaimed ||
-        (Date.now() - new Date(lastClaimed).getTime() >= 24 * 60 * 60 * 1000);
       const claimedRows = await db.execute(sql`
         SELECT day_number FROM player_daily_login_claims
         WHERE user_id = ${user.id} AND cycle_number = ${currentCycle}
@@ -6023,6 +6031,7 @@ export async function registerRoutes(
         nextDay,
         canClaim,
         lastClaimedAt: lastClaimed,
+        nextClaimAt,
         claimedDaysInCycle: claimedRows.rows.map((r: any) => r.day_number),
       });
     } catch (err) {
@@ -6035,17 +6044,18 @@ export async function registerRoutes(
   app.post("/api/daily-login/claim", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
+      // Use SQL for timing to avoid JS timezone issues with PG timestamps
       const totalResult = await db.execute(sql`
-        SELECT COUNT(*)::int AS total, MAX(claimed_at) AS last_claimed
+        SELECT
+          COUNT(*)::int AS total,
+          (MAX(claimed_at) IS NULL OR NOW() - MAX(claimed_at) >= INTERVAL '24 hours') AS can_claim
         FROM player_daily_login_claims
         WHERE user_id = ${user.id}
       `);
       const total: number = totalResult.rows[0].total as number;
-      const lastClaimed: Date | null = totalResult.rows[0].last_claimed as Date | null;
+      const canClaim: boolean = totalResult.rows[0].can_claim as boolean;
       const currentCycle = Math.floor(total / 7);
       const nextDay = (total % 7) + 1;
-      const canClaim = !lastClaimed ||
-        (Date.now() - new Date(lastClaimed).getTime() >= 24 * 60 * 60 * 1000);
       if (!canClaim) {
         return res.status(400).json({ message: "Already claimed today. Come back in 24 hours!" });
       }
