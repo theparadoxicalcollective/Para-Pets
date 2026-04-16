@@ -1557,9 +1557,6 @@ export async function registerRoutes(
       let isFirstPetAcquisition = false;
       if (shopItem.type === "pet") {
         const petCount = await storage.countInventoryPetCopies(user.id, itemId);
-        if (petCount >= 3) {
-          return res.status(400).json({ message: "You already own the maximum (3) of this pet" });
-        }
         isFirstPetAcquisition = petCount === 0;
       } else {
         const dailyCount = await storage.getDailyItemPurchaseCount(user.id);
@@ -3520,10 +3517,8 @@ export async function registerRoutes(
         await storage.addCoins(user.id, bundle.coinAmount);
       }
 
-      const DUP_PET_COINS: Record<number, number> = { 1: 100, 2: 150, 3: 250, 4: 1000, 5: 2000 };
-
       const bundleItems = await storage.getRewardBundleItems(bundle.id);
-      const duplicatePets: { name: string; coinsAwarded: number }[] = [];
+      const skippedPets: { name: string }[] = [];
 
       const BAIT_CHARGES_PER_BUNDLE = 5;
 
@@ -3533,10 +3528,7 @@ export async function registerRoutes(
           if (shopItem.type === "pet") {
             const existing = await storage.getInventoryItem(user.id, bi.shopItemId);
             if (existing) {
-              const rarity = shopItem.starRarity ?? 1;
-              const coins = DUP_PET_COINS[rarity] ?? 100;
-              await storage.addCoins(user.id, coins);
-              duplicatePets.push({ name: shopItem.name, coinsAwarded: coins });
+              skippedPets.push({ name: shopItem.name });
               continue;
             }
           }
@@ -3555,7 +3547,7 @@ export async function registerRoutes(
       const updatedUser = await storage.getUser(user.id);
       const { password: _, ...safeUser } = updatedUser!;
 
-      return res.json({ user: safeUser, duplicatePets });
+      return res.json({ user: safeUser, skippedPets });
     } catch (err) {
       console.error("Claim reward error:", err);
       return res.status(500).json({ message: "Failed to claim reward" });

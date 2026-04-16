@@ -77,14 +77,15 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
   const claimMutation = useMutation({
     mutationFn: async (rewardIds: string[]) => {
       let lastUser = null;
-      const allDups: { name: string; coinsAwarded: number }[] = [];
+      const allSkipped: { name: string }[] = [];
       for (const rewardId of rewardIds) {
         const res = await apiRequest("POST", `/api/rewards/${rewardId}/claim`);
         const data = await res.json();
         lastUser = data.user;
-        if (data.duplicatePets) allDups.push(...data.duplicatePets);
+        if (data.skippedPets) allSkipped.push(...data.skippedPets);
+        if (data.duplicatePets) allSkipped.push(...data.duplicatePets.map((d: any) => ({ name: d.name })));
       }
-      return { user: lastUser, duplicatePets: allDups };
+      return { user: lastUser, skippedPets: allSkipped };
     },
     onSuccess: (data: any, rewardIds: string[]) => {
       playChime();
@@ -96,12 +97,12 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
         queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
         queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
 
-        const dups: { name: string; coinsAwarded: number }[] = data.duplicatePets ?? [];
-        if (dups.length > 0) {
-          setDuplicateNotices(dups.map(d => ({ petName: d.name, coinsAwarded: d.coinsAwarded })));
+        const skipped: { name: string }[] = data.skippedPets ?? [];
+        if (skipped.length > 0) {
+          setDuplicateNotices(skipped.map(d => ({ petName: d.name, coinsAwarded: 0 })));
           toast({
             title: "Reward Claimed!",
-            description: `${dups.length} duplicate pet${dups.length > 1 ? "s" : ""} converted to coins — check below for details.`,
+            description: `${skipped.length} pet${skipped.length > 1 ? "s" : ""} skipped — you already own ${skipped.length > 1 ? "them" : "it"}.`,
           });
         } else {
           toast({ title: "Reward Claimed!", description: "Items and coins have been added to your account" });
@@ -163,28 +164,24 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
             </p>
           </div>
 
-          {/* Duplicate pet notice banner */}
+          {/* Already-owned pet notice banner */}
           {duplicateNotices.length > 0 && (
             <div
               className="mb-3 rounded-lg p-3"
               style={{
-                background: "linear-gradient(135deg, rgba(251,191,36,0.12) 0%, rgba(180,120,10,0.12) 100%)",
-                border: "1.5px solid rgba(251,191,36,0.45)",
+                background: "linear-gradient(135deg, rgba(168,152,120,0.12) 0%, rgba(120,100,60,0.12) 100%)",
+                border: "1.5px solid rgba(168,152,120,0.45)",
               }}
             >
-              <p className="font-fantasy text-[#fbbf24] text-[10px] tracking-wider font-semibold mb-1.5">
-                🔄 Duplicate Pets Converted
+              <p className="font-fantasy text-[#c8a84b] text-[10px] tracking-wider font-semibold mb-1.5">
+                🐾 Already In Your Collection
               </p>
               <div className="space-y-1">
                 {duplicateNotices.map((n, i) => (
-                  <div key={i} className="flex items-center justify-between">
+                  <div key={i} className="flex items-center gap-2">
                     <span className="font-fantasy text-[#e5d08a] text-[10px]">
-                      Already own: <span className="font-semibold">{n.petName}</span>
+                      You already own: <span className="font-semibold">{n.petName}</span>
                     </span>
-                    <div className="flex items-center gap-1">
-                      <img src={coinIconImg} alt="" className="w-3 h-3 object-contain" />
-                      <span className="font-fantasy text-[#fbbf24] text-[10px] font-bold">+{n.coinsAwarded}</span>
-                    </div>
                   </div>
                 ))}
               </div>

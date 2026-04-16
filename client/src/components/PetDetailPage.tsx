@@ -67,6 +67,7 @@ interface PetDetailPageProps {
   onUpdate: () => void;
   userCoins: number;
   onUserUpdate: (user: any) => void;
+  readOnly?: boolean;
 }
 
 // Unified warm gold palette across all rarities — intensity increases with rarity
@@ -78,7 +79,7 @@ const RARITY: Record<number, { label: string; primary: string; glow: string; her
   5: { label: "Legendary", primary: "#ffd700", glow: "rgba(255,215,0,0.68)",   heroBg: "rgba(68,50,5,0.60)",  dim: "rgba(255,215,0,0.22)"   },
 };
 
-export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUserUpdate }: PetDetailPageProps) {
+export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUserUpdate, readOnly = false }: PetDetailPageProps) {
   const [editingNickname, setEditingNickname] = useState(false);
   const [nicknameInput, setNicknameInput] = useState(pet.petNickname || "");
   const [showAccessoryPicker, setShowAccessoryPicker] = useState(false);
@@ -591,6 +592,24 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                 {[0, 1, 2].map((slot) => {
                   const acc = equippedAccessories.find((e) => e.slot === slot);
                   return acc ? (
+                    readOnly ? (
+                      <div
+                        key={slot}
+                        data-testid={`display-accessory-slot-${slot}`}
+                        className="w-full rounded-xl p-2 flex flex-col items-center gap-1"
+                        style={{ background: "rgba(30,15,5,0.8)", border: `1px solid ${rc.primary}55`, minHeight: 82 }}
+                      >
+                        <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.35)" }}>
+                          {acc.imageUrl ? <img src={acc.imageUrl} alt={acc.name} className="w-full h-full object-contain" /> : <img src={gemCrystalIcon} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />}
+                        </div>
+                        <span className="font-fantasy text-[7px] tracking-wider text-center truncate w-full" style={{ color: rc.primary }}>{acc.name}</span>
+                        <div className="flex flex-col items-center">
+                          {(acc.atkBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#f87171" }}>+{acc.atkBoost} ATK</span>}
+                          {(acc.defBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#60a5fa" }}>+{acc.defBoost} DEF</span>}
+                          {(acc.healthBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#4ade80" }}>+{acc.healthBoost} HP</span>}
+                        </div>
+                      </div>
+                    ) : (
                     <button
                       key={slot}
                       data-testid={`button-unequip-slot-${slot}`}
@@ -616,7 +635,18 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                       </div>
                       <span className="font-fantasy text-[5px] tracking-wider" style={{ color: "rgba(255,100,100,0.6)" }}>TAP TO REMOVE</span>
                     </button>
+                    )
                   ) : (
+                    readOnly ? (
+                      <div
+                        key={slot}
+                        data-testid={`display-empty-slot-${slot}`}
+                        className="w-full rounded-xl flex flex-col items-center justify-center"
+                        style={{ background: "rgba(0,0,0,0.1)", border: `1px dashed ${rc.primary}18`, minHeight: 82 }}
+                      >
+                        <span className="font-fantasy text-[7px] tracking-wider" style={{ color: `${rc.primary}22` }}>EMPTY</span>
+                      </div>
+                    ) : (
                     <button
                       key={slot}
                       data-testid={`button-equip-slot-${slot}`}
@@ -632,10 +662,11 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                       <span className="text-xl" style={{ color: `${rc.primary}33` }}>+</span>
                       <span className="font-fantasy text-[7px] tracking-wider" style={{ color: `${rc.primary}33` }}>EMPTY</span>
                     </button>
+                    )
                   );
                 })}
               </div>
-              {showAccessoryPicker && (
+              {!readOnly && showAccessoryPicker && (
                 <div className="mt-3 pt-3" style={{ borderTop: `1px solid ${rc.primary}18` }}>
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-fantasy text-[10px] tracking-wider" style={{ color: "rgba(255,255,255,0.35)" }}>SELECT ACCESSORY</span>

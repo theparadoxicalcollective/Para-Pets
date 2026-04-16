@@ -2978,7 +2978,6 @@ export default function WorldPage({ user }: WorldPageProps) {
         const imgSrc = item.type === "pet" ? (item.eggImageUrl || item.imageUrl) : item.imageUrl;
         const descLines = getItemDescription(item);
         const ownedCount = item.type === "pet" ? inventory.filter(inv => inv.shopItemId === item.id).length : 0;
-        const isMaxOwned = ownedCount >= 3;
         const maxQty = item.type === "pet" ? 1 : 20;
         const totalCost = item.price * (item.type === "pet" ? 1 : buyQty);
         const canAfford = currentUser.coins >= totalCost;
@@ -3141,14 +3140,6 @@ export default function WorldPage({ user }: WorldPageProps) {
 
               {/* ── Buy button below the price tag — step 1 only ── */}
               {buyStep === 1 && (
-                isMaxOwned ? (
-                  <div
-                    className="text-center font-fantasy"
-                    style={{ fontSize: "11px", padding: "10px 24px", borderRadius: "10px", background: "rgba(80,50,10,0.55)", color: "#a07830", border: "1px solid rgba(160,110,40,0.4)", maxWidth: "90vw" }}
-                  >
-                    Max owned (3)
-                  </div>
-                ) : (
                   <div className="flex flex-col items-center" style={{ gap: "4px", maxWidth: "90vw", width: "100%" }}>
                     <button
                       data-testid="button-price-buy"

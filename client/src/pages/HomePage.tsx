@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
-import { X, HelpCircle, Zap, Star, RotateCcw } from "lucide-react";
+import { X, HelpCircle, Zap, Star, RotateCcw, ShieldPlus } from "lucide-react";
+import PetEquipAccessoriesPage from "@/components/PetEquipAccessoriesPage";
 import WorldChatPanel from "@/components/WorldChatPanel";
 import worldChatIconImg from "@assets/icon_world_chat_new.png";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -98,7 +99,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const [hatchedPetCache, setHatchedPetCache] = useState<{ hatchedImageUrl: string | null; imageUrl: string | null; petTemplateId: string | null; name: string } | null>(null);
   const [showActionMenu, setShowActionMenu] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [activePetModal, setActivePetModal] = useState<"power_up" | "level_up" | null>(null);
+  const [activePetModal, setActivePetModal] = useState<"power_up" | "level_up" | "equip_accessories" | null>(null);
   const [petModalSuccess, setPetModalSuccess] = useState<{ type: "stat" | "level" | "hatch"; label: string } | null>(null);
   // Keep last known activePet so modals don't unmount mid-action
   // when inventory refetches and activePetId hasn't been migrated yet.
@@ -995,6 +996,28 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                     <p className="font-fantasy text-[#8a7a3a] text-[10px] tracking-wide mt-0.5">Use XP items to raise your pet's level</p>
                   </div>
                   <span className="ml-auto font-fantasy text-[#fcd34d] text-lg opacity-50">›</span>
+                </button>
+
+                {/* Equip Accessories */}
+                <button
+                  data-testid="button-action-equip-accessories"
+                  onClick={() => { setShowActionMenu(false); setActivePetModal("equip_accessories"); }}
+                  className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all active:scale-95"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(192,132,252,0.15) 0%, rgba(147,51,234,0.08) 100%)",
+                    border: "1.5px solid rgba(192,132,252,0.35)",
+                    boxShadow: "0 0 20px rgba(192,132,252,0.08)",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(192,132,252,0.2)", border: "1px solid rgba(192,132,252,0.4)" }}>
+                    <ShieldPlus size={20} style={{ color: "#c084fc", filter: "drop-shadow(0 0 6px rgba(192,132,252,0.7))" }} />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-fantasy font-bold tracking-wider" style={{ color: "#c084fc", fontSize: 14, textShadow: "0 0 10px rgba(192,132,252,0.4)" }}>EQUIP ACCESSORIES</p>
+                    <p className="font-fantasy text-[#6a4a8a] text-[10px] tracking-wide mt-0.5">Manage your pet's equipped accessories</p>
+                  </div>
+                  <span className="ml-auto font-fantasy text-[#c084fc] text-lg opacity-50">›</span>
                 </button>
 
                 {/* Reset Stats */}
