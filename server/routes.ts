@@ -570,6 +570,9 @@ export async function syncTotalCoinsEarnedFloor(): Promise<void> {
 
 // ── Veridian Watcher ─────────────────────────────────────────────────────────
 const VERIDIAN_WATCHER_ID = "veridian-watcher";
+// Track last login greeting per user; prevents repeat greetings within 3 hours
+const lastLoginGreetingAt = new Map<string, number>();
+const LOGIN_GREETING_COOLDOWN_MS = 3 * 60 * 60 * 1000;
 
 async function postWatcherMessage(message: string): Promise<void> {
   try {
@@ -793,20 +796,25 @@ export async function registerRoutes(
         if (!user.welcomeV2Sent) {
           try { await grantWelcomeV2Bundle(user.id); } catch (e) { console.error("Welcome v2 grant failed:", e); }
         }
-        // Veridian Watcher login greeting (only if player has shoutouts enabled)
+        // Veridian Watcher login greeting — once per 3-hour window per user
         try {
           if (user.watcherShoutoutsEnabled !== false) {
-            const greetings = [
-              `🌿 Welcome back, ${user.username}! The realm stirs at your return.`,
-              `🌿 Ah, ${user.username} arrives. The wilds have missed you.`,
-              `🌿 ${user.username} steps into the realm once more. Adventure awaits!`,
-              `🌿 The Watcher sees you, ${user.username}. May fortune guide your path.`,
-              `🌿 ${user.username} has returned! The creatures of the realm rejoice.`,
-              `🌿 Greetings, ${user.username}. The enchanted forests are yours to explore.`,
-              `🌿 ${user.username} walks among us again. Good to have you back, traveller.`,
-            ];
-            const msg = greetings[Math.floor(Math.random() * greetings.length)];
-            await postWatcherMessage(msg);
+            const now = Date.now();
+            const lastGreeted = lastLoginGreetingAt.get(user.id) ?? 0;
+            if (now - lastGreeted >= LOGIN_GREETING_COOLDOWN_MS) {
+              lastLoginGreetingAt.set(user.id, now);
+              const greetings = [
+                `🌿 Welcome back, ${user.username}! The realm stirs at your return.`,
+                `🌿 Ah, ${user.username} arrives. The wilds have missed you.`,
+                `🌿 ${user.username} steps into the realm once more. Adventure awaits!`,
+                `🌿 The Watcher sees you, ${user.username}. May fortune guide your path.`,
+                `🌿 ${user.username} has returned! The creatures of the realm rejoice.`,
+                `🌿 Greetings, ${user.username}. The enchanted forests are yours to explore.`,
+                `🌿 ${user.username} walks among us again. Good to have you back, traveller.`,
+              ];
+              const msg = greetings[Math.floor(Math.random() * greetings.length)];
+              await postWatcherMessage(msg);
+            }
           }
         } catch (e) { console.error("[VW] Login greeting failed:", e); }
         const freshUser = await storage.getUser(user.id);
