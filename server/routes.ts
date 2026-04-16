@@ -3527,18 +3527,13 @@ export async function registerRoutes(
       for (const bi of bundleItems) {
         const shopItem = await storage.getShopItem(bi.shopItemId);
         if (shopItem) {
-          if (shopItem.type === "pet") {
-            const existing = await storage.getInventoryItem(user.id, bi.shopItemId);
-            if (existing) {
-              skippedPets.push({ name: shopItem.name });
-              continue;
-            }
-          }
           // Bait items must stack onto the existing inventory row (quantity-based)
           if (shopItem.fishingType === "bait") {
             await storage.addToInventory(user.id, bi.shopItemId, {}, BAIT_CHARGES_PER_BUNDLE);
           } else {
             const invItem = await storage.addToInventory(user.id, bi.shopItemId);
+            // Pets always start their hatch timer fresh — duplicates of an
+            // already-owned species are allowed (no skip).
             if (shopItem.type === "pet" && shopItem.hatchTime) {
               await storage.updateInventoryItem(invItem.id, { hatchStartedAt: new Date() });
             }
