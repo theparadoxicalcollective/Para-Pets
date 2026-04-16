@@ -355,7 +355,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
           style={{
             top: 70,
             left: 12,
-            zIndex: 9998,
+            zIndex: 40,
             background: "none",
             border: "none",
             cursor: "pointer",

@@ -594,7 +594,9 @@ async function postWatcherMessage(message: string): Promise<void> {
 async function grantCommunityPurchaseReward(purchaserId: string, amountUsd: number): Promise<void> {
   try {
     const rewardCoins = Math.max(1, amountUsd * 10);
-    const recipients = await storage.getAllUsers();
+    const allUsers = await storage.getAllUsers();
+    // Admins are excluded from the Spirit of Veridia community gift
+    const recipients = allUsers.filter(u => !u.isAdmin);
     if (recipients.length === 0) return;
 
     const bundle = await storage.createRewardBundle(
