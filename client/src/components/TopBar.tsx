@@ -316,9 +316,9 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
           </div>
         </div>
 
-        {/* RIGHT: gifts */}
+        {/* RIGHT: gifts (only outside the home page — on home, the gift floats under the profile photo so it never collides with the tutorial button) */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          {hasRewards && (
+          {hasRewards && location !== "/" && (
             <button
               data-testid="button-gift-rewards"
               onClick={() => setShowRewards(true)}
@@ -345,6 +345,42 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
           )}
         </div>
       </div>
+
+      {/* Floating gift button on the home page — sits just below the profile photo, layered above pet content */}
+      {hasRewards && location === "/" && (
+        <button
+          data-testid="button-gift-rewards-floating"
+          onClick={() => setShowRewards(true)}
+          className="fixed transition-transform active:scale-90 animate-bounce"
+          style={{
+            top: 70,
+            left: 12,
+            zIndex: 9998,
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            animationDuration: "2s",
+            pointerEvents: "auto",
+          }}
+        >
+          <img
+            src={giftIconImg}
+            alt="Gifts"
+            className="w-12 h-12 object-contain"
+            style={{ filter: "drop-shadow(0 0 8px rgba(120,200,80,0.7)) drop-shadow(0 0 16px rgba(192,132,252,0.45)) drop-shadow(0 2px 6px rgba(0,0,0,0.6))" }}
+          />
+          <div
+            className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
+            style={{
+              background: "radial-gradient(circle, #f87171 0%, #dc2626 100%)",
+              border: "1.5px solid rgba(30,15,5,0.8)",
+              boxShadow: "0 0 6px rgba(248,113,113,0.6)",
+            }}
+          >
+            <span className="font-bold text-[8px] text-white leading-none">{pendingRewards.length}</span>
+          </div>
+        </button>
+      )}
 
       {showRewards && (
         <RewardClaimModal

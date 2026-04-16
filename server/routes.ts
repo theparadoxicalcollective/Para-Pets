@@ -599,14 +599,14 @@ async function grantCommunityPurchaseReward(purchaserId: string, amountUsd: numb
     if (recipients.length === 0) return;
 
     const bundle = await storage.createRewardBundle(
-      "A Gift from a Special Patron",
+      "A Blessing from the Spirit of Veridia",
       rewardCoins,
-      `A kind patron purchased coins and shared their fortune with the realm! Claim your gift of ${rewardCoins} coins.`
+      `A generous soul has contributed to the realm's growth, and the Spirit of Veridia has blessed you with ${rewardCoins} coins. Claim your gift!`
     );
     await Promise.all(recipients.map(u => storage.createUserReward(u.id, bundle.id)));
 
     await postWatcherMessage(
-      `🌟 A generous soul has purchased coins and chosen to share their fortune with the realm! Every adventurer has received a gift — check your gift inbox to claim your coins. May your journeys prosper!`
+      `🌟 A generous soul has contributed to the realm's growth, so the Spirit of Veridia has blessed us all! Every adventurer has received a gift — check your gift inbox to claim it.`
     );
     console.log(`[Community Reward] Granted ${rewardCoins} coins to ${recipients.length} players (purchase: $${amountUsd})`);
   } catch (err) {
