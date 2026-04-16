@@ -62,7 +62,14 @@ function useCountdown(nextClaimAt: string | null): string {
   const [label, setLabel] = useState("");
   useEffect(() => {
     if (!nextClaimAt) { setLabel(""); return; }
-    const target = new Date(nextClaimAt).getTime();
+    // Ensure the string is parsed as UTC. PostgreSQL `timestamp` columns return
+    // bare strings like "2024-04-17 02:00:00" (no 'Z', no offset). Without the
+    // UTC marker, new Date() treats it as local time, causing a timezone shift
+    // (e.g. UTC-4 player sees 28h instead of 24h).
+    const utcStr = /Z|[+-]\d{2}:\d{2}$/.test(nextClaimAt)
+      ? nextClaimAt
+      : nextClaimAt.replace(" ", "T") + "Z";
+    const target = new Date(utcStr).getTime();
     const tick = () => {
       const ms = target - Date.now();
       if (ms <= 0) { setLabel(""); return; }
