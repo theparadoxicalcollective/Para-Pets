@@ -4074,11 +4074,11 @@ export default function WorldPage({ user }: WorldPageProps) {
         const battleLoc = locations.find(l => l.id === battleLocationId);
         if (!battleLoc) return null;
 
-        const potions = inventory.filter(i => i.type === "potion" && ((i.healthRestored ?? 0) > 0 || (i.manaRestored ?? 0) > 0));
-        const groupedPotions: Record<string, { shopItemId: string; name: string; imageUrl?: string | null; healthRestored?: number | null; manaRestored?: number | null; items: InventoryItem[] }> = {};
+        const potions = inventory.filter(i => i.type === "potion" && ((i.healthRestored ?? 0) > 0 || (i.manaRestored ?? 0) > 0 || (i.petsRevived ?? 0) > 0));
+        const groupedPotions: Record<string, { shopItemId: string; name: string; imageUrl?: string | null; healthRestored?: number | null; manaRestored?: number | null; petsRevived?: number | null; items: InventoryItem[] }> = {};
         for (const p of potions) {
           if (!groupedPotions[p.shopItemId]) {
-            groupedPotions[p.shopItemId] = { shopItemId: p.shopItemId, name: p.name, imageUrl: p.imageUrl, healthRestored: p.healthRestored, manaRestored: p.manaRestored, items: [] };
+            groupedPotions[p.shopItemId] = { shopItemId: p.shopItemId, name: p.name, imageUrl: p.imageUrl, healthRestored: p.healthRestored, manaRestored: p.manaRestored, petsRevived: p.petsRevived, items: [] };
           }
           groupedPotions[p.shopItemId].items.push(p);
         }
@@ -4098,7 +4098,7 @@ export default function WorldPage({ user }: WorldPageProps) {
             updated[slotIdx] = {
               shopItemId: group.shopItemId, inventoryIds: toAdd, name: group.name,
               imageUrl: group.imageUrl ?? null, healthRestored: group.healthRestored ?? null,
-              manaRestored: group.manaRestored ?? null,
+              manaRestored: group.manaRestored ?? null, petsRevived: (group as any).petsRevived ?? null,
             };
           } else if (updated[slotIdx]!.shopItemId === group.shopItemId) {
             const newIds = [...existingIds, ...toAdd];
@@ -4128,7 +4128,7 @@ export default function WorldPage({ user }: WorldPageProps) {
           const rect = el.getBoundingClientRect();
           const offsetX = e.clientX - rect.left;
           const offsetY = e.clientY - rect.top;
-          const drag = { shopItemId: group.shopItemId, name: group.name, imageUrl: group.imageUrl, healthRestored: group.healthRestored, manaRestored: group.manaRestored, x: e.clientX, y: e.clientY, offsetX, offsetY };
+          const drag = { shopItemId: group.shopItemId, name: group.name, imageUrl: group.imageUrl, healthRestored: group.healthRestored, manaRestored: group.manaRestored, petsRevived: (group as any).petsRevived ?? null, x: e.clientX, y: e.clientY, offsetX, offsetY };
           prepDragRef.current = drag;
           setPrepDrag(drag);
           setPrepHoverSlot(null);

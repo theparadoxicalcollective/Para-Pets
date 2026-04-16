@@ -3970,10 +3970,11 @@ export async function registerRoutes(
 
       const healAmount = shopItem.healthRestored || 0;
       const manaAmount = shopItem.manaRestored || 0;
+      const petsRevived = shopItem.petsRevived || 0;
 
       await storage.removeFromInventory(inventoryId);
 
-      return res.json({ healAmount, manaAmount, potionName: shopItem.name });
+      return res.json({ healAmount, manaAmount, petsRevived, potionName: shopItem.name });
     } catch (err) {
       console.error("Use potion error:", err);
       return res.status(500).json({ message: "Failed to use potion" });

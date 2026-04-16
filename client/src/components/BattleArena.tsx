@@ -92,6 +92,7 @@ export interface BattlePotionSlot {
   imageUrl: string | null;
   healthRestored: number | null;
   manaRestored: number | null;
+  petsRevived: number | null;
 }
 
 interface BattleArenaProps {
@@ -1064,8 +1065,15 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     const inventoryId = slot.remaining[0];
     const isHeal = (slot.healthRestored ?? 0) > 0;
     const isMana = (slot.manaRestored ?? 0) > 0;
-    if (isHeal && petHpRef.current >= petStatsRef.current.maxHp) return;
+    const isRevive = (slot.petsRevived ?? 0) > 0;
+    // Guard: don't consume heal potion if active pet is already full
+    if (isHeal && !isRevive && petHpRef.current >= petStatsRef.current.maxHp) return;
     if (isMana && manaRef.current >= MAX_MANA) return;
+    // Guard: don't consume revive potion if no party members are fainted
+    if (isRevive && !isHeal) {
+      const hasFainted = extraPetHpsRef.current.some((hp, i) => equippedExtraPetsRef.current[i] && hp <= 0);
+      if (!hasFainted) return;
+    }
     if (isHeal) {
       const healAmt = slot.healthRestored!;
       petHpRef.current = Math.min(petStatsRef.current.maxHp, petHpRef.current + healAmt);
@@ -1078,6 +1086,27 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     if (isMana) {
       manaRef.current = Math.min(MAX_MANA, manaRef.current + slot.manaRestored!);
       setMana(Math.floor(manaRef.current));
+    }
+    if (isRevive) {
+      const reviveCount = slot.petsRevived!;
+      const newExtraHps = [...extraPetHpsRef.current] as [number, number];
+      let revived = 0;
+      for (let i = 0; i < 2 && revived < reviveCount; i++) {
+        const ep = equippedExtraPetsRef.current[i];
+        if (!ep || newExtraHps[i] > 0) continue;
+        const epMaxHp = (ep as any).petMaxHp ?? petStatsRef.current.maxHp;
+        newExtraHps[i] = Math.max(1, Math.floor(epMaxHp * 0.3));
+        revived++;
+        const epos = getPetPos(i + 1, equippedPetsCountRef.current);
+        const rnd: DamageNumber = { id: dmgIdRef.current++, x: epos.x, y: epos.y - 14, value: newExtraHps[i], isHeal: true };
+        setDamageNumbers(prev => [...prev, rnd]);
+        setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== rnd.id)), 1400);
+      }
+      if (revived > 0) {
+        extraPetHpsRef.current = newExtraHps;
+        setExtraPetHps(newExtraHps);
+        playChime();
+      }
     }
     const updated = activeSlotsRef.current.map((s, i) =>
       i === slotIndex ? { ...s, remaining: s.remaining.slice(1) } : s
@@ -1851,6 +1880,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   const isEmpty = !slot || qty === 0;
                   const isHeal = slot && (slot.healthRestored ?? 0) > 0;
                   const isMana = slot && (slot.manaRestored ?? 0) > 0;
+                  const isRevive = slot && (slot.petsRevived ?? 0) > 0;
                   return (
                     <button
                       key={i}
@@ -1860,9 +1890,9 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                       className="relative flex items-center justify-center rounded-full border transition-all active:scale-90"
                       style={{
                         width: 44, height: 44,
-                        background: isEmpty ? "rgba(0,0,0,0.4)" : isMana ? "rgba(76,29,149,0.5)" : "rgba(20,80,30,0.5)",
-                        borderColor: isEmpty ? "rgba(255,255,255,0.1)" : isMana ? "rgba(167,139,250,0.5)" : "rgba(34,197,94,0.45)",
-                        boxShadow: isEmpty ? undefined : isMana ? "0 0 8px rgba(124,58,237,0.4)" : "0 0 8px rgba(34,197,94,0.3)",
+                        background: isEmpty ? "rgba(0,0,0,0.4)" : isRevive ? "rgba(120,60,0,0.5)" : isMana ? "rgba(76,29,149,0.5)" : "rgba(20,80,30,0.5)",
+                        borderColor: isEmpty ? "rgba(255,255,255,0.1)" : isRevive ? "rgba(251,191,36,0.6)" : isMana ? "rgba(167,139,250,0.5)" : "rgba(34,197,94,0.45)",
+                        boxShadow: isEmpty ? undefined : isRevive ? "0 0 8px rgba(251,191,36,0.4)" : isMana ? "0 0 8px rgba(124,58,237,0.4)" : "0 0 8px rgba(34,197,94,0.3)",
                         opacity: isEmpty ? 0.35 : 1,
                         cursor: isEmpty ? "not-allowed" : "pointer",
                       }}
@@ -1871,6 +1901,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                         <span className="text-white/20 text-lg">+</span>
                       ) : slot.imageUrl ? (
                         <img src={slot.imageUrl} alt={slot.name} className="w-7 h-7 object-contain" />
+                      ) : isRevive ? (
+                        <span className="text-lg">✨</span>
                       ) : isHeal ? (
                         <Heart className="w-5 h-5 fill-red-400/40" style={{ color: "#f87171" }} />
                       ) : (
