@@ -280,6 +280,8 @@ app.use((req, res, next) => {
     () => db.execute(sql`ALTER TABLE pet_templates ADD COLUMN IF NOT EXISTS facing TEXT DEFAULT 'front'`));
   await runMigration("users.watcher_shoutouts_enabled",
     () => db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS watcher_shoutouts_enabled boolean NOT NULL DEFAULT true`));
+  await runMigration("users.last_watcher_greeted_at",
+    () => db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_watcher_greeted_at timestamp`));
 
   try {
     await db.execute(sql`

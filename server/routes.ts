@@ -579,9 +579,8 @@ export async function syncTotalCoinsEarnedFloor(): Promise<void> {
 
 // ── Veridian Watcher ─────────────────────────────────────────────────────────
 const VERIDIAN_WATCHER_ID = "veridian-watcher";
-// Track last login greeting per user; greet on first login of the day OR if 12+ hrs since last greet
-const lastLoginGreetingAt = new Map<string, number>();
-const LOGIN_GREETING_COOLDOWN_MS = 12 * 60 * 60 * 1000;
+// Persisted on the user record (users.last_watcher_greeted_at) so it survives restarts.
+const LOGIN_GREETING_COOLDOWN_MS = 3 * 60 * 60 * 1000;
 
 async function postWatcherMessage(message: string): Promise<void> {
   try {
@@ -806,15 +805,14 @@ export async function registerRoutes(
         if (!user.welcomeV2Sent) {
           try { await grantWelcomeV2Bundle(user.id); } catch (e) { console.error("Welcome v2 grant failed:", e); }
         }
-        // Veridian Watcher login greeting — once per 3-hour window per user
+        // Veridian Watcher login greeting — strictly once per 3-hour window per user (persisted)
         try {
           if (user.watcherShoutoutsEnabled !== false) {
             const now = Date.now();
-            const lastGreeted = lastLoginGreetingAt.get(user.id) ?? 0;
-            const isNewDay = lastGreeted === 0 || new Date(lastGreeted).toDateString() !== new Date(now).toDateString();
+            const lastGreeted = user.lastWatcherGreetedAt ? new Date(user.lastWatcherGreetedAt).getTime() : 0;
             const cooldownPassed = now - lastGreeted >= LOGIN_GREETING_COOLDOWN_MS;
-            if (isNewDay || cooldownPassed) {
-              lastLoginGreetingAt.set(user.id, now);
+            if (cooldownPassed) {
+              await storage.setLastWatcherGreetedAt(user.id, new Date()).catch(() => {});
               const greetings = [
                 `🌿 Welcome back, ${user.username}! The realm stirs at your return.`,
                 `🌿 Ah, ${user.username} arrives. The wilds have missed you.`,

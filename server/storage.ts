@@ -87,6 +87,7 @@ export interface IStorage {
   addCoins(id: string, amount: number): Promise<User>;
   atomicDeductCoins(id: string, amount: number): Promise<User | null>;
   setWelcomeV2Sent(id: string): Promise<void>;
+  setLastWatcherGreetedAt(id: string, when: Date): Promise<void>;
   updatePassword(id: string, hashedPassword: string): Promise<User>;
   deleteAccount(id: string): Promise<void>;
   setPasswordResetToken(id: string, token: string, expires: Date): Promise<void>;
@@ -399,6 +400,10 @@ export class DatabaseStorage implements IStorage {
 
   async setWelcomeV2Sent(id: string): Promise<void> {
     await db.update(users).set({ welcomeV2Sent: true }).where(eq(users.id, id));
+  }
+
+  async setLastWatcherGreetedAt(id: string, when: Date): Promise<void> {
+    await db.update(users).set({ lastWatcherGreetedAt: when }).where(eq(users.id, id));
   }
 
   async updatePassword(id: string, hashedPassword: string): Promise<User> {

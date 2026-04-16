@@ -27,6 +27,7 @@ export const users = pgTable("users", {
   welcomeV2Sent: boolean("welcome_v2_sent").notNull().default(false),
   totalCoinsEarned: integer("total_coins_earned").notNull().default(0),
   watcherShoutoutsEnabled: boolean("watcher_shoutouts_enabled").notNull().default(true),
+  lastWatcherGreetedAt: timestamp("last_watcher_greeted_at"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
