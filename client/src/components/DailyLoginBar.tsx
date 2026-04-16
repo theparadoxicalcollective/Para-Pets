@@ -1,13 +1,14 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { X, Search, Plus } from "lucide-react";
 
 import rainforestBanner from "@assets/daily_login_rainforest_banner.png";
-import chestIcon        from "@assets/daily_login_chest_icon.png";
 import claimedIcon      from "@assets/daily_login_claimed_icon.png";
 import coinIconImg      from "@assets/icon_coin.png";
+import coinPack100      from "@assets/coin_pack_100.png";
+import coinPack500      from "@assets/coin_pack_500.png";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface DayReward {
@@ -87,7 +88,7 @@ function ClaimBurst({ onDone }: { onDone: () => void }) {
         animation: "burst-expand 1.4s ease-out forwards",
         position: "absolute",
       }} />
-      <img src={chestIcon} alt="" style={{
+      <img src={coinPack500} alt="" style={{
         width: 100, height: 100, objectFit: "contain",
         animation: "burst-pop 1.4s ease-out forwards",
         filter: "drop-shadow(0 0 30px rgba(80,220,120,0.8))",
@@ -364,7 +365,6 @@ export default function DailyLoginBar({
   const { toast } = useToast();
   const [editDay, setEditDay] = useState<number | null>(null);
   const [showBurst, setShowBurst] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   const { data: rewards = [] } = useQuery<DayReward[]>({
     queryKey: ["/api/daily-login/config"],
@@ -496,9 +496,13 @@ export default function DailyLoginBar({
           }}
         >
           <div
-            ref={scrollRef}
-            className="flex gap-2 overflow-x-auto"
-            style={{ scrollbarWidth: "none", paddingLeft: 4, paddingRight: 4 }}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(7, 1fr)",
+              gap: 5,
+              paddingLeft: 2,
+              paddingRight: 2,
+            }}
           >
             {(rewards.length > 0 ? rewards : Array.from({ length: 7 }, (_, i) => ({ day_number: i + 1, coin_amount: 0, items: [] }))).map(reward => {
               const dayState = getDayState(reward.day_number);
@@ -522,9 +526,8 @@ export default function DailyLoginBar({
                 <div
                   key={reward.day_number}
                   data-testid={`day-card-${reward.day_number}`}
-                  className="flex-shrink-0 flex flex-col items-center relative"
+                  className="flex flex-col items-center relative"
                   style={{
-                    width: 76,
                     minHeight: 108,
                     borderRadius: 16,
                     background: bg,
@@ -570,13 +573,16 @@ export default function DailyLoginBar({
                           ))}
                         </div>
                       ) : (
-                        <img src={chestIcon} alt="Reward"
+                        <img
+                          src={reward.coin_amount >= 500 ? coinPack500 : coinPack100}
+                          alt="Coins"
                           style={{
                             width: 32, height: 32, objectFit: "contain",
                             filter: isLocked && !isAdmin
                               ? "grayscale(0.7) brightness(0.6)"
-                              : "drop-shadow(0 0 8px rgba(80,220,120,0.3))",
-                          }} />
+                              : "drop-shadow(0 0 8px rgba(240,192,64,0.4))",
+                          }}
+                        />
                       )
                     )}
                   </div>
