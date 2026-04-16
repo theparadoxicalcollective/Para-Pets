@@ -798,10 +798,19 @@ function PetView({
                       display: "flex", alignItems: "center", justifyContent: "center",
                     }}
                   >
+                    {/* Circular radial glow behind the pet — never looks square */}
+                    <div style={{
+                      position: "absolute", inset: 0,
+                      borderRadius: "50%",
+                      background: isActive
+                        ? "radial-gradient(circle at 50% 55%, rgba(240,192,64,0.55) 0%, rgba(240,192,64,0.18) 35%, transparent 65%)"
+                        : `radial-gradient(circle at 50% 55%, rgba(240,192,64,${Math.min(0.5, rs.glowStrength + 0.05)}) 0%, rgba(240,192,64,${Math.min(0.18, rs.glowStrength * 0.55)}) 35%, transparent 65%)`,
+                      pointerEvents: "none",
+                    }} />
                     {displayImage ? (
-                      <img src={displayImage} alt={pet.name} style={{ width: 140, height: 140, objectFit: "contain", filter: isActive ? "drop-shadow(0 0 12px rgba(240,192,64,0.8))" : `drop-shadow(0 0 ${4 + (pet.rarity ?? 1) * 2}px rgba(240,192,64,${rs.glowStrength}))` }} />
+                      <img src={displayImage} alt={pet.name} style={{ width: 140, height: 140, objectFit: "contain", position: "relative", zIndex: 1 }} />
                     ) : (
-                      <img src={isEgg ? eggMagicIcon : petPawIcon} alt="" style={{ width: 100, height: 100, objectFit: "contain", filter: "drop-shadow(0 0 8px rgba(240,192,64,0.4))" }} />
+                      <img src={isEgg ? eggMagicIcon : petPawIcon} alt="" style={{ width: 100, height: 100, objectFit: "contain", position: "relative", zIndex: 1 }} />
                     )}
                   </div>
 
@@ -815,10 +824,16 @@ function PetView({
                       display: "flex", alignItems: "center", justifyContent: "center",
                     }}
                   >
+                    <div style={{
+                      position: "absolute", inset: 0,
+                      borderRadius: "50%",
+                      background: "radial-gradient(circle at 50% 55%, rgba(240,192,64,0.4) 0%, rgba(240,192,64,0.12) 35%, transparent 65%)",
+                      pointerEvents: "none",
+                    }} />
                     {eggDisplayImage ? (
-                      <img src={eggDisplayImage} alt="egg" style={{ width: 140, height: 140, objectFit: "contain", filter: "drop-shadow(0 0 10px rgba(240,192,64,0.6))" }} />
+                      <img src={eggDisplayImage} alt="egg" style={{ width: 140, height: 140, objectFit: "contain", position: "relative", zIndex: 1 }} />
                     ) : (
-                      <img src={eggMagicIcon} alt="egg" style={{ width: 100, height: 100, objectFit: "contain", filter: "drop-shadow(0 0 8px rgba(240,192,64,0.5))" }} />
+                      <img src={eggMagicIcon} alt="egg" style={{ width: 100, height: 100, objectFit: "contain", position: "relative", zIndex: 1 }} />
                     )}
                   </div>
                 </div>

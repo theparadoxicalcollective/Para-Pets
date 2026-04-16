@@ -1094,6 +1094,18 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         />
       )}
 
+      {/* ── Equip Accessories modal ── */}
+      {activePetModal === "equip_accessories" && activePetForModal && (
+        <PetEquipAccessoriesPage
+          petInventoryId={activePetForModal.inventoryId}
+          petName={activePetForModal.petNickname || activePetForModal.name}
+          petImage={activePetForModal.hatchedImageUrl || activePetForModal.imageUrl}
+          petTemplateId={activePetForModal.petTemplateId}
+          rarity={activePetForModal.rarity || 1}
+          onClose={() => setActivePetModal(null)}
+        />
+      )}
+
       {/* ── Level Up modal ── */}
       {activePetModal === "level_up" && activePetForModal && (
         <PetPowerUpModal

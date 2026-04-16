@@ -314,7 +314,6 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                         src={petImage}
                         alt={pet.name}
                         className="w-full h-full object-contain"
-                        style={{ filter: `drop-shadow(0 0 8px ${rc.glow}) drop-shadow(0 0 20px ${rc.glow.replace("0.55", "0.28")})` }}
                       />
                     ) : (
                       <img src={petPawIcon} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", opacity: 0.6 }} />
@@ -337,7 +336,6 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                         src={pet.eggImageUrl}
                         alt="Egg"
                         className="w-full h-full object-contain"
-                        style={{ filter: `drop-shadow(0 0 8px ${rc.glow}) drop-shadow(0 0 20px ${rc.glow.replace("0.55", "0.28")})` }}
                       />
                     ) : (
                       <img src={petPawIcon} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", opacity: 0.35 }} />
@@ -447,6 +445,33 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
             {rc.label.toUpperCase()}
           </div>
 
+          {/* Release pet button — sits just under the rarity badge */}
+          {readOnly && (
+            <button
+              type="button"
+              data-testid="button-release-pet"
+              onClick={() => setShowReleaseConfirm(true)}
+              aria-label="Return pet spirit to Veridia"
+              title="Return spirit to Veridia"
+              className="absolute"
+              style={{
+                top: 32, left: 14,
+                background: "transparent",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+                fontSize: 16,
+                lineHeight: 1,
+                opacity: 0.85,
+                transition: "transform 0.15s ease, opacity 0.15s ease",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.18)"; e.currentTarget.style.opacity = "1"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.opacity = "0.85"; }}
+            >
+              🚫
+            </button>
+          )}
+
           {/* Help + Close buttons */}
           <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5">
             <button
@@ -537,31 +562,6 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
               <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, transparent, ${rc.primary}44)` }} />
               <span className="font-fantasy text-[9px] tracking-widest" style={{ color: rc.primary + "88" }}>COMBAT STATS</span>
               <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${rc.primary}44, transparent)` }} />
-              {readOnly && (
-                <button
-                  type="button"
-                  data-testid="button-release-pet"
-                  onClick={() => setShowReleaseConfirm(true)}
-                  aria-label="Return pet spirit to Veridia"
-                  title="Return spirit to Veridia"
-                  style={{
-                    background: "transparent",
-                    border: "none",
-                    padding: 0,
-                    marginLeft: 4,
-                    cursor: "pointer",
-                    fontSize: 18,
-                    lineHeight: 1,
-                    filter: "drop-shadow(0 0 6px rgba(127,255,180,0.55)) drop-shadow(0 0 12px rgba(74,222,128,0.35)) drop-shadow(0 0 20px rgba(34,160,90,0.25))",
-                    animation: "releasePulse 2.6s ease-in-out infinite",
-                    transition: "transform 0.15s ease",
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.15)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
-                >
-                  🚫
-                </button>
-              )}
             </div>
             <div className="grid grid-cols-3 gap-2">
               {/* HP plate */}
