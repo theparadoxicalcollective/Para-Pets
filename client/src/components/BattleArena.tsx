@@ -971,26 +971,18 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       const nd: DamageNumber = { id: dmgIdRef.current++, x: PET_X, y: PET_Y - 14, value: healAmt, isHeal: true };
       setDamageNumbers(prev => [...prev, nd]);
       setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== nd.id)), 1200);
-      // Heal Party: also heal all extra pets that are alive
+      // Heal Party: also heal alive extra pets (does NOT revive fainted ones)
       if (skill === "Heal Party") {
         const newExtraHps = [...extraPetHpsRef.current] as [number, number];
         let partyChanged = false;
         for (let i = 0; i < 2; i++) {
           const ep = equippedExtraPetsRef.current[i];
-          if (!ep) continue;
+          if (!ep || newExtraHps[i] <= 0) continue; // skip fainted pets
           const epMaxHp = (ep as any).petMaxHp ?? petStatsRef.current.maxHp;
-          const prevHp = newExtraHps[i];
-          // Revive fainted pets with half heal, heal alive pets fully
-          if (prevHp <= 0 && ep) {
-            newExtraHps[i] = Math.min(epMaxHp, Math.floor(healAmt * 0.5));
-          } else if (prevHp > 0) {
-            newExtraHps[i] = Math.min(epMaxHp, prevHp + healAmt);
-          } else {
-            continue;
-          }
+          newExtraHps[i] = Math.min(epMaxHp, newExtraHps[i] + healAmt);
           partyChanged = true;
           const epos = getPetPos(i + 1, equippedPetsCountRef.current);
-          const end2: DamageNumber = { id: dmgIdRef.current++, x: epos.x, y: epos.y - 14, value: prevHp <= 0 ? Math.floor(healAmt * 0.5) : healAmt, isHeal: true };
+          const end2: DamageNumber = { id: dmgIdRef.current++, x: epos.x, y: epos.y - 14, value: healAmt, isHeal: true };
           setDamageNumbers(prev => [...prev, end2]);
           setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== end2.id)), 1200);
         }
@@ -998,6 +990,40 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           extraPetHpsRef.current = newExtraHps;
           setExtraPetHps(newExtraHps);
         }
+      }
+
+    } else if (skill === "Revive Party") {
+      // Revive fainted extra pets; also heals active pet if they're below 50% HP
+      const healMult = healPctOverride !== null ? healPctOverride / 100 : (pct !== null ? pct / 100 : 0.4);
+      const reviveAmt = Math.max(1, Math.floor(petStatsRef.current.atk * healMult));
+      const newExtraHps = [...extraPetHpsRef.current] as [number, number];
+      let reviveChanged = false;
+      for (let i = 0; i < 2; i++) {
+        const ep = equippedExtraPetsRef.current[i];
+        if (!ep) continue;
+        const epMaxHp = (ep as any).petMaxHp ?? petStatsRef.current.maxHp;
+        if (newExtraHps[i] <= 0) {
+          // Revive fainted pet with partial HP
+          newExtraHps[i] = Math.min(epMaxHp, reviveAmt);
+          reviveChanged = true;
+          const epos = getPetPos(i + 1, equippedPetsCountRef.current);
+          const rnd: DamageNumber = { id: dmgIdRef.current++, x: epos.x, y: epos.y - 14, value: reviveAmt, isHeal: true };
+          setDamageNumbers(prev => [...prev, rnd]);
+          setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== rnd.id)), 1400);
+        }
+      }
+      if (reviveChanged) {
+        extraPetHpsRef.current = newExtraHps;
+        setExtraPetHps(newExtraHps);
+      }
+      // Also top up the active pet if they survived
+      if (petHpRef.current > 0) {
+        const maxHp = petStatsRef.current.maxHp;
+        petHpRef.current = Math.min(maxHp, petHpRef.current + reviveAmt);
+        setPetHp(petHpRef.current);
+        const arnd: DamageNumber = { id: dmgIdRef.current++, x: PET_X, y: PET_Y - 14, value: reviveAmt, isHeal: true };
+        setDamageNumbers(prev => [...prev, arnd]);
+        setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== arnd.id)), 1200);
       }
 
     } else if (skill === "Poison") {
