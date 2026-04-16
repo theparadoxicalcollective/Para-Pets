@@ -641,19 +641,20 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                           }}
                         >
                           {activePet.eggImageUrl ? (
-                            <div style={{ paddingTop: "13vh", width: "100%", display: "flex", justifyContent: "center" }}>
+                            <div style={{ paddingTop: "6vh", width: "100%", display: "flex", justifyContent: "center" }}>
                               <img
                                 src={activePet.eggImageUrl}
                                 alt={activePet.name}
-                                className="w-4/5 max-h-[40vh] object-contain"
+                                className="w-full max-h-[55vh] object-contain"
                                 style={{
                                   animation: "petImgIdle 3.5s ease-in-out infinite",
                                   transformOrigin: "center bottom",
+                                  filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.55))",
                                 }}
                               />
                             </div>
                           ) : (
-                            <img src={eggMagicIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain", filter: "drop-shadow(0 2px 10px rgba(0,0,0,0.5))" }} />
+                            <img src={eggMagicIcon} alt="" style={{ width: 120, height: 120, objectFit: "contain", filter: "drop-shadow(0 2px 10px rgba(0,0,0,0.5))" }} />
                           )}
                           {eggHatchReady && !hatchRevealing && (
                             <div className="absolute inset-0 pointer-events-none" data-testid="display-egg-hatch-ready">

@@ -570,9 +570,9 @@ export async function syncTotalCoinsEarnedFloor(): Promise<void> {
 
 // ── Veridian Watcher ─────────────────────────────────────────────────────────
 const VERIDIAN_WATCHER_ID = "veridian-watcher";
-// Track last login greeting per user; prevents repeat greetings within 3 hours
+// Track last login greeting per user; greet on first login of the day OR if 12+ hrs since last greet
 const lastLoginGreetingAt = new Map<string, number>();
-const LOGIN_GREETING_COOLDOWN_MS = 3 * 60 * 60 * 1000;
+const LOGIN_GREETING_COOLDOWN_MS = 12 * 60 * 60 * 1000;
 
 async function postWatcherMessage(message: string): Promise<void> {
   try {
@@ -801,7 +801,9 @@ export async function registerRoutes(
           if (user.watcherShoutoutsEnabled !== false) {
             const now = Date.now();
             const lastGreeted = lastLoginGreetingAt.get(user.id) ?? 0;
-            if (now - lastGreeted >= LOGIN_GREETING_COOLDOWN_MS) {
+            const isNewDay = lastGreeted === 0 || new Date(lastGreeted).toDateString() !== new Date(now).toDateString();
+            const cooldownPassed = now - lastGreeted >= LOGIN_GREETING_COOLDOWN_MS;
+            if (isNewDay || cooldownPassed) {
               lastLoginGreetingAt.set(user.id, now);
               const greetings = [
                 `🌿 Welcome back, ${user.username}! The realm stirs at your return.`,
@@ -6376,28 +6378,35 @@ export async function registerRoutes(
     }
   }, 30 * 60 * 1000);
 
-  // Leaderboard monitor — checks every 30 min for top-3 changes
-  let lastLeaderboardTop3: string[] = [];
+  // Leaderboard monitor — fires only when a NEW player enters the top 3 (not on reorders).
+  // Polls every 5 minutes so newcomers are surfaced quickly.
+  let lastLeaderboardTop3Names = new Set<string>();
+  let leaderboardMonitorPrimed = false;
   setInterval(async () => {
     try {
       const leaderboard = await storage.getBadgeLeaderboard(3);
       const top3 = leaderboard.slice(0, 3) as any[];
-      const top3Names = top3.map((u: any) => u.username);
-      const changed = top3Names.some((name, i) => name !== lastLeaderboardTop3[i]);
-      if (lastLeaderboardTop3.length > 0 && changed) {
-        const medals = ["🥇", "🥈", "🥉"];
-        const formatted = await Promise.all(top3.map(async (u: any, i: number) => {
-          const fullUser = await storage.getUser(u.userId).catch(() => null);
-          const displayName = fullUser?.watcherShoutoutsEnabled !== false ? u.username : "a brave champion";
-          return `${medals[i]} ${displayName}`;
-        }));
-        await postWatcherMessage(`👁️ The Watcher observes... the leaderboard shifts! The current champions stand as: ${formatted.join("  ")}. Will you rise to challenge them?`);
+      const currentNames = new Set<string>(top3.map((u: any) => u.username));
+      const newcomers = [...currentNames].filter(n => !lastLeaderboardTop3Names.has(n));
+      if (leaderboardMonitorPrimed && newcomers.length > 0) {
+        for (const newName of newcomers) {
+          const entry = top3.find((u: any) => u.username === newName);
+          if (!entry) continue;
+          const rankIdx = top3.indexOf(entry);
+          const medals = ["🥇", "🥈", "🥉"];
+          const fullUser = await storage.getUser(entry.userId).catch(() => null);
+          if (fullUser?.watcherShoutoutsEnabled === false) continue;
+          await postWatcherMessage(
+            `👁️ The Watcher observes... a new champion rises! ${medals[rankIdx]} ${newName} has claimed a place among the top three. Will you rise to challenge them?`
+          );
+        }
       }
-      lastLeaderboardTop3 = top3Names;
+      lastLeaderboardTop3Names = currentNames;
+      leaderboardMonitorPrimed = true;
     } catch (err) {
       console.error("[VW] Leaderboard monitor error:", err);
     }
-  }, 10 * 60 * 1000);
+  }, 5 * 60 * 1000);
 
   return httpServer;
 }

@@ -1024,8 +1024,11 @@ export default function ParaPetsHubPage() {
     queryKey: ["/api/badges/leaderboard"],
     retry: false,
     staleTime: 0,
-    refetchInterval: 15_000,
+    refetchInterval: 5_000,
+    refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
+    refetchOnMount: "always",
+    refetchOnReconnect: true,
   });
 
   const top3  = leaderboard?.slice(0, 3)  ?? [];
