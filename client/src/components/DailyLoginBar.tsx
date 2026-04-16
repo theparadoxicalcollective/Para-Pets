@@ -5,10 +5,10 @@ import { useToast } from "@/hooks/use-toast";
 import { X, Search, Plus } from "lucide-react";
 
 import rainforestBanner from "@assets/daily_login_rainforest_banner.png";
-import claimedIcon      from "@assets/daily_login_claimed_icon.png";
 import coinIconImg      from "@assets/icon_coin.png";
 import coinPack100      from "@assets/coin_pack_100.png";
 import coinPack500      from "@assets/coin_pack_500.png";
+import chestIcon        from "@assets/daily_login_chest_icon.png";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface DayReward {
@@ -564,37 +564,52 @@ export default function DailyLoginBar({
                     DAY {reward.day_number}
                   </p>
 
-                  {/* Icon area */}
-                  <div className="flex items-center justify-center my-1.5" style={{ height: 38 }}>
-                    {isClaimed ? (
-                      <img src={claimedIcon} alt="Claimed"
-                        style={{ width: 36, height: 36, objectFit: "contain",
-                          filter: "drop-shadow(0 0 8px rgba(74,222,128,0.5))" }} />
+                  {/* Icon area — always shows the item, dimmed when claimed/locked */}
+                  <div className="relative flex items-center justify-center my-1.5" style={{ height: 38 }}>
+                    {reward.items.length > 0 ? (
+                      <div className="flex flex-wrap justify-center gap-0.5" style={{ maxWidth: 66 }}>
+                        {reward.items.slice(0, 4).map(item => (
+                          <img key={item.id} src={item.imageUrl || chestIcon} alt={item.name}
+                            style={{
+                              width: reward.items.length === 1 ? 32 : 18,
+                              height: reward.items.length === 1 ? 32 : 18,
+                              objectFit: "contain",
+                              filter: isClaimed
+                                ? "grayscale(0.6) brightness(0.45)"
+                                : (isLocked && !isAdmin) ? "grayscale(0.7)" : "none",
+                            }} />
+                        ))}
+                      </div>
                     ) : (
-                      reward.items.length > 0 ? (
-                        <div className="flex flex-wrap justify-center gap-0.5" style={{ maxWidth: 66 }}>
-                          {reward.items.slice(0, 4).map(item => (
-                            <img key={item.id} src={item.imageUrl || chestIcon} alt={item.name}
-                              style={{
-                                width: reward.items.length === 1 ? 32 : 18,
-                                height: reward.items.length === 1 ? 32 : 18,
-                                objectFit: "contain",
-                                filter: isLocked && !isAdmin ? "grayscale(0.7)" : "none",
-                              }} />
-                          ))}
-                        </div>
-                      ) : (
-                        <img
-                          src={reward.coin_amount >= 500 ? coinPack500 : coinPack100}
-                          alt="Coins"
-                          style={{
-                            width: 32, height: 32, objectFit: "contain",
-                            filter: isLocked && !isAdmin
+                      <img
+                        src={reward.coin_amount >= 500 ? coinPack500 : coinPack100}
+                        alt="Coins"
+                        style={{
+                          width: 32, height: 32, objectFit: "contain",
+                          filter: isClaimed
+                            ? "grayscale(0.6) brightness(0.45)"
+                            : (isLocked && !isAdmin)
                               ? "grayscale(0.7) brightness(0.6)"
                               : "drop-shadow(0 0 8px rgba(240,192,64,0.4))",
-                          }}
-                        />
-                      )
+                        }}
+                      />
+                    )}
+
+                    {/* Green checkmark overlay when claimed */}
+                    {isClaimed && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div style={{
+                          width: 22, height: 22, borderRadius: "50%",
+                          background: "rgba(34,197,94,0.92)",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          boxShadow: "0 0 10px rgba(74,222,128,0.7), 0 0 4px rgba(0,0,0,0.4)",
+                        }}>
+                          <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                            <path d="M2.5 6.5L5.2 9.5L10.5 3.5" stroke="white" strokeWidth="2.2"
+                              strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </div>
+                      </div>
                     )}
                   </div>
 
@@ -628,9 +643,7 @@ export default function DailyLoginBar({
                       <span className="font-fantasy" style={{ fontSize: 8 }}>Edit</span>
                     </button>
                   ) : isClaimed ? (
-                    <div className="flex items-center justify-center gap-0.5 mt-auto">
-                      <span style={{ fontSize: 8, color: "#4ade80", fontFamily: "inherit" }}>✓ Done</span>
-                    </div>
+                    <div style={{ height: 24 }} />
                   ) : isCurrent && status?.canClaim ? (
                     <button
                       onClick={() => claimMut.mutate()}
