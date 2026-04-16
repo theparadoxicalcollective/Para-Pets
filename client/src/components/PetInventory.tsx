@@ -808,9 +808,9 @@ function PetView({
                       pointerEvents: "none",
                     }} />
                     {displayImage ? (
-                      <img src={displayImage} alt={pet.name} style={{ width: 140, height: 140, objectFit: "contain", position: "relative", zIndex: 1 }} />
+                      <img src={displayImage} alt={pet.name} style={{ width: 140, height: 140, objectFit: "contain", position: "relative" }} />
                     ) : (
-                      <img src={isEgg ? eggMagicIcon : petPawIcon} alt="" style={{ width: 100, height: 100, objectFit: "contain", position: "relative", zIndex: 1 }} />
+                      <img src={isEgg ? eggMagicIcon : petPawIcon} alt="" style={{ width: 100, height: 100, objectFit: "contain", position: "relative" }} />
                     )}
                   </div>
 
@@ -831,9 +831,9 @@ function PetView({
                       pointerEvents: "none",
                     }} />
                     {eggDisplayImage ? (
-                      <img src={eggDisplayImage} alt="egg" style={{ width: 140, height: 140, objectFit: "contain", position: "relative", zIndex: 1 }} />
+                      <img src={eggDisplayImage} alt="egg" style={{ width: 140, height: 140, objectFit: "contain", position: "relative" }} />
                     ) : (
-                      <img src={eggMagicIcon} alt="egg" style={{ width: 100, height: 100, objectFit: "contain", position: "relative", zIndex: 1 }} />
+                      <img src={eggMagicIcon} alt="egg" style={{ width: 100, height: 100, objectFit: "contain", position: "relative" }} />
                     )}
                   </div>
                 </div>
