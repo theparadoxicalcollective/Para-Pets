@@ -169,6 +169,28 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
     },
   });
 
+  const [showReleaseConfirm, setShowReleaseConfirm] = useState(false);
+  const releaseMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("DELETE", `/api/inventory/${pet.inventoryId}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      toast({ title: "Returned to Veridia", description: "Your companion's spirit has joined the realm." });
+      setShowReleaseConfirm(false);
+      onUpdate();
+      onClose();
+    },
+    onError: (err: any) => {
+      const msg = err?.message?.replace(/^\d+:\s*/, "") || "Could not release this companion";
+      const parsed = (() => { try { return JSON.parse(msg); } catch { return null; } })();
+      toast({ title: "Cannot release", description: parsed?.message || msg, variant: "destructive" });
+      setShowReleaseConfirm(false);
+    },
+  });
+
   const rarity = pet.rarity || 1;
 
   const petImage = pet.hatchedImageUrl || pet.imageUrl;
@@ -515,6 +537,31 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
               <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, transparent, ${rc.primary}44)` }} />
               <span className="font-fantasy text-[9px] tracking-widest" style={{ color: rc.primary + "88" }}>COMBAT STATS</span>
               <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${rc.primary}44, transparent)` }} />
+              {readOnly && (
+                <button
+                  type="button"
+                  data-testid="button-release-pet"
+                  onClick={() => setShowReleaseConfirm(true)}
+                  aria-label="Return pet spirit to Veridia"
+                  title="Return spirit to Veridia"
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    padding: 0,
+                    marginLeft: 4,
+                    cursor: "pointer",
+                    fontSize: 18,
+                    lineHeight: 1,
+                    filter: "drop-shadow(0 0 6px rgba(127,255,180,0.55)) drop-shadow(0 0 12px rgba(74,222,128,0.35)) drop-shadow(0 0 20px rgba(34,160,90,0.25))",
+                    animation: "releasePulse 2.6s ease-in-out infinite",
+                    transition: "transform 0.15s ease",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.15)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
+                >
+                  🚫
+                </button>
+              )}
             </div>
             <div className="grid grid-cols-3 gap-2">
               {/* HP plate */}
@@ -780,7 +827,125 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
           40%  { opacity: 0.7; transform: scale(1.3); }
           100% { opacity: 0; transform: scale(1.6); }
         }
+        @keyframes releasePulse {
+          0%, 100% { filter: drop-shadow(0 0 6px rgba(127,255,180,0.55)) drop-shadow(0 0 12px rgba(74,222,128,0.35)) drop-shadow(0 0 20px rgba(34,160,90,0.25)); }
+          50%      { filter: drop-shadow(0 0 10px rgba(180,255,210,0.85)) drop-shadow(0 0 20px rgba(127,255,180,0.55)) drop-shadow(0 0 32px rgba(74,222,128,0.4)); }
+        }
+        @keyframes releaseLeafFloat1 {
+          0%   { transform: translate(0,0) rotate(0deg); opacity: 0; }
+          15%  { opacity: 0.85; }
+          100% { transform: translate(30px,-110px) rotate(220deg); opacity: 0; }
+        }
+        @keyframes releaseLeafFloat2 {
+          0%   { transform: translate(0,0) rotate(0deg); opacity: 0; }
+          20%  { opacity: 0.8; }
+          100% { transform: translate(-40px,-130px) rotate(-260deg); opacity: 0; }
+        }
+        @keyframes releaseLeafFloat3 {
+          0%   { transform: translate(0,0) rotate(0deg); opacity: 0; }
+          18%  { opacity: 0.9; }
+          100% { transform: translate(20px,-90px) rotate(180deg); opacity: 0; }
+        }
+        @keyframes releaseSpiritGlow {
+          0%, 100% { box-shadow: 0 0 30px rgba(74,222,128,0.45), inset 0 0 30px rgba(127,255,180,0.18); }
+          50%      { box-shadow: 0 0 55px rgba(127,255,180,0.65), inset 0 0 50px rgba(180,255,210,0.28); }
+        }
       `}</style>
+
+      {/* ── Release pet (return spirit to Veridia) confirmation ──── */}
+      {showReleaseConfirm && (
+        <div
+          className="fixed inset-0 z-[80] flex items-end justify-center sm:items-center"
+          style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
+        >
+          <div
+            className="absolute inset-0"
+            style={{ background: "rgba(2,12,5,0.82)" }}
+            onClick={() => !releaseMutation.isPending && setShowReleaseConfirm(false)}
+          />
+          <div
+            className="relative w-full sm:w-[92%] sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6 animate-slide-up"
+            style={{
+              background: "linear-gradient(160deg, #061a0c 0%, #0a2614 50%, #051208 100%)",
+              border: "1px solid rgba(127,255,180,0.35)",
+              boxShadow: "0 -10px 60px rgba(0,0,0,0.85), 0 0 60px rgba(74,222,128,0.18)",
+              animation: "releaseSpiritGlow 3.4s ease-in-out infinite",
+            }}
+          >
+            {/* drifting leaves */}
+            <div style={{ position: "absolute", left: "20%", bottom: 60, fontSize: 14, pointerEvents: "none", animation: "releaseLeafFloat1 4.5s ease-in-out infinite" }}>🍃</div>
+            <div style={{ position: "absolute", left: "60%", bottom: 70, fontSize: 12, pointerEvents: "none", animation: "releaseLeafFloat2 5.2s ease-in-out 0.8s infinite" }}>🍃</div>
+            <div style={{ position: "absolute", left: "75%", bottom: 50, fontSize: 13, pointerEvents: "none", animation: "releaseLeafFloat3 4.8s ease-in-out 1.6s infinite" }}>🌿</div>
+
+            <div className="text-center relative">
+              <div
+                className="mx-auto mb-3 flex items-center justify-center"
+                style={{
+                  width: 64, height: 64, borderRadius: "50%",
+                  background: "radial-gradient(circle at 50% 40%, rgba(127,255,180,0.35) 0%, rgba(34,120,70,0.25) 50%, transparent 75%)",
+                  fontSize: 30,
+                  filter: "drop-shadow(0 0 12px rgba(127,255,180,0.6))",
+                }}
+              >
+                🚫
+              </div>
+              <h3
+                className="font-fantasy tracking-widest text-base mb-2"
+                style={{
+                  background: "linear-gradient(135deg, #c8ffd4 0%, #7fffd4 50%, #4ade80 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  textShadow: "none",
+                }}
+              >
+                Return Spirit to Veridia?
+              </h3>
+              <p className="font-fantasy text-[12px] tracking-wider leading-relaxed mb-1" style={{ color: "rgba(200,255,220,0.85)" }}>
+                Are you sure you want to return{" "}
+                <span style={{ color: "#7fffd4" }}>{pet.petNickname || "this pet"}</span>'s spirit to Veridia?
+              </p>
+              <p className="font-fantasy text-[10px] tracking-wider leading-relaxed mb-5" style={{ color: "rgba(160,220,180,0.65)" }}>
+                Anything equipped and the companion will be removed completely.
+              </p>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  data-testid="button-release-cancel"
+                  onClick={() => setShowReleaseConfirm(false)}
+                  disabled={releaseMutation.isPending}
+                  className="flex-1 py-2.5 rounded-lg font-fantasy text-[11px] tracking-widest transition-all"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(20,40,28,0.9) 0%, rgba(10,28,18,0.9) 100%)",
+                    border: "1px solid rgba(127,255,180,0.3)",
+                    color: "rgba(180,230,200,0.85)",
+                    cursor: "pointer",
+                  }}
+                >
+                  Keep Companion
+                </button>
+                <button
+                  type="button"
+                  data-testid="button-release-confirm"
+                  onClick={() => releaseMutation.mutate()}
+                  disabled={releaseMutation.isPending}
+                  className="flex-1 py-2.5 rounded-lg font-fantasy text-[11px] tracking-widest transition-all"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(34,90,55,0.95) 0%, rgba(20,60,38,0.95) 100%)",
+                    border: "1px solid rgba(127,255,180,0.55)",
+                    color: "#c8ffd4",
+                    cursor: releaseMutation.isPending ? "wait" : "pointer",
+                    boxShadow: "0 0 18px rgba(74,222,128,0.25), inset 0 1px 0 rgba(180,255,210,0.15)",
+                    textShadow: "0 0 8px rgba(127,255,180,0.45)",
+                  }}
+                >
+                  {releaseMutation.isPending ? "Releasing..." : "Release Spirit"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Tutorial modal ─────────────────────────────────────────── */}
       {showTutorial && (
