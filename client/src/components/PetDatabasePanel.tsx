@@ -47,40 +47,91 @@ interface LinkedShopPet {
 type PartLayer = "front" | "back" | "body";
 interface PartDef { key: string; label: string; defaultZ: number; layer: PartLayer; animOnly?: boolean; defaultPivotX?: number; defaultPivotY?: number; }
 
-// Layer order per user spec (top-to-bottom = highest z-index to lowest)
-// Front facing:
-//   eyes(open), eyes(closed), mouth(closed), mouth(open), head,
-//   left ear, right ear, left arm, right arm, body,
-//   left wing, right wing, left leg, right leg, tail
-const FRONT_PART_GROUPS: { group: string; parts: PartDef[] }[] = [
-  { group: "Face", parts: [
-    { key: "eyes",         label: "Eyes (Open)",   defaultZ: 15, layer: "front" },
-    { key: "eyes_closed",  label: "Eyes (Closed)", defaultZ: 14, layer: "front", animOnly: true },
-    { key: "mouth_closed", label: "Mouth (Closed)",defaultZ: 13, layer: "front" },
-    { key: "mouth",        label: "Mouth (Open)",  defaultZ: 12, layer: "front", animOnly: true },
+// ── Front-facing layer plan ────────────────────────────────────────────────
+// Z-order (higher = drawn on top). Layout enforces:
+//   heads (all)  >  body parts  >  back hair (per head)  >  head wings  >  wing sets
+// Each "head" gets its own full set of parts so multi-headed pets can animate
+// each head independently (parts move with their head's anchor).
+//
+// Existing keys (head, eyes, eyes_closed, mouth, mouth_closed, left_ear,
+// right_ear, left_arm, right_arm, body, left_leg, right_leg, tail, left_wing,
+// right_wing) are PRESERVED so previously-built pets keep working unchanged.
+// New head/body/wing keys use clear prefixes (h2_, h3_, wing_set2_*, etc.).
+
+type HeadIdx = 1 | 2 | 3;
+const headPrefix = (i: HeadIdx) => (i === 1 ? "" : `h${i}_`);
+
+/** Build the 11 "front of head" parts for a given head index. */
+const headFrontParts = (i: HeadIdx, baseZ: number): PartDef[] => {
+  const p = headPrefix(i);
+  // Reuse the original key names for Head 1 so existing data is preserved.
+  const k = (suffix: string) => `${p}${suffix}`;
+  return [
+    { key: k("hair_left"),    label: "Hair Piece Left",  defaultZ: baseZ + 10, layer: "front" },
+    { key: k("hair_right"),   label: "Hair Piece Right", defaultZ: baseZ + 9,  layer: "front" },
+    { key: k("eyes"),         label: "Eyes (Open)",      defaultZ: baseZ + 8,  layer: "front" },
+    { key: k("eyes_closed"),  label: "Eyes (Closed)",    defaultZ: baseZ + 7,  layer: "front", animOnly: true },
+    { key: k("mouth_closed"), label: "Mouth (Closed)",   defaultZ: baseZ + 6,  layer: "front" },
+    { key: k("mouth"),        label: "Mouth (Open)",     defaultZ: baseZ + 5,  layer: "front", animOnly: true },
+    { key: k("accessory_1"),  label: "Accessory 1",      defaultZ: baseZ + 4,  layer: "front" },
+    { key: k("accessory_2"),  label: "Accessory 2",      defaultZ: baseZ + 3,  layer: "front" },
+    { key: k("head"),         label: "Head",             defaultZ: baseZ + 2,  layer: "front" },
+    { key: k("left_ear"),     label: "Left Ear",         defaultZ: baseZ + 1,  layer: "front" },
+    { key: k("right_ear"),    label: "Right Ear",        defaultZ: baseZ + 0,  layer: "front" },
+  ];
+};
+
+const headBackHair = (i: HeadIdx, z: number): PartDef =>
+  ({ key: `${headPrefix(i)}back_hair`, label: "Back Hair", defaultZ: z, layer: "back" });
+
+const headWingPair = (i: HeadIdx, zL: number): PartDef[] => [
+  { key: `${headPrefix(i)}head_wing_left`,  label: "Head Wing Left",  defaultZ: zL,     layer: "back" },
+  { key: `${headPrefix(i)}head_wing_right`, label: "Head Wing Right", defaultZ: zL - 1, layer: "back" },
+];
+
+// Z bands keep heads clearly above body, body above back hair, back hair above
+// all wings. Multi-head pets get separate bands so they don't z-fight.
+const FRONT_PART_GROUPS: { group: string; parts: PartDef[]; collapsed?: boolean }[] = [
+  // ── Heads (each is a complete face/ear/hair stack) ─────────────────────
+  { group: "Head One",   parts: headFrontParts(1, 100) },
+  { group: "Head Two",   parts: headFrontParts(2, 85),  collapsed: true },
+  { group: "Head Three", parts: headFrontParts(3, 70),  collapsed: true },
+
+  // ── Body (drawn under all heads) ───────────────────────────────────────
+  { group: "Body Parts", parts: [
+    { key: "left_shoulder",  label: "Left Shoulder",  defaultZ: 54, layer: "front" },
+    { key: "right_shoulder", label: "Right Shoulder", defaultZ: 53, layer: "front" },
+    { key: "left_arm",       label: "Left Arm",       defaultZ: 52, layer: "front" },
+    { key: "right_arm",      label: "Right Arm",      defaultZ: 51, layer: "front" },
+    { key: "body",           label: "Body",           defaultZ: 50, layer: "body"  },
+    { key: "left_leg",       label: "Left Leg",       defaultZ: 49, layer: "back"  },
+    { key: "right_leg",      label: "Right Leg",      defaultZ: 48, layer: "back"  },
+    { key: "tail",           label: "Tail One",       defaultZ: 47, layer: "back",  defaultPivotX: 50, defaultPivotY: 0 },
+    { key: "tail_2",         label: "Tail Two",       defaultZ: 46, layer: "back",  defaultPivotX: 50, defaultPivotY: 0 },
+    { key: "tail_3",         label: "Tail Three",     defaultZ: 45, layer: "back",  defaultPivotX: 50, defaultPivotY: 0 },
   ]},
-  { group: "Head & Ears", parts: [
-    { key: "head",       label: "Head",      defaultZ: 10, layer: "front" },
-    { key: "left_ear",   label: "Left Ear",  defaultZ: 9,  layer: "front" },
-    { key: "right_ear",  label: "Right Ear", defaultZ: 9,  layer: "back" },
+
+  // ── Back hair (one per head — sits behind body, in front of all wings) ──
+  { group: "Back Hair",  parts: [
+    headBackHair(1, 35),
+    headBackHair(2, 34),
+    headBackHair(3, 33),
   ]},
-  { group: "Arms", parts: [
-    { key: "left_arm",  label: "Left Arm",  defaultZ: 8, layer: "front" },
-    { key: "right_arm", label: "Right Arm", defaultZ: 7, layer: "front" },
-  ]},
-  { group: "Body", parts: [
-    { key: "body", label: "Body", defaultZ: 5, layer: "body" },
-  ]},
-  { group: "Wings", parts: [
-    { key: "left_wing",  label: "Left Wing",  defaultZ: 4, layer: "back" },
-    { key: "right_wing", label: "Right Wing", defaultZ: 3, layer: "back" },
-  ]},
-  { group: "Legs", parts: [
-    { key: "left_leg",  label: "Left Leg",  defaultZ: 2, layer: "back" },
-    { key: "right_leg", label: "Right Leg", defaultZ: 2, layer: "back" },
-  ]},
-  { group: "Tail", parts: [
-    { key: "tail", label: "Tail", defaultZ: 1, layer: "back", defaultPivotX: 50, defaultPivotY: 0 },
+
+  // ── Head-anchored wings (per head, behind back hair) ───────────────────
+  { group: "Head Wings", parts: [
+    ...headWingPair(1, 25),
+    ...headWingPair(2, 23),
+    ...headWingPair(3, 21),
+  ], collapsed: true },
+
+  // ── Body wing sets (animate in sync within a set, slightly off between sets)
+  // left_wing/right_wing are kept as Set 1 for back-compat with existing pets.
+  { group: "Wings",      parts: [
+    { key: "left_wing",       label: "Wing Set 1 Left",  defaultZ: 15, layer: "back" },
+    { key: "right_wing",      label: "Wing Set 1 Right", defaultZ: 14, layer: "back" },
+    { key: "wing_set2_left",  label: "Wing Set 2 Left",  defaultZ: 13, layer: "back" },
+    { key: "wing_set2_right", label: "Wing Set 2 Right", defaultZ: 12, layer: "back" },
   ]},
 ];
 
@@ -137,6 +188,9 @@ export default function PetDatabasePanel({ initialTemplateId }: { initialTemplat
   const [nudgeStep, setNudgeStep] = useState<1 | 5 | 10>(1);
   const [sleepingUploading, setSleepingUploading] = useState(false);
   const [facingMode, setFacingMode] = useState<"front" | "side">("front");
+  // Per-group expand/collapse state. Undefined = use the group's default
+  // (defined by `collapsed: true` on the group definition).
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [sideFacingDir, setSideFacingDir] = useState<"left" | "right">("left");
   const canvasRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ partId: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
@@ -748,13 +802,36 @@ export default function PetDatabasePanel({ initialTemplateId }: { initialTemplat
           )}
         </div>
 
-        {/* Part type groups */}
+        {/* Part type groups — long lists (Heads 2/3, Head Wings) collapse by
+            default so admins editing single-headed pets see a tidy panel. */}
         <div className="flex flex-col gap-2">
-          {(facingMode === "front" ? FRONT_PART_GROUPS : SIDE_PART_GROUPS).map(group => (
+          {(facingMode === "front" ? FRONT_PART_GROUPS : SIDE_PART_GROUPS).map(group => {
+            const isOpen = openGroups[group.group] ?? !group.collapsed;
+            // Show a count badge when collapsed so admins know if anything is
+            // already uploaded inside the hidden section.
+            const filledCount = group.parts.reduce(
+              (n, pt) => n + (viewParts.some(p => p.partType === pt.key) ? 1 : 0),
+              0,
+            );
+            const showCanFly = (group.group === "Wings" || group.parts.some(p => p.key.includes("wing"))) && templateDetail;
+            return (
             <div key={group.group}>
               <div className="flex items-center gap-2 mb-1">
-                <p className="font-fantasy text-[8px] text-[#6a5840] tracking-widest uppercase pl-0.5">{group.group}</p>
-                {(group.group === "Wings" || group.parts.some(p => p.key.includes("wing"))) && templateDetail && (
+                <button
+                  data-testid={`toggle-group-${group.group.replace(/\s+/g, "-").toLowerCase()}`}
+                  onClick={() => setOpenGroups(prev => ({ ...prev, [group.group]: !isOpen }))}
+                  className="flex items-center gap-1.5 pl-0.5 pr-1 py-0.5 rounded font-fantasy text-[8px] text-[#6a5840] tracking-widest uppercase transition-colors hover:text-[#a89878]"
+                  style={{ background: "transparent", border: "none", cursor: "pointer" }}
+                >
+                  <span style={{ color: "#a89878" }}>{isOpen ? "▾" : "▸"}</span>
+                  <span>{group.group}</span>
+                  {!isOpen && filledCount > 0 && (
+                    <span className="font-fantasy text-[7px] px-1 rounded" style={{ background: "rgba(127,255,212,0.15)", color: "#7fffd4" }}>
+                      {filledCount}
+                    </span>
+                  )}
+                </button>
+                {showCanFly && (
                   <button
                     data-testid="checkbox-can-fly"
                     onClick={() => canFlyMutation.mutate({ id: templateDetail.id, canFly: !templateDetail.canFly })}
@@ -772,6 +849,7 @@ export default function PetDatabasePanel({ initialTemplateId }: { initialTemplat
                   </button>
                 )}
               </div>
+              {isOpen && (
               <div className="flex flex-col gap-1.5">
                 {group.parts.map(pt => {
                   const matchingParts = viewParts.filter(p => p.partType === pt.key);
@@ -821,8 +899,10 @@ export default function PetDatabasePanel({ initialTemplateId }: { initialTemplat
                   );
                 })}
               </div>
+              )}
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {selectedPart && (

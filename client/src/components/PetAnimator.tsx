@@ -108,11 +108,33 @@ const HOUSE_ANIMATIONS: Record<string, string> = {
   // head, body, legs intentionally omitted — they use translateY/scale
 };
 
-// Parts that are hidden by default and only appear during specific animations
-const ANIM_ONLY_PARTS = new Set(["eyes_closed", "mouth"]);
+// Parts that are hidden by default and only appear during specific animations.
+// Includes the per-head duplicates (h2_/h3_) so multi-headed pets blink/talk.
+const ANIM_ONLY_PARTS = new Set([
+  "eyes_closed", "mouth",
+  "h2_eyes_closed", "h2_mouth",
+  "h3_eyes_closed", "h3_mouth",
+]);
 
-// Face parts that belong to a head group
-const FACE_PART_TYPES = new Set(["eyes", "eyes_closed", "left_ear", "right_ear", "mouth", "mouth_closed"]);
+// Face parts that belong to a head group. Anything starting with h2_/h3_ is a
+// duplicate head and should be treated as a face part too — the helper below
+// (isFacePart) covers those without listing every key.
+const FACE_PART_TYPES = new Set([
+  "eyes", "eyes_closed", "left_ear", "right_ear", "mouth", "mouth_closed",
+  "hair_left", "hair_right", "accessory_1", "accessory_2",
+]);
+const isFacePart = (partType: string): boolean => {
+  if (FACE_PART_TYPES.has(partType)) return true;
+  // h2_eyes, h3_left_ear, etc. — strip the head prefix and recheck.
+  const m = partType.match(/^h[23]_(.+)$/);
+  return !!m && FACE_PART_TYPES.has(m[1]);
+};
+// True for any "eyes" or "eyes_closed" part on any head (1, 2, or 3) — used so
+// secondary heads get the same blink timing as the primary head.
+const isEyePartType = (partType: string): boolean =>
+  partType === "eyes" || partType === "eyes_closed" ||
+  partType === "h2_eyes" || partType === "h2_eyes_closed" ||
+  partType === "h3_eyes" || partType === "h3_eyes_closed";
 
 const ANIMATION_STYLES = `
   @keyframes petIdleEyes {
@@ -361,7 +383,7 @@ function buildHeadGroups(parts: PetPart[]): { head: PetPart; faceParts: PetPart[
   if (headParts.length === 0) return [];
 
   const groups = headParts.map(h => ({ head: h, faceParts: [] as PetPart[] }));
-  const faceParts = parts.filter(p => FACE_PART_TYPES.has(p.partType));
+  const faceParts = parts.filter(p => isFacePart(p.partType));
 
   for (const fp of faceParts) {
     // First try overlap-based assignment
@@ -473,7 +495,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     const heightPct = (part.height / CANVAS_SIZE) * 100;
     const layerZ = LAYER_ORDER[part.partType] ?? part.zIndex;
     const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
-    const isEyePart = part.partType === "eyes" || part.partType === "eyes_closed";
+    const isEyePart = isEyePartType(part.partType);
     const delay = delayOverride !== undefined ? delayOverride : (isEyePart ? blinkOffset.current : "0s");
     const duration = getPartDuration(part.partType, mode);
     return (
@@ -575,7 +597,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
             >
               {allGroupParts.map((part) => {
                 const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
-                const isEyePart = part.partType === "eyes" || part.partType === "eyes_closed";
+                const isEyePart = isEyePartType(part.partType);
 
                 if (mode === "static") {
                   if (isAnimOnly) return null;
