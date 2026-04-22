@@ -1785,9 +1785,9 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           50%     { opacity: 1;    transform: translate(-50%, -50%) scale(1.08); }
         }
         @keyframes bossFloat {
-          0%   { transform: translateY(0px); }
-          50%  { transform: translateY(-7px); }
-          100% { transform: translateY(0px); }
+          0%   { transform: translate(-50%, -50%) translateY(0px); }
+          50%  { transform: translate(-50%, -50%) translateY(-7px); }
+          100% { transform: translate(-50%, -50%) translateY(0px); }
         }
         @keyframes enemyBounce {
           0%, 100% { transform: translate(-50%,-50%) scaleY(1) scaleX(1); }

@@ -3698,19 +3698,28 @@ export async function registerRoutes(
   app.post("/api/admin/location/:locationId/enemy", isAdmin, async (req, res) => {
     try {
       const { locationId } = req.params as Record<string, string>;
-      const { name, imageData, coinReward, isBoss, archetype, bossSpecialAttack } = req.body;
-      if (!name?.trim()) {
-        return res.status(400).json({ message: "Enemy name is required" });
+      const { enemyTemplateId, coinReward, bossSpecialAttack } = req.body;
+      if (!enemyTemplateId) {
+        return res.status(400).json({ message: "Enemy template is required" });
       }
-      let imageUrl: string | null = null;
-      if (imageData) {
-        try { imageUrl = await processWorldImage(imageData, 1000); } catch (e) { console.error("Enemy image error:", e); }
+      const allTemplates = await storage.getAllEnemies();
+      const template = allTemplates.find(e => e.id === enemyTemplateId);
+      if (!template) {
+        return res.status(404).json({ message: "Enemy template not found" });
       }
       const validArchetypes = ["balanced", "attacker", "tank"];
-      const safeArchetype = validArchetypes.includes(archetype) ? archetype : "balanced";
+      const safeArchetype = validArchetypes.includes(template.archetype) ? template.archetype : "balanced";
       const validSpecials = ["slash", "bolt"];
-      const safeBossSpecial = (isBoss && validSpecials.includes(bossSpecialAttack)) ? bossSpecialAttack : null;
-      const enemy = await storage.createLocationEnemy({ locationId, name: name.trim(), imageUrl, isBoss: !!isBoss, archetype: safeArchetype, bossSpecialAttack: safeBossSpecial, coinReward: coinReward || 0 });
+      const safeBossSpecial = (template.isBoss && validSpecials.includes(bossSpecialAttack)) ? bossSpecialAttack : null;
+      const enemy = await storage.createLocationEnemy({
+        locationId,
+        name: template.name,
+        imageUrl: template.imageUrl ?? null,
+        isBoss: !!template.isBoss,
+        archetype: safeArchetype,
+        bossSpecialAttack: safeBossSpecial,
+        coinReward: coinReward || 0,
+      });
       return res.status(201).json(enemy);
     } catch (err) {
       console.error("Create enemy error:", err);

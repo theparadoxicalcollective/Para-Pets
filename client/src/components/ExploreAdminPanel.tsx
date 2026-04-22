@@ -32,11 +32,13 @@ interface EnemyData {
   drops: DropData[];
 }
 
-const ARCHETYPES = [
-  { value: "balanced", label: "Balanced", desc: "Equal HP / ATK / DEF" },
-  { value: "attacker", label: "Attacker", desc: "High ATK, low HP & DEF" },
-  { value: "tank",     label: "Tank",     desc: "High HP & DEF, low ATK" },
-] as const;
+interface EnemyTemplate {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  isBoss: boolean;
+  archetype: string;
+}
 
 const BOSS_SPECIAL_ATTACKS = [
   { value: "bolt", label: "⚡ Bolt Volley", desc: "Fires energy bolts that hit ALL pets" },
@@ -59,23 +61,14 @@ export default function ExploreAdminPanel({ locationId, locationType, accent, on
   const queryClient = useQueryClient();
   const [expandedEnemy, setExpandedEnemy] = useState<string | null>(null);
   const [showAddEnemy, setShowAddEnemy] = useState(false);
-  const [newEnemyName, setNewEnemyName] = useState("");
-  const [newEnemyImage, setNewEnemyImage] = useState<string | null>(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [newEnemyCoinReward, setNewEnemyCoinReward] = useState("");
-  const [newEnemyIsBoss, setNewEnemyIsBoss] = useState(false);
-  const [newEnemyArchetype, setNewEnemyArchetype] = useState("balanced");
   const [newEnemyBossSpecialAttack, setNewEnemyBossSpecialAttack] = useState<string | null>(null);
-  const [editArchetype, setEditArchetype] = useState("balanced");
-  const [editBossSpecialAttack, setEditBossSpecialAttack] = useState<string | null>(null);
+  const [templateSearch, setTemplateSearch] = useState("");
   const [showDropPicker, setShowDropPicker] = useState<string | null>(null);
   const [dropRate, setDropRate] = useState("10");
   const [selectedDropItem, setSelectedDropItem] = useState<string>("");
   const [dropSearch, setDropSearch] = useState("");
-  const [editingEnemy, setEditingEnemy] = useState<string | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editCoinReward, setEditCoinReward] = useState("");
-  const [editImage, setEditImage] = useState<string | null>(null);
-  const [editIsBoss, setEditIsBoss] = useState(false);
 
   const { data: enemies = [], isLoading } = useQuery<EnemyData[]>({
     queryKey: ["/api/location", locationId, "enemies"],
@@ -90,42 +83,36 @@ export default function ExploreAdminPanel({ locationId, locationType, accent, on
     queryKey: ["/api/admin/shop-items-all"],
   });
 
+  const { data: enemyTemplates = [] } = useQuery<EnemyTemplate[]>({
+    queryKey: ["/api/admin/enemies"],
+    enabled: showAddEnemy,
+  });
+
+  const selectedTemplate = enemyTemplates.find(t => t.id === selectedTemplateId);
+
+  const filteredTemplates = templateSearch
+    ? enemyTemplates.filter(t => t.name.toLowerCase().includes(templateSearch.toLowerCase()))
+    : enemyTemplates;
+
   const addEnemyMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", `/api/admin/location/${locationId}/enemy`, {
-        name: newEnemyName.trim(),
-        imageData: newEnemyImage,
+        enemyTemplateId: selectedTemplateId,
         coinReward: parseInt(newEnemyCoinReward) || 0,
-        isBoss: newEnemyIsBoss,
-        archetype: newEnemyArchetype,
-        bossSpecialAttack: newEnemyIsBoss ? newEnemyBossSpecialAttack : null,
+        bossSpecialAttack: selectedTemplate?.isBoss ? newEnemyBossSpecialAttack : null,
       });
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/location", locationId, "enemies"] });
       setShowAddEnemy(false);
-      setNewEnemyName("");
-      setNewEnemyImage(null);
+      setSelectedTemplateId("");
       setNewEnemyCoinReward("");
-      setNewEnemyIsBoss(false);
-      setNewEnemyArchetype("balanced");
+      setNewEnemyBossSpecialAttack(null);
+      setTemplateSearch("");
       toast({ title: "Enemy Added" });
     },
     onError: () => toast({ title: "Failed to add enemy", variant: "destructive" }),
-  });
-
-  const updateEnemyMutation = useMutation({
-    mutationFn: async ({ enemyId, data }: { enemyId: string; data: any }) => {
-      const res = await apiRequest("PATCH", `/api/admin/enemy/${enemyId}`, data);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/location", locationId, "enemies"] });
-      setEditingEnemy(null);
-      toast({ title: "Enemy Updated" });
-    },
-    onError: () => toast({ title: "Failed to update enemy", variant: "destructive" }),
   });
 
   const deleteEnemyMutation = useMutation({
@@ -173,22 +160,6 @@ export default function ExploreAdminPanel({ locationId, locationType, accent, on
   const filteredItems = dropSearch
     ? allShopItems.filter(i => i.name.toLowerCase().includes(dropSearch.toLowerCase()))
     : allShopItems;
-
-  const startEdit = (enemy: EnemyData) => {
-    setEditingEnemy(enemy.id);
-    setEditName(enemy.name);
-    setEditCoinReward(String(enemy.coinReward));
-    setEditIsBoss(enemy.isBoss);
-    setEditArchetype(enemy.archetype || "balanced");
-    setEditBossSpecialAttack(enemy.bossSpecialAttack || null);
-    setEditImage(null);
-  };
-
-  const saveEdit = (enemyId: string) => {
-    const data: any = { name: editName.trim(), coinReward: parseInt(editCoinReward) || 0, isBoss: editIsBoss, archetype: editArchetype, bossSpecialAttack: editIsBoss ? editBossSpecialAttack : null };
-    if (editImage) data.imageData = editImage;
-    updateEnemyMutation.mutate({ enemyId, data });
-  };
 
   const bgSection = (
     <div
@@ -357,142 +328,9 @@ export default function ExploreAdminPanel({ locationId, locationType, accent, on
 
               {expandedEnemy === enemy.id && (
                 <div className="border-t px-2 pb-2 pt-2 space-y-2" style={{ borderColor: `${accent}20` }}>
-                  {editingEnemy === enemy.id ? (
-                    <div className="space-y-2">
-                      <input
-                        data-testid="input-edit-enemy-name"
-                        type="text"
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        className="w-full px-2 py-1.5 rounded-md font-sans text-xs outline-none"
-                        style={inputStyle}
-                        placeholder="Enemy name"
-                      />
-                      <div className="flex items-center gap-2">
-                        <img src={coinIconImg} alt="" className="w-4 h-4" />
-                        <input
-                          data-testid="input-edit-enemy-coins"
-                          type="number"
-                          value={editCoinReward}
-                          onChange={(e) => setEditCoinReward(e.target.value)}
-                          className="flex-1 px-2 py-1.5 rounded-md font-sans text-xs outline-none"
-                          style={inputStyle}
-                          placeholder="Coin reward"
-                          min="0"
-                        />
-                      </div>
-                      <div
-                        data-testid="toggle-edit-boss"
-                        className="flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer"
-                        style={{ background: editIsBoss ? "rgba(220,38,38,0.15)" : "rgba(255,255,255,0.03)", border: editIsBoss ? "1px solid rgba(220,38,38,0.4)" : `1px solid ${accent}20` }}
-                        onClick={() => setEditIsBoss(!editIsBoss)}
-                      >
-                        <div className="w-4 h-4 rounded-sm flex items-center justify-center" style={{ background: editIsBoss ? "rgba(220,38,38,0.6)" : "transparent", border: editIsBoss ? "1px solid #ff6666" : `1px solid ${accent}40` }}>
-                          {editIsBoss && <span className="text-white text-[8px] font-bold">&#10003;</span>}
-                        </div>
-                        <span className="font-fantasy text-[9px] tracking-wider" style={{ color: editIsBoss ? "#ff6666" : `${accent}88` }}>Boss Enemy (up to 5 levels above pet)</span>
-                      </div>
-                      <div>
-                        <label className="font-fantasy text-[8px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>Archetype</label>
-                        <div className="grid grid-cols-3 gap-1">
-                          {ARCHETYPES.map((a) => (
-                            <button
-                              key={a.value}
-                              data-testid={`archetype-edit-${a.value}`}
-                              type="button"
-                              onClick={() => setEditArchetype(a.value)}
-                              className="px-1 py-1 rounded-md font-fantasy text-[8px] tracking-wider text-center transition-colors"
-                              style={{
-                                background: editArchetype === a.value ? `${accent}35` : "rgba(255,255,255,0.04)",
-                                border: editArchetype === a.value ? `1px solid ${accent}70` : `1px solid ${accent}20`,
-                                color: editArchetype === a.value ? accent : `${accent}77`,
-                                cursor: "pointer",
-                              }}
-                            >
-                              {a.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      {editIsBoss && (
-                        <div>
-                          <label className="font-fantasy text-[8px] tracking-wider block mb-1" style={{ color: "rgba(220,38,38,0.9)" }}>Boss Special Attack</label>
-                          <div className="grid grid-cols-2 gap-1">
-                            <button
-                              data-testid="boss-special-edit-none"
-                              type="button"
-                              onClick={() => setEditBossSpecialAttack(null)}
-                              className="px-1 py-1 rounded-md font-fantasy text-[8px] tracking-wider text-center transition-colors"
-                              style={{ background: editBossSpecialAttack === null ? "rgba(100,100,100,0.4)" : "rgba(255,255,255,0.04)", border: editBossSpecialAttack === null ? "1px solid rgba(150,150,150,0.6)" : "1px solid rgba(255,255,255,0.1)", color: editBossSpecialAttack === null ? "#ccc" : "rgba(255,255,255,0.4)", cursor: "pointer" }}>
-                              None
-                            </button>
-                            {BOSS_SPECIAL_ATTACKS.map((s) => (
-                              <button
-                                key={s.value}
-                                data-testid={`boss-special-edit-${s.value}`}
-                                type="button"
-                                onClick={() => setEditBossSpecialAttack(s.value)}
-                                className="px-1 py-1 rounded-md font-fantasy text-[8px] tracking-wider text-center transition-colors"
-                                style={{ background: editBossSpecialAttack === s.value ? "rgba(220,38,38,0.3)" : "rgba(255,255,255,0.04)", border: editBossSpecialAttack === s.value ? "1px solid rgba(220,38,38,0.7)" : "1px solid rgba(220,38,38,0.15)", color: editBossSpecialAttack === s.value ? "#ff6666" : "rgba(220,38,38,0.6)", cursor: "pointer" }}>
-                                {s.label}
-                              </button>
-                            ))}
-                          </div>
-                          {editBossSpecialAttack && (
-                            <p className="font-fantasy text-[7px] mt-0.5" style={{ color: "rgba(220,38,38,0.6)" }}>
-                              {BOSS_SPECIAL_ATTACKS.find(s => s.value === editBossSpecialAttack)?.desc}
-                            </p>
-                          )}
-                        </div>
-                      )}
-                      <label
-                        className="block w-full py-1.5 rounded-md font-fantasy text-[9px] tracking-wider text-center"
-                        style={{ background: `${accent}15`, border: `1px dashed ${accent}40`, color: `${accent}aa`, cursor: "pointer" }}
-                      >
-                        {editImage ? "Image selected ✓" : "Change Image (optional)"}
-                        <input
-                          type="file"
-                          accept="image/png,image/gif,image/jpeg"
-                          className="hidden"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const dataUrl = await readFileAsDataUrl(file);
-                              setEditImage(dataUrl);
-                            }
-                          }}
-                        />
-                      </label>
-                      <div className="flex gap-2">
-                        <button
-                          data-testid="button-cancel-edit-enemy"
-                          onClick={() => setEditingEnemy(null)}
-                          className="flex-1 py-1.5 rounded-md font-fantasy text-[9px] tracking-wider"
-                          style={{ background: "rgba(100,100,100,0.2)", border: "1px solid rgba(100,100,100,0.3)", color: "#aaa", cursor: "pointer" }}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          data-testid="button-save-edit-enemy"
-                          onClick={() => saveEdit(enemy.id)}
-                          disabled={updateEnemyMutation.isPending}
-                          className="flex-1 py-1.5 rounded-md font-fantasy text-[9px] tracking-wider"
-                          style={{ background: `${accent}30`, border: `1px solid ${accent}50`, color: accent, cursor: "pointer" }}
-                        >
-                          {updateEnemyMutation.isPending ? "Saving..." : "Save"}
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button
-                      data-testid={`button-edit-enemy-${enemy.id}`}
-                      onClick={() => startEdit(enemy)}
-                      className="w-full py-1 rounded-md font-fantasy text-[9px] tracking-wider"
-                      style={{ background: `${accent}15`, border: `1px solid ${accent}30`, color: `${accent}aa`, cursor: "pointer" }}
-                    >
-                      Edit Details
-                    </button>
-                  )}
+                  <p className="font-fantasy text-[8px] tracking-wider text-center" style={{ color: `${accent}55` }}>
+                    Enemy stats are managed in the global Enemy Database.
+                  </p>
 
                   <div className="mt-2">
                     <div className="flex items-center justify-between mb-1">
@@ -576,39 +414,58 @@ export default function ExploreAdminPanel({ locationId, locationType, accent, on
               </button>
             </div>
             <div className="space-y-3">
+              <p className="font-fantasy text-[9px] tracking-wider" style={{ color: `${accent}88` }}>
+                Pick from the global Enemy Database. Bosses always appear last; other enemies appear at random.
+              </p>
               <div>
-                <label className="font-fantasy text-[9px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>Name *</label>
+                <label className="font-fantasy text-[9px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>Search</label>
                 <input
-                  data-testid="input-enemy-name"
+                  data-testid="input-enemy-template-search"
                   type="text"
-                  value={newEnemyName}
-                  onChange={(e) => setNewEnemyName(e.target.value)}
-                  placeholder="e.g. Shadow Wolf"
+                  value={templateSearch}
+                  onChange={(e) => setTemplateSearch(e.target.value)}
+                  placeholder="Search enemies..."
                   className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
                   style={inputStyle}
                 />
               </div>
-              <div>
-                <label className="font-fantasy text-[9px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>Image (PNG/GIF)</label>
-                <input
-                  data-testid="input-enemy-image"
-                  type="file"
-                  accept="image/png,image/gif,image/jpeg"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      const dataUrl = await readFileAsDataUrl(file);
-                      setNewEnemyImage(dataUrl);
-                    }
-                  }}
-                  className="w-full text-xs font-fantasy"
-                  style={{ color: `${accent}cc` }}
-                />
-                {newEnemyImage && (
-                  <div className="mt-2 flex justify-center">
-                    <img src={newEnemyImage} alt="Preview" className="w-16 h-16 object-contain rounded-lg" style={{ border: `1px solid ${accent}30` }} />
+              <div className="overflow-y-auto space-y-1" style={{ maxHeight: "32vh" }}>
+                {enemyTemplates.length === 0 ? (
+                  <p className="font-fantasy text-[10px] tracking-wider text-center py-3" style={{ color: `${accent}66` }}>
+                    No enemies in the database yet. Add some in the Enemy Database panel.
+                  </p>
+                ) : filteredTemplates.length === 0 ? (
+                  <p className="font-fantasy text-[10px] tracking-wider text-center py-3" style={{ color: `${accent}66` }}>No matches</p>
+                ) : filteredTemplates.map((t) => (
+                  <div
+                    key={t.id}
+                    data-testid={`enemy-template-option-${t.id}`}
+                    onClick={() => setSelectedTemplateId(t.id)}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors"
+                    style={{
+                      background: selectedTemplateId === t.id ? `${accent}30` : "rgba(255,255,255,0.03)",
+                      border: selectedTemplateId === t.id ? `1px solid ${accent}60` : "1px solid transparent",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {t.imageUrl ? (
+                      <img src={t.imageUrl} alt="" className="w-8 h-8 object-contain rounded-sm" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-sm flex items-center justify-center" style={{ background: `${accent}15` }}>
+                        <Swords className="w-4 h-4" style={{ color: `${accent}66` }} />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-fantasy text-[10px] tracking-wider truncate" style={{ color: "#e0d0f0" }}>
+                        {t.name}
+                        {t.isBoss && (
+                          <span className="ml-1.5 px-1 py-0.5 rounded text-[7px] font-bold tracking-widest" style={{ background: "rgba(220,38,38,0.35)", border: "1px solid rgba(220,38,38,0.55)", color: "#ff6666" }}>BOSS</span>
+                        )}
+                      </p>
+                      <p className="font-fantasy text-[8px]" style={{ color: `${accent}66` }}>{t.archetype || "balanced"}</p>
+                    </div>
                   </div>
-                )}
+                ))}
               </div>
               <div>
                 <label className="font-fantasy text-[9px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>
@@ -628,46 +485,7 @@ export default function ExploreAdminPanel({ locationId, locationType, accent, on
                   />
                 </div>
               </div>
-              <div
-                data-testid="toggle-add-boss"
-                className="flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer"
-                style={{ background: newEnemyIsBoss ? "rgba(220,38,38,0.15)" : "rgba(255,255,255,0.03)", border: newEnemyIsBoss ? "1px solid rgba(220,38,38,0.4)" : `1px solid ${accent}20` }}
-                onClick={() => setNewEnemyIsBoss(!newEnemyIsBoss)}
-              >
-                <div className="w-5 h-5 rounded-sm flex items-center justify-center" style={{ background: newEnemyIsBoss ? "rgba(220,38,38,0.6)" : "transparent", border: newEnemyIsBoss ? "1px solid #ff6666" : `1px solid ${accent}40` }}>
-                  {newEnemyIsBoss && <span className="text-white text-[10px] font-bold">&#10003;</span>}
-                </div>
-                <div>
-                  <span className="font-fantasy text-[10px] tracking-wider block" style={{ color: newEnemyIsBoss ? "#ff6666" : `${accent}bb` }}>Boss Enemy</span>
-                  <span className="font-fantasy text-[8px] tracking-wider" style={{ color: `${accent}66` }}>Can be up to 5 levels above pet (regular: 2)</span>
-                </div>
-              </div>
-              <div>
-                <label className="font-fantasy text-[9px] tracking-wider block mb-1" style={{ color: `${accent}bb` }}>Archetype</label>
-                <div className="grid grid-cols-3 gap-1">
-                  {ARCHETYPES.map((a) => (
-                    <button
-                      key={a.value}
-                      data-testid={`archetype-add-${a.value}`}
-                      type="button"
-                      onClick={() => setNewEnemyArchetype(a.value)}
-                      className="px-1 py-1.5 rounded-md font-fantasy text-[9px] tracking-wider text-center transition-colors"
-                      style={{
-                        background: newEnemyArchetype === a.value ? `${accent}35` : "rgba(255,255,255,0.04)",
-                        border: newEnemyArchetype === a.value ? `1px solid ${accent}70` : `1px solid ${accent}20`,
-                        color: newEnemyArchetype === a.value ? accent : `${accent}77`,
-                        cursor: "pointer",
-                      }}
-                    >
-                      {a.label}
-                    </button>
-                  ))}
-                </div>
-                <p className="font-fantasy text-[8px] mt-1" style={{ color: `${accent}55` }}>
-                  {ARCHETYPES.find(a => a.value === newEnemyArchetype)?.desc}
-                </p>
-              </div>
-              {newEnemyIsBoss && (
+              {selectedTemplate?.isBoss && (
                 <div>
                   <label className="font-fantasy text-[9px] tracking-wider block mb-1" style={{ color: "rgba(220,38,38,0.9)" }}>Boss Special Attack</label>
                   <div className="grid grid-cols-2 gap-1.5">
@@ -701,13 +519,13 @@ export default function ExploreAdminPanel({ locationId, locationType, accent, on
               <button
                 data-testid="button-submit-add-enemy"
                 onClick={() => {
-                  if (!newEnemyName.trim()) {
-                    toast({ title: "Name required", variant: "destructive" });
+                  if (!selectedTemplateId) {
+                    toast({ title: "Pick an enemy", variant: "destructive" });
                     return;
                   }
                   addEnemyMutation.mutate();
                 }}
-                disabled={addEnemyMutation.isPending}
+                disabled={!selectedTemplateId || addEnemyMutation.isPending}
                 className="w-full py-2.5 rounded-md font-fantasy text-xs tracking-wider transition-transform active:scale-95 disabled:opacity-50"
                 style={{
                   background: `linear-gradient(135deg, ${accent}50 0%, ${accent}25 100%)`,
@@ -716,7 +534,7 @@ export default function ExploreAdminPanel({ locationId, locationType, accent, on
                   cursor: "pointer",
                 }}
               >
-                {addEnemyMutation.isPending ? "Adding..." : "Add Enemy"}
+                {addEnemyMutation.isPending ? "Adding..." : "Assign Enemy"}
               </button>
             </div>
           </div>
