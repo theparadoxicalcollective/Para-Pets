@@ -4,7 +4,7 @@ import { QueryClientProvider, useMutation } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { playClick, unlockAudio } from "@/lib/sounds";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -155,6 +155,21 @@ function shouldHideNav(path: string) {
   if (path.startsWith("/visit/")) return true;
   if (path.startsWith("/pet-care/")) return true;
   return false;
+}
+
+/** Wraps the entire router in an ErrorBoundary that auto-resets when the URL
+ *  changes and offers a Return-to-Game button that actually navigates home,
+ *  preventing infinite "throw → reset → throw again" loops on broken pages. */
+function RouterErrorBoundary({ children }: { children: ReactNode }) {
+  const [location, navigate] = useLocation();
+  return (
+    <ErrorBoundary
+      resetKey={location}
+      onReset={() => { try { navigate("/"); } catch (_) {} }}
+    >
+      {children}
+    </ErrorBoundary>
+  );
 }
 
 function AppRouter() {
@@ -622,9 +637,9 @@ function App() {
               ].join(", "),
             }}
           >
-            <ErrorBoundary>
+            <RouterErrorBoundary>
               <AppRouter />
-            </ErrorBoundary>
+            </RouterErrorBoundary>
             <ErrorBoundary fallback={null}>
               <GlobalLevelUpOverlay />
             </ErrorBoundary>

@@ -3,6 +3,13 @@ import { Component, ReactNode } from "react";
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
+  /** When this value changes, the boundary auto-clears its error state. Pass
+   *  the current route here so a navigation away from the broken page also
+   *  clears the error and prevents an infinite "error → reset → re-throw" loop. */
+  resetKey?: unknown;
+  /** Extra cleanup callback fired when the user taps Return to Game. Used by
+   *  the app shell to also navigate back to a safe route. */
+  onReset?: () => void;
 }
 
 interface State {
@@ -20,6 +27,12 @@ export default class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
+  componentDidUpdate(prevProps: Props) {
+    if (this.state.hasError && prevProps.resetKey !== this.props.resetKey) {
+      this.setState({ hasError: false, error: null });
+    }
+  }
+
   componentDidCatch(error: Error, info: { componentStack: string }) {
     console.error("[ErrorBoundary] Caught render error:", error, info.componentStack);
     try {
@@ -34,6 +47,7 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   handleReset = () => {
     this.setState({ hasError: false, error: null });
+    try { this.props.onReset?.(); } catch (_) {}
   };
 
   render() {
