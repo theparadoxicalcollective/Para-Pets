@@ -2228,7 +2228,7 @@ function FeedingOverlay({ pet, onClose }: { pet: HousePet; onClose: () => void }
           {pet.petTemplateId ? (
             <PetAnimator
               petTemplateId={pet.petTemplateId}
-              mode="static"
+              mode="idle"
               size={300}
               fillContainer
             />
