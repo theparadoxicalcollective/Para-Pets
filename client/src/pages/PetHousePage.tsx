@@ -2280,24 +2280,6 @@ function FeedingOverlay({ pet, onClose }: { pet: HousePet; onClose: () => void }
         moodVal={moodVal}
       />
 
-      {/* Hint text */}
-      <div
-        className="absolute left-1/2"
-        style={{
-          top: "calc(42% + 200px)",
-          transform: "translateX(-50%)",
-          fontFamily: "Lora, serif",
-          color: "#e6f5d0",
-          fontSize: 11,
-          letterSpacing: "0.18em",
-          textAlign: "center",
-          textShadow: "0 2px 8px rgba(0,0,0,0.7)",
-          pointerEvents: "none",
-        }}
-      >
-        Drag an edible onto your pet
-      </div>
-
       {/* Floating heart layer — appears when the pet is clicked or fed */}
       {hearts.map((h) => (
         <div
