@@ -5,6 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import PetAnimator from "@/components/PetAnimator";
 import gemCrystalIcon from "@assets/generated_images/icon_gem_crystal.png";
+import enchantedGroveBg from "@assets/bg_enchanted_grove_map.webp";
 
 interface AccessoryItem {
   inventoryId: string;
@@ -144,39 +145,99 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
       className="fixed inset-0 z-[200] flex flex-col"
       style={{
         maxWidth: "768px", margin: "0 auto", left: 0, right: 0,
-        background: "linear-gradient(180deg, rgba(6,12,8,0.99) 0%, rgba(4,8,5,0.99) 100%)",
+        backgroundImage: `linear-gradient(180deg, rgba(4,18,12,0.78) 0%, rgba(4,14,10,0.92) 60%, rgba(2,10,6,0.98) 100%), url(${enchantedGroveBg})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
       }}
     >
-      {/* Header */}
+      {/* Header — pushed below the safe area and given a tall tap target so
+          the close button doesn't end up under the device notch / status bar. */}
       <div
-        className="flex items-center justify-between px-5 py-4 flex-shrink-0"
-        style={{ borderBottom: "1px solid rgba(74,222,128,0.12)" }}
+        className="flex items-center justify-between px-5 flex-shrink-0"
+        style={{
+          paddingTop: "calc(env(safe-area-inset-top, 0px) + 16px)",
+          paddingBottom: 14,
+          borderBottom: "1px solid rgba(94,234,212,0.18)",
+          background: "linear-gradient(180deg, rgba(4,18,12,0.65) 0%, rgba(4,18,12,0.25) 100%)",
+          backdropFilter: "blur(6px)",
+        }}
       >
         <div className="flex items-center gap-3">
-          <ShieldPlus size={18} style={{ color: rc }} />
+          <ShieldPlus size={20} style={{ color: rc, filter: `drop-shadow(0 0 6px ${rc}88)` }} />
           <div>
-            <p className="font-fantasy font-bold tracking-wider text-sm" style={{ color: rc }}>EQUIP ACCESSORIES</p>
-            <p className="font-fantasy text-[10px] tracking-wide" style={{ color: "rgba(255,255,255,0.35)" }}>{petName}</p>
+            <p
+              className="font-fantasy font-bold tracking-wider text-sm"
+              style={{ color: rc, textShadow: `0 0 10px ${rc}66, 0 2px 4px rgba(0,0,0,0.7)` }}
+            >
+              EQUIP ACCESSORIES
+            </p>
+            <p className="font-fantasy text-[10px] tracking-wide" style={{ color: "rgba(220,255,225,0.55)" }}>{petName}</p>
           </div>
         </div>
         <button
           data-testid="button-close-equip-accessories"
           onClick={onClose}
-          className="w-9 h-9 rounded-full flex items-center justify-center"
-          style={{ background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", color: "#888", cursor: "pointer" }}
+          aria-label="Close"
+          className="rounded-full flex items-center justify-center transition-all active:scale-90"
+          style={{
+            width: 44, height: 44,
+            background: "linear-gradient(180deg, rgba(20,46,30,0.85) 0%, rgba(10,28,18,0.85) 100%)",
+            border: "1.5px solid rgba(94,234,212,0.45)",
+            color: "#dfffe8",
+            cursor: "pointer",
+            boxShadow: "0 0 14px rgba(94,234,212,0.25), inset 0 0 8px rgba(0,0,0,0.4)",
+            WebkitTapHighlightColor: "transparent",
+          }}
         >
-          <X size={16} />
+          <X size={20} strokeWidth={2.4} />
         </button>
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {/* Pet display */}
-        <div className="flex justify-center pt-6 pb-3">
-          <div style={{ width: 130, height: 130, position: "relative" }}>
+        {/* Pet display — centered with explicit flex centering so the
+            PetAnimator can never drift to one side. Generously sized so the
+            pet is the clear focal point of the page. */}
+        <div className="w-full flex items-center justify-center pt-8 pb-4">
+          <div
+            style={{
+              width: "min(70vw, 240px)",
+              aspectRatio: "1 / 1",
+              position: "relative",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {/* Soft magical halo behind the pet */}
+            <div
+              aria-hidden
+              style={{
+                position: "absolute",
+                inset: "-8%",
+                borderRadius: "50%",
+                background: `radial-gradient(circle at center, ${rc}44 0%, ${rc}1a 35%, rgba(60,200,140,0.08) 60%, transparent 78%)`,
+                filter: "blur(2px)",
+                animation: "feed-halo-pulse 4s ease-in-out infinite",
+                pointerEvents: "none",
+              }}
+            />
             {petTemplateId ? (
-              <PetAnimator petTemplateId={petTemplateId} mode="idle" view="front" size={512} className="w-full h-full" style={{ aspectRatio: "1/1" }} />
+              <PetAnimator
+                petTemplateId={petTemplateId}
+                mode="idle"
+                view="front"
+                size={512}
+                fillContainer
+                style={{ filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.65)) drop-shadow(0 0 14px rgba(94,234,212,0.18))" }}
+              />
             ) : petImage ? (
-              <img src={petImage} alt={petName} className="w-full h-full object-contain" style={{ filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.7))" }} />
+              <img
+                src={petImage}
+                alt={petName}
+                className="w-full h-full object-contain"
+                style={{ filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.65)) drop-shadow(0 0 14px rgba(94,234,212,0.18))" }}
+              />
             ) : (
               <div className="w-full h-full rounded-2xl" style={{ background: "rgba(255,255,255,0.05)" }} />
             )}
@@ -204,18 +265,21 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
                   style={{
                     minHeight: 100,
                     background: acc
-                      ? "rgba(30,15,5,0.85)"
+                      ? "linear-gradient(180deg, rgba(12,38,24,0.85) 0%, rgba(6,22,14,0.85) 100%)"
                       : isOver && selectedInvId
-                      ? `rgba(${rarity >= 4 ? "240,192,64" : "74,222,128"},0.15)`
-                      : "rgba(0,0,0,0.25)",
+                      ? `rgba(${rarity >= 4 ? "240,192,64" : "94,234,212"},0.18)`
+                      : "linear-gradient(180deg, rgba(8,22,14,0.55) 0%, rgba(4,12,8,0.55) 100%)",
                     border: acc
-                      ? `1.5px solid ${rc}55`
+                      ? `1.5px solid ${rc}66`
                       : isOver && selectedInvId
                       ? `1.5px dashed ${rc}99`
                       : selectedInvId
-                      ? `1.5px dashed ${rc}44`
-                      : "1.5px dashed rgba(255,255,255,0.1)",
-                    boxShadow: acc ? `0 0 14px ${rc}18` : "none",
+                      ? `1.5px dashed ${rc}55`
+                      : "1.5px dashed rgba(94,234,212,0.22)",
+                    boxShadow: acc
+                      ? `0 0 16px ${rc}22, inset 0 0 14px rgba(94,234,212,0.06)`
+                      : "inset 0 0 12px rgba(0,0,0,0.4)",
+                    backdropFilter: "blur(4px)",
                   }}
                 >
                   {acc ? (
@@ -274,7 +338,12 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
         {/* Inventory */}
         <div
           className="mx-5 rounded-2xl p-4 mb-6"
-          style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.06)" }}
+          style={{
+            background: "linear-gradient(180deg, rgba(8,24,16,0.7) 0%, rgba(4,14,9,0.7) 100%)",
+            border: "1px solid rgba(94,234,212,0.18)",
+            boxShadow: "0 0 22px rgba(94,234,212,0.06), inset 0 0 18px rgba(0,0,0,0.4)",
+            backdropFilter: "blur(6px)",
+          }}
         >
           <p className="font-fantasy text-[9px] tracking-widest mb-3" style={{ color: "rgba(255,255,255,0.3)" }}>
             YOUR ACCESSORIES
@@ -296,9 +365,13 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
                     onClick={() => handleInvItemClick(item.inventoryId)}
                     className="rounded-xl p-2 flex flex-col items-center gap-1 cursor-pointer transition-all active:scale-95"
                     style={{
-                      background: isSelected ? `${rc}18` : "rgba(20,10,3,0.7)",
-                      border: isSelected ? `1.5px solid ${rc}77` : "1px solid rgba(255,255,255,0.08)",
-                      boxShadow: isSelected ? `0 0 12px ${rc}22` : "none",
+                      background: isSelected
+                        ? `${rc}1f`
+                        : "linear-gradient(180deg, rgba(10,28,18,0.78) 0%, rgba(4,14,9,0.78) 100%)",
+                      border: isSelected ? `1.5px solid ${rc}88` : "1px solid rgba(94,234,212,0.18)",
+                      boxShadow: isSelected
+                        ? `0 0 14px ${rc}33, inset 0 0 8px rgba(94,234,212,0.08)`
+                        : "inset 0 0 8px rgba(0,0,0,0.35)",
                     }}
                   >
                     <div className="w-11 h-11 rounded-lg flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.4)" }}>
