@@ -292,6 +292,12 @@ app.use((req, res, next) => {
     () => db.execute(sql`ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS skill_affects TEXT`));
   await runMigration("user_inventory.pet_feed_points",
     () => db.execute(sql`ALTER TABLE user_inventory ADD COLUMN IF NOT EXISTS pet_feed_points INTEGER NOT NULL DEFAULT 0`));
+  await runMigration("user_inventory.pet_hunger",
+    () => db.execute(sql`ALTER TABLE user_inventory ADD COLUMN IF NOT EXISTS pet_hunger INTEGER NOT NULL DEFAULT -1`));
+  await runMigration("user_inventory.pet_mood",
+    () => db.execute(sql`ALTER TABLE user_inventory ADD COLUMN IF NOT EXISTS pet_mood INTEGER NOT NULL DEFAULT 100`));
+  await runMigration("user_inventory.pet_stats_updated_at",
+    () => db.execute(sql`ALTER TABLE user_inventory ADD COLUMN IF NOT EXISTS pet_stats_updated_at TIMESTAMP NOT NULL DEFAULT NOW()`));
 
   try {
     await db.execute(sql`

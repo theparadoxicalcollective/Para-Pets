@@ -15,6 +15,10 @@ import petInventoryIcon from "@assets/icon_pet_inventory.png";
 import friendsInventoryIcon from "@assets/icon_friends_inventory.png";
 import feedButtonIcon from "@assets/generated_images/feed_button_icon.png";
 import feedingPageBg from "@assets/generated_images/feeding_page_bg.png";
+import moodFaceHappy from "@assets/mood_face_happy.png";
+import moodFaceContent from "@assets/mood_face_content.png";
+import moodFaceSad from "@assets/mood_face_sad.png";
+import moodFaceHungry from "@assets/mood_face_hungry.png";
 import LoadingScreen from "@/components/LoadingScreen";
 import GiftClaimModal from "@/components/GiftClaimModal";
 import FriendProfileModal from "@/components/FriendProfileModal";
@@ -1884,29 +1888,184 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 // bottom strip onto the pet to feed it. Each successful drop calls the existing
 // `/api/pet/:inventoryId/feed-edible` endpoint, which destroys the edible and
 // awards LVL points. Inventory + pet caches are invalidated after each feed.
+// Hunger & Mood status bars rendered below the pet on the feeding page.
+// Hunger: color shifts green → yellow → orange → red as it depletes.
+// Mood: color shifts gold → soft purple → grey → muddy red, with the
+// matching mood face icon swapped out at thresholds.
+function PetStatusBars({
+  hungerVal,
+  hungerMax,
+  hungerPct,
+  moodVal,
+}: {
+  hungerVal: number;
+  hungerMax: number;
+  hungerPct: number;
+  moodVal: number;
+}) {
+  const hungerColor =
+    hungerPct > 66 ? "linear-gradient(90deg, #6dd36b 0%, #b9f0a0 100%)"
+    : hungerPct > 33 ? "linear-gradient(90deg, #d3c44e 0%, #f0e58a 100%)"
+    : hungerPct > 12 ? "linear-gradient(90deg, #d38c4e 0%, #f0c08a 100%)"
+    : "linear-gradient(90deg, #b94a3b 0%, #f08a7a 100%)";
+
+  let moodFace = moodFaceHappy;
+  let moodColor = "linear-gradient(90deg, #f4c84a 0%, #ffe890 100%)";
+  let moodLabel = "Happy";
+  if (moodVal <= 25) { moodFace = moodFaceHungry; moodColor = "linear-gradient(90deg, #b94a3b 0%, #f08a7a 100%)"; moodLabel = "Miserable"; }
+  else if (moodVal <= 50) { moodFace = moodFaceSad; moodColor = "linear-gradient(90deg, #6a6790 0%, #b8b3d8 100%)"; moodLabel = "Sad"; }
+  else if (moodVal <= 75) { moodFace = moodFaceContent; moodColor = "linear-gradient(90deg, #6db3a6 0%, #a8d8ce 100%)"; moodLabel = "Content"; }
+
+  const barWrap: React.CSSProperties = {
+    width: 240,
+    height: 14,
+    borderRadius: 999,
+    background: "rgba(10,18,8,0.75)",
+    border: "1px solid rgba(180,255,160,0.35)",
+    boxShadow: "inset 0 1px 3px rgba(0,0,0,0.6), 0 1px 4px rgba(0,0,0,0.4)",
+    overflow: "hidden",
+  };
+  const labelStyle: React.CSSProperties = {
+    fontFamily: "Lora, serif",
+    color: "#e6f5d0",
+    fontSize: 9,
+    fontWeight: 800,
+    letterSpacing: "0.15em",
+    textShadow: "0 1px 4px rgba(0,0,0,0.7)",
+  };
+  const valStyle: React.CSSProperties = {
+    fontFamily: "Lora, serif",
+    color: "#f7ffe8",
+    fontSize: 10,
+    fontWeight: 700,
+    textShadow: "0 1px 4px rgba(0,0,0,0.7)",
+  };
+
+  return (
+    <div
+      className="absolute left-1/2"
+      style={{
+        top: "calc(42% + 130px)",
+        transform: "translateX(-50%)",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 8,
+        pointerEvents: "none",
+      }}
+      data-testid="pet-status-bars"
+    >
+      {/* Hunger row */}
+      <div className="flex items-center gap-2">
+        <span style={labelStyle}>HUNGER</span>
+      </div>
+      <div className="flex items-center gap-2" style={{ marginTop: -4 }}>
+        <div style={barWrap} data-testid="bar-hunger">
+          <div
+            style={{
+              width: `${hungerPct}%`,
+              height: "100%",
+              background: hungerColor,
+              transition: "width 0.5s ease, background 0.5s ease",
+              boxShadow: "0 0 10px rgba(255,255,255,0.25)",
+            }}
+          />
+        </div>
+        <span style={valStyle} data-testid="text-hunger-value">{hungerVal}/{hungerMax}</span>
+      </div>
+
+      {/* Mood row */}
+      <div className="flex items-center gap-2" style={{ marginTop: 2 }}>
+        <span style={labelStyle}>MOOD</span>
+      </div>
+      <div className="flex items-center gap-2" style={{ marginTop: -4 }}>
+        <img
+          src={moodFace}
+          alt={moodLabel}
+          style={{ width: 28, height: 28, objectFit: "contain", filter: "drop-shadow(0 0 6px rgba(255,220,120,0.5)) drop-shadow(0 2px 4px rgba(0,0,0,0.6))" }}
+          data-testid="img-mood-face"
+        />
+        <div style={barWrap} data-testid="bar-mood">
+          <div
+            style={{
+              width: `${moodVal}%`,
+              height: "100%",
+              background: moodColor,
+              transition: "width 0.5s ease, background 0.5s ease",
+              boxShadow: "0 0 10px rgba(255,255,255,0.25)",
+            }}
+          />
+        </div>
+        <span style={valStyle} data-testid="text-mood-value">{moodVal}</span>
+      </div>
+    </div>
+  );
+}
+
 function FeedingOverlay({ pet, onClose }: { pet: HousePet; onClose: () => void }) {
   const qc = useQueryClient();
   const { toast } = useToast();
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  // Pull the live, full inventory so we can filter to edibles.
+  // Pull the live, full inventory so we can filter to edibles AND look up the
+  // canonical, server-decayed hunger/mood for THIS pet (the prop is a stale
+  // snapshot from the pet-house page).
   const { data: inventory = [] } = useQuery<any[]>({
     queryKey: ["/api/inventory"],
+    refetchInterval: 30_000,  // Keep hunger/mood live while overlay is open.
   });
   const edibles = useMemo(
     () => inventory.filter((it) => it.type === "edibles"),
     [inventory],
   );
+  // Find the live pet record so hunger/mood reflect server state.
+  const livePet = useMemo(
+    () => inventory.find((it) => it.id === pet.inventoryId) ?? pet,
+    [inventory, pet],
+  );
+  const maxHunger = Math.max(1, livePet.petHealth ?? 1000);
+  const hungerRaw = livePet.petHunger;
+  const hungerVal = hungerRaw == null || hungerRaw < 0 ? maxHunger : hungerRaw;
+  const hungerPct = Math.max(0, Math.min(100, (hungerVal / maxHunger) * 100));
+  const moodVal = Math.max(0, Math.min(100, livePet.petMood ?? 100));
 
-  // Drag state: which inventory item is being dragged + ghost position.
+  // Drag state.
   const dragRef = useRef<{ inventoryId: string; imageUrl: string | null; pid: number } | null>(null);
   const [dragGhost, setDragGhost] = useState<{ inventoryId: string; imageUrl: string | null; x: number; y: number } | null>(null);
 
-  // Pet hit-box ref — used to detect "drop on pet".
+  // Pet visual state — drop target, glow, click animation, sparkles.
   const petBoxRef = useRef<HTMLDivElement>(null);
   const [petGlow, setPetGlow] = useState(false);
+  const [petBounce, setPetBounce] = useState(false);
   const [floatTexts, setFloatTexts] = useState<{ id: number; x: number; y: number; text: string }[]>([]);
+  const [sparkles, setSparkles] = useState<{ id: number; cx: number; cy: number; dx: number; dy: number; rot: number; size: number }[]>([]);
   const floatIdRef = useRef(0);
+  const sparkIdRef = useRef(0);
+
+  const burstSparkles = useCallback((cx: number, cy: number, count = 10) => {
+    const newOnes = Array.from({ length: count }, () => {
+      const angle = Math.random() * Math.PI * 2;
+      const distance = 70 + Math.random() * 70;
+      return {
+        id: ++sparkIdRef.current,
+        cx, cy,
+        dx: Math.cos(angle) * distance,
+        dy: Math.sin(angle) * distance - 20,  // bias upward
+        rot: (Math.random() - 0.5) * 540,
+        size: 12 + Math.random() * 10,
+      };
+    });
+    setSparkles((s) => [...s, ...newOnes]);
+    const ids = new Set(newOnes.map((n) => n.id));
+    setTimeout(() => setSparkles((s) => s.filter((x) => !ids.has(x.id))), 1200);
+  }, []);
+
+  const onPetClick = useCallback(() => {
+    setPetBounce(true);
+    setTimeout(() => setPetBounce(false), 600);
+    const box = petBoxRef.current?.getBoundingClientRect();
+    if (box) burstSparkles(box.left + box.width / 2, box.top + box.height / 2, 12);
+  }, [burstSparkles]);
 
   const feedMutation = useMutation({
     mutationFn: async ({ itemInventoryId }: { itemInventoryId: string }) => {
@@ -1914,10 +2073,11 @@ function FeedingOverlay({ pet, onClose }: { pet: HousePet; onClose: () => void }
     },
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ["/api/inventory"] });
-      qc.invalidateQueries({ queryKey: ["/api/pet-house/pets"] });
-      // Trigger a brief glow + floating "+LVL" text on the pet.
+      // Glow + bounce + sparkles + floating text on successful feed.
       setPetGlow(true);
-      setTimeout(() => setPetGlow(false), 500);
+      setPetBounce(true);
+      setTimeout(() => setPetGlow(false), 600);
+      setTimeout(() => setPetBounce(false), 600);
       const fed = inventory.find((it) => it.id === variables.itemInventoryId);
       const amount = fed?.statBoostAmount ?? 5;
       const id = ++floatIdRef.current;
@@ -1926,6 +2086,7 @@ function FeedingOverlay({ pet, onClose }: { pet: HousePet; onClose: () => void }
       const cy = box ? box.top + box.height * 0.3 : window.innerHeight / 2;
       setFloatTexts((arr) => [...arr, { id, x: cx, y: cy, text: `+${amount} Feed pts` }]);
       setTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id)), 1400);
+      if (box) burstSparkles(box.left + box.width / 2, box.top + box.height / 2, 14);
     },
     onError: (err: any) => {
       toast({
@@ -2013,52 +2174,92 @@ function FeedingOverlay({ pet, onClose }: { pet: HousePet; onClose: () => void }
         >×</button>
       </div>
 
-      {/* Pet centerpiece — drop target */}
+      {/* Floating glowing orbs around the pet — pure decoration */}
+      {[
+        { left: "22%", top: "30%", size: 18, hue: "rgba(190,255,140,0.85)", delay: "0s",   dur: "4.2s" },
+        { left: "78%", top: "32%", size: 14, hue: "rgba(255,220,140,0.85)", delay: "0.6s", dur: "5.1s" },
+        { left: "16%", top: "55%", size: 10, hue: "rgba(150,230,255,0.8)",  delay: "1.2s", dur: "4.6s" },
+        { left: "84%", top: "58%", size: 22, hue: "rgba(220,180,255,0.8)",  delay: "0.3s", dur: "5.4s" },
+        { left: "30%", top: "20%", size: 8,  hue: "rgba(255,200,180,0.75)", delay: "1.8s", dur: "3.9s" },
+      ].map((o, i) => (
+        <div
+          key={i}
+          className="absolute pointer-events-none feed-orb-float"
+          style={{
+            left: o.left, top: o.top,
+            width: o.size, height: o.size,
+            borderRadius: "50%",
+            background: `radial-gradient(circle, ${o.hue} 0%, ${o.hue.replace(/0?\.\d+/, "0.05")} 70%, transparent 100%)`,
+            boxShadow: `0 0 ${o.size * 1.6}px ${o.hue}`,
+            animationDelay: o.delay,
+            animationDuration: o.dur,
+          }}
+        />
+      ))}
+
+      {/* Pet centerpiece — drop target + click target */}
       <div
         ref={petBoxRef}
         className="absolute"
         style={{
           left: "50%",
-          top: "44%",
+          top: "42%",
           transform: "translate(-50%, -50%)",
-          width: 220,
-          height: 220,
-          pointerEvents: "none",
+          width: 300,
+          height: 300,
+          cursor: "pointer",
           filter: petGlow
-            ? "drop-shadow(0 0 24px rgba(190,255,160,0.95)) drop-shadow(0 4px 12px rgba(0,0,0,0.6))"
-            : "drop-shadow(0 6px 16px rgba(0,0,0,0.6))",
-          transition: "filter 0.25s ease",
+            ? "drop-shadow(0 0 32px rgba(190,255,160,1)) drop-shadow(0 0 14px rgba(255,220,120,0.85)) drop-shadow(0 6px 16px rgba(0,0,0,0.55))"
+            : "drop-shadow(0 0 18px rgba(190,255,160,0.55)) drop-shadow(0 0 8px rgba(255,220,120,0.35)) drop-shadow(0 6px 16px rgba(0,0,0,0.55))",
+          transition: "filter 0.3s ease",
         }}
+        onClick={onPetClick}
         data-testid="drop-zone-feed-pet"
       >
-        {pet.petTemplateId ? (
-          <PetAnimator
-            petTemplateId={pet.petTemplateId}
-            mode="static"
-            size={220}
-            fillContainer
-            className="pet-idle-squish"
-          />
-        ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
-          <img
-            src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
-            alt={pet.nickname ?? pet.name}
-            draggable={false}
-            className="pet-idle-squish"
-            style={{ width: "100%", height: "100%", objectFit: "contain" }}
-          />
-        ) : null}
+        {/* Soft radial halo behind the pet */}
+        <div
+          className="absolute inset-0 pointer-events-none feed-halo-pulse"
+          style={{
+            background:
+              "radial-gradient(circle, rgba(190,255,160,0.22) 0%, rgba(190,255,160,0.06) 45%, transparent 70%)",
+          }}
+        />
+        <div className={petBounce ? "feed-pet-happy" : "pet-idle-squish"} style={{ width: "100%", height: "100%" }}>
+          {pet.petTemplateId ? (
+            <PetAnimator
+              petTemplateId={pet.petTemplateId}
+              mode="static"
+              size={300}
+              fillContainer
+            />
+          ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
+            <img
+              src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
+              alt={pet.nickname ?? pet.name}
+              draggable={false}
+              style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none" }}
+            />
+          ) : null}
+        </div>
       </div>
+
+      {/* Hunger + Mood bars beneath the pet */}
+      <PetStatusBars
+        hungerVal={hungerVal}
+        hungerMax={maxHunger}
+        hungerPct={hungerPct}
+        moodVal={moodVal}
+      />
 
       {/* Hint text */}
       <div
         className="absolute left-1/2"
         style={{
-          top: "calc(44% + 130px)",
+          top: "calc(42% + 200px)",
           transform: "translateX(-50%)",
           fontFamily: "Lora, serif",
           color: "#e6f5d0",
-          fontSize: 12,
+          fontSize: 11,
           letterSpacing: "0.18em",
           textAlign: "center",
           textShadow: "0 2px 8px rgba(0,0,0,0.7)",
@@ -2067,6 +2268,39 @@ function FeedingOverlay({ pet, onClose }: { pet: HousePet; onClose: () => void }
       >
         Drag an edible onto your pet
       </div>
+
+      {/* Sparkle burst layer */}
+      {sparkles.map((s) => (
+        <div
+          key={s.id}
+          className="fixed pointer-events-none feed-sparkle"
+          style={{
+            left: s.cx,
+            top: s.cy,
+            width: s.size,
+            height: s.size,
+            // CSS variables consumed by the `feed-sparkle` keyframe.
+            ["--dx" as any]: `${s.dx}px`,
+            ["--dy" as any]: `${s.dy}px`,
+            ["--rot" as any]: `${s.rot}deg`,
+            zIndex: 515,
+          }}
+        >
+          <svg viewBox="0 0 24 24" width={s.size} height={s.size}>
+            <defs>
+              <radialGradient id={`g${s.id}`} cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#fffbe0" stopOpacity="1" />
+                <stop offset="60%" stopColor="#ffd966" stopOpacity="0.9" />
+                <stop offset="100%" stopColor="#c98a00" stopOpacity="0" />
+              </radialGradient>
+            </defs>
+            <path
+              d="M12 2 L13.6 9.5 L21 11 L13.6 12.6 L12 22 L10.4 12.6 L3 11 L10.4 9.5 Z"
+              fill={`url(#g${s.id})`}
+            />
+          </svg>
+        </div>
+      ))}
 
       {/* Floating feedback text */}
       {floatTexts.map((f) => (

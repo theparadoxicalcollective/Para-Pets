@@ -234,6 +234,30 @@ uri = "file://attached_assets/generated_images/feeding_page_bg.png"
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "_PGuzWjLQPxu0yTHVj4h7"
+uri = "file://attached_assets/mood_face_happy.png"
+type = "image"
+title = "mood face happy"
+
+[[generated]]
+id = "D0XVU2ph4b1umwnUWdlsw"
+uri = "file://attached_assets/mood_face_content.png"
+type = "image"
+title = "mood face content"
+
+[[generated]]
+id = "tBXsY7tAr1e1sBa9uIHXM"
+uri = "file://attached_assets/mood_face_sad.png"
+type = "image"
+title = "mood face sad"
+
+[[generated]]
+id = "W1UXzmEhPTS0nQgJQmPXr"
+uri = "file://attached_assets/mood_face_hungry.png"
+type = "image"
+title = "mood face hungry"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"

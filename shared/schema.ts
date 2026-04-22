@@ -95,6 +95,17 @@ export const userInventory = pgTable("user_inventory", {
   // Feed points are accumulated when edibles are fed to a pet. They are a
   // separate currency from pet level/XP and do not auto-level the pet.
   petFeedPoints: integer("pet_feed_points").notNull().default(0),
+  // Hunger meter — current points where MAX = pet_health. Decays only while
+  // the pet is placed in the pet house (inside or outside). Refilled by
+  // feeding edibles (each edible's stat-boost amount = hunger pts restored).
+  // -1 = "uninitialized" (treated as full on first read so existing pets
+  // don't appear starving on day one).
+  petHunger: integer("pet_hunger").notNull().default(-1),
+  // Mood meter 0-100. Stays at 100 while hunger > 0; once hunger hits zero
+  // it drains slowly the longer the pet is neglected. Feeding bumps it back.
+  petMood: integer("pet_mood").notNull().default(100),
+  // Last time we applied time-based hunger/mood decay for this pet.
+  petStatsUpdatedAt: timestamp("pet_stats_updated_at").notNull().default(sql`now()`),
   petNickname: text("pet_nickname"),
   isListed: boolean("is_listed").notNull().default(false),
   poleUsesLeft: integer("pole_uses_left"),

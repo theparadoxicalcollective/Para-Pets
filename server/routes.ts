@@ -1447,6 +1447,45 @@ export async function registerRoutes(
     }
   });
 
+  // ── Pet hunger / mood time-decay helper ────────────────────────────────────
+  // Hunger drains at HUNGER_DECAY_PER_MIN points per minute while the pet is
+  // placed in the pet house (inside or outside). When hunger hits 0, mood
+  // starts draining at MOOD_DECAY_PER_MIN. Both are clamped on each tick.
+  const HUNGER_DECAY_PER_MIN = 1;   // 1 hunger pt / minute while placed
+  const MOOD_DECAY_PER_MIN = 0.5;   // 0.5 mood pt / minute while starving
+  async function applyPetTimeDecay(inv: any, isPlaced: boolean): Promise<{ petHunger: number; petMood: number }> {
+    const maxHunger = Math.max(1, inv.petHealth ?? 1000);
+    // First-touch initialization: -1 means "uninitialized" — start full.
+    let hunger = inv.petHunger == null || inv.petHunger < 0 ? maxHunger : inv.petHunger;
+    let mood = inv.petMood == null ? 100 : inv.petMood;
+    const now = Date.now();
+    const last = inv.petStatsUpdatedAt ? new Date(inv.petStatsUpdatedAt).getTime() : now;
+    const minutes = Math.max(0, (now - last) / 60000);
+    if (isPlaced && minutes > 0) {
+      const newHunger = Math.max(0, hunger - HUNGER_DECAY_PER_MIN * minutes);
+      const moodDrainMinutes = newHunger === 0 ? minutes : 0;
+      const newMood = Math.max(0, mood - MOOD_DECAY_PER_MIN * moodDrainMinutes);
+      hunger = Math.round(newHunger);
+      mood = Math.round(newMood);
+    } else if (!isPlaced && (inv.petHunger == null || inv.petHunger < 0)) {
+      // Not placed and never initialized — just persist a sane starting value
+      // so the bar shows full immediately.
+      hunger = maxHunger;
+    }
+    // Persist if anything actually changed (keeps the timestamp fresh too so
+    // decay maths stay accurate next tick).
+    if (hunger !== inv.petHunger || mood !== inv.petMood || (minutes > 0 && isPlaced)) {
+      await storage.updateInventoryItem(inv.id, {
+        petHunger: hunger,
+        petMood: mood,
+        petStatsUpdatedAt: new Date(),
+      } as any);
+      inv.petHunger = hunger;
+      inv.petMood = mood;
+    }
+    return { petHunger: hunger, petMood: mood };
+  }
+
   app.get("/api/inventory", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
@@ -1458,6 +1497,17 @@ export async function registerRoutes(
         if (shopItem?.fishingType === "pole" && shopItem.poleMaxUses != null && inv.poleUsesLeft == null) {
           await storage.updateInventoryItem(inv.id, { poleUsesLeft: shopItem.poleMaxUses });
           inv.poleUsesLeft = shopItem.poleMaxUses;
+        }
+      }));
+
+      // Apply hunger/mood time decay for every hatched pet. Pets that are
+      // placed in the pet house lose hunger over time; pets sitting in
+      // inventory are static.
+      const placedPositions = await storage.getPetHousePositions(user.id);
+      const placedSet = new Set(placedPositions.map((p) => p.inventoryId));
+      await Promise.all(filteredRows.map(async ({ inventory: inv, shopItem }) => {
+        if (shopItem?.type === "pet" && inv.isHatched) {
+          await applyPetTimeDecay(inv, placedSet.has(inv.id));
         }
       }));
 
@@ -1492,6 +1542,9 @@ export async function registerRoutes(
         petLevel: inv.petLevel,
         petLevelPoints: inv.petLevelPoints,
         petFeedPoints: inv.petFeedPoints ?? 0,
+        petHunger: inv.petHunger ?? -1,
+        petMood: inv.petMood ?? 100,
+        petStatsUpdatedAt: inv.petStatsUpdatedAt ?? null,
         itemsUsedThisLevel: inv.itemsUsedThisLevel,
         atkBoost: shopItem?.atkBoost ?? null,
         defBoost: shopItem?.defBoost ?? null,
@@ -1899,12 +1952,19 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Not an edible item" });
       }
 
-      // Edibles now grant "feed points" — a separate currency tracked on the
-      // pet, NOT pet XP / auto-leveling. The admin sets the per-edible amount
-      // in the same field they used to call "level up points".
+      // Edibles grant "feed points" (lifetime tally) AND restore the pet's
+      // hunger meter by the same amount, capped at the pet's HP. Mood gets a
+      // small immediate bump too, since the pet is happy after eating.
       const feedPoints = itemShopItem.statBoostAmount || 5;
+      const maxHunger = Math.max(1, petInv.petHealth ?? 1000);
+      const currentHunger = petInv.petHunger == null || petInv.petHunger < 0 ? maxHunger : petInv.petHunger;
+      const newHunger = Math.min(maxHunger, currentHunger + feedPoints);
+      const newMood = Math.min(100, (petInv.petMood ?? 100) + 15);
       const updates: any = {
         petFeedPoints: (petInv.petFeedPoints || 0) + feedPoints,
+        petHunger: newHunger,
+        petMood: newMood,
+        petStatsUpdatedAt: new Date(),
       };
 
       const updatedPet = await storage.updateInventoryItem(petInv.id, updates);
