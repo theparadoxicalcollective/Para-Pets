@@ -207,31 +207,30 @@ function CarePopup({
         }}
         onPointerDown={(e) => e.stopPropagation()}
       >
-        {/* Subtle dark-green glow behind the wreath — separates it from the
-            scene without tinting the wreath artwork itself. */}
+        {/* Subtle dark-green glow tucked INSIDE the wreath ring — sits behind
+            the menu artwork only, never spilling onto the pet/scene around
+            it. Tight inset + low alpha keeps it as a hint, not a tint. */}
         <div
           aria-hidden
           style={{
             position: "absolute",
-            inset: "-10%",
+            inset: "22%",
             borderRadius: "50%",
-            background: "radial-gradient(circle at center, rgba(20,55,30,0.55) 0%, rgba(15,40,22,0.35) 45%, rgba(8,22,12,0.15) 70%, rgba(0,0,0,0) 88%)",
+            background: "radial-gradient(circle at center, rgba(20,55,30,0.32) 0%, rgba(15,40,22,0.18) 55%, rgba(0,0,0,0) 90%)",
             pointerEvents: "none",
             zIndex: -1,
-            filter: "blur(2px)",
+            filter: "blur(3px)",
           }}
         />
-        {/* Living forest orbs — different sizes / shades of green / opacities,
-            drifting gently around the wreath to make the menu feel alive. */}
+        {/* Living forest orbs — confined to the wreath ring (28–72%) so they
+            decorate the menu without scattering green dots over the scene. */}
         {[
-          { left: "8%",  top: "12%", size: 22, hue: "rgba(150,230,140,0.55)", delay: "0s",   dur: "5.4s" },
-          { left: "82%", top: "18%", size: 14, hue: "rgba(110,200,120,0.45)", delay: "0.8s", dur: "4.6s" },
-          { left: "92%", top: "48%", size: 28, hue: "rgba(70,170,90,0.4)",    delay: "1.4s", dur: "6.1s" },
-          { left: "4%",  top: "58%", size: 18, hue: "rgba(190,255,170,0.55)", delay: "0.4s", dur: "5.0s" },
-          { left: "20%", top: "88%", size: 10, hue: "rgba(140,220,150,0.5)",  delay: "1.9s", dur: "4.2s" },
-          { left: "74%", top: "92%", size: 24, hue: "rgba(90,190,110,0.45)",  delay: "0.2s", dur: "5.8s" },
-          { left: "48%", top: "4%",  size: 12, hue: "rgba(170,240,160,0.5)",  delay: "1.1s", dur: "4.8s" },
-          { left: "60%", top: "78%", size: 16, hue: "rgba(120,210,130,0.5)",  delay: "0.6s", dur: "5.3s" },
+          { left: "30%", top: "26%", size: 14, hue: "rgba(150,230,140,0.45)", delay: "0s",   dur: "5.4s" },
+          { left: "68%", top: "30%", size: 10, hue: "rgba(110,200,120,0.4)",  delay: "0.8s", dur: "4.6s" },
+          { left: "72%", top: "52%", size: 16, hue: "rgba(70,170,90,0.35)",   delay: "1.4s", dur: "6.1s" },
+          { left: "30%", top: "55%", size: 12, hue: "rgba(190,255,170,0.45)", delay: "0.4s", dur: "5.0s" },
+          { left: "44%", top: "30%", size: 8,  hue: "rgba(170,240,160,0.45)", delay: "1.1s", dur: "4.8s" },
+          { left: "56%", top: "55%", size: 10, hue: "rgba(120,210,130,0.4)",  delay: "0.6s", dur: "5.3s" },
         ].map((o, i) => (
           <div
             key={`care-orb-${i}`}
