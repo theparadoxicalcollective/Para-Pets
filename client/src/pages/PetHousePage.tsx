@@ -15,6 +15,7 @@ import petInventoryIcon from "@assets/icon_pet_inventory.png";
 import friendsInventoryIcon from "@assets/icon_friends_inventory.png";
 import feedButtonIcon from "@assets/generated_images/feed_button_icon.png";
 import feedingPageBg from "@assets/generated_images/feeding_page_bg.png";
+import careWreathImg from "@assets/Photoroom_20260422_24309_PM_1776887015425.png";
 import moodFaceHappy from "@assets/mood_face_happy.png";
 import moodFaceContent from "@assets/mood_face_content.png";
 import moodFaceSad from "@assets/mood_face_sad.png";
@@ -115,6 +116,157 @@ const BUILDING_REF_H = 900;
 const BOTTOM_TOOLBAR_RESERVE_PX = 140;
 
 // Clamp helper for Y drag limits — reserves the bottom toolbar area.
+// ── Care wreath popup ────────────────────────────────────────────────────────
+// Replaces the old "Feed / Cancel / Return to Inventory" pet popup with a
+// decorative wreath image. The buttons baked into the artwork are matched by
+// invisible hotspots: the central fruit bowl triggers Care (was "Feed"), the
+// left tablet is Cancel, the right tablet is Return-to-Inventory. Each tap
+// fires a sparkle burst whose colour matches the button it came from.
+type CareSparkle = { id: number; x: number; y: number; dx: number; dy: number; color: string; size: number; delay: number };
+function CarePopup({
+  petName, onCare, onCancel, onReturn, zIndex = 40,
+}: {
+  petName: string;
+  onCare: () => void;
+  onCancel: () => void;
+  onReturn: () => void;
+  zIndex?: number;
+}) {
+  const [sparks, setSparks] = useState<CareSparkle[]>([]);
+  const idRef = useRef(0);
+  const burst = useCallback((cx: number, cy: number, colors: string[], count = 16) => {
+    const newOnes: CareSparkle[] = Array.from({ length: count }, () => {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 40 + Math.random() * 80;
+      return {
+        id: ++idRef.current,
+        x: cx, y: cy,
+        dx: Math.cos(angle) * dist,
+        dy: Math.sin(angle) * dist,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        size: 6 + Math.random() * 10,
+        delay: Math.random() * 0.12,
+      };
+    });
+    setSparks((s) => [...s, ...newOnes]);
+    const ids = new Set(newOnes.map((n) => n.id));
+    setTimeout(() => setSparks((s) => s.filter((x) => !ids.has(x.id))), 1100);
+  }, []);
+  const handle = (
+    e: React.PointerEvent<HTMLButtonElement>,
+    colors: string[],
+    action: () => void,
+  ) => {
+    e.stopPropagation();
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    burst(r.left + r.width / 2, r.top + r.height / 2, colors, 16);
+    setTimeout(action, 280);
+  };
+
+  // Rainbow palette for the multicolored fruit bowl.
+  const fruitColors = ["#ff5f6d", "#ffba08", "#3ed598", "#22d3ee", "#a78bfa", "#f472b6"];
+  const cancelColors = ["#c5e0a0", "#9bc16a", "#6f9b3d"];      // mossy green tablet
+  const returnColors = ["#e89261", "#c95d2c", "#9b3a14"];      // wood-brown tablet
+
+  return (
+    <div
+      className="absolute inset-0 flex flex-col items-center justify-center"
+      style={{ zIndex, background: "rgba(0,0,0,0.55)" }}
+      onPointerDown={(e) => { e.stopPropagation(); onCancel(); }}
+      data-testid="care-popup-backdrop"
+    >
+      {/* Pet name above the wreath */}
+      <div
+        style={{
+          fontFamily: "Lora, serif",
+          color: "#ffd700",
+          fontSize: 16,
+          fontWeight: 700,
+          marginBottom: 6,
+          textShadow: "0 2px 8px rgba(0,0,0,0.85)",
+          letterSpacing: "0.04em",
+        }}
+      >
+        {petName}
+      </div>
+
+      {/* Wreath artwork with invisible hotspots */}
+      <div
+        className="relative"
+        style={{
+          width: "min(86vw, 440px)",
+          aspectRatio: "1 / 1",
+          backgroundImage: `url(${careWreathImg})`,
+          backgroundSize: "contain",
+          backgroundRepeat: "no-repeat",
+          backgroundPosition: "center",
+          filter: "drop-shadow(0 10px 30px rgba(0,0,0,0.6))",
+        }}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        {/* Care (fruit bowl) hotspot */}
+        <button
+          data-testid="button-care-care"
+          onPointerDown={(e) => handle(e, fruitColors, onCare)}
+          aria-label="Care"
+          className="absolute"
+          style={{
+            left: "32%", top: "36%", width: "36%", height: "34%",
+            background: "transparent", border: "none", cursor: "pointer",
+            WebkitTapHighlightColor: "transparent",
+          }}
+        />
+        {/* Cancel hotspot (left tablet) */}
+        <button
+          data-testid="button-care-cancel"
+          onPointerDown={(e) => handle(e, cancelColors, onCancel)}
+          aria-label="Cancel"
+          className="absolute"
+          style={{
+            left: "27%", top: "73%", width: "23%", height: "13%",
+            background: "transparent", border: "none", cursor: "pointer",
+            WebkitTapHighlightColor: "transparent",
+            borderRadius: 14,
+          }}
+        />
+        {/* Return-to-inventory hotspot (right tablet) */}
+        <button
+          data-testid="button-care-return"
+          onPointerDown={(e) => handle(e, returnColors, onReturn)}
+          aria-label="Return to Inventory"
+          className="absolute"
+          style={{
+            left: "52%", top: "73%", width: "25%", height: "13%",
+            background: "transparent", border: "none", cursor: "pointer",
+            WebkitTapHighlightColor: "transparent",
+            borderRadius: 14,
+          }}
+        />
+      </div>
+
+      {/* Sparkle burst layer (rendered fixed over everything) */}
+      {sparks.map((s) => (
+        <div
+          key={s.id}
+          className="fixed pointer-events-none ring-sparkle"
+          style={{
+            left: s.x, top: s.y, width: s.size, height: s.size,
+            color: s.color,
+            ["--dx" as any]: `${s.dx}px`,
+            ["--dy" as any]: `${s.dy}px`,
+            animationDelay: `${s.delay}s`,
+            zIndex: zIndex + 5,
+          }}
+        >
+          <svg viewBox="0 0 24 24" width={s.size} height={s.size} style={{ filter: `drop-shadow(0 0 6px ${s.color})` }}>
+            <path d="M12 0 L14 10 L24 12 L14 14 L12 24 L10 14 L0 12 L10 10 Z" fill={s.color} />
+          </svg>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function maxYForHeight(containerH: number, reservePx = BOTTOM_TOOLBAR_RESERVE_PX): number {
   if (containerH <= 0) return 0.82;
   return Math.min(0.92, (containerH - reservePx) / containerH);
@@ -418,57 +570,15 @@ function InteriorViewer({
         );
       })}
 
-      {/* Pet popup */}
+      {/* Pet popup — the new Care wreath */}
       {popupPet && (
-        <div
-          className="absolute inset-0 flex items-center justify-center"
-          style={{ zIndex: 20, background: "rgba(0,0,0,0.45)" }}
-          onPointerDown={e => { e.stopPropagation(); setPopupPet(null); }}
-        >
-          <div
-            className="flex flex-col items-center gap-3 rounded-2xl px-5 py-4"
-            style={{ background: "rgba(15,10,5,0.95)", border: "1px solid rgba(255,215,0,0.25)", boxShadow: "0 4px 24px rgba(0,0,0,0.7)" }}
-            onPointerDown={e => e.stopPropagation()}
-          >
-            <div style={{ fontFamily: "Lora, serif", color: "#ffd700", fontSize: 14, fontWeight: 700 }}>
-              {popupPet.nickname ?? popupPet.name}
-            </div>
-            {/* Feed is the primary CTA — larger, brighter, top-of-stack — and
-                Cancel + Return-to-Inventory sit below as smaller secondaries. */}
-            <div className="flex flex-col items-center gap-2 w-full">
-              <button
-                onClick={() => { onFeedPet(popupPet); setPopupPet(null); }}
-                className="rounded-2xl px-7 py-3 text-base font-bold flex items-center gap-2.5 transition-transform active:scale-95"
-                style={{
-                  fontFamily: "Lora, serif",
-                  background: "linear-gradient(160deg, rgba(140,220,100,0.45) 0%, rgba(80,160,60,0.55) 100%)",
-                  border: "2px solid rgba(190,255,160,0.85)",
-                  color: "#f4ffe6",
-                  boxShadow: "0 0 18px rgba(150,230,110,0.5), 0 4px 14px rgba(0,0,0,0.5)",
-                  letterSpacing: "0.05em",
-                }}
-                data-testid="button-popup-feed-indoor"
-              >
-                <img src={feedButtonIcon} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />
-                Feed
-              </button>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setPopupPet(null)}
-                  className="rounded-lg px-3 py-1 text-[11px] font-bold"
-                  style={{ fontFamily: "Lora, serif", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.55)" }}
-                  data-testid="button-popup-cancel-indoor"
-                >Cancel</button>
-                <button
-                  onClick={() => { onRemovePet(popupPet.inventoryId); setPopupPet(null); }}
-                  className="rounded-lg px-3 py-1 text-[11px] font-bold"
-                  style={{ fontFamily: "Lora, serif", background: "rgba(255,100,80,0.12)", border: "1px solid rgba(255,100,80,0.35)", color: "rgba(255,160,140,0.85)" }}
-                  data-testid="button-popup-return-indoor"
-                >Return to Inventory</button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <CarePopup
+          petName={popupPet.nickname ?? popupPet.name}
+          zIndex={20}
+          onCare={() => { onFeedPet(popupPet); setPopupPet(null); }}
+          onCancel={() => setPopupPet(null)}
+          onReturn={() => { onRemovePet(popupPet.inventoryId); setPopupPet(null); }}
+        />
       )}
 
       {/* Leave button — positioned by admin via leaveButtonX/Y percentages */}
@@ -1225,55 +1335,15 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         );
       })}
 
-      {/* Outdoor pet tap popup — same pattern as indoor InteriorScene popup */}
+      {/* Outdoor pet tap popup — Care wreath */}
       {outdoorPopupPet && (
-        <div
-          className="absolute inset-0 flex items-center justify-center"
-          style={{ zIndex: 40, background: "rgba(0,0,0,0.45)" }}
-          onPointerDown={e => { e.stopPropagation(); setOutdoorPopupPet(null); }}
-        >
-          <div
-            className="flex flex-col items-center gap-3 rounded-2xl px-5 py-4"
-            style={{ background: "rgba(15,10,5,0.95)", border: "1px solid rgba(255,215,0,0.25)", boxShadow: "0 4px 24px rgba(0,0,0,0.7)" }}
-            onPointerDown={e => e.stopPropagation()}
-          >
-            <div style={{ fontFamily: "Lora, serif", color: "#ffd700", fontSize: 14, fontWeight: 700 }}>
-              {outdoorPopupPet.nickname ?? outdoorPopupPet.name}
-            </div>
-            <div className="flex flex-col items-center gap-2 w-full">
-              <button
-                onClick={() => { setFeedingPet(outdoorPopupPet); setOutdoorPopupPet(null); }}
-                className="rounded-2xl px-7 py-3 text-base font-bold flex items-center gap-2.5 transition-transform active:scale-95"
-                style={{
-                  fontFamily: "Lora, serif",
-                  background: "linear-gradient(160deg, rgba(140,220,100,0.45) 0%, rgba(80,160,60,0.55) 100%)",
-                  border: "2px solid rgba(190,255,160,0.85)",
-                  color: "#f4ffe6",
-                  boxShadow: "0 0 18px rgba(150,230,110,0.5), 0 4px 14px rgba(0,0,0,0.5)",
-                  letterSpacing: "0.05em",
-                }}
-                data-testid="button-popup-feed-outdoor"
-              >
-                <img src={feedButtonIcon} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />
-                Feed
-              </button>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setOutdoorPopupPet(null)}
-                  className="rounded-lg px-3 py-1 text-[11px] font-bold"
-                  style={{ fontFamily: "Lora, serif", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.55)" }}
-                  data-testid="button-popup-cancel-outdoor"
-                >Cancel</button>
-                <button
-                  onClick={() => { removePetFromSceneMutation.mutate(outdoorPopupPet.inventoryId); setOutdoorPopupPet(null); }}
-                  className="rounded-lg px-3 py-1 text-[11px] font-bold"
-                  style={{ fontFamily: "Lora, serif", background: "rgba(255,100,80,0.12)", border: "1px solid rgba(255,100,80,0.35)", color: "rgba(255,160,140,0.85)" }}
-                  data-testid="button-popup-return-outdoor"
-                >Return to Inventory</button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <CarePopup
+          petName={outdoorPopupPet.nickname ?? outdoorPopupPet.name}
+          zIndex={40}
+          onCare={() => { setFeedingPet(outdoorPopupPet); setOutdoorPopupPet(null); }}
+          onCancel={() => setOutdoorPopupPet(null)}
+          onReturn={() => { removePetFromSceneMutation.mutate(outdoorPopupPet.inventoryId); setOutdoorPopupPet(null); }}
+        />
       )}
 
       {/* Outdoor placed decor layer */}
