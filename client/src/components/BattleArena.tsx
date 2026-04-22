@@ -26,6 +26,9 @@ export interface EquippedPet {
   petHealth?: number | null;
   petTemplateId?: string | null;
   specialSkill?: string | null;
+  specialSkillType?: string | null;
+  skillDamagePercent?: number | null;
+  skillHealPercent?: number | null;
   rarity?: number | null;
 }
 
@@ -502,6 +505,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const counterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const MAX_MANA = 100;
   const handleEnemyDeathRef = useRef<() => void>(() => {});
+  const runPetSkillRef = useRef<(casterIdx: 0 | 1 | 2, source: { specialSkill?: string | null; specialSkillType?: string | null; skillDamagePercent?: number | null; skillHealPercent?: number | null; petAtk?: number | null; }, atkOverride?: number) => void>(() => {});
+  const applyDamageToEnemyRef = useRef<(amt: number, x: number, y: number, isCrit?: boolean) => void>(() => {});
 
   // ── Potion slots ─────────────────────────────────────────────────────────
   const [activeSlots, setActiveSlots] = useState<(BattlePotionSlot & { remaining: string[] })[]>([]);
@@ -992,15 +997,25 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           extraPetManas.current[i] = Math.min(MAX_MANA, extraPetManas.current[i] + 22);
           if (extraPetManas.current[i] >= MAX_MANA) {
             extraPetManas.current[i] = 0;
-            const skillDmg = Math.max(15, Math.floor((ep.petAtk ?? 15) * 1.6));
+            const casterIdx = (i + 1) as 1 | 2;
+            // Honors the extra pet's actual special skill (Lazer/Bubble/Heal/Revive/etc.)
+            // — heals route to allies, damage routes to enemy. If the pet has no
+            // skill assigned we fall back to a basic damage hit so the mana isn't wasted.
+            const skill = ep.specialSkillType || ep.specialSkill;
             setTimeout(() => {
               if (!battleActiveRef.current) return;
-              enemyHpRef.current = Math.max(0, enemyHpRef.current - skillDmg);
-              setEnemyHp(enemyHpRef.current);
-              const snd: DamageNumber = { id: dmgIdRef.current++, x: enemyPosRef.current.x + (Math.random() * 14 - 7), y: enemyPosRef.current.y - 10, value: skillDmg };
-              setDamageNumbers(prev => [...prev, snd]);
-              setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== snd.id)), 900);
-              if (enemyHpRef.current <= 0) handleEnemyDeathRef.current();
+              if (skill) {
+                runPetSkillRef.current(casterIdx, {
+                  specialSkill: ep.specialSkill ?? null,
+                  specialSkillType: ep.specialSkillType ?? null,
+                  skillDamagePercent: ep.skillDamagePercent ?? null,
+                  skillHealPercent: ep.skillHealPercent ?? null,
+                  petAtk: ep.petAtk ?? 15,
+                });
+              } else {
+                const skillDmg = Math.max(15, Math.floor((ep.petAtk ?? 15) * 1.6));
+                applyDamageToEnemyRef.current(skillDmg, enemyPosRef.current.x + (Math.random() * 14 - 7), enemyPosRef.current.y);
+              }
             }, orbDur + 100);
           }
 
@@ -1220,7 +1235,167 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     if (blockHoldTimerRef.current) { clearTimeout(blockHoldTimerRef.current); blockHoldTimerRef.current = null; }
   }, []);
 
-  // ── Special skill ────────────────────────────────────────────────────────
+  // ── Skill execution helpers ──────────────────────────────────────────────
+  // These keep damage/heal targeting strictly correct:
+  //   • Damage NEVER touches an ally pet.
+  //   • Heal NEVER touches the enemy.
+  //   • Skills with both a damage% AND a heal% configured will do both
+  //     (drain-style), but with separate code paths per target type.
+
+  const showFloatingNumber = useCallback((x: number, y: number, value: number, isHeal: boolean, isCrit = false) => {
+    const nd: DamageNumber = { id: dmgIdRef.current++, x, y: y - 10, value, isHeal, isCrit };
+    setDamageNumbers(prev => [...prev, nd]);
+    setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== nd.id)), 1100);
+  }, []);
+
+  const applyDamageToEnemy = useCallback((amt: number, x: number, y: number, isCrit = false) => {
+    if (amt <= 0) return;
+    enemyHpRef.current = Math.max(0, enemyHpRef.current - amt);
+    setEnemyHp(enemyHpRef.current);
+    setEnemyHit(true);
+    setTimeout(() => setEnemyHit(false), 250);
+    showFloatingNumber(x + (Math.random() * 8 - 4), y - 4, amt, false, isCrit);
+    if (enemyHpRef.current <= 0) handleEnemyDeathRef.current();
+  }, [showFloatingNumber]);
+
+  // Heal a single ally by index (0=active, 1/2=extra). Skips fainted pets
+  // (you cannot heal a 0-HP pet — that requires Revive).
+  const healAlly = useCallback((allyIdx: 0 | 1 | 2, amt: number) => {
+    if (amt <= 0) return;
+    if (allyIdx === 0) {
+      if (petHpRef.current <= 0) return;
+      const max = petStatsRef.current.maxHp;
+      petHpRef.current = Math.min(max, petHpRef.current + amt);
+      setPetHp(petHpRef.current);
+      const pos = getPetPos(0, equippedPetsCountRef.current);
+      showFloatingNumber(pos.x, pos.y - 4, amt, true);
+    } else {
+      const i = allyIdx - 1;
+      if (extraPetHpsRef.current[i] <= 0) return;
+      const ep = equippedExtraPetsRef.current[i];
+      if (!ep) return;
+      const max = ep.petHealth ?? petStatsRef.current.maxHp;
+      const newHps = [...extraPetHpsRef.current] as [number, number];
+      newHps[i] = Math.min(max, newHps[i] + amt);
+      extraPetHpsRef.current = newHps;
+      setExtraPetHps(newHps);
+      const pos = getPetPos(allyIdx, equippedPetsCountRef.current);
+      showFloatingNumber(pos.x, pos.y - 4, amt, true);
+    }
+  }, [showFloatingNumber]);
+
+  const healWholeParty = useCallback((amt: number) => {
+    healAlly(0, amt);
+    for (let i = 0; i < 2; i++) {
+      if (equippedExtraPetsRef.current[i]) healAlly((i + 1) as 1 | 2, amt);
+    }
+  }, [healAlly]);
+
+  const reviveFaintedExtras = useCallback((amt: number) => {
+    if (amt <= 0) return;
+    const newHps = [...extraPetHpsRef.current] as [number, number];
+    let any = false;
+    for (let i = 0; i < 2; i++) {
+      const ep = equippedExtraPetsRef.current[i];
+      if (!ep || newHps[i] > 0) continue;
+      const max = ep.petHealth ?? petStatsRef.current.maxHp;
+      newHps[i] = Math.min(max, amt);
+      any = true;
+      const pos = getPetPos(i + 1, equippedPetsCountRef.current);
+      showFloatingNumber(pos.x, pos.y - 4, amt, true);
+    }
+    if (any) {
+      extraPetHpsRef.current = newHps;
+      setExtraPetHps(newHps);
+    }
+  }, [showFloatingNumber]);
+
+  // Master skill executor — caster can be active (0) or any extra (1/2).
+  // Each skill type declares whether it has a damage and/or heal component;
+  // the routing is enforced here so allies are never accidentally damaged.
+  const runPetSkill = useCallback((casterIdx: 0 | 1 | 2, source: { specialSkill?: string | null; specialSkillType?: string | null; skillDamagePercent?: number | null; skillHealPercent?: number | null; petAtk?: number | null; }, atkOverride?: number) => {
+    if (!battleActiveRef.current) return;
+    const skill = source.specialSkillType || source.specialSkill;
+    if (!skill) return;
+    const atk = Math.max(1, atkOverride ?? source.petAtk ?? petStatsRef.current.atk);
+
+    const rawDmg = source.skillDamagePercent;
+    const rawHeal = source.skillHealPercent;
+    const dmgOverride = (rawDmg !== null && rawDmg !== undefined && rawDmg > 0) ? rawDmg / 100 : null;
+    const healOverride = (rawHeal !== null && rawHeal !== undefined && rawHeal > 0) ? rawHeal / 100 : null;
+
+    // Defaults per skill type. dmg/heal multipliers are applied to caster's atk.
+    const defaults: Record<string, { dmg: number; heal: number; mode: "single" | "multi" | "poison" | "self" | "party" | "revive" }> = {
+      "Lazer":        { dmg: 2.5,  heal: 0,   mode: "single" },
+      "Bubble":       { dmg: 0.9,  heal: 0,   mode: "multi"  },
+      "Poison":       { dmg: 0.14, heal: 0,   mode: "poison" },
+      "Heal Self":    { dmg: 0,    heal: 0.5, mode: "self"   },
+      "Heal Party":   { dmg: 0,    heal: 0.5, mode: "party"  },
+      "Revive Party": { dmg: 0,    heal: 0.4, mode: "revive" },
+    };
+    const def = defaults[skill] ?? { dmg: 1.0, heal: 0, mode: "single" as const };
+    const finalDmg = dmgOverride !== null ? dmgOverride : def.dmg;
+    const finalHeal = healOverride !== null ? healOverride : def.heal;
+
+    // Visual flourish (active pet only triggers the fullscreen overlay/sound)
+    if (casterIdx === 0) {
+      setSkillEffect(skill);
+      playPowerUp();
+      setTimeout(() => setSkillEffect(null), 1200);
+    }
+
+    // ── DAMAGE component → ENEMY only ───────────────────────────────────────
+    if (finalDmg > 0) {
+      if (def.mode === "poison") {
+        if (!poisonActive) {
+          setPoisonActive(true);
+          let ticks = 0;
+          const tickDmg = Math.max(1, Math.floor(atk * finalDmg));
+          const timer = setInterval(() => {
+            if (!battleActiveRef.current) { clearInterval(timer); setPoisonActive(false); return; }
+            ticks++;
+            applyDamageToEnemy(tickDmg, enemyPosRef.current.x, enemyPosRef.current.y);
+            if (ticks >= 5 || enemyHpRef.current <= 0) {
+              clearInterval(timer);
+              setPoisonActive(false);
+              poisonTimerRef.current = null;
+            }
+          }, 900);
+          poisonTimerRef.current = timer;
+        }
+      } else if (def.mode === "multi") {
+        const ePos = enemyPosRef.current;
+        [0, 1, 2].forEach((i) => {
+          setTimeout(() => {
+            if (!battleActiveRef.current) return;
+            const dmg = Math.floor(atk * finalDmg + Math.random() * 10);
+            applyDamageToEnemy(dmg, ePos.x + (i - 1) * 8, ePos.y);
+          }, i * 350);
+        });
+      } else {
+        // Single hit (also covers self/party/revive skills that admin gave a damage% to)
+        const dmg = Math.max(1, Math.floor(atk * finalDmg));
+        applyDamageToEnemy(dmg, enemyPosRef.current.x, enemyPosRef.current.y, def.mode === "single");
+      }
+    }
+
+    // ── HEAL component → ALLIES only (never the enemy) ──────────────────────
+    if (finalHeal > 0) {
+      const healAmt = Math.max(1, Math.floor(atk * finalHeal));
+      if (def.mode === "revive") {
+        reviveFaintedExtras(healAmt);
+        // Also gently top off the rest of the party (any heal% on Revive)
+        if (healOverride !== null) healWholeParty(Math.floor(healAmt * 0.5));
+      } else if (def.mode === "party") {
+        healWholeParty(healAmt);
+      } else {
+        // Heal Self, or any damage skill that admin gave a healPct → caster only
+        healAlly(casterIdx, healAmt);
+      }
+    }
+  }, [applyDamageToEnemy, healAlly, healWholeParty, reviveFaintedExtras, poisonActive]);
+
+  // ── Special skill (active pet, mana-driven) ──────────────────────────────
   const useSpecialSkill = useCallback(() => {
     if (!battleActiveRef.current || manaRef.current < MAX_MANA || skillCooldown) return;
     const skill = (pet as any)?.specialSkillType || pet?.specialSkill;
@@ -1229,125 +1404,21 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     manaRef.current = 0;
     setMana(0);
     setSkillCooldown(true);
-    setSkillEffect(skill);
-    playPowerUp();
-    setTimeout(() => setSkillEffect(null), 1200);
     setTimeout(() => setSkillCooldown(false), 3000);
 
-    const rawPct = (pet as any)?.skillDamagePercent;
-    const pct = (rawPct !== null && rawPct !== undefined && rawPct > 0) ? rawPct : null;
-    const rawHealPct = (pet as any)?.skillHealPercent;
-    const healPctOverride = (rawHealPct !== null && rawHealPct !== undefined && rawHealPct > 0) ? rawHealPct : null;
+    runPetSkill(0, {
+      specialSkill: pet?.specialSkill ?? null,
+      specialSkillType: pet?.specialSkillType ?? null,
+      skillDamagePercent: pet?.skillDamagePercent ?? null,
+      skillHealPercent: pet?.skillHealPercent ?? null,
+      petAtk: petStatsRef.current.atk,
+    }, petStatsRef.current.atk);
+  }, [pet?.specialSkillType, pet?.specialSkill, pet?.skillDamagePercent, pet?.skillHealPercent, skillCooldown, runPetSkill]);
 
-    if (skill === "Lazer") {
-      const ePos = enemyPosRef.current;
-      const mult = pct !== null ? pct / 100 : 2.5;
-      const dmg = Math.floor(petStatsRef.current.atk * mult);
-      enemyHpRef.current = Math.max(0, enemyHpRef.current - dmg);
-      setEnemyHp(enemyHpRef.current);
-      setEnemyHit(true);
-      setTimeout(() => setEnemyHit(false), 400);
-      const nd: DamageNumber = { id: dmgIdRef.current++, x: ePos.x, y: ePos.y - 12, value: dmg, isCrit: true };
-      setDamageNumbers(prev => [...prev, nd]);
-      setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== nd.id)), 1400);
-      if (enemyHpRef.current <= 0) handleEnemyDeathRef.current();
-
-    } else if (skill === "Bubble") {
-      const ePos = enemyPosRef.current;
-      const mult = pct !== null ? pct / 100 : 0.9;
-      [0, 1, 2].forEach((i) => {
-        setTimeout(() => {
-          if (!battleActiveRef.current) return;
-          const dmg = Math.floor(petStatsRef.current.atk * mult + Math.random() * 10);
-          enemyHpRef.current = Math.max(0, enemyHpRef.current - dmg);
-          setEnemyHp(enemyHpRef.current);
-          setEnemyHit(true);
-          setTimeout(() => setEnemyHit(false), 180);
-          const nd: DamageNumber = { id: dmgIdRef.current++, x: ePos.x + (i - 1) * 8, y: ePos.y - 14, value: dmg };
-          setDamageNumbers(prev => [...prev, nd]);
-          setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== nd.id)), 1000);
-          if (enemyHpRef.current <= 0) handleEnemyDeathRef.current();
-        }, i * 350);
-      });
-
-    } else if (skill === "Heal Self" || skill === "Heal Party") {
-      const maxHp = petStatsRef.current.maxHp;
-      const healMult = healPctOverride !== null ? healPctOverride / 100 : (pct !== null ? pct / 100 : 0.5);
-      const healAmt = Math.floor(petStatsRef.current.atk * healMult);
-      petHpRef.current = Math.min(maxHp, petHpRef.current + healAmt);
-      setPetHp(petHpRef.current);
-      const nd: DamageNumber = { id: dmgIdRef.current++, x: PET_X, y: PET_Y - 14, value: healAmt, isHeal: true };
-      setDamageNumbers(prev => [...prev, nd]);
-      setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== nd.id)), 1200);
-      // Heal Party: also heal alive extra pets (does NOT revive fainted ones)
-      if (skill === "Heal Party") {
-        const newExtraHps = [...extraPetHpsRef.current] as [number, number];
-        let partyChanged = false;
-        for (let i = 0; i < 2; i++) {
-          const ep = equippedExtraPetsRef.current[i];
-          if (!ep || newExtraHps[i] <= 0) continue; // skip fainted pets
-          const epMaxHp = (ep as any).petMaxHp ?? petStatsRef.current.maxHp;
-          newExtraHps[i] = Math.min(epMaxHp, newExtraHps[i] + healAmt);
-          partyChanged = true;
-          const epos = getPetPos(i + 1, equippedPetsCountRef.current);
-          const end2: DamageNumber = { id: dmgIdRef.current++, x: epos.x, y: epos.y - 14, value: healAmt, isHeal: true };
-          setDamageNumbers(prev => [...prev, end2]);
-          setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== end2.id)), 1200);
-        }
-        if (partyChanged) {
-          extraPetHpsRef.current = newExtraHps;
-          setExtraPetHps(newExtraHps);
-        }
-      }
-
-    } else if (skill === "Revive Party") {
-      const healMult = healPctOverride !== null ? healPctOverride / 100 : (pct !== null ? pct / 100 : 0.4);
-      const reviveAmt = Math.max(1, Math.floor(petStatsRef.current.atk * healMult));
-      const newExtraHps = [...extraPetHpsRef.current] as [number, number];
-      let anyRevived = false;
-      for (let i = 0; i < 2; i++) {
-        const ep = equippedExtraPetsRef.current[i];
-        if (!ep) continue;
-        const epMaxHp = (ep as any).petMaxHp ?? petStatsRef.current.maxHp;
-        if (newExtraHps[i] <= 0) {
-          newExtraHps[i] = Math.min(epMaxHp, reviveAmt);
-          anyRevived = true;
-          const epos = getPetPos(i + 1, equippedPetsCountRef.current);
-          const rnd: DamageNumber = { id: dmgIdRef.current++, x: epos.x, y: epos.y - 14, value: reviveAmt, isHeal: true };
-          setDamageNumbers(prev => [...prev, rnd]);
-          setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== rnd.id)), 1400);
-        }
-      }
-      if (anyRevived) {
-        extraPetHpsRef.current = newExtraHps;
-        setExtraPetHps(newExtraHps);
-      }
-
-    } else if (skill === "Poison") {
-      if (poisonActive) return;
-      setPoisonActive(true);
-      let ticks = 0;
-      const poisonMult = pct !== null ? pct / 100 : 0.14;
-      const tickDmg = Math.max(1, Math.floor(petStatsRef.current.atk * poisonMult));
-      const timer = setInterval(() => {
-        if (!battleActiveRef.current) { clearInterval(timer); setPoisonActive(false); return; }
-        ticks++;
-        enemyHpRef.current = Math.max(0, enemyHpRef.current - tickDmg);
-        setEnemyHp(enemyHpRef.current);
-        const ePos = enemyPosRef.current;
-        const nd: DamageNumber = { id: dmgIdRef.current++, x: ePos.x + (Math.random() * 14 - 7), y: ePos.y - 10, value: tickDmg };
-        setDamageNumbers(prev => [...prev, nd]);
-        setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== nd.id)), 900);
-        if (ticks >= 5 || enemyHpRef.current <= 0) {
-          clearInterval(timer);
-          setPoisonActive(false);
-          poisonTimerRef.current = null;
-          if (enemyHpRef.current <= 0) handleEnemyDeathRef.current();
-        }
-      }, 900);
-      poisonTimerRef.current = timer;
-    }
-  }, [(pet as any)?.specialSkillType, pet?.specialSkill, pet?.skillDamagePercent, skillCooldown, poisonActive]);
+  // Keep refs fresh so the rAF animate loop (captured in a long-lived useEffect)
+  // always calls the current versions of these callbacks.
+  useEffect(() => { runPetSkillRef.current = runPetSkill; }, [runPetSkill]);
+  useEffect(() => { applyDamageToEnemyRef.current = applyDamageToEnemy; }, [applyDamageToEnemy]);
 
   // ── Rarity color for pet skill glow ──────────────────────────────────────
   const RARITY_COLORS = ["", "#a0a0b0", "#4ade80", "#60a5fa", "#c084fc", "#f0c040"];
