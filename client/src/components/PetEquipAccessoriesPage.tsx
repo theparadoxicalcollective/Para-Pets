@@ -3,7 +3,7 @@ import { X, ShieldPlus } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import PetAnimator from "@/components/PetAnimator";
+import PetAnimatorCanvas from "@/components/PetAnimatorCanvas";
 import gemCrystalIcon from "@assets/generated_images/icon_gem_crystal.png";
 import enchantedGroveBg from "@assets/bg_enchanted_grove_map.webp";
 
@@ -223,11 +223,14 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
               }}
             />
             {petTemplateId ? (
-              <PetAnimator
+              // Use the canvas-based renderer here — the <img>-per-part renderer
+              // turns each 1000×1000 part into a full-resolution GPU texture on
+              // iOS, which (combined with the large bg) reliably OOM-crashes
+              // Safari on this page. The canvas version stays well under the
+              // budget while looking identical.
+              <PetAnimatorCanvas
                 petTemplateId={petTemplateId}
-                mode="idle"
-                view="front"
-                size={512}
+                size={240}
                 fillContainer
                 style={{ filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.65)) drop-shadow(0 0 14px rgba(94,234,212,0.18))" }}
               />
