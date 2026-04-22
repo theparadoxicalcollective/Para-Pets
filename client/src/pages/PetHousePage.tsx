@@ -2281,12 +2281,17 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
       }
       return c;
     }));
-    // Bump the visible counter immediately so the player sees coins land.
+    // Instantly bump every visible coin counter — the in-overlay chip and the
+    // cached user record consumed by the rest of the app — so the balance
+    // updates the moment the player taps a coin.
     setDisplayCoins((n) => n + 1);
+    qc.setQueryData(["/api/auth/me"], (prev: any) =>
+      prev ? { ...prev, coins: (prev.coins ?? 0) + 1 } : prev
+    );
     setCoinsCollectedThisReward((n) => {
       const next = n + 1;
-      // After the last coin's fly-in completes, reconcile the user record so
-      // the rest of the app sees the new total.
+      // After the last coin's fly-in completes, reconcile with the server so
+      // the cached value matches the authoritative total.
       setTimeout(() => {
         setRewardCoins((coins) => coins.filter((c) => c.id !== coinId));
         if (next >= batchSize) {
