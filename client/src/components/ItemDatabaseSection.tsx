@@ -808,43 +808,55 @@ function AdminItemForm({
                   style={inputStyle}
                 />
               </div>
-              <div>
-                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Skill Style</label>
-                <select
-                  data-testid="select-special-skill-type"
-                  value={specialSkillType}
-                  onChange={(e) => setSpecialSkillType(e.target.value)}
-                  className="w-full px-3 py-2 rounded-md font-fantasy text-sm outline-none mb-2"
-                  style={inputStyle}
-                >
-                  <option value="">— None —</option>
-                  <option value="Lazer">Lazer</option>
-                  <option value="Bubble">Bubble</option>
-                  <option value="Heal Self">Heal Self</option>
-                  <option value="Heal Party">Heal Party</option>
-                  <option value="Revive Party">Revive Party</option>
-                  <option value="Poison">Poison</option>
-                </select>
-                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Skill Display Name</label>
+              {/* ── Skill section divider ───────────────────────────────────── */}
+              <div className="col-span-full mt-2">
+                <div className="border-t border-[#a89878]/30 mb-2" />
+                <div className="font-fantasy text-[#d4c2a0] text-xs tracking-widest uppercase mb-2">Skill</div>
+              </div>
+              <div className="col-span-full">
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Skill Name</label>
                 <input
                   data-testid="input-special-skill"
                   type="text"
                   value={specialSkill}
                   onChange={(e) => setSpecialSkill(e.target.value)}
-                  placeholder="Custom name shown to players..."
+                  placeholder="Display name shown to players..."
                   className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
                   style={inputStyle}
                 />
-                <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">Choose the skill style and give it a custom display name</p>
               </div>
-              <div>
+              <div className="col-span-full">
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Skill Style</label>
+                <select
+                  data-testid="select-special-skill-type"
+                  value={specialSkillType}
+                  onChange={(e) => setSpecialSkillType(e.target.value)}
+                  className="w-full px-3 py-2 rounded-md font-fantasy text-sm outline-none"
+                  style={inputStyle}
+                >
+                  <option value="">— None —</option>
+                  <option value="Lazer">Lazer</option>
+                  <option value="Bubble">Bubble</option>
+                  <option value="Surrounding Light">Surrounding Light</option>
+                  <option value="Large Orb">Large Orb</option>
+                  <option value="Missile">Missile</option>
+                  {/* Legacy values kept selectable so older pets still display correctly */}
+                  {(specialSkillType === "Heal Self" || specialSkillType === "Heal Party" || specialSkillType === "Revive Party" || specialSkillType === "Poison") && (
+                    <option value={specialSkillType}>{specialSkillType} (legacy)</option>
+                  )}
+                </select>
+                <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">
+                  Visual only — what the skill looks like when cast. Lazer/Bubble/Missile fly toward the enemy; Surrounding Light wraps the caster; Large Orb engulfs the target.
+                </p>
+              </div>
+              <div className="col-span-full">
                 <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Skill Damage %</label>
                 <input
                   data-testid="input-skill-damage-percent"
                   type="number"
                   value={skillDamagePercent}
                   onChange={(e) => setSkillDamagePercent(e.target.value)}
-                  placeholder="e.g. 250 (= 2.5× ATK), 85 (= 85% ATK per Bubble hit), 14 (= 14% ATK per Poison tick)"
+                  placeholder="e.g. 250 (= 2.5× ATK on the enemy)"
                   min="0"
                   step="0.5"
                   className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none mb-2"
@@ -856,14 +868,14 @@ function AdminItemForm({
                   type="number"
                   value={skillHealPercent}
                   onChange={(e) => setSkillHealPercent(e.target.value)}
-                  placeholder="e.g. 50 (= 50% of ATK restored as HP)"
+                  placeholder="e.g. 50 (= 50% of ATK restored to allies)"
                   min="0"
                   step="0.5"
                   className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
                   style={inputStyle}
                 />
                 <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">
-                  All values use ATK × % — Damage %: used by Lazer, Bubble, Poison · Heal %: used by Heal Self, Heal Party, Revive Party
+                  Both are ATK × % — Damage hits the enemy only, Heal only helps allies. Set either or both.
                 </p>
               </div>
               <ImageUpload

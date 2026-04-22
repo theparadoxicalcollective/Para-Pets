@@ -1324,24 +1324,32 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     const dmgOverride = (rawDmg !== null && rawDmg !== undefined && rawDmg > 0) ? rawDmg / 100 : null;
     const healOverride = (rawHeal !== null && rawHeal !== undefined && rawHeal > 0) ? rawHeal / 100 : null;
 
-    // Defaults per skill type. dmg/heal multipliers are applied to caster's atk.
+    // Defaults per skill style. Damage/heal multipliers are applied to caster's atk.
+    // Style is purely cosmetic — admin sets the actual numbers via Skill Damage/Heal %.
+    // Each style still has a sensible default mode so it behaves on its own.
     const defaults: Record<string, { dmg: number; heal: number; mode: "single" | "multi" | "poison" | "self" | "party" | "revive" }> = {
-      "Lazer":        { dmg: 2.5,  heal: 0,   mode: "single" },
-      "Bubble":       { dmg: 0.9,  heal: 0,   mode: "multi"  },
-      "Poison":       { dmg: 0.14, heal: 0,   mode: "poison" },
-      "Heal Self":    { dmg: 0,    heal: 0.5, mode: "self"   },
-      "Heal Party":   { dmg: 0,    heal: 0.5, mode: "party"  },
-      "Revive Party": { dmg: 0,    heal: 0.4, mode: "revive" },
+      // New visual styles
+      "Lazer":             { dmg: 2.5,  heal: 0,   mode: "single" },
+      "Bubble":            { dmg: 0.9,  heal: 0,   mode: "multi"  },
+      "Missile":           { dmg: 1.8,  heal: 0,   mode: "single" },
+      "Surrounding Light": { dmg: 0,    heal: 0.5, mode: "self"   },
+      "Large Orb":         { dmg: 0,    heal: 0.5, mode: "party"  },
+      // Legacy styles (still honored on existing pets)
+      "Poison":            { dmg: 0.14, heal: 0,   mode: "poison" },
+      "Heal Self":         { dmg: 0,    heal: 0.5, mode: "self"   },
+      "Heal Party":        { dmg: 0,    heal: 0.5, mode: "party"  },
+      "Revive Party":      { dmg: 0,    heal: 0.4, mode: "revive" },
     };
     const def = defaults[skill] ?? { dmg: 1.0, heal: 0, mode: "single" as const };
     const finalDmg = dmgOverride !== null ? dmgOverride : def.dmg;
     const finalHeal = healOverride !== null ? healOverride : def.heal;
 
-    // Visual flourish (active pet only triggers the fullscreen overlay/sound)
+    // Visual flourish (active pet only triggers the fullscreen overlay/sound).
+    // Held for ~3s so the effect is clearly noticeable.
     if (casterIdx === 0) {
       setSkillEffect(skill);
       playPowerUp();
-      setTimeout(() => setSkillEffect(null), 1200);
+      setTimeout(() => setSkillEffect(null), 3000);
     }
 
     // ── DAMAGE component → ENEMY only ───────────────────────────────────────
@@ -1646,8 +1654,43 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           50%     { transform: translateY(-6px); }
         }
         @keyframes laserPulse {
-          0%   { opacity: 0.8; box-shadow: 0 0 18px rgba(255,50,50,0.8), 0 0 6px white; }
-          100% { opacity: 1;   box-shadow: 0 0 32px rgba(255,100,50,1),  0 0 12px white; }
+          0%   { opacity: 0.8; }
+          100% { opacity: 1;   }
+        }
+        @keyframes skillFadeOut {
+          0%, 80% { opacity: 1; }
+          100%    { opacity: 0; }
+        }
+        @keyframes lazerOrbRide {
+          0%   { top: var(--lz-from-y, 80%); opacity: 0; transform: translate(-50%,-50%) scale(0.6); }
+          15%  { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+          85%  { opacity: 1; }
+          100% { top: var(--lz-to-y, 20%); opacity: 0; transform: translate(-50%,-50%) scale(1.1); }
+        }
+        @keyframes bubbleFly {
+          0%   { opacity: 0; left: var(--bub-from-x, 50%); top: var(--bub-from-y, 80%); transform: translate(-50%,-50%) scale(0.6); }
+          15%  { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+          90%  { opacity: 1; }
+          100% { opacity: 0; left: var(--bub-to-x, 50%); top: var(--bub-to-y, 20%); transform: translate(-50%,-50%) scale(0.5); }
+        }
+        @keyframes surroundLightPulse {
+          0%   { opacity: 0.7; transform: translate(-50%,-50%) scale(0.95); }
+          100% { opacity: 1;   transform: translate(-50%,-50%) scale(1.1); }
+        }
+        @keyframes surroundOrbit {
+          0%   { transform: translate(-50%,-50%) rotate(var(--sl-angle,0deg)) translateX(46px) rotate(calc(-1 * var(--sl-angle,0deg))); }
+          100% { transform: translate(-50%,-50%) rotate(calc(var(--sl-angle,0deg) + 360deg)) translateX(46px) rotate(calc(-1 * (var(--sl-angle,0deg) + 360deg))); }
+        }
+        @keyframes largeOrbGrow {
+          0%   { width: 24px;  height: 24px;  opacity: 0; }
+          15%  { opacity: 1; }
+          70%  { width: 160px; height: 160px; opacity: 0.95; }
+          100% { width: 220px; height: 220px; opacity: 0; }
+        }
+        @keyframes missileStreak {
+          0%   { opacity: 0; left: var(--ms-from-x, 50%); top: var(--ms-from-y, 80%); transform: translate(-50%,-50%) rotate(0deg) scale(0.8); }
+          10%  { opacity: 1; transform: translate(-50%,-50%) rotate(0deg) scale(1); }
+          100% { opacity: 0; left: var(--ms-to-x, 50%); top: var(--ms-to-y, 20%); transform: translate(-50%,-50%) rotate(8deg) scale(1.1); }
         }
         @keyframes manaGlow {
           0%   { filter: drop-shadow(0 0 10px rgba(167,139,250,0.7)); }
@@ -2478,25 +2521,118 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           </div>
         ))}
 
-        {/* ── Special skill visuals ──────────────────────────────────── */}
-        {skillEffect === "Lazer" && enemyPos.y < PET_Y && (
+        {/* ── Special skill visuals (3-second showcases) ───────────────── */}
+        {/* Lazer: rarity-colored beam from active pet to the enemy.
+            Higher-rarity pets get extra light orbs riding the beam. */}
+        {skillEffect === "Lazer" && enemyPos.y < PET_Y && (() => {
+          const orbCount = Math.min(8, 1 + (pet?.rarity ?? 1)); // 2..6 orbs
+          const beamRgb = rarityColor;
+          return (
+            <>
+              <div className="absolute pointer-events-none z-36" style={{
+                left: `${PET_X}%`, bottom: `${100 - PET_Y}%`, transform: "translateX(-50%)", width: 8,
+                height: `${PET_Y - enemyPos.y}%`,
+                background: `linear-gradient(0deg, ${beamRgb} 0%, ${beamRgb}cc 60%, transparent 100%)`,
+                boxShadow: `0 0 18px ${beamRgb}, 0 0 6px white`, borderRadius: 4,
+                animation: "laserPulse 0.12s ease-in-out infinite alternate, skillFadeOut 3s ease-out forwards",
+              }} />
+              {Array.from({ length: orbCount }).map((_, i) => (
+                <div key={`lzo-${i}`} className="absolute pointer-events-none z-37" style={{
+                  left: `${PET_X}%`, top: `${PET_Y}%`,
+                  transform: "translate(-50%,-50%)",
+                  width: 10, height: 10, borderRadius: "50%",
+                  background: `radial-gradient(circle, white 0%, ${beamRgb} 60%, transparent 100%)`,
+                  boxShadow: `0 0 12px ${beamRgb}`,
+                  // CSS vars consumed by the keyframes below to ride the beam.
+                  ["--lz-from-y" as any]: `${PET_Y}%`,
+                  ["--lz-to-y" as any]: `${enemyPos.y}%`,
+                  animation: `lazerOrbRide 1.4s ${i * 0.18}s linear infinite`,
+                  opacity: 0.95,
+                }} />
+              ))}
+            </>
+          );
+        })()}
+
+        {/* Bubble: stream of rarity-colored orbs flying from caster to enemy. */}
+        {skillEffect === "Bubble" && (() => {
+          const tint = rarityColor;
+          const count = 5 + Math.min(4, (pet?.rarity ?? 1)); // 6..9 orbs
+          return Array.from({ length: count }).map((_, i) => (
+            <div key={`bub-${i}`} className="absolute pointer-events-none z-36" style={{
+              left: `${PET_X}%`, top: `${PET_Y}%`, transform: "translate(-50%,-50%)",
+              width: 22, height: 22, borderRadius: "50%",
+              background: `radial-gradient(circle at 35% 30%, white, ${tint})`,
+              border: `1.5px solid ${tint}`,
+              boxShadow: `0 0 14px ${tint}`,
+              ["--bub-from-x" as any]: `${PET_X}%`,
+              ["--bub-from-y" as any]: `${PET_Y}%`,
+              ["--bub-to-x" as any]: `${enemyPos.x}%`,
+              ["--bub-to-y" as any]: `${enemyPos.y}%`,
+              animation: `bubbleFly 1.1s ${i * 0.16}s ease-out forwards`,
+              opacity: 0,
+            }} />
+          ));
+        })()}
+
+        {/* Surrounding Light: green light + orbs wrap the caster (self only). */}
+        {skillEffect === "Surrounding Light" && (
+          <>
+            <div className="absolute pointer-events-none z-36" style={{
+              left: `${PET_X}%`, top: `${PET_Y}%`, transform: "translate(-50%,-50%)",
+              width: 140, height: 140, borderRadius: "50%",
+              background: "radial-gradient(circle, rgba(74,222,128,0.55) 0%, rgba(34,197,94,0.25) 50%, transparent 75%)",
+              boxShadow: "0 0 40px rgba(74,222,128,0.7), 0 0 80px rgba(34,197,94,0.5)",
+              animation: "surroundLightPulse 1.2s ease-in-out infinite alternate, skillFadeOut 3s ease-out forwards",
+            }} />
+            {[0,1,2,3,4,5,6,7].map((i) => (
+              <div key={`sl-${i}`} className="absolute pointer-events-none z-37" style={{
+                left: `${PET_X}%`, top: `${PET_Y}%`, transform: "translate(-50%,-50%)",
+                width: 12, height: 12, borderRadius: "50%",
+                background: "radial-gradient(circle, #ecfccb 0%, #22c55e 60%, transparent 100%)",
+                boxShadow: "0 0 10px #4ade80",
+                ["--sl-angle" as any]: `${i * 45}deg`,
+                animation: `surroundOrbit 2.4s ${i * 0.05}s linear infinite, skillFadeOut 3s ease-out forwards`,
+              }} />
+            ))}
+          </>
+        )}
+
+        {/* Large Orb: small green/blue orb centered on the target pet (caster
+            for healing) that grows to engulf the pet, then fades. */}
+        {skillEffect === "Large Orb" && (
           <div className="absolute pointer-events-none z-36" style={{
-            left: `${PET_X}%`, bottom: `${100 - PET_Y}%`, transform: "translateX(-50%)", width: 6,
-            height: `${PET_Y - enemyPos.y}%`,
-            background: "linear-gradient(0deg, rgba(250,204,21,0.9) 0%, rgba(251,191,36,0.5) 70%, rgba(253,224,71,0.1) 100%)",
-            boxShadow: "0 0 16px rgba(250,204,21,0.9), 0 0 6px white", borderRadius: 4,
-            animation: "laserPulse 0.12s ease-in-out infinite alternate",
+            left: `${PET_X}%`, top: `${PET_Y}%`, transform: "translate(-50%,-50%)",
+            width: 30, height: 30, borderRadius: "50%",
+            background: "radial-gradient(circle at 35% 30%, rgba(220,255,235,0.95) 0%, rgba(74,222,128,0.85) 35%, rgba(56,189,248,0.55) 70%, transparent 100%)",
+            border: "2px solid rgba(190,255,220,0.9)",
+            boxShadow: "0 0 32px rgba(74,222,128,0.8), 0 0 60px rgba(56,189,248,0.5)",
+            animation: "largeOrbGrow 2.6s ease-out forwards",
           }} />
         )}
-        {skillEffect === "Bubble" && [0, 1, 2].map((i) => (
-          <div key={i} className="absolute pointer-events-none z-36" style={{
-            left: `${PET_X + (i - 1) * 5}%`, top: `${PET_Y - i * 12}%`, transform: "translate(-50%,-50%)",
-            width: 18, height: 18, borderRadius: "50%",
-            background: "radial-gradient(circle at 35% 30%, rgba(200,240,255,0.95), rgba(100,200,255,0.3))",
-            border: "1.5px solid rgba(160,220,255,0.9)", boxShadow: "0 0 10px rgba(100,200,255,0.7)",
-            animation: `skillOrbFly${i} 0.6s ease-out forwards`,
-          }} />
-        ))}
+
+        {/* Missile: a flurry of glowing red lines streaking from caster to enemy. */}
+        {skillEffect === "Missile" && (() => {
+          const count = 8;
+          return Array.from({ length: count }).map((_, i) => {
+            const dx = (i - (count - 1) / 2) * 1.6; // small spread
+            return (
+              <div key={`ms-${i}`} className="absolute pointer-events-none z-36" style={{
+                left: `${PET_X + dx}%`, top: `${PET_Y}%`, transform: "translate(-50%,-50%) rotate(0deg)",
+                width: 4, height: 22, borderRadius: 2,
+                background: "linear-gradient(180deg, rgba(255,200,200,1) 0%, rgba(248,113,113,0.95) 40%, rgba(220,38,38,0.6) 100%)",
+                boxShadow: "0 0 12px rgba(248,113,113,1), 0 0 4px white",
+                ["--ms-from-x" as any]: `${PET_X + dx}%`,
+                ["--ms-from-y" as any]: `${PET_Y}%`,
+                ["--ms-to-x" as any]: `${enemyPos.x + dx * 0.4}%`,
+                ["--ms-to-y" as any]: `${enemyPos.y}%`,
+                animation: `missileStreak 0.95s ${i * 0.10}s ease-in forwards`,
+                opacity: 0,
+              }} />
+            );
+          });
+        })()}
+
         {poisonActive && (
           <div className="absolute pointer-events-none z-26" style={{
             left: `${enemyPos.x}%`, top: `${enemyPos.y}%`, transform: "translate(-50%,-50%)",
@@ -2505,6 +2641,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
             boxShadow: "0 0 24px rgba(34,197,94,0.4)", animation: "poisonPulse 0.9s ease-in-out infinite",
           }} />
         )}
+
+        {/* Legacy heal styles still render the old burst */}
         {(skillEffect === "Heal Self" || skillEffect === "Heal Party") && (
           <div className="absolute pointer-events-none z-36" style={{
             left: `${PET_X}%`, top: `${PET_Y}%`, transform: "translate(-50%,-50%)",
