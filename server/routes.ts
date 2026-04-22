@@ -1496,7 +1496,11 @@ export async function registerRoutes(
         defBoost: shopItem?.defBoost ?? null,
         healthBoost: shopItem?.healthBoost ?? null,
         specialSkill: shopItem?.specialSkill ?? null,
+        specialSkillType: (shopItem as any)?.specialSkillType ?? null,
         skillDamagePercent: shopItem?.skillDamagePercent ?? null,
+        skillHealPercent: (shopItem as any)?.skillHealPercent ?? null,
+        skillType: (shopItem as any)?.skillType ?? null,
+        skillAffects: (shopItem as any)?.skillAffects ?? null,
         fishingType: shopItem?.fishingType ?? null,
         rarityBoostPercent: shopItem?.rarityBoostPercent ?? null,
         baitRarityBoostStar: shopItem?.baitRarityBoostStar ?? null,
@@ -3695,6 +3699,8 @@ export async function registerRoutes(
         specialSkillType: shopItem?.specialSkillType || null,
         skillDamagePercent: shopItem?.skillDamagePercent ?? null,
         skillHealPercent: shopItem?.skillHealPercent ?? null,
+        skillType: (shopItem as any)?.skillType || null,
+        skillAffects: (shopItem as any)?.skillAffects || null,
         rarity: shopItem?.rarity ?? null,
       }));
       const activePet = inventoryJoined.find((inv: any) => inv.id === user.activePetId && inv.isHatched);
@@ -3874,6 +3880,8 @@ export async function registerRoutes(
           specialSkillType: (activePet as any).specialSkillType || null,
           skillDamagePercent: activePet.skillDamagePercent ?? null,
           skillHealPercent: (activePet as any).skillHealPercent ?? null,
+          skillType: (activePet as any).skillType || null,
+          skillAffects: (activePet as any).skillAffects || null,
           rarity: (activePet as any).rarity ?? null,
         },
       });

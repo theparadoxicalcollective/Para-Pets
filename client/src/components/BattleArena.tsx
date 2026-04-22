@@ -29,6 +29,8 @@ export interface EquippedPet {
   specialSkillType?: string | null;
   skillDamagePercent?: number | null;
   skillHealPercent?: number | null;
+  skillType?: string | null;
+  skillAffects?: string | null;
   rarity?: number | null;
 }
 
@@ -86,6 +88,8 @@ interface EncounterPet {
   specialSkillType: string | null;
   skillDamagePercent: number | null;
   skillHealPercent: number | null;
+  skillType: string | null;
+  skillAffects: string | null;
   rarity: number | null;
 }
 
@@ -505,7 +509,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const counterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const MAX_MANA = 100;
   const handleEnemyDeathRef = useRef<() => void>(() => {});
-  const runPetSkillRef = useRef<(casterIdx: 0 | 1 | 2, source: { specialSkill?: string | null; specialSkillType?: string | null; skillDamagePercent?: number | null; skillHealPercent?: number | null; petAtk?: number | null; }, atkOverride?: number) => void>(() => {});
+  const runPetSkillRef = useRef<(casterIdx: 0 | 1 | 2, source: { specialSkill?: string | null; specialSkillType?: string | null; skillDamagePercent?: number | null; skillHealPercent?: number | null; skillType?: string | null; skillAffects?: string | null; rarity?: number | null; petAtk?: number | null; }, atkOverride?: number) => void>(() => {});
   const applyDamageToEnemyRef = useRef<(amt: number, x: number, y: number, isCrit?: boolean) => void>(() => {});
 
   // ── Potion slots ─────────────────────────────────────────────────────────
@@ -1001,7 +1005,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
             // Honors the extra pet's actual special skill (Lazer/Bubble/Heal/Revive/etc.)
             // — heals route to allies, damage routes to enemy. If the pet has no
             // skill assigned we fall back to a basic damage hit so the mana isn't wasted.
-            const skill = ep.specialSkillType || ep.specialSkill;
+            const skill = ep.skillType || ep.specialSkillType || ep.specialSkill;
             setTimeout(() => {
               if (!battleActiveRef.current) return;
               if (skill) {
@@ -1010,6 +1014,9 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   specialSkillType: ep.specialSkillType ?? null,
                   skillDamagePercent: ep.skillDamagePercent ?? null,
                   skillHealPercent: ep.skillHealPercent ?? null,
+                  skillType: ep.skillType ?? null,
+                  skillAffects: ep.skillAffects ?? null,
+                  rarity: ep.rarity ?? null,
                   petAtk: ep.petAtk ?? 15,
                 });
               } else {
@@ -1313,100 +1320,117 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   // Master skill executor — caster can be active (0) or any extra (1/2).
   // Each skill type declares whether it has a damage and/or heal component;
   // the routing is enforced here so allies are never accidentally damaged.
-  const runPetSkill = useCallback((casterIdx: 0 | 1 | 2, source: { specialSkill?: string | null; specialSkillType?: string | null; skillDamagePercent?: number | null; skillHealPercent?: number | null; petAtk?: number | null; }, atkOverride?: number) => {
+  // ── Pet special-skill executor ────────────────────────────────────────────
+  // Routes the cast based on the admin-configured Skill Type + Affects:
+  //   • damage  → enemy / enemy_party (damage to enemy only)
+  //   • heal    → self / party (heal allies only)
+  //   • revive  → revive fainted ally pets
+  //   • poison  → damage-over-time on the enemy (turn count scales with rarity)
+  // Style (Lazer/Bubble/etc.) is purely the cosmetic visual — it never affects
+  // who gets hit. Pets created before this system fall back to legacy style
+  // names so they keep working unchanged.
+  const runPetSkill = useCallback((casterIdx: 0 | 1 | 2, source: { specialSkill?: string | null; specialSkillType?: string | null; skillDamagePercent?: number | null; skillHealPercent?: number | null; skillType?: string | null; skillAffects?: string | null; rarity?: number | null; petAtk?: number | null; }, atkOverride?: number) => {
     if (!battleActiveRef.current) return;
-    const skill = source.specialSkillType || source.specialSkill;
-    if (!skill) return;
+    const style = source.specialSkillType || source.specialSkill || "";
     const atk = Math.max(1, atkOverride ?? source.petAtk ?? petStatsRef.current.atk);
 
-    const rawDmg = source.skillDamagePercent;
-    const rawHeal = source.skillHealPercent;
-    const dmgOverride = (rawDmg !== null && rawDmg !== undefined && rawDmg > 0) ? rawDmg / 100 : null;
-    const healOverride = (rawHeal !== null && rawHeal !== undefined && rawHeal > 0) ? rawHeal / 100 : null;
-
-    // Defaults per skill style. Damage/heal multipliers are applied to caster's atk.
-    // Style is purely cosmetic — admin sets the actual numbers via Skill Damage/Heal %.
-    // Each style still has a sensible default mode so it behaves on its own.
-    const defaults: Record<string, { dmg: number; heal: number; mode: "single" | "multi" | "poison" | "self" | "party" | "revive" }> = {
-      // New visual styles
-      "Lazer":             { dmg: 2.5,  heal: 0,   mode: "single" },
-      "Bubble":            { dmg: 0.9,  heal: 0,   mode: "multi"  },
-      "Missile":           { dmg: 1.8,  heal: 0,   mode: "single" },
-      "Surrounding Light": { dmg: 0,    heal: 0.5, mode: "self"   },
-      "Large Orb":         { dmg: 0,    heal: 0.5, mode: "party"  },
-      // Legacy styles (still honored on existing pets)
-      "Poison":            { dmg: 0.14, heal: 0,   mode: "poison" },
-      "Heal Self":         { dmg: 0,    heal: 0.5, mode: "self"   },
-      "Heal Party":        { dmg: 0,    heal: 0.5, mode: "party"  },
-      "Revive Party":      { dmg: 0,    heal: 0.4, mode: "revive" },
+    // ── Resolve Skill Type + Affects (with legacy-style fallback) ──────────
+    type SkillType = "damage" | "heal" | "revive" | "poison";
+    type SkillAffects = "self" | "party" | "enemy" | "enemy_party";
+    const LEGACY_FALLBACK: Record<string, { type: SkillType; affects: SkillAffects; pct: number }> = {
+      "Heal Self":    { type: "heal",   affects: "self",         pct: 50 },
+      "Heal Party":   { type: "heal",   affects: "party",        pct: 50 },
+      "Revive Party": { type: "revive", affects: "party",        pct: 0  },
+      "Poison":       { type: "poison", affects: "enemy",        pct: 14 },
     };
-    const def = defaults[skill] ?? { dmg: 1.0, heal: 0, mode: "single" as const };
-    const finalDmg = dmgOverride !== null ? dmgOverride : def.dmg;
-    const finalHeal = healOverride !== null ? healOverride : def.heal;
+    const fallback = LEGACY_FALLBACK[style];
+    const skillType = (source.skillType as SkillType | null) ?? fallback?.type ?? "damage";
+    const skillAffects = (source.skillAffects as SkillAffects | null) ??
+      fallback?.affects ??
+      (skillType === "heal" || skillType === "revive" ? "self" : "enemy");
+
+    // The single percent input the admin filled in (interpreted by skillType).
+    // For damage/poison we read skillDamagePercent; for heal we read skillHealPercent.
+    const rawPct =
+      skillType === "heal" ? source.skillHealPercent :
+      skillType === "revive" ? null :
+      source.skillDamagePercent;
+    const pct = (rawPct !== null && rawPct !== undefined && rawPct > 0)
+      ? rawPct / 100
+      : (fallback ? fallback.pct / 100 : (skillType === "heal" ? 0.5 : skillType === "poison" ? 0.14 : 1.5));
+
+    if (!style && !source.skillType) return; // nothing to cast
 
     // Visual flourish (active pet only triggers the fullscreen overlay/sound).
-    // Held for ~3s so the effect is clearly noticeable.
-    if (casterIdx === 0) {
-      setSkillEffect(skill);
+    if (casterIdx === 0 && style) {
+      setSkillEffect(style);
       playPowerUp();
       setTimeout(() => setSkillEffect(null), 3000);
     }
 
-    // ── DAMAGE component → ENEMY only ───────────────────────────────────────
-    if (finalDmg > 0) {
-      if (def.mode === "poison") {
-        if (!poisonActive) {
-          setPoisonActive(true);
-          let ticks = 0;
-          const tickDmg = Math.max(1, Math.floor(atk * finalDmg));
-          const timer = setInterval(() => {
-            if (!battleActiveRef.current) { clearInterval(timer); setPoisonActive(false); return; }
-            ticks++;
-            applyDamageToEnemy(tickDmg, enemyPosRef.current.x, enemyPosRef.current.y);
-            if (ticks >= 5 || enemyHpRef.current <= 0) {
-              clearInterval(timer);
-              setPoisonActive(false);
-              poisonTimerRef.current = null;
-            }
-          }, 900);
-          poisonTimerRef.current = timer;
-        }
-      } else if (def.mode === "multi") {
-        const ePos = enemyPosRef.current;
+    // ── DAMAGE → enemy only ────────────────────────────────────────────────
+    if (skillType === "damage") {
+      const ePos = enemyPosRef.current;
+      if (skillAffects === "enemy_party") {
+        // Spread the damage across multiple hits to feel like a multi-target attack.
         [0, 1, 2].forEach((i) => {
           setTimeout(() => {
             if (!battleActiveRef.current) return;
-            const dmg = Math.floor(atk * finalDmg + Math.random() * 10);
+            const dmg = Math.floor(atk * pct + Math.random() * 10);
             applyDamageToEnemy(dmg, ePos.x + (i - 1) * 8, ePos.y);
           }, i * 350);
         });
       } else {
-        // Single hit (also covers self/party/revive skills that admin gave a damage% to)
-        const dmg = Math.max(1, Math.floor(atk * finalDmg));
-        applyDamageToEnemy(dmg, enemyPosRef.current.x, enemyPosRef.current.y, def.mode === "single");
+        const dmg = Math.max(1, Math.floor(atk * pct));
+        applyDamageToEnemy(dmg, ePos.x, ePos.y, true);
       }
+      return;
     }
 
-    // ── HEAL component → ALLIES only (never the enemy) ──────────────────────
-    if (finalHeal > 0) {
-      const healAmt = Math.max(1, Math.floor(atk * finalHeal));
-      if (def.mode === "revive") {
-        reviveFaintedExtras(healAmt);
-        // Also gently top off the rest of the party (any heal% on Revive)
-        if (healOverride !== null) healWholeParty(Math.floor(healAmt * 0.5));
-      } else if (def.mode === "party") {
-        healWholeParty(healAmt);
-      } else {
-        // Heal Self, or any damage skill that admin gave a healPct → caster only
-        healAlly(casterIdx, healAmt);
-      }
+    // ── POISON → damage over time on the enemy ─────────────────────────────
+    if (skillType === "poison") {
+      if (poisonActive) return;
+      const rarity = Math.max(1, Math.min(5, source.rarity ?? 1));
+      const totalTicks = rarity >= 5 ? 5 : rarity === 4 ? 4 : 3; // 3-star and below = 3
+      const tickDmg = Math.max(1, Math.floor(atk * pct));
+      setPoisonActive(true);
+      let ticks = 0;
+      const timer = setInterval(() => {
+        if (!battleActiveRef.current) { clearInterval(timer); setPoisonActive(false); return; }
+        ticks++;
+        applyDamageToEnemy(tickDmg, enemyPosRef.current.x, enemyPosRef.current.y);
+        if (ticks >= totalTicks || enemyHpRef.current <= 0) {
+          clearInterval(timer);
+          setPoisonActive(false);
+          poisonTimerRef.current = null;
+        }
+      }, 900);
+      poisonTimerRef.current = timer;
+      return;
+    }
+
+    // ── HEAL → allies only ─────────────────────────────────────────────────
+    if (skillType === "heal") {
+      const healAmt = Math.max(1, Math.floor(atk * pct));
+      if (skillAffects === "party") healWholeParty(healAmt);
+      else healAlly(casterIdx, healAmt);
+      return;
+    }
+
+    // ── REVIVE → bring back fainted allies ─────────────────────────────────
+    if (skillType === "revive") {
+      // Revives at a fraction of caster ATK so the amount is meaningful.
+      const reviveHp = Math.max(1, Math.floor(atk * 0.4));
+      reviveFaintedExtras(reviveHp);
+      if (skillAffects === "party") healWholeParty(Math.floor(reviveHp * 0.5));
+      return;
     }
   }, [applyDamageToEnemy, healAlly, healWholeParty, reviveFaintedExtras, poisonActive]);
 
   // ── Special skill (active pet, mana-driven) ──────────────────────────────
   const useSpecialSkill = useCallback(() => {
     if (!battleActiveRef.current || manaRef.current < MAX_MANA || skillCooldown) return;
-    const skill = (pet as any)?.specialSkillType || pet?.specialSkill;
+    const skill = (pet as any)?.skillType || (pet as any)?.specialSkillType || pet?.specialSkill;
     if (!skill) return;
 
     manaRef.current = 0;
@@ -1419,9 +1443,12 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       specialSkillType: pet?.specialSkillType ?? null,
       skillDamagePercent: pet?.skillDamagePercent ?? null,
       skillHealPercent: pet?.skillHealPercent ?? null,
+      skillType: (pet as any)?.skillType ?? null,
+      skillAffects: (pet as any)?.skillAffects ?? null,
+      rarity: pet?.rarity ?? null,
       petAtk: petStatsRef.current.atk,
     }, petStatsRef.current.atk);
-  }, [pet?.specialSkillType, pet?.specialSkill, pet?.skillDamagePercent, pet?.skillHealPercent, skillCooldown, runPetSkill]);
+  }, [pet?.specialSkillType, pet?.specialSkill, pet?.skillDamagePercent, pet?.skillHealPercent, (pet as any)?.skillType, (pet as any)?.skillAffects, pet?.rarity, skillCooldown, runPetSkill]);
 
   // Keep refs fresh so the rAF animate loop (captured in a long-lived useEffect)
   // always calls the current versions of these callbacks.

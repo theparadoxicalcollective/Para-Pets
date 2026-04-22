@@ -20,6 +20,10 @@ export interface ShopItemFull {
   petTemplateId: string | null;
   specialSkill: string | null;
   skillDamagePercent: number | null;
+  skillHealPercent?: number | null;
+  skillType?: string | null;
+  skillAffects?: string | null;
+  specialSkillType?: string | null;
   healthRestored: number | null;
   manaRestored: number | null;
   petsRevived: number | null;
@@ -517,6 +521,45 @@ function AdminItemForm({
   const [specialSkillType, setSpecialSkillType] = useState((item as any)?.specialSkillType || "");
   const [skillDamagePercent, setSkillDamagePercent] = useState(item?.skillDamagePercent?.toString() || "");
   const [skillHealPercent, setSkillHealPercent] = useState((item as any)?.skillHealPercent?.toString() || "");
+  const [skillType, setSkillType] = useState<string>((item as any)?.skillType || "");
+  const [skillAffects, setSkillAffects] = useState<string>((item as any)?.skillAffects || "");
+
+  // Affects options are filtered by skill type so the admin can't pick a
+  // nonsensical pairing (e.g. a damage skill that "affects self").
+  const affectsOptionsByType: Record<string, { value: string; label: string }[]> = {
+    damage: [
+      { value: "enemy",       label: "Enemy (single target)" },
+      { value: "enemy_party", label: "Enemy Party (all enemies)" },
+    ],
+    poison: [
+      { value: "enemy",       label: "Enemy (single target)" },
+      { value: "enemy_party", label: "Enemy Party (all enemies)" },
+    ],
+    heal: [
+      { value: "self",  label: "Self (caster only)" },
+      { value: "party", label: "Party (all allies)" },
+    ],
+    revive: [
+      { value: "self",  label: "Self (caster only)" },
+      { value: "party", label: "Party (all allies)" },
+    ],
+  };
+  const affectsOptions = affectsOptionsByType[skillType] || [];
+
+  // When the admin changes Skill Type, snap Affects to a sensible default
+  // and clear any percent that no longer applies to the new type.
+  const handleSkillTypeChange = (next: string) => {
+    setSkillType(next);
+    const defaults: Record<string, string> = {
+      damage: "enemy",
+      poison: "enemy",
+      heal:   "self",
+      revive: "self",
+    };
+    setSkillAffects(defaults[next] || "");
+    if (next !== "heal") setSkillHealPercent("");
+    if (next !== "damage" && next !== "poison") setSkillDamagePercent("");
+  };
   const petTemplateId = item?.petTemplateId || "";
   const [statBoostType, setStatBoostType] = useState(item?.statBoostType || "health");
   const [statBoostAmount, setStatBoostAmount] = useState(item?.statBoostAmount?.toString() || "10");
@@ -559,8 +602,16 @@ function AdminItemForm({
         payload.hatchTime = parseInt(hatchTime);
         payload.specialSkill = specialSkill.trim() || null;
         payload.specialSkillType = specialSkillType.trim() || null;
-        payload.skillDamagePercent = skillDamagePercent.trim() ? parseFloat(skillDamagePercent) : null;
-        payload.skillHealPercent = skillHealPercent.trim() ? parseFloat(skillHealPercent) : null;
+        payload.skillType = skillType || null;
+        payload.skillAffects = skillAffects || null;
+        // Damage/Heal percent inputs are interpreted by skillType so admins
+        // only ever fill in the one that matches what they picked.
+        payload.skillDamagePercent =
+          (skillType === "damage" || skillType === "poison") && skillDamagePercent.trim()
+            ? parseFloat(skillDamagePercent) : null;
+        payload.skillHealPercent =
+          skillType === "heal" && skillHealPercent.trim()
+            ? parseFloat(skillHealPercent) : null;
         payload.petTemplateId = petTemplateId || null;
         if (eggImageData) payload.eggImageData = eggImageData;
         if (hatchedImageData) payload.hatchedImageData = hatchedImageData;
@@ -825,6 +876,25 @@ function AdminItemForm({
                   style={inputStyle}
                 />
               </div>
+              {/* Skill Type — what the skill DOES (drives the targeting/effect). */}
+              <div className="col-span-full">
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Skill Type</label>
+                <select
+                  data-testid="select-skill-type"
+                  value={skillType}
+                  onChange={(e) => handleSkillTypeChange(e.target.value)}
+                  className="w-full px-3 py-2 rounded-md font-fantasy text-sm outline-none"
+                  style={inputStyle}
+                >
+                  <option value="">— None —</option>
+                  <option value="damage">Damage — one big attack on the target</option>
+                  <option value="heal">Heal — restore HP to the target</option>
+                  <option value="revive">Revive — bring fainted allies back</option>
+                  <option value="poison">Poison — damage over time (3/4/5 turns by rarity)</option>
+                </select>
+              </div>
+
+              {/* Skill Style — purely the visual look. */}
               <div className="col-span-full">
                 <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Skill Style</label>
                 <select
@@ -840,44 +910,89 @@ function AdminItemForm({
                   <option value="Surrounding Light">Surrounding Light</option>
                   <option value="Large Orb">Large Orb</option>
                   <option value="Missile">Missile</option>
-                  {/* Legacy values kept selectable so older pets still display correctly */}
-                  {(specialSkillType === "Heal Self" || specialSkillType === "Heal Party" || specialSkillType === "Revive Party" || specialSkillType === "Poison") && (
-                    <option value={specialSkillType}>{specialSkillType} (legacy)</option>
-                  )}
                 </select>
                 <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">
-                  Visual only — what the skill looks like when cast. Lazer/Bubble/Missile fly toward the enemy; Surrounding Light wraps the caster; Large Orb engulfs the target.
+                  Visual only — what the skill looks like when cast.
                 </p>
               </div>
+
+              {/* Affects — who the Skill Type targets. */}
               <div className="col-span-full">
-                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Skill Damage %</label>
-                <input
-                  data-testid="input-skill-damage-percent"
-                  type="number"
-                  value={skillDamagePercent}
-                  onChange={(e) => setSkillDamagePercent(e.target.value)}
-                  placeholder="e.g. 250 (= 2.5× ATK on the enemy)"
-                  min="0"
-                  step="0.5"
-                  className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none mb-2"
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Affects</label>
+                <select
+                  data-testid="select-skill-affects"
+                  value={skillAffects}
+                  onChange={(e) => setSkillAffects(e.target.value)}
+                  disabled={!skillType}
+                  className="w-full px-3 py-2 rounded-md font-fantasy text-sm outline-none disabled:opacity-50"
                   style={inputStyle}
-                />
-                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Skill Heal %</label>
-                <input
-                  data-testid="input-skill-heal-percent"
-                  type="number"
-                  value={skillHealPercent}
-                  onChange={(e) => setSkillHealPercent(e.target.value)}
-                  placeholder="e.g. 50 (= 50% of ATK restored to allies)"
-                  min="0"
-                  step="0.5"
-                  className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
-                  style={inputStyle}
-                />
-                <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">
-                  Both are ATK × % — Damage hits the enemy only, Heal only helps allies. Set either or both.
-                </p>
+                >
+                  {!skillType && <option value="">Pick a Skill Type first…</option>}
+                  {skillType && <option value="">— Choose a target —</option>}
+                  {affectsOptions.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
               </div>
+
+              {/* Conditional ATK% input — only shown for the types that need a number. */}
+              {skillType === "damage" && (
+                <div className="col-span-full">
+                  <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Attack Power %</label>
+                  <input
+                    data-testid="input-skill-damage-percent"
+                    type="number"
+                    value={skillDamagePercent}
+                    onChange={(e) => setSkillDamagePercent(e.target.value)}
+                    placeholder="e.g. 250 (= 2.5× ATK added to the attack)"
+                    min="0"
+                    step="0.5"
+                    className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+                    style={inputStyle}
+                  />
+                  <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">
+                    Percent of the pet's ATK added on top of the regular attack power.
+                  </p>
+                </div>
+              )}
+              {skillType === "heal" && (
+                <div className="col-span-full">
+                  <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Heal Power %</label>
+                  <input
+                    data-testid="input-skill-heal-percent"
+                    type="number"
+                    value={skillHealPercent}
+                    onChange={(e) => setSkillHealPercent(e.target.value)}
+                    placeholder="e.g. 50 (= 50% of ATK restored to allies)"
+                    min="0"
+                    step="0.5"
+                    className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+                    style={inputStyle}
+                  />
+                  <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">
+                    Percent of the pet's ATK used to restore HP.
+                  </p>
+                </div>
+              )}
+              {skillType === "poison" && (
+                <div className="col-span-full">
+                  <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Poison Power % (per turn)</label>
+                  <input
+                    data-testid="input-skill-damage-percent"
+                    type="number"
+                    value={skillDamagePercent}
+                    onChange={(e) => setSkillDamagePercent(e.target.value)}
+                    placeholder="e.g. 14 (= 14% of ATK each tick)"
+                    min="0"
+                    step="0.5"
+                    className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+                    style={inputStyle}
+                  />
+                  <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">
+                    Percent of ATK applied each turn. Lasts 3 turns (≤3★), 4 turns (4★), or 5 turns (5★).
+                  </p>
+                </div>
+              )}
               <ImageUpload
                 label="Egg Image (PNG or GIF)"
                 preview={eggImagePreview}

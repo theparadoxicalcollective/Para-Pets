@@ -74,6 +74,8 @@ export const shopItems = pgTable("shop_items", {
   catchEasePercent: integer("catch_ease_percent"),
   skillDamagePercent: integer("skill_damage_percent"),
   skillHealPercent: integer("skill_heal_percent"),
+  skillType: text("skill_type"),
+  skillAffects: text("skill_affects"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 

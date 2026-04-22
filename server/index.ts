@@ -286,6 +286,10 @@ app.use((req, res, next) => {
     () => db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS watcher_shoutouts_enabled boolean NOT NULL DEFAULT true`));
   await runMigration("users.last_watcher_greeted_at",
     () => db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_watcher_greeted_at timestamp`));
+  await runMigration("shop_items.skill_type",
+    () => db.execute(sql`ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS skill_type TEXT`));
+  await runMigration("shop_items.skill_affects",
+    () => db.execute(sql`ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS skill_affects TEXT`));
 
   try {
     await db.execute(sql`
