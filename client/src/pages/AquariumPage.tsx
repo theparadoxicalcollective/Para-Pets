@@ -34,7 +34,22 @@ interface SwimmingFish extends AqFishEntry {
   state: "normal" | "fast" | "chasing" | "fleeing";
   stateTimer: number;
   chaseTargetId?: string;
+  // Vertical bias used by bottom-zone fish: they drift toward this Y. Most of
+  // the time it's near the floor; occasionally it retargets up toward mid so
+  // the fish makes a short trip up and back down.
+  targetY?: number;
+  targetYTimer?: number;
 }
+
+// Bottom-zone Y bands: most of the time the fish lives in BOTTOM_FLOOR; every
+// so often it drifts up to BOTTOM_VISIT (mid) before settling back down.
+const BOTTOM_FLOOR_MIN = 70;
+const BOTTOM_FLOOR_MAX = 78;
+const BOTTOM_VISIT_MIN = 40;
+const BOTTOM_VISIT_MAX = 55;
+// Hard clamp for bottom fish: from the floor up to the top of the mid visit.
+const BOTTOM_HARD_MIN = BOTTOM_VISIT_MIN;
+const BOTTOM_HARD_MAX = BOTTOM_FLOOR_MAX;
 
 const AQ_MAX = 30;
 const AQ_TEAL = "#5eead4";
@@ -49,7 +64,7 @@ function makeSwimmer(entry: AqFishEntry, x?: number, y?: number): SwimmingFish {
   const startsRight = entry.facingDirection !== "left";
   const isBottom = entry.fishSwimZone === "bottom";
   const defaultY = isBottom
-    ? 64 + Math.random() * 12
+    ? BOTTOM_FLOOR_MIN + Math.random() * (BOTTOM_FLOOR_MAX - BOTTOM_FLOOR_MIN)
     : 26 + Math.random() * 44;
   return {
     ...entry,
@@ -61,6 +76,10 @@ function makeSwimmer(entry: AqFishEntry, x?: number, y?: number): SwimmingFish {
     baseSpeed,
     state: "normal",
     stateTimer: 60 + Math.floor(Math.random() * 120),
+    targetY: isBottom
+      ? BOTTOM_FLOOR_MIN + Math.random() * (BOTTOM_FLOOR_MAX - BOTTOM_FLOOR_MIN)
+      : undefined,
+    targetYTimer: isBottom ? 200 + Math.floor(Math.random() * 400) : undefined,
   };
 }
 
@@ -256,8 +275,8 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
       if (!item) return s;
       const zone = item.fishSwimZone ?? s.fishSwimZone ?? null;
       const isBottom = zone === "bottom";
-      const yMin = isBottom ? 61 : 22;
-      const yMax = isBottom ? 78 : 71;
+      const yMin = isBottom ? BOTTOM_HARD_MIN : 22;
+      const yMax = isBottom ? BOTTOM_HARD_MAX : 71;
       return {
         ...s,
         name: item.name ?? s.name,
@@ -279,8 +298,8 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
         const existing = existingMap.get(f.id);
         if (!existing) return makeSwimmer(f);
         const isBottom = (existing.fishSwimZone ?? f.fishSwimZone) === "bottom";
-        const yMin = isBottom ? 61 : 22;
-        const yMax = isBottom ? 78 : 71;
+        const yMin = isBottom ? BOTTOM_HARD_MIN : 22;
+        const yMax = isBottom ? BOTTOM_HARD_MAX : 71;
         return { ...existing, fishSwimZone: f.fishSwimZone, y: Math.max(yMin, Math.min(yMax, existing.y)) };
       });
       return result.filter(s => aquariumIds.has(s.id));
@@ -348,14 +367,39 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
           const sineY = Math.sin(wobble) * 0.012;
           x += vx;
           const zone = swimZoneRef.current.get(f.shopItemId) ?? f.fishSwimZone ?? null;
-          const yMin = zone === "bottom" ? 61 : 22;
-          const yMax = zone === "bottom" ? 78 : 71;
-          y = Math.max(yMin, Math.min(yMax, y + sineY));
+          const isBottom = zone === "bottom";
+          const yMin = isBottom ? BOTTOM_HARD_MIN : 22;
+          const yMax = isBottom ? BOTTOM_HARD_MAX : 71;
+
+          // Bottom-zone vertical drift: ~85% of the time the fish targets the
+          // floor band; ~15% it picks a "visit mid" target for a brief trip up
+          // before naturally returning to the floor on the next retarget.
+          let { targetY, targetYTimer } = f;
+          if (isBottom) {
+            targetYTimer = (targetYTimer ?? 0) - 1;
+            if (targetY === undefined || targetYTimer <= 0) {
+              const goVisit = Math.random() < 0.15;
+              if (goVisit) {
+                targetY = BOTTOM_VISIT_MIN + Math.random() * (BOTTOM_VISIT_MAX - BOTTOM_VISIT_MIN);
+                targetYTimer = 120 + Math.floor(Math.random() * 180); // shorter visit
+              } else {
+                targetY = BOTTOM_FLOOR_MIN + Math.random() * (BOTTOM_FLOOR_MAX - BOTTOM_FLOOR_MIN);
+                targetYTimer = 300 + Math.floor(Math.random() * 600); // long settle
+              }
+            }
+            // Ease toward target Y; combined with the gentle sine wobble this
+            // produces a natural "rise then sink" arc.
+            const dy = (targetY ?? y) - y;
+            y = y + dy * 0.012 + sineY;
+            y = Math.max(yMin, Math.min(yMax, y));
+          } else {
+            y = Math.max(yMin, Math.min(yMax, y + sineY));
+          }
 
           if (x < 5)  { x = 5;  vx = Math.abs(vx);  facingRight = true; }
           if (x > 91) { x = 91; vx = -Math.abs(vx); facingRight = false; }
 
-          return { ...f, x, y, vx, wobble, facingRight, baseSpeed, state, stateTimer, chaseTargetId };
+          return { ...f, x, y, vx, wobble, facingRight, baseSpeed, state, stateTimer, chaseTargetId, targetY, targetYTimer };
         });
 
         const activeChasers = updated.filter(f => f.state === "chasing").length;
@@ -393,8 +437,9 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
 
   const addFish = useCallback((fish: Omit<AqFishEntry, "id">, px?: number, py?: number) => {
     const current = aquariumFishRef.current;
+    // Total tank cap is the only limit — players may stock as many of any one
+    // species as they own, up to AQ_MAX combined.
     if (current.length >= AQ_MAX) return;
-    if (current.filter(f => f.shopItemId === fish.shopItemId).length >= 2) return;
     addFishMutation.mutate(fish.shopItemId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addFishMutation]);
@@ -588,7 +633,9 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
               <div className="grid grid-cols-4 gap-2">
                 {grouped.map(([shopItemId, { item, count }]) => {
                   const inTank = aquariumFish.filter(f => f.shopItemId === shopItemId).length;
-                  const canAdd = aquariumFish.length < AQ_MAX && inTank < 2;
+                  // Player can keep adding as long as they own un-placed fish
+                  // of this species and the tank isn't full overall.
+                  const canAdd = aquariumFish.length < AQ_MAX && inTank < count;
                   return (
                     <div
                       key={shopItemId}
