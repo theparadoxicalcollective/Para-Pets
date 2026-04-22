@@ -2053,11 +2053,19 @@ function PetStatusBars({
       }}
       data-testid="pet-status-bars"
     >
-      {/* Hunger row */}
-      <div className="flex items-center gap-2">
-        <span style={labelStyle}>HUNGER</span>
-      </div>
-      <div className="flex items-center gap-2" style={{ marginTop: -4 }}>
+      {/* Bars use a 2-column grid so the hunger and mood bars share the
+          same left edge, and their value readouts share the same column on
+          the right (regardless of how many digits each number has). */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "240px 64px",
+          columnGap: 8,
+          rowGap: 2,
+          alignItems: "center",
+        }}
+      >
+        <span style={{ ...labelStyle, gridColumn: "1 / -1" }}>HUNGER</span>
         <div style={barWrap} data-testid="bar-hunger">
           <div
             style={{
@@ -2069,14 +2077,9 @@ function PetStatusBars({
             }}
           />
         </div>
-        <span style={valStyle} data-testid="text-hunger-value">{hungerVal}/{hungerMax}</span>
-      </div>
+        <span style={{ ...valStyle, textAlign: "left" }} data-testid="text-hunger-value">{hungerVal}/{hungerMax}</span>
 
-      {/* Mood row — bar aligned with hunger bar, face icon centered beneath */}
-      <div className="flex items-center gap-2" style={{ marginTop: 2 }}>
-        <span style={labelStyle}>MOOD</span>
-      </div>
-      <div className="flex items-center gap-2" style={{ marginTop: -4 }}>
+        <span style={{ ...labelStyle, gridColumn: "1 / -1", marginTop: 4 }}>MOOD</span>
         <div style={barWrap} data-testid="bar-mood">
           <div
             style={{
@@ -2088,15 +2091,19 @@ function PetStatusBars({
             }}
           />
         </div>
-        <span style={valStyle} data-testid="text-mood-value">{moodVal}</span>
-      </div>
-      <div style={{ width: 240, display: "flex", justifyContent: "center", marginTop: 2 }}>
-        <img
-          src={moodFace}
-          alt={moodLabel}
-          style={{ width: 32, height: 32, objectFit: "contain", filter: "drop-shadow(0 0 6px rgba(255,220,120,0.5)) drop-shadow(0 2px 4px rgba(0,0,0,0.6))" }}
-          data-testid="img-mood-face"
-        />
+        <span style={{ ...valStyle, textAlign: "left" }} data-testid="text-mood-value">{moodVal}</span>
+
+        {/* Mood face icon centered beneath the mood bar (column 1 spans the
+            full bar width — second column stays empty so the icon truly sits
+            under the bar, not under the value readout). */}
+        <div style={{ gridColumn: "1 / 2", display: "flex", justifyContent: "center", marginTop: 2 }}>
+          <img
+            src={moodFace}
+            alt={moodLabel}
+            style={{ width: 32, height: 32, objectFit: "contain", filter: "drop-shadow(0 0 6px rgba(255,220,120,0.5)) drop-shadow(0 2px 4px rgba(0,0,0,0.6))" }}
+            data-testid="img-mood-face"
+          />
+        </div>
       </div>
     </div>
   );
@@ -2282,7 +2289,7 @@ function FeedingOverlay({ pet, onClose }: { pet: HousePet; onClose: () => void }
           }}
           data-testid="text-feeding-pet-name"
         >
-          Feeding {pet.nickname ?? pet.name}
+          Caring for {pet.nickname ?? pet.name}
         </div>
         <button
           onClick={onClose}

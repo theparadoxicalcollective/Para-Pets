@@ -354,17 +354,23 @@
   animation-timing-function: ease-in-out;
 }
 
-/* Happy bounce when pet is clicked or just got fed */
+/* Happy bounce when pet is clicked or just got fed.
+   Smoothed: dropped the back-and-forth rotation (which caused the
+   "blotchy" shake feeling) in favor of a gentle two-bounce motion with
+   subtle squash/stretch. Uses a soft ease throughout so each phase
+   blends into the next instead of jerking direction. */
 @keyframes feed-pet-happy {
-  0%   { transform: translateY(0) scale(1) rotate(0deg); }
-  25%  { transform: translateY(-16px) scale(1.07, 0.95) rotate(-3deg); }
-  55%  { transform: translateY(0) scale(0.97, 1.05) rotate(0deg); }
-  78%  { transform: translateY(-7px) scale(1.03, 0.98) rotate(2deg); }
-  100% { transform: translateY(0) scale(1) rotate(0deg); }
+  0%   { transform: translateY(0)     scale(1, 1); }
+  18%  { transform: translateY(-3px)  scale(1.04, 0.94); }   /* anticipation crouch */
+  38%  { transform: translateY(-18px) scale(0.97, 1.06); }   /* main bounce up */
+  58%  { transform: translateY(0)     scale(1.05, 0.95); }   /* land squash */
+  78%  { transform: translateY(-7px)  scale(0.99, 1.02); }   /* small follow-up hop */
+  100% { transform: translateY(0)     scale(1, 1); }
 }
 .feed-pet-happy {
-  animation: feed-pet-happy 1s cubic-bezier(0.34, 1.3, 0.5, 1) both;
+  animation: feed-pet-happy 1.05s cubic-bezier(0.4, 0.0, 0.2, 1) both;
   transform-origin: center bottom;
+  will-change: transform;
 }
 
 /* Gold sparkle burst — uses CSS vars set inline (--dx, --dy, --rot) */
