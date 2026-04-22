@@ -222,6 +222,18 @@ uri = "file://attached_assets/generated_images/veridian_watcher_avatar.png"
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "kp2Z0jCNODEaNFkvM_BlY"
+uri = "file://attached_assets/generated_images/feed_button_icon.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "N2iD0GeQTSPirJ422wSyN"
+uri = "file://attached_assets/generated_images/feeding_page_bg.png"
+type = "image"
+title = "generated_image"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"

@@ -13,6 +13,8 @@ import homeInventoryIcon from "@assets/icon_home_inventory.png";
 import decorInventoryIcon from "@assets/icon_decor_inventory.png";
 import petInventoryIcon from "@assets/icon_pet_inventory.png";
 import friendsInventoryIcon from "@assets/icon_friends_inventory.png";
+import feedButtonIcon from "@assets/generated_images/feed_button_icon.png";
+import feedingPageBg from "@assets/generated_images/feeding_page_bg.png";
 import LoadingScreen from "@/components/LoadingScreen";
 import GiftClaimModal from "@/components/GiftClaimModal";
 import FriendProfileModal from "@/components/FriendProfileModal";
@@ -149,7 +151,7 @@ function indoorPetSize(_index: number): number {
 function InteriorViewer({
   url, placedItems, placedPets, panStateRef,
   leaveButtonX = 0.92, leaveButtonY = 0.06,
-  onUpdateItem, onRemoveItem, onMovePet, onRemovePet, onClose,
+  onUpdateItem, onRemoveItem, onMovePet, onRemovePet, onFeedPet, onClose,
 }: {
   url: string;
   placedItems: PlacedDecorItem[];
@@ -161,6 +163,7 @@ function InteriorViewer({
   onRemoveItem: (id: string) => void;
   onMovePet: (inventoryId: string, xPct: number, yPct: number) => void;
   onRemovePet: (inventoryId: string) => void;
+  onFeedPet: (pet: HousePet) => void;
   onClose: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -426,16 +429,27 @@ function InteriorViewer({
             <div style={{ fontFamily: "Lora, serif", color: "#ffd700", fontSize: 14, fontWeight: 700 }}>
               {popupPet.nickname ?? popupPet.name}
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap justify-center">
               <button
                 onClick={() => setPopupPet(null)}
                 className="rounded-xl px-4 py-1.5 text-xs font-bold"
                 style={{ fontFamily: "Lora, serif", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.6)" }}
+                data-testid="button-popup-cancel-indoor"
               >Cancel</button>
+              <button
+                onClick={() => { onFeedPet(popupPet); setPopupPet(null); }}
+                className="rounded-xl px-3 py-1.5 text-xs font-bold flex items-center gap-1.5"
+                style={{ fontFamily: "Lora, serif", background: "rgba(120,200,90,0.18)", border: "1px solid rgba(140,220,100,0.5)", color: "rgba(190,255,160,0.95)" }}
+                data-testid="button-popup-feed-indoor"
+              >
+                <img src={feedButtonIcon} alt="" style={{ width: 18, height: 18, objectFit: "contain" }} />
+                Feed
+              </button>
               <button
                 onClick={() => { onRemovePet(popupPet.inventoryId); setPopupPet(null); }}
                 className="rounded-xl px-4 py-1.5 text-xs font-bold"
                 style={{ fontFamily: "Lora, serif", background: "rgba(255,100,80,0.18)", border: "1px solid rgba(255,100,80,0.45)", color: "rgba(255,160,140,0.95)" }}
+                data-testid="button-popup-return-indoor"
               >Return to Inventory</button>
             </div>
           </div>
@@ -509,6 +523,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const [petDragLive, setPetDragLive] = useState<{ inventoryId: string; xPct: number; yPct: number } | null>(null);
   // Popup for outdoor pet tap
   const [outdoorPopupPet, setOutdoorPopupPet] = useState<HousePet | null>(null);
+  const [feedingPet, setFeedingPet] = useState<HousePet | null>(null);
   // Last-moved pet / decor id — these render above their peers (higher z-index).
   const [topOutdoorPetId, setTopOutdoorPetId] = useState<string | null>(null);
   const [topOutdoorDecorId, setTopOutdoorDecorId] = useState<string | null>(null);
@@ -1210,16 +1225,27 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             <div style={{ fontFamily: "Lora, serif", color: "#ffd700", fontSize: 14, fontWeight: 700 }}>
               {outdoorPopupPet.nickname ?? outdoorPopupPet.name}
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap justify-center">
               <button
                 onClick={() => setOutdoorPopupPet(null)}
                 className="rounded-xl px-4 py-1.5 text-xs font-bold"
                 style={{ fontFamily: "Lora, serif", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.6)" }}
+                data-testid="button-popup-cancel-outdoor"
               >Cancel</button>
+              <button
+                onClick={() => { setFeedingPet(outdoorPopupPet); setOutdoorPopupPet(null); }}
+                className="rounded-xl px-3 py-1.5 text-xs font-bold flex items-center gap-1.5"
+                style={{ fontFamily: "Lora, serif", background: "rgba(120,200,90,0.18)", border: "1px solid rgba(140,220,100,0.5)", color: "rgba(190,255,160,0.95)" }}
+                data-testid="button-popup-feed-outdoor"
+              >
+                <img src={feedButtonIcon} alt="" style={{ width: 18, height: 18, objectFit: "contain" }} />
+                Feed
+              </button>
               <button
                 onClick={() => { removePetFromSceneMutation.mutate(outdoorPopupPet.inventoryId); setOutdoorPopupPet(null); }}
                 className="rounded-xl px-4 py-1.5 text-xs font-bold"
                 style={{ fontFamily: "Lora, serif", background: "rgba(255,100,80,0.18)", border: "1px solid rgba(255,100,80,0.45)", color: "rgba(255,160,140,0.95)" }}
+                data-testid="button-popup-return-outdoor"
               >Return to Inventory</button>
             </div>
           </div>
@@ -1755,6 +1781,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             onRemoveItem={(id) => removeDecorMutation.mutate(id)}
             onMovePet={(inventoryId, xPct, yPct) => placePetMutation.mutate({ inventoryId, xPct, yPct, location: openInterior.buildingId })}
             onRemovePet={(inventoryId) => removePetFromSceneMutation.mutate(inventoryId)}
+            onFeedPet={(pet) => setFeedingPet(pet)}
             onClose={() => { setOpenInterior(null); interiorPanRef.current = null; }}
           />
         </ErrorBoundary>
@@ -1820,6 +1847,370 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           senderCoins={currentUser.coins}
           onClose={() => setSelectedFriend(null)}
         />
+      )}
+
+      {feedingPet && (
+        <FeedingOverlay
+          pet={feedingPet}
+          onClose={() => setFeedingPet(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Feeding Overlay ──────────────────────────────────────────────────────────
+// Full-screen magical-rainforest scene where a player drags edibles from the
+// bottom strip onto the pet to feed it. Each successful drop calls the existing
+// `/api/pet/:inventoryId/feed-edible` endpoint, which destroys the edible and
+// awards LVL points. Inventory + pet caches are invalidated after each feed.
+function FeedingOverlay({ pet, onClose }: { pet: HousePet; onClose: () => void }) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  // Pull the live, full inventory so we can filter to edibles.
+  const { data: inventory = [] } = useQuery<any[]>({
+    queryKey: ["/api/inventory"],
+  });
+  const edibles = useMemo(
+    () => inventory.filter((it) => it.type === "edibles"),
+    [inventory],
+  );
+
+  // Drag state: which inventory item is being dragged + ghost position.
+  const dragRef = useRef<{ inventoryId: string; imageUrl: string | null; pid: number } | null>(null);
+  const [dragGhost, setDragGhost] = useState<{ inventoryId: string; imageUrl: string | null; x: number; y: number } | null>(null);
+
+  // Pet hit-box ref — used to detect "drop on pet".
+  const petBoxRef = useRef<HTMLDivElement>(null);
+  const [petGlow, setPetGlow] = useState(false);
+  const [floatTexts, setFloatTexts] = useState<{ id: number; x: number; y: number; text: string }[]>([]);
+  const floatIdRef = useRef(0);
+
+  const feedMutation = useMutation({
+    mutationFn: async ({ itemInventoryId }: { itemInventoryId: string }) => {
+      return await apiRequest("POST", `/api/pet/${pet.inventoryId}/feed-edible`, { itemInventoryId });
+    },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ["/api/inventory"] });
+      qc.invalidateQueries({ queryKey: ["/api/pet-house/pets"] });
+      // Trigger a brief glow + floating "+LVL" text on the pet.
+      setPetGlow(true);
+      setTimeout(() => setPetGlow(false), 500);
+      const fed = inventory.find((it) => it.id === variables.itemInventoryId);
+      const amount = fed?.statBoostAmount ?? 5;
+      const id = ++floatIdRef.current;
+      const box = petBoxRef.current?.getBoundingClientRect();
+      const cx = box ? box.left + box.width / 2 : window.innerWidth / 2;
+      const cy = box ? box.top + box.height * 0.3 : window.innerHeight / 2;
+      setFloatTexts((arr) => [...arr, { id, x: cx, y: cy, text: `+${amount} LVL` }]);
+      setTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id)), 1400);
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Couldn't feed",
+        description: err?.message || "Try again in a moment.",
+      });
+    },
+  });
+
+  const onItemPointerDown = useCallback((e: React.PointerEvent, item: any) => {
+    e.preventDefault();
+    e.stopPropagation();
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    dragRef.current = { inventoryId: item.id, imageUrl: item.imageUrl, pid: e.pointerId };
+    setDragGhost({ inventoryId: item.id, imageUrl: item.imageUrl, x: e.clientX, y: e.clientY });
+  }, []);
+
+  const onItemPointerMove = useCallback((e: React.PointerEvent) => {
+    const d = dragRef.current;
+    if (!d || d.pid !== e.pointerId) return;
+    setDragGhost({ inventoryId: d.inventoryId, imageUrl: d.imageUrl, x: e.clientX, y: e.clientY });
+  }, []);
+
+  const onItemPointerUp = useCallback((e: React.PointerEvent) => {
+    const d = dragRef.current;
+    if (!d || d.pid !== e.pointerId) return;
+    dragRef.current = null;
+    const ghost = { x: e.clientX, y: e.clientY };
+    const box = petBoxRef.current?.getBoundingClientRect();
+    setDragGhost(null);
+    if (box && ghost.x >= box.left && ghost.x <= box.right && ghost.y >= box.top && ghost.y <= box.bottom) {
+      feedMutation.mutate({ itemInventoryId: d.inventoryId });
+    }
+  }, [feedMutation]);
+
+  return (
+    <div
+      ref={overlayRef}
+      className="fixed inset-0"
+      style={{
+        zIndex: 500,
+        background: `linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.25) 60%, rgba(0,0,0,0.55) 100%), url(${feedingPageBg}) center/cover no-repeat`,
+        maxWidth: "768px", margin: "0 auto", left: 0, right: 0,
+        touchAction: "none",
+      }}
+      onPointerMove={onItemPointerMove}
+      onPointerUp={onItemPointerUp}
+      onPointerCancel={onItemPointerUp}
+      data-testid="overlay-feeding"
+    >
+      {/* Top bar */}
+      <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 pt-4" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 14px)" }}>
+        <div
+          className="px-3 py-1.5 rounded-full"
+          style={{
+            background: "rgba(15,25,12,0.7)",
+            border: "1px solid rgba(180,255,160,0.35)",
+            backdropFilter: "blur(6px)",
+            fontFamily: "Lora, serif",
+            color: "#dfffd0",
+            fontSize: 13,
+            fontWeight: 700,
+            letterSpacing: "0.06em",
+            boxShadow: "0 2px 12px rgba(0,0,0,0.4)",
+          }}
+          data-testid="text-feeding-pet-name"
+        >
+          Feeding {pet.nickname ?? pet.name}
+        </div>
+        <button
+          onClick={onClose}
+          className="w-9 h-9 rounded-full flex items-center justify-center"
+          style={{
+            background: "rgba(15,25,12,0.75)",
+            border: "1px solid rgba(180,255,160,0.4)",
+            backdropFilter: "blur(6px)",
+            color: "#dfffd0",
+            fontFamily: "Lora, serif",
+            fontWeight: 700,
+            fontSize: 18,
+            cursor: "pointer",
+          }}
+          data-testid="button-close-feeding"
+          aria-label="Close feeding"
+        >×</button>
+      </div>
+
+      {/* Pet centerpiece — drop target */}
+      <div
+        ref={petBoxRef}
+        className="absolute"
+        style={{
+          left: "50%",
+          top: "44%",
+          transform: "translate(-50%, -50%)",
+          width: 220,
+          height: 220,
+          pointerEvents: "none",
+          filter: petGlow
+            ? "drop-shadow(0 0 24px rgba(190,255,160,0.95)) drop-shadow(0 4px 12px rgba(0,0,0,0.6))"
+            : "drop-shadow(0 6px 16px rgba(0,0,0,0.6))",
+          transition: "filter 0.25s ease",
+        }}
+        data-testid="drop-zone-feed-pet"
+      >
+        {pet.petTemplateId ? (
+          <PetAnimator
+            petTemplateId={pet.petTemplateId}
+            mode="static"
+            size={220}
+            fillContainer
+            className="pet-idle-squish"
+          />
+        ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
+          <img
+            src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
+            alt={pet.nickname ?? pet.name}
+            draggable={false}
+            className="pet-idle-squish"
+            style={{ width: "100%", height: "100%", objectFit: "contain" }}
+          />
+        ) : null}
+      </div>
+
+      {/* Hint text */}
+      <div
+        className="absolute left-1/2"
+        style={{
+          top: "calc(44% + 130px)",
+          transform: "translateX(-50%)",
+          fontFamily: "Lora, serif",
+          color: "#e6f5d0",
+          fontSize: 12,
+          letterSpacing: "0.18em",
+          textAlign: "center",
+          textShadow: "0 2px 8px rgba(0,0,0,0.7)",
+          pointerEvents: "none",
+        }}
+      >
+        Drag an edible onto your pet
+      </div>
+
+      {/* Floating feedback text */}
+      {floatTexts.map((f) => (
+        <div
+          key={f.id}
+          className="fixed pointer-events-none feed-float-up"
+          style={{
+            left: f.x,
+            top: f.y,
+            transform: "translate(-50%, -50%)",
+            fontFamily: "Lora, serif",
+            fontWeight: 800,
+            fontSize: 22,
+            color: "#c8ff90",
+            textShadow: "0 2px 8px rgba(0,0,0,0.8), 0 0 12px rgba(190,255,140,0.7)",
+            zIndex: 510,
+          }}
+        >
+          {f.text}
+        </div>
+      ))}
+
+      {/* Bottom edible strip */}
+      <div
+        className="absolute bottom-0 left-0 right-0 px-3 pb-5 pt-3"
+        style={{
+          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 18px)",
+          background: "linear-gradient(0deg, rgba(8,18,8,0.92) 0%, rgba(8,18,8,0.78) 60%, rgba(8,18,8,0) 100%)",
+        }}
+      >
+        <div
+          className="mb-2 px-1"
+          style={{
+            fontFamily: "Lora, serif",
+            color: "#cfe9b4",
+            fontSize: 11,
+            letterSpacing: "0.18em",
+            fontWeight: 700,
+          }}
+        >
+          EDIBLES • {edibles.length}
+        </div>
+        {edibles.length === 0 ? (
+          <div
+            className="rounded-2xl px-4 py-5 text-center"
+            style={{
+              background: "rgba(20,30,18,0.55)",
+              border: "1px dashed rgba(180,255,160,0.25)",
+              fontFamily: "Lora, serif",
+              color: "rgba(220,240,200,0.7)",
+              fontSize: 12,
+            }}
+            data-testid="text-no-edibles"
+          >
+            You have no edibles yet. Find some in shops to feed your pets.
+          </div>
+        ) : (
+          <div
+            className="flex gap-3 overflow-x-auto pb-2"
+            style={{ touchAction: "pan-x" }}
+          >
+            {edibles.map((item) => (
+              <div
+                key={item.id}
+                className="flex-shrink-0 rounded-2xl flex flex-col items-center justify-center relative"
+                style={{
+                  width: 92,
+                  height: 108,
+                  background: "linear-gradient(160deg, rgba(40,60,30,0.85) 0%, rgba(20,35,15,0.9) 100%)",
+                  border: "1px solid rgba(180,255,160,0.35)",
+                  boxShadow: "0 2px 10px rgba(0,0,0,0.5), inset 0 0 16px rgba(150,220,120,0.07)",
+                  cursor: "grab",
+                  touchAction: "none",
+                }}
+                onPointerDown={(e) => onItemPointerDown(e, item)}
+                data-testid={`edible-item-${item.id}`}
+              >
+                {item.imageUrl ? (
+                  <img
+                    src={item.imageUrl}
+                    alt={item.name}
+                    draggable={false}
+                    style={{ width: 56, height: 56, objectFit: "contain", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))" }}
+                  />
+                ) : (
+                  <div style={{ width: 56, height: 56, background: "rgba(255,255,255,0.05)", borderRadius: 12 }} />
+                )}
+                <div
+                  className="mt-1 px-1 text-center"
+                  style={{
+                    fontFamily: "Lora, serif",
+                    color: "#e6f5d0",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    lineHeight: 1.15,
+                    maxWidth: 86,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {item.name}
+                </div>
+                {item.quantity > 1 && (
+                  <div
+                    className="absolute"
+                    style={{
+                      top: 4, right: 4,
+                      background: "rgba(60,90,40,0.95)",
+                      border: "1px solid rgba(180,255,160,0.5)",
+                      borderRadius: 10,
+                      padding: "1px 6px",
+                      fontFamily: "Lora, serif",
+                      color: "#dfffd0",
+                      fontSize: 10,
+                      fontWeight: 800,
+                    }}
+                  >
+                    ×{item.quantity}
+                  </div>
+                )}
+                {item.statBoostAmount && (
+                  <div
+                    className="absolute"
+                    style={{
+                      bottom: -6, left: "50%", transform: "translateX(-50%)",
+                      background: "rgba(120,200,90,0.95)",
+                      borderRadius: 8,
+                      padding: "1px 6px",
+                      fontFamily: "Lora, serif",
+                      color: "#0a1505",
+                      fontSize: 9,
+                      fontWeight: 800,
+                      letterSpacing: "0.05em",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    +{item.statBoostAmount} LVL
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Drag ghost */}
+      {dragGhost && (
+        <div
+          className="fixed pointer-events-none"
+          style={{
+            left: dragGhost.x - 36,
+            top: dragGhost.y - 36,
+            width: 72,
+            height: 72,
+            zIndex: 520,
+            opacity: 0.92,
+            filter: "drop-shadow(0 6px 12px rgba(0,0,0,0.6)) drop-shadow(0 0 16px rgba(190,255,140,0.5))",
+          }}
+        >
+          {dragGhost.imageUrl && (
+            <img src={dragGhost.imageUrl} alt="" draggable={false} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+          )}
+        </div>
       )}
     </div>
   );
