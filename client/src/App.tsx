@@ -43,6 +43,7 @@ const MarketPage         = lazy(() => import("@/pages/MarketPage"));
 const PvpArenaPage       = lazy(() => import("@/pages/PvpArenaPage"));
 const PetInventoryPage   = lazy(() => import("@/pages/PetInventoryPage"));
 const BagInventoryPage   = lazy(() => import("@/pages/BagInventoryPage"));
+const EquipAccessoriesPage = lazy(() => import("@/pages/EquipAccessoriesPage"));
 
 // ── Email gate screen — blocks the game until email is verified ───────────────
 function EmailGateScreen({ email }: { email: string }) {
@@ -146,7 +147,7 @@ function PvpArenaWrapper() {
 }
 
 // Paths where FloatingNav should NOT appear
-const NAV_HIDDEN_PATHS = ["/auth", "/hub", "/privacy", "/admin"];
+const NAV_HIDDEN_PATHS = ["/auth", "/hub", "/privacy", "/admin", "/equip-accessories"];
 function shouldHideNav(path: string) {
   if (NAV_HIDDEN_PATHS.includes(path)) return true;
   if (path.startsWith("/reset-password/")) return true;
@@ -409,6 +410,11 @@ function AppRouter() {
         {location === "/bag" && (
           <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
             <BagInventoryPage />
+          </div>
+        )}
+        {location === "/equip-accessories" && (
+          <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+            <EquipAccessoriesPage />
           </div>
         )}
       </Suspense>

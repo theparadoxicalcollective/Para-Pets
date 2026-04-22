@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
 import { X, HelpCircle, Zap, Star, RotateCcw, ShieldPlus } from "lucide-react";
-import PetEquipAccessoriesPage from "@/components/PetEquipAccessoriesPage";
 import WorldChatPanel from "@/components/WorldChatPanel";
 import worldChatIconImg from "@assets/icon_world_chat_new.png";
 import petActionRingImg from "@assets/Photoroom_20260422_14619_PM_1776883671627.png";
@@ -126,7 +125,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     const ids = new Set(newOnes.map((n) => n.id));
     setTimeout(() => setRingSparkles((s) => s.filter((x) => !ids.has(x.id))), 1200);
   }, []);
-  const [activePetModal, setActivePetModal] = useState<"power_up" | "level_up" | "equip_accessories" | null>(null);
+  const [activePetModal, setActivePetModal] = useState<"power_up" | "level_up" | null>(null);
   const [petModalSuccess, setPetModalSuccess] = useState<{ type: "stat" | "level" | "hatch"; label: string } | null>(null);
   // Keep last known activePet so modals don't unmount mid-action
   // when inventory refetches and activePetId hasn't been migrated yet.
@@ -1011,7 +1010,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                     "button-action-equip-accessories",
                     { left: "38%", top: "68%", width: "24%", height: "22%" },
                     "#c084fc",
-                    () => { setShowActionMenu(false); setActivePetModal("equip_accessories"); },
+                    () => { setShowActionMenu(false); navigate("/equip-accessories"); },
                   )}
                   {/* Center hotspot — over the pet — opens Care / Feed page */}
                   {makeBtn(
@@ -1117,18 +1116,6 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           successEffect={petModalSuccess}
           onUseItem={handleModalUseItem}
           onSuccessAnimEnd={() => setPetModalSuccess(null)}
-          onClose={() => setActivePetModal(null)}
-        />
-      )}
-
-      {/* ── Equip Accessories modal ── */}
-      {activePetModal === "equip_accessories" && activePetForModal && (
-        <PetEquipAccessoriesPage
-          petInventoryId={activePetForModal.inventoryId}
-          petName={activePetForModal.petNickname || activePetForModal.name}
-          petImage={activePetForModal.hatchedImageUrl || activePetForModal.imageUrl}
-          petTemplateId={activePetForModal.petTemplateId}
-          rarity={activePetForModal.rarity || 1}
           onClose={() => setActivePetModal(null)}
         />
       )}
