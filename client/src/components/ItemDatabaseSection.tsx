@@ -415,6 +415,25 @@ export default function ItemDatabaseSection({
                     </div>
 
                     <div className="flex flex-col gap-1 flex-shrink-0">
+                      {isPetSection && onOpenParts && (
+                        <button
+                          data-testid={`button-parts-db-item-${item.id}`}
+                          onClick={() => {
+                            if (item.petTemplateId) onOpenParts(item.petTemplateId);
+                          }}
+                          disabled={!item.petTemplateId}
+                          title={item.petTemplateId ? "Edit animation parts" : "Link an animated template first"}
+                          className="px-2 py-1 rounded font-fantasy text-[8px] tracking-wider disabled:opacity-40"
+                          style={{
+                            background: "linear-gradient(135deg, rgba(94,234,212,0.22) 0%, rgba(45,212,191,0.16) 100%)",
+                            border: "1px solid rgba(94,234,212,0.45)",
+                            color: "#5eead4",
+                            cursor: item.petTemplateId ? "pointer" : "not-allowed",
+                          }}
+                        >
+                          ✦ Parts
+                        </button>
+                      )}
                       <button
                         data-testid={`button-edit-db-item-${item.id}`}
                         onClick={() => handleOpenForm(item)}
