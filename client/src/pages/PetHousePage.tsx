@@ -205,15 +205,16 @@ function CarePopup({
         }}
         onPointerDown={(e) => e.stopPropagation()}
       >
-        {/* Soft dark halo behind the wreath for visual separation from the
-            scene below. Rendered first so the wreath sits on top. */}
+        {/* Subtle warm glow behind the wreath for visual separation from the
+            scene below — kept light so the wreath itself reads bright and
+            colorful instead of looking darkened. */}
         <div
           aria-hidden
           style={{
             position: "absolute",
-            inset: "-6%",
+            inset: "-8%",
             borderRadius: "50%",
-            background: "radial-gradient(circle at center, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.55) 55%, rgba(0,0,0,0) 78%)",
+            background: "radial-gradient(circle at center, rgba(255,225,170,0.18) 0%, rgba(255,200,140,0.08) 55%, rgba(0,0,0,0) 78%)",
             pointerEvents: "none",
             zIndex: -1,
           }}
@@ -2166,6 +2167,7 @@ function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
     rewardTriedThisPress: boolean;
     circleResetTimer: number | null;
     heartTimer: number | null;
+    sparkleTimer: number | null;
   } | null>(null);
   const [floatTexts, setFloatTexts] = useState<{ id: number; x: number; y: number; text: string }[]>([]);
   const [sparkles, setSparkles] = useState<{ id: number; cx: number; cy: number; dx: number; dy: number; rot: number; size: number }[]>([]);
@@ -2296,6 +2298,7 @@ function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
       rewardTriedThisPress: false,
       circleResetTimer: null,
       heartTimer: null,
+      sparkleTimer: null,
     };
     setPetPressed(true);
   }, []);
@@ -2304,7 +2307,7 @@ function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
     setPetCircling(true);
     const g = petGestureRef.current;
     if (!g) return;
-    // Continuously emit a few hearts while circling.
+    // Continuously emit a few hearts + a shower of golden sparkles while circling.
     if (g.heartTimer == null) {
       const tick = () => {
         const cur = petGestureRef.current;
@@ -2314,17 +2317,33 @@ function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
       tick();
       g.heartTimer = window.setInterval(tick, 380);
     }
-    // If circling stops for 350ms, drop the bounce/hearts.
+    if (g.sparkleTimer == null) {
+      const sparkleTick = () => {
+        const cur = petGestureRef.current;
+        if (!cur) return;
+        // Burst from a slight ring around the pet so sparkles trace the petting motion.
+        const ringAngle = Math.random() * Math.PI * 2;
+        const ringR    = 60 + Math.random() * 40;
+        burstSparkles(cur.cx + Math.cos(ringAngle) * ringR, cur.cy + Math.sin(ringAngle) * ringR, 6);
+      };
+      sparkleTick();
+      g.sparkleTimer = window.setInterval(sparkleTick, 180);
+    }
+    // If circling stops for 350ms, drop the bounce/hearts/sparkles.
     if (g.circleResetTimer != null) window.clearTimeout(g.circleResetTimer);
     g.circleResetTimer = window.setTimeout(() => {
       const cur = petGestureRef.current;
       if (cur?.heartTimer != null) {
         window.clearInterval(cur.heartTimer);
-        if (cur) cur.heartTimer = null;
+        cur.heartTimer = null;
+      }
+      if (cur?.sparkleTimer != null) {
+        window.clearInterval(cur.sparkleTimer);
+        cur.sparkleTimer = null;
       }
       setPetCircling(false);
     }, 350);
-  }, [burstHearts]);
+  }, [burstHearts, burstSparkles]);
 
   const onPetPointerMove = useCallback((e: React.PointerEvent) => {
     const g = petGestureRef.current;
@@ -2356,15 +2375,38 @@ function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
     g.lastAngle = angle;
   }, [triggerCircleEffects, pettingRewardMutation]);
 
-  const endPetGesture = useCallback((e: React.PointerEvent) => {
+  const releasePetGesture = useCallback(() => {
     const g = petGestureRef.current;
-    if (!g || g.pid !== e.pointerId) return;
-    if (g.heartTimer != null) window.clearInterval(g.heartTimer);
-    if (g.circleResetTimer != null) window.clearTimeout(g.circleResetTimer);
+    if (g) {
+      if (g.heartTimer    != null) window.clearInterval(g.heartTimer);
+      if (g.sparkleTimer  != null) window.clearInterval(g.sparkleTimer);
+      if (g.circleResetTimer != null) window.clearTimeout(g.circleResetTimer);
+    }
     petGestureRef.current = null;
     setPetPressed(false);
     setPetCircling(false);
   }, []);
+
+  const endPetGesture = useCallback((e: React.PointerEvent) => {
+    const g = petGestureRef.current;
+    if (!g || g.pid !== e.pointerId) return;
+    releasePetGesture();
+  }, [releasePetGesture]);
+
+  // Safety net: if pointerup/cancel ever escapes the pet box (e.g. finger
+  // ends on a sparkle/heart layer or the browser drops capture), guarantee
+  // the pet returns to its idle, unsquished form.
+  useEffect(() => {
+    const reset = () => {
+      if (petGestureRef.current) releasePetGesture();
+    };
+    window.addEventListener("pointerup", reset);
+    window.addEventListener("pointercancel", reset);
+    return () => {
+      window.removeEventListener("pointerup", reset);
+      window.removeEventListener("pointercancel", reset);
+    };
+  }, [releasePetGesture]);
 
   const feedMutation = useMutation({
     mutationFn: async ({ itemInventoryId }: { itemInventoryId: string }) => {
