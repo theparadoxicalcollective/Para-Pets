@@ -126,6 +126,7 @@ interface InventoryItem {
   hatchedImageUrl?: string | null;
   healthRestored?: number | null;
   manaRestored?: number | null;
+  petsRevived?: number | null;
   petNickname?: string | null;
   petLevel?: number | null;
   petAtk?: number | null;

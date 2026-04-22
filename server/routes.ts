@@ -6139,7 +6139,7 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
       if (!user.isAdmin && !user.isModerator) return res.status(403).json({ message: "Forbidden" });
-      await storage.deleteChatFilterWord(req.params.id);
+      await storage.deleteChatFilterWord(String(req.params.id));
       return res.json({ ok: true });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -6337,7 +6337,7 @@ export async function registerRoutes(
   // Admin: update a day's coin amount
   app.put("/api/admin/daily-login/:day", isAdmin, async (req, res) => {
     try {
-      const day = parseInt(req.params.day);
+      const day = parseInt(String(req.params.day));
       if (day < 1 || day > 7) return res.status(400).json({ message: "Day must be 1-7" });
       const { coinAmount } = req.body;
       await db.execute(sql`
@@ -6355,7 +6355,7 @@ export async function registerRoutes(
   // Admin: add (or update quantity of) an item on a day
   app.post("/api/admin/daily-login/:day/items", isAdmin, async (req, res) => {
     try {
-      const day = parseInt(req.params.day);
+      const day = parseInt(String(req.params.day));
       if (day < 1 || day > 7) return res.status(400).json({ message: "Day must be 1-7" });
       const { shopItemId, quantity } = req.body;
       if (!shopItemId) return res.status(400).json({ message: "shopItemId required" });
@@ -6375,7 +6375,7 @@ export async function registerRoutes(
   // Admin: remove an item from a day
   app.delete("/api/admin/daily-login/:day/items/:shopItemId", isAdmin, async (req, res) => {
     try {
-      const day = parseInt(req.params.day);
+      const day = parseInt(String(req.params.day));
       const { shopItemId } = req.params;
       await db.execute(sql`
         DELETE FROM daily_login_reward_items
