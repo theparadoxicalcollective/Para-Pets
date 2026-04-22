@@ -105,10 +105,20 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
         />
       )}
 
-      {/* ── Nav container ────────────────────────────────────────────────── */}
+      {/* ── Nav container ──────────────────────────────────────────────────
+          When the nav is closed we keep the container at a low z-index so
+          page-level popups (pet/decor/home/friends inventory drawers, etc.)
+          can render above the main floating button. When the nav is open we
+          lift it to z-[9999] so the fan-out items appear above everything. */}
       <div
-        className="absolute z-[9999]"
-        style={{ bottom: 16, right: 12, width: BUTTON_SIZE, height: BUTTON_SIZE }}
+        className="absolute"
+        style={{
+          bottom: 16,
+          right: 12,
+          width: BUTTON_SIZE,
+          height: BUTTON_SIZE,
+          zIndex: isOpen ? 9999 : 95,
+        }}
       >
         {/* LEFT items – fan out to the left */}
         {LEFT_ITEMS.map((item, i) => (
