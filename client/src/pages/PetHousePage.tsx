@@ -789,6 +789,21 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
   const pets = petsData?.pets ?? [];
 
+  // Honor a `?feed=<inventoryId>` URL param: when arriving here from the
+  // active-pet ring on the Home page, immediately open the Care/Feed
+  // overlay for that pet (then strip the param so a refresh doesn't re-open).
+  useEffect(() => {
+    if (!pets.length) return;
+    const params = new URLSearchParams(window.location.search);
+    const targetId = params.get("feed");
+    if (!targetId) return;
+    const pet = pets.find((p) => p.inventoryId === targetId);
+    if (pet) setFeedingPet(pet);
+    params.delete("feed");
+    const next = window.location.pathname + (params.toString() ? `?${params}` : "");
+    window.history.replaceState({}, "", next);
+  }, [pets]);
+
   // Merge live drag positions into outdoor placed decor
   const placedDecor = useMemo(() =>
     placedDecorRaw.map(item => placedDragLive?.id === item.id ? { ...item, xPct: placedDragLive.xPct, yPct: placedDragLive.yPct } : item),

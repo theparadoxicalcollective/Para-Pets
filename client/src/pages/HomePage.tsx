@@ -1013,6 +1013,18 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                     "#c084fc",
                     () => { setShowActionMenu(false); setActivePetModal("equip_accessories"); },
                   )}
+                  {/* Center hotspot — over the pet — opens Care / Feed page */}
+                  {makeBtn(
+                    "Care / Feed",
+                    "button-action-care-feed",
+                    { left: "32%", top: "32%", width: "36%", height: "36%" },
+                    "#f472b6",
+                    () => {
+                      setShowActionMenu(false);
+                      const id = activePetForModal?.inventoryId;
+                      navigate(id ? `/pet-house?feed=${encodeURIComponent(id)}` : "/pet-house");
+                    },
+                  )}
                 </>
               );
             })()}
