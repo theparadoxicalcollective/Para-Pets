@@ -205,19 +205,19 @@ async function sendVerificationEmail(userId: string, email: string, username: st
 }
 
 const COIN_PACKS = [
-  { id: "pack_100",   coins: 100,   priceUsd: 1,   label: "100 Coins" },
-  { id: "pack_500",   coins: 500,   priceUsd: 5,   label: "500 Coins" },
-  { id: "pack_1000",  coins: 1000,  priceUsd: 10,  label: "1,000 Coins" },
-  { id: "pack_2500",  coins: 2500,  priceUsd: 25,  label: "2,500 Coins" },
-  { id: "pack_5000",  coins: 5000,  priceUsd: 50,  label: "5,000 Coins" },
-  { id: "pack_10000", coins: 10000, priceUsd: 100, label: "10,000 Coins" },
+  { id: "pack_v2_100",   coins: 100,   priceUsd: 1,   label: "100 Coins" },
+  { id: "pack_v2_1000",  coins: 1000,  priceUsd: 5,   label: "1,000 Coins" },
+  { id: "pack_v2_2500",  coins: 2500,  priceUsd: 10,  label: "2,500 Coins" },
+  { id: "pack_v2_7500",  coins: 7500,  priceUsd: 25,  label: "7,500 Coins" },
+  { id: "pack_v2_20000", coins: 20000, priceUsd: 50,  label: "20,000 Coins" },
+  { id: "pack_v2_50000", coins: 50000, priceUsd: 100, label: "50,000 Coins" },
 ];
 
-// Spirit-of-Veridia community gift: scales with the coin pack purchased.
-// Roughly 1/10 of the purchaser's coins so bigger purchases bless the realm
-// more generously without trivializing smaller ones.
+// Spirit-of-Veridia community gift: scales with the new bundle progression.
+// Roughly 1/10 of the purchaser's coin pack so bigger purchases bless the
+// realm more generously without trivializing smaller ones.
 function communityRewardCoinsForUsd(amountUsd: number): number {
-  const tiered: Record<number, number> = { 1: 10, 5: 50, 10: 100, 25: 250, 50: 500, 100: 1000 };
+  const tiered: Record<number, number> = { 1: 10, 5: 50, 10: 100, 25: 500, 50: 1000, 100: 2500 };
   if (tiered[amountUsd]) return tiered[amountUsd];
   // Fallback for any non-standard amount: 10 coins per dollar.
   return Math.max(1, amountUsd * 10);

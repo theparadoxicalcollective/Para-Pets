@@ -43,41 +43,50 @@ interface PacksResponse {
   sessionLimit: number;
 }
 
-const PACK_IMAGES: Record<string, string> = {
-  pack_100: coinPack100,
-  pack_500: coinPack500,
-  pack_1000: coinPack1000,
-  pack_2500: coinPack2500,
-  pack_5000: coinPack5000,
-  pack_10000: coinPack10000,
-};
+// Map by coin amount — robust to server pack IDs changing over time.
+// Available pile artwork: 100, 1000, 2500, 5000, 10000 (500 is unused for current tiers).
+function imageForCoins(coins: number): string {
+  if (coins <= 100)    return coinPack100;
+  if (coins <= 1000)   return coinPack1000;
+  if (coins <= 2500)   return coinPack2500;
+  if (coins <= 7500)   return coinPack5000;
+  if (coins <= 20000)  return coinPack10000;
+  return coinPack10000;
+}
 
-const PACK_GLOW: Record<string, string> = {
-  pack_100: "rgba(205,127,50,0.5)",
-  pack_500: "rgba(192,192,192,0.5)",
-  pack_1000: "rgba(74,222,128,0.55)",
-  pack_2500: "rgba(96,165,250,0.55)",
-  pack_5000: "rgba(192,132,252,0.6)",
-  pack_10000: "rgba(240,192,64,0.7)",
-};
-
-const PACK_BORDER: Record<string, string> = {
-  pack_100: "rgba(205,127,50,0.6)",
-  pack_500: "rgba(192,192,192,0.6)",
-  pack_1000: "rgba(74,222,128,0.6)",
-  pack_2500: "rgba(96,165,250,0.6)",
-  pack_5000: "rgba(192,132,252,0.7)",
-  pack_10000: "rgba(240,192,64,0.8)",
-};
-
-const PACK_OUTER_GLOW: Record<string, string> = {
-  pack_100: "0 0 20px rgba(205,127,50,0.3), 0 4px 30px rgba(205,127,50,0.2)",
-  pack_500: "0 0 20px rgba(192,192,192,0.3), 0 4px 30px rgba(192,192,192,0.2)",
-  pack_1000: "0 0 25px rgba(74,222,128,0.35), 0 4px 35px rgba(74,222,128,0.25)",
-  pack_2500: "0 0 30px rgba(96,165,250,0.4), 0 4px 40px rgba(96,165,250,0.3)",
-  pack_5000: "0 0 35px rgba(192,132,252,0.45), 0 4px 45px rgba(192,132,252,0.35)",
-  pack_10000: "0 0 45px rgba(240,192,64,0.5), 0 4px 50px rgba(240,192,64,0.4), 0 0 80px rgba(240,192,64,0.2)",
-};
+interface PackStyle { glow: string; border: string; outerGlow: string; }
+function styleForCoins(coins: number): PackStyle {
+  if (coins <= 100) return {
+    glow: "rgba(205,127,50,0.5)",
+    border: "rgba(205,127,50,0.6)",
+    outerGlow: "0 0 20px rgba(205,127,50,0.3), 0 4px 30px rgba(205,127,50,0.2)",
+  };
+  if (coins <= 1000) return {
+    glow: "rgba(74,222,128,0.55)",
+    border: "rgba(74,222,128,0.6)",
+    outerGlow: "0 0 25px rgba(74,222,128,0.35), 0 4px 35px rgba(74,222,128,0.25)",
+  };
+  if (coins <= 2500) return {
+    glow: "rgba(96,165,250,0.55)",
+    border: "rgba(96,165,250,0.6)",
+    outerGlow: "0 0 30px rgba(96,165,250,0.4), 0 4px 40px rgba(96,165,250,0.3)",
+  };
+  if (coins <= 7500) return {
+    glow: "rgba(192,132,252,0.6)",
+    border: "rgba(192,132,252,0.7)",
+    outerGlow: "0 0 35px rgba(192,132,252,0.45), 0 4px 45px rgba(192,132,252,0.35)",
+  };
+  if (coins <= 20000) return {
+    glow: "rgba(240,192,64,0.7)",
+    border: "rgba(240,192,64,0.8)",
+    outerGlow: "0 0 45px rgba(240,192,64,0.5), 0 4px 50px rgba(240,192,64,0.4), 0 0 80px rgba(240,192,64,0.2)",
+  };
+  return {
+    glow: "rgba(255,80,255,0.75)",
+    border: "rgba(255,80,255,0.85)",
+    outerGlow: "0 0 50px rgba(255,80,255,0.55), 0 4px 60px rgba(255,80,255,0.45), 0 0 100px rgba(255,80,255,0.3)",
+  };
+}
 
 const fireflyKeyframes = `
 @keyframes coinSpin {
@@ -349,10 +358,8 @@ export default function CoinShopPage({ user }: CoinShopProps) {
             {packsData?.packs.map((pack) => {
               const isDisabled = pack.priceUsd > dailyRemaining;
               const isBuying = buyingPackId === pack.id && checkoutMutation.isPending;
-              const packImage = PACK_IMAGES[pack.id];
-              const glowColor = PACK_GLOW[pack.id] || "rgba(127,255,212,0.2)";
-              const borderColor = PACK_BORDER[pack.id] || "rgba(127,255,212,0.3)";
-              const outerGlow = PACK_OUTER_GLOW[pack.id] || "0 0 20px rgba(127,255,212,0.2)";
+              const packImage = imageForCoins(pack.coins);
+              const { glow: glowColor, border: borderColor, outerGlow } = styleForCoins(pack.coins);
 
               return (
                 <button
@@ -467,8 +474,8 @@ export default function CoinShopPage({ user }: CoinShopProps) {
       {/* Checkout loading overlay — shown while the server creates the Stripe session */}
       {buyingPackId && checkoutMutation.isPending && (() => {
         const pack = packsData?.packs.find(p => p.id === buyingPackId);
-        const packImg = PACK_IMAGES[buyingPackId];
-        const glowCol = PACK_GLOW[buyingPackId] || "rgba(127,255,212,0.4)";
+        const packImg = pack ? imageForCoins(pack.coins) : null;
+        const glowCol = pack ? styleForCoins(pack.coins).glow : "rgba(127,255,212,0.4)";
         return (
           <div
             style={{
