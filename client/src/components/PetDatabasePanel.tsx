@@ -125,8 +125,8 @@ const ALL_PART_DEFS: PartDef[] = [
 
 const CANVAS_SIZE = 1000;
 
-export default function PetDatabasePanel() {
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+export default function PetDatabasePanel({ initialTemplateId }: { initialTemplateId?: string | null } = {}) {
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(initialTemplateId ?? null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newPetName, setNewPetName] = useState("");
   const [newSleepingImage, setNewSleepingImage] = useState<string | null>(null);

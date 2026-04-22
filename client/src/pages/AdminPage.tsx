@@ -69,6 +69,8 @@ export default function AdminPage({ user }: AdminPageProps) {
   const [activeSection, setActiveSection] = useState<"members" | "rewards" | "welcome" | "items" | "pets" | "messages" | "badges" | "fishing" | "enemies" | "maintenance" | "home_bundle" | "purchases" | "chat_filter" | "veridian_watcher" | null>(null);
   const [orphanResult, setOrphanResult] = useState<{ summary: string; cleaned: number } | null>(null);
   const [characterTab, setCharacterTab] = useState<"pet" | "enemy" | "npc" | "fish">("pet");
+  const [itemsTab, setItemsTab] = useState<"items" | "fishing">("items");
+  const [partsOverlayTemplateId, setPartsOverlayTemplateId] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -155,13 +157,11 @@ export default function AdminPage({ user }: AdminPageProps) {
   const sections = [
     { key: "members" as const, label: "Members", count: members.length, icon: adminIconMembers, desc: "Manage players", color: "#f0c040", glow: "rgba(240,192,64,0.35)", bg: "linear-gradient(145deg, rgba(60,38,8,0.92) 0%, rgba(92,58,20,0.88) 100%)", border: "rgba(212,160,23,0.5)" },
     { key: "rewards" as const, label: "Rewards", icon: adminIconRewards, desc: "Send bundles", color: "#c4b5fd", glow: "rgba(192,132,252,0.35)", bg: "linear-gradient(145deg, rgba(50,18,88,0.92) 0%, rgba(80,28,120,0.88) 100%)", border: "rgba(192,132,252,0.5)" },
-    { key: "items" as const, label: "Pets & Items", icon: adminIconPets, desc: "Item database", color: "#fdba74", glow: "rgba(251,146,60,0.30)", bg: "linear-gradient(145deg, rgba(72,32,8,0.92) 0%, rgba(110,52,12,0.88) 100%)", border: "rgba(251,146,60,0.45)" },
+    { key: "items" as const, label: "Items", icon: adminIconPets, desc: "Items & fishing supplies", color: "#fdba74", glow: "rgba(251,146,60,0.30)", bg: "linear-gradient(145deg, rgba(72,32,8,0.92) 0%, rgba(110,52,12,0.88) 100%)", border: "rgba(251,146,60,0.45)" },
     { key: "pets" as const, label: "Add Character", icon: adminIconItems, desc: "Pets, enemies, NPCs & fish", color: "#5eead4", glow: "rgba(94,234,212,0.30)", bg: "linear-gradient(145deg, rgba(8,45,42,0.92) 0%, rgba(14,70,65,0.88) 100%)", border: "rgba(94,234,212,0.45)" },
     { key: "messages" as const, label: "Messages", count: unreadSupportCount || undefined, icon: adminIconMessages, desc: "Support inbox", color: "#fca5a5", glow: "rgba(252,165,165,0.30)", bg: "linear-gradient(145deg, rgba(80,18,18,0.92) 0%, rgba(110,28,28,0.88) 100%)", border: "rgba(252,165,165,0.45)" },
     { key: "badges" as const, label: "Badges", icon: adminIconBadges, desc: "Award badges", color: "#fde68a", glow: "rgba(253,230,138,0.30)", bg: "linear-gradient(145deg, rgba(72,54,0,0.92) 0%, rgba(108,80,0,0.88) 100%)", border: "rgba(253,230,138,0.45)" },
-    { key: "fishing" as const, label: "Fishing", icon: adminIconFishing, desc: "Fish & ponds", color: "#93c5fd", glow: "rgba(147,197,253,0.30)", bg: "linear-gradient(145deg, rgba(12,22,60,0.92) 0%, rgba(18,36,90,0.88) 100%)", border: "rgba(147,197,253,0.45)" },
     { key: "welcome" as const, label: "Welcome Bundle", icon: adminIconWelcome, desc: "New user gifts", color: "#6ee7b7", glow: "rgba(110,231,183,0.35)", bg: "linear-gradient(145deg, rgba(8,50,35,0.92) 0%, rgba(14,80,55,0.88) 100%)", border: "rgba(110,231,183,0.45)" },
-    { key: "enemies" as const, label: "Enemies", icon: adminIconEnemies, desc: "Enemy database", color: "#fca5a5", glow: "rgba(239,68,68,0.30)", bg: "linear-gradient(145deg, rgba(60,8,8,0.92) 0%, rgba(90,12,12,0.88) 100%)", border: "rgba(239,68,68,0.45)" },
 
     { key: "home_bundle" as const, label: "Home Bundle", icon: adminIconHouseBundle, desc: "Decor & bundles", color: "#fbbf24", glow: "rgba(251,191,36,0.30)", bg: "linear-gradient(145deg, rgba(60,40,4,0.92) 0%, rgba(90,60,8,0.88) 100%)", border: "rgba(251,191,36,0.45)" },
     { key: "purchases" as const, label: "Purchases", icon: adminIconPurchases, desc: "Coin shop history", color: "#86efac", glow: "rgba(134,239,172,0.30)", bg: "linear-gradient(145deg, rgba(8,45,18,0.92) 0%, rgba(12,70,28,0.88) 100%)", border: "rgba(134,239,172,0.45)" },
@@ -479,7 +479,51 @@ export default function AdminPage({ user }: AdminPageProps) {
               )}
 
               {activeSection === "items" && (
-                <ItemDatabaseSection />
+                <div>
+                  {/* ── Items: Tabs ──────────────────────────────────── */}
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      marginBottom: 16,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    {([
+                      { key: "items", label: "Items" },
+                      { key: "fishing", label: "Fishing" },
+                    ] as const).map(t => {
+                      const active = itemsTab === t.key;
+                      return (
+                        <button
+                          key={t.key}
+                          data-testid={`tab-items-${t.key}`}
+                          onClick={() => setItemsTab(t.key)}
+                          className="font-fantasy text-[11px] tracking-wider"
+                          style={{
+                            padding: "8px 16px",
+                            borderRadius: 8,
+                            cursor: "pointer",
+                            background: active
+                              ? "linear-gradient(135deg, rgba(251,146,60,0.25) 0%, rgba(234,88,12,0.18) 100%)"
+                              : "rgba(0,0,0,0.35)",
+                            border: active
+                              ? "1px solid rgba(251,146,60,0.6)"
+                              : "1px solid rgba(251,146,60,0.2)",
+                            color: active ? "#fdba74" : "#a89878",
+                            boxShadow: active ? "0 0 14px rgba(251,146,60,0.25)" : "none",
+                            transition: "all 0.15s ease",
+                          }}
+                        >
+                          {t.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {itemsTab === "items" && <ItemDatabaseSection mode="items-only" />}
+                  {itemsTab === "fishing" && <FishingAdminPanel restrict="supplies" />}
+                </div>
               )}
 
               {activeSection === "pets" && (
@@ -529,7 +573,12 @@ export default function AdminPage({ user }: AdminPageProps) {
                     })}
                   </div>
 
-                  {characterTab === "pet" && <PetDatabasePanel />}
+                  {characterTab === "pet" && (
+                    <ItemDatabaseSection
+                      mode="pets-only"
+                      onOpenParts={(templateId) => setPartsOverlayTemplateId(templateId)}
+                    />
+                  )}
                   {characterTab === "enemy" && <EnemyDatabasePanel />}
                   {characterTab === "npc" && (
                     <div
@@ -551,7 +600,7 @@ export default function AdminPage({ user }: AdminPageProps) {
                       </p>
                     </div>
                   )}
-                  {characterTab === "fish" && <FishingAdminPanel />}
+                  {characterTab === "fish" && <FishingAdminPanel restrict="fish" />}
                 </div>
               )}
 
@@ -561,14 +610,6 @@ export default function AdminPage({ user }: AdminPageProps) {
 
               {activeSection === "badges" && (
                 <BadgeDatabaseSection members={members.filter(m => !m.isAdmin)} />
-              )}
-
-              {activeSection === "fishing" && (
-                <FishingAdminPanel />
-              )}
-
-              {activeSection === "enemies" && (
-                <EnemyDatabasePanel />
               )}
 
               {activeSection === "welcome" && (
@@ -599,6 +640,50 @@ export default function AdminPage({ user }: AdminPageProps) {
           )}
         </div>
       </div>
+
+      {/* ── Pet Parts Editor Overlay ──────────────────────────────────────── */}
+      {partsOverlayTemplateId && (
+        <div
+          data-testid="overlay-pet-parts"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 99998,
+            background: "rgba(0,0,0,0.92)",
+            overflowY: "auto",
+            padding: "16px",
+          }}
+        >
+          <div
+            style={{
+              maxWidth: 720,
+              margin: "0 auto",
+              position: "relative",
+            }}
+          >
+            <button
+              data-testid="button-close-pet-parts"
+              onClick={() => setPartsOverlayTemplateId(null)}
+              className="font-fantasy text-[11px] tracking-wider"
+              style={{
+                marginBottom: 12,
+                padding: "8px 14px",
+                borderRadius: 8,
+                background: "linear-gradient(135deg, rgba(94,234,212,0.22) 0%, rgba(45,212,191,0.16) 100%)",
+                border: "1px solid rgba(94,234,212,0.5)",
+                color: "#5eead4",
+                cursor: "pointer",
+              }}
+            >
+              ← Back to Pet
+            </button>
+            <PetDatabasePanel
+              key={partsOverlayTemplateId}
+              initialTemplateId={partsOverlayTemplateId}
+            />
+          </div>
+        </div>
+      )}
 
       {showProfile && (
         <UserProfilePanel

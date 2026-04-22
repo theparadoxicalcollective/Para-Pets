@@ -137,8 +137,15 @@ export function getItemCategory(item: ShopItemFull): ItemCategoryKey {
   return "power_ups";
 }
 
-export default function ItemDatabaseSection() {
-  const [subSection, setSubSection] = useState<"items" | "pets">("items");
+export default function ItemDatabaseSection({
+  mode,
+  onOpenParts,
+}: {
+  mode?: "items-only" | "pets-only";
+  onOpenParts?: (templateId: string) => void;
+} = {}) {
+  const lockedSection = mode === "pets-only" ? "pets" : mode === "items-only" ? "items" : null;
+  const [subSection, setSubSection] = useState<"items" | "pets">(lockedSection ?? "items");
   const [editingItem, setEditingItem] = useState<ShopItemFull | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [filterType, setFilterType] = useState<string>("all");
@@ -183,9 +190,13 @@ export default function ItemDatabaseSection() {
     });
   };
 
-  const sectionItems = allItems.filter(item =>
-    subSection === "pets" ? item.type === "pet" : item.type !== "pet"
-  );
+  const sectionItems = allItems.filter(item => {
+    if (subSection === "pets") return item.type === "pet";
+    // items-only or default: exclude pets; also exclude fishing when in items-only mode
+    if (item.type === "pet") return false;
+    if (mode === "items-only" && item.type === "fishing") return false;
+    return true;
+  });
 
   const filtered = sectionItems.filter(item => {
     if (filterType === "all") return true;
@@ -198,6 +209,7 @@ export default function ItemDatabaseSection() {
   return (
     <div className="space-y-3">
       {/* Sub-section toggle */}
+      {!lockedSection && (
       <div className="flex rounded-lg overflow-hidden" style={{ border: "1px solid rgba(212,160,23,0.3)" }}>
         <button
           data-testid="tab-sub-items"
@@ -231,6 +243,7 @@ export default function ItemDatabaseSection() {
           Add Pet
         </button>
       </div>
+      )}
 
       {/* Add button */}
       <button
@@ -436,6 +449,7 @@ export default function ItemDatabaseSection() {
           petOnly={isPetSection}
           onClose={handleCloseForm}
           onSuccess={handleFormSuccess}
+          onOpenParts={onOpenParts}
         />
       )}
     </div>
@@ -447,11 +461,13 @@ function AdminItemForm({
   petOnly,
   onClose,
   onSuccess,
+  onOpenParts,
 }: {
   item: ShopItemFull | null;
   petOnly: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  onOpenParts?: (templateId: string) => void;
 }) {
   const defaultType = petOnly ? "pet" : (item?.type !== "pet" ? (item?.type || "power_up") : "power_up");
   const [name, setName] = useState(item?.name || "");
@@ -653,9 +669,38 @@ function AdminItemForm({
           X
         </button>
 
-        <h3 className="font-fantasy text-center text-base tracking-widest mb-4" style={{ color: accentColor }}>
+        <h3 className="font-fantasy text-center text-base tracking-widest mb-2" style={{ color: accentColor }}>
           {item ? (petOnly ? "Edit Pet" : "Edit Item") : (petOnly ? "Add Pet" : "Add Item")}
         </h3>
+
+        {petOnly && onOpenParts && (
+          <div className="flex justify-center mb-4">
+            <button
+              data-testid="button-open-pet-parts"
+              type="button"
+              disabled={!item || !item.petTemplateId}
+              onClick={() => {
+                if (item?.petTemplateId) onOpenParts(item.petTemplateId);
+              }}
+              title={
+                !item
+                  ? "Save the pet first to attach parts"
+                  : !item.petTemplateId
+                  ? "Link an Animated Template to this pet first"
+                  : "Open the parts editor"
+              }
+              className="font-fantasy text-[11px] tracking-wider px-4 py-1.5 rounded-md disabled:opacity-40"
+              style={{
+                background: "linear-gradient(135deg, rgba(94,234,212,0.22) 0%, rgba(45,212,191,0.16) 100%)",
+                border: "1px solid rgba(94,234,212,0.5)",
+                color: "#5eead4",
+                cursor: !item || !item.petTemplateId ? "not-allowed" : "pointer",
+              }}
+            >
+              ✦ Parts
+            </button>
+          </div>
+        )}
 
         <div className="space-y-3">
           <ImageUpload

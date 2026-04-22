@@ -53,11 +53,12 @@ const FISH_PART_TYPES = [
 
 const CANVAS_SIZE = 500;
 
-export default function FishingAdminPanel() {
+export default function FishingAdminPanel({ restrict }: { restrict?: "fish" | "supplies" } = {}) {
   const [selectedFishId, setSelectedFishId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<FishingItem | null>(null);
-  const [filterType, setFilterType] = useState<"all" | "pole" | "bait" | "fish">("all");
+  const defaultFilter: "all" | "pole" | "bait" | "fish" = restrict === "fish" ? "fish" : "all";
+  const [filterType, setFilterType] = useState<"all" | "pole" | "bait" | "fish">(defaultFilter);
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
   const [uploadPartType, setUploadPartType] = useState<string | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -172,7 +173,12 @@ export default function FishingAdminPanel() {
     setDragPos(null);
   }, [dragPos, updatePartMutation]);
 
-  const filtered = allItems.filter(i => filterType === "all" || i.fishingType === filterType);
+  const restrictedItems = restrict === "fish"
+    ? allItems.filter(i => i.fishingType === "fish")
+    : restrict === "supplies"
+    ? allItems.filter(i => i.fishingType === "pole" || i.fishingType === "bait")
+    : allItems;
+  const filtered = restrictedItems.filter(i => filterType === "all" || i.fishingType === filterType);
   const selectedFish = selectedFishId ? allItems.find(i => i.id === selectedFishId) : null;
   const selectedPart = fishParts.find(p => p.id === selectedPartId);
 
@@ -353,9 +359,11 @@ export default function FishingAdminPanel() {
           cursor: "pointer",
         }}
       >
-        <span className="text-xl leading-none">+</span> Add Fishing Item
+        <span className="text-xl leading-none">+</span>
+        {restrict === "fish" ? " Add Fish" : restrict === "supplies" ? " Add Pole / Bait" : " Add Fishing Item"}
       </button>
 
+      {!restrict && (
       <div className="flex gap-1.5">
         {(["all", "pole", "bait", "fish"] as const).map(f => (
           <button
@@ -374,9 +382,10 @@ export default function FishingAdminPanel() {
           </button>
         ))}
       </div>
+      )}
 
       <p className="font-fantasy text-[#6a5840] text-[10px] tracking-wider text-center">
-        {filtered.length} fishing item{filtered.length !== 1 ? "s" : ""}
+        {filtered.length} {restrict === "fish" ? "fish" : restrict === "supplies" ? "fishing supply" : "fishing item"}{filtered.length !== 1 ? (restrict === "supplies" ? " items" : "s") : ""}
       </p>
 
       {isLoading ? (
@@ -457,6 +466,7 @@ export default function FishingAdminPanel() {
       {showForm && (
         <FishingItemForm
           item={editingItem}
+          restrict={restrict}
           onClose={() => { setShowForm(false); setEditingItem(null); }}
           onSuccess={() => {
             setShowForm(false);
@@ -470,12 +480,15 @@ export default function FishingAdminPanel() {
   );
 }
 
-function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | null; onClose: () => void; onSuccess: () => void }) {
+function FishingItemForm({ item, onClose, onSuccess, restrict }: { item: FishingItem | null; onClose: () => void; onSuccess: () => void; restrict?: "fish" | "supplies" }) {
   const [name, setName] = useState(item?.name || "");
   const [price, setPrice] = useState(item?.price?.toString() || "0");
-  const [fishingType, setFishingType] = useState<"pole" | "bait" | "fish">(
-    (item?.fishingType as "pole" | "bait" | "fish") || "fish"
-  );
+  const defaultFishingType: "pole" | "bait" | "fish" =
+    (item?.fishingType as "pole" | "bait" | "fish") ||
+    (restrict === "fish" ? "fish" : restrict === "supplies" ? "pole" : "fish");
+  const [fishingType, setFishingType] = useState<"pole" | "bait" | "fish">(defaultFishingType);
+  const allowedFishingTypes: ("fish" | "pole" | "bait")[] =
+    restrict === "fish" ? ["fish"] : restrict === "supplies" ? ["pole", "bait"] : ["fish", "pole", "bait"];
   const [starRarity, setStarRarity] = useState(item?.starRarity?.toString() || "1");
   const [rarityBoostPercent, setRarityBoostPercent] = useState(item?.rarityBoostPercent?.toString() || "0");
   const [baitRarityBoostStar, setBaitRarityBoostStar] = useState(item?.baitRarityBoostStar?.toString() || "3");
@@ -612,7 +625,7 @@ function FishingItemForm({ item, onClose, onSuccess }: { item: FishingItem | nul
           <div>
             <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Fishing Type</label>
             <div className="flex gap-2">
-              {(["fish", "pole", "bait"] as const).map(t => (
+              {allowedFishingTypes.map(t => (
                 <button
                   key={t}
                   data-testid={`button-fishing-type-${t}`}
