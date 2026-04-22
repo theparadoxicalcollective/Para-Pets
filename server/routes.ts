@@ -4261,9 +4261,32 @@ export async function registerRoutes(
   app.get("/api/badges/leaderboard", async (_req, res) => {
     try {
       const leaderboard = await storage.getBadgeLeaderboard(50);
+      // Hint to clients/CDNs that this list can be reused briefly. Saves
+      // round trips when multiple Hub components mount in quick succession.
+      res.set("Cache-Control", "private, max-age=10");
       return res.json(leaderboard);
     } catch (err: any) {
       return res.status(500).json({ message: err.message || "Failed to fetch leaderboard" });
+    }
+  });
+
+  // Batch avatar fetcher. Profile pictures are stored as base64 data URLs and
+  // would otherwise be embedded in every leaderboard / chat row, blowing up
+  // payloads. This endpoint returns { [userId]: dataUrl|null } for the requested
+  // ids only. Frontends should cache the result with a long staleTime since
+  // avatars change rarely.
+  app.post("/api/users/avatars", async (req, res) => {
+    try {
+      const ids = Array.isArray(req.body?.userIds) ? req.body.userIds.filter((x: any) => typeof x === "string") : [];
+      if (ids.length === 0) return res.json({});
+      // Hard cap to prevent abuse.
+      const capped = ids.slice(0, 200);
+      const map = await storage.getUsersAvatars(capped);
+      // Long-ish private cache — avatars rarely change.
+      res.set("Cache-Control", "private, max-age=60");
+      return res.json(map);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message || "Failed to fetch avatars" });
     }
   });
 
@@ -4271,6 +4294,7 @@ export async function registerRoutes(
   app.get("/api/badges/leaderboard/devotion", async (_req, res) => {
     try {
       const leaderboard = await storage.getDevotionLeaderboard(50);
+      res.set("Cache-Control", "private, max-age=10");
       return res.json(leaderboard);
     } catch (err: any) {
       return res.status(500).json({ message: err.message || "Failed to fetch devotion leaderboard" });

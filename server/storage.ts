@@ -375,6 +375,20 @@ export class DatabaseStorage implements IStorage {
     return members;
   }
 
+  // Batch avatar lookup. Returns { [userId]: profileImage|null } only for the
+  // ids requested. Used by the frontend to hydrate leaderboards / chat without
+  // shipping every avatar inline with every list payload.
+  async getUsersAvatars(userIds: string[]): Promise<Record<string, string | null>> {
+    if (userIds.length === 0) return {};
+    const rows = await db
+      .select({ id: users.id, profileImage: users.profileImage })
+      .from(users)
+      .where(inArray(users.id, userIds));
+    const out: Record<string, string | null> = {};
+    for (const r of rows) out[r.id] = r.profileImage ?? null;
+    return out;
+  }
+
   async addCoins(id: string, amount: number): Promise<User> {
     const updateFields: Record<string, any> = {
       coins: sql`GREATEST(0, ${users.coins} + ${amount})`,
@@ -1053,11 +1067,13 @@ export class DatabaseStorage implements IStorage {
     // a reasonable proxy so they still appear on the leaderboard.
     const rankScore = sql<number>`GREATEST(${users.totalCoinsEarned}, ${users.coins})`;
 
+    // NOTE: profileImage is intentionally NOT selected here. Profile pictures
+    // are stored as base64 data URLs and would balloon this payload to ~1.3 MB.
+    // The frontend fetches avatars in batch via POST /api/users/avatars instead.
     const topUsers = await db
       .select({
         userId: users.id,
         username: users.username,
-        profileImage: users.profileImage,
         totalCoinsEarned: users.totalCoinsEarned,
         coins: users.coins,
       })
@@ -1101,7 +1117,7 @@ export class DatabaseStorage implements IStorage {
       return {
         userId: u.userId,
         username: u.username,
-        profileImage: u.profileImage,
+        profileImage: null, // fetched separately via /api/users/avatars
         totalPoints: score, // field name kept for API compatibility
         topBadges: allBadges.slice(0, 3),
         allBadges,
@@ -1127,11 +1143,11 @@ export class DatabaseStorage implements IStorage {
 
     // Fetch a generous candidate pool — we'll re-rank by devotion score in JS so
     // bundle-heavy users at the top of Hall of Earnings can drop down or off-list.
+    // NOTE: profileImage intentionally not selected — see getBadgeLeaderboard.
     const candidates = await db
       .select({
         userId: users.id,
         username: users.username,
-        profileImage: users.profileImage,
         totalCoinsEarned: users.totalCoinsEarned,
         coins: users.coins,
       })
@@ -1179,7 +1195,7 @@ export class DatabaseStorage implements IStorage {
       return {
         userId: u.userId,
         username: u.username,
-        profileImage: u.profileImage,
+        profileImage: null, // fetched separately via /api/users/avatars
         totalPoints: u.score,
         topBadges: allBadges.slice(0, 3),
         allBadges,

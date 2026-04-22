@@ -1,4 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
+import compression from "compression";
 import session from "express-session";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
@@ -20,6 +21,18 @@ import rateLimit from "express-rate-limit";
 const app = express();
 app.set('trust proxy', 1);
 app.disable('etag');
+
+// ── Response compression ─────────────────────────────────────────────────────
+// Gzips/deflates JSON, HTML, JS, CSS responses. Massively reduces bandwidth
+// (typically 5–10× smaller for text). Skips already-compressed binary content
+// (images, video) and any response that explicitly opts out via x-no-compression.
+app.use(compression({
+  threshold: 1024, // skip very small responses where the overhead isn't worth it
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) return false;
+    return compression.filter(req, res);
+  },
+}));
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
 // Brute-force protection: only login + register need strict limits
@@ -300,6 +313,43 @@ app.use((req, res, next) => {
     () => db.execute(sql`ALTER TABLE user_inventory ADD COLUMN IF NOT EXISTS pet_mood INTEGER NOT NULL DEFAULT 100`));
   await runMigration("user_inventory.pet_stats_updated_at",
     () => db.execute(sql`ALTER TABLE user_inventory ADD COLUMN IF NOT EXISTS pet_stats_updated_at TIMESTAMP NOT NULL DEFAULT NOW()`));
+
+  // ── Performance indexes ────────────────────────────────────────────────────
+  // Hot foreign-key + sort columns that were previously sequential-scanned.
+  // CREATE INDEX IF NOT EXISTS is idempotent and safe on every restart, so
+  // these will auto-apply on Railway with no manual deploy step.
+  await runMigration("idx_user_badges_user_id",
+    () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_user_badges_user_id ON user_badges (user_id)`));
+  await runMigration("idx_user_badges_badge_id",
+    () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_user_badges_badge_id ON user_badges (badge_id)`));
+  await runMigration("idx_coin_purchases_user_id",
+    () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_coin_purchases_user_id ON coin_purchases (user_id)`));
+  await runMigration("idx_pet_template_parts_template_id",
+    () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_pet_template_parts_template_id ON pet_template_parts (template_id)`));
+  await runMigration("idx_world_chat_messages_created_at",
+    () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_world_chat_messages_created_at ON world_chat_messages (created_at DESC)`));
+  await runMigration("idx_user_inventory_user_id",
+    () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_user_inventory_user_id ON user_inventory (user_id)`));
+  await runMigration("idx_users_total_coins_earned",
+    () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_users_total_coins_earned ON users (total_coins_earned DESC)`));
+  await runMigration("idx_notifications_user_created",
+    () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON notifications (user_id, created_at DESC)`));
+  await runMigration("idx_friendships_requester",
+    () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_friendships_requester ON friendships (requester_id)`));
+  await runMigration("idx_friendships_receiver",
+    () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_friendships_receiver ON friendships (receiver_id)`));
+  await runMigration("idx_player_fish_inventory_user",
+    () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_player_fish_inventory_user ON player_fish_inventory (user_id)`));
+  await runMigration("idx_player_market_listings_seller",
+    () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_player_market_listings_seller ON player_market_listings (seller_id)`));
+  await runMigration("idx_placed_home_decor_user",
+    () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_placed_home_decor_user ON placed_home_decor (user_id)`));
+  await runMigration("idx_world_pet_positions_owner",
+    () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_world_pet_positions_owner ON world_pet_positions (owner_user_id)`));
+  await runMigration("idx_player_daily_login_claims_user",
+    () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_player_daily_login_claims_user ON player_daily_login_claims (user_id)`));
+  await runMigration("idx_pvp_battles_user_created",
+    () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_pvp_battles_user_created ON pvp_battles (user_id, created_at DESC)`));
 
   try {
     await db.execute(sql`

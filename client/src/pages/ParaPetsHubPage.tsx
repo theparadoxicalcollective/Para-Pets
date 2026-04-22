@@ -376,7 +376,8 @@ const PODIUM_SLOT = [
   { rank: 3, order: 2, scale: 0.78, yOffset: 30, glowColor: "rgba(205,127,50,0.5)",   borderColor: "rgba(205,127,50,0.7)",   nameColor: "#cd9f5c" },
 ];
 
-function TopThreePodium({ top3, onPlayerClick }: { top3: LeaderboardEntry[]; onPlayerClick?: (userId: string) => void }) {
+function TopThreePodium({ top3, avatars, onPlayerClick }: { top3: LeaderboardEntry[]; avatars?: Record<string, string | null>; onPlayerClick?: (userId: string) => void }) {
+  const avatarFor = (e: LeaderboardEntry) => (avatars && avatars[e.userId]) || e.profileImage || null;
   return (
     <div className="relative w-full" style={{ maxWidth: 560, margin: "0 auto" }}>
       {/* Rank crowns strip */}
@@ -413,8 +414,8 @@ function TopThreePodium({ top3, onPlayerClick }: { top3: LeaderboardEntry[]; onP
             >
               {/* Avatar */}
               <div className="relative">
-                {entry.profileImage ? (
-                  <img src={entry.profileImage} alt={entry.username}
+                {avatarFor(entry) ? (
+                  <img src={avatarFor(entry)!} alt={entry.username}
                     className="rounded-full object-cover"
                     style={{
                       width: slot.rank === 1 ? 56 : 42, height: slot.rank === 1 ? 56 : 42,
@@ -492,8 +493,9 @@ function TopThreePodium({ top3, onPlayerClick }: { top3: LeaderboardEntry[]; onP
 // ─────────────────────────────────────────────────────────────────────────────
 // Ranks 4+ row
 // ─────────────────────────────────────────────────────────────────────────────
-function RankRow({ entry, rank, onPlayerClick }: { entry: LeaderboardEntry; rank: number; onPlayerClick?: (userId: string) => void }) {
+function RankRow({ entry, rank, avatars, onPlayerClick }: { entry: LeaderboardEntry; rank: number; avatars?: Record<string, string | null>; onPlayerClick?: (userId: string) => void }) {
   const [expanded, setExpanded] = useState(false);
+  const avatarUrl = (avatars && avatars[entry.userId]) || entry.profileImage || null;
 
   return (
     <div
@@ -518,8 +520,8 @@ function RankRow({ entry, rank, onPlayerClick }: { entry: LeaderboardEntry; rank
           onClick={() => onPlayerClick?.(entry.userId)}
           style={{ background: "none", border: "none", padding: 0, cursor: onPlayerClick ? "pointer" : "default" }}
         >
-        {entry.profileImage ? (
-          <img src={entry.profileImage} alt={entry.username}
+        {avatarUrl ? (
+          <img src={avatarUrl} alt={entry.username}
             className="w-9 h-9 rounded-full flex-shrink-0 object-cover"
             style={{ border: "1.5px solid rgba(127,191,176,0.2)" }} />
         ) : (
@@ -1049,6 +1051,26 @@ export default function ParaPetsHubPage() {
   const top3  = leaderboard?.slice(0, 3)  ?? [];
   const rest  = leaderboard?.slice(3)     ?? [];
 
+  // Batch-fetch avatars for the visible leaderboard. Profile images are stored
+  // as base64 data URLs and are intentionally NOT included in the leaderboard
+  // payload — fetching them in one batch with a long staleTime keeps the
+  // hot-polled list small while still showing photos.
+  const visibleIds = (leaderboard ?? []).map(e => e.userId);
+  const visibleIdsKey = visibleIds.join(",");
+  const { data: avatarMap } = useQuery<Record<string, string | null>>({
+    queryKey: ["/api/users/avatars", visibleIdsKey],
+    queryFn: async () => {
+      if (visibleIds.length === 0) return {};
+      const res = await apiRequest("POST", "/api/users/avatars", { userIds: visibleIds });
+      return (await res.json()) as Record<string, string | null>;
+    },
+    enabled: visibleIds.length > 0,
+    staleTime: 5 * 60_000, // avatars rarely change
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchInterval: false,
+  });
+
   // Re-check scroll bounds whenever the challengers list changes (data load / refetch)
   useEffect(() => {
     const el = challengersRef.current;
@@ -1347,7 +1369,7 @@ export default function ParaPetsHubPage() {
                 {/* Top 3 podium */}
                 {top3.length > 0 && (
                   <div className="mb-6">
-                    <TopThreePodium top3={top3} onPlayerClick={id => setSelectedPlayerId(id)} />
+                    <TopThreePodium top3={top3} avatars={avatarMap} onPlayerClick={id => setSelectedPlayerId(id)} />
                   </div>
                 )}
 
@@ -1395,7 +1417,7 @@ export default function ParaPetsHubPage() {
                         }}
                       >
                         {rest.map((entry, i) => (
-                          <RankRow key={entry.userId} entry={entry} rank={i + 4} onPlayerClick={id => setSelectedPlayerId(id)} />
+                          <RankRow key={entry.userId} entry={entry} rank={i + 4} avatars={avatarMap} onPlayerClick={id => setSelectedPlayerId(id)} />
                         ))}
                       </div>
 

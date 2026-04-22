@@ -4,37 +4,45 @@ import { QueryClientProvider, useMutation } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { playClick, unlockAudio } from "@/lib/sounds";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { initTabSync, teardownTabSync } from "@/lib/tabSync";
 import desktopBackdrop from "@assets/bg_desktop_backdrop.webp";
 import homeBg from "@assets/bg_home_v2.png";
-import AuthPage from "@/pages/AuthPage";
-import MaintenancePage from "@/pages/MaintenancePage";
+
+// ── Eagerly imported (always or near-always needed at startup) ──────────────
 import HomePage from "@/pages/HomePage";
-import MapPage from "@/pages/MapPage";
-import AdminPage from "@/pages/AdminPage";
-import TestAnimatorPage from "@/pages/TestAnimatorPage";
-import WorldPage from "@/pages/WorldPage";
-import CoinShopPage from "@/pages/CoinShopPage";
-import ResetPasswordPage from "@/pages/ResetPasswordPage";
-import PetHousePage from "@/pages/PetHousePage";
-import VisitPetHousePage from "@/pages/VisitPetHousePage";
-import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
-import ParaPetsHubPage from "@/pages/ParaPetsHubPage";
-import BadgePage from "@/pages/BadgePage";
-import MarketPage from "@/pages/MarketPage";
-import PvpArenaPage from "@/pages/PvpArenaPage";
-import PetInventoryPage from "@/pages/PetInventoryPage";
-import BagInventoryPage from "@/pages/BagInventoryPage";
 import LoadingScreen from "@/components/LoadingScreen";
 import WelcomeGiftScreen from "@/components/WelcomeGiftScreen";
 import DevelopmentNoticeScreen from "@/components/DevelopmentNoticeScreen";
 import GlobalLevelUpOverlay from "@/components/GlobalLevelUpOverlay";
 import FloatingNav from "@/components/FloatingNav";
 import ErrorBoundary from "@/components/ErrorBoundary";
+
+// ── Lazy-loaded page chunks ────────────────────────────────────────────────
+// Each route is split into its own JS chunk so the initial bundle stays small.
+// Vite emits one .js file per page; the browser fetches them only when a
+// player actually navigates there. Admin-only pages never load for regular
+// players. <Suspense> below shows the LoadingScreen while a chunk is in flight.
+const AuthPage           = lazy(() => import("@/pages/AuthPage"));
+const MaintenancePage    = lazy(() => import("@/pages/MaintenancePage"));
+const MapPage            = lazy(() => import("@/pages/MapPage"));
+const AdminPage          = lazy(() => import("@/pages/AdminPage"));
+const TestAnimatorPage   = lazy(() => import("@/pages/TestAnimatorPage"));
+const WorldPage          = lazy(() => import("@/pages/WorldPage"));
+const CoinShopPage       = lazy(() => import("@/pages/CoinShopPage"));
+const ResetPasswordPage  = lazy(() => import("@/pages/ResetPasswordPage"));
+const PetHousePage       = lazy(() => import("@/pages/PetHousePage"));
+const VisitPetHousePage  = lazy(() => import("@/pages/VisitPetHousePage"));
+const PrivacyPolicyPage  = lazy(() => import("@/pages/PrivacyPolicyPage"));
+const ParaPetsHubPage    = lazy(() => import("@/pages/ParaPetsHubPage"));
+const BadgePage          = lazy(() => import("@/pages/BadgePage"));
+const MarketPage         = lazy(() => import("@/pages/MarketPage"));
+const PvpArenaPage       = lazy(() => import("@/pages/PvpArenaPage"));
+const PetInventoryPage   = lazy(() => import("@/pages/PetInventoryPage"));
+const BagInventoryPage   = lazy(() => import("@/pages/BagInventoryPage"));
 
 // ── Email gate screen — blocks the game until email is verified ───────────────
 function EmailGateScreen({ email }: { email: string }) {
@@ -317,22 +325,24 @@ function AppRouter() {
 
   if (isFullScreenPath || !user) {
     return (
-      <Switch>
-        <Route path="/auth" component={AuthPage} />
-        <Route path="/reset-password/:token" component={ResetPasswordPage} />
-        <Route path="/privacy"><PrivacyPolicyPage user={user ?? null} /></Route>
-        <Route path="/hub"><ParaPetsHubPage /></Route>
-        <Route path="/admin">
-          {user?.isAdmin ? <AdminPage user={user} /> : <Redirect to="/" />}
-        </Route>
-        <Route path="/test-animator">
-          {user?.isAdmin ? <TestAnimatorPage user={user} /> : <Redirect to="/" />}
-        </Route>
-        <Route path="/visit/:userId">
-          {user ? <VisitPetHousePage /> : <Redirect to="/auth" />}
-        </Route>
-        <Route><Redirect to={user ? "/" : "/auth"} /></Route>
-      </Switch>
+      <Suspense fallback={<LoadingScreen label="Loading…" />}>
+        <Switch>
+          <Route path="/auth" component={AuthPage} />
+          <Route path="/reset-password/:token" component={ResetPasswordPage} />
+          <Route path="/privacy"><PrivacyPolicyPage user={user ?? null} /></Route>
+          <Route path="/hub"><ParaPetsHubPage /></Route>
+          <Route path="/admin">
+            {user?.isAdmin ? <AdminPage user={user} /> : <Redirect to="/" />}
+          </Route>
+          <Route path="/test-animator">
+            {user?.isAdmin ? <TestAnimatorPage user={user} /> : <Redirect to="/" />}
+          </Route>
+          <Route path="/visit/:userId">
+            {user ? <VisitPetHousePage /> : <Redirect to="/auth" />}
+          </Route>
+          <Route><Redirect to={user ? "/" : "/auth"} /></Route>
+        </Switch>
+      </Suspense>
     );
   }
 
@@ -347,52 +357,56 @@ function AppRouter() {
         <HomePage user={user} isOverlayActive={location !== "/"} />
       </div>
 
-      {/* Game overlays — each fades in quickly to smooth page-to-page transitions */}
-      {location === "/map" && (
-        <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
-          <MapPage user={user} />
-        </div>
-      )}
-      {location.startsWith("/world/") && (
-        <div key={location} className="page-overlay" style={{ position: "absolute", inset: 0 }}>
-          <WorldPage user={user} />
-        </div>
-      )}
-      {location === "/coins" && (
-        <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
-          <CoinShopPage user={user} />
-        </div>
-      )}
-      {location === "/pet-house" && (
-        <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
-          <PetHousePage user={user} />
-        </div>
-      )}
-      {location === "/badges" && (
-        <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
-          <BadgePage user={user} />
-        </div>
-      )}
-      {location === "/market" && (
-        <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
-          <MarketPage user={user} onUserUpdate={u => queryClient.setQueryData(["/api/auth/me"], u)} />
-        </div>
-      )}
-      {location === "/pvp" && (
-        <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
-          <PvpArenaWrapper />
-        </div>
-      )}
-      {location === "/pets" && (
-        <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
-          <PetInventoryPage />
-        </div>
-      )}
-      {location === "/bag" && (
-        <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
-          <BagInventoryPage />
-        </div>
-      )}
+      {/* Game overlays — each fades in quickly to smooth page-to-page transitions.
+          A single <Suspense> wraps every overlay so lazy chunks load without
+          unmounting the persistent HomePage base layer underneath. */}
+      <Suspense fallback={null}>
+        {location === "/map" && (
+          <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+            <MapPage user={user} />
+          </div>
+        )}
+        {location.startsWith("/world/") && (
+          <div key={location} className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+            <WorldPage user={user} />
+          </div>
+        )}
+        {location === "/coins" && (
+          <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+            <CoinShopPage user={user} />
+          </div>
+        )}
+        {location === "/pet-house" && (
+          <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+            <PetHousePage user={user} />
+          </div>
+        )}
+        {location === "/badges" && (
+          <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+            <BadgePage user={user} />
+          </div>
+        )}
+        {location === "/market" && (
+          <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+            <MarketPage user={user} onUserUpdate={u => queryClient.setQueryData(["/api/auth/me"], u)} />
+          </div>
+        )}
+        {location === "/pvp" && (
+          <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+            <PvpArenaWrapper />
+          </div>
+        )}
+        {location === "/pets" && (
+          <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+            <PetInventoryPage />
+          </div>
+        )}
+        {location === "/bag" && (
+          <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+            <BagInventoryPage />
+          </div>
+        )}
+      </Suspense>
 
       {/* FloatingNav sits above all overlays */}
       {!shouldHideNav(location) && (
