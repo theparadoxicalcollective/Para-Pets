@@ -1020,17 +1020,32 @@ export default function ParaPetsHubPage() {
     staleTime: 60_000,
   });
 
-  const { data: leaderboard, isLoading: lbLoading } = useQuery<LeaderboardEntry[]>({
+  const [leaderboardTab, setLeaderboardTab] = useState<"earnings" | "devotion">("earnings");
+
+  const { data: earningsLeaderboard, isLoading: earningsLoading } = useQuery<LeaderboardEntry[]>({
     queryKey: ["/api/badges/leaderboard"],
     retry: false,
     staleTime: 0,
-    refetchInterval: 5_000,
+    refetchInterval: leaderboardTab === "earnings" ? 5_000 : false,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
     refetchOnMount: "always",
     refetchOnReconnect: true,
   });
 
+  const { data: devotionLeaderboard, isLoading: devotionLoading } = useQuery<LeaderboardEntry[]>({
+    queryKey: ["/api/badges/leaderboard/devotion"],
+    retry: false,
+    staleTime: 0,
+    refetchInterval: leaderboardTab === "devotion" ? 5_000 : false,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    refetchOnMount: "always",
+    refetchOnReconnect: true,
+  });
+
+  const leaderboard = leaderboardTab === "earnings" ? earningsLeaderboard : devotionLeaderboard;
+  const lbLoading   = leaderboardTab === "earnings" ? earningsLoading     : devotionLoading;
   const top3  = leaderboard?.slice(0, 3)  ?? [];
   const rest  = leaderboard?.slice(3)     ?? [];
 
@@ -1250,15 +1265,62 @@ export default function ParaPetsHubPage() {
           {/* ── Leaderboard ─────────────────────────────────────────────────── */}
           <div data-testid="leaderboard-section">
 
-            {/* Leaderboard header */}
-            <div className="flex flex-col items-center gap-1 mb-6">
+            {/* Leaderboard header — tabs */}
+            <div className="flex flex-col items-center gap-3 mb-6">
               <h2 className="font-fantasy text-2xl tracking-widest"
                 style={{ color: "#ffd700", textShadow: "0 0 24px rgba(255,215,0,0.7), 0 2px 14px rgba(0,0,0,0.95)" }}
                 data-testid="text-leaderboard-title">
                 Hall of Legends
               </h2>
-              <p className="font-fantasy text-[10px] tracking-widest" style={{ color: "rgba(200,190,140,0.6)" }}>
-                Ranked by total coins earned
+
+              <div
+                role="tablist"
+                aria-label="Leaderboard category"
+                data-testid="leaderboard-tabs"
+                className="flex items-center gap-1 rounded-full p-1"
+                style={{
+                  background: "rgba(8,14,10,0.85)",
+                  border: "1px solid rgba(127,191,176,0.18)",
+                  boxShadow: "inset 0 1px 0 rgba(127,191,176,0.06), 0 4px 14px rgba(0,0,0,0.4)",
+                }}
+              >
+                {([
+                  { key: "earnings" as const, label: "Hall of Earnings", color: "#ffd700", glow: "rgba(255,215,0,0.55)" },
+                  { key: "devotion" as const, label: "Adventurer's Devotion", color: "#c084fc", glow: "rgba(192,132,252,0.55)" },
+                ]).map(t => {
+                  const active = leaderboardTab === t.key;
+                  return (
+                    <button
+                      key={t.key}
+                      role="tab"
+                      aria-selected={active}
+                      data-testid={`tab-leaderboard-${t.key}`}
+                      onClick={() => setLeaderboardTab(t.key)}
+                      className="font-fantasy text-[10px] sm:text-[11px] tracking-widest rounded-full transition-all active:scale-95"
+                      style={{
+                        padding: "8px 14px",
+                        color: active ? "#060a10" : t.color,
+                        background: active
+                          ? `linear-gradient(135deg, ${t.color}, ${t.color}cc)`
+                          : "transparent",
+                        boxShadow: active ? `0 0 16px ${t.glow}` : "none",
+                        letterSpacing: "0.1em",
+                      }}
+                    >
+                      {t.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <p
+                className="font-fantasy text-[10px] tracking-widest text-center px-4"
+                style={{ color: leaderboardTab === "earnings" ? "rgba(200,190,140,0.6)" : "rgba(200,180,240,0.6)" }}
+                data-testid="text-leaderboard-subtitle"
+              >
+                {leaderboardTab === "earnings"
+                  ? "Ranked by total coins earned"
+                  : "Coins earned through adventure — bundle purchases excluded"}
               </p>
             </div>
 
@@ -1463,6 +1525,57 @@ export default function ParaPetsHubPage() {
                     );
                   })}
                 </div>
+              </div>
+            </>
+          )}
+
+          {/* ── Admin-only Animator testbed access ─────────────────────────── */}
+          {user?.isAdmin && (
+            <>
+              <RuneDivider />
+              <div
+                data-testid="hub-admin-animator-cta"
+                className="rounded-2xl px-5 py-5 flex items-center justify-between gap-4 mb-2"
+                style={{
+                  background: "linear-gradient(135deg, rgba(40,28,0,0.85), rgba(28,20,0,0.85))",
+                  border: "1px solid rgba(240,192,64,0.32)",
+                  boxShadow: "0 0 28px rgba(240,192,64,0.08), inset 0 1px 0 rgba(240,192,64,0.08)",
+                }}
+              >
+                <div className="flex flex-col">
+                  <span
+                    className="font-fantasy text-[10px] tracking-widest"
+                    style={{ color: "rgba(240,192,64,0.7)" }}
+                  >
+                    ADMIN ONLY
+                  </span>
+                  <span
+                    className="font-fantasy text-sm tracking-widest"
+                    style={{ color: "#f0c040", textShadow: "0 0 12px rgba(240,192,64,0.3)" }}
+                  >
+                    Animator Testbed
+                  </span>
+                  <span
+                    className="font-fantasy text-[10px] mt-0.5"
+                    style={{ color: "rgba(240,220,160,0.55)" }}
+                  >
+                    Sandbox replica of the pet parts editor
+                  </span>
+                </div>
+                <Link
+                  href="/test-animator"
+                  data-testid="link-hub-animator"
+                  className="font-fantasy text-xs tracking-widest rounded-2xl transition-all active:scale-95 flex-shrink-0"
+                  style={{
+                    color: "#060a10",
+                    padding: "10px 20px",
+                    background: "linear-gradient(135deg,#f0c040 0%,#b58a1a 100%)",
+                    boxShadow: "0 0 16px rgba(240,192,64,0.32), 0 2px 8px rgba(0,0,0,0.5)",
+                    letterSpacing: "0.1em",
+                  }}
+                >
+                  Animator
+                </Link>
               </div>
             </>
           )}

@@ -186,6 +186,8 @@ export interface IStorage {
   getBadgeRewardClaim(userId: string, badgeId: string): Promise<{ lastClaimedAt: Date } | null>;
   upsertBadgeRewardClaim(userId: string, badgeId: string): Promise<void>;
   getBadgeLeaderboard(limit?: number): Promise<{ userId: string; username: string; profileImage: string | null; totalPoints: number; topBadges: { id: string; name: string; imageUrl: string }[]; allBadges: { id: string; name: string; imageUrl: string }[] }[]>;
+  // Adventurer's Devotion: lifetime earnings minus coins received from coin-bundle purchases.
+  getDevotionLeaderboard(limit?: number): Promise<{ userId: string; username: string; profileImage: string | null; totalPoints: number; topBadges: { id: string; name: string; imageUrl: string }[]; allBadges: { id: string; name: string; imageUrl: string }[] }[]>;
   getKeepersCentralEnemies(): Promise<(KeepersCentralEnemy & { enemyName: string; enemyImageUrl: string | null })[]>;
   addKeepersCentralEnemy(enemyId: string, spawnX: number, spawnY: number): Promise<KeepersCentralEnemy>;
   removeKeepersCentralEnemy(id: string): Promise<void>;
@@ -1101,6 +1103,84 @@ export class DatabaseStorage implements IStorage {
         username: u.username,
         profileImage: u.profileImage,
         totalPoints: score, // field name kept for API compatibility
+        topBadges: allBadges.slice(0, 3),
+        allBadges,
+      };
+    });
+  }
+
+  async getDevotionLeaderboard(limit = 50): Promise<{ userId: string; username: string; profileImage: string | null; totalPoints: number; topBadges: { id: string; name: string; imageUrl: string }[]; allBadges: { id: string; name: string; imageUrl: string }[] }[]> {
+    // "Adventurer's Devotion": lifetime earnings (using same MAX-fallback as the
+    // Hall of Earnings) minus the total coins this user has received from coin-bundle
+    // purchases. Score is clamped to >= 0. Users with score 0 are excluded.
+    const purchaseTotalsRows = await db
+      .select({
+        userId: coinPurchases.userId,
+        totalPurchased: sql<number>`COALESCE(SUM(${coinPurchases.coinsReceived}), 0)`.as("total_purchased"),
+      })
+      .from(coinPurchases)
+      .groupBy(coinPurchases.userId);
+    const purchaseTotals = new Map<string, number>();
+    for (const row of purchaseTotalsRows) {
+      purchaseTotals.set(row.userId, Number(row.totalPurchased) || 0);
+    }
+
+    // Fetch a generous candidate pool — we'll re-rank by devotion score in JS so
+    // bundle-heavy users at the top of Hall of Earnings can drop down or off-list.
+    const candidates = await db
+      .select({
+        userId: users.id,
+        username: users.username,
+        profileImage: users.profileImage,
+        totalCoinsEarned: users.totalCoinsEarned,
+        coins: users.coins,
+      })
+      .from(users)
+      .where(and(
+        sql`GREATEST(${users.totalCoinsEarned}, ${users.coins}) > 0`,
+        sql`${users.isAdmin} IS NOT TRUE`,
+        sql`${users.isModerator} IS NOT TRUE`,
+      ));
+
+    const scored = candidates
+      .filter(u => !LEADERBOARD_EXCLUDED_USERNAMES.has(u.username.toLowerCase()))
+      .map(u => {
+        const earnings = Math.max(u.totalCoinsEarned, u.coins);
+        const purchased = purchaseTotals.get(u.userId) ?? 0;
+        const score = Math.max(0, earnings - purchased);
+        return { ...u, score };
+      })
+      .filter(u => u.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit);
+
+    if (scored.length === 0) return [];
+
+    const userIds = scored.map(u => u.userId);
+    const badgeRows = await db
+      .select({
+        userId: userBadges.userId,
+        badgeId: badges.id,
+        badgeName: badges.name,
+        badgeImageUrl: badges.imageUrl,
+      })
+      .from(userBadges)
+      .innerJoin(badges, eq(userBadges.badgeId, badges.id))
+      .where(inArray(userBadges.userId, userIds));
+
+    const badgeMap = new Map<string, { id: string; name: string; imageUrl: string }[]>();
+    for (const row of badgeRows) {
+      if (!badgeMap.has(row.userId)) badgeMap.set(row.userId, []);
+      badgeMap.get(row.userId)!.push({ id: row.badgeId, name: row.badgeName, imageUrl: row.badgeImageUrl });
+    }
+
+    return scored.map(u => {
+      const allBadges = badgeMap.get(u.userId) ?? [];
+      return {
+        userId: u.userId,
+        username: u.username,
+        profileImage: u.profileImage,
+        totalPoints: u.score,
         topBadges: allBadges.slice(0, 3),
         allBadges,
       };

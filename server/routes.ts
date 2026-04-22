@@ -4267,6 +4267,16 @@ export async function registerRoutes(
     }
   });
 
+  // Adventurer's Devotion: lifetime earnings minus coins purchased via bundles.
+  app.get("/api/badges/leaderboard/devotion", async (_req, res) => {
+    try {
+      const leaderboard = await storage.getDevotionLeaderboard(50);
+      return res.json(leaderboard);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message || "Failed to fetch devotion leaderboard" });
+    }
+  });
+
   app.get("/api/admin/badges/:id/recipients", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;

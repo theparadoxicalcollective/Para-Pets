@@ -16,6 +16,7 @@ import MaintenancePage from "@/pages/MaintenancePage";
 import HomePage from "@/pages/HomePage";
 import MapPage from "@/pages/MapPage";
 import AdminPage from "@/pages/AdminPage";
+import TestAnimatorPage from "@/pages/TestAnimatorPage";
 import WorldPage from "@/pages/WorldPage";
 import CoinShopPage from "@/pages/CoinShopPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
@@ -311,6 +312,7 @@ function AppRouter() {
     location === "/privacy" ||
     location === "/hub" ||
     location === "/admin" ||
+    location === "/test-animator" ||
     location.startsWith("/visit/");
 
   if (isFullScreenPath || !user) {
@@ -322,6 +324,9 @@ function AppRouter() {
         <Route path="/hub"><ParaPetsHubPage /></Route>
         <Route path="/admin">
           {user?.isAdmin ? <AdminPage user={user} /> : <Redirect to="/" />}
+        </Route>
+        <Route path="/test-animator">
+          {user?.isAdmin ? <TestAnimatorPage user={user} /> : <Redirect to="/" />}
         </Route>
         <Route path="/visit/:userId">
           {user ? <VisitPetHousePage /> : <Redirect to="/auth" />}
