@@ -68,6 +68,7 @@ export default function AdminPage({ user }: AdminPageProps) {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [activeSection, setActiveSection] = useState<"members" | "rewards" | "welcome" | "items" | "pets" | "messages" | "badges" | "fishing" | "enemies" | "maintenance" | "home_bundle" | "purchases" | "chat_filter" | "veridian_watcher" | null>(null);
   const [orphanResult, setOrphanResult] = useState<{ summary: string; cleaned: number } | null>(null);
+  const [characterTab, setCharacterTab] = useState<"pet" | "enemy" | "npc" | "fish">("pet");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -155,7 +156,7 @@ export default function AdminPage({ user }: AdminPageProps) {
     { key: "members" as const, label: "Members", count: members.length, icon: adminIconMembers, desc: "Manage players", color: "#f0c040", glow: "rgba(240,192,64,0.35)", bg: "linear-gradient(145deg, rgba(60,38,8,0.92) 0%, rgba(92,58,20,0.88) 100%)", border: "rgba(212,160,23,0.5)" },
     { key: "rewards" as const, label: "Rewards", icon: adminIconRewards, desc: "Send bundles", color: "#c4b5fd", glow: "rgba(192,132,252,0.35)", bg: "linear-gradient(145deg, rgba(50,18,88,0.92) 0%, rgba(80,28,120,0.88) 100%)", border: "rgba(192,132,252,0.5)" },
     { key: "items" as const, label: "Pets & Items", icon: adminIconPets, desc: "Item database", color: "#fdba74", glow: "rgba(251,146,60,0.30)", bg: "linear-gradient(145deg, rgba(72,32,8,0.92) 0%, rgba(110,52,12,0.88) 100%)", border: "rgba(251,146,60,0.45)" },
-    { key: "pets" as const, label: "Animation Parts", icon: adminIconItems, desc: "Pet database", color: "#5eead4", glow: "rgba(94,234,212,0.30)", bg: "linear-gradient(145deg, rgba(8,45,42,0.92) 0%, rgba(14,70,65,0.88) 100%)", border: "rgba(94,234,212,0.45)" },
+    { key: "pets" as const, label: "Add Character", icon: adminIconItems, desc: "Pets, enemies, NPCs & fish", color: "#5eead4", glow: "rgba(94,234,212,0.30)", bg: "linear-gradient(145deg, rgba(8,45,42,0.92) 0%, rgba(14,70,65,0.88) 100%)", border: "rgba(94,234,212,0.45)" },
     { key: "messages" as const, label: "Messages", count: unreadSupportCount || undefined, icon: adminIconMessages, desc: "Support inbox", color: "#fca5a5", glow: "rgba(252,165,165,0.30)", bg: "linear-gradient(145deg, rgba(80,18,18,0.92) 0%, rgba(110,28,28,0.88) 100%)", border: "rgba(252,165,165,0.45)" },
     { key: "badges" as const, label: "Badges", icon: adminIconBadges, desc: "Award badges", color: "#fde68a", glow: "rgba(253,230,138,0.30)", bg: "linear-gradient(145deg, rgba(72,54,0,0.92) 0%, rgba(108,80,0,0.88) 100%)", border: "rgba(253,230,138,0.45)" },
     { key: "fishing" as const, label: "Fishing", icon: adminIconFishing, desc: "Fish & ponds", color: "#93c5fd", glow: "rgba(147,197,253,0.30)", bg: "linear-gradient(145deg, rgba(12,22,60,0.92) 0%, rgba(18,36,90,0.88) 100%)", border: "rgba(147,197,253,0.45)" },
@@ -482,7 +483,76 @@ export default function AdminPage({ user }: AdminPageProps) {
               )}
 
               {activeSection === "pets" && (
-                <PetDatabasePanel />
+                <div>
+                  {/* ── Add Character: Tabs ──────────────────────────── */}
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      marginBottom: 16,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    {([
+                      { key: "pet", label: "Pet" },
+                      { key: "enemy", label: "Enemy" },
+                      { key: "npc", label: "NPC" },
+                      { key: "fish", label: "Fish" },
+                    ] as const).map(t => {
+                      const active = characterTab === t.key;
+                      return (
+                        <button
+                          key={t.key}
+                          data-testid={`tab-character-${t.key}`}
+                          onClick={() => setCharacterTab(t.key)}
+                          className="font-fantasy text-[11px] tracking-wider"
+                          style={{
+                            padding: "8px 16px",
+                            borderRadius: 8,
+                            cursor: "pointer",
+                            background: active
+                              ? "linear-gradient(135deg, rgba(94,234,212,0.25) 0%, rgba(45,212,191,0.18) 100%)"
+                              : "rgba(0,0,0,0.35)",
+                            border: active
+                              ? "1px solid rgba(94,234,212,0.6)"
+                              : "1px solid rgba(94,234,212,0.2)",
+                            color: active ? "#5eead4" : "#a89878",
+                            boxShadow: active
+                              ? "0 0 14px rgba(94,234,212,0.25)"
+                              : "none",
+                            transition: "all 0.15s ease",
+                          }}
+                        >
+                          {t.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {characterTab === "pet" && <PetDatabasePanel />}
+                  {characterTab === "enemy" && <EnemyDatabasePanel />}
+                  {characterTab === "npc" && (
+                    <div
+                      data-testid="panel-npc-placeholder"
+                      style={{
+                        padding: "40px 20px",
+                        textAlign: "center",
+                        background: "rgba(0,0,0,0.35)",
+                        border: "1px dashed rgba(94,234,212,0.3)",
+                        borderRadius: 10,
+                        color: "#a89878",
+                      }}
+                    >
+                      <p className="font-fantasy text-[#5eead4] text-sm mb-2">
+                        NPC Database
+                      </p>
+                      <p className="text-[11px]">
+                        Coming soon — NPC management will live here.
+                      </p>
+                    </div>
+                  )}
+                  {characterTab === "fish" && <FishingAdminPanel />}
+                </div>
               )}
 
               {activeSection === "messages" && (
