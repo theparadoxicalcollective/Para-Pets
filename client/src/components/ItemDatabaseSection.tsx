@@ -37,12 +37,6 @@ export interface ShopItemFull {
   createdAt: string;
 }
 
-interface PetTemplateOption {
-  id: string;
-  name: string;
-  frontAssembled: string | null;
-}
-
 export const WORLD_OPTIONS = [
   { id: "enchanted_grove", name: "Enchanted Grove" },
   { id: "snowy_mountain", name: "Frostpeak" },
@@ -523,7 +517,7 @@ function AdminItemForm({
   const [specialSkillType, setSpecialSkillType] = useState((item as any)?.specialSkillType || "");
   const [skillDamagePercent, setSkillDamagePercent] = useState(item?.skillDamagePercent?.toString() || "");
   const [skillHealPercent, setSkillHealPercent] = useState((item as any)?.skillHealPercent?.toString() || "");
-  const [petTemplateId, setPetTemplateId] = useState(item?.petTemplateId || "");
+  const petTemplateId = item?.petTemplateId || "";
   const [statBoostType, setStatBoostType] = useState(item?.statBoostType || "health");
   const [statBoostAmount, setStatBoostAmount] = useState(item?.statBoostAmount?.toString() || "10");
   const [healthRestored, setHealthRestored] = useState(item?.healthRestored?.toString() || "");

@@ -20,9 +20,7 @@ import adminIconItems from "@assets/admin_icon_items.png";
 import adminIconPets from "@assets/admin_icon_pets.png";
 import adminIconMessages from "@assets/admin_icon_messages.png";
 import adminIconBadges from "@assets/admin_icon_badges.png";
-import adminIconFishing from "@assets/admin_icon_fishing.png";
 import adminIconWelcome from "@assets/admin_icon_welcome.png";
-import adminIconEnemies from "@assets/admin_icon_enemies.png";
 import adminIconHouseBundle from "@assets/admin_icon_house_bundle.png";
 import adminIconMaintenance from "@assets/admin_icon_maintenance.png";
 import adminIconChatFilter from "@assets/admin_icon_chat_filter.png";
@@ -66,7 +64,7 @@ export default function AdminPage({ user }: AdminPageProps) {
   const [banModalUserId, setBanModalUserId] = useState<string | null>(null);
   const [banDays, setBanDays] = useState<string>("");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
-  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "welcome" | "items" | "pets" | "messages" | "badges" | "fishing" | "enemies" | "maintenance" | "home_bundle" | "purchases" | "chat_filter" | "veridian_watcher" | null>(null);
+  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "welcome" | "items" | "pets" | "messages" | "badges" | "maintenance" | "home_bundle" | "purchases" | "chat_filter" | "veridian_watcher" | null>(null);
   const [orphanResult, setOrphanResult] = useState<{ summary: string; cleaned: number } | null>(null);
   const [characterTab, setCharacterTab] = useState<"pet" | "enemy" | "npc" | "fish">("pet");
   const [itemsTab, setItemsTab] = useState<"items" | "fishing">("items");
