@@ -2047,15 +2047,15 @@ function FeedingOverlay({ pet, onClose }: { pet: HousePet; onClose: () => void }
   const burstHearts = useCallback((cx: number, cy: number, count = 7) => {
     const newOnes = Array.from({ length: count }, () => ({
       id: ++heartIdRef.current,
-      cx: cx + (Math.random() - 0.5) * 60,
+      cx: cx + (Math.random() - 0.5) * 180,
       cy,
-      dx: (Math.random() - 0.5) * 80,
-      size: 18 + Math.random() * 20,
-      delay: Math.random() * 0.35,
+      dx: (Math.random() - 0.5) * 200,
+      size: 18 + Math.random() * 22,
+      delay: Math.random() * 0.45,
     }));
     setHearts((h) => [...h, ...newOnes]);
     const ids = new Set(newOnes.map((n) => n.id));
-    setTimeout(() => setHearts((h) => h.filter((x) => !ids.has(x.id))), 2200);
+    setTimeout(() => setHearts((h) => h.filter((x) => !ids.has(x.id))), 2600);
   }, []);
 
   const burstSparkles = useCallback((cx: number, cy: number, count = 10) => {
@@ -2080,7 +2080,7 @@ function FeedingOverlay({ pet, onClose }: { pet: HousePet; onClose: () => void }
     setPetBounce(true);
     // Hold the happy expression a bit longer than the bounce so the eyes-closed
     // / open-mouth pose lingers while the hearts float.
-    setTimeout(() => setPetBounce(false), 900);
+    setTimeout(() => setPetBounce(false), 1100);
     const box = petBoxRef.current?.getBoundingClientRect();
     if (box) {
       const cx = box.left + box.width / 2;
@@ -2099,8 +2099,8 @@ function FeedingOverlay({ pet, onClose }: { pet: HousePet; onClose: () => void }
       // Glow + bounce + sparkles + floating text on successful feed.
       setPetGlow(true);
       setPetBounce(true);
-      setTimeout(() => setPetGlow(false), 600);
-      setTimeout(() => setPetBounce(false), 900);
+      setTimeout(() => setPetGlow(false), 700);
+      setTimeout(() => setPetBounce(false), 1100);
       const fed = inventory.find((it) => it.id === variables.itemInventoryId);
       const amount = fed?.statBoostAmount ?? 5;
       const id = ++floatIdRef.current;
