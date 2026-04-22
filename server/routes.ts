@@ -1491,6 +1491,7 @@ export async function registerRoutes(
         petDef: inv.petDef,
         petLevel: inv.petLevel,
         petLevelPoints: inv.petLevelPoints,
+        petFeedPoints: inv.petFeedPoints ?? 0,
         itemsUsedThisLevel: inv.itemsUsedThisLevel,
         atkBoost: shopItem?.atkBoost ?? null,
         defBoost: shopItem?.defBoost ?? null,
@@ -1887,9 +1888,6 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Pet has not hatched yet" });
       }
       const ediblePetLevel = petInv.petLevel || 1;
-      if (ediblePetLevel >= 100) {
-        return res.status(400).json({ message: "Pet is already at max level" });
-      }
 
       const itemInv = await storage.getInventoryItemById(itemInventoryId);
       if (!itemInv || itemInv.userId !== user.id) {
@@ -1901,12 +1899,13 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Not an edible item" });
       }
 
-      const lvlPoints = itemShopItem.statBoostAmount || 5;
-      const { newLevel, newPoints } = applyPetXp(ediblePetLevel, petInv.petLevelPoints || 0, lvlPoints);
-      const updates: any = { petLevelPoints: newPoints };
-      if (newLevel > ediblePetLevel) {
-        updates.petLevel = newLevel;
-      }
+      // Edibles now grant "feed points" — a separate currency tracked on the
+      // pet, NOT pet XP / auto-leveling. The admin sets the per-edible amount
+      // in the same field they used to call "level up points".
+      const feedPoints = itemShopItem.statBoostAmount || 5;
+      const updates: any = {
+        petFeedPoints: (petInv.petFeedPoints || 0) + feedPoints,
+      };
 
       const updatedPet = await storage.updateInventoryItem(petInv.id, updates);
       await storage.removeFromInventory(itemInv.id);

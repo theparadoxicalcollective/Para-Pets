@@ -97,7 +97,7 @@ export function getItemEffectText(item: ShopItemFull): string | null {
     return null;
   }
   if (item.type === "edibles") {
-    return item.statBoostAmount ? `+${item.statBoostAmount} LVL pts` : null;
+    return item.statBoostAmount ? `+${item.statBoostAmount} Feed pts` : null;
   }
   if (item.type === "fishing") {
     if (item.fishingType === "fish") {
@@ -401,11 +401,11 @@ export default function ItemDatabaseSection({
                       </div>
                       {(item.type === "power_up" || item.type === "item") && item.statBoostType && (
                         <span className="font-fantasy text-[#a89878] text-[7px]">
-                          +{item.statBoostAmount} {item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "Lvl pts"}
+                          +{item.statBoostAmount} {item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : item.statBoostType === "lvl" ? "Feed pts" : "Lvl pts"}
                         </span>
                       )}
                       {item.type === "edibles" && item.statBoostAmount && (
-                        <span className="font-fantasy text-[#86efac] text-[7px]">+{item.statBoostAmount} LVL pts when fed</span>
+                        <span className="font-fantasy text-[#86efac] text-[7px]">+{item.statBoostAmount} Feed pts when fed</span>
                       )}
                       {item.type === "potion" && (
                         <span className="font-fantasy text-[#a89878] text-[7px]">
@@ -1056,9 +1056,9 @@ function AdminItemForm({
           {!petOnly && effectiveType === "edibles" && (
             <>
               <div>
-                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">+LVL Points when fed</label>
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">+Feed Points when fed</label>
                 <input
-                  data-testid="input-edible-lvl-points"
+                  data-testid="input-edible-feed-points"
                   type="number"
                   value={edibleLvlPoints}
                   onChange={(e) => setEdibleLvlPoints(e.target.value)}
@@ -1067,9 +1067,9 @@ function AdminItemForm({
                   className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
                   style={inputStyle}
                 />
-                <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">Level points added to a pet when this edible is fed to them</p>
+                <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">Feed points added to a pet when this edible is fed to them</p>
               </div>
-              <p className="font-fantasy text-[#86efac] text-[8px] tracking-wider text-center">Edibles can be fed to pets from the Pet World page</p>
+              <p className="font-fantasy text-[#86efac] text-[8px] tracking-wider text-center">Edibles can be fed to pets from the Pet House page</p>
             </>
           )}
 

@@ -92,6 +92,9 @@ export const userInventory = pgTable("user_inventory", {
   petLevel: integer("pet_level").notNull().default(1),
   petLevelPoints: integer("pet_level_points").notNull().default(0),
   itemsUsedThisLevel: integer("items_used_this_level").notNull().default(0),
+  // Feed points are accumulated when edibles are fed to a pet. They are a
+  // separate currency from pet level/XP and do not auto-level the pet.
+  petFeedPoints: integer("pet_feed_points").notNull().default(0),
   petNickname: text("pet_nickname"),
   isListed: boolean("is_listed").notNull().default(false),
   poleUsesLeft: integer("pole_uses_left"),

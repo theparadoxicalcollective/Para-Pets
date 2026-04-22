@@ -429,28 +429,39 @@ function InteriorViewer({
             <div style={{ fontFamily: "Lora, serif", color: "#ffd700", fontSize: 14, fontWeight: 700 }}>
               {popupPet.nickname ?? popupPet.name}
             </div>
-            <div className="flex gap-2 flex-wrap justify-center">
-              <button
-                onClick={() => setPopupPet(null)}
-                className="rounded-xl px-4 py-1.5 text-xs font-bold"
-                style={{ fontFamily: "Lora, serif", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.6)" }}
-                data-testid="button-popup-cancel-indoor"
-              >Cancel</button>
+            {/* Feed is the primary CTA — larger, brighter, top-of-stack — and
+                Cancel + Return-to-Inventory sit below as smaller secondaries. */}
+            <div className="flex flex-col items-center gap-2 w-full">
               <button
                 onClick={() => { onFeedPet(popupPet); setPopupPet(null); }}
-                className="rounded-xl px-3 py-1.5 text-xs font-bold flex items-center gap-1.5"
-                style={{ fontFamily: "Lora, serif", background: "rgba(120,200,90,0.18)", border: "1px solid rgba(140,220,100,0.5)", color: "rgba(190,255,160,0.95)" }}
+                className="rounded-2xl px-7 py-3 text-base font-bold flex items-center gap-2.5 transition-transform active:scale-95"
+                style={{
+                  fontFamily: "Lora, serif",
+                  background: "linear-gradient(160deg, rgba(140,220,100,0.45) 0%, rgba(80,160,60,0.55) 100%)",
+                  border: "2px solid rgba(190,255,160,0.85)",
+                  color: "#f4ffe6",
+                  boxShadow: "0 0 18px rgba(150,230,110,0.5), 0 4px 14px rgba(0,0,0,0.5)",
+                  letterSpacing: "0.05em",
+                }}
                 data-testid="button-popup-feed-indoor"
               >
-                <img src={feedButtonIcon} alt="" style={{ width: 18, height: 18, objectFit: "contain" }} />
+                <img src={feedButtonIcon} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />
                 Feed
               </button>
-              <button
-                onClick={() => { onRemovePet(popupPet.inventoryId); setPopupPet(null); }}
-                className="rounded-xl px-4 py-1.5 text-xs font-bold"
-                style={{ fontFamily: "Lora, serif", background: "rgba(255,100,80,0.18)", border: "1px solid rgba(255,100,80,0.45)", color: "rgba(255,160,140,0.95)" }}
-                data-testid="button-popup-return-indoor"
-              >Return to Inventory</button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPopupPet(null)}
+                  className="rounded-lg px-3 py-1 text-[11px] font-bold"
+                  style={{ fontFamily: "Lora, serif", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.55)" }}
+                  data-testid="button-popup-cancel-indoor"
+                >Cancel</button>
+                <button
+                  onClick={() => { onRemovePet(popupPet.inventoryId); setPopupPet(null); }}
+                  className="rounded-lg px-3 py-1 text-[11px] font-bold"
+                  style={{ fontFamily: "Lora, serif", background: "rgba(255,100,80,0.12)", border: "1px solid rgba(255,100,80,0.35)", color: "rgba(255,160,140,0.85)" }}
+                  data-testid="button-popup-return-indoor"
+                >Return to Inventory</button>
+              </div>
             </div>
           </div>
         </div>
@@ -1225,28 +1236,37 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             <div style={{ fontFamily: "Lora, serif", color: "#ffd700", fontSize: 14, fontWeight: 700 }}>
               {outdoorPopupPet.nickname ?? outdoorPopupPet.name}
             </div>
-            <div className="flex gap-2 flex-wrap justify-center">
-              <button
-                onClick={() => setOutdoorPopupPet(null)}
-                className="rounded-xl px-4 py-1.5 text-xs font-bold"
-                style={{ fontFamily: "Lora, serif", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.6)" }}
-                data-testid="button-popup-cancel-outdoor"
-              >Cancel</button>
+            <div className="flex flex-col items-center gap-2 w-full">
               <button
                 onClick={() => { setFeedingPet(outdoorPopupPet); setOutdoorPopupPet(null); }}
-                className="rounded-xl px-3 py-1.5 text-xs font-bold flex items-center gap-1.5"
-                style={{ fontFamily: "Lora, serif", background: "rgba(120,200,90,0.18)", border: "1px solid rgba(140,220,100,0.5)", color: "rgba(190,255,160,0.95)" }}
+                className="rounded-2xl px-7 py-3 text-base font-bold flex items-center gap-2.5 transition-transform active:scale-95"
+                style={{
+                  fontFamily: "Lora, serif",
+                  background: "linear-gradient(160deg, rgba(140,220,100,0.45) 0%, rgba(80,160,60,0.55) 100%)",
+                  border: "2px solid rgba(190,255,160,0.85)",
+                  color: "#f4ffe6",
+                  boxShadow: "0 0 18px rgba(150,230,110,0.5), 0 4px 14px rgba(0,0,0,0.5)",
+                  letterSpacing: "0.05em",
+                }}
                 data-testid="button-popup-feed-outdoor"
               >
-                <img src={feedButtonIcon} alt="" style={{ width: 18, height: 18, objectFit: "contain" }} />
+                <img src={feedButtonIcon} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />
                 Feed
               </button>
-              <button
-                onClick={() => { removePetFromSceneMutation.mutate(outdoorPopupPet.inventoryId); setOutdoorPopupPet(null); }}
-                className="rounded-xl px-4 py-1.5 text-xs font-bold"
-                style={{ fontFamily: "Lora, serif", background: "rgba(255,100,80,0.18)", border: "1px solid rgba(255,100,80,0.45)", color: "rgba(255,160,140,0.95)" }}
-                data-testid="button-popup-return-outdoor"
-              >Return to Inventory</button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setOutdoorPopupPet(null)}
+                  className="rounded-lg px-3 py-1 text-[11px] font-bold"
+                  style={{ fontFamily: "Lora, serif", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.55)" }}
+                  data-testid="button-popup-cancel-outdoor"
+                >Cancel</button>
+                <button
+                  onClick={() => { removePetFromSceneMutation.mutate(outdoorPopupPet.inventoryId); setOutdoorPopupPet(null); }}
+                  className="rounded-lg px-3 py-1 text-[11px] font-bold"
+                  style={{ fontFamily: "Lora, serif", background: "rgba(255,100,80,0.12)", border: "1px solid rgba(255,100,80,0.35)", color: "rgba(255,160,140,0.85)" }}
+                  data-testid="button-popup-return-outdoor"
+                >Return to Inventory</button>
+              </div>
             </div>
           </div>
         </div>
@@ -1904,7 +1924,7 @@ function FeedingOverlay({ pet, onClose }: { pet: HousePet; onClose: () => void }
       const box = petBoxRef.current?.getBoundingClientRect();
       const cx = box ? box.left + box.width / 2 : window.innerWidth / 2;
       const cy = box ? box.top + box.height * 0.3 : window.innerHeight / 2;
-      setFloatTexts((arr) => [...arr, { id, x: cx, y: cy, text: `+${amount} LVL` }]);
+      setFloatTexts((arr) => [...arr, { id, x: cx, y: cy, text: `+${amount} Feed pts` }]);
       setTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id)), 1400);
     },
     onError: (err: any) => {
@@ -2184,7 +2204,7 @@ function FeedingOverlay({ pet, onClose }: { pet: HousePet; onClose: () => void }
                       whiteSpace: "nowrap",
                     }}
                   >
-                    +{item.statBoostAmount} LVL
+                    +{item.statBoostAmount} Feed
                   </div>
                 )}
               </div>
