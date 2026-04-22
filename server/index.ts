@@ -47,6 +47,10 @@ const apiLimiter = rateLimit({
 app.use("/api/auth/login",    loginLimiter);
 app.use("/api/auth/register", loginLimiter);
 app.use("/api", apiLimiter);
+
+// Lightweight health check for Railway / load balancers — no DB hit, no rate limit.
+app.get("/health", (_req, res) => res.status(200).json({ status: "ok" }));
+
 const httpServer = createServer(app);
 const PgSession = connectPgSimple(session);
 
