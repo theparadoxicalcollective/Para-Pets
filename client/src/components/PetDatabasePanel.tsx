@@ -61,8 +61,10 @@ interface PartDef { key: string; label: string; defaultZ: number; layer: PartLay
 type HeadIdx = 1 | 2 | 3;
 const headPrefix = (i: HeadIdx) => (i === 1 ? "" : `h${i}_`);
 
-/** Build the 11 "front of head" parts for a given head index. */
-const headFrontParts = (i: HeadIdx, baseZ: number): PartDef[] => {
+/** Build the full part stack for a given head index. The first 11 entries are
+ *  the "face stack" (drawn above body parts); back_hair is appended last and
+ *  uses a low z-index so it sits BEHIND body parts but in front of wings. */
+const headFrontParts = (i: HeadIdx, baseZ: number, backHairZ: number): PartDef[] => {
   const p = headPrefix(i);
   // Reuse the original key names for Head 1 so existing data is preserved.
   const k = (suffix: string) => `${p}${suffix}`;
@@ -78,11 +80,12 @@ const headFrontParts = (i: HeadIdx, baseZ: number): PartDef[] => {
     { key: k("head"),         label: "Head",             defaultZ: baseZ + 2,  layer: "front" },
     { key: k("left_ear"),     label: "Left Ear",         defaultZ: baseZ + 1,  layer: "front" },
     { key: k("right_ear"),    label: "Right Ear",        defaultZ: baseZ + 0,  layer: "front" },
+    // Back hair lives in this head's section but renders behind the body so
+    // it visually sways behind the head/shoulders. Per-head so each head has
+    // its own swaying hair piece on multi-headed pets.
+    { key: k("back_hair"),    label: "Back Hair",        defaultZ: backHairZ,  layer: "back"  },
   ];
 };
-
-const headBackHair = (i: HeadIdx, z: number): PartDef =>
-  ({ key: `${headPrefix(i)}back_hair`, label: "Back Hair", defaultZ: z, layer: "back" });
 
 const headWingPair = (i: HeadIdx, zL: number): PartDef[] => [
   { key: `${headPrefix(i)}head_wing_left`,  label: "Head Wing Left",  defaultZ: zL,     layer: "back" },
@@ -92,12 +95,12 @@ const headWingPair = (i: HeadIdx, zL: number): PartDef[] => [
 // Z bands keep heads clearly above body, body above back hair, back hair above
 // all wings. Multi-head pets get separate bands so they don't z-fight.
 const FRONT_PART_GROUPS: { group: string; parts: PartDef[]; collapsed?: boolean }[] = [
-  // ── Heads (each is a complete face/ear/hair stack) ─────────────────────
-  { group: "Head One",   parts: headFrontParts(1, 100) },
-  { group: "Head Two",   parts: headFrontParts(2, 85),  collapsed: true },
-  { group: "Head Three", parts: headFrontParts(3, 70),  collapsed: true },
+  // ── Heads (each is a complete face/ear/hair stack including back hair) ──
+  { group: "Head One",   parts: headFrontParts(1, 100, 35) },
+  { group: "Head Two",   parts: headFrontParts(2, 85,  34), collapsed: true },
+  { group: "Head Three", parts: headFrontParts(3, 70,  33), collapsed: true },
 
-  // ── Body (drawn under all heads) ───────────────────────────────────────
+  // ── Body (drawn under all heads, above back hair) ──────────────────────
   { group: "Body Parts", parts: [
     { key: "left_shoulder",  label: "Left Shoulder",  defaultZ: 54, layer: "front" },
     { key: "right_shoulder", label: "Right Shoulder", defaultZ: 53, layer: "front" },
@@ -109,13 +112,6 @@ const FRONT_PART_GROUPS: { group: string; parts: PartDef[]; collapsed?: boolean 
     { key: "tail",           label: "Tail One",       defaultZ: 47, layer: "back",  defaultPivotX: 50, defaultPivotY: 0 },
     { key: "tail_2",         label: "Tail Two",       defaultZ: 46, layer: "back",  defaultPivotX: 50, defaultPivotY: 0 },
     { key: "tail_3",         label: "Tail Three",     defaultZ: 45, layer: "back",  defaultPivotX: 50, defaultPivotY: 0 },
-  ]},
-
-  // ── Back hair (one per head — sits behind body, in front of all wings) ──
-  { group: "Back Hair",  parts: [
-    headBackHair(1, 35),
-    headBackHair(2, 34),
-    headBackHair(3, 33),
   ]},
 
   // ── Head-anchored wings (per head, behind back hair) ───────────────────
@@ -804,7 +800,6 @@ export default function PetDatabasePanel({ initialTemplateId }: { initialTemplat
               (n, pt) => n + (viewParts.some(p => p.partType === pt.key) ? 1 : 0),
               0,
             );
-            const showCanFly = (group.group === "Wings" || group.parts.some(p => p.key.includes("wing"))) && templateDetail;
             return (
             <div key={group.group}>
               <div className="flex items-center gap-2 mb-1">
@@ -822,23 +817,6 @@ export default function PetDatabasePanel({ initialTemplateId }: { initialTemplat
                     </span>
                   )}
                 </button>
-                {showCanFly && (
-                  <button
-                    data-testid="checkbox-can-fly"
-                    onClick={() => canFlyMutation.mutate({ id: templateDetail.id, canFly: !templateDetail.canFly })}
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full font-fantasy text-[9px] tracking-wider transition-all active:scale-95"
-                    style={{
-                      background: templateDetail.canFly ? "rgba(127,255,212,0.2)" : "rgba(0,0,0,0.25)",
-                      border: `1px solid ${templateDetail.canFly ? "rgba(127,255,212,0.6)" : "rgba(106,88,64,0.4)"}`,
-                      color: templateDetail.canFly ? "#7fffd4" : "#6a5840",
-                      cursor: "pointer",
-                      boxShadow: templateDetail.canFly ? "0 0 8px rgba(127,255,212,0.25)" : "none",
-                    }}
-                  >
-                    <span>{templateDetail.canFly ? "✦" : "○"}</span>
-                    Can Fly
-                  </button>
-                )}
               </div>
               {isOpen && (
               <div className="flex flex-col gap-1.5">
@@ -924,6 +902,24 @@ export default function PetDatabasePanel({ initialTemplateId }: { initialTemplat
             </button>
           </div>
         )}
+
+        {/* Single Can-Fly toggle, sitting just above the Save button so it's
+            always visible regardless of which part group is expanded. */}
+        <button
+          data-testid="checkbox-can-fly"
+          onClick={() => canFlyMutation.mutate({ id: templateDetail.id, canFly: !templateDetail.canFly })}
+          className="w-full flex items-center justify-center gap-2 py-2 rounded-lg font-fantasy text-[11px] tracking-wider transition-all active:scale-95"
+          style={{
+            background: templateDetail.canFly ? "rgba(127,255,212,0.18)" : "rgba(0,0,0,0.3)",
+            border: `1px solid ${templateDetail.canFly ? "rgba(127,255,212,0.6)" : "rgba(106,88,64,0.4)"}`,
+            color: templateDetail.canFly ? "#7fffd4" : "#a89878",
+            cursor: "pointer",
+            boxShadow: templateDetail.canFly ? "0 0 10px rgba(127,255,212,0.25)" : "none",
+          }}
+        >
+          <span style={{ fontSize: 14 }}>{templateDetail.canFly ? "✦" : "○"}</span>
+          {templateDetail.canFly ? "Can Fly — On" : "Can Fly — Off"}
+        </button>
 
         <div className="flex gap-2">
           <button
