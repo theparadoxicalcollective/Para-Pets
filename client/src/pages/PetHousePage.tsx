@@ -2039,8 +2039,24 @@ function FeedingOverlay({ pet, onClose }: { pet: HousePet; onClose: () => void }
   const [petBounce, setPetBounce] = useState(false);
   const [floatTexts, setFloatTexts] = useState<{ id: number; x: number; y: number; text: string }[]>([]);
   const [sparkles, setSparkles] = useState<{ id: number; cx: number; cy: number; dx: number; dy: number; rot: number; size: number }[]>([]);
+  const [hearts, setHearts] = useState<{ id: number; cx: number; cy: number; dx: number; size: number; delay: number }[]>([]);
   const floatIdRef = useRef(0);
   const sparkIdRef = useRef(0);
+  const heartIdRef = useRef(0);
+
+  const burstHearts = useCallback((cx: number, cy: number, count = 7) => {
+    const newOnes = Array.from({ length: count }, () => ({
+      id: ++heartIdRef.current,
+      cx: cx + (Math.random() - 0.5) * 60,
+      cy,
+      dx: (Math.random() - 0.5) * 80,
+      size: 18 + Math.random() * 20,
+      delay: Math.random() * 0.35,
+    }));
+    setHearts((h) => [...h, ...newOnes]);
+    const ids = new Set(newOnes.map((n) => n.id));
+    setTimeout(() => setHearts((h) => h.filter((x) => !ids.has(x.id))), 2200);
+  }, []);
 
   const burstSparkles = useCallback((cx: number, cy: number, count = 10) => {
     const newOnes = Array.from({ length: count }, () => {
@@ -2062,10 +2078,17 @@ function FeedingOverlay({ pet, onClose }: { pet: HousePet; onClose: () => void }
 
   const onPetClick = useCallback(() => {
     setPetBounce(true);
-    setTimeout(() => setPetBounce(false), 600);
+    // Hold the happy expression a bit longer than the bounce so the eyes-closed
+    // / open-mouth pose lingers while the hearts float.
+    setTimeout(() => setPetBounce(false), 900);
     const box = petBoxRef.current?.getBoundingClientRect();
-    if (box) burstSparkles(box.left + box.width / 2, box.top + box.height / 2, 12);
-  }, [burstSparkles]);
+    if (box) {
+      const cx = box.left + box.width / 2;
+      const cy = box.top + box.height / 2;
+      burstSparkles(cx, cy, 8);
+      burstHearts(cx, cy + 30, 7);
+    }
+  }, [burstSparkles, burstHearts]);
 
   const feedMutation = useMutation({
     mutationFn: async ({ itemInventoryId }: { itemInventoryId: string }) => {
@@ -2077,7 +2100,7 @@ function FeedingOverlay({ pet, onClose }: { pet: HousePet; onClose: () => void }
       setPetGlow(true);
       setPetBounce(true);
       setTimeout(() => setPetGlow(false), 600);
-      setTimeout(() => setPetBounce(false), 600);
+      setTimeout(() => setPetBounce(false), 900);
       const fed = inventory.find((it) => it.id === variables.itemInventoryId);
       const amount = fed?.statBoostAmount ?? 5;
       const id = ++floatIdRef.current;
@@ -2086,7 +2109,12 @@ function FeedingOverlay({ pet, onClose }: { pet: HousePet; onClose: () => void }
       const cy = box ? box.top + box.height * 0.3 : window.innerHeight / 2;
       setFloatTexts((arr) => [...arr, { id, x: cx, y: cy, text: `+${amount} Feed pts` }]);
       setTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id)), 1400);
-      if (box) burstSparkles(box.left + box.width / 2, box.top + box.height / 2, 14);
+      if (box) {
+        const bx = box.left + box.width / 2;
+        const by = box.top + box.height / 2;
+        burstSparkles(bx, by, 14);
+        burstHearts(bx, by + 30, 8);
+      }
     },
     onError: (err: any) => {
       toast({
@@ -2231,6 +2259,7 @@ function FeedingOverlay({ pet, onClose }: { pet: HousePet; onClose: () => void }
               mode="idle"
               size={300}
               fillContainer
+              expression={petBounce ? "happy" : "neutral"}
             />
           ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
             <img
@@ -2268,6 +2297,41 @@ function FeedingOverlay({ pet, onClose }: { pet: HousePet; onClose: () => void }
       >
         Drag an edible onto your pet
       </div>
+
+      {/* Floating heart layer — appears when the pet is clicked or fed */}
+      {hearts.map((h) => (
+        <div
+          key={h.id}
+          className="fixed pointer-events-none feed-heart-rise"
+          style={{
+            left: h.cx,
+            top: h.cy,
+            width: h.size,
+            height: h.size,
+            ["--dx" as any]: `${h.dx}px`,
+            animationDelay: `${h.delay}s`,
+            zIndex: 514,
+            color: "#ff5d6c",
+          }}
+        >
+          <svg viewBox="0 0 24 24" width={h.size} height={h.size}>
+            <defs>
+              <radialGradient id={`hg${h.id}`} cx="35%" cy="35%" r="70%">
+                <stop offset="0%" stopColor="#ffb3bb" />
+                <stop offset="55%" stopColor="#ff5d6c" />
+                <stop offset="100%" stopColor="#a8112a" />
+              </radialGradient>
+            </defs>
+            <path
+              d="M12 21s-7.5-4.6-9.6-9.4C1.1 8.4 3 5 6.3 5c1.9 0 3.6 1 4.7 2.6C12.1 6 13.8 5 15.7 5 19 5 20.9 8.4 19.6 11.6 17.5 16.4 12 21 12 21z"
+              fill={`url(#hg${h.id})`}
+              stroke="#7a0a1c"
+              strokeWidth="0.6"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </div>
+      ))}
 
       {/* Sparkle burst layer */}
       {sparkles.map((s) => (

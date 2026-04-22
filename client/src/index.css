@@ -384,6 +384,18 @@
   filter: drop-shadow(0 0 6px rgba(255, 220, 120, 0.95));
 }
 
+/* Floating hearts that rise from a happy pet — uses CSS var --dx for sway */
+@keyframes feed-heart-rise {
+  0%   { transform: translate(-50%, -50%) scale(0.4) rotate(-6deg); opacity: 0; }
+  15%  { transform: translate(-50%, -60%) scale(1.15) rotate(0deg);  opacity: 1; }
+  60%  { transform: translate(calc(-50% + var(--dx, 0px) * 0.6), -160%) scale(1) rotate(6deg); opacity: 0.95; }
+  100% { transform: translate(calc(-50% + var(--dx, 0px)), -260%)        scale(0.85) rotate(-4deg); opacity: 0; }
+}
+.feed-heart-rise {
+  animation: feed-heart-rise 1.9s ease-out forwards;
+  filter: drop-shadow(0 0 8px rgba(255, 100, 120, 0.7)) drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+}
+
 @keyframes float {
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-6px); }

@@ -24,8 +24,23 @@ interface PetAnimatorProps {
   /** When true, expands the inner canvas so the visual output fills `size` exactly,
    *  compensating for the large-style 0.3× scale factor. Use in pet-house contexts. */
   fillContainer?: boolean;
+  /** Override face parts to show a specific expression. "happy" forces eyes
+   *  closed and mouth open (when those parts exist on the template), used
+   *  when the pet is being celebrated (clicked / fed on the feeding page). */
+  expression?: "neutral" | "happy";
   className?: string;
   style?: React.CSSProperties;
+}
+
+// Face-part substitutions for non-neutral expressions. Returns the desired
+// opacity for a given part, or `null` to mean "use the default".
+function expressionOpacity(partType: string, expression: "neutral" | "happy"): number | null {
+  if (expression !== "happy") return null;
+  // Strip head prefix so h2_eyes / h3_eyes are handled the same as eyes.
+  const base = partType.replace(/^h[23]_/, "");
+  if (base === "eyes" || base === "mouth_closed") return 0;       // hide
+  if (base === "eyes_closed" || base === "mouth") return 1;       // force show
+  return null;
 }
 
 const CANVAS_SIZE = 1000;
@@ -413,7 +428,7 @@ function buildHeadGroups(parts: PetPart[]): { head: PetPart; faceParts: PetPart[
   return groups;
 }
 
-export default function PetAnimator({ petTemplateId, mode, view = "front", size = 200, fillContainer = false, className = "", style: externalStyle }: PetAnimatorProps) {
+export default function PetAnimator({ petTemplateId, mode, view = "front", size = 200, fillContainer = false, expression = "neutral", className = "", style: externalStyle }: PetAnimatorProps) {
   // Stable random blink offset per instance — spreads eye animations across the
   // full 4 s blink cycle so pets don't all blink at the same time.
   const blinkOffset = useRef(`-${(Math.random() * 4).toFixed(2)}s`);
@@ -598,6 +613,15 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
               {allGroupParts.map((part) => {
                 const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
                 const isEyePart = isEyePartType(part.partType);
+                // When in a non-neutral expression, freeze the face into the
+                // desired pose by killing the blink/mouth animations and
+                // forcing the right opacity. Eyes_closed + mouth (open) are
+                // pinned visible; eyes + mouth_closed are pinned hidden.
+                const exprOp = expressionOpacity(part.partType, expression);
+                if (exprOp !== null) {
+                  if (exprOp === 0) return null;
+                  return renderPartImg(part, null, 1);
+                }
 
                 if (mode === "static") {
                   if (isAnimOnly) return null;
