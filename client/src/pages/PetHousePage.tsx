@@ -123,13 +123,24 @@ function parsePetPct(s: string | null): number | null {
   return null;
 }
 
+// Per-user request: indoor and outdoor pet sizes were swapped. Outdoor pets
+// now use a single fixed size (formerly the indoor value), and indoor pets
+// pick up the per-pet randomized 100–130 range previously used outdoors.
+const OUTDOOR_PET_SIZE = 110;
+
 function randomGroundConfig(index: number) {
   const seed = index * 137.508;
   const pseudo = (n: number) => ((Math.sin(n) * 10000) % 1 + 1) % 1;
-  const size = 100 + pseudo(seed + 2) * 30;
   const centerX = 20 + pseudo(seed) * 60;
   const centerY = 64 + pseudo(seed + 1) * 11;
-  return { size, centerX, centerY };
+  return { size: OUTDOOR_PET_SIZE, centerX, centerY };
+}
+
+// Indoor pet sizing: same per-pet random range that outdoor pets used to use.
+function indoorPetSize(index: number): number {
+  const seed = index * 137.508;
+  const pseudo = (n: number) => ((Math.sin(n) * 10000) % 1 + 1) % 1;
+  return 100 + pseudo(seed + 2) * 30;
 }
 
 // ── Interior Viewer ──────────────────────────────────────────────────────────
@@ -295,7 +306,6 @@ function InteriorViewer({
     placedItems.map(item => itemDragLive?.id === item.id ? { ...item, xPct: itemDragLive.xPct, yPct: itemDragLive.yPct } : item),
     [placedItems, itemDragLive]);
 
-  const PET_SIZE = 110;
 
   return (
     <div
@@ -365,17 +375,20 @@ function InteriorViewer({
       })}
 
       {/* Pets inside this building */}
-      {imgWidth > 0 && placedPets.map((pet) => {
+      {imgWidth > 0 && placedPets.map((pet, i) => {
         const livePos = petDragLive?.inventoryId === pet.inventoryId ? petDragLive : null;
         const xPct = livePos?.xPct ?? (parsePetPct(pet.posLeft) ?? 0.5);
         const yPct = livePos?.yPct ?? (parsePetPct(pet.posTop) ?? 0.5);
         const left = panX + xPct * imgWidth;
         const top = yPct * containerH;
+        // Indoor pets use a per-pet randomized size (same range outdoor pets
+        // used previously) so each pet feels distinct rather than uniform.
+        const petSize = indoorPetSize(i);
         return (
           <div
             key={pet.inventoryId}
             className="absolute"
-            style={{ zIndex: topPetId === pet.inventoryId ? 9 : 7, left, top, width: PET_SIZE, height: PET_SIZE, transform: "translate(-50%, -50%)", touchAction: "none", cursor: "grab" }}
+            style={{ zIndex: topPetId === pet.inventoryId ? 9 : 7, left, top, width: petSize, height: petSize, transform: "translate(-50%, -50%)", touchAction: "none", cursor: "grab" }}
             onPointerDown={(e) => onPetDown(e, pet)}
             onPointerMove={onPetMove}
             onPointerUp={onPetUp}
