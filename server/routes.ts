@@ -1935,8 +1935,11 @@ export async function registerRoutes(
     }
   });
 
-  // Daily pet-petting reward. Players earn 10 coins the first time they pet
-  // their pet (Care page) each calendar day. Returns { rewarded, coins, nextAvailableAt }.
+  // Pet-petting rewards. The first petting of each UTC day always grants 10
+  // coins. Up to 4 additional rewards (3-5 coins each, randomized) may follow
+  // the same day, each with a chance to fire on every subsequent successful
+  // petting circle. The animation itself plays every time client-side; this
+  // endpoint just decides whether coins should appear with it.
   app.post("/api/pets/petting-reward", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
@@ -1945,19 +1948,41 @@ export async function registerRoutes(
 
       const now = new Date();
       const last = fresh.lastPettingRewardAt ? new Date(fresh.lastPettingRewardAt) : null;
-      // Day-bucket comparison (UTC). One reward per UTC day.
-      const sameDay = last
+      const sameDay = !!last
         && last.getUTCFullYear() === now.getUTCFullYear()
         && last.getUTCMonth() === now.getUTCMonth()
         && last.getUTCDate() === now.getUTCDate();
 
-      if (sameDay) {
-        return res.json({ rewarded: false, coins: fresh.coins, alreadyClaimedToday: true });
+      // Reset the daily counter when the UTC day rolls over (or on the very
+      // first petting ever).
+      const countSoFar = sameDay ? (fresh.pettingRewardsToday ?? 0) : 0;
+
+      const MAX_REWARDS_PER_DAY = 5;        // 1 guaranteed + 4 randomized
+      const EXTRA_REWARD_CHANCE = 0.30;     // ~30% per attempt after the first
+
+      // First petting today → guaranteed 10 coins.
+      if (countSoFar === 0) {
+        const updated = await storage.addCoins(user.id, 10);
+        await storage.setLastPettingRewardAt(user.id, now);
+        await storage.setPettingRewardsToday(user.id, 1);
+        return res.json({ rewarded: true, coins: updated.coins, amount: 10 });
       }
 
-      const updated = await storage.addCoins(user.id, 10);
+      // Already used the day's allotment → just animation, no coins.
+      if (countSoFar >= MAX_REWARDS_PER_DAY) {
+        return res.json({ rewarded: false, coins: fresh.coins });
+      }
+
+      // Random chance for each extra reward.
+      if (Math.random() > EXTRA_REWARD_CHANCE) {
+        return res.json({ rewarded: false, coins: fresh.coins });
+      }
+
+      const amount = 3 + Math.floor(Math.random() * 3); // 3, 4, or 5
+      const updated = await storage.addCoins(user.id, amount);
       await storage.setLastPettingRewardAt(user.id, now);
-      return res.json({ rewarded: true, coins: updated.coins, amount: 10 });
+      await storage.setPettingRewardsToday(user.id, countSoFar + 1);
+      return res.json({ rewarded: true, coins: updated.coins, amount });
     } catch (err) {
       console.error("Petting reward error:", err);
       return res.status(500).json({ message: "Failed to grant petting reward" });

@@ -318,6 +318,8 @@ app.use((req, res, next) => {
     () => db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_watcher_greeted_at timestamp`));
   await runMigration("users.last_petting_reward_at",
     () => db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_petting_reward_at timestamp`));
+  await runMigration("users.petting_rewards_today",
+    () => db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS petting_rewards_today integer NOT NULL DEFAULT 0`));
 
   // Run-once migration tracker — for migrations that should only execute a
   // single time across all deploys (e.g. data resets), keyed by string id.

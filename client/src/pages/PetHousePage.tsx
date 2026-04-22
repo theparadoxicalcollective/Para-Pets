@@ -2201,7 +2201,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
   const heartIdRef = useRef(0);
 
   // Reward coins spawned by the daily petting circle gesture.
-  const [rewardCoins, setRewardCoins] = useState<{ id: number; cx: number; cy: number; flying?: boolean }[]>([]);
+  const [rewardCoins, setRewardCoins] = useState<{ id: number; cx: number; cy: number; flying?: boolean; batch?: number }[]>([]);
   const [coinsCollectedThisReward, setCoinsCollectedThisReward] = useState(0);
   const coinIdRef = useRef(0);
   const coinChipRef = useRef<HTMLDivElement>(null);
@@ -2242,36 +2242,45 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
         id: ++coinIdRef.current,
         cx: p.x,
         cy: p.y,
+        batch: count,
       };
     });
     setRewardCoins((c) => [...c, ...newCoins]);
     setCoinsCollectedThisReward(0);
   }, [clampToFrame]);
 
-  // Daily petting reward — server enforces once per UTC day, returns rewarded:false otherwise.
+  // Pet-petting reward. The server returns { rewarded, amount } — the first
+  // petting each day always grants 10 coins, with up to 4 random extras (3-5
+  // coins) thereafter. The hearts/sparkles animation always fires regardless.
   const pettingRewardMutation = useMutation({
     mutationFn: async () => {
       return await apiRequest("POST", `/api/pets/petting-reward`, {});
     },
     onSuccess: (data: any) => {
-      if (data?.rewarded) {
-        spawnRewardCoins(10);
-      } else if (data?.alreadyClaimedToday) {
-        // Silent grab — the daily coin drop is a secret. When the player has
-        // already claimed today, give them a generous heart shower instead so
-        // the gesture still feels rewarding (just no coins, no message).
+      if (data?.rewarded && data?.amount > 0) {
+        spawnRewardCoins(data.amount);
+      } else {
+        // No coins this time — sprinkle a few extra hearts so the gesture
+        // still feels rewarding.
         const box = petBoxRef.current?.getBoundingClientRect();
         if (box) {
           const cx = box.left + box.width / 2;
           const cy = box.top + box.height / 2;
-          burstHearts(cx, cy + 30, 10);
+          burstHearts(cx, cy + 30, 6);
         }
       }
     },
   });
 
   const collectCoin = useCallback((coinId: number) => {
-    setRewardCoins((coins) => coins.map((c) => c.id === coinId ? { ...c, flying: true } : c));
+    let batchSize = 1;
+    setRewardCoins((coins) => coins.map((c) => {
+      if (c.id === coinId) {
+        batchSize = c.batch ?? 1;
+        return { ...c, flying: true };
+      }
+      return c;
+    }));
     // Bump the visible counter immediately so the player sees coins land.
     setDisplayCoins((n) => n + 1);
     setCoinsCollectedThisReward((n) => {
@@ -2280,7 +2289,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
       // the rest of the app sees the new total.
       setTimeout(() => {
         setRewardCoins((coins) => coins.filter((c) => c.id !== coinId));
-        if (next >= 10) {
+        if (next >= batchSize) {
           qc.invalidateQueries({ queryKey: ["/api/auth/me"] });
         }
       }, 700);
@@ -2881,7 +2890,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
               <div>
                 <p style={{ color: "#ffd866", fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", marginBottom: 4 }}>DAILY COINS</p>
                 <p style={{ color: "#aac8a0", fontSize: 11, lineHeight: 1.55 }}>
-                  Once a day, properly petting your pet will scatter <strong style={{ color: "#ffd866" }}>10 coins</strong> around it. Tap each coin to add it to your balance.
+                  Properly petting your pet will scatter <strong style={{ color: "#ffd866" }}>coins</strong> around it. Tap each coin to add it to your balance — the more you pet, the more coins you can find!
                 </p>
               </div>
             </div>

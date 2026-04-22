@@ -89,6 +89,7 @@ export interface IStorage {
   setWelcomeV2Sent(id: string): Promise<void>;
   setLastWatcherGreetedAt(id: string, when: Date): Promise<void>;
   setLastPettingRewardAt(id: string, when: Date): Promise<void>;
+  setPettingRewardsToday(id: string, count: number): Promise<void>;
   updatePassword(id: string, hashedPassword: string): Promise<User>;
   deleteAccount(id: string): Promise<void>;
   setPasswordResetToken(id: string, token: string, expires: Date): Promise<void>;
@@ -425,6 +426,10 @@ export class DatabaseStorage implements IStorage {
 
   async setLastPettingRewardAt(id: string, when: Date): Promise<void> {
     await db.update(users).set({ lastPettingRewardAt: when }).where(eq(users.id, id));
+  }
+
+  async setPettingRewardsToday(id: string, count: number): Promise<void> {
+    await db.update(users).set({ pettingRewardsToday: count }).where(eq(users.id, id));
   }
 
   async updatePassword(id: string, hashedPassword: string): Promise<User> {

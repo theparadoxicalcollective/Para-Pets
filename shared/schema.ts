@@ -31,6 +31,10 @@ export const users = pgTable("users", {
   // Daily pet-petting reward: timestamp of the last time the player claimed
   // the +10 coins for petting a pet on the Care page.
   lastPettingRewardAt: timestamp("last_petting_reward_at"),
+  // Number of petting rewards already granted today (UTC). Resets when a new
+  // UTC day begins. First petting of the day is always a guaranteed 10-coin
+  // grant; up to 4 additional random grants (3-5 coins each) follow.
+  pettingRewardsToday: integer("petting_rewards_today").notNull().default(0),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
