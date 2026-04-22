@@ -1325,11 +1325,11 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         })}
       </div>
 
-      {/* Inventory overlay panel — always z-96 so FloatingNav (z-9999) shows above it */}
+      {/* Inventory overlay panel — z-250 so it rises above the FloatingNav main button (z-96) */}
       {openInventory && (
         <div
           className="absolute inset-0 flex flex-col justify-end"
-          style={{ zIndex: openInterior ? 70 : 96, pointerEvents: "none", visibility: (isDraggingDecor || isDraggingPet) ? "hidden" : "visible" }}
+          style={{ zIndex: openInterior ? 70 : 250, pointerEvents: "none", visibility: (isDraggingDecor || isDraggingPet) ? "hidden" : "visible" }}
         >
           <div className="absolute inset-0" style={{ pointerEvents: "auto" }} onPointerDown={(e) => { e.stopPropagation(); setOpenInventory(null); }} />
           <div
