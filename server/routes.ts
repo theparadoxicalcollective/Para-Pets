@@ -1935,6 +1935,35 @@ export async function registerRoutes(
     }
   });
 
+  // Daily pet-petting reward. Players earn 10 coins the first time they pet
+  // their pet (Care page) each calendar day. Returns { rewarded, coins, nextAvailableAt }.
+  app.post("/api/pets/petting-reward", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const fresh = await storage.getUser(user.id);
+      if (!fresh) return res.status(404).json({ message: "User not found" });
+
+      const now = new Date();
+      const last = fresh.lastPettingRewardAt ? new Date(fresh.lastPettingRewardAt) : null;
+      // Day-bucket comparison (UTC). One reward per UTC day.
+      const sameDay = last
+        && last.getUTCFullYear() === now.getUTCFullYear()
+        && last.getUTCMonth() === now.getUTCMonth()
+        && last.getUTCDate() === now.getUTCDate();
+
+      if (sameDay) {
+        return res.json({ rewarded: false, coins: fresh.coins, alreadyClaimedToday: true });
+      }
+
+      const updated = await storage.addCoins(user.id, 10);
+      await storage.setLastPettingRewardAt(user.id, now);
+      return res.json({ rewarded: true, coins: updated.coins, amount: 10 });
+    } catch (err) {
+      console.error("Petting reward error:", err);
+      return res.status(500).json({ message: "Failed to grant petting reward" });
+    }
+  });
+
   app.post("/api/pet/:inventoryId/feed-edible", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;

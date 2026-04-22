@@ -27,19 +27,28 @@ interface PetAnimatorProps {
   /** Override face parts to show a specific expression. "happy" forces eyes
    *  closed and mouth open (when those parts exist on the template), used
    *  when the pet is being celebrated (clicked / fed on the feeding page). */
-  expression?: "neutral" | "happy";
+  expression?: "neutral" | "happy" | "petted";
   className?: string;
   style?: React.CSSProperties;
 }
 
 // Face-part substitutions for non-neutral expressions. Returns the desired
 // opacity for a given part, or `null` to mean "use the default".
-function expressionOpacity(partType: string, expression: "neutral" | "happy"): number | null {
-  if (expression !== "happy") return null;
+function expressionOpacity(partType: string, expression: "neutral" | "happy" | "petted"): number | null {
+  if (expression === "neutral") return null;
   // Strip head prefix so h2_eyes / h3_eyes are handled the same as eyes.
   const base = partType.replace(/^h[23]_/, "");
-  if (base === "eyes" || base === "mouth_closed") return 0;       // hide
-  if (base === "eyes_closed" || base === "mouth") return 1;       // force show
+  if (expression === "happy") {
+    if (base === "eyes" || base === "mouth_closed") return 0;       // hide
+    if (base === "eyes_closed" || base === "mouth") return 1;       // force show
+    return null;
+  }
+  // "petted": eyes-closed only (no mouth swap), the pet is contentedly squinting.
+  if (expression === "petted") {
+    if (base === "eyes") return 0;
+    if (base === "eyes_closed") return 1;
+    return null;
+  }
   return null;
 }
 

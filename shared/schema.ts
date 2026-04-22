@@ -28,6 +28,9 @@ export const users = pgTable("users", {
   totalCoinsEarned: integer("total_coins_earned").notNull().default(0),
   watcherShoutoutsEnabled: boolean("watcher_shoutouts_enabled").notNull().default(true),
   lastWatcherGreetedAt: timestamp("last_watcher_greeted_at"),
+  // Daily pet-petting reward: timestamp of the last time the player claimed
+  // the +10 coins for petting a pet on the Care page.
+  lastPettingRewardAt: timestamp("last_petting_reward_at"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 

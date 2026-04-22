@@ -20,6 +20,7 @@ import moodFaceHappy from "@assets/mood_face_happy.png";
 import moodFaceContent from "@assets/mood_face_content.png";
 import moodFaceSad from "@assets/mood_face_sad.png";
 import moodFaceHungry from "@assets/mood_face_hungry.png";
+import coinIconImg from "@assets/icon_coin.png";
 import LoadingScreen from "@/components/LoadingScreen";
 import GiftClaimModal from "@/components/GiftClaimModal";
 import FriendProfileModal from "@/components/FriendProfileModal";
@@ -1974,6 +1975,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       {feedingPet && (
         <FeedingOverlay
           pet={feedingPet}
+          user={currentUser}
+          onUserUpdate={(u) => setCurrentUser(u)}
           onClose={() => setFeedingPet(null)}
         />
       )}
@@ -2109,7 +2112,12 @@ function PetStatusBars({
   );
 }
 
-function FeedingOverlay({ pet, onClose }: { pet: HousePet; onClose: () => void }) {
+function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
+  pet: HousePet;
+  user: any;
+  onUserUpdate: (u: any) => void;
+  onClose: () => void;
+}) {
   const qc = useQueryClient();
   const { toast } = useToast();
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -2144,12 +2152,98 @@ function FeedingOverlay({ pet, onClose }: { pet: HousePet; onClose: () => void }
   const petBoxRef = useRef<HTMLDivElement>(null);
   const [petGlow, setPetGlow] = useState(false);
   const [petBounce, setPetBounce] = useState(false);
+  // Petting state: pressed = pointer is held on the pet (squish + eyes closed),
+  // circling = a circular gesture is in progress (adds bounce + hearts).
+  const [petPressed, setPetPressed] = useState(false);
+  const [petCircling, setPetCircling] = useState(false);
+  const [showCareTutorial, setShowCareTutorial] = useState(false);
+  // Petting gesture tracking.
+  const petGestureRef = useRef<{
+    pid: number;
+    cx: number; cy: number;            // pet center in viewport coords
+    lastAngle: number | null;
+    travel: number;                     // cumulative |dθ|
+    rewardTriedThisPress: boolean;
+    circleResetTimer: number | null;
+    heartTimer: number | null;
+  } | null>(null);
   const [floatTexts, setFloatTexts] = useState<{ id: number; x: number; y: number; text: string }[]>([]);
   const [sparkles, setSparkles] = useState<{ id: number; cx: number; cy: number; dx: number; dy: number; rot: number; size: number }[]>([]);
   const [hearts, setHearts] = useState<{ id: number; cx: number; cy: number; dx: number; size: number; delay: number }[]>([]);
   const floatIdRef = useRef(0);
   const sparkIdRef = useRef(0);
   const heartIdRef = useRef(0);
+
+  // Reward coins spawned by the daily petting circle gesture.
+  const [rewardCoins, setRewardCoins] = useState<{ id: number; cx: number; cy: number; flying?: boolean }[]>([]);
+  const [coinsCollectedThisReward, setCoinsCollectedThisReward] = useState(0);
+  const coinIdRef = useRef(0);
+  const coinChipRef = useRef<HTMLDivElement>(null);
+  // Visible coin balance for the in-overlay chip — starts from prop, bumps as
+  // the player taps each spinning coin so the total feels earned coin-by-coin.
+  const [displayCoins, setDisplayCoins] = useState<number>(user?.coins ?? 0);
+  useEffect(() => { setDisplayCoins(user?.coins ?? 0); }, [user?.coins]);
+
+  // Preload the feeding background once so the overlay doesn't flash the
+  // pet-house view through while the image is still being fetched.
+  useEffect(() => {
+    const img = new Image();
+    img.src = feedingPageBg;
+  }, []);
+
+  const spawnRewardCoins = useCallback((count: number) => {
+    const box = petBoxRef.current?.getBoundingClientRect();
+    if (!box) return;
+    const cx = box.left + box.width / 2;
+    const cy = box.top + box.height / 2;
+    const newCoins = Array.from({ length: count }, (_, i) => {
+      const angle = (i / count) * Math.PI * 2 + Math.random() * 0.4;
+      const radius = 60 + Math.random() * 70;
+      return {
+        id: ++coinIdRef.current,
+        cx: cx + Math.cos(angle) * radius,
+        cy: cy + Math.sin(angle) * radius - 20,
+      };
+    });
+    setRewardCoins((c) => [...c, ...newCoins]);
+    setCoinsCollectedThisReward(0);
+  }, []);
+
+  // Daily petting reward — server enforces once per UTC day, returns rewarded:false otherwise.
+  const pettingRewardMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", `/api/pets/petting-reward`, {});
+    },
+    onSuccess: (data: any) => {
+      if (data?.rewarded) {
+        spawnRewardCoins(10);
+      } else if (data?.alreadyClaimedToday) {
+        // Quiet, non-blocking nudge so the player understands why no coins fell.
+        toast({
+          title: "Already petted today",
+          description: "Come back tomorrow for more coins!",
+        });
+      }
+    },
+  });
+
+  const collectCoin = useCallback((coinId: number) => {
+    setRewardCoins((coins) => coins.map((c) => c.id === coinId ? { ...c, flying: true } : c));
+    // Bump the visible counter immediately so the player sees coins land.
+    setDisplayCoins((n) => n + 1);
+    setCoinsCollectedThisReward((n) => {
+      const next = n + 1;
+      // After the last coin's fly-in completes, reconcile the user record so
+      // the rest of the app sees the new total.
+      setTimeout(() => {
+        setRewardCoins((coins) => coins.filter((c) => c.id !== coinId));
+        if (next >= 10) {
+          qc.invalidateQueries({ queryKey: ["/api/auth/me"] });
+        }
+      }, 700);
+      return next;
+    });
+  }, [qc]);
 
   const burstHearts = useCallback((cx: number, cy: number, count = 7) => {
     const newOnes = Array.from({ length: count }, () => ({
@@ -2183,19 +2277,94 @@ function FeedingOverlay({ pet, onClose }: { pet: HousePet; onClose: () => void }
     setTimeout(() => setSparkles((s) => s.filter((x) => !ids.has(x.id))), 1200);
   }, []);
 
-  const onPetClick = useCallback(() => {
-    setPetBounce(true);
-    // Hold the happy expression a bit longer than the bounce so the eyes-closed
-    // / open-mouth pose lingers while the hearts float.
-    setTimeout(() => setPetBounce(false), 1100);
+  // ── Petting gesture ──────────────────────────────────────────────────────
+  // Press the pet → squish + closed eyes (no bounce). Drag in a circular
+  // motion → adds a small bounce + heart bursts, and once per UTC day grants
+  // the player +10 coins (server-enforced) which spawn as collectable spinners.
+  const onPetPointerDown = useCallback((e: React.PointerEvent) => {
+    if (dragRef.current) return; // ignore — an item is being dragged onto the pet
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
     const box = petBoxRef.current?.getBoundingClientRect();
-    if (box) {
-      const cx = box.left + box.width / 2;
-      const cy = box.top + box.height / 2;
-      burstSparkles(cx, cy, 8);
-      burstHearts(cx, cy + 30, 7);
+    if (!box) return;
+    petGestureRef.current = {
+      pid: e.pointerId,
+      cx: box.left + box.width / 2,
+      cy: box.top + box.height / 2,
+      lastAngle: null,
+      travel: 0,
+      rewardTriedThisPress: false,
+      circleResetTimer: null,
+      heartTimer: null,
+    };
+    setPetPressed(true);
+  }, []);
+
+  const triggerCircleEffects = useCallback(() => {
+    setPetCircling(true);
+    const g = petGestureRef.current;
+    if (!g) return;
+    // Continuously emit a few hearts while circling.
+    if (g.heartTimer == null) {
+      const tick = () => {
+        const cur = petGestureRef.current;
+        if (!cur) return;
+        burstHearts(cur.cx, cur.cy + 30, 2);
+      };
+      tick();
+      g.heartTimer = window.setInterval(tick, 380);
     }
-  }, [burstSparkles, burstHearts]);
+    // If circling stops for 350ms, drop the bounce/hearts.
+    if (g.circleResetTimer != null) window.clearTimeout(g.circleResetTimer);
+    g.circleResetTimer = window.setTimeout(() => {
+      const cur = petGestureRef.current;
+      if (cur?.heartTimer != null) {
+        window.clearInterval(cur.heartTimer);
+        if (cur) cur.heartTimer = null;
+      }
+      setPetCircling(false);
+    }, 350);
+  }, [burstHearts]);
+
+  const onPetPointerMove = useCallback((e: React.PointerEvent) => {
+    const g = petGestureRef.current;
+    if (!g || g.pid !== e.pointerId) return;
+    const dx = e.clientX - g.cx;
+    const dy = e.clientY - g.cy;
+    const dist = Math.hypot(dx, dy);
+    // Need to be off-center to compute meaningful angles (avoid jitter near center).
+    if (dist < 30) return;
+    const angle = Math.atan2(dy, dx);
+    if (g.lastAngle != null) {
+      let d = angle - g.lastAngle;
+      while (d > Math.PI) d -= 2 * Math.PI;
+      while (d < -Math.PI) d += 2 * Math.PI;
+      g.travel += Math.abs(d);
+      // Once accumulated angular travel exceeds ~3/4 of a full turn, count it
+      // as a circle motion: trigger the cute response and (once per press)
+      // request the daily reward.
+      if (g.travel > Math.PI * 1.5) {
+        triggerCircleEffects();
+        if (!g.rewardTriedThisPress) {
+          g.rewardTriedThisPress = true;
+          pettingRewardMutation.mutate();
+        }
+        // Allow continued circling to keep effect going by resetting travel.
+        g.travel = 0;
+      }
+    }
+    g.lastAngle = angle;
+  }, [triggerCircleEffects, pettingRewardMutation]);
+
+  const endPetGesture = useCallback((e: React.PointerEvent) => {
+    const g = petGestureRef.current;
+    if (!g || g.pid !== e.pointerId) return;
+    if (g.heartTimer != null) window.clearInterval(g.heartTimer);
+    if (g.circleResetTimer != null) window.clearTimeout(g.circleResetTimer);
+    petGestureRef.current = null;
+    setPetPressed(false);
+    setPetCircling(false);
+  }, []);
 
   const feedMutation = useMutation({
     mutationFn: async ({ itemInventoryId }: { itemInventoryId: string }) => {
@@ -2263,7 +2432,11 @@ function FeedingOverlay({ pet, onClose }: { pet: HousePet; onClose: () => void }
       className="fixed inset-0"
       style={{
         zIndex: 500,
-        background: `linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.25) 60%, rgba(0,0,0,0.55) 100%), url(${feedingPageBg}) center/cover no-repeat`,
+        backgroundColor: "#0c1a10",
+        backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.25) 60%, rgba(0,0,0,0.55) 100%), url(${feedingPageBg})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
         maxWidth: "768px", margin: "0 auto", left: 0, right: 0,
         touchAction: "none",
       }}
@@ -2273,7 +2446,7 @@ function FeedingOverlay({ pet, onClose }: { pet: HousePet; onClose: () => void }
       data-testid="overlay-feeding"
     >
       {/* Top bar */}
-      <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 pt-4" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 14px)" }}>
+      <div className="absolute top-0 left-0 right-0 flex items-center justify-between gap-2 px-4 pt-4" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 14px)" }}>
         <div
           className="px-3 py-1.5 rounded-full"
           style={{
@@ -2291,22 +2464,58 @@ function FeedingOverlay({ pet, onClose }: { pet: HousePet; onClose: () => void }
         >
           Caring for {pet.nickname ?? pet.name}
         </div>
-        <button
-          onClick={onClose}
-          className="w-9 h-9 rounded-full flex items-center justify-center"
-          style={{
-            background: "rgba(15,25,12,0.75)",
-            border: "1px solid rgba(180,255,160,0.4)",
-            backdropFilter: "blur(6px)",
-            color: "#dfffd0",
-            fontFamily: "Lora, serif",
-            fontWeight: 700,
-            fontSize: 18,
-            cursor: "pointer",
-          }}
-          data-testid="button-close-feeding"
-          aria-label="Close feeding"
-        >×</button>
+        <div className="flex items-center gap-2">
+          {/* Coin balance chip — coins fly into this when collected. */}
+          <div
+            ref={coinChipRef}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full"
+            style={{
+              background: "rgba(15,25,12,0.7)",
+              border: "1px solid rgba(255,210,90,0.45)",
+              backdropFilter: "blur(6px)",
+              boxShadow: "0 2px 12px rgba(0,0,0,0.4)",
+            }}
+            data-testid="chip-feeding-coins"
+          >
+            <img src={coinIconImg} alt="coin" style={{ width: 18, height: 18, objectFit: "contain" }} />
+            <span style={{ fontFamily: "Lora, serif", color: "#ffe49a", fontSize: 13, fontWeight: 700, letterSpacing: "0.04em" }} data-testid="text-feeding-coins">
+              {displayCoins.toLocaleString()}
+            </span>
+          </div>
+          {/* Help / tutorial button */}
+          <button
+            onClick={() => setShowCareTutorial(true)}
+            className="w-9 h-9 rounded-full flex items-center justify-center"
+            style={{
+              background: "rgba(15,25,12,0.75)",
+              border: "1px solid rgba(180,255,160,0.4)",
+              backdropFilter: "blur(6px)",
+              color: "#dfffd0",
+              fontFamily: "Lora, serif",
+              fontWeight: 700,
+              fontSize: 16,
+              cursor: "pointer",
+            }}
+            data-testid="button-care-help"
+            aria-label="How to care for your pet"
+          >?</button>
+          <button
+            onClick={onClose}
+            className="w-9 h-9 rounded-full flex items-center justify-center"
+            style={{
+              background: "rgba(15,25,12,0.75)",
+              border: "1px solid rgba(180,255,160,0.4)",
+              backdropFilter: "blur(6px)",
+              color: "#dfffd0",
+              fontFamily: "Lora, serif",
+              fontWeight: 700,
+              fontSize: 18,
+              cursor: "pointer",
+            }}
+            data-testid="button-close-feeding"
+            aria-label="Close feeding"
+          >×</button>
+        </div>
       </div>
 
       {/* Floating glowing orbs around the pet — pure decoration */}
@@ -2347,8 +2556,12 @@ function FeedingOverlay({ pet, onClose }: { pet: HousePet; onClose: () => void }
             ? "drop-shadow(0 0 32px rgba(190,255,160,1)) drop-shadow(0 0 14px rgba(255,220,120,0.85)) drop-shadow(0 6px 16px rgba(0,0,0,0.55))"
             : "drop-shadow(0 0 18px rgba(190,255,160,0.55)) drop-shadow(0 0 8px rgba(255,220,120,0.35)) drop-shadow(0 6px 16px rgba(0,0,0,0.55))",
           transition: "filter 0.3s ease",
+          touchAction: "none",
         }}
-        onClick={onPetClick}
+        onPointerDown={onPetPointerDown}
+        onPointerMove={onPetPointerMove}
+        onPointerUp={endPetGesture}
+        onPointerCancel={endPetGesture}
         data-testid="drop-zone-feed-pet"
       >
         {/* Soft radial halo behind the pet */}
@@ -2359,14 +2572,22 @@ function FeedingOverlay({ pet, onClose }: { pet: HousePet; onClose: () => void }
               "radial-gradient(circle, rgba(190,255,160,0.22) 0%, rgba(190,255,160,0.06) 45%, transparent 70%)",
           }}
         />
-        <div className={petBounce ? "feed-pet-happy" : "pet-idle-squish"} style={{ width: "100%", height: "100%" }}>
+        <div
+          className={
+            petBounce ? "feed-pet-happy"
+            : petCircling ? "pet-care-squish-bounce"
+            : petPressed ? "pet-care-squish"
+            : "pet-idle-squish"
+          }
+          style={{ width: "100%", height: "100%" }}
+        >
           {pet.petTemplateId ? (
             <PetAnimator
               petTemplateId={pet.petTemplateId}
               mode="idle"
               size={300}
               fillContainer
-              expression={petBounce ? "happy" : "neutral"}
+              expression={petBounce ? "happy" : (petPressed || petCircling) ? "petted" : "neutral"}
             />
           ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
             <img
@@ -2475,6 +2696,130 @@ function FeedingOverlay({ pet, onClose }: { pet: HousePet; onClose: () => void }
           {f.text}
         </div>
       ))}
+
+      {/* Petting reward — spinning coins. Tap to collect; each one flies into
+          the coin chip up top with a +1 bump. */}
+      {rewardCoins.map((c) => {
+        const chipBox = coinChipRef.current?.getBoundingClientRect();
+        const targetX = chipBox ? chipBox.left + chipBox.width / 2 : c.cx;
+        const targetY = chipBox ? chipBox.top + chipBox.height / 2 : c.cy - 200;
+        const tx = targetX - c.cx;
+        const ty = targetY - c.cy;
+        return (
+          <button
+            key={c.id}
+            onClick={() => !c.flying && collectCoin(c.id)}
+            className={c.flying ? "fixed care-coin care-coin-fly" : "fixed care-coin care-coin-spin"}
+            style={{
+              left: c.cx,
+              top: c.cy,
+              transform: "translate(-50%, -50%)",
+              width: 38,
+              height: 38,
+              padding: 0,
+              border: "none",
+              background: "transparent",
+              cursor: c.flying ? "default" : "pointer",
+              zIndex: 520,
+              ["--care-coin-tx" as any]: `${tx}px`,
+              ["--care-coin-ty" as any]: `${ty}px`,
+            }}
+            data-testid={`button-care-coin-${c.id}`}
+            aria-label="Collect coin"
+          >
+            <img
+              src={coinIconImg}
+              alt="coin"
+              draggable={false}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                pointerEvents: "none",
+                filter: "drop-shadow(0 0 10px rgba(255,210,90,0.9)) drop-shadow(0 4px 6px rgba(0,0,0,0.5))",
+              }}
+            />
+          </button>
+        );
+      })}
+
+      {/* Care tutorial overlay */}
+      {showCareTutorial && (
+        <div
+          className="absolute inset-0 z-[600] flex items-center justify-center px-5"
+          style={{ background: "rgba(0,0,0,0.78)", backdropFilter: "blur(2px)" }}
+          onClick={() => setShowCareTutorial(false)}
+          data-testid="overlay-care-tutorial"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-sm rounded-2xl px-5 py-6 flex flex-col gap-4 animate-slide-up"
+            style={{
+              background: "linear-gradient(160deg, rgba(8,18,10,0.98) 0%, rgba(5,12,7,0.98) 100%)",
+              border: "1.5px solid rgba(180,255,160,0.45)",
+              boxShadow: "0 0 50px rgba(120,200,120,0.15), 0 8px 32px rgba(0,0,0,0.7)",
+              maxHeight: "85vh",
+              overflowY: "auto",
+            }}
+          >
+            <button
+              onClick={() => setShowCareTutorial(false)}
+              className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center transition-transform active:scale-90"
+              style={{
+                background: "rgba(20,40,20,0.85)",
+                border: "1.5px solid rgba(180,255,160,0.35)",
+                color: "rgba(200,255,180,0.85)",
+                cursor: "pointer",
+              }}
+              data-testid="button-close-care-tutorial"
+            >×</button>
+            <p className="font-fantasy text-center text-base tracking-wider" style={{ color: "#c8ff90", paddingRight: 24 }}>
+              Caring for your pet
+            </p>
+            <div className="flex flex-col gap-3" style={{ fontFamily: "Lora, serif" }}>
+              <div className="pb-3" style={{ borderBottom: "1px solid rgba(180,255,160,0.15)" }}>
+                <p style={{ color: "#c8ff90", fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", marginBottom: 4 }}>FEED</p>
+                <p style={{ color: "#aac8a0", fontSize: 11, lineHeight: 1.55 }}>
+                  Drag any edible from the bottom strip onto your pet to fill its hunger meter and lift its mood.
+                </p>
+              </div>
+              <div className="pb-3" style={{ borderBottom: "1px solid rgba(180,255,160,0.15)" }}>
+                <p style={{ color: "#c8ff90", fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", marginBottom: 4 }}>PET</p>
+                <p style={{ color: "#aac8a0", fontSize: 11, lineHeight: 1.55 }}>
+                  Press and hold your pet to give it a cuddle — it will close its eyes and snuggle in.
+                </p>
+              </div>
+              <div className="pb-3" style={{ borderBottom: "1px solid rgba(180,255,160,0.15)" }}>
+                <p style={{ color: "#c8ff90", fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", marginBottom: 4 }}>RUB IN A CIRCLE</p>
+                <p style={{ color: "#aac8a0", fontSize: 11, lineHeight: 1.55 }}>
+                  While holding, drag your finger in a circular motion over the pet. It will bounce happily and shower hearts.
+                </p>
+              </div>
+              <div>
+                <p style={{ color: "#ffd866", fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", marginBottom: 4 }}>DAILY COINS</p>
+                <p style={{ color: "#aac8a0", fontSize: 11, lineHeight: 1.55 }}>
+                  Once a day, properly petting your pet will scatter <strong style={{ color: "#ffd866" }}>10 coins</strong> around it. Tap each coin to add it to your balance.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowCareTutorial(false)}
+              className="py-2.5 rounded-full transition-transform active:scale-95"
+              style={{
+                background: "linear-gradient(135deg, rgba(40,80,40,0.9) 0%, rgba(20,50,20,0.9) 100%)",
+                border: "1px solid rgba(180,255,160,0.5)",
+                color: "#c8ff90",
+                fontFamily: "Lora, serif",
+                fontWeight: 700,
+                fontSize: 13,
+                letterSpacing: "0.18em",
+                cursor: "pointer",
+              }}
+              data-testid="button-got-it-care-tutorial"
+            >GOT IT</button>
+          </div>
+        </div>
+      )}
 
       {/* Bottom edible strip */}
       <div

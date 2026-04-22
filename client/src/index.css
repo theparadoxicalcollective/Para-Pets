@@ -373,6 +373,55 @@
   will-change: transform;
 }
 
+/* Care page — pet is being held (pressed). Static squish, no bounce. */
+.pet-care-squish {
+  transform: scaleY(0.92) scaleX(1.06) translateY(4px);
+  transform-origin: center bottom;
+  transition: transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  will-change: transform;
+}
+
+/* Care page — circular petting motion. Squished + a small affectionate bounce. */
+@keyframes pet-care-squish-bounce {
+  0%   { transform: scaleY(0.92) scaleX(1.06) translateY(4px); }
+  50%  { transform: scaleY(0.95) scaleX(1.04) translateY(-3px); }
+  100% { transform: scaleY(0.92) scaleX(1.06) translateY(4px); }
+}
+.pet-care-squish-bounce {
+  animation: pet-care-squish-bounce 0.55s ease-in-out infinite;
+  transform-origin: center bottom;
+  will-change: transform;
+}
+
+/* Care page — petting reward coins. Spawned in a ring around the pet,
+   spinning in place. Tap to "collect" — the coin then translates toward
+   the coin chip (CSS vars --care-coin-tx / --care-coin-ty) while shrinking. */
+@keyframes care-coin-spin {
+  0%   { transform: translate(-50%, -50%) scale(0.4) rotateY(0deg);   opacity: 0; }
+  20%  { transform: translate(-50%, -50%) scale(1)   rotateY(180deg); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1)   rotateY(1800deg); opacity: 1; }
+}
+.care-coin-spin {
+  animation: care-coin-spin 1.6s ease-out infinite alternate;
+  will-change: transform;
+}
+
+@keyframes care-coin-fly {
+  0%   { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  60%  { opacity: 1; }
+  100% {
+    transform: translate(calc(-50% + var(--care-coin-tx, 0px)),
+                         calc(-50% + var(--care-coin-ty, 0px)))
+               scale(0.35);
+    opacity: 0;
+  }
+}
+.care-coin-fly {
+  animation: care-coin-fly 0.65s cubic-bezier(0.5, 0, 0.7, 1) forwards;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
 /* Gold sparkle burst — uses CSS vars set inline (--dx, --dy, --rot) */
 @keyframes feed-sparkle {
   0%   { transform: translate(-50%, -50%) scale(0.4) rotate(0deg);   opacity: 0; }
