@@ -171,7 +171,7 @@ function CarePopup({
   return (
     <div
       className="absolute inset-0 flex flex-col items-center justify-center"
-      style={{ zIndex, background: "rgba(0,0,0,0.55)" }}
+      style={{ zIndex, background: "transparent" }}
       onPointerDown={(e) => { e.stopPropagation(); onCancel(); }}
       data-testid="care-popup-backdrop"
     >
@@ -217,39 +217,39 @@ function CarePopup({
             zIndex: -1,
           }}
         />
-        {/* Care (fruit bowl) hotspot */}
+        {/* Care (fruit bowl) hotspot — centered over the bowl artwork */}
         <button
           data-testid="button-care-care"
           onPointerDown={(e) => handle(e, fruitColors, onCare)}
           aria-label="Care"
           className="absolute"
           style={{
-            left: "32%", top: "36%", width: "36%", height: "34%",
+            left: "37%", top: "36%", width: "26%", height: "26%",
             background: "transparent", border: "none", cursor: "pointer",
             WebkitTapHighlightColor: "transparent",
           }}
         />
-        {/* Cancel hotspot (left tablet) */}
+        {/* Cancel hotspot (left tablet — green moss-trimmed plaque) */}
         <button
           data-testid="button-care-cancel"
           onPointerDown={(e) => handle(e, cancelColors, onCancel)}
           aria-label="Cancel"
           className="absolute"
           style={{
-            left: "27%", top: "73%", width: "23%", height: "13%",
+            left: "27%", top: "63%", width: "20%", height: "11%",
             background: "transparent", border: "none", cursor: "pointer",
             WebkitTapHighlightColor: "transparent",
             borderRadius: 14,
           }}
         />
-        {/* Return-to-inventory hotspot (right tablet) */}
+        {/* Return-to-inventory hotspot (right tablet — wood-brown plaque) */}
         <button
           data-testid="button-care-return"
           onPointerDown={(e) => handle(e, returnColors, onReturn)}
           aria-label="Return to Inventory"
           className="absolute"
           style={{
-            left: "52%", top: "73%", width: "25%", height: "13%",
+            left: "52%", top: "63%", width: "23%", height: "11%",
             background: "transparent", border: "none", cursor: "pointer",
             WebkitTapHighlightColor: "transparent",
             borderRadius: 14,
