@@ -396,6 +396,16 @@
   filter: drop-shadow(0 0 8px rgba(255, 100, 120, 0.7)) drop-shadow(0 2px 4px rgba(0,0,0,0.5));
 }
 
+/* Pet-action-ring sparkle particle — uses CSS vars --dx, --dy set inline. */
+@keyframes ring-sparkle {
+  0%   { transform: translate(-50%, -50%) scale(0.3) rotate(0deg);   opacity: 0; }
+  18%  { transform: translate(-50%, -50%) scale(1.25) rotate(45deg); opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--dx, 0px)), calc(-50% + var(--dy, 0px))) scale(0.4) rotate(180deg); opacity: 0; }
+}
+.ring-sparkle {
+  animation: ring-sparkle 0.95s ease-out forwards;
+}
+
 @keyframes float {
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-6px); }

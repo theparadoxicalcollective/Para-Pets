@@ -4,6 +4,7 @@ import { X, HelpCircle, Zap, Star, RotateCcw, ShieldPlus } from "lucide-react";
 import PetEquipAccessoriesPage from "@/components/PetEquipAccessoriesPage";
 import WorldChatPanel from "@/components/WorldChatPanel";
 import worldChatIconImg from "@assets/icon_world_chat_new.png";
+import petActionRingImg from "@assets/Photoroom_20260422_14619_PM_1776883671627.png";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import bgImg from "@assets/bg_home_v2.png";
@@ -99,6 +100,32 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const [hatchedPetCache, setHatchedPetCache] = useState<{ hatchedImageUrl: string | null; imageUrl: string | null; petTemplateId: string | null; name: string } | null>(null);
   const [showActionMenu, setShowActionMenu] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  // Sparkle bursts for the pet-action ring buttons. Each entry is one floating
+  // particle positioned in viewport coords with a colour that matches the
+  // rune that was tapped.
+  const [ringSparkles, setRingSparkles] = useState<
+    { id: number; x: number; y: number; dx: number; dy: number; color: string; size: number; delay: number }[]
+  >([]);
+  const ringSparkIdRef = useRef(0);
+  const burstRingSparkles = useCallback((cx: number, cy: number, color: string, count = 14) => {
+    const newOnes = Array.from({ length: count }, () => {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 40 + Math.random() * 70;
+      return {
+        id: ++ringSparkIdRef.current,
+        x: cx,
+        y: cy,
+        dx: Math.cos(angle) * dist,
+        dy: Math.sin(angle) * dist,
+        color,
+        size: 6 + Math.random() * 10,
+        delay: Math.random() * 0.12,
+      };
+    });
+    setRingSparkles((s) => [...s, ...newOnes]);
+    const ids = new Set(newOnes.map((n) => n.id));
+    setTimeout(() => setRingSparkles((s) => s.filter((x) => !ids.has(x.id))), 1200);
+  }, []);
   const [activePetModal, setActivePetModal] = useState<"power_up" | "level_up" | "equip_accessories" | null>(null);
   const [petModalSuccess, setPetModalSuccess] = useState<{ type: "stat" | "level" | "hatch"; label: string } | null>(null);
   // Keep last known activePet so modals don't unmount mid-action
@@ -907,170 +934,158 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         </div>
       )}
 
-      {/* ── Active pet action menu ── */}
+      {/* ── Active pet action menu (mystical ring) ── */}
       {!isOverlayActive && showActionMenu && activePetForModal && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
           <div
-            className="absolute inset-0 bg-black/65 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             onClick={() => { setShowActionMenu(false); setShowResetConfirm(false); }}
+            data-testid="backdrop-action-menu"
           />
+          {/* Ring image with invisible hotspots over each rune */}
           <div
-            className="relative w-full rounded-t-3xl overflow-hidden"
+            className="relative"
             style={{
-              background: "linear-gradient(180deg, rgba(10,20,12,0.99) 0%, rgba(6,14,8,0.99) 100%)",
-              border: "1.5px solid rgba(74,222,128,0.18)",
-              borderBottom: "none",
-              boxShadow: "0 -8px 40px rgba(0,0,0,0.7), 0 -2px 0 rgba(74,222,128,0.15)",
+              width: "min(92vw, 520px)",
+              aspectRatio: "1 / 1",
+              backgroundImage: `url(${petActionRingImg})`,
+              backgroundSize: "contain",
+              backgroundRepeat: "no-repeat",
+              backgroundPosition: "center",
+              filter: "drop-shadow(0 12px 40px rgba(0,0,0,0.6))",
             }}
           >
-            {/* Handle */}
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full" style={{ background: "rgba(74,222,128,0.3)" }} />
-            </div>
-
-            {/* Pet identity header */}
-            <div className="flex items-center justify-between px-5 pt-2 pb-4">
-              <div>
-                <p className="font-fantasy text-lg font-bold tracking-wider" style={{ color: "#fcd34d", textShadow: "0 0 14px rgba(252,211,77,0.4)" }}>
-                  {activePetForModal.petNickname || activePetForModal.name}
-                </p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="font-fantasy text-[10px] px-2 py-0.5 rounded-full" style={{ background: "rgba(192,132,252,0.15)", color: "#c084fc", border: "1px solid rgba(192,132,252,0.3)" }}>
-                    LV {activePetForModal.petLevel}
-                  </span>
-                  <span style={{ color: "#fcd34d", fontSize: 11 }}>
-                    {"★".repeat(activePetForModal.rarity || 1)}
-                  </span>
-                </div>
-              </div>
-              <button
-                data-testid="button-close-action-menu"
-                onClick={() => { setShowActionMenu(false); setShowResetConfirm(false); }}
-                className="w-9 h-9 rounded-full flex items-center justify-center"
-                style={{ background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", color: "#888", cursor: "pointer" }}
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            {!showResetConfirm ? (
-              <div className="px-5 pb-10 flex flex-col gap-3">
-                {/* Power Up */}
+            {/* Helper: build a hotspot button */}
+            {(() => {
+              const makeBtn = (
+                key: string,
+                testId: string,
+                pos: { left: string; top: string; width: string; height: string },
+                color: string,
+                onActivate: () => void,
+              ) => (
                 <button
-                  data-testid="button-action-power-up"
-                  onClick={() => { setShowActionMenu(false); setActivePetModal("power_up"); }}
-                  className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all active:scale-95"
-                  style={{
-                    background: "linear-gradient(135deg, rgba(74,222,128,0.15) 0%, rgba(34,197,94,0.08) 100%)",
-                    border: "1.5px solid rgba(74,222,128,0.35)",
-                    boxShadow: "0 0 20px rgba(74,222,128,0.1)",
-                    cursor: "pointer",
+                  key={key}
+                  data-testid={testId}
+                  onClick={(e) => {
+                    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                    burstRingSparkles(r.left + r.width / 2, r.top + r.height / 2, color, 16);
+                    setTimeout(onActivate, 280);
                   }}
-                >
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(74,222,128,0.2)", border: "1px solid rgba(74,222,128,0.4)" }}>
-                    <Zap size={22} style={{ color: "#4ade80", filter: "drop-shadow(0 0 6px rgba(74,222,128,0.8))" }} />
-                  </div>
-                  <div className="text-left">
-                    <p className="font-fantasy font-bold tracking-wider" style={{ color: "#4ade80", fontSize: 14, textShadow: "0 0 10px rgba(74,222,128,0.5)" }}>POWER UP</p>
-                    <p className="font-fantasy text-[#6a9a6a] text-[10px] tracking-wide mt-0.5">Boost HP, ATK, or DEF stats</p>
-                  </div>
-                  <span className="ml-auto font-fantasy text-[#4ade80] text-lg opacity-50">›</span>
-                </button>
-
-                {/* Level Up */}
-                <button
-                  data-testid="button-action-level-up"
-                  onClick={() => { setShowActionMenu(false); setActivePetModal("level_up"); }}
-                  className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all active:scale-95"
+                  aria-label={key}
+                  className="absolute rounded-full"
                   style={{
-                    background: "linear-gradient(135deg, rgba(252,211,77,0.15) 0%, rgba(240,192,64,0.08) 100%)",
-                    border: "1.5px solid rgba(252,211,77,0.35)",
-                    boxShadow: "0 0 20px rgba(252,211,77,0.1)",
+                    ...pos,
+                    background: "transparent",
+                    border: "none",
                     cursor: "pointer",
+                    WebkitTapHighlightColor: "transparent",
                   }}
-                >
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(252,211,77,0.2)", border: "1px solid rgba(252,211,77,0.4)" }}>
-                    <Star size={22} style={{ color: "#fcd34d", filter: "drop-shadow(0 0 6px rgba(252,211,77,0.8))" }} />
-                  </div>
-                  <div className="text-left">
-                    <p className="font-fantasy font-bold tracking-wider" style={{ color: "#fcd34d", fontSize: 14, textShadow: "0 0 10px rgba(252,211,77,0.5)" }}>LEVEL UP</p>
-                    <p className="font-fantasy text-[#8a7a3a] text-[10px] tracking-wide mt-0.5">Use XP items to raise your pet's level</p>
-                  </div>
-                  <span className="ml-auto font-fantasy text-[#fcd34d] text-lg opacity-50">›</span>
-                </button>
-
-                {/* Equip Accessories */}
-                <button
-                  data-testid="button-action-equip-accessories"
-                  onClick={() => { setShowActionMenu(false); setActivePetModal("equip_accessories"); }}
-                  className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all active:scale-95"
-                  style={{
-                    background: "linear-gradient(135deg, rgba(192,132,252,0.15) 0%, rgba(147,51,234,0.08) 100%)",
-                    border: "1.5px solid rgba(192,132,252,0.35)",
-                    boxShadow: "0 0 20px rgba(192,132,252,0.08)",
-                    cursor: "pointer",
-                  }}
-                >
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(192,132,252,0.2)", border: "1px solid rgba(192,132,252,0.4)" }}>
-                    <ShieldPlus size={20} style={{ color: "#c084fc", filter: "drop-shadow(0 0 6px rgba(192,132,252,0.7))" }} />
-                  </div>
-                  <div className="text-left">
-                    <p className="font-fantasy font-bold tracking-wider" style={{ color: "#c084fc", fontSize: 14, textShadow: "0 0 10px rgba(192,132,252,0.4)" }}>EQUIP ACCESSORIES</p>
-                    <p className="font-fantasy text-[#6a4a8a] text-[10px] tracking-wide mt-0.5">Manage your pet's equipped accessories</p>
-                  </div>
-                  <span className="ml-auto font-fantasy text-[#c084fc] text-lg opacity-50">›</span>
-                </button>
-
-                {/* Reset Stats */}
-                <button
-                  data-testid="button-action-reset-stats"
-                  onClick={() => setShowResetConfirm(true)}
-                  className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all active:scale-95"
-                  style={{
-                    background: "linear-gradient(135deg, rgba(248,113,113,0.1) 0%, rgba(220,60,60,0.06) 100%)",
-                    border: "1.5px solid rgba(248,113,113,0.25)",
-                    cursor: "pointer",
-                  }}
-                >
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(248,113,113,0.15)", border: "1px solid rgba(248,113,113,0.3)" }}>
-                    <RotateCcw size={20} style={{ color: "#f87171" }} />
-                  </div>
-                  <div className="text-left">
-                    <p className="font-fantasy font-bold tracking-wider" style={{ color: "#f87171", fontSize: 14 }}>RESET STATS</p>
-                    <p className="font-fantasy text-[#8a4a4a] text-[10px] tracking-wide mt-0.5">Restore base stats (costs coins)</p>
-                  </div>
-                  <span className="ml-auto font-fantasy text-[#f87171] text-lg opacity-50">›</span>
-                </button>
-              </div>
-            ) : (
-              <div className="px-5 pb-10 flex flex-col gap-4">
-                <div className="rounded-2xl p-4" style={{ background: "rgba(248,113,113,0.08)", border: "1.5px solid rgba(248,113,113,0.25)" }}>
-                  <p className="font-fantasy text-[#f87171] text-sm font-bold tracking-wider mb-1">Confirm Reset?</p>
-                  <p className="font-fantasy text-[#8a5a5a] text-[11px] leading-relaxed">
-                    This will restore {activePetForModal.petNickname || activePetForModal.name}'s stats to their base values. This action costs coins and cannot be undone.
-                  </p>
-                </div>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setShowResetConfirm(false)}
-                    className="flex-1 py-3 rounded-xl font-fantasy text-sm tracking-wider"
-                    style={{ background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", color: "#888", cursor: "pointer" }}
-                  >
-                    CANCEL
-                  </button>
-                  <button
-                    data-testid="button-confirm-reset"
-                    onClick={() => resetMutation.mutate(activePetForModal.inventoryId)}
-                    disabled={resetMutation.isPending}
-                    className="flex-1 py-3 rounded-xl font-fantasy text-sm tracking-wider transition-all active:scale-95 disabled:opacity-50"
-                    style={{ background: "linear-gradient(135deg, rgba(220,60,60,0.4) 0%, rgba(180,40,40,0.4) 100%)", border: "1.5px solid rgba(248,113,113,0.5)", color: "#f87171", cursor: "pointer", boxShadow: "0 0 14px rgba(248,113,113,0.2)" }}
-                  >
-                    {resetMutation.isPending ? "RESETTING..." : "CONFIRM RESET"}
-                  </button>
-                </div>
-              </div>
-            )}
+                />
+              );
+              return (
+                <>
+                  {makeBtn(
+                    "Power Up",
+                    "button-action-power-up",
+                    { left: "38%", top: "5%", width: "24%", height: "20%" },
+                    "#4ade80",
+                    () => { setShowActionMenu(false); setActivePetModal("power_up"); },
+                  )}
+                  {makeBtn(
+                    "Reset Stats",
+                    "button-action-reset-stats",
+                    { left: "5%", top: "40%", width: "22%", height: "22%" },
+                    "#f87171",
+                    () => setShowResetConfirm(true),
+                  )}
+                  {makeBtn(
+                    "Level Up",
+                    "button-action-level-up",
+                    { left: "73%", top: "40%", width: "22%", height: "22%" },
+                    "#fcd34d",
+                    () => { setShowActionMenu(false); setActivePetModal("level_up"); },
+                  )}
+                  {makeBtn(
+                    "Equip Accessories",
+                    "button-action-equip-accessories",
+                    { left: "38%", top: "68%", width: "24%", height: "22%" },
+                    "#c084fc",
+                    () => { setShowActionMenu(false); setActivePetModal("equip_accessories"); },
+                  )}
+                </>
+              );
+            })()}
           </div>
+
+          {/* Reset confirm dialog overlays the ring when triggered */}
+          {showResetConfirm && (
+            <div
+              className="absolute z-10 rounded-2xl px-5 py-5 flex flex-col gap-4"
+              style={{
+                width: "min(88vw, 380px)",
+                background: "linear-gradient(180deg, rgba(20,8,8,0.97) 0%, rgba(12,4,4,0.97) 100%)",
+                border: "1.5px solid rgba(248,113,113,0.45)",
+                boxShadow: "0 12px 40px rgba(0,0,0,0.75), 0 0 30px rgba(248,113,113,0.15)",
+              }}
+            >
+              <div>
+                <p className="font-fantasy text-[#f87171] text-sm font-bold tracking-wider mb-1">Confirm Reset?</p>
+                <p className="font-fantasy text-[#a87878] text-[11px] leading-relaxed">
+                  This will restore {activePetForModal.petNickname || activePetForModal.name}'s stats to their base values. This action costs coins and cannot be undone.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowResetConfirm(false)}
+                  className="flex-1 py-3 rounded-xl font-fantasy text-sm tracking-wider"
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", color: "#aaa", cursor: "pointer" }}
+                >
+                  CANCEL
+                </button>
+                <button
+                  data-testid="button-confirm-reset"
+                  onClick={() => resetMutation.mutate(activePetForModal.inventoryId)}
+                  disabled={resetMutation.isPending}
+                  className="flex-1 py-3 rounded-xl font-fantasy text-sm tracking-wider transition-all active:scale-95 disabled:opacity-50"
+                  style={{ background: "linear-gradient(135deg, rgba(220,60,60,0.4) 0%, rgba(180,40,40,0.4) 100%)", border: "1.5px solid rgba(248,113,113,0.5)", color: "#f87171", cursor: "pointer", boxShadow: "0 0 14px rgba(248,113,113,0.2)" }}
+                >
+                  {resetMutation.isPending ? "RESETTING..." : "CONFIRM RESET"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Hidden legacy panel keeps the original flow working but is never rendered */}
+          <div style={{ display: "none" }}>
+            {/* original menu intentionally hidden */}
+          </div>
+        </div>
+      )}
+
+      {/* ── Ring sparkle bursts (rendered above the action menu) ── */}
+      {ringSparkles.length > 0 && (
+        <div className="fixed inset-0 pointer-events-none z-[60]">
+          {ringSparkles.map((s) => (
+            <div
+              key={s.id}
+              className="absolute ring-sparkle"
+              style={{
+                left: s.x,
+                top: s.y,
+                width: s.size,
+                height: s.size,
+                color: s.color,
+                ["--dx" as any]: `${s.dx}px`,
+                ["--dy" as any]: `${s.dy}px`,
+                animationDelay: `${s.delay}s`,
+              }}
+            >
+              <svg viewBox="0 0 24 24" width={s.size} height={s.size} style={{ filter: `drop-shadow(0 0 6px ${s.color})` }}>
+                <path d="M12 0 L14 10 L24 12 L14 14 L12 24 L10 14 L0 12 L10 10 Z" fill={s.color} />
+              </svg>
+            </div>
+          ))}
         </div>
       )}
 
