@@ -157,6 +157,27 @@ export default function ItemDatabaseSection({
     staleTime: 0,
   });
 
+  const handleOpenPartsForItem = async (item: ShopItemFull) => {
+    if (!onOpenParts) return;
+    if (item.petTemplateId) {
+      onOpenParts(item.petTemplateId);
+      return;
+    }
+    try {
+      const createRes = await apiRequest("POST", "/api/admin/pet-templates", {
+        name: item.name || "Pet Template",
+      });
+      const template = await createRes.json();
+      await apiRequest("PATCH", `/api/admin/shop/${item.id}`, {
+        petTemplateId: template.id,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["/api/admin/shop-items-all"] });
+      onOpenParts(template.id);
+    } catch (err) {
+      toast({ title: "Failed", description: "Could not open parts editor", variant: "destructive" });
+    }
+  };
+
   const deleteMutation = useMutation({
     mutationFn: async (itemId: string) => {
       await apiRequest("DELETE", `/api/admin/shop/${itemId}`);
@@ -418,17 +439,14 @@ export default function ItemDatabaseSection({
                       {isPetSection && onOpenParts && (
                         <button
                           data-testid={`button-parts-db-item-${item.id}`}
-                          onClick={() => {
-                            if (item.petTemplateId) onOpenParts(item.petTemplateId);
-                          }}
-                          disabled={!item.petTemplateId}
-                          title={item.petTemplateId ? "Edit animation parts" : "Link an animated template first"}
-                          className="px-2 py-1 rounded font-fantasy text-[8px] tracking-wider disabled:opacity-40"
+                          onClick={() => handleOpenPartsForItem(item)}
+                          title="Edit animation parts"
+                          className="px-2 py-1 rounded font-fantasy text-[8px] tracking-wider"
                           style={{
                             background: "linear-gradient(135deg, rgba(94,234,212,0.22) 0%, rgba(45,212,191,0.16) 100%)",
                             border: "1px solid rgba(94,234,212,0.45)",
                             color: "#5eead4",
-                            cursor: item.petTemplateId ? "pointer" : "not-allowed",
+                            cursor: "pointer",
                           }}
                         >
                           ✦ Parts
@@ -468,7 +486,7 @@ export default function ItemDatabaseSection({
           petOnly={isPetSection}
           onClose={handleCloseForm}
           onSuccess={handleFormSuccess}
-          onOpenParts={onOpenParts}
+          onOpenParts={handleOpenPartsForItem}
         />
       )}
     </div>
@@ -486,7 +504,7 @@ function AdminItemForm({
   petOnly: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  onOpenParts?: (templateId: string) => void;
+  onOpenParts?: (item: ShopItemFull) => void;
 }) {
   const defaultType = petOnly ? "pet" : (item?.type !== "pet" ? (item?.type || "power_up") : "power_up");
   const [name, setName] = useState(item?.name || "");
@@ -524,11 +542,6 @@ function AdminItemForm({
   const [hatchedImagePreview, setHatchedImagePreview] = useState<string | null>(item?.hatchedImageUrl || null);
   const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
-
-  const { data: petTemplates = [] } = useQuery<PetTemplateOption[]>({
-    queryKey: ["/api/admin/pet-templates"],
-    enabled: petOnly || type === "pet",
-  });
 
   const effectiveType = petOnly ? "pet" : type;
 
@@ -697,23 +710,17 @@ function AdminItemForm({
             <button
               data-testid="button-open-pet-parts"
               type="button"
-              disabled={!item || !item.petTemplateId}
+              disabled={!item}
               onClick={() => {
-                if (item?.petTemplateId) onOpenParts(item.petTemplateId);
+                if (item) onOpenParts(item);
               }}
-              title={
-                !item
-                  ? "Save the pet first to attach parts"
-                  : !item.petTemplateId
-                  ? "Link an Animated Template to this pet first"
-                  : "Open the parts editor"
-              }
+              title={!item ? "Save the pet first to attach parts" : "Open the parts editor"}
               className="font-fantasy text-[11px] tracking-wider px-4 py-1.5 rounded-md disabled:opacity-40"
               style={{
                 background: "linear-gradient(135deg, rgba(94,234,212,0.22) 0%, rgba(45,212,191,0.16) 100%)",
                 border: "1px solid rgba(94,234,212,0.5)",
                 color: "#5eead4",
-                cursor: !item || !item.petTemplateId ? "not-allowed" : "pointer",
+                cursor: !item ? "not-allowed" : "pointer",
               }}
             >
               ✦ Parts
@@ -864,22 +871,6 @@ function AdminItemForm({
                 <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">
                   All values use ATK × % — Damage %: used by Lazer, Bubble, Poison · Heal %: used by Heal Self, Heal Party, Revive Party
                 </p>
-              </div>
-              <div>
-                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Animated Template (Pet DB)</label>
-                <select
-                  data-testid="select-pet-template"
-                  value={petTemplateId}
-                  onChange={(e) => setPetTemplateId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-md font-fantasy text-sm outline-none"
-                  style={inputStyle}
-                >
-                  <option value="">None (static image only)</option>
-                  {petTemplates.map((t) => (
-                    <option key={t.id} value={t.id}>{t.name}{t.frontAssembled ? " ✓" : ""}</option>
-                  ))}
-                </select>
-                <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">Link to a Pet DB template for part-based animation</p>
               </div>
               <ImageUpload
                 label="Egg Image (PNG or GIF)"
