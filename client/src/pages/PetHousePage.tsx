@@ -200,10 +200,23 @@ function CarePopup({
           backgroundSize: "contain",
           backgroundRepeat: "no-repeat",
           backgroundPosition: "center",
-          filter: "drop-shadow(0 10px 30px rgba(0,0,0,0.6))",
+          filter: "drop-shadow(0 10px 30px rgba(0,0,0,0.85))",
         }}
         onPointerDown={(e) => e.stopPropagation()}
       >
+        {/* Soft dark halo behind the wreath for visual separation from the
+            scene below. Rendered first so the wreath sits on top. */}
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: "-6%",
+            borderRadius: "50%",
+            background: "radial-gradient(circle at center, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.55) 55%, rgba(0,0,0,0) 78%)",
+            pointerEvents: "none",
+            zIndex: -1,
+          }}
+        />
         {/* Care (fruit bowl) hotspot */}
         <button
           data-testid="button-care-care"
@@ -2044,17 +2057,11 @@ function PetStatusBars({
         <span style={valStyle} data-testid="text-hunger-value">{hungerVal}/{hungerMax}</span>
       </div>
 
-      {/* Mood row */}
+      {/* Mood row — bar aligned with hunger bar, face icon centered beneath */}
       <div className="flex items-center gap-2" style={{ marginTop: 2 }}>
         <span style={labelStyle}>MOOD</span>
       </div>
       <div className="flex items-center gap-2" style={{ marginTop: -4 }}>
-        <img
-          src={moodFace}
-          alt={moodLabel}
-          style={{ width: 28, height: 28, objectFit: "contain", filter: "drop-shadow(0 0 6px rgba(255,220,120,0.5)) drop-shadow(0 2px 4px rgba(0,0,0,0.6))" }}
-          data-testid="img-mood-face"
-        />
         <div style={barWrap} data-testid="bar-mood">
           <div
             style={{
@@ -2067,6 +2074,14 @@ function PetStatusBars({
           />
         </div>
         <span style={valStyle} data-testid="text-mood-value">{moodVal}</span>
+      </div>
+      <div style={{ width: 240, display: "flex", justifyContent: "center", marginTop: 2 }}>
+        <img
+          src={moodFace}
+          alt={moodLabel}
+          style={{ width: 32, height: 32, objectFit: "contain", filter: "drop-shadow(0 0 6px rgba(255,220,120,0.5)) drop-shadow(0 2px 4px rgba(0,0,0,0.6))" }}
+          data-testid="img-mood-face"
+        />
       </div>
     </div>
   );
