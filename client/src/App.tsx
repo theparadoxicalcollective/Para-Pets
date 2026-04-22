@@ -294,9 +294,14 @@ function AppRouter() {
     return <LoadingScreen label="Loading…" />;
   }
 
-  // Show maintenance screen to logged-in non-admin players
+  // Show maintenance screen to logged-in non-admin players. MaintenancePage is
+  // lazy-loaded so we wrap it in Suspense to handle the chunk download.
   if (maintenanceOn && user && !user.isAdmin) {
-    return <MaintenancePage />;
+    return (
+      <Suspense fallback={<LoadingScreen label="Loading…" />}>
+        <MaintenancePage />
+      </Suspense>
+    );
   }
 
   // Block the game until the email is verified. The gate polls every 3 s and
