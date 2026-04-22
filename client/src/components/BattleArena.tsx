@@ -6,7 +6,6 @@ import { playHit, playBlock, playPlayerHurt, playDefeat, playBattleVictory, play
 import { Swords, Star, Coins, X, ChevronRight, ArrowLeft, Heart, HelpCircle, Droplets } from "lucide-react";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import blockIconPng from "@assets/icon_battle_block.png";
-import skillIconPng from "@assets/icon_battle_skill.png";
 import warningRunePng from "@assets/icon_battle_warning.png";
 import rageFlamePng from "@assets/icon_battle_rage.png";
 import counterLightningPng from "@assets/icon_battle_counter.png";
@@ -53,12 +52,12 @@ interface AutoOrb {
   petIdx: number;
 }
 
-const PET_SPRITE_SIZE = 190;
+const PET_SPRITE_SIZE = 230;
 
 function getPetPos(idx: number, total: number): { x: number; y: number } {
-  if (total <= 1) return { x: 22, y: 72 };
-  if (total === 2) return [{ x: 22, y: 72 }, { x: 58, y: 72 }][idx] ?? { x: 22, y: 72 };
-  return [{ x: 16, y: 72 }, { x: 46, y: 72 }, { x: 76, y: 72 }][idx] ?? { x: 22, y: 72 };
+  if (total <= 1) return { x: 22, y: 64 };
+  if (total === 2) return [{ x: 26, y: 64 }, { x: 62, y: 64 }][idx] ?? { x: 26, y: 64 };
+  return [{ x: 16, y: 64 }, { x: 44, y: 64 }, { x: 72, y: 64 }][idx] ?? { x: 22, y: 64 };
 }
 
 interface EncounterEnemy {
@@ -1737,9 +1736,9 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           50%  { transform: translate(-50%,-50%) scale(1.18); opacity: 0.5; }
           100% { transform: translate(-50%,-50%) scale(1);    opacity: 0.25; }
         }
-        @keyframes skillBtnReadyGlow {
-          0%,100% { filter: brightness(1); box-shadow: 0 0 10px rgba(167,139,250,0.4), 0 2px 8px rgba(0,0,0,0.6); }
-          50%     { filter: brightness(1.2); box-shadow: 0 0 24px rgba(167,139,250,0.9), 0 0 8px rgba(200,180,255,0.5), 0 2px 8px rgba(0,0,0,0.6); }
+        @keyframes petRarityGlow {
+          0%,100% { filter: drop-shadow(0 0 12px var(--rarity-glow, #a78bfa)) drop-shadow(0 0 4px var(--rarity-glow, #a78bfa)); }
+          50%     { filter: drop-shadow(0 0 28px var(--rarity-glow, #a78bfa)) drop-shadow(0 0 10px var(--rarity-glow, #a78bfa)) brightness(1.1); }
         }
         @keyframes chargeRingPulse {
           0%   { transform: translate(-50%,-50%) scale(1);    opacity: 0.5; box-shadow: 0 0 0 0 rgba(255,60,60,0.6); }
@@ -2126,6 +2125,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                     : undefined,
                 pointerEvents: (phase === "battle" && (mana >= MAX_MANA && !skillCooldown && !!pet.specialSkill) && petHp > 0) ? "auto" : "none",
                 cursor: (mana >= MAX_MANA && !skillCooldown && !!pet.specialSkill && petHp > 0) ? "pointer" : "default",
+                ["--rarity-glow" as any]: rarityColor,
               }}
               onPointerDown={handlePetClick}
               data-testid="pet-battle-sprite"
@@ -2146,22 +2146,37 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   mode="idle"
                   view="front"
                   size={PET_SPRITE_SIZE}
-                  style={mana >= MAX_MANA && !skillCooldown ? { animation: "manaGlow 1s ease-in-out infinite" } : undefined}
+                  style={mana >= MAX_MANA && !skillCooldown && !!pet.specialSkill ? { animation: "petRarityGlow 1s ease-in-out infinite" } : undefined}
                 />
               ) : pet.imageUrl ? (
                 <img
                   src={pet.imageUrl}
                   alt={pet.name}
                   className="object-contain drop-shadow-lg"
-                  style={{ width: PET_SPRITE_SIZE, height: PET_SPRITE_SIZE, animation: mana >= MAX_MANA && !skillCooldown ? "manaGlow 1s ease-in-out infinite" : undefined }}
+                  style={{ width: PET_SPRITE_SIZE, height: PET_SPRITE_SIZE, animation: mana >= MAX_MANA && !skillCooldown && !!pet.specialSkill ? "petRarityGlow 1s ease-in-out infinite" : undefined }}
                 />
               ) : (
                 <img src={petPawIcon} alt="" style={{ width: PET_SPRITE_SIZE * 0.5, height: PET_SPRITE_SIZE * 0.5, objectFit: "contain" }} />
               )}
 
-              {/* Active pet name + stars */}
-              <div className="absolute flex flex-col items-center" style={{ left: "50%", top: "100%", transform: "translate(-50%, 4px)", pointerEvents: "none" }}>
-                <div className="px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide whitespace-nowrap"
+              {/* Active pet HP + mana + name + stars (matches extras) */}
+              <div className="absolute flex flex-col items-center" style={{ left: "50%", top: "100%", transform: "translate(-50%, 4px)", pointerEvents: "none", width: 92 }}>
+                {/* HP bar */}
+                <div className="h-1.5 rounded-full overflow-hidden" style={{ width: 92, background: "rgba(0,0,0,0.5)" }}>
+                  <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(0, (petHp / Math.max(1, petMaxHp)) * 100)}%`, background: hpBarColor(petHp, petMaxHp), boxShadow: `0 0 6px ${hpBarColor(petHp, petMaxHp)}80` }} />
+                </div>
+                {/* Mana bar (only if pet has a skill) */}
+                {pet.specialSkill && (
+                  <div className="h-1.5 rounded-full overflow-hidden mt-0.5" style={{ width: 92, background: "rgba(0,0,0,0.5)" }}>
+                    <div className="h-full rounded-full transition-all" style={{
+                      width: `${(mana / MAX_MANA) * 100}%`,
+                      background: mana >= MAX_MANA ? "linear-gradient(90deg, #7c3aed, #a78bfa, #c4b5fd)" : "linear-gradient(90deg, #4c1d95, #7c3aed)",
+                      boxShadow: mana >= MAX_MANA ? "0 0 8px rgba(167,139,250,0.9)" : undefined,
+                    }} />
+                  </div>
+                )}
+                {/* Name */}
+                <div className="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide whitespace-nowrap"
                   style={{ color: "#fff", background: "rgba(0,0,0,0.55)", textShadow: "0 0 6px rgba(0,0,0,0.9)", maxWidth: 130, overflow: "hidden", textOverflow: "ellipsis" }}>
                   {(pet as any).petNickname || pet.name}
                 </div>
@@ -2237,40 +2252,6 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   </span>
                 </div>
 
-                {/* Skill button */}
-                {pet.specialSkill && (
-                  <div className="flex flex-col items-center gap-1">
-                    <button
-                      data-testid="button-battle-skill"
-                      onPointerDown={(e) => { e.stopPropagation(); useSpecialSkill(); }}
-                      className="relative rounded-2xl flex items-center justify-center transition-colors active:scale-90"
-                      style={{
-                        width: 64, height: 64,
-                        background: mana >= MAX_MANA && !skillCooldown
-                          ? `linear-gradient(135deg, ${rarityColor}77 0%, ${rarityColor}44 100%)`
-                          : `linear-gradient(135deg, ${rarityColor}33 0%, ${rarityColor}1a 100%)`,
-                        border: mana >= MAX_MANA && !skillCooldown
-                          ? `2.5px solid ${rarityColor}`
-                          : `2px solid ${rarityColor}80`,
-                        boxShadow: mana >= MAX_MANA && !skillCooldown
-                          ? `0 0 22px ${rarityColor}cc, 0 2px 8px rgba(0,0,0,0.6)`
-                          : `0 0 10px ${rarityColor}55, 0 2px 8px rgba(0,0,0,0.55)`,
-                        opacity: skillCooldown ? 0.5 : 1,
-                        animation: mana >= MAX_MANA && !skillCooldown ? "skillBtnReadyGlow 1s ease-in-out infinite" : undefined,
-                      }}
-                    >
-                      <img src={skillIconPng} alt="Skill" style={{ width: 40, height: 40, objectFit: "contain", opacity: mana >= MAX_MANA && !skillCooldown ? 1 : 0.75 }} />
-                      {mana >= MAX_MANA && !skillCooldown && (
-                        <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full"
-                          style={{ background: rarityColor, boxShadow: `0 0 8px ${rarityColor}` }} />
-                      )}
-                    </button>
-                    <span className="font-fantasy text-[9px] tracking-widest"
-                      style={{ color: rarityColor, textShadow: `0 0 8px ${rarityColor}aa` }}>
-                      SKILL
-                    </span>
-                  </div>
-                )}
               </div>
             )}
 
@@ -2298,7 +2279,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               <div className="absolute z-10 pointer-events-none"
                 style={{ bottom: "22%", left: "50%", transform: "translateX(-50%)", whiteSpace: "nowrap" }}>
                 <div className="text-white/22 text-[10px] font-medium animate-pulse tracking-widest text-center">
-                  Swipe through the enemy · use the buttons on the right to block or cast skills
+                  Swipe through the enemy · hold BLOCK · tap your glowing pet to cast its skill
                 </div>
               </div>
             )}
@@ -2307,51 +2288,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
             <div className="absolute bottom-0 left-0 right-0 z-20"
               style={{ background: "linear-gradient(0deg, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.6) 70%, transparent 100%)", padding: "10px 14px 12px" }}>
 
-              {/* Row 1: Pet name + level + skill status */}
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-bold drop-shadow-lg truncate" style={{ color: accent }}>{pet.name}</span>
-                  <span className="text-gray-400 text-xs">Lv.{pet.level}</span>
-                </div>
-                {pet.specialSkill && phase === "battle" && (
-                  <span className="text-[9px] font-fantasy tracking-wider" style={{ color: skillCooldown ? "#6b7280" : mana >= MAX_MANA ? rarityColor : "#6b7280", opacity: 0.85 }}>
-                    {skillCooldown ? "CD" : mana >= MAX_MANA ? `✦ ${pet.specialSkill.split(" ")[0].toUpperCase()} READY` : `${pet.specialSkill.split(" ")[0].toUpperCase()} ${mana}/${MAX_MANA}`}
-                  </span>
-                )}
-              </div>
-
-              {/* Row 2: HP bar */}
-              <div className="mb-1">
-                <div className="flex items-center justify-between mb-0.5">
-                  <span className="text-[9px] font-fantasy tracking-widest text-gray-400">HP</span>
-                  <span className="text-[9px] font-bold" style={{ color: hpBarColor(petHp, petMaxHp) }}>{petHp} / {petMaxHp}</span>
-                </div>
-                <div className="h-3 bg-black/60 rounded-full overflow-hidden border border-white/15">
-                  <div className="h-full rounded-full transition-all duration-200"
-                    style={{ width: `${Math.max(0, (petHp / petMaxHp) * 100)}%`, backgroundColor: hpBarColor(petHp, petMaxHp), boxShadow: `0 0 8px ${hpBarColor(petHp, petMaxHp)}80` }} />
-                </div>
-              </div>
-
-              {/* Row 3: Mana bar */}
-              {pet.specialSkill && (
-                <div className="mb-2">
-                  <div className="flex items-center justify-between mb-0.5">
-                    <span className="text-[9px] font-fantasy tracking-widest" style={{ color: "#a78bfa" }}>MANA</span>
-                    <span className="text-[9px] text-white/40">{mana} / {MAX_MANA}</span>
-                  </div>
-                  <div className="h-2 bg-black/60 rounded-full overflow-hidden border border-purple-900/50">
-                    <div className="h-full rounded-full transition-all duration-300"
-                      style={{
-                        width: `${(mana / MAX_MANA) * 100}%`,
-                        background: mana >= MAX_MANA ? "linear-gradient(90deg, #7c3aed, #a78bfa, #c4b5fd)" : "linear-gradient(90deg, #4c1d95, #7c3aed)",
-                        boxShadow: mana >= MAX_MANA ? "0 0 10px rgba(167,139,250,0.8)" : undefined,
-                        animation: mana >= MAX_MANA ? "tensionPulse 0.8s ease-in-out infinite" : undefined,
-                      }} />
-                  </div>
-                </div>
-              )}
-
-              {/* Row 4: 5 Potion slots */}
+              {/* Potion slots */}
               <div className="flex gap-2 items-center justify-start">
                 {Array.from({ length: 5 }, (_, i) => {
                   const slot = activeSlots[i];
@@ -2757,7 +2694,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   { num: "1", title: "Swipe to Attack", desc: "Drag your finger through the enemy to slash it. Chain swipes within 1.4 seconds to build a combo for bonus damage." },
                   { num: "2", title: "Block Incoming Attacks", desc: "When the enemy glows red and charges, a green BLOCK button appears. Tap it before the bar fills to reduce the damage. Higher DEF absorbs more!" },
                   { num: "3", title: "Counter Window", desc: "A successful BLOCK stuns the enemy briefly. Your next 2 swipes deal double damage — make them count!" },
-                  { num: "4", title: "Potions & Special", desc: "Tap potion slots to heal mid-battle. When your mana bar is full, tap your Special skill for a powerful ability." },
+                  { num: "4", title: "Potions & Special", desc: "Tap potion slots to heal mid-battle. When your mana bar fills, your pet glows — tap it to unleash its Special skill." },
                 ].map(({ num, title, desc }) => (
                   <div key={num} className="flex gap-3 items-start">
                     <div className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold font-fantasy mt-0.5"
