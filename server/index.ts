@@ -113,6 +113,23 @@ app.use(
 
 app.use(express.urlencoded({ extended: false, limit: "50mb" }));
 
+// Session secret: required in production, dev-only fallback otherwise.
+// Fail fast on prod boot if the env var is missing so deploys never run
+// with a hardcoded/guessable secret.
+const isProduction = process.env.NODE_ENV === "production";
+const sessionSecret = process.env.SESSION_SECRET;
+if (isProduction && !sessionSecret) {
+  console.error(
+    "FATAL: SESSION_SECRET is not set. Refusing to start in production with a default secret."
+  );
+  process.exit(1);
+}
+if (!sessionSecret) {
+  console.warn(
+    "[session] SESSION_SECRET not set — using dev-only fallback. Do NOT use this in production."
+  );
+}
+
 app.use(
   session({
     store: new PgSession({
@@ -120,12 +137,12 @@ app.use(
       tableName: "session",
       createTableIfMissing: false,
     }),
-    secret: process.env.SESSION_SECRET || "para-pets-secret-key",
+    secret: sessionSecret || "para-pets-dev-only-secret",
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
       maxAge: 30 * 24 * 60 * 60 * 1000,
     },
   })
