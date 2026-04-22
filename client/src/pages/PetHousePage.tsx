@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useLocation } from "wouter";
 import { MailOpen } from "lucide-react";
 import RoleBadge from "@/components/RoleBadge";
 import { playGrab } from "@/lib/sounds";
@@ -663,7 +664,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const [petDragLive, setPetDragLive] = useState<{ inventoryId: string; xPct: number; yPct: number } | null>(null);
   // Popup for outdoor pet tap
   const [outdoorPopupPet, setOutdoorPopupPet] = useState<HousePet | null>(null);
-  const [feedingPet, setFeedingPet] = useState<HousePet | null>(null);
+  const [, navigate] = useLocation();
   // Last-moved pet / decor id — these render above their peers (higher z-index).
   const [topOutdoorPetId, setTopOutdoorPetId] = useState<string | null>(null);
   const [topOutdoorDecorId, setTopOutdoorDecorId] = useState<string | null>(null);
@@ -791,16 +792,13 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
   const pets = petsData?.pets ?? [];
 
-  // Honor a `?feed=<inventoryId>` URL param: when arriving here from the
-  // active-pet ring on the Home page, immediately open the Care/Feed
-  // overlay for that pet (then strip the param so a refresh doesn't re-open).
+  // (Care/Feed used to open here as an in-page overlay via `?feed=<id>`. It
+  // now lives at its own real route `/pet-care/:inventoryId` — see HomePage's
+  // Care/Feed action and the outdoor/interior pet-tap handlers below.)
   useEffect(() => {
     if (!pets.length) return;
     const params = new URLSearchParams(window.location.search);
-    const targetId = params.get("feed");
-    if (!targetId) return;
-    const pet = pets.find((p) => p.inventoryId === targetId);
-    if (pet) setFeedingPet(pet);
+    if (!params.has("feed")) return;
     params.delete("feed");
     const next = window.location.pathname + (params.toString() ? `?${params}` : "");
     window.history.replaceState({}, "", next);
@@ -1370,7 +1368,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         <CarePopup
           petName={outdoorPopupPet.nickname ?? outdoorPopupPet.name}
           zIndex={40}
-          onCare={() => { setFeedingPet(outdoorPopupPet); setOutdoorPopupPet(null); }}
+          onCare={() => { const id = outdoorPopupPet.inventoryId; setOutdoorPopupPet(null); navigate(`/pet-care/${encodeURIComponent(id)}`); }}
           onCancel={() => setOutdoorPopupPet(null)}
           onReturn={() => { removePetFromSceneMutation.mutate(outdoorPopupPet.inventoryId); setOutdoorPopupPet(null); }}
         />
@@ -1905,7 +1903,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             onRemoveItem={(id) => removeDecorMutation.mutate(id)}
             onMovePet={(inventoryId, xPct, yPct) => placePetMutation.mutate({ inventoryId, xPct, yPct, location: openInterior.buildingId })}
             onRemovePet={(inventoryId) => removePetFromSceneMutation.mutate(inventoryId)}
-            onFeedPet={(pet) => setFeedingPet(pet)}
+            onFeedPet={(pet) => navigate(`/pet-care/${encodeURIComponent(pet.inventoryId)}`)}
             onClose={() => { setOpenInterior(null); interiorPanRef.current = null; }}
           />
         </ErrorBoundary>
@@ -1973,14 +1971,6 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         />
       )}
 
-      {feedingPet && (
-        <FeedingOverlay
-          pet={feedingPet}
-          user={currentUser}
-          onUserUpdate={(u) => setCurrentUser(u)}
-          onClose={() => setFeedingPet(null)}
-        />
-      )}
     </div>
   );
 }
@@ -2113,7 +2103,7 @@ function PetStatusBars({
   );
 }
 
-function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
+export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
   pet: HousePet;
   user: any;
   onUserUpdate: (u: any) => void;
@@ -2220,11 +2210,15 @@ function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
       if (data?.rewarded) {
         spawnRewardCoins(10);
       } else if (data?.alreadyClaimedToday) {
-        // Quiet, non-blocking nudge so the player understands why no coins fell.
-        toast({
-          title: "Already petted today",
-          description: "Come back tomorrow for more coins!",
-        });
+        // Silent grab — the daily coin drop is a secret. When the player has
+        // already claimed today, give them a generous heart shower instead so
+        // the gesture still feels rewarding (just no coins, no message).
+        const box = petBoxRef.current?.getBoundingClientRect();
+        if (box) {
+          const cx = box.left + box.width / 2;
+          const cy = box.top + box.height / 2;
+          burstHearts(cx, cy + 30, 10);
+        }
       }
     },
   });
@@ -2351,18 +2345,19 @@ function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
     const dx = e.clientX - g.cx;
     const dy = e.clientY - g.cy;
     const dist = Math.hypot(dx, dy);
-    // Need to be off-center to compute meaningful angles (avoid jitter near center).
-    if (dist < 30) return;
+    // Need to be slightly off-center to compute meaningful angles. Kept tight
+    // so a small wrist circle inside the pet box still registers as petting.
+    if (dist < 18) return;
     const angle = Math.atan2(dy, dx);
     if (g.lastAngle != null) {
       let d = angle - g.lastAngle;
       while (d > Math.PI) d -= 2 * Math.PI;
       while (d < -Math.PI) d += 2 * Math.PI;
       g.travel += Math.abs(d);
-      // Once accumulated angular travel exceeds ~3/4 of a full turn, count it
+      // Once accumulated angular travel exceeds ~1/3 of a turn (~120°), count it
       // as a circle motion: trigger the cute response and (once per press)
-      // request the daily reward.
-      if (g.travel > Math.PI * 1.5) {
+      // request the daily reward. Threshold lowered so casual circles trigger.
+      if (g.travel > Math.PI * 0.66) {
         triggerCircleEffects();
         if (!g.rewardTriedThisPress) {
           g.rewardTriedThisPress = true;

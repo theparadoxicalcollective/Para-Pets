@@ -44,6 +44,7 @@ const PvpArenaPage       = lazy(() => import("@/pages/PvpArenaPage"));
 const PetInventoryPage   = lazy(() => import("@/pages/PetInventoryPage"));
 const BagInventoryPage   = lazy(() => import("@/pages/BagInventoryPage"));
 const EquipAccessoriesPage = lazy(() => import("@/pages/EquipAccessoriesPage"));
+const PetCarePage          = lazy(() => import("@/pages/PetCarePage"));
 
 // ── Email gate screen — blocks the game until email is verified ───────────────
 function EmailGateScreen({ email }: { email: string }) {
@@ -152,6 +153,7 @@ function shouldHideNav(path: string) {
   if (NAV_HIDDEN_PATHS.includes(path)) return true;
   if (path.startsWith("/reset-password/")) return true;
   if (path.startsWith("/visit/")) return true;
+  if (path.startsWith("/pet-care/")) return true;
   return false;
 }
 
@@ -415,6 +417,11 @@ function AppRouter() {
         {location === "/equip-accessories" && (
           <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
             <EquipAccessoriesPage />
+          </div>
+        )}
+        {location.startsWith("/pet-care/") && (
+          <div key={location} className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+            <PetCarePage />
           </div>
         )}
       </Suspense>

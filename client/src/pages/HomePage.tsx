@@ -1021,7 +1021,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                     () => {
                       setShowActionMenu(false);
                       const id = activePetForModal?.inventoryId;
-                      navigate(id ? `/pet-house?feed=${encodeURIComponent(id)}` : "/pet-house");
+                      // Care/Feed lives at its own real route now so the page
+                      // sits above the FloatingNav's stacking context and can
+                      // be linked/refreshed/back-navigated cleanly.
+                      navigate(id ? `/pet-care/${encodeURIComponent(id)}` : "/pet-house");
                     },
                   )}
                 </>
