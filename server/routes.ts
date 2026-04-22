@@ -1472,9 +1472,15 @@ export async function registerRoutes(
       // so the bar shows full immediately.
       hunger = maxHunger;
     }
-    // Persist if anything actually changed (keeps the timestamp fresh too so
-    // decay maths stay accurate next tick).
-    if (hunger !== inv.petHunger || mood !== inv.petMood || (minutes > 0 && isPlaced)) {
+    // Only persist when something actually changed. The previous version
+    // wrote a row for every placed pet on every /api/inventory fetch (because
+    // `minutes > 0` is essentially always true), which caused a write storm
+    // that made the app feel like it was stalling/restarting under load.
+    // We also only refresh the timestamp when at least 1 full minute has
+    // passed AND values changed — small fractional minutes get rolled into
+    // the next tick without a DB write.
+    const changed = hunger !== inv.petHunger || mood !== inv.petMood;
+    if (changed) {
       await storage.updateInventoryItem(inv.id, {
         petHunger: hunger,
         petMood: mood,
@@ -1482,6 +1488,7 @@ export async function registerRoutes(
       } as any);
       inv.petHunger = hunger;
       inv.petMood = mood;
+      inv.petStatsUpdatedAt = new Date();
     }
     return { petHunger: hunger, petMood: mood };
   }
