@@ -318,6 +318,28 @@ app.use((req, res, next) => {
     () => db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_watcher_greeted_at timestamp`));
   await runMigration("users.last_petting_reward_at",
     () => db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_petting_reward_at timestamp`));
+
+  // Run-once migration tracker — for migrations that should only execute a
+  // single time across all deploys (e.g. data resets), keyed by string id.
+  await runMigration("app_migrations table",
+    () => db.execute(sql`CREATE TABLE IF NOT EXISTS app_migrations (key TEXT PRIMARY KEY, run_at TIMESTAMP NOT NULL DEFAULT NOW())`));
+  const runOnce = async (key: string, fn: () => Promise<unknown>) => {
+    try {
+      const r: any = await db.execute(sql`SELECT 1 FROM app_migrations WHERE key = ${key}`);
+      const rows = r.rows ?? r;
+      if (Array.isArray(rows) && rows.length > 0) return;
+      await fn();
+      await db.execute(sql`INSERT INTO app_migrations (key) VALUES (${key}) ON CONFLICT DO NOTHING`);
+      console.log(`one-time migration ok: ${key}`);
+    } catch (err: any) {
+      console.error(`one-time migration FAILED [${key}]:`, err?.message ?? err);
+    }
+  };
+
+  // Reset everyone's daily petting-reward clock once so existing players can
+  // immediately experience the rebuilt Pet Care coin reward on deploy.
+  await runOnce("reset_last_petting_reward_2026_04",
+    () => db.execute(sql`UPDATE users SET last_petting_reward_at = NULL`));
   await runMigration("shop_items.skill_type",
     () => db.execute(sql`ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS skill_type TEXT`));
   await runMigration("shop_items.skill_affects",

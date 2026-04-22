@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { MailOpen } from "lucide-react";
 import RoleBadge from "@/components/RoleBadge";
 import { playGrab } from "@/lib/sounds";
+import { setNavHidden } from "@/lib/navVisibility";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -659,6 +660,12 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const [openInterior, setOpenInterior] = useState<{ url: string; buildingId: string; leaveButtonX: number; leaveButtonY: number } | null>(null);
   const interiorPanRef = useRef<{ panX: number; imgWidth: number; containerH: number } | null>(null);
   const [openInventory, setOpenInventory] = useState<"home" | "decor" | "pets" | "friends" | null>(null);
+  // Hide the global FloatingNav while an inventory drawer is open so its
+  // fan-out arc doesn't collide with the Pets/Home/Decor/Friends bar.
+  useEffect(() => {
+    setNavHidden(!!openInventory);
+    return () => setNavHidden(false);
+  }, [openInventory]);
   const [pendingActivate, setPendingActivate] = useState<{ bundleId: string; bundle: OwnedBundle["bundle"] } | null>(null);
   const [openGiftModal, setOpenGiftModal] = useState(false);
   const [showNoMailPopup, setShowNoMailPopup] = useState(false);
@@ -2211,6 +2218,18 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
     img.src = feedingPageBg;
   }, []);
 
+  // Clamp a viewport-coord point to the phone-frame the overlay actually
+  // occupies, so coins/hearts/sparkles never spill into the desktop margins
+  // outside the visible 768-wide column.
+  const clampToFrame = useCallback((x: number, y: number, pad = 24) => {
+    const f = overlayRef.current?.getBoundingClientRect();
+    if (!f) return { x, y };
+    return {
+      x: Math.min(Math.max(x, f.left + pad), f.right - pad),
+      y: Math.min(Math.max(y, f.top + pad), f.bottom - pad),
+    };
+  }, []);
+
   const spawnRewardCoins = useCallback((count: number) => {
     const box = petBoxRef.current?.getBoundingClientRect();
     if (!box) return;
@@ -2219,15 +2238,16 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
     const newCoins = Array.from({ length: count }, (_, i) => {
       const angle = (i / count) * Math.PI * 2 + Math.random() * 0.4;
       const radius = 60 + Math.random() * 70;
+      const p = clampToFrame(cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius - 20);
       return {
         id: ++coinIdRef.current,
-        cx: cx + Math.cos(angle) * radius,
-        cy: cy + Math.sin(angle) * radius - 20,
+        cx: p.x,
+        cy: p.y,
       };
     });
     setRewardCoins((c) => [...c, ...newCoins]);
     setCoinsCollectedThisReward(0);
-  }, []);
+  }, [clampToFrame]);
 
   // Daily petting reward — server enforces once per UTC day, returns rewarded:false otherwise.
   const pettingRewardMutation = useMutation({
@@ -2270,26 +2290,31 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
   }, [qc]);
 
   const burstHearts = useCallback((cx: number, cy: number, count = 7) => {
-    const newOnes = Array.from({ length: count }, () => ({
-      id: ++heartIdRef.current,
-      cx: cx + (Math.random() - 0.5) * 180,
-      cy,
-      dx: (Math.random() - 0.5) * 200,
-      size: 18 + Math.random() * 22,
-      delay: Math.random() * 0.45,
-    }));
+    const newOnes = Array.from({ length: count }, () => {
+      const p = clampToFrame(cx + (Math.random() - 0.5) * 180, cy);
+      return {
+        id: ++heartIdRef.current,
+        cx: p.x,
+        cy: p.y,
+        // Keep the horizontal drift modest so the rise stays inside the frame.
+        dx: (Math.random() - 0.5) * 120,
+        size: 18 + Math.random() * 22,
+        delay: Math.random() * 0.45,
+      };
+    });
     setHearts((h) => [...h, ...newOnes]);
     const ids = new Set(newOnes.map((n) => n.id));
     setTimeout(() => setHearts((h) => h.filter((x) => !ids.has(x.id))), 2600);
-  }, []);
+  }, [clampToFrame]);
 
   const burstSparkles = useCallback((cx: number, cy: number, count = 10) => {
     const newOnes = Array.from({ length: count }, () => {
       const angle = Math.random() * Math.PI * 2;
       const distance = 70 + Math.random() * 70;
+      const p = clampToFrame(cx, cy);
       return {
         id: ++sparkIdRef.current,
-        cx, cy,
+        cx: p.x, cy: p.y,
         dx: Math.cos(angle) * distance,
         dy: Math.sin(angle) * distance - 20,  // bias upward
         rot: (Math.random() - 0.5) * 540,
@@ -2299,7 +2324,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
     setSparkles((s) => [...s, ...newOnes]);
     const ids = new Set(newOnes.map((n) => n.id));
     setTimeout(() => setSparkles((s) => s.filter((x) => !ids.has(x.id))), 1200);
-  }, []);
+  }, [clampToFrame]);
 
   // ── Petting gesture ──────────────────────────────────────────────────────
   // Press the pet → squish + closed eyes (no bounce). Drag in a circular
@@ -2851,13 +2876,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
               <div className="pb-3" style={{ borderBottom: "1px solid rgba(180,255,160,0.15)" }}>
                 <p style={{ color: "#c8ff90", fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", marginBottom: 4 }}>PET</p>
                 <p style={{ color: "#aac8a0", fontSize: 11, lineHeight: 1.55 }}>
-                  Press and hold your pet to give it a cuddle — it will close its eyes and snuggle in.
-                </p>
-              </div>
-              <div className="pb-3" style={{ borderBottom: "1px solid rgba(180,255,160,0.15)" }}>
-                <p style={{ color: "#c8ff90", fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", marginBottom: 4 }}>RUB IN A CIRCLE</p>
-                <p style={{ color: "#aac8a0", fontSize: 11, lineHeight: 1.55 }}>
-                  While holding, drag your finger in a circular motion over the pet. It will bounce happily and shower hearts.
+                  Press and hold your pet, then move your finger in small circles to cuddle it. It will bounce happily and shower hearts.
                 </p>
               </div>
               <div>

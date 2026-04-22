@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { getNextZ } from "@/lib/layerManager";
 import { useLocation } from "wouter";
+import { useNavHidden } from "@/lib/navVisibility";
 import mainNavIcon from "@assets/generated_images/icon_main_nav.png";
 import petHouseIcon from "@assets/generated_images/nav_icon_home.png";
 import activePetIcon from "@assets/generated_images/nav_icon_active_pet_new.png";
@@ -57,6 +58,7 @@ const SPACING     = 60; // center-to-center spacing for icon fan
 
 export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   const [, navigate] = useLocation();
+  const navHidden = useNavHidden();
   const [isOpen, setIsOpen]           = useState(false);
   const [showQuest, setShowQuest]     = useState(false);
   const [showPvpNote, setShowPvpNote] = useState(false);
@@ -94,6 +96,11 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     if (id === "keepers")  { setTimeout(() => openPanel(() => setShowKeepers(true)), NAV_DELAY); return; }
     if (id === "bag")      { setTimeout(() => navigate("/bag"), NAV_DELAY); return; }
   };
+
+  // Pages can opt the floating nav out temporarily (e.g. when an inventory
+  // drawer is open on the pet-house page) so its fan-out arc doesn't collide
+  // with page-level UI. See `lib/navVisibility.ts`.
+  if (navHidden) return null;
 
   return (
     <>
