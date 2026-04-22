@@ -136,11 +136,10 @@ function randomGroundConfig(index: number) {
   return { size: OUTDOOR_PET_SIZE, centerX, centerY };
 }
 
-// Indoor pet sizing: same per-pet random range that outdoor pets used to use.
-function indoorPetSize(index: number): number {
-  const seed = index * 137.508;
-  const pseudo = (n: number) => ((Math.sin(n) * 10000) % 1 + 1) % 1;
-  return 100 + pseudo(seed + 2) * 30;
+// Indoor pets use a single fixed size for visual consistency.
+const INDOOR_PET_SIZE = 125;
+function indoorPetSize(_index: number): number {
+  return INDOOR_PET_SIZE;
 }
 
 // ── Interior Viewer ──────────────────────────────────────────────────────────
