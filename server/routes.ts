@@ -3911,7 +3911,9 @@ export async function registerRoutes(
       const startingHp = Math.max(200, Math.floor(petHp * 2 * bossHpMult));
       const lvlPointsEarned = Math.max(1, Math.floor(startingHp * 0.05));
 
-      let totalPoints = (activePet.petLevelPoints || 0) + lvlPointsEarned;
+      const prevLevel = activePet.petLevel || 1;
+      const prevLevelPoints = activePet.petLevelPoints || 0;
+      let totalPoints = prevLevelPoints + lvlPointsEarned;
       let newLevel = activePet.petLevel;
       while (newLevel < 100) {
         const needed = Math.floor(100 + newLevel * 30 + newLevel * newLevel * 5);
@@ -3932,7 +3934,12 @@ export async function registerRoutes(
       // Grant XP to extra battle pets
       const extraPetResults: Array<{
         inventoryId: string;
+        prevLevel: number;
+        prevLevelPoints: number;
         newLevel: number;
+        newLevelPoints: number;
+        pointsNeeded: number;
+        lvlPointsEarned: number;
         levelsGained: number;
         petName: string;
         petTemplateId: string | null;
@@ -3942,9 +3949,10 @@ export async function registerRoutes(
           if (!extraId || extraId === activePet.id) continue;
           const extraPet = inventory.find((inv: any) => inv.id === extraId && inv.isHatched);
           if (!extraPet) continue;
-          const prevLevel = extraPet.petLevel || 1;
-          let eTotalPoints = (extraPet.petLevelPoints || 0) + lvlPointsEarned;
-          let eNewLevel = prevLevel;
+          const ePrevLevel = extraPet.petLevel || 1;
+          const ePrevLevelPoints = extraPet.petLevelPoints || 0;
+          let eTotalPoints = ePrevLevelPoints + lvlPointsEarned;
+          let eNewLevel = ePrevLevel;
           while (eNewLevel < 100) {
             const needed = Math.floor(100 + eNewLevel * 30 + eNewLevel * eNewLevel * 5);
             if (eTotalPoints < needed) break;
@@ -3955,8 +3963,13 @@ export async function registerRoutes(
           await storage.updateInventoryItem(extraPet.id, { petLevel: eNewLevel, petLevelPoints: eTotalPoints });
           extraPetResults.push({
             inventoryId: extraPet.id,
+            prevLevel: ePrevLevel,
+            prevLevelPoints: ePrevLevelPoints,
             newLevel: eNewLevel,
-            levelsGained: Math.max(0, eNewLevel - prevLevel),
+            newLevelPoints: eTotalPoints,
+            pointsNeeded: Math.floor(100 + eNewLevel * 30 + eNewLevel * eNewLevel * 5),
+            lvlPointsEarned,
+            levelsGained: Math.max(0, eNewLevel - ePrevLevel),
             petName: (extraPet as any).petNickname || (extraPet as any).name || "Pet",
             petTemplateId: (extraPet as any).petTemplateId ?? null,
           });
@@ -3994,10 +4007,12 @@ export async function registerRoutes(
 
       return res.json({
         lvlPointsEarned,
+        prevLevel,
+        prevLevelPoints,
         newLevel,
         newLevelPoints: totalPoints,
         pointsNeeded: Math.floor(100 + newLevel * 30 + newLevel * newLevel * 5),
-        levelsGained: newLevel - activePet.petLevel,
+        levelsGained: newLevel - prevLevel,
         coinsAwarded,
         droppedItems,
         extraPetResults,

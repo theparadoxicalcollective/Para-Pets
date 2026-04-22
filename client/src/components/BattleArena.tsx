@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { fireLevelUp } from "@/lib/levelUpEvents";
 import { playHit, playBlock, playPlayerHurt, playDefeat, playBattleVictory, playPowerUp, playChime } from "@/lib/sounds";
 import { Swords, Star, Coins, X, ChevronRight, ArrowLeft, Heart, HelpCircle, Droplets } from "lucide-react";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
@@ -152,6 +151,238 @@ function buildSlashPath(pts: { x: number; y: number }[]): string {
   return d;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// End-of-battle summary: centered pets with animated XP progression bars.
+// Shown only at victory/defeat — NOT between waves — so the player sees a
+// single clean reward screen at the end.
+// ─────────────────────────────────────────────────────────────────────────────
+interface PetRewardEntry {
+  inventoryId: string;
+  name: string;
+  imageUrl: string | null;
+  petTemplateId: string | null;
+  startLevel: number;
+  startPoints: number;
+  endLevel: number;
+  endPoints: number;
+  pointsNeeded: number;
+  levelsGained: number;
+  totalXp: number;
+}
+
+function pointsForLevel(level: number): number {
+  return Math.floor(100 + level * 30 + level * level * 5);
+}
+
+function PetXpBar({ entry, accent }: { entry: PetRewardEntry; accent: string }) {
+  // Animate the bar through each level segment in sequence so multi-level
+  // gains show distinct fills + flashes.
+  const [displayLevel, setDisplayLevel] = useState(entry.startLevel);
+  const [fromPct, setFromPct] = useState(0);
+  const [toPct, setToPct] = useState(0);
+  const [flash, setFlash] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    const totalSteps = entry.levelsGained + 1; // segments to animate
+    const baseDur = totalSteps > 1 ? 380 : 1200;
+
+    const startNeeded = pointsForLevel(entry.startLevel);
+    const startStartPct = startNeeded > 0 ? Math.min(100, (entry.startPoints / startNeeded) * 100) : 0;
+
+    if (entry.levelsGained === 0) {
+      const endNeeded = entry.pointsNeeded || 1;
+      const endPct = Math.min(100, (entry.endPoints / endNeeded) * 100);
+      setDisplayLevel(entry.startLevel);
+      setFromPct(startStartPct);
+      // next tick — let the from value settle before kicking off the fill
+      requestAnimationFrame(() => { if (!cancelled) setToPct(endPct); });
+      return () => { cancelled = true; };
+    }
+
+    // Sequence: fill from start% → 100% on starting level, then 0% → 100%
+    // for each intermediate level, then 0% → endPct on final level.
+    const run = async () => {
+      // First segment: starting level → 100%
+      setDisplayLevel(entry.startLevel);
+      setFromPct(startStartPct);
+      requestAnimationFrame(() => { if (!cancelled) setToPct(100); });
+      await new Promise(r => setTimeout(r, baseDur));
+      if (cancelled) return;
+      setFlash(f => f + 1);
+
+      // Intermediate full levels
+      for (let i = 1; i < entry.levelsGained; i++) {
+        setDisplayLevel(entry.startLevel + i);
+        setFromPct(0);
+        setToPct(0);
+        await new Promise(r => requestAnimationFrame(() => r(null)));
+        if (cancelled) return;
+        setToPct(100);
+        await new Promise(r => setTimeout(r, baseDur));
+        if (cancelled) return;
+        setFlash(f => f + 1);
+      }
+
+      // Final segment: end level → endPct
+      const endNeeded = entry.pointsNeeded || 1;
+      const endPct = Math.min(100, (entry.endPoints / endNeeded) * 100);
+      setDisplayLevel(entry.endLevel);
+      setFromPct(0);
+      setToPct(0);
+      await new Promise(r => requestAnimationFrame(() => r(null)));
+      if (cancelled) return;
+      setToPct(endPct);
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [entry.inventoryId]);
+
+  const dur = entry.levelsGained > 0 ? 380 : 1200;
+  const pct = toPct;
+
+  return (
+    <div className="flex flex-col items-center w-full">
+      <div className="relative" style={{ width: 88, height: 88, animation: "petBobIdle 2.4s ease-in-out infinite" }}>
+        {entry.imageUrl ? (
+          <img src={entry.imageUrl} alt={entry.name}
+            className="w-full h-full object-contain"
+            style={{ filter: `drop-shadow(0 4px 10px rgba(0,0,0,0.6)) drop-shadow(0 0 12px ${accent}55)` }}
+          />
+        ) : (
+          <img src={petPawIcon} alt={entry.name} className="w-full h-full object-contain opacity-70" />
+        )}
+        {flash > 0 && (
+          <div key={flash}
+            className="absolute left-1/2 top-1/2 font-black text-yellow-300 pointer-events-none"
+            style={{
+              fontSize: 16,
+              textShadow: "0 0 10px rgba(253,224,71,0.9), 0 2px 4px rgba(0,0,0,0.8)",
+              animation: "xpLevelUpBurst 0.9s ease-out forwards",
+            }}
+          >
+            ✦ LEVEL UP ✦
+          </div>
+        )}
+      </div>
+      <div className="text-white font-bold text-sm mt-1 truncate max-w-[140px] text-center" data-testid={`text-summary-pet-name-${entry.inventoryId}`}>
+        {entry.name}
+      </div>
+      <div className="text-[11px] mt-0.5" style={{ color: accent }}>
+        Lv.{displayLevel}
+        {entry.levelsGained > 0 && displayLevel === entry.endLevel && entry.endLevel !== entry.startLevel && (
+          <span className="text-green-400 ml-1">(+{entry.levelsGained})</span>
+        )}
+      </div>
+      <div className="relative w-full max-w-[180px] h-2.5 mt-1.5 rounded-full overflow-hidden border border-white/15 bg-black/60">
+        <div
+          key={`${entry.inventoryId}-${displayLevel}-${fromPct}`}
+          style={{
+            ["--xp-from" as any]: `${fromPct}%`,
+            ["--xp-to" as any]: `${pct}%`,
+            width: `${pct}%`,
+            height: "100%",
+            background: `linear-gradient(90deg, ${accent}, #fde68a)`,
+            boxShadow: `0 0 8px ${accent}aa`,
+            transition: `width ${dur}ms ease-out`,
+          }}
+        />
+        {/* Shine sweep */}
+        <div className="absolute inset-y-0 w-1/3 pointer-events-none"
+          style={{
+            background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent)",
+            animation: "xpBarShine 1.6s ease-in-out infinite",
+          }}
+        />
+      </div>
+      <div className="text-[10px] text-gray-400 mt-1">+{entry.totalXp} XP</div>
+    </div>
+  );
+}
+
+interface BattleEndSummaryProps {
+  phase: "victory" | "defeat";
+  accent: string;
+  enemyName: string;
+  allEnemiesCount: number;
+  petRewards: PetRewardEntry[];
+  totalCoins: number;
+  totalItems: any[];
+  errored: boolean;
+  calculating: boolean;
+  onClose: () => void;
+}
+
+function BattleEndSummary({ phase, accent, enemyName, allEnemiesCount, petRewards, totalCoins, totalItems, errored, calculating, onClose }: BattleEndSummaryProps) {
+  const isVictory = phase === "victory";
+  const borderCol = isVictory ? accent + "60" : "rgba(239,68,68,0.5)";
+  return (
+    <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/70 px-4 py-6 overflow-y-auto">
+      <div className="bg-gray-900/95 rounded-2xl border p-5 mx-2 w-full max-w-md"
+        style={{
+          borderColor: borderCol,
+          animation: isVictory ? "victoryPulse 2s ease-in-out infinite" : undefined,
+        }}
+        data-testid={isVictory ? "modal-victory" : "modal-defeat"}>
+        <div className="text-center">
+          <div className="text-3xl font-black mb-1" style={{ color: isVictory ? accent : "#ef4444" }}>
+            {isVictory ? "VICTORY!" : "DEFEATED"}
+          </div>
+          <div className="text-gray-400 text-sm mb-4">
+            {isVictory
+              ? (allEnemiesCount > 1 ? `All ${allEnemiesCount} enemies defeated!` : `You defeated ${enemyName}!`)
+              : "Your party has fallen..."}
+          </div>
+
+          {calculating ? (
+            <div className="text-gray-400 animate-pulse py-6">Calculating rewards...</div>
+          ) : errored && petRewards.length === 0 ? (
+            <div className="text-red-400 text-sm py-4">Failed to load rewards. Your battle still counts.</div>
+          ) : petRewards.length === 0 ? (
+            <div className="text-gray-500 text-xs py-4">No rewards earned this time.</div>
+          ) : (
+            <>
+              <div className={`grid gap-3 mb-4 ${petRewards.length === 1 ? "grid-cols-1 justify-items-center" : petRewards.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
+                {petRewards.map(p => (
+                  <PetXpBar key={p.inventoryId} entry={p} accent={accent} />
+                ))}
+              </div>
+
+              {(totalCoins > 0 || totalItems.length > 0) && (
+                <div className="bg-black/40 rounded-xl p-3 mb-3 space-y-2">
+                  {totalCoins > 0 && (
+                    <div className="flex items-center justify-center gap-2 text-amber-400 text-sm">
+                      <Coins className="w-4 h-4" /><span className="font-bold">+{totalCoins} Coins</span>
+                    </div>
+                  )}
+                  {totalItems.length > 0 && (
+                    <div className="space-y-1">
+                      <div className="text-gray-400 text-[10px] uppercase tracking-wide">Items Found</div>
+                      {totalItems.map((item: any, i: number) => (
+                        <div key={i} className="flex items-center justify-center gap-2">
+                          {item.imageUrl && <img src={item.imageUrl} alt="" className="w-5 h-5 object-contain" />}
+                          <span className="text-white text-xs font-medium">{item.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+
+          <button onClick={onClose}
+            className="mt-2 w-full py-3 rounded-xl font-bold text-white transition-all hover:scale-105 active:scale-95"
+            style={{ backgroundColor: isVictory ? accent : "#dc2626" }}
+            data-testid={isVictory ? "button-battle-continue" : "button-battle-retreat"}>
+            {isVictory ? "Continue" : "Retreat"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function BattleArena({ locationId, locationName, bgUrl, accent, onClose, onBattleEnd, battlePotionSlots = [], equippedPets = [] }: BattleArenaProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -168,6 +399,23 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const [petMaxHp, setPetMaxHp] = useState(0);
   const [victoryData, setVictoryData] = useState<any>(null);
   const [totalRewards, setTotalRewards] = useState<{ lvlPoints: number; coins: number; items: any[]; levelsGained: number }>({ lvlPoints: 0, coins: 0, items: [], levelsGained: 0 });
+  // Per-pet level/XP snapshot used by the end-of-battle progression bars.
+  // Keyed by inventoryId. We snapshot starting state on the first defeat
+  // response and keep updating end state as more enemies fall.
+  interface PetReward {
+    inventoryId: string;
+    name: string;
+    imageUrl: string | null;
+    petTemplateId: string | null;
+    startLevel: number;
+    startPoints: number;
+    endLevel: number;
+    endPoints: number;
+    pointsNeeded: number;
+    levelsGained: number;
+    totalXp: number;
+  }
+  const [petRewards, setPetRewards] = useState<Record<string, PetReward>>({});
 
   // ── Enemy movement ───────────────────────────────────────────────────────
   const [enemyPos, setEnemyPos] = useState({ x: 50, y: 22 });
@@ -413,19 +661,68 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         items: [...prev.items, ...(data.droppedItems || [])],
         levelsGained: prev.levelsGained + (data.levelsGained || 0),
       }));
-      if ((data.levelsGained || 0) > 0) {
-        fireLevelUp(data.newLevel, (pet as any)?.petNickname || pet?.name || "Your pet", (pet as any)?.petTemplateId ?? null);
-      }
-      if (Array.isArray(data.extraPetResults)) {
-        data.extraPetResults.forEach((r: any, idx: number) => {
-          if ((r.levelsGained || 0) > 0) {
-            // Stagger overlays so they don't stack on top of each other
-            setTimeout(() => {
-              fireLevelUp(r.newLevel, r.petName || "Pet", r.petTemplateId ?? null);
-            }, 600 * (idx + 1));
+
+      // Accumulate per-pet rewards. We keep the FIRST snapshot's
+      // start state and roll the end state forward on each victory.
+      setPetRewards(prev => {
+        const next = { ...prev };
+        // Active pet
+        if (pet) {
+          const existing = next[pet.inventoryId];
+          if (!existing) {
+            next[pet.inventoryId] = {
+              inventoryId: pet.inventoryId,
+              name: (pet as any).petNickname || pet.name || "Your pet",
+              imageUrl: pet.imageUrl ?? null,
+              petTemplateId: pet.petTemplateId ?? null,
+              startLevel: data.prevLevel ?? pet.level ?? 1,
+              startPoints: data.prevLevelPoints ?? 0,
+              endLevel: data.newLevel ?? data.prevLevel ?? pet.level ?? 1,
+              endPoints: data.newLevelPoints ?? 0,
+              pointsNeeded: data.pointsNeeded ?? 1,
+              levelsGained: data.levelsGained || 0,
+              totalXp: data.lvlPointsEarned || 0,
+            };
+          } else {
+            existing.endLevel = data.newLevel ?? existing.endLevel;
+            existing.endPoints = data.newLevelPoints ?? existing.endPoints;
+            existing.pointsNeeded = data.pointsNeeded ?? existing.pointsNeeded;
+            existing.levelsGained += data.levelsGained || 0;
+            existing.totalXp += data.lvlPointsEarned || 0;
           }
-        });
-      }
+        }
+        // Extras
+        if (Array.isArray(data.extraPetResults)) {
+          data.extraPetResults.forEach((r: any) => {
+            const existing = next[r.inventoryId];
+            // Find slot to recover image
+            const slot = equippedExtraPetsRef.current.find(ep => ep && ep.inventoryId === r.inventoryId) || null;
+            if (!existing) {
+              next[r.inventoryId] = {
+                inventoryId: r.inventoryId,
+                name: r.petName || slot?.petNickname || slot?.name || "Pet",
+                imageUrl: slot?.hatchedImageUrl ?? slot?.imageUrl ?? null,
+                petTemplateId: r.petTemplateId ?? slot?.petTemplateId ?? null,
+                startLevel: r.prevLevel ?? slot?.petLevel ?? 1,
+                startPoints: r.prevLevelPoints ?? 0,
+                endLevel: r.newLevel ?? r.prevLevel ?? slot?.petLevel ?? 1,
+                endPoints: r.newLevelPoints ?? 0,
+                pointsNeeded: r.pointsNeeded ?? 1,
+                levelsGained: r.levelsGained || 0,
+                totalXp: r.lvlPointsEarned || 0,
+              };
+            } else {
+              existing.endLevel = r.newLevel ?? existing.endLevel;
+              existing.endPoints = r.newLevelPoints ?? existing.endPoints;
+              existing.pointsNeeded = r.pointsNeeded ?? existing.pointsNeeded;
+              existing.levelsGained += r.levelsGained || 0;
+              existing.totalXp += r.lvlPointsEarned || 0;
+            }
+          });
+        }
+        return next;
+      });
+
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
     },
     onError: () => {
@@ -1259,6 +1556,23 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         @keyframes rewardSlide {
           0% { transform: translateY(20px); opacity: 0; }
           100% { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes xpBarFill {
+          from { width: var(--xp-from, 0%); }
+          to   { width: var(--xp-to, 0%); }
+        }
+        @keyframes xpBarShine {
+          0%   { transform: translateX(-120%); }
+          100% { transform: translateX(220%); }
+        }
+        @keyframes xpLevelUpBurst {
+          0%   { transform: translate(-50%,-50%) scale(0.4); opacity: 0; }
+          40%  { transform: translate(-50%,-50%) scale(1.15); opacity: 1; }
+          100% { transform: translate(-50%,-50%) scale(1); opacity: 0; }
+        }
+        @keyframes petBobIdle {
+          0%,100% { transform: translateY(0); }
+          50%     { transform: translateY(-6px); }
         }
         @keyframes laserPulse {
           0%   { opacity: 0.8; box-shadow: 0 0 18px rgba(255,50,50,0.8), 0 0 6px white; }
@@ -2129,38 +2443,13 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           }} />
         )}
 
-        {/* ── Wave complete overlay ───────────────────────────────────── */}
+        {/* ── Wave complete overlay (no rewards shown until end of battle) ── */}
         {phase === "waveComplete" && enemy && pet && (
           <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/60">
             <div className="bg-gray-900/95 rounded-2xl border p-5 mx-4 max-w-sm w-full" style={{ borderColor: accent + "60" }} data-testid="modal-wave-complete">
               <div className="text-center">
                 <div className="text-xl font-black mb-1" style={{ color: accent }}>Enemy Defeated!</div>
                 <div className="text-gray-400 text-sm mb-3">{enemy.name} has been vanquished!</div>
-                {victoryData && !victoryData.error && (
-                  <div className="space-y-2 mb-4">
-                    {victoryData.lvlPointsEarned > 0 && (
-                      <div className="flex items-center justify-center gap-2 text-yellow-400 text-sm">
-                        <Star className="w-4 h-4" /><span className="font-bold">+{victoryData.lvlPointsEarned} Level Points</span>
-                      </div>
-                    )}
-                    {victoryData.levelsGained > 0 && <div className="text-green-400 font-bold animate-pulse">Level Up! → Lv.{victoryData.newLevel}</div>}
-                    {victoryData.coinsAwarded > 0 && (
-                      <div className="flex items-center justify-center gap-2 text-amber-400 text-sm">
-                        <Coins className="w-4 h-4" /><span className="font-bold">+{victoryData.coinsAwarded} Coins</span>
-                      </div>
-                    )}
-                    {victoryData.droppedItems?.length > 0 && (
-                      <div className="space-y-1">
-                        {victoryData.droppedItems.map((item: any, i: number) => (
-                          <div key={i} className="flex items-center justify-center gap-2">
-                            {item.imageUrl && <img src={item.imageUrl} alt="" className="w-5 h-5 object-contain" />}
-                            <span className="text-white text-xs font-medium">{item.name}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
                 <div className="bg-black/40 rounded-xl p-3 mb-4">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-gray-400 text-xs">{pet.name}'s HP</span>
@@ -2193,96 +2482,20 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           </div>
         )}
 
-        {/* ── Victory overlay ─────────────────────────────────────────── */}
-        {phase === "victory" && enemy && (
-          <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/60">
-            <div className="bg-gray-900/95 rounded-2xl border p-6 mx-6 max-w-sm w-full"
-              style={{ borderColor: accent + "60", animation: "victoryPulse 2s ease-in-out infinite" }}
-              data-testid="modal-victory">
-              <div className="text-center">
-                <div className="text-3xl font-black mb-1" style={{ color: accent }}>VICTORY!</div>
-                <div className="text-gray-400 text-sm mb-4">
-                  {allEnemies.length > 1 ? `All ${allEnemies.length} enemies defeated!` : `You defeated ${enemy.name}!`}
-                </div>
-                {(victoryData || totalRewards.lvlPoints > 0) ? (
-                  <div className="space-y-3">
-                    {(totalRewards.lvlPoints > 0 || victoryData?.lvlPointsEarned > 0) && (
-                      <div className="flex items-center justify-center gap-2 text-yellow-400" style={{ animation: "rewardSlide 0.5s ease-out" }}>
-                        <Star className="w-5 h-5" />
-                        <span className="font-bold">+{allEnemies.length > 1 ? totalRewards.lvlPoints : victoryData?.lvlPointsEarned} Level Points</span>
-                      </div>
-                    )}
-                    {(totalRewards.levelsGained > 0 || victoryData?.levelsGained > 0) && (
-                      <div className="text-green-400 font-bold text-lg animate-pulse" style={{ animation: "rewardSlide 0.6s ease-out" }}>
-                        Level Up! → Lv.{victoryData?.newLevel}
-                      </div>
-                    )}
-                    {(totalRewards.coins > 0 || victoryData?.coinsAwarded > 0) && (
-                      <div className="flex items-center justify-center gap-2 text-amber-400" style={{ animation: "rewardSlide 0.7s ease-out" }}>
-                        <Coins className="w-5 h-5" />
-                        <span className="font-bold">+{allEnemies.length > 1 ? totalRewards.coins : victoryData?.coinsAwarded} Coins</span>
-                      </div>
-                    )}
-                    {((allEnemies.length > 1 ? totalRewards.items : victoryData?.droppedItems) || []).length > 0 && (
-                      <div className="space-y-1" style={{ animation: "rewardSlide 0.8s ease-out" }}>
-                        <div className="text-gray-400 text-xs uppercase tracking-wide">Items Found</div>
-                        {(allEnemies.length > 1 ? totalRewards.items : victoryData?.droppedItems || []).map((item: any, i: number) => (
-                          <div key={i} className="flex items-center justify-center gap-2">
-                            {item.imageUrl && <img src={item.imageUrl} alt="" className="w-6 h-6 object-contain" />}
-                            <span className="text-white text-sm font-medium">{item.name}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ) : defeatMutation.isError ? (
-                  <div className="text-red-400 text-sm">Failed to process rewards. Your victory still counts!</div>
-                ) : (
-                  <div className="text-gray-400 animate-pulse">Calculating rewards...</div>
-                )}
-                <button onClick={handleReturnToWorld}
-                  className="mt-6 w-full py-3 rounded-xl font-bold text-white transition-all hover:scale-105 active:scale-95"
-                  style={{ backgroundColor: accent }}
-                  data-testid="button-battle-continue">
-                  Continue
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── Defeat overlay ──────────────────────────────────────────── */}
-        {phase === "defeat" && pet && (
-          <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/70">
-            <div className="bg-gray-900/95 rounded-2xl border border-red-500/40 p-6 mx-6 max-w-sm w-full" data-testid="modal-defeat">
-              <div className="text-center">
-                <div className="text-3xl font-black text-red-500 mb-1">DEFEATED</div>
-                <div className="text-gray-400 text-sm mb-2">{pet.name} couldn't hold on...</div>
-                {totalRewards.lvlPoints > 0 || totalRewards.coins > 0 || totalRewards.items.length > 0 ? (
-                  <div className="bg-black/30 rounded-lg p-3 mb-4 space-y-1">
-                    <div className="text-gray-500 text-[10px] uppercase tracking-wide">Rewards earned before defeat</div>
-                    {totalRewards.lvlPoints > 0 && (
-                      <div className="flex items-center justify-center gap-1.5 text-yellow-400 text-sm">
-                        <Star className="w-3.5 h-3.5" /><span>+{totalRewards.lvlPoints} Level Points</span>
-                      </div>
-                    )}
-                    {totalRewards.coins > 0 && (
-                      <div className="flex items-center justify-center gap-1.5 text-amber-400 text-sm">
-                        <Coins className="w-3.5 h-3.5" /><span>+{totalRewards.coins} Coins</span>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-gray-500 text-xs mb-4">No rewards earned this time.</div>
-                )}
-                <button onClick={handleReturnToWorld}
-                  className="w-full py-3 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 transition-all active:scale-95"
-                  data-testid="button-battle-retreat">
-                  Retreat
-                </button>
-              </div>
-            </div>
-          </div>
+        {/* ── End-of-battle summary (victory or defeat) ───────────────── */}
+        {(phase === "victory" || phase === "defeat") && (
+          <BattleEndSummary
+            phase={phase}
+            accent={accent}
+            enemyName={enemy?.name ?? ""}
+            allEnemiesCount={allEnemies.length}
+            petRewards={Object.values(petRewards)}
+            totalCoins={totalRewards.coins}
+            totalItems={totalRewards.items}
+            errored={defeatMutation.isError}
+            calculating={defeatMutation.isPending && Object.keys(petRewards).length === 0}
+            onClose={handleReturnToWorld}
+          />
         )}
 
         {/* ── Tutorial ─────────────────────────────────────────────────── */}
