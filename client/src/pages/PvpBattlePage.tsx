@@ -75,11 +75,15 @@ const nextPid = () => _pid++;
 export default function PvpBattlePage({
   opponent,
   myPetIds,
+  potionInventoryIds = [],
   battleToken,
   onClose,
 }: {
   opponent: Opponent;
   myPetIds: string[];
+  /** Inventory ids of potions the player chose on the lobby loadout. The
+   * battle screen does not yet consume these — kept for forward-wiring. */
+  potionInventoryIds?: string[];
   /** One-time token issued by /api/pvp/start. Required by /api/pvp/result;
    *  without it the server rejects the result with 403. */
   battleToken: string;
