@@ -1117,6 +1117,7 @@ export class DatabaseStorage implements IStorage {
         sql`GREATEST(${users.totalCoinsEarned}, ${users.coins}) > 0`,
         sql`${users.isAdmin} IS NOT TRUE`,
         sql`${users.isModerator} IS NOT TRUE`,
+        sql`${users.isBot} IS NOT TRUE`,
       ))
       .orderBy(desc(rankScore))
       .limit(limit * 2); // fetch extra to account for excluded usernames
@@ -1191,6 +1192,7 @@ export class DatabaseStorage implements IStorage {
         sql`GREATEST(${users.totalCoinsEarned}, ${users.coins}) > 0`,
         sql`${users.isAdmin} IS NOT TRUE`,
         sql`${users.isModerator} IS NOT TRUE`,
+        sql`${users.isBot} IS NOT TRUE`,
       ));
 
     const scored = candidates
@@ -1751,6 +1753,7 @@ export class DatabaseStorage implements IStorage {
       profileImage: users.profileImage,
       isAdmin: users.isAdmin,
       isModerator: users.isModerator,
+      isBot: users.isBot,
       result: pvpBattles.result,
       battlePointsDelta: pvpBattles.battlePointsDelta,
     }).from(pvpBattles)
@@ -1760,7 +1763,7 @@ export class DatabaseStorage implements IStorage {
     for (const row of rows) {
       if (!row.userId) continue;
       if (LEADERBOARD_EXCLUDED_USERNAMES.has((row.username || "").toLowerCase())) continue;
-      if (row.isAdmin || row.isModerator) continue;
+      if (row.isAdmin || row.isModerator || row.isBot) continue;
       if (!byUser[row.userId]) {
         byUser[row.userId] = {
           userId: row.userId,

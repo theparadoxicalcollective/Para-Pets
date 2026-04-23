@@ -6,6 +6,7 @@ import { Strategy as LocalStrategy } from "passport-local";
 import bcrypt from "bcryptjs";
 import connectPgSimple from "connect-pg-simple";
 import { registerRoutes, backfillAdvancedAcquisitionBadge, backfillCoinPurchaseEarnings, syncTotalCoinsEarnedFloor } from "./routes";
+import { seedPvpBots } from "./seedPvpBots";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { storage } from "./storage";
@@ -272,6 +273,18 @@ app.use((req, res, next) => {
     await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS watcher_shoutouts_enabled boolean NOT NULL DEFAULT true`);
   } catch (err) {
     console.error("watcher_shoutouts_enabled migration error (non-fatal):", err);
+  }
+
+  try {
+    await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_bot boolean NOT NULL DEFAULT false`);
+  } catch (err) {
+    console.error("is_bot migration error (non-fatal):", err);
+  }
+
+  try {
+    await db.execute(sql`ALTER TABLE pvp_battle_groups ADD COLUMN IF NOT EXISTS attack_power integer NOT NULL DEFAULT 0`);
+  } catch (err) {
+    console.error("pvp_battle_groups.attack_power migration error (non-fatal):", err);
   }
 
   await registerRoutes(httpServer, app);
@@ -1704,5 +1717,9 @@ app.use((req, res, next) => {
   await backfillCoinPurchaseEarnings();
   // Ensure totalCoinsEarned >= current balance for all users (seeds legacy in-game earners)
   await syncTotalCoinsEarnedFloor();
+  // Seed persistent PvP bot opponents so players can battle even when no
+  // human has set a battle group yet. Idempotent — bails fast on reboot.
+  try { await seedPvpBots(); }
+  catch (err) { console.error("seedPvpBots error (non-fatal):", err); }
   })().catch(err => console.error("Background init error:", err));
 })();

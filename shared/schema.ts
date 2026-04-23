@@ -12,6 +12,10 @@ export const users = pgTable("users", {
   coins: integer("coins").notNull().default(0),
   isAdmin: boolean("is_admin").notNull().default(false),
   isModerator: boolean("is_moderator").notNull().default(false),
+  // Marks server-managed PvP bot accounts so they're excluded from public
+  // leaderboards (Hall of Earnings, Devotion, PvP) but still surface in
+  // PvP opponent matchmaking.
+  isBot: boolean("is_bot").notNull().default(false),
   isBanned: boolean("is_banned").notNull().default(false),
   banUntil: timestamp("ban_until"),
   activePetId: varchar("active_pet_id"),
