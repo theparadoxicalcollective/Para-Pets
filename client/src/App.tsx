@@ -4,7 +4,8 @@ import { QueryClientProvider, useMutation } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
-import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useState, type ReactNode } from "react";
+import { lazyWithRetry as lazy, clearChunkReloadFlag } from "@/lib/lazyWithRetry";
 import { playClick, unlockAudio } from "@/lib/sounds";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -510,6 +511,14 @@ function App() {
   useEffect(() => {
     initTabSync();
     return () => teardownTabSync();
+  }, []);
+
+  // Reset the lazy-chunk reload guard once the app has successfully mounted.
+  // This way the next time we ship a new build, lazyWithRetry is allowed to
+  // do its one-shot reload again (instead of treating the old session's
+  // already-recovered flag as "already retried, give up").
+  useEffect(() => {
+    clearChunkReloadFlag();
   }, []);
 
   // On desktop, scale the phone frame down so it always fits in the viewport

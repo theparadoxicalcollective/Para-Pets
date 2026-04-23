@@ -43,6 +43,21 @@ export default class ErrorBoundary extends Component<Props, State> {
       });
       localStorage.setItem("__para_last_error", entry);
     } catch (_) {}
+
+    // Backup recovery for stale-deploy chunk-load errors. lazyWithRetry
+    // already handles this, but if anything else swallowed the original
+    // ChunkLoadError and we still ended up here, force one reload before
+    // showing the crash card. Guarded by sessionStorage so we never loop.
+    try {
+      const msg = String(error?.message ?? "");
+      const isChunkErr =
+        (error as any)?.name === "ChunkLoadError" ||
+        /Loading chunk|Loading CSS chunk|dynamically imported module|MIME type|Failed to fetch dynamically/i.test(msg);
+      if (isChunkErr && sessionStorage.getItem("__para_chunk_reloaded") !== "1") {
+        sessionStorage.setItem("__para_chunk_reloaded", "1");
+        window.location.reload();
+      }
+    } catch (_) {}
   }
 
   handleReset = () => {
