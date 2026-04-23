@@ -4,7 +4,10 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import battleTrophyIcon from "@assets/generated_images/icon_battle_trophy.png";
-import { ArrowLeft, Sword, Users, Trophy, Check, X } from "lucide-react";
+import platinumTrophyImg from "@assets/generated_images/pvp_platinum_trophy.png";
+import leaderboardPanelImg from "@assets/generated_images/pvp_leaderboard_panel_bg.png";
+import pvpTicketImg from "@assets/Photoroom_20260415_83701_PM_1776304592941.png";
+import { ArrowLeft, Users, Check } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
 import PvpBattlePage from "./PvpBattlePage";
 import forestBgImg from "@assets/generated_images/pvp_ruins_battlefield_bg.png";
@@ -21,6 +24,31 @@ interface LeaderboardEntry {
   isAdmin?: boolean;
   isModerator?: boolean;
 }
+
+interface LeaderboardResponse {
+  top: LeaderboardEntry[];
+  me: { rank: number; entry: LeaderboardEntry; inTop: boolean } | null;
+  totalRanked: number;
+}
+
+// Battle-points rank tiers, per game spec:
+//   1–10  → Gold
+//   11–25 → Silver
+//   26–50 → Bronze
+//   51+   → tracked but hidden from the public board
+type Tier = "gold" | "silver" | "bronze" | "off";
+function tierForRank(rank: number): Tier {
+  if (rank <= 10) return "gold";
+  if (rank <= 25) return "silver";
+  if (rank <= 50) return "bronze";
+  return "off";
+}
+const TIER_STYLE: Record<Tier, { label: string; ring: string; chip: string; text: string; rowBg: string; rowBorder: string }> = {
+  gold:   { label: "GOLD",   ring: "rgba(251,191,36,0.55)",  chip: "rgba(251,191,36,0.22)", text: "#fbbf24", rowBg: "linear-gradient(135deg, rgba(251,191,36,0.16), rgba(180,130,20,0.05))", rowBorder: "rgba(251,191,36,0.3)" },
+  silver: { label: "SILVER", ring: "rgba(203,213,225,0.55)", chip: "rgba(203,213,225,0.18)", text: "#cbd5e1", rowBg: "linear-gradient(135deg, rgba(203,213,225,0.13), rgba(120,130,140,0.04))", rowBorder: "rgba(203,213,225,0.25)" },
+  bronze: { label: "BRONZE", ring: "rgba(217,119,6,0.55)",   chip: "rgba(217,119,6,0.18)",  text: "#d97706", rowBg: "linear-gradient(135deg, rgba(217,119,6,0.13), rgba(120,53,15,0.04))",  rowBorder: "rgba(217,119,6,0.28)" },
+  off:    { label: "—",       ring: "rgba(107,114,128,0.4)",  chip: "rgba(107,114,128,0.15)", text: "#9ca3af", rowBg: "rgba(255,255,255,0.03)", rowBorder: "rgba(255,255,255,0.06)" },
+};
 
 interface Opponent {
   userId: string;
@@ -41,10 +69,28 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
   const [groupSaved, setGroupSaved] = useState(false);
 
   const { data: me } = useQuery<any>({ queryKey: ["/api/auth/me"] });
-  const { data: leaderboard = [] } = useQuery<LeaderboardEntry[]>({ queryKey: ["/api/pvp/leaderboard"] });
+  const { data: leaderboardData } = useQuery<LeaderboardResponse>({ queryKey: ["/api/pvp/leaderboard"] });
+  const leaderboard = leaderboardData?.top ?? [];
+  const myLb = leaderboardData?.me ?? null;
+  const { data: ticketsData } = useQuery<{ count: number }>({ queryKey: ["/api/pvp/tickets"] });
+  const ticketCount = ticketsData?.count ?? 0;
   const { data: battleGroup } = useQuery<any>({ queryKey: ["/api/pvp/battle-group"] });
   const { data: opponents = [] } = useQuery<Opponent[]>({ queryKey: ["/api/pvp/opponents"], enabled: tab === "opponents" });
   const { data: inventory = [] } = useQuery<any[]>({ queryKey: ["/api/inventory"], enabled: tab === "group" });
+
+  // Spend a ticket BEFORE the battle screen mounts. We do it here (not inside
+  // PvpBattlePage) so a player who's out of tickets gets a friendly toast
+  // instead of being dropped into a battle they can't actually pay for.
+  const startBattle = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/pvp/start", {});
+      return res.json() as Promise<{ ticketsRemaining: number }>;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pvp/tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+    },
+  });
 
   // Sync saved group into local selection
   useEffect(() => {
@@ -84,6 +130,8 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
           setBattleOpponent(null);
           if (result) {
             queryClient.invalidateQueries({ queryKey: ["/api/pvp/leaderboard"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/pvp/tickets"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
             queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
           }
         }}
@@ -92,7 +140,9 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
   }
 
   const activePet = me?.activePet;
-  const myBp = (leaderboard as LeaderboardEntry[]).find((r) => r.userId === me?.id)?.battlePoints ?? 0;
+  const myBp = myLb?.entry.battlePoints ?? 0;
+  const myRank = myLb?.rank ?? null;
+  const myTier: Tier = myRank ? tierForRank(myRank) : "off";
 
   return (
     <div
@@ -139,73 +189,170 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
       {/* ── Body ──────────────────────────────────────────────────── */}
       <div className="relative z-10 flex-1 flex flex-col overflow-hidden">
 
-        {/* ── ARENA title ── */}
-        <div className="text-center pt-4 pb-2 shrink-0">
-          <div className="text-[10px] tracking-[0.4em] text-purple-400/70 mb-0.5">WELCOME TO THE</div>
-          <div className="flex items-center justify-center gap-2 text-2xl font-black tracking-[0.2em] text-white" style={{ textShadow: "0 0 30px rgba(167,139,250,0.6)" }}>
-            <img src={swordImg} alt="" style={{ width: 22, height: 22, objectFit: "contain", transform: "scaleX(-1)", opacity: 0.85 }} />
-            PvP ARENA
-            <img src={swordImg} alt="" style={{ width: 22, height: 22, objectFit: "contain", opacity: 0.85 }} />
+        {/* ── Title row: ticket count (left) + centered "PvP Arena" title.
+             The title is centered using absolute positioning so the ticket
+             chip on the left can't push it off-center. ── */}
+        <div className="relative shrink-0 pt-3 pb-1.5 px-4">
+          <div className="flex items-center gap-1.5" data-testid="pvp-ticket-count">
+            <img src={pvpTicketImg} alt="PvP ticket" style={{ width: 26, height: 26, objectFit: "contain" }} />
+            <span className="text-[12px] font-bold text-amber-200" style={{ textShadow: "0 0 8px rgba(251,191,36,0.4)" }}>×{ticketCount}</span>
           </div>
-          {myBp > 0 && <div className="text-yellow-400/80 text-[10px] tracking-wider mt-1">Your battle points: {myBp}</div>}
+          <div
+            className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-2xl font-black tracking-[0.18em] text-white pointer-events-none"
+            style={{ textShadow: "0 0 28px rgba(167,139,250,0.55), 0 2px 4px rgba(0,0,0,0.6)" }}
+            data-testid="text-pvp-arena-title"
+          >
+            PvP Arena
+          </div>
         </div>
 
-        {/* ── Leaderboard ── */}
-        <div className="flex-1 overflow-y-auto px-4 pb-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Trophy size={13} className="text-yellow-400" />
-            <span className="text-[10px] tracking-[0.3em] text-yellow-400/80">BATTLE LEADERBOARD</span>
-          </div>
-
-          {(leaderboard as LeaderboardEntry[]).length === 0 ? (
-            <div className="text-center py-12 text-white/20 text-xs tracking-widest">
-              <div className="mb-3"><img src={battleTrophyIcon} alt="" style={{ width: 52, height: 52, objectFit: "contain", margin: "0 auto" }} /></div>
-              No battles recorded yet.<br />Be the first to fight!
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {(leaderboard as LeaderboardEntry[]).map((entry, i) => (
+        {/* ── "Veridian Leaders" leaderboard, framed by the ruins panel ── */}
+        <div className="flex-1 overflow-y-auto px-3 pt-2 pb-3">
+          <div className="relative mx-auto" style={{ maxWidth: 360 }}>
+            {/* Ornate ruins frame as the panel background. Using object-fit
+                contain via background-size so the frame keeps its aspect
+                ratio while the inner content drives the box height. */}
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                backgroundImage: `url(${leaderboardPanelImg})`,
+                backgroundSize: "100% 100%",
+                backgroundRepeat: "no-repeat",
+                filter: "drop-shadow(0 6px 22px rgba(0,0,0,0.55))",
+              }}
+            />
+            {/* Inner content sits inside the frame's hollow area. The frame
+                art has a thick decorative border, so we pad the content
+                generously so rows don't overlap the carved stone. */}
+            <div className="relative px-7 pt-[68px] pb-[68px]">
+              <div className="text-center mb-3">
                 <div
-                  key={entry.userId}
-                  className="flex items-center gap-3 rounded-xl px-3 py-2.5"
-                  style={{
-                    background: i === 0
-                      ? "linear-gradient(135deg, rgba(251,191,36,0.15), rgba(253,224,71,0.05))"
-                      : i === 1
-                      ? "linear-gradient(135deg, rgba(156,163,175,0.12), rgba(107,114,128,0.05))"
-                      : i === 2
-                      ? "linear-gradient(135deg, rgba(180,83,9,0.12), rgba(120,53,15,0.05))"
-                      : "rgba(255,255,255,0.03)",
-                    border: `1px solid ${i === 0 ? "rgba(251,191,36,0.2)" : i === 1 ? "rgba(156,163,175,0.15)" : i === 2 ? "rgba(180,83,9,0.15)" : "rgba(255,255,255,0.05)"}`,
-                  }}
+                  className="text-[18px] font-black tracking-[0.18em] text-amber-100"
+                  style={{ fontFamily: "Cinzel, fantasy, serif", textShadow: "0 0 16px rgba(167,139,250,0.55), 0 2px 3px rgba(0,0,0,0.7)" }}
+                  data-testid="text-leaderboard-title"
                 >
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 font-black text-[10px]" style={{
-                    background: i === 0 ? "rgba(251,191,36,0.25)" : i === 1 ? "rgba(156,163,175,0.2)" : i === 2 ? "rgba(180,83,9,0.2)" : "rgba(107,114,128,0.1)",
-                    border: `1px solid ${i === 0 ? "rgba(251,191,36,0.5)" : i === 1 ? "rgba(156,163,175,0.4)" : i === 2 ? "rgba(180,83,9,0.4)" : "rgba(107,114,128,0.2)"}`,
-                    color: i === 0 ? "#fbbf24" : i === 1 ? "#d1d5db" : i === 2 ? "#d97706" : "#6b7280",
-                  }}>
-                    {i + 1}
-                  </div>
-                  {entry.profileImage
-                    ? <img src={entry.profileImage} className="w-8 h-8 rounded-full object-cover border border-white/10 shrink-0" />
-                    : <div className="w-8 h-8 rounded-full bg-purple-900/50 border border-purple-400/20 flex items-center justify-center shrink-0">
-                        <img src={petPawIcon} alt="" style={{ width: 18, height: 18, objectFit: "contain", opacity: 0.5 }} />
-                      </div>}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <div className="text-white/90 text-xs font-bold truncate">{entry.username}</div>
-                      <RoleBadge isAdmin={entry.isAdmin} isModerator={entry.isModerator} />
-                    </div>
-                    <div className="text-white/30 text-[9px]">{entry.wins}W · {entry.losses}L</div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-yellow-400 text-sm font-black">{Math.max(0, entry.battlePoints)}</div>
-                    <div className="text-yellow-400/40 text-[8px] tracking-wider">PTS</div>
-                  </div>
+                  Veridian Leaders
                 </div>
-              ))}
+              </div>
+
+              {leaderboard.length === 0 ? (
+                <div className="text-center py-10 text-white/30 text-xs tracking-widest">
+                  <div className="mb-3"><img src={battleTrophyIcon} alt="" style={{ width: 48, height: 48, objectFit: "contain", margin: "0 auto" }} /></div>
+                  No battles recorded yet.<br />Be the first to fight!
+                </div>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  {leaderboard.map((entry, i) => {
+                    const rank = i + 1;
+                    const tier = tierForRank(rank);
+                    const style = TIER_STYLE[tier];
+                    const isTop3 = rank <= 3;
+                    const isMe = entry.userId === me?.id;
+                    return (
+                      <div
+                        key={entry.userId}
+                        data-testid={`row-leaderboard-${rank}`}
+                        className="flex items-center gap-2.5 rounded-lg px-2.5 py-2"
+                        style={{
+                          background: isMe
+                            ? "linear-gradient(135deg, rgba(124,58,237,0.28), rgba(167,139,250,0.08))"
+                            : style.rowBg,
+                          border: `1px solid ${isMe ? "rgba(167,139,250,0.55)" : style.rowBorder}`,
+                          boxShadow: isMe ? "0 0 12px rgba(124,58,237,0.25)" : undefined,
+                        }}
+                      >
+                        {/* Top-3: platinum trophy icon overlaid with the rank
+                            number. Otherwise a simple tier-coloured rank chip. */}
+                        {isTop3 ? (
+                          <div className="relative shrink-0" style={{ width: 32, height: 32 }}>
+                            <img src={platinumTrophyImg} alt="" style={{ width: 32, height: 32, objectFit: "contain", filter: "drop-shadow(0 0 6px rgba(167,139,250,0.5))" }} />
+                            <div
+                              className="absolute inset-0 flex items-center justify-center font-black text-[11px]"
+                              style={{ color: "#fff", textShadow: "0 0 4px rgba(0,0,0,0.9), 0 1px 2px rgba(0,0,0,0.8)" }}
+                            >
+                              {rank}
+                            </div>
+                          </div>
+                        ) : (
+                          <div
+                            className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 font-black text-[10px]"
+                            style={{ background: style.chip, border: `1px solid ${style.ring}`, color: style.text }}
+                          >
+                            {rank}
+                          </div>
+                        )}
+                        {entry.profileImage
+                          ? <img src={entry.profileImage} className="w-7 h-7 rounded-full object-cover border border-white/15 shrink-0" />
+                          : <div className="w-7 h-7 rounded-full bg-purple-900/50 border border-purple-400/20 flex items-center justify-center shrink-0">
+                              <img src={petPawIcon} alt="" style={{ width: 16, height: 16, objectFit: "contain", opacity: 0.5 }} />
+                            </div>}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <div className="text-white/95 text-[12px] font-bold truncate">{entry.username}</div>
+                            <RoleBadge isAdmin={entry.isAdmin} isModerator={entry.isModerator} />
+                            <div
+                              className="text-[8px] font-black tracking-widest px-1.5 py-0.5 rounded shrink-0"
+                              style={{ color: style.text, background: style.chip, border: `1px solid ${style.ring}` }}
+                            >
+                              {style.label}
+                            </div>
+                          </div>
+                          <div className="text-white/35 text-[9px]">{entry.wins}W · {entry.losses}L</div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className="text-amber-300 text-[14px] font-black leading-none">{Math.max(0, entry.battlePoints)}</div>
+                          <div className="text-amber-300/45 text-[8px] tracking-wider">BP</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* "Your placement" row — always visible. Shows the player's
+                  global rank even when they're past the top 50. If they
+                  haven't fought yet, prompt them to start. */}
+              <div className="mt-3 pt-3 border-t border-white/10">
+                <div className="text-[9px] tracking-[0.25em] text-white/40 mb-1.5 text-center">YOUR PLACEMENT</div>
+                {myRank ? (
+                  <div
+                    className="flex items-center gap-2.5 rounded-lg px-2.5 py-2"
+                    data-testid="row-my-placement"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(124,58,237,0.22), rgba(167,139,250,0.05))",
+                      border: "1px solid rgba(167,139,250,0.45)",
+                    }}
+                  >
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-black text-[10px]"
+                      style={{ background: TIER_STYLE[myTier].chip, border: `1px solid ${TIER_STYLE[myTier].ring}`, color: TIER_STYLE[myTier].text }}
+                    >
+                      #{myRank}
+                    </div>
+                    {me?.profileImage
+                      ? <img src={me.profileImage} className="w-7 h-7 rounded-full object-cover border border-white/15 shrink-0" />
+                      : <div className="w-7 h-7 rounded-full bg-purple-900/50 border border-purple-400/20 flex items-center justify-center shrink-0">
+                          <img src={petPawIcon} alt="" style={{ width: 16, height: 16, objectFit: "contain", opacity: 0.5 }} />
+                        </div>}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-white/95 text-[12px] font-bold truncate">{me?.username ?? "You"}</div>
+                      <div className="text-white/40 text-[9px]">
+                        {myTier === "off" ? "Unranked tier" : `${TIER_STYLE[myTier].label} tier`} · {myLb?.entry.wins ?? 0}W · {myLb?.entry.losses ?? 0}L
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-amber-300 text-[14px] font-black leading-none">{Math.max(0, myBp)}</div>
+                      <div className="text-amber-300/45 text-[8px] tracking-wider">BP</div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-3 text-white/40 text-[11px]">
+                    You haven't fought yet — win a battle to get on the board!
+                  </div>
+                )}
+              </div>
             </div>
-          )}
+          </div>
         </div>
 
         {/* ── Bottom Buttons ── */}
@@ -345,10 +492,25 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                   <button
                     key={opp.userId}
                     data-testid={`button-challenge-${opp.userId}`}
-                    onClick={() => {
+                    onClick={async () => {
                       if (!selectedPetIds.length && !battleGroup?.petInventoryIds?.length) {
                         toast({ title: "Set up your Battle Group first!", variant: "destructive" });
                         setTab("group");
+                        return;
+                      }
+                      if (ticketCount <= 0) {
+                        toast({ title: "Out of PvP tickets", description: "Earn or buy tickets to enter the arena.", variant: "destructive" });
+                        return;
+                      }
+                      // Spend the ticket BEFORE entering the battle screen.
+                      // If the server rejects (e.g. raced down to 0), bail
+                      // out so we don't show a paid-for battle the player
+                      // can't actually start.
+                      try {
+                        await startBattle.mutateAsync();
+                      } catch (err: any) {
+                        toast({ title: "Out of PvP tickets", description: "Earn or buy tickets to enter the arena.", variant: "destructive" });
+                        queryClient.invalidateQueries({ queryKey: ["/api/pvp/tickets"] });
                         return;
                       }
                       setBattleOpponent(opp);

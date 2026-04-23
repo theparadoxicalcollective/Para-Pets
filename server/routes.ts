@@ -5090,8 +5090,12 @@ export async function registerRoutes(
 
       const lvl = Math.max(1, opponentLevel || 1);
       const WIN_COINS = 15 + Math.floor(lvl * 2);
-      const WIN_BP = 100 + Math.floor(lvl * 5);
-      const LOSS_BP = -25;
+      // Per game spec: each WIN grants exactly 12 battle points. Losses are
+      // worth 0 BP (no negative scoring). Tickets are spent up front when the
+      // player chooses an opponent (see /api/pvp/start), so we don't touch
+      // them again here.
+      const WIN_BP = 12;
+      const LOSS_BP = 0;
 
       const coinsEarned = result === "win" ? WIN_COINS : 0;
       const battlePointsDelta = result === "win" ? WIN_BP : LOSS_BP;
@@ -5116,6 +5120,36 @@ export async function registerRoutes(
     }
   });
 
+  // Spend one PvP ticket and "lock in" a battle attempt. Called by the
+  // client right before launching the battle screen so we charge the player
+  // win or lose. Returns 402 if the player has no tickets so the client can
+  // show a friendly "out of tickets" message.
+  app.post("/api/pvp/start", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as any;
+      const ok = await storage.consumePvpTicket(user.id);
+      if (!ok) {
+        return res.status(402).json({ message: "No PvP tickets", ticketsRemaining: 0 });
+      }
+      const remaining = await storage.getPvpTicketCount(user.id);
+      return res.json({ ticketsRemaining: remaining });
+    } catch (err) {
+      console.error("PvP start error:", err);
+      return res.status(500).json({ message: "Failed to start battle" });
+    }
+  });
+
+  // Current player's PvP ticket count (sum of inventory stacks).
+  app.get("/api/pvp/tickets", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as any;
+      const count = await storage.getPvpTicketCount(user.id);
+      return res.json({ count });
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to fetch tickets" });
+    }
+  });
+
   // Get battle history for the logged-in user
   app.get("/api/pvp/history", isAuthenticated, async (req: Request, res: Response) => {
     try {
@@ -5127,12 +5161,22 @@ export async function registerRoutes(
     }
   });
 
-  // Global leaderboard
-  app.get("/api/pvp/leaderboard", isAuthenticated, async (_req: Request, res: Response) => {
+  // Global PvP leaderboard. Returns the top 50 ranked players AND the
+  // requesting user's own rank/entry so the client can show their position
+  // even when they're outside the top 50. Players past rank 50 are still
+  // tracked in pvp_battles — they just don't render on the public board.
+  app.get("/api/pvp/leaderboard", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const board = await storage.getPvpLeaderboard(30);
-      return res.json(board);
+      const user = req.user as any;
+      const all = await storage.getPvpLeaderboardFull();
+      const top = all.slice(0, 50);
+      const myIdx = all.findIndex((e) => e.userId === user.id);
+      const me = myIdx >= 0
+        ? { rank: myIdx + 1, entry: all[myIdx], inTop: myIdx < 50 }
+        : null;
+      return res.json({ top, me, totalRanked: all.length });
     } catch (err) {
+      console.error("PvP leaderboard error:", err);
       return res.status(500).json({ message: "Failed to fetch leaderboard" });
     }
   });

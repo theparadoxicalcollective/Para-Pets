@@ -251,6 +251,9 @@ export interface IStorage {
   createPvpBattle(data: { userId: string; opponentName: string; opponentImageUrl?: string | null; opponentLevel: number; opponentSkill?: string | null; result: string; coinsEarned: number; battlePointsDelta?: number }): Promise<any>;
   getPvpBattlesByUser(userId: string, limit?: number): Promise<any[]>;
   getPvpLeaderboard(limit?: number): Promise<{ userId: string; username: string; profileImage: string | null; battlePoints: number; wins: number; losses: number }[]>;
+  getPvpLeaderboardFull(): Promise<{ userId: string; username: string; profileImage: string | null; battlePoints: number; wins: number; losses: number; isAdmin?: boolean; isModerator?: boolean }[]>;
+  getPvpTicketCount(userId: string): Promise<number>;
+  consumePvpTicket(userId: string): Promise<boolean>;
   getBattleGroup(userId: string): Promise<any | null>;
   upsertBattleGroup(userId: string, petInventoryIds: string[]): Promise<any>;
   getAllBattleGroupsWithUsers(): Promise<any[]>;
@@ -1728,29 +1731,93 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPvpLeaderboard(limit = 20): Promise<{ userId: string; username: string; profileImage: string | null; battlePoints: number; wins: number; losses: number }[]> {
+    const all = await this.getPvpLeaderboardFull();
+    return all.slice(0, limit);
+  }
+
+  /**
+   * Build the FULL ranked battle-points leaderboard. Used by the PvP page so
+   * we can return the top N AND the requesting user's own rank even when
+   * they're outside the top N. Also enriches each entry with admin/mod flags
+   * so the client can render role badges.
+   */
+  async getPvpLeaderboardFull(): Promise<{ userId: string; username: string; profileImage: string | null; battlePoints: number; wins: number; losses: number; isAdmin?: boolean; isModerator?: boolean }[]> {
     const rows = await db.select({
       userId: pvpBattles.userId,
       username: users.username,
       profileImage: users.profileImage,
+      isAdmin: users.isAdmin,
+      isModerator: users.isModerator,
       result: pvpBattles.result,
       battlePointsDelta: pvpBattles.battlePointsDelta,
     }).from(pvpBattles)
-      .leftJoin(users, and(eq(pvpBattles.userId, users.id), eq(users.isAdmin, false), eq(users.isModerator, false)));
+      .leftJoin(users, eq(pvpBattles.userId, users.id));
 
-    const byUser: Record<string, { userId: string; username: string; profileImage: string | null; battlePoints: number; wins: number; losses: number }> = {};
+    const byUser: Record<string, { userId: string; username: string; profileImage: string | null; battlePoints: number; wins: number; losses: number; isAdmin?: boolean; isModerator?: boolean }> = {};
     for (const row of rows) {
       if (!row.userId) continue;
       if (LEADERBOARD_EXCLUDED_USERNAMES.has((row.username || "").toLowerCase())) continue;
+      if (row.isAdmin || row.isModerator) continue;
       if (!byUser[row.userId]) {
-        byUser[row.userId] = { userId: row.userId, username: row.username || "Unknown", profileImage: row.profileImage ?? null, battlePoints: 0, wins: 0, losses: 0 };
+        byUser[row.userId] = {
+          userId: row.userId,
+          username: row.username || "Unknown",
+          profileImage: row.profileImage ?? null,
+          battlePoints: 0,
+          wins: 0,
+          losses: 0,
+          isAdmin: row.isAdmin ?? false,
+          isModerator: row.isModerator ?? false,
+        };
       }
       byUser[row.userId].battlePoints += row.battlePointsDelta || 0;
       if (row.result === "win") byUser[row.userId].wins++;
       else byUser[row.userId].losses++;
     }
-    return Object.values(byUser)
-      .sort((a, b) => b.battlePoints - a.battlePoints)
-      .slice(0, limit);
+    return Object.values(byUser).sort((a, b) => b.battlePoints - a.battlePoints);
+  }
+
+  /** PvP ticket helpers. Tickets are inventory items: shop_items.special_type
+   *  = 'pvp_ticket'. Each user_inventory row holds a stack via the `quantity`
+   *  column, so a player's "ticket count" is the sum of quantities across
+   *  every row they own that points at a pvp_ticket shop item. */
+  async getPvpTicketCount(userId: string): Promise<number> {
+    const rows = await db.select({ quantity: userInventory.quantity })
+      .from(userInventory)
+      .leftJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
+      .where(and(eq(userInventory.userId, userId), eq(shopItems.specialType, "pvp_ticket")));
+    return rows.reduce((sum, r) => sum + (r.quantity ?? 1), 0);
+  }
+
+  /** Consume one PvP ticket. Decrements the smallest-quantity stack first
+   *  (so single-quantity rows drain before larger stacks). Returns true if a
+   *  ticket was successfully consumed, false if the user had none.
+   *
+   *  Wrapped in a transaction with a `quantity > 0` guard on the UPDATE so
+   *  two concurrent /api/pvp/start calls can't both spend the same single
+   *  ticket. The UPDATE only mutates a row when quantity is still > 0, and
+   *  RETURNING tells us whether it actually applied. */
+  async consumePvpTicket(userId: string): Promise<boolean> {
+    return db.transaction(async (tx) => {
+      const rows = await tx.select({ id: userInventory.id, quantity: userInventory.quantity })
+        .from(userInventory)
+        .leftJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
+        .where(and(eq(userInventory.userId, userId), eq(shopItems.specialType, "pvp_ticket")))
+        .orderBy(userInventory.quantity);
+      const target = rows.find(r => (r.quantity ?? 1) > 0);
+      if (!target) return false;
+      // Guarded decrement: only succeeds if quantity is still > 0 at write
+      // time. If a parallel request already spent it, RETURNING is empty.
+      const updated = await tx.update(userInventory)
+        .set({ quantity: sql`${userInventory.quantity} - 1` })
+        .where(and(eq(userInventory.id, target.id), sql`${userInventory.quantity} > 0`))
+        .returning({ id: userInventory.id, quantity: userInventory.quantity });
+      if (updated.length === 0) return false;
+      if ((updated[0].quantity ?? 0) <= 0) {
+        await tx.delete(userInventory).where(eq(userInventory.id, target.id));
+      }
+      return true;
+    });
   }
 
   async getBattleGroup(userId: string): Promise<any | null> {

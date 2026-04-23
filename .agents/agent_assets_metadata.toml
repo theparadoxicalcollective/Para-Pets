@@ -270,6 +270,18 @@ uri = "file://attached_assets/generated_images/pvp_ruins_battlefield_bg.png"
 type = "image"
 title = "pvp ruins battlefield"
 
+[[generated]]
+id = "rD_SJX6LBgPPRQF4EFexE"
+uri = "file://attached_assets/generated_images/pvp_leaderboard_panel_bg.png"
+type = "image"
+title = "leaderboard ruins panel"
+
+[[generated]]
+id = "5Td9mmGo3Muu53-Jc1j7C"
+uri = "file://attached_assets/generated_images/pvp_platinum_trophy.png"
+type = "image"
+title = "platinum trophy"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"
