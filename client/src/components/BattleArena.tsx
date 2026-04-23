@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, Fragment } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -436,6 +436,10 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const equippedExtraPetsRef = useRef<[EquippedPet | null, EquippedPet | null]>([null, null]);
   const equippedPetsCountRef = useRef(1);
   const extraPetManas = useRef<[number, number]>([0, 0]);
+  // Mirror as state so the per-pet mana bar + ready-to-cast glow re-render
+  // as the AI extra pets charge up. Updated via `setExtraPetManaState` next
+  // to every extraPetManas.current write.
+  const [extraPetManaState, setExtraPetManaState] = useState<[number, number]>([0, 0]);
   const extraAutoTimers = useRef<[number, number]>([0, 0]);
 
   // ── Boss special attack ───────────────────────────────────────────────────
@@ -502,7 +506,18 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const manaRef = useRef(0);
   const manaTickRef = useRef(0);
   const [skillCooldown, setSkillCooldown] = useState(false);
-  const [skillEffect, setSkillEffect] = useState<string | null>(null);
+  // Skill animation state. We store who cast it and what it targets so the
+  // overlay renderer can position effects correctly for ANY caster (not just
+  // the active pet) and fan multi-target effects out across every affected
+  // pet/enemy. `nonce` lets the same skill re-trigger and re-mount the JSX.
+  type SkillFx = {
+    style: string;
+    casterIdx: 0 | 1 | 2;
+    affects: "self" | "party" | "enemy" | "enemy_party";
+    nonce: number;
+  } | null;
+  const [skillEffect, setSkillEffect] = useState<SkillFx>(null);
+  const skillFxNonceRef = useRef(0);
   const [poisonActive, setPoisonActive] = useState(false);
   const poisonTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const counterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -573,6 +588,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         setExtraPetHps(initExtraHps);
         setExtraPetMaxHps(initExtraMaxHps);
         extraPetManas.current = [0, 0];
+        setExtraPetManaState([0, 0]);
         extraAutoTimers.current = [Date.now() + 4000, Date.now() + 5000];
 
         const slots = battlePotionSlots
@@ -998,8 +1014,12 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
 
           // Mana for extra pet (auto-fire skill when full)
           extraPetManas.current[i] = Math.min(MAX_MANA, extraPetManas.current[i] + 22);
+          // Mirror to state so the bar + ready glow re-render. Cheap — runs at most
+          // a few times per second per pet (per-attack cadence, not per frame).
+          setExtraPetManaState([extraPetManas.current[0], extraPetManas.current[1]]);
           if (extraPetManas.current[i] >= MAX_MANA) {
             extraPetManas.current[i] = 0;
+            setExtraPetManaState([extraPetManas.current[0], extraPetManas.current[1]]);
             const casterIdx = (i + 1) as 1 | 2;
             // Honors the extra pet's actual special skill (Lazer/Bubble/Heal/Revive/etc.)
             // — heals route to allies, damage routes to enemy. If the pet has no
@@ -1360,11 +1380,18 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
 
     if (!style && !source.skillType) return; // nothing to cast
 
-    // Visual flourish (active pet only triggers the fullscreen overlay/sound).
-    if (casterIdx === 0 && style) {
-      setSkillEffect(style);
-      playPowerUp();
-      setTimeout(() => setSkillEffect(null), 3000);
+    // Visual flourish — every caster (active or extra) lights up its own
+    // animation, fanning out to all affected targets when the skill is a
+    // party / enemy_party effect. Sound only plays once per cast and only for
+    // the active pet so multi-pet auto-skills don't pile up SFX.
+    if (style) {
+      const nonce = ++skillFxNonceRef.current;
+      setSkillEffect({ style, casterIdx, affects: skillAffects, nonce });
+      if (casterIdx === 0) playPowerUp();
+      setTimeout(() => {
+        // Only clear if this is still the active effect (avoid wiping a newer cast).
+        setSkillEffect((cur) => (cur && cur.nonce === nonce ? null : cur));
+      }, 3000);
     }
 
     // ── DAMAGE → enemy only ────────────────────────────────────────────────
@@ -2077,19 +2104,45 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               const isDead = eHp <= 0;
               const epName = (ep as any).petNickname || ep.name || "Pet";
               const epRarity = Math.max(0, Math.min(5, (ep as any).rarity || 0));
+              const epHasSkill = !!(ep.specialSkill || (ep as any).specialSkillType || (ep as any).skillType);
+              const epMana = extraPetManaState[si];
+              const epReady = !isDead && epHasSkill && epMana >= MAX_MANA;
+              const epRarityColor = RARITY_COLORS[Math.max(1, Math.min(5, epRarity || 1))] ?? "#a78bfa";
+              const epGlowStyle: React.CSSProperties | undefined = epReady
+                ? { animation: "petRarityGlow 1s ease-in-out infinite" }
+                : undefined;
               return (
-                <div key={`extra-pet-${si}`} className="absolute z-10 flex flex-col items-center" style={{ left: `${epos.x}%`, top: `${epos.y}%`, transform: "translate(-50%,-50%)", filter: isDead ? "grayscale(1) opacity(0.35)" : undefined }}>
+                <div
+                  key={`extra-pet-${si}`}
+                  className="absolute z-10 flex flex-col items-center"
+                  style={{
+                    left: `${epos.x}%`, top: `${epos.y}%`, transform: "translate(-50%,-50%)",
+                    filter: isDead ? "grayscale(1) opacity(0.35)" : undefined,
+                    // Used by `petRarityGlow` to color the ready-to-cast halo per pet's rarity.
+                    ["--rarity-glow" as any]: epRarityColor,
+                  }}
+                >
                   {(ep as any).petTemplateId ? (
-                    <PetAnimator petTemplateId={(ep as any).petTemplateId} mode="idle" view="front" size={PET_SPRITE_SIZE} />
+                    <PetAnimator petTemplateId={(ep as any).petTemplateId} mode="idle" view="front" size={PET_SPRITE_SIZE} style={epGlowStyle} />
                   ) : (ep.hatchedImageUrl || ep.imageUrl) ? (
-                    <img src={(ep.hatchedImageUrl || ep.imageUrl)!} alt={ep.name} className="object-contain" style={{ width: PET_SPRITE_SIZE, height: PET_SPRITE_SIZE }} />
+                    <img src={(ep.hatchedImageUrl || ep.imageUrl)!} alt={ep.name} className="object-contain" style={{ width: PET_SPRITE_SIZE, height: PET_SPRITE_SIZE, ...(epGlowStyle || {}) }} />
                   ) : (
-                    <img src={petPawIcon} alt="" style={{ width: PET_SPRITE_SIZE * 0.5, height: PET_SPRITE_SIZE * 0.5, objectFit: "contain" }} />
+                    <img src={petPawIcon} alt="" style={{ width: PET_SPRITE_SIZE * 0.5, height: PET_SPRITE_SIZE * 0.5, objectFit: "contain", ...(epGlowStyle || {}) }} />
                   )}
                   {/* HP bar for extra pet */}
                   <div className="h-1.5 rounded-full overflow-hidden mt-1" style={{ width: 92, background: "rgba(0,0,0,0.5)" }}>
                     <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(0, (eHp / Math.max(1, eMaxHp)) * 100)}%`, background: eHp / Math.max(1, eMaxHp) > 0.5 ? "#4ade80" : eHp / Math.max(1, eMaxHp) > 0.2 ? "#facc15" : "#ef4444" }} />
                   </div>
+                  {/* Mana bar (only when this pet actually has a special skill) */}
+                  {epHasSkill && (
+                    <div className="h-1.5 rounded-full overflow-hidden mt-0.5" style={{ width: 92, background: "rgba(0,0,0,0.5)" }} data-testid={`bar-extra-pet-mana-${si}`}>
+                      <div className="h-full rounded-full transition-all" style={{
+                        width: `${(epMana / MAX_MANA) * 100}%`,
+                        background: epMana >= MAX_MANA ? "linear-gradient(90deg, #7c3aed, #a78bfa, #c4b5fd)" : "linear-gradient(90deg, #4c1d95, #7c3aed)",
+                        boxShadow: epMana >= MAX_MANA ? "0 0 8px rgba(167,139,250,0.9)" : undefined,
+                      }} />
+                    </div>
+                  )}
                   {/* Name */}
                   <div className="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide whitespace-nowrap"
                     style={{ color: "#fff", background: "rgba(0,0,0,0.55)", textShadow: "0 0 6px rgba(0,0,0,0.9)", maxWidth: 110, overflow: "hidden", textOverflow: "ellipsis" }}>
@@ -2485,116 +2538,158 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           </div>
         ))}
 
-        {/* ── Special skill visuals (3-second showcases) ───────────────── */}
-        {/* Lazer: rarity-colored beam from active pet to the enemy.
-            Higher-rarity pets get extra light orbs riding the beam. */}
-        {skillEffect === "Lazer" && enemyPos.y < PET_Y && (() => {
-          const orbCount = Math.min(8, 1 + (pet?.rarity ?? 1)); // 2..6 orbs
+        {/* ── Special skill visuals (3-second showcases) ─────────────────
+            Each effect is positioned from the *caster's* slot (so extra-pet
+            casts originate at the right sprite) and fans out to every pet/
+            enemy that the skill targets, so party / enemy_party affects
+            visibly hit all of them — not just the active pet.            */}
+        {skillEffect && (() => {
+          const fx = skillEffect;
+          const total = equippedPetsCountRef.current;
+          const casterPos = getPetPos(fx.casterIdx, total);
+          // Resolve target list based on what the skill affects.
+          const targets: { x: number; y: number }[] = (() => {
+            if (fx.affects === "self") return [casterPos];
+            if (fx.affects === "party") {
+              const list: { x: number; y: number }[] = [];
+              if (petHpRef.current > 0) list.push(getPetPos(0, total));
+              for (let i = 0; i < 2; i++) {
+                if (equippedExtraPetsRef.current[i] && extraPetHpsRef.current[i] > 0) {
+                  list.push(getPetPos((i + 1) as 1 | 2, total));
+                }
+              }
+              return list.length ? list : [casterPos];
+            }
+            // enemy or enemy_party: explore-mode has a single live enemy on screen.
+            return [enemyPos];
+          })();
           const beamRgb = rarityColor;
+
           return (
             <>
-              <div className="absolute pointer-events-none z-36" style={{
-                left: `${PET_X}%`, bottom: `${100 - PET_Y}%`, transform: "translateX(-50%)", width: 8,
-                height: `${PET_Y - enemyPos.y}%`,
-                background: `linear-gradient(0deg, ${beamRgb} 0%, ${beamRgb}cc 60%, transparent 100%)`,
-                boxShadow: `0 0 18px ${beamRgb}, 0 0 6px white`, borderRadius: 4,
-                animation: "laserPulse 0.12s ease-in-out infinite alternate, skillFadeOut 3s ease-out forwards",
-              }} />
-              {Array.from({ length: orbCount }).map((_, i) => (
-                <div key={`lzo-${i}`} className="absolute pointer-events-none z-37" style={{
-                  left: `${PET_X}%`, top: `${PET_Y}%`,
-                  transform: "translate(-50%,-50%)",
-                  width: 10, height: 10, borderRadius: "50%",
-                  background: `radial-gradient(circle, white 0%, ${beamRgb} 60%, transparent 100%)`,
-                  boxShadow: `0 0 12px ${beamRgb}`,
-                  // CSS vars consumed by the keyframes below to ride the beam.
-                  ["--lz-from-y" as any]: `${PET_Y}%`,
-                  ["--lz-to-y" as any]: `${enemyPos.y}%`,
-                  animation: `lazerOrbRide 1.4s ${i * 0.18}s linear infinite`,
-                  opacity: 0.95,
+              {/* Lazer */}
+              {fx.style === "Lazer" && targets.map((tg, ti) => {
+                if (tg.y >= casterPos.y) return null;
+                const orbCount = Math.min(8, 1 + (pet?.rarity ?? 1));
+                return (
+                  <Fragment key={`lz-${ti}-${fx.nonce}`}>
+                    <div className="absolute pointer-events-none z-36" style={{
+                      left: `${casterPos.x}%`, bottom: `${100 - casterPos.y}%`,
+                      transform: "translateX(-50%)", width: 8,
+                      height: `${casterPos.y - tg.y}%`,
+                      background: `linear-gradient(0deg, ${beamRgb} 0%, ${beamRgb}cc 60%, transparent 100%)`,
+                      boxShadow: `0 0 18px ${beamRgb}, 0 0 6px white`, borderRadius: 4,
+                      animation: "laserPulse 0.12s ease-in-out infinite alternate, skillFadeOut 3s ease-out forwards",
+                    }} />
+                    {Array.from({ length: orbCount }).map((_, i) => (
+                      <div key={`lzo-${ti}-${i}`} className="absolute pointer-events-none z-37" style={{
+                        left: `${casterPos.x}%`, top: `${casterPos.y}%`,
+                        transform: "translate(-50%,-50%)",
+                        width: 10, height: 10, borderRadius: "50%",
+                        background: `radial-gradient(circle, white 0%, ${beamRgb} 60%, transparent 100%)`,
+                        boxShadow: `0 0 12px ${beamRgb}`,
+                        ["--lz-from-y" as any]: `${casterPos.y}%`,
+                        ["--lz-to-y" as any]: `${tg.y}%`,
+                        animation: `lazerOrbRide 1.4s ${i * 0.18}s linear infinite`,
+                        opacity: 0.95,
+                      }} />
+                    ))}
+                  </Fragment>
+                );
+              })}
+
+              {/* Bubble */}
+              {fx.style === "Bubble" && (() => {
+                const count = 5 + Math.min(4, (pet?.rarity ?? 1));
+                return targets.flatMap((tg, ti) =>
+                  Array.from({ length: count }).map((_, i) => (
+                    <div key={`bub-${ti}-${i}-${fx.nonce}`} className="absolute pointer-events-none z-36" style={{
+                      left: `${casterPos.x}%`, top: `${casterPos.y}%`, transform: "translate(-50%,-50%)",
+                      width: 22, height: 22, borderRadius: "50%",
+                      background: `radial-gradient(circle at 35% 30%, white, ${beamRgb})`,
+                      border: `1.5px solid ${beamRgb}`,
+                      boxShadow: `0 0 14px ${beamRgb}`,
+                      ["--bub-from-x" as any]: `${casterPos.x}%`,
+                      ["--bub-from-y" as any]: `${casterPos.y}%`,
+                      ["--bub-to-x" as any]: `${tg.x}%`,
+                      ["--bub-to-y" as any]: `${tg.y}%`,
+                      animation: `bubbleFly 1.1s ${i * 0.16}s ease-out forwards`,
+                      opacity: 0,
+                    }} />
+                  ))
+                );
+              })()}
+
+              {/* Surrounding Light — wraps every targeted ally */}
+              {fx.style === "Surrounding Light" && targets.map((tg, ti) => (
+                <Fragment key={`sl-${ti}-${fx.nonce}`}>
+                  <div className="absolute pointer-events-none z-36" style={{
+                    left: `${tg.x}%`, top: `${tg.y}%`, transform: "translate(-50%,-50%)",
+                    width: 140, height: 140, borderRadius: "50%",
+                    background: "radial-gradient(circle, rgba(74,222,128,0.55) 0%, rgba(34,197,94,0.25) 50%, transparent 75%)",
+                    boxShadow: "0 0 40px rgba(74,222,128,0.7), 0 0 80px rgba(34,197,94,0.5)",
+                    animation: "surroundLightPulse 1.2s ease-in-out infinite alternate, skillFadeOut 3s ease-out forwards",
+                  }} />
+                  {[0,1,2,3,4,5,6,7].map((i) => (
+                    <div key={`slo-${ti}-${i}`} className="absolute pointer-events-none z-37" style={{
+                      left: `${tg.x}%`, top: `${tg.y}%`, transform: "translate(-50%,-50%)",
+                      width: 12, height: 12, borderRadius: "50%",
+                      background: "radial-gradient(circle, #ecfccb 0%, #22c55e 60%, transparent 100%)",
+                      boxShadow: "0 0 10px #4ade80",
+                      ["--sl-angle" as any]: `${i * 45}deg`,
+                      animation: `surroundOrbit 2.4s ${i * 0.05}s linear infinite, skillFadeOut 3s ease-out forwards`,
+                    }} />
+                  ))}
+                </Fragment>
+              ))}
+
+              {/* Large Orb — engulfs every targeted ally */}
+              {fx.style === "Large Orb" && targets.map((tg, ti) => (
+                <div key={`lo-${ti}-${fx.nonce}`} className="absolute pointer-events-none z-36" style={{
+                  left: `${tg.x}%`, top: `${tg.y}%`, transform: "translate(-50%,-50%)",
+                  width: 30, height: 30, borderRadius: "50%",
+                  background: "radial-gradient(circle at 35% 30%, rgba(220,255,235,0.95) 0%, rgba(74,222,128,0.85) 35%, rgba(56,189,248,0.55) 70%, transparent 100%)",
+                  border: "2px solid rgba(190,255,220,0.9)",
+                  boxShadow: "0 0 32px rgba(74,222,128,0.8), 0 0 60px rgba(56,189,248,0.5)",
+                  animation: "largeOrbGrow 2.6s ease-out forwards",
+                }} />
+              ))}
+
+              {/* Missile */}
+              {fx.style === "Missile" && (() => {
+                const count = 8;
+                return targets.flatMap((tg, ti) =>
+                  Array.from({ length: count }).map((_, i) => {
+                    const dx = (i - (count - 1) / 2) * 1.6;
+                    return (
+                      <div key={`ms-${ti}-${i}-${fx.nonce}`} className="absolute pointer-events-none z-36" style={{
+                        left: `${casterPos.x + dx}%`, top: `${casterPos.y}%`, transform: "translate(-50%,-50%) rotate(0deg)",
+                        width: 4, height: 22, borderRadius: 2,
+                        background: "linear-gradient(180deg, rgba(255,200,200,1) 0%, rgba(248,113,113,0.95) 40%, rgba(220,38,38,0.6) 100%)",
+                        boxShadow: "0 0 12px rgba(248,113,113,1), 0 0 4px white",
+                        ["--ms-from-x" as any]: `${casterPos.x + dx}%`,
+                        ["--ms-from-y" as any]: `${casterPos.y}%`,
+                        ["--ms-to-x" as any]: `${tg.x + dx * 0.4}%`,
+                        ["--ms-to-y" as any]: `${tg.y}%`,
+                        animation: `missileStreak 0.95s ${i * 0.10}s ease-in forwards`,
+                        opacity: 0,
+                      }} />
+                    );
+                  })
+                );
+              })()}
+
+              {/* Legacy heal burst — covers every healed pet */}
+              {(fx.style === "Heal Self" || fx.style === "Heal Party") && targets.map((tg, ti) => (
+                <div key={`hb-${ti}-${fx.nonce}`} className="absolute pointer-events-none z-36" style={{
+                  left: `${tg.x}%`, top: `${tg.y}%`, transform: "translate(-50%,-50%)",
+                  width: 120, height: 120, borderRadius: "50%",
+                  background: "radial-gradient(circle, rgba(34,197,94,0.5) 0%, transparent 65%)",
+                  boxShadow: "0 0 32px rgba(34,197,94,0.6)", animation: "healBurst 0.9s ease-out forwards",
                 }} />
               ))}
             </>
           );
-        })()}
-
-        {/* Bubble: stream of rarity-colored orbs flying from caster to enemy. */}
-        {skillEffect === "Bubble" && (() => {
-          const tint = rarityColor;
-          const count = 5 + Math.min(4, (pet?.rarity ?? 1)); // 6..9 orbs
-          return Array.from({ length: count }).map((_, i) => (
-            <div key={`bub-${i}`} className="absolute pointer-events-none z-36" style={{
-              left: `${PET_X}%`, top: `${PET_Y}%`, transform: "translate(-50%,-50%)",
-              width: 22, height: 22, borderRadius: "50%",
-              background: `radial-gradient(circle at 35% 30%, white, ${tint})`,
-              border: `1.5px solid ${tint}`,
-              boxShadow: `0 0 14px ${tint}`,
-              ["--bub-from-x" as any]: `${PET_X}%`,
-              ["--bub-from-y" as any]: `${PET_Y}%`,
-              ["--bub-to-x" as any]: `${enemyPos.x}%`,
-              ["--bub-to-y" as any]: `${enemyPos.y}%`,
-              animation: `bubbleFly 1.1s ${i * 0.16}s ease-out forwards`,
-              opacity: 0,
-            }} />
-          ));
-        })()}
-
-        {/* Surrounding Light: green light + orbs wrap the caster (self only). */}
-        {skillEffect === "Surrounding Light" && (
-          <>
-            <div className="absolute pointer-events-none z-36" style={{
-              left: `${PET_X}%`, top: `${PET_Y}%`, transform: "translate(-50%,-50%)",
-              width: 140, height: 140, borderRadius: "50%",
-              background: "radial-gradient(circle, rgba(74,222,128,0.55) 0%, rgba(34,197,94,0.25) 50%, transparent 75%)",
-              boxShadow: "0 0 40px rgba(74,222,128,0.7), 0 0 80px rgba(34,197,94,0.5)",
-              animation: "surroundLightPulse 1.2s ease-in-out infinite alternate, skillFadeOut 3s ease-out forwards",
-            }} />
-            {[0,1,2,3,4,5,6,7].map((i) => (
-              <div key={`sl-${i}`} className="absolute pointer-events-none z-37" style={{
-                left: `${PET_X}%`, top: `${PET_Y}%`, transform: "translate(-50%,-50%)",
-                width: 12, height: 12, borderRadius: "50%",
-                background: "radial-gradient(circle, #ecfccb 0%, #22c55e 60%, transparent 100%)",
-                boxShadow: "0 0 10px #4ade80",
-                ["--sl-angle" as any]: `${i * 45}deg`,
-                animation: `surroundOrbit 2.4s ${i * 0.05}s linear infinite, skillFadeOut 3s ease-out forwards`,
-              }} />
-            ))}
-          </>
-        )}
-
-        {/* Large Orb: small green/blue orb centered on the target pet (caster
-            for healing) that grows to engulf the pet, then fades. */}
-        {skillEffect === "Large Orb" && (
-          <div className="absolute pointer-events-none z-36" style={{
-            left: `${PET_X}%`, top: `${PET_Y}%`, transform: "translate(-50%,-50%)",
-            width: 30, height: 30, borderRadius: "50%",
-            background: "radial-gradient(circle at 35% 30%, rgba(220,255,235,0.95) 0%, rgba(74,222,128,0.85) 35%, rgba(56,189,248,0.55) 70%, transparent 100%)",
-            border: "2px solid rgba(190,255,220,0.9)",
-            boxShadow: "0 0 32px rgba(74,222,128,0.8), 0 0 60px rgba(56,189,248,0.5)",
-            animation: "largeOrbGrow 2.6s ease-out forwards",
-          }} />
-        )}
-
-        {/* Missile: a flurry of glowing red lines streaking from caster to enemy. */}
-        {skillEffect === "Missile" && (() => {
-          const count = 8;
-          return Array.from({ length: count }).map((_, i) => {
-            const dx = (i - (count - 1) / 2) * 1.6; // small spread
-            return (
-              <div key={`ms-${i}`} className="absolute pointer-events-none z-36" style={{
-                left: `${PET_X + dx}%`, top: `${PET_Y}%`, transform: "translate(-50%,-50%) rotate(0deg)",
-                width: 4, height: 22, borderRadius: 2,
-                background: "linear-gradient(180deg, rgba(255,200,200,1) 0%, rgba(248,113,113,0.95) 40%, rgba(220,38,38,0.6) 100%)",
-                boxShadow: "0 0 12px rgba(248,113,113,1), 0 0 4px white",
-                ["--ms-from-x" as any]: `${PET_X + dx}%`,
-                ["--ms-from-y" as any]: `${PET_Y}%`,
-                ["--ms-to-x" as any]: `${enemyPos.x + dx * 0.4}%`,
-                ["--ms-to-y" as any]: `${enemyPos.y}%`,
-                animation: `missileStreak 0.95s ${i * 0.10}s ease-in forwards`,
-                opacity: 0,
-              }} />
-            );
-          });
         })()}
 
         {poisonActive && (
@@ -2603,16 +2698,6 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
             width: 80, height: 80, borderRadius: "50%",
             background: "radial-gradient(circle, rgba(34,197,94,0.25) 0%, transparent 70%)",
             boxShadow: "0 0 24px rgba(34,197,94,0.4)", animation: "poisonPulse 0.9s ease-in-out infinite",
-          }} />
-        )}
-
-        {/* Legacy heal styles still render the old burst */}
-        {(skillEffect === "Heal Self" || skillEffect === "Heal Party") && (
-          <div className="absolute pointer-events-none z-36" style={{
-            left: `${PET_X}%`, top: `${PET_Y}%`, transform: "translate(-50%,-50%)",
-            width: 120, height: 120, borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(34,197,94,0.5) 0%, transparent 65%)",
-            boxShadow: "0 0 32px rgba(34,197,94,0.6)", animation: "healBurst 0.9s ease-out forwards",
           }} />
         )}
 
