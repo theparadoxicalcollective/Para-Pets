@@ -25,6 +25,7 @@ interface NavUser {
   coins: number;
   profileImage: string | null;
   isAdmin: boolean;
+  isModerator?: boolean;
   activePetId: string | null;
 }
 

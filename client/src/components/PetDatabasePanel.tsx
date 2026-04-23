@@ -135,7 +135,7 @@ const FRONT_PART_GROUPS: { group: string; parts: PartDef[]; collapsed?: boolean 
 //   eyes(open), eyes(closed), mouth(closed), mouth(open), head,
 //   left ear, right ear, front arm, front leg, front wing,
 //   body, back arm, back leg, back wing, tail
-const SIDE_PART_GROUPS: { group: string; parts: PartDef[] }[] = [
+const SIDE_PART_GROUPS: { group: string; parts: PartDef[]; collapsed?: boolean }[] = [
   { group: "Face", parts: [
     { key: "eyes",         label: "Eyes (Open)",   defaultZ: 15, layer: "front" },
     { key: "eyes_closed",  label: "Eyes (Closed)", defaultZ: 14, layer: "front", animOnly: true },
