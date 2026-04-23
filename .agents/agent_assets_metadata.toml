@@ -264,6 +264,12 @@ uri = "file://attached_assets/bg_murk_cave_v2.png"
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "tfBAmTiRRE983Wp98802E"
+uri = "file://attached_assets/generated_images/pvp_ruins_battlefield_bg.png"
+type = "image"
+title = "pvp ruins battlefield"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"

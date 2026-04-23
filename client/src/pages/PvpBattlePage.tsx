@@ -7,7 +7,7 @@ import PetAnimator from "@/components/PetAnimator";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import battleTrophyIcon from "@assets/generated_images/icon_battle_trophy.png";
 import skullDefeatIcon from "@assets/generated_images/icon_skull_defeat.png";
-import forestBgImg from "@assets/generated_images/pvp_arena_forest_bg.png";
+import forestBgImg from "@assets/generated_images/pvp_ruins_battlefield_bg.png";
 
 interface Opponent {
   userId: string;

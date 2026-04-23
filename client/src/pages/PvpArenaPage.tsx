@@ -7,7 +7,7 @@ import battleTrophyIcon from "@assets/generated_images/icon_battle_trophy.png";
 import { ArrowLeft, Sword, Users, Trophy, Check, X } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
 import PvpBattlePage from "./PvpBattlePage";
-import forestBgImg from "@assets/generated_images/pvp_arena_forest_bg.png";
+import forestBgImg from "@assets/generated_images/pvp_ruins_battlefield_bg.png";
 import swordImg from "@assets/generated_images/pvp_battle_sword.png";
 import RoleBadge from "@/components/RoleBadge";
 
