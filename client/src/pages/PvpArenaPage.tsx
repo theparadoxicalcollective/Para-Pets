@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -84,7 +84,19 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
 
   // Local potion selection — picked here on the lobby and forwarded into
   // the battle screen. Five slots max, mirrors the PvE battle prep flow.
-  const [selectedPotionIds, setSelectedPotionIds] = useState<string[]>([]);
+  // Potion picks live only on the client — restored from localStorage so
+  // they survive navigating away from the arena and back.
+  const POTION_LS_KEY = "pvp:selectedPotionIds";
+  const [selectedPotionIds, setSelectedPotionIds] = useState<string[]>(() => {
+    try {
+      const raw = typeof window !== "undefined" ? localStorage.getItem(POTION_LS_KEY) : null;
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed.slice(0, 5).filter((x: any) => typeof x === "string") : [];
+    } catch { return []; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(POTION_LS_KEY, JSON.stringify(selectedPotionIds)); } catch {}
+  }, [selectedPotionIds]);
 
   // Spend a ticket BEFORE the battle screen mounts. We do it here (not inside
   // PvpBattlePage) so a player who's out of tickets gets a friendly toast
@@ -100,23 +112,43 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
     },
   });
 
-  // Sync saved group into local selection
+  // Sync saved group into local selection — only on the first load so we
+  // don't clobber edits the user is making while typing.
+  const hydratedFromServer = useRef(false);
   useEffect(() => {
-    if (battleGroup?.petInventoryIds) setSelectedPetIds(battleGroup.petInventoryIds);
+    if (!hydratedFromServer.current && battleGroup?.petInventoryIds) {
+      setSelectedPetIds(battleGroup.petInventoryIds);
+      hydratedFromServer.current = true;
+    }
   }, [battleGroup]);
 
   const saveBattleGroup = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/pvp/battle-group", { petInventoryIds: selectedPetIds });
+    mutationFn: async (ids?: string[]) => {
+      const payload = ids ?? selectedPetIds;
+      const res = await apiRequest("POST", "/api/pvp/battle-group", { petInventoryIds: payload });
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/pvp/battle-group"] });
-      setGroupSaved(true);
-      toast({ title: "Battle Group saved!" });
-      setTimeout(() => setGroupSaved(false), 2000);
     },
   });
+
+  // Auto-persist pet selection (debounced) so the player's team sticks
+  // around when they leave the arena. Battles aren't live, so the saved
+  // group is what defends them against incoming challengers too.
+  useEffect(() => {
+    if (!hydratedFromServer.current) return;
+    const serverIds: string[] = battleGroup?.petInventoryIds ?? [];
+    const same = serverIds.length === selectedPetIds.length && serverIds.every((id, i) => id === selectedPetIds[i]);
+    if (same) return;
+    const t = setTimeout(() => {
+      saveBattleGroup.mutate(selectedPetIds);
+      setGroupSaved(true);
+      setTimeout(() => setGroupSaved(false), 1200);
+    }, 500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPetIds]);
 
   const hatchedPets = (inventory as any[]).filter(
     (inv: any) => inv.type === "pet" && inv.isHatched
@@ -580,7 +612,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
               }
               // Persist current pet picks as the user's battle group so they
               // also act as the player's defending team for opponents.
-              if (selectedPetIds.length > 0) saveBattleGroup.mutate();
+              if (selectedPetIds.length > 0) saveBattleGroup.mutate(selectedPetIds);
               setTab("opponents");
             }}
             className="w-full flex items-center justify-center gap-3 rounded-xl py-4 transition-all active:scale-95"
@@ -655,7 +687,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
           <div className="shrink-0 px-4 pb-safe pb-5 pt-3">
             <button
               data-testid="button-save-battle-group"
-              onClick={() => saveBattleGroup.mutate()}
+              onClick={() => saveBattleGroup.mutate(selectedPetIds)}
               disabled={saveBattleGroup.isPending}
               className="w-full py-3 rounded-xl font-bold text-sm tracking-widest transition-all active:scale-95"
               style={{
