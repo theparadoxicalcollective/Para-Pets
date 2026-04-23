@@ -265,7 +265,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       if (!wasPet && !movedFar) setShowActionMenu(true);
     },
     onPointerCancel: () => { petGestureStateRef.current = null; },
-  }), [activePet, homePettingRewardMutation, burstPetHearts]);
+  }), [homePettingRewardMutation, burstPetHearts]);
 
   const hatchHomeMutation = useMutation({
     mutationFn: async (inventoryId: string) => {
