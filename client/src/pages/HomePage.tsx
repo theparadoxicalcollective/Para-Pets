@@ -195,8 +195,9 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const burstPetHearts = useCallback((cx: number, cy: number, count = 6) => {
     const newOnes = Array.from({ length: count }, () => ({
       id: ++petHeartIdRef.current,
-      cx, cy,
-      dx: (Math.random() - 0.5) * 140,
+      cx: cx + (Math.random() - 0.5) * 220,
+      cy: cy + (Math.random() - 0.5) * 80,
+      dx: (Math.random() - 0.5) * 320,
       size: 18 + Math.random() * 22,
       delay: Math.random() * 0.3,
     }));
@@ -836,7 +837,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                         data-testid="button-open-pet-actions"
                       >
                         {activePet.petTemplateId ? (
-                          <PetAnimator petTemplateId={activePet.petTemplateId} mode="idle" view="front" size={1000} className="w-full" style={{ aspectRatio: "1/1" }} />
+                          <PetAnimator petTemplateId={activePet.petTemplateId} mode="idle" view="front" size={1000} expression={petCircling ? "petted" : "neutral"} className="w-full" style={{ aspectRatio: "1/1" }} />
                         ) : (activePet.hatchedImageUrl || activePet.imageUrl) ? (
                           <div style={{ paddingTop: "13vh", width: "100%" }}>
                             <style>{`
