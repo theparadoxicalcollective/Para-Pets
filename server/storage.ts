@@ -1847,16 +1847,37 @@ export class DatabaseStorage implements IStorage {
     return row ?? null;
   }
 
+  // Compute a single "team power" number from the user's currently selected
+  // pets. Using ATK + DEF/2 + level*5 gives a stat that scales with both
+  // raw fighting stats and progression, and produces a smooth distribution
+  // for matchmaking ranges.
+  async computeBattleGroupPower(userId: string, petInventoryIds: string[]): Promise<number> {
+    if (!petInventoryIds.length) return 0;
+    const rows = await db.select({
+      id: userInventory.id,
+      petAtk: userInventory.petAtk,
+      petDef: userInventory.petDef,
+      petLevel: userInventory.petLevel,
+    }).from(userInventory)
+      .where(and(eq(userInventory.userId, userId), inArray(userInventory.id, petInventoryIds)));
+    let total = 0;
+    for (const r of rows) {
+      total += (r.petAtk ?? 50) + Math.floor((r.petDef ?? 50) / 2) + (r.petLevel ?? 1) * 5;
+    }
+    return total;
+  }
+
   async upsertBattleGroup(userId: string, petInventoryIds: string[]): Promise<any> {
+    const attackPower = await this.computeBattleGroupPower(userId, petInventoryIds);
     const existing = await this.getBattleGroup(userId);
     if (existing) {
       const [row] = await db.update(pvpBattleGroups)
-        .set({ petInventoryIds, updatedAt: new Date() })
+        .set({ petInventoryIds, attackPower, updatedAt: new Date() })
         .where(eq(pvpBattleGroups.userId, userId))
         .returning();
       return row;
     } else {
-      const [row] = await db.insert(pvpBattleGroups).values({ userId, petInventoryIds }).returning();
+      const [row] = await db.insert(pvpBattleGroups).values({ userId, petInventoryIds, attackPower }).returning();
       return row;
     }
   }
@@ -1865,6 +1886,7 @@ export class DatabaseStorage implements IStorage {
     return db.select({
       userId: pvpBattleGroups.userId,
       petInventoryIds: pvpBattleGroups.petInventoryIds,
+      attackPower: pvpBattleGroups.attackPower,
       updatedAt: pvpBattleGroups.updatedAt,
       username: users.username,
       profileImage: users.profileImage,

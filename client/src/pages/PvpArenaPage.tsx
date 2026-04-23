@@ -7,6 +7,7 @@ import battleTrophyIcon from "@assets/generated_images/icon_battle_trophy.png";
 import platinumTrophyImg from "@assets/generated_images/pvp_platinum_trophy.png";
 import leaderboardPanelImg from "@assets/generated_images/pvp_leaderboard_panel_bg.png";
 import pvpTicketImg from "@assets/Photoroom_20260415_83701_PM_1776304592941.png";
+import pvpNavIcon from "@assets/generated_images/nav_icon_pvp.png";
 import { ArrowLeft, Users, Check, Heart, Droplets } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
 import PvpBattlePage from "./PvpBattlePage";
@@ -98,6 +99,11 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
     try { localStorage.setItem(POTION_LS_KEY, JSON.stringify(selectedPotionIds)); } catch {}
   }, [selectedPotionIds]);
 
+  // Which inventory picker is open (if any). Tapping an empty slot opens
+  // the corresponding picker; tapping a tile inside the picker fills the
+  // first empty slot of that type and closes the sheet.
+  const [pickerOpen, setPickerOpen] = useState<null | "pet" | "potion">(null);
+
   // Spend a ticket BEFORE the battle screen mounts. We do it here (not inside
   // PvpBattlePage) so a player who's out of tickets gets a friendly toast
   // instead of being dropped into a battle they can't actually pay for.
@@ -115,20 +121,40 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
   // Sync saved group into local selection — only on the first load so we
   // don't clobber edits the user is making while typing.
   const hydratedFromServer = useRef(false);
+  // Tracks whether the user has touched the slot row since mount. We use this
+  // so a late-arriving /api/pvp/battle-group response can't clobber edits the
+  // user has already made (race spotted in code review).
+  const hasUserEdited = useRef(false);
   useEffect(() => {
-    if (!hydratedFromServer.current && battleGroup?.petInventoryIds) {
+    if (!hydratedFromServer.current && battleGroup?.petInventoryIds && !hasUserEdited.current) {
       setSelectedPetIds(battleGroup.petInventoryIds);
+      hydratedFromServer.current = true;
+    } else if (!hydratedFromServer.current && battleGroup !== undefined) {
+      // Query resolved (even if empty) — mark hydrated so autosave can run.
       hydratedFromServer.current = true;
     }
   }, [battleGroup]);
 
+  // Monotonic save sequence so out-of-order POST responses can't overwrite a
+  // newer team. We bump on mutate and only treat the most recent send as
+  // authoritative when invalidating cached queries.
+  const saveSeq = useRef(0);
+  const lastSentSeq = useRef(0);
+
   const saveBattleGroup = useMutation({
     mutationFn: async (ids?: string[]) => {
       const payload = ids ?? selectedPetIds;
+      const seq = ++saveSeq.current;
+      lastSentSeq.current = seq;
       const res = await apiRequest("POST", "/api/pvp/battle-group", { petInventoryIds: payload });
-      return res.json();
+      const json = await res.json();
+      return { json, seq };
     },
-    onSuccess: () => {
+    onSuccess: ({ seq }) => {
+      // Only treat the most recent send as authoritative — this guards
+      // against an older POST resolving after a newer one and overwriting
+      // the cached team.
+      if (seq !== lastSentSeq.current) return;
       queryClient.invalidateQueries({ queryKey: ["/api/pvp/battle-group"] });
     },
   });
@@ -161,6 +187,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
   );
 
   const togglePet = (invId: string) => {
+    hasUserEdited.current = true;
     setSelectedPetIds(prev =>
       prev.includes(invId) ? prev.filter(id => id !== invId) : prev.length < 5 ? [...prev, invId] : prev
     );
@@ -287,20 +314,19 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
             <div className="relative px-7 pt-[68px] pb-[68px]">
               <div className="text-center mb-3">
                 <div
-                  className="text-[18px] font-black tracking-[0.18em] text-amber-100"
-                  style={{ fontFamily: "Cinzel, fantasy, serif", textShadow: "0 0 16px rgba(167,139,250,0.55), 0 2px 3px rgba(0,0,0,0.7)" }}
+                  className="text-[20px] font-black tracking-[0.12em]"
+                  style={{
+                    fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
+                    color: "#fde68a",
+                    textShadow: "0 1px 2px rgba(0,0,0,0.85), 0 0 6px rgba(0,0,0,0.6)",
+                  }}
                   data-testid="text-leaderboard-title"
                 >
                   Veridian Leaders
                 </div>
               </div>
 
-              {leaderboard.length === 0 ? (
-                <div className="text-center py-10 text-white/30 text-xs tracking-widest">
-                  <div className="mb-3"><img src={battleTrophyIcon} alt="" style={{ width: 48, height: 48, objectFit: "contain", margin: "0 auto" }} /></div>
-                  No battles recorded yet.<br />Be the first to fight!
-                </div>
-              ) : (
+              {leaderboard.length === 0 ? null : (
                 <div className="flex flex-col gap-1.5">
                   {leaderboard.map((entry, i) => {
                     const rank = i + 1;
@@ -405,16 +431,15 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                       <div className="text-amber-300/45 text-[8px] tracking-wider">BP</div>
                     </div>
                   </div>
-                ) : (
-                  <div className="text-center py-3 text-white/40 text-[11px]">
-                    You haven't fought yet — win a battle to get on the board!
-                  </div>
-                )}
+                ) : null}
               </div>
             </div>
           </div>
 
-          {/* ── Battle Group: pick up to 5 hatched pets ─────────────── */}
+          {/* ── Prepare for Battle: 5 pet slots + 5 potion slots ──────
+               The slot rows are the only thing always visible — tapping
+               an empty [+] slot opens an inventory picker; tapping a
+               filled slot clears it. ── */}
           <div
             className="rounded-2xl p-3 mx-auto"
             style={{
@@ -424,175 +449,97 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
               boxShadow: "0 6px 22px rgba(0,0,0,0.45)",
             }}
           >
-            <div className="flex items-center justify-between mb-2">
+            <div className="text-center mb-3">
+              <div
+                className="text-[15px] font-black tracking-[0.18em]"
+                style={{
+                  fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
+                  color: "#fde68a",
+                  textShadow: "0 1px 2px rgba(0,0,0,0.85)",
+                }}
+                data-testid="text-prepare-for-battle"
+              >
+                PREPARE FOR BATTLE
+              </div>
+            </div>
+
+            {/* Pets */}
+            <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-2">
-                <Users size={14} className="text-purple-300" />
-                <span className="text-[11px] tracking-[0.2em] font-bold text-purple-200">BATTLE GROUP</span>
+                <Users size={13} className="text-purple-300" />
+                <span className="text-[10px] tracking-[0.18em] font-bold text-purple-200">PETS</span>
               </div>
               <span className="text-[10px] text-white/40" data-testid="text-pets-selected-count">{selectedPetIds.length}/5</span>
             </div>
-
-            {/* 5 slot row */}
-            <div className="flex gap-2 justify-between mb-3">
+            <div className="flex gap-2 justify-between mb-4">
               {Array.from({ length: 5 }, (_, i) => {
                 const invId = selectedPetIds[i];
                 const inv = invId ? hatchedPets.find((p: any) => (p.inventoryId || p.id) === invId) : null;
                 return (
-                  <div
+                  <button
                     key={i}
                     data-testid={`div-pet-slot-${i}`}
-                    onClick={() => invId && togglePet(invId)}
-                    className="relative flex-1 aspect-square rounded-xl flex items-center justify-center transition-all"
+                    onClick={() => inv ? togglePet(invId) : setPickerOpen("pet")}
+                    className="relative flex-1 rounded-xl flex items-center justify-center transition-all active:scale-95"
                     style={{
+                      aspectRatio: "1 / 1",
                       background: inv ? "rgba(124,58,237,0.18)" : "rgba(255,255,255,0.04)",
                       border: `1px solid ${inv ? "rgba(167,139,250,0.5)" : "rgba(255,255,255,0.10)"}`,
                       boxShadow: inv ? "0 0 10px rgba(124,58,237,0.25)" : undefined,
-                      cursor: inv ? "pointer" : "default",
                     }}
                   >
                     {inv ? (
                       inv.petTemplateId
-                        ? <PetAnimator petTemplateId={inv.petTemplateId} mode="idle" view="front" size={44} />
+                        ? <PetAnimator petTemplateId={inv.petTemplateId} mode="idle" view="front" size={64} />
                         : inv.imageUrl
-                          ? <img src={inv.imageUrl} className="w-9 h-9 object-contain" />
-                          : <img src={petPawIcon} alt="" style={{ width: 28, height: 28, objectFit: "contain", opacity: 0.7 }} />
+                          ? <img src={inv.imageUrl} className="w-14 h-14 object-contain" />
+                          : <img src={petPawIcon} alt="" style={{ width: 44, height: 44, objectFit: "contain", opacity: 0.7 }} />
                     ) : (
-                      <span className="text-xl text-white/15">+</span>
+                      <span className="text-2xl text-white/30 font-light">+</span>
                     )}
-                  </div>
+                  </button>
                 );
               })}
             </div>
 
-            {/* Hatched pet inventory grid */}
-            {hatchedPets.length === 0 ? (
-              <div className="text-center py-3 text-white/30 text-[10px]">No hatched pets — visit your nursery!</div>
-            ) : (
-              <div className="grid grid-cols-4 gap-2">
-                {hatchedPets.map((inv: any) => {
-                  const invId = inv.inventoryId || inv.id;
-                  const selected = selectedPetIds.includes(invId);
-                  return (
-                    <button
-                      key={invId}
-                      data-testid={`button-pet-select-${invId}`}
-                      onClick={() => togglePet(invId)}
-                      className="relative rounded-lg p-1.5 flex flex-col items-center gap-0.5 transition-all active:scale-95"
-                      style={{
-                        background: selected ? "linear-gradient(135deg, rgba(124,58,237,0.28), rgba(167,139,250,0.08))" : "rgba(255,255,255,0.03)",
-                        border: `1px solid ${selected ? "rgba(167,139,250,0.55)" : "rgba(255,255,255,0.07)"}`,
-                      }}
-                    >
-                      {selected && (
-                        <div className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full bg-purple-500 flex items-center justify-center">
-                          <Check size={8} className="text-white" />
-                        </div>
-                      )}
-                      <div className="w-10 h-10 flex items-center justify-center">
-                        {inv.petTemplateId
-                          ? <PetAnimator petTemplateId={inv.petTemplateId} mode="idle" view="front" size={40} />
-                          : inv.imageUrl
-                          ? <img src={inv.imageUrl} className="w-9 h-9 object-contain" />
-                          : <img src={petPawIcon} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />}
-                      </div>
-                      <div className="text-white/70 text-[9px] truncate w-full text-center">{inv.petNickname || inv.name}</div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* ── Battle Potions: pick up to 5 ─────────────────────────── */}
-          <div
-            className="rounded-2xl p-3 mx-auto"
-            style={{
-              maxWidth: 360,
-              background: "linear-gradient(180deg, rgba(20,10,40,0.78) 0%, rgba(10,6,22,0.82) 100%)",
-              border: "1px solid rgba(167,139,250,0.22)",
-              boxShadow: "0 6px 22px rgba(0,0,0,0.45)",
-            }}
-          >
-            <div className="flex items-center justify-between mb-2">
+            {/* Potions */}
+            <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-2">
-                <Droplets size={14} className="text-emerald-300" />
-                <span className="text-[11px] tracking-[0.2em] font-bold text-emerald-200">BATTLE POTIONS</span>
+                <Droplets size={13} className="text-emerald-300" />
+                <span className="text-[10px] tracking-[0.18em] font-bold text-emerald-200">POTIONS</span>
               </div>
               <span className="text-[10px] text-white/40" data-testid="text-potions-selected-count">{selectedPotionIds.length}/5</span>
             </div>
-
-            {/* 5 slot row */}
-            <div className="flex gap-2 justify-between mb-3">
+            <div className="flex gap-2 justify-between">
               {Array.from({ length: 5 }, (_, i) => {
                 const invId = selectedPotionIds[i];
                 const inv = invId ? battlePotions.find((p: any) => (p.inventoryId || p.id) === invId) : null;
                 const isMana = inv && (inv.manaRestored ?? 0) > 0;
                 return (
-                  <div
+                  <button
                     key={i}
                     data-testid={`div-potion-slot-${i}`}
-                    onClick={() => invId && togglePotion(invId)}
-                    className="relative flex-1 aspect-square rounded-xl flex items-center justify-center transition-all"
+                    onClick={() => inv ? togglePotion(invId) : setPickerOpen("potion")}
+                    className="relative flex-1 rounded-xl flex items-center justify-center transition-all active:scale-95"
                     style={{
+                      aspectRatio: "1 / 1",
                       background: inv ? (isMana ? "rgba(124,58,237,0.22)" : "rgba(34,197,94,0.18)") : "rgba(255,255,255,0.04)",
                       border: `1px solid ${inv ? (isMana ? "rgba(167,139,250,0.55)" : "rgba(34,197,94,0.5)") : "rgba(255,255,255,0.10)"}`,
-                      cursor: inv ? "pointer" : "default",
                     }}
                   >
                     {inv ? (
                       inv.imageUrl
-                        ? <img src={inv.imageUrl} className="w-8 h-8 object-contain" />
+                        ? <img src={inv.imageUrl} className="w-12 h-12 object-contain" />
                         : isMana
-                          ? <Droplets className="w-5 h-5" style={{ color: "#a78bfa" }} />
-                          : <Heart className="w-5 h-5" style={{ color: "#f87171", fill: "rgba(248,113,113,0.3)" }} />
+                          ? <Droplets className="w-7 h-7" style={{ color: "#a78bfa" }} />
+                          : <Heart className="w-7 h-7" style={{ color: "#f87171", fill: "rgba(248,113,113,0.3)" }} />
                     ) : (
-                      <span className="text-xl text-white/15">+</span>
+                      <span className="text-2xl text-white/30 font-light">+</span>
                     )}
-                  </div>
+                  </button>
                 );
               })}
             </div>
-
-            {/* Potion inventory grid */}
-            {battlePotions.length === 0 ? (
-              <div className="text-center py-3 text-white/30 text-[10px]">No battle potions in your bag.</div>
-            ) : (
-              <div className="grid grid-cols-4 gap-2">
-                {battlePotions.map((inv: any) => {
-                  const invId = inv.inventoryId || inv.id;
-                  const selected = selectedPotionIds.includes(invId);
-                  const isMana = (inv.manaRestored ?? 0) > 0;
-                  return (
-                    <button
-                      key={invId}
-                      data-testid={`button-potion-select-${invId}`}
-                      onClick={() => togglePotion(invId)}
-                      className="relative rounded-lg p-1.5 flex flex-col items-center gap-0.5 transition-all active:scale-95"
-                      style={{
-                        background: selected
-                          ? (isMana ? "linear-gradient(135deg, rgba(124,58,237,0.28), rgba(167,139,250,0.08))" : "linear-gradient(135deg, rgba(34,197,94,0.28), rgba(74,222,128,0.08))")
-                          : "rgba(255,255,255,0.03)",
-                        border: `1px solid ${selected ? (isMana ? "rgba(167,139,250,0.55)" : "rgba(34,197,94,0.55)") : "rgba(255,255,255,0.07)"}`,
-                      }}
-                    >
-                      {selected && (
-                        <div className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center" style={{ background: isMana ? "#7c3aed" : "#16a34a" }}>
-                          <Check size={8} className="text-white" />
-                        </div>
-                      )}
-                      <div className="w-10 h-10 flex items-center justify-center">
-                        {inv.imageUrl
-                          ? <img src={inv.imageUrl} className="w-9 h-9 object-contain" />
-                          : isMana
-                            ? <Droplets className="w-7 h-7" style={{ color: "#a78bfa" }} />
-                            : <Heart className="w-7 h-7" style={{ color: "#f87171", fill: "rgba(248,113,113,0.3)" }} />}
-                      </div>
-                      <div className="text-white/70 text-[9px] truncate w-full text-center">{inv.name}</div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
           </div>
         </div>
 
@@ -615,18 +562,144 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
               if (selectedPetIds.length > 0) saveBattleGroup.mutate(selectedPetIds);
               setTab("opponents");
             }}
-            className="w-full flex items-center justify-center gap-3 rounded-xl py-4 transition-all active:scale-95"
+            className="w-full flex items-center justify-center gap-3 rounded-xl py-3.5 transition-all active:scale-95"
             style={{
-              background: "linear-gradient(135deg, rgba(80,15,15,0.95), rgba(140,30,30,0.95))",
-              border: "1px solid rgba(239,68,68,0.5)",
-              boxShadow: "0 0 20px rgba(239,68,68,0.35)",
+              background: "linear-gradient(180deg, rgba(30,22,55,0.92) 0%, rgba(18,12,32,0.95) 100%)",
+              border: "1px solid rgba(167,139,250,0.35)",
             }}
           >
-            <img src={swordImg} alt="" className="w-7 h-7 object-contain" />
-            <span className="text-[14px] tracking-[0.25em] font-black text-red-100" style={{ textShadow: "0 0 10px rgba(239,68,68,0.6)" }}>BEGIN BATTLE</span>
+            <img src={pvpNavIcon} alt="" className="w-8 h-8 object-contain" />
+            <span className="text-[13px] tracking-[0.22em] font-bold text-amber-100" style={{ textShadow: "0 1px 2px rgba(0,0,0,0.7)" }}>BEGIN BATTLE</span>
           </button>
         </div>
       </div>
+
+      {/* ── Inventory picker sheet (pets or potions) ────────────────── */}
+      {pickerOpen && (
+        <div
+          className="absolute inset-0 z-30 flex items-end justify-center"
+          style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(3px)" }}
+          onClick={() => setPickerOpen(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm mx-auto rounded-t-3xl"
+            style={{
+              background: "linear-gradient(180deg, #15102a 0%, #0a0814 100%)",
+              border: "1px solid rgba(167,139,250,0.25)",
+              borderBottom: "none",
+              maxHeight: "82vh",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            <div className="flex items-center justify-between px-5 pt-5 pb-3 shrink-0 border-b border-white/5">
+              <div className="text-[12px] font-bold tracking-[0.2em] text-amber-100">
+                {pickerOpen === "pet" ? "CHOOSE A PET" : "CHOOSE A POTION"}
+              </div>
+              <button
+                data-testid="button-close-picker"
+                onClick={() => setPickerOpen(null)}
+                className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20"
+              >
+                <span className="text-white/70 text-sm">×</span>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-4 py-4">
+              {pickerOpen === "pet" ? (
+                hatchedPets.length === 0 ? (
+                  <div className="text-center py-10 text-white/40 text-[11px]">No hatched pets — visit your nursery!</div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-3">
+                    {hatchedPets.map((inv: any) => {
+                      const invId = inv.inventoryId || inv.id;
+                      const selected = selectedPetIds.includes(invId);
+                      const full = !selected && selectedPetIds.length >= 5;
+                      return (
+                        <button
+                          key={invId}
+                          data-testid={`button-pet-select-${invId}`}
+                          disabled={full}
+                          onClick={() => { togglePet(invId); if (!selected) setPickerOpen(null); }}
+                          className="relative rounded-xl p-2 flex flex-col items-center gap-1 transition-all active:scale-95"
+                          style={{
+                            background: selected
+                              ? "linear-gradient(135deg, rgba(124,58,237,0.32), rgba(167,139,250,0.10))"
+                              : "rgba(255,255,255,0.04)",
+                            border: `1px solid ${selected ? "rgba(167,139,250,0.6)" : "rgba(255,255,255,0.08)"}`,
+                            opacity: full ? 0.4 : 1,
+                          }}
+                        >
+                          {selected && (
+                            <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-purple-500 flex items-center justify-center">
+                              <Check size={9} className="text-white" />
+                            </div>
+                          )}
+                          <div className="w-16 h-16 flex items-center justify-center">
+                            {inv.petTemplateId
+                              ? <PetAnimator petTemplateId={inv.petTemplateId} mode="idle" view="front" size={64} />
+                              : inv.imageUrl
+                              ? <img src={inv.imageUrl} className="w-14 h-14 object-contain" />
+                              : <img src={petPawIcon} alt="" style={{ width: 44, height: 44, objectFit: "contain" }} />}
+                          </div>
+                          <div className="text-white/85 text-[10px] truncate w-full text-center font-medium">{inv.petNickname || inv.name}</div>
+                          <div className="text-white/40 text-[8px]">Lv {inv.petLevel || 1}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )
+              ) : (
+                battlePotions.length === 0 ? (
+                  <div className="text-center py-10 text-white/40 text-[11px]">No battle potions in your bag.</div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-3">
+                    {battlePotions.map((inv: any) => {
+                      const invId = inv.inventoryId || inv.id;
+                      const selected = selectedPotionIds.includes(invId);
+                      const full = !selected && selectedPotionIds.length >= 5;
+                      const isMana = (inv.manaRestored ?? 0) > 0;
+                      return (
+                        <button
+                          key={invId}
+                          data-testid={`button-potion-select-${invId}`}
+                          disabled={full}
+                          onClick={() => { togglePotion(invId); if (!selected) setPickerOpen(null); }}
+                          className="relative rounded-xl p-2 flex flex-col items-center gap-1 transition-all active:scale-95"
+                          style={{
+                            background: selected
+                              ? (isMana
+                                  ? "linear-gradient(135deg, rgba(124,58,237,0.32), rgba(167,139,250,0.10))"
+                                  : "linear-gradient(135deg, rgba(34,197,94,0.32), rgba(74,222,128,0.10))")
+                              : "rgba(255,255,255,0.04)",
+                            border: `1px solid ${selected ? (isMana ? "rgba(167,139,250,0.6)" : "rgba(34,197,94,0.6)") : "rgba(255,255,255,0.08)"}`,
+                            opacity: full ? 0.4 : 1,
+                          }}
+                        >
+                          {selected && (
+                            <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full flex items-center justify-center" style={{ background: isMana ? "#7c3aed" : "#16a34a" }}>
+                              <Check size={9} className="text-white" />
+                            </div>
+                          )}
+                          <div className="w-14 h-14 flex items-center justify-center">
+                            {inv.imageUrl
+                              ? <img src={inv.imageUrl} className="w-12 h-12 object-contain" />
+                              : isMana
+                                ? <Droplets className="w-9 h-9" style={{ color: "#a78bfa" }} />
+                                : <Heart className="w-9 h-9" style={{ color: "#f87171", fill: "rgba(248,113,113,0.3)" }} />}
+                          </div>
+                          <div className="text-white/85 text-[10px] truncate w-full text-center font-medium">{inv.name}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Battle Group Modal ────────────────────────────────────── */}
       {tab === "group" && (

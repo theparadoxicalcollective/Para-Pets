@@ -5221,9 +5221,26 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
       const all = await storage.getAllBattleGroupsWithUsers();
-      // Exclude current user, only show those with at least 1 pet
-      const opponents = all.filter((g: any) => g.userId !== user.id && g.petInventoryIds?.length > 0);
-      return res.json(opponents);
+      // Exclude current user, only keep groups with pets.
+      const others = all.filter((g: any) => g.userId !== user.id && g.petInventoryIds?.length > 0);
+
+      // Matchmaking: keep opponents within ±35% of the player's saved
+      // attack power so smaller players don't get farmed by whales. If
+      // the band is too thin, widen progressively (±60%, then unrestricted)
+      // so there's always at least a small pool to fight.
+      const myGroup = await storage.getBattleGroup(user.id);
+      const myPower: number = myGroup?.attackPower ?? 0;
+      const inBand = (band: number) => others.filter((g: any) => {
+        const p = g.attackPower ?? 0;
+        if (myPower <= 0) return true; // unranked players can match anyone
+        const lo = myPower * (1 - band);
+        const hi = myPower * (1 + band);
+        return p >= lo && p <= hi;
+      });
+      let matched = inBand(0.35);
+      if (matched.length < 5) matched = inBand(0.6);
+      if (matched.length < 3) matched = others; // last-resort: show everyone
+      return res.json(matched);
     } catch (err) {
       return res.status(500).json({ message: "Failed to fetch opponents" });
     }

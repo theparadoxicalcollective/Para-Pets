@@ -496,6 +496,9 @@ export const pvpBattleGroups = pgTable("pvp_battle_groups", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().unique(),
   petInventoryIds: text("pet_inventory_ids").array().notNull().default(sql`'{}'::text[]`),
+  // Cached "power rating" of the saved team. Used to match players against
+  // opponents within a safe range so smaller players don't get farmed.
+  attackPower: integer("attack_power").notNull().default(0),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
 
