@@ -188,6 +188,37 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
     (i: any) => i.type === "potion" && (((i.healthRestored ?? 0) > 0) || ((i.manaRestored ?? 0) > 0) || ((i.petsRevived ?? 0) > 0))
   );
 
+  // Group identical potions into stacks of up to 50 for the picker UI.
+  // Each row in `inventory` is a single potion (one use), so 200 healing
+  // potions = 200 inventory rows. Showing them individually clutters the
+  // picker; instead we group by shopItemId (or by name fallback for
+  // legacy rows without a shop_item_id) and cap every visible stack at
+  // POTION_STACK_SIZE. A type with 137 potions would render as 3 stacks
+  // (50 / 50 / 37). Tapping a stack equips the next un-selected id.
+  const POTION_STACK_SIZE = 50;
+  const potionStacks = ((): Array<{
+    key: string; rep: any; ids: string[]; count: number;
+  }> => {
+    const groups = new Map<string, { rep: any; ids: string[] }>();
+    for (const p of battlePotions) {
+      const key = p.shopItemId || `name:${p.name}`;
+      const g = groups.get(key) || { rep: p, ids: [] };
+      g.ids.push(p.inventoryId || p.id);
+      groups.set(key, g);
+    }
+    const out: Array<{ key: string; rep: any; ids: string[]; count: number }> = [];
+    for (const [key, { rep, ids }] of groups) {
+      // Slice the flat id list into chunks of POTION_STACK_SIZE so very
+      // large bags still display as multiple full stacks instead of one
+      // giant pile.
+      for (let i = 0; i < ids.length; i += POTION_STACK_SIZE) {
+        const chunk = ids.slice(i, i + POTION_STACK_SIZE);
+        out.push({ key: `${key}#${i / POTION_STACK_SIZE}`, rep, ids: chunk, count: chunk.length });
+      }
+    }
+    return out;
+  })();
+
   const togglePet = (invId: string) => {
     hasUserEdited.current = true;
     setSelectedPetIds(prev =>
@@ -454,11 +485,20 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                     }}
                   >
                     {inv ? (
-                      inv.petTemplateId
-                        ? <PetAnimator petTemplateId={inv.petTemplateId} mode="idle" view="front" size={64} />
-                        : inv.imageUrl
-                          ? <img src={inv.imageUrl} className="w-14 h-14 object-contain" />
-                          : <img src={petPawIcon} alt="" style={{ width: 44, height: 44, objectFit: "contain", opacity: 0.7 }} />
+                      // Render at full slot size. PetAnimator without
+                      // `fillContainer` only fills ~30% of its size box
+                      // (the sprite frame has a lot of empty padding for
+                      // squish/jump animations), which made pets look
+                      // tiny and made the idle squish look like a
+                      // glitch. fillContainer scales the inner canvas
+                      // so the visible sprite fills the slot exactly.
+                      <div className="w-full h-full p-1 flex items-center justify-center">
+                        {inv.petTemplateId
+                          ? <PetAnimator petTemplateId={inv.petTemplateId} mode="idle" view="front" size={88} fillContainer className="w-full h-full" />
+                          : inv.imageUrl
+                            ? <img src={inv.imageUrl} className="w-full h-full object-contain" />
+                            : <img src={petPawIcon} alt="" className="w-full h-full object-contain" style={{ opacity: 0.7 }} />}
+                      </div>
                     ) : (
                       <span className="text-2xl text-white/30 font-light">+</span>
                     )}
@@ -601,12 +641,12 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                               <Check size={9} className="text-white" />
                             </div>
                           )}
-                          <div className="w-16 h-16 flex items-center justify-center">
+                          <div className="w-20 h-20 flex items-center justify-center">
                             {inv.petTemplateId
-                              ? <PetAnimator petTemplateId={inv.petTemplateId} mode="idle" view="front" size={64} />
+                              ? <PetAnimator petTemplateId={inv.petTemplateId} mode="idle" view="front" size={80} fillContainer className="w-full h-full" />
                               : inv.imageUrl
-                              ? <img src={inv.imageUrl} className="w-14 h-14 object-contain" />
-                              : <img src={petPawIcon} alt="" style={{ width: 44, height: 44, objectFit: "contain" }} />}
+                              ? <img src={inv.imageUrl} className="w-full h-full object-contain" />
+                              : <img src={petPawIcon} alt="" className="w-14 h-14 object-contain" />}
                           </div>
                           <div className="text-white/85 text-[10px] truncate w-full text-center font-medium">{inv.petNickname || inv.name}</div>
                           <div className="text-white/40 text-[8px]">Lv {inv.petLevel || 1}</div>
@@ -616,37 +656,60 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                   </div>
                 )
               ) : (
-                battlePotions.length === 0 ? (
+                potionStacks.length === 0 ? (
                   <div className="text-center py-10 text-white/40 text-[11px]">No battle potions in your bag.</div>
                 ) : (
                   <div className="grid grid-cols-3 gap-3">
-                    {battlePotions.map((inv: any) => {
-                      const invId = inv.inventoryId || inv.id;
-                      const selected = selectedPotionIds.includes(invId);
-                      const full = !selected && selectedPotionIds.length >= 5;
+                    {potionStacks.map((stack) => {
+                      const inv = stack.rep;
                       const isMana = (inv.manaRestored ?? 0) > 0;
+                      // How many of THIS stack the player has currently
+                      // equipped, so the picker can show e.g. "×48"
+                      // (50 in stack − 2 already in slots) and disable
+                      // the stack once it's empty or the loadout is full.
+                      const equippedFromStack = stack.ids.filter(id => selectedPotionIds.includes(id)).length;
+                      const remaining = stack.count - equippedFromStack;
+                      const loadoutFull = selectedPotionIds.length >= 5;
+                      const disabled = remaining <= 0 || loadoutFull;
+                      const partiallySelected = equippedFromStack > 0;
                       return (
                         <button
-                          key={invId}
-                          data-testid={`button-potion-select-${invId}`}
-                          disabled={full}
-                          onClick={() => { togglePotion(invId); if (!selected) setPickerOpen(null); }}
+                          key={stack.key}
+                          data-testid={`button-potion-stack-${stack.key}`}
+                          disabled={disabled}
+                          onClick={() => {
+                            // Equip the next un-selected potion from this
+                            // stack and immediately close the picker so
+                            // the player can see the slot fill in.
+                            const nextId = stack.ids.find(id => !selectedPotionIds.includes(id));
+                            if (!nextId) return;
+                            togglePotion(nextId);
+                            setPickerOpen(null);
+                          }}
                           className="relative rounded-xl p-2 flex flex-col items-center gap-1 transition-all active:scale-95"
                           style={{
-                            background: selected
+                            background: partiallySelected
                               ? (isMana
                                   ? "linear-gradient(135deg, rgba(124,58,237,0.32), rgba(167,139,250,0.10))"
                                   : "linear-gradient(135deg, rgba(34,197,94,0.32), rgba(74,222,128,0.10))")
                               : "rgba(255,255,255,0.04)",
-                            border: `1px solid ${selected ? (isMana ? "rgba(167,139,250,0.6)" : "rgba(34,197,94,0.6)") : "rgba(255,255,255,0.08)"}`,
-                            opacity: full ? 0.4 : 1,
+                            border: `1px solid ${partiallySelected ? (isMana ? "rgba(167,139,250,0.6)" : "rgba(34,197,94,0.6)") : "rgba(255,255,255,0.08)"}`,
+                            opacity: disabled ? 0.4 : 1,
                           }}
                         >
-                          {selected && (
-                            <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full flex items-center justify-center" style={{ background: isMana ? "#7c3aed" : "#16a34a" }}>
-                              <Check size={9} className="text-white" />
-                            </div>
-                          )}
+                          {/* Stack count badge — shows how many are still
+                              available in this stack (after equipping). */}
+                          <div
+                            className="absolute top-1 right-1 min-w-[22px] h-[18px] px-1.5 rounded-full flex items-center justify-center text-[10px] font-black tabular-nums shrink-0"
+                            data-testid={`text-potion-stack-count-${stack.key}`}
+                            style={{
+                              background: "rgba(0,0,0,0.7)",
+                              border: `1px solid ${isMana ? "rgba(167,139,250,0.5)" : "rgba(34,197,94,0.5)"}`,
+                              color: isMana ? "#c4b5fd" : "#86efac",
+                            }}
+                          >
+                            ×{remaining}
+                          </div>
                           <div className="w-14 h-14 flex items-center justify-center">
                             {inv.imageUrl
                               ? <img src={inv.imageUrl} className="w-12 h-12 object-contain" />
@@ -704,12 +767,12 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                           <Check size={10} className="text-white" />
                         </div>
                       )}
-                      <div className="w-16 h-16 flex items-center justify-center">
+                      <div className="w-20 h-20 flex items-center justify-center">
                         {inv.petTemplateId
-                          ? <PetAnimator petTemplateId={inv.petTemplateId} mode="idle" view="front" size={60} />
+                          ? <PetAnimator petTemplateId={inv.petTemplateId} mode="idle" view="front" size={80} fillContainer className="w-full h-full" />
                           : inv.imageUrl
-                          ? <img src={inv.imageUrl} className="w-14 h-14 object-contain" />
-                          : <img src={petPawIcon} alt="" style={{ width: 44, height: 44, objectFit: "contain" }} />}
+                          ? <img src={inv.imageUrl} className="w-full h-full object-contain" />
+                          : <img src={petPawIcon} alt="" className="w-14 h-14 object-contain" />}
                       </div>
                       <div className="text-center">
                         <div className="text-white/80 text-[11px] font-bold truncate w-full">{inv.petNickname || inv.name}</div>
