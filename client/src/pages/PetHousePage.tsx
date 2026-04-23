@@ -2257,7 +2257,10 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
     // inventory row, so each of the player's pets has its own first-petting
     // +10 coins and its own pool of extra rewards.
     mutationFn: async (inventoryId: string) => {
-      return await apiRequest("POST", `/api/pets/${inventoryId}/petting-reward`, {});
+      // `apiRequest` returns the raw `Response` — we MUST `.json()` it ourselves
+      // or `data.rewarded` below is forever `undefined` and no coins ever drop.
+      const res = await apiRequest("POST", `/api/pets/${inventoryId}/petting-reward`, {});
+      return await res.json();
     },
     onSuccess: (data: any) => {
       if (data?.rewarded && data?.amount > 0) {
