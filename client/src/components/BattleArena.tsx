@@ -2120,7 +2120,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               return (
                 <div
                   key={`extra-pet-${si}`}
-                  className="absolute z-10 flex flex-col items-center"
+                  className="absolute z-10"
                   style={{
                     left: `${epos.x}%`, top: `${epos.y}%`, transform: "translate(-50%,-50%)",
                     filter: isDead ? "grayscale(1) opacity(0.35)" : undefined,
@@ -2135,36 +2135,43 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   ) : (
                     <img src={petPawIcon} alt="" style={{ width: PET_SPRITE_SIZE * 0.5, height: PET_SPRITE_SIZE * 0.5, objectFit: "contain", ...(epGlowStyle || {}) }} />
                   )}
-                  {/* HP bar for extra pet */}
-                  <div className="h-1.5 rounded-full overflow-hidden mt-1" style={{ width: 92, background: "rgba(0,0,0,0.5)" }}>
-                    <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(0, (eHp / Math.max(1, eMaxHp)) * 100)}%`, background: eHp / Math.max(1, eMaxHp) > 0.5 ? "#4ade80" : eHp / Math.max(1, eMaxHp) > 0.2 ? "#facc15" : "#ef4444" }} />
-                  </div>
-                  {/* Mana bar (only when this pet actually has a special skill) */}
-                  {epHasSkill && (
-                    <div className="h-1.5 rounded-full overflow-hidden mt-0.5" style={{ width: 92, background: "rgba(0,0,0,0.5)" }} data-testid={`bar-extra-pet-mana-${si}`}>
-                      <div className="h-full rounded-full transition-all" style={{
-                        width: `${(epMana / MAX_MANA) * 100}%`,
-                        background: epMana >= MAX_MANA ? "linear-gradient(90deg, #7c3aed, #a78bfa, #c4b5fd)" : "linear-gradient(90deg, #4c1d95, #7c3aed)",
-                        boxShadow: epMana >= MAX_MANA ? "0 0 8px rgba(167,139,250,0.9)" : undefined,
-                      }} />
+                  {/* HP / mana / name / stars — positioned absolutely below the
+                      sprite so the SPRITE itself sits centered on `epos`, exactly
+                      like the active pet. Otherwise a flex-column would center
+                      the whole stack on `epos` and lift the sprite up out of
+                      line with the active pet. */}
+                  <div className="absolute flex flex-col items-center" style={{ left: "50%", top: "100%", transform: "translate(-50%, 4px)", pointerEvents: "none", width: 92 }}>
+                    {/* HP bar */}
+                    <div className="h-1.5 rounded-full overflow-hidden" style={{ width: 92, background: "rgba(0,0,0,0.5)" }}>
+                      <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(0, (eHp / Math.max(1, eMaxHp)) * 100)}%`, background: eHp / Math.max(1, eMaxHp) > 0.5 ? "#4ade80" : eHp / Math.max(1, eMaxHp) > 0.2 ? "#facc15" : "#ef4444" }} />
                     </div>
-                  )}
-                  {/* Name */}
-                  <div className="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide whitespace-nowrap"
-                    style={{ color: "#fff", background: "rgba(0,0,0,0.55)", textShadow: "0 0 6px rgba(0,0,0,0.9)", maxWidth: 110, overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {epName}
-                  </div>
-                  {/* Stars */}
-                  {epRarity > 0 && (
-                    <div className="flex items-center gap-[1px] mt-0.5" style={{ filter: "drop-shadow(0 0 3px rgba(0,0,0,0.9))" }}>
-                      {Array.from({ length: epRarity }).map((_, k) => (
-                        <Star key={k} style={{ width: 10, height: 10, color: "#fbbf24", fill: "#fbbf24" }} />
-                      ))}
+                    {/* Mana bar (only when this pet actually has a special skill) */}
+                    {epHasSkill && (
+                      <div className="h-1.5 rounded-full overflow-hidden mt-0.5" style={{ width: 92, background: "rgba(0,0,0,0.5)" }} data-testid={`bar-extra-pet-mana-${si}`}>
+                        <div className="h-full rounded-full transition-all" style={{
+                          width: `${(epMana / MAX_MANA) * 100}%`,
+                          background: epMana >= MAX_MANA ? "linear-gradient(90deg, #7c3aed, #a78bfa, #c4b5fd)" : "linear-gradient(90deg, #4c1d95, #7c3aed)",
+                          boxShadow: epMana >= MAX_MANA ? "0 0 8px rgba(167,139,250,0.9)" : undefined,
+                        }} />
+                      </div>
+                    )}
+                    {/* Name */}
+                    <div className="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide whitespace-nowrap"
+                      style={{ color: "#fff", background: "rgba(0,0,0,0.55)", textShadow: "0 0 6px rgba(0,0,0,0.9)", maxWidth: 110, overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {epName}
                     </div>
-                  )}
-                  {isDead && (
-                    <div className="text-[9px] font-black text-red-400" style={{ textShadow: "0 0 6px rgba(239,68,68,0.8)" }}>FAINTED</div>
-                  )}
+                    {/* Stars */}
+                    {epRarity > 0 && (
+                      <div className="flex items-center gap-[1px] mt-0.5" style={{ filter: "drop-shadow(0 0 3px rgba(0,0,0,0.9))" }}>
+                        {Array.from({ length: epRarity }).map((_, k) => (
+                          <Star key={k} style={{ width: 10, height: 10, color: "#fbbf24", fill: "#fbbf24" }} />
+                        ))}
+                      </div>
+                    )}
+                    {isDead && (
+                      <div className="text-[9px] font-black text-red-400" style={{ textShadow: "0 0 6px rgba(239,68,68,0.8)" }}>FAINTED</div>
+                    )}
+                  </div>
                 </div>
               );
             })}

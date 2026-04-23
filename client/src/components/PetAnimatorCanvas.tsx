@@ -101,8 +101,10 @@ export default function PetAnimatorCanvas({ petTemplateId, size, fillContainer =
   const partsRef  = useRef<{ part: PetPart; img: HTMLImageElement }[]>([]);
   const readyRef  = useRef(false);
 
-  // Cap DPR at 3 — anything higher offers no visible benefit
-  const dpr = typeof window !== "undefined" ? Math.min(window.devicePixelRatio || 1, 3) : 1;
+  // Cap DPR at 2 — battle-arena renders 3 of these at once and 3× DPR (iPhone)
+  // turns each frame into ~9× the work of a logical-pixel canvas, dropping the
+  // whole battle to single-digit FPS. 2× still looks crisp on retina.
+  const dpr = typeof window !== "undefined" ? Math.min(window.devicePixelRatio || 1, 2) : 1;
   const canvasPx = Math.round(size * dpr);
 
   const { data: templateData } = useQuery<{ parts: PetPart[]; facing: string }>({
@@ -148,10 +150,16 @@ export default function PetAnimatorCanvas({ petTemplateId, size, fillContainer =
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     t0Ref.current = performance.now();
+    // Throttle to ~30fps. With 3 pets on screen the previous 60fps redraw was
+    // saturating the iOS GPU. Pet idle animations look identical at 30fps.
+    let lastDraw = 0;
+    const FRAME_MS = 1000 / 30;
 
     const draw = (now: number) => {
       rafRef.current = requestAnimationFrame(draw);
       if (!readyRef.current) return;
+      if (now - lastDraw < FRAME_MS) return;
+      lastDraw = now;
 
       const sec = (now - t0Ref.current) / 1000;
       const parts = partsRef.current;
@@ -164,7 +172,7 @@ export default function PetAnimatorCanvas({ petTemplateId, size, fillContainer =
 
       ctx.clearRect(0, 0, canvasPx, canvasPx);
       ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = "high";
+      ctx.imageSmoothingQuality = "low";
 
       for (const { part, img } of parts) {
         const { op, rot } = evalAnim(part.partType, sec, blinkRef.current);
