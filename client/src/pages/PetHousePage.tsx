@@ -2072,7 +2072,8 @@ function PetStatusBars({
       className="absolute left-1/2"
       style={{
         top: "calc(42% + 130px)",
-        transform: "translateX(-50%)",
+        // Nudge right so the vertical Loyalty bar on the left edge has room.
+        transform: "translateX(calc(-50% + 22px))",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -2786,14 +2787,14 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
       <div
         className="absolute"
         style={{
-          left: 14,
-          top: "20%",
-          height: "55%",
-          width: 38,
+          left: 8,
+          top: "18%",
+          height: "50%",
+          width: 36,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          gap: 6,
+          gap: 4,
           pointerEvents: "none",
           zIndex: 510,
         }}
@@ -2802,22 +2803,19 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
         <span
           style={{
             fontFamily: "Lora, serif",
-            color: "#ffd1ec",
-            fontSize: 9,
+            color: "#fff5fa",
+            fontSize: 10,
             fontWeight: 800,
-            letterSpacing: "0.2em",
             textShadow: "0 1px 4px rgba(0,0,0,0.7)",
-            writingMode: "vertical-rl",
-            transform: "rotate(180deg)",
-            marginBottom: 2,
           }}
+          data-testid="text-loyalty-value"
         >
-          LOYALTY
+          {loyaltyVal}
         </span>
         <div
           style={{
             flex: 1,
-            width: 14,
+            width: 12,
             borderRadius: 999,
             background: "rgba(20,8,18,0.75)",
             border: "1px solid rgba(255,180,220,0.45)",
@@ -2842,14 +2840,15 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
         <span
           style={{
             fontFamily: "Lora, serif",
-            color: "#fff5fa",
-            fontSize: 10,
+            color: "#ffd1ec",
+            fontSize: 8,
             fontWeight: 800,
+            letterSpacing: "0.18em",
             textShadow: "0 1px 4px rgba(0,0,0,0.7)",
+            marginTop: 2,
           }}
-          data-testid="text-loyalty-value"
         >
-          {loyaltyVal}
+          LOYALTY
         </span>
       </div>
 
@@ -3101,8 +3100,15 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
           </div>
         ) : (
           <div
-            className="flex gap-3 overflow-x-auto pb-2"
-            style={{ touchAction: "pan-x" }}
+            className="flex gap-3 overflow-x-auto pb-2 px-1"
+            style={{
+              touchAction: "pan-x",
+              WebkitOverflowScrolling: "touch",
+              scrollSnapType: "x proximity",
+              overscrollBehaviorX: "contain",
+              scrollbarWidth: "none",
+              msOverflowStyle: "none",
+            }}
           >
             {edibles.map((item) => (
               <div
@@ -3219,8 +3225,15 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
           </div>
         ) : (
           <div
-            className="flex gap-3 overflow-x-auto pb-2"
-            style={{ touchAction: "pan-x" }}
+            className="flex gap-3 overflow-x-auto pb-2 px-1"
+            style={{
+              touchAction: "pan-x",
+              WebkitOverflowScrolling: "touch",
+              scrollSnapType: "x proximity",
+              overscrollBehaviorX: "contain",
+              scrollbarWidth: "none",
+              msOverflowStyle: "none",
+            }}
           >
             {gifts.map((item) => (
               <div

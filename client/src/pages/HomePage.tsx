@@ -182,20 +182,40 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     travel: number;
     pettedThisPress: boolean;
     moved: boolean;
+    heartTimer: number | null;
+    sparkleTimer: number | null;
+    resetTimer: number | null;
   } | null>(null);
+  const [petPressed, setPetPressed] = useState(false);
+  const [petCircling, setPetCircling] = useState(false);
   const [petHearts, setPetHearts] = useState<{ id: number; cx: number; cy: number; dx: number; size: number; delay: number }[]>([]);
+  const [petSparkles, setPetSparkles] = useState<{ id: number; cx: number; cy: number; dx: number; dy: number; size: number; delay: number }[]>([]);
   const petHeartIdRef = useRef(0);
+  const petSparkleIdRef = useRef(0);
   const burstPetHearts = useCallback((cx: number, cy: number, count = 6) => {
     const newOnes = Array.from({ length: count }, () => ({
       id: ++petHeartIdRef.current,
       cx, cy,
       dx: (Math.random() - 0.5) * 140,
       size: 18 + Math.random() * 22,
-      delay: Math.random() * 0.4,
+      delay: Math.random() * 0.3,
     }));
     setPetHearts((h) => [...h, ...newOnes]);
     const ids = new Set(newOnes.map((n) => n.id));
     setTimeout(() => setPetHearts((h) => h.filter((x) => !ids.has(x.id))), 2400);
+  }, []);
+  const burstPetSparkles = useCallback((cx: number, cy: number, count = 6) => {
+    const newOnes = Array.from({ length: count }, () => ({
+      id: ++petSparkleIdRef.current,
+      cx, cy,
+      dx: (Math.random() - 0.5) * 90,
+      dy: (Math.random() - 0.5) * 90,
+      size: 6 + Math.random() * 10,
+      delay: Math.random() * 0.2,
+    }));
+    setPetSparkles((s) => [...s, ...newOnes]);
+    const ids = new Set(newOnes.map((n) => n.id));
+    setTimeout(() => setPetSparkles((s) => s.filter((x) => !ids.has(x.id))), 1200);
   }, []);
   const homePettingRewardMutation = useMutation({
     mutationFn: async (inventoryId: string) => {
@@ -207,6 +227,49 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
     },
   });
+  // Mirrors the Pet Care page: a circular drag triggers continuous heart and
+  // sparkle bursts while the finger keeps moving, and stops 350ms after the
+  // motion ends.
+  const startCircleEffects = useCallback(() => {
+    const g = petGestureStateRef.current;
+    if (!g) return;
+    setPetCircling(true);
+    if (g.heartTimer == null) {
+      const tick = () => {
+        const cur = petGestureStateRef.current;
+        if (!cur) return;
+        burstPetHearts(cur.cx, cur.cy + 30, 2);
+      };
+      tick();
+      g.heartTimer = window.setInterval(tick, 380);
+    }
+    if (g.sparkleTimer == null) {
+      const sparkleTick = () => {
+        const cur = petGestureStateRef.current;
+        if (!cur) return;
+        const ringAngle = Math.random() * Math.PI * 2;
+        const ringR = 60 + Math.random() * 40;
+        burstPetSparkles(cur.cx + Math.cos(ringAngle) * ringR, cur.cy + Math.sin(ringAngle) * ringR, 5);
+      };
+      sparkleTick();
+      g.sparkleTimer = window.setInterval(sparkleTick, 180);
+    }
+    if (g.resetTimer != null) window.clearTimeout(g.resetTimer);
+    g.resetTimer = window.setTimeout(() => {
+      const cur = petGestureStateRef.current;
+      if (cur?.heartTimer != null) { window.clearInterval(cur.heartTimer); cur.heartTimer = null; }
+      if (cur?.sparkleTimer != null) { window.clearInterval(cur.sparkleTimer); cur.sparkleTimer = null; }
+      setPetCircling(false);
+    }, 350);
+  }, [burstPetHearts, burstPetSparkles]);
+  const stopCircleEffects = useCallback(() => {
+    const g = petGestureStateRef.current;
+    if (g?.heartTimer != null) { window.clearInterval(g.heartTimer); g.heartTimer = null; }
+    if (g?.sparkleTimer != null) { window.clearInterval(g.sparkleTimer); g.sparkleTimer = null; }
+    if (g?.resetTimer != null) { window.clearTimeout(g.resetTimer); g.resetTimer = null; }
+    setPetCircling(false);
+    setPetPressed(false);
+  }, []);
   const activePetTouchHandlers = useMemo(() => ({
     onPointerDown: (e: React.PointerEvent<HTMLDivElement>) => {
       const target = e.currentTarget as HTMLDivElement;
@@ -222,7 +285,11 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         travel: 0,
         pettedThisPress: false,
         moved: false,
+        heartTimer: null,
+        sparkleTimer: null,
+        resetTimer: null,
       };
+      setPetPressed(true);
     },
     onPointerMove: (e: React.PointerEvent<HTMLDivElement>) => {
       const g = petGestureStateRef.current;
@@ -238,17 +305,12 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         while (d > Math.PI) d -= 2 * Math.PI;
         while (d < -Math.PI) d += 2 * Math.PI;
         g.travel += Math.abs(d);
-        if (g.travel > Math.PI * 0.66 && !g.pettedThisPress) {
-          g.pettedThisPress = true;
-          burstPetHearts(g.cx, g.cy + 30, 8);
-          const id = activePetIdRef.current;
-          if (id) homePettingRewardMutation.mutate(id);
-        }
         if (g.travel > Math.PI * 0.66) {
-          // Each additional ~quarter rotation drops a few more hearts so the
-          // gesture keeps feeling alive as the player keeps circling.
-          if (Math.floor(g.travel / (Math.PI * 0.5)) > Math.floor((g.travel - Math.abs(d)) / (Math.PI * 0.5))) {
-            burstPetHearts(g.cx, g.cy + 20, 4);
+          startCircleEffects();
+          if (!g.pettedThisPress) {
+            g.pettedThisPress = true;
+            const id = activePetIdRef.current;
+            if (id) homePettingRewardMutation.mutate(id);
           }
         }
       }
@@ -256,16 +318,17 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     },
     onPointerUp: (e: React.PointerEvent<HTMLDivElement>) => {
       const g = petGestureStateRef.current;
-      if (!g || g.pid !== e.pointerId) { petGestureStateRef.current = null; return; }
+      if (!g || g.pid !== e.pointerId) { stopCircleEffects(); petGestureStateRef.current = null; return; }
       const wasPet = g.pettedThisPress;
       const movedFar = g.moved;
+      stopCircleEffects();
       petGestureStateRef.current = null;
       // Treat as a tap (open the action menu) only when the gesture didn't
       // turn into a circular pet AND the finger barely moved.
       if (!wasPet && !movedFar) setShowActionMenu(true);
     },
-    onPointerCancel: () => { petGestureStateRef.current = null; },
-  }), [homePettingRewardMutation, burstPetHearts]);
+    onPointerCancel: () => { stopCircleEffects(); petGestureStateRef.current = null; },
+  }), [homePettingRewardMutation, startCircleEffects, stopCircleEffects]);
 
   const hatchHomeMutation = useMutation({
     mutationFn: async (inventoryId: string) => {
@@ -734,10 +797,41 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                         </svg>
                       </div>
                     ))}
+                    {petSparkles.map((s) => (
+                      <div
+                        key={s.id}
+                        className="fixed pointer-events-none feed-sparkle"
+                        style={{
+                          left: s.cx,
+                          top: s.cy,
+                          width: s.size,
+                          height: s.size,
+                          ["--dx" as any]: `${s.dx}px`,
+                          ["--dy" as any]: `${s.dy}px`,
+                          animationDelay: `${s.delay}s`,
+                          zIndex: 513,
+                          color: "#ffe27a",
+                        }}
+                      >
+                        <svg viewBox="0 0 24 24" fill="currentColor" width={s.size} height={s.size}>
+                          <path d="M12 2l1.6 5.6L19 9.2l-5.4 1.6L12 16l-1.6-5.2L5 9.2l5.4-1.6L12 2z" />
+                        </svg>
+                      </div>
+                    ))}
                     {activePet.isHatched ? (
                       <div
                         {...activePetTouchHandlers}
-                        style={{ cursor: "pointer", touchAction: "none" }}
+                        style={{
+                          cursor: "pointer",
+                          touchAction: "none",
+                          transform: petCircling
+                            ? "scale(1.04, 0.97)"
+                            : petPressed
+                              ? "scale(0.98, 1.02)"
+                              : "scale(1)",
+                          transition: "transform 0.18s ease-out",
+                          transformOrigin: "center bottom",
+                        }}
                         className="w-full flex items-center justify-center"
                         data-testid="button-open-pet-actions"
                       >
