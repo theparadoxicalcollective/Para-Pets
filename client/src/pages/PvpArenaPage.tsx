@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { setNavHidden } from "@/lib/navVisibility";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import battleTrophyIcon from "@assets/generated_images/icon_battle_trophy.png";
 import pvpTicketImg from "@assets/Photoroom_20260415_83701_PM_1776304592941.png";
@@ -9,6 +10,7 @@ import pvpNavIcon from "@assets/generated_images/nav_icon_pvp.png";
 import { ArrowLeft, Users, Check, Heart, Droplets } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
 import PvpBattlePage from "./PvpBattlePage";
+import PvpMatchmakingOverlay from "@/components/PvpMatchmakingOverlay";
 import forestBgImg from "@assets/generated_images/pvp_ruins_battlefield_bg.png";
 import swordImg from "@assets/generated_images/pvp_battle_sword.png";
 import RoleBadge from "@/components/RoleBadge";
@@ -66,24 +68,48 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const [tab, setTab] = useState<"lobby" | "group" | "opponents" | "battle">("lobby");
+  const [tab, setTab] = useState<"lobby" | "group" | "matchmaking" | "battle">("lobby");
   const [battleOpponent, setBattleOpponent] = useState<Opponent | null>(null);
   const [battleToken, setBattleToken] = useState<string | null>(null);
   const [selectedPetIds, setSelectedPetIds] = useState<string[]>([]);
   const [groupSaved, setGroupSaved] = useState(false);
 
+  // Hide the floating main-nav while the arena is mounted — includes
+  // matchmaking and the live battle. Restored on unmount.
+  useEffect(() => {
+    setNavHidden(true);
+    return () => setNavHidden(false);
+  }, []);
+
   const { data: me } = useQuery<any>({ queryKey: ["/api/auth/me"] });
   const { data: leaderboardData } = useQuery<LeaderboardResponse>({ queryKey: ["/api/pvp/leaderboard"] });
   const leaderboard = leaderboardData?.top ?? [];
   const myLb = leaderboardData?.me ?? null;
-  const { data: ticketsData } = useQuery<{ count: number }>({ queryKey: ["/api/pvp/tickets"] });
-  const ticketCount = ticketsData?.count ?? 0;
+  const { data: ticketsData, refetch: refetchTickets } = useQuery<{ count: number }>({
+    queryKey: ["/api/pvp/tickets"],
+    // Refetch whenever the arena mounts or the window regains focus so
+    // freshly-bought tickets show up in the header without a reload.
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+  });
   const { data: battleGroup } = useQuery<any>({ queryKey: ["/api/pvp/battle-group"] });
-  const { data: opponents = [] } = useQuery<Opponent[]>({ queryKey: ["/api/pvp/opponents"], enabled: tab === "opponents" });
+  // Opponents are always loaded so matchmaking can kick off immediately
+  // when the player hits BEGIN BATTLE (no waiting for a second request).
+  const { data: opponents = [] } = useQuery<Opponent[]>({ queryKey: ["/api/pvp/opponents"] });
   // Inventory drives both the pet picker and the potion picker on the
   // single-page lobby, so it's loaded eagerly now (was only loaded for the
   // old "group" tab).
   const { data: inventory = [] } = useQuery<any[]>({ queryKey: ["/api/inventory"] });
+
+  // Client-side fallback ticket count: sum of every inventory stack whose
+  // backing shop item is flagged as a PvP ticket. If the dedicated
+  // /api/pvp/tickets endpoint ever lags behind inventory (e.g. right after
+  // a purchase), we still show the right number. We take the MAX of the
+  // two so we never under-report tickets the player actually owns.
+  const inventoryTicketCount = (inventory as any[])
+    .filter((i: any) => i?.specialType === "pvp_ticket")
+    .reduce((sum: number, i: any) => sum + (Number(i.quantity) || 1), 0);
+  const ticketCount = Math.max(ticketsData?.count ?? 0, inventoryTicketCount);
 
   // Local potion selection — picked here on the lobby and forwarded into
   // the battle screen. Five slots max, mirrors the PvE battle prep flow.
@@ -326,11 +352,12 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
-        {/* ── Single-page loadout: leaderboard, pet picker, potion picker.
-             All three live inside one scroll container so the player can
-             see their standing and build their party without bouncing
-             between modal tabs. ── */}
-        <div className="flex-1 overflow-y-auto px-3 pt-2 pb-3 space-y-3">
+        {/* ── Single-page loadout: leaderboard on top, pet/potion picker
+             pinned near the bottom so the Begin Battle button always
+             sits within thumb reach. flex-col + mt-auto on the prep
+             card pushes the team-select row toward the bottom edge of
+             the scroll area. ── */}
+        <div className="flex-1 overflow-y-auto px-3 pt-2 pb-3 flex flex-col gap-3">
           {/* ── Leaderboard (basic clean list) ──────────────────────
                Previous version had an ornate ruins frame, platinum
                trophies on the top 3, and per-tier coloured chips —
@@ -433,11 +460,11 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
           </div>
 
           {/* ── Prepare for Battle: 5 pet slots + 5 potion slots ──────
-               The slot rows are the only thing always visible — tapping
-               an empty [+] slot opens an inventory picker; tapping a
-               filled slot clears it. ── */}
+               mt-auto pushes this card toward the bottom of the scroll
+               area so the leaderboard above gets more breathing room
+               and BEGIN BATTLE sits just above the thumb. ── */}
           <div
-            className="rounded-2xl p-3 mx-auto"
+            className="rounded-2xl p-3 mx-auto mt-auto w-full"
             style={{
               maxWidth: 360,
               background: "linear-gradient(180deg, rgba(20,10,40,0.78) 0%, rgba(10,6,22,0.82) 100%)",
@@ -552,20 +579,42 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
         <div className="shrink-0 px-4 pb-safe pb-5 pt-3" style={{ background: "linear-gradient(0deg, rgba(5,8,15,0.95) 0%, rgba(5,8,15,0.6) 100%)", borderTop: "1px solid rgba(167,139,250,0.08)" }}>
           <button
             data-testid="button-begin-battle"
-            onClick={() => {
+            onClick={async () => {
               const hasPets = selectedPetIds.length > 0 || (battleGroup?.petInventoryIds?.length ?? 0) > 0;
               if (!hasPets) {
-                toast({ title: "Pick at least one pet", description: "Select pets above to send into battle.", variant: "destructive" });
+                toast({
+                  title: "Pick at least one pet",
+                  description: "Select pets above to send into battle.",
+                  variant: "destructive",
+                });
                 return;
               }
+              // Make sure the server's ticket count is current before spending.
+              await refetchTickets().catch(() => {});
               if (ticketCount <= 0) {
-                toast({ title: "Out of PvP tickets", description: "Earn or buy tickets to enter the arena.", variant: "destructive" });
+                toast({
+                  title: "Out of PvP tickets",
+                  description: "You need a PvP Ticket to enter the Veridia Arena. Visit the shop to grab more!",
+                  variant: "destructive",
+                });
                 return;
               }
-              // Persist current pet picks as the user's battle group so they
-              // also act as the player's defending team for opponents.
+              // Lock in the current team as the player's saved battle group.
               if (selectedPetIds.length > 0) saveBattleGroup.mutate(selectedPetIds);
-              setTab("opponents");
+              // Spend the ticket NOW (on "Begin Battle"), before matchmaking.
+              try {
+                const started = await startBattle.mutateAsync();
+                setBattleToken(started.battleToken);
+              } catch (err: any) {
+                toast({
+                  title: "Out of PvP tickets",
+                  description: "Couldn't start the match. Try again once you have a PvP Ticket.",
+                  variant: "destructive",
+                });
+                queryClient.invalidateQueries({ queryKey: ["/api/pvp/tickets"] });
+                return;
+              }
+              setTab("matchmaking");
             }}
             className="w-full flex items-center justify-center gap-3 rounded-xl py-3.5 transition-all active:scale-95"
             style={{
@@ -805,8 +854,33 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
         </div>
       )}
 
-      {/* ── Opponents List ────────────────────────────────────────── */}
-      {tab === "opponents" && (
+      {/* ── Matchmaking overlay ─────────────────────────────────────
+           Appears after the player taps BEGIN BATTLE. The overlay
+           runs its own search animation, picks the fairest opponent
+           from the already-loaded list, shows a "match found" flash,
+           and then hands control back to us so we can mount the
+           battle page. ── */}
+      {tab === "matchmaking" && (
+        <PvpMatchmakingOverlay
+          me={me}
+          myBp={myBp}
+          opponents={opponents as Opponent[]}
+          onCancel={() => {
+            // Player bailed out before we locked a match. The ticket
+            // has already been spent — that's intentional (same as any
+            // arcade coin) — but we still return to the lobby cleanly.
+            setTab("lobby");
+            setBattleToken(null);
+          }}
+          onMatchConfirmed={(opp) => {
+            setBattleOpponent(opp);
+            setTab("battle");
+          }}
+        />
+      )}
+
+      {/* ── Opponents List (legacy manual picker, kept for admins) ─── */}
+      {(tab as string) === "opponents" && (
         <div className="absolute inset-0 z-20 flex flex-col" style={{ background: "rgba(5,8,15,0.97)" }}>
           <div className="flex items-center gap-3 px-4 pb-3 border-b border-white/8 shrink-0" style={{ paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
             <button onClick={() => setTab("lobby")} className="w-10 h-10 flex items-center justify-center rounded-lg text-white/50 hover:text-white/80 active:scale-90 shrink-0" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
