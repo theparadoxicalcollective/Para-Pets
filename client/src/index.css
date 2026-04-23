@@ -393,17 +393,38 @@
   will-change: transform;
 }
 
-/* Care page — petting reward coins. Spawned in a ring around the pet,
-   spinning in place. Tap to "collect" — the coin then translates toward
-   the coin chip (CSS vars --care-coin-tx / --care-coin-ty) while shrinking. */
+/* Care page — petting reward coins. Spawned in a scatter around the pet,
+   each one popping out with a small upward arc, then spinning continuously
+   in place. Tap to "collect" — the coin then translates toward the coin
+   chip (CSS vars --care-coin-tx / --care-coin-ty) while shrinking.
+   Per-coin entrance offsets and spin tempos come from CSS vars set inline,
+   so a batch of coins doesn't move in lockstep. */
+@keyframes care-coin-pop {
+  0%   { transform: translate(-50%, -50%)
+                    translate(var(--care-coin-pop-x, 0px), var(--care-coin-pop-y, -14px))
+                    scale(0.2); opacity: 0; }
+  60%  { transform: translate(-50%, -50%)
+                    translate(calc(var(--care-coin-pop-x, 0px) * 0.2),
+                              calc(var(--care-coin-pop-y, -14px) * -0.3))
+                    scale(1.12); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
 @keyframes care-coin-spin {
-  0%   { transform: translate(-50%, -50%) scale(0.4) rotateY(0deg);   opacity: 0; }
-  20%  { transform: translate(-50%, -50%) scale(1)   rotateY(180deg); opacity: 1; }
-  100% { transform: translate(-50%, -50%) scale(1)   rotateY(1800deg); opacity: 1; }
+  0%   { transform: translate(-50%, -50%) rotateY(0deg); }
+  100% { transform: translate(-50%, -50%) rotateY(360deg); }
 }
 .care-coin-spin {
-  animation: care-coin-spin 1.6s ease-out infinite alternate;
+  /* Both animations write `transform`, so they MUST NOT overlap. The pop runs
+     for 0.45s with `forwards` to lock its final state, and the spin is
+     delayed past it (0.45s + the per-coin spin-delay var) so it only kicks
+     in once the pop is done. Each coin gets its own --care-coin-spin-dur
+     and --care-coin-spin-delay for naturally desynced spins. */
+  animation:
+    care-coin-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) var(--care-coin-pop-delay, 0s) forwards,
+    care-coin-spin var(--care-coin-spin-dur, 1.2s) linear calc(0.45s + var(--care-coin-spin-delay, 0s)) infinite;
   will-change: transform;
+  backface-visibility: visible;
+  transform-style: preserve-3d;
 }
 
 @keyframes care-coin-fly {

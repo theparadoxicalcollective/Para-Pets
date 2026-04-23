@@ -2201,7 +2201,10 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
   const heartIdRef = useRef(0);
 
   // Reward coins spawned by the daily petting circle gesture.
-  const [rewardCoins, setRewardCoins] = useState<{ id: number; cx: number; cy: number; flying?: boolean; batch?: number }[]>([]);
+  const [rewardCoins, setRewardCoins] = useState<{
+    id: number; cx: number; cy: number; flying?: boolean; batch?: number;
+    popX?: number; popY?: number; popDelay?: number; spinDur?: number; spinDelay?: number;
+  }[]>([]);
   const [coinsCollectedThisReward, setCoinsCollectedThisReward] = useState(0);
   const coinIdRef = useRef(0);
   const coinChipRef = useRef<HTMLDivElement>(null);
@@ -2235,14 +2238,32 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
     const cx = box.left + box.width / 2;
     const cy = box.top + box.height / 2;
     const newCoins = Array.from({ length: count }, (_, i) => {
-      const angle = (i / count) * Math.PI * 2 + Math.random() * 0.4;
-      const radius = 60 + Math.random() * 70;
-      const p = clampToFrame(cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius - 20);
+      // Wider, jitterier scatter: random angle around the pet (favouring the
+      // upper hemisphere so coins burst UP and out, not into the pet's belly),
+      // varied radii, and an extra random jitter on each axis. Looks chaotic
+      // and "popped" instead of a tidy ring.
+      const baseAngle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 1.4;
+      // Bias toward upward angles — flip lower-hemisphere angles to upper.
+      const angle = Math.sin(baseAngle) > 0.4 ? baseAngle - Math.PI : baseAngle;
+      const radius = 50 + Math.random() * 95;
+      const jitterX = (Math.random() - 0.5) * 30;
+      const jitterY = (Math.random() - 0.5) * 30 - 10;
+      const p = clampToFrame(
+        cx + Math.cos(angle) * radius + jitterX,
+        cy + Math.sin(angle) * radius + jitterY,
+      );
+      // Per-coin pop trajectory + spin tempo so the batch doesn't look robotic.
+      const popX = (Math.random() - 0.5) * 36;
+      const popY = -10 - Math.random() * 28; // start above resting pos
+      const popDelay = Math.random() * 0.18; // staggered entrance
+      const spinDur = 0.9 + Math.random() * 1.1; // 0.9s–2.0s
+      const spinDelay = Math.random() * spinDur; // start mid-rotation
       return {
         id: ++coinIdRef.current,
         cx: p.x,
         cy: p.y,
         batch: count,
+        popX, popY, popDelay, spinDur, spinDelay,
       };
     });
     setRewardCoins((c) => [...c, ...newCoins]);
@@ -2833,6 +2854,11 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
               zIndex: 520,
               ["--care-coin-tx" as any]: `${tx}px`,
               ["--care-coin-ty" as any]: `${ty}px`,
+              ["--care-coin-pop-x" as any]: `${c.popX ?? 0}px`,
+              ["--care-coin-pop-y" as any]: `${c.popY ?? -14}px`,
+              ["--care-coin-pop-delay" as any]: `${c.popDelay ?? 0}s`,
+              ["--care-coin-spin-dur" as any]: `${c.spinDur ?? 1.2}s`,
+              ["--care-coin-spin-delay" as any]: `${c.spinDelay ?? 0}s`,
             }}
             data-testid={`button-care-coin-${c.id}`}
             aria-label="Collect coin"
