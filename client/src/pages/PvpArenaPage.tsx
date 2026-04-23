@@ -4,8 +4,6 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import battleTrophyIcon from "@assets/generated_images/icon_battle_trophy.png";
-import platinumTrophyImg from "@assets/generated_images/pvp_platinum_trophy.png";
-import leaderboardPanelImg from "@assets/generated_images/pvp_leaderboard_panel_bg.png";
 import pvpTicketImg from "@assets/Photoroom_20260415_83701_PM_1776304592941.png";
 import pvpNavIcon from "@assets/generated_images/nav_icon_pvp.png";
 import { ArrowLeft, Users, Check, Heart, Droplets } from "lucide-react";
@@ -37,7 +35,11 @@ interface LeaderboardResponse {
 //   11–25 → Silver
 //   26–50 → Bronze
 //   51+   → tracked but hidden from the public board
+// Tier helpers retained from the previous leaderboard styling — currently
+// unused by the simplified list, but kept here so we can re-introduce
+// rank tiers later without recomputing thresholds.
 type Tier = "gold" | "silver" | "bronze" | "off";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function tierForRank(rank: number): Tier {
   if (rank <= 10) return "gold";
   if (rank <= 25) return "silver";
@@ -221,10 +223,8 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
     );
   }
 
-  const activePet = me?.activePet;
   const myBp = myLb?.entry.battlePoints ?? 0;
   const myRank = myLb?.rank ?? null;
-  const myTier: Tier = myRank ? tierForRank(myRank) : "off";
 
   return (
     <div
@@ -244,7 +244,15 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
       {/* Subtle vignette only — keep the ruins battlefield clearly visible. */}
       <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(5,8,15,0.25) 0%, rgba(5,8,15,0.15) 45%, rgba(5,8,15,0.55) 100%)" }} />
 
-      {/* ── Simplified Header ─────────────────────────────────────── */}
+      {/* ── Simplified Header ───────────────────────────────────────
+           Layout (left → right):
+             • Close button
+             • Profile pic
+             • Username + Battle Points (replaces coin balance — coins
+               are visible elsewhere in the app and BP is the metric
+               that matters in PvP)
+             • PvP ticket chip pinned to the right so the player can
+               always see how many matches they have left at a glance. */}
       <div className="relative z-10 flex items-center gap-3 px-4 pb-2.5 shrink-0" style={{ background: "rgba(5,8,15,0.7)", borderBottom: "1px solid rgba(167,139,250,0.12)", paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
         <button onClick={onClose} data-testid="button-close-pvp" className="w-10 h-10 flex items-center justify-center rounded-lg text-white/50 hover:text-white/80 transition-colors shrink-0 active:scale-90" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
           <ArrowLeft size={20} />
@@ -257,31 +265,29 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
             </div>}
         <div className="flex-1 min-w-0">
           <div className="text-white/90 text-sm font-bold truncate">{me?.username ?? "—"}</div>
-          <div className="text-yellow-400 text-[10px] tracking-wider">{me?.coins ?? 0} ✦</div>
+          <div className="text-amber-300 text-[10px] tracking-wider font-bold" data-testid="text-header-bp">{Math.max(0, myBp)} BP</div>
         </div>
-        {/* Active pet mini icon */}
-        <div className="w-10 h-10 shrink-0">
-          {activePet?.petTemplateId
-            ? <PetAnimator petTemplateId={activePet.petTemplateId} mode="idle" view="front" size={40} />
-            : activePet?.imageUrl
-            ? <img src={activePet.imageUrl} className="w-10 h-10 object-contain" />
-            : null}
+        {/* PvP ticket chip — moved up here from the row below so it's
+            the most prominent control in the header. */}
+        <div
+          className="flex items-center gap-1.5 shrink-0 px-2 py-1 rounded-md"
+          data-testid="pvp-ticket-count"
+          style={{ background: "rgba(251,191,36,0.10)", border: "1px solid rgba(251,191,36,0.32)" }}
+        >
+          <img src={pvpTicketImg} alt="PvP ticket" style={{ width: 24, height: 24, objectFit: "contain" }} />
+          <span className="text-[13px] font-black text-amber-200" style={{ textShadow: "0 0 8px rgba(251,191,36,0.4)" }}>×{ticketCount}</span>
         </div>
       </div>
 
       {/* ── Body ──────────────────────────────────────────────────── */}
       <div className="relative z-10 flex-1 flex flex-col overflow-hidden">
 
-        {/* ── Title row: ticket count (left) + centered "PvP Arena" title.
-             The title is centered using absolute positioning so the ticket
-             chip on the left can't push it off-center. ── */}
+        {/* ── Centered "PvP Arena" title. Tickets used to live on the
+             left of this row but moved into the header above for better
+             visibility. ── */}
         <div className="relative shrink-0 pt-3 pb-1.5 px-4">
-          <div className="flex items-center gap-1.5" data-testid="pvp-ticket-count">
-            <img src={pvpTicketImg} alt="PvP ticket" style={{ width: 26, height: 26, objectFit: "contain" }} />
-            <span className="text-[12px] font-bold text-amber-200" style={{ textShadow: "0 0 8px rgba(251,191,36,0.4)" }}>×{ticketCount}</span>
-          </div>
           <div
-            className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-2xl font-black tracking-[0.18em] text-white pointer-events-none"
+            className="text-center text-2xl font-black tracking-[0.18em] text-white"
             style={{ textShadow: "0 0 28px rgba(167,139,250,0.55), 0 2px 4px rgba(0,0,0,0.6)" }}
             data-testid="text-pvp-arena-title"
           >
@@ -294,100 +300,66 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
              see their standing and build their party without bouncing
              between modal tabs. ── */}
         <div className="flex-1 overflow-y-auto px-3 pt-2 pb-3 space-y-3">
-          {/* ── "Veridian Leaders" leaderboard, framed by the ruins panel ── */}
-          <div className="relative mx-auto" style={{ maxWidth: 360 }}>
-            {/* Ornate ruins frame as the panel background. Using object-fit
-                contain via background-size so the frame keeps its aspect
-                ratio while the inner content drives the box height. */}
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                backgroundImage: `url(${leaderboardPanelImg})`,
-                backgroundSize: "100% 100%",
-                backgroundRepeat: "no-repeat",
-                filter: "drop-shadow(0 6px 22px rgba(0,0,0,0.55))",
-              }}
-            />
-            {/* Inner content sits inside the frame's hollow area. The frame
-                art has a thick decorative border, so we pad the content
-                generously so rows don't overlap the carved stone. */}
-            <div className="relative px-7 pt-[68px] pb-[68px]">
-              <div className="text-center mb-3">
-                <div
-                  className="text-[20px] font-black tracking-[0.12em]"
-                  style={{
-                    fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
-                    color: "#fde68a",
-                    textShadow: "0 1px 2px rgba(0,0,0,0.85), 0 0 6px rgba(0,0,0,0.6)",
-                  }}
-                  data-testid="text-leaderboard-title"
-                >
-                  Veridian Leaders
-                </div>
+          {/* ── Leaderboard (basic clean list) ──────────────────────
+               Previous version had an ornate ruins frame, platinum
+               trophies on the top 3, and per-tier coloured chips —
+               which combined into visual noise that obscured the
+               actual ranking data. This is a stripped-down panel:
+               numbered rows, avatar, username, W/L, BP. The current
+               player's row is highlighted in purple. ── */}
+          <div
+            className="mx-auto rounded-2xl"
+            style={{
+              maxWidth: 360,
+              background: "linear-gradient(180deg, rgba(20,10,40,0.82) 0%, rgba(10,6,22,0.86) 100%)",
+              border: "1px solid rgba(167,139,250,0.22)",
+              boxShadow: "0 6px 22px rgba(0,0,0,0.45)",
+            }}
+          >
+            <div className="px-3 pt-3 pb-1 flex items-center justify-between">
+              <div
+                className="text-[14px] font-black tracking-[0.18em] text-white/90"
+                data-testid="text-leaderboard-title"
+              >
+                LEADERBOARD
               </div>
-
-              {leaderboard.length === 0 ? null : (
-                <div className="flex flex-col gap-1.5">
-                  {leaderboard.map((entry, i) => {
+              <div className="text-[9px] tracking-[0.2em] text-white/35">RANK · BP</div>
+            </div>
+            <div className="px-3 pb-3">
+              {leaderboard.length === 0 ? (
+                <div className="text-center text-white/40 text-[11px] py-4" data-testid="text-leaderboard-empty">
+                  No matches played yet
+                </div>
+              ) : (
+                <div className="flex flex-col">
+                  {leaderboard.slice(0, 25).map((entry, i) => {
                     const rank = i + 1;
-                    const tier = tierForRank(rank);
-                    const style = TIER_STYLE[tier];
-                    const isTop3 = rank <= 3;
                     const isMe = entry.userId === me?.id;
                     return (
                       <div
                         key={entry.userId}
                         data-testid={`row-leaderboard-${rank}`}
-                        className="flex items-center gap-2.5 rounded-lg px-2.5 py-2"
+                        className="flex items-center gap-2.5 px-2 py-1.5 rounded-md"
                         style={{
-                          background: isMe
-                            ? "linear-gradient(135deg, rgba(124,58,237,0.28), rgba(167,139,250,0.08))"
-                            : style.rowBg,
-                          border: `1px solid ${isMe ? "rgba(167,139,250,0.55)" : style.rowBorder}`,
-                          boxShadow: isMe ? "0 0 12px rgba(124,58,237,0.25)" : undefined,
+                          background: isMe ? "rgba(124,58,237,0.22)" : "transparent",
+                          borderBottom: i === Math.min(24, leaderboard.length - 1) ? "none" : "1px solid rgba(255,255,255,0.04)",
                         }}
                       >
-                        {/* Top-3: platinum trophy icon overlaid with the rank
-                            number. Otherwise a simple tier-coloured rank chip. */}
-                        {isTop3 ? (
-                          <div className="relative shrink-0" style={{ width: 32, height: 32 }}>
-                            <img src={platinumTrophyImg} alt="" style={{ width: 32, height: 32, objectFit: "contain", filter: "drop-shadow(0 0 6px rgba(167,139,250,0.5))" }} />
-                            <div
-                              className="absolute inset-0 flex items-center justify-center font-black text-[11px]"
-                              style={{ color: "#fff", textShadow: "0 0 4px rgba(0,0,0,0.9), 0 1px 2px rgba(0,0,0,0.8)" }}
-                            >
-                              {rank}
-                            </div>
-                          </div>
-                        ) : (
-                          <div
-                            className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 font-black text-[10px]"
-                            style={{ background: style.chip, border: `1px solid ${style.ring}`, color: style.text }}
-                          >
-                            {rank}
-                          </div>
-                        )}
+                        <div className="w-6 text-right text-white/55 text-[12px] font-bold tabular-nums shrink-0">
+                          {rank}
+                        </div>
                         {entry.profileImage
-                          ? <img src={entry.profileImage} className="w-7 h-7 rounded-full object-cover border border-white/15 shrink-0" />
-                          : <div className="w-7 h-7 rounded-full bg-purple-900/50 border border-purple-400/20 flex items-center justify-center shrink-0">
+                          ? <img src={entry.profileImage} className="w-7 h-7 rounded-full object-cover border border-white/10 shrink-0" />
+                          : <div className="w-7 h-7 rounded-full bg-purple-900/40 border border-purple-400/15 flex items-center justify-center shrink-0">
                               <img src={petPawIcon} alt="" style={{ width: 16, height: 16, objectFit: "contain", opacity: 0.5 }} />
                             </div>}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <div className="text-white/95 text-[12px] font-bold truncate">{entry.username}</div>
-                            <RoleBadge isAdmin={entry.isAdmin} isModerator={entry.isModerator} />
-                            <div
-                              className="text-[8px] font-black tracking-widest px-1.5 py-0.5 rounded shrink-0"
-                              style={{ color: style.text, background: style.chip, border: `1px solid ${style.ring}` }}
-                            >
-                              {style.label}
-                            </div>
-                          </div>
-                          <div className="text-white/35 text-[9px]">{entry.wins}W · {entry.losses}L</div>
+                        <div className="flex-1 min-w-0 flex items-center gap-1.5">
+                          <div className="text-white/95 text-[12px] font-semibold truncate">{entry.username}</div>
+                          <RoleBadge isAdmin={entry.isAdmin} isModerator={entry.isModerator} />
                         </div>
-                        <div className="text-right shrink-0">
-                          <div className="text-amber-300 text-[14px] font-black leading-none">{Math.max(0, entry.battlePoints)}</div>
-                          <div className="text-amber-300/45 text-[8px] tracking-wider">BP</div>
+                        <div className="text-white/35 text-[10px] tabular-nums shrink-0">{entry.wins}W · {entry.losses}L</div>
+                        <div className="text-amber-300 text-[12px] font-black tabular-nums shrink-0 w-12 text-right">
+                          {Math.max(0, entry.battlePoints)}
                         </div>
                       </div>
                     );
@@ -395,44 +367,37 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                 </div>
               )}
 
-              {/* "Your placement" row — always visible. Shows the player's
-                  global rank even when they're past the top 50. If they
-                  haven't fought yet, prompt them to start. */}
-              <div className="mt-3 pt-3 border-t border-white/10">
-                <div className="text-[9px] tracking-[0.25em] text-white/40 mb-1.5 text-center">YOUR PLACEMENT</div>
-                {myRank ? (
+              {/* Player's own placement row — pinned below the list so
+                  they can always see where they stand even when not in
+                  the top 25. */}
+              {myRank ? (
+                <div className="mt-2 pt-2 border-t border-white/10">
                   <div
-                    className="flex items-center gap-2.5 rounded-lg px-2.5 py-2"
+                    className="flex items-center gap-2.5 px-2 py-1.5 rounded-md"
                     data-testid="row-my-placement"
                     style={{
-                      background: "linear-gradient(135deg, rgba(124,58,237,0.22), rgba(167,139,250,0.05))",
+                      background: "rgba(124,58,237,0.22)",
                       border: "1px solid rgba(167,139,250,0.45)",
                     }}
                   >
-                    <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-black text-[10px]"
-                      style={{ background: TIER_STYLE[myTier].chip, border: `1px solid ${TIER_STYLE[myTier].ring}`, color: TIER_STYLE[myTier].text }}
-                    >
-                      #{myRank}
+                    <div className="w-6 text-right text-white/85 text-[12px] font-bold tabular-nums shrink-0">
+                      {myRank}
                     </div>
                     {me?.profileImage
                       ? <img src={me.profileImage} className="w-7 h-7 rounded-full object-cover border border-white/15 shrink-0" />
-                      : <div className="w-7 h-7 rounded-full bg-purple-900/50 border border-purple-400/20 flex items-center justify-center shrink-0">
+                      : <div className="w-7 h-7 rounded-full bg-purple-900/40 border border-purple-400/15 flex items-center justify-center shrink-0">
                           <img src={petPawIcon} alt="" style={{ width: 16, height: 16, objectFit: "contain", opacity: 0.5 }} />
                         </div>}
-                    <div className="flex-1 min-w-0">
-                      <div className="text-white/95 text-[12px] font-bold truncate">{me?.username ?? "You"}</div>
-                      <div className="text-white/40 text-[9px]">
-                        {myTier === "off" ? "Unranked tier" : `${TIER_STYLE[myTier].label} tier`} · {myLb?.entry.wins ?? 0}W · {myLb?.entry.losses ?? 0}L
-                      </div>
+                    <div className="flex-1 min-w-0 text-white/95 text-[12px] font-semibold truncate">
+                      {me?.username ?? "You"} <span className="text-white/40 font-normal">(you)</span>
                     </div>
-                    <div className="text-right shrink-0">
-                      <div className="text-amber-300 text-[14px] font-black leading-none">{Math.max(0, myBp)}</div>
-                      <div className="text-amber-300/45 text-[8px] tracking-wider">BP</div>
+                    <div className="text-white/45 text-[10px] tabular-nums shrink-0">{myLb?.entry.wins ?? 0}W · {myLb?.entry.losses ?? 0}L</div>
+                    <div className="text-amber-300 text-[12px] font-black tabular-nums shrink-0 w-12 text-right">
+                      {Math.max(0, myBp)}
                     </div>
                   </div>
-                ) : null}
-              </div>
+                </div>
+              ) : null}
             </div>
           </div>
 
