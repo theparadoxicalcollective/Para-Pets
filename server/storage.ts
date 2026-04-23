@@ -32,6 +32,7 @@ import {
   type FishBarrel, fishBarrels,
   pvpBattles,
   pvpBattleGroups,
+  pvpBattleTokens,
   type Friendship, friendships,
   type Notification, notifications,
   worldPetPositions,
@@ -254,6 +255,8 @@ export interface IStorage {
   getPvpLeaderboardFull(): Promise<{ userId: string; username: string; profileImage: string | null; battlePoints: number; wins: number; losses: number; isAdmin?: boolean; isModerator?: boolean }[]>;
   getPvpTicketCount(userId: string): Promise<number>;
   consumePvpTicket(userId: string): Promise<boolean>;
+  createPvpBattleToken(userId: string): Promise<string>;
+  consumePvpBattleToken(userId: string, tokenId: string): Promise<boolean>;
   getBattleGroup(userId: string): Promise<any | null>;
   upsertBattleGroup(userId: string, petInventoryIds: string[]): Promise<any>;
   getAllBattleGroupsWithUsers(): Promise<any[]>;
@@ -1818,6 +1821,25 @@ export class DatabaseStorage implements IStorage {
       }
       return true;
     });
+  }
+
+  /** Issue a one-time battle token for a user. Caller must have already
+   *  spent a ticket. The returned id is opaque to the client and must be
+   *  presented back to /api/pvp/result, which deletes it on use. */
+  async createPvpBattleToken(userId: string): Promise<string> {
+    const [row] = await db.insert(pvpBattleTokens).values({ userId }).returning({ id: pvpBattleTokens.id });
+    return row.id;
+  }
+
+  /** Atomically consume a battle token. Returns true only if the token
+   *  existed AND belonged to this user — preventing both replay and
+   *  cross-user token theft. Uses RETURNING so the delete is single-shot. */
+  async consumePvpBattleToken(userId: string, tokenId: string): Promise<boolean> {
+    if (!tokenId) return false;
+    const deleted = await db.delete(pvpBattleTokens)
+      .where(and(eq(pvpBattleTokens.id, tokenId), eq(pvpBattleTokens.userId, userId)))
+      .returning({ id: pvpBattleTokens.id });
+    return deleted.length > 0;
   }
 
   async getBattleGroup(userId: string): Promise<any | null> {

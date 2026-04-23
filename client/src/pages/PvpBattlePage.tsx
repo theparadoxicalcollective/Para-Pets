@@ -75,10 +75,14 @@ const nextPid = () => _pid++;
 export default function PvpBattlePage({
   opponent,
   myPetIds,
+  battleToken,
   onClose,
 }: {
   opponent: Opponent;
   myPetIds: string[];
+  /** One-time token issued by /api/pvp/start. Required by /api/pvp/result;
+   *  without it the server rejects the result with 403. */
+  battleToken: string;
   onClose: (result: "win" | "loss" | null) => void;
 }) {
   const [phase, setPhase] = useState<"loading" | "countdown" | "battle" | "result">("loading");
@@ -127,6 +131,7 @@ export default function PvpBattlePage({
         opponentImageUrl: opponent.profileImage,
         opponentLevel: data.opponentLevel,
         result: data.result,
+        battleToken,
       });
       return res.json();
     },

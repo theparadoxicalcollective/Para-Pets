@@ -65,6 +65,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
 
   const [tab, setTab] = useState<"lobby" | "group" | "opponents" | "battle">("lobby");
   const [battleOpponent, setBattleOpponent] = useState<Opponent | null>(null);
+  const [battleToken, setBattleToken] = useState<string | null>(null);
   const [selectedPetIds, setSelectedPetIds] = useState<string[]>([]);
   const [groupSaved, setGroupSaved] = useState(false);
 
@@ -84,7 +85,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
   const startBattle = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/pvp/start", {});
-      return res.json() as Promise<{ ticketsRemaining: number }>;
+      return res.json() as Promise<{ ticketsRemaining: number; battleToken: string }>;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/pvp/tickets"] });
@@ -120,14 +121,16 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
     );
   };
 
-  if (tab === "battle" && battleOpponent) {
+  if (tab === "battle" && battleOpponent && battleToken) {
     return (
       <PvpBattlePage
         opponent={battleOpponent}
         myPetIds={selectedPetIds.length > 0 ? selectedPetIds : battleGroup?.petInventoryIds ?? []}
+        battleToken={battleToken}
         onClose={(result) => {
           setTab("lobby");
           setBattleOpponent(null);
+          setBattleToken(null);
           if (result) {
             queryClient.invalidateQueries({ queryKey: ["/api/pvp/leaderboard"] });
             queryClient.invalidateQueries({ queryKey: ["/api/pvp/tickets"] });
@@ -506,13 +509,15 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                       // If the server rejects (e.g. raced down to 0), bail
                       // out so we don't show a paid-for battle the player
                       // can't actually start.
+                      let started: { ticketsRemaining: number; battleToken: string };
                       try {
-                        await startBattle.mutateAsync();
+                        started = await startBattle.mutateAsync();
                       } catch (err: any) {
                         toast({ title: "Out of PvP tickets", description: "Earn or buy tickets to enter the arena.", variant: "destructive" });
                         queryClient.invalidateQueries({ queryKey: ["/api/pvp/tickets"] });
                         return;
                       }
+                      setBattleToken(started.battleToken);
                       setBattleOpponent(opp);
                       setTab("battle");
                     }}

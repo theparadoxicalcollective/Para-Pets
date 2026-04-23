@@ -503,6 +503,17 @@ export const insertPvpBattleGroupSchema = createInsertSchema(pvpBattleGroups).om
 export type InsertPvpBattleGroup = z.infer<typeof insertPvpBattleGroupSchema>;
 export type PvpBattleGroup = typeof pvpBattleGroups.$inferSelect;
 
+// One-time tokens issued by /api/pvp/start when a ticket is consumed. The
+// matching /api/pvp/result call MUST present the token, and the row is
+// deleted on use. This makes the result endpoint un-callable without first
+// paying a ticket — i.e. you can't farm BP/coins by hitting /result directly.
+export const pvpBattleTokens = pgTable("pvp_battle_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+export type PvpBattleToken = typeof pvpBattleTokens.$inferSelect;
+
 // ── World pet positions ──────────────────────────────────────────────────────
 export const worldPetPositions = pgTable("world_pet_positions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

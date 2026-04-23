@@ -5085,8 +5085,17 @@ export async function registerRoutes(
   app.post("/api/pvp/result", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const user = req.user as any;
-      const { opponentName, opponentImageUrl, opponentLevel, opponentSkill, result, opponentUserId } = req.body;
+      const { opponentName, opponentImageUrl, opponentLevel, opponentSkill, result, opponentUserId, battleToken } = req.body;
       if (!["win", "loss"].includes(result)) return res.status(400).json({ message: "Invalid result" });
+
+      // Server-side ticket gating: /api/pvp/result is only accepted with a
+      // valid one-time battle token issued by /api/pvp/start (which already
+      // spent the ticket). This stops a client from calling /result directly
+      // to farm BP/coins without paying. The token is consumed on use.
+      const tokenOk = await storage.consumePvpBattleToken(user.id, String(battleToken || ""));
+      if (!tokenOk) {
+        return res.status(403).json({ message: "Missing or invalid battle token" });
+      }
 
       const lvl = Math.max(1, opponentLevel || 1);
       const WIN_COINS = 15 + Math.floor(lvl * 2);
@@ -5131,8 +5140,9 @@ export async function registerRoutes(
       if (!ok) {
         return res.status(402).json({ message: "No PvP tickets", ticketsRemaining: 0 });
       }
+      const battleToken = await storage.createPvpBattleToken(user.id);
       const remaining = await storage.getPvpTicketCount(user.id);
-      return res.json({ ticketsRemaining: remaining });
+      return res.json({ ticketsRemaining: remaining, battleToken });
     } catch (err) {
       console.error("PvP start error:", err);
       return res.status(500).json({ message: "Failed to start battle" });
