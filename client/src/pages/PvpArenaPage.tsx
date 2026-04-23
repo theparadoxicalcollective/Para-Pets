@@ -159,10 +159,11 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
           backgroundImage: `url(${forestBgImg})`,
           backgroundSize: "cover",
           backgroundPosition: "center top",
-          filter: "brightness(0.45)",
+          filter: "brightness(0.7) saturate(1.05)",
         }}
       />
-      <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(5,8,15,0.55) 0%, rgba(5,8,15,0.75) 60%, rgba(5,8,15,0.95) 100%)" }} />
+      {/* Subtle vignette only — keep the ruins battlefield clearly visible. */}
+      <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(5,8,15,0.25) 0%, rgba(5,8,15,0.15) 45%, rgba(5,8,15,0.55) 100%)" }} />
 
       {/* ── Simplified Header ─────────────────────────────────────── */}
       <div className="relative z-10 flex items-center gap-3 px-4 pb-2.5 shrink-0" style={{ background: "rgba(5,8,15,0.7)", borderBottom: "1px solid rgba(167,139,250,0.12)", paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
