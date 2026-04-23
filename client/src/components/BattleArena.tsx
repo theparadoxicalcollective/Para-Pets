@@ -11,7 +11,13 @@ import rageFlamePng from "@assets/icon_battle_rage.png";
 import counterLightningPng from "@assets/icon_battle_counter.png";
 import crossedSwordsPng from "@assets/icon_battle_crossed_swords.png";
 import hitMarkPng from "@assets/icon_battle_hitmark.png";
-import PetAnimator from "./PetAnimator";
+// Canvas-based renderer — each PetAnimator <img>-per-part allocates its own
+// full-resolution GPU texture on iOS Safari. With 3 pets in battle (1 active +
+// 2 extras) that easily exceeds the per-tab GPU memory budget on iPhone and
+// kills the page. PetAnimatorCanvas draws every part into a single <canvas>
+// per pet and keeps the source images in system RAM, so total GPU usage stays
+// well within budget regardless of how many pets are on screen.
+import PetAnimatorCanvas from "./PetAnimatorCanvas";
 
 export interface EquippedPet {
   inventoryId: string;
@@ -1872,7 +1878,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
             <div style={{ animation: "petIntro 0.7s ease-out 0.25s both" }} className="flex flex-col items-center">
               <div className="w-36 flex items-center justify-center" style={{ aspectRatio: "1/1" }}>
                 {pet.petTemplateId ? (
-                  <PetAnimator petTemplateId={pet.petTemplateId} mode="idle" view="front" size={200} className="w-full h-full" />
+                  <PetAnimatorCanvas petTemplateId={pet.petTemplateId} size={200} className="w-full h-full" />
                 ) : pet.imageUrl ? (
                   <img src={pet.imageUrl} alt={pet.name} className="w-full object-contain drop-shadow-lg" style={{ maxHeight: "144px" }} />
                 ) : (
@@ -2123,7 +2129,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   }}
                 >
                   {(ep as any).petTemplateId ? (
-                    <PetAnimator petTemplateId={(ep as any).petTemplateId} mode="idle" view="front" size={PET_SPRITE_SIZE} style={epGlowStyle} />
+                    <PetAnimatorCanvas petTemplateId={(ep as any).petTemplateId} size={PET_SPRITE_SIZE} style={epGlowStyle} />
                   ) : (ep.hatchedImageUrl || ep.imageUrl) ? (
                     <img src={(ep.hatchedImageUrl || ep.imageUrl)!} alt={ep.name} className="object-contain" style={{ width: PET_SPRITE_SIZE, height: PET_SPRITE_SIZE, ...(epGlowStyle || {}) }} />
                   ) : (
@@ -2194,10 +2200,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                 }} />
               )}
               {pet.petTemplateId ? (
-                <PetAnimator
+                <PetAnimatorCanvas
                   petTemplateId={pet.petTemplateId}
-                  mode="idle"
-                  view="front"
                   size={PET_SPRITE_SIZE}
                   style={mana >= MAX_MANA && !skillCooldown && !!pet.specialSkill ? { animation: "petRarityGlow 1s ease-in-out infinite" } : undefined}
                 />
