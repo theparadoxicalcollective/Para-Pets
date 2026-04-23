@@ -245,7 +245,30 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
     return out;
   })();
 
+  // Active pet: the player's currently-equipped pet from the rest of the
+  // game. We always seed the first PvP slot with it so the player never
+  // shows up to a fight with no active pet, and so the active-pet swap
+  // (done from the home/care screens) flows through here automatically.
+  const activePetId: string | null = me?.activePetId ?? null;
+
+  // Push the active pet into slot 0 whenever it changes (or on first hydrate).
+  useEffect(() => {
+    if (!activePetId) return;
+    setSelectedPetIds((prev) => {
+      // Already there as slot 0 → no-op.
+      if (prev[0] === activePetId) return prev;
+      // Remove any older copy of the active pet from the slot list, then
+      // put it at the front. Cap the resulting list at 5 so the user's
+      // hand-picked extras aren't pushed off the end silently.
+      const rest = prev.filter((id) => id !== activePetId);
+      return [activePetId, ...rest].slice(0, 5);
+    });
+    hasUserEdited.current = true;
+  }, [activePetId]);
+
   const togglePet = (invId: string) => {
+    // Slot 0 is locked to the active pet — taps on it shouldn't remove it.
+    if (activePetId && invId === activePetId) return;
     hasUserEdited.current = true;
     setSelectedPetIds(prev =>
       prev.includes(invId) ? prev.filter(id => id !== invId) : prev.length < 5 ? [...prev, invId] : prev
@@ -494,40 +517,72 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
               </div>
               <span className="text-[10px] text-white/40" data-testid="text-pets-selected-count">{selectedPetIds.length}/5</span>
             </div>
-            <div className="flex gap-2 justify-between mb-4">
+            {/*
+              Grid layout instead of flex — guarantees each of the 5 slots
+              gets exactly the same width so nothing slips off the edge of
+              a narrower phone screen. Slot 0 is reserved for the player's
+              active pet and gets a thicker amber border + "ACTIVE" tag.
+            */}
+            <div className="grid grid-cols-5 gap-1.5 mb-4" data-testid="pvp-pet-slots">
               {Array.from({ length: 5 }, (_, i) => {
                 const invId = selectedPetIds[i];
                 const inv = invId ? hatchedPets.find((p: any) => (p.inventoryId || p.id) === invId) : null;
+                const isActiveSlot = i === 0;
+                const isActivePetHere = isActiveSlot && !!activePetId && invId === activePetId;
                 return (
                   <button
                     key={i}
                     data-testid={`div-pet-slot-${i}`}
-                    onClick={() => inv ? togglePet(invId) : setPickerOpen("pet")}
-                    className="relative flex-1 rounded-xl flex items-center justify-center transition-all active:scale-95"
+                    onClick={() => {
+                      // Slot 0 is locked to the active pet. Don't let it
+                      // un-equip and don't open the picker for it.
+                      if (isActivePetHere) return;
+                      if (inv) togglePet(invId);
+                      else setPickerOpen("pet");
+                    }}
+                    className="relative rounded-xl flex items-center justify-center transition-all active:scale-95 min-w-0"
                     style={{
                       aspectRatio: "1 / 1",
-                      background: inv ? "rgba(124,58,237,0.18)" : "rgba(255,255,255,0.04)",
-                      border: `1px solid ${inv ? "rgba(167,139,250,0.5)" : "rgba(255,255,255,0.10)"}`,
-                      boxShadow: inv ? "0 0 10px rgba(124,58,237,0.25)" : undefined,
+                      background: isActivePetHere
+                        ? "rgba(251,191,36,0.16)"
+                        : inv
+                          ? "rgba(124,58,237,0.18)"
+                          : "rgba(255,255,255,0.04)",
+                      border: isActivePetHere
+                        ? "2px solid rgba(251,191,36,0.85)"
+                        : `1px solid ${inv ? "rgba(167,139,250,0.5)" : "rgba(255,255,255,0.10)"}`,
+                      boxShadow: isActivePetHere
+                        ? "0 0 14px rgba(251,191,36,0.55), inset 0 0 10px rgba(251,191,36,0.15)"
+                        : inv
+                          ? "0 0 10px rgba(124,58,237,0.25)"
+                          : undefined,
                     }}
                   >
                     {inv ? (
-                      // Render at full slot size. PetAnimator without
-                      // `fillContainer` only fills ~30% of its size box
-                      // (the sprite frame has a lot of empty padding for
-                      // squish/jump animations), which made pets look
-                      // tiny and made the idle squish look like a
-                      // glitch. fillContainer scales the inner canvas
-                      // so the visible sprite fills the slot exactly.
-                      <div className="w-full h-full p-1 flex items-center justify-center">
+                      <div className="w-full h-full p-0.5 flex items-center justify-center">
                         {inv.petTemplateId
-                          ? <PetAnimator petTemplateId={inv.petTemplateId} mode="idle" view="front" size={88} fillContainer className="w-full h-full" />
+                          ? <PetAnimator petTemplateId={inv.petTemplateId} mode="idle" view="front" size={72} fillContainer className="w-full h-full" />
                           : inv.imageUrl
                             ? <img src={inv.imageUrl} className="w-full h-full object-contain" />
                             : <img src={petPawIcon} alt="" className="w-full h-full object-contain" style={{ opacity: 0.7 }} />}
                       </div>
                     ) : (
-                      <span className="text-2xl text-white/30 font-light">+</span>
+                      <span className="text-xl text-white/30 font-light">+</span>
+                    )}
+                    {isActivePetHere && (
+                      // Tiny "ACTIVE" tag pinned to the slot's bottom edge
+                      // so the player knows this slot is auto-managed.
+                      <div
+                        className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 px-1.5 py-[1px] rounded text-[7px] font-black tracking-[0.18em] whitespace-nowrap pointer-events-none"
+                        style={{
+                          background: "rgba(120,75,8,0.95)",
+                          color: "#fde68a",
+                          border: "1px solid rgba(251,191,36,0.7)",
+                          textShadow: "0 1px 2px rgba(0,0,0,0.7)",
+                        }}
+                      >
+                        ACTIVE
+                      </div>
                     )}
                   </button>
                 );

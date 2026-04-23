@@ -1574,6 +1574,7 @@ export async function registerRoutes(
         imageUrl: shopItem?.imageUrl || null,
         worldId: shopItem?.worldId || "",
         rarity: shopItem?.rarity || null,
+        starRarity: shopItem?.starRarity ?? null,
         hatchTime: shopItem?.hatchTime || null,
         eggImageUrl: shopItem?.eggImageUrl || null,
         hatchedImageUrl: shopItem?.hatchedImageUrl || null,
@@ -5244,19 +5245,95 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Missing or invalid battle token" });
       }
 
-      const lvl = Math.max(1, opponentLevel || 1);
+      // Coin reward is driven by opponent level. The client used to send
+      // this directly which let a modified client inflate payouts —
+      // instead we derive it from the opponent's *saved* battle group
+      // (highest pet level on their roster) and only fall back to the
+      // client value as a sanity-capped backup. Clamped to [1, 50].
+      let lvl = 1;
+      if (opponentUserId && opponentUserId !== user.id) {
+        try {
+          const oppGroupForLvl = await storage.getBattleGroup(String(opponentUserId));
+          const oppPetIds: string[] = oppGroupForLvl?.petInventoryIds ?? [];
+          if (oppPetIds.length) {
+            const oppInv = await storage.getUserInventory(String(opponentUserId));
+            const lvls = oppInv
+              .filter((it: any) => oppPetIds.includes(it.id))
+              .map((it: any) => it.petLevel ?? 1);
+            if (lvls.length) lvl = Math.max(...lvls);
+          }
+        } catch {
+          // ignore — fall back to client value below
+        }
+      }
+      if (lvl <= 1) lvl = Math.max(1, Math.min(50, Number(opponentLevel) || 1));
+      lvl = Math.max(1, Math.min(50, lvl));
       const WIN_COINS = 15 + Math.floor(lvl * 2);
-      // Per game spec: each WIN grants exactly 12 battle points. Losses are
-      // worth 0 BP (no negative scoring). Tickets are spent up front when the
-      // player chooses an opponent (see /api/pvp/start), so we don't touch
-      // them again here.
-      const WIN_BP = 12;
-      const LOSS_BP = 0;
+
+      // ── Difficulty → BP table ───────────────────────────────────
+      // Winners earn BP based on how tough their opponent was, computed
+      // server-side from the saved attack-power totals so a client can't
+      // claim "hard" for an "easy" fight.
+      //
+      //   easy     (player ≥ ~1.25× opponent power) → +4
+      //   balanced (anywhere in between)            → +9
+      //   hard     (player ≤ ~0.80× opponent power) → +12
+      //
+      // Losers get 0 BP (no negative scoring). The opponent who *won by
+      // default* (because the attacker lost) gets a flat +5 BP credited
+      // to their own ledger via a synthetic pvp_battles row, so the
+      // leaderboard reflects passive defensive wins too.
+      let difficulty: "easy" | "balanced" | "hard" = "balanced";
+      try {
+        const myGroup = await storage.getBattleGroup(user.id);
+        const myPower = myGroup?.attackPower ?? 0;
+        const oppGroup = opponentUserId ? await storage.getBattleGroup(String(opponentUserId)) : null;
+        const oppPower = oppGroup?.attackPower ?? 0;
+        if (oppPower > 0 && myPower > 0) {
+          if (myPower >= oppPower * 1.25) difficulty = "easy";
+          else if (myPower <= oppPower * 0.8) difficulty = "hard";
+          else difficulty = "balanced";
+        }
+      } catch {
+        // fall through with "balanced" — safe default
+      }
+      const winBp = difficulty === "easy" ? 4 : difficulty === "hard" ? 12 : 9;
 
       const coinsEarned = result === "win" ? WIN_COINS : 0;
-      const battlePointsDelta = result === "win" ? WIN_BP : LOSS_BP;
+      const battlePointsDelta = result === "win" ? winBp : 0;
 
       if (coinsEarned > 0) await storage.addCoins(user.id, coinsEarned);
+
+      // Credit the defender +5 BP if the attacker lost. This is a synthetic
+      // pvp_battles row attributed to the opponent so it shows up on the
+      // leaderboard the same way as any other win. We deliberately do NOT
+      // grant coins or trigger mood penalties on this side — it's a passive
+      // defensive credit.
+      //
+      // Authz/integrity: refuse to credit the *attacker* themselves (self-BP
+      // farm) and require the opponent to be a real user with a saved
+      // battle group. Without this, a modified client could submit
+      // {result:"loss", opponentUserId:<self>} per ticket to net +5 BP.
+      if (result === "loss" && opponentUserId && String(opponentUserId) !== String(user.id)) {
+        try {
+          const oppUser = await storage.getUser(String(opponentUserId));
+          const oppGrp = await storage.getBattleGroup(String(opponentUserId));
+          if (oppUser && oppGrp && (oppGrp.petInventoryIds?.length ?? 0) > 0) {
+            await storage.createPvpBattle({
+              userId: String(opponentUserId),
+              opponentName: user.username || "Challenger",
+              opponentImageUrl: null,
+              opponentLevel: lvl,
+              opponentSkill: null,
+              result: "win",
+              coinsEarned: 0,
+              battlePointsDelta: 5,
+            });
+          }
+        } catch (e) {
+          console.warn("PvP defender BP credit failed:", e);
+        }
+      }
 
       // PvP loss → bruise the active pet's mood (drops mood by 12, caps it
       // at BATTLE_DEFEAT_MOOD_CAP for the next BATTLE_DEFEAT_RECENT_MINUTES

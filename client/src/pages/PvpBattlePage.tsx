@@ -22,6 +22,7 @@ interface BattlePet {
   name: string;
   imageUrl: string | null;
   petTemplateId: string | null;
+  starRarity: number;
   maxHp: number;
   hp: number;
   atk: number;
@@ -31,6 +32,9 @@ interface BattlePet {
   skillDamagePercent: number | null;
   skillHealPercent: number | null;
   isPlayer: boolean;
+  /** True only for the player's *active* pet (slot 0). In manual mode this
+   *  is the only pet the player drives via swipe — the rest auto-attack. */
+  isActive: boolean;
   x: number;
   y: number;
   vx: number;
@@ -134,6 +138,10 @@ export default function PvpBattlePage({
         opponentName: opponent.username,
         opponentImageUrl: opponent.profileImage,
         opponentLevel: data.opponentLevel,
+        // Pass the opponent userId so the server can:
+        //   1) compare battle-power for difficulty-based BP scoring, and
+        //   2) credit +5 defensive BP when the attacker (this client) loses.
+        opponentUserId: opponent.userId,
         result: data.result,
         battleToken,
       });
@@ -145,6 +153,14 @@ export default function PvpBattlePage({
     },
   });
 
+  // Auto vs Manual mode toggle. Manual (default) = active pet drives by
+  // swipe; the other slot pets auto-attack and require a tap to special.
+  // Auto = every player pet behaves like an enemy AI (move + collide +
+  // auto-fire skills when mana fills).
+  const [mode, setMode] = useState<"auto" | "manual">("manual");
+  const modeRef = useRef<"auto" | "manual">("manual");
+  useEffect(() => { modeRef.current = mode; }, [mode]);
+
   const buildPets = useCallback(() => {
     const inv = myInventory as any[];
     const myPets: BattlePet[] = myPetIds.map((id, i) => {
@@ -155,6 +171,7 @@ export default function PvpBattlePage({
         name: invItem.petNickname || invItem.name || "Pet",
         imageUrl: invItem.imageUrl ?? null,
         petTemplateId: invItem.petTemplateId ?? null,
+        starRarity: invItem.starRarity ?? 1,
         maxHp: invItem.petHealth || 800, hp: invItem.petHealth || 800,
         atk: invItem.petAtk || 50, def: invItem.petDef || 30,
         specialSkill: invItem.specialSkill ?? null,
@@ -162,6 +179,9 @@ export default function PvpBattlePage({
         skillDamagePercent: (invItem as any).skillDamagePercent ?? null,
         skillHealPercent: (invItem as any).skillHealPercent ?? null,
         isPlayer: true,
+        // First slot is the player's *active* pet — only it is swipe-driven
+        // in manual mode. Mirrors the locked-slot rule on the lobby page.
+        isActive: i === 0,
         x: 12 + (i % 3) * 28 + Math.random() * 6,
         y: 64 + Math.floor(i / 3) * 15 + Math.random() * 4,
         vx: 0, vy: 0, isDead: false, mana: 0,
@@ -173,6 +193,7 @@ export default function PvpBattlePage({
       name: p.petNickname || p.name || "Foe",
       imageUrl: p.imageUrl ?? null,
       petTemplateId: p.petTemplateId ?? null,
+      starRarity: p.starRarity ?? 1,
       maxHp: p.petHealth || 800, hp: p.petHealth || 800,
       atk: p.petAtk || 50, def: p.petDef || 30,
       specialSkill: p.specialSkill ?? null,
@@ -180,6 +201,7 @@ export default function PvpBattlePage({
       skillDamagePercent: p.skillDamagePercent ?? null,
       skillHealPercent: p.skillHealPercent ?? null,
       isPlayer: false,
+      isActive: false,
       x: 12 + (i % 3) * 28 + Math.random() * 6,
       y: 8 + Math.floor(i / 3) * 14 + Math.random() * 4,
       vx: (Math.random() - 0.5) * 0.8, vy: (Math.random() - 0.5) * 0.4 + 0.2,
@@ -246,9 +268,15 @@ export default function PvpBattlePage({
     const myAlive = ps.filter(p => p.isPlayer && !p.isDead);
     const oppAlive = ps.filter(p => !p.isPlayer && !p.isDead);
 
+    // Special-skill damage now respects defender DEF, the same way basic
+    // collision damage does. Without this, a high-DEF tank would block
+    // basic attacks but get one-shot by Lazer — feels broken.
+    const applyDef = (raw: number, def: number) =>
+      Math.max(1, Math.floor(raw - def * 0.25));
+
     if (skill === "Lazer" && target) {
       const mult = attacker.skillDamagePercent ? attacker.skillDamagePercent / 100 : 2.5;
-      const dmg = Math.max(1, Math.floor(attacker.atk * mult));
+      const dmg = applyDef(attacker.atk * mult, target.def);
       target.hp = Math.max(0, target.hp - dmg);
       spawnFloatNum(target.x, target.y - 10, dmg, false, true);
       spawnSparks(target.x, target.y, ["#fbbf24", "#f59e0b", "#fde68a"]);
@@ -259,7 +287,7 @@ export default function PvpBattlePage({
       const mult = attacker.skillDamagePercent ? attacker.skillDamagePercent / 100 : 0.85;
       const enemies = attacker.isPlayer ? oppAlive : myAlive;
       enemies.forEach(t => {
-        const dmg = Math.max(1, Math.floor(attacker.atk * mult));
+        const dmg = applyDef(attacker.atk * mult, t.def);
         t.hp = Math.max(0, t.hp - dmg);
         spawnFloatNum(t.x, t.y - 8, dmg);
         spawnSparks(t.x, t.y, ["#60a5fa", "#93c5fd", "#bfdbfe"]);
@@ -339,12 +367,25 @@ export default function PvpBattlePage({
 
       const now = Date.now();
 
+      // ── Per-pet AI driver ─────────────────────────────────────
+      // A pet is "AI-controlled" when:
+      //   • It's an opponent (always), OR
+      //   • It's a player pet AND (mode is "auto", OR it's not the active
+      //     pet — non-active player pets always auto-attack so the player
+      //     only has to focus on the active swiper.)
+      const inAuto = modeRef.current === "auto";
+      const isAi = (p: BattlePet) =>
+        !p.isPlayer || inAuto || !p.isActive;
+
       for (const pet of alive) {
         if (pet.isDead) continue;
 
-        if (!pet.isPlayer) {
-          // AI movement: wander toward nearest player pet
-          const nearest = myAlive.reduce((best: BattlePet | null, p) =>
+        if (isAi(pet)) {
+          // Pick targets based on team
+          const myEnemies = pet.isPlayer ? oppAlive : myAlive;
+          const myFriends = pet.isPlayer ? myAlive : oppAlive;
+
+          const nearest = myEnemies.reduce((best: BattlePet | null, p) =>
             !best || Math.hypot(p.x - pet.x, p.y - pet.y) < Math.hypot(best.x - pet.x, best.y - pet.y) ? p : best, null);
           if (nearest) {
             const dx = nearest.x - pet.x, dy = nearest.y - pet.y;
@@ -354,35 +395,45 @@ export default function PvpBattlePage({
           }
           pet.x += pet.vx;
           pet.y += pet.vy;
-          if (pet.x < 5) { pet.vx = Math.abs(pet.vx); pet.x = 5; }
-          if (pet.x > 95) { pet.vx = -Math.abs(pet.vx); pet.x = 95; }
+          // Use full arena bounds for AI-controlled pets — non-active
+          // player pets need to be able to cross the dividing line to
+          // reach the enemies up top.
+          if (pet.x < 4) { pet.vx = Math.abs(pet.vx); pet.x = 4; }
+          if (pet.x > 96) { pet.vx = -Math.abs(pet.vx); pet.x = 96; }
           if (pet.y < 4) { pet.vy = Math.abs(pet.vy); pet.y = 4; }
-          if (pet.y > 56) { pet.vy = -Math.abs(pet.vy) * 0.6; pet.y = 56; }
+          if (pet.y > 94) { pet.vy = -Math.abs(pet.vy); pet.y = 94; }
 
-          // Collision damage on player pets
-          for (const myPet of myAlive) {
-            if (myPet.isDead) continue;
-            const dist = Math.hypot(pet.x - myPet.x, pet.y - myPet.y);
+          // Collision damage on enemies
+          for (const enemy of myEnemies) {
+            if (enemy.isDead) continue;
+            const dist = Math.hypot(pet.x - enemy.x, pet.y - enemy.y);
             if (dist < 14) {
-              const dmg = dealDamage(pet, myPet);
-              spawnFloatNum(myPet.x, myPet.y - 10, dmg);
-              spawnSparks(myPet.x, myPet.y, ["#c084fc", "#818cf8", "#f472b6"]);
-              flashHit(myPet.uid);
-              const dx2 = myPet.x - pet.x || 1, dy2 = myPet.y - pet.y || 1;
+              const dmg = dealDamage(pet, enemy);
+              const colors = pet.isPlayer
+                ? ["#a78bfa", "#c4b5fd", "#ddd6fe"]
+                : ["#c084fc", "#818cf8", "#f472b6"];
+              spawnFloatNum(enemy.x, enemy.y - 10, dmg);
+              spawnSparks(enemy.x, enemy.y, colors);
+              flashHit(enemy.uid);
+              const dx2 = enemy.x - pet.x || 1, dy2 = enemy.y - pet.y || 1;
               const d = Math.hypot(dx2, dy2);
               pet.vx = -(dx2 / d) * 1.4; pet.vy = -(dy2 / d) * 1.4;
-              if (myPet.hp <= 0 && !myPet.isDead) doKo(myPet);
+              if (enemy.hp <= 0 && !enemy.isDead) doKo(enemy);
             }
           }
 
-          // AI skill: auto-trigger when mana full
-          if (pet.mana >= MAX_MANA && (now - (lastAiSkillTime.current[pet.uid] || 0)) > 5000) {
+          // AI skill: auto-trigger when mana full. We deliberately do NOT
+          // auto-fire specials for non-active player pets in MANUAL mode —
+          // the spec says specials always require a tap on the glowing
+          // pet. Only enemies and full-auto-mode pets self-cast.
+          const allowAutoSpecial = !pet.isPlayer || inAuto;
+          if (allowAutoSpecial && pet.mana >= MAX_MANA && (now - (lastAiSkillTime.current[pet.uid] || 0)) > 5000) {
             lastAiSkillTime.current[pet.uid] = now;
             const sk = effectiveSkillType(pet);
             if (sk) {
-              const mode = skillMode(sk);
-              if (mode === "needs-enemy") {
-                const target = myAlive[Math.floor(Math.random() * myAlive.length)];
+              const sMode = skillMode(sk);
+              if (sMode === "needs-enemy") {
+                const target = myEnemies[Math.floor(Math.random() * myEnemies.length)];
                 if (target) fireSkill(pet, sk, target);
               } else {
                 fireSkill(pet, sk, null);
@@ -391,13 +442,12 @@ export default function PvpBattlePage({
               pet.mana = 0;
             }
           }
+          // suppress unused-var lint
+          void myFriends;
         } else {
-          // Player pets: passive mana gain over time
+          // Active player pet in manual mode: passive mana gain only.
           pet.mana = Math.min(MAX_MANA, pet.mana + 0.06);
-        }
-
-        // Player pet bounds
-        if (pet.isPlayer) {
+          // Stay in the bottom half so the player can find them.
           if (pet.x < 4) pet.x = 4;
           if (pet.x > 96) pet.x = 96;
           if (pet.y < 50) pet.y = 50;
@@ -470,12 +520,17 @@ export default function PvpBattlePage({
       return;
     }
 
-    // ─ Check if tapping a regular player pet to drag ─
-    const tappedPet = myAlive.find(p => Math.hypot(p.x - pos.x, p.y - pos.y) < 12);
-    if (tappedPet) {
-      selectedPetUidRef.current = tappedPet.uid;
-      isDraggingRef.current = true;
-      return;
+    // ─ Check if tapping the *active* player pet to drag ─
+    // Only the active pet (slot 0) is player-driven in manual mode; the
+    // other added pets auto-attack and shouldn't be repositioned by the
+    // player. In auto mode we lock dragging entirely so the AI can run.
+    if (modeRef.current === "manual") {
+      const tappedActive = myAlive.find(p => p.isActive && Math.hypot(p.x - pos.x, p.y - pos.y) < 12);
+      if (tappedActive) {
+        selectedPetUidRef.current = tappedActive.uid;
+        isDraggingRef.current = true;
+        return;
+      }
     }
 
     // ─ Otherwise start a slash ─
@@ -561,26 +616,62 @@ export default function PvpBattlePage({
         @keyframes bFloat { 0%{opacity:1;transform:translateY(0)} 100%{opacity:0;transform:translateY(-38px)} }
         @keyframes bIdle { 0%,100%{transform:translate(-50%,-50%)} 50%{transform:translate(-50%,calc(-50% - 4px))} }
         @keyframes bResultIn { 0%{transform:scale(0.85) translateY(18px);opacity:0} 100%{transform:scale(1) translateY(0);opacity:1} }
-        @keyframes bHit { 0%{filter:brightness(1)} 25%{filter:brightness(3.5) saturate(0)} 100%{filter:brightness(1)} }
+        /* Hit shake + dim — quick "ouch" feedback. Brightens then dips
+           below 1 for a short impact frame. Pairs with the X_X eyes
+           overlay rendered on hit. */
+        @keyframes bHit { 0%{filter:brightness(1)} 18%{filter:brightness(2.4) saturate(0.4)} 60%{filter:brightness(0.6)} 100%{filter:brightness(1)} }
+        @keyframes bShake { 0%,100%{margin-left:0} 20%{margin-left:-4px} 40%{margin-left:4px} 60%{margin-left:-3px} 80%{margin-left:2px} }
         @keyframes skillGlow { 0%,100%{box-shadow:0 0 12px 4px rgba(167,139,250,0.6), 0 0 24px 8px rgba(124,58,237,0.35)} 50%{box-shadow:0 0 20px 8px rgba(196,181,253,0.85), 0 0 38px 14px rgba(167,139,250,0.55)} }
         @keyframes targetPulse { 0%,100%{opacity:0.55} 50%{opacity:1} }
+        /* Golden-orb burst behind the win text. Multiple offset copies
+           give the "rising orbs" feel without spawning a dozen DOM
+           nodes per orb. */
+        @keyframes bOrb { 0%{transform:translate(0,0) scale(0.6);opacity:0} 30%{opacity:1} 100%{transform:translate(var(--ox,0px),-180px) scale(1.1);opacity:0} }
+        @keyframes bWinText { 0%{transform:scale(0.6) rotate(-6deg);opacity:0;letter-spacing:0.05em} 60%{transform:scale(1.12) rotate(2deg);opacity:1} 100%{transform:scale(1) rotate(0deg);opacity:1;letter-spacing:0.18em} }
       `}</style>
 
-      {/* Forest background */}
-      <div className="absolute inset-0" style={{ backgroundImage: `url(${forestBgImg})`, backgroundSize: "cover", backgroundPosition: "center", filter: "brightness(0.35)" }} />
-      <div className="absolute inset-0" style={{ background: "linear-gradient(180deg,rgba(5,8,15,.4) 0%,rgba(5,8,15,.65) 100%)" }} />
+      {/* ── Magical rainforest backdrop ─────────────────────────────
+          Forest art is the base; we layer a subtle green-tinted glow
+          (canopy light) and a stone-arena overlay (twin pillars +
+          a dim runic circle on the floor) so the fight reads as
+          "ancient ruin in the jungle" instead of just "dark forest". */}
+      <div className="absolute inset-0" style={{ backgroundImage: `url(${forestBgImg})`, backgroundSize: "cover", backgroundPosition: "center", filter: "brightness(0.42) saturate(1.15)" }} />
+      <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 50% 30%, rgba(74,222,128,0.10) 0%, transparent 55%), linear-gradient(180deg,rgba(5,15,8,.35) 0%,rgba(5,8,15,.7) 100%)" }} />
+      {/* Stone pillars: simple gradient bars on the left/right edges,
+          decorative only — pointer-events:none so they never eat taps. */}
+      <div className="absolute inset-y-0 left-0 w-10 pointer-events-none z-[1]" style={{ background: "linear-gradient(90deg, rgba(45,40,35,0.55) 0%, rgba(45,40,35,0.30) 60%, transparent 100%)", borderRight: "1px solid rgba(120,100,80,0.18)" }} />
+      <div className="absolute inset-y-0 right-0 w-10 pointer-events-none z-[1]" style={{ background: "linear-gradient(270deg, rgba(45,40,35,0.55) 0%, rgba(45,40,35,0.30) 60%, transparent 100%)", borderLeft: "1px solid rgba(120,100,80,0.18)" }} />
+      {/* Runic floor circle anchored to the dividing line — gives the
+          arena a "magic combat ring" silhouette without needing art. */}
+      <div className="absolute pointer-events-none z-[1]" style={{ left: "50%", top: "50%", width: 320, height: 60, transform: "translate(-50%,-50%)", borderRadius: "50%", border: "1px dashed rgba(167,139,250,0.22)", boxShadow: "inset 0 0 30px rgba(167,139,250,0.10), 0 0 30px rgba(167,139,250,0.10)" }} />
 
       {/* Header */}
-      <div className="relative z-10 flex items-center gap-3 px-4 pb-2.5 shrink-0" style={{ background: "rgba(5,8,15,0.72)", borderBottom: "1px solid rgba(167,139,250,0.1)", paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
-        <button onClick={() => onClose(null)} data-testid="button-close-battle" className="w-10 h-10 flex items-center justify-center rounded-lg text-white/40 hover:text-white/70 transition-colors active:scale-90 shrink-0" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
-          <ArrowLeft size={18} />
+      <div className="relative z-10 flex items-center gap-2 px-3 pb-2 shrink-0" style={{ background: "rgba(5,8,15,0.72)", borderBottom: "1px solid rgba(167,139,250,0.1)", paddingTop: "max(env(safe-area-inset-top, 0px) + 10px, 44px)" }}>
+        <button onClick={() => onClose(null)} data-testid="button-close-battle" className="w-9 h-9 flex items-center justify-center rounded-lg text-white/40 hover:text-white/70 transition-colors active:scale-90 shrink-0" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+          <ArrowLeft size={16} />
         </button>
-        <div className="flex-1 text-center text-sm tracking-[0.2em] text-red-300 font-bold">vs {opponent.username}</div>
-        {!pendingSkill
-          ? <div className="text-white/20 text-[9px] tracking-widest">SWIPE TO ATTACK</div>
-          : <button onClick={() => { setPendingSkill(null); pendingSkillRef.current = null; }} className="flex items-center gap-1 text-white/40 text-[9px]">
-              <X size={12} /> CANCEL
-            </button>}
+        <div className="flex-1 text-center text-[12px] tracking-[0.2em] text-red-300 font-bold truncate">vs {opponent.username}</div>
+        {/* Auto/Manual mode toggle. Manual = swipe-driven active pet,
+            others auto-attack. Auto = every player pet runs the same
+            AI as enemies. The toggle is live-editable mid-fight so
+            the player can flip strategies without losing the round. */}
+        <button
+          onClick={() => setMode((m) => (m === "auto" ? "manual" : "auto"))}
+          data-testid="button-mode-toggle"
+          className="px-2.5 py-1 rounded-md text-[10px] font-black tracking-[0.16em] active:scale-95 transition-all shrink-0"
+          style={{
+            background: mode === "auto" ? "rgba(74,222,128,0.18)" : "rgba(124,58,237,0.18)",
+            color: mode === "auto" ? "#86efac" : "#c4b5fd",
+            border: `1px solid ${mode === "auto" ? "rgba(74,222,128,0.45)" : "rgba(167,139,250,0.45)"}`,
+          }}
+        >
+          {mode === "auto" ? "AUTO" : "MANUAL"}
+        </button>
+        {pendingSkill && (
+          <button onClick={() => { setPendingSkill(null); pendingSkillRef.current = null; }} className="flex items-center gap-1 text-white/40 text-[9px]">
+            <X size={11} /> CANCEL
+          </button>
+        )}
       </div>
 
       {/* Opponent HP bars */}
@@ -657,62 +748,59 @@ export default function PvpBattlePage({
             </svg>
           )}
 
-          {/* Pets */}
+          {/* Pets — new layout:
+              ENEMY (top half):  [name]  →  [image]  →  [stars + HP bar]
+              ALLY  (bottom):    [name]  →  [image]  →  [stars + HP + mana]
+              The active player pet gets a thicker amber outline so the
+              swiper is visually distinct from the auto-attacking pack. */}
           {pets.filter(p => !p.isDead).map(pet => {
             const isSkillReady = pet.isPlayer && pet.mana >= MAX_MANA && !!pet.specialSkill;
             const isPendingSource = pendingSkill?.petUid === pet.uid;
             const isEnemyTarget = pendingSkill?.mode === "needs-enemy" && !pet.isPlayer;
-            const size = pet.isPlayer ? 80 : 64;
+            const size = pet.isPlayer ? 78 : 64;
+            const isHit = !!hitFlash[pet.uid];
+
+            // Star rarity row: render N stars (capped at 5) for visual
+            // pet tier. Falls back gracefully when starRarity is null/0.
+            const stars = Math.max(0, Math.min(5, Math.floor(pet.starRarity || 0)));
 
             return (
               <div
                 key={pet.uid}
-                className="absolute pointer-events-none"
+                className="absolute pointer-events-none flex flex-col items-center"
                 style={{
                   left: `${pet.x}%`, top: `${pet.y}%`,
-                  transform: `translate(-50%,-50%)${pet.isPlayer ? "" : " scaleX(-1)"}`,
-                  animation: hitFlash[pet.uid] ? "bHit 0.22s ease-out" : "bIdle 1.4s ease-in-out infinite",
+                  transform: "translate(-50%,-50%)",
+                  animation: isHit ? "bShake 0.32s ease-in-out" : "bIdle 1.4s ease-in-out infinite",
                   zIndex: pet.isPlayer ? 15 : 12,
                 }}
               >
-                {/* HP bar */}
-                <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-14 pointer-events-none">
-                  <div className="h-1.5 bg-black/60 rounded-full overflow-hidden border border-white/10">
-                    <div className="h-full rounded-full transition-all duration-200" style={{ width: `${Math.max(0, (pet.hp / pet.maxHp) * 100)}%`, background: hpColor(pet.hp / pet.maxHp) }} />
-                  </div>
-                  <div className="text-[7px] text-white/40 text-center truncate mt-0.5">{pet.name}</div>
+                {/* Name above */}
+                <div
+                  className="text-[8px] font-bold tracking-wider truncate text-center px-1 rounded mb-0.5"
+                  style={{
+                    color: pet.isPlayer ? (pet.isActive ? "#fde68a" : "#c4b5fd") : "#fca5a5",
+                    background: "rgba(0,0,0,0.55)",
+                    maxWidth: 70,
+                    textShadow: "0 1px 2px rgba(0,0,0,0.7)",
+                  }}
+                >
+                  {pet.name}
                 </div>
 
-                {/* Mana bar (player pets only) */}
-                {pet.isPlayer && (
-                  <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-14">
-                    <div className="h-1 bg-black/50 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full transition-all duration-200" style={{ width: `${(pet.mana / MAX_MANA) * 100}%`, background: pet.mana >= MAX_MANA ? "#c084fc" : "#7c3aed" }} />
-                    </div>
-                  </div>
-                )}
-
-                {/* Skill ready label */}
-                {isSkillReady && !isPendingSource && (
-                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap text-[8px] text-purple-200 font-bold tracking-wider animate-pulse">
-                    ✦ {pet.specialSkill}
-                  </div>
-                )}
-
-                {/* Pending source label */}
-                {isPendingSource && (
-                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap text-[8px] text-yellow-300 font-bold tracking-wider">
-                    READY →
-                  </div>
-                )}
-
-                {/* Pet image with glow */}
+                {/* Pet image with hit/dim states + active-pet outline */}
                 <div
                   style={{
                     borderRadius: "50%",
-                    animation: isSkillReady ? "skillGlow 1.2s ease-in-out infinite" : undefined,
-                    outline: isPendingSource ? "2px solid rgba(250,204,21,0.8)" : undefined,
+                    transform: pet.isPlayer ? undefined : "scaleX(-1)",
+                    animation: isSkillReady ? "skillGlow 1.2s ease-in-out infinite" : isHit ? "bHit 0.32s ease-out" : undefined,
+                    outline: isPendingSource
+                      ? "2px solid rgba(250,204,21,0.8)"
+                      : (pet.isPlayer && pet.isActive)
+                        ? "2px solid rgba(251,191,36,0.7)"
+                        : undefined,
                     outlineOffset: 3,
+                    position: "relative",
                   }}
                 >
                   {pet.petTemplateId
@@ -720,11 +808,62 @@ export default function PvpBattlePage({
                     : pet.imageUrl
                     ? <img src={pet.imageUrl} style={{ width: size, height: size, objectFit: "contain", filter: pet.isPlayer ? "drop-shadow(0 0 10px rgba(167,139,250,0.5))" : "drop-shadow(0 0 10px rgba(239,68,68,0.45))" }} />
                     : <div style={{ width: size, height: size, background: pet.isPlayer ? "rgba(100,60,200,0.3)" : "rgba(200,60,60,0.3)", borderRadius: "50%", border: `2px solid ${pet.isPlayer ? "rgba(167,139,250,0.5)" : "rgba(239,68,68,0.5)"}`, display: "flex", alignItems: "center", justifyContent: "center" }}><img src={petPawIcon} alt="" style={{ width: size * 0.65, height: size * 0.65, objectFit: "contain" }} /></div>}
+                  {/* X_X eyes overlay during a hit — tiny, plays once per
+                      flash. Counter-mirrored for enemies so it stays
+                      readable when the pet is flipped. */}
+                  {isHit && (
+                    <div
+                      className="absolute inset-0 flex items-center justify-center font-black"
+                      style={{
+                        transform: pet.isPlayer ? undefined : "scaleX(-1)",
+                        color: "#fff",
+                        fontSize: size * 0.32,
+                        textShadow: "0 0 4px rgba(0,0,0,0.9), 0 0 8px rgba(239,68,68,0.7)",
+                        letterSpacing: -2,
+                        pointerEvents: "none",
+                      }}
+                    >X_X</div>
+                  )}
                 </div>
+
+                {/* Stats stack below: stars + HP (+ mana for player) */}
+                <div className="mt-1 flex flex-col items-center gap-0.5" style={{ width: 60 }}>
+                  {stars > 0 && (
+                    <div className="text-[7px] leading-none whitespace-nowrap" style={{ color: "#fbbf24", textShadow: "0 1px 2px rgba(0,0,0,0.8)" }}>
+                      {"★".repeat(stars)}
+                    </div>
+                  )}
+                  <div
+                    className="h-1.5 w-full bg-black/70 rounded-full overflow-hidden border border-white/10"
+                    style={{
+                      borderColor: pendingSkill?.mode === "needs-enemy" && !pet.isPlayer ? "rgba(239,68,68,0.6)" : "rgba(255,255,255,0.10)",
+                      animation: pendingSkill?.mode === "needs-enemy" && !pet.isPlayer ? "targetPulse 0.8s ease-in-out infinite" : undefined,
+                    }}
+                  >
+                    <div className="h-full rounded-full transition-all duration-200" style={{ width: `${Math.max(0, (pet.hp / pet.maxHp) * 100)}%`, background: hpColor(pet.hp / pet.maxHp) }} />
+                  </div>
+                  {pet.isPlayer && pet.specialSkill && (
+                    <div className="h-1 w-full bg-black/50 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-all duration-200" style={{ width: `${(pet.mana / MAX_MANA) * 100}%`, background: pet.mana >= MAX_MANA ? "#c084fc" : "#4c1d95" }} />
+                    </div>
+                  )}
+                </div>
+
+                {/* Skill ready / pending labels */}
+                {isSkillReady && !isPendingSource && (
+                  <div className="absolute -top-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[8px] text-purple-200 font-bold tracking-wider animate-pulse">
+                    ✦ {pet.specialSkill}
+                  </div>
+                )}
+                {isPendingSource && (
+                  <div className="absolute -top-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[8px] text-yellow-300 font-bold tracking-wider">
+                    READY →
+                  </div>
+                )}
 
                 {/* Enemy target indicator */}
                 {isEnemyTarget && !pet.isDead && (
-                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 text-[9px] text-red-300 font-bold whitespace-nowrap animate-pulse">TAP</div>
+                  <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 text-[9px] text-red-300 font-bold whitespace-nowrap animate-pulse">TAP</div>
                 )}
               </div>
             );
@@ -762,47 +901,79 @@ export default function PvpBattlePage({
             </div>
           )}
 
-          {/* Result overlay */}
-          {phase === "result" && (
-            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4" style={{ background: "rgba(5,8,15,0.88)", animation: "bResultIn 0.5s ease-out" }}>
-              <div>{resultOutcome === "win" ? <img src={battleTrophyIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain" }} /> : <img src={skullDefeatIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain" }} />}</div>
-              <div className="text-2xl font-black tracking-[0.15em]" style={{ color: resultOutcome === "win" ? "#fbbf24" : "#f87171", textShadow: `0 0 30px ${resultOutcome === "win" ? "rgba(251,191,36,0.6)" : "rgba(248,113,113,0.6)"}` }}>
-                {resultOutcome === "win" ? "VICTORY!" : "DEFEAT"}
+          {/* ── Result overlay ─────────────────────────────────────
+              WIN  → golden-orb burst + congrats + +N BP from server
+              LOSS → softer red-toned panel + motivational note,
+                     deliberately NO "you lost N points" because losses
+                     don't deduct anything in PvP. */}
+          {phase === "result" && resultOutcome === "win" && (
+            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 px-6" style={{ background: "radial-gradient(ellipse at center, rgba(60,30,8,0.85) 0%, rgba(5,4,2,0.95) 80%)", animation: "bResultIn 0.5s ease-out" }}>
+              {/* Golden orbs floating up behind the trophy */}
+              <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                {Array.from({ length: 14 }).map((_, i) => {
+                  const left = 8 + (i * 6.5) % 84;
+                  const delay = (i * 0.18) % 2.4;
+                  const ox = (i % 2 === 0 ? 1 : -1) * (10 + (i * 3) % 28);
+                  return (
+                    <div
+                      key={i}
+                      className="absolute rounded-full"
+                      style={{
+                        left: `${left}%`, bottom: "20%",
+                        width: 10 + (i % 4) * 3, height: 10 + (i % 4) * 3,
+                        background: "radial-gradient(circle, #fde68a 0%, #f59e0b 60%, transparent 100%)",
+                        boxShadow: "0 0 14px rgba(251,191,36,0.7)",
+                        animation: `bOrb 2.4s ease-out ${delay}s infinite`,
+                        ["--ox" as any]: `${ox}px`,
+                      }}
+                    />
+                  );
+                })}
               </div>
-              {coinsEarned > 0 && <div className="text-yellow-300 text-sm tracking-wider">+{coinsEarned} coins earned!</div>}
-              {bpEarned !== 0 && (
-                <div className={`text-sm tracking-wider ${bpEarned > 0 ? "text-purple-300" : "text-red-400"}`}>
-                  {bpEarned > 0 ? "+" : ""}{bpEarned} battle points
+              <img src={battleTrophyIcon} alt="" style={{ width: 88, height: 88, objectFit: "contain", filter: "drop-shadow(0 0 24px rgba(251,191,36,0.7))" }} />
+              <div
+                className="text-4xl font-black tracking-[0.18em]"
+                data-testid="text-pvp-victory"
+                style={{ color: "#fde68a", textShadow: "0 0 32px rgba(251,191,36,0.8), 0 2px 4px rgba(0,0,0,0.6)", animation: "bWinText 0.7s ease-out forwards", fontFamily: "Cinzel, Lora, serif" }}
+              >
+                VICTORY!
+              </div>
+              <div className="text-amber-200/85 text-[12px] tracking-[0.16em] text-center max-w-xs">
+                {bpEarned >= 12 ? "A heroic upset! The arena will sing of this fight." :
+                 bpEarned >= 9 ? "A worthy win — the arena bows." :
+                 "A clean victory. Onward, champion!"}
+              </div>
+              {bpEarned > 0 && (
+                <div className="mt-1 px-4 py-1.5 rounded-full text-[14px] font-black tracking-widest" data-testid="text-pvp-bp-earned"
+                  style={{ background: "rgba(251,191,36,0.18)", border: "1px solid rgba(251,191,36,0.55)", color: "#fde68a", textShadow: "0 0 10px rgba(251,191,36,0.5)" }}>
+                  +{bpEarned} BP
                 </div>
               )}
-              <button onClick={() => onClose(resultOutcome)} className="mt-2 px-6 py-2.5 rounded-xl text-xs tracking-widest text-white/60 border border-white/15 hover:bg-white/5">
+              {coinsEarned > 0 && <div className="text-yellow-300/80 text-[11px] tracking-wider" data-testid="text-pvp-coins">+{coinsEarned} coins</div>}
+              <button onClick={() => onClose(resultOutcome)} data-testid="button-pvp-result-close" className="mt-3 px-7 py-2.5 rounded-xl text-[11px] font-black tracking-[0.2em]"
+                style={{ background: "linear-gradient(135deg, #f59e0b, #b45309)", color: "#fff8e1", border: "1px solid rgba(251,191,36,0.7)", boxShadow: "0 4px 18px rgba(251,191,36,0.35)" }}>
+                BACK TO LOBBY
+              </button>
+            </div>
+          )}
+          {phase === "result" && resultOutcome === "loss" && (
+            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 px-6" style={{ background: "radial-gradient(ellipse at center, rgba(40,8,12,0.85) 0%, rgba(4,2,5,0.95) 80%)", animation: "bResultIn 0.5s ease-out" }}>
+              <img src={skullDefeatIcon} alt="" style={{ width: 78, height: 78, objectFit: "contain", filter: "drop-shadow(0 0 14px rgba(239,68,68,0.45))" }} />
+              <div className="text-3xl font-black tracking-[0.16em]" data-testid="text-pvp-defeat" style={{ color: "#fca5a5", textShadow: "0 0 22px rgba(239,68,68,0.5)" }}>
+                DEFEAT
+              </div>
+              <div className="text-white/70 text-[12px] tracking-[0.14em] text-center max-w-xs">
+                A worthy fight. You held the line — train, retool, and return stronger.
+              </div>
+              <div className="text-white/40 text-[10px] tracking-widest mt-1">No battle points lost.</div>
+              <button onClick={() => onClose(resultOutcome)} data-testid="button-pvp-result-close" className="mt-3 px-7 py-2.5 rounded-xl text-[11px] font-black tracking-[0.2em] text-white/85"
+                style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.4), rgba(76,29,149,0.4))", border: "1px solid rgba(167,139,250,0.5)" }}>
                 BACK TO LOBBY
               </button>
             </div>
           )}
         </div>
       )}
-
-      {/* Player HP bars */}
-      <div className="relative z-10 shrink-0 px-3 pb-safe pb-3 pt-2" style={{ background: "rgba(10,3,20,0.82)", borderTop: "1px solid rgba(167,139,250,0.08)" }}>
-        <div className="flex items-center gap-3 flex-wrap">
-          {playerPets.map(p => (
-            <div key={p.uid} className="flex items-center gap-1.5">
-              <div className="text-[8px] text-purple-300/60 truncate max-w-[38px]">{p.name}</div>
-              <div className="flex flex-col gap-0.5">
-                <div className="h-2 w-12 bg-black/60 rounded-full overflow-hidden border border-purple-900/30">
-                  <div className="h-full rounded-full transition-all duration-150" style={{ width: `${(p.hp / p.maxHp) * 100}%`, background: hpColor(p.hp / p.maxHp) }} />
-                </div>
-                {p.specialSkill && (
-                  <div className="h-1 w-12 bg-black/50 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full transition-all duration-200" style={{ width: `${(p.mana / MAX_MANA) * 100}%`, background: p.mana >= MAX_MANA ? "#c084fc" : "#4c1d95" }} />
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
