@@ -615,11 +615,19 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const startWave = useCallback((enc: EncounterEnemy, idx: number) => {
     setEnemy(enc);
     setWaveIndex(idx);
-    setEnemyHp(enc.hp);
-    setEnemyMaxHp(enc.hp);
-    enemyHpRef.current = enc.hp;
-    enemyMaxHpRef.current = enc.hp;
-    enemyStatsRef.current = { atk: enc.atk, def: enc.def };
+    // Multi-pet party scaling — the server hands us a 1-pet stat block, so when
+    // the player has equipped extras we beef the enemy up so it's not trivial.
+    // +60% HP and +25% ATK per extra pet (so a 3-pet party → 2.2× HP / 1.5× ATK).
+    const extras = Math.max(0, equippedPetsCountRef.current - 1);
+    const hpMult  = 1 + 0.6  * extras;
+    const atkMult = 1 + 0.25 * extras;
+    const scaledHp  = Math.max(1, Math.floor(enc.hp  * hpMult));
+    const scaledAtk = Math.max(1, Math.floor(enc.atk * atkMult));
+    setEnemyHp(scaledHp);
+    setEnemyMaxHp(scaledHp);
+    enemyHpRef.current = scaledHp;
+    enemyMaxHpRef.current = scaledHp;
+    enemyStatsRef.current = { atk: scaledAtk, def: enc.def };
     isBossRef.current = enc.isBoss;
     bossSpecialAttackRef.current = enc.isBoss ? (enc.bossSpecialAttack ?? null) : null;
     setVictoryData(null);
@@ -1018,38 +1026,12 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
             if (enemyHpRef.current <= 0) handleEnemyDeathRef.current();
           }, orbDur);
 
-          // Mana for extra pet (auto-fire skill when full)
+          // Mana for extra pet — fills with each auto-attack but does NOT auto-cast.
+          // The player taps the glowing pet sprite to fire its special skill.
           extraPetManas.current[i] = Math.min(MAX_MANA, extraPetManas.current[i] + 22);
           // Mirror to state so the bar + ready glow re-render. Cheap — runs at most
           // a few times per second per pet (per-attack cadence, not per frame).
           setExtraPetManaState([extraPetManas.current[0], extraPetManas.current[1]]);
-          if (extraPetManas.current[i] >= MAX_MANA) {
-            extraPetManas.current[i] = 0;
-            setExtraPetManaState([extraPetManas.current[0], extraPetManas.current[1]]);
-            const casterIdx = (i + 1) as 1 | 2;
-            // Honors the extra pet's actual special skill (Lazer/Bubble/Heal/Revive/etc.)
-            // — heals route to allies, damage routes to enemy. If the pet has no
-            // skill assigned we fall back to a basic damage hit so the mana isn't wasted.
-            const skill = ep.skillType || ep.specialSkillType || ep.specialSkill;
-            setTimeout(() => {
-              if (!battleActiveRef.current) return;
-              if (skill) {
-                runPetSkillRef.current(casterIdx, {
-                  specialSkill: ep.specialSkill ?? null,
-                  specialSkillType: ep.specialSkillType ?? null,
-                  skillDamagePercent: ep.skillDamagePercent ?? null,
-                  skillHealPercent: ep.skillHealPercent ?? null,
-                  skillType: ep.skillType ?? null,
-                  skillAffects: ep.skillAffects ?? null,
-                  rarity: ep.rarity ?? null,
-                  petAtk: ep.petAtk ?? 15,
-                });
-              } else {
-                const skillDmg = Math.max(15, Math.floor((ep.petAtk ?? 15) * 1.6));
-                applyDamageToEnemyRef.current(skillDmg, enemyPosRef.current.x + (Math.random() * 14 - 7), enemyPosRef.current.y);
-              }
-            }, orbDur + 100);
-          }
 
           const nextAutoMs = 1500 + Math.random() * 1000;
           extraAutoTimers.current[i] = now + nextAutoMs;
@@ -1501,6 +1483,34 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       useSpecialSkill();
     }
   }, [useSpecialSkill, skillCooldown, pet?.specialSkill]);
+
+  // ── Extra-pet click: fires that pet's special skill when its mana is full.
+  // Mana is filled passively by auto-attacks; the player chooses when to spend it.
+  const handleExtraPetClick = useCallback((slot: 0 | 1) => {
+    if (!battleActiveRef.current) return;
+    const ep = equippedExtraPetsRef.current[slot];
+    if (!ep) return;
+    if (extraPetHpsRef.current[slot] <= 0) return;
+    if (extraPetManas.current[slot] < MAX_MANA) return;
+    const hasSkill = !!(ep.skillType || ep.specialSkillType || ep.specialSkill);
+    if (!hasSkill) return;
+
+    // Drain mana immediately so a quick double-tap can't cast twice.
+    extraPetManas.current[slot] = 0;
+    setExtraPetManaState([extraPetManas.current[0], extraPetManas.current[1]]);
+
+    const casterIdx = (slot + 1) as 1 | 2;
+    runPetSkillRef.current(casterIdx, {
+      specialSkill: ep.specialSkill ?? null,
+      specialSkillType: ep.specialSkillType ?? null,
+      skillDamagePercent: ep.skillDamagePercent ?? null,
+      skillHealPercent: ep.skillHealPercent ?? null,
+      skillType: ep.skillType ?? null,
+      skillAffects: ep.skillAffects ?? null,
+      rarity: ep.rarity ?? null,
+      petAtk: ep.petAtk ?? 15,
+    });
+  }, []);
 
   // ── Potion usage ─────────────────────────────────────────────────────────
   const usePotion = useCallback((slotIndex: number) => {
@@ -2126,7 +2136,14 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                     filter: isDead ? "grayscale(1) opacity(0.35)" : undefined,
                     // Used by `petRarityGlow` to color the ready-to-cast halo per pet's rarity.
                     ["--rarity-glow" as any]: epRarityColor,
+                    // Only intercept taps when the skill is actually ready — otherwise
+                    // taps fall through to the background (no accidental wasted casts).
+                    pointerEvents: epReady ? "auto" : "none",
+                    cursor: epReady ? "pointer" : "default",
+                    touchAction: "manipulation",
                   }}
+                  onPointerDown={epReady ? (e) => { e.stopPropagation(); handleExtraPetClick(si); } : undefined}
+                  data-testid={`button-extra-pet-skill-${si}`}
                 >
                   {(ep as any).petTemplateId ? (
                     <PetAnimatorCanvas petTemplateId={(ep as any).petTemplateId} size={PET_SPRITE_SIZE} style={epGlowStyle} />
