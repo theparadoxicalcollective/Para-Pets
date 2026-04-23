@@ -2158,6 +2158,10 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
     () => inventory.filter((it) => it.type === "edibles"),
     [inventory],
   );
+  const gifts = useMemo(
+    () => inventory.filter((it) => it.type === "gift"),
+    [inventory],
+  );
   // Find the live pet record so hunger/mood reflect server state.
   const livePet = useMemo(
     () => inventory.find((it) => it.id === pet.inventoryId) ?? pet,
@@ -2168,6 +2172,8 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
   const hungerVal = hungerRaw == null || hungerRaw < 0 ? maxHunger : hungerRaw;
   const hungerPct = Math.max(0, Math.min(100, (hungerVal / maxHunger) * 100));
   const moodVal = Math.max(0, Math.min(100, livePet.petMood ?? 100));
+  const loyaltyVal = Math.max(0, Math.min(1000, (livePet as any).petLoyalty ?? 0));
+  const loyaltyPct = (loyaltyVal / 1000) * 100;
 
   // Drag state.
   const dragRef = useRef<{ inventoryId: string; imageUrl: string | null; pid: number } | null>(null);
@@ -2497,6 +2503,36 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
     };
   }, [releasePetGesture]);
 
+  const giftMutation = useMutation({
+    mutationFn: async ({ itemInventoryId }: { itemInventoryId: string }) => {
+      const res = await apiRequest("POST", `/api/pet/${pet.inventoryId}/give-gift`, { itemInventoryId });
+      return await res.json();
+    },
+    onSuccess: (data: any) => {
+      qc.invalidateQueries({ queryKey: ["/api/inventory"] });
+      setPetGlow(true);
+      setPetBounce(true);
+      setTimeout(() => setPetGlow(false), 700);
+      setTimeout(() => setPetBounce(false), 1100);
+      const id = ++floatIdRef.current;
+      const box = petBoxRef.current?.getBoundingClientRect();
+      const cx = box ? box.left + box.width / 2 : window.innerWidth / 2;
+      const cy = box ? box.top + box.height * 0.3 : window.innerHeight / 2;
+      const added = data?.loyaltyAdded ?? 0;
+      setFloatTexts((arr) => [...arr, { id, x: cx, y: cy, text: `+${added} Loyalty` }]);
+      setTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id)), 1400);
+      if (box) {
+        const bx = box.left + box.width / 2;
+        const by = box.top + box.height / 2;
+        burstHearts(bx, by + 30, 12);
+        burstSparkles(bx, by, 16);
+      }
+    },
+    onError: (err: any) => {
+      toast({ title: "Couldn't give gift", description: err?.message || "Try again in a moment." });
+    },
+  });
+
   const feedMutation = useMutation({
     mutationFn: async ({ itemInventoryId }: { itemInventoryId: string }) => {
       return await apiRequest("POST", `/api/pet/${pet.inventoryId}/feed-edible`, { itemInventoryId });
@@ -2553,9 +2589,15 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
     const box = petBoxRef.current?.getBoundingClientRect();
     setDragGhost(null);
     if (box && ghost.x >= box.left && ghost.x <= box.right && ghost.y >= box.top && ghost.y <= box.bottom) {
-      feedMutation.mutate({ itemInventoryId: d.inventoryId });
+      // Look up the dragged item to decide whether this is a feed or a gift.
+      const draggedItem = inventory.find((it) => it.id === d.inventoryId);
+      if (draggedItem?.type === "gift") {
+        giftMutation.mutate({ itemInventoryId: d.inventoryId });
+      } else {
+        feedMutation.mutate({ itemInventoryId: d.inventoryId });
+      }
     }
-  }, [feedMutation]);
+  }, [feedMutation, giftMutation, inventory]);
 
   return (
     <div
@@ -2738,6 +2780,78 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
         hungerPct={hungerPct}
         moodVal={moodVal}
       />
+
+      {/* Vertical Loyalty bar — sits along the left edge of the page. Fills
+          0 → 1000 only when the player gives this pet a gift. */}
+      <div
+        className="absolute"
+        style={{
+          left: 14,
+          top: "20%",
+          height: "55%",
+          width: 38,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 6,
+          pointerEvents: "none",
+          zIndex: 510,
+        }}
+        data-testid="loyalty-meter"
+      >
+        <span
+          style={{
+            fontFamily: "Lora, serif",
+            color: "#ffd1ec",
+            fontSize: 9,
+            fontWeight: 800,
+            letterSpacing: "0.2em",
+            textShadow: "0 1px 4px rgba(0,0,0,0.7)",
+            writingMode: "vertical-rl",
+            transform: "rotate(180deg)",
+            marginBottom: 2,
+          }}
+        >
+          LOYALTY
+        </span>
+        <div
+          style={{
+            flex: 1,
+            width: 14,
+            borderRadius: 999,
+            background: "rgba(20,8,18,0.75)",
+            border: "1px solid rgba(255,180,220,0.45)",
+            boxShadow: "inset 0 1px 3px rgba(0,0,0,0.6), 0 1px 4px rgba(0,0,0,0.4)",
+            overflow: "hidden",
+            position: "relative",
+            display: "flex",
+            alignItems: "flex-end",
+          }}
+          data-testid="bar-loyalty"
+        >
+          <div
+            style={{
+              width: "100%",
+              height: `${loyaltyPct}%`,
+              background: "linear-gradient(0deg, #ec4899 0%, #fbcfe8 100%)",
+              transition: "height 0.5s ease",
+              boxShadow: "0 0 10px rgba(236,72,153,0.4)",
+            }}
+          />
+        </div>
+        <span
+          style={{
+            fontFamily: "Lora, serif",
+            color: "#fff5fa",
+            fontSize: 10,
+            fontWeight: 800,
+            textShadow: "0 1px 4px rgba(0,0,0,0.7)",
+          }}
+          data-testid="text-loyalty-value"
+        >
+          {loyaltyVal}
+        </span>
+      </div>
 
       {/* Floating heart layer — appears when the pet is clicked or fed */}
       {hearts.map((h) => (
@@ -3067,6 +3181,124 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
                     }}
                   >
                     +{item.statBoostAmount} Feed
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* GIFTS strip — drag onto the pet to add Loyalty points (cap 1000).
+            Mirrors the Edibles strip styling but with a pink palette so
+            players can tell them apart at a glance. */}
+        <div
+          className="mt-3 mb-2 px-1"
+          style={{
+            fontFamily: "Lora, serif",
+            color: "#ffd1ec",
+            fontSize: 11,
+            letterSpacing: "0.18em",
+            fontWeight: 700,
+          }}
+        >
+          GIFTS • {gifts.length}
+        </div>
+        {gifts.length === 0 ? (
+          <div
+            className="rounded-2xl px-4 py-4 text-center"
+            style={{
+              background: "rgba(40,18,32,0.55)",
+              border: "1px dashed rgba(255,180,220,0.3)",
+              fontFamily: "Lora, serif",
+              color: "rgba(255,220,235,0.75)",
+              fontSize: 12,
+            }}
+            data-testid="text-no-gifts"
+          >
+            No gifts yet. Drag a gift onto your pet to fill the Loyalty bar.
+          </div>
+        ) : (
+          <div
+            className="flex gap-3 overflow-x-auto pb-2"
+            style={{ touchAction: "pan-x" }}
+          >
+            {gifts.map((item) => (
+              <div
+                key={item.id}
+                className="flex-shrink-0 rounded-2xl flex flex-col items-center justify-center relative"
+                style={{
+                  width: 92,
+                  height: 108,
+                  background: "linear-gradient(160deg, rgba(70,30,55,0.85) 0%, rgba(40,15,30,0.9) 100%)",
+                  border: "1px solid rgba(255,180,220,0.45)",
+                  boxShadow: "0 2px 10px rgba(0,0,0,0.5), inset 0 0 16px rgba(236,72,153,0.1)",
+                  cursor: "grab",
+                  touchAction: "none",
+                }}
+                onPointerDown={(e) => onItemPointerDown(e, item)}
+                data-testid={`gift-item-${item.id}`}
+              >
+                {item.imageUrl ? (
+                  <img
+                    src={item.imageUrl}
+                    alt={item.name}
+                    draggable={false}
+                    style={{ width: 56, height: 56, objectFit: "contain", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))" }}
+                  />
+                ) : (
+                  <div style={{ width: 56, height: 56, background: "rgba(255,255,255,0.05)", borderRadius: 12 }} />
+                )}
+                <div
+                  className="mt-1 px-1 text-center"
+                  style={{
+                    fontFamily: "Lora, serif",
+                    color: "#ffe6f1",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    lineHeight: 1.15,
+                    maxWidth: 86,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {item.name}
+                </div>
+                {item.quantity > 1 && (
+                  <div
+                    className="absolute"
+                    style={{
+                      top: 4, right: 4,
+                      background: "rgba(120,40,90,0.95)",
+                      border: "1px solid rgba(255,180,220,0.6)",
+                      borderRadius: 10,
+                      padding: "1px 6px",
+                      fontFamily: "Lora, serif",
+                      color: "#ffe6f1",
+                      fontSize: 10,
+                      fontWeight: 800,
+                    }}
+                  >
+                    ×{item.quantity}
+                  </div>
+                )}
+                {item.giftPoints && (
+                  <div
+                    className="absolute"
+                    style={{
+                      bottom: -6, left: "50%", transform: "translateX(-50%)",
+                      background: "rgba(236,72,153,0.95)",
+                      borderRadius: 8,
+                      padding: "1px 6px",
+                      fontFamily: "Lora, serif",
+                      color: "#fff5fa",
+                      fontSize: 9,
+                      fontWeight: 800,
+                      letterSpacing: "0.05em",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    +{item.giftPoints} Loyalty
                   </div>
                 )}
               </div>

@@ -1451,8 +1451,17 @@ export async function registerRoutes(
   // Hunger drains at HUNGER_DECAY_PER_MIN points per minute while the pet is
   // placed in the pet house (inside or outside). When hunger hits 0, mood
   // starts draining at MOOD_DECAY_PER_MIN. Both are clamped on each tick.
-  const HUNGER_DECAY_PER_MIN = 1;   // 1 hunger pt / minute while placed
-  const MOOD_DECAY_PER_MIN = 0.5;   // 0.5 mood pt / minute while starving
+  const HUNGER_DECAY_PER_MIN = 1;     // 1 hunger pt / minute while placed
+  // Mood drains while the pet is "hungry" (below 50% of its max hunger). Below
+  // that threshold mood drops at MOOD_STARVE_DECAY_PER_MIN. On top of that,
+  // pets that have not been fed OR petted in a while suffer a slow neglect
+  // drain regardless of hunger. Recent battle defeats also push mood down.
+  const MOOD_STARVE_DECAY_PER_MIN = 0.5;
+  const MOOD_NEGLECT_DECAY_PER_MIN = 0.25;
+  const NEGLECT_GRACE_MINUTES = 30;            // no neglect drain in first 30 min
+  const HUNGRY_THRESHOLD_PCT = 0.5;            // <50% hunger = "hungry"
+  const BATTLE_DEFEAT_RECENT_MINUTES = 60;     // recent defeat = last 60 min
+  const BATTLE_DEFEAT_MOOD_CAP = 60;           // mood can't recover above 60
   async function applyPetTimeDecay(inv: any, isPlaced: boolean): Promise<{ petHunger: number; petMood: number }> {
     const maxHunger = Math.max(1, inv.petHealth ?? 1000);
     // First-touch initialization: -1 means "uninitialized" — start full.
@@ -1463,8 +1472,44 @@ export async function registerRoutes(
     const minutes = Math.max(0, (now - last) / 60000);
     if (isPlaced && minutes > 0) {
       const newHunger = Math.max(0, hunger - HUNGER_DECAY_PER_MIN * minutes);
-      const moodDrainMinutes = newHunger === 0 ? minutes : 0;
-      const newMood = Math.max(0, mood - MOOD_DECAY_PER_MIN * moodDrainMinutes);
+      // Starvation drain: applies only for the portion of the elapsed
+      // interval the pet was actually below the 50% hunger threshold. We
+      // figure out when (if ever) hunger crossed the threshold and only
+      // charge mood for the time spent below it.
+      const startHungerPct = hunger / maxHunger;
+      const endHungerPct = newHunger / maxHunger;
+      let starveMinutes = 0;
+      if (endHungerPct < HUNGRY_THRESHOLD_PCT) {
+        if (startHungerPct < HUNGRY_THRESHOLD_PCT) {
+          // Already hungry the whole interval.
+          starveMinutes = minutes;
+        } else if (HUNGER_DECAY_PER_MIN > 0) {
+          // Crossed below threshold during this interval — find when.
+          const hungerAtThreshold = HUNGRY_THRESHOLD_PCT * maxHunger;
+          const minutesToThreshold = (hunger - hungerAtThreshold) / HUNGER_DECAY_PER_MIN;
+          starveMinutes = Math.max(0, minutes - minutesToThreshold);
+        }
+      }
+      const starveDrain = MOOD_STARVE_DECAY_PER_MIN * starveMinutes;
+      // Neglect drain: time since the pet was last fed OR petted (or
+      // acquired). Adds a slow drain even for well-fed pets that aren't
+      // interacted with.
+      const careRefMs = Math.max(
+        inv.lastFedAt ? new Date(inv.lastFedAt).getTime() : 0,
+        inv.lastPettedAt ? new Date(inv.lastPettedAt).getTime() : 0,
+        inv.acquiredAt ? new Date(inv.acquiredAt).getTime() : 0,
+      );
+      const careGapMin = careRefMs ? Math.max(0, (now - careRefMs) / 60000) : 0;
+      const neglectActiveMin = Math.max(0, Math.min(minutes, careGapMin - NEGLECT_GRACE_MINUTES));
+      const neglectDrain = neglectActiveMin * MOOD_NEGLECT_DECAY_PER_MIN;
+      let newMood = Math.max(0, mood - starveDrain - neglectDrain);
+      // Cap mood while the pet is still smarting from a recent battle defeat.
+      if (inv.lastBattleDefeatAt) {
+        const sinceDefeatMin = (now - new Date(inv.lastBattleDefeatAt).getTime()) / 60000;
+        if (sinceDefeatMin < BATTLE_DEFEAT_RECENT_MINUTES) {
+          newMood = Math.min(newMood, BATTLE_DEFEAT_MOOD_CAP);
+        }
+      }
       hunger = Math.round(newHunger);
       mood = Math.round(newMood);
     } else if (!isPlaced && (inv.petHunger == null || inv.petHunger < 0)) {
@@ -1551,6 +1596,11 @@ export async function registerRoutes(
         petFeedPoints: inv.petFeedPoints ?? 0,
         petHunger: inv.petHunger ?? -1,
         petMood: inv.petMood ?? 100,
+        petLoyalty: inv.petLoyalty ?? 0,
+        lastFedAt: inv.lastFedAt ?? null,
+        lastPettedAt: inv.lastPettedAt ?? null,
+        lastBattleDefeatAt: inv.lastBattleDefeatAt ?? null,
+        giftPoints: shopItem?.giftPoints ?? null,
         petStatsUpdatedAt: inv.petStatsUpdatedAt ?? null,
         itemsUsedThisLevel: inv.itemsUsedThisLevel,
         atkBoost: shopItem?.atkBoost ?? null,
@@ -1948,6 +1998,29 @@ export async function registerRoutes(
       const state = await storage.getPetPettingState(user.id, inventoryId);
       if (!state) return res.status(404).json({ message: "Pet not found" });
 
+      // Petting nudges mood up only when the pet isn't too hungry (>= 50%
+      // of max hunger). The petting timestamp is always recorded so the
+      // neglect-decay clock resets even when the mood gain is gated out.
+      const pettedPet = await storage.getInventoryItemById(inventoryId);
+      if (pettedPet && pettedPet.userId === user.id) {
+        const maxH = Math.max(1, pettedPet.petHealth ?? 1000);
+        const curH = pettedPet.petHunger == null || pettedPet.petHunger < 0 ? maxH : pettedPet.petHunger;
+        const moodGain = (curH / maxH) >= 0.5 ? 3 : 0;
+        let newMood = Math.min(100, (pettedPet.petMood ?? 100) + moodGain);
+        // Recent battle defeats cap how high mood can rise.
+        if (pettedPet.lastBattleDefeatAt) {
+          const sinceDefeatMin = (Date.now() - new Date(pettedPet.lastBattleDefeatAt).getTime()) / 60000;
+          if (sinceDefeatMin < BATTLE_DEFEAT_RECENT_MINUTES) {
+            newMood = Math.min(newMood, BATTLE_DEFEAT_MOOD_CAP);
+          }
+        }
+        await storage.updateInventoryItem(inventoryId, {
+          petMood: newMood,
+          lastPettedAt: new Date(),
+          petStatsUpdatedAt: new Date(),
+        } as any);
+      }
+
       const now = new Date();
       const last = state.lastPettingRewardAt;
       const sameDay = !!last
@@ -2023,12 +2096,25 @@ export async function registerRoutes(
       const maxHunger = Math.max(1, petInv.petHealth ?? 1000);
       const currentHunger = petInv.petHunger == null || petInv.petHunger < 0 ? maxHunger : petInv.petHunger;
       const newHunger = Math.min(maxHunger, currentHunger + feedPoints);
-      const newMood = Math.min(100, (petInv.petMood ?? 100) + 15);
+      // Mood gain on feed is small overall, and even smaller when the pet was
+      // already too hungry to enjoy the meal. This keeps the mood bar harder
+      // to fill — feeding alone can't max it out.
+      const wasHungry = (currentHunger / maxHunger) < 0.5;
+      const moodGain = wasHungry ? 2 : 5;
+      let newMood = Math.min(100, (petInv.petMood ?? 100) + moodGain);
+      // Recent battle defeats cap how high mood can rise.
+      if (petInv.lastBattleDefeatAt) {
+        const sinceDefeatMin = (Date.now() - new Date(petInv.lastBattleDefeatAt).getTime()) / 60000;
+        if (sinceDefeatMin < BATTLE_DEFEAT_RECENT_MINUTES) {
+          newMood = Math.min(newMood, BATTLE_DEFEAT_MOOD_CAP);
+        }
+      }
       const updates: any = {
         petFeedPoints: (petInv.petFeedPoints || 0) + feedPoints,
         petHunger: newHunger,
         petMood: newMood,
         petStatsUpdatedAt: new Date(),
+        lastFedAt: new Date(),
       };
 
       const updatedPet = await storage.updateInventoryItem(petInv.id, updates);
@@ -2037,6 +2123,67 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Feed edible error:", err);
       return res.status(500).json({ message: "Failed to feed edible" });
+    }
+  });
+
+  // Give a "gift" item to a pet on the Pet Care page. Each gift adds the
+  // item's giftPoints to the pet's loyalty meter (cap 1000) and is removed
+  // from inventory. Loyalty is the only stat gifts affect.
+  app.post("/api/pet/:inventoryId/give-gift", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { itemInventoryId } = req.body;
+
+      const petInv = await storage.getInventoryItemById(req.params.inventoryId as string);
+      if (!petInv || petInv.userId !== user.id) {
+        return res.status(404).json({ message: "Pet not found" });
+      }
+      if (!petInv.isHatched) {
+        return res.status(400).json({ message: "Pet has not hatched yet" });
+      }
+
+      const itemInv = await storage.getInventoryItemById(itemInventoryId);
+      if (!itemInv || itemInv.userId !== user.id) {
+        return res.status(404).json({ message: "Gift not found in inventory" });
+      }
+
+      const itemShopItem = await storage.getShopItem(itemInv.shopItemId);
+      if (!itemShopItem || itemShopItem.type !== "gift") {
+        return res.status(400).json({ message: "Not a gift item" });
+      }
+
+      const points = Math.max(0, itemShopItem.giftPoints || 0);
+      const newLoyalty = Math.min(1000, (petInv.petLoyalty ?? 0) + points);
+      const updated = await storage.updateInventoryItem(petInv.id, {
+        petLoyalty: newLoyalty,
+      } as any);
+      await storage.removeFromInventory(itemInv.id);
+      return res.json({ pet: updated, loyaltyAdded: points, petLoyalty: newLoyalty });
+    } catch (err) {
+      console.error("Give gift error:", err);
+      return res.status(500).json({ message: "Failed to give gift" });
+    }
+  });
+
+  // Called by the client when the player's pet is knocked out in a world
+  // battle. Drops mood and stamps lastBattleDefeatAt so the mood-cap kicks in.
+  app.post("/api/pet/:inventoryId/world-defeat", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const petInv = await storage.getInventoryItemById(req.params.inventoryId as string);
+      if (!petInv || petInv.userId !== user.id) {
+        return res.status(404).json({ message: "Pet not found" });
+      }
+      const newMood = Math.max(0, (petInv.petMood ?? 100) - 10);
+      const updated = await storage.updateInventoryItem(petInv.id, {
+        petMood: newMood,
+        lastBattleDefeatAt: new Date(),
+        petStatsUpdatedAt: new Date(),
+      } as any);
+      return res.json(updated);
+    } catch (err) {
+      console.error("World defeat mood penalty error:", err);
+      return res.status(500).json({ message: "Failed to record world defeat" });
     }
   });
 
@@ -5110,6 +5257,29 @@ export async function registerRoutes(
       const battlePointsDelta = result === "win" ? WIN_BP : LOSS_BP;
 
       if (coinsEarned > 0) await storage.addCoins(user.id, coinsEarned);
+
+      // PvP loss → bruise the active pet's mood (drops mood by 12, caps it
+      // at BATTLE_DEFEAT_MOOD_CAP for the next BATTLE_DEFEAT_RECENT_MINUTES
+      // via applyPetTimeDecay).
+      if (result === "loss") {
+        try {
+          const fullUser = await storage.getUser(user.id);
+          const activeId = fullUser?.activePetId;
+          if (activeId) {
+            const activePet = await storage.getInventoryItemById(activeId);
+            if (activePet && activePet.userId === user.id) {
+              const newMood = Math.max(0, (activePet.petMood ?? 100) - 12);
+              await storage.updateInventoryItem(activeId, {
+                petMood: newMood,
+                lastBattleDefeatAt: new Date(),
+                petStatsUpdatedAt: new Date(),
+              } as any);
+            }
+          }
+        } catch (e) {
+          console.warn("PvP loss mood penalty failed:", e);
+        }
+      }
 
       const battle = await storage.createPvpBattle({
         userId: user.id,

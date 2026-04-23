@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useLocation } from "wouter";
 import { X, HelpCircle, Zap, Star, RotateCcw, ShieldPlus } from "lucide-react";
 import WorldChatPanel from "@/components/WorldChatPanel";
@@ -166,6 +166,107 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
 
+  // ── Active-pet petting gesture (mirrors the Pet Care page) ───────────────
+  // Tap = open the action menu (legacy behaviour). A circular swipe over the
+  // pet calls the petting-reward endpoint and shows hearts. We only switch a
+  // tap into a pet-gesture once the pointer has accumulated meaningful
+  // angular travel, so taps still open the menu reliably.
+  const activePetIdRef = useRef<string | null>(null);
+  const petGestureStateRef = useRef<{
+    pid: number;
+    startX: number;
+    startY: number;
+    cx: number;
+    cy: number;
+    lastAngle: number | null;
+    travel: number;
+    pettedThisPress: boolean;
+    moved: boolean;
+  } | null>(null);
+  const [petHearts, setPetHearts] = useState<{ id: number; cx: number; cy: number; dx: number; size: number; delay: number }[]>([]);
+  const petHeartIdRef = useRef(0);
+  const burstPetHearts = useCallback((cx: number, cy: number, count = 6) => {
+    const newOnes = Array.from({ length: count }, () => ({
+      id: ++petHeartIdRef.current,
+      cx, cy,
+      dx: (Math.random() - 0.5) * 140,
+      size: 18 + Math.random() * 22,
+      delay: Math.random() * 0.4,
+    }));
+    setPetHearts((h) => [...h, ...newOnes]);
+    const ids = new Set(newOnes.map((n) => n.id));
+    setTimeout(() => setPetHearts((h) => h.filter((x) => !ids.has(x.id))), 2400);
+  }, []);
+  const homePettingRewardMutation = useMutation({
+    mutationFn: async (inventoryId: string) => {
+      const res = await apiRequest("POST", `/api/pets/${inventoryId}/petting-reward`, {});
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    },
+  });
+  const activePetTouchHandlers = useMemo(() => ({
+    onPointerDown: (e: React.PointerEvent<HTMLDivElement>) => {
+      const target = e.currentTarget as HTMLDivElement;
+      target.setPointerCapture?.(e.pointerId);
+      const box = target.getBoundingClientRect();
+      petGestureStateRef.current = {
+        pid: e.pointerId,
+        startX: e.clientX,
+        startY: e.clientY,
+        cx: box.left + box.width / 2,
+        cy: box.top + box.height / 2,
+        lastAngle: null,
+        travel: 0,
+        pettedThisPress: false,
+        moved: false,
+      };
+    },
+    onPointerMove: (e: React.PointerEvent<HTMLDivElement>) => {
+      const g = petGestureStateRef.current;
+      if (!g || g.pid !== e.pointerId) return;
+      const dx = e.clientX - g.cx;
+      const dy = e.clientY - g.cy;
+      if (Math.hypot(e.clientX - g.startX, e.clientY - g.startY) > 6) g.moved = true;
+      const dist = Math.hypot(dx, dy);
+      if (dist < 18) return;
+      const angle = Math.atan2(dy, dx);
+      if (g.lastAngle != null) {
+        let d = angle - g.lastAngle;
+        while (d > Math.PI) d -= 2 * Math.PI;
+        while (d < -Math.PI) d += 2 * Math.PI;
+        g.travel += Math.abs(d);
+        if (g.travel > Math.PI * 0.66 && !g.pettedThisPress) {
+          g.pettedThisPress = true;
+          burstPetHearts(g.cx, g.cy + 30, 8);
+          const id = activePetIdRef.current;
+          if (id) homePettingRewardMutation.mutate(id);
+        }
+        if (g.travel > Math.PI * 0.66) {
+          // Each additional ~quarter rotation drops a few more hearts so the
+          // gesture keeps feeling alive as the player keeps circling.
+          if (Math.floor(g.travel / (Math.PI * 0.5)) > Math.floor((g.travel - Math.abs(d)) / (Math.PI * 0.5))) {
+            burstPetHearts(g.cx, g.cy + 20, 4);
+          }
+        }
+      }
+      g.lastAngle = angle;
+    },
+    onPointerUp: (e: React.PointerEvent<HTMLDivElement>) => {
+      const g = petGestureStateRef.current;
+      if (!g || g.pid !== e.pointerId) { petGestureStateRef.current = null; return; }
+      const wasPet = g.pettedThisPress;
+      const movedFar = g.moved;
+      petGestureStateRef.current = null;
+      // Treat as a tap (open the action menu) only when the gesture didn't
+      // turn into a circular pet AND the finger barely moved.
+      if (!wasPet && !movedFar) setShowActionMenu(true);
+    },
+    onPointerCancel: () => { petGestureStateRef.current = null; },
+  }), [activePet, homePettingRewardMutation, burstPetHearts]);
+
   const hatchHomeMutation = useMutation({
     mutationFn: async (inventoryId: string) => {
       const res = await apiRequest("POST", `/api/pet/${inventoryId}/hatch-check`);
@@ -211,6 +312,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   // Freeze the last valid activePet so power-up modals stay mounted during
   // inventory refetches (avoids modal closing mid power-up).
   if (activePet) frozenActivePetRef.current = activePet;
+  activePetIdRef.current = activePet?.inventoryId ?? null;
 
   // Dismiss only when both: the 3.5s animation timer is done AND the
   // inventory confirms isHatched=true — so the egg never flickers back.
@@ -612,10 +714,30 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                       zIndex: 1,
                     }}
                   >
+                    {petHearts.map((h) => (
+                      <div
+                        key={h.id}
+                        className="fixed pointer-events-none feed-heart-rise"
+                        style={{
+                          left: h.cx,
+                          top: h.cy,
+                          width: h.size,
+                          height: h.size,
+                          ["--dx" as any]: `${h.dx}px`,
+                          animationDelay: `${h.delay}s`,
+                          zIndex: 514,
+                          color: "#ff5d6c",
+                        }}
+                      >
+                        <svg viewBox="0 0 24 24" fill="currentColor" width={h.size} height={h.size}>
+                          <path d="M12 21s-7-4.35-9.5-9.05C.5 7.45 4 4 7.5 4c2.04 0 3.7 1.1 4.5 2.55C12.8 5.1 14.46 4 16.5 4 20 4 23.5 7.45 21.5 11.95 19 16.65 12 21 12 21z" />
+                        </svg>
+                      </div>
+                    ))}
                     {activePet.isHatched ? (
                       <div
-                        onClick={() => setShowActionMenu(true)}
-                        style={{ cursor: "pointer" }}
+                        {...activePetTouchHandlers}
+                        style={{ cursor: "pointer", touchAction: "none" }}
                         className="w-full flex items-center justify-center"
                         data-testid="button-open-pet-actions"
                       >

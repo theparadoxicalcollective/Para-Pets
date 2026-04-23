@@ -87,6 +87,9 @@ export const shopItems = pgTable("shop_items", {
   skillHealPercent: integer("skill_heal_percent"),
   skillType: text("skill_type"),
   skillAffects: text("skill_affects"),
+  // For type === "gift": how many loyalty points this gift awards when given
+  // to a pet on the Pet Care page (cap 1000 per pet).
+  giftPoints: integer("gift_points"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
@@ -126,6 +129,15 @@ export const userInventory = pgTable("user_inventory", {
   // visiting Pet Care for each of their pets gets coins from each one.
   lastPettingRewardAt: timestamp("last_petting_reward_at"),
   pettingRewardsToday: integer("petting_rewards_today").notNull().default(0),
+  // Loyalty meter 0-1000. Only increases when a "gift" item is given to the
+  // pet on the Pet Care page (each gift adds shopItem.giftPoints).
+  petLoyalty: integer("pet_loyalty").notNull().default(0),
+  // Care timestamps used by the mood-decay algorithm to penalise neglect.
+  lastFedAt: timestamp("last_fed_at"),
+  lastPettedAt: timestamp("last_petted_at"),
+  // Set whenever this pet (as the active pet) is defeated in a world battle
+  // or its player loses a PvP battle. While this is recent, mood is capped.
+  lastBattleDefeatAt: timestamp("last_battle_defeat_at"),
 });
 
 export const rewardBundles = pgTable("reward_bundles", {

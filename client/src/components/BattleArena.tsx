@@ -547,6 +547,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const enemyStatsRef = useRef({ atk: 20, def: 10 });
   const enemyHpRef = useRef(0);
   const petHpRef = useRef(0);
+  const worldDefeatSentRef = useRef(false);
   const enemyMaxHpRef = useRef(0);
   const difficultyRef = useRef(0.5);
 
@@ -569,6 +570,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         setPetHp(data.pet.hp);
         setPetMaxHp(data.pet.hp);
         petHpRef.current = data.pet.hp;
+        worldDefeatSentRef.current = false;
         petStatsRef.current = { atk: data.pet.atk, def: data.pet.def, maxHp: data.pet.hp };
 
         // Initialize extra pets (slots 1 and 2 from equippedPets)
@@ -817,8 +819,18 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         setTimeout(() => setParryResult(null), 600);
       }
       if (targetIdx === 0) {
+        const wasAlive = petHpRef.current > 0;
         petHpRef.current = Math.max(0, petHpRef.current - finalDmg);
         setPetHp(petHpRef.current);
+        // First time the active pet drops to 0 in this encounter, record a
+        // world-defeat on the server so its mood takes a hit.
+        if (wasAlive && petHpRef.current === 0 && !worldDefeatSentRef.current) {
+          worldDefeatSentRef.current = true;
+          const id = pet?.inventoryId;
+          if (id) {
+            apiRequest("POST", `/api/pet/${id}/world-defeat`, {}).catch(() => {});
+          }
+        }
       } else {
         const newHps = [...extraPetHpsRef.current] as [number, number];
         newHps[targetIdx - 1] = Math.max(0, newHps[targetIdx - 1] - finalDmg);

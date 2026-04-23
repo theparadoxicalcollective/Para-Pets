@@ -38,6 +38,7 @@ export interface ShopItemFull {
   rarityBoostPercent: number | null;
   baitRarityBoostStar: number | null;
   poleMaxUses: number | null;
+  giftPoints?: number | null;
   createdAt: string;
 }
 
@@ -52,7 +53,7 @@ export const WORLD_OPTIONS = [
   { id: "haunted_woods", name: "Haunted Woods" },
 ];
 
-const NON_PET_TYPES = ["power_up", "accessory", "potion", "special", "decor", "edibles", "fishing"];
+const NON_PET_TYPES = ["power_up", "accessory", "potion", "special", "decor", "edibles", "fishing", "gift"];
 
 function formatTypeName(type: string): string {
   if (type === "power_up") return "Power Up";
@@ -64,6 +65,7 @@ export const ITEM_CATEGORIES = [
   { key: "potions",     label: "Potions",     color: "#a78bfa" },
   { key: "specials",    label: "Specials",    color: "#34d399" },
   { key: "edibles",     label: "Edibles",     color: "#f87171" },
+  { key: "gifts",       label: "Gifts",       color: "#ec4899" },
   { key: "poles",       label: "Poles",       color: "#60a5fa" },
   { key: "fish",        label: "Fish",        color: "#22d3ee" },
   { key: "bait",        label: "Bait",        color: "#86efac" },
@@ -99,6 +101,10 @@ export function getItemEffectText(item: ShopItemFull): string | null {
   if (item.type === "edibles") {
     return item.statBoostAmount ? `+${item.statBoostAmount} Feed pts` : null;
   }
+  if (item.type === "gift") {
+    const gp = (item as any).giftPoints;
+    return gp ? `+${gp} Loyalty pts` : "Gift";
+  }
   if (item.type === "fishing") {
     if (item.fishingType === "fish") {
       const rarities = ["Common","Uncommon","Rare","Epic","Legendary"];
@@ -124,6 +130,7 @@ export function getItemCategory(item: ShopItemFull): ItemCategoryKey {
   if (item.type === "potion") return "potions";
   if (item.type === "special") return "specials";
   if (item.type === "edibles") return "edibles";
+  if (item.type === "gift") return "gifts";
   if (item.type === "fishing") {
     if (item.fishingType === "pole") return "poles";
     if (item.fishingType === "bait") return "bait";
@@ -509,6 +516,7 @@ function AdminItemForm({
   const [price, setPrice] = useState(item?.price?.toString() || "");
   const [type, setType] = useState(defaultType);
   const [edibleLvlPoints, setEdibleLvlPoints] = useState(item?.statBoostAmount?.toString() || "5");
+  const [giftPoints, setGiftPoints] = useState((item as any)?.giftPoints?.toString() || "100");
   const [fishingType, setFishingType] = useState(item?.fishingType || "fish");
   const [starRarity, setStarRarity] = useState(item?.starRarity?.toString() || "1");
   const [baitCatchBoost, setBaitCatchBoost] = useState(item?.baitCatchBoost?.toString() || "");
@@ -642,6 +650,12 @@ function AdminItemForm({
         } else {
           payload.statBoostType = null;
           payload.statBoostAmount = null;
+        }
+
+        if (effectiveType === "gift") {
+          payload.giftPoints = Math.max(0, parseInt(giftPoints) || 0);
+        } else {
+          payload.giftPoints = null;
         }
 
         if (effectiveType === "potion") {
@@ -1070,6 +1084,27 @@ function AdminItemForm({
                 <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">Feed points added to a pet when this edible is fed to them</p>
               </div>
               <p className="font-fantasy text-[#86efac] text-[8px] tracking-wider text-center">Edibles can be fed to pets from the Pet House page</p>
+            </>
+          )}
+
+          {!petOnly && effectiveType === "gift" && (
+            <>
+              <div>
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">+Loyalty Points when gifted</label>
+                <input
+                  data-testid="input-gift-points"
+                  type="number"
+                  value={giftPoints}
+                  onChange={(e) => setGiftPoints(e.target.value)}
+                  placeholder="100"
+                  min="1"
+                  max="1000"
+                  className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+                  style={inputStyle}
+                />
+                <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">Loyalty points added to a pet's bar when this gift is given (cap 1000)</p>
+              </div>
+              <p className="font-fantasy text-[#ec4899] text-[8px] tracking-wider text-center">Gifts can only be given on the Pet Care page — they're consumed on use</p>
             </>
           )}
 
