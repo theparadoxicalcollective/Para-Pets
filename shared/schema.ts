@@ -117,6 +117,11 @@ export const userInventory = pgTable("user_inventory", {
   isListed: boolean("is_listed").notNull().default(false),
   poleUsesLeft: integer("pole_uses_left"),
   quantity: integer("quantity").notNull().default(1),
+  // Per-pet petting reward tracking. Each pet has its own daily allotment
+  // (1 guaranteed +10 coin reward + up to 4 random extras), so a player
+  // visiting Pet Care for each of their pets gets coins from each one.
+  lastPettingRewardAt: timestamp("last_petting_reward_at"),
+  pettingRewardsToday: integer("petting_rewards_today").notNull().default(0),
 });
 
 export const rewardBundles = pgTable("reward_bundles", {

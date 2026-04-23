@@ -354,6 +354,16 @@ app.use((req, res, next) => {
     () => db.execute(sql`ALTER TABLE user_inventory ADD COLUMN IF NOT EXISTS pet_mood INTEGER NOT NULL DEFAULT 100`));
   await runMigration("user_inventory.pet_stats_updated_at",
     () => db.execute(sql`ALTER TABLE user_inventory ADD COLUMN IF NOT EXISTS pet_stats_updated_at TIMESTAMP NOT NULL DEFAULT NOW()`));
+  // Per-pet petting reward counters — replaces the old per-user counters so
+  // every pet has its own daily allotment of petting coins.
+  await runMigration("user_inventory.last_petting_reward_at",
+    () => db.execute(sql`ALTER TABLE user_inventory ADD COLUMN IF NOT EXISTS last_petting_reward_at TIMESTAMP`));
+  await runMigration("user_inventory.petting_rewards_today",
+    () => db.execute(sql`ALTER TABLE user_inventory ADD COLUMN IF NOT EXISTS petting_rewards_today INTEGER NOT NULL DEFAULT 0`));
+  // One-time reset so the next test from any user immediately demonstrates the
+  // new per-pet first-pet-of-the-day +10 coin reward.
+  await runOnce("reset_pet_petting_counters_2026_04_per_pet",
+    () => db.execute(sql`UPDATE user_inventory SET last_petting_reward_at = NULL, petting_rewards_today = 0`));
 
   // ── Performance indexes ────────────────────────────────────────────────────
   // Hot foreign-key + sort columns that were previously sequential-scanned.

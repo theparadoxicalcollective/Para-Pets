@@ -90,6 +90,11 @@ export interface IStorage {
   setLastWatcherGreetedAt(id: string, when: Date): Promise<void>;
   setLastPettingRewardAt(id: string, when: Date): Promise<void>;
   setPettingRewardsToday(id: string, count: number): Promise<void>;
+  // Per-pet petting reward state. Looks up by inventoryId and verifies the
+  // pet belongs to userId (returns null if not). Update sets both timestamp
+  // and daily counter atomically.
+  getPetPettingState(userId: string, inventoryId: string): Promise<{ lastPettingRewardAt: Date | null; pettingRewardsToday: number } | null>;
+  setPetPettingState(userId: string, inventoryId: string, when: Date, count: number): Promise<void>;
   updatePassword(id: string, hashedPassword: string): Promise<User>;
   deleteAccount(id: string): Promise<void>;
   setPasswordResetToken(id: string, token: string, expires: Date): Promise<void>;
@@ -430,6 +435,25 @@ export class DatabaseStorage implements IStorage {
 
   async setPettingRewardsToday(id: string, count: number): Promise<void> {
     await db.update(users).set({ pettingRewardsToday: count }).where(eq(users.id, id));
+  }
+
+  async getPetPettingState(userId: string, inventoryId: string): Promise<{ lastPettingRewardAt: Date | null; pettingRewardsToday: number } | null> {
+    const [row] = await db
+      .select({ lastPettingRewardAt: userInventory.lastPettingRewardAt, pettingRewardsToday: userInventory.pettingRewardsToday })
+      .from(userInventory)
+      .where(and(eq(userInventory.id, inventoryId), eq(userInventory.userId, userId)));
+    if (!row) return null;
+    return {
+      lastPettingRewardAt: row.lastPettingRewardAt,
+      pettingRewardsToday: row.pettingRewardsToday ?? 0,
+    };
+  }
+
+  async setPetPettingState(userId: string, inventoryId: string, when: Date, count: number): Promise<void> {
+    await db
+      .update(userInventory)
+      .set({ lastPettingRewardAt: when, pettingRewardsToday: count })
+      .where(and(eq(userInventory.id, inventoryId), eq(userInventory.userId, userId)));
   }
 
   async updatePassword(id: string, hashedPassword: string): Promise<User> {

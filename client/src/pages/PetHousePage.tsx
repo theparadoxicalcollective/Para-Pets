@@ -2253,8 +2253,11 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
   // petting each day always grants 10 coins, with up to 4 random extras (3-5
   // coins) thereafter. The hearts/sparkles animation always fires regardless.
   const pettingRewardMutation = useMutation({
-    mutationFn: async () => {
-      return await apiRequest("POST", `/api/pets/petting-reward`, {});
+    // Per-pet endpoint — the daily reward allotment lives on the pet's
+    // inventory row, so each of the player's pets has its own first-petting
+    // +10 coins and its own pool of extra rewards.
+    mutationFn: async (inventoryId: string) => {
+      return await apiRequest("POST", `/api/pets/${inventoryId}/petting-reward`, {});
     },
     onSuccess: (data: any) => {
       if (data?.rewarded && data?.amount > 0) {
@@ -2427,7 +2430,8 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
         triggerCircleEffects();
         if (!g.rewardTriedThisPress) {
           g.rewardTriedThisPress = true;
-          pettingRewardMutation.mutate();
+          // Each pet has its own daily allotment, so include the inventoryId.
+          if (pet?.inventoryId) pettingRewardMutation.mutate(pet.inventoryId);
         }
         // Allow continued circling to keep effect going by resetting travel.
         g.travel = 0;

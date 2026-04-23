@@ -1935,53 +1935,56 @@ export async function registerRoutes(
     }
   });
 
-  // Pet-petting rewards. The first petting of each UTC day always grants 10
-  // coins. Up to 4 additional rewards (3-5 coins each, randomized) may follow
-  // the same day, each with a chance to fire on every subsequent successful
-  // petting circle. The animation itself plays every time client-side; this
-  // endpoint just decides whether coins should appear with it.
-  app.post("/api/pets/petting-reward", isAuthenticated, async (req, res) => {
+  // Per-pet petting reward. Counters live on the inventory row so each of the
+  // player's pets has its own daily allotment: the first successful petting
+  // circle on each pet (per UTC day) always grants 10 coins; up to 4 extra
+  // rewards (3-5 coins each, ~30% chance) may follow on that same pet.
+  app.post("/api/pets/:inventoryId/petting-reward", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const fresh = await storage.getUser(user.id);
-      if (!fresh) return res.status(404).json({ message: "User not found" });
+      const inventoryId = String(req.params.inventoryId || "");
+      if (!inventoryId) return res.status(400).json({ message: "inventoryId required" });
+
+      const state = await storage.getPetPettingState(user.id, inventoryId);
+      if (!state) return res.status(404).json({ message: "Pet not found" });
 
       const now = new Date();
-      const last = fresh.lastPettingRewardAt ? new Date(fresh.lastPettingRewardAt) : null;
+      const last = state.lastPettingRewardAt;
       const sameDay = !!last
         && last.getUTCFullYear() === now.getUTCFullYear()
         && last.getUTCMonth() === now.getUTCMonth()
         && last.getUTCDate() === now.getUTCDate();
 
-      // Reset the daily counter when the UTC day rolls over (or on the very
-      // first petting ever).
-      const countSoFar = sameDay ? (fresh.pettingRewardsToday ?? 0) : 0;
+      // Roll over to a fresh day's allotment whenever the UTC day changes.
+      const countSoFar = sameDay ? (state.pettingRewardsToday ?? 0) : 0;
 
       const MAX_REWARDS_PER_DAY = 5;        // 1 guaranteed + 4 randomized
       const EXTRA_REWARD_CHANCE = 0.30;     // ~30% per attempt after the first
 
-      // First petting today → guaranteed 10 coins.
+      // First petting of the day for this pet → guaranteed 10 coins.
       if (countSoFar === 0) {
         const updated = await storage.addCoins(user.id, 10);
-        await storage.setLastPettingRewardAt(user.id, now);
-        await storage.setPettingRewardsToday(user.id, 1);
+        await storage.setPetPettingState(user.id, inventoryId, now, 1);
         return res.json({ rewarded: true, coins: updated.coins, amount: 10 });
       }
 
-      // Already used the day's allotment → just animation, no coins.
+      // Pet has already given its daily max → animation only.
       if (countSoFar >= MAX_REWARDS_PER_DAY) {
-        return res.json({ rewarded: false, coins: fresh.coins });
+        const u = await storage.getUser(user.id);
+        return res.json({ rewarded: false, coins: u?.coins ?? 0 });
       }
 
-      // Random chance for each extra reward.
+      // Random chance for each extra reward beyond the first.
       if (Math.random() > EXTRA_REWARD_CHANCE) {
-        return res.json({ rewarded: false, coins: fresh.coins });
+        // Persist that we made an attempt? Intentionally no — keep extra
+        // attempts cheap so a determined player can still hit the cap of 5.
+        const u = await storage.getUser(user.id);
+        return res.json({ rewarded: false, coins: u?.coins ?? 0 });
       }
 
       const amount = 3 + Math.floor(Math.random() * 3); // 3, 4, or 5
       const updated = await storage.addCoins(user.id, amount);
-      await storage.setLastPettingRewardAt(user.id, now);
-      await storage.setPettingRewardsToday(user.id, countSoFar + 1);
+      await storage.setPetPettingState(user.id, inventoryId, now, countSoFar + 1);
       return res.json({ rewarded: true, coins: updated.coins, amount });
     } catch (err) {
       console.error("Petting reward error:", err);
