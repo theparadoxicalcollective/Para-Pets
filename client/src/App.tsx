@@ -149,7 +149,7 @@ function PvpArenaWrapper() {
 }
 
 // Paths where FloatingNav should NOT appear
-const NAV_HIDDEN_PATHS = ["/auth", "/hub", "/privacy", "/admin", "/equip-accessories"];
+const NAV_HIDDEN_PATHS = ["/auth", "/hub", "/privacy", "/admin", "/equip-accessories", "/pvp"];
 function shouldHideNav(path: string) {
   if (NAV_HIDDEN_PATHS.includes(path)) return true;
   if (path.startsWith("/reset-password/")) return true;

@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -1010,8 +1011,35 @@ export default function PvpBattlePage({
     };
   }, [draggingPotion, getArenaPos, consumePotion, cancelPotionDrag]);
 
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col" style={{ fontFamily: "Lora, serif" }}>
+  // ── PORTAL ESCAPE ─────────────────────────────────────────────────────────
+  // The battle UI is portaled to <body> so it ESCAPES the App's phone-frame
+  // wrapper, which has `transform: translateZ(0) scale(frameScale)` applied.
+  // That transform creates a containing block for `position:fixed` children,
+  // which means without the portal our `fixed inset-0` would actually be
+  // clipped to the 390×844 phone frame on tablet/desktop AND every animation
+  // would be re-rasterized through the scale transform every frame (causing
+  // the glitchy/blurry sprite movement the user reported). Portaling moves
+  // the battle into <body>, where `fixed inset-0` truly fills the viewport
+  // at native resolution with no scale and no clip — the arena gets its own
+  // unconstrained page.
+  //
+  // Body scroll-lock is also applied so iOS Safari can't scroll the underlying
+  // page during a battle.
+  useEffect(() => {
+    const prev = {
+      overflow: document.body.style.overflow,
+      overscroll: document.body.style.overscrollBehavior,
+    };
+    document.body.style.overflow = "hidden";
+    document.body.style.overscrollBehavior = "none";
+    return () => {
+      document.body.style.overflow = prev.overflow;
+      document.body.style.overscrollBehavior = prev.overscroll;
+    };
+  }, []);
+
+  return createPortal(
+    <div className="fixed inset-0 flex flex-col" style={{ zIndex: 10000, fontFamily: "Lora, serif" }}>
       <style>{`
         @keyframes koSpin { 0%{transform:translate(-50%,-50%) scale(1) rotate(0deg);opacity:1} 100%{transform:translate(-50%,-50%) scale(0.3) rotate(720deg);opacity:0} }
         @keyframes bSpark { to { transform: translate(calc(var(--dx)*14px), calc(var(--dy)*14px)); opacity:0; } }
@@ -1528,6 +1556,7 @@ export default function PvpBattlePage({
           )}
         </div>
       )}
-    </div>
+    </div>,
+    document.body
   );
 }
