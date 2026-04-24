@@ -660,7 +660,18 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         )}
 
         <div className="flex-1 flex flex-col items-center justify-center px-0 py-0 min-h-0">
-          <div ref={petContainerRef} className="relative flex items-center justify-center w-full max-w-[520px] md:max-w-[680px] lg:max-w-[800px]">
+          <div
+            ref={petContainerRef}
+            className="relative flex items-center justify-center w-full max-w-[520px] md:max-w-[680px] lg:max-w-[800px]"
+            style={{
+              // Lift the active-pet block up out of vertical-center so it
+              // sits in the upper-middle of the home screen, leaving room
+              // below for the action ring / menu when it opens. Empty
+              // state stays centered (no activePet → no transform).
+              transform: activePet ? "translateY(-12%)" : undefined,
+              willChange: activePet ? "transform" : undefined,
+            }}
+          >
 
             {/* Rarity sparkle lights (3/4/5 star) — gated until container has real height */}
             {orbsReady && activePet && (activePet.rarity || 0) >= 3 && (() => {

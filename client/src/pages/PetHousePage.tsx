@@ -2071,7 +2071,7 @@ function PetStatusBars({
     <div
       className="absolute left-1/2"
       style={{
-        top: "calc(27% + 130px)",
+        top: "calc(32% + 130px)",
         // Nudge right so the vertical Loyalty bar on the left edge has room.
         transform: "translateX(calc(-50% + 22px))",
         display: "flex",
@@ -2721,11 +2721,11 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
         className="absolute"
         style={{
           left: "50%",
-          // Pulled the pet centerpiece up from 42% → 32% → 27% so the active
-          // pet sits high in the frame, leaving the lower half free for the
-          // status bars and inventory grid. The status-bar block follows
-          // along (it anchors at calc(27% + 130px)).
-          top: "27%",
+          // Pulled the pet centerpiece up from 42% → 32% so the active pet
+          // sits in the upper-middle of the frame instead of crowding the
+          // status bars below. The status-bar block follows along (it
+          // anchors at calc(32% + 130px)).
+          top: "32%",
           transform: "translate(-50%, -50%)",
           width: 300,
           height: 300,
