@@ -1834,6 +1834,51 @@ export class DatabaseStorage implements IStorage {
     return row.id;
   }
 
+  /** Atomically spend one PvP ticket AND issue a battle token in a single
+   *  transaction. If token creation fails for any reason (e.g. missing
+   *  table, db hiccup), the ticket spend is rolled back so the player
+   *  never loses a ticket on a battle that didn't start.
+   *
+   *  Returns:
+   *    { ok: false, reason: "no_ticket" } — player had no tickets
+   *    { ok: true, token, ticketsRemaining } — ticket spent, token issued
+   *
+   *  Throws on unexpected DB errors after rolling back the ticket spend,
+   *  letting the caller surface a 500 without leaving the player short. */
+  async startPvpBattleAtomic(
+    userId: string,
+  ): Promise<{ ok: false; reason: "no_ticket" } | { ok: true; token: string; ticketsRemaining: number }> {
+    return db.transaction(async (tx) => {
+      const rows = await tx.select({ id: userInventory.id, quantity: userInventory.quantity })
+        .from(userInventory)
+        .leftJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
+        .where(and(eq(userInventory.userId, userId), eq(shopItems.specialType, "pvp_ticket")))
+        .orderBy(userInventory.quantity);
+      const target = rows.find(r => (r.quantity ?? 1) > 0);
+      if (!target) return { ok: false, reason: "no_ticket" } as const;
+      const updated = await tx.update(userInventory)
+        .set({ quantity: sql`${userInventory.quantity} - 1` })
+        .where(and(eq(userInventory.id, target.id), sql`${userInventory.quantity} > 0`))
+        .returning({ id: userInventory.id, quantity: userInventory.quantity });
+      if (updated.length === 0) return { ok: false, reason: "no_ticket" } as const;
+      if ((updated[0].quantity ?? 0) <= 0) {
+        await tx.delete(userInventory).where(eq(userInventory.id, target.id));
+      }
+      // Issue the token in the SAME transaction. If this throws, the
+      // decrement above is rolled back automatically — the player keeps
+      // their ticket.
+      const [tokRow] = await tx.insert(pvpBattleTokens).values({ userId }).returning({ id: pvpBattleTokens.id });
+      // Compute remaining inside the transaction so the response reflects
+      // the post-spend reality.
+      const remainingRows = await tx.select({ quantity: userInventory.quantity })
+        .from(userInventory)
+        .leftJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
+        .where(and(eq(userInventory.userId, userId), eq(shopItems.specialType, "pvp_ticket")));
+      const ticketsRemaining = remainingRows.reduce((sum, r) => sum + (r.quantity ?? 1), 0);
+      return { ok: true as const, token: tokRow.id, ticketsRemaining };
+    });
+  }
+
   /** Atomically consume a battle token. Returns true only if the token
    *  existed AND belonged to this user — preventing both replay and
    *  cross-user token theft. Uses RETURNING so the delete is single-shot. */

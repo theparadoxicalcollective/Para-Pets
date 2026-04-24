@@ -5384,13 +5384,16 @@ export async function registerRoutes(
   app.post("/api/pvp/start", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const user = req.user as any;
-      const ok = await storage.consumePvpTicket(user.id);
-      if (!ok) {
+      // Atomic spend-ticket + issue-token. If anything inside the
+      // transaction fails (e.g. battle-token table missing on a fresh
+      // deploy), the whole thing rolls back so the player keeps their
+      // ticket. This is the bug we hit when the player saw "couldn't
+      // start the match" but the ticket was still consumed.
+      const result = await storage.startPvpBattleAtomic(user.id);
+      if (!result.ok) {
         return res.status(402).json({ message: "No PvP tickets", ticketsRemaining: 0 });
       }
-      const battleToken = await storage.createPvpBattleToken(user.id);
-      const remaining = await storage.getPvpTicketCount(user.id);
-      return res.json({ ticketsRemaining: remaining, battleToken });
+      return res.json({ ticketsRemaining: result.ticketsRemaining, battleToken: result.token });
     } catch (err) {
       console.error("PvP start error:", err);
       return res.status(500).json({ message: "Failed to start battle" });
