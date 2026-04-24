@@ -7,6 +7,7 @@ import bcrypt from "bcryptjs";
 import connectPgSimple from "connect-pg-simple";
 import { registerRoutes, backfillAdvancedAcquisitionBadge, backfillCoinPurchaseEarnings, syncTotalCoinsEarnedFloor } from "./routes";
 import { seedPvpBots } from "./seedPvpBots";
+import { seedSampleTemplates } from "./seedSampleTemplates";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { storage } from "./storage";
@@ -1724,6 +1725,14 @@ app.use((req, res, next) => {
   await backfillCoinPurchaseEarnings();
   // Ensure totalCoinsEarned >= current balance for all users (seeds legacy in-game earners)
   await syncTotalCoinsEarnedFloor();
+  // Seed sample pet templates + a demo admin so /world, the home page,
+  // Pet Care, PvP, and the Test Animator all render real pets on a fresh
+  // database (no manual admin setup required). Runs BEFORE the bot seeder
+  // because the PvP bot seeder needs at least one pet shop item to attach
+  // bot inventory rows to. Idempotent on reboot.
+  try { await seedSampleTemplates(); }
+  catch (err) { console.error("seedSampleTemplates error (non-fatal):", err); }
+
   // Seed persistent PvP bot opponents so players can battle even when no
   // human has set a battle group yet. Idempotent — bails fast on reboot.
   try { await seedPvpBots(); }
