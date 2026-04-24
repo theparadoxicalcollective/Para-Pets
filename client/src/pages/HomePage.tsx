@@ -853,17 +853,15 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                         style={{
                           cursor: "pointer",
                           touchAction: "none",
-                          // Position + scale: pull the pet UP ~5vh from the
-                          // baseline so it sits closer to eye level, and
-                          // bump it up 12% larger so it feels like the star
-                          // of the screen. Press/circle gestures stack onto
-                          // the same translate so the squish stays anchored
-                          // to the new position.
+                          // Bump the pet 12% larger but keep it at its
+                          // current vertical position on the screen — the
+                          // user wants size only, no shift up. Press/circle
+                          // gestures stack onto the same baseline scale.
                           transform: petCircling
-                            ? "translateY(-5vh) scale(1.155, 1.092)"
+                            ? "translateY(0px) scale(1.155, 1.092)"
                             : petPressed
-                              ? "translateY(-5vh) scale(1.108, 1.132)"
-                              : "translateY(-5vh) scale(1.12)",
+                              ? "translateY(0px) scale(1.108, 1.132)"
+                              : "translateY(0px) scale(1.12)",
                           transition: "transform 320ms cubic-bezier(0.34, 1.2, 0.5, 1)",
                           transformOrigin: "center bottom",
                           // Sit above heart/sparkle bursts and surrounding chrome
