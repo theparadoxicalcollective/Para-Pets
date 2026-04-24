@@ -868,6 +868,19 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     typeCountMap.set(part.partType, idx + 1);
   }
 
+  // Compress each body part's raw zIndex into a 1..8 range so they all sit
+  // BELOW the head wrapper (hardcoded zIndex=9) while preserving the admin's
+  // intended back-to-front ordering from the editor. This is more accurate
+  // than a hardcoded LAYER_ORDER table because it respects per-pet z-index
+  // tweaks (e.g. The Paradox has back_hair at z=35 with wings at z=14-15,
+  // meaning back_hair should render IN FRONT of the wings — a relationship
+  // a fixed table can't capture).
+  const sortedBodyByZ = [...bodyParts].sort((a, b) => a.zIndex - b.zIndex);
+  const compressedZ = new Map<string, number>();
+  sortedBodyByZ.forEach((part, idx) => {
+    compressedZ.set(part.id, Math.min(idx + 1, 8));
+  });
+
   // Wing-pair sync: paired wings use mirrored keyframes (e.g. front_wing
   // tilts up while back_wing tilts down) but each part normally gets its
   // own hash-based phase offset so different pets don't tick in lockstep.
@@ -907,12 +920,13 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     extraOpacity?: number,
     delayOverride?: string,
     transformOriginOverride?: string,
+    zOverride?: number,
   ) => {
     const leftPct = (part.posX / CANVAS_SIZE) * 100;
     const topPct = (part.posY / CANVAS_SIZE) * 100;
     const widthPct = (part.width / CANVAS_SIZE) * 100;
     const heightPct = (part.height / CANVAS_SIZE) * 100;
-    const layerZ = LAYER_ORDER[part.partType] ?? part.zIndex;
+    const layerZ = zOverride ?? LAYER_ORDER[part.partType] ?? part.zIndex;
     const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
     const isEyePart = isEyePartType(part.partType);
     // For non-eye parts, derive a small stable per-part phase offset from
@@ -978,12 +992,13 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
 
         {/* Body parts (back_full, limbs, wings, tail, body) */}
         {bodyParts.map((part) => {
+          const partZ = compressedZ.get(part.id);
           if (part.partType === "back_full") {
             const leftPct = (part.posX / CANVAS_SIZE) * 100;
             const topPct = (part.posY / CANVAS_SIZE) * 100;
             const widthPct = (part.width / CANVAS_SIZE) * 100;
             const heightPct = (part.height / CANVAS_SIZE) * 100;
-            const layerZ = LAYER_ORDER[part.partType] ?? part.zIndex;
+            const layerZ = partZ ?? LAYER_ORDER[part.partType] ?? part.zIndex;
             return (
               <img key={part.id} src={part.imageUrl} alt={part.partType} draggable={false}
                 style={{ position: "absolute", left: `${leftPct}%`, top: `${topPct}%`, width: `${widthPct}%`, height: `${heightPct}%`, zIndex: layerZ, imageRendering: "auto", pointerEvents: "none" }}
@@ -1010,16 +1025,16 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           if (mode === "static") {
             const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
             if (isAnimOnly) return null;
-            return renderPartImg(part, null);
+            return renderPartImg(part, null, undefined, undefined, undefined, partZ);
           }
           if (mode === "house") {
             const animName = lookupAnim(HOUSE_ANIMATIONS, part.partType);
             const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
             if (!animName) {
               if (isAnimOnly) return null;
-              return renderPartImg(part, null);
+              return renderPartImg(part, null, undefined, undefined, undefined, partZ);
             }
-            return renderPartImg(part, animName, undefined, wingDelay);
+            return renderPartImg(part, animName, undefined, wingDelay, undefined, partZ);
           }
           if (mode === "sleep") {
             // In sleep mode the body breathes and ears / tail / hair sway
@@ -1028,21 +1043,21 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
             const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
             if (isAnimOnly) return null;
             const animName = lookupAnim(SLEEP_ANIMATIONS, part.partType);
-            return renderPartImg(part, animName ?? null, undefined, wingDelay, bodyOrigin);
+            return renderPartImg(part, animName ?? null, undefined, wingDelay, bodyOrigin, partZ);
           }
           if (mode === "petting") {
             // Bouncy "happy being petted" body / limb motion.
             const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
             if (isAnimOnly) return null;
             const animName = lookupAnim(PETTING_ANIMATIONS, part.partType);
-            return renderPartImg(part, animName ?? null, undefined, wingDelay, bodyOrigin);
+            return renderPartImg(part, animName ?? null, undefined, wingDelay, bodyOrigin, partZ);
           }
           const anims = mode === "idle" ? idleAnimMap : mode === "zoom" ? ZOOM_ANIMATIONS : WALK_ANIMATIONS;
           const animName = lookupAnim(anims, part.partType) || anims.body;
           if (!animName) return null;
           // Only the idle body keyframe scales — walk/zoom body uses
           // translateY only, so the anchor override is harmless either way.
-          return renderPartImg(part, animName, undefined, wingDelay, bodyOrigin);
+          return renderPartImg(part, animName, undefined, wingDelay, bodyOrigin, partZ);
         })}
 
         {/* Head groups — each head gets its own wrapper with associated face parts */}
