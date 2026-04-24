@@ -32,13 +32,20 @@ interface BattlePet {
   skillDamagePercent: number | null;
   skillHealPercent: number | null;
   isPlayer: boolean;
-  /** True only for the player's *active* pet (slot 0). In manual mode this
-   *  is the only pet the player drives via swipe — the rest auto-attack. */
-  isActive: boolean;
+  /** Slot index 0..4 — for allies it pins them to a fixed bottom slot;
+   *  for enemies it fixes their float anchor across the top. */
+  slotIdx: number;
+  /** Live render position in arena %. For allies this is constant
+   *  (slotX/slotY). For enemies this is recomputed every frame from
+   *  baseX/baseY + sine offsets, OR overridden during a charge. */
   x: number;
   y: number;
-  vx: number;
-  vy: number;
+  /** Enemy float anchor + wave parameters. Allies leave these as 0. */
+  baseX: number;
+  baseY: number;
+  phase: number;
+  amp: number;
+  speed: number;
   isDead: boolean;
   mana: number;
 }
@@ -53,7 +60,41 @@ interface PendingSkill {
   mode: SkillMode;
 }
 
+/** One enemy at a time charges down at a chosen ally — mirrors the
+ *  Murk-Cave swoop attack. While charging we lerp the enemy's render
+ *  position toward the target, deal damage on impact, then lerp back
+ *  to its float anchor. Only one Charger may be active at a time so
+ *  the screen never feels overwhelmed. */
+interface Charger {
+  enemyUid: string;
+  targetUid: string;
+  startMs: number;
+  /** Charge-down duration before damage tick. */
+  chargeMs: number;
+  /** True after damage tick — enemy is returning to its float anchor. */
+  returning: boolean;
+  returnStartMs: number;
+  returnMs: number;
+}
+
+interface DraggingPotion {
+  invId: string;
+  pointerId: number;
+  /** Latest pointer position in arena % (for ally hit-test on drop). */
+  arenaX: number;
+  arenaY: number;
+  /** Latest screen position (for the floating ghost icon). */
+  screenX: number;
+  screenY: number;
+}
+
 const MAX_MANA = 100;
+/** Combo decays after this many ms with no swipe-hits. */
+const COMBO_WINDOW_MS = 1400;
+/** How often we try to spawn a new enemy charger when none is active. */
+const CHARGE_INTERVAL_MS = 2800;
+/** Damage % of enemy ATK when a charge lands on an ally. */
+const CHARGE_DMG_MULT = 0.85;
 
 function hpColor(pct: number) {
   if (pct > 0.5) return "#4ade80";
@@ -73,8 +114,6 @@ function effectiveSkillType(pet: BattlePet): string | null {
 
 let _uid = 0;
 const nextUid = () => `u${_uid++}`;
-let _pid = 0;
-const nextPid = () => _pid++;
 
 export default function PvpBattlePage({
   opponent,
@@ -85,11 +124,7 @@ export default function PvpBattlePage({
 }: {
   opponent: Opponent;
   myPetIds: string[];
-  /** Inventory ids of potions the player chose on the lobby loadout. The
-   * battle screen does not yet consume these — kept for forward-wiring. */
   potionInventoryIds?: string[];
-  /** One-time token issued by /api/pvp/start. Required by /api/pvp/result;
-   *  without it the server rejects the result with 403. */
   battleToken: string;
   onClose: (result: "win" | "loss" | null) => void;
 }) {
@@ -102,11 +137,10 @@ export default function PvpBattlePage({
   const [pets, setPets] = useState<BattlePet[]>([]);
   const petsRef = useRef<BattlePet[]>([]);
   const battleActiveRef = useRef(false);
+  const battleStartMsRef = useRef(0);
   const animFrameRef = useRef(0);
 
   const arenaRef = useRef<HTMLDivElement>(null);
-  const selectedPetUidRef = useRef<string | null>(null);
-  const isDraggingRef = useRef(false);
   const isSlashingRef = useRef(false);
   const slashPathRef = useRef<{x:number;y:number}[]>([]);
   const hitSetRef = useRef<Set<string>>(new Set());
@@ -119,9 +153,32 @@ export default function PvpBattlePage({
   const [hitFlash, setHitFlash] = useState<Record<string, boolean>>({});
   const [koSet, setKoSet] = useState<Set<string>>(new Set());
 
+  // Combo: increments each unique enemy hit within COMBO_WINDOW_MS.
+  // The damage multiplier scales 1× → 1.6× by combo 5+. We mirror the
+  // count to a ref so the swipe-hit event can read+advance the same
+  // value synchronously — using `comboCount` from the closure runs a
+  // tick behind the actual count and divorces displayed combo from
+  // applied damage.
+  const [comboCount, setComboCount] = useState(0);
+  const comboCountRef = useRef(0);
+  const lastHitTimeRef = useRef(0);
+  const comboTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Skill targeting state
   const [pendingSkill, setPendingSkill] = useState<PendingSkill | null>(null);
   const pendingSkillRef = useRef<PendingSkill | null>(null);
+
+  // Active enemy charger (one at a time). Ref because the animate loop
+  // mutates it every frame; mirrored to state only for "INCOMING!" UI.
+  const chargerRef = useRef<Charger | null>(null);
+  const lastChargeAttemptRef = useRef(0);
+  const [chargerView, setChargerView] = useState<Charger | null>(null);
+
+  // Potion drag state — mirrored to a ref so the animate loop / pointer
+  // handlers can read it synchronously.
+  const draggingPotionRef = useRef<DraggingPotion | null>(null);
+  const [draggingPotion, setDraggingPotion] = useState<DraggingPotion | null>(null);
+  const [hoveredAllyUid, setHoveredAllyUid] = useState<string | null>(null);
 
   const { data: myInventory = [] } = useQuery<any[]>({ queryKey: ["/api/inventory"] });
   const { data: oppPets = [], isLoading: oppLoading } = useQuery<any[]>({
@@ -138,9 +195,6 @@ export default function PvpBattlePage({
         opponentName: opponent.username,
         opponentImageUrl: opponent.profileImage,
         opponentLevel: data.opponentLevel,
-        // Pass the opponent userId so the server can:
-        //   1) compare battle-power for difficulty-based BP scoring, and
-        //   2) credit +5 defensive BP when the attacker (this client) loses.
         opponentUserId: opponent.userId,
         result: data.result,
         battleToken,
@@ -150,11 +204,6 @@ export default function PvpBattlePage({
     onSuccess: (data) => {
       setCoinsEarned(data.coinsEarned ?? 0);
       setBpEarned(data.battlePointsDelta ?? 0);
-      // After a battle resolves the leaderboard, the player's own BP, and
-      // the ticket count have all changed server-side. Without these
-      // invalidations the PvP arena page keeps rendering the stale cached
-      // numbers (which is what made it look like "BP isn't being awarded
-      // to winners" — the row was inserted, but the client never refetched).
       queryClient.invalidateQueries({ queryKey: ["/api/pvp/leaderboard"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pvp/tickets"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pvp/history"] });
@@ -162,19 +211,22 @@ export default function PvpBattlePage({
     },
   });
 
-  // Auto vs Manual mode toggle. Manual (default) = active pet drives by
-  // swipe; the other slot pets auto-attack and require a tap to special.
-  // Auto = every player pet behaves like an enemy AI (move + collide +
-  // auto-fire skills when mana fills).
-  const [mode, setMode] = useState<"auto" | "manual">("manual");
-  const modeRef = useRef<"auto" | "manual">("manual");
-  useEffect(() => { modeRef.current = mode; }, [mode]);
-
+  // ── Build pets ──────────────────────────────────────────────
+  // Allies get fixed slot positions across the BOTTOM (y=72%); they
+  // never move. Enemies get a float anchor across the TOP (y=22%) +
+  // a per-pet sine offset so the swarm undulates instead of marching
+  // in a straight line — that's the Murk-Cave feel.
   const buildPets = useCallback(() => {
     const inv = myInventory as any[];
+    const allySlotsX = [12, 31, 50, 69, 88];
+    const allySlotY = 72;
+    const enemySlotsX = [12, 31, 50, 69, 88];
+    const enemySlotY = 22;
+
     const myPets: BattlePet[] = myPetIds.map((id, i) => {
       const invItem = inv.find((it: any) => (it.inventoryId || it.id) === id);
       if (!invItem) return null;
+      const slotX = allySlotsX[i] ?? 50;
       return {
         uid: nextUid(), invId: id,
         name: invItem.petNickname || invItem.name || "Pet",
@@ -188,42 +240,41 @@ export default function PvpBattlePage({
         skillDamagePercent: (invItem as any).skillDamagePercent ?? null,
         skillHealPercent: (invItem as any).skillHealPercent ?? null,
         isPlayer: true,
-        // First slot is the player's *active* pet — only it is swipe-driven
-        // in manual mode. Mirrors the locked-slot rule on the lobby page.
-        isActive: i === 0,
-        // Deterministic starting positions — no Math.random() — so the pets
-        // appear in the SAME spot on first paint as they will after the
-        // countdown finishes. Without this the layout shifted on first
-        // open ("pets load off their spots"). PvE-style single horizontal
-        // row at y=68%: 5 pets evenly spread (12% / 31% / 50% / 69% / 88%).
-        x: 12 + i * 19,
-        y: 68,
-        vx: 0, vy: 0, isDead: false, mana: 0,
+        slotIdx: i,
+        x: slotX, y: allySlotY,
+        baseX: slotX, baseY: allySlotY,
+        phase: 0, amp: 0, speed: 0,
+        isDead: false, mana: 0,
       } as BattlePet;
     }).filter(Boolean) as BattlePet[];
 
-    const oppBattlePets: BattlePet[] = (oppPets as any[]).slice(0, 5).map((p: any, i: number) => ({
-      uid: nextUid(), invId: p.inventoryId || p.id,
-      name: p.petNickname || p.name || "Foe",
-      imageUrl: p.imageUrl ?? null,
-      petTemplateId: p.petTemplateId ?? null,
-      starRarity: p.starRarity ?? 1,
-      maxHp: p.petHealth || 800, hp: p.petHealth || 800,
-      atk: p.petAtk || 50, def: p.petDef || 30,
-      specialSkill: p.specialSkill ?? null,
-      specialSkillType: p.specialSkillType ?? null,
-      skillDamagePercent: p.skillDamagePercent ?? null,
-      skillHealPercent: p.skillHealPercent ?? null,
-      isPlayer: false,
-      isActive: false,
-      // Deterministic enemy starting positions in a single horizontal
-      // row at y=22% — mirrors the player row at y=68% and matches the
-      // PvE arena where the enemy stands across from the party.
-      x: 12 + i * 19,
-      y: 22,
-      vx: 0, vy: 0,
-      isDead: false, mana: 0,
-    }));
+    const oppBattlePets: BattlePet[] = (oppPets as any[]).slice(0, 5).map((p: any, i: number) => {
+      const baseX = enemySlotsX[i] ?? 50;
+      return {
+        uid: nextUid(), invId: p.inventoryId || p.id,
+        name: p.petNickname || p.name || "Foe",
+        imageUrl: p.imageUrl ?? null,
+        petTemplateId: p.petTemplateId ?? null,
+        starRarity: p.starRarity ?? 1,
+        maxHp: p.petHealth || 800, hp: p.petHealth || 800,
+        atk: p.petAtk || 50, def: p.petDef || 30,
+        specialSkill: p.specialSkill ?? null,
+        specialSkillType: p.specialSkillType ?? null,
+        skillDamagePercent: p.skillDamagePercent ?? null,
+        skillHealPercent: p.skillHealPercent ?? null,
+        isPlayer: false,
+        slotIdx: i,
+        x: baseX, y: enemySlotY,
+        baseX, baseY: enemySlotY,
+        // Stagger the sine so the swarm undulates instead of moving
+        // in lock-step.  Amplitude ±4% of arena width keeps each foe
+        // inside its own lane so they don't overlap on impact.
+        phase: i * 1.2,
+        amp: 4,
+        speed: 1.1 + (i % 3) * 0.18,
+        isDead: false, mana: 0,
+      } as BattlePet;
+    });
 
     if (!myPets.length) return null;
     return [...myPets, ...oppBattlePets];
@@ -240,7 +291,12 @@ export default function PvpBattlePage({
 
   useEffect(() => {
     if (phase !== "countdown") return;
-    if (countdown <= 0) { battleActiveRef.current = true; setPhase("battle"); return; }
+    if (countdown <= 0) {
+      battleActiveRef.current = true;
+      battleStartMsRef.current = Date.now();
+      setPhase("battle");
+      return;
+    }
     const t = setTimeout(() => setCountdown(c => c - 1), 1000);
     return () => clearTimeout(t);
   }, [phase, countdown]);
@@ -285,9 +341,6 @@ export default function PvpBattlePage({
     const myAlive = ps.filter(p => p.isPlayer && !p.isDead);
     const oppAlive = ps.filter(p => !p.isPlayer && !p.isDead);
 
-    // Special-skill damage now respects defender DEF, the same way basic
-    // collision damage does. Without this, a high-DEF tank would block
-    // basic attacks but get one-shot by Lazer — feels broken.
     const applyDef = (raw: number, def: number) =>
       Math.max(1, Math.floor(raw - def * 0.25));
 
@@ -356,24 +409,23 @@ export default function PvpBattlePage({
     setPhase("result");
     setPendingSkill(null);
     pendingSkillRef.current = null;
+    chargerRef.current = null;
+    setChargerView(null);
     const avgLvl = Math.max(1, petsRef.current.filter(p => !p.isPlayer).length);
     recordResult.mutate({ result: outcome, opponentLevel: avgLvl });
   }, [recordResult]);
 
-  // ── Main battle loop ───────────────────────────────────────────
+  // ── Main animate loop ──────────────────────────────────────────
+  // Murk-Cave-style: enemies float at top with wave motion, allies
+  // stand still at the bottom. One enemy at a time charges down to
+  // attack a chosen ally, deals damage on impact, then returns.
   useEffect(() => {
     if (phase !== "battle") return;
 
-    const dealDamage = (attacker: BattlePet, target: BattlePet) => {
-      const raw = Math.max(1, attacker.atk - Math.floor(target.def * 0.25) + Math.floor(Math.random() * 6) - 3);
-      const dmg = Math.max(1, raw);
-      target.hp = Math.max(0, target.hp - dmg);
-      attacker.mana = Math.min(MAX_MANA, attacker.mana + 14);
-      return dmg;
-    };
-
     const animate = () => {
       if (!battleActiveRef.current) return;
+      const now = Date.now();
+      const t = (now - battleStartMsRef.current) / 1000;
       const ps = petsRef.current;
       const alive = ps.filter(p => !p.isDead);
       const myAlive = alive.filter(p => p.isPlayer);
@@ -382,100 +434,98 @@ export default function PvpBattlePage({
       if (myAlive.length === 0) { endBattle("loss"); return; }
       if (oppAlive.length === 0) { endBattle("win"); return; }
 
-      const now = Date.now();
-
-      // ── Per-pet AI driver ─────────────────────────────────────
-      // A pet is "AI-controlled" when:
-      //   • It's an opponent (always), OR
-      //   • It's a player pet AND (mode is "auto", OR it's not the active
-      //     pet — non-active player pets always auto-attack so the player
-      //     only has to focus on the active swiper.)
-      const inAuto = modeRef.current === "auto";
-      const isAi = (p: BattlePet) =>
-        !p.isPlayer || inAuto || !p.isActive;
-
-      for (const pet of alive) {
-        if (pet.isDead) continue;
-
-        if (isAi(pet)) {
-          // Pick targets based on team
-          const myEnemies = pet.isPlayer ? oppAlive : myAlive;
-          const myFriends = pet.isPlayer ? myAlive : oppAlive;
-
-          const nearest = myEnemies.reduce((best: BattlePet | null, p) =>
-            !best || Math.hypot(p.x - pet.x, p.y - pet.y) < Math.hypot(best.x - pet.x, best.y - pet.y) ? p : best, null);
-          if (nearest) {
-            const dx = nearest.x - pet.x, dy = nearest.y - pet.y;
-            const dist = Math.hypot(dx, dy) || 1;
-            // Heavier damping + smaller steering acceleration so the pets
-            // glide smoothly toward each other instead of darting around.
-            // Steady-state speed is roughly accel/(1-damping) per frame —
-            // ~0.31%/frame ≈ 19% of the arena per second, half of what it
-            // used to be. That makes the brawl readable on a small phone.
-            pet.vx = pet.vx * 0.92 + (dx / dist) * 0.025;
-            pet.vy = pet.vy * 0.92 + (dy / dist) * 0.025;
-          }
-          pet.x += pet.vx;
-          pet.y += pet.vy;
-          // Use full arena bounds for AI-controlled pets — non-active
-          // player pets need to be able to cross the dividing line to
-          // reach the enemies up top.
-          if (pet.x < 4) { pet.vx = Math.abs(pet.vx); pet.x = 4; }
-          if (pet.x > 96) { pet.vx = -Math.abs(pet.vx); pet.x = 96; }
-          if (pet.y < 4) { pet.vy = Math.abs(pet.vy); pet.y = 4; }
-          if (pet.y > 94) { pet.vy = -Math.abs(pet.vy); pet.y = 94; }
-
-          // Collision damage on enemies
-          for (const enemy of myEnemies) {
-            if (enemy.isDead) continue;
-            const dist = Math.hypot(pet.x - enemy.x, pet.y - enemy.y);
-            if (dist < 14) {
-              const dmg = dealDamage(pet, enemy);
-              const colors = pet.isPlayer
-                ? ["#a78bfa", "#c4b5fd", "#ddd6fe"]
-                : ["#c084fc", "#818cf8", "#f472b6"];
-              spawnFloatNum(enemy.x, enemy.y - 10, dmg);
-              spawnSparks(enemy.x, enemy.y, colors);
-              flashHit(enemy.uid);
-              const dx2 = enemy.x - pet.x || 1, dy2 = enemy.y - pet.y || 1;
-              const d = Math.hypot(dx2, dy2);
-              // Softer recoil after a clash so pets don't ping-pong away.
-              pet.vx = -(dx2 / d) * 0.65; pet.vy = -(dy2 / d) * 0.65;
-              if (enemy.hp <= 0 && !enemy.isDead) doKo(enemy);
+      // ── Enemy floating + charge animation ───────────────────
+      const charger = chargerRef.current;
+      for (const e of oppAlive) {
+        // If this enemy is the active charger, lerp its position.
+        if (charger && charger.enemyUid === e.uid) {
+          const target = ps.find(p => p.uid === charger.targetUid);
+          if (!target || target.isDead) {
+            // Target died mid-charge — snap back.
+            chargerRef.current = null;
+            setChargerView(null);
+          } else if (!charger.returning) {
+            const k = Math.min(1, (now - charger.startMs) / charger.chargeMs);
+            const eased = k * k; // ease-in: snaps faster as it nears
+            e.x = e.baseX + (target.x - e.baseX) * eased;
+            e.y = e.baseY + (target.y - e.baseY) * eased;
+            if (k >= 1) {
+              // Damage tick
+              const raw = Math.max(1, e.atk * CHARGE_DMG_MULT - target.def * 0.25);
+              const dmg = Math.max(1, Math.floor(raw + Math.random() * 6 - 3));
+              target.hp = Math.max(0, target.hp - dmg);
+              spawnFloatNum(target.x, target.y - 10, dmg);
+              spawnSparks(target.x, target.y, ["#ef4444", "#f87171", "#fca5a5"]);
+              flashHit(target.uid);
+              playPlayerHurt();
+              e.mana = Math.min(MAX_MANA, e.mana + 18);
+              if (target.hp <= 0 && !target.isDead) doKo(target);
+              charger.returning = true;
+              charger.returnStartMs = now;
+            }
+          } else {
+            const k = Math.min(1, (now - charger.returnStartMs) / charger.returnMs);
+            // Return-anchor uses current float pos so the snap-back blends.
+            const floatX = e.baseX + Math.sin(t * e.speed + e.phase) * e.amp;
+            const floatY = e.baseY + Math.sin(t * 0.6 + e.phase) * 1.5;
+            e.x = e.x + (floatX - e.x) * k;
+            e.y = e.y + (floatY - e.y) * k;
+            if (k >= 1) {
+              chargerRef.current = null;
+              setChargerView(null);
             }
           }
-
-          // AI skill: auto-trigger when mana full. We deliberately do NOT
-          // auto-fire specials for non-active player pets in MANUAL mode —
-          // the spec says specials always require a tap on the glowing
-          // pet. Only enemies and full-auto-mode pets self-cast.
-          const allowAutoSpecial = !pet.isPlayer || inAuto;
-          if (allowAutoSpecial && pet.mana >= MAX_MANA && (now - (lastAiSkillTime.current[pet.uid] || 0)) > 5000) {
-            lastAiSkillTime.current[pet.uid] = now;
-            const sk = effectiveSkillType(pet);
-            if (sk) {
-              const sMode = skillMode(sk);
-              if (sMode === "needs-enemy") {
-                const target = myEnemies[Math.floor(Math.random() * myEnemies.length)];
-                if (target) fireSkill(pet, sk, target);
-              } else {
-                fireSkill(pet, sk, null);
-              }
-            } else {
-              pet.mana = 0;
-            }
-          }
-          // suppress unused-var lint
-          void myFriends;
         } else {
-          // Active player pet in manual mode: passive mana gain only.
-          pet.mana = Math.min(MAX_MANA, pet.mana + 0.06);
-          // Stay in the bottom half so the player can find them.
-          if (pet.x < 4) pet.x = 4;
-          if (pet.x > 96) pet.x = 96;
-          if (pet.y < 50) pet.y = 50;
-          if (pet.y > 94) pet.y = 94;
+          // Idle float — sine in X, gentle bob in Y.
+          e.x = e.baseX + Math.sin(t * e.speed + e.phase) * e.amp;
+          e.y = e.baseY + Math.sin(t * 0.6 + e.phase) * 1.5;
         }
+
+        // AI special: auto-fire when mana fills. Keeps the screen
+        // alive even if no charger has landed yet.
+        if (e.mana >= MAX_MANA && (now - (lastAiSkillTime.current[e.uid] || 0)) > 5000) {
+          lastAiSkillTime.current[e.uid] = now;
+          const sk = effectiveSkillType(e);
+          if (sk) {
+            const sMode = skillMode(sk);
+            if (sMode === "needs-enemy") {
+              const target = myAlive[Math.floor(Math.random() * myAlive.length)];
+              if (target) fireSkill(e, sk, target);
+            } else {
+              fireSkill(e, sk, null);
+            }
+          } else {
+            e.mana = 0;
+          }
+        }
+      }
+
+      // ── Spawn a new charger if none active ─────────────────
+      if (!chargerRef.current && now - lastChargeAttemptRef.current > CHARGE_INTERVAL_MS) {
+        lastChargeAttemptRef.current = now;
+        const candidates = oppAlive.filter(e => e.uid !== chargerRef.current?.enemyUid);
+        if (candidates.length && myAlive.length) {
+          const enemy = candidates[Math.floor(Math.random() * candidates.length)];
+          const target = myAlive[Math.floor(Math.random() * myAlive.length)];
+          const next: Charger = {
+            enemyUid: enemy.uid,
+            targetUid: target.uid,
+            startMs: now,
+            chargeMs: 1100,
+            returning: false,
+            returnStartMs: 0,
+            returnMs: 460,
+          };
+          chargerRef.current = next;
+          setChargerView(next);
+        }
+      }
+
+      // ── Allies: stationary, slow passive mana gain ─────────
+      for (const a of myAlive) {
+        a.x = a.baseX;
+        a.y = a.baseY;
+        a.mana = Math.min(MAX_MANA, a.mana + 0.05);
       }
 
       petsRef.current = [...ps];
@@ -494,9 +544,29 @@ export default function PvpBattlePage({
     return { x: ((cx - rect.left) / rect.width) * 100, y: ((cy - rect.top) / rect.height) * 100 };
   }, []);
 
+  /** Advance the combo counter and return the new value so the caller
+   *  can apply the matching multiplier in the same tick. */
+  const bumpCombo = useCallback((): number => {
+    const now = Date.now();
+    const next = (now - lastHitTimeRef.current < COMBO_WINDOW_MS)
+      ? comboCountRef.current + 1
+      : 1;
+    comboCountRef.current = next;
+    setComboCount(next);
+    lastHitTimeRef.current = now;
+    if (comboTimerRef.current) clearTimeout(comboTimerRef.current);
+    comboTimerRef.current = setTimeout(() => {
+      comboCountRef.current = 0;
+      setComboCount(0);
+    }, COMBO_WINDOW_MS);
+    return next;
+  }, []);
+
   // ── Pointer handlers ───────────────────────────────────────────
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     if (!battleActiveRef.current) return;
+    // While dragging a potion, the chip owns the pointer — ignore arena.
+    if (draggingPotionRef.current) return;
     e.preventDefault();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     const pos = getArenaPos(e.clientX, e.clientY);
@@ -507,56 +577,37 @@ export default function PvpBattlePage({
     if (ps_ref) {
       const skill_pet = ps.find(p => p.uid === ps_ref.petUid);
       if (!skill_pet) { setPendingSkill(null); pendingSkillRef.current = null; return; }
-
       if (ps_ref.mode === "needs-enemy") {
-        // Find which opponent was tapped
         const oppAlive = ps.filter(p => !p.isPlayer && !p.isDead);
         const tapped = oppAlive.find(p => Math.hypot(p.x - pos.x, p.y - pos.y) < 14);
         if (tapped) {
           fireSkill(skill_pet, effectiveSkillType(skill_pet)!, tapped);
-          setPendingSkill(null); pendingSkillRef.current = null;
-        } else {
-          // Cancel on any other tap
-          setPendingSkill(null); pendingSkillRef.current = null;
         }
+        setPendingSkill(null); pendingSkillRef.current = null;
         return;
       }
-      // Should not reach here for "auto" (auto already fired)
       setPendingSkill(null); pendingSkillRef.current = null;
       return;
     }
 
-    // ─ Normal mode: check if tapping a glowing (skill-ready) player pet ─
+    // ─ Tap glowing ally → fire skill ─
     const myAlive = ps.filter(p => p.isPlayer && !p.isDead);
-    const tappedSkillReady = myAlive.find(p => p.mana >= MAX_MANA && effectiveSkillType(p) && Math.hypot(p.x - pos.x, p.y - pos.y) < 13);
+    const tappedSkillReady = myAlive.find(p =>
+      p.mana >= MAX_MANA && effectiveSkillType(p) && Math.hypot(p.x - pos.x, p.y - pos.y) < 13
+    );
     if (tappedSkillReady) {
       const sk = effectiveSkillType(tappedSkillReady)!;
       const mode = skillMode(sk);
       if (mode === "auto") {
-        // Fire immediately
         fireSkill(tappedSkillReady, sk, null);
       } else {
-        // Enter targeting mode
         const ps2: PendingSkill = { petUid: tappedSkillReady.uid, mode };
         setPendingSkill(ps2); pendingSkillRef.current = ps2;
       }
       return;
     }
 
-    // ─ Check if tapping the *active* player pet to drag ─
-    // Only the active pet (slot 0) is player-driven in manual mode; the
-    // other added pets auto-attack and shouldn't be repositioned by the
-    // player. In auto mode we lock dragging entirely so the AI can run.
-    if (modeRef.current === "manual") {
-      const tappedActive = myAlive.find(p => p.isActive && Math.hypot(p.x - pos.x, p.y - pos.y) < 12);
-      if (tappedActive) {
-        selectedPetUidRef.current = tappedActive.uid;
-        isDraggingRef.current = true;
-        return;
-      }
-    }
-
-    // ─ Otherwise start a slash ─
+    // ─ Otherwise: start a slash ─
     isSlashingRef.current = true;
     slashPathRef.current = [pos];
     hitSetRef.current = new Set();
@@ -565,18 +616,9 @@ export default function PvpBattlePage({
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!battleActiveRef.current) return;
-    const pos = getArenaPos(e.clientX, e.clientY);
-
-    if (isDraggingRef.current && selectedPetUidRef.current) {
-      const pet = petsRef.current.find(p => p.uid === selectedPetUidRef.current);
-      if (pet) {
-        pet.x = Math.max(4, Math.min(96, pos.x));
-        pet.y = Math.max(50, Math.min(94, pos.y));
-      }
-      return;
-    }
-
+    if (draggingPotionRef.current) return;
     if (!isSlashingRef.current) return;
+    const pos = getArenaPos(e.clientX, e.clientY);
     const prev = slashPathRef.current[slashPathRef.current.length - 1];
     slashPathRef.current.push(pos);
     if (slashPathRef.current.length > 22) slashPathRef.current.shift();
@@ -589,37 +631,38 @@ export default function PvpBattlePage({
       const ax = prev.x, ay = prev.y, bx = pos.x, by = pos.y;
       const dx = bx - ax, dy = by - ay;
       const len = Math.hypot(dx, dy) || 1;
-      const t = Math.max(0, Math.min(1, ((opp.x - ax) * dx + (opp.y - ay) * dy) / (len * len)));
-      const dist = Math.hypot(ax + t * dx - opp.x, ay + t * dy - opp.y);
-      if (dist >= 16) continue;
+      const tParam = Math.max(0, Math.min(1, ((opp.x - ax) * dx + (opp.y - ay) * dy) / (len * len)));
+      const dist = Math.hypot(ax + tParam * dx - opp.x, ay + tParam * dy - opp.y);
+      if (dist >= 14) continue;
 
       hitSetRef.current.add(opp.uid);
       const isCrit = Math.random() < 0.15;
       const myAlive = petsRef.current.filter(p => p.isPlayer && !p.isDead);
-      const attacker = myAlive[0];
+      // Slot-0 is the lead attacker for swipe-damage attribution. If
+      // they've been KO'd, fall back to whoever's alive.
+      const attacker = myAlive.find(p => p.slotIdx === 0) ?? myAlive[0];
       if (!attacker) continue;
 
+      const newCombo = bumpCombo();
+      const comboMult = 1 + Math.min(newCombo * 0.12, 0.6);
       const raw = attacker.atk - Math.floor(opp.def * 0.25) + Math.floor(Math.random() * 8) - 4;
-      const dmg = Math.max(1, Math.floor(raw * (isCrit ? 1.8 : 1)));
+      const dmg = Math.max(1, Math.floor(raw * (isCrit ? 1.8 : 1) * comboMult));
       opp.hp = Math.max(0, opp.hp - dmg);
       attacker.mana = Math.min(MAX_MANA, attacker.mana + 16);
 
-      const colors = isCrit ? ["#fbbf24", "#f59e0b", "#fde68a"] : ["#a78bfa", "#c4b5fd", "#ddd6fe"];
+      // Red sparks/colors to keep the PvP theme consistent — gold only
+      // on a crit so the player can read the special hit at a glance.
+      const colors = isCrit ? ["#fbbf24", "#f59e0b", "#fde68a"] : ["#ef4444", "#f87171", "#fca5a5"];
       spawnSparks(opp.x, opp.y, colors);
       spawnFloatNum(opp.x, opp.y - 8, dmg, false, isCrit);
       flashHit(opp.uid);
       playHit();
 
-      const sdx = bx - ax, sdy = by - ay, sl = Math.hypot(sdx, sdy) || 1;
-      opp.vx = (sdx / sl) * 3; opp.vy = (sdy / sl) * 3;
-
       if (opp.hp <= 0 && !opp.isDead) doKo(opp);
     }
-  }, [getArenaPos, spawnSparks, spawnFloatNum, flashHit, doKo]);
+  }, [getArenaPos, spawnSparks, spawnFloatNum, flashHit, doKo, bumpCombo]);
 
   const handlePointerUp = useCallback(() => {
-    isDraggingRef.current = false;
-    selectedPetUidRef.current = null;
     isSlashingRef.current = false;
     hitSetRef.current = new Set();
     setTimeout(() => setSlashTrail([]), 180);
@@ -628,13 +671,18 @@ export default function PvpBattlePage({
   // ── Derived ────────────────────────────────────────────────────
   const playerPets = pets.filter(p => p.isPlayer);
   const enemyPets = pets.filter(p => !p.isPlayer);
-
   const pendingPet = pendingSkill ? pets.find(p => p.uid === pendingSkill.petUid) : null;
+  void playerPets;
 
-  // ── Potion usage ─────────────────────────────────────────────
-  // The lobby loads potions into `potionInventoryIds`; we keep a
-  // local copy here so that consumed bottles can drop out of the bar
-  // without refetching the server inventory mid-fight.
+  // Charger UI: who's the targeted ally? (For INCOMING bar.)
+  const incomingTarget = chargerView && !chargerView.returning
+    ? pets.find(p => p.uid === chargerView.targetUid)
+    : null;
+  const incomingPct = chargerView && !chargerView.returning
+    ? Math.min(1, (Date.now() - chargerView.startMs) / chargerView.chargeMs)
+    : 0;
+
+  // ── Potion DnD ─────────────────────────────────────────────
   const [potionsRemaining, setPotionsRemaining] = useState<string[]>(potionInventoryIds);
   useEffect(() => { setPotionsRemaining(potionInventoryIds); }, [potionInventoryIds]);
 
@@ -644,13 +692,11 @@ export default function PvpBattlePage({
       return res.json() as Promise<{ healAmount: number; manaAmount: number; petsRevived: number; potionName: string }>;
     },
     onSettled: () => {
-      // Refresh inventory either way so the player's bag is in sync the
-      // next time they open the lobby/picker.
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
     },
   });
 
-  const consumePotion = useCallback((inventoryId: string) => {
+  const consumePotion = useCallback((inventoryId: string, targetAllyUid: string | null) => {
     if (!battleActiveRef.current) return;
     const inv = (myInventory as any[]).find((i: any) => (i.inventoryId || i.id) === inventoryId);
     if (!inv) return;
@@ -660,40 +706,39 @@ export default function PvpBattlePage({
     const ps = petsRef.current;
     const myAlive = ps.filter(p => p.isPlayer && !p.isDead);
     const myDead = ps.filter(p => p.isPlayer && p.isDead);
-    const active = myAlive.find(p => p.isActive) ?? myAlive[0];
+    // Target precedence: explicit drop target → first alive ally.
+    const target = (targetAllyUid && myAlive.find(p => p.uid === targetAllyUid))
+      || myAlive.find(p => p.slotIdx === 0)
+      || myAlive[0];
 
-    // Guards mirror the PvE arena: don't waste a potion that does nothing.
-    if (heal > 0 && (!active || active.hp >= active.maxHp)) return;
-    if (mana > 0 && (!active || active.mana >= MAX_MANA)) return;
+    if (heal > 0 && (!target || target.hp >= target.maxHp)) return;
+    if (mana > 0 && (!target || target.mana >= MAX_MANA)) return;
     if (revives > 0 && myDead.length === 0) return;
     if (heal === 0 && mana === 0 && revives === 0) return;
 
-    // Snapshot pre-effect state so we can roll back if the server
-    // refuses the consume (e.g. inventory row already deleted).
     const rollback: { uid: string; hp: number; mana: number; isDead: boolean }[] = [];
     const snap = (p: BattlePet) => rollback.push({ uid: p.uid, hp: p.hp, mana: p.mana, isDead: p.isDead });
 
-    if (active && heal > 0) {
-      snap(active);
-      active.hp = Math.min(active.maxHp, active.hp + heal);
-      spawnFloatNum(active.x, active.y - 10, heal, true);
-      spawnSparks(active.x, active.y, ["#4ade80", "#86efac", "#bbf7d0"]);
+    if (target && heal > 0) {
+      snap(target);
+      target.hp = Math.min(target.maxHp, target.hp + heal);
+      spawnFloatNum(target.x, target.y - 10, heal, true);
+      spawnSparks(target.x, target.y, ["#4ade80", "#86efac", "#bbf7d0"]);
     }
-    if (active && mana > 0) {
-      // Avoid double-snapshotting active when both heal and mana > 0.
-      if (!rollback.some(r => r.uid === active.uid)) snap(active);
-      active.mana = Math.min(MAX_MANA, active.mana + mana);
-      spawnSparks(active.x, active.y, ["#a78bfa", "#c4b5fd", "#ddd6fe"]);
+    if (target && mana > 0) {
+      if (!rollback.some(r => r.uid === target.uid)) snap(target);
+      target.mana = Math.min(MAX_MANA, target.mana + mana);
+      spawnSparks(target.x, target.y, ["#a78bfa", "#c4b5fd", "#ddd6fe"]);
     }
     if (revives > 0 && myDead.length > 0) {
-      const target = myDead[0];
-      snap(target);
-      target.isDead = false;
-      target.hp = Math.max(1, Math.floor(target.maxHp * 0.5));
+      const reviveTarget = myDead[0];
+      snap(reviveTarget);
+      reviveTarget.isDead = false;
+      reviveTarget.hp = Math.max(1, Math.floor(reviveTarget.maxHp * 0.5));
       petsRef.current = [...petsRef.current];
       setPets([...petsRef.current]);
-      spawnFloatNum(target.x, target.y - 10, target.hp, true);
-      spawnSparks(target.x, target.y, ["#fbbf24", "#fde68a", "#fef3c7"]);
+      spawnFloatNum(reviveTarget.x, reviveTarget.y - 10, reviveTarget.hp, true);
+      spawnSparks(reviveTarget.x, reviveTarget.y, ["#fbbf24", "#fde68a", "#fef3c7"]);
     }
 
     setPotionsRemaining(prev => {
@@ -706,9 +751,6 @@ export default function PvpBattlePage({
 
     usePotionMutation.mutate(inventoryId, {
       onError: () => {
-        // Server rejected the consume — restore the bottle to the bar
-        // and undo any HP/mana/revive we optimistically applied so the
-        // battle state matches reality.
         setPotionsRemaining(prev => (prev.includes(inventoryId) ? prev : [...prev, inventoryId]));
         for (const r of rollback) {
           const p = petsRef.current.find(x => x.uid === r.uid);
@@ -722,6 +764,99 @@ export default function PvpBattlePage({
     });
   }, [myInventory, spawnFloatNum, spawnSparks, usePotionMutation]);
 
+  // Update hovered ally during a potion drag — used to highlight the
+  // would-be target before the player releases.
+  const updatePotionHover = useCallback((screenX: number, screenY: number) => {
+    const arenaPos = getArenaPos(screenX, screenY);
+    const ps = petsRef.current;
+    const myAlive = ps.filter(p => p.isPlayer && !p.isDead);
+    const target = myAlive.find(a => Math.hypot(a.x - arenaPos.x, a.y - arenaPos.y) < 14);
+    setHoveredAllyUid(target?.uid ?? null);
+    if (draggingPotionRef.current) {
+      const next = { ...draggingPotionRef.current, screenX, screenY, arenaX: arenaPos.x, arenaY: arenaPos.y };
+      draggingPotionRef.current = next;
+      setDraggingPotion(next);
+    }
+  }, [getArenaPos]);
+
+  const beginPotionDrag = useCallback((invId: string, e: React.PointerEvent) => {
+    if (!battleActiveRef.current) return;
+    e.stopPropagation();
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    const arenaPos = getArenaPos(e.clientX, e.clientY);
+    const next: DraggingPotion = {
+      invId, pointerId: e.pointerId,
+      arenaX: arenaPos.x, arenaY: arenaPos.y,
+      screenX: e.clientX, screenY: e.clientY,
+    };
+    draggingPotionRef.current = next;
+    setDraggingPotion(next);
+  }, [getArenaPos]);
+
+  const movePotionDrag = useCallback((e: React.PointerEvent) => {
+    if (!draggingPotionRef.current) return;
+    e.stopPropagation();
+    updatePotionHover(e.clientX, e.clientY);
+  }, [updatePotionHover]);
+
+  const endPotionDrag = useCallback((e: React.PointerEvent) => {
+    if (!draggingPotionRef.current) return;
+    e.stopPropagation();
+    const drag = draggingPotionRef.current;
+    draggingPotionRef.current = null;
+    setDraggingPotion(null);
+    setHoveredAllyUid(null);
+    const arenaPos = getArenaPos(e.clientX, e.clientY);
+    const ps = petsRef.current;
+    const myAlive = ps.filter(p => p.isPlayer && !p.isDead);
+    const target = myAlive.find(a => Math.hypot(a.x - arenaPos.x, a.y - arenaPos.y) < 14);
+    consumePotion(drag.invId, target?.uid ?? null);
+  }, [consumePotion, getArenaPos]);
+
+  /** Cancel an in-progress drag without consuming the potion. Used as a
+   *  safety net for `lostpointercapture` / pointercancel paths where
+   *  we can't trust we got a real `pointerup`. Without this Safari can
+   *  leave the drag ref set, which then blocks the arena slash handler. */
+  const cancelPotionDrag = useCallback(() => {
+    if (!draggingPotionRef.current) return;
+    draggingPotionRef.current = null;
+    setDraggingPotion(null);
+    setHoveredAllyUid(null);
+  }, []);
+
+  // Window-level fallback: if the browser drops the pointerup we'd
+  // otherwise get on the chip (iOS sometimes does this when the drag
+  // crosses overlay boundaries), this still finishes the consume so
+  // the chip doesn't soft-lock the arena. We only listen while a drag
+  // is active to avoid spurious resets between fights.
+  useEffect(() => {
+    if (!draggingPotion) return;
+    const handler = (ev: PointerEvent) => {
+      const drag = draggingPotionRef.current;
+      if (!drag || ev.pointerId !== drag.pointerId) return;
+      draggingPotionRef.current = null;
+      setDraggingPotion(null);
+      setHoveredAllyUid(null);
+      const arenaPos = getArenaPos(ev.clientX, ev.clientY);
+      const ps = petsRef.current;
+      const myAlive = ps.filter(p => p.isPlayer && !p.isDead);
+      const target = myAlive.find(a => Math.hypot(a.x - arenaPos.x, a.y - arenaPos.y) < 14);
+      consumePotion(drag.invId, target?.uid ?? null);
+    };
+    const cancelHandler = (ev: PointerEvent) => {
+      const drag = draggingPotionRef.current;
+      if (!drag || ev.pointerId !== drag.pointerId) return;
+      cancelPotionDrag();
+    };
+    window.addEventListener("pointerup", handler);
+    window.addEventListener("pointercancel", cancelHandler);
+    return () => {
+      window.removeEventListener("pointerup", handler);
+      window.removeEventListener("pointercancel", cancelHandler);
+    };
+  }, [draggingPotion, getArenaPos, consumePotion, cancelPotionDrag]);
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col" style={{ fontFamily: "Lora, serif" }}>
       <style>{`
@@ -730,57 +865,40 @@ export default function PvpBattlePage({
         @keyframes bFloat { 0%{opacity:1;transform:translateY(0)} 100%{opacity:0;transform:translateY(-38px)} }
         @keyframes bIdle { 0%,100%{transform:translate(-50%,-50%)} 50%{transform:translate(-50%,calc(-50% - 4px))} }
         @keyframes bResultIn { 0%{transform:scale(0.85) translateY(18px);opacity:0} 100%{transform:scale(1) translateY(0);opacity:1} }
-        /* Hit shake + dim — quick "ouch" feedback. Brightens then dips
-           below 1 for a short impact frame. Pairs with the X_X eyes
-           overlay rendered on hit. */
         @keyframes bHit { 0%{filter:brightness(1)} 18%{filter:brightness(2.4) saturate(0.4)} 60%{filter:brightness(0.6)} 100%{filter:brightness(1)} }
         @keyframes bShake { 0%,100%{margin-left:0} 20%{margin-left:-4px} 40%{margin-left:4px} 60%{margin-left:-3px} 80%{margin-left:2px} }
         @keyframes skillGlow { 0%,100%{box-shadow:0 0 12px 4px rgba(167,139,250,0.6), 0 0 24px 8px rgba(124,58,237,0.35)} 50%{box-shadow:0 0 20px 8px rgba(196,181,253,0.85), 0 0 38px 14px rgba(167,139,250,0.55)} }
         @keyframes targetPulse { 0%,100%{opacity:0.55} 50%{opacity:1} }
-        /* Golden-orb burst behind the win text. Multiple offset copies
-           give the "rising orbs" feel without spawning a dozen DOM
-           nodes per orb. */
+        @keyframes dropZonePulse { 0%,100%{box-shadow:0 0 0 0 rgba(74,222,128,0.55), 0 0 18px rgba(74,222,128,0.35)} 50%{box-shadow:0 0 0 8px rgba(74,222,128,0.0), 0 0 28px rgba(74,222,128,0.55)} }
+        @keyframes incomingBar { 0%{width:0%} 100%{width:100%} }
         @keyframes bOrb { 0%{transform:translate(0,0) scale(0.6);opacity:0} 30%{opacity:1} 100%{transform:translate(var(--ox,0px),-180px) scale(1.1);opacity:0} }
         @keyframes bWinText { 0%{transform:scale(0.6) rotate(-6deg);opacity:0;letter-spacing:0.05em} 60%{transform:scale(1.12) rotate(2deg);opacity:1} 100%{transform:scale(1) rotate(0deg);opacity:1;letter-spacing:0.18em} }
+        @keyframes comboText { 0%{transform:scale(1.4) translateY(-4px);opacity:0} 60%{transform:scale(0.95) translateY(0);opacity:1} 100%{transform:scale(1) translateY(0);opacity:1} }
       `}</style>
 
-      {/* ── Magical rainforest backdrop ─────────────────────────────
-          Forest art is the base; we layer a subtle green-tinted glow
-          (canopy light) and a stone-arena overlay (twin pillars +
-          a dim runic circle on the floor) so the fight reads as
-          "ancient ruin in the jungle" instead of just "dark forest". */}
+      {/* Backdrop */}
       <div className="absolute inset-0" style={{ backgroundImage: `url(${forestBgImg})`, backgroundSize: "cover", backgroundPosition: "center", filter: "brightness(0.42) saturate(1.15)" }} />
-      <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 50% 30%, rgba(74,222,128,0.10) 0%, transparent 55%), linear-gradient(180deg,rgba(5,15,8,.35) 0%,rgba(5,8,15,.7) 100%)" }} />
-      {/* Stone pillars: simple gradient bars on the left/right edges,
-          decorative only — pointer-events:none so they never eat taps. */}
+      <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 50% 30%, rgba(239,68,68,0.10) 0%, transparent 55%), linear-gradient(180deg,rgba(15,5,8,.35) 0%,rgba(5,4,8,.7) 100%)" }} />
       <div className="absolute inset-y-0 left-0 w-10 pointer-events-none z-[1]" style={{ background: "linear-gradient(90deg, rgba(45,40,35,0.55) 0%, rgba(45,40,35,0.30) 60%, transparent 100%)", borderRight: "1px solid rgba(120,100,80,0.18)" }} />
       <div className="absolute inset-y-0 right-0 w-10 pointer-events-none z-[1]" style={{ background: "linear-gradient(270deg, rgba(45,40,35,0.55) 0%, rgba(45,40,35,0.30) 60%, transparent 100%)", borderLeft: "1px solid rgba(120,100,80,0.18)" }} />
-      {/* Runic floor circle anchored to the dividing line — gives the
-          arena a "magic combat ring" silhouette without needing art. */}
-      <div className="absolute pointer-events-none z-[1]" style={{ left: "50%", top: "50%", width: 320, height: 60, transform: "translate(-50%,-50%)", borderRadius: "50%", border: "1px dashed rgba(167,139,250,0.22)", boxShadow: "inset 0 0 30px rgba(167,139,250,0.10), 0 0 30px rgba(167,139,250,0.10)" }} />
+      <div className="absolute pointer-events-none z-[1]" style={{ left: "50%", top: "50%", width: 320, height: 60, transform: "translate(-50%,-50%)", borderRadius: "50%", border: "1px dashed rgba(239,68,68,0.22)", boxShadow: "inset 0 0 30px rgba(239,68,68,0.10), 0 0 30px rgba(239,68,68,0.10)" }} />
 
-      {/* Header */}
-      <div className="relative z-10 flex items-center gap-2 px-3 pb-2 shrink-0" style={{ background: "rgba(5,8,15,0.72)", borderBottom: "1px solid rgba(167,139,250,0.1)", paddingTop: "max(env(safe-area-inset-top, 0px) + 10px, 44px)" }}>
+      {/* Header — no more AUTO/MANUAL toggle. Pets behave the same way
+          every fight: enemies float and charge, allies stand and swipe. */}
+      <div className="relative z-10 flex items-center gap-2 px-3 pb-2 shrink-0" style={{ background: "rgba(8,4,5,0.72)", borderBottom: "1px solid rgba(239,68,68,0.10)", paddingTop: "max(env(safe-area-inset-top, 0px) + 10px, 44px)" }}>
         <button onClick={() => onClose(null)} data-testid="button-close-battle" className="w-9 h-9 flex items-center justify-center rounded-lg text-white/40 hover:text-white/70 transition-colors active:scale-90 shrink-0" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
           <ArrowLeft size={16} />
         </button>
         <div className="flex-1 text-center text-[12px] tracking-[0.2em] text-red-300 font-bold truncate">vs {opponent.username}</div>
-        {/* Auto/Manual mode toggle. Manual = swipe-driven active pet,
-            others auto-attack. Auto = every player pet runs the same
-            AI as enemies. The toggle is live-editable mid-fight so
-            the player can flip strategies without losing the round. */}
-        <button
-          onClick={() => setMode((m) => (m === "auto" ? "manual" : "auto"))}
-          data-testid="button-mode-toggle"
-          className="px-2.5 py-1 rounded-md text-[10px] font-black tracking-[0.16em] active:scale-95 transition-all shrink-0"
-          style={{
-            background: mode === "auto" ? "rgba(74,222,128,0.18)" : "rgba(124,58,237,0.18)",
-            color: mode === "auto" ? "#86efac" : "#c4b5fd",
-            border: `1px solid ${mode === "auto" ? "rgba(74,222,128,0.45)" : "rgba(167,139,250,0.45)"}`,
-          }}
-        >
-          {mode === "auto" ? "AUTO" : "MANUAL"}
-        </button>
+        {comboCount > 1 && phase === "battle" && (
+          <div
+            className="px-2 py-0.5 rounded-md text-[11px] font-black tracking-[0.14em]"
+            data-testid="text-combo-count"
+            style={{ color: "#fbbf24", background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.4)", textShadow: "0 0 10px rgba(251,191,36,0.6)", animation: "comboText 0.3s ease-out", whiteSpace: "nowrap" }}
+          >
+            {comboCount}× COMBO
+          </div>
+        )}
         {pendingSkill && (
           <button onClick={() => { setPendingSkill(null); pendingSkillRef.current = null; }} className="flex items-center gap-1 text-white/40 text-[9px]">
             <X size={11} /> CANCEL
@@ -788,28 +906,9 @@ export default function PvpBattlePage({
         )}
       </div>
 
-      {/* Opponent HP bars */}
-      <div className="relative z-10 shrink-0 px-3 pt-2 pb-1" style={{ background: "rgba(10,3,20,0.7)" }}>
-        <div className="flex items-center gap-1.5 flex-wrap min-h-[14px]">
-          {enemyPets.map(p => (
-            <div key={p.uid} className="flex items-center gap-1">
-              <div
-                className="h-1.5 w-10 bg-black/60 rounded-full overflow-hidden transition-all"
-                style={{
-                  border: pendingSkill?.mode === "needs-enemy" ? "1px solid rgba(239,68,68,0.6)" : "1px solid transparent",
-                  animation: pendingSkill?.mode === "needs-enemy" ? "targetPulse 0.8s ease-in-out infinite" : undefined,
-                }}
-              >
-                <div className="h-full rounded-full transition-all duration-150" style={{ width: `${(p.hp / p.maxHp) * 100}%`, background: hpColor(p.hp / p.maxHp) }} />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* Skill targeting banner */}
       {pendingSkill && pendingPet && (
-        <div className="relative z-20 shrink-0 mx-3 mb-1 rounded-lg px-3 py-2 text-center text-[11px] tracking-wider"
+        <div className="relative z-20 shrink-0 mx-3 mt-1 mb-1 rounded-lg px-3 py-2 text-center text-[11px] tracking-wider"
           style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.3), rgba(167,139,250,0.2))", border: "1px solid rgba(167,139,250,0.4)" }}>
           <span className="text-purple-200 font-bold">{pendingPet.name}</span>
           <span className="text-white/50"> → </span>
@@ -821,12 +920,12 @@ export default function PvpBattlePage({
       {/* Loading / Countdown */}
       {phase === "loading" && (
         <div className="flex-1 flex items-center justify-center relative z-10">
-          <div className="w-12 h-12 rounded-full border-2 border-purple-500/40 border-t-purple-400 animate-spin" />
+          <div className="w-12 h-12 rounded-full border-2 border-red-500/40 border-t-red-400 animate-spin" />
         </div>
       )}
       {phase === "countdown" && (
         <div className="flex-1 flex items-center justify-center relative z-10">
-          <div className="text-6xl font-black text-white" style={{ textShadow: "0 0 40px rgba(167,139,250,0.8)" }}>
+          <div className="text-6xl font-black text-white" style={{ textShadow: "0 0 40px rgba(239,68,68,0.8)" }}>
             {countdown > 0 ? countdown : "FIGHT!"}
           </div>
         </div>
@@ -844,10 +943,10 @@ export default function PvpBattlePage({
           onPointerCancel={handlePointerUp}
         >
           {/* Grid */}
-          <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: "linear-gradient(rgba(167,139,250,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(167,139,250,0.025) 1px,transparent 1px)", backgroundSize: "48px 48px" }} />
+          <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: "linear-gradient(rgba(239,68,68,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(239,68,68,0.025) 1px,transparent 1px)", backgroundSize: "48px 48px" }} />
 
           {/* Dividing line */}
-          <div className="absolute left-0 right-0 pointer-events-none" style={{ top: "50%", height: 1, background: "linear-gradient(90deg,transparent,rgba(239,68,68,0.28),transparent)" }} />
+          <div className="absolute left-0 right-0 pointer-events-none" style={{ top: "50%", height: 1, background: "linear-gradient(90deg,transparent,rgba(239,68,68,0.32),transparent)" }} />
 
           {/* Enemy target highlight ring during skill targeting */}
           {pendingSkill?.mode === "needs-enemy" && enemyPets.filter(p => !p.isDead).map(p => (
@@ -855,33 +954,49 @@ export default function PvpBattlePage({
               style={{ left: `${p.x}%`, top: `${p.y}%`, transform: "translate(-50%,-50%)", width: 72, height: 72, border: "2px solid rgba(239,68,68,0.7)", animation: "targetPulse 0.7s ease-in-out infinite", boxShadow: "0 0 12px rgba(239,68,68,0.4)" }} />
           ))}
 
-          {/* Swipe trail */}
+          {/* RED swipe trail — drives the PvP color theme. */}
           {slashTrail.length >= 2 && (
             <svg className="absolute inset-0 w-full h-full pointer-events-none z-30">
-              <polyline points={slashTrail.map(p => `${p.x}%,${p.y}%`).join(" ")} fill="none" stroke="#a78bfa" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.88" style={{ filter: "drop-shadow(0 0 7px #a78bfa)" }} />
+              <polyline
+                points={slashTrail.map(p => `${p.x}%,${p.y}%`).join(" ")}
+                fill="none" stroke="#ef4444" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"
+                opacity="0.9" style={{ filter: "drop-shadow(0 0 7px #ef4444)" }}
+              />
             </svg>
           )}
 
-          {/* Pets — new layout:
-              ENEMY (top half):  [name]  →  [image]  →  [stars + HP bar]
-              ALLY  (bottom):    [name]  →  [image]  →  [stars + HP + mana]
-              The active player pet gets a thicker amber outline so the
-              swiper is visually distinct from the auto-attacking pack. */}
+          {/* INCOMING bar above the targeted ally */}
+          {incomingTarget && (
+            <div
+              className="absolute pointer-events-none z-30"
+              style={{
+                left: `${incomingTarget.x}%`,
+                top: `${incomingTarget.y - 16}%`,
+                transform: "translate(-50%,-50%)",
+                width: 72,
+              }}
+              data-testid={`incoming-${incomingTarget.uid}`}
+            >
+              <div className="text-center text-[9px] font-black tracking-[0.18em] text-red-300 mb-0.5" style={{ textShadow: "0 0 6px rgba(239,68,68,0.9)" }}>
+                INCOMING!
+              </div>
+              <div className="h-1.5 w-full bg-black/70 rounded-full overflow-hidden border border-red-400/40">
+                <div
+                  className="h-full rounded-full"
+                  style={{ width: `${incomingPct * 100}%`, background: "linear-gradient(90deg, #fca5a5, #ef4444)" }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Pets */}
           {pets.filter(p => !p.isDead).map(pet => {
             const isSkillReady = pet.isPlayer && pet.mana >= MAX_MANA && !!pet.specialSkill;
             const isPendingSource = pendingSkill?.petUid === pet.uid;
             const isEnemyTarget = pendingSkill?.mode === "needs-enemy" && !pet.isPlayer;
-            // PvE-arena-sized sprites (PvE uses 230 for 3 pets; we cap at
-            // 200/180 because PvP shows 5 pets per side). Switching to
-            // `PetAnimatorCanvas` (the same renderer the PvE BattleArena
-            // uses) is critical here: 10 pets × 12 PetAnimator <img> parts
-            // each was a ~480 MB GPU footprint on iOS — instant Safari
-            // crash. Canvas is ~380 KB per pet → ~4 MB total.
+            const isHoveredDrop = pet.isPlayer && hoveredAllyUid === pet.uid;
             const size = pet.isPlayer ? 200 : 180;
             const isHit = !!hitFlash[pet.uid];
-
-            // Star rarity row: render N stars (capped at 5) for visual
-            // pet tier. Falls back gracefully when starRarity is null/0.
             const stars = Math.max(0, Math.min(5, Math.floor(pet.starRarity || 0)));
 
             return (
@@ -895,25 +1010,52 @@ export default function PvpBattlePage({
                   zIndex: pet.isPlayer ? 15 : 12,
                 }}
               >
-                {/* Name intentionally hidden in battle — only the HP and
-                    mana bars below carry the per-pet info to keep the
-                    arena uncluttered. */}
+                {/* For ENEMIES the HP bar floats ABOVE the sprite. We
+                    render it with absolute positioning relative to this
+                    container so it tracks the sprite while the enemy
+                    floats and even charges down. */}
+                {!pet.isPlayer && (
+                  <div className="absolute" style={{ bottom: `calc(100% + 6px)`, left: "50%", transform: "translateX(-50%)", width: 60 }}>
+                    <div className="flex flex-col items-center gap-0.5">
+                      {stars > 0 && (
+                        <div className="text-[7px] leading-none whitespace-nowrap" style={{ color: "#fbbf24", textShadow: "0 1px 2px rgba(0,0,0,0.8)" }}>
+                          {"★".repeat(stars)}
+                        </div>
+                      )}
+                      <div
+                        className="h-1.5 w-full bg-black/70 rounded-full overflow-hidden border"
+                        style={{
+                          borderColor: pendingSkill?.mode === "needs-enemy" ? "rgba(239,68,68,0.6)" : "rgba(255,255,255,0.10)",
+                          animation: pendingSkill?.mode === "needs-enemy" ? "targetPulse 0.8s ease-in-out infinite" : undefined,
+                        }}
+                      >
+                        <div className="h-full rounded-full transition-all duration-200" style={{ width: `${Math.max(0, (pet.hp / pet.maxHp) * 100)}%`, background: hpColor(pet.hp / pet.maxHp) }} />
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-                {/* Pet image with hit/dim states. The amber circle that
-                    used to ring the active player pet has been removed —
-                    the size jump (player pets are 200 vs 180) is enough to
-                    distinguish the swipe-driven pet without an outline. We
-                    still draw the yellow outline while a special skill is
-                    being targeted (isPendingSource) because that's a
-                    transient affordance, not a persistent decoration. */}
+                {/* Sprite (with hit/dim/glow states). Hovered allies
+                    during a potion drag get a green pulsing ring as a
+                    drop-zone affordance. */}
                 <div
                   style={{
                     width: size,
                     height: size,
                     borderRadius: "50%",
                     transform: pet.isPlayer ? undefined : "scaleX(-1)",
-                    animation: isSkillReady ? "skillGlow 1.2s ease-in-out infinite" : isHit ? "bHit 0.32s ease-out" : undefined,
-                    outline: isPendingSource ? "2px solid rgba(250,204,21,0.8)" : undefined,
+                    animation: isHoveredDrop
+                      ? "dropZonePulse 0.7s ease-in-out infinite"
+                      : isSkillReady
+                        ? "skillGlow 1.2s ease-in-out infinite"
+                        : isHit
+                          ? "bHit 0.32s ease-out"
+                          : undefined,
+                    outline: isPendingSource
+                      ? "2px solid rgba(250,204,21,0.8)"
+                      : isHoveredDrop
+                        ? "2px solid rgba(74,222,128,0.85)"
+                        : undefined,
                     outlineOffset: 3,
                     position: "relative",
                   }}
@@ -923,9 +1065,6 @@ export default function PvpBattlePage({
                     : pet.imageUrl
                     ? <img src={pet.imageUrl} style={{ width: size, height: size, objectFit: "contain", filter: pet.isPlayer ? "drop-shadow(0 0 10px rgba(167,139,250,0.5))" : "drop-shadow(0 0 10px rgba(239,68,68,0.45))" }} />
                     : <div style={{ width: size, height: size, background: pet.isPlayer ? "rgba(100,60,200,0.3)" : "rgba(200,60,60,0.3)", borderRadius: "50%", border: `2px solid ${pet.isPlayer ? "rgba(167,139,250,0.5)" : "rgba(239,68,68,0.5)"}`, display: "flex", alignItems: "center", justifyContent: "center" }}><img src={petPawIcon} alt="" style={{ width: size * 0.65, height: size * 0.65, objectFit: "contain" }} /></div>}
-                  {/* X_X eyes overlay during a hit — tiny, plays once per
-                      flash. Counter-mirrored for enemies so it stays
-                      readable when the pet is flipped. */}
                   {isHit && (
                     <div
                       className="absolute inset-0 flex items-center justify-center font-black"
@@ -941,28 +1080,24 @@ export default function PvpBattlePage({
                   )}
                 </div>
 
-                {/* Stats stack below: stars + HP (+ mana for player) */}
-                <div className="mt-1 flex flex-col items-center gap-0.5" style={{ width: 60 }}>
-                  {stars > 0 && (
-                    <div className="text-[7px] leading-none whitespace-nowrap" style={{ color: "#fbbf24", textShadow: "0 1px 2px rgba(0,0,0,0.8)" }}>
-                      {"★".repeat(stars)}
+                {/* For ALLIES the HP + mana stack sits under the sprite. */}
+                {pet.isPlayer && (
+                  <div className="mt-1 flex flex-col items-center gap-0.5" style={{ width: 60 }}>
+                    {stars > 0 && (
+                      <div className="text-[7px] leading-none whitespace-nowrap" style={{ color: "#fbbf24", textShadow: "0 1px 2px rgba(0,0,0,0.8)" }}>
+                        {"★".repeat(stars)}
+                      </div>
+                    )}
+                    <div className="h-1.5 w-full bg-black/70 rounded-full overflow-hidden border border-white/10">
+                      <div className="h-full rounded-full transition-all duration-200" style={{ width: `${Math.max(0, (pet.hp / pet.maxHp) * 100)}%`, background: hpColor(pet.hp / pet.maxHp) }} />
                     </div>
-                  )}
-                  <div
-                    className="h-1.5 w-full bg-black/70 rounded-full overflow-hidden border border-white/10"
-                    style={{
-                      borderColor: pendingSkill?.mode === "needs-enemy" && !pet.isPlayer ? "rgba(239,68,68,0.6)" : "rgba(255,255,255,0.10)",
-                      animation: pendingSkill?.mode === "needs-enemy" && !pet.isPlayer ? "targetPulse 0.8s ease-in-out infinite" : undefined,
-                    }}
-                  >
-                    <div className="h-full rounded-full transition-all duration-200" style={{ width: `${Math.max(0, (pet.hp / pet.maxHp) * 100)}%`, background: hpColor(pet.hp / pet.maxHp) }} />
+                    {pet.specialSkill && (
+                      <div className="h-1 w-full bg-black/50 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all duration-200" style={{ width: `${(pet.mana / MAX_MANA) * 100}%`, background: pet.mana >= MAX_MANA ? "#c084fc" : "#4c1d95" }} />
+                      </div>
+                    )}
                   </div>
-                  {pet.isPlayer && pet.specialSkill && (
-                    <div className="h-1 w-full bg-black/50 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full transition-all duration-200" style={{ width: `${(pet.mana / MAX_MANA) * 100}%`, background: pet.mana >= MAX_MANA ? "#c084fc" : "#4c1d95" }} />
-                    </div>
-                  )}
-                </div>
+                )}
 
                 {/* Skill ready / pending labels */}
                 {isSkillReady && !isPendingSource && (
@@ -975,8 +1110,6 @@ export default function PvpBattlePage({
                     READY →
                   </div>
                 )}
-
-                {/* Enemy target indicator */}
                 {isEnemyTarget && !pet.isDead && (
                   <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 text-[9px] text-red-300 font-bold whitespace-nowrap animate-pulse">TAP</div>
                 )}
@@ -1009,16 +1142,43 @@ export default function PvpBattlePage({
             </div>
           ))}
 
-          {/* ── Potion bar ──────────────────────────────────────
-              Tap a bottle to apply its effect to the active pet
-              (heal/mana) or revive the first fallen ally. Bottles
-              vanish from the bar as soon as they're consumed. */}
+          {/* Floating ghost icon while a potion is being dragged.
+              Positioned in fixed/screen coords so it tracks the finger
+              perfectly even outside the arena bounds. */}
+          {draggingPotion && (() => {
+            const inv = (myInventory as any[]).find((x: any) => (x.inventoryId || x.id) === draggingPotion.invId);
+            return (
+              <div
+                className="fixed z-50 pointer-events-none"
+                style={{
+                  left: draggingPotion.screenX,
+                  top: draggingPotion.screenY,
+                  transform: "translate(-50%,-50%)",
+                }}
+                data-testid="ghost-potion"
+              >
+                <div
+                  className="w-12 h-12 rounded-xl flex items-center justify-center"
+                  style={{
+                    background: "rgba(34,197,94,0.20)",
+                    border: "2px solid rgba(74,222,128,0.85)",
+                    boxShadow: "0 6px 18px rgba(0,0,0,0.6), 0 0 18px rgba(74,222,128,0.45)",
+                  }}
+                >
+                  {inv?.imageUrl
+                    ? <img src={inv.imageUrl} alt="" style={{ width: 36, height: 36, objectFit: "contain" }} />
+                    : <span className="text-white text-base font-black">P</span>}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Potion bar — drag a chip onto an ally. The chip captures
+              the pointer on press so the parent arena's slash-handler
+              never starts. Drop on an ally → consume. */}
           {phase === "battle" && potionsRemaining.length > 0 && (
             <div
               className="absolute z-30 flex gap-1.5 pointer-events-auto left-1/2 -translate-x-1/2"
-              // Centered along the bottom of the arena to mirror the PvE
-              // BattleArena potion row. Sits above the iPhone home
-              // indicator and the swipe hint line.
               style={{ bottom: 32 }}
               data-testid="pvp-potion-bar"
             >
@@ -1027,13 +1187,19 @@ export default function PvpBattlePage({
                 if (!inv) return null;
                 const isMana = (inv.manaRestored ?? 0) > 0;
                 const isRevive = (inv.petsRevived ?? 0) > 0;
+                const isBeingDragged = draggingPotion?.invId === invId;
                 return (
-                  <button
+                  <div
                     key={`${invId}-${i}`}
                     data-testid={`button-pvp-potion-${i}`}
-                    onPointerDown={(e) => { e.stopPropagation(); consumePotion(invId); }}
-                    className="w-11 h-11 rounded-lg flex items-center justify-center active:scale-90 transition-transform"
+                    onPointerDown={(e) => beginPotionDrag(invId, e)}
+                    onPointerMove={movePotionDrag}
+                    onPointerUp={endPotionDrag}
+                    onPointerCancel={() => cancelPotionDrag()}
+                    onLostPointerCapture={() => cancelPotionDrag()}
+                    className="w-11 h-11 rounded-lg flex items-center justify-center transition-transform"
                     style={{
+                      touchAction: "none",
                       background: isRevive
                         ? "rgba(251,191,36,0.18)"
                         : isMana
@@ -1041,32 +1207,29 @@ export default function PvpBattlePage({
                           : "rgba(34,197,94,0.20)",
                       border: `1px solid ${isRevive ? "rgba(251,191,36,0.55)" : isMana ? "rgba(167,139,250,0.55)" : "rgba(34,197,94,0.55)"}`,
                       boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+                      opacity: isBeingDragged ? 0.35 : 1,
+                      cursor: "grab",
                     }}
                   >
                     {inv.imageUrl
-                      ? <img src={inv.imageUrl} alt={inv.name} style={{ width: 32, height: 32, objectFit: "contain" }} />
+                      ? <img src={inv.imageUrl} alt={inv.name} style={{ width: 32, height: 32, objectFit: "contain", pointerEvents: "none" }} draggable={false} />
                       : <span className="text-white text-sm font-black">{isRevive ? "R" : isMana ? "M" : "H"}</span>}
-                  </button>
+                  </div>
                 );
               })}
             </div>
           )}
 
-          {/* Hint (only when not in skill mode) */}
+          {/* Hint */}
           {phase === "battle" && !pendingSkill && (
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-white/12 text-[9px] tracking-widest pointer-events-none animate-pulse whitespace-nowrap">
-              Swipe enemies · Tap pet to move · Tap glowing pet to use skill
+              Swipe enemies · Tap glowing ally for skill · Drag potion to ally
             </div>
           )}
 
-          {/* ── Result overlay ─────────────────────────────────────
-              WIN  → golden-orb burst + congrats + +N BP from server
-              LOSS → softer red-toned panel + motivational note,
-                     deliberately NO "you lost N points" because losses
-                     don't deduct anything in PvP. */}
+          {/* Result overlay (unchanged) */}
           {phase === "result" && resultOutcome === "win" && (
             <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 px-6" style={{ background: "radial-gradient(ellipse at center, rgba(60,30,8,0.85) 0%, rgba(5,4,2,0.95) 80%)", animation: "bResultIn 0.5s ease-out" }}>
-              {/* Golden orbs floating up behind the trophy */}
               <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 {Array.from({ length: 14 }).map((_, i) => {
                   const left = 8 + (i * 6.5) % 84;

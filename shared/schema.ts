@@ -381,6 +381,19 @@ export const badgeRewardClaims = pgTable("badge_reward_claims", {
   lastClaimedAt: timestamp("last_claimed_at").notNull().default(sql`now()`),
 });
 
+// Emblems are PvP-arena trophies awarded for ranked play (placeholder
+// table: created/listed/deleted via admin only for now). Once the rank
+// reward flow is built we'll add a `user_emblems` join — until then the
+// table just holds the catalog of available emblems.
+export const emblems = pgTable("emblems", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  imageUrl: text("image_url").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+export type Emblem = typeof emblems.$inferSelect;
+
 export const fishTemplateParts = pgTable("fish_template_parts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   fishItemId: varchar("fish_item_id").notNull(),

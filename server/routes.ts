@@ -4446,6 +4446,63 @@ export async function registerRoutes(
     }
   });
 
+  // ───────── Emblems (PvP rank-trophy catalog, admin-managed) ─────────
+  app.get("/api/admin/emblems", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
+      const all = await storage.listEmblems();
+      return res.json(all);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message || "Failed to fetch emblems" });
+    }
+  });
+
+  app.post("/api/admin/emblems", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
+      const { name, description, imageData } = req.body;
+      if (!name || !imageData) return res.status(400).json({ message: "name and imageData required" });
+      const imageUrl = await processWorldImage(imageData, 1000);
+      const emblem = await storage.createEmblem({
+        name: String(name).trim(),
+        description: description ? String(description) : null,
+        imageUrl,
+      });
+      return res.json(emblem);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message || "Failed to create emblem" });
+    }
+  });
+
+  app.patch("/api/admin/emblems/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
+      const { name, description, imageData } = req.body;
+      const updateData: { name?: string; description?: string | null; imageUrl?: string } = {};
+      if (name !== undefined && String(name).trim()) updateData.name = String(name).trim();
+      if (description !== undefined) updateData.description = description ? String(description) : null;
+      if (imageData) updateData.imageUrl = await processWorldImage(imageData, 1000);
+      await storage.updateEmblem(req.params.id as string, updateData);
+      return res.json({ ok: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message || "Failed to update emblem" });
+    }
+  });
+
+  app.delete("/api/admin/emblems/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
+      await storage.deleteEmblem(req.params.id as string);
+      return res.json({ ok: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message || "Failed to delete emblem" });
+    }
+  });
+
   app.get("/api/badges/leaderboard", async (_req, res) => {
     try {
       const leaderboard = await storage.getBadgeLeaderboard(50);
@@ -5436,10 +5493,14 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
       const all = await storage.getPvpLeaderboardFull();
-      const top = all.slice(0, 50);
+      // Send the top 100 so the client can render a dropdown view of the
+      // full top-100 board while still defaulting to top-10. The "me"
+      // block always reports the player's full rank across the entire
+      // ranked pool — even when they're outside the top 100.
+      const top = all.slice(0, 100);
       const myIdx = all.findIndex((e) => e.userId === user.id);
       const me = myIdx >= 0
-        ? { rank: myIdx + 1, entry: all[myIdx], inTop: myIdx < 50 }
+        ? { rank: myIdx + 1, entry: all[myIdx], inTop: myIdx < 100 }
         : null;
       return res.json({ top, me, totalRanked: all.length });
     } catch (err) {

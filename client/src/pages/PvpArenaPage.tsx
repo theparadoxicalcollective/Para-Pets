@@ -7,7 +7,7 @@ import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import battleTrophyIcon from "@assets/generated_images/icon_battle_trophy.png";
 import pvpTicketImg from "@assets/Photoroom_20260415_83701_PM_1776304592941.png";
 import pvpNavIcon from "@assets/generated_images/nav_icon_pvp.png";
-import { ArrowLeft, Users, Check, Heart, Droplets } from "lucide-react";
+import { ArrowLeft, Users, Check, Heart, Droplets, Trophy, Medal, Award } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
 import PvpBattlePage from "./PvpBattlePage";
 import PvpMatchmakingOverlay from "@/components/PvpMatchmakingOverlay";
@@ -24,6 +24,7 @@ interface LeaderboardEntry {
   losses: number;
   isAdmin?: boolean;
   isModerator?: boolean;
+  isBot?: boolean;
 }
 
 interface LeaderboardResponse {
@@ -140,6 +141,12 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
   // the corresponding picker; tapping a tile inside the picker fills the
   // first empty slot of that type and closes the sheet.
   const [pickerOpen, setPickerOpen] = useState<null | "pet" | "potion">(null);
+
+  // Leaderboard expansion: collapsed shows the top-10, expanded reveals
+  // the rest (server returns up to 100). Toggled by the chip below the
+  // header. Defaults to collapsed so the board doesn't dominate the
+  // single-page lobby.
+  const [showFullBoard, setShowFullBoard] = useState(false);
 
   // Spend a ticket BEFORE the battle screen mounts. We do it here (not inside
   // PvpBattlePage) so a player who's out of tickets gets a friendly toast
@@ -319,6 +326,14 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
 
   const myBp = myLb?.entry.battlePoints ?? 0;
   const myRank = myLb?.rank ?? null;
+  const myWins = myLb?.entry.wins ?? 0;
+  const myLosses = myLb?.entry.losses ?? 0;
+  const hasPlayed = (myWins + myLosses) > 0;
+
+  // Owned emblems will plug in here once the rank-rewards flow exists.
+  // For now we render an empty 5-slot row as a visual placeholder so the
+  // panel layout is locked in.
+  const myEmblems: { id: string; name: string; imageUrl: string }[] = [];
 
   return (
     <div
@@ -418,7 +433,18 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
               >
                 LEADERBOARD
               </div>
-              <div className="text-[9px] tracking-[0.2em] text-white/35">RANK · BP</div>
+              <button
+                data-testid="button-toggle-leaderboard-size"
+                onClick={() => setShowFullBoard(v => !v)}
+                className="text-[9px] tracking-[0.18em] font-bold px-2 py-0.5 rounded-md active:scale-95"
+                style={{
+                  background: "rgba(167,139,250,0.16)",
+                  border: "1px solid rgba(167,139,250,0.35)",
+                  color: "#c4b5fd",
+                }}
+              >
+                {showFullBoard ? "TOP 10" : "TOP 100"}
+              </button>
             </div>
             <div className="px-3 pb-3">
               {leaderboard.length === 0 ? (
@@ -426,10 +452,24 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                   No matches played yet
                 </div>
               ) : (
-                <div className="flex flex-col">
-                  {leaderboard.slice(0, 25).map((entry, i) => {
+                <div
+                  className={`flex flex-col ${showFullBoard ? "overflow-y-auto" : ""}`}
+                  style={showFullBoard ? { maxHeight: 380 } : undefined}
+                >
+                  {(showFullBoard ? leaderboard.slice(0, 100) : leaderboard.slice(0, 10)).map((entry, i) => {
                     const rank = i + 1;
                     const isMe = entry.userId === me?.id;
+                    // Top-3 trophy icons: gold/silver/bronze. We use lucide
+                    // glyphs (Trophy/Medal/Award) tinted to match each
+                    // place so the podium reads at a glance.
+                    const trophy = rank === 1
+                      ? { Icon: Trophy, color: "#fbbf24", glow: "rgba(251,191,36,0.55)" }
+                      : rank === 2
+                        ? { Icon: Medal, color: "#cbd5e1", glow: "rgba(203,213,225,0.5)" }
+                        : rank === 3
+                          ? { Icon: Award, color: "#d97706", glow: "rgba(217,119,6,0.5)" }
+                          : null;
+                    const lastIdx = (showFullBoard ? Math.min(99, leaderboard.length - 1) : Math.min(9, leaderboard.length - 1));
                     return (
                       <div
                         key={entry.userId}
@@ -437,11 +477,19 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                         className="flex items-center gap-2.5 px-2 py-1.5 rounded-md"
                         style={{
                           background: isMe ? "rgba(124,58,237,0.22)" : "transparent",
-                          borderBottom: i === Math.min(24, leaderboard.length - 1) ? "none" : "1px solid rgba(255,255,255,0.04)",
+                          borderBottom: i === lastIdx ? "none" : "1px solid rgba(255,255,255,0.04)",
                         }}
                       >
-                        <div className="w-6 text-right text-white/55 text-[12px] font-bold tabular-nums shrink-0">
-                          {rank}
+                        <div className="w-6 flex items-center justify-end shrink-0">
+                          {trophy ? (
+                            <trophy.Icon
+                              size={16}
+                              style={{ color: trophy.color, filter: `drop-shadow(0 0 4px ${trophy.glow})` }}
+                              data-testid={`icon-trophy-${rank}`}
+                            />
+                          ) : (
+                            <span className="text-white/55 text-[12px] font-bold tabular-nums">{rank}</span>
+                          )}
                         </div>
                         {entry.profileImage
                           ? <img src={entry.profileImage} className="w-7 h-7 rounded-full object-cover border border-white/10 shrink-0" />
@@ -452,9 +500,6 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                           <div className="text-white/95 text-[12px] font-semibold truncate">{entry.username}</div>
                           <RoleBadge isAdmin={entry.isAdmin} isModerator={entry.isModerator} />
                         </div>
-                        {/* Stripped W/L per design — leaderboard rows are
-                            now simply [rank · avatar · name · BP] so the
-                            BP number reads at a glance. */}
                         <div className="text-amber-300 text-[13px] font-black tabular-nums shrink-0 w-14 text-right">
                           {Math.max(0, entry.battlePoints)}
                         </div>
@@ -496,6 +541,102 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                   </div>
                 </div>
               ) : null}
+            </div>
+          </div>
+
+          {/* ── Rank panel: shows the player's standing at a glance.
+               Sits between the leaderboard and the Prepare-for-Battle
+               card so it's the first thing the player sees about their
+               own performance every time they enter the arena. ── */}
+          <div
+            className="rounded-2xl p-3 mx-auto w-full"
+            style={{
+              maxWidth: 360,
+              background: "linear-gradient(180deg, rgba(20,10,40,0.78) 0%, rgba(10,6,22,0.82) 100%)",
+              border: "1px solid rgba(167,139,250,0.22)",
+              boxShadow: "0 6px 22px rgba(0,0,0,0.45)",
+            }}
+            data-testid="card-rank-panel"
+          >
+            <div className="text-center mb-2">
+              <div
+                className="text-[15px] font-black tracking-[0.18em]"
+                style={{
+                  fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
+                  color: "#fde68a",
+                  textShadow: "0 1px 2px rgba(0,0,0,0.85)",
+                }}
+                data-testid="text-rank-title"
+              >
+                RANK
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              <div
+                className="rounded-lg py-1.5 flex flex-col items-center justify-center"
+                style={{ background: "rgba(167,139,250,0.10)", border: "1px solid rgba(167,139,250,0.25)" }}
+              >
+                <div className="text-[8px] tracking-[0.2em] text-purple-200/70 font-bold">RANK</div>
+                <div className="text-white text-[15px] font-black tabular-nums leading-tight" data-testid="text-my-rank">
+                  {hasPlayed && myRank ? `#${myRank}` : "—"}
+                </div>
+                {!hasPlayed && (
+                  <div className="text-[7px] tracking-wider text-white/35">UNRANKED</div>
+                )}
+              </div>
+              <div
+                className="rounded-lg py-1.5 flex flex-col items-center justify-center"
+                style={{ background: "rgba(251,191,36,0.10)", border: "1px solid rgba(251,191,36,0.30)" }}
+              >
+                <div className="text-[8px] tracking-[0.2em] text-amber-200/70 font-bold">BP</div>
+                <div className="text-amber-300 text-[15px] font-black tabular-nums leading-tight" data-testid="text-my-bp">
+                  {Math.max(0, myBp)}
+                </div>
+              </div>
+              <div
+                className="rounded-lg py-1.5 flex flex-col items-center justify-center"
+                style={{ background: "rgba(34,197,94,0.10)", border: "1px solid rgba(34,197,94,0.25)" }}
+              >
+                <div className="text-[8px] tracking-[0.2em] text-emerald-200/70 font-bold">W · L</div>
+                <div className="text-white text-[13px] font-black tabular-nums leading-tight" data-testid="text-my-wl">
+                  <span className="text-emerald-300">{myWins}</span>
+                  <span className="text-white/30 mx-0.5">·</span>
+                  <span className="text-red-300">{myLosses}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Emblems row — empty placeholder for now. Wired up to the
+                emblems table; the actual award flow is TBD. */}
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-2">
+                <Trophy size={13} className="text-amber-300" />
+                <span className="text-[10px] tracking-[0.18em] font-bold text-amber-200">EMBLEMS</span>
+              </div>
+              <span className="text-[10px] text-white/40" data-testid="text-emblems-count">{myEmblems.length}/5</span>
+            </div>
+            <div className="grid grid-cols-5 gap-1.5" data-testid="row-my-emblems">
+              {Array.from({ length: 5 }, (_, i) => {
+                const em = myEmblems[i];
+                return (
+                  <div
+                    key={i}
+                    data-testid={`div-emblem-slot-${i}`}
+                    className="rounded-lg flex items-center justify-center"
+                    style={{
+                      aspectRatio: "1 / 1",
+                      background: em ? "rgba(251,191,36,0.12)" : "rgba(255,255,255,0.04)",
+                      border: `1px solid ${em ? "rgba(251,191,36,0.35)" : "rgba(255,255,255,0.08)"}`,
+                    }}
+                  >
+                    {em ? (
+                      <img src={em.imageUrl} alt={em.name} className="w-full h-full object-contain p-1" />
+                    ) : (
+                      <span className="text-white/20 text-base">·</span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
 

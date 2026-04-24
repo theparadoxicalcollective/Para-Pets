@@ -17,6 +17,7 @@ import {
   type LocationEnemy, locationEnemies,
   type EnemyDrop, enemyDrops,
   type Badge, type UserBadge, badges, userBadges, badgeRewardClaims,
+  type Emblem, emblems,
   type KeepersCentralEnemy, keepersCentralEnemies,
   type KcDoor, kcDoors,
   type KcDoorDecorPlacement, kcDoorDecorPlacements,
@@ -193,6 +194,11 @@ export interface IStorage {
   getBadgeRewardClaim(userId: string, badgeId: string): Promise<{ lastClaimedAt: Date } | null>;
   upsertBadgeRewardClaim(userId: string, badgeId: string): Promise<void>;
   getBadgeLeaderboard(limit?: number): Promise<{ userId: string; username: string; profileImage: string | null; totalPoints: number; topBadges: { id: string; name: string; imageUrl: string }[]; allBadges: { id: string; name: string; imageUrl: string }[] }[]>;
+  // Emblems CRUD (PvP rank trophies — admin-managed catalog only for now).
+  listEmblems(): Promise<Emblem[]>;
+  createEmblem(data: { name: string; description?: string | null; imageUrl: string }): Promise<Emblem>;
+  updateEmblem(id: string, data: { name?: string; description?: string | null; imageUrl?: string }): Promise<void>;
+  deleteEmblem(id: string): Promise<void>;
   // Adventurer's Devotion: lifetime earnings minus coins received from coin-bundle purchases.
   getDevotionLeaderboard(limit?: number): Promise<{ userId: string; username: string; profileImage: string | null; totalPoints: number; topBadges: { id: string; name: string; imageUrl: string }[]; allBadges: { id: string; name: string; imageUrl: string }[] }[]>;
   getKeepersCentralEnemies(): Promise<(KeepersCentralEnemy & { enemyName: string; enemyImageUrl: string | null })[]>;
@@ -1083,6 +1089,27 @@ export class DatabaseStorage implements IStorage {
 
   async updateBadge(id: string, data: { dailyRewardCoins?: number | null; badgePoints?: number; name?: string; imageUrl?: string; claimType?: string }): Promise<void> {
     await db.update(badges).set(data).where(eq(badges.id, id));
+  }
+
+  async listEmblems(): Promise<Emblem[]> {
+    return db.select().from(emblems).orderBy(desc(emblems.createdAt));
+  }
+
+  async createEmblem(data: { name: string; description?: string | null; imageUrl: string }): Promise<Emblem> {
+    const [row] = await db.insert(emblems).values({
+      name: data.name,
+      description: data.description ?? null,
+      imageUrl: data.imageUrl,
+    }).returning();
+    return row;
+  }
+
+  async updateEmblem(id: string, data: { name?: string; description?: string | null; imageUrl?: string }): Promise<void> {
+    await db.update(emblems).set(data).where(eq(emblems.id, id));
+  }
+
+  async deleteEmblem(id: string): Promise<void> {
+    await db.delete(emblems).where(eq(emblems.id, id));
   }
 
   async getUserBadges(userId: string): Promise<(UserBadge & { name: string; imageUrl: string; dailyRewardCoins: number | null; claimType: string; badgePoints: number; lastClaimedAt: Date | null })[]> {

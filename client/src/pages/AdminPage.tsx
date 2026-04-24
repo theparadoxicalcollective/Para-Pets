@@ -64,7 +64,7 @@ export default function AdminPage({ user }: AdminPageProps) {
   const [banModalUserId, setBanModalUserId] = useState<string | null>(null);
   const [banDays, setBanDays] = useState<string>("");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
-  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "welcome" | "items" | "pets" | "messages" | "badges" | "maintenance" | "home_bundle" | "purchases" | "chat_filter" | "veridian_watcher" | null>(null);
+  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "welcome" | "items" | "pets" | "messages" | "badges" | "emblems" | "maintenance" | "home_bundle" | "purchases" | "chat_filter" | "veridian_watcher" | null>(null);
   const [orphanResult, setOrphanResult] = useState<{ summary: string; cleaned: number } | null>(null);
   const [characterTab, setCharacterTab] = useState<"pet" | "enemy" | "npc" | "fish">("pet");
   const [itemsTab, setItemsTab] = useState<"items" | "fishing">("items");
@@ -159,6 +159,7 @@ export default function AdminPage({ user }: AdminPageProps) {
     { key: "pets" as const, label: "Add Character", icon: adminIconPets, desc: "Pets, enemies, NPCs & fish", color: "#5eead4", glow: "rgba(94,234,212,0.30)", bg: "linear-gradient(145deg, rgba(8,45,42,0.92) 0%, rgba(14,70,65,0.88) 100%)", border: "rgba(94,234,212,0.45)" },
     { key: "messages" as const, label: "Messages", count: unreadSupportCount || undefined, icon: adminIconMessages, desc: "Support inbox", color: "#fca5a5", glow: "rgba(252,165,165,0.30)", bg: "linear-gradient(145deg, rgba(80,18,18,0.92) 0%, rgba(110,28,28,0.88) 100%)", border: "rgba(252,165,165,0.45)" },
     { key: "badges" as const, label: "Badges", icon: adminIconBadges, desc: "Award badges", color: "#fde68a", glow: "rgba(253,230,138,0.30)", bg: "linear-gradient(145deg, rgba(72,54,0,0.92) 0%, rgba(108,80,0,0.88) 100%)", border: "rgba(253,230,138,0.45)" },
+    { key: "emblems" as const, label: "Emblems", icon: adminIconBadges, desc: "PvP rank trophies", color: "#fca5a5", glow: "rgba(252,165,165,0.30)", bg: "linear-gradient(145deg, rgba(80,18,18,0.92) 0%, rgba(110,28,28,0.88) 100%)", border: "rgba(252,165,165,0.45)" },
     { key: "welcome" as const, label: "Welcome Bundle", icon: adminIconWelcome, desc: "New user gifts", color: "#6ee7b7", glow: "rgba(110,231,183,0.35)", bg: "linear-gradient(145deg, rgba(8,50,35,0.92) 0%, rgba(14,80,55,0.88) 100%)", border: "rgba(110,231,183,0.45)" },
 
     { key: "home_bundle" as const, label: "Home Bundle", icon: adminIconHouseBundle, desc: "Decor & bundles", color: "#fbbf24", glow: "rgba(251,191,36,0.30)", bg: "linear-gradient(145deg, rgba(60,40,4,0.92) 0%, rgba(90,60,8,0.88) 100%)", border: "rgba(251,191,36,0.45)" },
@@ -608,6 +609,10 @@ export default function AdminPage({ user }: AdminPageProps) {
 
               {activeSection === "badges" && (
                 <BadgeDatabaseSection members={members.filter(m => !m.isAdmin)} />
+              )}
+
+              {activeSection === "emblems" && (
+                <EmblemDatabaseSection />
               )}
 
               {activeSection === "welcome" && (
@@ -2884,6 +2889,266 @@ function ChatFilterSection({ currentUsername }: { currentUsername: string }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ─── Emblems CRUD ──────────────────────────────────────────────────
+// Mirrors the Badges section but for the (currently catalog-only) PvP
+// emblem trophies. Admins can create, list, and delete emblems here;
+// the user-facing rank rewards that consume these are still TBD.
+interface AdminEmblem {
+  id: string;
+  name: string;
+  description: string | null;
+  imageUrl: string;
+  createdAt: string;
+}
+
+function EmblemDatabaseSection() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  // The dialog supports both create and edit. `editId` decides which —
+  // null means "create new", a string id means "edit this emblem".
+  // The image is optional in edit mode (server keeps the existing one
+  // if `imageData` is omitted).
+  const [showUpload, setShowUpload] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [uploadName, setUploadName] = useState("");
+  const [uploadDesc, setUploadDesc] = useState("");
+  const [uploadPreview, setUploadPreview] = useState<string | null>(null);
+  const [uploadData, setUploadData] = useState<string | null>(null);
+
+  const closeDialog = () => {
+    setShowUpload(false);
+    setEditId(null);
+    setUploadName("");
+    setUploadDesc("");
+    setUploadPreview(null);
+    setUploadData(null);
+  };
+
+  const openCreate = () => {
+    setEditId(null);
+    setUploadName("");
+    setUploadDesc("");
+    setUploadPreview(null);
+    setUploadData(null);
+    setShowUpload(true);
+  };
+
+  const openEdit = (em: AdminEmblem) => {
+    setEditId(em.id);
+    setUploadName(em.name);
+    setUploadDesc(em.description ?? "");
+    setUploadPreview(em.imageUrl);
+    setUploadData(null); // null = keep existing image unless user replaces it
+    setShowUpload(true);
+  };
+
+  const { data: emblems = [], isLoading } = useQuery<AdminEmblem[]>({
+    queryKey: ["/api/admin/emblems"],
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      if (!uploadName.trim() || !uploadData) throw new Error("Name and image required");
+      return apiRequest("POST", "/api/admin/emblems", {
+        name: uploadName.trim(),
+        description: uploadDesc.trim() || null,
+        imageData: uploadData,
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/admin/emblems"] });
+      closeDialog();
+      toast({ title: "Emblem created!" });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      if (!editId) throw new Error("Missing emblem id");
+      if (!uploadName.trim()) throw new Error("Name required");
+      // Only ship `imageData` when the admin actually picked a new one.
+      // Server treats a missing field as "leave the image alone".
+      const body: Record<string, unknown> = {
+        name: uploadName.trim(),
+        description: uploadDesc.trim() || null,
+      };
+      if (uploadData) body.imageData = uploadData;
+      return apiRequest("PATCH", `/api/admin/emblems/${editId}`, body);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/admin/emblems"] });
+      closeDialog();
+      toast({ title: "Emblem updated!" });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/admin/emblems/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/admin/emblems"] });
+      toast({ title: "Emblem deleted" });
+    },
+    onError: () => toast({ title: "Error deleting emblem", variant: "destructive" }),
+  });
+
+  const isEditing = editId !== null;
+  const isMutating = createMutation.isPending || updateMutation.isPending;
+  const canSave = uploadName.trim().length > 0 && (isEditing ? true : !!uploadData) && !isMutating;
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const data = ev.target?.result as string;
+      setUploadPreview(data);
+      setUploadData(data);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="text-amber-200/90 text-[12px] tracking-[0.18em] font-bold">EMBLEMS · {emblems.length}</div>
+        <button
+          data-testid="button-emblem-create"
+          onClick={openCreate}
+          className="px-3 py-1.5 rounded-md text-[11px] font-bold text-amber-100 active:scale-95"
+          style={{ background: "rgba(252,165,165,0.18)", border: "1px solid rgba(252,165,165,0.55)" }}
+        >
+          + New Emblem
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="text-white/40 text-[11px] py-6 text-center">Loading…</div>
+      ) : emblems.length === 0 ? (
+        <div className="text-white/40 text-[11px] py-6 text-center" data-testid="text-emblems-empty">
+          No emblems yet. Create one to get started.
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          {emblems.map((em) => (
+            <div
+              key={em.id}
+              data-testid={`card-emblem-${em.id}`}
+              className="relative rounded-xl p-2 flex items-center gap-2"
+              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(252,165,165,0.25)" }}
+            >
+              <img src={em.imageUrl} className="w-12 h-12 object-contain rounded" />
+              <div className="flex-1 min-w-0">
+                <div className="text-white/90 text-[11px] font-bold truncate" data-testid={`text-emblem-name-${em.id}`}>{em.name}</div>
+                {em.description && (
+                  <div className="text-white/45 text-[9px] truncate">{em.description}</div>
+                )}
+              </div>
+              <div className="flex flex-col gap-1">
+                <button
+                  data-testid={`button-emblem-edit-${em.id}`}
+                  onClick={() => openEdit(em)}
+                  className="px-2 py-1 rounded text-[10px] text-amber-100 active:scale-95"
+                  style={{ background: "rgba(251,191,36,0.18)", border: "1px solid rgba(251,191,36,0.45)" }}
+                >
+                  Edit
+                </button>
+                <button
+                  data-testid={`button-emblem-delete-${em.id}`}
+                  onClick={() => {
+                    if (confirm(`Delete "${em.name}"?`)) deleteMutation.mutate(em.id);
+                  }}
+                  className="px-2 py-1 rounded text-[10px] text-red-200 active:scale-95"
+                  style={{ background: "rgba(220,38,38,0.18)", border: "1px solid rgba(220,38,38,0.45)" }}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showUpload && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }}
+          onClick={closeDialog}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm rounded-2xl p-4 space-y-3"
+            style={{ background: "linear-gradient(180deg, #15102a 0%, #0a0814 100%)", border: "1px solid rgba(252,165,165,0.35)" }}
+          >
+            <div className="text-amber-100 text-[13px] font-bold tracking-[0.18em]" data-testid="text-emblem-dialog-title">
+              {isEditing ? "EDIT EMBLEM" : "NEW EMBLEM"}
+            </div>
+            <input
+              data-testid="input-emblem-name"
+              value={uploadName}
+              onChange={(e) => setUploadName(e.target.value)}
+              placeholder="Name"
+              className="w-full px-3 py-2 rounded-md text-[12px] text-white"
+              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)" }}
+            />
+            <textarea
+              data-testid="input-emblem-desc"
+              value={uploadDesc}
+              onChange={(e) => setUploadDesc(e.target.value)}
+              placeholder="Description (optional)"
+              rows={2}
+              className="w-full px-3 py-2 rounded-md text-[12px] text-white resize-none"
+              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)" }}
+            />
+            <div>
+              <input ref={fileRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+              <button
+                data-testid="button-emblem-upload-image"
+                onClick={() => fileRef.current?.click()}
+                className="w-full px-3 py-2 rounded-md text-[11px] text-white/80 active:scale-95"
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px dashed rgba(255,255,255,0.20)" }}
+              >
+                {uploadPreview ? "Replace image" : "Upload image"}
+              </button>
+              {isEditing && uploadPreview && !uploadData && (
+                <div className="mt-1 text-[9px] text-white/40 text-center tracking-wider">
+                  Existing image kept unless replaced
+                </div>
+              )}
+              {uploadPreview && (
+                <div className="mt-2 flex justify-center">
+                  <img src={uploadPreview} className="w-20 h-20 object-contain rounded" />
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={closeDialog}
+                className="flex-1 py-2 rounded-md text-[11px] text-white/70"
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)" }}
+              >
+                Cancel
+              </button>
+              <button
+                data-testid="button-emblem-save"
+                disabled={!canSave}
+                onClick={() => (isEditing ? updateMutation.mutate() : createMutation.mutate())}
+                className="flex-1 py-2 rounded-md text-[11px] font-bold text-amber-100 active:scale-95 disabled:opacity-40"
+                style={{ background: "rgba(252,165,165,0.22)", border: "1px solid rgba(252,165,165,0.55)" }}
+              >
+                {isMutating ? "Saving…" : isEditing ? "Save" : "Create"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
