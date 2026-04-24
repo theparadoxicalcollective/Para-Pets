@@ -267,7 +267,7 @@ const ANIM_ONLY_PARTS = new Set([
 // (isFacePart) covers those without listing every key.
 const FACE_PART_TYPES = new Set([
   "eyes", "eyes_closed", "left_ear", "right_ear", "mouth", "mouth_closed",
-  "hair_left", "hair_right", "accessory_1", "accessory_2",
+  "hair_left", "hair_right", "accessory_1", "accessory_2", "adobe_head",
 ]);
 const isFacePart = (partType: string): boolean => {
   if (FACE_PART_TYPES.has(partType)) return true;
@@ -615,23 +615,47 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "hou
   return "0.6s";
 }
 
-// Layer order: lower number = rendered behind, higher number = rendered in front
-// Covers both front-facing (left_/right_) and side-facing (front_/back_) parts
+// Layer order: lower number = rendered behind, higher number = rendered in front.
+// Covers both front-facing (left_/right_) and side-facing (front_/back_) parts.
+// IMPORTANT: every body-layer part type the editor exposes MUST appear here so
+// the renderer doesn't fall back to the per-part DB z-index (which is on a
+// totally different scale, e.g. 35–58, and would render on top of the head
+// wrapper — see headGroups below, which forces the head/face wrapper to a
+// fixed z-index in the parent stacking context).
 const LAYER_ORDER: Record<string, number> = {
+  // ── Back-most: tails, back hair, all wing variants ─────────────────────
   tail: 1,
-  right_leg: 2,
-  left_leg: 2,
+  tail_2: 1,
+  tail_3: 1,
+  back_hair: 1,
   back_wing: 2,
+  back_wing_2: 2,
+  right_wing: 2,
+  left_wing: 2,
+  wing_set2_left: 2,
+  wing_set2_right: 2,
+  // ── Back-side limbs / accessories (behind body) ────────────────────────
   back_leg: 3,
-  right_wing: 3,
+  right_leg: 3,
+  left_leg: 3,
+  back_accessory_2: 3,
+  back_accessory_1: 3,
   back_arm: 4,
-  left_wing: 4,
+  back_shoulder: 4,
+  // ── Body ───────────────────────────────────────────────────────────────
   body: 5,
+  // ── Front-side accessories / front wings (in front of body) ────────────
+  front_wing_2: 6,
   front_wing: 6,
-  right_arm: 7,
+  front_accessory_2: 6,
+  front_accessory_1: 6,
+  // ── Front-side limbs ───────────────────────────────────────────────────
   front_leg: 7,
-  left_arm: 8,
+  right_arm: 7,
   front_arm: 8,
+  left_arm: 8,
+  front_shoulder: 8,
+  // ── Face / head (most live inside the head-group wrapper at z=9) ───────
   right_ear: 9,
   left_ear: 9,
   head: 10,
