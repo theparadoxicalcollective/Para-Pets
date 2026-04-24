@@ -777,7 +777,12 @@ export default function PvpBattlePage({
     const pos = getArenaPos(e.clientX, e.clientY);
     const prev = slashPathRef.current[slashPathRef.current.length - 1];
     slashPathRef.current.push(pos);
-    if (slashPathRef.current.length > 12) slashPathRef.current.shift();
+    // Keep the visible slash short — a 6-point cap reads as a quick
+    // saber-flick instead of the long red snake the previous 12-point
+    // cap drew. The hit-detection segment loop below only ever uses
+    // `prev` → `pos` (the most recent step), so the cap only affects
+    // what's RENDERED, not which enemies the swipe actually hits.
+    if (slashPathRef.current.length > 6) slashPathRef.current.shift();
     setSlashTrail([...slashPathRef.current]);
     if (!prev) return;
 
@@ -1039,7 +1044,15 @@ export default function PvpBattlePage({
   }, []);
 
   return createPortal(
-    <div className="fixed inset-0 flex flex-col" style={{ zIndex: 10000, fontFamily: "Lora, serif" }}>
+    // touchAction: "none" on the outermost battle wrapper kills iOS's
+    // edge-swipe-back gesture across the WHOLE PvP page — not just the
+    // arena. Without this, a player's swipe-attack that begins inside the
+    // first ~20 px of the screen edge can trigger Safari's
+    // back-navigation animation before our touchmove blocker on
+    // `document` has a chance to preventDefault. The PvP page is a fixed
+    // single-screen layout with no scrollable regions, so disabling the
+    // browser's native gesture system here is safe.
+    <div className="fixed inset-0 flex flex-col" style={{ zIndex: 10000, fontFamily: "Lora, serif", touchAction: "none" }}>
       <style>{`
         @keyframes koSpin { 0%{transform:translate(-50%,-50%) scale(1) rotate(0deg);opacity:1} 100%{transform:translate(-50%,-50%) scale(0.3) rotate(720deg);opacity:0} }
         @keyframes bSpark { to { transform: translate(calc(var(--dx)*14px), calc(var(--dy)*14px)); opacity:0; } }

@@ -24,23 +24,72 @@ interface PetPart {
 
 const CANVAS_SIZE = 1000;
 const ANIM_ONLY_PARTS = new Set(["eyes_closed", "mouth"]);
+// Canonical layer order — kept in lockstep with the LAYER_ORDER table in
+// PetAnimator.tsx (≈ line 692). The img-renderer (PetAnimator) is the
+// reference for visual stacking; this canvas-renderer must match it part
+// for part or PvP pets render with limbs / hair / wings on the wrong side
+// of the body. New part types added to PetAnimator MUST be mirrored here.
 const LAYER_ORDER: Record<string, number> = {
-  tail: 1, right_leg: 2, left_leg: 2, back_wing: 2, back_leg: 3, right_wing: 3,
-  back_arm: 4, left_wing: 4, body: 5, front_wing: 6, right_arm: 7, front_leg: 7,
-  left_arm: 8, front_arm: 8, right_ear: 9, left_ear: 9, head: 10,
-  mouth: 12, mouth_closed: 13, eyes_closed: 14, eyes: 15,
-  above_head: 16,
+  // ── Tail / hind decorations (deepest back layer) ──────────────────────
+  head_wing_left: 1, head_wing_right: 1,
+  tail: 1, tail_2: 1, tail_3: 1,
+  back_hair: 1,
+  // ── Wings (back-layer in side view, body wings on front view) ─────────
+  back_wing: 2, back_wing_2: 2,
+  right_wing: 2, left_wing: 2,
+  wing_set2_left: 2, wing_set2_right: 2,
+  // ── Back-side limbs / accessories (behind body) ───────────────────────
+  back_leg: 3, right_leg: 3, left_leg: 3,
+  back_accessory_2: 3, back_accessory_1: 3,
+  back_arm: 4, back_shoulder: 4,
+  // ── Body ──────────────────────────────────────────────────────────────
+  body: 5,
+  // ── Front-side accessories / front wings (in front of body) ───────────
+  front_wing_2: 6, front_wing: 6,
+  front_accessory_2: 6, front_accessory_1: 6,
+  // ── Front-side limbs ──────────────────────────────────────────────────
+  front_leg: 7, right_arm: 7,
+  front_arm: 8, left_arm: 8, front_shoulder: 8,
+  // ── Face / head ───────────────────────────────────────────────────────
+  right_ear: 9, left_ear: 9,
+  head: 10,
+  accessory_2: 11, accessory_1: 11,
+  mouth: 12,
+  mouth_closed: 13,
+  eyes_closed: 14,
+  eyes: 15,
+  hair_right: 16,
+  hair_left: 17,
+  above_head: 18,
 };
 
 // Parts that should ride along with the head bob (so the whole head reads
 // as one floating object instead of the eyes/mouth detaching from the
-// skull on every up-stroke).
-const HEAD_GROUP_PARTS = new Set([
-  "head", "eyes", "eyes_closed", "mouth", "mouth_closed",
-  "left_ear", "right_ear",
-  "h2_head", "h2_eyes", "h2_eyes_closed", "h2_mouth", "h2_mouth_closed", "h2_left_ear", "h2_right_ear",
-  "h3_head", "h3_eyes", "h3_eyes_closed", "h3_mouth", "h3_mouth_closed", "h3_left_ear", "h3_right_ear",
+// skull on every up-stroke). Mirrors the canonical FACE_PART_TYPES + isFacePart()
+// rule in PetAnimator.tsx (≈ line 286): a base set of face-anchored part
+// types, plus any h2_/h3_-prefixed variant of those base types so multi-head
+// pets bob each face as a unit. Also includes "head" itself and the
+// prefixed head variants so the head wrapper drives the wrapper transform.
+//
+// IMPORTANT: keep this list in lockstep with FACE_PART_TYPES in
+// PetAnimator.tsx. Adding a part here that the img-renderer does NOT bob
+// (or vice-versa) creates "renderer drift" — the same template animates
+// differently on the canvas vs the img path. Notably, head_wing_left/right
+// are NOT in the canonical face group (they animate independently like
+// regular wings) so they MUST stay out of this set.
+const FACE_BASE_PARTS = new Set([
+  "eyes", "eyes_closed", "left_ear", "right_ear", "mouth", "mouth_closed",
+  "hair_left", "hair_right", "accessory_1", "accessory_2", "above_head",
 ]);
+const isHeadGroupPart = (partType: string): boolean => {
+  if (partType === "head") return true;
+  if (FACE_BASE_PARTS.has(partType)) return true;
+  // Strip h2_/h3_ prefix and recheck the base set, so h2_accessory_1,
+  // h3_hair_left, h2_above_head, h3_head, etc. all ride their own head's bob.
+  const m = partType.match(/^h[23]_(.+)$/);
+  if (!m) return false;
+  return m[1] === "head" || FACE_BASE_PARTS.has(m[1]);
+};
 
 function kfi(kfs: [number, number][], t: number): number {
   if (t <= kfs[0][0]) return kfs[0][1];
@@ -284,7 +333,7 @@ export default function PetAnimatorCanvas({ petTemplateId, size, fillContainer =
         // the part's own ty if it has one). Same CSS-px → buffer-px
         // conversion as headBobPx above; do NOT multiply by dpr.
         let dy = anim.ty ? anim.ty * (drawSpan / size) : 0;
-        if (HEAD_GROUP_PARTS.has(part.partType) && part.partType !== "head") {
+        if (isHeadGroupPart(part.partType) && part.partType !== "head" && part.partType !== "h2_head" && part.partType !== "h3_head") {
           // Already-bobbing parts (head itself) shouldn't double-bob.
           dy += headBobPx;
         }

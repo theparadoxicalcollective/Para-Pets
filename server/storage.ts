@@ -394,10 +394,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTeamMembers(): Promise<{ id: string; username: string; profileImage: string | null; isAdmin: boolean; isModerator: boolean }[]> {
+    // Exclude any test/QA accounts that may have been flagged with admin
+    // or moderator privileges in dev. The public Hub team listing should
+    // only ever surface real people on the team — if a username starts
+    // with "test" (case-insensitive) or matches our standard QA email
+    // pattern (...@test.com), filter it out at the SQL layer so it never
+    // reaches the client. Real admins / mods are unaffected.
     const members = await db
       .select({ id: users.id, username: users.username, profileImage: users.profileImage, isAdmin: users.isAdmin, isModerator: users.isModerator })
       .from(users)
-      .where(sql`${users.isAdmin} IS TRUE OR ${users.isModerator} IS TRUE`);
+      .where(sql`(${users.isAdmin} IS TRUE OR ${users.isModerator} IS TRUE)
+        AND ${users.username} NOT ILIKE 'test%'
+        AND COALESCE(${users.email}, '') NOT ILIKE '%@test.com'`);
     return members;
   }
 
