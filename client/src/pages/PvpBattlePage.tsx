@@ -1133,10 +1133,20 @@ export default function PvpBattlePage({
       `}</style>
 
       {/* Backdrop */}
-      <div className="absolute inset-0" style={{ backgroundImage: `url(${forestBgImg})`, backgroundSize: "cover", backgroundPosition: "center", filter: "brightness(0.42) saturate(1.15)" }} />
-      <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 50% 30%, rgba(239,68,68,0.10) 0%, transparent 55%), linear-gradient(180deg,rgba(15,5,8,.35) 0%,rgba(5,4,8,.7) 100%)" }} />
-      <div className="absolute inset-y-0 left-0 w-10 pointer-events-none z-[1]" style={{ background: "linear-gradient(90deg, rgba(45,40,35,0.55) 0%, rgba(45,40,35,0.30) 60%, transparent 100%)", borderRight: "1px solid rgba(120,100,80,0.18)" }} />
-      <div className="absolute inset-y-0 right-0 w-10 pointer-events-none z-[1]" style={{ background: "linear-gradient(270deg, rgba(45,40,35,0.55) 0%, rgba(45,40,35,0.30) 60%, transparent 100%)", borderLeft: "1px solid rgba(120,100,80,0.18)" }} />
+      {/* Background image. Brightness was previously 0.42 which crushed the
+          forest backdrop into a near-black silhouette — the user couldn't
+          tell what biome they were fighting in. Bumped to 0.78 so the
+          background reads clearly while still sitting visually behind the
+          pets / HUD. Saturation kept at 1.15 for a touch of richness. */}
+      <div className="absolute inset-0" style={{ backgroundImage: `url(${forestBgImg})`, backgroundSize: "cover", backgroundPosition: "center", filter: "brightness(0.78) saturate(1.15)" }} />
+      {/* Vignette / red-tint overlay. Bottom darken eased from .7 → .35 and
+          top eased from .35 → .15 so the lifted background image isn't
+          immediately re-crushed by the overlay. The faint red glow at the
+          top stays as a thematic accent. */}
+      <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 50% 30%, rgba(239,68,68,0.08) 0%, transparent 55%), linear-gradient(180deg,rgba(15,5,8,.15) 0%,rgba(5,4,8,.35) 100%)" }} />
+      {/* Side-edge frames removed — they read as harsh vertical margins/
+          borders against the brighter background and the user explicitly
+          asked them gone. The arena now bleeds edge-to-edge. */}
       <div className="absolute pointer-events-none z-[1]" style={{ left: "50%", top: "50%", width: 320, height: 60, transform: "translate(-50%,-50%)", borderRadius: "50%", border: "1px dashed rgba(239,68,68,0.22)", boxShadow: "inset 0 0 30px rgba(239,68,68,0.10), 0 0 30px rgba(239,68,68,0.10)" }} />
 
       {/* Header — no more AUTO/MANUAL toggle. Pets behave the same way
@@ -1198,8 +1208,10 @@ export default function PvpBattlePage({
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
         >
-          {/* Grid */}
-          <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: "linear-gradient(rgba(239,68,68,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(239,68,68,0.025) 1px,transparent 1px)", backgroundSize: "48px 48px" }} />
+          {/* Grid removed — the 48 px red gridlines read as random clutter
+              over the brighter background image. The dividing line below is
+              kept since it functionally separates the player and enemy halves
+              of the arena. */}
 
           {/* Dividing line */}
           <div className="absolute left-0 right-0 pointer-events-none" style={{ top: "50%", height: 1, background: "linear-gradient(90deg,transparent,rgba(239,68,68,0.32),transparent)" }} />
@@ -1292,13 +1304,22 @@ export default function PvpBattlePage({
             // (the old ART_SCALE wrapper was misaligning player sprites
             // and clipping pet parts because the inset:0 was resolving to
             // the wrong containing block).
-            //   1 pet  → 280 / 270 (huge focal sprite)
-            //   2 pets → 250 / 240
-            //   3 pets → 220 / 210
-            //   4 pets → 190 / 180
-            //   5 pets → 165 / 155
-            const baseAlly  = sideCount <= 1 ? 280 : sideCount === 2 ? 250 : sideCount === 3 ? 220 : sideCount === 4 ? 190 : 165;
-            const baseEnemy = sideCount <= 1 ? 270 : sideCount === 2 ? 240 : sideCount === 3 ? 210 : sideCount === 4 ? 180 : 155;
+            //
+            // Sizes were reduced from the original 280/270/250/240/etc.
+            // ladder because the recent fitVisible-margin bump (0.94 → 0.99)
+            // made the visible pet fill nearly the entire wrapper, so the
+            // old wrapper sizes were producing on-screen sprites that
+            // overlapped each other heavily — especially in 4 v 4 / 5 v 5.
+            // New ladder is ~15 % smaller per slot which gives every pet
+            // visible breathing room while keeping the focal-pet size
+            // (1 v 1) clearly large.
+            //   1 pet  → 240 / 230 (focal sprite)
+            //   2 pets → 210 / 200
+            //   3 pets → 185 / 175
+            //   4 pets → 160 / 150
+            //   5 pets → 140 / 130
+            const baseAlly  = sideCount <= 1 ? 240 : sideCount === 2 ? 210 : sideCount === 3 ? 185 : sideCount === 4 ? 160 : 140;
+            const baseEnemy = sideCount <= 1 ? 230 : sideCount === 2 ? 200 : sideCount === 3 ? 175 : sideCount === 4 ? 150 : 130;
             const size = pet.isPlayer ? baseAlly : baseEnemy;
             const isHit = !!hitFlash[pet.uid];
             const stars = Math.max(0, Math.min(5, Math.floor(pet.starRarity || 0)));
