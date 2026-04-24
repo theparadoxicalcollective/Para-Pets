@@ -831,3 +831,49 @@ export const chatFilterWords = pgTable("chat_filter_words", {
 });
 
 export type ChatFilterWord = typeof chatFilterWords.$inferSelect;
+
+// ── Runtime-managed tables ────────────────────────────────────────────────────
+// These tables are created at boot via raw `CREATE TABLE IF NOT EXISTS` in
+// server/index.ts (session by connect-pg-simple, the others by ad-hoc
+// migrations). They are declared here ONLY so drizzle-kit push doesn't see
+// them as "untracked" and offer to drop them on every deploy. Don't query
+// these via the drizzle client — use the existing raw-sql helpers instead.
+
+export const session = pgTable("session", {
+  sid: varchar("sid").primaryKey(),
+  sess: text("sess").notNull(),
+  expire: timestamp("expire", { precision: 6 }).notNull(),
+});
+
+export const mediaBlobs = pgTable("media_blobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  mimeType: text("mime_type").notNull(),
+  data: text("data").notNull(),
+  createdAt: timestamp("created_at").default(sql`now()`),
+});
+
+export const appMigrations = pgTable("app_migrations", {
+  key: text("key").primaryKey(),
+  runAt: timestamp("run_at").notNull().default(sql`now()`),
+});
+
+export const dailyLoginRewards = pgTable("daily_login_rewards", {
+  dayNumber: integer("day_number").primaryKey(),
+  coinAmount: integer("coin_amount").notNull().default(0),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const dailyLoginRewardItems = pgTable("daily_login_reward_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  dayNumber: integer("day_number").notNull(),
+  shopItemId: varchar("shop_item_id").notNull(),
+  quantity: integer("quantity").notNull().default(1),
+});
+
+export const playerDailyLoginClaims = pgTable("player_daily_login_claims", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  cycleNumber: integer("cycle_number").notNull().default(0),
+  dayNumber: integer("day_number").notNull(),
+  claimedAt: timestamp("claimed_at").notNull().default(sql`now()`),
+});
