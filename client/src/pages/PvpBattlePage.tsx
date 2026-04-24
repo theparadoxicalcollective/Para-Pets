@@ -433,9 +433,10 @@ export default function PvpBattlePage({
     chargerRef.current = null;
     setChargerView(null);
     const enemies = petsRef.current.filter(p => !p.isPlayer);
-    const avgLvl = enemies.length > 0
-      ? Math.max(1, Math.round(enemies.reduce((s, p) => s + (p.level || 1), 0) / enemies.length))
-      : 1;
+    const avgHp = enemies.length > 0
+      ? enemies.reduce((s, p) => s + p.maxHp, 0) / enemies.length
+      : 100;
+    const avgLvl = Math.max(1, Math.round(avgHp / 50));
     recordResult.mutate({ result: outcome, opponentLevel: avgLvl });
   }, [recordResult]);
 
