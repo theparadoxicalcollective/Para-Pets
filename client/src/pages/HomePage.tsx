@@ -193,32 +193,56 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const [petSparkles, setPetSparkles] = useState<{ id: number; cx: number; cy: number; dx: number; dy: number; size: number; delay: number }[]>([]);
   const petHeartIdRef = useRef(0);
   const petSparkleIdRef = useRef(0);
+  // Clamp a viewport x-coord so a particle of `size` px stays fully inside
+  // the visible window even AFTER its CSS animation drifts by ±`drift` px.
+  // Hearts/sparkles use position: fixed, so the visible window — not the
+  // pet container — is the right reference. Without this the bursts visibly
+  // flew off the right edge on iPhone (the touch wrapper centers near 195px
+  // but a ±110 spawn jitter + ±160 CSS drift could push particles past 465px).
+  const clampX = useCallback((x: number, size: number, drift: number) => {
+    const w = typeof window !== "undefined" ? window.innerWidth : 390;
+    const half = size / 2;
+    const min = half + Math.max(0, drift) + 4;
+    const max = w - half - Math.max(0, drift) - 4;
+    if (max <= min) return w / 2;
+    return Math.min(Math.max(x, min), max);
+  }, []);
   const burstPetHearts = useCallback((cx: number, cy: number, count = 6) => {
-    const newOnes = Array.from({ length: count }, () => ({
-      id: ++petHeartIdRef.current,
-      cx: cx + (Math.random() - 0.5) * 220,
-      cy: cy + (Math.random() - 0.5) * 80,
-      dx: (Math.random() - 0.5) * 320,
-      size: 18 + Math.random() * 22,
-      delay: Math.random() * 0.3,
-    }));
+    const newOnes = Array.from({ length: count }, () => {
+      const size = 18 + Math.random() * 22;
+      const dx = (Math.random() - 0.5) * 220; // tightened from 320
+      const spawnX = cx + (Math.random() - 0.5) * 160; // tightened from 220
+      return {
+        id: ++petHeartIdRef.current,
+        cx: clampX(spawnX, size, Math.abs(dx)),
+        cy: cy + (Math.random() - 0.5) * 80,
+        dx,
+        size,
+        delay: Math.random() * 0.3,
+      };
+    });
     setPetHearts((h) => [...h, ...newOnes]);
     const ids = new Set(newOnes.map((n) => n.id));
     setTimeout(() => setPetHearts((h) => h.filter((x) => !ids.has(x.id))), 2400);
-  }, []);
+  }, [clampX]);
   const burstPetSparkles = useCallback((cx: number, cy: number, count = 6) => {
-    const newOnes = Array.from({ length: count }, () => ({
-      id: ++petSparkleIdRef.current,
-      cx, cy,
-      dx: (Math.random() - 0.5) * 90,
-      dy: (Math.random() - 0.5) * 90,
-      size: 6 + Math.random() * 10,
-      delay: Math.random() * 0.2,
-    }));
+    const newOnes = Array.from({ length: count }, () => {
+      const size = 6 + Math.random() * 10;
+      const dx = (Math.random() - 0.5) * 90;
+      return {
+        id: ++petSparkleIdRef.current,
+        cx: clampX(cx, size, Math.abs(dx)),
+        cy,
+        dx,
+        dy: (Math.random() - 0.5) * 90,
+        size,
+        delay: Math.random() * 0.2,
+      };
+    });
     setPetSparkles((s) => [...s, ...newOnes]);
     const ids = new Set(newOnes.map((n) => n.id));
     setTimeout(() => setPetSparkles((s) => s.filter((x) => !ids.has(x.id))), 1200);
-  }, []);
+  }, [clampX]);
   const homePettingRewardMutation = useMutation({
     mutationFn: async (inventoryId: string) => {
       const res = await apiRequest("POST", `/api/pets/${inventoryId}/petting-reward`, {});
@@ -790,7 +814,9 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                           height: h.size,
                           ["--dx" as any]: `${h.dx}px`,
                           animationDelay: `${h.delay}s`,
-                          zIndex: 514,
+                          // Must sit ABOVE the active-pet wrapper (z-520) so
+                          // hearts visibly float over the pet, not behind it.
+                          zIndex: 540,
                           color: "#ff5d6c",
                         }}
                       >
@@ -811,7 +837,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                           ["--dx" as any]: `${s.dx}px`,
                           ["--dy" as any]: `${s.dy}px`,
                           animationDelay: `${s.delay}s`,
-                          zIndex: 513,
+                          // Sit above the active-pet wrapper (z-520).
+                          zIndex: 541,
                           color: "#ffe27a",
                         }}
                       >
