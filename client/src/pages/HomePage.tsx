@@ -853,7 +853,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                         `}</style>
                         {activePet.petTemplateId ? (
                           <div
-                            className="w-full"
+                            className="w-full flex items-center justify-center"
                             style={{
                               animation: activePet.canFly ? "activePetFloat 3.6s ease-in-out infinite" : undefined,
                               willChange: activePet.canFly ? "transform" : undefined,
