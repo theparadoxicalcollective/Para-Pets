@@ -21,7 +21,7 @@
  * even if the row was accidentally cleared.
  */
 import bcrypt from "bcryptjs";
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne, notInArray, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
   users,
@@ -172,6 +172,32 @@ export async function seedSampleTemplates(): Promise<void> {
   const explicitlyEnabled = process.env.ENABLE_DEV_SAMPLE_SEED === "true";
   if (isProduction && !explicitlyEnabled) {
     console.log("[seedSampleTemplates] skipping: NODE_ENV=production");
+    return;
+  }
+
+  // "Real DB" guard. The seeder was originally written to make a
+  // brand-new contributor clone immediately renderable — but on a dev
+  // environment that's pointed at a populated database it would happily
+  // re-create the demo pets every boot, which means deleting them in the
+  // admin panel only sticks until the next restart. Treat the existence
+  // of ANY non-demo pet template (or any non-demo user) as proof that
+  // this database has real data we shouldn't be "helping" with, and
+  // bail out entirely.
+  const demoTemplateIds = TEMPLATES.map(t => t.id);
+  const [{ otherTemplates }] = await db
+    .select({ otherTemplates: sql<number>`count(*)::int` })
+    .from(petTemplates)
+    .where(notInArray(petTemplates.id, demoTemplateIds));
+  const [{ otherUsers }] = await db
+    .select({ otherUsers: sql<number>`count(*)::int` })
+    .from(users)
+    .where(ne(users.id, DEMO_ADMIN.id));
+  if (otherTemplates > 0 || otherUsers > 0) {
+    console.log(
+      `[seedSampleTemplates] skipping: database already has real data ` +
+      `(${otherTemplates} non-demo templates, ${otherUsers} non-demo users) — ` +
+      `demo content will not be re-seeded`
+    );
     return;
   }
 
