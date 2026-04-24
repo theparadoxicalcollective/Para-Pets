@@ -1157,7 +1157,12 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
   const [bundleName, setBundleName] = useState("");
   const [bundleMessage, setBundleMessage] = useState("");
   const [coinAmount, setCoinAmount] = useState("");
-  const [selectedItems, setSelectedItems] = useState<ShopItemFull[]>([]);
+  // Each selected item now carries a quantity so the admin can type
+  // "50" once instead of clicking "+ Add Item" fifty times. On send we
+  // expand the list back into a flat array of shopItemIds (the backend
+  // contract is unchanged — it iterates the array and adds one bundle
+  // entry per id).
+  const [selectedItems, setSelectedItems] = useState<Array<{ item: ShopItemFull; qty: number }>>([]);
   const [targetMode, setTargetMode] = useState<"all" | "select">("select");
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [userSearch, setUserSearch] = useState("");
@@ -1170,11 +1175,19 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
 
   const sendMutation = useMutation({
     mutationFn: async () => {
+      // Expand quantities into a flat id list so each "qty: 50 bag of coins"
+      // becomes 50 entries in the bundle (matches the existing backend
+      // contract). Cap each qty at 999 as a sanity guard.
+      const shopItemIds: string[] = [];
+      for (const { item, qty } of selectedItems) {
+        const n = Math.max(1, Math.min(999, Math.floor(qty || 1)));
+        for (let i = 0; i < n; i++) shopItemIds.push(item.id);
+      }
       const payload: any = {
         name: bundleName.trim(),
         message: bundleMessage.trim() || undefined,
         coinAmount: parseInt(coinAmount) || 0,
-        shopItemIds: selectedItems.map(i => i.id),
+        shopItemIds,
       };
       if (targetMode === "select") {
         payload.targetUserIds = selectedUserIds;
@@ -1222,6 +1235,16 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
   const removeItem = (index: number) => {
     setSelectedItems(prev => prev.filter((_, i) => i !== index));
   };
+
+  const setItemQty = (index: number, qty: number) => {
+    setSelectedItems(prev =>
+      prev.map((entry, i) =>
+        i === index ? { ...entry, qty: Math.max(1, Math.min(999, Math.floor(qty || 1))) } : entry
+      )
+    );
+  };
+
+  const totalItemCount = selectedItems.reduce((sum, e) => sum + (e.qty || 1), 0);
 
   const filteredMembers = userSearch
     ? members.filter(m => m.username.toLowerCase().includes(userSearch.toLowerCase()) || m.email.toLowerCase().includes(userSearch.toLowerCase()))
@@ -1285,7 +1308,9 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
 
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider">Items ({selectedItems.length})</label>
+              <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider">
+                Items ({selectedItems.length} types · {totalItemCount} total)
+              </label>
               <button
                 data-testid="button-add-bundle-item"
                 onClick={() => setShowItemPicker(true)}
@@ -1296,27 +1321,55 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
               </button>
             </div>
             {selectedItems.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {selectedItems.map((item, idx) => {
+              <div className="flex flex-wrap gap-2">
+                {selectedItems.map(({ item, qty }, idx) => {
                   const displayImg = item.type === "pet" && item.eggImageUrl ? item.eggImageUrl : item.imageUrl;
                   return (
                     <div
                       key={idx}
-                      className="flex items-center gap-1 px-2 py-1 rounded-md"
+                      className="flex items-center gap-1.5 px-2 py-1.5 rounded-md"
                       style={{ background: "rgba(192,132,252,0.1)", border: "1px solid rgba(192,132,252,0.3)" }}
                     >
                       {displayImg ? (
-                        <img src={displayImg} alt="" className="w-5 h-5 object-contain rounded-sm" />
+                        <img src={displayImg} alt="" className="w-6 h-6 object-contain rounded-sm" />
                       ) : (
                         <span className="text-xs">{item.type === "pet" ? "🥚" : "📦"}</span>
                       )}
-                      <span className="font-fantasy text-[#e0d0f0] text-[8px] max-w-[60px] truncate">{item.name}</span>
+                      <span className="font-fantasy text-[#e0d0f0] text-[9px] max-w-[80px] truncate">{item.name}</span>
+                      {/* Quantity stepper — admin can tap +/- or type the
+                          number directly into the field. Caps at 999 per
+                          item which is plenty for any single bundle. */}
+                      <div className="flex items-center gap-0.5 ml-0.5" style={{ background: "rgba(0,0,0,0.35)", borderRadius: 4, padding: "1px 2px" }}>
+                        <button
+                          data-testid={`button-bundle-qty-dec-${idx}`}
+                          onClick={() => setItemQty(idx, qty - 1)}
+                          className="w-5 h-5 flex items-center justify-center rounded text-[#c4b5fd] active:scale-90"
+                          style={{ background: "rgba(192,132,252,0.18)", border: "1px solid rgba(192,132,252,0.3)", cursor: "pointer", lineHeight: 1, fontWeight: "bold" }}
+                        >−</button>
+                        <input
+                          data-testid={`input-bundle-qty-${idx}`}
+                          type="number"
+                          min={1}
+                          max={999}
+                          value={qty}
+                          onChange={(e) => setItemQty(idx, parseInt(e.target.value, 10) || 1)}
+                          className="w-10 text-center font-fantasy text-[11px] outline-none rounded"
+                          style={{ background: "rgba(242,232,208,0.95)", color: "#2a1a0a", border: "1px solid #8b5e3c", padding: "1px 2px", MozAppearance: "textfield" }}
+                        />
+                        <button
+                          data-testid={`button-bundle-qty-inc-${idx}`}
+                          onClick={() => setItemQty(idx, qty + 1)}
+                          className="w-5 h-5 flex items-center justify-center rounded text-[#c4b5fd] active:scale-90"
+                          style={{ background: "rgba(192,132,252,0.18)", border: "1px solid rgba(192,132,252,0.3)", cursor: "pointer", lineHeight: 1, fontWeight: "bold" }}
+                        >+</button>
+                      </div>
                       <button
+                        data-testid={`button-bundle-remove-${idx}`}
                         onClick={() => removeItem(idx)}
-                        className="text-[#ff9999] text-[10px] ml-0.5"
+                        className="text-[#ff9999] text-[12px] ml-0.5"
                         style={{ background: "none", border: "none", cursor: "pointer", fontWeight: "bold" }}
                       >
-                        x
+                        ×
                       </button>
                     </div>
                   );
@@ -1428,7 +1481,16 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
         <ItemPickerModal
           items={allShopItems}
           onSelect={(item) => {
-            setSelectedItems(prev => [...prev, item]);
+            // If the item is already in the bundle, just bump its quantity
+            // by 1 instead of adding a duplicate row — the admin can then
+            // type the exact quantity they want into the chip.
+            setSelectedItems(prev => {
+              const existing = prev.findIndex(e => e.item.id === item.id);
+              if (existing >= 0) {
+                return prev.map((e, i) => i === existing ? { ...e, qty: Math.min(999, (e.qty || 1) + 1) } : e);
+              }
+              return [...prev, { item, qty: 1 }];
+            });
             setShowItemPicker(false);
           }}
           onClose={() => setShowItemPicker(false)}

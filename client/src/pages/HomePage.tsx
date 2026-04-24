@@ -853,18 +853,17 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                         style={{
                           cursor: "pointer",
                           touchAction: "none",
-                          // Sit the pet on the platform painted into the
-                          // background. Previous +80px nudged it ~10vh too
-                          // low — we now keep it at the layout baseline and
-                          // let the platform graphic do the grounding. The
-                          // press/circle gestures stack onto this baseline
-                          // transform with smoother easing so the squish
-                          // doesn't feel like it snaps in and out.
+                          // Position + scale: pull the pet UP ~5vh from the
+                          // baseline so it sits closer to eye level, and
+                          // bump it up 12% larger so it feels like the star
+                          // of the screen. Press/circle gestures stack onto
+                          // the same translate so the squish stays anchored
+                          // to the new position.
                           transform: petCircling
-                            ? "translateY(0px) scale(1.03, 0.98)"
+                            ? "translateY(-5vh) scale(1.155, 1.092)"
                             : petPressed
-                              ? "translateY(0px) scale(0.99, 1.01)"
-                              : "translateY(0px) scale(1)",
+                              ? "translateY(-5vh) scale(1.108, 1.132)"
+                              : "translateY(-5vh) scale(1.12)",
                           transition: "transform 320ms cubic-bezier(0.34, 1.2, 0.5, 1)",
                           transformOrigin: "center bottom",
                           // Sit above heart/sparkle bursts and surrounding chrome
@@ -876,51 +875,39 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                         data-testid="button-open-pet-actions"
                       >
                         <style>{`
-                          @keyframes activePetFloat {
-                            0%, 100% { transform: translateY(0px); }
-                            50% { transform: translateY(-7px); }
+                          /* Grounded idle for the active home pet — NO
+                             translateY anywhere. Just a tiny breath-scale
+                             and a soft brightness pulse so the pet looks
+                             alive without lifting off the platform. The
+                             previous activePetFloat / petImgIdleFly
+                             keyframes (which translated up to 14px) were
+                             still in play whenever shopItem.canFly happened
+                             to be true on the user's pet, which is what
+                             made it look like it kept floating regardless
+                             of our other tweaks. We removed the canFly
+                             branch entirely — on the home stage every
+                             active pet stays planted. */
+                          @keyframes activePetBreath {
+                            0%, 100% { transform: scale(1); filter: brightness(1); }
+                            50% { transform: scale(1.012, 1.018); filter: brightness(1.05); }
+                          }
+                          @keyframes petImgBlink {
+                            0%, 88%, 100% { opacity: 1; }
+                            92%, 96% { opacity: 0.92; }
                           }
                         `}</style>
                         {activePet.petTemplateId ? (
-                          <div
-                            className="w-full flex items-center justify-center"
-                            style={{
-                              animation: activePet.canFly ? "activePetFloat 3.6s ease-in-out infinite" : undefined,
-                              willChange: activePet.canFly ? "transform" : undefined,
-                            }}
-                          >
+                          <div className="w-full flex items-center justify-center">
                             <PetAnimator petTemplateId={activePet.petTemplateId} mode="idle" view="front" size={1000} expression={petCircling ? "petted" : "neutral"} className="w-full" style={{ aspectRatio: "1/1" }} />
                           </div>
                         ) : (activePet.hatchedImageUrl || activePet.imageUrl) ? (
-                          <div style={{ paddingTop: "13vh", width: "100%" }}>
-                            <style>{`
-                              /* Flying-only idle: gentle bob + breath-scale. */
-                              @keyframes petImgIdleFly {
-                                0%, 100% { transform: scale(1) translateY(0px); filter: brightness(1); }
-                                25% { transform: scale(1.012, 1.018) translateY(-2px); filter: brightness(1.04); }
-                                50% { transform: scale(1.018, 1.025) translateY(-3px); filter: brightness(1.07); }
-                                75% { transform: scale(1.012, 1.018) translateY(-2px); filter: brightness(1.04); }
-                              }
-                              /* Grounded idle: NO translateY — non-flying pets
-                                 must stay planted on the platform. Just a tiny
-                                 breathing scale + brightness pulse. */
-                              @keyframes petImgIdleGround {
-                                0%, 100% { transform: scale(1); filter: brightness(1); }
-                                50% { transform: scale(1.012, 1.018); filter: brightness(1.05); }
-                              }
-                              @keyframes petImgBlink {
-                                0%, 88%, 100% { opacity: 1; }
-                                92%, 96% { opacity: 0.92; }
-                              }
-                            `}</style>
+                          <div style={{ paddingTop: "8vh", width: "100%" }}>
                             <img
                               src={activePet.hatchedImageUrl || activePet.imageUrl || ""}
                               alt={activePet.name}
-                              className="w-full max-h-[50vh] object-contain"
+                              className="w-full max-h-[58vh] object-contain"
                               style={{
-                                animation: activePet.canFly
-                                  ? "petImgIdleFly 3.5s ease-in-out infinite, petImgBlink 4s ease-in-out infinite"
-                                  : "petImgIdleGround 3.5s ease-in-out infinite, petImgBlink 4s ease-in-out infinite",
+                                animation: "activePetBreath 3.5s ease-in-out infinite, petImgBlink 4s ease-in-out infinite",
                                 transformOrigin: "center bottom",
                               }}
                             />
