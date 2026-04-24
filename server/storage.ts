@@ -257,6 +257,9 @@ export interface IStorage {
   consumePvpTicket(userId: string): Promise<boolean>;
   createPvpBattleToken(userId: string): Promise<string>;
   consumePvpBattleToken(userId: string, tokenId: string): Promise<boolean>;
+  startPvpBattleAtomic(
+    userId: string,
+  ): Promise<{ ok: false; reason: "no_ticket" } | { ok: true; token: string; ticketsRemaining: number }>;
   getBattleGroup(userId: string): Promise<any | null>;
   upsertBattleGroup(userId: string, petInventoryIds: string[]): Promise<any>;
   getAllBattleGroupsWithUsers(): Promise<any[]>;
