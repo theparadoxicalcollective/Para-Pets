@@ -356,15 +356,24 @@ const ANIMATION_STYLES = `
     from { transform: scale(1, 1); }
     to   { transform: scale(1.028, 1.05); }
   }
-  /* Wings — full peak-to-peak symmetric flap. Mirror left/right via
-     opposite from/to so the pair beats in a true mirror pattern. */
+  /* Wings — flap motion. The wings travel UP together (matched
+     translateY) on the up-stroke and DOWN together on the down-stroke,
+     which reads as the bird/dragon pushing air down to hover. A small
+     ±3° rotation on each wing — mirrored left vs. right — adds the
+     wing-tip tilt that sells the flap as flight rather than turning.
+     Previous version used a ±5° pure rotation, which made the wings
+     pivot in place like windshield wipers (the user feedback was "they
+     look more like they're turning than flying"). The translateY is
+     deliberately small (±2 px in the part's local box, so ~0.4 % of the
+     1000 px pet canvas) so the wing tip never separates visibly from
+     the body silhouette. */
   @keyframes petIdleLeftWing {
-    from { transform: rotate(-5deg); }
-    to   { transform: rotate(5deg); }
+    from { transform: translateY(2px) rotate(-3deg); }
+    to   { transform: translateY(-2px) rotate(3deg); }
   }
   @keyframes petIdleRightWing {
-    from { transform: rotate(5deg); }
-    to   { transform: rotate(-5deg); }
+    from { transform: translateY(2px) rotate(3deg); }
+    to   { transform: translateY(-2px) rotate(-3deg); }
   }
   @keyframes petIdleLeftLeg {
     from { transform: translateY(0px); }
@@ -577,12 +586,22 @@ const ANIMATION_STYLES = `
      object would. */
   @keyframes petAboveHeadBounce {
     from { transform: translateY(0px); }
-    to   { transform: translateY(-5px); }
+    to   { transform: translateY(-7px); }
   }
 
 `;
 
 function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "house" | "static" | "sleep" | "petting"): string {
+  // Normalize prefixed head variants (h2_back_arm, h3_accessory_1, etc.) to
+  // their base type so duration lookups match the same key as the un-prefixed
+  // version. The animation NAME is already prefix-stripped in lookupAnim
+  // (line ~132), so without this normalization a prefixed body-synced part
+  // would correctly use the petIdleBody keyframe but with the WRONG duration
+  // (3 s default instead of 4.5 s body period) — same shared delay + faster
+  // cycle = visible drift on multi-headed pets within a few seconds. None
+  // of the duration maps below contain h2_/h3_ entries, so stripping the
+  // prefix here is always safe.
+  const baseType = partType.replace(/^h[23]_/, "");
   if (mode === "sleep") {
     // Slow, calm breathing for the sleep export. Body / head are the only
     // moving parts in sleep mode; everything else is frozen.
@@ -600,7 +619,7 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "hou
       front_arm: "3.5s", back_arm: "3.5s",
       front_wing: "3.5s", back_wing: "3.5s",
     };
-    return durations[partType] || "3.5s";
+    return durations[baseType] || "3.5s";
   }
   if (mode === "idle") {
     const durations: Record<string, string> = {
@@ -622,12 +641,23 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "hou
       front_arm: "3.5s", back_arm: "4.5s",
       front_leg: "4s", back_leg: "4s",
       front_wing: "4s", back_wing: "4s",
+      // Every part that's mapped to `petIdleBody` MUST share the body's
+      // 4.5 s period — otherwise even with a shared bodyBreathDelay the
+      // shorter-cycle parts visibly drift out of phase within a few
+      // seconds. shoulders + back/front accessories are all on petIdleBody
+      // (see ANIMS), so they all need 4.5 s here. Without this they'd
+      // fall through to the default 3 s and the back accessory would
+      // visibly inhale faster than the body it's clipped to.
+      back_shoulder: "4.5s", front_shoulder: "4.5s",
+      left_shoulder: "4.5s", right_shoulder: "4.5s",
+      back_accessory_1: "4.5s", back_accessory_2: "4.5s",
+      front_accessory_1: "4.5s", front_accessory_2: "4.5s",
       // Above-head accessory floats on its own slow cycle, deliberately
       // out of phase with the head bob (3 s) so crowns / halos read as
       // a separate floating object rather than rigidly attached.
       above_head: "4s",
     };
-    return durations[partType] || "3s";
+    return durations[baseType] || "3s";
   }
   if (mode === "petting") {
     // Slow, smooth wiggle. Previous 1.4s + low-keyframe-count animations
@@ -644,7 +674,7 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "hou
       front_arm: "2.4s", back_arm: "2.4s",
       front_wing: "2.4s", back_wing: "2.4s",
     };
-    return durations[partType] || "2.4s";
+    return durations[baseType] || "2.4s";
   }
   if (mode === "zoom") {
     const isWing = ["left_wing", "right_wing", "front_wing", "back_wing"].includes(partType);

@@ -394,18 +394,27 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTeamMembers(): Promise<{ id: string; username: string; profileImage: string | null; isAdmin: boolean; isModerator: boolean }[]> {
-    // Exclude any test/QA accounts that may have been flagged with admin
-    // or moderator privileges in dev. The public Hub team listing should
-    // only ever surface real people on the team — if a username starts
-    // with "test" (case-insensitive) or matches our standard QA email
-    // pattern (...@test.com), filter it out at the SQL layer so it never
-    // reaches the client. Real admins / mods are unaffected.
+    // Exclude any test / dev / seeded accounts that may have been flagged
+    // with admin or moderator privileges. The public Hub team listing
+    // should only ever surface REAL people on the team. Excluded here:
+    //   • Usernames starting with "test"            (QA accounts)
+    //   • Emails ending in @test.com                (QA email pattern)
+    //   • The deterministic demo admin id           (created by
+    //     server/seedSampleTemplates.ts on fresh dev DBs as `demo_admin`)
+    //   • Emails ending in @parapets.local          (dev-only seed domain
+    //     used by the same seeder, future-proofs against renames)
+    //   • The literal username "demo_admin"         (belt-and-suspenders
+    //     in case someone wipes the email but keeps the seeded user)
+    const DEMO_ADMIN_ID = "00000000-0000-4000-a000-000000000301";
     const members = await db
       .select({ id: users.id, username: users.username, profileImage: users.profileImage, isAdmin: users.isAdmin, isModerator: users.isModerator })
       .from(users)
       .where(sql`(${users.isAdmin} IS TRUE OR ${users.isModerator} IS TRUE)
         AND ${users.username} NOT ILIKE 'test%'
-        AND COALESCE(${users.email}, '') NOT ILIKE '%@test.com'`);
+        AND ${users.username} <> 'demo_admin'
+        AND ${users.id}       <> ${DEMO_ADMIN_ID}
+        AND COALESCE(${users.email}, '') NOT ILIKE '%@test.com'
+        AND COALESCE(${users.email}, '') NOT ILIKE '%@parapets.local'`);
     return members;
   }
 
