@@ -787,8 +787,11 @@
 }
 
 @keyframes petGroundFloat {
+  /* Non-flying pets stay perfectly grounded — the only motion you see is
+     the internal head bob / body breathe inside PetAnimator, which reads
+     as life rather than levitation. */
   0%, 100% { transform: translateY(0px); }
-  50%      { transform: translateY(-1px); }
+  50%      { transform: translateY(0px); }
 }
 
 @keyframes petHouseBounce {

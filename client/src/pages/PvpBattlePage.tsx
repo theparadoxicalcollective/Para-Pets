@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { playHit, playPlayerHurt, playBattleVictory, playDefeat } from "@/lib/sounds";
 import { ArrowLeft, X } from "lucide-react";
-import PetAnimator from "@/components/PetAnimator";
+import PetAnimatorCanvas from "@/components/PetAnimatorCanvas";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import battleTrophyIcon from "@assets/generated_images/icon_battle_trophy.png";
 import skullDefeatIcon from "@assets/generated_images/icon_skull_defeat.png";
@@ -150,6 +150,15 @@ export default function PvpBattlePage({
     onSuccess: (data) => {
       setCoinsEarned(data.coinsEarned ?? 0);
       setBpEarned(data.battlePointsDelta ?? 0);
+      // After a battle resolves the leaderboard, the player's own BP, and
+      // the ticket count have all changed server-side. Without these
+      // invalidations the PvP arena page keeps rendering the stale cached
+      // numbers (which is what made it look like "BP isn't being awarded
+      // to winners" — the row was inserted, but the client never refetched).
+      queryClient.invalidateQueries({ queryKey: ["/api/pvp/leaderboard"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pvp/tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pvp/history"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
     },
   });
 
@@ -182,8 +191,13 @@ export default function PvpBattlePage({
         // First slot is the player's *active* pet — only it is swipe-driven
         // in manual mode. Mirrors the locked-slot rule on the lobby page.
         isActive: i === 0,
-        x: 12 + (i % 3) * 28 + Math.random() * 6,
-        y: 64 + Math.floor(i / 3) * 15 + Math.random() * 4,
+        // Deterministic starting positions — no Math.random() — so the pets
+        // appear in the SAME spot on first paint as they will after the
+        // countdown finishes. Without this the layout shifted on first
+        // open ("pets load off their spots"). PvE-style single horizontal
+        // row at y=68%: 5 pets evenly spread (12% / 31% / 50% / 69% / 88%).
+        x: 12 + i * 19,
+        y: 68,
         vx: 0, vy: 0, isDead: false, mana: 0,
       } as BattlePet;
     }).filter(Boolean) as BattlePet[];
@@ -202,9 +216,12 @@ export default function PvpBattlePage({
       skillHealPercent: p.skillHealPercent ?? null,
       isPlayer: false,
       isActive: false,
-      x: 12 + (i % 3) * 28 + Math.random() * 6,
-      y: 8 + Math.floor(i / 3) * 14 + Math.random() * 4,
-      vx: (Math.random() - 0.5) * 0.8, vy: (Math.random() - 0.5) * 0.4 + 0.2,
+      // Deterministic enemy starting positions in a single horizontal
+      // row at y=22% — mirrors the player row at y=68% and matches the
+      // PvE arena where the enemy stands across from the party.
+      x: 12 + i * 19,
+      y: 22,
+      vx: 0, vy: 0,
       isDead: false, mana: 0,
     }));
 
@@ -854,7 +871,13 @@ export default function PvpBattlePage({
             const isSkillReady = pet.isPlayer && pet.mana >= MAX_MANA && !!pet.specialSkill;
             const isPendingSource = pendingSkill?.petUid === pet.uid;
             const isEnemyTarget = pendingSkill?.mode === "needs-enemy" && !pet.isPlayer;
-            const size = pet.isPlayer ? 112 : 96;
+            // PvE-arena-sized sprites (PvE uses 230 for 3 pets; we cap at
+            // 200/180 because PvP shows 5 pets per side). Switching to
+            // `PetAnimatorCanvas` (the same renderer the PvE BattleArena
+            // uses) is critical here: 10 pets × 12 PetAnimator <img> parts
+            // each was a ~480 MB GPU footprint on iOS — instant Safari
+            // crash. Canvas is ~380 KB per pet → ~4 MB total.
+            const size = pet.isPlayer ? 200 : 180;
             const isHit = !!hitFlash[pet.uid];
 
             // Star rarity row: render N stars (capped at 5) for visual
@@ -876,23 +899,27 @@ export default function PvpBattlePage({
                     mana bars below carry the per-pet info to keep the
                     arena uncluttered. */}
 
-                {/* Pet image with hit/dim states + active-pet outline */}
+                {/* Pet image with hit/dim states. The amber circle that
+                    used to ring the active player pet has been removed —
+                    the size jump (player pets are 200 vs 180) is enough to
+                    distinguish the swipe-driven pet without an outline. We
+                    still draw the yellow outline while a special skill is
+                    being targeted (isPendingSource) because that's a
+                    transient affordance, not a persistent decoration. */}
                 <div
                   style={{
+                    width: size,
+                    height: size,
                     borderRadius: "50%",
                     transform: pet.isPlayer ? undefined : "scaleX(-1)",
                     animation: isSkillReady ? "skillGlow 1.2s ease-in-out infinite" : isHit ? "bHit 0.32s ease-out" : undefined,
-                    outline: isPendingSource
-                      ? "2px solid rgba(250,204,21,0.8)"
-                      : (pet.isPlayer && pet.isActive)
-                        ? "2px solid rgba(251,191,36,0.7)"
-                        : undefined,
+                    outline: isPendingSource ? "2px solid rgba(250,204,21,0.8)" : undefined,
                     outlineOffset: 3,
                     position: "relative",
                   }}
                 >
                   {pet.petTemplateId
-                    ? <PetAnimator petTemplateId={pet.petTemplateId} mode="idle" view="front" size={size} />
+                    ? <PetAnimatorCanvas petTemplateId={pet.petTemplateId} size={size} className="w-full h-full" />
                     : pet.imageUrl
                     ? <img src={pet.imageUrl} style={{ width: size, height: size, objectFit: "contain", filter: pet.isPlayer ? "drop-shadow(0 0 10px rgba(167,139,250,0.5))" : "drop-shadow(0 0 10px rgba(239,68,68,0.45))" }} />
                     : <div style={{ width: size, height: size, background: pet.isPlayer ? "rgba(100,60,200,0.3)" : "rgba(200,60,60,0.3)", borderRadius: "50%", border: `2px solid ${pet.isPlayer ? "rgba(167,139,250,0.5)" : "rgba(239,68,68,0.5)"}`, display: "flex", alignItems: "center", justifyContent: "center" }}><img src={petPawIcon} alt="" style={{ width: size * 0.65, height: size * 0.65, objectFit: "contain" }} /></div>}
@@ -988,8 +1015,11 @@ export default function PvpBattlePage({
               vanish from the bar as soon as they're consumed. */}
           {phase === "battle" && potionsRemaining.length > 0 && (
             <div
-              className="absolute z-30 flex gap-1.5 pointer-events-auto"
-              style={{ left: 8, bottom: 12 }}
+              className="absolute z-30 flex gap-1.5 pointer-events-auto left-1/2 -translate-x-1/2"
+              // Centered along the bottom of the arena to mirror the PvE
+              // BattleArena potion row. Sits above the iPhone home
+              // indicator and the swipe hint line.
+              style={{ bottom: 32 }}
               data-testid="pvp-potion-bar"
             >
               {potionsRemaining.map((invId, i) => {

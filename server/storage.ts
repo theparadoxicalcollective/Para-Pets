@@ -1760,45 +1760,75 @@ export class DatabaseStorage implements IStorage {
    * they're outside the top N. Also enriches each entry with admin/mod flags
    * so the client can render role badges.
    */
-  async getPvpLeaderboardFull(): Promise<{ userId: string; username: string; profileImage: string | null; battlePoints: number; wins: number; losses: number; isAdmin?: boolean; isModerator?: boolean }[]> {
-    const rows = await db.select({
-      userId: pvpBattles.userId,
+  async getPvpLeaderboardFull(): Promise<{ userId: string; username: string; profileImage: string | null; battlePoints: number; wins: number; losses: number; isAdmin?: boolean; isModerator?: boolean; isBot?: boolean }[]> {
+    // Start FROM users (not pvp_battles) so EVERY eligible account shows
+    // up on the leaderboard immediately — including the seeded PvP bots
+    // that haven't fought a battle yet, and brand-new human players who
+    // are still at 0 BP. The previous implementation joined the other way
+    // and only listed users who already had at least one pvp_battles row,
+    // which is why bots were missing from the board until somebody lost
+    // to them. Admins and moderators are still filtered out so internal
+    // accounts don't pollute the public ranking.
+    const userRows = await db.select({
+      id: users.id,
       username: users.username,
       profileImage: users.profileImage,
       isAdmin: users.isAdmin,
       isModerator: users.isModerator,
       isBot: users.isBot,
+    }).from(users);
+
+    const eligible = userRows.filter(u =>
+      !u.isAdmin &&
+      !u.isModerator &&
+      !LEADERBOARD_EXCLUDED_USERNAMES.has((u.username || "").toLowerCase())
+    );
+    if (eligible.length === 0) return [];
+
+    const eligibleIds = new Set(eligible.map(u => u.id));
+
+    // Pull every battle row in one shot, then aggregate in memory. Cheaper
+    // than doing one query per user and there's no realistic upper bound
+    // where this becomes too large in this game's scale.
+    const battleRows = await db.select({
+      userId: pvpBattles.userId,
       result: pvpBattles.result,
       battlePointsDelta: pvpBattles.battlePointsDelta,
-    }).from(pvpBattles)
-      .leftJoin(users, eq(pvpBattles.userId, users.id));
+    }).from(pvpBattles);
 
-    const byUser: Record<string, { userId: string; username: string; profileImage: string | null; battlePoints: number; wins: number; losses: number; isAdmin?: boolean; isModerator?: boolean }> = {};
-    for (const row of rows) {
-      if (!row.userId) continue;
-      if (LEADERBOARD_EXCLUDED_USERNAMES.has((row.username || "").toLowerCase())) continue;
-      // Hide admins and moderators from the public PvP leaderboard, but
-      // intentionally KEEP bots visible — admins use the leaderboard to
-      // sanity-check matchmaking/BP balance against the seeded bots, so
-      // bots being filtered out used to make verification impossible.
-      if (row.isAdmin || row.isModerator) continue;
-      if (!byUser[row.userId]) {
-        byUser[row.userId] = {
-          userId: row.userId,
-          username: row.username || "Unknown",
-          profileImage: row.profileImage ?? null,
-          battlePoints: 0,
-          wins: 0,
-          losses: 0,
-          isAdmin: row.isAdmin ?? false,
-          isModerator: row.isModerator ?? false,
-        };
-      }
-      byUser[row.userId].battlePoints += row.battlePointsDelta || 0;
-      if (row.result === "win") byUser[row.userId].wins++;
-      else byUser[row.userId].losses++;
+    const stats: Record<string, { battlePoints: number; wins: number; losses: number }> = {};
+    for (const row of battleRows) {
+      if (!row.userId || !eligibleIds.has(row.userId)) continue;
+      const s = stats[row.userId] ??= { battlePoints: 0, wins: 0, losses: 0 };
+      s.battlePoints += row.battlePointsDelta || 0;
+      if (row.result === "win") s.wins++;
+      else s.losses++;
     }
-    return Object.values(byUser).sort((a, b) => b.battlePoints - a.battlePoints);
+
+    const board = eligible.map(u => {
+      const s = stats[u.id] ?? { battlePoints: 0, wins: 0, losses: 0 };
+      return {
+        userId: u.id,
+        username: u.username || "Unknown",
+        profileImage: u.profileImage ?? null,
+        battlePoints: s.battlePoints,
+        wins: s.wins,
+        losses: s.losses,
+        isAdmin: u.isAdmin ?? false,
+        isModerator: u.isModerator ?? false,
+        isBot: u.isBot ?? false,
+      };
+    });
+
+    // Sort by BP desc; tiebreak by wins desc, then alphabetical username
+    // so the order is deterministic instead of jittering with insertion
+    // order on every page refresh.
+    board.sort((a, b) => {
+      if (b.battlePoints !== a.battlePoints) return b.battlePoints - a.battlePoints;
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      return (a.username || "").localeCompare(b.username || "");
+    });
+    return board;
   }
 
   /** PvP ticket helpers. Tickets are inventory items: shop_items.special_type

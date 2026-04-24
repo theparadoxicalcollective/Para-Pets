@@ -452,8 +452,10 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                           <div className="text-white/95 text-[12px] font-semibold truncate">{entry.username}</div>
                           <RoleBadge isAdmin={entry.isAdmin} isModerator={entry.isModerator} />
                         </div>
-                        <div className="text-white/35 text-[10px] tabular-nums shrink-0">{entry.wins}W · {entry.losses}L</div>
-                        <div className="text-amber-300 text-[12px] font-black tabular-nums shrink-0 w-12 text-right">
+                        {/* Stripped W/L per design — leaderboard rows are
+                            now simply [rank · avatar · name · BP] so the
+                            BP number reads at a glance. */}
+                        <div className="text-amber-300 text-[13px] font-black tabular-nums shrink-0 w-14 text-right">
                           {Math.max(0, entry.battlePoints)}
                         </div>
                       </div>
@@ -486,8 +488,9 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                     <div className="flex-1 min-w-0 text-white/95 text-[12px] font-semibold truncate">
                       {me?.username ?? "You"} <span className="text-white/40 font-normal">(you)</span>
                     </div>
-                    <div className="text-white/45 text-[10px] tabular-nums shrink-0">{myLb?.entry.wins ?? 0}W · {myLb?.entry.losses ?? 0}L</div>
-                    <div className="text-amber-300 text-[12px] font-black tabular-nums shrink-0 w-12 text-right">
+                    {/* W/L removed to match the simplified leaderboard
+                        layout above — only BP is shown alongside the rank. */}
+                    <div className="text-amber-300 text-[13px] font-black tabular-nums shrink-0 w-14 text-right">
                       {Math.max(0, myBp)}
                     </div>
                   </div>
