@@ -70,9 +70,14 @@ const IDLE_ANIMATIONS: Record<string, string> = {
   right_wing: "petIdleRightWing",
   left_leg: "petIdleLeftLeg",
   right_leg: "petIdleRightLeg",
+  // Tails move UP with the body's breath (so they read as part of the body).
+  // When a pet has multiple tails, tail_2 also drifts a touch left and tail_3
+  // a touch right — just enough to fan them apart visually without ever
+  // separating from the body silhouette. All three share the body's 4.5 s
+  // rhythm (see getPartDuration) so the lift is truly synchronised.
   tail: "petIdleTail",
-  tail_2: "petIdleTail",
-  tail_3: "petIdleTail",
+  tail_2: "petIdleTail2",
+  tail_3: "petIdleTail3",
   // Front-facing shoulders + side-facing shoulders / accessories breathe with body
   left_shoulder: "petIdleBody",
   right_shoulder: "petIdleBody",
@@ -92,9 +97,15 @@ const IDLE_ANIMATIONS: Record<string, string> = {
   // Front-facing wing sets
   wing_set2_left: "petIdleLeftWing",
   wing_set2_right: "petIdleRightWing",
-  // Side-facing limbs
+  // Side-facing limbs.
+  // back_arm shares `petIdleBody` (the breath scale) instead of swinging on
+  // its own — that way the back arm rises and falls in perfect sync with
+  // back_accessory_1 (which also uses petIdleBody), so quivers, satchels,
+  // capes etc. mounted on the back arm don't drift away from the back
+  // accessories during idle. Duration is also matched to body (4.5 s) in
+  // getPartDuration so the phase locks.
   front_arm: "petIdleLeftArm",
-  back_arm: "petIdleRightArm",
+  back_arm: "petIdleBody",
   front_leg: "petIdleLeftLeg",
   back_leg: "petIdleRightLeg",
   // Side-facing wings mirror each other like the ears: the front wing flaps
@@ -363,9 +374,21 @@ const ANIMATION_STYLES = `
     from { transform: translateY(0px); }
     to   { transform: translateY(1.5px); }
   }
+  /* Tails. Single-tail pets just lift gently with the body breath. Multi-
+     tail pets (tail_2 / tail_3) additionally fan a hair left/right so the
+     tails don't perfectly overlap. Amplitudes are deliberately tiny
+     (≤ 1.5 px) so the tail base never separates from the body silhouette. */
   @keyframes petIdleTail {
-    from { transform: rotate(-1.2deg); }
-    to   { transform: rotate(1.2deg); }
+    from { transform: translateY(0px); }
+    to   { transform: translateY(-1.5px); }
+  }
+  @keyframes petIdleTail2 {
+    from { transform: translate(0px, 0px); }
+    to   { transform: translate(-1.5px, -1.5px); }
+  }
+  @keyframes petIdleTail3 {
+    from { transform: translate(0px, 0px); }
+    to   { transform: translate(1.5px, -1.5px); }
   }
   /* Ground head: small left/right tilt instead of upward bob. */
   @keyframes petIdleHeadGround {
@@ -592,8 +615,11 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "hou
       // longer cycle so each phase has enough time to glide.
       left_wing: "4s", right_wing: "4s",
       left_leg: "4s", right_leg: "4s",
-      tail: "5s",
-      front_arm: "3.5s", back_arm: "3.5s",
+      // Tails ride the body breath, so all three tail variants lock to the
+      // body's 4.5 s rhythm. back_arm matches body too so it stays synced
+      // with back_accessory_1 (also on petIdleBody / 4.5 s).
+      tail: "4.5s", tail_2: "4.5s", tail_3: "4.5s",
+      front_arm: "3.5s", back_arm: "4.5s",
       front_leg: "4s", back_leg: "4s",
       front_wing: "4s", back_wing: "4s",
       // Above-head accessory floats on its own slow cycle, deliberately
@@ -640,7 +666,7 @@ const ALTERNATE_MOTION_ANIMS = new Set<string>([
   "petIdleBody",
   "petIdleLeftWing", "petIdleRightWing",
   "petIdleLeftLeg", "petIdleRightLeg",
-  "petIdleTail",
+  "petIdleTail", "petIdleTail2", "petIdleTail3",
   "petAboveHeadBounce",
 ]);
 
