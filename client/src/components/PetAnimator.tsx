@@ -85,6 +85,9 @@ const IDLE_ANIMATIONS: Record<string, string> = {
   hair_left: "petIdleLeftEar",
   hair_right: "petIdleRightEar",
   back_hair: "petIdleTail",
+  // Above-head accessory (crowns / halos / hats) gets a small extra bounce
+  // on top of the head wrapper's bob so it reads as floating / buoyant.
+  above_head: "petAboveHeadBounce",
   // Front-facing wing sets
   wing_set2_left: "petIdleLeftWing",
   wing_set2_right: "petIdleRightWing",
@@ -175,6 +178,7 @@ const PETTING_ANIMATIONS: Record<string, string> = {
   hair_left: "petPettingLeftEar",
   hair_right: "petPettingRightEar",
   back_hair: "petPettingTail",
+  above_head: "petAboveHeadBounce",
   // Shoulders / accessories breathe with the bouncy body
   left_shoulder: "petPettingBody",
   right_shoulder: "petPettingBody",
@@ -214,6 +218,7 @@ const SLEEP_ANIMATIONS: Record<string, string> = {
   tail_2: "petSleepTail",
   tail_3: "petSleepTail",
   back_hair: "petSleepTail",
+  above_head: "petAboveHeadBounce",
   // Accessories on the head should sway with the gentle ear motion so
   // hats, bows, etc. don't appear locked in place during sleep.
   accessory_1: "petSleepLeftEar",
@@ -251,6 +256,7 @@ const HOUSE_ANIMATIONS: Record<string, string> = {
   front_wing: "petIdleLeftWing",
   back_wing: "petIdleRightWing",
   tail: "petHouseTail",
+  above_head: "petAboveHeadBounce",
   // head, body, legs intentionally omitted — they use translateY/scale
 };
 
@@ -267,7 +273,7 @@ const ANIM_ONLY_PARTS = new Set([
 // (isFacePart) covers those without listing every key.
 const FACE_PART_TYPES = new Set([
   "eyes", "eyes_closed", "left_ear", "right_ear", "mouth", "mouth_closed",
-  "hair_left", "hair_right", "accessory_1", "accessory_2", "adobe_head",
+  "hair_left", "hair_right", "accessory_1", "accessory_2", "above_head",
 ]);
 const isFacePart = (partType: string): boolean => {
   if (FACE_PART_TYPES.has(partType)) return true;
@@ -553,6 +559,14 @@ const ANIMATION_STYLES = `
     25%      { transform: rotate(-2deg); }
     75%      { transform: rotate(2deg); }
   }
+  /* Above Head: a small additional vertical bounce on top of the head bob,
+     so floating crowns / halos / hats etc. read as gently buoyant rather
+     than glued to the head. Kept very subtle (~1.5px) so it doesn't fight
+     with the head wrapper's own bob. */
+  @keyframes petAboveHeadBounce {
+    0%, 100% { transform: translateY(0px); }
+    50%      { transform: translateY(-1.5px); }
+  }
 
 `;
 
@@ -665,7 +679,7 @@ const LAYER_ORDER: Record<string, number> = {
   eyes: 15,
   hair_right: 16,
   hair_left: 17,
-  adobe_head: 18,
+  above_head: 18,
 };
 
 // Stagger offsets for duplicate same-type non-head parts
