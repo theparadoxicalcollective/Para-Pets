@@ -98,10 +98,20 @@ interface DraggingPotion {
 const MAX_MANA = 100;
 /** Combo decays after this many ms with no swipe-hits. */
 const COMBO_WINDOW_MS = 1400;
-/** How often we try to spawn a new enemy charger when none is active. */
-const CHARGE_INTERVAL_MS = 2800;
+/** How often we try to spawn a new enemy charger when none is active.
+ *  Reduced from 2800 → 900 because at the old value the player only
+ *  saw an enemy attack roughly every 4.4 s (charge + return + gap),
+ *  which read as "the enemies aren't fighting back". */
+const CHARGE_INTERVAL_MS = 900;
+/** How fast a charging enemy travels down to its target ally. */
+const CHARGE_DIVE_MS = 650;
+/** How fast it returns to the swarm after impact. */
+const CHARGE_RETURN_MS = 260;
 /** Damage % of enemy ATK when a charge lands on an ally. */
 const CHARGE_DMG_MULT = 0.85;
+/** Passive mana the enemy AI gains per RAF frame (matches allies so
+ *  enemy specials actually fire instead of waiting for charge-landings). */
+const ENEMY_PASSIVE_MANA = 0.05;
 
 function hpColor(pct: number) {
   if (pct > 0.5) return "#4ade80";
@@ -182,6 +192,16 @@ export default function PvpBattlePage({
   const arenaRef = useRef<HTMLDivElement>(null);
   const isSlashingRef = useRef(false);
   const slashPathRef = useRef<{x:number;y:number}[]>([]);
+  // DOM refs for the slash trail polylines so the pointer-move handler
+  // can mutate the SVG `points` attribute DIRECTLY at finger-move rate
+  // (~120 Hz on iOS) without triggering a React re-render of the whole
+  // PvP page on every event. Without this the swipe handler called
+  // setSlashTrail on every move event, which forced React to reconcile
+  // 10+ pet wrappers, hp bars, mana bars, sparks, float numbers — the
+  // exact "battle is laggy" symptom.
+  const slashOuterRef = useRef<SVGPolylineElement>(null);
+  const slashInnerRef = useRef<SVGPolylineElement>(null);
+  const showSlashRef = useRef(false);
   const hitSetRef = useRef<Set<string>>(new Set());
   const lastAiSkillTime = useRef<Record<string, number>>({});
   const idRef = useRef(0);
@@ -207,7 +227,10 @@ export default function PvpBattlePage({
   const petManaRefs    = useRef<Map<string, HTMLDivElement | null>>(new Map());
   const lastSetPetsMsRef = useRef(0);
 
-  const [slashTrail, setSlashTrail] = useState<{x:number;y:number}[]>([]);
+  // Boolean gate for the swipe trail — actual point list is mutated
+  // straight onto the SVG polyline refs (see slashOuter/InnerRef above)
+  // so a 60-Hz finger drag doesn't force a React re-render per event.
+  const [showSlash, setShowSlash] = useState(false);
   const [floatNums, setFloatNums] = useState<FloatNum[]>([]);
   const [sparks, setSparks] = useState<SparkParticle[]>([]);
   const [hitFlash, setHitFlash] = useState<Record<string, boolean>>({});
@@ -637,7 +660,7 @@ export default function PvpBattlePage({
               spawnSparks(target.x, target.y, ["#ef4444", "#f87171", "#fca5a5"]);
               flashHit(target.uid);
               playPlayerHurt();
-              e.mana = Math.min(MAX_MANA, e.mana + 18);
+              e.mana = Math.min(MAX_MANA, e.mana + 25);
               if (target.hp <= 0 && !target.isDead) doKo(target);
               charger.returning = true;
               charger.returnStartMs = now;
@@ -659,6 +682,11 @@ export default function PvpBattlePage({
           e.x = e.baseX + Math.sin(t * e.speed + e.phase) * e.amp;
           e.y = e.baseY + Math.sin(t * 0.6 + e.phase) * 1.5;
         }
+
+        // Passive enemy mana so AI specials still fire even if their
+        // charges keep getting dodged / KO'd. Without this the enemy
+        // never casts because mana only ticked up on a landed charge.
+        e.mana = Math.min(MAX_MANA, e.mana + ENEMY_PASSIVE_MANA);
 
         // AI special: auto-fire when mana fills. Keeps the screen
         // alive even if no charger has landed yet.
@@ -689,10 +717,10 @@ export default function PvpBattlePage({
             enemyUid: enemy.uid,
             targetUid: target.uid,
             startMs: now,
-            chargeMs: 1100,
+            chargeMs: CHARGE_DIVE_MS,
             returning: false,
             returnStartMs: 0,
-            returnMs: 460,
+            returnMs: CHARGE_RETURN_MS,
           };
           chargerRef.current = next;
           setChargerView(next);
@@ -829,7 +857,17 @@ export default function PvpBattlePage({
     isSlashingRef.current = true;
     slashPathRef.current = [pos];
     hitSetRef.current = new Set();
-    setSlashTrail([pos]);
+    // Push initial point straight to the polyline DOM nodes — they
+    // mount the moment showSlash flips true on the next render, so
+    // we both flip the gate AND seed the points so the swipe is
+    // visible from the very first move event.
+    const initial = `${pos.x},${pos.y} ${pos.x},${pos.y}`;
+    showSlashRef.current = true;
+    setShowSlash(true);
+    requestAnimationFrame(() => {
+      slashOuterRef.current?.setAttribute("points", initial);
+      slashInnerRef.current?.setAttribute("points", initial);
+    });
   }, [getArenaPos, fireSkill]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
@@ -845,7 +883,12 @@ export default function PvpBattlePage({
     // `prev` → `pos` (the most recent step), so the cap only affects
     // what's RENDERED, not which enemies the swipe actually hits.
     if (slashPathRef.current.length > 6) slashPathRef.current.shift();
-    setSlashTrail([...slashPathRef.current]);
+    // DOM-direct polyline update — bypasses React reconciliation so a
+    // dragging finger doesn't tank battle FPS by re-rendering every pet
+    // wrapper, hp bar, mana bar, sparks, etc on every pointermove.
+    const ptsStr = slashPathRef.current.map(p => `${p.x},${p.y}`).join(" ");
+    slashOuterRef.current?.setAttribute("points", ptsStr);
+    slashInnerRef.current?.setAttribute("points", ptsStr);
     if (!prev) return;
 
     const oppAlive = petsRef.current.filter(p => !p.isPlayer && !p.isDead);
@@ -888,7 +931,10 @@ export default function PvpBattlePage({
   const handlePointerUp = useCallback(() => {
     isSlashingRef.current = false;
     hitSetRef.current = new Set();
-    setTimeout(() => setSlashTrail([]), 110);
+    setTimeout(() => {
+      showSlashRef.current = false;
+      setShowSlash(false);
+    }, 110);
   }, []);
 
   // ── Derived ────────────────────────────────────────────────────
@@ -1232,7 +1278,7 @@ export default function PvpBattlePage({
               NOT valid SVG syntax — Safari and most browsers silently
               dropped the points and rendered nothing, which is why the
               red trail "wasn't showing" on iPhone. */}
-          {slashTrail.length >= 2 && (
+          {showSlash && (
             <svg
               className="absolute inset-0 w-full h-full pointer-events-none z-30"
               viewBox="0 0 100 100"
@@ -1242,16 +1288,20 @@ export default function PvpBattlePage({
                   Safari renders an actual halo: the outer line is a
                   thicker, semi-transparent bloom that survives the SVG
                   drop-shadow being clipped by overflow:hidden parents,
-                  and the inner line is the bright core. */}
+                  and the inner line is the bright core.
+                  IMPORTANT: the `points` attribute is mutated in
+                  handlePointerMove via slashOuterRef / slashInnerRef
+                  instead of being passed as a React prop — that's how
+                  this avoids a 60-Hz state churn during a swipe. */}
               <polyline
-                points={slashTrail.map(p => `${p.x},${p.y}`).join(" ")}
+                ref={slashOuterRef}
                 fill="none" stroke="#ff2a3a" strokeLinecap="round" strokeLinejoin="round"
                 opacity="0.55"
                 vectorEffect="non-scaling-stroke"
                 style={{ strokeWidth: 12, filter: "blur(2px)" }}
               />
               <polyline
-                points={slashTrail.map(p => `${p.x},${p.y}`).join(" ")}
+                ref={slashInnerRef}
                 fill="none" stroke="#ffffff" strokeLinecap="round" strokeLinejoin="round"
                 opacity="1"
                 vectorEffect="non-scaling-stroke"
@@ -1305,21 +1355,27 @@ export default function PvpBattlePage({
             // and clipping pet parts because the inset:0 was resolving to
             // the wrong containing block).
             //
-            // Sizes were reduced from the original 280/270/250/240/etc.
-            // ladder because the recent fitVisible-margin bump (0.94 → 0.99)
-            // made the visible pet fill nearly the entire wrapper, so the
-            // old wrapper sizes were producing on-screen sprites that
-            // overlapped each other heavily — especially in 4 v 4 / 5 v 5.
-            // New ladder is ~15 % smaller per slot which gives every pet
-            // visible breathing room while keeping the focal-pet size
-            // (1 v 1) clearly large.
-            //   1 pet  → 240 / 230 (focal sprite)
-            //   2 pets → 210 / 200
-            //   3 pets → 185 / 175
-            //   4 pets → 160 / 150
-            //   5 pets → 140 / 130
-            const baseAlly  = sideCount <= 1 ? 240 : sideCount === 2 ? 210 : sideCount === 3 ? 185 : sideCount === 4 ? 160 : 140;
-            const baseEnemy = sideCount <= 1 ? 230 : sideCount === 2 ? 200 : sideCount === 3 ? 175 : sideCount === 4 ? 150 : 130;
+            // Sizes are now scaled to the actual arena width so a 1 v 1
+            // doesn't fill half a phone screen and a 5 v 5 doesn't have
+            // sprites overlapping their neighbors. The old fixed ladder
+            // (240 → 140) was sized for desktop and read as "way too big"
+            // on every mobile device — a 240 px pet on a 414 px iPhone
+            // is ~58 % of the viewport, and two of them visibly fight
+            // for screen space. The new ladder is roughly 35 % smaller
+            // and additionally clamps to the measured arena width so the
+            // sprites always fit inside their slot.
+            //   1 pet  → 168 / 162 (focal sprite, still large)
+            //   2 pets → 132 / 126
+            //   3 pets → 110 / 105
+            //   4 pets →  92 /  88
+            //   5 pets →  78 /  74
+            const arenaWNow = arenaRef.current?.clientWidth ?? 380;
+            // Reference arena width is 380 (typical phone). Scale the
+            // ladder linearly with available width but cap so tablet /
+            // desktop don't blow the sprites back up to the old size.
+            const sizeScale = Math.min(1.25, Math.max(0.85, arenaWNow / 380));
+            const baseAlly  = Math.round((sideCount <= 1 ? 168 : sideCount === 2 ? 132 : sideCount === 3 ? 110 : sideCount === 4 ? 92 : 78) * sizeScale);
+            const baseEnemy = Math.round((sideCount <= 1 ? 162 : sideCount === 2 ? 126 : sideCount === 3 ? 105 : sideCount === 4 ? 88 : 74) * sizeScale);
             const size = pet.isPlayer ? baseAlly : baseEnemy;
             const isHit = !!hitFlash[pet.uid];
             const stars = Math.max(0, Math.min(5, Math.floor(pet.starRarity || 0)));
