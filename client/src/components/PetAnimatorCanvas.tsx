@@ -182,14 +182,20 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
     // the same translateY(±2 px) + rotate(±3 deg) pair. Rotations are
     // mirrored between left/right; the lift is shared so paired wings
     // bob up and down together.
+    // The vertical lift was previously ±2 px which combined with the
+    // ±3° rotation made wings visibly "lift off" the body during idle.
+    // Reduced to ±0.6 px so the wings still have a subtle glide that
+    // sells the rotation as a flap, without the wings ever appearing to
+    // detach from the body silhouette. Mirrors the img renderer's
+    // matching ±5 % → ±1.5 % reduction on petIdleLeftWing/RightWing.
     case "left_wing": case "front_wing":
     case "wing_set2_left": case "front_wing_2":
     case "head_wing_left":
-      return { op: 1, rot: -sinWave(sec, 4) * 3 * D2R, ty: -sinWave(sec, 4) * 2 };
+      return { op: 1, rot: -sinWave(sec, 4) * 3 * D2R, ty: -sinWave(sec, 4) * 0.6 };
     case "right_wing": case "back_wing":
     case "wing_set2_right": case "back_wing_2":
     case "head_wing_right":
-      return { op: 1, rot:  sinWave(sec, 4) * 3 * D2R, ty: -sinWave(sec, 4) * 2 };
+      return { op: 1, rot:  sinWave(sec, 4) * 3 * D2R, ty: -sinWave(sec, 4) * 0.6 };
 
     // Tail — gentle upward lift on the body's 4.5 s rhythm so it reads as
     // part of the body breath rather than wagging independently. Matches
@@ -211,13 +217,16 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
     case "head":
       return { op: 1, rot: 0, ty: -((1 + sinWave(sec, 3)) * 0.5) * 3.6 };
 
-    // Above-head accessory (crowns / halos) — bigger, slower float so it
-    // reads as a separate buoyant object rather than glued to the head.
-    // Bumped from −5 px → −7 px to match the img-renderer's matching
-    // bump (the previous amplitude was so subtle the float was barely
-    // visible against the head bob).
+    // Above-head accessory (crowns / halos / horns / hats). Previously
+    // -7 px (and the img renderer was -15 % of the part height) which
+    // lifted tall accessories visibly off the skull and read as
+    // "wobbling violently" instead of "floating gently". Reduced to
+    // -2.5 px so the float is just enough to read on top of the head
+    // bob without ever visibly separating from the head. Mirrors the
+    // img renderer's matching -15 % → -5 % reduction on
+    // petAboveHeadBounce.
     case "above_head":
-      return { op: 1, rot: 0, ty: -((1 + sinWave(sec, 4)) * 0.5) * 7 };
+      return { op: 1, rot: 0, ty: -((1 + sinWave(sec, 4)) * 0.5) * 2.5 };
 
     default: return { op: 1, rot: 0 };
   }

@@ -378,19 +378,20 @@ const ANIMATION_STYLES = `
      rotation on each wing — mirrored left vs. right — adds the
      wing-tip tilt that sells the flap as flight.
      translateY is expressed in % of the wing element's own height so
-     the lift scales with the part. Pure-px values were getting flattened
-     to <1 px on screen by the inner-div's 0.3× scale on large-style
-     pets, which is why the new flap was indistinguishable from the old
-     pure-rotation version. ±5 % = visible vertical glide on every pet
-     size; combined with the ±5° rotation it reads clearly as a flap
-     rather than a windshield-wiper rotation. */
+     the lift scales with the part. The lift was previously ±5 % which
+     made wings visibly "lift off" the body during idle — it read as
+     panicked flapping rather than a calm hover. Reduced to ±1.5 % so
+     the wings still glide up/down enough to read as alive, but never
+     leave the body silhouette. The ±5° rotation does most of the
+     "flap" work; the small lift just keeps the rotation from looking
+     like a stiff windshield wiper. */
   @keyframes petIdleLeftWing {
-    from { transform: translateY(5%) rotate(-5deg); }
-    to   { transform: translateY(-5%) rotate(5deg); }
+    from { transform: translateY(1.5%) rotate(-5deg); }
+    to   { transform: translateY(-1.5%) rotate(5deg); }
   }
   @keyframes petIdleRightWing {
-    from { transform: translateY(5%) rotate(5deg); }
-    to   { transform: translateY(-5%) rotate(-5deg); }
+    from { transform: translateY(1.5%) rotate(5deg); }
+    to   { transform: translateY(-1.5%) rotate(-5deg); }
   }
   @keyframes petIdleLeftLeg {
     from { transform: translateY(0px); }
@@ -603,13 +604,15 @@ const ANIMATION_STYLES = `
      object would. */
   /* Above-head accessory float. % of the part's own height instead of
      pixels — pure-px (-7 px) was getting squashed by the same 0.3×
-     inner-div scale that flattens the wing translate. -15 % gives a
-     clearly visible buoyant bob on crowns / halos at every pet size,
-     while still being small enough to read as "floating slightly" not
-     "wobbling violently". */
+     inner-div scale that flattens the wing translate. The amplitude was
+     previously -15 % which lifted crowns / halos clear off the head and
+     read as "wobbling violently" on tall accessories like horns or
+     pointed hats. Reduced to -5 % so the accessory still has a gentle
+     buoyant float on top of the head bob, but never visibly detaches
+     from the skull. */
   @keyframes petAboveHeadBounce {
     from { transform: translateY(0%); }
-    to   { transform: translateY(-15%); }
+    to   { transform: translateY(-5%); }
   }
 
 `;
@@ -1207,6 +1210,22 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     const pyPct = (part.pivotY ?? 50) / 100;
     const originX = (ab.left + ab.width  * pxPct) * 100;
     const originY = (ab.top  + ab.height * pyPct) * 100;
+    // Body-breath origin sync — the body part itself anchors at "50%
+    // 100%" (its feet) for non-flying pets so it inhales UPWARD instead
+    // of swelling off the ground. Every other part on the petIdleBody
+    // animation (shoulders, back_arm, back/front accessories) was
+    // scaling around its OWN pivot, which meant the body grew up while
+    // the accessory grew sideways from its center — that's the "still
+    // a bit off" sync the user noticed on the side view. Forcing the
+    // same "50% 100%" origin on every body-synced part makes them all
+    // expand UPWARD in lockstep with the body, locking the back-arm to
+    // its mounted accessory and keeping the shoulders glued to the
+    // torso silhouette. Flying pets (canFly) keep the per-part pivot
+    // since the body itself isn't feet-anchored in that case.
+    let resolvedOrigin = transformOriginOverride;
+    if (resolvedOrigin === undefined && animName === "petIdleBody" && !canFly) {
+      resolvedOrigin = "50% 100%";
+    }
     return (
       <img
         key={part.id}
@@ -1220,7 +1239,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           width: `${widthPct}%`,
           height: `${heightPct}%`,
           zIndex: layerZ,
-          transformOrigin: transformOriginOverride ?? `${originX.toFixed(2)}% ${originY.toFixed(2)}%`,
+          transformOrigin: resolvedOrigin ?? `${originX.toFixed(2)}% ${originY.toFixed(2)}%`,
           // Animation shorthand picked by buildAnimationCss: 2-keyframe
           // motion (wings, ears, tail, body, etc.) gets `alternate` +
           // sine bezier so it's a true sine wave with no internal
