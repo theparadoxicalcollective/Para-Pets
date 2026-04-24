@@ -729,7 +729,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                     {inv ? (
                       <div className="w-full h-full p-0.5 flex items-center justify-center">
                         {inv.petTemplateId
-                          ? <PetAnimator petTemplateId={inv.petTemplateId} mode="idle" view="front" size={72} fillContainer className="w-full h-full" />
+                          ? <PetAnimator petTemplateId={inv.petTemplateId} mode="idle" view="front" size={72} fillContainer fitVisible className="w-full h-full" />
                           : inv.imageUrl
                             ? <img src={inv.imageUrl} className="w-full h-full object-contain" />
                             : <img src={petPawIcon} alt="" className="w-full h-full object-contain" style={{ opacity: 0.7 }} />}
@@ -923,7 +923,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                           )}
                           <div className="w-20 h-20 flex items-center justify-center">
                             {inv.petTemplateId
-                              ? <PetAnimator petTemplateId={inv.petTemplateId} mode="idle" view="front" size={80} fillContainer className="w-full h-full" />
+                              ? <PetAnimator petTemplateId={inv.petTemplateId} mode="idle" view="front" size={80} fillContainer fitVisible className="w-full h-full" />
                               : inv.imageUrl
                               ? <img src={inv.imageUrl} className="w-full h-full object-contain" />
                               : <img src={petPawIcon} alt="" className="w-14 h-14 object-contain" />}
@@ -1049,7 +1049,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                       )}
                       <div className="w-20 h-20 flex items-center justify-center">
                         {inv.petTemplateId
-                          ? <PetAnimator petTemplateId={inv.petTemplateId} mode="idle" view="front" size={80} fillContainer className="w-full h-full" />
+                          ? <PetAnimator petTemplateId={inv.petTemplateId} mode="idle" view="front" size={80} fillContainer fitVisible className="w-full h-full" />
                           : inv.imageUrl
                           ? <img src={inv.imageUrl} className="w-full h-full object-contain" />
                           : <img src={petPawIcon} alt="" className="w-14 h-14 object-contain" />}

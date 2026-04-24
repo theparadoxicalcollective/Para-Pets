@@ -1252,15 +1252,18 @@ export default function PvpBattlePage({
             // because the previous ribbon was wider than most pets'
             // visible silhouette and read as a separate banner.
             const barWidth = Math.round(size * 0.42);
-            // Pets are drawn inside a square `size × size` canvas with
-            // ~15-22 % transparent padding on every side (the canvas
-            // is sized to fit the largest part with rotation slack).
-            // Anchoring bars to the wrapper's box edges put them down
-            // in the empty padding, far from the visible pet — the
-            // "invisible square area" the user reported. We inset by
-            // 18 % of size so each bar lands right at the pet's
-            // visible head/feet edge regardless of sprite scale.
-            const barInset = Math.round(size * 0.18);
+            // With fitVisible enabled on the PetAnimatorCanvas the
+            // visible pet now fills ~94 % of the wrapper (a small
+            // margin is left so the wing flap and above-head bounce
+            // don't clip). The wrapper box edges are therefore right
+            // up against the visible silhouette, so the bars no longer
+            // need a deep inset to reach the pet — they sit at the
+            // wrapper edge with a tiny 3 % gap (= half of the 6 %
+            // total fit margin) so they don't quite touch the head /
+            // feet outline. The previous 18 % inset would now plant
+            // the bars INSIDE the pet body, so this needs to be
+            // reduced in lockstep with the fit-margin change.
+            const barInset = Math.round(size * 0.03);
             // Charging enemies need to render ON TOP of the ally they're
             // diving at — otherwise they slide BEHIND the player sprite,
             // which reads as a "glitch" because the impact spark and X_X
@@ -1356,7 +1359,7 @@ export default function PvpBattlePage({
                   }}
                 >
                   {pet.petTemplateId ? (
-                    <PetAnimatorCanvas petTemplateId={pet.petTemplateId} size={size} />
+                    <PetAnimatorCanvas petTemplateId={pet.petTemplateId} size={size} fitVisible />
                   ) : pet.imageUrl ? (
                     <img
                       src={pet.imageUrl}

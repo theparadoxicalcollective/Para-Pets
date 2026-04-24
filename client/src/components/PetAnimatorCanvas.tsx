@@ -117,8 +117,24 @@ interface AnimResult {
   sy?: number;       // y-scale
 }
 
+// Body breath helper — used by every part that the img-renderer maps
+// to `petIdleBody`: body itself, all four shoulder variants, back_arm
+// (side-facing), and front/back accessories. Same 4.5 s period and
+// ±2.8 % / ±4.6 % asymmetric scale as the body so the whole "back of
+// the pet" group inhales/exhales as one unit. Mirrors PetAnimator.tsx
+// IDLE_ANIMATIONS where these parts all share petIdleBody.
+function bodyBreath(sec: number): AnimResult {
+  const w = (1 + sinWave(sec, 4.5)) * 0.5; // 0..1 sine
+  return { op: 1, rot: 0, sx: 1 + w * 0.028, sy: 1 + w * 0.046 };
+}
+
 function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
-  switch (partType) {
+  // Strip multi-head prefix so h2_/h3_ duplicates pick up the same
+  // animation as the base part (h2_left_wing flaps like left_wing,
+  // h3_back_arm breathes like back_arm, etc.). Mirrors lookupAnim()
+  // in the img renderer.
+  const base = partType.startsWith("h2_") || partType.startsWith("h3_") ? partType.slice(3) : partType;
+  switch (base) {
     case "eyes": {
       const t = ((sec + blinkOff) % 4) / 4;
       return { op: kfi([[0,1],[0.92,1],[0.95,0],[0.97,0],[1,1]], t), rot: 0 };
@@ -131,36 +147,62 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
     case "mouth_closed": return { op: 1, rot: 0 };
 
     // Ears — sine sweep at 3.5 s. Subtle ±2°.
-    case "left_ear":
+    case "left_ear": case "hair_left":
       return { op: 1, rot: -sinWave(sec, 3.5) * 2 * D2R };
-    case "right_ear":
+    case "right_ear": case "hair_right":
       return { op: 1, rot:  sinWave(sec, 3.5) * 2 * D2R };
 
-    // Arms — slow gentle sweep.
+    // Front-facing arms — slow gentle sweep.
     case "left_arm": case "front_arm":
       return { op: 1, rot: -sinWave(sec, 3.5) * 3 * D2R };
-    case "right_arm": case "back_arm":
+    case "right_arm":
       return { op: 1, rot:  sinWave(sec, 3.5) * 2 * D2R };
 
-    // Wings — clean ±5° sine flap at 4 s, matching the img-renderer's
-    // 5-keyframe symmetric sweep. Math.sin gives infinite-resolution
-    // smoothness so the canvas version never stutters between samples.
-    case "left_wing": case "front_wing":
-      return { op: 1, rot: -sinWave(sec, 4) * 5 * D2R };
-    case "right_wing": case "back_wing":
-      return { op: 1, rot:  sinWave(sec, 4) * 5 * D2R };
+    // Side-facing back arm breathes with the body instead of swinging on
+    // its own — that way the back arm rises and falls in perfect sync
+    // with back_accessory_1 (capes, satchels, quivers mounted on the
+    // back arm) so they don't drift apart during idle. Matches img-
+    // renderer where back_arm shares petIdleBody.
+    case "back_arm":
+      return bodyBreath(sec);
 
-    // Tail — ±1.2° at 5 s.
-    case "tail":
-      return { op: 1, rot: sinWave(sec, 5) * 1.2 * D2R };
+    // Shoulders + front/back accessories all breathe with the body so the
+    // whole torso group expands and contracts together. Mirrors the img-
+    // renderer's IDLE_ANIMATIONS mapping to petIdleBody.
+    case "left_shoulder": case "right_shoulder":
+    case "front_shoulder": case "back_shoulder":
+    case "front_accessory_1": case "front_accessory_2":
+    case "back_accessory_1": case "back_accessory_2":
+      return bodyBreath(sec);
+
+    // Wings — gentle ±3° sine flap at 4 s + a small ty oscillation so the
+    // wings read as flapping (lifting through the rotation) instead of
+    // pivoting in place like windshield wipers. Mirrors the img-
+    // renderer's petIdleLeftWing / petIdleRightWing keyframes which use
+    // the same translateY(±2 px) + rotate(±3 deg) pair. Rotations are
+    // mirrored between left/right; the lift is shared so paired wings
+    // bob up and down together.
+    case "left_wing": case "front_wing":
+    case "wing_set2_left": case "front_wing_2":
+    case "head_wing_left":
+      return { op: 1, rot: -sinWave(sec, 4) * 3 * D2R, ty: -sinWave(sec, 4) * 2 };
+    case "right_wing": case "back_wing":
+    case "wing_set2_right": case "back_wing_2":
+    case "head_wing_right":
+      return { op: 1, rot:  sinWave(sec, 4) * 3 * D2R, ty: -sinWave(sec, 4) * 2 };
+
+    // Tail — gentle upward lift on the body's 4.5 s rhythm so it reads as
+    // part of the body breath rather than wagging independently. Matches
+    // the img-renderer's petIdleTail (translateY 0 → −1.5 px). All three
+    // tail slots share the same beat so multi-tailed pets lift together.
+    case "tail": case "tail_2": case "tail_3":
+      return { op: 1, rot: 0, ty: -((1 + sinWave(sec, 4.5)) * 0.5) * 1.5 };
 
     // Body — breathing. Vertical scale grows / shrinks ~4.6 % at peak,
     // horizontal ~2.8 %. Pivots from part center so the breath reads as
     // expansion rather than translation.
-    case "body": {
-      const w = (1 + sinWave(sec, 4.5)) * 0.5; // 0..1 sine
-      return { op: 1, rot: 0, sx: 1 + w * 0.028, sy: 1 + w * 0.046 };
-    }
+    case "body":
+      return bodyBreath(sec);
 
     // Head — gentle vertical bob, identical to the img-renderer's
     // petIdleHead (peak −3.6 px scaled to canvas). The translation is
@@ -171,8 +213,11 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
 
     // Above-head accessory (crowns / halos) — bigger, slower float so it
     // reads as a separate buoyant object rather than glued to the head.
+    // Bumped from −5 px → −7 px to match the img-renderer's matching
+    // bump (the previous amplitude was so subtle the float was barely
+    // visible against the head bob).
     case "above_head":
-      return { op: 1, rot: 0, ty: -((1 + sinWave(sec, 4)) * 0.5) * 5 };
+      return { op: 1, rot: 0, ty: -((1 + sinWave(sec, 4)) * 0.5) * 7 };
 
     default: return { op: 1, rot: 0 };
   }
@@ -182,11 +227,19 @@ interface Props {
   petTemplateId: string;
   size: number;
   fillContainer?: boolean;
+  /** When true, the union alpha-bbox of all visible parts is scaled +
+   *  centered to fill the canvas (with a small margin so wing rotations
+   *  don't clip). Eliminates the "invisible square padding" that comes
+   *  from each part's transparent margins + the canvas's 1000-unit
+   *  layout area never being fully populated by any single template.
+   *  Caller-driven so PvE callers (BattleArena, PetEquip) can keep the
+   *  legacy padded layout untouched while PvP opts in. */
+  fitVisible?: boolean;
   className?: string;
   style?: React.CSSProperties;
 }
 
-function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, className = "", style }: Props) {
+function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fitVisible = false, className = "", style }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef    = useRef(0);
   const t0Ref     = useRef(0);
@@ -286,13 +339,65 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, cl
       const isLarge = parts.some(({ part: p }) => p.width >= 500 || p.height >= 500);
       const partScale = isLarge ? 0.3 : 1;
 
-      // canvasPx = size * dpr — the actual pixel buffer dimensions
-      const drawSpan = fillContainer ? canvasPx : canvasPx * partScale;
-      const offset   = fillContainer ? 0 : (canvasPx - drawSpan) / 2;
+      // canvasPx = size * dpr — the actual pixel buffer dimensions.
+      // fitVisible forces full-canvas drawing because the whole point of
+      // fit-mode is to make the visible pet fill the wrapper; leaving
+      // the legacy 30 % centered draw region would constrain the fit-
+      // scaled pet to a tiny inner box and the user would still see a
+      // huge transparent square around it (the original complaint).
+      const fillFull = fillContainer || fitVisible;
+      const drawSpan = fillFull ? canvasPx : canvasPx * partScale;
+      const offset   = fillFull ? 0 : (canvasPx - drawSpan) / 2;
 
       ctx.clearRect(0, 0, canvasPx, canvasPx);
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "low";
+
+      // Fit-to-visible-bbox: compute the union of every part's alpha-
+      // tight rect (in 1000-unit logical coords), then scale + recenter
+      // so the visible pet fills the canvas. Recomputed per frame so
+      // the bbox tightens automatically as alpha-bounds resolve from
+      // their async scan. Cheap (~10 parts × constant arithmetic).
+      // ANIM_ONLY_PARTS (eyes_closed, mouth, etc) are excluded so
+      // blink/expression overlays don't expand the bbox during their
+      // frames-with-opacity-0. A 0.94 margin leaves ~3 % headroom on
+      // each side so the wings' ±5° flap doesn't clip at the edge.
+      let fitScale = 1;
+      let fitCx    = CANVAS_SIZE / 2; // bbox center in 1000-unit space
+      let fitCy    = CANVAS_SIZE / 2;
+      if (fitVisible && parts.length > 0) {
+        let minL = Infinity, minT = Infinity, maxR = -Infinity, maxB = -Infinity;
+        for (const { part } of parts) {
+          // Strip h2_/h3_ prefix so multi-head templates' duplicate
+          // expression-overlay parts (h2_eyes_closed, h3_mouth, etc.)
+          // get excluded from the bbox union the same way the base
+          // eyes_closed / mouth do — otherwise their padded image
+          // rectangle would inflate the bbox even though they're
+          // invisible during their opacity-0 frames, dragging the fit
+          // center off the actual visible silhouette on multi-head
+          // pets (the architect flagged this as the one real
+          // correctness gap in the fit-bbox math).
+          const baseType = part.partType.replace(/^h[23]_/, "");
+          if (ANIM_ONLY_PARTS.has(baseType)) continue;
+          const ab = getAlphaBoundsSync(part.imageUrl) ?? FULL_BOUNDS;
+          const vL = part.posX + part.width  * ab.left;
+          const vT = part.posY + part.height * ab.top;
+          const vR = part.posX + part.width  * (ab.left + ab.width);
+          const vB = part.posY + part.height * (ab.top  + ab.height);
+          if (vL < minL) minL = vL;
+          if (vT < minT) minT = vT;
+          if (vR > maxR) maxR = vR;
+          if (vB > maxB) maxB = vB;
+        }
+        if (isFinite(minL)) {
+          const bboxW = maxR - minL;
+          const bboxH = maxB - minT;
+          fitCx = (minL + maxR) / 2;
+          fitCy = (minT + maxB) / 2;
+          const span = Math.max(bboxW, bboxH);
+          if (span > 0) fitScale = (CANVAS_SIZE * 0.94) / span;
+        }
+      }
 
       // Compute the head bob ONCE per frame so every head-group part
       // (head, eyes, mouth, ears) shares the same vertical offset and
@@ -301,8 +406,11 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, cl
       // Convert "CSS px @ requested size" to canvas-buffer px. drawSpan
       // is ALREADY in buffer px (= canvasPx = size·dpr after rounding),
       // so the ratio drawSpan/size already includes the dpr factor —
-      // multiplying by dpr again would double-scale the motion.
-      const headBobPx = headBob * (drawSpan / size);
+      // multiplying by dpr again would double-scale the motion. Apply
+      // the fit-scale so the head bob shrinks/grows in lockstep with
+      // the visible pet (otherwise a 1.2× fit would make the bob 1.2×
+      // smaller relative to the pet — visible drift on tall sprites).
+      const headBobPx = headBob * (drawSpan / size) * fitScale;
 
       for (const { part, img } of parts) {
         // Heads route through evalAnim("head") above; for individual
@@ -312,10 +420,19 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, cl
         const { op, rot } = anim;
         if (ANIM_ONLY_PARTS.has(part.partType) && op <= 0) continue;
 
-        const left = offset + (part.posX / CANVAS_SIZE) * drawSpan;
-        const top  = offset + (part.posY / CANVAS_SIZE) * drawSpan;
-        const w    = (part.width  / CANVAS_SIZE) * drawSpan;
-        const h    = (part.height / CANVAS_SIZE) * drawSpan;
+        // Apply fit-to-bbox transform in logical (1000-unit) space:
+        // scale around the visible bbox center so it lands at the
+        // canvas center, then convert to buffer px via drawSpan. When
+        // fitVisible is off, fitScale=1 and fitCx=fitCy=CANVAS_SIZE/2,
+        // which is the identity transform — same output as before.
+        const lLogical = (part.posX - fitCx) * fitScale + CANVAS_SIZE / 2;
+        const tLogical = (part.posY - fitCy) * fitScale + CANVAS_SIZE / 2;
+        const wLogical = part.width  * fitScale;
+        const hLogical = part.height * fitScale;
+        const left = offset + (lLogical / CANVAS_SIZE) * drawSpan;
+        const top  = offset + (tLogical / CANVAS_SIZE) * drawSpan;
+        const w    = (wLogical / CANVAS_SIZE) * drawSpan;
+        const h    = (hLogical / CANVAS_SIZE) * drawSpan;
         // Re-map the artist's pivot percentage onto the actual visible
         // pixels of the part image (alpha bbox) instead of the full
         // padded image. This keeps tails / wings rotating around their
@@ -331,8 +448,10 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, cl
 
         // Per-part vertical offset (head bob OR above-head float OR
         // the part's own ty if it has one). Same CSS-px → buffer-px
-        // conversion as headBobPx above; do NOT multiply by dpr.
-        let dy = anim.ty ? anim.ty * (drawSpan / size) : 0;
+        // conversion as headBobPx above; do NOT multiply by dpr. Also
+        // multiplied by fitScale so anim motion stays proportional to
+        // the visibly-rendered pet (when fitVisible enlarges the pet).
+        let dy = anim.ty ? anim.ty * (drawSpan / size) * fitScale : 0;
         if (isHeadGroupPart(part.partType) && part.partType !== "head" && part.partType !== "h2_head" && part.partType !== "h3_head") {
           // Already-bobbing parts (head itself) shouldn't double-bob.
           dy += headBobPx;
@@ -360,7 +479,7 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, cl
 
     rafRef.current = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [canvasPx, fillContainer]);
+  }, [canvasPx, fillContainer, fitVisible]);
 
   return (
     <canvas

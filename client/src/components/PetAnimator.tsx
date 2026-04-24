@@ -25,6 +25,15 @@ interface PetAnimatorProps {
   /** When true, expands the inner canvas so the visual output fills `size` exactly,
    *  compensating for the large-style 0.3× scale factor. Use in pet-house contexts. */
   fillContainer?: boolean;
+  /** When true, the union of every visible part's alpha-tight rect is
+   *  scaled + centered to fill the wrapper (with ~3 % margin so wing /
+   *  above-head animations don't clip). Eliminates the "invisible
+   *  square padding" around small templates and the slot-to-slot
+   *  asymmetric offset where pets with off-center silhouettes shifted
+   *  to the right of their slot in the PvP arena prep grid. Caller
+   *  opt-in so existing layouts (HomePage, PetHousePage, BattleArena
+   *  prep) keep their current padded composition. */
+  fitVisible?: boolean;
   /** Override face parts to show a specific expression. "happy" forces eyes
    *  closed and mouth open (when those parts exist on the template), used
    *  when the pet is being celebrated (clicked / fed on the feeding page). */
@@ -331,9 +340,16 @@ const ANIMATION_STYLES = `
        zero-velocity points only at A and B — exactly where a real sine
        wave's peaks would be — and is smooth between them. Same flap
        rhythm, no internal pauses, no piecewise stitching. */
+  /* Head bob — uses % of the head wrapper height (100% of the inner pet
+     canvas) so the lift scales naturally with the rendered pet size.
+     The wrapper sits inside an inner-div that's scaled by partScale
+     (0.3 for 1000-px source pets), so an absolute pixel value here gets
+     squashed by the same factor on screen. -1.5% on a 1000-unit canvas
+     = 15 inner-px = ~4.5 px on screen at typical pet sizes — small
+     enough to feel like a breath, big enough to actually be perceived. */
   @keyframes petIdleHead {
-    from { transform: translateY(0px); }
-    to   { transform: translateY(-3.6px); }
+    from { transform: translateY(0%); }
+    to   { transform: translateY(-1.5%); }
   }
   @keyframes petIdleLeftEar {
     from { transform: rotate(-2deg); }
@@ -358,22 +374,23 @@ const ANIMATION_STYLES = `
   }
   /* Wings — flap motion. The wings travel UP together (matched
      translateY) on the up-stroke and DOWN together on the down-stroke,
-     which reads as the bird/dragon pushing air down to hover. A small
-     ±3° rotation on each wing — mirrored left vs. right — adds the
-     wing-tip tilt that sells the flap as flight rather than turning.
-     Previous version used a ±5° pure rotation, which made the wings
-     pivot in place like windshield wipers (the user feedback was "they
-     look more like they're turning than flying"). The translateY is
-     deliberately small (±2 px in the part's local box, so ~0.4 % of the
-     1000 px pet canvas) so the wing tip never separates visibly from
-     the body silhouette. */
+     which reads as the bird/dragon pushing air down to hover. A ±5°
+     rotation on each wing — mirrored left vs. right — adds the
+     wing-tip tilt that sells the flap as flight.
+     translateY is expressed in % of the wing element's own height so
+     the lift scales with the part. Pure-px values were getting flattened
+     to <1 px on screen by the inner-div's 0.3× scale on large-style
+     pets, which is why the new flap was indistinguishable from the old
+     pure-rotation version. ±5 % = visible vertical glide on every pet
+     size; combined with the ±5° rotation it reads clearly as a flap
+     rather than a windshield-wiper rotation. */
   @keyframes petIdleLeftWing {
-    from { transform: translateY(2px) rotate(-3deg); }
-    to   { transform: translateY(-2px) rotate(3deg); }
+    from { transform: translateY(5%) rotate(-5deg); }
+    to   { transform: translateY(-5%) rotate(5deg); }
   }
   @keyframes petIdleRightWing {
-    from { transform: translateY(2px) rotate(3deg); }
-    to   { transform: translateY(-2px) rotate(-3deg); }
+    from { transform: translateY(5%) rotate(5deg); }
+    to   { transform: translateY(-5%) rotate(-5deg); }
   }
   @keyframes petIdleLeftLeg {
     from { transform: translateY(0px); }
@@ -584,9 +601,15 @@ const ANIMATION_STYLES = `
      getPartDuration so the two never sync up and the accessory always
      looks like it's lagging behind the head, the way a real floating
      object would. */
+  /* Above-head accessory float. % of the part's own height instead of
+     pixels — pure-px (-7 px) was getting squashed by the same 0.3×
+     inner-div scale that flattens the wing translate. -15 % gives a
+     clearly visible buoyant bob on crowns / halos at every pet size,
+     while still being small enough to read as "floating slightly" not
+     "wobbling violently". */
   @keyframes petAboveHeadBounce {
-    from { transform: translateY(0px); }
-    to   { transform: translateY(-7px); }
+    from { transform: translateY(0%); }
+    to   { transform: translateY(-15%); }
   }
 
 `;
@@ -846,7 +869,7 @@ function buildHeadGroups(parts: PetPart[]): { head: PetPart; faceParts: PetPart[
   return groups;
 }
 
-export default function PetAnimator({ petTemplateId, mode, view = "front", size = 200, fillContainer = false, expression = "neutral", className = "", style: externalStyle }: PetAnimatorProps) {
+export default function PetAnimator({ petTemplateId, mode, view = "front", size = 200, fillContainer = false, fitVisible = false, expression = "neutral", className = "", style: externalStyle }: PetAnimatorProps) {
   // Stable random blink offset per instance — spreads eye animations across the
   // full 4 s blink cycle so pets don't all blink at the same time.
   const blinkOffset = useRef(`-${(Math.random() * 4).toFixed(2)}s`);
@@ -963,9 +986,66 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   // When fillContainer=false (default), use the old behaviour where large-style
   // pets appear at 30% of the container — matching how PetWorldPage and PvpArena
   // were designed.
-  const effectiveSize = fillContainer ? measuredSize : size;
-  const innerSize = fillContainer ? effectiveSize / partScale : size;
-  const innerOffset = fillContainer ? -((innerSize - effectiveSize) / 2) : 0;
+  // fitVisible implies fillContainer behaviour: there's no point fit-
+  // packing the bbox to 94 % of the inner canvas if the inner canvas is
+  // only being shown at 30 % of the wrapper (i.e. legacy non-fill
+  // mode), because the visible pet would still occupy <30 % of the
+  // wrapper and the user would still see the "invisible square" of
+  // empty space around it. So when fitVisible is on we use the same
+  // inner-size expansion as fillContainer.
+  const fillFull = fillContainer || fitVisible;
+  const effectiveSize = fillFull ? measuredSize : size;
+  const innerSize = fillFull ? effectiveSize / partScale : size;
+  const innerOffset = fillFull ? -((innerSize - effectiveSize) / 2) : 0;
+
+  // Fit-to-visible-bbox: union of every visible part's alpha-tight rect
+  // in 1000-unit logical coords, converted to inner-div CSS pixels and
+  // packed with a 0.94 margin so wing flap (±5°) and above-head bounce
+  // (-15 %) don't clip. Recomputed on each render so the bbox tightens
+  // as alpha-bounds resolve from the async scan in the loadAlphaBounds
+  // effect (line ~930). When fitVisible is off, fitTransform is just
+  // `scale(${partScale})` — identical to the previous code path.
+  let fitTransform = `scale(${partScale})`;
+  if (fitVisible) {
+    let minL = Infinity, minT = Infinity, maxR = -Infinity, maxB = -Infinity;
+    for (const part of viewParts) {
+      // Strip h2_/h3_ multi-head prefix so duplicate expression-overlay
+      // parts (h2_eyes_closed, h3_mouth) get excluded from the bbox
+      // union the same way the base eyes_closed / mouth do — otherwise
+      // their padded image rect would inflate the bbox on multi-head
+      // pets even though they're hidden during their opacity-0 frames.
+      const baseType = part.partType.replace(/^h[23]_/, "");
+      if (ANIM_ONLY_PARTS.has(baseType)) continue;
+      const ab = getAlphaBoundsSync(part.imageUrl) ?? FULL_BOUNDS;
+      const vL = part.posX + part.width  * ab.left;
+      const vT = part.posY + part.height * ab.top;
+      const vR = part.posX + part.width  * (ab.left + ab.width);
+      const vB = part.posY + part.height * (ab.top  + ab.height);
+      if (vL < minL) minL = vL;
+      if (vT < minT) minT = vT;
+      if (vR > maxR) maxR = vR;
+      if (vB > maxB) maxB = vB;
+    }
+    if (isFinite(minL)) {
+      const bboxW = maxR - minL;
+      const bboxH = maxB - minT;
+      const span  = Math.max(bboxW, bboxH);
+      if (span > 0) {
+        // bbox center in inner-div CSS pixels (innerSize spans the
+        // 0..1000 logical range).
+        const bboxCenterPx = ((minL + maxR) / 2) * (innerSize / CANVAS_SIZE);
+        const bboxCenterPy = ((minT + maxB) / 2) * (innerSize / CANVAS_SIZE);
+        const tx = innerSize / 2 - bboxCenterPx;
+        const ty = innerSize / 2 - bboxCenterPy;
+        const fitScale = (CANVAS_SIZE * 0.94) / span;
+        // Order matters: translate moves the bbox center to the inner
+        // div's center FIRST, then scaling around the (now-centered)
+        // origin keeps it centered. CSS applies right-to-left, so the
+        // string reads scale ∘ scale ∘ translate.
+        fitTransform = `scale(${partScale}) scale(${fitScale.toFixed(4)}) translate(${tx.toFixed(2)}px, ${ty.toFixed(2)}px)`;
+      }
+    }
+  }
 
   // Build head groups (each head gets its own associated face parts by proximity)
   const headGroups = buildHeadGroups(viewParts);
@@ -1169,7 +1249,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
       data-testid="pet-animator"
     >
       <style>{ANIMATION_STYLES}</style>
-      <div style={{ position: "absolute", top: innerOffset, left: innerOffset, width: innerSize, height: innerSize, transform: `scale(${partScale})`, transformOrigin: "center center" }}>
+      <div style={{ position: "absolute", top: innerOffset, left: innerOffset, width: innerSize, height: innerSize, transform: fitTransform, transformOrigin: "center center" }}>
 
         {/* Body parts (back_full, limbs, wings, tail, body) */}
         {bodyParts.map((part) => {
