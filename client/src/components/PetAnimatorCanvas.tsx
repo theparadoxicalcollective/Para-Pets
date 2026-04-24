@@ -12,7 +12,7 @@
  * at size CSS pixels → identical crispness to a native <img> on retina screens.
  */
 
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getAlphaBounds, getAlphaBoundsSync, FULL_BOUNDS } from "@/lib/alphaBounds";
 
@@ -186,7 +186,7 @@ interface Props {
   style?: React.CSSProperties;
 }
 
-export default function PetAnimatorCanvas({ petTemplateId, size, fillContainer = false, className = "", style }: Props) {
+function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, className = "", style }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef    = useRef(0);
   const t0Ref     = useRef(0);
@@ -372,3 +372,20 @@ export default function PetAnimatorCanvas({ petTemplateId, size, fillContainer =
     />
   );
 }
+
+// Memoize so a parent's per-frame setState (e.g. PvP's 60 Hz position
+// updates via setPets) doesn't re-render every pet sprite each frame.
+// PetAnimatorCanvas owns its own RAF + canvas draw loop, so a skipped
+// React render does NOT pause the visible animation — it only avoids
+// reconciliation cost. The win on the PvP arena (4 pets × 60 Hz) is
+// significant.
+//
+// IMPORTANT: default shallow comparison is used, which means callers
+// MUST pass stable references for `style`, `className`, etc. — if you
+// build a new object literal in JSX (e.g. `style={{ filter: "..." }}`)
+// the memo is defeated for that callsite. Hoist static styles to a
+// module-level const, or memoize dynamic ones. Existing consumers
+// (BattleArena.tsx, PetEquipAccessoriesPage.tsx, PvpBattlePage.tsx)
+// follow this rule.
+const PetAnimatorCanvas = memo(PetAnimatorCanvasInner);
+export default PetAnimatorCanvas;

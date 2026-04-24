@@ -59,6 +59,11 @@ interface AutoOrb {
 }
 
 const PET_SPRITE_SIZE = 230;
+// Hoisted so PetAnimatorCanvas's React.memo equality holds — both the
+// active pet and extra pets pass this same object reference for the
+// "skill ready" glow, instead of allocating a fresh `{ animation: ... }`
+// each render and forcing the canvas to reconcile every parent tick.
+const PET_RARITY_GLOW_STYLE: React.CSSProperties = { animation: "petRarityGlow 1s ease-in-out infinite" };
 
 function getPetPos(idx: number, total: number): { x: number; y: number } {
   if (total <= 1) return { x: 22, y: 64 };
@@ -2136,9 +2141,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               const epMana = extraPetManaState[si];
               const epReady = !isDead && epHasSkill && epMana >= MAX_MANA;
               const epRarityColor = RARITY_COLORS[Math.max(1, Math.min(5, epRarity || 1))] ?? "#a78bfa";
-              const epGlowStyle: React.CSSProperties | undefined = epReady
-                ? { animation: "petRarityGlow 1s ease-in-out infinite" }
-                : undefined;
+              const epGlowStyle: React.CSSProperties | undefined = epReady ? PET_RARITY_GLOW_STYLE : undefined;
               return (
                 <div
                   key={`extra-pet-${si}`}
@@ -2239,7 +2242,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                 <PetAnimatorCanvas
                   petTemplateId={pet.petTemplateId}
                   size={PET_SPRITE_SIZE}
-                  style={mana >= MAX_MANA && !skillCooldown && !!pet.specialSkill ? { animation: "petRarityGlow 1s ease-in-out infinite" } : undefined}
+                  style={mana >= MAX_MANA && !skillCooldown && !!pet.specialSkill ? PET_RARITY_GLOW_STYLE : undefined}
                 />
               ) : pet.imageUrl ? (
                 <img

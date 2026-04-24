@@ -678,10 +678,18 @@ export default function PvpBattlePage({
         }
       }
 
-      // ── Allies: stationary, slow passive mana gain ─────────
+      // ── Allies: gentle bob in place + slow passive mana gain ─
+      // Tiny Y-only sine bob (≈ 0.6 % of arena height) so allies feel
+      // alive without drifting from their formation slot. Replaces the
+      // old `bIdle` CSS keyframe (4 px transform bob on the wrapper):
+      // the keyframe was running ON TOP of the float math and at a
+      // different period from anything else, which made enemies look
+      // jittery and allies look like they were ticking discrete frames.
+      // Driving the bob from this single RAF loop keeps every pet on
+      // the same time-base.
       for (const a of myAlive) {
         a.x = a.baseX;
-        a.y = a.baseY;
+        a.y = a.baseY + Math.sin(t * 1.05 + (a.phase || a.slotIdx)) * 0.6;
         a.mana = Math.min(MAX_MANA, a.mana + 0.05);
       }
 
@@ -1240,9 +1248,19 @@ export default function PvpBattlePage({
             const size = pet.isPlayer ? baseAlly : baseEnemy;
             const isHit = !!hitFlash[pet.uid];
             const stars = Math.max(0, Math.min(5, Math.floor(pet.starRarity || 0)));
-            // Bar width tracks sprite size so 180-px sprites don't have a
-            // 60-px ribbon floating under them.
-            const barWidth = Math.round(size * 0.55);
+            // Bar width tracks sprite size. Reduced from 0.55 → 0.42
+            // because the previous ribbon was wider than most pets'
+            // visible silhouette and read as a separate banner.
+            const barWidth = Math.round(size * 0.42);
+            // Pets are drawn inside a square `size × size` canvas with
+            // ~15-22 % transparent padding on every side (the canvas
+            // is sized to fit the largest part with rotation slack).
+            // Anchoring bars to the wrapper's box edges put them down
+            // in the empty padding, far from the visible pet — the
+            // "invisible square area" the user reported. We inset by
+            // 18 % of size so each bar lands right at the pet's
+            // visible head/feet edge regardless of sprite scale.
+            const barInset = Math.round(size * 0.18);
             // Charging enemies need to render ON TOP of the ally they're
             // diving at — otherwise they slide BEHIND the player sprite,
             // which reads as a "glitch" because the impact spark and X_X
@@ -1253,35 +1271,56 @@ export default function PvpBattlePage({
             return (
               <div
                 key={pet.uid}
-                className="absolute pointer-events-none flex flex-col items-center"
+                className="absolute pointer-events-none"
                 style={{
                   left: `${pet.x}%`, top: `${pet.y}%`,
+                  // Wrapper is the size of the sprite, centered on the
+                  // pet's logical (x, y). Bars are absolutely positioned
+                  // INSIDE this box, not in flex flow, so they don't
+                  // change the wrapper height (the centering transform
+                  // would otherwise drift the sprite off the float
+                  // anchor whenever bars appeared/disappeared) and so
+                  // they can be inset deep into the visible silhouette.
+                  width: size,
+                  height: size,
                   transform: "translate(-50%,-50%)",
-                  animation: isHit ? "bShake 0.32s ease-in-out" : "bIdle 1.4s ease-in-out infinite",
+                  // bIdle keyframe removed — every pet now bobs from the
+                  // single animate() RAF loop (allies get a sine Y-bob;
+                  // enemies use the existing wave float). Stacking the
+                  // CSS keyframe on top of the JS-driven motion was the
+                  // root cause of the "pets jolt around" feel.
+                  animation: isHit ? "bShake 0.32s ease-in-out" : undefined,
                   zIndex: z,
                 }}
               >
-                {/* For ENEMIES the HP bar hugs the TOP of the sprite (a
-                    couple px of overlap so the bar feels attached, not a
-                    floating banner). It tracks the sprite while it
-                    floats / charges thanks to absolute positioning. */}
+                {/* ENEMY HP bar — anchored to the visible head edge
+                    (≈ 18 % down from the wrapper's top, where the pet
+                    actually starts being drawn) instead of floating up
+                    in the transparent padding. Stack grows UPWARD from
+                    that anchor (stars on top, bar on bottom). */}
                 {!pet.isPlayer && (
-                  <div className="absolute" style={{ bottom: `calc(100% - 4px)`, left: "50%", transform: "translateX(-50%)", width: barWidth }}>
-                    <div className="flex flex-col items-center gap-0.5">
-                      {stars > 0 && (
-                        <div className="text-[7px] leading-none whitespace-nowrap" style={{ color: "#fbbf24", textShadow: "0 1px 2px rgba(0,0,0,0.8)" }}>
-                          {"★".repeat(stars)}
-                        </div>
-                      )}
-                      <div
-                        className="h-1.5 w-full bg-black/70 rounded-full overflow-hidden border"
-                        style={{
-                          borderColor: pendingSkill?.mode === "needs-enemy" ? "rgba(239,68,68,0.6)" : "rgba(255,255,255,0.10)",
-                          animation: pendingSkill?.mode === "needs-enemy" ? "targetPulse 0.8s ease-in-out infinite" : undefined,
-                        }}
-                      >
-                        <div className="h-full rounded-full transition-all duration-200" style={{ width: `${Math.max(0, (pet.hp / pet.maxHp) * 100)}%`, background: hpColor(pet.hp / pet.maxHp) }} />
+                  <div
+                    className="absolute flex flex-col items-center gap-0.5"
+                    style={{
+                      bottom: `calc(100% - ${barInset}px)`,
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      width: barWidth,
+                    }}
+                  >
+                    {stars > 0 && (
+                      <div className="text-[7px] leading-none whitespace-nowrap" style={{ color: "#fbbf24", textShadow: "0 1px 2px rgba(0,0,0,0.8)" }}>
+                        {"★".repeat(stars)}
                       </div>
+                    )}
+                    <div
+                      className="h-1.5 w-full bg-black/70 rounded-full overflow-hidden border"
+                      style={{
+                        borderColor: pendingSkill?.mode === "needs-enemy" ? "rgba(239,68,68,0.6)" : "rgba(255,255,255,0.10)",
+                        animation: pendingSkill?.mode === "needs-enemy" ? "targetPulse 0.8s ease-in-out infinite" : undefined,
+                      }}
+                    >
+                      <div className="h-full rounded-full transition-all duration-200" style={{ width: `${Math.max(0, (pet.hp / pet.maxHp) * 100)}%`, background: hpColor(pet.hp / pet.maxHp) }} />
                     </div>
                   </div>
                 )}
@@ -1351,12 +1390,22 @@ export default function PvpBattlePage({
                   )}
                 </div>
 
-                {/* For ALLIES the HP + mana stack hugs the BOTTOM of the
-                    sprite (a couple px of overlap, mirror of the enemy
-                    bar treatment). The negative margin pulls the bars
-                    visually onto the sprite so they feel attached. */}
+                {/* ALLY HP + mana stack — anchored at the visible feet
+                    edge (≈ 18 % up from the wrapper's bottom, mirror of
+                    the enemy treatment). Absolute so it doesn't change
+                    wrapper height (which would shift the sprite off the
+                    JS-driven float anchor). Stack grows DOWNWARD from
+                    the anchor (stars first, then HP, then mana). */}
                 {pet.isPlayer && (
-                  <div className="flex flex-col items-center gap-0.5" style={{ width: barWidth, marginTop: -4 }}>
+                  <div
+                    className="absolute flex flex-col items-center gap-0.5"
+                    style={{
+                      top: `calc(100% - ${barInset}px)`,
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      width: barWidth,
+                    }}
+                  >
                     {stars > 0 && (
                       <div className="text-[7px] leading-none whitespace-nowrap" style={{ color: "#fbbf24", textShadow: "0 1px 2px rgba(0,0,0,0.8)" }}>
                         {"★".repeat(stars)}

@@ -46,6 +46,13 @@ interface Props {
   onClose: () => void;
 }
 
+// Hoisted so PetAnimatorCanvas's React.memo equality holds — passing
+// the same object reference instead of allocating `{ filter: ... }` per
+// render lets the canvas skip reconciliation when the parent re-renders.
+const PET_PREVIEW_DROPSHADOW_STYLE: React.CSSProperties = {
+  filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.65)) drop-shadow(0 0 14px rgba(94,234,212,0.18))",
+};
+
 const RARITY_COLOR: Record<number, string> = {
   1: "#a89878", 2: "#c8a84b", 3: "#ddb840", 4: "#f0c040", 5: "#ffd700",
 };
@@ -232,7 +239,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
                 petTemplateId={petTemplateId}
                 size={240}
                 fillContainer
-                style={{ filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.65)) drop-shadow(0 0 14px rgba(94,234,212,0.18))" }}
+                style={PET_PREVIEW_DROPSHADOW_STYLE}
               />
             ) : petImage ? (
               <img
