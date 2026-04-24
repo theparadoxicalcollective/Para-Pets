@@ -22,6 +22,11 @@ interface LeaderboardEntry {
   battlePoints: number;
   wins: number;
   losses: number;
+  // Sum of ATK across every pet the player has equipped in their saved
+  // PvP battle group. Surfaced on the leaderboard so players can size
+  // each other up at a glance — high BP + low ATK = a clever player on
+  // a budget; high ATK + low BP = unrealised potential, etc.
+  attackPower: number;
   isAdmin?: boolean;
   isModerator?: boolean;
   isBot?: boolean;
@@ -508,6 +513,18 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                           <div className="text-white/95 text-[12px] font-semibold truncate">{entry.username}</div>
                           <RoleBadge isAdmin={entry.isAdmin} isModerator={entry.isModerator} />
                         </div>
+                        {/* Total ATK power of the player's equipped PvP
+                            group. Sits immediately to the LEFT of BP so
+                            both numbers can be scanned together. Red tint
+                            so it visually reads as a "weapon stat"
+                            distinct from the gold BP score. */}
+                        <div
+                          className="text-rose-300 text-[12px] font-bold tabular-nums shrink-0 w-12 text-right"
+                          data-testid={`text-leaderboard-atk-${rank}`}
+                          title="Total ATK of equipped PvP group"
+                        >
+                          {Math.max(0, entry.attackPower ?? 0)}
+                        </div>
                         <div className="text-amber-300 text-[13px] font-black tabular-nums shrink-0 w-14 text-right">
                           {Math.max(0, entry.battlePoints)}
                         </div>
@@ -541,8 +558,16 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                     <div className="flex-1 min-w-0 text-white/95 text-[12px] font-semibold truncate">
                       {me?.username ?? "You"} <span className="text-white/40 font-normal">(you)</span>
                     </div>
-                    {/* W/L removed to match the simplified leaderboard
-                        layout above — only BP is shown alongside the rank. */}
+                    {/* ATK + BP — same column layout as the leaderboard
+                        rows above so the player's pinned row visually
+                        aligns with the list. */}
+                    <div
+                      className="text-rose-300 text-[12px] font-bold tabular-nums shrink-0 w-12 text-right"
+                      data-testid="text-my-placement-atk"
+                      title="Total ATK of equipped PvP group"
+                    >
+                      {Math.max(0, myLb?.entry.attackPower ?? 0)}
+                    </div>
                     <div className="text-amber-300 text-[13px] font-black tabular-nums shrink-0 w-14 text-right">
                       {Math.max(0, myBp)}
                     </div>

@@ -258,7 +258,7 @@ export interface IStorage {
   createPvpBattle(data: { userId: string; opponentName: string; opponentImageUrl?: string | null; opponentLevel: number; opponentSkill?: string | null; result: string; coinsEarned: number; battlePointsDelta?: number }): Promise<any>;
   getPvpBattlesByUser(userId: string, limit?: number): Promise<any[]>;
   getPvpLeaderboard(limit?: number): Promise<{ userId: string; username: string; profileImage: string | null; battlePoints: number; wins: number; losses: number }[]>;
-  getPvpLeaderboardFull(): Promise<{ userId: string; username: string; profileImage: string | null; battlePoints: number; wins: number; losses: number; isAdmin?: boolean; isModerator?: boolean }[]>;
+  getPvpLeaderboardFull(): Promise<{ userId: string; username: string; profileImage: string | null; battlePoints: number; wins: number; losses: number; attackPower: number; isAdmin?: boolean; isModerator?: boolean }[]>;
   /** Aggregate BP / W / L for a SPECIFIC user (no leaderboard
    *  exclusions applied). Used by the /api/pvp/leaderboard route to
    *  surface stats for accounts hidden from the public board (admins,
@@ -1809,7 +1809,7 @@ export class DatabaseStorage implements IStorage {
    * they're outside the top N. Also enriches each entry with admin/mod flags
    * so the client can render role badges.
    */
-  async getPvpLeaderboardFull(): Promise<{ userId: string; username: string; profileImage: string | null; battlePoints: number; wins: number; losses: number; isAdmin?: boolean; isModerator?: boolean; isBot?: boolean }[]> {
+  async getPvpLeaderboardFull(): Promise<{ userId: string; username: string; profileImage: string | null; battlePoints: number; wins: number; losses: number; attackPower: number; isAdmin?: boolean; isModerator?: boolean; isBot?: boolean }[]> {
     // Start FROM users (not pvp_battles) so EVERY eligible account shows
     // up on the leaderboard immediately — including the seeded PvP bots
     // that haven't fought a battle yet, and brand-new human players who
@@ -1860,6 +1860,20 @@ export class DatabaseStorage implements IStorage {
       else s.losses++;
     }
 
+    // Pull every user's saved battle-group attack power so the leaderboard
+    // can show ATK alongside BP. Computed fresh inside upsertBattleGroup
+    // every time the player saves a new lineup, so the value here is
+    // always the player's currently-equipped team. Players who haven't
+    // built a group yet show 0 ATK on the board.
+    const groupRows = await db.select({
+      userId: pvpBattleGroups.userId,
+      attackPower: pvpBattleGroups.attackPower,
+    }).from(pvpBattleGroups);
+    const apByUser: Record<string, number> = {};
+    for (const g of groupRows) {
+      if (g.userId) apByUser[g.userId] = g.attackPower ?? 0;
+    }
+
     const board = eligible.map(u => {
       const s = stats[u.id] ?? { battlePoints: 0, wins: 0, losses: 0 };
       return {
@@ -1869,6 +1883,7 @@ export class DatabaseStorage implements IStorage {
         battlePoints: s.battlePoints,
         wins: s.wins,
         losses: s.losses,
+        attackPower: apByUser[u.id] ?? 0,
         isAdmin: u.isAdmin ?? false,
         isModerator: u.isModerator ?? false,
         isBot: u.isBot ?? false,

@@ -5532,6 +5532,11 @@ export async function registerRoutes(
         // BP / W / L — we just report rank as null so the Rank panel
         // can render "N/A" instead of a number.
         const stats = await storage.getUserPvpStats(user.id);
+        // Pull their own saved battle group so the hidden Rank-panel
+        // entry can mirror the leaderboard rows (which now show ATK
+        // alongside BP). Falls back to 0 when the user hasn't built a
+        // group yet.
+        const ownGroup = await storage.getBattleGroup(user.id);
         me = {
           rank: null,
           entry: {
@@ -5541,6 +5546,7 @@ export async function registerRoutes(
             battlePoints: stats.battlePoints,
             wins: stats.wins,
             losses: stats.losses,
+            attackPower: ownGroup?.attackPower ?? 0,
             isAdmin: !!user.isAdmin,
             isModerator: !!user.isModerator,
             isBot: false,
@@ -5589,38 +5595,52 @@ export async function registerRoutes(
       // Exclude current user, only keep groups with pets.
       const others = all.filter((g: any) => g.userId !== user.id && g.petInventoryIds?.length > 0);
 
-      // Matchmaking: keep opponents within ±35% of the player's saved
-      // attack power so smaller players don't get farmed by whales. If
-      // the band is too thin, widen progressively (±60%, then unrestricted)
-      // so there's always at least a small pool to fight.
+      // Matchmaking model:
+      //   1. Always prefer REAL OPPONENTS (humans + moderators) within an
+      //      ATK-power band of the requester. Moderators count as
+      //      humans for matchmaking — they're real accounts that play
+      //      PvP and the user explicitly asked us to surface them.
+      //   2. Bots are a FALLBACK ONLY: they only get included when there
+      //      is literally no real opponent available within a sensible
+      //      ATK-power band. This is what the user meant by "bots are a
+      //      bit more lenient and can be matched with if there are no
+      //      players in range".
+      //   3. The bot fallback uses a much wider ATK band so we can still
+      //      always start a battle even when the human pool is thin.
       const myGroup = await storage.getBattleGroup(user.id);
       const myPower: number = myGroup?.attackPower ?? 0;
-      const isModerator = !!user.isModerator;
-      const inBand = (band: number) => others.filter((g: any) => {
-        // Moderators can match ANY bot regardless of attack power — this
-        // makes it trivial to test PvP balance against scripted opponents
-        // without needing to grind matching gear first.
-        if (isModerator && g.isBot) return true;
-        const p = g.attackPower ?? 0;
-        if (myPower <= 0) return true; // unranked players can match anyone
+
+      const humans = others.filter((g: any) => !g.isBot);
+      const bots   = others.filter((g: any) =>  g.isBot);
+
+      const inBand = (pool: any[], band: number) => {
+        if (myPower <= 0) return pool.slice(); // unranked players can match anyone
         const lo = myPower * (1 - band);
         const hi = myPower * (1 + band);
-        return p >= lo && p <= hi;
-      });
-      let matched = inBand(0.45);
-      if (matched.length < 5) matched = inBand(0.75);
-      if (matched.length < 3) matched = others; // last-resort: show everyone
+        return pool.filter((g: any) => {
+          const p = g.attackPower ?? 0;
+          return p >= lo && p <= hi;
+        });
+      };
 
-      // Always make sure EVERY bot shows up in the pool — even if they're
-      // outside the player's power band. Previously only moderators got
-      // every bot, which meant regular players kept seeing the same
-      // single bot whose power happened to land inside their band. This
-      // gives players real variety in opponents while still favouring
-      // power-matched humans first (the band logic above runs before
-      // bots are appended).
-      const present = new Set(matched.map((g: any) => g.userId));
-      for (const g of others) {
-        if (g.isBot && !present.has(g.userId)) matched.push(g);
+      // ── Human / moderator pass (strict-then-loose) ──
+      // ±35 % first; if that's empty widen to ±60 %; finally take every
+      // human if the band still finds nothing. We deliberately stop the
+      // moment we have ANY real opponents — even one human is preferable
+      // to a roster of bots.
+      let matched: any[] = inBand(humans, 0.35);
+      if (matched.length === 0) matched = inBand(humans, 0.60);
+      if (matched.length === 0) matched = humans.slice();
+
+      // ── Bot fallback ──
+      // Only when the human pool is completely empty do we reach for
+      // bots, and even then we apply a generous ±100 % ATK band so the
+      // bot at least roughly matches the player's strength. If even
+      // that's empty (very lopsided pool), fall through to every bot.
+      if (matched.length === 0) {
+        let botPool = inBand(bots, 1.0);
+        if (botPool.length === 0) botPool = bots.slice();
+        matched = botPool;
       }
       return res.json(matched);
     } catch (err) {
