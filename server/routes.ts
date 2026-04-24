@@ -3369,9 +3369,11 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/admin/pet-templates", isAdmin, async (_req, res) => {
+  app.get("/api/admin/pet-templates", isAdmin, async (req, res) => {
     try {
-      const templates = await storage.getAllPetTemplates();
+      const testOnly = req.query.testOnly === "true" || req.query.testOnly === "1";
+      const includeTest = req.query.includeTest === "true" || req.query.includeTest === "1";
+      const templates = await storage.getAllPetTemplates({ testOnly, includeTest });
       return res.json(templates);
     } catch (err) {
       console.error("Get pet templates error:", err);
@@ -3393,11 +3395,11 @@ export async function registerRoutes(
 
   app.post("/api/admin/pet-templates", isAdmin, async (req, res) => {
     try {
-      const { name } = req.body;
+      const { name, isTest } = req.body;
       if (!name || typeof name !== "string" || !name.trim()) {
         return res.status(400).json({ message: "Name is required" });
       }
-      const template = await storage.createPetTemplate(name.trim());
+      const template = await storage.createPetTemplate(name.trim(), { isTest: !!isTest });
       return res.status(201).json(template);
     } catch (err) {
       console.error("Create pet template error:", err);

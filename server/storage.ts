@@ -891,8 +891,19 @@ export class DatabaseStorage implements IStorage {
     return obj;
   }
 
-  async getAllPetTemplates(): Promise<PetTemplate[]> {
-    return db.select().from(petTemplates).orderBy(asc(petTemplates.createdAt));
+  async getAllPetTemplates(opts?: { includeTest?: boolean; testOnly?: boolean }): Promise<PetTemplate[]> {
+    if (opts?.testOnly) {
+      return db.select().from(petTemplates)
+        .where(eq(petTemplates.isTest, true))
+        .orderBy(asc(petTemplates.createdAt));
+    }
+    if (opts?.includeTest) {
+      return db.select().from(petTemplates).orderBy(asc(petTemplates.createdAt));
+    }
+    // Default: hide Test-Animator sandbox pets from regular admin / game lists.
+    return db.select().from(petTemplates)
+      .where(eq(petTemplates.isTest, false))
+      .orderBy(asc(petTemplates.createdAt));
   }
 
   async getPetTemplate(id: string): Promise<PetTemplate | undefined> {
@@ -900,8 +911,8 @@ export class DatabaseStorage implements IStorage {
     return t;
   }
 
-  async createPetTemplate(name: string): Promise<PetTemplate> {
-    const [t] = await db.insert(petTemplates).values({ name }).returning();
+  async createPetTemplate(name: string, opts?: { isTest?: boolean }): Promise<PetTemplate> {
+    const [t] = await db.insert(petTemplates).values({ name, isTest: opts?.isTest ?? false }).returning();
     return t;
   }
 

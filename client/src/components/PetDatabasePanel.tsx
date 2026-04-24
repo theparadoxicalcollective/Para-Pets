@@ -188,10 +188,20 @@ export default function PetDatabasePanel({
   initialTemplateId,
   onSelectedTemplateChange,
   onFacingModeChange,
+  testMode = false,
+  templateNameFilter,
 }: {
   initialTemplateId?: string | null;
   onSelectedTemplateChange?: (id: string | null) => void;
   onFacingModeChange?: (mode: "front" | "side") => void;
+  /** When true, this panel is the Test Animator sandbox: hide the "Save
+   *  Front/Side View" assemble flow and the assembled preview, and create
+   *  any new pets with isTest=true so they don't pollute live game data. */
+  testMode?: boolean;
+  /** Optional list of template names to keep visible in the picker. When
+   *  set, every other (non-test) template is hidden. Test-mode also adds
+   *  any isTest=true pets on top of this filter. */
+  templateNameFilter?: string[];
 } = {}) {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(initialTemplateId ?? null);
 
@@ -231,9 +241,26 @@ export default function PetDatabasePanel({
   // Derive the DB view value from the facing mode toggle
   const activeView = facingMode === "front" ? "front" : "back";
 
-  const { data: templates = [], isLoading } = useQuery<PetTemplate[]>({
-    queryKey: ["/api/admin/pet-templates"],
+  // We keep the queryKey base identical regardless of testMode so invalidations
+  // elsewhere in this file (and in other panels) still hit the cache. Test mode
+  // just swaps in a custom fetcher that adds ?includeTest=true.
+  const { data: templatesRaw = [], isLoading } = useQuery<PetTemplate[]>({
+    queryKey: ["/api/admin/pet-templates", testMode ? "with-test" : "no-test"],
+    queryFn: async () => {
+      const url = testMode
+        ? "/api/admin/pet-templates?includeTest=true"
+        : "/api/admin/pet-templates";
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to load pet templates");
+      return res.json();
+    },
   });
+
+  // Apply optional name-based filter (used by Test Animator to show only
+  // "The Paradox" alongside any sandbox pets). isTest pets always pass.
+  const templates = templateNameFilter && templateNameFilter.length > 0
+    ? templatesRaw.filter(t => (t as any).isTest === true || templateNameFilter.includes(t.name))
+    : templatesRaw;
 
   const { data: allShopItems = [] } = useQuery<LinkedShopPet[]>({
     queryKey: ["/api/admin/shop-items-all"],
@@ -272,7 +299,7 @@ export default function PetDatabasePanel({
 
   const createMutation = useMutation({
     mutationFn: async (name: string) => {
-      const res = await apiRequest("POST", "/api/admin/pet-templates", { name });
+      const res = await apiRequest("POST", "/api/admin/pet-templates", { name, isTest: testMode });
       return res.json();
     },
     onSuccess: async (data: PetTemplate) => {
@@ -280,7 +307,7 @@ export default function PetDatabasePanel({
       setShowCreateModal(false);
       setNewPetName("");
       setSelectedTemplateId(data.id);
-      toast({ title: "Created", description: "Pet template created" });
+      toast({ title: "Created", description: testMode ? "Test pet created (sandbox only)" : "Pet template created" });
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to create", variant: "destructive" });
@@ -955,28 +982,30 @@ export default function PetDatabasePanel({
           {templateDetail.canFly ? "Can Fly — On" : "Can Fly — Off"}
         </button>
 
-        <div className="flex gap-2">
-          <button
-            data-testid="button-assemble-save"
-            onClick={() => {
-              if (!selectedTemplateId) return;
-              assembleMutation.mutate({ id: selectedTemplateId, view: activeView });
-            }}
-            disabled={assembleMutation.isPending || viewParts.length === 0}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-fantasy text-xs tracking-wider transition-transform active:scale-95 disabled:opacity-50"
-            style={{
-              background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
-              border: "1px solid rgba(127,255,212,0.4)",
-              color: "#7fffd4",
-              cursor: "pointer",
-            }}
-          >
-            <Save className="w-4 h-4" />
-            {assembleMutation.isPending ? "Assembling..." : `Save ${facingMode === "front" ? "Front" : "Side"} View`}
-          </button>
-        </div>
+        {!testMode && (
+          <div className="flex gap-2">
+            <button
+              data-testid="button-assemble-save"
+              onClick={() => {
+                if (!selectedTemplateId) return;
+                assembleMutation.mutate({ id: selectedTemplateId, view: activeView });
+              }}
+              disabled={assembleMutation.isPending || viewParts.length === 0}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-fantasy text-xs tracking-wider transition-transform active:scale-95 disabled:opacity-50"
+              style={{
+                background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
+                border: "1px solid rgba(127,255,212,0.4)",
+                color: "#7fffd4",
+                cursor: "pointer",
+              }}
+            >
+              <Save className="w-4 h-4" />
+              {assembleMutation.isPending ? "Assembling..." : `Save ${facingMode === "front" ? "Front" : "Side"} View`}
+            </button>
+          </div>
+        )}
 
-        {(templateDetail.frontAssembled || templateDetail.backAssembled) && (
+        {!testMode && (templateDetail.frontAssembled || templateDetail.backAssembled) && (
           <div className="mt-1">
             <p className="font-fantasy text-[9px] text-[#a89878] tracking-wider mb-2 text-center">Assembled Preview</p>
             <div className="flex justify-center gap-4">

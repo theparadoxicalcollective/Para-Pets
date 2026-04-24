@@ -5,7 +5,7 @@ import { ArrowLeft, FlaskConical, Heart, Loader2, Save } from "lucide-react";
 import PetDatabasePanel from "@/components/PetDatabasePanel";
 import PetAnimator from "@/components/PetAnimator";
 import { useToast } from "@/hooks/use-toast";
-import { captureElementToGif, downloadBlob } from "@/lib/petGif";
+import { renderPetGif, downloadBlob } from "@/lib/petGif";
 
 type SaveAnimation = "idle" | "petting" | "sleep";
 
@@ -16,6 +16,16 @@ const ANIMATION_OPTIONS: { value: SaveAnimation; label: string; durationMs: numb
 ];
 
 interface PetTemplate { id: string; name: string }
+interface PetPart {
+  id: string; templateId: string; partType: string; view: string;
+  imageUrl: string; posX: number; posY: number; width: number; height: number;
+  zIndex: number; pivotX: number; pivotY: number;
+}
+
+// Templates allowed in the Test Animator pet list. "The Paradox" is the canonical
+// reference pet; admin-created test pets (isTest=true) are appended automatically
+// by PetDatabasePanel when testMode is on.
+const ALLOWED_TEMPLATE_NAMES = ["The Paradox"];
 
 export default function TestAnimatorPage({ user }: { user: { id: string; username: string; isAdmin?: boolean } }) {
   const { toast } = useToast();
@@ -26,32 +36,57 @@ export default function TestAnimatorPage({ user }: { user: { id: string; usernam
   const [facingMode, setFacingMode] = useState<"front" | "side">("front");
   const [animation, setAnimation] = useState<SaveAnimation>("idle");
   const [isCapturing, setIsCapturing] = useState(false);
-  const [captureProgress, setCaptureProgress] = useState<{ frames: number; ms: number } | null>(null);
+  const [captureProgress, setCaptureProgress] = useState<{ frames: number; total: number } | null>(null);
 
-  const { data: templates = [] } = useQuery<PetTemplate[]>({ queryKey: ["/api/admin/pet-templates"] });
+  // Fetch templates with test pets included so we can resolve display names.
+  const { data: templates = [] } = useQuery<PetTemplate[]>({
+    queryKey: ["/api/admin/pet-templates", "with-test"],
+    queryFn: async () => {
+      const r = await fetch("/api/admin/pet-templates?includeTest=true", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to load templates");
+      return r.json();
+    },
+  });
   const previewName = useMemo(
     () => templates.find(t => t.id === previewTemplateId)?.name ?? "pet",
     [templates, previewTemplateId],
   );
 
-  const previewRef = useRef<HTMLDivElement | null>(null);
+  // Pre-fetch parts for the selected pet so the Save button stays snappy.
+  // The route wraps the parts array in { parts, facing, canFly } — we unwrap.
+  const { data: parts = [] } = useQuery<PetPart[]>({
+    queryKey: ["/api/pet-template-parts", previewTemplateId],
+    enabled: !!previewTemplateId,
+    queryFn: async () => {
+      const r = await fetch(`/api/pet-template-parts/${previewTemplateId}`, { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to load pet parts");
+      const body = await r.json();
+      return Array.isArray(body) ? body : (body?.parts ?? []);
+    },
+  });
 
   const handleSave = async () => {
     if (!previewTemplateId) {
-      toast({ title: "Pick a pet first", description: "Open a template on the left so the preview has something to record.", variant: "destructive" });
+      toast({ title: "Pick a pet first", description: "Open a template above so the preview has something to record.", variant: "destructive" });
       return;
     }
-    const el = previewRef.current;
-    if (!el) return;
+    if (parts.length === 0) {
+      toast({ title: "No parts to save", description: "This pet doesn't have any parts uploaded yet.", variant: "destructive" });
+      return;
+    }
     const opt = ANIMATION_OPTIONS.find(o => o.value === animation)!;
+    const view: "front" | "back" = facingMode === "side" ? "back" : "front";
     setIsCapturing(true);
-    setCaptureProgress({ frames: 0, ms: 0 });
+    setCaptureProgress({ frames: 0, total: 0 });
     try {
-      const result = await captureElementToGif({
-        element: el,
+      const result = await renderPetGif({
+        parts,
+        view,
+        animation,
         durationMs: opt.durationMs,
         outputSize: 400,
-        onProgress: (frames, ms) => setCaptureProgress({ frames, ms: Math.round(ms) }),
+        fps: 18,
+        onProgress: (frame, total) => setCaptureProgress({ frames: frame, total }),
       });
       const safeName = previewName.replace(/[^a-z0-9]+/gi, "_").toLowerCase();
       downloadBlob(result.blob, `${safeName}_${animation}_${facingMode}.gif`);
@@ -121,41 +156,19 @@ export default function TestAnimatorPage({ user }: { user: { id: string; usernam
         </div>
       </div>
 
-      {/* ── Test-mode banner ─────────────────────────────────────────────────── */}
-      <div className="max-w-6xl mx-auto px-5 pt-5">
-        <div
-          data-testid="test-animator-banner"
-          className="rounded-2xl px-4 py-3 flex items-center gap-3"
-          style={{
-            background: "linear-gradient(135deg, rgba(40,28,0,0.85), rgba(28,20,0,0.85))",
-            border: "1px solid rgba(240,192,64,0.35)",
-            boxShadow: "0 0 24px rgba(240,192,64,0.08), inset 0 1px 0 rgba(240,192,64,0.08)",
-          }}
-        >
-          <FlaskConical size={18} style={{ color: "#f0c040", flexShrink: 0 }} />
-          <div className="flex-1">
-            <p className="font-fantasy text-xs tracking-widest" style={{ color: "#f0c040" }}>
-              Test Animator
-            </p>
-            <p className="font-fantasy text-[10px] mt-0.5" style={{ color: "rgba(240,220,160,0.7)" }}>
-              A sandbox of the Pet Parts editor for visual experimentation. Pick an animation in the Save section below to preview, then download a transparent GIF to your device. Saved GIFs are not added to the game.
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* ── Editor body ──────────────────────────────────────────────────────── */}
-      <div className="max-w-6xl mx-auto px-3 sm:px-5 pt-4 pb-6">
+      <div className="max-w-6xl mx-auto px-3 sm:px-5 pt-5 pb-6">
         <PetDatabasePanel
           onSelectedTemplateChange={setPreviewTemplateId}
           onFacingModeChange={setFacingMode}
+          testMode
+          templateNameFilter={ALLOWED_TEMPLATE_NAMES}
         />
       </div>
 
       {/* ── Save section ─────────────────────────────────────────────────────── */}
       <div className="max-w-6xl mx-auto px-3 sm:px-5 pb-32" id="save-section">
         <SaveSection
-          previewRef={previewRef}
           previewTemplateId={previewTemplateId}
           previewName={previewName}
           facingMode={facingMode}
@@ -175,7 +188,6 @@ export default function TestAnimatorPage({ user }: { user: { id: string; usernam
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 interface SaveSectionProps {
-  previewRef: React.MutableRefObject<HTMLDivElement | null>;
   previewTemplateId: string | null;
   previewName: string;
   facingMode: "front" | "side";
@@ -183,11 +195,11 @@ interface SaveSectionProps {
   onAnimationChange: (a: SaveAnimation) => void;
   onSave: () => void;
   isCapturing: boolean;
-  captureProgress: { frames: number; ms: number } | null;
+  captureProgress: { frames: number; total: number } | null;
 }
 
 function SaveSection({
-  previewRef, previewTemplateId, previewName, facingMode, animation,
+  previewTemplateId, previewName, facingMode, animation,
   onAnimationChange, onSave, isCapturing, captureProgress,
 }: SaveSectionProps) {
   const view = facingMode === "side" ? "back" : "front";
@@ -278,7 +290,7 @@ function SaveSection({
             {isCapturing ? (
               <>
                 <Loader2 size={16} className="animate-spin" />
-                Recording…
+                Rendering…
               </>
             ) : (
               <>
@@ -288,13 +300,13 @@ function SaveSection({
             )}
           </button>
 
-          {captureProgress && (
+          {captureProgress && captureProgress.total > 0 && (
             <p
               data-testid="text-capture-progress"
               className="font-fantasy text-[10px] tracking-widest text-center"
               style={{ color: "rgba(240,220,160,0.6)" }}
             >
-              {captureProgress.frames} frames · {(captureProgress.ms / 1000).toFixed(1)}s
+              {captureProgress.frames} / {captureProgress.total} frames
             </p>
           )}
 
@@ -309,7 +321,6 @@ function SaveSection({
         {/* Right: large preview area */}
         <div className="flex-1 flex items-center justify-center">
           <PreviewArea
-            previewRef={previewRef}
             templateId={previewTemplateId}
             view={view}
             animation={animation}
@@ -326,9 +337,8 @@ function SaveSection({
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 function PreviewArea({
-  previewRef, templateId, view, animation, previewName,
+  templateId, view, animation, previewName,
 }: {
-  previewRef: React.MutableRefObject<HTMLDivElement | null>;
   templateId: string | null;
   view: "front" | "back";
   animation: SaveAnimation;
@@ -336,6 +346,12 @@ function PreviewArea({
 }) {
   // Card around the preview is large (~400×400 on tablet, full width on phone)
   // so the admin can clearly see what they're about to save.
+  // The live preview here is for VISUAL approval only — the actual GIF is
+  // rendered frame-by-frame on a separate offscreen canvas (see petGif.ts).
+  const previewMode: "idle" | "petting" | "sleep" =
+    animation === "petting" ? "petting" :
+    animation === "sleep"   ? "sleep"   : "idle";
+
   return (
     <div
       data-testid="test-animator-preview-card"
@@ -352,15 +368,12 @@ function PreviewArea({
         position: "relative",
       }}
     >
-      {/* Inner capture target: square, exactly the size we'll record. */}
       <div
-        ref={previewRef}
         data-testid="test-animator-preview"
         style={{
           position: "relative",
           width: "100%",
           height: "100%",
-          // No background here — capture must keep transparency.
         }}
       >
         {templateId ? (
@@ -368,11 +381,10 @@ function PreviewArea({
             <PetAnimator
               key={`${templateId}-${animation}-${view}`}
               petTemplateId={templateId}
-              mode={animation === "sleep" ? "sleep" : "idle"}
+              mode={previewMode}
               view={view}
               size={400}
               fillContainer
-              expression={animation === "petting" ? "petted" : "neutral"}
             />
             {animation === "petting" && <HeartsOverlay />}
             {animation === "sleep" && <SleepZsOverlay />}
@@ -428,7 +440,9 @@ function HeartsOverlay() {
     };
     // Quick first heart so the preview shows life immediately
     spawn();
-    const t = window.setInterval(spawn, 480);
+    // 280ms cadence → roughly twice as many hearts on screen at once
+    // ("more hearts" per the design brief).
+    const t = window.setInterval(spawn, 280);
     return () => { active = false; window.clearInterval(t); };
   }, []);
 

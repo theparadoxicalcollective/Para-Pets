@@ -325,6 +325,8 @@ app.use((req, res, next) => {
     () => db.execute(sql`ALTER TABLE location_enemies ADD COLUMN IF NOT EXISTS boss_special_attack TEXT`));
   await runMigration("pet_templates.facing",
     () => db.execute(sql`ALTER TABLE pet_templates ADD COLUMN IF NOT EXISTS facing TEXT DEFAULT 'front'`));
+  await runMigration("pet_templates.is_test",
+    () => db.execute(sql`ALTER TABLE pet_templates ADD COLUMN IF NOT EXISTS is_test boolean NOT NULL DEFAULT false`));
   await runMigration("users.watcher_shoutouts_enabled",
     () => db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS watcher_shoutouts_enabled boolean NOT NULL DEFAULT true`));
   await runMigration("users.last_watcher_greeted_at",

@@ -235,6 +235,10 @@ export const petTemplates = pgTable("pet_templates", {
   backAssembled: text("back_assembled"),
   sleepingImageUrl: text("sleeping_image_url"),
   canFly: boolean("can_fly").notNull().default(false),
+  // True for pets created from the Test Animator sandbox. They are isolated
+  // from the live game (filtered out of the regular admin pet list) so admins
+  // can experiment with parts without polluting real gameplay data.
+  isTest: boolean("is_test").notNull().default(false),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 

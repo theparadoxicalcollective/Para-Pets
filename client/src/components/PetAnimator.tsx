@@ -18,7 +18,7 @@ interface PetPart {
 
 interface PetAnimatorProps {
   petTemplateId: string;
-  mode: "idle" | "walk" | "zoom" | "house" | "static" | "sleep";
+  mode: "idle" | "walk" | "zoom" | "house" | "static" | "sleep" | "petting";
   view?: "front" | "back";
   size?: number;
   /** When true, expands the inner canvas so the visual output fills `size` exactly,
@@ -141,12 +141,86 @@ const ZOOM_ANIMATIONS: Record<string, string> = {
   back_wing: "petZoomRightWing",
 };
 
-// Sleep mode: only the body breathes and the head bobs gently. Everything
-// else is frozen in its neutral pose to read as "calm / asleep". Face parts
-// are also forced into the petted-style closed-eyes pose by the renderer.
+// Petting mode: visibly bouncier than idle so the pet looks happy when
+// being petted. Face parts are forced into the petted (eyes-closed) pose
+// by the renderer; this map drives body / limb motion only.
+const PETTING_ANIMATIONS: Record<string, string> = {
+  body: "petPettingBody",
+  left_arm: "petPettingLeftArm",
+  right_arm: "petPettingRightArm",
+  left_ear: "petPettingLeftEar",
+  right_ear: "petPettingRightEar",
+  left_wing: "petPettingLeftWing",
+  right_wing: "petPettingRightWing",
+  tail: "petPettingTail",
+  tail_2: "petPettingTail",
+  tail_3: "petPettingTail",
+  // Side-facing equivalents
+  front_arm: "petPettingLeftArm",
+  back_arm: "petPettingRightArm",
+  front_wing: "petPettingRightWing",
+  back_wing: "petPettingRightWing",
+  front_wing_2: "petPettingRightWing",
+  back_wing_2: "petPettingRightWing",
+  hair_left: "petPettingLeftEar",
+  hair_right: "petPettingRightEar",
+  back_hair: "petPettingTail",
+  // Shoulders / accessories breathe with the bouncy body
+  left_shoulder: "petPettingBody",
+  right_shoulder: "petPettingBody",
+  front_shoulder: "petPettingBody",
+  back_shoulder: "petPettingBody",
+  // Head-attached accessories (hats, bows, etc.) wiggle with ear motion
+  // so the whole head reads as alive while being petted.
+  accessory_1: "petPettingLeftEar",
+  accessory_2: "petPettingRightEar",
+  h2_accessory_1: "petPettingLeftEar",
+  h2_accessory_2: "petPettingRightEar",
+  h3_accessory_1: "petPettingLeftEar",
+  h3_accessory_2: "petPettingRightEar",
+  // Prefixed ear / hair variants for multi-headed templates.
+  h2_left_ear: "petPettingLeftEar",
+  h2_right_ear: "petPettingRightEar",
+  h3_left_ear: "petPettingLeftEar",
+  h3_right_ear: "petPettingRightEar",
+  h2_hair_left: "petPettingLeftEar",
+  h2_hair_right: "petPettingRightEar",
+  h3_hair_left: "petPettingLeftEar",
+  h3_hair_right: "petPettingRightEar",
+};
+
+// Sleep mode: the body breathes more visibly, the head bobs gently, and
+// ears / tail / hair sway slowly so the pet still reads as "alive but
+// calm" rather than statue-frozen. Face parts (eyes, mouth) stay in the
+// petted-style closed-eyes pose, forced by the renderer.
 const SLEEP_ANIMATIONS: Record<string, string> = {
   body: "petSleepBody",
   // head is handled by the head-group wrapper (petSleepHead) below.
+  left_ear: "petSleepLeftEar",
+  right_ear: "petSleepRightEar",
+  hair_left: "petSleepLeftEar",
+  hair_right: "petSleepRightEar",
+  tail: "petSleepTail",
+  tail_2: "petSleepTail",
+  tail_3: "petSleepTail",
+  back_hair: "petSleepTail",
+  // Accessories on the head should sway with the gentle ear motion so
+  // hats, bows, etc. don't appear locked in place during sleep.
+  accessory_1: "petSleepLeftEar",
+  accessory_2: "petSleepRightEar",
+  h2_accessory_1: "petSleepLeftEar",
+  h2_accessory_2: "petSleepRightEar",
+  h3_accessory_1: "petSleepLeftEar",
+  h3_accessory_2: "petSleepRightEar",
+  // Prefixed ear / hair variants for multi-headed templates.
+  h2_left_ear: "petSleepLeftEar",
+  h2_right_ear: "petSleepRightEar",
+  h3_left_ear: "petSleepLeftEar",
+  h3_right_ear: "petSleepRightEar",
+  h2_hair_left: "petSleepLeftEar",
+  h2_hair_right: "petSleepRightEar",
+  h3_hair_left: "petSleepLeftEar",
+  h3_hair_right: "petSleepRightEar",
 };
 
 // House mode: only blink (opacity) and rotation animations — no translateY or scale
@@ -213,73 +287,76 @@ const ANIMATION_STYLES = `
   @keyframes petIdleMouthClosed {
     0%, 100% { opacity: 1; }
   }
+  /* ── Idle: bumped amplitudes so the pet feels noticeably more alive
+        (head bob ~1.5×, body breathe ~2×, ears/arms/wings ~1.7×). ────── */
   @keyframes petIdleHead {
     0%   { transform: translateY(0px); }
-    25%  { transform: translateY(-1.4px); }
-    50%  { transform: translateY(-2.4px); }
-    75%  { transform: translateY(-1.4px); }
+    25%  { transform: translateY(-2.2px); }
+    50%  { transform: translateY(-3.6px); }
+    75%  { transform: translateY(-2.2px); }
     100% { transform: translateY(0px); }
   }
   @keyframes petIdleLeftEar {
     0%   { transform: rotate(0deg); }
-    25%  { transform: rotate(-1.2deg); }
-    50%  { transform: rotate(-0.4deg); }
-    75%  { transform: rotate(0.6deg); }
+    25%  { transform: rotate(-2deg); }
+    50%  { transform: rotate(-0.6deg); }
+    75%  { transform: rotate(1deg); }
     100% { transform: rotate(0deg); }
   }
   @keyframes petIdleRightEar {
     0%   { transform: rotate(0deg); }
-    25%  { transform: rotate(1.2deg); }
-    50%  { transform: rotate(0.4deg); }
-    75%  { transform: rotate(-0.6deg); }
+    25%  { transform: rotate(2deg); }
+    50%  { transform: rotate(0.6deg); }
+    75%  { transform: rotate(-1deg); }
     100% { transform: rotate(0deg); }
   }
   @keyframes petIdleLeftArm {
     0%   { transform: rotate(0deg); }
-    25%  { transform: rotate(1.5deg); }
-    50%  { transform: rotate(3deg); }
-    75%  { transform: rotate(1.5deg); }
+    25%  { transform: rotate(2.5deg); }
+    50%  { transform: rotate(5deg); }
+    75%  { transform: rotate(2.5deg); }
     100% { transform: rotate(0deg); }
   }
   @keyframes petIdleRightArm {
     0%   { transform: rotate(0deg); }
-    25%  { transform: rotate(-1deg); }
-    50%  { transform: rotate(-2deg); }
-    75%  { transform: rotate(-1deg); }
+    25%  { transform: rotate(-1.8deg); }
+    50%  { transform: rotate(-3.5deg); }
+    75%  { transform: rotate(-1.8deg); }
     100% { transform: rotate(0deg); }
   }
   @keyframes petIdleBody {
     0%   { transform: scale(1, 1); }
-    25%  { transform: scale(1.005, 1.01); }
-    50%  { transform: scale(1.01, 1.02); }
-    75%  { transform: scale(1.005, 1.01); }
+    25%  { transform: scale(1.012, 1.022); }
+    50%  { transform: scale(1.022, 1.04); }
+    75%  { transform: scale(1.012, 1.022); }
     100% { transform: scale(1, 1); }
   }
   @keyframes petIdleLeftWing {
     0%   { transform: rotate(0deg); }
-    25%  { transform: rotate(-4deg); }
-    50%  { transform: rotate(-1.5deg); }
-    75%  { transform: rotate(2.5deg); }
+    25%  { transform: rotate(-6deg); }
+    50%  { transform: rotate(-2deg); }
+    75%  { transform: rotate(4deg); }
     100% { transform: rotate(0deg); }
   }
   @keyframes petIdleRightWing {
     0%   { transform: rotate(0deg); }
-    25%  { transform: rotate(4deg); }
-    50%  { transform: rotate(1.5deg); }
-    75%  { transform: rotate(-2.5deg); }
+    25%  { transform: rotate(6deg); }
+    50%  { transform: rotate(2deg); }
+    75%  { transform: rotate(-4deg); }
     100% { transform: rotate(0deg); }
   }
   @keyframes petIdleLeftLeg {
     0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(1px); }
+    50% { transform: translateY(1.5px); }
   }
   @keyframes petIdleRightLeg {
     0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(1px); }
+    50% { transform: translateY(1.5px); }
   }
   @keyframes petIdleTail {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-0.5px); }
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    25% { transform: translateY(-0.5px) rotate(-1.2deg); }
+    75% { transform: translateY(-0.5px) rotate(1.2deg); }
   }
 
   @keyframes petWalkEyes {
@@ -368,19 +445,72 @@ const ANIMATION_STYLES = `
     70% { transform: rotate(1deg); }
   }
 
-  /* ── Sleep mode: slow, calm breathing ─────────────────────────────────── */
+  /* ── Sleep mode: slow, deep breathing + subtle limb sway so the pet
+        clearly looks asleep but still alive (not statue-frozen). ─────── */
   @keyframes petSleepBody {
     0%, 100% { transform: scale(1, 1)         translateY(0px); }
-    50%      { transform: scale(1.018, 1.035) translateY(-0.6px); }
+    50%      { transform: scale(1.030, 1.055) translateY(-1.1px); }
   }
   @keyframes petSleepHead {
+    0%, 100% { transform: translateY(0px)   rotate(0deg); }
+    50%      { transform: translateY(-1.9px) rotate(-0.6deg); }
+  }
+  @keyframes petSleepLeftEar {
+    0%, 100% { transform: rotate(0deg); }
+    50%      { transform: rotate(-1deg); }
+  }
+  @keyframes petSleepRightEar {
+    0%, 100% { transform: rotate(0deg); }
+    50%      { transform: rotate(1deg); }
+  }
+  @keyframes petSleepTail {
+    0%, 100% { transform: translateY(0px)   rotate(0deg); }
+    50%      { transform: translateY(-0.8px) rotate(1.2deg); }
+  }
+
+  /* ── Petting mode: bouncier idle so the pet visibly wiggles while being
+        petted (paired with closed-eyes "petted" expression + heart particles). */
+  @keyframes petPettingBody {
+    0%, 100% { transform: scale(1, 1); }
+    50%      { transform: scale(1.045, 1.08); }
+  }
+  @keyframes petPettingHead {
+    0%, 100% { transform: translateY(0px); }
+    50%      { transform: translateY(-5px); }
+  }
+  @keyframes petPettingLeftArm {
+    0%, 100% { transform: rotate(0deg); }
+    50%      { transform: rotate(6deg); }
+  }
+  @keyframes petPettingRightArm {
+    0%, 100% { transform: rotate(0deg); }
+    50%      { transform: rotate(-6deg); }
+  }
+  @keyframes petPettingLeftEar {
+    0%, 100% { transform: rotate(0deg); }
+    50%      { transform: rotate(-3deg); }
+  }
+  @keyframes petPettingRightEar {
+    0%, 100% { transform: rotate(0deg); }
+    50%      { transform: rotate(3deg); }
+  }
+  @keyframes petPettingLeftWing {
+    0%, 100% { transform: rotate(0deg); }
+    50%      { transform: rotate(-7deg); }
+  }
+  @keyframes petPettingRightWing {
+    0%, 100% { transform: rotate(0deg); }
+    50%      { transform: rotate(7deg); }
+  }
+  @keyframes petPettingTail {
     0%, 100% { transform: translateY(0px) rotate(0deg); }
-    50%      { transform: translateY(-1.4px) rotate(-0.3deg); }
+    25%      { transform: translateY(-1px) rotate(-3deg); }
+    75%      { transform: translateY(-1px) rotate(3deg); }
   }
 
 `;
 
-function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "house" | "static" | "sleep"): string {
+function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "house" | "static" | "sleep" | "petting"): string {
   if (mode === "sleep") {
     // Slow, calm breathing for the sleep export. Body / head are the only
     // moving parts in sleep mode; everything else is frozen.
@@ -414,6 +544,19 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "hou
       front_wing: "3.5s", back_wing: "3.5s",
     };
     return durations[partType] || "3s";
+  }
+  if (mode === "petting") {
+    // Faster, snappier than idle so the bounce reads clearly.
+    const durations: Record<string, string> = {
+      head: "1.4s", body: "1.4s",
+      left_arm: "1.4s", right_arm: "1.4s",
+      left_ear: "1.4s", right_ear: "1.4s",
+      left_wing: "1.4s", right_wing: "1.4s",
+      tail: "1.6s",
+      front_arm: "1.4s", back_arm: "1.4s",
+      front_wing: "1.4s", back_wing: "1.4s",
+    };
+    return durations[partType] || "1.4s";
   }
   if (mode === "zoom") {
     const isWing = ["left_wing", "right_wing", "front_wing", "back_wing"].includes(partType);
@@ -475,8 +618,14 @@ function dist(a: { x: number; y: number }, b: { x: number; y: number }) {
 /** Group face parts with their head by overlap. If a face part overlaps a head,
  *  it goes to the head it overlaps most. If it overlaps none, fall back to
  *  nearest center distance. */
+function isHeadPartType(pt: string): boolean {
+  return pt === "head" || pt === "h2_head" || pt === "h3_head";
+}
+
 function buildHeadGroups(parts: PetPart[]): { head: PetPart; faceParts: PetPart[] }[] {
-  const headParts = parts.filter(p => p.partType === "head");
+  // Treat the primary head AND prefixed h2_head / h3_head as separate head
+  // anchors so multi-headed templates each get their own group + wrapper.
+  const headParts = parts.filter(p => isHeadPartType(p.partType));
   if (headParts.length === 0) return [];
 
   const groups = headParts.map(h => ({ head: h, faceParts: [] as PetPart[] }));
@@ -725,12 +874,19 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
             return renderPartImg(part, animName, undefined, typeIdx > 0 ? dupDelay : undefined);
           }
           if (mode === "sleep") {
-            // In sleep mode body parts are mostly frozen; only the body itself
-            // breathes. Hide animation-only parts (mouth open) so the pet's
-            // mouth stays closed while sleeping.
+            // In sleep mode the body breathes and ears / tail / hair sway
+            // gently — see SLEEP_ANIMATIONS. Hide animation-only parts
+            // (mouth open) so the pet's mouth stays closed while sleeping.
             const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
             if (isAnimOnly) return null;
             const animName = lookupAnim(SLEEP_ANIMATIONS, part.partType);
+            return renderPartImg(part, animName ?? null, undefined, typeIdx > 0 ? dupDelay : undefined);
+          }
+          if (mode === "petting") {
+            // Bouncy "happy being petted" body / limb motion.
+            const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
+            if (isAnimOnly) return null;
+            const animName = lookupAnim(PETTING_ANIMATIONS, part.partType);
             return renderPartImg(part, animName ?? null, undefined, typeIdx > 0 ? dupDelay : undefined);
           }
           const anims = mode === "idle" ? IDLE_ANIMATIONS : mode === "zoom" ? ZOOM_ANIMATIONS : WALK_ANIMATIONS;
@@ -744,17 +900,19 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           const anims = mode === "idle" ? IDLE_ANIMATIONS : mode === "zoom" ? ZOOM_ANIMATIONS : WALK_ANIMATIONS;
           // Each head group has a staggered start so multiple heads bob at different times
           const groupDelay = HEAD_GROUP_STAGGER[Math.min(groupIdx, HEAD_GROUP_STAGGER.length - 1)];
-          // Sleep mode uses the gentle petSleepHead bob; otherwise use the
-          // active mode's head animation (skipped for house/static).
+          // Sleep mode uses the gentle petSleepHead bob, petting uses the
+          // bouncier petPettingHead. Otherwise use the active mode's head
+          // animation (skipped for house/static).
           const wrapperAnim =
             mode === "sleep" ? "petSleepHead" :
+            mode === "petting" ? "petPettingHead" :
             (mode !== "house" && mode !== "static") ? anims["head"] :
             undefined;
           const wrapperDuration = getPartDuration("head", mode);
-          // In sleep mode, force the face into a calm closed-eye expression
-          // (same opacity overrides as the existing "petted" expression).
+          // In sleep AND petting modes, force the face into a calm closed-eye
+          // expression (same opacity overrides as the existing "petted" expression).
           const effectiveExpression: typeof expression =
-            mode === "sleep" ? "petted" : expression;
+            (mode === "sleep" || mode === "petting") ? "petted" : expression;
 
           // Per-group blink offset: combines the global random offset with a per-group phase
           const blinkBase = parseFloat(blinkOffset.current.replace("s", "")) || 0;
@@ -793,11 +951,22 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
                   return renderPartImg(part, null);
                 }
                 if (mode === "sleep") {
-                  // Sleep keeps all face parts (ears, hair, accessories,
-                  // head) frozen at neutral — only the wrapper's gentle
-                  // petSleepHead bob moves the whole head.
+                  // Sleep: head itself rides the wrapper bob; ears / hair
+                  // pick up their gentle SLEEP_ANIMATIONS sway so the head
+                  // group reads as "alive but resting" instead of frozen.
                   if (isAnimOnly) return null;
-                  return renderPartImg(part, null);
+                  if (isHeadPartType(part.partType)) return renderPartImg(part, null);
+                  const animName = lookupAnim(SLEEP_ANIMATIONS, part.partType);
+                  return renderPartImg(part, animName ?? null, undefined, `${groupDelay}s`);
+                }
+                if (mode === "petting") {
+                  // Petting: head itself rides the bouncy wrapper; ears /
+                  // hair / accessories animate via PETTING_ANIMATIONS so
+                  // the whole head visibly wiggles.
+                  if (isAnimOnly) return null;
+                  if (isHeadPartType(part.partType)) return renderPartImg(part, null);
+                  const animName = lookupAnim(PETTING_ANIMATIONS, part.partType);
+                  return renderPartImg(part, animName ?? null, undefined, `${groupDelay}s`);
                 }
                 if (mode === "house") {
                   const animName = lookupAnim(HOUSE_ANIMATIONS, part.partType);
@@ -809,8 +978,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
                   return renderPartImg(part, animName, undefined, delay);
                 }
                 // Head itself has no per-part animation (wrapper handles the bobbing)
-                const isHead = part.partType === "head";
-                const partAnimName = isHead ? null : (lookupAnim(anims, part.partType) ?? null);
+                const partAnimName = isHeadPartType(part.partType) ? null : (lookupAnim(anims, part.partType) ?? null);
                 const delay = isEyePart ? groupBlinkOffset : `${groupDelay}s`;
                 return renderPartImg(part, partAnimName, undefined, delay);
               })}
