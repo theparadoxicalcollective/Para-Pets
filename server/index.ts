@@ -1694,17 +1694,26 @@ app.use((req, res, next) => {
     }
 
     const tasks: Array<[string, string, string]> = [
-      ["shop_items",       "id", "image_url"],
-      ["shop_items",       "id", "egg_image_url"],
-      ["shop_items",       "id", "hatched_image_url"],
-      ["shop_items",       "id", "hookless_image_url"],
-      ["badges",           "id", "image_url"],
-      ["enemies",          "id", "image_url"],
-      ["location_enemies", "id", "image_url"],
-      ["house_bundles",    "id", "shop_image_url"],
-      ["house_bundles",    "id", "bg_image_url"],
-      ["pet_templates",    "id", "sleeping_image_url"],
-      ["world_locations",  "id", "icon_url"],
+      ["shop_items",              "id", "image_url"],
+      ["shop_items",              "id", "egg_image_url"],
+      ["shop_items",              "id", "hatched_image_url"],
+      ["shop_items",              "id", "hookless_image_url"],
+      ["badges",                  "id", "image_url"],
+      ["enemies",                 "id", "image_url"],
+      ["location_enemies",        "id", "image_url"],
+      ["house_bundles",           "id", "shop_image_url"],
+      ["house_bundles",           "id", "bg_image_url"],
+      ["house_bundle_buildings",  "id", "image_url"],
+      ["house_bundle_buildings",  "id", "interior_image_url"],
+      ["pet_templates",           "id", "sleeping_image_url"],
+      ["pet_template_parts",      "id", "image_url"],
+      ["fish_template_parts",     "id", "image_url"],
+      ["location_objects",        "id", "image_url"],
+      ["world_decor_placements",  "id", "image_url"],
+      ["world_chat_messages",     "id", "profile_image"],
+      ["users",                   "id", "profile_image"],
+      ["gifts",                   "id", "item_image_url"],
+      ["world_locations",         "id", "icon_url"],
     ];
     let totalMigrated = 0;
     for (const [table, idCol, imgCol] of tasks) {
