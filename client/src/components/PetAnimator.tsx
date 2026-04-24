@@ -304,110 +304,73 @@ const ANIMATION_STYLES = `
   @keyframes petIdleMouthClosed {
     0%, 100% { opacity: 1; }
   }
-  /* ── Idle: bumped amplitudes so the pet feels noticeably more alive
-        (head bob ~1.5×, body breathe ~2×, ears/arms/wings ~1.7×). ────── */
+  /* ── Idle: 2-keyframe motion designed for animation-direction: alternate.
+
+     Why 2 keyframes (not 5+):
+       The previous attempts used 5- or 9-keyframe blocks and tried to make
+       the motion smooth by applying cubic-bezier(0.37, 0, 0.63, 1) per
+       segment. That bezier has slope=0 at BOTH ends, so the wing literally
+       paused for an instant at every keyframe boundary — 4 micro-pauses
+       per cycle = the "jolty" feel. No amount of resampling fixes that.
+
+     The fix:
+       Define ONLY the two extremes (A → B) and let the renderer drive
+       direction:alternate + cubic-bezier(0.45, 0, 0.55, 1) (a close
+       cubic approximation of a sine half-wave). The animation now has
+       zero-velocity points only at A and B — exactly where a real sine
+       wave's peaks would be — and is smooth between them. Same flap
+       rhythm, no internal pauses, no piecewise stitching. */
   @keyframes petIdleHead {
-    0%   { transform: translateY(0px); }
-    25%  { transform: translateY(-2.2px); }
-    50%  { transform: translateY(-3.6px); }
-    75%  { transform: translateY(-2.2px); }
-    100% { transform: translateY(0px); }
+    from { transform: translateY(0px); }
+    to   { transform: translateY(-3.6px); }
   }
   @keyframes petIdleLeftEar {
-    0%   { transform: rotate(0deg); }
-    25%  { transform: rotate(-2deg); }
-    50%  { transform: rotate(-0.6deg); }
-    75%  { transform: rotate(1deg); }
-    100% { transform: rotate(0deg); }
+    from { transform: rotate(-2deg); }
+    to   { transform: rotate(1deg); }
   }
   @keyframes petIdleRightEar {
-    0%   { transform: rotate(0deg); }
-    25%  { transform: rotate(2deg); }
-    50%  { transform: rotate(0.6deg); }
-    75%  { transform: rotate(-1deg); }
-    100% { transform: rotate(0deg); }
+    from { transform: rotate(2deg); }
+    to   { transform: rotate(-1deg); }
   }
   @keyframes petIdleLeftArm {
-    0%   { transform: rotate(0deg); }
-    25%  { transform: rotate(2.5deg); }
-    50%  { transform: rotate(5deg); }
-    75%  { transform: rotate(2.5deg); }
-    100% { transform: rotate(0deg); }
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(5deg); }
   }
   @keyframes petIdleRightArm {
-    0%   { transform: rotate(0deg); }
-    25%  { transform: rotate(-1.8deg); }
-    50%  { transform: rotate(-3.5deg); }
-    75%  { transform: rotate(-1.8deg); }
-    100% { transform: rotate(0deg); }
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(-3.5deg); }
   }
-  /* Body breathing — clean 5-keyframe sine half-wave. Body can only
-     grow / shrink, never go negative, so the wave is one-sided: rest
-     → inhale peak → exhale rest. With sine ease this reads as a deep,
-     calm breath. Amplitude bumped slightly from the original so the
-     breath is actually visible on screen (was 1.022/1.04 → now
-     1.028/1.05). */
+  /* Body breathing — alternates between rest and inhale peak. */
   @keyframes petIdleBody {
-    0%   { transform: scale(1, 1); }
-    50%  { transform: scale(1.028, 1.05); }
-    100% { transform: scale(1, 1); }
+    from { transform: scale(1, 1); }
+    to   { transform: scale(1.028, 1.05); }
   }
-  /* Wings — TRUE symmetric sine flap. The previous attempt had keyframes
-     of (0, −6, −2, +4, 0) which is NOT a sine wave — it goes down to −6,
-     recovers only to −2 (still negative), then to +4, then 0. That
-     asymmetric path is exactly what made the wing look like it was
-     stuttering. Replaced with a clean 5-keyframe symmetric sweep:
-        0% → 0     (rest)
-       25% → ±5°  (down-peak / up-peak depending on side)
-       50% → 0     (cross zero)
-       75% → ∓5°  (opposite peak)
-      100% → 0     (back to rest)
-     With our cubic-bezier(0.37, 0, 0.63, 1) sine ease applied between
-     each pair, this is mathematically a real sine wave — the ease
-     decelerates into each peak and accelerates out, joining seamlessly
-     across the whole cycle. No more 16-keyframe over-sampling needed
-     (which actually FOUGHT the ease and made motion choppy). */
+  /* Wings — full peak-to-peak symmetric flap. Mirror left/right via
+     opposite from/to so the pair beats in a true mirror pattern. */
   @keyframes petIdleLeftWing {
-    0%   { transform: rotate(0deg); }
-    25%  { transform: rotate(-5deg); }
-    50%  { transform: rotate(0deg); }
-    75%  { transform: rotate(5deg); }
-    100% { transform: rotate(0deg); }
+    from { transform: rotate(-5deg); }
+    to   { transform: rotate(5deg); }
   }
   @keyframes petIdleRightWing {
-    0%   { transform: rotate(0deg); }
-    25%  { transform: rotate(5deg); }
-    50%  { transform: rotate(0deg); }
-    75%  { transform: rotate(-5deg); }
-    100% { transform: rotate(0deg); }
+    from { transform: rotate(5deg); }
+    to   { transform: rotate(-5deg); }
   }
   @keyframes petIdleLeftLeg {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(1.5px); }
+    from { transform: translateY(0px); }
+    to   { transform: translateY(1.5px); }
   }
   @keyframes petIdleRightLeg {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(1.5px); }
+    from { transform: translateY(0px); }
+    to   { transform: translateY(1.5px); }
   }
-  /* Tail rotates only — no translateY — so it stays anchored to the body
-     instead of drifting up and away from it. The explicit 50% keyframe
-     means each quarter-cycle covers exactly the same angular distance,
-     so the motion reads as a smooth sine wave instead of the lopsided
-     "fast-through-zero" wiggle the previous 4-keyframe version made. */
   @keyframes petIdleTail {
-    0%, 100% { transform: rotate(0deg); }
-    25%      { transform: rotate(-1.2deg); }
-    50%      { transform: rotate(0deg); }
-    75%      { transform: rotate(1.2deg); }
+    from { transform: rotate(-1.2deg); }
+    to   { transform: rotate(1.2deg); }
   }
-  /* Ground (non-flying) head: a small left/right tilt instead of an upward
-     bob, so the pet doesn't read as "floating off the ground". Same 50%
-     keyframe smoothing as the tail above. */
+  /* Ground head: small left/right tilt instead of upward bob. */
   @keyframes petIdleHeadGround {
-    0%, 100% { transform: rotate(0deg); }
-    25%      { transform: rotate(-0.6deg); }
-    50%      { transform: rotate(0deg); }
-    75%      { transform: rotate(0.6deg); }
+    from { transform: rotate(-0.6deg); }
+    to   { transform: rotate(0.6deg); }
   }
 
   @keyframes petWalkEyes {
@@ -590,11 +553,8 @@ const ANIMATION_STYLES = `
      looks like it's lagging behind the head, the way a real floating
      object would. */
   @keyframes petAboveHeadBounce {
-    0%   { transform: translateY(0px); }
-    25%  { transform: translateY(-2.5px); }
-    50%  { transform: translateY(-5px); }
-    75%  { transform: translateY(-2.5px); }
-    100% { transform: translateY(0px); }
+    from { transform: translateY(0px); }
+    to   { transform: translateY(-5px); }
   }
 
 `;
@@ -665,6 +625,41 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "hou
     return isWing ? "0.45s" : "0.6s";
   }
   return "0.6s";
+}
+
+// Set of @keyframes that are 2-keyframe (from/to) and intended to be
+// driven with `animation-direction: alternate` + a true sine ease.
+// See the long comment above `petIdleHead` in ANIMATION_STYLES for the
+// "why" — the short version is: 5+ keyframes ease'd per-segment causes
+// a momentary pause at every keyframe boundary (slope=0 endpoints), so
+// wings, ears, tails etc. felt jolty. Two extremes + alternate fixes it.
+const ALTERNATE_MOTION_ANIMS = new Set<string>([
+  "petIdleHead", "petIdleHeadGround",
+  "petIdleLeftEar", "petIdleRightEar",
+  "petIdleLeftArm", "petIdleRightArm",
+  "petIdleBody",
+  "petIdleLeftWing", "petIdleRightWing",
+  "petIdleLeftLeg", "petIdleRightLeg",
+  "petIdleTail",
+  "petAboveHeadBounce",
+]);
+
+// Build the CSS `animation` shorthand for a given keyframe name. For the
+// new 2-keyframe motion set, halve the duration (so one alternate-cycle
+// = forward + reverse keeps the same flap rhythm as the old full cycle)
+// and apply the sine bezier + alternate direction. Everything else
+// (blink opacity bursts, walk/zoom/sleep/petting multi-keyframe motions)
+// keeps the existing behavior.
+function buildAnimationCss(animName: string, duration: string, delay: string): string {
+  if (!ALTERNATE_MOTION_ANIMS.has(animName)) {
+    return `${animName} ${duration} cubic-bezier(0.37, 0, 0.63, 1) ${delay} infinite`;
+  }
+  const m = duration.match(/^([\d.]+)(s|ms)$/);
+  const halved = m ? `${parseFloat(m[1]) / 2}${m[2]}` : duration;
+  // cubic-bezier(0.45, 0, 0.55, 1) is the closest cubic approximation of a
+  // sine half-wave — slope 0 at both ends, max in the middle, mirrored
+  // perfectly by `alternate`. Together they produce a true sine motion.
+  return `${animName} ${halved} cubic-bezier(0.45, 0, 0.55, 1) ${delay} infinite alternate`;
 }
 
 // Layer order: lower number = rendered behind, higher number = rendered in front.
@@ -1037,11 +1032,18 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           height: `${heightPct}%`,
           zIndex: layerZ,
           transformOrigin: transformOriginOverride ?? `${originX.toFixed(2)}% ${originY.toFixed(2)}%`,
-          // cubic-bezier(0.37, 0, 0.63, 1) is a true sine ease-in-out —
-          // smoother and more "alive-feeling" than the default ease-in-out
-          // browser curve, which has a sharper inflection that contributes
-          // to the perceived stop-and-go.
-          animation: animName ? `${animName} ${duration} cubic-bezier(0.37, 0, 0.63, 1) ${delay} infinite` : undefined,
+          // Animation shorthand picked by buildAnimationCss: 2-keyframe
+          // motion (wings, ears, tail, body, etc.) gets `alternate` +
+          // sine bezier so it's a true sine wave with no internal
+          // pauses. Multi-keyframe animations (blink opacity bursts,
+          // walk/zoom/sleep/petting motions) keep the existing form.
+          animation: animName ? buildAnimationCss(animName, duration, delay) : undefined,
+          // Promote animated parts onto their own GPU compositor layer.
+          // Without this hint browsers can fall back to per-frame paints
+          // for transformed images, which subpixel-snaps and causes
+          // visible micro-stutter on top of the keyframe issues we just
+          // fixed.
+          willChange: animName ? "transform" : undefined,
           opacity: extraOpacity !== undefined ? extraOpacity : (isAnimOnly ? 0 : 1),
           imageRendering: "auto",
           pointerEvents: "none",
@@ -1168,7 +1170,8 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
                 position: "absolute",
                 left: 0, top: 0,
                 width: "100%", height: "100%",
-                animation: wrapperAnim ? `${wrapperAnim} ${wrapperDuration} cubic-bezier(0.37, 0, 0.63, 1) ${groupDelay}s infinite` : undefined,
+                animation: wrapperAnim ? buildAnimationCss(wrapperAnim, wrapperDuration, `${groupDelay}s`) : undefined,
+                willChange: wrapperAnim ? "transform" : undefined,
                 zIndex: 9,
                 pointerEvents: "none",
               }}
