@@ -7,7 +7,7 @@ import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import battleTrophyIcon from "@assets/generated_images/icon_battle_trophy.png";
 import pvpTicketImg from "@assets/Photoroom_20260415_83701_PM_1776304592941.png";
 import pvpNavIcon from "@assets/generated_images/nav_icon_pvp.png";
-import { ArrowLeft, Users, Check, Heart, Droplets, Trophy, Medal, Award } from "lucide-react";
+import { ArrowLeft, Users, Check, Heart, Droplets, Trophy } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
 import PvpBattlePage from "./PvpBattlePage";
 import PvpMatchmakingOverlay from "@/components/PvpMatchmakingOverlay";
@@ -459,15 +459,17 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                   {(showFullBoard ? leaderboard.slice(0, 100) : leaderboard.slice(0, 10)).map((entry, i) => {
                     const rank = i + 1;
                     const isMe = entry.userId === me?.id;
-                    // Top-3 trophy icons: gold/silver/bronze. We use lucide
-                    // glyphs (Trophy/Medal/Award) tinted to match each
-                    // place so the podium reads at a glance.
+                    // Top-3 trophy icons: SAME Trophy glyph tinted to
+                    // gold / silver / bronze so the podium reads as a
+                    // tier of the same award rather than three different
+                    // shapes. Matches what players expect from a sports
+                    // leaderboard.
                     const trophy = rank === 1
-                      ? { Icon: Trophy, color: "#fbbf24", glow: "rgba(251,191,36,0.55)" }
+                      ? { color: "#fbbf24", glow: "rgba(251,191,36,0.55)" }
                       : rank === 2
-                        ? { Icon: Medal, color: "#cbd5e1", glow: "rgba(203,213,225,0.5)" }
+                        ? { color: "#cbd5e1", glow: "rgba(203,213,225,0.5)" }
                         : rank === 3
-                          ? { Icon: Award, color: "#d97706", glow: "rgba(217,119,6,0.5)" }
+                          ? { color: "#d97706", glow: "rgba(217,119,6,0.5)" }
                           : null;
                     const lastIdx = (showFullBoard ? Math.min(99, leaderboard.length - 1) : Math.min(9, leaderboard.length - 1));
                     return (
@@ -482,7 +484,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                       >
                         <div className="w-6 flex items-center justify-end shrink-0">
                           {trophy ? (
-                            <trophy.Icon
+                            <Trophy
                               size={16}
                               style={{ color: trophy.color, filter: `drop-shadow(0 0 4px ${trophy.glow})` }}
                               data-testid={`icon-trophy-${rank}`}

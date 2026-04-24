@@ -665,11 +665,19 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             className="relative flex items-center justify-center w-full max-w-[520px] md:max-w-[680px] lg:max-w-[800px]"
             style={{
               // Lift the active-pet block up out of vertical-center so it
-              // sits in the upper-middle of the home screen, leaving room
-              // below for the action ring / menu when it opens. Empty
-              // state stays centered (no activePet → no transform).
-              transform: activePet ? "translateY(-12%)" : undefined,
-              willChange: activePet ? "transform" : undefined,
+              // sits at roughly 45% of the home screen, leaving room below
+              // for the action ring / menu when it opens.
+              //
+              // We use `marginBottom` (not transform: translateY) because
+              // the parent is a `justify-center` flex column: a positive
+              // bottom-margin pushes the visible centre of this child up
+              // by margin/2. `10svh` (small-viewport height) shifts the
+              // pet ~5% up from dead-centre, landing it near 45% of the
+              // viewport on phones. translateY('%') is element-relative
+              // and barely moved the pet at all on real devices, which
+              // is why the previous fix didn't visibly change anything.
+              // Empty state stays centered (no activePet → no margin).
+              marginBottom: activePet ? "10svh" : undefined,
             }}
           >
 

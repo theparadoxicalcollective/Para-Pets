@@ -954,13 +954,28 @@ export default function PvpBattlePage({
               style={{ left: `${p.x}%`, top: `${p.y}%`, transform: "translate(-50%,-50%)", width: 72, height: 72, border: "2px solid rgba(239,68,68,0.7)", animation: "targetPulse 0.7s ease-in-out infinite", boxShadow: "0 0 12px rgba(239,68,68,0.4)" }} />
           ))}
 
-          {/* RED swipe trail — drives the PvP color theme. */}
+          {/* RED swipe trail — drives the PvP color theme.
+              We use a `viewBox="0 0 100 100"` + `preserveAspectRatio="none"`
+              so the polyline points (which are kept in the same 0–100 %
+              coordinate space the rest of the arena uses for pet
+              positions) map cleanly to the SVG element regardless of
+              its rendered pixel size. The previous version put `%`
+              suffixes inside the polyline `points` attribute, which is
+              NOT valid SVG syntax — Safari and most browsers silently
+              dropped the points and rendered nothing, which is why the
+              red trail "wasn't showing" on iPhone. */}
           {slashTrail.length >= 2 && (
-            <svg className="absolute inset-0 w-full h-full pointer-events-none z-30">
+            <svg
+              className="absolute inset-0 w-full h-full pointer-events-none z-30"
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+            >
               <polyline
-                points={slashTrail.map(p => `${p.x}%,${p.y}%`).join(" ")}
-                fill="none" stroke="#ef4444" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"
-                opacity="0.9" style={{ filter: "drop-shadow(0 0 7px #ef4444)" }}
+                points={slashTrail.map(p => `${p.x},${p.y}`).join(" ")}
+                fill="none" stroke="#ef4444" strokeWidth="0.7" strokeLinecap="round" strokeLinejoin="round"
+                opacity="0.95"
+                vectorEffect="non-scaling-stroke"
+                style={{ filter: "drop-shadow(0 0 7px #ef4444)", strokeWidth: 3.5 }}
               />
             </svg>
           )}

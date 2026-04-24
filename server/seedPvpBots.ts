@@ -3,9 +3,11 @@
  *
  * Creates 5 persistent bot opponents so a player can battle right away even
  * when no other humans have set up their team yet. Bots:
- *   - have `isBot=true` so they're excluded from public leaderboards (Hall
- *     of Earnings, Devotion, PvP) but still surface in opponent matchmaking
- *     because matchmaking only filters by attack power, not bot-status.
+ *   - have `isBot=true` so they're excluded from the public Hall-of-Earnings
+ *     and Devotion leaderboards, but they DO appear on the PvP leaderboard
+ *     (so seeded bots provide a starting podium for fresh worlds) and they
+ *     surface in opponent matchmaking because matchmaking only filters by
+ *     attack power, not bot-status.
  *   - own 5 hatched pets each, with stats following the in-game progression
  *     (base 50/50 atk/def, 1000 hp at level 1; per-level growth roughly
  *     mirrors the rate a real player would see by spending 3 power-up slots
@@ -40,22 +42,23 @@ type BotTier = {
   healthPerLevel: number;
 };
 
-// Five tiers, low→high. Approximate computed attack power (sum of
-// atk + def/2 + level*5 across 5 pets) for the midpoint of each tier:
-//   Tier 1 ≈ 600   |   Tier 2 ≈ 1200   |   Tier 3 ≈ 2000
-//   Tier 4 ≈ 3000  |   Tier 5 ≈ 4200
-// Bot roster bumped to give players more variety AND tougher fights.
-// Each tier's per-level stat gains have been lifted (~25–50%) so even
-// the rookie bot puts up a real fight, and the top tiers feel like a
-// legitimate boss instead of a punching bag. Health gains are kept
-// modest because pet HP scales much faster than ATK/DEF in the in-game
-// progression — nobody wants a bot that takes 60 seconds to kill.
+// Five tiers, low→high. Bots were previously trivial to beat — players
+// reported steamrolling every tier in seconds. Per-level stat gains
+// have been bumped another ~50–70 % across the board so even the
+// rookie bot has bite and the top tier reads as a legit boss fight.
+// Levels were also pushed higher so the maxed bot is genuinely
+// end-game material (level 50 is the in-game cap).
+//
+// Approximate computed attack power (sum of atk + def/2 + level*5
+// across 5 pets) for the midpoint of each tier post-bump:
+//   Tier 1 ≈  900   |   Tier 2 ≈ 1800   |   Tier 3 ≈ 3000
+//   Tier 4 ≈ 4400   |   Tier 5 ≈ 6200
 const BOT_TIERS: BotTier[] = [
-  { username: "Sparrow_Recruit",   levelMin: 5,  levelMax: 9,  atkPerLevel: 1.6, defPerLevel: 1.3, healthPerLevel: 1.0 },
-  { username: "Glade_Wanderer",    levelMin: 11, levelMax: 16, atkPerLevel: 1.8, defPerLevel: 1.4, healthPerLevel: 0.9 },
-  { username: "Mossheart_Knight",  levelMin: 18, levelMax: 24, atkPerLevel: 2.0, defPerLevel: 1.5, healthPerLevel: 0.8 },
-  { username: "Ember_Stormcaller", levelMin: 26, levelMax: 33, atkPerLevel: 2.2, defPerLevel: 1.5, healthPerLevel: 0.7 },
-  { username: "Veridian_Wraith",   levelMin: 36, levelMax: 45, atkPerLevel: 2.4, defPerLevel: 1.6, healthPerLevel: 0.6 },
+  { username: "Sparrow_Recruit",   levelMin: 8,  levelMax: 12, atkPerLevel: 2.4, defPerLevel: 1.8, healthPerLevel: 1.2 },
+  { username: "Glade_Wanderer",    levelMin: 14, levelMax: 20, atkPerLevel: 2.7, defPerLevel: 2.0, healthPerLevel: 1.1 },
+  { username: "Mossheart_Knight",  levelMin: 22, levelMax: 30, atkPerLevel: 3.0, defPerLevel: 2.2, healthPerLevel: 1.0 },
+  { username: "Ember_Stormcaller", levelMin: 32, levelMax: 40, atkPerLevel: 3.3, defPerLevel: 2.3, healthPerLevel: 0.9 },
+  { username: "Veridian_Wraith",   levelMin: 42, levelMax: 50, atkPerLevel: 3.6, defPerLevel: 2.4, healthPerLevel: 0.8 },
 ];
 
 const BOT_PETS_PER_TEAM = 5;

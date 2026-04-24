@@ -68,22 +68,24 @@ export default function PvpMatchmakingOverlay({
     return pool.length > 0 ? pool : opponents.filter((o) => o.userId !== me?.id);
   }, [opponents, me?.id]);
 
-  // "Fairest" opponent: the one whose BP is closest to the player's. If the
-  // opponents payload didn't include BP we fall back to picking the first
-  // candidate — still deterministic enough to feel intentional.
+  // Pick a *random* candidate from the pool so players see real variety
+  // instead of always being matched against the same single opponent.
+  // We previously chose the strictly "fairest" opponent (minimum |AP −
+  // myBP|) which was deterministic — so a freshly-seeded player kept
+  // landing on the lowest-tier bot every single match.
+  //
+  // The server-side matchmaking already restricts the pool to opponents
+  // within a sane attack-power band (and always appends every bot), so
+  // a uniform random pick here stays fair while making rerolls feel
+  // alive. `myBp` is intentionally omitted from the dependency array —
+  // we want one stable random pick per overlay mount, not a re-roll
+  // mid-animation.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const chosen = useMemo(() => {
     if (candidates.length === 0) return null;
-    let best = candidates[0];
-    let bestDelta = Number.POSITIVE_INFINITY;
-    for (const c of candidates) {
-      const d = Math.abs(strengthOf(c) - myBp);
-      if (d < bestDelta) {
-        best = c;
-        bestDelta = d;
-      }
-    }
-    return best;
-  }, [candidates, myBp]);
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  }, [candidates]);
+  void myBp;
 
   // Rolling portrait cycle during the search phase.
   useEffect(() => {

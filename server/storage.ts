@@ -1794,8 +1794,9 @@ export class DatabaseStorage implements IStorage {
     // are still at 0 BP. The previous implementation joined the other way
     // and only listed users who already had at least one pvp_battles row,
     // which is why bots were missing from the board until somebody lost
-    // to them. Admins and moderators are still filtered out so internal
-    // accounts don't pollute the public ranking.
+    // to them. Admins are filtered out so true staff accounts don't
+    // pollute the public ranking; moderators DO compete (see filter
+    // below for the rationale).
     const userRows = await db.select({
       id: users.id,
       username: users.username,
@@ -1805,9 +1806,14 @@ export class DatabaseStorage implements IStorage {
       isBot: users.isBot,
     }).from(users);
 
+    // Moderators DO compete on the PvP leaderboard. Earlier we filtered
+    // them out alongside admins, but that meant a logged-in mod's `me`
+    // block came back empty — so the Rank panel showed dashes and their
+    // BP from wins was invisible. Mods now appear inline with regular
+    // players; only true admin accounts and the reserved `paradox`
+    // alias are excluded.
     const eligible = userRows.filter(u =>
       !u.isAdmin &&
-      !u.isModerator &&
       !LEADERBOARD_EXCLUDED_USERNAMES.has((u.username || "").toLowerCase())
     );
     if (eligible.length === 0) return [];
