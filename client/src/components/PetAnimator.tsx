@@ -820,12 +820,17 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     typeCountMap.set(part.partType, idx + 1);
   }
 
-  // Helper: render a single part image with given animation (or none)
+  // Helper: render a single part image with given animation (or none).
+  // `transformOriginOverride` lets callers override the part's pivot-based
+  // transform-origin — used for the body part on ground pets so the breathe
+  // scale anchors at the feet (50% 100%) instead of the body's center pivot,
+  // which would make large pets appear to swell up off the ground.
   const renderPartImg = (
     part: PetPart,
     animName: string | null,
     extraOpacity?: number,
     delayOverride?: string,
+    transformOriginOverride?: string,
   ) => {
     const leftPct = (part.posX / CANVAS_SIZE) * 100;
     const topPct = (part.posY / CANVAS_SIZE) * 100;
@@ -865,7 +870,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           width: `${widthPct}%`,
           height: `${heightPct}%`,
           zIndex: layerZ,
-          transformOrigin: `${part.pivotX ?? 50}% ${part.pivotY ?? 50}%`,
+          transformOrigin: transformOriginOverride ?? `${part.pivotX ?? 50}% ${part.pivotY ?? 50}%`,
           // cubic-bezier(0.37, 0, 0.63, 1) is a true sine ease-in-out —
           // smoother and more "alive-feeling" than the default ease-in-out
           // browser curve, which has a sharper inflection that contributes
@@ -914,6 +919,13 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           const typeIdx = typeIndexMap.get(part.id) ?? 0;
           const dupDelay = typeIdx > 0 ? `${DUP_STAGGER_OFFSETS[Math.min(typeIdx, DUP_STAGGER_OFFSETS.length - 1)]}s` : "0s";
 
+          // Anchor the body's breathe scale at the feet (50% 100%) for
+          // non-flying pets so larger ground pets don't appear to swell up
+          // off the ground. Flying pets keep the default pivot-based origin
+          // so they continue to read as hovering. Applies to idle, sleep,
+          // and petting modes (all of which scale the body).
+          const bodyOrigin = (part.partType === "body" && !canFly) ? "50% 100%" : undefined;
+
           if (mode === "static") {
             const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
             if (isAnimOnly) return null;
@@ -935,19 +947,21 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
             const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
             if (isAnimOnly) return null;
             const animName = lookupAnim(SLEEP_ANIMATIONS, part.partType);
-            return renderPartImg(part, animName ?? null, undefined, typeIdx > 0 ? dupDelay : undefined);
+            return renderPartImg(part, animName ?? null, undefined, typeIdx > 0 ? dupDelay : undefined, bodyOrigin);
           }
           if (mode === "petting") {
             // Bouncy "happy being petted" body / limb motion.
             const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
             if (isAnimOnly) return null;
             const animName = lookupAnim(PETTING_ANIMATIONS, part.partType);
-            return renderPartImg(part, animName ?? null, undefined, typeIdx > 0 ? dupDelay : undefined);
+            return renderPartImg(part, animName ?? null, undefined, typeIdx > 0 ? dupDelay : undefined, bodyOrigin);
           }
           const anims = mode === "idle" ? idleAnimMap : mode === "zoom" ? ZOOM_ANIMATIONS : WALK_ANIMATIONS;
           const animName = lookupAnim(anims, part.partType) || anims.body;
           if (!animName) return null;
-          return renderPartImg(part, animName, undefined, typeIdx > 0 ? dupDelay : undefined);
+          // Only the idle body keyframe scales — walk/zoom body uses
+          // translateY only, so the anchor override is harmless either way.
+          return renderPartImg(part, animName, undefined, typeIdx > 0 ? dupDelay : undefined, bodyOrigin);
         })}
 
         {/* Head groups — each head gets its own wrapper with associated face parts */}
