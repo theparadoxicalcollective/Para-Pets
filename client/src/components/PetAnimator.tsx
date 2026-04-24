@@ -994,6 +994,26 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     wingPairDelay.set(partB.id, delay);
   }
 
+  // ── Body-breath phase-lock ────────────────────────────────────────────────
+  // Every part that's mapped to `petIdleBody` (the breath scale) must share
+  // ONE delay so they inhale and exhale together. Without this, each part
+  // would still pick up the per-part stable hash delay inside renderPartImg
+  // and they'd all sit at different points in the cycle — which is exactly
+  // why the back arm wasn't visibly moving in time with back_accessory_1
+  // even though both shared the same keyframe. We seed the shared delay off
+  // the body part's id so it stays stable per-pet but identical across the
+  // whole "breathes with body" group: body, shoulders (front/back/left/
+  // right), back_arm, front_accessory_1/2, back_accessory_1/2.
+  let bodyBreathDelay: string | undefined;
+  const bodyPartForBreath = bodyParts.find(p => p.partType === "body");
+  if (bodyPartForBreath) {
+    let h = 0;
+    for (let i = 0; i < bodyPartForBreath.id.length; i++) {
+      h = (h * 31 + bodyPartForBreath.id.charCodeAt(i)) >>> 0;
+    }
+    bodyBreathDelay = `-${((h % 1500) / 1000).toFixed(2)}s`;
+  }
+
   // Helper: render a single part image with given animation (or none).
   // `transformOriginOverride` lets callers override the part's pivot-based
   // transform-origin — used for the body part on ground pets so the breathe
@@ -1026,9 +1046,20 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
       ? delayOverride
       : (isEyePart ? blinkOffset.current : "0s");
     if (delayOverride === undefined && !isEyePart) {
-      let h = 0;
-      for (let i = 0; i < part.id.length; i++) h = (h * 31 + part.id.charCodeAt(i)) >>> 0;
-      computedDelay = `-${((h % 1500) / 1000).toFixed(2)}s`;
+      // Parts on the body-breath animation phase-lock to ONE shared delay
+      // (computed above off the body part's id) so the whole "breathes with
+      // body" group — body, shoulders, back_arm, back/front accessories —
+      // inhales and exhales together. Everything else gets the usual per-
+      // part stable hash so different parts of the same pet don't all sit
+      // in lockstep (which would create a visible "stop" at every cycle
+      // boundary).
+      if (animName === "petIdleBody" && bodyBreathDelay !== undefined) {
+        computedDelay = bodyBreathDelay;
+      } else {
+        let h = 0;
+        for (let i = 0; i < part.id.length; i++) h = (h * 31 + part.id.charCodeAt(i)) >>> 0;
+        computedDelay = `-${((h % 1500) / 1000).toFixed(2)}s`;
+      }
     }
     const delay = computedDelay;
     const duration = getPartDuration(part.partType, mode);
