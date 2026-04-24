@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
+import { getAlphaBounds, getAlphaBoundsSync, FULL_BOUNDS } from "@/lib/alphaBounds";
 
 interface PetPart {
   id: string;
@@ -847,6 +848,32 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   });
 
   const allParts = templateData?.parts || [];
+
+  // Alpha-bounds scan: walk every part image once, compute the tightest
+  // non-transparent rectangle, and force a re-render when the scan
+  // finishes so the new transform-origin (derived from the visible
+  // pixels rather than the padded PNG bounding box) takes effect.
+  // Results are cached globally by URL so subsequent pets that share
+  // any of the same part images get the corrected pivot for free.
+  const [, bumpAlphaVersion] = useReducer((x: number) => x + 1, 0);
+  useEffect(() => {
+    if (!allParts.length) return;
+    let cancelled = false;
+    let pending = 0;
+    for (const p of allParts) {
+      if (!p.imageUrl) continue;
+      if (getAlphaBoundsSync(p.imageUrl)) continue; // already cached
+      pending++;
+      void getAlphaBounds(p.imageUrl).then(() => {
+        if (cancelled) return;
+        // Coalesce re-renders: only bump once when all pending scans
+        // finish, so a 12-part pet doesn't trigger 12 sequential
+        // re-renders during initial page load.
+        if (--pending === 0) bumpAlphaVersion();
+      });
+    }
+    return () => { cancelled = true; };
+  }, [allParts]);
   // Flying pets keep the original head-bob idle so they look like they're
   // hovering. Ground pets switch to the head-tilt-only variant so they
   // don't read as "floating off the ground".
@@ -984,6 +1011,18 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     }
     const delay = computedDelay;
     const duration = getPartDuration(part.partType, mode);
+    // Re-map the artist's pivot percentage onto the visible pixels of
+    // the part image (alpha bbox) instead of the full padded PNG.
+    // CSS `transform-origin` is expressed as a percentage of the
+    // element box, so we convert: pivot 50/100 (artist saying "base of
+    // tail") becomes e.g. 50/82 if there's 18 % transparent padding
+    // below the visible tail. Falls back to the raw pivot until the
+    // async alpha scan resolves and the parent re-renders.
+    const ab = getAlphaBoundsSync(part.imageUrl) ?? FULL_BOUNDS;
+    const pxPct = (part.pivotX ?? 50) / 100;
+    const pyPct = (part.pivotY ?? 50) / 100;
+    const originX = (ab.left + ab.width  * pxPct) * 100;
+    const originY = (ab.top  + ab.height * pyPct) * 100;
     return (
       <img
         key={part.id}
@@ -997,7 +1036,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           width: `${widthPct}%`,
           height: `${heightPct}%`,
           zIndex: layerZ,
-          transformOrigin: transformOriginOverride ?? `${part.pivotX ?? 50}% ${part.pivotY ?? 50}%`,
+          transformOrigin: transformOriginOverride ?? `${originX.toFixed(2)}% ${originY.toFixed(2)}%`,
           // cubic-bezier(0.37, 0, 0.63, 1) is a true sine ease-in-out —
           // smoother and more "alive-feeling" than the default ease-in-out
           // browser curve, which has a sharper inflection that contributes

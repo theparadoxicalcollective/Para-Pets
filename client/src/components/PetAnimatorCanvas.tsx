@@ -14,6 +14,7 @@
 
 import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { getAlphaBounds, getAlphaBoundsSync, FULL_BOUNDS } from "@/lib/alphaBounds";
 
 interface PetPart {
   id: string; templateId: string; partType: string; view: string; imageUrl: string;
@@ -179,12 +180,39 @@ export default function PetAnimatorCanvas({ petTemplateId, size, fillContainer =
 
     if (!viewParts.length) return;
 
-    const entries = viewParts.map(part => ({ part, img: new Image() }));
+    const entries = viewParts.map(part => {
+      const img = new Image();
+      // Set crossOrigin BEFORE assigning src so the alpha-bounds scan
+      // can read pixel data without tainting the canvas. Same-origin
+      // images ignore this; cross-origin assets need the server to
+      // send Access-Control-Allow-Origin (which our static / object
+      // storage routes do).
+      img.crossOrigin = "anonymous";
+      return { part, img };
+    });
     let loaded = 0;
-    const onDone = () => { if (++loaded === entries.length) { partsRef.current = entries; readyRef.current = true; } };
-    entries.forEach(e => { e.img.onload = onDone; e.img.onerror = onDone; e.img.src = e.part.imageUrl; });
+    let cancelled = false;
+    const onDone = (entry: { part: PetPart; img: HTMLImageElement }) => {
+      if (cancelled) return; // effect was torn down before image finished loading
+      // Kick off an alpha-bounds scan as soon as each part image
+      // decodes. The scan caches its result, so subsequent renders
+      // (and other PetAnimatorCanvas instances showing the same
+      // template) all read from cache for free.
+      if (entry.img.naturalWidth > 0) {
+        void getAlphaBounds(entry.part.imageUrl, entry.img);
+      }
+      if (++loaded === entries.length) { partsRef.current = entries; readyRef.current = true; }
+    };
+    entries.forEach(e => { e.img.onload = () => onDone(e); e.img.onerror = () => onDone(e); e.img.src = e.part.imageUrl; });
 
-    return () => { readyRef.current = false; partsRef.current = []; };
+    return () => {
+      cancelled = true;
+      // Detach handlers so any late load events for in-flight images
+      // can't reach back into the now-stale `entries` closure.
+      entries.forEach(e => { e.img.onload = null; e.img.onerror = null; });
+      readyRef.current = false;
+      partsRef.current = [];
+    };
   }, [templateData]);
 
   useEffect(() => {
@@ -239,8 +267,18 @@ export default function PetAnimatorCanvas({ petTemplateId, size, fillContainer =
         const top  = offset + (part.posY / CANVAS_SIZE) * drawSpan;
         const w    = (part.width  / CANVAS_SIZE) * drawSpan;
         const h    = (part.height / CANVAS_SIZE) * drawSpan;
-        const px   = left + w * ((part.pivotX ?? 50) / 100);
-        const py   = top  + h * ((part.pivotY ?? 50) / 100);
+        // Re-map the artist's pivot percentage onto the actual visible
+        // pixels of the part image (alpha bbox) instead of the full
+        // padded image. This keeps tails / wings rotating around their
+        // real anchor (the base of the tail, the shoulder of the wing)
+        // even when the source PNG has lots of transparent space
+        // around the artwork. Falls back to the full bbox until the
+        // async alpha scan finishes.
+        const ab = getAlphaBoundsSync(part.imageUrl) ?? FULL_BOUNDS;
+        const pxPct = (part.pivotX ?? 50) / 100;
+        const pyPct = (part.pivotY ?? 50) / 100;
+        const px = left + w * (ab.left + ab.width  * pxPct);
+        const py = top  + h * (ab.top  + ab.height * pyPct);
 
         // Per-part vertical offset (head bob OR above-head float OR
         // the part's own ty if it has one). Same CSS-px → buffer-px
