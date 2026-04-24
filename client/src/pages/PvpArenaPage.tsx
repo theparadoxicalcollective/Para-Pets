@@ -29,7 +29,10 @@ interface LeaderboardEntry {
 
 interface LeaderboardResponse {
   top: LeaderboardEntry[];
-  me: { rank: number; entry: LeaderboardEntry; inTop: boolean } | null;
+  // `rank` is null for accounts excluded from the public board
+  // (admins, moderators, reserved aliases). `hidden` flags those
+  // accounts so the Rank panel can show "N/A" instead of "#42".
+  me: { rank: number | null; entry: LeaderboardEntry; inTop: boolean; hidden?: boolean } | null;
   totalRanked: number;
 }
 
@@ -329,6 +332,9 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
   const myWins = myLb?.entry.wins ?? 0;
   const myLosses = myLb?.entry.losses ?? 0;
   const hasPlayed = (myWins + myLosses) > 0;
+  // Mods / admins are tracked but never ranked — show N/A in the
+  // Rank panel and skip the "your placement" row under the board.
+  const isHiddenFromBoard = !!myLb?.hidden;
 
   // Owned emblems will plug in here once the rank-rewards flow exists.
   // For now we render an empty 5-slot row as a visual placeholder so the
@@ -514,7 +520,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
               {/* Player's own placement row — pinned below the list so
                   they can always see where they stand even when not in
                   the top 25. */}
-              {myRank ? (
+              {myRank && !isHiddenFromBoard ? (
                 <div className="mt-2 pt-2 border-t border-white/10">
                   <div
                     className="flex items-center gap-2.5 px-2 py-1.5 rounded-md"
@@ -580,11 +586,13 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
               >
                 <div className="text-[8px] tracking-[0.2em] text-purple-200/70 font-bold">RANK</div>
                 <div className="text-white text-[15px] font-black tabular-nums leading-tight" data-testid="text-my-rank">
-                  {hasPlayed && myRank ? `#${myRank}` : "—"}
+                  {isHiddenFromBoard ? "N/A" : (hasPlayed && myRank ? `#${myRank}` : "—")}
                 </div>
-                {!hasPlayed && (
+                {isHiddenFromBoard ? (
+                  <div className="text-[7px] tracking-wider text-white/35">STAFF</div>
+                ) : !hasPlayed ? (
                   <div className="text-[7px] tracking-wider text-white/35">UNRANKED</div>
-                )}
+                ) : null}
               </div>
               <div
                 className="rounded-lg py-1.5 flex flex-col items-center justify-center"

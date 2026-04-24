@@ -259,6 +259,11 @@ export interface IStorage {
   getPvpBattlesByUser(userId: string, limit?: number): Promise<any[]>;
   getPvpLeaderboard(limit?: number): Promise<{ userId: string; username: string; profileImage: string | null; battlePoints: number; wins: number; losses: number }[]>;
   getPvpLeaderboardFull(): Promise<{ userId: string; username: string; profileImage: string | null; battlePoints: number; wins: number; losses: number; isAdmin?: boolean; isModerator?: boolean }[]>;
+  /** Aggregate BP / W / L for a SPECIFIC user (no leaderboard
+   *  exclusions applied). Used by the /api/pvp/leaderboard route to
+   *  surface stats for accounts hidden from the public board (admins,
+   *  mods, paradox) so they still see their own tracked numbers. */
+  getUserPvpStats(userId: string): Promise<{ battlePoints: number; wins: number; losses: number }>;
   getPvpTicketCount(userId: string): Promise<number>;
   consumePvpTicket(userId: string): Promise<boolean>;
   createPvpBattleToken(userId: string): Promise<string>;
@@ -1806,14 +1811,14 @@ export class DatabaseStorage implements IStorage {
       isBot: users.isBot,
     }).from(users);
 
-    // Moderators DO compete on the PvP leaderboard. Earlier we filtered
-    // them out alongside admins, but that meant a logged-in mod's `me`
-    // block came back empty — so the Rank panel showed dashes and their
-    // BP from wins was invisible. Mods now appear inline with regular
-    // players; only true admin accounts and the reserved `paradox`
-    // alias are excluded.
+    // Only regular players are RANKED on the public leaderboard.
+    // Admins and moderators are excluded from this list — but the
+    // /api/pvp/leaderboard route still returns their personal BP /
+    // wins / losses via a separate stats lookup (getUserPvpStats),
+    // so the Rank panel shows their tracked numbers with rank = N/A.
     const eligible = userRows.filter(u =>
       !u.isAdmin &&
+      !u.isModerator &&
       !LEADERBOARD_EXCLUDED_USERNAMES.has((u.username || "").toLowerCase())
     );
     if (eligible.length === 0) return [];
@@ -1862,6 +1867,20 @@ export class DatabaseStorage implements IStorage {
       return (a.username || "").localeCompare(b.username || "");
     });
     return board;
+  }
+
+  async getUserPvpStats(userId: string): Promise<{ battlePoints: number; wins: number; losses: number }> {
+    const rows = await db.select({
+      result: pvpBattles.result,
+      battlePointsDelta: pvpBattles.battlePointsDelta,
+    }).from(pvpBattles).where(eq(pvpBattles.userId, userId));
+    let battlePoints = 0, wins = 0, losses = 0;
+    for (const r of rows) {
+      battlePoints += r.battlePointsDelta || 0;
+      if (r.result === "win") wins++;
+      else losses++;
+    }
+    return { battlePoints, wins, losses };
   }
 
   /** PvP ticket helpers. Tickets are inventory items: shop_items.special_type

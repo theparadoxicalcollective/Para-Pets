@@ -5499,9 +5499,32 @@ export async function registerRoutes(
       // ranked pool — even when they're outside the top 100.
       const top = all.slice(0, 100);
       const myIdx = all.findIndex((e) => e.userId === user.id);
-      const me = myIdx >= 0
-        ? { rank: myIdx + 1, entry: all[myIdx], inTop: myIdx < 100 }
-        : null;
+      let me: any = null;
+      if (myIdx >= 0) {
+        me = { rank: myIdx + 1, entry: all[myIdx], inTop: myIdx < 100, hidden: false };
+      } else {
+        // User is excluded from the public board (admin / moderator /
+        // reserved alias). They still get to see THEIR OWN tracked
+        // BP / W / L — we just report rank as null so the Rank panel
+        // can render "N/A" instead of a number.
+        const stats = await storage.getUserPvpStats(user.id);
+        me = {
+          rank: null,
+          entry: {
+            userId: user.id,
+            username: user.username || "You",
+            profileImage: user.profileImage ?? null,
+            battlePoints: stats.battlePoints,
+            wins: stats.wins,
+            losses: stats.losses,
+            isAdmin: !!user.isAdmin,
+            isModerator: !!user.isModerator,
+            isBot: false,
+          },
+          inTop: false,
+          hidden: true,
+        };
+      }
       return res.json({ top, me, totalRanked: all.length });
     } catch (err) {
       console.error("PvP leaderboard error:", err);

@@ -642,7 +642,7 @@ export default function PvpBattlePage({
     const pos = getArenaPos(e.clientX, e.clientY);
     const prev = slashPathRef.current[slashPathRef.current.length - 1];
     slashPathRef.current.push(pos);
-    if (slashPathRef.current.length > 22) slashPathRef.current.shift();
+    if (slashPathRef.current.length > 12) slashPathRef.current.shift();
     setSlashTrail([...slashPathRef.current]);
     if (!prev) return;
 
@@ -686,7 +686,7 @@ export default function PvpBattlePage({
   const handlePointerUp = useCallback(() => {
     isSlashingRef.current = false;
     hitSetRef.current = new Set();
-    setTimeout(() => setSlashTrail([]), 180);
+    setTimeout(() => setSlashTrail([]), 110);
   }, []);
 
   // ── Derived ────────────────────────────────────────────────────
@@ -991,12 +991,24 @@ export default function PvpBattlePage({
               viewBox="0 0 100 100"
               preserveAspectRatio="none"
             >
+              {/* Glowing red swipe — drawn as TWO stacked polylines so
+                  Safari renders an actual halo: the outer line is a
+                  thicker, semi-transparent bloom that survives the SVG
+                  drop-shadow being clipped by overflow:hidden parents,
+                  and the inner line is the bright core. */}
               <polyline
                 points={slashTrail.map(p => `${p.x},${p.y}`).join(" ")}
-                fill="none" stroke="#ef4444" strokeWidth="0.7" strokeLinecap="round" strokeLinejoin="round"
-                opacity="0.95"
+                fill="none" stroke="#ff2a3a" strokeLinecap="round" strokeLinejoin="round"
+                opacity="0.55"
                 vectorEffect="non-scaling-stroke"
-                style={{ filter: "drop-shadow(0 0 7px #ef4444)", strokeWidth: 3.5 }}
+                style={{ strokeWidth: 12, filter: "blur(2px)" }}
+              />
+              <polyline
+                points={slashTrail.map(p => `${p.x},${p.y}`).join(" ")}
+                fill="none" stroke="#ffffff" strokeLinecap="round" strokeLinejoin="round"
+                opacity="1"
+                vectorEffect="non-scaling-stroke"
+                style={{ strokeWidth: 3.5, filter: "drop-shadow(0 0 6px #ff2a3a) drop-shadow(0 0 12px #ff2a3a)" }}
               />
             </svg>
           )}
@@ -1031,7 +1043,7 @@ export default function PvpBattlePage({
             const isPendingSource = pendingSkill?.petUid === pet.uid;
             const isEnemyTarget = pendingSkill?.mode === "needs-enemy" && !pet.isPlayer;
             const isHoveredDrop = pet.isPlayer && hoveredAllyUid === pet.uid;
-            const size = pet.isPlayer ? 200 : 180;
+            const size = pet.isPlayer ? 140 : 130;
             const isHit = !!hitFlash[pet.uid];
             const stars = Math.max(0, Math.min(5, Math.floor(pet.starRarity || 0)));
 
