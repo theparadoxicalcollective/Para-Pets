@@ -853,15 +853,19 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                         style={{
                           cursor: "pointer",
                           touchAction: "none",
-                          // Bump the pet 12% larger but keep it at its
-                          // current vertical position on the screen — the
-                          // user wants size only, no shift up. Press/circle
-                          // gestures stack onto the same baseline scale.
+                          // Bump the pet 12% larger AND nudge it down ~10%
+                          // of its own height. The earlier 1.12x scale (with
+                          // origin center-bottom) extended the silhouette
+                          // upward, which made the pet sit visually higher
+                          // on the home stage. translateY(10%) brings it
+                          // back down without shrinking it. Percentage is
+                          // relative to the wrapper's height so it scales
+                          // correctly across phone sizes.
                           transform: petCircling
-                            ? "translateY(0px) scale(1.155, 1.092)"
+                            ? "translateY(10%) scale(1.155, 1.092)"
                             : petPressed
-                              ? "translateY(0px) scale(1.108, 1.132)"
-                              : "translateY(0px) scale(1.12)",
+                              ? "translateY(10%) scale(1.108, 1.132)"
+                              : "translateY(10%) scale(1.12)",
                           transition: "transform 320ms cubic-bezier(0.34, 1.2, 0.5, 1)",
                           transformOrigin: "center bottom",
                           // Sit above heart/sparkle bursts and surrounding chrome

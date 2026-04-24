@@ -44,12 +44,18 @@ type BotTier = {
 // atk + def/2 + level*5 across 5 pets) for the midpoint of each tier:
 //   Tier 1 ≈ 600   |   Tier 2 ≈ 1200   |   Tier 3 ≈ 2000
 //   Tier 4 ≈ 3000  |   Tier 5 ≈ 4200
+// Bot roster bumped to give players more variety AND tougher fights.
+// Each tier's per-level stat gains have been lifted (~25–50%) so even
+// the rookie bot puts up a real fight, and the top tiers feel like a
+// legitimate boss instead of a punching bag. Health gains are kept
+// modest because pet HP scales much faster than ATK/DEF in the in-game
+// progression — nobody wants a bot that takes 60 seconds to kill.
 const BOT_TIERS: BotTier[] = [
-  { username: "Sparrow_Recruit",   levelMin: 3,  levelMax: 6,  atkPerLevel: 1.2, defPerLevel: 1.0, healthPerLevel: 0.8 },
-  { username: "Glade_Wanderer",    levelMin: 8,  levelMax: 12, atkPerLevel: 1.3, defPerLevel: 1.0, healthPerLevel: 0.7 },
-  { username: "Mossheart_Knight",  levelMin: 14, levelMax: 19, atkPerLevel: 1.4, defPerLevel: 1.0, healthPerLevel: 0.6 },
-  { username: "Ember_Stormcaller", levelMin: 22, levelMax: 28, atkPerLevel: 1.5, defPerLevel: 1.0, healthPerLevel: 0.5 },
-  { username: "Veridian_Wraith",   levelMin: 32, levelMax: 40, atkPerLevel: 1.5, defPerLevel: 1.1, healthPerLevel: 0.4 },
+  { username: "Sparrow_Recruit",   levelMin: 5,  levelMax: 9,  atkPerLevel: 1.6, defPerLevel: 1.3, healthPerLevel: 1.0 },
+  { username: "Glade_Wanderer",    levelMin: 11, levelMax: 16, atkPerLevel: 1.8, defPerLevel: 1.4, healthPerLevel: 0.9 },
+  { username: "Mossheart_Knight",  levelMin: 18, levelMax: 24, atkPerLevel: 2.0, defPerLevel: 1.5, healthPerLevel: 0.8 },
+  { username: "Ember_Stormcaller", levelMin: 26, levelMax: 33, atkPerLevel: 2.2, defPerLevel: 1.5, healthPerLevel: 0.7 },
+  { username: "Veridian_Wraith",   levelMin: 36, levelMax: 45, atkPerLevel: 2.4, defPerLevel: 1.6, healthPerLevel: 0.6 },
 ];
 
 const BOT_PETS_PER_TEAM = 5;
@@ -177,6 +183,25 @@ export async function seedPvpBots(): Promise<void> {
           })
           .returning({ id: userInventory.id });
         petInventoryIds.push(petRow.id);
+      }
+    } else {
+      // Bots already exist from a previous seed — refresh their stats so
+      // any tier rebalance (atk/def/health gains, level range) actually
+      // applies to live matchmaking instead of being stuck at the values
+      // the pet was first inserted with. We DON'T touch petInventoryIds,
+      // so the saved battle group keeps pointing at the same rows.
+      for (const pid of petInventoryIds) {
+        const level = rand(tier.levelMin, tier.levelMax);
+        const { atk, def, health } = buildPetStats(tier, level);
+        await db
+          .update(userInventory)
+          .set({
+            petLevel: level,
+            petAtk: atk,
+            petDef: def,
+            petHealth: health,
+          })
+          .where(eq(userInventory.id, pid));
       }
     }
 

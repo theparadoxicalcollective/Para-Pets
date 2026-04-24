@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 interface PetPart {
   id: string;
@@ -465,6 +465,21 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   // and properly scaled inside arena slots that aren't exactly `size` px.
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const [measuredSize, setMeasuredSize] = useState<number>(size);
+  // Synchronously seed measuredSize from the container BEFORE paint so the
+  // first render isn't off-center. Without this, the initial render uses
+  // the `size` prop (e.g. 72) and then ResizeObserver fires after paint
+  // and bumps it to the actual slot dimensions, producing the visible
+  // "pet is offset on first PvP entry" jump. Using useLayoutEffect means
+  // the measurement and the corresponding state update happen before the
+  // browser paints the first frame.
+  useLayoutEffect(() => {
+    if (!fillContainer) return;
+    const el = wrapperRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const s = Math.min(rect.width, rect.height);
+    if (s > 0) setMeasuredSize((prev) => (Math.abs(prev - s) > 0.5 ? s : prev));
+  }, [fillContainer]);
   useEffect(() => {
     if (!fillContainer) return;
     const el = wrapperRef.current;
@@ -560,7 +575,23 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     const layerZ = LAYER_ORDER[part.partType] ?? part.zIndex;
     const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
     const isEyePart = isEyePartType(part.partType);
-    const delay = delayOverride !== undefined ? delayOverride : (isEyePart ? blinkOffset.current : "0s");
+    // For non-eye parts, derive a small stable per-part phase offset from
+    // the part's id hash so different parts of the SAME pet (and the same
+    // part across different pet instances) never sit perfectly in sync.
+    // When everything cycles in lockstep, the eye has a moment where all
+    // parts return to neutral simultaneously and the pet appears to
+    // "stop" before moving again — that's the stop-and-go feeling. A
+    // 0–1.5s spread keeps things continuously in motion without making
+    // any single part feel laggy.
+    let computedDelay = delayOverride !== undefined
+      ? delayOverride
+      : (isEyePart ? blinkOffset.current : "0s");
+    if (delayOverride === undefined && !isEyePart) {
+      let h = 0;
+      for (let i = 0; i < part.id.length; i++) h = (h * 31 + part.id.charCodeAt(i)) >>> 0;
+      computedDelay = `-${((h % 1500) / 1000).toFixed(2)}s`;
+    }
+    const delay = computedDelay;
     const duration = getPartDuration(part.partType, mode);
     return (
       <img
@@ -576,7 +607,11 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           height: `${heightPct}%`,
           zIndex: layerZ,
           transformOrigin: `${part.pivotX ?? 50}% ${part.pivotY ?? 50}%`,
-          animation: animName ? `${animName} ${duration} ease-in-out ${delay} infinite` : undefined,
+          // cubic-bezier(0.37, 0, 0.63, 1) is a true sine ease-in-out —
+          // smoother and more "alive-feeling" than the default ease-in-out
+          // browser curve, which has a sharper inflection that contributes
+          // to the perceived stop-and-go.
+          animation: animName ? `${animName} ${duration} cubic-bezier(0.37, 0, 0.63, 1) ${delay} infinite` : undefined,
           opacity: extraOpacity !== undefined ? extraOpacity : (isAnimOnly ? 0 : 1),
           imageRendering: "auto",
           pointerEvents: "none",
@@ -661,7 +696,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
                 position: "absolute",
                 left: 0, top: 0,
                 width: "100%", height: "100%",
-                animation: wrapperAnim ? `${wrapperAnim} ${wrapperDuration} ease-in-out ${groupDelay}s infinite` : undefined,
+                animation: wrapperAnim ? `${wrapperAnim} ${wrapperDuration} cubic-bezier(0.37, 0, 0.63, 1) ${groupDelay}s infinite` : undefined,
                 zIndex: 9,
                 pointerEvents: "none",
               }}

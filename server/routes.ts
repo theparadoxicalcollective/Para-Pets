@@ -5300,10 +5300,14 @@ export async function registerRoutes(
       }
       const winBp = difficulty === "easy" ? 4 : difficulty === "hard" ? 12 : 9;
 
-      const coinsEarned = result === "win" ? WIN_COINS : 0;
+      // Coin rewards have been removed from PvP — battle points are now
+      // the sole win currency. We still compute WIN_COINS above so the
+      // existing pvp_battles row schema stays satisfied and any analytics
+      // that referenced opponentLevel-driven payouts keep working, but we
+      // explicitly zero out the actual coin grant here.
+      void WIN_COINS;
+      const coinsEarned = 0;
       const battlePointsDelta = result === "win" ? winBp : 0;
-
-      if (coinsEarned > 0) await storage.addCoins(user.id, coinsEarned);
 
       // Credit the defender +5 BP if the attacker lost. This is a synthetic
       // pvp_battles row attributed to the opponent so it shows up on the
@@ -5493,16 +5497,20 @@ export async function registerRoutes(
         const hi = myPower * (1 + band);
         return p >= lo && p <= hi;
       });
-      let matched = inBand(0.35);
-      if (matched.length < 5) matched = inBand(0.6);
+      let matched = inBand(0.45);
+      if (matched.length < 5) matched = inBand(0.75);
       if (matched.length < 3) matched = others; // last-resort: show everyone
-      // For moderators, ALWAYS guarantee every bot is in the pool so they
-      // can't be filtered out by the band logic above.
-      if (isModerator) {
-        const present = new Set(matched.map((g: any) => g.userId));
-        for (const g of others) {
-          if (g.isBot && !present.has(g.userId)) matched.push(g);
-        }
+
+      // Always make sure EVERY bot shows up in the pool — even if they're
+      // outside the player's power band. Previously only moderators got
+      // every bot, which meant regular players kept seeing the same
+      // single bot whose power happened to land inside their band. This
+      // gives players real variety in opponents while still favouring
+      // power-matched humans first (the band logic above runs before
+      // bots are appended).
+      const present = new Set(matched.map((g: any) => g.userId));
+      for (const g of others) {
+        if (g.isBot && !present.has(g.userId)) matched.push(g);
       }
       return res.json(matched);
     } catch (err) {

@@ -1766,7 +1766,11 @@ export class DatabaseStorage implements IStorage {
     for (const row of rows) {
       if (!row.userId) continue;
       if (LEADERBOARD_EXCLUDED_USERNAMES.has((row.username || "").toLowerCase())) continue;
-      if (row.isAdmin || row.isModerator || row.isBot) continue;
+      // Hide admins and moderators from the public PvP leaderboard, but
+      // intentionally KEEP bots visible — admins use the leaderboard to
+      // sanity-check matchmaking/BP balance against the seeded bots, so
+      // bots being filtered out used to make verification impossible.
+      if (row.isAdmin || row.isModerator) continue;
       if (!byUser[row.userId]) {
         byUser[row.userId] = {
           userId: row.userId,
