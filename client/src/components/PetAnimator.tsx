@@ -93,12 +93,21 @@ const IDLE_ANIMATIONS: Record<string, string> = {
   back_arm: "petIdleRightArm",
   front_leg: "petIdleLeftLeg",
   back_leg: "petIdleRightLeg",
-  // Per request: ALL side-facing wings (front + back, 1 + 2) animate with the
-  // existing back wing flap so they're consistent.
-  front_wing: "petIdleRightWing",
-  front_wing_2: "petIdleRightWing",
+  // Side-facing wings mirror each other like the ears: the front wing flaps
+  // one direction and the back wing flaps the opposite direction so the two
+  // never sit perfectly in sync. Applies to both wing-set 1 and wing-set 2.
+  front_wing: "petIdleLeftWing",
+  front_wing_2: "petIdleLeftWing",
   back_wing: "petIdleRightWing",
   back_wing_2: "petIdleRightWing",
+};
+
+// Ground (non-flying) idle: same as the flying idle, but the head bob is
+// replaced with a flat (rotation-only) version so the whole pet doesn't read
+// as "floating". Body still breathes, ears/limbs/tail still twitch.
+const IDLE_ANIMATIONS_GROUND: Record<string, string> = {
+  ...IDLE_ANIMATIONS,
+  head: "petIdleHeadGround",
 };
 
 /** Look up an animation name for a part. Falls back by stripping multi-head
@@ -155,12 +164,13 @@ const PETTING_ANIMATIONS: Record<string, string> = {
   tail: "petPettingTail",
   tail_2: "petPettingTail",
   tail_3: "petPettingTail",
-  // Side-facing equivalents
+  // Side-facing equivalents — wings mirror like the ears (front flaps one
+  // way, back flaps the opposite way) so they don't beat in lockstep.
   front_arm: "petPettingLeftArm",
   back_arm: "petPettingRightArm",
-  front_wing: "petPettingRightWing",
+  front_wing: "petPettingLeftWing",
   back_wing: "petPettingRightWing",
-  front_wing_2: "petPettingRightWing",
+  front_wing_2: "petPettingLeftWing",
   back_wing_2: "petPettingRightWing",
   hair_left: "petPettingLeftEar",
   hair_right: "petPettingRightEar",
@@ -353,10 +363,19 @@ const ANIMATION_STYLES = `
     0%, 100% { transform: translateY(0px); }
     50% { transform: translateY(1.5px); }
   }
+  /* Tail rotates only — no translateY — so it stays anchored to the body
+     instead of drifting up and away from it. */
   @keyframes petIdleTail {
-    0%, 100% { transform: translateY(0px) rotate(0deg); }
-    25% { transform: translateY(-0.5px) rotate(-1.2deg); }
-    75% { transform: translateY(-0.5px) rotate(1.2deg); }
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-1.2deg); }
+    75% { transform: rotate(1.2deg); }
+  }
+  /* Ground (non-flying) head: a small left/right tilt instead of an upward
+     bob, so the pet doesn't read as "floating off the ground". */
+  @keyframes petIdleHeadGround {
+    0%, 100% { transform: rotate(0deg); }
+    25%      { transform: rotate(-0.6deg); }
+    75%      { transform: rotate(0.6deg); }
   }
 
   @keyframes petWalkEyes {
@@ -468,44 +487,65 @@ const ANIMATION_STYLES = `
     50%      { transform: translateY(-0.8px) rotate(1.2deg); }
   }
 
-  /* ── Petting mode: bouncier idle so the pet visibly wiggles while being
-        petted (paired with closed-eyes "petted" expression + heart particles). */
+  /* ── Petting mode: a soft, smooth wiggle while the pet is being petted.
+        Amplitudes are deliberately small (the previous version read as
+        "dramatic / choppy") and every keyframe has 25% / 75% intermediate
+        steps so the sine ease can blend smoothly through the cycle without
+        stop-and-go inflections. Paired with the closed-eyes "petted" face
+        expression and floating heart particles. */
   @keyframes petPettingBody {
     0%, 100% { transform: scale(1, 1); }
-    50%      { transform: scale(1.045, 1.08); }
+    25%      { transform: scale(1.010, 1.018); }
+    50%      { transform: scale(1.018, 1.034); }
+    75%      { transform: scale(1.010, 1.018); }
   }
   @keyframes petPettingHead {
     0%, 100% { transform: translateY(0px); }
-    50%      { transform: translateY(-5px); }
+    25%      { transform: translateY(-0.7px); }
+    50%      { transform: translateY(-1.6px); }
+    75%      { transform: translateY(-0.7px); }
   }
   @keyframes petPettingLeftArm {
     0%, 100% { transform: rotate(0deg); }
-    50%      { transform: rotate(6deg); }
+    25%      { transform: rotate(1.2deg); }
+    50%      { transform: rotate(2.4deg); }
+    75%      { transform: rotate(1.2deg); }
   }
   @keyframes petPettingRightArm {
     0%, 100% { transform: rotate(0deg); }
-    50%      { transform: rotate(-6deg); }
+    25%      { transform: rotate(-1.2deg); }
+    50%      { transform: rotate(-2.4deg); }
+    75%      { transform: rotate(-1.2deg); }
   }
   @keyframes petPettingLeftEar {
     0%, 100% { transform: rotate(0deg); }
-    50%      { transform: rotate(-3deg); }
+    25%      { transform: rotate(-0.8deg); }
+    50%      { transform: rotate(-1.5deg); }
+    75%      { transform: rotate(-0.8deg); }
   }
   @keyframes petPettingRightEar {
     0%, 100% { transform: rotate(0deg); }
-    50%      { transform: rotate(3deg); }
+    25%      { transform: rotate(0.8deg); }
+    50%      { transform: rotate(1.5deg); }
+    75%      { transform: rotate(0.8deg); }
   }
   @keyframes petPettingLeftWing {
     0%, 100% { transform: rotate(0deg); }
-    50%      { transform: rotate(-7deg); }
+    25%      { transform: rotate(-1.5deg); }
+    50%      { transform: rotate(-3deg); }
+    75%      { transform: rotate(-1.5deg); }
   }
   @keyframes petPettingRightWing {
     0%, 100% { transform: rotate(0deg); }
-    50%      { transform: rotate(7deg); }
+    25%      { transform: rotate(1.5deg); }
+    50%      { transform: rotate(3deg); }
+    75%      { transform: rotate(1.5deg); }
   }
+  /* Tail: rotation only (no translateY) so it stays anchored to the body. */
   @keyframes petPettingTail {
-    0%, 100% { transform: translateY(0px) rotate(0deg); }
-    25%      { transform: translateY(-1px) rotate(-3deg); }
-    75%      { transform: translateY(-1px) rotate(3deg); }
+    0%, 100% { transform: rotate(0deg); }
+    25%      { transform: rotate(-2deg); }
+    75%      { transform: rotate(2deg); }
   }
 
 `;
@@ -546,17 +586,21 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "hou
     return durations[partType] || "3s";
   }
   if (mode === "petting") {
-    // Faster, snappier than idle so the bounce reads clearly.
+    // Slow, smooth wiggle. Previous 1.4s + low-keyframe-count animations
+    // looked choppy on the Pet Care and Active Pet pages — bumping every
+    // moving part to ~2.4s gives the sine ease enough time to blend
+    // through each phase so the motion reads as a soft, continuous purr
+    // instead of a snappy bounce.
     const durations: Record<string, string> = {
-      head: "1.4s", body: "1.4s",
-      left_arm: "1.4s", right_arm: "1.4s",
-      left_ear: "1.4s", right_ear: "1.4s",
-      left_wing: "1.4s", right_wing: "1.4s",
-      tail: "1.6s",
-      front_arm: "1.4s", back_arm: "1.4s",
-      front_wing: "1.4s", back_wing: "1.4s",
+      head: "2.4s", body: "2.4s",
+      left_arm: "2.4s", right_arm: "2.4s",
+      left_ear: "2.4s", right_ear: "2.4s",
+      left_wing: "2.4s", right_wing: "2.4s",
+      tail: "2.6s",
+      front_arm: "2.4s", back_arm: "2.4s",
+      front_wing: "2.4s", back_wing: "2.4s",
     };
-    return durations[partType] || "1.4s";
+    return durations[partType] || "2.4s";
   }
   if (mode === "zoom") {
     const isWing = ["left_wing", "right_wing", "front_wing", "back_wing"].includes(partType);
@@ -700,7 +744,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     return () => ro.disconnect();
   }, [fillContainer]);
 
-  const { data: templateData } = useQuery<{ parts: PetPart[]; facing: string }>({
+  const { data: templateData } = useQuery<{ parts: PetPart[]; facing: string; canFly?: boolean }>({
     queryKey: ["/api/pet-template-parts", petTemplateId],
     queryFn: async () => {
       const res = await fetch(`/api/pet-template-parts/${petTemplateId}`, { credentials: "include" });
@@ -712,6 +756,11 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   });
 
   const allParts = templateData?.parts || [];
+  // Flying pets keep the original head-bob idle so they look like they're
+  // hovering. Ground pets switch to the head-tilt-only variant so they
+  // don't read as "floating off the ground".
+  const canFly = !!templateData?.canFly;
+  const idleAnimMap = canFly ? IDLE_ANIMATIONS : IDLE_ANIMATIONS_GROUND;
 
   // Determine which view to render:
   // 1. If template is explicitly saved as side-facing ("back"), always use "back"
@@ -889,7 +938,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
             const animName = lookupAnim(PETTING_ANIMATIONS, part.partType);
             return renderPartImg(part, animName ?? null, undefined, typeIdx > 0 ? dupDelay : undefined);
           }
-          const anims = mode === "idle" ? IDLE_ANIMATIONS : mode === "zoom" ? ZOOM_ANIMATIONS : WALK_ANIMATIONS;
+          const anims = mode === "idle" ? idleAnimMap : mode === "zoom" ? ZOOM_ANIMATIONS : WALK_ANIMATIONS;
           const animName = lookupAnim(anims, part.partType) || anims.body;
           if (!animName) return null;
           return renderPartImg(part, animName, undefined, typeIdx > 0 ? dupDelay : undefined);
@@ -897,7 +946,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
 
         {/* Head groups — each head gets its own wrapper with associated face parts */}
         {headGroups.map((group, groupIdx) => {
-          const anims = mode === "idle" ? IDLE_ANIMATIONS : mode === "zoom" ? ZOOM_ANIMATIONS : WALK_ANIMATIONS;
+          const anims = mode === "idle" ? idleAnimMap : mode === "zoom" ? ZOOM_ANIMATIONS : WALK_ANIMATIONS;
           // Each head group has a staggered start so multiple heads bob at different times
           const groupDelay = HEAD_GROUP_STAGGER[Math.min(groupIdx, HEAD_GROUP_STAGGER.length - 1)];
           // Sleep mode uses the gentle petSleepHead bob, petting uses the
