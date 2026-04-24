@@ -637,11 +637,14 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "hou
 // wrapper — see headGroups below, which forces the head/face wrapper to a
 // fixed z-index in the parent stacking context).
 const LAYER_ORDER: Record<string, number> = {
-  // ── Back-most: tails, back hair, all wing variants ─────────────────────
+  // ── Back-most: head wings (sit way behind everything), tails, back hair ──
+  head_wing_left: 1,
+  head_wing_right: 1,
   tail: 1,
   tail_2: 1,
   tail_3: 1,
   back_hair: 1,
+  // ── Wings (back-layer in side view, body wings on front view) ──────────
   back_wing: 2,
   back_wing_2: 2,
   right_wing: 2,
@@ -673,6 +676,10 @@ const LAYER_ORDER: Record<string, number> = {
   right_ear: 9,
   left_ear: 9,
   head: 10,
+  // Head-anchored accessories (hats, bows, glasses) sit just above the head
+  // but under the mouth / eyes / hair so the face still reads cleanly.
+  accessory_2: 11,
+  accessory_1: 11,
   mouth: 12,
   mouth_closed: 13,
   eyes_closed: 14,

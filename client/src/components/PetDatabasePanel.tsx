@@ -148,19 +148,21 @@ const SIDE_PART_GROUPS: { group: string; parts: PartDef[]; collapsed?: boolean }
   { group: "Head Two",   parts: headFrontParts(2, 85,  34), collapsed: true },
   { group: "Head Three", parts: headFrontParts(3, 70,  33), collapsed: true },
 
-  // ── Body Parts (single Body sandwiched between front & back layers) ────
+  // ── Body Parts — listed top-to-bottom in visual stacking order so the
+  //    sidebar mirrors what gets rendered (front-most first, back-most
+  //    last). Body sits between Front Wing 2 and the back-side layers.
   { group: "Body Parts", parts: [
-    { key: "body",              label: "Body",              defaultZ: 50, layer: "body"  },
+    { key: "front_shoulder",    label: "Front Shoulder",    defaultZ: 58, layer: "front" },
     { key: "front_arm",         label: "Front Arm",         defaultZ: 57, layer: "front" },
     { key: "front_leg",         label: "Front Leg",         defaultZ: 56, layer: "front" },
-    { key: "front_shoulder",    label: "Front Shoulder",    defaultZ: 58, layer: "front" },
     { key: "front_accessory_1", label: "Front Accessory 1", defaultZ: 55, layer: "front" },
     { key: "front_accessory_2", label: "Front Accessory 2", defaultZ: 54, layer: "front" },
     { key: "front_wing",        label: "Front Wing 1",      defaultZ: 53, layer: "front" },
     { key: "front_wing_2",      label: "Front Wing 2",      defaultZ: 52, layer: "front" },
+    { key: "body",              label: "Body",              defaultZ: 50, layer: "body"  },
+    { key: "back_shoulder",     label: "Back Shoulder",     defaultZ: 47, layer: "back"  },
     { key: "back_arm",          label: "Back Arm",          defaultZ: 46, layer: "back"  },
     { key: "back_leg",          label: "Back Leg",          defaultZ: 45, layer: "back"  },
-    { key: "back_shoulder",     label: "Back Shoulder",     defaultZ: 47, layer: "back"  },
     { key: "back_accessory_1",  label: "Back Accessory 1",  defaultZ: 44, layer: "back"  },
     { key: "back_accessory_2",  label: "Back Accessory 2",  defaultZ: 43, layer: "back"  },
     { key: "back_wing",         label: "Back Wing 1",       defaultZ: 42, layer: "back"  },
