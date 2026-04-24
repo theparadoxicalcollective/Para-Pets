@@ -164,6 +164,14 @@ const SIDE_PART_GROUPS: { group: string; parts: PartDef[]; collapsed?: boolean }
     { key: "back_accessory_2",  label: "Back Accessory 2",  defaultZ: 43, layer: "back"  },
     { key: "back_wing",         label: "Back Wing 1",       defaultZ: 42, layer: "back"  },
     { key: "back_wing_2",       label: "Back Wing 2",       defaultZ: 41, layer: "back"  },
+    // Side view also exposes the standalone Left / Right wing parts so
+    // pets that animate as a flapping pair (rotation around the body)
+    // can use the same wing artwork on both views without forcing
+    // builders to repurpose Back Wing 1/2 for that role. Keeping the
+    // back layer + matching defaultZ slot so they sit just behind
+    // back_wing_2 and above the tails.
+    { key: "left_wing",         label: "Left Wing",         defaultZ: 40, layer: "back"  },
+    { key: "right_wing",        label: "Right Wing",        defaultZ: 40, layer: "back"  },
     { key: "tail",              label: "Tail 1",            defaultZ: 39, layer: "back",  defaultPivotX: 50, defaultPivotY: 0 },
     { key: "tail_2",            label: "Tail 2",            defaultZ: 38, layer: "back",  defaultPivotX: 50, defaultPivotY: 0 },
     { key: "tail_3",            label: "Tail 3",            defaultZ: 37, layer: "back",  defaultPivotX: 50, defaultPivotY: 0 },

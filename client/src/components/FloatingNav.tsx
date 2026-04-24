@@ -83,7 +83,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     closeAll();
     if (id === "map")       { setTimeout(() => navigate("/map"), NAV_DELAY); return; }
     if (id === "quest")     { setTimeout(() => openPanel(() => setShowQuest(true)), NAV_DELAY); return; }
-    if (id === "pvp")       { (user.isAdmin || user.isModerator) ? setTimeout(() => navigate("/pvp"), NAV_DELAY) : setTimeout(() => openPanel(() => setShowPvpNote(true)), NAV_DELAY); return; }
+    if (id === "pvp")       { setTimeout(() => navigate("/pvp"), NAV_DELAY); return; }
     if (id === "inventory") { setTimeout(() => navigate("/pets"), NAV_DELAY); return; }
     if (id === "badges")    { setTimeout(() => navigate("/badges"), NAV_DELAY); return; }
   };

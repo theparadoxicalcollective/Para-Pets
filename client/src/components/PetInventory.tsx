@@ -1054,7 +1054,7 @@ function getItemUsageHint(item: InventoryItem): { where: string; how: string } {
   if (item.type === "special" && item.specialType === "pvp_ticket") {
     return {
       where: "Special Items tab",
-      how: "Your entry pass to the Meridia Arena! Use this when PvP battles become available to compete against other players.",
+      how: "Your entry pass to the Veridia Arena! Spend one to enter PvP and battle other keepers for Battle Points and a leaderboard rank.",
     };
   }
   if (item.type === "special") {

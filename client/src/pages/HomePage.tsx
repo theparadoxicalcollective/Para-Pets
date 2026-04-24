@@ -1750,7 +1750,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                 <div>
                   <p className="font-fantasy text-[#f0c040] text-[11px] tracking-wider mb-0.5">Battle Arena  <span style={{ color: "#6a5840", fontSize: "9px" }}>— bottom</span></p>
                   <p className="font-fantasy text-[#a89878] text-[10px] tracking-wide leading-relaxed">
-                    Challenge other keepers in the PvP arena. Coming soon — the arena is being forged!
+                    Challenge other keepers in the Veridia Arena. Spend a PvP Ticket to enter, swipe to attack, and climb the leaderboard with every win.
                   </p>
                 </div>
               </div>

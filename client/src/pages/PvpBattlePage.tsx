@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { playHit, playPlayerHurt, playBattleVictory, playDefeat } from "@/lib/sounds";
 import { ArrowLeft, X } from "lucide-react";
 import PetAnimatorCanvas from "@/components/PetAnimatorCanvas";
@@ -189,6 +190,7 @@ export default function PvpBattlePage({
     },
   });
 
+  const { toast } = useToast();
   const recordResult = useMutation({
     mutationFn: async (data: { result: "win" | "loss"; opponentLevel: number }) => {
       const res = await apiRequest("POST", "/api/pvp/result", {
@@ -207,6 +209,25 @@ export default function PvpBattlePage({
       queryClient.invalidateQueries({ queryKey: ["/api/pvp/leaderboard"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pvp/tickets"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pvp/history"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    },
+    // Surface failures so wins/losses don't silently disappear into the void
+    // (the original "I won but got no BP" bug). The battle UI still shows
+    // the victory/defeat overlay, but the toast tells the player rewards
+    // didn't post and that they should retry — the server is the source of
+    // truth for BP and tickets.
+    onError: (err: any) => {
+      console.error("[pvp] failed to record battle result", err);
+      toast({
+        title: "Couldn't record battle result",
+        description:
+          "Your rewards didn't post — please check your connection and try another match.",
+        variant: "destructive",
+      });
+      // Refresh in case the server actually did succeed before the response
+      // failed in transit; this lets the leaderboard / tickets reconcile.
+      queryClient.invalidateQueries({ queryKey: ["/api/pvp/leaderboard"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pvp/tickets"] });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
     },
   });
