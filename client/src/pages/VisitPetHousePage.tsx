@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import SendGiftModal from "@/components/SendGiftModal";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface VisitedPet {
@@ -252,6 +253,19 @@ export default function VisitPetHousePage() {
   });
 
   const pets = petsData?.pets ?? [];
+
+  // Logged-in viewer — only used to know how many coins are available
+  // when sending a gift through the visited player's mailbox.
+  const { data: me } = useQuery<{ id: string; coins: number } | null>({
+    queryKey: ["/api/auth/me"],
+  });
+
+  // Mailbox interaction — clicking the visited player's mailbox opens the
+  // shared SendGiftModal targeted at that player. The modal already lets
+  // a sender attach a written message *and* either coins or an item, so
+  // the mailbox naturally covers both of the two interactions that used
+  // to live on the player popup.
+  const [showGiftModal, setShowGiftModal] = useState(false);
   const outdoorPets = pets.filter(p => p.posLeft !== null && (p.location === "outside" || p.location === null));
   const interiorPets = openInterior ? pets.filter(p => p.location === openInterior.buildingId && p.posLeft !== null) : [];
 
@@ -329,17 +343,38 @@ export default function VisitPetHousePage() {
         <div className="absolute" style={{ zIndex: 4, top: 0, left: `${panX}px`, width: imgWidth, height: "100%", pointerEvents: "none" }}>
           {activeBundle.buildings.map((b) => {
             const hasInterior = !!b.interiorImageUrl;
+            // Mailboxes are matched by name so the owner can place any
+            // mailbox decor anywhere in their world without us having to
+            // wire a per-building flag through the schema.
+            const isMailbox = (b.name ?? "").toLowerCase().includes("mailbox");
+            const isClickable = hasInterior || isMailbox;
             const displayW = Math.round((b.width ?? 120) * (containerH || BUILDING_REF_H) / BUILDING_REF_H);
             return (
               <div
                 key={b.id}
+                data-testid={isMailbox ? `building-mailbox-${b.id}` : `building-${b.id}`}
                 className="absolute flex flex-col items-center"
-                style={{ left: `${b.posX}%`, top: `${b.posY}%`, transform: "translate(-50%, -100%)", minWidth: displayW, pointerEvents: hasInterior ? "auto" : "none", cursor: hasInterior ? "pointer" : "default" }}
-                onClick={() => hasInterior && setOpenInterior({ url: b.interiorImageUrl!, buildingId: b.id, leaveButtonX: b.leaveButtonX ?? 0.92, leaveButtonY: b.leaveButtonY ?? 0.06 })}
+                style={{ left: `${b.posX}%`, top: `${b.posY}%`, transform: "translate(-50%, -100%)", minWidth: displayW, pointerEvents: isClickable ? "auto" : "none", cursor: isClickable ? "pointer" : "default" }}
+                onClick={() => {
+                  if (isMailbox) {
+                    setShowGiftModal(true);
+                    return;
+                  }
+                  if (hasInterior) {
+                    setOpenInterior({ url: b.interiorImageUrl!, buildingId: b.id, leaveButtonX: b.leaveButtonX ?? 0.92, leaveButtonY: b.leaveButtonY ?? 0.06 });
+                  }
+                }}
               >
                 <img
                   src={b.imageUrl} alt={b.name} draggable={false}
-                  style={{ width: displayW, height: displayW, objectFit: "contain", filter: "drop-shadow(0 0 10px rgba(255,210,80,0.3)) drop-shadow(0 3px 6px rgba(0,0,0,0.55))", transform: b.flippedX ? "scaleX(-1)" : undefined, flexShrink: 0 }}
+                  style={{
+                    width: displayW, height: displayW, objectFit: "contain",
+                    filter: isMailbox
+                      ? "drop-shadow(0 0 14px rgba(127,255,212,0.55)) drop-shadow(0 3px 6px rgba(0,0,0,0.55))"
+                      : "drop-shadow(0 0 10px rgba(255,210,80,0.3)) drop-shadow(0 3px 6px rgba(0,0,0,0.55))",
+                    transform: b.flippedX ? "scaleX(-1)" : undefined,
+                    flexShrink: 0,
+                  }}
                 />
               </div>
             );
@@ -360,7 +395,7 @@ export default function VisitPetHousePage() {
             style={{ zIndex: 5, left: panX + xPct * imgWidth, top: yPct * containerH, width: cfg.size, height: cfg.size, transform: "translate(-50%, -50%)" }}
           >
             {pet.petTemplateId ? (
-              <PetAnimator petTemplateId={pet.petTemplateId} mode="house" size={cfg.size} fillContainer className="pet-idle-squish" style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }} />
+              <PetAnimator petTemplateId={pet.petTemplateId} mode="static" size={cfg.size} fillContainer className="pet-idle-squish" style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }} />
             ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
               <img
                 src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
@@ -423,6 +458,17 @@ export default function VisitPetHousePage() {
             {petsData.username} hasn't moved any pets outside yet!
           </p>
         </div>
+      )}
+
+      {/* Mailbox → send a written message and/or a gift to the visited
+          player. The modal closes itself on success. */}
+      {showGiftModal && userId && petsData && (
+        <SendGiftModal
+          friendId={userId}
+          friendUsername={petsData.username}
+          senderCoins={me?.coins ?? 0}
+          onClose={() => setShowGiftModal(false)}
+        />
       )}
 
       {/* Read-only interior */}

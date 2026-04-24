@@ -14,6 +14,7 @@ import PvpMatchmakingOverlay from "@/components/PvpMatchmakingOverlay";
 import forestBgImg from "@assets/generated_images/pvp_ruins_battlefield_bg.png";
 import swordImg from "@assets/generated_images/pvp_battle_sword.png";
 import RoleBadge from "@/components/RoleBadge";
+import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 
 interface LeaderboardEntry {
   userId: string;
@@ -91,6 +92,14 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
   const [alertModal, setAlertModal] = useState<{ title: string; message: string } | null>(null);
   const [selectedPetIds, setSelectedPetIds] = useState<string[]>([]);
   const [groupSaved, setGroupSaved] = useState(false);
+  // Tap-to-inspect: clicking any leaderboard row (or your own pinned row)
+  // opens the universal PlayerDetailPanel with the same shape used on the
+  // hub-page leaderboard. The PvP variant additionally passes pvpStats so
+  // the popup gains a Wins / Losses / BP row plus the player's emblems.
+  const [selectedPlayer, setSelectedPlayer] = useState<{
+    userId: string;
+    pvpStats: { wins: number; losses: number; battlePoints: number };
+  } | null>(null);
 
   // Hide the floating main-nav while the arena is mounted — includes
   // matchmaking and the live battle. Restored on unmount.
@@ -467,6 +476,27 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                   className={`flex flex-col ${showFullBoard ? "overflow-y-auto" : ""}`}
                   style={showFullBoard ? { maxHeight: 380 } : undefined}
                 >
+                  {/* Column headers — reads as a tiny key so players don't
+                      have to guess what each number means. Spacers on the
+                      left match the rank+avatar columns of each row so the
+                      ATK / BP labels sit directly above their values. */}
+                  <div
+                    className="flex items-center gap-2.5 px-2 pb-1 mb-0.5 select-none"
+                    style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+                    data-testid="row-leaderboard-header"
+                  >
+                    <div className="w-6 shrink-0" />
+                    <div className="w-7 shrink-0" />
+                    <div className="flex-1 min-w-0 text-[8px] tracking-[0.22em] font-bold uppercase text-white/40">
+                      Player
+                    </div>
+                    <div className="w-12 text-right text-[8px] tracking-[0.22em] font-bold uppercase text-rose-300/75">
+                      ATK
+                    </div>
+                    <div className="w-14 text-right text-[8px] tracking-[0.22em] font-bold uppercase text-amber-200/80">
+                      BP
+                    </div>
+                  </div>
                   {(showFullBoard ? leaderboard.slice(0, 100) : leaderboard.slice(0, 10)).map((entry, i) => {
                     const rank = i + 1;
                     const isMe = entry.userId === me?.id;
@@ -487,7 +517,16 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                       <div
                         key={entry.userId}
                         data-testid={`row-leaderboard-${rank}`}
-                        className="flex items-center gap-2.5 px-2 py-1.5 rounded-md"
+                        role="button"
+                        onClick={() => setSelectedPlayer({
+                          userId: entry.userId,
+                          pvpStats: {
+                            wins: entry.wins,
+                            losses: entry.losses,
+                            battlePoints: entry.battlePoints,
+                          },
+                        })}
+                        className="flex items-center gap-2.5 px-2 py-1.5 rounded-md cursor-pointer transition-colors hover:bg-white/5 active:scale-[0.99]"
                         style={{
                           background: isMe ? "rgba(124,58,237,0.22)" : "transparent",
                           borderBottom: i === lastIdx ? "none" : "1px solid rgba(255,255,255,0.04)",
@@ -540,8 +579,17 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
               {myRank && !isHiddenFromBoard ? (
                 <div className="mt-2 pt-2 border-t border-white/10">
                   <div
-                    className="flex items-center gap-2.5 px-2 py-1.5 rounded-md"
+                    className="flex items-center gap-2.5 px-2 py-1.5 rounded-md cursor-pointer transition-colors hover:bg-purple-700/30 active:scale-[0.99]"
                     data-testid="row-my-placement"
+                    role="button"
+                    onClick={() => me?.id && setSelectedPlayer({
+                      userId: me.id,
+                      pvpStats: {
+                        wins: myLb?.entry.wins ?? 0,
+                        losses: myLb?.entry.losses ?? 0,
+                        battlePoints: myLb?.entry.battlePoints ?? 0,
+                      },
+                    })}
                     style={{
                       background: "rgba(124,58,237,0.22)",
                       border: "1px solid rgba(167,139,250,0.45)",
@@ -1154,6 +1202,17 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
       {/* ── Alert modal (centered, unmissable) ──────────────────────
           Replaces the thin red toast for the high-stakes Begin-Battle
           checks. Tap anywhere outside or the OK button to dismiss. */}
+      {/* Tap-to-inspect popup — same shared card used on the hub
+          leaderboard and world chat, just with PvP rank stats added. */}
+      {selectedPlayer && (
+        <PlayerDetailPanel
+          userId={selectedPlayer.userId}
+          currentUserId={me?.id}
+          pvpStats={selectedPlayer.pvpStats}
+          onClose={() => setSelectedPlayer(null)}
+        />
+      )}
+
       {alertModal && (
         <div
           className="absolute inset-0 z-[80] flex items-center justify-center px-6"

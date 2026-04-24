@@ -1,20 +1,37 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
 import petHouseBg from "@assets/generated_images/pet_world_bg.png";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
-import powerupBagIconPDP from "@assets/generated_images/icon_powerup_bag.png";
 import houseCottageIcon from "@assets/generated_images/nav_icon_home.png";
-import giftIconImg from "@assets/generated_images/gift_icon_forest.png";
-import SendGiftModal from "@/components/SendGiftModal";
 import RoleBadge from "@/components/RoleBadge";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PlayerDetailPanel — slim, read-only "tap-on-a-player" card
+//
+// Per game spec the popup that opens whenever a player taps another player's
+// avatar (hub leaderboard, world chat, PvP leaderboard) shows ONLY identity +
+// active pet info, plus optional PvP rank stats when the popup was opened
+// from the PvP leaderboard. There are intentionally NO friend / message /
+// gift buttons here — those interactions now live on the visited player's
+// pet-house mailbox so they always happen "in the world" rather than from
+// an abstract menu. The single Visit Pet World button is what bridges the
+// two places.
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface PvpStats {
+  wins: number;
+  losses: number;
+  battlePoints: number;
+}
 
 interface PlayerDetailPanelProps {
   userId: string;
   currentUserId?: string;
   onClose: () => void;
+  /** When provided, the card adds a Rank Stats row (W/L/BP) and shows the
+   *  player's earned emblems (badges). Pass this in from the PvP arena
+   *  leaderboard so PvP-only fields don't leak into hub/world popups. */
+  pvpStats?: PvpStats;
 }
 
 interface ActivePet {
@@ -35,15 +52,6 @@ interface ActivePet {
   petTemplateId: string | null;
 }
 
-interface Accessory {
-  inventoryId: string;
-  name: string;
-  imageUrl: string | null;
-  atkBoost: number | null;
-  defBoost: number | null;
-  healthBoost: number | null;
-}
-
 interface PublicProfile {
   id: string;
   username: string;
@@ -51,7 +59,9 @@ interface PublicProfile {
   isAdmin?: boolean;
   isModerator?: boolean;
   activePet: ActivePet | null;
-  accessories: Accessory[];
+  // accessories still come back from the API but are intentionally not
+  // rendered here per the trimmed-popup spec.
+  accessories: unknown[];
 }
 
 interface Badge {
@@ -85,29 +95,9 @@ function StatPill({ label, value, color }: { label: string; value: number; color
   );
 }
 
-export default function PlayerDetailPanel({ userId, currentUserId, onClose }: PlayerDetailPanelProps) {
+export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpStats }: PlayerDetailPanelProps) {
   const [, navigate] = useLocation();
-  const qc = useQueryClient();
-  const { toast } = useToast();
-  const [showGiftModal, setShowGiftModal] = useState(false);
-  const [showMessageCompose, setShowMessageCompose] = useState(false);
-  const [messageText, setMessageText] = useState("");
-
-  const { data: me } = useQuery<any>({ queryKey: ["/api/auth/me"], retry: false });
-
-  const sendMessageMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/gifts/send", {
-      receiverId: userId,
-      coinAmount: 0,
-      message: messageText.trim(),
-    }),
-    onSuccess: () => {
-      toast({ title: "Message Sent!", description: "Your message is waiting in their mailbox." });
-      setMessageText("");
-      setShowMessageCompose(false);
-    },
-    onError: (e: any) => toast({ title: "Failed to send", description: e.message, variant: "destructive" }),
-  });
+  const isSelf = !!currentUserId && currentUserId === userId;
 
   const { data: profile, isLoading, isError } = useQuery<PublicProfile>({
     queryKey: ["/api/users", userId, "profile"],
@@ -118,6 +108,9 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose }: Pl
     },
   });
 
+  // Emblems — only fetched when the card is being shown from the PvP
+  // leaderboard. For other contexts (hub leaderboard, world chat) the
+  // popup intentionally hides badges per the trimmed spec.
   const { data: badges } = useQuery<Badge[]>({
     queryKey: ["/api/users", userId, "badges"],
     queryFn: async () => {
@@ -125,62 +118,12 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose }: Pl
       if (!res.ok) return [];
       return res.json();
     },
-    enabled: !!userId,
-  });
-
-  // Friend status — only when logged in and viewing someone else
-  const isSelf = !!currentUserId && currentUserId === userId;
-  const { data: friendStatusData, refetch: refetchFriendStatus } = useQuery<{ friendship: any | null }>({
-    queryKey: ["/api/friends/status", userId],
-    queryFn: async () => {
-      const res = await fetch(`/api/friends/status/${userId}`, { credentials: "include" });
-      if (!res.ok) return { friendship: null };
-      return res.json();
-    },
-    enabled: !!currentUserId && !isSelf,
-    staleTime: 10000,
-  });
-
-  const friendship = friendStatusData?.friendship ?? null;
-  const friendStatus: "none" | "friends" | "pending_sent" | "pending_received" = !friendship
-    ? "none"
-    : friendship.status === "accepted"
-      ? "friends"
-      : friendship.requesterId === currentUserId
-        ? "pending_sent"
-        : "pending_received";
-
-  const sendRequestMutation = useMutation({
-    mutationFn: () => apiRequest("POST", `/api/friends/request/${userId}`, {}),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["/api/friends/status", userId] });
-      refetchFriendStatus();
-    },
-  });
-
-  const cancelRequestMutation = useMutation({
-    mutationFn: () => apiRequest("DELETE", `/api/friends/${userId}`, {}),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["/api/friends/status", userId] });
-      qc.invalidateQueries({ queryKey: ["/api/friends/requests/count"] });
-      refetchFriendStatus();
-    },
-  });
-
-  const acceptRequestMutation = useMutation({
-    mutationFn: () => apiRequest("POST", `/api/friends/accept/${friendship?.id}`, {}),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["/api/friends/status", userId] });
-      qc.invalidateQueries({ queryKey: ["/api/friends"] });
-      qc.invalidateQueries({ queryKey: ["/api/friends/requests/count"] });
-      refetchFriendStatus();
-    },
+    enabled: !!userId && !!pvpStats,
   });
 
   const petImg = profile?.activePet?.hatchedImageUrl || profile?.activePet?.imageUrl;
 
   return (
-    <>
     <div
       data-testid="overlay-player-detail"
       className="fixed inset-0 z-50 flex items-end justify-center"
@@ -231,7 +174,7 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose }: Pl
 
         {profile && (
           <div className="px-5 pb-8 pt-2 flex flex-col gap-5">
-            {/* Profile header */}
+            {/* Profile header — Name + role badge only */}
             <div className="flex flex-col items-center gap-2">
               <div
                 className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0"
@@ -269,198 +212,135 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose }: Pl
                 </p>
                 <RoleBadge isAdmin={profile.isAdmin} isModerator={profile.isModerator} size="sm" />
               </div>
-
-              {/* Friend button — only for logged-in users viewing another player */}
-              {!!currentUserId && !isSelf && (
-                <div className="mt-1">
-                  {friendStatus === "none" && (
-                    <button
-                      data-testid="button-add-friend"
-                      disabled={sendRequestMutation.isPending}
-                      onClick={() => sendRequestMutation.mutate()}
-                      className="px-4 py-1.5 rounded-full font-fantasy text-xs tracking-wider transition-all active:scale-95"
-                      style={{
-                        background: "linear-gradient(135deg, #b87d08, #f0c040)",
-                        color: "#0a0600",
-                        border: "none",
-                        boxShadow: "0 2px 12px rgba(240,192,64,0.35)",
-                        opacity: sendRequestMutation.isPending ? 0.6 : 1,
-                      }}
-                    >
-                      {sendRequestMutation.isPending ? "Sending..." : "+ Add Friend"}
-                    </button>
-                  )}
-                  {friendStatus === "pending_sent" && (
-                    <button
-                      data-testid="button-cancel-request"
-                      disabled={cancelRequestMutation.isPending}
-                      onClick={() => cancelRequestMutation.mutate()}
-                      className="px-4 py-1.5 rounded-full font-fantasy text-xs tracking-wider transition-all active:scale-95"
-                      style={{
-                        background: "rgba(240,192,64,0.1)",
-                        color: "#a89058",
-                        border: "1px solid rgba(240,192,64,0.3)",
-                        opacity: cancelRequestMutation.isPending ? 0.6 : 1,
-                      }}
-                    >
-                      {cancelRequestMutation.isPending ? "Cancelling..." : "Request Sent — Cancel"}
-                    </button>
-                  )}
-                  {friendStatus === "pending_received" && (
-                    <button
-                      data-testid="button-accept-request"
-                      disabled={acceptRequestMutation.isPending}
-                      onClick={() => acceptRequestMutation.mutate()}
-                      className="px-4 py-1.5 rounded-full font-fantasy text-xs tracking-wider transition-all active:scale-95"
-                      style={{
-                        background: "linear-gradient(135deg, #1a7a3a, #34a85a)",
-                        color: "#e0ffe8",
-                        border: "none",
-                        boxShadow: "0 2px 12px rgba(52,168,90,0.3)",
-                        opacity: acceptRequestMutation.isPending ? 0.6 : 1,
-                      }}
-                    >
-                      {acceptRequestMutation.isPending ? "Accepting..." : "Accept Friend Request"}
-                    </button>
-                  )}
-                  {friendStatus === "friends" && (
-                    <div
-                      data-testid="text-already-friends"
-                      className="px-4 py-1.5 rounded-full font-fantasy text-xs tracking-wider"
-                      style={{
-                        background: "rgba(52,168,90,0.12)",
-                        color: "#4ade80",
-                        border: "1px solid rgba(52,168,90,0.25)",
-                      }}
-                    >
-                      Friends
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
 
-            {/* Send Message + Send Gift buttons — logged-in users viewing another player */}
-            {!!currentUserId && !isSelf && (
-              <div className="flex flex-col gap-2 w-full">
-                {/* Send Message */}
-                <button
-                  data-testid="button-send-message"
-                  onClick={() => setShowMessageCompose(v => !v)}
-                  className="w-full font-fantasy text-xs tracking-widest rounded-xl py-2.5 transition-all active:scale-95"
-                  style={{
-                    background: "linear-gradient(135deg, rgba(127,191,176,0.12), rgba(80,160,140,0.08))",
-                    border: "1px solid rgba(127,191,176,0.35)",
-                    color: "#7fbfb0",
-                  }}
-                >
-                  Send Message
-                </button>
-
-                {/* Inline compose */}
-                {showMessageCompose && (
-                  <div className="flex flex-col gap-2 w-full">
-                    <textarea
-                      data-testid="input-message-text"
-                      value={messageText}
-                      onChange={e => setMessageText(e.target.value)}
-                      maxLength={300}
-                      rows={3}
-                      placeholder="Write your message..."
-                      className="w-full rounded-xl px-3 py-2 font-fantasy text-xs resize-none"
-                      style={{
-                        background: "rgba(10,8,4,0.7)",
-                        border: "1px solid rgba(127,191,176,0.25)",
-                        color: "#d4c89a",
-                        outline: "none",
-                      }}
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        data-testid="button-cancel-message"
-                        onClick={() => { setShowMessageCompose(false); setMessageText(""); }}
-                        className="flex-1 font-fantasy text-xs rounded-xl py-2 transition-all active:scale-95"
-                        style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "#6a5a4a" }}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        data-testid="button-send-message-confirm"
-                        disabled={!messageText.trim() || sendMessageMutation.isPending}
-                        onClick={() => sendMessageMutation.mutate()}
-                        className="flex-1 font-fantasy text-xs rounded-xl py-2 transition-all active:scale-95"
-                        style={{
-                          background: messageText.trim() ? "linear-gradient(135deg, #1a6a5a, #2a9a7a)" : "rgba(127,191,176,0.08)",
-                          border: "1px solid rgba(127,191,176,0.3)",
-                          color: messageText.trim() ? "#c0ffe0" : "#3a6a5a",
-                          opacity: sendMessageMutation.isPending ? 0.6 : 1,
-                        }}
-                      >
-                        {sendMessageMutation.isPending ? "Sending..." : "Send"}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Send Gift */}
-                <button
-                  data-testid="button-send-gift-open"
-                  onClick={() => setShowGiftModal(true)}
-                  className="w-full font-fantasy text-xs tracking-widest rounded-xl py-2.5 transition-all active:scale-95 flex items-center justify-center gap-2"
-                  style={{
-                    background: "linear-gradient(135deg, rgba(212,160,23,0.14), rgba(160,100,10,0.1))",
-                    border: "1px solid rgba(212,160,23,0.35)",
-                    color: "#f0c040",
-                  }}
-                >
-                  <img src={giftIconImg} alt="" className="w-4 h-4 object-contain" />
-                  Send Gift
-                </button>
+            {/* PvP rank stats — only present when opened from PvP leaderboard. */}
+            {pvpStats && (
+              <div
+                className="rounded-2xl p-3 flex items-stretch justify-around gap-2"
+                style={{
+                  background: "linear-gradient(135deg, rgba(124,58,237,0.18), rgba(40,15,80,0.32))",
+                  border: "1px solid rgba(167,139,250,0.32)",
+                }}
+                data-testid="section-pvp-rank-stats"
+              >
+                <div className="flex flex-col items-center justify-center px-2">
+                  <span className="font-fantasy text-[8px] tracking-[0.18em] uppercase" style={{ color: "#a78bfa" }}>Wins</span>
+                  <span className="font-fantasy text-base font-bold tabular-nums" style={{ color: "#86efac" }} data-testid="text-pvp-wins">
+                    {pvpStats.wins}
+                  </span>
+                </div>
+                <div className="w-px self-stretch" style={{ background: "rgba(167,139,250,0.22)" }} />
+                <div className="flex flex-col items-center justify-center px-2">
+                  <span className="font-fantasy text-[8px] tracking-[0.18em] uppercase" style={{ color: "#a78bfa" }}>Losses</span>
+                  <span className="font-fantasy text-base font-bold tabular-nums" style={{ color: "#fca5a5" }} data-testid="text-pvp-losses">
+                    {pvpStats.losses}
+                  </span>
+                </div>
+                <div className="w-px self-stretch" style={{ background: "rgba(167,139,250,0.22)" }} />
+                <div className="flex flex-col items-center justify-center px-2">
+                  <span className="font-fantasy text-[8px] tracking-[0.18em] uppercase" style={{ color: "#a78bfa" }}>BP</span>
+                  <span className="font-fantasy text-base font-bold tabular-nums" style={{ color: "#fbbf24" }} data-testid="text-pvp-bp">
+                    {Math.max(0, pvpStats.battlePoints)}
+                  </span>
+                </div>
               </div>
             )}
 
-            {/* Divider */}
-            <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(212,160,23,0.25), transparent)" }} />
-
-            {/* Pet House preview + visit button */}
-            <button
-              data-testid="button-visit-pethouse"
-              onClick={() => {
-                onClose();
-                navigate(`/visit/${profile.id}`);
-              }}
-              className="relative w-full rounded-2xl overflow-hidden flex flex-col items-start justify-end"
-              style={{
-                height: 100,
-                border: "1px solid rgba(134,239,172,0.35)",
-                boxShadow: "0 2px 16px rgba(0,0,0,0.5)",
-              }}
-            >
-              <img
-                src={petHouseBg}
-                alt=""
-                className="absolute inset-0 w-full h-full object-cover"
-                style={{ objectPosition: "center 30%" }}
-              />
-              <div
-                className="absolute inset-0"
-                style={{
-                  background: "linear-gradient(to top, rgba(5,18,3,0.82) 0%, rgba(5,18,3,0.25) 60%, transparent 100%)",
-                }}
-              />
-              <div className="relative z-10 px-4 pb-3 flex items-center gap-2">
-                <img src={houseCottageIcon} alt="" className="w-7 h-7 object-contain"
-                  style={{ filter: "drop-shadow(0 0 6px rgba(134,239,172,0.5))" }} />
+            {/* Emblems (badges) — also PvP-only per the spec. */}
+            {pvpStats && badges && badges.length > 0 && (
+              <div className="flex flex-col gap-2">
                 <p
-                  className="font-fantasy text-sm font-semibold tracking-wide"
-                  style={{ color: "#86efac", textShadow: "0 1px 8px rgba(0,0,0,0.9)" }}
+                  className="font-fantasy text-xs tracking-widest uppercase"
+                  style={{ color: "rgba(212,160,23,0.6)" }}
                 >
-                  Visit Pet World
+                  Emblems
                 </p>
+                <div className="flex flex-wrap gap-2">
+                  {badges.map(badge => (
+                    <div
+                      key={badge.id}
+                      data-testid={`badge-${badge.id}`}
+                      className="flex flex-col items-center gap-1"
+                      style={{ width: 56 }}
+                      title={badge.description || badge.name}
+                    >
+                      <div
+                        className="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden"
+                        style={{
+                          background: "linear-gradient(135deg, rgba(40,20,5,0.95), rgba(20,8,0,0.95))",
+                          border: "1.5px solid rgba(240,192,64,0.4)",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
+                        }}
+                      >
+                        {badge.imageUrl ? (
+                          <img src={badge.imageUrl} alt={badge.name} className="w-full h-full object-contain p-1" />
+                        ) : (
+                          <img src={petPawIcon} alt="" style={{ width: 24, height: 24, objectFit: "contain", opacity: 0.55 }} />
+                        )}
+                      </div>
+                      <p
+                        className="font-fantasy text-[8px] text-center leading-tight"
+                        style={{
+                          color: "#a89878",
+                          maxWidth: 56,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {badge.name}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </button>
+            )}
 
-            {/* Active pet */}
+            {/* Visit Pet World — kept because all message/gift interactions
+                now route through the visited player's mailbox. Hidden when
+                viewing your own card (the visit button would just take
+                you to your own house). */}
+            {!isSelf && (
+              <button
+                data-testid="button-visit-pethouse"
+                onClick={() => {
+                  onClose();
+                  navigate(`/visit/${profile.id}`);
+                }}
+                className="relative w-full rounded-2xl overflow-hidden flex flex-col items-start justify-end"
+                style={{
+                  height: 100,
+                  border: "1px solid rgba(134,239,172,0.35)",
+                  boxShadow: "0 2px 16px rgba(0,0,0,0.5)",
+                }}
+              >
+                <img
+                  src={petHouseBg}
+                  alt=""
+                  className="absolute inset-0 w-full h-full object-cover"
+                  style={{ objectPosition: "center 30%" }}
+                />
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    background: "linear-gradient(to top, rgba(5,18,3,0.82) 0%, rgba(5,18,3,0.25) 60%, transparent 100%)",
+                  }}
+                />
+                <div className="relative z-10 px-4 pb-3 flex items-center gap-2">
+                  <img src={houseCottageIcon} alt="" className="w-7 h-7 object-contain"
+                    style={{ filter: "drop-shadow(0 0 6px rgba(134,239,172,0.5))" }} />
+                  <p
+                    className="font-fantasy text-sm font-semibold tracking-wide"
+                    style={{ color: "#86efac", textShadow: "0 1px 8px rgba(0,0,0,0.9)" }}
+                  >
+                    Visit Pet World
+                  </p>
+                </div>
+              </button>
+            )}
+
+            {/* Active companion — Pet's name, level, rarity, ATK/DEF/HP. */}
             <div className="flex flex-col gap-3">
               <p
                 className="font-fantasy text-xs tracking-widest uppercase"
@@ -552,129 +432,9 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose }: Pl
                 </div>
               )}
             </div>
-
-            {/* Badges */}
-            {badges && badges.length > 0 && (
-              <div className="flex flex-col gap-3">
-                <p
-                  className="font-fantasy text-xs tracking-widest uppercase"
-                  style={{ color: "rgba(212,160,23,0.6)" }}
-                >
-                  Badges
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {badges.map(badge => (
-                    <div
-                      key={badge.id}
-                      data-testid={`badge-${badge.id}`}
-                      className="flex flex-col items-center gap-1"
-                      style={{ width: 56 }}
-                      title={badge.description || badge.name}
-                    >
-                      <div
-                        className="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden"
-                        style={{
-                          background: "linear-gradient(135deg, rgba(40,20,5,0.95), rgba(20,8,0,0.95))",
-                          border: "1.5px solid rgba(240,192,64,0.4)",
-                          boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
-                        }}
-                      >
-                        {badge.imageUrl ? (
-                          <img src={badge.imageUrl} alt={badge.name} className="w-full h-full object-contain p-1" />
-                        ) : (
-                          <img src={petPawIcon} alt="" style={{ width: 24, height: 24, objectFit: "contain", opacity: 0.55 }} />
-                        )}
-                      </div>
-                      <p
-                        className="font-fantasy text-[8px] text-center leading-tight"
-                        style={{
-                          color: "#a89878",
-                          maxWidth: 56,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {badge.name}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Accessories */}
-            <div className="flex flex-col gap-3">
-              <p
-                className="font-fantasy text-xs tracking-widest uppercase"
-                style={{ color: "rgba(212,160,23,0.6)" }}
-              >
-                Accessories
-              </p>
-
-              {profile.accessories.length === 0 ? (
-                <div
-                  className="rounded-2xl p-4 flex items-center justify-center"
-                  style={{
-                    background: "rgba(10,6,0,0.6)",
-                    border: "1px dashed rgba(212,160,23,0.15)",
-                  }}
-                >
-                  <p className="font-fantasy text-xs" style={{ color: "rgba(168,152,120,0.5)" }}>
-                    No accessories
-                  </p>
-                </div>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {profile.accessories.map(acc => (
-                    <div
-                      key={acc.inventoryId}
-                      data-testid={`accessory-${acc.inventoryId}`}
-                      className="flex flex-col items-center gap-1"
-                      style={{ width: 56 }}
-                    >
-                      <div
-                        className="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden"
-                        style={{
-                          background: "linear-gradient(135deg, rgba(30,10,50,0.95), rgba(20,5,35,0.95))",
-                          border: "1.5px solid rgba(192,132,252,0.3)",
-                        }}
-                      >
-                        {acc.imageUrl ? (
-                          <img src={acc.imageUrl} alt="" className="w-full h-full object-contain" />
-                        ) : (
-                          <img src={powerupBagIconPDP} alt="" style={{ width: 22, height: 22, objectFit: "contain" }} />
-                        )}
-                      </div>
-                      <p
-                        className="font-fantasy text-[8px] text-center leading-tight"
-                        style={{ color: "#a89878", maxWidth: 56, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-                      >
-                        {acc.name}
-                      </p>
-                      {(acc.atkBoost || acc.defBoost || acc.healthBoost) && (
-                        <p className="font-fantasy text-[7px]" style={{ color: "#86efac" }}>
-                          {acc.atkBoost ? `+${acc.atkBoost}ATK` : ""}{acc.atkBoost && acc.defBoost ? " " : ""}{acc.defBoost ? `+${acc.defBoost}DEF` : ""}{(acc.atkBoost || acc.defBoost) && acc.healthBoost ? " " : ""}{acc.healthBoost ? `+${acc.healthBoost}HP` : ""}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
         )}
       </div>
     </div>
-
-    {showGiftModal && profile && (
-      <SendGiftModal
-        friendId={userId}
-        friendUsername={profile.username}
-        senderCoins={me?.coins ?? 0}
-        onClose={() => setShowGiftModal(false)}
-      />
-    )}
-    </>
   );
 }
