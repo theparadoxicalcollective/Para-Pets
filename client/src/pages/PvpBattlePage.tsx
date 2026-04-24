@@ -282,8 +282,8 @@ export default function PvpBattlePage({
     if (n === 1) return [50];
     if (n === 2) return [35, 65];
     if (n === 3) return [22, 50, 78];
-    if (n === 4) return [15, 38, 62, 85];
-    return [12, 31, 50, 69, 88]; // 5
+    if (n === 4) return [18, 39, 61, 82];
+    return [15, 32, 50, 68, 85]; // 5
   };
   const buildPets = useCallback(() => {
     const inv = myInventory as any[];
@@ -1183,14 +1183,19 @@ export default function PvpBattlePage({
             const sideCount = pet.isPlayer
               ? pets.filter(p => p.isPlayer).length
               : pets.filter(p => !p.isPlayer).length;
-            // Tuned so a 390-px-wide phone never clips edge sprites:
-            //   1 pet  → 220 / 210 (huge focal sprite)
-            //   2 pets → 200 / 190
-            //   3 pets → 180 / 170
-            //   4 pets → 150 / 145
-            //   5 pets → 130 / 125 (a hair larger than the old 140/130)
-            const baseAlly  = sideCount <= 1 ? 220 : sideCount === 2 ? 200 : sideCount === 3 ? 180 : sideCount === 4 ? 150 : 130;
-            const baseEnemy = sideCount <= 1 ? 210 : sideCount === 2 ? 190 : sideCount === 3 ? 170 : sideCount === 4 ? 145 : 125;
+            // Sized so the FULL pet (including transparent padding around
+            // the artwork) reads at roughly the same visual size as the
+            // PvE Murk Cave arena — without using a transform-scale wrapper
+            // (the old ART_SCALE wrapper was misaligning player sprites
+            // and clipping pet parts because the inset:0 was resolving to
+            // the wrong containing block).
+            //   1 pet  → 280 / 270 (huge focal sprite)
+            //   2 pets → 250 / 240
+            //   3 pets → 220 / 210
+            //   4 pets → 190 / 180
+            //   5 pets → 165 / 155
+            const baseAlly  = sideCount <= 1 ? 280 : sideCount === 2 ? 250 : sideCount === 3 ? 220 : sideCount === 4 ? 190 : 165;
+            const baseEnemy = sideCount <= 1 ? 270 : sideCount === 2 ? 240 : sideCount === 3 ? 210 : sideCount === 4 ? 180 : 155;
             const size = pet.isPlayer ? baseAlly : baseEnemy;
             const isHit = !!hitFlash[pet.uid];
             const stars = Math.max(0, Math.min(5, Math.floor(pet.starRarity || 0)));
@@ -1240,13 +1245,19 @@ export default function PvpBattlePage({
                   </div>
                 )}
 
-                {/* Sprite (with hit/dim/glow states). Hovered allies
-                    during a potion drag get a green pulsing ring as a
-                    drop-zone affordance. */}
+                {/* Sprite — same direct-render pattern as the PvE Murk
+                    Cave arena (BattleArena.tsx). The PetAnimatorCanvas is
+                    rendered AT its native `size` so every part fits inside
+                    the canvas's drawing buffer and nothing gets clipped.
+                    The enemy gets a horizontal flip via scaleX(-1) so it
+                    faces the player. The wrapper is `position: relative`
+                    so any absolute children (X_X hit overlay) resolve to
+                    THIS box, not to the outer flex column. */}
                 <div
                   style={{
                     width: size,
                     height: size,
+                    position: "relative",
                     borderRadius: "50%",
                     transform: pet.isPlayer ? undefined : "scaleX(-1)",
                     animation: isHoveredDrop
@@ -1262,52 +1273,28 @@ export default function PvpBattlePage({
                         ? "2px solid rgba(74,222,128,0.85)"
                         : undefined,
                     outlineOffset: 3,
-                    position: "relative",
                   }}
                 >
-                  {/* Pet artwork is rendered scaled-up by ART_SCALE so the
-                      VISIBLE pet (after the asset's transparent padding is
-                      accounted for) reads as the requested `size`. The
-                      bounding box stays at `size` so the HP/mana bar
-                      positioning stays correct. */}
-                  {(() => {
-                    const ART_SCALE = 1.35;
-                    const innerStyle: React.CSSProperties = {
-                      position: "absolute",
-                      inset: 0,
-                      transform: `scale(${ART_SCALE})`,
-                      transformOrigin: "center",
-                      pointerEvents: "none",
-                    };
-                    if (pet.petTemplateId) {
-                      return (
-                        <div style={innerStyle}>
-                          <PetAnimatorCanvas petTemplateId={pet.petTemplateId} size={size} className="w-full h-full" />
-                        </div>
-                      );
-                    }
-                    if (pet.imageUrl) {
-                      return (
-                        <img
-                          src={pet.imageUrl}
-                          style={{
-                            ...innerStyle,
-                            width: size,
-                            height: size,
-                            objectFit: "contain",
-                            filter: pet.isPlayer
-                              ? "drop-shadow(0 0 10px rgba(167,139,250,0.5))"
-                              : "drop-shadow(0 0 10px rgba(239,68,68,0.45))",
-                          }}
-                        />
-                      );
-                    }
-                    return (
-                      <div style={{ ...innerStyle, width: size, height: size, background: pet.isPlayer ? "rgba(100,60,200,0.3)" : "rgba(200,60,60,0.3)", borderRadius: "50%", border: `2px solid ${pet.isPlayer ? "rgba(167,139,250,0.5)" : "rgba(239,68,68,0.5)"}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <img src={petPawIcon} alt="" style={{ width: size * 0.65, height: size * 0.65, objectFit: "contain" }} />
-                      </div>
-                    );
-                  })()}
+                  {pet.petTemplateId ? (
+                    <PetAnimatorCanvas petTemplateId={pet.petTemplateId} size={size} />
+                  ) : pet.imageUrl ? (
+                    <img
+                      src={pet.imageUrl}
+                      alt=""
+                      style={{
+                        width: size,
+                        height: size,
+                        objectFit: "contain",
+                        filter: pet.isPlayer
+                          ? "drop-shadow(0 0 10px rgba(167,139,250,0.5))"
+                          : "drop-shadow(0 0 10px rgba(239,68,68,0.45))",
+                      }}
+                    />
+                  ) : (
+                    <div style={{ width: size, height: size, background: pet.isPlayer ? "rgba(100,60,200,0.3)" : "rgba(200,60,60,0.3)", borderRadius: "50%", border: `2px solid ${pet.isPlayer ? "rgba(167,139,250,0.5)" : "rgba(239,68,68,0.5)"}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <img src={petPawIcon} alt="" style={{ width: size * 0.65, height: size * 0.65, objectFit: "contain" }} />
+                    </div>
+                  )}
                   {isHit && (
                     <div
                       className="absolute inset-0 flex items-center justify-center font-black"
