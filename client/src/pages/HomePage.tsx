@@ -853,15 +853,17 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                         style={{
                           cursor: "pointer",
                           touchAction: "none",
-                          // Lift the pet up a bit so it sits higher on the page;
-                          // using transform (not margin) means surrounding layout
-                          // doesn't shift. Press/circle gestures stack onto the
-                          // same translate.
+                          // Drop the pet DOWN so it stands on the platform
+                          // painted into the background image (the previous
+                          // -40px translate was lifting it off the platform).
+                          // Using transform (not margin) keeps surrounding
+                          // layout from shifting; press/circle gestures stack
+                          // onto the same translate.
                           transform: petCircling
-                            ? "translateY(-40px) scale(1.04, 0.97)"
+                            ? "translateY(80px) scale(1.04, 0.97)"
                             : petPressed
-                              ? "translateY(-40px) scale(0.98, 1.02)"
-                              : "translateY(-40px) scale(1)",
+                              ? "translateY(80px) scale(0.98, 1.02)"
+                              : "translateY(80px) scale(1)",
                           transition: "transform 0.18s ease-out",
                           transformOrigin: "center bottom",
                           // Sit above heart/sparkle bursts and surrounding chrome
@@ -891,11 +893,19 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                         ) : (activePet.hatchedImageUrl || activePet.imageUrl) ? (
                           <div style={{ paddingTop: "13vh", width: "100%" }}>
                             <style>{`
-                              @keyframes petImgIdle {
+                              /* Flying-only idle: gentle bob + breath-scale. */
+                              @keyframes petImgIdleFly {
                                 0%, 100% { transform: scale(1) translateY(0px); filter: brightness(1); }
                                 25% { transform: scale(1.012, 1.018) translateY(-2px); filter: brightness(1.04); }
                                 50% { transform: scale(1.018, 1.025) translateY(-3px); filter: brightness(1.07); }
                                 75% { transform: scale(1.012, 1.018) translateY(-2px); filter: brightness(1.04); }
+                              }
+                              /* Grounded idle: NO translateY — non-flying pets
+                                 must stay planted on the platform. Just a tiny
+                                 breathing scale + brightness pulse. */
+                              @keyframes petImgIdleGround {
+                                0%, 100% { transform: scale(1); filter: brightness(1); }
+                                50% { transform: scale(1.012, 1.018); filter: brightness(1.05); }
                               }
                               @keyframes petImgBlink {
                                 0%, 88%, 100% { opacity: 1; }
@@ -907,7 +917,9 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                               alt={activePet.name}
                               className="w-full max-h-[50vh] object-contain"
                               style={{
-                                animation: "petImgIdle 3.5s ease-in-out infinite, petImgBlink 4s ease-in-out infinite",
+                                animation: activePet.canFly
+                                  ? "petImgIdleFly 3.5s ease-in-out infinite, petImgBlink 4s ease-in-out infinite"
+                                  : "petImgIdleGround 3.5s ease-in-out infinite, petImgBlink 4s ease-in-out infinite",
                                 transformOrigin: "center bottom",
                               }}
                             />
