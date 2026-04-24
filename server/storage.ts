@@ -1886,6 +1886,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllBattleGroupsWithUsers(): Promise<any[]> {
+    // Admin accounts are still excluded from the matchmaking pool — they're
+    // staff-only and shouldn't show up as opponents. Moderators and bots ARE
+    // included so non-mod players can match moderators (within AP band) and
+    // moderators can be matched against bots for testing.
     return db.select({
       userId: pvpBattleGroups.userId,
       petInventoryIds: pvpBattleGroups.petInventoryIds,
@@ -1895,6 +1899,7 @@ export class DatabaseStorage implements IStorage {
       profileImage: users.profileImage,
       isAdmin: users.isAdmin,
       isModerator: users.isModerator,
+      isBot: users.isBot,
     }).from(pvpBattleGroups)
       .innerJoin(users, and(eq(pvpBattleGroups.userId, users.id), eq(users.isAdmin, false)))
       .orderBy(sql`${pvpBattleGroups.updatedAt} desc`);

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface PetPart {
   id: string;
@@ -460,6 +460,27 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   // full 4 s blink cycle so pets don't all blink at the same time.
   const blinkOffset = useRef(`-${(Math.random() * 4).toFixed(2)}s`);
 
+  // When fillContainer is true we let the parent control our footprint and
+  // dynamically measure the actual rendered size, so the pet stays centred
+  // and properly scaled inside arena slots that aren't exactly `size` px.
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const [measuredSize, setMeasuredSize] = useState<number>(size);
+  useEffect(() => {
+    if (!fillContainer) return;
+    const el = wrapperRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      const w = entry.contentRect.width;
+      const h = entry.contentRect.height;
+      const s = Math.min(w, h);
+      if (s > 0) setMeasuredSize((prev) => (Math.abs(prev - s) > 0.5 ? s : prev));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [fillContainer]);
+
   const { data: templateData } = useQuery<{ parts: PetPart[]; facing: string }>({
     queryKey: ["/api/pet-template-parts", petTemplateId],
     queryFn: async () => {
@@ -505,8 +526,9 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   // When fillContainer=false (default), use the old behaviour where large-style
   // pets appear at 30% of the container — matching how PetWorldPage and PvpArena
   // were designed.
-  const innerSize = fillContainer ? size / partScale : size;
-  const innerOffset = fillContainer ? -((innerSize - size) / 2) : 0;
+  const effectiveSize = fillContainer ? measuredSize : size;
+  const innerSize = fillContainer ? effectiveSize / partScale : size;
+  const innerOffset = fillContainer ? -((innerSize - effectiveSize) / 2) : 0;
 
   // Build head groups (each head gets its own associated face parts by proximity)
   const headGroups = buildHeadGroups(viewParts);
@@ -565,8 +587,15 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
 
   return (
     <div
+      ref={wrapperRef}
       className={className}
-      style={{ width: size, height: size, position: "relative", overflow: "visible", ...externalStyle }}
+      style={{
+        width: fillContainer ? "100%" : size,
+        height: fillContainer ? "100%" : size,
+        position: "relative",
+        overflow: "visible",
+        ...externalStyle,
+      }}
       data-testid="pet-animator"
     >
       <style>{ANIMATION_STYLES}</style>

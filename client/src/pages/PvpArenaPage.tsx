@@ -71,6 +71,10 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
   const [tab, setTab] = useState<"lobby" | "group" | "matchmaking" | "battle">("lobby");
   const [battleOpponent, setBattleOpponent] = useState<Opponent | null>(null);
   const [battleToken, setBattleToken] = useState<string | null>(null);
+  // Snapshot of the opponent pool taken the moment the player tapped
+  // Begin Battle. We hand THIS to the matchmaking overlay so the picker
+  // can never disagree with the pre-flight pool check.
+  const [matchmakingPool, setMatchmakingPool] = useState<Opponent[]>([]);
   const [selectedPetIds, setSelectedPetIds] = useState<string[]>([]);
   const [groupSaved, setGroupSaved] = useState(false);
 
@@ -95,7 +99,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
   const { data: battleGroup } = useQuery<any>({ queryKey: ["/api/pvp/battle-group"] });
   // Opponents are always loaded so matchmaking can kick off immediately
   // when the player hits BEGIN BATTLE (no waiting for a second request).
-  const { data: opponents = [] } = useQuery<Opponent[]>({ queryKey: ["/api/pvp/opponents"] });
+  const { data: opponents = [], refetch: refetchOpponents } = useQuery<Opponent[]>({ queryKey: ["/api/pvp/opponents"] });
   // Inventory drives both the pet picker and the potion picker on the
   // single-page lobby, so it's loaded eagerly now (was only loaded for the
   // old "group" tab).
@@ -654,6 +658,25 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                 });
                 return;
               }
+              // Pull a fresh opponent list so we don't drop into matchmaking
+              // with a stale (or empty) pool — that's the most common cause
+              // of the matchmaking overlay silently bouncing back to lobby.
+              const fresh = await refetchOpponents().catch(() => null);
+              const pool = (fresh?.data as Opponent[] | undefined) ?? (opponents as Opponent[]);
+              const usable = (pool ?? []).filter(
+                (o) => o.userId !== me?.id && (o.petInventoryIds?.length ?? 0) > 0,
+              );
+              if (usable.length === 0) {
+                toast({
+                  title: "No opponents available",
+                  description: "Nobody else has a battle group set up yet. Try again soon!",
+                  variant: "destructive",
+                });
+                return;
+              }
+              // Hand the *exact* validated pool to the overlay so the
+              // picker draws from the same list we just confirmed.
+              setMatchmakingPool(usable);
               // Lock in the current team as the player's saved battle group.
               if (selectedPetIds.length > 0) saveBattleGroup.mutate(selectedPetIds);
               // Spend the ticket NOW (on "Begin Battle"), before matchmaking.
@@ -919,7 +942,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
         <PvpMatchmakingOverlay
           me={me}
           myBp={myBp}
-          opponents={opponents as Opponent[]}
+          opponents={matchmakingPool}
           onCancel={() => {
             // Player bailed out before we locked a match. The ticket
             // has already been spent — that's intentional (same as any

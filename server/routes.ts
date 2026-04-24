@@ -5478,7 +5478,12 @@ export async function registerRoutes(
       // so there's always at least a small pool to fight.
       const myGroup = await storage.getBattleGroup(user.id);
       const myPower: number = myGroup?.attackPower ?? 0;
+      const isModerator = !!user.isModerator;
       const inBand = (band: number) => others.filter((g: any) => {
+        // Moderators can match ANY bot regardless of attack power — this
+        // makes it trivial to test PvP balance against scripted opponents
+        // without needing to grind matching gear first.
+        if (isModerator && g.isBot) return true;
         const p = g.attackPower ?? 0;
         if (myPower <= 0) return true; // unranked players can match anyone
         const lo = myPower * (1 - band);
@@ -5488,6 +5493,14 @@ export async function registerRoutes(
       let matched = inBand(0.35);
       if (matched.length < 5) matched = inBand(0.6);
       if (matched.length < 3) matched = others; // last-resort: show everyone
+      // For moderators, ALWAYS guarantee every bot is in the pool so they
+      // can't be filtered out by the band logic above.
+      if (isModerator) {
+        const present = new Set(matched.map((g: any) => g.userId));
+        for (const g of others) {
+          if (g.isBot && !present.has(g.userId)) matched.push(g);
+        }
+      }
       return res.json(matched);
     } catch (err) {
       return res.status(500).json({ message: "Failed to fetch opponents" });

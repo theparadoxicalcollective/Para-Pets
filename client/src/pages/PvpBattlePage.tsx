@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { playHit, playPlayerHurt, playBattleVictory, playDefeat } from "@/lib/sounds";
 import { ArrowLeft, X } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
@@ -608,6 +608,97 @@ export default function PvpBattlePage({
 
   const pendingPet = pendingSkill ? pets.find(p => p.uid === pendingSkill.petUid) : null;
 
+  // ── Potion usage ─────────────────────────────────────────────
+  // The lobby loads potions into `potionInventoryIds`; we keep a
+  // local copy here so that consumed bottles can drop out of the bar
+  // without refetching the server inventory mid-fight.
+  const [potionsRemaining, setPotionsRemaining] = useState<string[]>(potionInventoryIds);
+  useEffect(() => { setPotionsRemaining(potionInventoryIds); }, [potionInventoryIds]);
+
+  const usePotionMutation = useMutation({
+    mutationFn: async (inventoryId: string) => {
+      const res = await apiRequest("POST", "/api/explore/use-potion", { inventoryId });
+      return res.json() as Promise<{ healAmount: number; manaAmount: number; petsRevived: number; potionName: string }>;
+    },
+    onSettled: () => {
+      // Refresh inventory either way so the player's bag is in sync the
+      // next time they open the lobby/picker.
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+    },
+  });
+
+  const consumePotion = useCallback((inventoryId: string) => {
+    if (!battleActiveRef.current) return;
+    const inv = (myInventory as any[]).find((i: any) => (i.inventoryId || i.id) === inventoryId);
+    if (!inv) return;
+    const heal = inv.healthRestored ?? 0;
+    const mana = inv.manaRestored ?? 0;
+    const revives = inv.petsRevived ?? 0;
+    const ps = petsRef.current;
+    const myAlive = ps.filter(p => p.isPlayer && !p.isDead);
+    const myDead = ps.filter(p => p.isPlayer && p.isDead);
+    const active = myAlive.find(p => p.isActive) ?? myAlive[0];
+
+    // Guards mirror the PvE arena: don't waste a potion that does nothing.
+    if (heal > 0 && (!active || active.hp >= active.maxHp)) return;
+    if (mana > 0 && (!active || active.mana >= MAX_MANA)) return;
+    if (revives > 0 && myDead.length === 0) return;
+    if (heal === 0 && mana === 0 && revives === 0) return;
+
+    // Snapshot pre-effect state so we can roll back if the server
+    // refuses the consume (e.g. inventory row already deleted).
+    const rollback: { uid: string; hp: number; mana: number; isDead: boolean }[] = [];
+    const snap = (p: BattlePet) => rollback.push({ uid: p.uid, hp: p.hp, mana: p.mana, isDead: p.isDead });
+
+    if (active && heal > 0) {
+      snap(active);
+      active.hp = Math.min(active.maxHp, active.hp + heal);
+      spawnFloatNum(active.x, active.y - 10, heal, true);
+      spawnSparks(active.x, active.y, ["#4ade80", "#86efac", "#bbf7d0"]);
+    }
+    if (active && mana > 0) {
+      // Avoid double-snapshotting active when both heal and mana > 0.
+      if (!rollback.some(r => r.uid === active.uid)) snap(active);
+      active.mana = Math.min(MAX_MANA, active.mana + mana);
+      spawnSparks(active.x, active.y, ["#a78bfa", "#c4b5fd", "#ddd6fe"]);
+    }
+    if (revives > 0 && myDead.length > 0) {
+      const target = myDead[0];
+      snap(target);
+      target.isDead = false;
+      target.hp = Math.max(1, Math.floor(target.maxHp * 0.5));
+      petsRef.current = [...petsRef.current];
+      setPets([...petsRef.current]);
+      spawnFloatNum(target.x, target.y - 10, target.hp, true);
+      spawnSparks(target.x, target.y, ["#fbbf24", "#fde68a", "#fef3c7"]);
+    }
+
+    setPotionsRemaining(prev => {
+      const idx = prev.indexOf(inventoryId);
+      if (idx < 0) return prev;
+      const next = [...prev];
+      next.splice(idx, 1);
+      return next;
+    });
+
+    usePotionMutation.mutate(inventoryId, {
+      onError: () => {
+        // Server rejected the consume — restore the bottle to the bar
+        // and undo any HP/mana/revive we optimistically applied so the
+        // battle state matches reality.
+        setPotionsRemaining(prev => (prev.includes(inventoryId) ? prev : [...prev, inventoryId]));
+        for (const r of rollback) {
+          const p = petsRef.current.find(x => x.uid === r.uid);
+          if (!p) continue;
+          p.hp = r.hp;
+          p.mana = r.mana;
+          if (r.isDead && !p.isDead) p.isDead = true;
+        }
+        setPets([...petsRef.current]);
+      },
+    });
+  }, [myInventory, spawnFloatNum, spawnSparks, usePotionMutation]);
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col" style={{ fontFamily: "Lora, serif" }}>
       <style>{`
@@ -893,6 +984,46 @@ export default function PvpBattlePage({
               {fn.isHeal ? "+" : ""}{fn.value}{fn.isCrit ? "!" : ""}
             </div>
           ))}
+
+          {/* ── Potion bar ──────────────────────────────────────
+              Tap a bottle to apply its effect to the active pet
+              (heal/mana) or revive the first fallen ally. Bottles
+              vanish from the bar as soon as they're consumed. */}
+          {phase === "battle" && potionsRemaining.length > 0 && (
+            <div
+              className="absolute z-30 flex gap-1.5 pointer-events-auto"
+              style={{ left: 8, bottom: 12 }}
+              data-testid="pvp-potion-bar"
+            >
+              {potionsRemaining.map((invId, i) => {
+                const inv = (myInventory as any[]).find((x: any) => (x.inventoryId || x.id) === invId);
+                if (!inv) return null;
+                const isMana = (inv.manaRestored ?? 0) > 0;
+                const isRevive = (inv.petsRevived ?? 0) > 0;
+                return (
+                  <button
+                    key={`${invId}-${i}`}
+                    data-testid={`button-pvp-potion-${i}`}
+                    onPointerDown={(e) => { e.stopPropagation(); consumePotion(invId); }}
+                    className="w-11 h-11 rounded-lg flex items-center justify-center active:scale-90 transition-transform"
+                    style={{
+                      background: isRevive
+                        ? "rgba(251,191,36,0.18)"
+                        : isMana
+                          ? "rgba(124,58,237,0.22)"
+                          : "rgba(34,197,94,0.20)",
+                      border: `1px solid ${isRevive ? "rgba(251,191,36,0.55)" : isMana ? "rgba(167,139,250,0.55)" : "rgba(34,197,94,0.55)"}`,
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+                    }}
+                  >
+                    {inv.imageUrl
+                      ? <img src={inv.imageUrl} alt={inv.name} style={{ width: 32, height: 32, objectFit: "contain" }} />
+                      : <span className="text-white text-sm font-black">{isRevive ? "R" : isMana ? "M" : "H"}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {/* Hint (only when not in skill mode) */}
           {phase === "battle" && !pendingSkill && (
