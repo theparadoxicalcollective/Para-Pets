@@ -1586,6 +1586,7 @@ export async function registerRoutes(
         manaRestored: shopItem?.manaRestored ?? null,
         petsRevived: shopItem?.petsRevived ?? null,
         petTemplateId: shopItem?.petTemplateId || null,
+        canFly: (shopItem as any)?.canFly ?? false,
         petNickname: inv.petNickname || null,
         hatchStartedAt: inv.hatchStartedAt,
         isHatched: inv.isHatched,

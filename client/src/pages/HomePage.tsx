@@ -52,6 +52,7 @@ interface InventoryItem {
   eggImageUrl: string | null;
   hatchedImageUrl: string | null;
   petTemplateId: string | null;
+  canFly?: boolean;
   petNickname: string | null;
   hatchStartedAt: string | null;
   isHatched: boolean;
@@ -825,19 +826,41 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                         style={{
                           cursor: "pointer",
                           touchAction: "none",
+                          // Lift the pet up a bit so it sits higher on the page;
+                          // using transform (not margin) means surrounding layout
+                          // doesn't shift. Press/circle gestures stack onto the
+                          // same translate.
                           transform: petCircling
-                            ? "scale(1.04, 0.97)"
+                            ? "translateY(-40px) scale(1.04, 0.97)"
                             : petPressed
-                              ? "scale(0.98, 1.02)"
-                              : "scale(1)",
+                              ? "translateY(-40px) scale(0.98, 1.02)"
+                              : "translateY(-40px) scale(1)",
                           transition: "transform 0.18s ease-out",
                           transformOrigin: "center bottom",
+                          // Sit above heart/sparkle bursts and surrounding chrome
+                          // so the float animation never appears clipped.
+                          position: "relative",
+                          zIndex: 520,
                         }}
                         className="w-full flex items-center justify-center"
                         data-testid="button-open-pet-actions"
                       >
+                        <style>{`
+                          @keyframes activePetFloat {
+                            0%, 100% { transform: translateY(0px); }
+                            50% { transform: translateY(-14px); }
+                          }
+                        `}</style>
                         {activePet.petTemplateId ? (
-                          <PetAnimator petTemplateId={activePet.petTemplateId} mode="idle" view="front" size={1000} expression={petCircling ? "petted" : "neutral"} className="w-full" style={{ aspectRatio: "1/1" }} />
+                          <div
+                            className="w-full"
+                            style={{
+                              animation: activePet.canFly ? "activePetFloat 3.6s ease-in-out infinite" : undefined,
+                              willChange: activePet.canFly ? "transform" : undefined,
+                            }}
+                          >
+                            <PetAnimator petTemplateId={activePet.petTemplateId} mode="idle" view="front" size={1000} expression={petCircling ? "petted" : "neutral"} className="w-full" style={{ aspectRatio: "1/1" }} />
+                          </div>
                         ) : (activePet.hatchedImageUrl || activePet.imageUrl) ? (
                           <div style={{ paddingTop: "13vh", width: "100%" }}>
                             <style>{`

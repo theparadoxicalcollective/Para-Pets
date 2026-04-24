@@ -314,13 +314,17 @@
 }
 
 @keyframes pet-idle-bounce {
-  0%,  100% { transform: scaleY(1)     scaleX(1);     }
-  50%        { transform: scaleY(0.965) scaleX(1.018); }
+  0%   { transform: scaleY(1)      scaleX(1); }
+  25%  { transform: scaleY(0.985)  scaleX(1.008); }
+  50%  { transform: scaleY(0.965)  scaleX(1.018); }
+  75%  { transform: scaleY(0.985)  scaleX(1.008); }
+  100% { transform: scaleY(1)      scaleX(1); }
 }
 
 .pet-idle-squish {
-  animation: pet-idle-bounce 3.5s ease-in-out infinite;
+  animation: pet-idle-bounce 3.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
   transform-origin: center bottom;
+  will-change: transform;
 }
 
 @keyframes feed-float-up {
@@ -383,12 +387,14 @@
 
 /* Care page — circular petting motion. Squished + a small affectionate bounce. */
 @keyframes pet-care-squish-bounce {
-  0%   { transform: scaleY(0.94) scaleX(1.04) translateY(2px); }
-  50%  { transform: scaleY(0.96) scaleX(1.03) translateY(-1.5px); }
-  100% { transform: scaleY(0.94) scaleX(1.04) translateY(2px); }
+  0%   { transform: scaleY(0.94)  scaleX(1.04)  translateY(2px); }
+  25%  { transform: scaleY(0.95)  scaleX(1.035) translateY(0.25px); }
+  50%  { transform: scaleY(0.96)  scaleX(1.03)  translateY(-1.5px); }
+  75%  { transform: scaleY(0.95)  scaleX(1.035) translateY(0.25px); }
+  100% { transform: scaleY(0.94)  scaleX(1.04)  translateY(2px); }
 }
 .pet-care-squish-bounce {
-  animation: pet-care-squish-bounce 0.95s ease-in-out infinite;
+  animation: pet-care-squish-bounce 1.05s cubic-bezier(0.45, 0, 0.55, 1) infinite;
   transform-origin: center bottom;
   will-change: transform;
 }

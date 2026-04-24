@@ -176,42 +176,60 @@ const ANIMATION_STYLES = `
     0%, 100% { opacity: 1; }
   }
   @keyframes petIdleHead {
-    0%, 100% { transform: translateY(0px); }
-    25%       { transform: translateY(-1.5px); }
-    50%       { transform: translateY(-2.5px); }
-    75%       { transform: translateY(-1.5px); }
+    0%   { transform: translateY(0px); }
+    25%  { transform: translateY(-1.4px); }
+    50%  { transform: translateY(-2.4px); }
+    75%  { transform: translateY(-1.4px); }
+    100% { transform: translateY(0px); }
   }
   @keyframes petIdleLeftEar {
-    0%, 100% { transform: rotate(0deg); }
-    40% { transform: rotate(-1deg); }
-    70% { transform: rotate(0.5deg); }
+    0%   { transform: rotate(0deg); }
+    25%  { transform: rotate(-1.2deg); }
+    50%  { transform: rotate(-0.4deg); }
+    75%  { transform: rotate(0.6deg); }
+    100% { transform: rotate(0deg); }
   }
   @keyframes petIdleRightEar {
-    0%, 100% { transform: rotate(0deg); }
-    40% { transform: rotate(1deg); }
-    70% { transform: rotate(-0.5deg); }
+    0%   { transform: rotate(0deg); }
+    25%  { transform: rotate(1.2deg); }
+    50%  { transform: rotate(0.4deg); }
+    75%  { transform: rotate(-0.6deg); }
+    100% { transform: rotate(0deg); }
   }
   @keyframes petIdleLeftArm {
-    0%, 100% { transform: rotate(0deg); }
-    50% { transform: rotate(3deg); }
+    0%   { transform: rotate(0deg); }
+    25%  { transform: rotate(1.5deg); }
+    50%  { transform: rotate(3deg); }
+    75%  { transform: rotate(1.5deg); }
+    100% { transform: rotate(0deg); }
   }
   @keyframes petIdleRightArm {
-    0%, 100% { transform: rotate(0deg); }
-    50% { transform: rotate(-2deg); }
+    0%   { transform: rotate(0deg); }
+    25%  { transform: rotate(-1deg); }
+    50%  { transform: rotate(-2deg); }
+    75%  { transform: rotate(-1deg); }
+    100% { transform: rotate(0deg); }
   }
   @keyframes petIdleBody {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.01, 1.02); }
+    0%   { transform: scale(1, 1); }
+    25%  { transform: scale(1.005, 1.01); }
+    50%  { transform: scale(1.01, 1.02); }
+    75%  { transform: scale(1.005, 1.01); }
+    100% { transform: scale(1, 1); }
   }
   @keyframes petIdleLeftWing {
-    0%, 100% { transform: rotate(0deg); }
-    40% { transform: rotate(-3deg); }
-    70% { transform: rotate(1.5deg); }
+    0%   { transform: rotate(0deg); }
+    25%  { transform: rotate(-4deg); }
+    50%  { transform: rotate(-1.5deg); }
+    75%  { transform: rotate(2.5deg); }
+    100% { transform: rotate(0deg); }
   }
   @keyframes petIdleRightWing {
-    0%, 100% { transform: rotate(0deg); }
-    40% { transform: rotate(3deg); }
-    70% { transform: rotate(-1.5deg); }
+    0%   { transform: rotate(0deg); }
+    25%  { transform: rotate(4deg); }
+    50%  { transform: rotate(1.5deg); }
+    75%  { transform: rotate(-2.5deg); }
+    100% { transform: rotate(0deg); }
   }
   @keyframes petIdleLeftLeg {
     0%, 100% { transform: translateY(0px); }
