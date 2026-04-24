@@ -773,7 +773,16 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                   <p className="font-fantasy text-[#7fbfb0] text-xs tracking-wider">Summoning companion...</p>
                 </div>
               ) : activePet ? (
-                <div className="relative w-full animate-float flex flex-col items-center" data-testid="display-active-pet">
+                // NOTE: NO `animate-float` here. The wrapper used to ride
+                // the global 6px float keyframe, which lifted the entire
+                // active pet — flying or not — so even ground species
+                // looked like they were hovering off the platform. The
+                // PetAnimator already chooses between IDLE_ANIMATIONS
+                // (canFly: head bobs up/down) and IDLE_ANIMATIONS_GROUND
+                // (rotate-only head) based on the template's canFly
+                // flag, so per-pet motion is correct without this outer
+                // float. Don't add it back.
+                <div className="relative w-full flex flex-col items-center" data-testid="display-active-pet">
                   {/* Subtle gold glow under/behind pet for rarity 3+ */}
                   {(activePet.rarity || 0) >= 3 && (
                     <div style={{

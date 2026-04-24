@@ -7,6 +7,18 @@ const { Pool } = pg;
 const connectionString =
   process.env.RAILWAY_DATABASE_URL || process.env.DATABASE_URL;
 
+// Loud startup log so we can always tell from the workflow output which
+// Postgres the app is talking to. Railway is the canonical game DB;
+// Replit's DATABASE_URL is only a fallback for offline coding.
+const usingRailway = !!process.env.RAILWAY_DATABASE_URL;
+const dbHost = (() => {
+  try { return connectionString ? new URL(connectionString).host : "(no DATABASE_URL set)"; }
+  catch { return "(unparseable)"; }
+})();
+console.log(
+  `[db] Using ${usingRailway ? "RAILWAY" : "REPLIT (fallback)"} Postgres → ${dbHost}`
+);
+
 // Railway / most managed Postgres providers terminate TLS at the proxy and
 // present a self-signed chain, so we enable SSL but skip strict verification.
 // Local dev (Replit's Neon-backed DB or a docker postgres) usually exposes a

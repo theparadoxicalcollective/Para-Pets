@@ -364,17 +364,23 @@ const ANIMATION_STYLES = `
     50% { transform: translateY(1.5px); }
   }
   /* Tail rotates only — no translateY — so it stays anchored to the body
-     instead of drifting up and away from it. */
+     instead of drifting up and away from it. The explicit 50% keyframe
+     means each quarter-cycle covers exactly the same angular distance,
+     so the motion reads as a smooth sine wave instead of the lopsided
+     "fast-through-zero" wiggle the previous 4-keyframe version made. */
   @keyframes petIdleTail {
     0%, 100% { transform: rotate(0deg); }
-    25% { transform: rotate(-1.2deg); }
-    75% { transform: rotate(1.2deg); }
+    25%      { transform: rotate(-1.2deg); }
+    50%      { transform: rotate(0deg); }
+    75%      { transform: rotate(1.2deg); }
   }
   /* Ground (non-flying) head: a small left/right tilt instead of an upward
-     bob, so the pet doesn't read as "floating off the ground". */
+     bob, so the pet doesn't read as "floating off the ground". Same 50%
+     keyframe smoothing as the tail above. */
   @keyframes petIdleHeadGround {
     0%, 100% { transform: rotate(0deg); }
     25%      { transform: rotate(-0.6deg); }
+    50%      { transform: rotate(0deg); }
     75%      { transform: rotate(0.6deg); }
   }
 

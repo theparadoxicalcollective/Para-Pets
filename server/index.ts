@@ -136,7 +136,12 @@ app.use(
     store: new PgSession({
       pool,
       tableName: "session",
-      createTableIfMissing: false,
+      // Auto-create the `session` table on first boot. Required when
+      // pointing at a fresh Railway database (or any new Postgres
+      // instance) — otherwise the very first request blows up with
+      // `relation "session" does not exist` and the app appears to
+      // never load. Idempotent on subsequent boots.
+      createTableIfMissing: true,
     }),
     secret: sessionSecret || "para-pets-dev-only-secret",
     resave: false,
