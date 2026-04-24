@@ -75,6 +75,11 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
   // Begin Battle. We hand THIS to the matchmaking overlay so the picker
   // can never disagree with the pre-flight pool check.
   const [matchmakingPool, setMatchmakingPool] = useState<Opponent[]>([]);
+  // Centered alert modal — used for the high-stakes "can't begin battle"
+  // failures (no pets, no tickets, no opponents). Toasts show as a thin
+  // red bar on mobile that the player can easily miss; this modal is
+  // unmissable.
+  const [alertModal, setAlertModal] = useState<{ title: string; message: string } | null>(null);
   const [selectedPetIds, setSelectedPetIds] = useState<string[]>([]);
   const [groupSaved, setGroupSaved] = useState(false);
 
@@ -641,20 +646,19 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
             onClick={async () => {
               const hasPets = selectedPetIds.length > 0 || (battleGroup?.petInventoryIds?.length ?? 0) > 0;
               if (!hasPets) {
-                toast({
+                setAlertModal({
                   title: "Pick at least one pet",
-                  description: "Select pets above to send into battle.",
-                  variant: "destructive",
+                  message: "Select pets above to send into battle.",
                 });
                 return;
               }
-              // Make sure the server's ticket count is current before spending.
+              // Make sure the server's ticket count is current before promising
+              // the player a battle.
               await refetchTickets().catch(() => {});
               if (ticketCount <= 0) {
-                toast({
+                setAlertModal({
                   title: "Out of PvP tickets",
-                  description: "You need a PvP Ticket to enter the Veridia Arena. Visit the shop to grab more!",
-                  variant: "destructive",
+                  message: "You need a PvP Ticket to enter the Veridia Arena. Visit the shop to grab more!",
                 });
                 return;
               }
@@ -667,10 +671,9 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                 (o) => o.userId !== me?.id && (o.petInventoryIds?.length ?? 0) > 0,
               );
               if (usable.length === 0) {
-                toast({
+                setAlertModal({
                   title: "No opponents available",
-                  description: "Nobody else has a battle group set up yet. Try again soon!",
-                  variant: "destructive",
+                  message: "Nobody else has a battle group set up yet. Try again in a little while!",
                 });
                 return;
               }
@@ -679,19 +682,10 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
               setMatchmakingPool(usable);
               // Lock in the current team as the player's saved battle group.
               if (selectedPetIds.length > 0) saveBattleGroup.mutate(selectedPetIds);
-              // Spend the ticket NOW (on "Begin Battle"), before matchmaking.
-              try {
-                const started = await startBattle.mutateAsync();
-                setBattleToken(started.battleToken);
-              } catch (err: any) {
-                toast({
-                  title: "Out of PvP tickets",
-                  description: "Couldn't start the match. Try again once you have a PvP Ticket.",
-                  variant: "destructive",
-                });
-                queryClient.invalidateQueries({ queryKey: ["/api/pvp/tickets"] });
-                return;
-              }
+              // NOTE: We do NOT spend the ticket here. The ticket is
+              // consumed inside `onMatchConfirmed` once a real opponent has
+              // been locked in — that way cancelling the matchmaking
+              // overlay never burns a ticket the player didn't use.
               setTab("matchmaking");
             }}
             className="w-full flex items-center justify-center gap-3 rounded-xl py-3.5 transition-all active:scale-95"
@@ -944,17 +938,80 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
           myBp={myBp}
           opponents={matchmakingPool}
           onCancel={() => {
-            // Player bailed out before we locked a match. The ticket
-            // has already been spent — that's intentional (same as any
-            // arcade coin) — but we still return to the lobby cleanly.
+            // Player bailed out before we locked a match. Because we
+            // defer ticket spending until `onMatchConfirmed`, no ticket
+            // is consumed when the overlay is cancelled.
             setTab("lobby");
             setBattleToken(null);
           }}
-          onMatchConfirmed={(opp) => {
-            setBattleOpponent(opp);
-            setTab("battle");
+          onMatchConfirmed={async (opp) => {
+            // Spend the ticket here, the moment we know an opponent has
+            // been locked in. If the spend fails (no tickets, network
+            // error, etc.) we surface it as a centered modal and bounce
+            // back to the lobby instead of starting a free battle.
+            try {
+              const started = await startBattle.mutateAsync();
+              setBattleToken(started.battleToken);
+              setBattleOpponent(opp);
+              setTab("battle");
+            } catch (err: any) {
+              setTab("lobby");
+              setAlertModal({
+                title: "Couldn't start the match",
+                message:
+                  "Your PvP Ticket couldn't be spent. Please make sure you still have a ticket and try again.",
+              });
+              queryClient.invalidateQueries({ queryKey: ["/api/pvp/tickets"] });
+            }
           }}
         />
+      )}
+
+      {/* ── Alert modal (centered, unmissable) ──────────────────────
+          Replaces the thin red toast for the high-stakes Begin-Battle
+          checks. Tap anywhere outside or the OK button to dismiss. */}
+      {alertModal && (
+        <div
+          className="absolute inset-0 z-[80] flex items-center justify-center px-6"
+          style={{ background: "rgba(0,0,0,0.78)", backdropFilter: "blur(4px)" }}
+          onClick={() => setAlertModal(null)}
+          data-testid="modal-pvp-alert"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-xs rounded-2xl p-6 text-center"
+            style={{
+              background: "linear-gradient(180deg, #1a1230 0%, #0a0814 100%)",
+              border: "1px solid rgba(167,139,250,0.35)",
+              boxShadow: "0 18px 50px rgba(0,0,0,0.6), 0 0 28px rgba(167,139,250,0.15)",
+            }}
+          >
+            <div
+              className="text-[13px] tracking-[0.22em] font-black mb-3 text-amber-200"
+              style={{ textShadow: "0 0 14px rgba(251,191,36,0.35)" }}
+              data-testid="text-pvp-alert-title"
+            >
+              {alertModal.title}
+            </div>
+            <div
+              className="text-white/80 text-[13px] leading-relaxed mb-6"
+              data-testid="text-pvp-alert-message"
+            >
+              {alertModal.message}
+            </div>
+            <button
+              onClick={() => setAlertModal(null)}
+              data-testid="button-pvp-alert-dismiss"
+              className="w-full rounded-xl py-3 text-amber-100 text-[12px] tracking-[0.22em] font-bold active:scale-95"
+              style={{
+                background: "linear-gradient(180deg, rgba(60,40,90,0.9) 0%, rgba(30,20,55,0.95) 100%)",
+                border: "1px solid rgba(167,139,250,0.45)",
+              }}
+            >
+              GOT IT
+            </button>
+          </div>
+        </div>
       )}
 
       {/* ── Opponents List (legacy manual picker, kept for admins) ─── */}
