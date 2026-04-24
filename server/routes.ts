@@ -3610,22 +3610,26 @@ export async function registerRoutes(
 
       let imageUrl: string | null = null;
       if (imageData) {
-        try { imageUrl = await processShopItemImage(imageData); } catch (e) { console.error("Image error:", e); }
+        try { imageUrl = await processShopItemImage(imageData); }
+        catch (e) { console.error("Image error:", e); return res.status(400).json({ message: "Failed to process item image. Please try a different file." }); }
       }
 
       let eggImageUrl: string | null = null;
       if (eggImageData) {
-        try { eggImageUrl = await processShopItemImage(eggImageData); } catch (e) { console.error("Egg image error:", e); }
+        try { eggImageUrl = await processShopItemImage(eggImageData); }
+        catch (e) { console.error("Egg image error:", e); return res.status(400).json({ message: "Failed to process egg image. Please try a different file." }); }
       }
 
       let hatchedImageUrl: string | null = null;
       if (hatchedImageData) {
-        try { hatchedImageUrl = await processShopItemImage(hatchedImageData); } catch (e) { console.error("Hatched image error:", e); }
+        try { hatchedImageUrl = await processShopItemImage(hatchedImageData); }
+        catch (e) { console.error("Hatched image error:", e); return res.status(400).json({ message: "Failed to process hatched image. Please try a different file." }); }
       }
 
       let hooklessImageUrl: string | null = null;
       if (hooklessImageData) {
-        try { hooklessImageUrl = await processShopItemImage(hooklessImageData); } catch (e) { console.error("Hookless image error:", e); }
+        try { hooklessImageUrl = await processShopItemImage(hooklessImageData); }
+        catch (e) { console.error("Hookless image error:", e); return res.status(400).json({ message: "Failed to process hookless image. Please try a different file." }); }
       }
 
       const item = await storage.createShopItem({ ...parse.data, imageUrl, eggImageUrl, hatchedImageUrl, hooklessImageUrl });
@@ -3641,16 +3645,20 @@ export async function registerRoutes(
       const { imageData, eggImageData, hatchedImageData, hooklessImageData, ...updateData } = req.body;
 
       if (imageData) {
-        try { updateData.imageUrl = await processShopItemImage(imageData); } catch (e) { console.error("Image error:", e); }
+        try { updateData.imageUrl = await processShopItemImage(imageData); }
+        catch (e) { console.error("Image error:", e); return res.status(400).json({ message: "Failed to process item image. Existing image was kept; please try a different file." }); }
       }
       if (eggImageData) {
-        try { updateData.eggImageUrl = await processShopItemImage(eggImageData); } catch (e) { console.error("Egg image error:", e); }
+        try { updateData.eggImageUrl = await processShopItemImage(eggImageData); }
+        catch (e) { console.error("Egg image error:", e); return res.status(400).json({ message: "Failed to process egg image. Existing image was kept; please try a different file." }); }
       }
       if (hatchedImageData) {
-        try { updateData.hatchedImageUrl = await processShopItemImage(hatchedImageData); } catch (e) { console.error("Hatched image error:", e); }
+        try { updateData.hatchedImageUrl = await processShopItemImage(hatchedImageData); }
+        catch (e) { console.error("Hatched image error:", e); return res.status(400).json({ message: "Failed to process hatched image. Existing image was kept; please try a different file." }); }
       }
       if (hooklessImageData) {
-        try { updateData.hooklessImageUrl = await processShopItemImage(hooklessImageData); } catch (e) { console.error("Hookless image error:", e); }
+        try { updateData.hooklessImageUrl = await processShopItemImage(hooklessImageData); }
+        catch (e) { console.error("Hookless image error:", e); return res.status(400).json({ message: "Failed to process hookless image. Existing image was kept; please try a different file." }); }
       }
 
       const updated = await storage.updateShopItem((req.params.itemId as string), updateData);
@@ -3933,7 +3941,11 @@ export async function registerRoutes(
         updates.bossSpecialAttack = (updates.isBoss !== false && validSpecials.includes(bossSpecialAttack)) ? bossSpecialAttack : null;
       }
       if (imageData) {
-        try { updates.imageUrl = await processWorldImage(imageData, 1000); } catch (e) { console.error("Enemy image error:", e); }
+        try { updates.imageUrl = await processWorldImage(imageData, 1000); }
+        catch (e) {
+          console.error("Enemy image error:", e);
+          return res.status(400).json({ message: "Failed to process enemy image. Existing image was kept; please try a different file." });
+        }
       }
       const enemy = await storage.updateLocationEnemy(enemyId, updates);
       return res.json(enemy);
