@@ -32,11 +32,6 @@ interface BattlePet {
   specialSkillType: string | null;
   skillDamagePercent: number | null;
   skillHealPercent: number | null;
-  /** Generic skill router fields (admin-configurable). When present, these
-   *  drive the cast routing instead of the legacy hardcoded skill names —
-   *  this matches how PvE BattleArena resolves specials. */
-  skillType: string | null;       // "damage" | "heal" | "revive" | "poison"
-  skillAffects: string | null;    // "self" | "party" | "enemy" | "enemy_party"
   isPlayer: boolean;
   /** Slot index 0..4 — for allies it pins them to a fixed bottom slot;
    *  for enemies it fixes their float anchor across the top. */
@@ -108,46 +103,14 @@ function hpColor(pct: number) {
   return "#f87171";
 }
 
-/** Pet has SOME castable special — covers admin-defined generic skills
- *  (skillType set) AND legacy named skills (specialSkill/Type set). */
-function petHasSkill(pet: { specialSkill?: string | null; specialSkillType?: string | null; skillType?: string | null }): boolean {
-  return !!(pet.skillType || pet.specialSkillType || pet.specialSkill);
-}
-
-/** Resolve the effective routing for a pet's special. Handles BOTH the new
- *  generic system (skillType + skillAffects, set in Admin) AND the legacy
- *  hardcoded skill-name system. Returns the same shape used by `fireSkill`
- *  so PvP behaves like PvE for the same configured pet. */
-function resolveSkillRouting(pet: { specialSkill?: string | null; specialSkillType?: string | null; skillType?: string | null; skillAffects?: string | null }): { type: "damage" | "heal" | "revive" | "poison"; affects: "self" | "party" | "enemy" | "enemy_party" } | null {
-  if (!petHasSkill(pet)) return null;
-  // Generic system wins when admin set it explicitly.
-  if (pet.skillType) {
-    const t = pet.skillType as "damage" | "heal" | "revive" | "poison";
-    const fallbackAffects = (t === "heal" || t === "revive") ? "self" : "enemy";
-    return {
-      type: t,
-      affects: (pet.skillAffects as any) ?? fallbackAffects,
-    };
-  }
-  // Legacy named skills — keep old behavior so existing pets don't break.
-  const name = pet.specialSkillType || pet.specialSkill || "";
-  switch (name) {
-    case "Lazer":       return { type: "damage", affects: "enemy" };
-    case "Bubble":      return { type: "damage", affects: "enemy_party" };
-    case "Heal Self":   return { type: "heal",   affects: "self" };
-    case "Heal Party":  return { type: "heal",   affects: "party" };
-    case "Poison":      return { type: "poison", affects: "enemy" };
-    case "Revive Party":return { type: "revive", affects: "party" };
-    default:            return { type: "damage", affects: "enemy" };
-  }
-}
-
-function skillMode(pet: { specialSkill?: string | null; specialSkillType?: string | null; skillType?: string | null; skillAffects?: string | null }): SkillMode {
-  const r = resolveSkillRouting(pet);
-  if (!r) return "auto";
-  // Only single-target enemy casts need the player to pick a target.
-  if (r.affects === "enemy") return "needs-enemy";
+function skillMode(skill: string | null): SkillMode {
+  if (!skill) return "auto";
+  if (skill === "Lazer" || skill === "Poison") return "needs-enemy";
   return "auto";
+}
+
+function effectiveSkillType(pet: BattlePet): string | null {
+  return pet.specialSkillType || pet.specialSkill;
 }
 
 let _uid = 0;
@@ -270,41 +233,23 @@ export default function PvpBattlePage({
   });
 
   // ── Build pets ──────────────────────────────────────────────
-  // Allies stand still across the BOTTOM (y=74%). Enemies float across
-  // the TOP (y=20%) with per-pet sine offsets so the swarm undulates
-  // instead of marching in lock-step. Slot X positions are spread
-  // EVENLY based on how many pets are actually on each side — with
-  // only 1–3 pets the old 12/31/50/69/88 layout dumped them on the
-  // left edge of the arena while the other half showed all 5 slots,
-  // which is the "battles look glitchy" feel.
-  const slotsXFor = (n: number): number[] => {
-    if (n <= 0) return [];
-    if (n === 1) return [50];
-    if (n === 2) return [35, 65];
-    if (n === 3) return [22, 50, 78];
-    if (n === 4) return [15, 38, 62, 85];
-    return [12, 31, 50, 69, 88]; // 5
-  };
+  // Allies get fixed slot positions across the BOTTOM (y=72%); they
+  // never move. Enemies get a float anchor across the TOP (y=22%) +
+  // a per-pet sine offset so the swarm undulates instead of marching
+  // in a straight line — that's the Murk-Cave feel.
   const buildPets = useCallback(() => {
     const inv = myInventory as any[];
+    const allySlotsX = [12, 31, 50, 69, 88];
+    const allySlotY = 72;
+    const enemySlotsX = [12, 31, 50, 69, 88];
+    const enemySlotY = 22;
 
-    // Resolve actual ally inventory entries first so we can size their
-    // slot row to the real count (skips ids we couldn't resolve).
-    const myEntries = myPetIds
-      .map((id) => ({ id, inv: inv.find((it: any) => (it.inventoryId || it.id) === id) }))
-      .filter((e) => !!e.inv);
-    const allySlotsX = slotsXFor(myEntries.length);
-    const allySlotY = 74;
-
-    const oppEntries = (oppPets as any[]).slice(0, 5);
-    const enemySlotsX = slotsXFor(oppEntries.length);
-    const enemySlotY = 20;
-
-    const myPets: BattlePet[] = myEntries.map((e, i) => {
-      const invItem = e.inv;
+    const myPets: BattlePet[] = myPetIds.map((id, i) => {
+      const invItem = inv.find((it: any) => (it.inventoryId || it.id) === id);
+      if (!invItem) return null;
       const slotX = allySlotsX[i] ?? 50;
       return {
-        uid: nextUid(), invId: e.id,
+        uid: nextUid(), invId: id,
         name: invItem.petNickname || invItem.name || "Pet",
         imageUrl: invItem.imageUrl ?? null,
         petTemplateId: invItem.petTemplateId ?? null,
@@ -315,8 +260,6 @@ export default function PvpBattlePage({
         specialSkillType: (invItem as any).specialSkillType ?? null,
         skillDamagePercent: (invItem as any).skillDamagePercent ?? null,
         skillHealPercent: (invItem as any).skillHealPercent ?? null,
-        skillType: (invItem as any).skillType ?? null,
-        skillAffects: (invItem as any).skillAffects ?? null,
         isPlayer: true,
         slotIdx: i,
         x: slotX, y: allySlotY,
@@ -324,9 +267,9 @@ export default function PvpBattlePage({
         phase: 0, amp: 0, speed: 0,
         isDead: false, mana: 0,
       } as BattlePet;
-    });
+    }).filter(Boolean) as BattlePet[];
 
-    const oppBattlePets: BattlePet[] = oppEntries.map((p: any, i: number) => {
+    const oppBattlePets: BattlePet[] = (oppPets as any[]).slice(0, 5).map((p: any, i: number) => {
       const baseX = enemySlotsX[i] ?? 50;
       return {
         uid: nextUid(), invId: p.inventoryId || p.id,
@@ -340,17 +283,15 @@ export default function PvpBattlePage({
         specialSkillType: p.specialSkillType ?? null,
         skillDamagePercent: p.skillDamagePercent ?? null,
         skillHealPercent: p.skillHealPercent ?? null,
-        skillType: p.skillType ?? null,
-        skillAffects: p.skillAffects ?? null,
         isPlayer: false,
         slotIdx: i,
         x: baseX, y: enemySlotY,
         baseX, baseY: enemySlotY,
-        // Stagger the sine so the swarm undulates. Amp scales DOWN as
-        // the row gets fuller so neighbors don't overlap on impact —
-        // 5 enemies across 12→88 leaves only ~19% per lane.
+        // Stagger the sine so the swarm undulates instead of moving
+        // in lock-step.  Amplitude ±4% of arena width keeps each foe
+        // inside its own lane so they don't overlap on impact.
         phase: i * 1.2,
-        amp: oppEntries.length >= 4 ? 2.5 : 4,
+        amp: 4,
         speed: 1.1 + (i % 3) * 0.18,
         isDead: false, mana: 0,
       } as BattlePet;
@@ -415,145 +356,73 @@ export default function PvpBattlePage({
   }, []);
 
   // ── Fire a special skill (shared for player & AI) ──────────────
-  // Admin-configured pets store their cast routing in skillType +
-  // skillAffects (matches PvE BattleArena.runPetSkill). Legacy named
-  // skills (Lazer/Bubble/Heal Self/Heal Party/Poison/Revive Party) are
-  // mapped to that routing via resolveSkillRouting() so EVERY pet that
-  // works in PvE also works here, not just the original 5 names.
-  const fireSkill = useCallback((attacker: BattlePet, target: BattlePet | null) => {
-    const routing = resolveSkillRouting(attacker);
-    if (!routing) { attacker.mana = 0; return; }
+  const fireSkill = useCallback((attacker: BattlePet, skill: string, target: BattlePet | null) => {
     attacker.mana = 0;
-
     const ps = petsRef.current;
     const myAlive = ps.filter(p => p.isPlayer && !p.isDead);
     const oppAlive = ps.filter(p => !p.isPlayer && !p.isDead);
-    const myDead = ps.filter(p => p.isPlayer && p.isDead);
-    const oppDead = ps.filter(p => !p.isPlayer && p.isDead);
 
     const applyDef = (raw: number, def: number) =>
       Math.max(1, Math.floor(raw - def * 0.25));
 
-    // Visual sparks tinted by the skill's COSMETIC name (Lazer = gold,
-    // Bubble = blue, ...) when present, else by the skill TYPE.
-    const styleName = attacker.specialSkillType || attacker.specialSkill || "";
-    const sparksByStyle: Record<string, string[]> = {
-      "Lazer":  ["#fbbf24", "#f59e0b", "#fde68a"],
-      "Bubble": ["#60a5fa", "#93c5fd", "#bfdbfe"],
-      "Poison": ["#a3e635", "#84cc16", "#d9f99d"],
-    };
-    const colorsForType: Record<string, string[]> = {
-      damage: ["#f97316", "#fb923c", "#fdba74"],
-      heal:   ["#4ade80", "#86efac", "#bbf7d0"],
-      revive: ["#fbbf24", "#fde68a", "#fef3c7"],
-      poison: ["#a3e635", "#84cc16", "#d9f99d"],
-    };
-    const sparkColors = sparksByStyle[styleName] ?? colorsForType[routing.type] ?? ["#fbbf24", "#f59e0b", "#fde68a"];
+    if (skill === "Lazer" && target) {
+      const mult = attacker.skillDamagePercent ? attacker.skillDamagePercent / 100 : 2.5;
+      const dmg = applyDef(attacker.atk * mult, target.def);
+      target.hp = Math.max(0, target.hp - dmg);
+      spawnFloatNum(target.x, target.y - 10, dmg, false, true);
+      spawnSparks(target.x, target.y, ["#fbbf24", "#f59e0b", "#fde68a"]);
+      flashHit(target.uid);
+      if (target.hp <= 0 && !target.isDead) doKo(target);
 
-    // Damage % defaults by type so unconfigured legacy pets still hit
-    // for sensible numbers. The admin-set value (when present) wins.
-    const dmgPct = (attacker.skillDamagePercent && attacker.skillDamagePercent > 0)
-      ? attacker.skillDamagePercent / 100
-      : (styleName === "Lazer" ? 2.5 : styleName === "Bubble" ? 0.85 : routing.type === "poison" ? 0.14 : 1.5);
-    const healPct = (attacker.skillHealPercent && attacker.skillHealPercent > 0)
-      ? attacker.skillHealPercent / 100
-      : (routing.affects === "party" ? 0.35 : 0.5);
-
-    // Resolve the actual pets the cast lands on, RELATIVE TO ATTACKER.
-    // (AI-cast specials must hit the player's side, not the AI's own.)
-    const enemiesOf = (a: BattlePet) => a.isPlayer ? oppAlive : myAlive;
-    const alliesOf  = (a: BattlePet) => a.isPlayer ? myAlive  : oppAlive;
-    const deadAlliesOf = (a: BattlePet) => a.isPlayer ? myDead : oppDead;
-
-    if (routing.type === "damage") {
-      const targets: BattlePet[] = routing.affects === "enemy_party"
-        ? enemiesOf(attacker)
-        : (target && !target.isDead ? [target] : enemiesOf(attacker).slice(0, 1));
-      const isCrit = routing.affects === "enemy"; // single-target cast = "big hit"
-      targets.forEach(t => {
-        const dmg = applyDef(attacker.atk * dmgPct, t.def);
+    } else if (skill === "Bubble") {
+      const mult = attacker.skillDamagePercent ? attacker.skillDamagePercent / 100 : 0.85;
+      const enemies = attacker.isPlayer ? oppAlive : myAlive;
+      enemies.forEach(t => {
+        const dmg = applyDef(attacker.atk * mult, t.def);
         t.hp = Math.max(0, t.hp - dmg);
-        spawnFloatNum(t.x, t.y - 10, dmg, false, isCrit);
-        spawnSparks(t.x, t.y, sparkColors);
+        spawnFloatNum(t.x, t.y - 8, dmg);
+        spawnSparks(t.x, t.y, ["#60a5fa", "#93c5fd", "#bfdbfe"]);
         flashHit(t.uid);
         if (t.hp <= 0 && !t.isDead) doKo(t);
       });
-      return;
-    }
 
-    if (routing.type === "heal") {
-      const targets: BattlePet[] = routing.affects === "party"
-        ? alliesOf(attacker)
-        : [attacker];
-      targets.forEach(p => {
-        const heal = Math.max(1, Math.floor(attacker.atk * healPct));
+    } else if (skill === "Heal Self") {
+      const healMult = attacker.skillHealPercent ? attacker.skillHealPercent / 100 : 0.5;
+      const heal = Math.floor(attacker.atk * healMult);
+      attacker.hp = Math.min(attacker.maxHp, attacker.hp + heal);
+      spawnFloatNum(attacker.x, attacker.y - 10, heal, true);
+      spawnSparks(attacker.x, attacker.y, ["#4ade80", "#86efac", "#bbf7d0"]);
+
+    } else if (skill === "Heal Party") {
+      const healMult = attacker.skillHealPercent ? attacker.skillHealPercent / 100 : 0.35;
+      const allies = attacker.isPlayer ? myAlive : oppAlive;
+      allies.forEach(p => {
+        const heal = Math.floor(attacker.atk * healMult);
         p.hp = Math.min(p.maxHp, p.hp + heal);
         spawnFloatNum(p.x, p.y - 10, heal, true);
-        spawnSparks(p.x, p.y, sparkColors);
+        spawnSparks(p.x, p.y, ["#4ade80", "#86efac", "#bbf7d0"]);
       });
-      return;
-    }
 
-    if (routing.type === "revive") {
-      const downed = deadAlliesOf(attacker);
-      if (downed.length === 0) return;
-      const reviveCount = routing.affects === "party" ? downed.length : 1;
-      downed.slice(0, reviveCount).forEach(p => {
-        p.isDead = false;
-        p.hp = Math.max(1, Math.floor(p.maxHp * 0.5));
-        spawnFloatNum(p.x, p.y - 10, p.hp, true);
-        spawnSparks(p.x, p.y, sparkColors);
-      });
-      // Force a re-render of the (now-revived) sprites — KO removed them
-      // from petsRef.current already, so we have to push them back.
-      const revivedUids = new Set(downed.slice(0, reviveCount).map(p => p.uid));
-      const inList = new Set(petsRef.current.map(p => p.uid));
-      const toReadd = downed.slice(0, reviveCount).filter(p => !inList.has(p.uid));
-      if (toReadd.length) {
-        petsRef.current = [...petsRef.current, ...toReadd];
-      }
-      setPets([...petsRef.current]);
-      // Eagerly clear KO overlay for the revived ones.
-      setKoSet(prev => {
-        const n = new Set(prev);
-        for (const u of revivedUids) n.delete(u);
-        return n;
-      });
-      return;
-    }
-
-    if (routing.type === "poison") {
-      // 5 damage-over-time ticks at ~900 ms apart on a single enemy.
-      const victim = (routing.affects === "enemy_party")
-        ? enemiesOf(attacker)[0]
-        : (target && !target.isDead ? target : enemiesOf(attacker)[0]);
-      if (!victim) return;
-      const tickDmg = Math.max(1, applyDef(attacker.atk * dmgPct, victim.def));
-      spawnSparks(victim.x, victim.y, sparkColors);
+    } else if (skill === "Poison" && target) {
       let ticks = 0;
+      const poisonMult = attacker.skillDamagePercent ? attacker.skillDamagePercent / 100 : 0.14;
+      const tickDmg = Math.max(1, Math.floor(attacker.atk * poisonMult));
+      spawnSparks(target.x, target.y, ["#a3e635", "#84cc16", "#d9f99d"]);
       const t = setInterval(() => {
-        if (!battleActiveRef.current || victim.isDead) { clearInterval(t); return; }
+        if (!battleActiveRef.current) { clearInterval(t); return; }
         ticks++;
-        victim.hp = Math.max(0, victim.hp - tickDmg);
-        spawnFloatNum(victim.x, victim.y - 6, tickDmg);
-        if (ticks >= 5 || victim.hp <= 0) {
+        target.hp = Math.max(0, target.hp - tickDmg);
+        spawnFloatNum(target.x, target.y - 6, tickDmg);
+        if (ticks >= 6 || target.hp <= 0) {
           clearInterval(t);
-          if (victim.hp <= 0 && !victim.isDead) doKo(victim);
+          if (target.hp <= 0 && !target.isDead) doKo(target);
         }
       }, 900);
-      return;
     }
   }, [spawnFloatNum, spawnSparks, flashHit, doKo]);
 
   // ── End battle ─────────────────────────────────────────────────
-  // Stored on a ref so the rAF animate loop can call the LATEST version
-  // without taking a dependency on `recordResult` (which is a fresh
-  // useMutation object every render — taking it as a dep tore down and
-  // restarted the animate loop on every state tick, dropping frames and
-  // looking like the battle was "stuttering").
-  const endBattleRef = useRef<(outcome: "win" | "loss") => void>(() => {});
-  endBattleRef.current = (outcome: "win" | "loss") => {
-    if (!battleActiveRef.current) return; // idempotent — guard against double-fire
+  const endBattle = useCallback((outcome: "win" | "loss") => {
     battleActiveRef.current = false;
     cancelAnimationFrame(animFrameRef.current);
     if (outcome === "win") playBattleVictory(); else playDefeat();
@@ -569,8 +438,7 @@ export default function PvpBattlePage({
       : 100;
     const avgLvl = Math.max(1, Math.round(avgHp / 50));
     recordResult.mutate({ result: outcome, opponentLevel: avgLvl });
-  };
-  const endBattle = useCallback((outcome: "win" | "loss") => endBattleRef.current(outcome), []);
+  }, [recordResult]);
 
   // ── Main animate loop ──────────────────────────────────────────
   // Murk-Cave-style: enemies float at top with wave motion, allies
@@ -642,13 +510,14 @@ export default function PvpBattlePage({
         // alive even if no charger has landed yet.
         if (e.mana >= MAX_MANA && (now - (lastAiSkillTime.current[e.uid] || 0)) > 5000) {
           lastAiSkillTime.current[e.uid] = now;
-          if (petHasSkill(e)) {
-            const sMode = skillMode(e);
+          const sk = effectiveSkillType(e);
+          if (sk) {
+            const sMode = skillMode(sk);
             if (sMode === "needs-enemy") {
               const target = myAlive[Math.floor(Math.random() * myAlive.length)];
-              if (target) fireSkill(e, target);
+              if (target) fireSkill(e, sk, target);
             } else {
-              fireSkill(e, null);
+              fireSkill(e, sk, null);
             }
           } else {
             e.mana = 0;
@@ -737,7 +606,7 @@ export default function PvpBattlePage({
         const oppAlive = ps.filter(p => !p.isPlayer && !p.isDead);
         const tapped = oppAlive.find(p => Math.hypot(p.x - pos.x, p.y - pos.y) < 14);
         if (tapped) {
-          fireSkill(skill_pet, tapped);
+          fireSkill(skill_pet, effectiveSkillType(skill_pet)!, tapped);
         }
         setPendingSkill(null); pendingSkillRef.current = null;
         return;
@@ -749,12 +618,13 @@ export default function PvpBattlePage({
     // ─ Tap glowing ally → fire skill ─
     const myAlive = ps.filter(p => p.isPlayer && !p.isDead);
     const tappedSkillReady = myAlive.find(p =>
-      p.mana >= MAX_MANA && petHasSkill(p) && Math.hypot(p.x - pos.x, p.y - pos.y) < 13
+      p.mana >= MAX_MANA && effectiveSkillType(p) && Math.hypot(p.x - pos.x, p.y - pos.y) < 13
     );
     if (tappedSkillReady) {
-      const mode = skillMode(tappedSkillReady);
+      const sk = effectiveSkillType(tappedSkillReady)!;
+      const mode = skillMode(sk);
       if (mode === "auto") {
-        fireSkill(tappedSkillReady, null);
+        fireSkill(tappedSkillReady, sk, null);
       } else {
         const ps2: PendingSkill = { petUid: tappedSkillReady.uid, mode };
         setPendingSkill(ps2); pendingSkillRef.current = ps2;
@@ -1065,7 +935,7 @@ export default function PvpBattlePage({
           style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.3), rgba(167,139,250,0.2))", border: "1px solid rgba(167,139,250,0.4)" }}>
           <span className="text-purple-200 font-bold">{pendingPet.name}</span>
           <span className="text-white/50"> → </span>
-          <span className="text-yellow-300 font-bold">{pendingPet.specialSkill || pendingPet.specialSkillType || "Special"}</span>
+          <span className="text-yellow-300 font-bold">{pendingPet.specialSkill}</span>
           <span className="text-white/40"> · Tap an enemy to target</span>
         </div>
       )}
@@ -1169,40 +1039,15 @@ export default function PvpBattlePage({
             </div>
           )}
 
-          {/* Pets — sprite size scales DOWN as the row gets fuller so
-              edge-slot pets at 12 / 88 % don't clip off the side of the
-              arena on a 390-px phone (5 sprites × 180 px = 900 px, way
-              wider than the viewport). PvE arena uses 230 px because
-              there's only one focal pet; PvP fits up to 5. */}
+          {/* Pets */}
           {pets.filter(p => !p.isDead).map(pet => {
-            const hasSkill = petHasSkill(pet);
-            const isSkillReady = pet.isPlayer && pet.mana >= MAX_MANA && hasSkill;
+            const isSkillReady = pet.isPlayer && pet.mana >= MAX_MANA && !!pet.specialSkill;
             const isPendingSource = pendingSkill?.petUid === pet.uid;
             const isEnemyTarget = pendingSkill?.mode === "needs-enemy" && !pet.isPlayer;
             const isHoveredDrop = pet.isPlayer && hoveredAllyUid === pet.uid;
-            const sideCount = pet.isPlayer
-              ? pets.filter(p => p.isPlayer).length
-              : pets.filter(p => !p.isPlayer).length;
-            // Tuned so a 390-px-wide phone never clips edge sprites:
-            //   1 pet  → 220 / 210 (huge focal sprite)
-            //   2 pets → 200 / 190
-            //   3 pets → 180 / 170
-            //   4 pets → 150 / 145
-            //   5 pets → 130 / 125 (a hair larger than the old 140/130)
-            const baseAlly  = sideCount <= 1 ? 220 : sideCount === 2 ? 200 : sideCount === 3 ? 180 : sideCount === 4 ? 150 : 130;
-            const baseEnemy = sideCount <= 1 ? 210 : sideCount === 2 ? 190 : sideCount === 3 ? 170 : sideCount === 4 ? 145 : 125;
-            const size = pet.isPlayer ? baseAlly : baseEnemy;
+            const size = pet.isPlayer ? 140 : 130;
             const isHit = !!hitFlash[pet.uid];
             const stars = Math.max(0, Math.min(5, Math.floor(pet.starRarity || 0)));
-            // Bar width tracks sprite size so 180-px sprites don't have a
-            // 60-px ribbon floating under them.
-            const barWidth = Math.round(size * 0.55);
-            // Charging enemies need to render ON TOP of the ally they're
-            // diving at — otherwise they slide BEHIND the player sprite,
-            // which reads as a "glitch" because the impact spark and X_X
-            // flash come from a target the attacker visibly clipped under.
-            const isCharging = !pet.isPlayer && chargerView?.enemyUid === pet.uid && !chargerView?.returning;
-            const z = pet.isPlayer ? 15 : (isCharging ? 18 : 12);
 
             return (
               <div
@@ -1212,15 +1057,15 @@ export default function PvpBattlePage({
                   left: `${pet.x}%`, top: `${pet.y}%`,
                   transform: "translate(-50%,-50%)",
                   animation: isHit ? "bShake 0.32s ease-in-out" : "bIdle 1.4s ease-in-out infinite",
-                  zIndex: z,
+                  zIndex: pet.isPlayer ? 15 : 12,
                 }}
               >
-                {/* For ENEMIES the HP bar hugs the TOP of the sprite (a
-                    couple px of overlap so the bar feels attached, not a
-                    floating banner). It tracks the sprite while it
-                    floats / charges thanks to absolute positioning. */}
+                {/* For ENEMIES the HP bar floats ABOVE the sprite. We
+                    render it with absolute positioning relative to this
+                    container so it tracks the sprite while the enemy
+                    floats and even charges down. */}
                 {!pet.isPlayer && (
-                  <div className="absolute" style={{ bottom: `calc(100% - 4px)`, left: "50%", transform: "translateX(-50%)", width: barWidth }}>
+                  <div className="absolute" style={{ bottom: `calc(100% + 6px)`, left: "50%", transform: "translateX(-50%)", width: 60 }}>
                     <div className="flex flex-col items-center gap-0.5">
                       {stars > 0 && (
                         <div className="text-[7px] leading-none whitespace-nowrap" style={{ color: "#fbbf24", textShadow: "0 1px 2px rgba(0,0,0,0.8)" }}>
@@ -1285,12 +1130,9 @@ export default function PvpBattlePage({
                   )}
                 </div>
 
-                {/* For ALLIES the HP + mana stack hugs the BOTTOM of the
-                    sprite (a couple px of overlap, mirror of the enemy
-                    bar treatment). The negative margin pulls the bars
-                    visually onto the sprite so they feel attached. */}
+                {/* For ALLIES the HP + mana stack sits under the sprite. */}
                 {pet.isPlayer && (
-                  <div className="flex flex-col items-center gap-0.5" style={{ width: barWidth, marginTop: -4 }}>
+                  <div className="mt-1 flex flex-col items-center gap-0.5" style={{ width: 60 }}>
                     {stars > 0 && (
                       <div className="text-[7px] leading-none whitespace-nowrap" style={{ color: "#fbbf24", textShadow: "0 1px 2px rgba(0,0,0,0.8)" }}>
                         {"★".repeat(stars)}
@@ -1299,7 +1141,7 @@ export default function PvpBattlePage({
                     <div className="h-1.5 w-full bg-black/70 rounded-full overflow-hidden border border-white/10">
                       <div className="h-full rounded-full transition-all duration-200" style={{ width: `${Math.max(0, (pet.hp / pet.maxHp) * 100)}%`, background: hpColor(pet.hp / pet.maxHp) }} />
                     </div>
-                    {hasSkill && (
+                    {pet.specialSkill && (
                       <div className="h-1 w-full bg-black/50 rounded-full overflow-hidden">
                         <div className="h-full rounded-full transition-all duration-200" style={{ width: `${(pet.mana / MAX_MANA) * 100}%`, background: pet.mana >= MAX_MANA ? "#c084fc" : "#4c1d95" }} />
                       </div>
@@ -1310,7 +1152,7 @@ export default function PvpBattlePage({
                 {/* Skill ready / pending labels */}
                 {isSkillReady && !isPendingSource && (
                   <div className="absolute -top-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[8px] text-purple-200 font-bold tracking-wider animate-pulse">
-                    ✦ {pet.specialSkill || pet.specialSkillType || "Special"}
+                    ✦ {pet.specialSkill}
                   </div>
                 )}
                 {isPendingSource && (
