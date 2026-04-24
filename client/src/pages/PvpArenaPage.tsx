@@ -261,7 +261,13 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
   const activePetId: string | null = me?.activePetId ?? null;
 
   // Push the active pet into slot 0 whenever it changes (or on first hydrate).
+  // Important: we must NOT run this before the saved battle group has been
+  // hydrated, otherwise it sets `hasUserEdited` and the hydration effect
+  // refuses to overwrite our seed list with the actually-saved team — which
+  // is the bug that made saved pets "vanish" when leaving and re-entering
+  // the arena. Wait for hydration to settle, then sync the active pet in.
   useEffect(() => {
+    if (!hydratedFromServer.current) return;
     if (!activePetId) return;
     setSelectedPetIds((prev) => {
       // Already there as slot 0 → no-op.
@@ -272,8 +278,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
       const rest = prev.filter((id) => id !== activePetId);
       return [activePetId, ...rest].slice(0, 5);
     });
-    hasUserEdited.current = true;
-  }, [activePetId]);
+  }, [activePetId, battleGroup]);
 
   const togglePet = (invId: string) => {
     // Slot 0 is locked to the active pet — taps on it shouldn't remove it.

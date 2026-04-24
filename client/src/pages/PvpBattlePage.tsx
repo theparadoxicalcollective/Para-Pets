@@ -390,8 +390,13 @@ export default function PvpBattlePage({
           if (nearest) {
             const dx = nearest.x - pet.x, dy = nearest.y - pet.y;
             const dist = Math.hypot(dx, dy) || 1;
-            pet.vx = pet.vx * 0.88 + (dx / dist) * 0.55 * 0.12;
-            pet.vy = pet.vy * 0.88 + (dy / dist) * 0.55 * 0.12;
+            // Heavier damping + smaller steering acceleration so the pets
+            // glide smoothly toward each other instead of darting around.
+            // Steady-state speed is roughly accel/(1-damping) per frame —
+            // ~0.31%/frame ≈ 19% of the arena per second, half of what it
+            // used to be. That makes the brawl readable on a small phone.
+            pet.vx = pet.vx * 0.92 + (dx / dist) * 0.025;
+            pet.vy = pet.vy * 0.92 + (dy / dist) * 0.025;
           }
           pet.x += pet.vx;
           pet.y += pet.vy;
@@ -417,7 +422,8 @@ export default function PvpBattlePage({
               flashHit(enemy.uid);
               const dx2 = enemy.x - pet.x || 1, dy2 = enemy.y - pet.y || 1;
               const d = Math.hypot(dx2, dy2);
-              pet.vx = -(dx2 / d) * 1.4; pet.vy = -(dy2 / d) * 1.4;
+              // Softer recoil after a clash so pets don't ping-pong away.
+              pet.vx = -(dx2 / d) * 0.65; pet.vy = -(dy2 / d) * 0.65;
               if (enemy.hp <= 0 && !enemy.isDead) doKo(enemy);
             }
           }
@@ -848,7 +854,7 @@ export default function PvpBattlePage({
             const isSkillReady = pet.isPlayer && pet.mana >= MAX_MANA && !!pet.specialSkill;
             const isPendingSource = pendingSkill?.petUid === pet.uid;
             const isEnemyTarget = pendingSkill?.mode === "needs-enemy" && !pet.isPlayer;
-            const size = pet.isPlayer ? 78 : 64;
+            const size = pet.isPlayer ? 112 : 96;
             const isHit = !!hitFlash[pet.uid];
 
             // Star rarity row: render N stars (capped at 5) for visual
@@ -866,18 +872,9 @@ export default function PvpBattlePage({
                   zIndex: pet.isPlayer ? 15 : 12,
                 }}
               >
-                {/* Name above */}
-                <div
-                  className="text-[8px] font-bold tracking-wider truncate text-center px-1 rounded mb-0.5"
-                  style={{
-                    color: pet.isPlayer ? (pet.isActive ? "#fde68a" : "#c4b5fd") : "#fca5a5",
-                    background: "rgba(0,0,0,0.55)",
-                    maxWidth: 70,
-                    textShadow: "0 1px 2px rgba(0,0,0,0.7)",
-                  }}
-                >
-                  {pet.name}
-                </div>
+                {/* Name intentionally hidden in battle — only the HP and
+                    mana bars below carry the per-pet info to keep the
+                    arena uncluttered. */}
 
                 {/* Pet image with hit/dim states + active-pet outline */}
                 <div
