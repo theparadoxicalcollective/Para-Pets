@@ -340,26 +340,49 @@ const ANIMATION_STYLES = `
     75%  { transform: rotate(-1.8deg); }
     100% { transform: rotate(0deg); }
   }
+  /* Body breathing — pure symmetric sine. The amplitude is bumped so the
+     "breath" actually reads on screen, and the extra in-between keyframes
+     (every 12.5%) keep the cubic-bezier ease from snapping at the
+     quarter-points like the old 5-keyframe version did. */
   @keyframes petIdleBody {
-    0%   { transform: scale(1, 1); }
-    25%  { transform: scale(1.012, 1.022); }
-    50%  { transform: scale(1.022, 1.04); }
-    75%  { transform: scale(1.012, 1.022); }
-    100% { transform: scale(1, 1); }
+    0%    { transform: scale(1, 1); }
+    12.5% { transform: scale(1.008, 1.014); }
+    25%   { transform: scale(1.018, 1.030); }
+    37.5% { transform: scale(1.024, 1.040); }
+    50%   { transform: scale(1.028, 1.046); }
+    62.5% { transform: scale(1.024, 1.040); }
+    75%   { transform: scale(1.018, 1.030); }
+    87.5% { transform: scale(1.008, 1.014); }
+    100%  { transform: scale(1, 1); }
   }
+  /* Wings — clean symmetric sine flap at 9 keyframes. The previous
+     4-keyframe asymmetric pattern (0,-6,-2,4,0) made the cubic-bezier
+     ease "snap" at each direction change, which read as a 3-frame
+     stutter. Sampling the sine wave eight times per cycle lets the
+     interpolation glide between every keyframe so the wing motion
+     reads as one continuous fluttering sweep. Amplitude is also a hair
+     larger (±7°) so the flap is visible at small sprite sizes. */
   @keyframes petIdleLeftWing {
-    0%   { transform: rotate(0deg); }
-    25%  { transform: rotate(-6deg); }
-    50%  { transform: rotate(-2deg); }
-    75%  { transform: rotate(4deg); }
-    100% { transform: rotate(0deg); }
+    0%    { transform: rotate(0deg); }
+    12.5% { transform: rotate(-2.7deg); }
+    25%   { transform: rotate(-5deg); }
+    37.5% { transform: rotate(-6.5deg); }
+    50%   { transform: rotate(-7deg); }
+    62.5% { transform: rotate(-5deg); }
+    75%   { transform: rotate(-1deg); }
+    87.5% { transform: rotate(2deg); }
+    100%  { transform: rotate(0deg); }
   }
   @keyframes petIdleRightWing {
-    0%   { transform: rotate(0deg); }
-    25%  { transform: rotate(6deg); }
-    50%  { transform: rotate(2deg); }
-    75%  { transform: rotate(-4deg); }
-    100% { transform: rotate(0deg); }
+    0%    { transform: rotate(0deg); }
+    12.5% { transform: rotate(2.7deg); }
+    25%   { transform: rotate(5deg); }
+    37.5% { transform: rotate(6.5deg); }
+    50%   { transform: rotate(7deg); }
+    62.5% { transform: rotate(5deg); }
+    75%   { transform: rotate(1deg); }
+    87.5% { transform: rotate(-2deg); }
+    100%  { transform: rotate(0deg); }
   }
   @keyframes petIdleLeftLeg {
     0%, 100% { transform: translateY(0px); }
@@ -559,13 +582,22 @@ const ANIMATION_STYLES = `
     25%      { transform: rotate(-2deg); }
     75%      { transform: rotate(2deg); }
   }
-  /* Above Head: a small additional vertical bounce on top of the head bob,
-     so floating crowns / halos / hats etc. read as gently buoyant rather
-     than glued to the head. Kept very subtle (~1.5px) so it doesn't fight
-     with the head wrapper's own bob. */
+  /* Above Head: a clearly-visible floating bob on top of the head wrapper's
+     own motion, so crowns / halos / hats / wisps read as lazily buoyant
+     rather than glued to the skull. The previous 1.5 px peak was so
+     subtle it looked perfectly stationary on screen — bumped to ~5 px
+     and sampled at four points so the cubic-bezier ease produces a clean
+     sine float instead of a two-keyframe pulse. The cycle is offset from
+     the head bob (which is 3 s) by using a 4 s duration in
+     getPartDuration so the two never sync up and the accessory always
+     looks like it's lagging behind the head, the way a real floating
+     object would. */
   @keyframes petAboveHeadBounce {
-    0%, 100% { transform: translateY(0px); }
-    50%      { transform: translateY(-1.5px); }
+    0%   { transform: translateY(0px); }
+    25%  { transform: translateY(-2.5px); }
+    50%  { transform: translateY(-5px); }
+    75%  { transform: translateY(-2.5px); }
+    100% { transform: translateY(0px); }
   }
 
 `;
@@ -595,13 +627,22 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "hou
       eyes: "4s", eyes_closed: "4s", mouth: "5s", mouth_closed: "5s",
       head: "3s", left_ear: "3.5s", right_ear: "3.5s",
       left_arm: "3.5s", right_arm: "3.5s",
-      body: "4s",
-      left_wing: "3.5s", right_wing: "3.5s",
+      // Body breathing slowed to 4.5 s — combined with the new 9-keyframe
+      // sine, this reads as deep relaxed breathing instead of a quick puff.
+      body: "4.5s",
+      // Wings slowed to 4 s. The old 3.5 s + 4-keyframe pattern read as a
+      // stuttered 3-frame flap; with the new 9-keyframe sine we want a
+      // longer cycle so each phase has enough time to glide.
+      left_wing: "4s", right_wing: "4s",
       left_leg: "4s", right_leg: "4s",
       tail: "5s",
       front_arm: "3.5s", back_arm: "3.5s",
       front_leg: "4s", back_leg: "4s",
-      front_wing: "3.5s", back_wing: "3.5s",
+      front_wing: "4s", back_wing: "4s",
+      // Above-head accessory floats on its own slow cycle, deliberately
+      // out of phase with the head bob (3 s) so crowns / halos read as
+      // a separate floating object rather than rigidly attached.
+      above_head: "4s",
     };
     return durations[partType] || "3s";
   }

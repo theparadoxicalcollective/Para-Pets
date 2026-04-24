@@ -1265,11 +1265,49 @@ export default function PvpBattlePage({
                     position: "relative",
                   }}
                 >
-                  {pet.petTemplateId
-                    ? <PetAnimatorCanvas petTemplateId={pet.petTemplateId} size={size} className="w-full h-full" />
-                    : pet.imageUrl
-                    ? <img src={pet.imageUrl} style={{ width: size, height: size, objectFit: "contain", filter: pet.isPlayer ? "drop-shadow(0 0 10px rgba(167,139,250,0.5))" : "drop-shadow(0 0 10px rgba(239,68,68,0.45))" }} />
-                    : <div style={{ width: size, height: size, background: pet.isPlayer ? "rgba(100,60,200,0.3)" : "rgba(200,60,60,0.3)", borderRadius: "50%", border: `2px solid ${pet.isPlayer ? "rgba(167,139,250,0.5)" : "rgba(239,68,68,0.5)"}`, display: "flex", alignItems: "center", justifyContent: "center" }}><img src={petPawIcon} alt="" style={{ width: size * 0.65, height: size * 0.65, objectFit: "contain" }} /></div>}
+                  {/* Pet artwork is rendered scaled-up by ART_SCALE so the
+                      VISIBLE pet (after the asset's transparent padding is
+                      accounted for) reads as the requested `size`. The
+                      bounding box stays at `size` so the HP/mana bar
+                      positioning stays correct. */}
+                  {(() => {
+                    const ART_SCALE = 1.35;
+                    const innerStyle: React.CSSProperties = {
+                      position: "absolute",
+                      inset: 0,
+                      transform: `scale(${ART_SCALE})`,
+                      transformOrigin: "center",
+                      pointerEvents: "none",
+                    };
+                    if (pet.petTemplateId) {
+                      return (
+                        <div style={innerStyle}>
+                          <PetAnimatorCanvas petTemplateId={pet.petTemplateId} size={size} className="w-full h-full" />
+                        </div>
+                      );
+                    }
+                    if (pet.imageUrl) {
+                      return (
+                        <img
+                          src={pet.imageUrl}
+                          style={{
+                            ...innerStyle,
+                            width: size,
+                            height: size,
+                            objectFit: "contain",
+                            filter: pet.isPlayer
+                              ? "drop-shadow(0 0 10px rgba(167,139,250,0.5))"
+                              : "drop-shadow(0 0 10px rgba(239,68,68,0.45))",
+                          }}
+                        />
+                      );
+                    }
+                    return (
+                      <div style={{ ...innerStyle, width: size, height: size, background: pet.isPlayer ? "rgba(100,60,200,0.3)" : "rgba(200,60,60,0.3)", borderRadius: "50%", border: `2px solid ${pet.isPlayer ? "rgba(167,139,250,0.5)" : "rgba(239,68,68,0.5)"}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <img src={petPawIcon} alt="" style={{ width: size * 0.65, height: size * 0.65, objectFit: "contain" }} />
+                      </div>
+                    );
+                  })()}
                   {isHit && (
                     <div
                       className="absolute inset-0 flex items-center justify-center font-black"

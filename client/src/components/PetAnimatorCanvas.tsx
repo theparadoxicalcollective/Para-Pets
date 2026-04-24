@@ -28,7 +28,18 @@ const LAYER_ORDER: Record<string, number> = {
   back_arm: 4, left_wing: 4, body: 5, front_wing: 6, right_arm: 7, front_leg: 7,
   left_arm: 8, front_arm: 8, right_ear: 9, left_ear: 9, head: 10,
   mouth: 12, mouth_closed: 13, eyes_closed: 14, eyes: 15,
+  above_head: 16,
 };
+
+// Parts that should ride along with the head bob (so the whole head reads
+// as one floating object instead of the eyes/mouth detaching from the
+// skull on every up-stroke).
+const HEAD_GROUP_PARTS = new Set([
+  "head", "eyes", "eyes_closed", "mouth", "mouth_closed",
+  "left_ear", "right_ear",
+  "h2_head", "h2_eyes", "h2_eyes_closed", "h2_mouth", "h2_mouth_closed", "h2_left_ear", "h2_right_ear",
+  "h3_head", "h3_eyes", "h3_eyes_closed", "h3_mouth", "h3_mouth_closed", "h3_left_ear", "h3_right_ear",
+]);
 
 function kfi(kfs: [number, number][], t: number): number {
   if (t <= kfs[0][0]) return kfs[0][1];
@@ -40,8 +51,23 @@ function kfi(kfs: [number, number][], t: number): number {
   return kfs[kfs.length - 1][1];
 }
 const D2R = Math.PI / 180;
+// Pure sine wave for buttery-smooth idle motion. `Math.sin(2π·t)` gives
+// us the canvas equivalent of the 9-keyframe symmetric sine the img-based
+// PetAnimator now uses for wings / body / head — except here we get
+// continuous infinite resolution between samples, so the motion never
+// "snaps" between keyframes regardless of how slowly the cycle runs.
+const sinWave = (sec: number, periodSec: number) =>
+  Math.sin((sec / periodSec) * Math.PI * 2);
 
-function evalAnim(partType: string, sec: number, blinkOff: number): { op: number; rot: number } {
+interface AnimResult {
+  op: number;        // opacity multiplier
+  rot: number;       // rotation in RADIANS
+  ty?: number;       // translateY in CSS px (relative to canvas size)
+  sx?: number;       // x-scale (1 = unchanged) — pivot at part center
+  sy?: number;       // y-scale
+}
+
+function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
   switch (partType) {
     case "eyes": {
       const t = ((sec + blinkOff) % 4) / 4;
@@ -53,34 +79,51 @@ function evalAnim(partType: string, sec: number, blinkOff: number): { op: number
     }
     case "mouth":        return { op: 0, rot: 0 };
     case "mouth_closed": return { op: 1, rot: 0 };
-    case "left_ear": {
-      const t = (sec % 3.5) / 3.5;
-      return { op: 1, rot: kfi([[0,0],[0.4,-1],[0.7,0.5],[1,0]], t) * D2R };
+
+    // Ears — sine sweep at 3.5 s. Subtle ±2°.
+    case "left_ear":
+      return { op: 1, rot: -sinWave(sec, 3.5) * 2 * D2R };
+    case "right_ear":
+      return { op: 1, rot:  sinWave(sec, 3.5) * 2 * D2R };
+
+    // Arms — slow gentle sweep.
+    case "left_arm": case "front_arm":
+      return { op: 1, rot: -sinWave(sec, 3.5) * 3 * D2R };
+    case "right_arm": case "back_arm":
+      return { op: 1, rot:  sinWave(sec, 3.5) * 2 * D2R };
+
+    // Wings — clean ±7° sine flap at 4 s, exactly mirroring the new
+    // 9-keyframe img-renderer pattern. Math.sin gives perfect smoothness
+    // with no keyframe stutter.
+    case "left_wing": case "front_wing":
+      return { op: 1, rot: -sinWave(sec, 4) * 7 * D2R };
+    case "right_wing": case "back_wing":
+      return { op: 1, rot:  sinWave(sec, 4) * 7 * D2R };
+
+    // Tail — ±1.2° at 5 s.
+    case "tail":
+      return { op: 1, rot: sinWave(sec, 5) * 1.2 * D2R };
+
+    // Body — breathing. Vertical scale grows / shrinks ~4.6 % at peak,
+    // horizontal ~2.8 %. Pivots from part center so the breath reads as
+    // expansion rather than translation.
+    case "body": {
+      const w = (1 + sinWave(sec, 4.5)) * 0.5; // 0..1 sine
+      return { op: 1, rot: 0, sx: 1 + w * 0.028, sy: 1 + w * 0.046 };
     }
-    case "right_ear": {
-      const t = (sec % 3.5) / 3.5;
-      return { op: 1, rot: kfi([[0,0],[0.4,1],[0.7,-0.5],[1,0]], t) * D2R };
-    }
-    case "left_arm": case "front_arm": {
-      const t = (sec % 3.5) / 3.5;
-      return { op: 1, rot: kfi([[0,0],[0.5,3],[1,0]], t) * D2R };
-    }
-    case "right_arm": case "back_arm": {
-      const t = (sec % 3.5) / 3.5;
-      return { op: 1, rot: kfi([[0,0],[0.5,-2],[1,0]], t) * D2R };
-    }
-    case "left_wing": case "front_wing": {
-      const t = (sec % 3.5) / 3.5;
-      return { op: 1, rot: kfi([[0,0],[0.4,-3],[0.7,1.5],[1,0]], t) * D2R };
-    }
-    case "right_wing": case "back_wing": {
-      const t = (sec % 3.5) / 3.5;
-      return { op: 1, rot: kfi([[0,0],[0.4,3],[0.7,-1.5],[1,0]], t) * D2R };
-    }
-    case "tail": {
-      const t = (sec % 5) / 5;
-      return { op: 1, rot: kfi([[0,0],[0.5,-0.5],[1,0]], t) * D2R };
-    }
+
+    // Head — gentle vertical bob, identical to the img-renderer's
+    // petIdleHead (peak −3.6 px scaled to canvas). The translation is
+    // applied to every HEAD_GROUP_PARTS member at draw time so the eyes
+    // and mouth stay glued to the skull.
+    case "head":
+      return { op: 1, rot: 0, ty: -((1 + sinWave(sec, 3)) * 0.5) * 3.6 };
+
+    // Above-head accessory (crowns / halos) — bigger, slower float so it
+    // reads as a separate buoyant object rather than glued to the head.
+    case "above_head":
+      return { op: 1, rot: 0, ty: -((1 + sinWave(sec, 4)) * 0.5) * 5 };
+
     default: return { op: 1, rot: 0 };
   }
 }
@@ -174,8 +217,22 @@ export default function PetAnimatorCanvas({ petTemplateId, size, fillContainer =
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "low";
 
+      // Compute the head bob ONCE per frame so every head-group part
+      // (head, eyes, mouth, ears) shares the same vertical offset and
+      // the face stays anchored to the skull as it floats.
+      const headBob = evalAnim("head", sec, blinkRef.current).ty ?? 0;
+      // Convert "CSS px @ requested size" to canvas-buffer px. drawSpan
+      // is ALREADY in buffer px (= canvasPx = size·dpr after rounding),
+      // so the ratio drawSpan/size already includes the dpr factor —
+      // multiplying by dpr again would double-scale the motion.
+      const headBobPx = headBob * (drawSpan / size);
+
       for (const { part, img } of parts) {
-        const { op, rot } = evalAnim(part.partType, sec, blinkRef.current);
+        // Heads route through evalAnim("head") above; for individual
+        // head-group parts we still call evalAnim so eyes blink and
+        // ears sway, then layer the shared head bob on top.
+        const anim = evalAnim(part.partType, sec, blinkRef.current);
+        const { op, rot } = anim;
         if (ANIM_ONLY_PARTS.has(part.partType) && op <= 0) continue;
 
         const left = offset + (part.posX / CANVAS_SIZE) * drawSpan;
@@ -185,9 +242,30 @@ export default function PetAnimatorCanvas({ petTemplateId, size, fillContainer =
         const px   = left + w * ((part.pivotX ?? 50) / 100);
         const py   = top  + h * ((part.pivotY ?? 50) / 100);
 
+        // Per-part vertical offset (head bob OR above-head float OR
+        // the part's own ty if it has one). Same CSS-px → buffer-px
+        // conversion as headBobPx above; do NOT multiply by dpr.
+        let dy = anim.ty ? anim.ty * (drawSpan / size) : 0;
+        if (HEAD_GROUP_PARTS.has(part.partType) && part.partType !== "head") {
+          // Already-bobbing parts (head itself) shouldn't double-bob.
+          dy += headBobPx;
+        }
+
+        const sx = anim.sx ?? 1;
+        const sy = anim.sy ?? 1;
+        const hasScale = sx !== 1 || sy !== 1;
+        const hasTransform = rot !== 0 || dy !== 0 || hasScale;
+
         ctx.save();
         ctx.globalAlpha = op;
-        if (rot !== 0) { ctx.translate(px, py); ctx.rotate(rot); ctx.translate(-px, -py); }
+        if (hasTransform) {
+          // Apply transforms around the pivot so rotation/scale don't
+          // drift the part across the canvas.
+          ctx.translate(px, py + dy);
+          if (rot !== 0) ctx.rotate(rot);
+          if (hasScale) ctx.scale(sx, sy);
+          ctx.translate(-px, -py);
+        }
         try { ctx.drawImage(img, left, top, w, h); } catch { /* image not ready */ }
         ctx.restore();
       }
