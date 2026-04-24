@@ -868,6 +868,34 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     typeCountMap.set(part.partType, idx + 1);
   }
 
+  // Wing-pair sync: paired wings use mirrored keyframes (e.g. front_wing
+  // tilts up while back_wing tilts down) but each part normally gets its
+  // own hash-based phase offset so different pets don't tick in lockstep.
+  // For mirrored pairs we want BOTH halves to tick on the same beat so the
+  // wings flap as a coordinated pair instead of drifting apart. Compute
+  // one shared delay per pair (using the alphabetically-first member's id
+  // as the seed so the result is still stable per pet) and assign it to
+  // both members. Applies only to the first instance of each type — extra
+  // duplicates fall through to the normal stagger.
+  const WING_PAIRS: Array<[string, string]> = [
+    ["back_wing",       "front_wing"],
+    ["back_wing_2",     "front_wing_2"],
+    ["left_wing",       "right_wing"],
+    ["wing_set2_left",  "wing_set2_right"],
+  ];
+  const wingPairDelay = new Map<string, string>();
+  for (const [a, b] of WING_PAIRS) {
+    const partA = bodyParts.find(p => p.partType === a && (typeIndexMap.get(p.id) ?? 0) === 0);
+    const partB = bodyParts.find(p => p.partType === b && (typeIndexMap.get(p.id) ?? 0) === 0);
+    if (!partA || !partB) continue;
+    const seedId = partA.id < partB.id ? partA.id : partB.id;
+    let h = 0;
+    for (let i = 0; i < seedId.length; i++) h = (h * 31 + seedId.charCodeAt(i)) >>> 0;
+    const delay = `-${((h % 1500) / 1000).toFixed(2)}s`;
+    wingPairDelay.set(partA.id, delay);
+    wingPairDelay.set(partB.id, delay);
+  }
+
   // Helper: render a single part image with given animation (or none).
   // `transformOriginOverride` lets callers override the part's pivot-based
   // transform-origin — used for the body part on ground pets so the breathe
@@ -966,6 +994,11 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           // Stagger duplicate same-type parts so they don't move in perfect sync
           const typeIdx = typeIndexMap.get(part.id) ?? 0;
           const dupDelay = typeIdx > 0 ? `${DUP_STAGGER_OFFSETS[Math.min(typeIdx, DUP_STAGGER_OFFSETS.length - 1)]}s` : "0s";
+          // For paired wings, use the shared pair delay so the two halves
+          // tick on the same beat (mirrored flap). Falls back to dup
+          // stagger for extra duplicates, otherwise to the per-part hash.
+          const pairDelay = wingPairDelay.get(part.id);
+          const wingDelay: string | undefined = pairDelay ?? (typeIdx > 0 ? dupDelay : undefined);
 
           // Anchor the body's breathe scale at the feet (50% 100%) for
           // non-flying pets so larger ground pets don't appear to swell up
@@ -986,7 +1019,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
               if (isAnimOnly) return null;
               return renderPartImg(part, null);
             }
-            return renderPartImg(part, animName, undefined, typeIdx > 0 ? dupDelay : undefined);
+            return renderPartImg(part, animName, undefined, wingDelay);
           }
           if (mode === "sleep") {
             // In sleep mode the body breathes and ears / tail / hair sway
@@ -995,21 +1028,21 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
             const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
             if (isAnimOnly) return null;
             const animName = lookupAnim(SLEEP_ANIMATIONS, part.partType);
-            return renderPartImg(part, animName ?? null, undefined, typeIdx > 0 ? dupDelay : undefined, bodyOrigin);
+            return renderPartImg(part, animName ?? null, undefined, wingDelay, bodyOrigin);
           }
           if (mode === "petting") {
             // Bouncy "happy being petted" body / limb motion.
             const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
             if (isAnimOnly) return null;
             const animName = lookupAnim(PETTING_ANIMATIONS, part.partType);
-            return renderPartImg(part, animName ?? null, undefined, typeIdx > 0 ? dupDelay : undefined, bodyOrigin);
+            return renderPartImg(part, animName ?? null, undefined, wingDelay, bodyOrigin);
           }
           const anims = mode === "idle" ? idleAnimMap : mode === "zoom" ? ZOOM_ANIMATIONS : WALK_ANIMATIONS;
           const animName = lookupAnim(anims, part.partType) || anims.body;
           if (!animName) return null;
           // Only the idle body keyframe scales — walk/zoom body uses
           // translateY only, so the anchor override is harmless either way.
-          return renderPartImg(part, animName, undefined, typeIdx > 0 ? dupDelay : undefined, bodyOrigin);
+          return renderPartImg(part, animName, undefined, wingDelay, bodyOrigin);
         })}
 
         {/* Head groups — each head gets its own wrapper with associated face parts */}
