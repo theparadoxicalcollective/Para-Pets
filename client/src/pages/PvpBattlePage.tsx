@@ -186,6 +186,27 @@ export default function PvpBattlePage({
   const lastAiSkillTime = useRef<Record<string, number>>({});
   const idRef = useRef(0);
 
+  // ── DOM-direct refs for the per-frame motion / bar fills ────────────
+  // The animate() RAF loop used to call `setPets([...ps])` 60 times per
+  // second so the bound `style.left/top` and `style.width` on every
+  // sprite & bar would re-render. With 8+ pets, plus their child HP/
+  // mana bars, plus the React.memo'd PetAnimatorCanvas inside each one,
+  // that meant React was reconciling the entire battle subtree 60 fps
+  // — which is what made the screen feel "very glitchy".
+  //
+  // The fix: skip React entirely for things that change every frame.
+  // We attach refs to the pet wrapper, the HP-bar inner, and the mana-
+  // bar inner, then mutate `style.left/top/width/background` directly
+  // inside the RAF loop. Discrete UI states (skill-ready glow, KO,
+  // revive, sideCount changes) still need a real React render, so the
+  // animate loop also pushes a throttled `setPets` snapshot ~5 Hz —
+  // far cheaper than 60 Hz, but plenty often for those low-frequency
+  // transitions.
+  const petWrapperRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
+  const petHpRefs      = useRef<Map<string, HTMLDivElement | null>>(new Map());
+  const petManaRefs    = useRef<Map<string, HTMLDivElement | null>>(new Map());
+  const lastSetPetsMsRef = useRef(0);
+
   const [slashTrail, setSlashTrail] = useState<{x:number;y:number}[]>([]);
   const [floatNums, setFloatNums] = useState<FloatNum[]>([]);
   const [sparks, setSparks] = useState<SparkParticle[]>([]);
@@ -693,8 +714,41 @@ export default function PvpBattlePage({
         a.mana = Math.min(MAX_MANA, a.mana + 0.05);
       }
 
-      petsRef.current = [...ps];
-      setPets([...ps]);
+      // ── Per-frame DOM-direct sync (avoids React re-render storm) ──
+      // `petsRef` already points at the same mutable array, so we don't
+      // need to spread on every frame. Push the live `pet.x/y/hp/mana`
+      // values straight to the DOM nodes we collected refs for during
+      // render. React stays out of the way until the throttled snapshot
+      // below fires, which is what keeps PvP from juddering.
+      petsRef.current = ps;
+      for (const p of ps) {
+        const w = petWrapperRefs.current.get(p.uid);
+        if (w) {
+          w.style.left = `${p.x}%`;
+          w.style.top  = `${p.y}%`;
+        }
+        const hpEl = petHpRefs.current.get(p.uid);
+        if (hpEl) {
+          const pct = Math.max(0, (p.hp / p.maxHp) * 100);
+          hpEl.style.width      = `${pct}%`;
+          hpEl.style.background = hpColor(p.hp / p.maxHp);
+        }
+        const mEl = petManaRefs.current.get(p.uid);
+        if (mEl) {
+          mEl.style.width      = `${(p.mana / MAX_MANA) * 100}%`;
+          mEl.style.background = p.mana >= MAX_MANA ? "#c084fc" : "#4c1d95";
+        }
+      }
+      // Throttled state push so React still fires for the discrete UI
+      // states that depend on `pets` (skill-ready outline, "✦ Special"
+      // label, sideCount in the slot-size formula, charger z-index).
+      // 200 ms = ~5 Hz, way below render-storm threshold but fast
+      // enough that the player never notices the delay on those
+      // transitions.
+      if (now - lastSetPetsMsRef.current > 200) {
+        lastSetPetsMsRef.current = now;
+        setPets([...ps]);
+      }
       animFrameRef.current = requestAnimationFrame(animate);
     };
 
@@ -1274,6 +1328,7 @@ export default function PvpBattlePage({
             return (
               <div
                 key={pet.uid}
+                ref={(el) => { petWrapperRefs.current.set(pet.uid, el); }}
                 className="absolute pointer-events-none"
                 style={{
                   left: `${pet.x}%`, top: `${pet.y}%`,
@@ -1323,7 +1378,7 @@ export default function PvpBattlePage({
                         animation: pendingSkill?.mode === "needs-enemy" ? "targetPulse 0.8s ease-in-out infinite" : undefined,
                       }}
                     >
-                      <div className="h-full rounded-full transition-all duration-200" style={{ width: `${Math.max(0, (pet.hp / pet.maxHp) * 100)}%`, background: hpColor(pet.hp / pet.maxHp) }} />
+                      <div ref={(el) => { petHpRefs.current.set(pet.uid, el); }} className="h-full rounded-full transition-all duration-200" style={{ width: `${Math.max(0, (pet.hp / pet.maxHp) * 100)}%`, background: hpColor(pet.hp / pet.maxHp) }} />
                     </div>
                   </div>
                 )}
@@ -1415,11 +1470,11 @@ export default function PvpBattlePage({
                       </div>
                     )}
                     <div className="h-1.5 w-full bg-black/70 rounded-full overflow-hidden border border-white/10">
-                      <div className="h-full rounded-full transition-all duration-200" style={{ width: `${Math.max(0, (pet.hp / pet.maxHp) * 100)}%`, background: hpColor(pet.hp / pet.maxHp) }} />
+                      <div ref={(el) => { petHpRefs.current.set(pet.uid, el); }} className="h-full rounded-full transition-all duration-200" style={{ width: `${Math.max(0, (pet.hp / pet.maxHp) * 100)}%`, background: hpColor(pet.hp / pet.maxHp) }} />
                     </div>
                     {hasSkill && (
                       <div className="h-1 w-full bg-black/50 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full transition-all duration-200" style={{ width: `${(pet.mana / MAX_MANA) * 100}%`, background: pet.mana >= MAX_MANA ? "#c084fc" : "#4c1d95" }} />
+                        <div ref={(el) => { petManaRefs.current.set(pet.uid, el); }} className="h-full rounded-full" style={{ width: `${(pet.mana / MAX_MANA) * 100}%`, background: pet.mana >= MAX_MANA ? "#c084fc" : "#4c1d95" }} />
                       </div>
                     )}
                   </div>

@@ -1037,7 +1037,13 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
         const bboxCenterPy = ((minT + maxB) / 2) * (innerSize / CANVAS_SIZE);
         const tx = innerSize / 2 - bboxCenterPx;
         const ty = innerSize / 2 - bboxCenterPy;
-        const fitScale = (CANVAS_SIZE * 0.94) / span;
+        // Tightened from 0.94 → 0.99 (1 % total, 0.5 % per side) so
+        // the visible silhouette fills almost the entire wrapper —
+        // matches the canvas renderer and removes the "invisible
+        // padding" the user complained about in PvP. Wing flap is
+        // ±5 % of the wing's own box (a fraction of the full canvas)
+        // so the peak overshoot stays well under the 0.5 % margin.
+        const fitScale = (CANVAS_SIZE * 0.99) / span;
         // Order matters: translate moves the bbox center to the inner
         // div's center FIRST, then scaling around the (now-centered)
         // origin keeps it centered. CSS applies right-to-left, so the

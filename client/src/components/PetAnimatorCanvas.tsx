@@ -395,7 +395,13 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
           fitCx = (minL + maxR) / 2;
           fitCy = (minT + maxB) / 2;
           const span = Math.max(bboxW, bboxH);
-          if (span > 0) fitScale = (CANVAS_SIZE * 0.94) / span;
+          // Tightened from 0.94 → 0.99 (1 % total, 0.5 % per side) so
+          // the visible silhouette fills almost the entire wrapper —
+          // which is what the user means by "no invisible padding"
+          // around their pets in PvP. Wings flap by ±5 % of their own
+          // box, which itself is a fraction of the canvas, so the peak
+          // overshoot is ≪ 0.5 % and any clipping is invisible.
+          if (span > 0) fitScale = (CANVAS_SIZE * 0.99) / span;
         }
       }
 
