@@ -3723,7 +3723,19 @@ export async function registerRoutes(
       const allShopItems = await storage.getAllShopItems();
       const itemsWithDetails = config.items.map(({ name, qty }) => {
         const shop = allShopItems.find(i => i.name.toLowerCase() === name.toLowerCase());
-        return { name, qty, found: !!shop, imageUrl: shop?.imageUrl ?? null, type: shop?.type ?? null, effect: computeItemEffect(shop) };
+        // Pet shop items leave `image_url` blank and use `egg_image_url`
+        // as the primary art (they live in the shop as un-hatched eggs).
+        // Fall back through every art column so the welcome-bundle
+        // editor never renders a "?" tile when the item actually has
+        // artwork — just stored under a non-default field.
+        const resolvedImage =
+          (shop as any)?.imageUrl
+          || (shop as any)?.eggImageUrl
+          || (shop as any)?.hatchedImageUrl
+          || (shop as any)?.hooklessImageUrl
+          || (shop as any)?.sleepingImageUrl
+          || null;
+        return { name, qty, found: !!shop, imageUrl: resolvedImage, type: shop?.type ?? null, effect: computeItemEffect(shop) };
       });
       return res.json({ coinAmount: config.coinAmount, message: config.message, items: itemsWithDetails });
     } catch (err) {

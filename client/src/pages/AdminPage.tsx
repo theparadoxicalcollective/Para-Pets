@@ -1031,7 +1031,16 @@ function WelcomeBundleSection() {
       const current = Number(qtyEdits[exists] ?? items[exists].qty) || 1;
       setQtyEdits(prev => ({ ...prev, [exists]: String(current + 1) }));
     } else {
-      setItems(prev => [...prev, { name: shopItem.name, qty: 1, found: true, imageUrl: shopItem.imageUrl || null, type: shopItem.type, effect: getItemEffectText(shopItem) }]);
+      // Mirror the server's fallback chain (see /api/admin/welcome-bundle):
+      // pets store their art under eggImageUrl, etc. Picking the best
+      // available URL up front means the row renders the actual icon
+      // instead of a "?" placeholder until the next refetch.
+      const resolvedImage =
+        shopItem.imageUrl
+        || (shopItem as any).eggImageUrl
+        || (shopItem as any).hatchedImageUrl
+        || null;
+      setItems(prev => [...prev, { name: shopItem.name, qty: 1, found: true, imageUrl: resolvedImage, type: shopItem.type, effect: getItemEffectText(shopItem) }]);
     }
     setShowPicker(false);
   };
