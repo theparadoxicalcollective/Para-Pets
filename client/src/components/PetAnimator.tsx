@@ -340,49 +340,45 @@ const ANIMATION_STYLES = `
     75%  { transform: rotate(-1.8deg); }
     100% { transform: rotate(0deg); }
   }
-  /* Body breathing — pure symmetric sine. The amplitude is bumped so the
-     "breath" actually reads on screen, and the extra in-between keyframes
-     (every 12.5%) keep the cubic-bezier ease from snapping at the
-     quarter-points like the old 5-keyframe version did. */
+  /* Body breathing — clean 5-keyframe sine half-wave. Body can only
+     grow / shrink, never go negative, so the wave is one-sided: rest
+     → inhale peak → exhale rest. With sine ease this reads as a deep,
+     calm breath. Amplitude bumped slightly from the original so the
+     breath is actually visible on screen (was 1.022/1.04 → now
+     1.028/1.05). */
   @keyframes petIdleBody {
-    0%    { transform: scale(1, 1); }
-    12.5% { transform: scale(1.008, 1.014); }
-    25%   { transform: scale(1.018, 1.030); }
-    37.5% { transform: scale(1.024, 1.040); }
-    50%   { transform: scale(1.028, 1.046); }
-    62.5% { transform: scale(1.024, 1.040); }
-    75%   { transform: scale(1.018, 1.030); }
-    87.5% { transform: scale(1.008, 1.014); }
-    100%  { transform: scale(1, 1); }
+    0%   { transform: scale(1, 1); }
+    50%  { transform: scale(1.028, 1.05); }
+    100% { transform: scale(1, 1); }
   }
-  /* Wings — clean symmetric sine flap at 9 keyframes. The previous
-     4-keyframe asymmetric pattern (0,-6,-2,4,0) made the cubic-bezier
-     ease "snap" at each direction change, which read as a 3-frame
-     stutter. Sampling the sine wave eight times per cycle lets the
-     interpolation glide between every keyframe so the wing motion
-     reads as one continuous fluttering sweep. Amplitude is also a hair
-     larger (±7°) so the flap is visible at small sprite sizes. */
+  /* Wings — TRUE symmetric sine flap. The previous attempt had keyframes
+     of (0, −6, −2, +4, 0) which is NOT a sine wave — it goes down to −6,
+     recovers only to −2 (still negative), then to +4, then 0. That
+     asymmetric path is exactly what made the wing look like it was
+     stuttering. Replaced with a clean 5-keyframe symmetric sweep:
+        0% → 0     (rest)
+       25% → ±5°  (down-peak / up-peak depending on side)
+       50% → 0     (cross zero)
+       75% → ∓5°  (opposite peak)
+      100% → 0     (back to rest)
+     With our cubic-bezier(0.37, 0, 0.63, 1) sine ease applied between
+     each pair, this is mathematically a real sine wave — the ease
+     decelerates into each peak and accelerates out, joining seamlessly
+     across the whole cycle. No more 16-keyframe over-sampling needed
+     (which actually FOUGHT the ease and made motion choppy). */
   @keyframes petIdleLeftWing {
-    0%    { transform: rotate(0deg); }
-    12.5% { transform: rotate(-2.7deg); }
-    25%   { transform: rotate(-5deg); }
-    37.5% { transform: rotate(-6.5deg); }
-    50%   { transform: rotate(-7deg); }
-    62.5% { transform: rotate(-5deg); }
-    75%   { transform: rotate(-1deg); }
-    87.5% { transform: rotate(2deg); }
-    100%  { transform: rotate(0deg); }
+    0%   { transform: rotate(0deg); }
+    25%  { transform: rotate(-5deg); }
+    50%  { transform: rotate(0deg); }
+    75%  { transform: rotate(5deg); }
+    100% { transform: rotate(0deg); }
   }
   @keyframes petIdleRightWing {
-    0%    { transform: rotate(0deg); }
-    12.5% { transform: rotate(2.7deg); }
-    25%   { transform: rotate(5deg); }
-    37.5% { transform: rotate(6.5deg); }
-    50%   { transform: rotate(7deg); }
-    62.5% { transform: rotate(5deg); }
-    75%   { transform: rotate(1deg); }
-    87.5% { transform: rotate(-2deg); }
-    100%  { transform: rotate(0deg); }
+    0%   { transform: rotate(0deg); }
+    25%  { transform: rotate(5deg); }
+    50%  { transform: rotate(0deg); }
+    75%  { transform: rotate(-5deg); }
+    100% { transform: rotate(0deg); }
   }
   @keyframes petIdleLeftLeg {
     0%, 100% { transform: translateY(0px); }

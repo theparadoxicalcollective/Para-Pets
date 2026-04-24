@@ -92,13 +92,13 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
     case "right_arm": case "back_arm":
       return { op: 1, rot:  sinWave(sec, 3.5) * 2 * D2R };
 
-    // Wings — clean ±7° sine flap at 4 s, exactly mirroring the new
-    // 9-keyframe img-renderer pattern. Math.sin gives perfect smoothness
-    // with no keyframe stutter.
+    // Wings — clean ±5° sine flap at 4 s, matching the img-renderer's
+    // 5-keyframe symmetric sweep. Math.sin gives infinite-resolution
+    // smoothness so the canvas version never stutters between samples.
     case "left_wing": case "front_wing":
-      return { op: 1, rot: -sinWave(sec, 4) * 7 * D2R };
+      return { op: 1, rot: -sinWave(sec, 4) * 5 * D2R };
     case "right_wing": case "back_wing":
-      return { op: 1, rot:  sinWave(sec, 4) * 7 * D2R };
+      return { op: 1, rot:  sinWave(sec, 4) * 5 * D2R };
 
     // Tail — ±1.2° at 5 s.
     case "tail":
