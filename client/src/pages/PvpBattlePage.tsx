@@ -432,7 +432,10 @@ export default function PvpBattlePage({
     pendingSkillRef.current = null;
     chargerRef.current = null;
     setChargerView(null);
-    const avgLvl = Math.max(1, petsRef.current.filter(p => !p.isPlayer).length);
+    const enemies = petsRef.current.filter(p => !p.isPlayer);
+    const avgLvl = enemies.length > 0
+      ? Math.max(1, Math.round(enemies.reduce((s, p) => s + (p.level || 1), 0) / enemies.length))
+      : 1;
     recordResult.mutate({ result: outcome, opponentLevel: avgLvl });
   }, [recordResult]);
 
@@ -690,10 +693,8 @@ export default function PvpBattlePage({
   }, []);
 
   // ── Derived ────────────────────────────────────────────────────
-  const playerPets = pets.filter(p => p.isPlayer);
   const enemyPets = pets.filter(p => !p.isPlayer);
   const pendingPet = pendingSkill ? pets.find(p => p.uid === pendingSkill.petUid) : null;
-  void playerPets;
 
   // Charger UI: who's the targeted ally? (For INCOMING bar.)
   const incomingTarget = chargerView && !chargerView.returning

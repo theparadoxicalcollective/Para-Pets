@@ -529,6 +529,25 @@ app.use((req, res, next) => {
     console.error("daily_login_rewards table setup error (non-fatal):", err);
   }
 
+  // ── pvp_battle_tokens: one-time tokens issued by /api/pvp/start ──────────
+  // Required so /api/pvp/result can't be replayed without first paying a
+  // ticket via /start. Idempotent — safe to run on every boot.
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS pvp_battle_tokens (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id varchar NOT NULL,
+        created_at timestamp NOT NULL DEFAULT now()
+      )
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS idx_pvp_battle_tokens_user ON pvp_battle_tokens(user_id)
+    `);
+    console.log("pvp_battle_tokens table ready.");
+  } catch (err) {
+    console.error("pvp_battle_tokens table setup error (non-fatal):", err);
+  }
+
   // ── Seed: PvP Ticket (Meridia Arena Entry Pass) ───────────────────────────
   try {
     const PVP_TICKET_ID = "a1b2c3d4-9001-4000-8000-000000000099";
