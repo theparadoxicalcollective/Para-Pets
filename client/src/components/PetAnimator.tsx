@@ -975,21 +975,37 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   // as the seed so the result is still stable per pet) and assign it to
   // both members. Applies only to the first instance of each type — extra
   // duplicates fall through to the normal stagger.
-  const WING_PAIRS: Array<[string, string]> = [
-    ["back_wing",       "front_wing"],
-    ["back_wing_2",     "front_wing_2"],
-    ["left_wing",       "right_wing"],
-    ["wing_set2_left",  "wing_set2_right"],
+  // Each entry is [partA, partB, setIndex]. setIndex groups pairs into
+  // wing SETS so we can guarantee a visible offset BETWEEN sets while
+  // keeping the two halves of any single pair perfectly mirrored:
+  //   • set 0 → wing set 1 (back/front_wing  + left/right_wing)
+  //   • set 1 → wing set 2 (back/front_wing_2 + wing_set2_left/right)
+  //   • set 2 → head wings (head_wing_left/right)
+  const WING_PAIRS: Array<[string, string, number]> = [
+    ["back_wing",       "front_wing",       0],
+    ["back_wing_2",     "front_wing_2",     1],
+    ["left_wing",       "right_wing",       0],
+    ["wing_set2_left",  "wing_set2_right",  1],
+    ["head_wing_left",  "head_wing_right",  2],
   ];
+  // Per-set base offset (seconds). The hash variation is added on top so
+  // pets-in-the-wild aren't all marching on the same global beat, but the
+  // per-set base guarantees set 2 / head wings can never coincidentally
+  // land on the same point in the cycle as set 1 — they're forced ~half
+  // a cycle apart from each other.
+  const WING_SET_OFFSET = [0, 0.9, 1.8];
   const wingPairDelay = new Map<string, string>();
-  for (const [a, b] of WING_PAIRS) {
+  for (const [a, b, setIdx] of WING_PAIRS) {
     const partA = bodyParts.find(p => p.partType === a && (typeIndexMap.get(p.id) ?? 0) === 0);
     const partB = bodyParts.find(p => p.partType === b && (typeIndexMap.get(p.id) ?? 0) === 0);
     if (!partA || !partB) continue;
     const seedId = partA.id < partB.id ? partA.id : partB.id;
     let h = 0;
     for (let i = 0; i < seedId.length; i++) h = (h * 31 + seedId.charCodeAt(i)) >>> 0;
-    const delay = `-${((h % 1500) / 1000).toFixed(2)}s`;
+    // Hash gives 0–1.5 s of stable pet-specific variation; per-set offset
+    // pushes set 2 and head wings onto a clearly different beat than set 1.
+    const totalSec = ((h % 1500) / 1000) + (WING_SET_OFFSET[setIdx] ?? 0);
+    const delay = `-${totalSec.toFixed(2)}s`;
     wingPairDelay.set(partA.id, delay);
     wingPairDelay.set(partB.id, delay);
   }
@@ -1206,9 +1222,23 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           const wrapperAnim =
             mode === "sleep" ? "petSleepHead" :
             mode === "petting" ? "petPettingHead" :
+            // In idle, ALL heads use the upward-translation petIdleHead
+            // (even on ground pets — the small lift reads as following the
+            // body's breath, not as floating, because the body is also
+            // visibly inflating upward at the same moment).
+            mode === "idle" ? "petIdleHead" :
             (mode !== "house" && mode !== "static") ? anims["head"] :
             undefined;
-          const wrapperDuration = getPartDuration("head", mode);
+          // In idle mode, override the head's natural 3 s rhythm so it
+          // matches the body's 4.5 s breath — and lock its phase to
+          // bodyBreathDelay so every head lifts on the body's inhale and
+          // settles on the exhale. Other modes keep the per-head-group
+          // stagger so multi-head pets don't all bob in lockstep.
+          const headSyncBreath = mode === "idle" && bodyBreathDelay !== undefined;
+          const wrapperDuration = headSyncBreath ? "4.5s" : getPartDuration("head", mode);
+          const wrapperDelay: string = (headSyncBreath && bodyBreathDelay)
+            ? bodyBreathDelay
+            : `${groupDelay}s`;
           // In sleep AND petting modes, force the face into a calm closed-eye
           // expression (same opacity overrides as the existing "petted" expression).
           const effectiveExpression: typeof expression =
@@ -1227,7 +1257,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
                 position: "absolute",
                 left: 0, top: 0,
                 width: "100%", height: "100%",
-                animation: wrapperAnim ? buildAnimationCss(wrapperAnim, wrapperDuration, `${groupDelay}s`) : undefined,
+                animation: wrapperAnim ? buildAnimationCss(wrapperAnim, wrapperDuration, wrapperDelay) : undefined,
                 willChange: wrapperAnim ? "transform" : undefined,
                 zIndex: 9,
                 pointerEvents: "none",
