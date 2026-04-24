@@ -132,37 +132,49 @@ const FRONT_PART_GROUPS: { group: string; parts: PartDef[]; collapsed?: boolean 
 ];
 
 // Side facing:
-//   eyes(open), eyes(closed), mouth(closed), mouth(open), head,
-//   left ear, right ear, front arm, front leg, front wing,
-//   body, back arm, back leg, back wing, tail
+// Head section is structurally IDENTICAL to the front-facing list (Head One/
+// Two/Three each with hair / eyes / mouth / accessories / head / ears /
+// back hair) so multi-headed pets work the same in side view.
+//
+// Body section is its own ordered list of front-layer + Body + back-layer +
+// tails. The order below is the order shown in the editor's sidebar panel.
+// Z-indices place the front layer above the body, the back layer behind the
+// body, and tails behind everything. All four wings (front_wing, front_wing_2,
+// back_wing, back_wing_2) animate the same way as the existing back wing flap.
 const SIDE_PART_GROUPS: { group: string; parts: PartDef[]; collapsed?: boolean }[] = [
-  { group: "Face", parts: [
-    { key: "eyes",         label: "Eyes (Open)",   defaultZ: 15, layer: "front" },
-    { key: "eyes_closed",  label: "Eyes (Closed)", defaultZ: 14, layer: "front", animOnly: true },
-    { key: "mouth_closed", label: "Mouth (Closed)",defaultZ: 13, layer: "front" },
-    { key: "mouth",        label: "Mouth (Open)",  defaultZ: 12, layer: "front", animOnly: true },
+  // ── Heads — mirror front-facing exactly so side art can support multi-head pets
+  { group: "Head One",   parts: headFrontParts(1, 100, 35) },
+  { group: "Head Two",   parts: headFrontParts(2, 85,  34), collapsed: true },
+  { group: "Head Three", parts: headFrontParts(3, 70,  33), collapsed: true },
+
+  // ── Body Parts (single Body sandwiched between front & back layers) ────
+  { group: "Body Parts", parts: [
+    { key: "body",              label: "Body",              defaultZ: 50, layer: "body"  },
+    { key: "front_arm",         label: "Front Arm",         defaultZ: 57, layer: "front" },
+    { key: "front_leg",         label: "Front Leg",         defaultZ: 56, layer: "front" },
+    { key: "front_shoulder",    label: "Front Shoulder",    defaultZ: 58, layer: "front" },
+    { key: "front_accessory_1", label: "Front Accessory 1", defaultZ: 55, layer: "front" },
+    { key: "front_accessory_2", label: "Front Accessory 2", defaultZ: 54, layer: "front" },
+    { key: "front_wing",        label: "Front Wing 1",      defaultZ: 53, layer: "front" },
+    { key: "front_wing_2",      label: "Front Wing 2",      defaultZ: 52, layer: "front" },
+    { key: "back_arm",          label: "Back Arm",          defaultZ: 46, layer: "back"  },
+    { key: "back_leg",          label: "Back Leg",          defaultZ: 45, layer: "back"  },
+    { key: "back_shoulder",     label: "Back Shoulder",     defaultZ: 47, layer: "back"  },
+    { key: "back_accessory_1",  label: "Back Accessory 1",  defaultZ: 44, layer: "back"  },
+    { key: "back_accessory_2",  label: "Back Accessory 2",  defaultZ: 43, layer: "back"  },
+    { key: "back_wing",         label: "Back Wing 1",       defaultZ: 42, layer: "back"  },
+    { key: "back_wing_2",       label: "Back Wing 2",       defaultZ: 41, layer: "back"  },
+    { key: "tail",              label: "Tail 1",            defaultZ: 39, layer: "back",  defaultPivotX: 50, defaultPivotY: 0 },
+    { key: "tail_2",            label: "Tail 2",            defaultZ: 38, layer: "back",  defaultPivotX: 50, defaultPivotY: 0 },
+    { key: "tail_3",            label: "Tail 3",            defaultZ: 37, layer: "back",  defaultPivotX: 50, defaultPivotY: 0 },
   ]},
-  { group: "Head & Ears", parts: [
-    { key: "head",      label: "Head",      defaultZ: 10, layer: "front" },
-    { key: "left_ear",  label: "Left Ear",  defaultZ: 9,  layer: "front" },
-    { key: "right_ear", label: "Right Ear", defaultZ: 9,  layer: "back" },
-  ]},
-  { group: "Front Layer", parts: [
-    { key: "front_arm",  label: "Front Arm",  defaultZ: 8, layer: "front" },
-    { key: "front_leg",  label: "Front Leg",  defaultZ: 7, layer: "front" },
-    { key: "front_wing", label: "Front Wing", defaultZ: 6, layer: "front" },
-  ]},
-  { group: "Body", parts: [
-    { key: "body", label: "Body", defaultZ: 5, layer: "body" },
-  ]},
-  { group: "Back Layer", parts: [
-    { key: "back_arm",  label: "Back Arm",  defaultZ: 4, layer: "back" },
-    { key: "back_leg",  label: "Back Leg",  defaultZ: 3, layer: "back" },
-    { key: "back_wing", label: "Back Wing", defaultZ: 2, layer: "back" },
-  ]},
-  { group: "Tail", parts: [
-    { key: "tail", label: "Tail", defaultZ: 1, layer: "back", defaultPivotX: 50, defaultPivotY: 0 },
-  ]},
+
+  // ── Head-anchored wings (per head, same as front-facing) ───────────────
+  { group: "Head Wings", parts: [
+    ...headWingPair(1, 25),
+    ...headWingPair(2, 23),
+    ...headWingPair(3, 21),
+  ], collapsed: true },
 ];
 
 const ALL_PART_DEFS: PartDef[] = [
@@ -172,8 +184,23 @@ const ALL_PART_DEFS: PartDef[] = [
 
 const CANVAS_SIZE = 1000;
 
-export default function PetDatabasePanel({ initialTemplateId }: { initialTemplateId?: string | null } = {}) {
+export default function PetDatabasePanel({
+  initialTemplateId,
+  onSelectedTemplateChange,
+  onFacingModeChange,
+}: {
+  initialTemplateId?: string | null;
+  onSelectedTemplateChange?: (id: string | null) => void;
+  onFacingModeChange?: (mode: "front" | "side") => void;
+} = {}) {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(initialTemplateId ?? null);
+
+  // Notify parent whenever the user picks (or clears) a template, so the
+  // Test-Animator save preview can render whatever the admin is editing.
+  useEffect(() => {
+    onSelectedTemplateChange?.(selectedTemplateId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTemplateId]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newPetName, setNewPetName] = useState("");
   const [showRenameModal, setShowRenameModal] = useState(false);
@@ -182,6 +209,13 @@ export default function PetDatabasePanel({ initialTemplateId }: { initialTemplat
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
   const [nudgeStep, setNudgeStep] = useState<1 | 5 | 10>(1);
   const [facingMode, setFacingMode] = useState<"front" | "side">("front");
+
+  // Notify parent whenever the facing mode toggles (front ↔ side) so the
+  // Test-Animator save preview can match.
+  useEffect(() => {
+    onFacingModeChange?.(facingMode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [facingMode]);
   // Per-group expand/collapse state. Undefined = use the group's default
   // (defined by `collapsed: true` on the group definition).
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});

@@ -18,7 +18,7 @@ interface PetPart {
 
 interface PetAnimatorProps {
   petTemplateId: string;
-  mode: "idle" | "walk" | "zoom" | "house" | "static";
+  mode: "idle" | "walk" | "zoom" | "house" | "static" | "sleep";
   view?: "front" | "back";
   size?: number;
   /** When true, expands the inner canvas so the visual output fills `size` exactly,
@@ -70,13 +70,43 @@ const IDLE_ANIMATIONS: Record<string, string> = {
   left_leg: "petIdleLeftLeg",
   right_leg: "petIdleRightLeg",
   tail: "petIdleTail",
+  tail_2: "petIdleTail",
+  tail_3: "petIdleTail",
+  // Front-facing shoulders + side-facing shoulders / accessories breathe with body
+  left_shoulder: "petIdleBody",
+  right_shoulder: "petIdleBody",
+  front_shoulder: "petIdleBody",
+  back_shoulder: "petIdleBody",
+  front_accessory_1: "petIdleBody",
+  front_accessory_2: "petIdleBody",
+  back_accessory_1: "petIdleBody",
+  back_accessory_2: "petIdleBody",
+  // Hair pieces sway gently like ears
+  hair_left: "petIdleLeftEar",
+  hair_right: "petIdleRightEar",
+  back_hair: "petIdleTail",
+  // Front-facing wing sets
+  wing_set2_left: "petIdleLeftWing",
+  wing_set2_right: "petIdleRightWing",
+  // Side-facing limbs
   front_arm: "petIdleLeftArm",
   back_arm: "petIdleRightArm",
   front_leg: "petIdleLeftLeg",
   back_leg: "petIdleRightLeg",
-  front_wing: "petIdleLeftWing",
+  // Per request: ALL side-facing wings (front + back, 1 + 2) animate with the
+  // existing back wing flap so they're consistent.
+  front_wing: "petIdleRightWing",
+  front_wing_2: "petIdleRightWing",
   back_wing: "petIdleRightWing",
+  back_wing_2: "petIdleRightWing",
 };
+
+/** Look up an animation name for a part. Falls back by stripping multi-head
+ *  prefixes (h2_, h3_) so duplicate heads pick up the same per-part animations
+ *  as Head 1 (e.g. h2_eyes blinks, h2_back_arm swings, etc.). */
+function lookupAnim(map: Record<string, string>, partType: string): string | undefined {
+  return map[partType] ?? map[partType.replace(/^h[23]_/, "")];
+}
 
 
 const WALK_ANIMATIONS: Record<string, string> = {
@@ -109,6 +139,14 @@ const ZOOM_ANIMATIONS: Record<string, string> = {
   right_wing: "petZoomRightWing",
   front_wing: "petZoomLeftWing",
   back_wing: "petZoomRightWing",
+};
+
+// Sleep mode: only the body breathes and the head bobs gently. Everything
+// else is frozen in its neutral pose to read as "calm / asleep". Face parts
+// are also forced into the petted-style closed-eyes pose by the renderer.
+const SLEEP_ANIMATIONS: Record<string, string> = {
+  body: "petSleepBody",
+  // head is handled by the head-group wrapper (petSleepHead) below.
 };
 
 // House mode: only blink (opacity) and rotation animations — no translateY or scale
@@ -330,9 +368,26 @@ const ANIMATION_STYLES = `
     70% { transform: rotate(1deg); }
   }
 
+  /* ── Sleep mode: slow, calm breathing ─────────────────────────────────── */
+  @keyframes petSleepBody {
+    0%, 100% { transform: scale(1, 1)         translateY(0px); }
+    50%      { transform: scale(1.018, 1.035) translateY(-0.6px); }
+  }
+  @keyframes petSleepHead {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    50%      { transform: translateY(-1.4px) rotate(-0.3deg); }
+  }
+
 `;
 
-function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "house" | "static"): string {
+function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "house" | "static" | "sleep"): string {
+  if (mode === "sleep") {
+    // Slow, calm breathing for the sleep export. Body / head are the only
+    // moving parts in sleep mode; everything else is frozen.
+    if (partType === "head" || partType.startsWith("h2_") || partType.startsWith("h3_")) return "5s";
+    if (partType === "body") return "5.5s";
+    return "5s";
+  }
   if (mode === "house") {
     const durations: Record<string, string> = {
       eyes: "4s", eyes_closed: "4s", mouth: "5s", mouth_closed: "5s",
@@ -661,7 +716,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
             return renderPartImg(part, null);
           }
           if (mode === "house") {
-            const animName = HOUSE_ANIMATIONS[part.partType];
+            const animName = lookupAnim(HOUSE_ANIMATIONS, part.partType);
             const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
             if (!animName) {
               if (isAnimOnly) return null;
@@ -669,8 +724,17 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
             }
             return renderPartImg(part, animName, undefined, typeIdx > 0 ? dupDelay : undefined);
           }
+          if (mode === "sleep") {
+            // In sleep mode body parts are mostly frozen; only the body itself
+            // breathes. Hide animation-only parts (mouth open) so the pet's
+            // mouth stays closed while sleeping.
+            const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
+            if (isAnimOnly) return null;
+            const animName = lookupAnim(SLEEP_ANIMATIONS, part.partType);
+            return renderPartImg(part, animName ?? null, undefined, typeIdx > 0 ? dupDelay : undefined);
+          }
           const anims = mode === "idle" ? IDLE_ANIMATIONS : mode === "zoom" ? ZOOM_ANIMATIONS : WALK_ANIMATIONS;
-          const animName = anims[part.partType] || anims.body;
+          const animName = lookupAnim(anims, part.partType) || anims.body;
           if (!animName) return null;
           return renderPartImg(part, animName, undefined, typeIdx > 0 ? dupDelay : undefined);
         })}
@@ -680,8 +744,17 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           const anims = mode === "idle" ? IDLE_ANIMATIONS : mode === "zoom" ? ZOOM_ANIMATIONS : WALK_ANIMATIONS;
           // Each head group has a staggered start so multiple heads bob at different times
           const groupDelay = HEAD_GROUP_STAGGER[Math.min(groupIdx, HEAD_GROUP_STAGGER.length - 1)];
-          const wrapperAnim = (mode !== "house" && mode !== "static") ? anims["head"] : undefined;
+          // Sleep mode uses the gentle petSleepHead bob; otherwise use the
+          // active mode's head animation (skipped for house/static).
+          const wrapperAnim =
+            mode === "sleep" ? "petSleepHead" :
+            (mode !== "house" && mode !== "static") ? anims["head"] :
+            undefined;
           const wrapperDuration = getPartDuration("head", mode);
+          // In sleep mode, force the face into a calm closed-eye expression
+          // (same opacity overrides as the existing "petted" expression).
+          const effectiveExpression: typeof expression =
+            mode === "sleep" ? "petted" : expression;
 
           // Per-group blink offset: combines the global random offset with a per-group phase
           const blinkBase = parseFloat(blinkOffset.current.replace("s", "")) || 0;
@@ -704,11 +777,12 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
               {allGroupParts.map((part) => {
                 const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
                 const isEyePart = isEyePartType(part.partType);
-                // When in a non-neutral expression, freeze the face into the
-                // desired pose by killing the blink/mouth animations and
-                // forcing the right opacity. Eyes_closed + mouth (open) are
-                // pinned visible; eyes + mouth_closed are pinned hidden.
-                const exprOp = expressionOpacity(part.partType, expression);
+                // When in a non-neutral expression (or sleep mode), freeze
+                // the face into the desired pose by killing the blink/mouth
+                // animations and forcing the right opacity. Eyes_closed +
+                // mouth (open) are pinned visible; eyes + mouth_closed are
+                // pinned hidden.
+                const exprOp = expressionOpacity(part.partType, effectiveExpression);
                 if (exprOp !== null) {
                   if (exprOp === 0) return null;
                   return renderPartImg(part, null, 1);
@@ -718,8 +792,15 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
                   if (isAnimOnly) return null;
                   return renderPartImg(part, null);
                 }
+                if (mode === "sleep") {
+                  // Sleep keeps all face parts (ears, hair, accessories,
+                  // head) frozen at neutral — only the wrapper's gentle
+                  // petSleepHead bob moves the whole head.
+                  if (isAnimOnly) return null;
+                  return renderPartImg(part, null);
+                }
                 if (mode === "house") {
-                  const animName = HOUSE_ANIMATIONS[part.partType];
+                  const animName = lookupAnim(HOUSE_ANIMATIONS, part.partType);
                   if (!animName) {
                     if (isAnimOnly) return null;
                     return renderPartImg(part, null);
@@ -729,7 +810,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
                 }
                 // Head itself has no per-part animation (wrapper handles the bobbing)
                 const isHead = part.partType === "head";
-                const partAnimName = isHead ? null : (anims[part.partType] ?? null);
+                const partAnimName = isHead ? null : (lookupAnim(anims, part.partType) ?? null);
                 const delay = isEyePart ? groupBlinkOffset : `${groupDelay}s`;
                 return renderPartImg(part, partAnimName, undefined, delay);
               })}
