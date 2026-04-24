@@ -69,8 +69,9 @@ const headFrontParts = (i: HeadIdx, baseZ: number, backHairZ: number): PartDef[]
   // Reuse the original key names for Head 1 so existing data is preserved.
   const k = (suffix: string) => `${p}${suffix}`;
   return [
-    { key: k("hair_left"),    label: "Hair Piece Left",  defaultZ: baseZ + 10, layer: "front" },
-    { key: k("hair_right"),   label: "Hair Piece Right", defaultZ: baseZ + 9,  layer: "front" },
+    { key: k("adobe_head"),   label: "Adobe Head",       defaultZ: baseZ + 12, layer: "front" },
+    { key: k("hair_left"),    label: "Hair Piece Left",  defaultZ: baseZ + 11, layer: "front" },
+    { key: k("hair_right"),   label: "Hair Piece Right", defaultZ: baseZ + 10, layer: "front" },
     { key: k("eyes"),         label: "Eyes (Open)",      defaultZ: baseZ + 8,  layer: "front" },
     { key: k("eyes_closed"),  label: "Eyes (Closed)",    defaultZ: baseZ + 7,  layer: "front", animOnly: true },
     { key: k("mouth_closed"), label: "Mouth (Closed)",   defaultZ: baseZ + 6,  layer: "front" },
