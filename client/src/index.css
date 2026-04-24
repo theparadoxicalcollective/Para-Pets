@@ -377,25 +377,29 @@
   will-change: transform;
 }
 
-/* Care page — pet is being held (pressed). Static squish, no bounce. */
+/* Care page — pet is being held (pressed). Static squish, no bounce.
+   Uses a soft ease (no overshoot) so the squish settles smoothly instead
+   of springing back and forth, which previously read as "blotchy". */
 .pet-care-squish {
-  transform: scaleY(0.92) scaleX(1.06) translateY(4px);
+  transform: scaleY(0.95) scaleX(1.04) translateY(3px);
   transform-origin: center bottom;
-  transition: transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 280ms cubic-bezier(0.33, 0.0, 0.2, 1);
   will-change: transform;
 }
 
-/* Care page — circular petting motion. Squished + a small affectionate bounce. */
+/* Care page — circular petting motion. A gentle, continuous breathe-and-squish
+   that blends seamlessly with the held-press squish so toggling between the
+   two states (which happens constantly while the user keeps circling) doesn't
+   visibly snap. Reduced amplitude + matched easing keeps it buttery. */
 @keyframes pet-care-squish-bounce {
-  0%   { transform: scaleY(0.94)  scaleX(1.04)  translateY(2px); }
-  25%  { transform: scaleY(0.95)  scaleX(1.035) translateY(0.25px); }
-  50%  { transform: scaleY(0.96)  scaleX(1.03)  translateY(-1.5px); }
-  75%  { transform: scaleY(0.95)  scaleX(1.035) translateY(0.25px); }
-  100% { transform: scaleY(0.94)  scaleX(1.04)  translateY(2px); }
+  0%   { transform: scaleY(0.95)  scaleX(1.04)  translateY(3px); }
+  50%  { transform: scaleY(0.965) scaleX(1.025) translateY(-1px); }
+  100% { transform: scaleY(0.95)  scaleX(1.04)  translateY(3px); }
 }
 .pet-care-squish-bounce {
-  animation: pet-care-squish-bounce 1.05s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  animation: pet-care-squish-bounce 1.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
   transform-origin: center bottom;
+  transition: transform 280ms cubic-bezier(0.33, 0.0, 0.2, 1);
   will-change: transform;
 }
 

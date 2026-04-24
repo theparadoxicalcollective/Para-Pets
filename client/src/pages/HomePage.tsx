@@ -853,18 +853,19 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                         style={{
                           cursor: "pointer",
                           touchAction: "none",
-                          // Drop the pet DOWN so it stands on the platform
-                          // painted into the background image (the previous
-                          // -40px translate was lifting it off the platform).
-                          // Using transform (not margin) keeps surrounding
-                          // layout from shifting; press/circle gestures stack
-                          // onto the same translate.
+                          // Sit the pet on the platform painted into the
+                          // background. Previous +80px nudged it ~10vh too
+                          // low — we now keep it at the layout baseline and
+                          // let the platform graphic do the grounding. The
+                          // press/circle gestures stack onto this baseline
+                          // transform with smoother easing so the squish
+                          // doesn't feel like it snaps in and out.
                           transform: petCircling
-                            ? "translateY(80px) scale(1.04, 0.97)"
+                            ? "translateY(0px) scale(1.03, 0.98)"
                             : petPressed
-                              ? "translateY(80px) scale(0.98, 1.02)"
-                              : "translateY(80px) scale(1)",
-                          transition: "transform 0.18s ease-out",
+                              ? "translateY(0px) scale(0.99, 1.01)"
+                              : "translateY(0px) scale(1)",
+                          transition: "transform 320ms cubic-bezier(0.34, 1.2, 0.5, 1)",
                           transformOrigin: "center bottom",
                           // Sit above heart/sparkle bursts and surrounding chrome
                           // so the float animation never appears clipped.
@@ -877,7 +878,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                         <style>{`
                           @keyframes activePetFloat {
                             0%, 100% { transform: translateY(0px); }
-                            50% { transform: translateY(-14px); }
+                            50% { transform: translateY(-7px); }
                           }
                         `}</style>
                         {activePet.petTemplateId ? (
