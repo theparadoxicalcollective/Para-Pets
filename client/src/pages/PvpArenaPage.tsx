@@ -131,6 +131,13 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
   // double-tap can't fire two charges.
   const [showTicketShop, setShowTicketShop] = useState(false);
   const [purchasingBundleId, setPurchasingBundleId] = useState<string | null>(null);
+  // Celebration popup shown after a successful ticket purchase. The
+  // `key` field is bumped on every win so React remounts the popup and
+  // re-runs the entry animation, even when a player buys two bundles
+  // back-to-back without the popup fully closing in between.
+  const [celebration, setCelebration] = useState<
+    { tickets: number; cost: number; key: number } | null
+  >(null);
   const [selectedPetIds, setSelectedPetIds] = useState<string[]>([]);
   const [groupSaved, setGroupSaved] = useState(false);
   // Tap-to-inspect: clicking any leaderboard row (or your own pinned row)
@@ -243,9 +250,13 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
       queryClient.invalidateQueries({ queryKey: ["/api/pvp/tickets"] });
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-      toast({
-        title: "Tickets added",
-        description: `+${data.ticketsAdded} ticket${data.ticketsAdded === 1 ? "" : "s"} for ${data.cost.toLocaleString()} coins.`,
+      // Trigger the centered celebration popup. The bumped key forces a
+      // remount so the entry animation plays again on rapid back-to-back
+      // buys instead of just silently swapping the numbers.
+      setCelebration({
+        tickets: data.ticketsAdded,
+        cost: data.cost,
+        key: Date.now(),
       });
     },
     onError: (err: any) => {
@@ -284,6 +295,16 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [showTicketShop, purchasingBundleId, buyTickets.isPending]);
+
+  // Auto-dismiss the celebration popup ~2.2s after it appears. We key
+  // the timer on `celebration?.key` so a second purchase that re-opens
+  // the popup also resets its dismissal clock instead of inheriting
+  // the previous one's countdown and disappearing too quickly.
+  useEffect(() => {
+    if (!celebration) return;
+    const t = window.setTimeout(() => setCelebration(null), 2200);
+    return () => window.clearTimeout(t);
+  }, [celebration?.key]);
 
   // Sync saved group into local selection — only on the first load so we
   // don't clobber edits the user is making while typing.
@@ -1396,6 +1417,69 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
           = bigger bundle), the ticket count, and the coin price. The
           server validates bundleId against its own price map so the
           client cannot fake a cheaper purchase. */}
+      {/* Celebration popup — fires on every successful ticket bundle
+          purchase. Sits at z-[95] (above the ticket-shop modal at
+          z-[85]) so even mid-shopping it appears front-and-center.
+          Auto-dismisses after ~2.2s and is also tap-to-dismiss. The
+          local <style> block defines a single keyframe used only by
+          this card so we don't have to touch the global stylesheet. */}
+      {celebration && (
+        <div
+          key={celebration.key}
+          className="absolute inset-0 z-[95] flex items-center justify-center pointer-events-none"
+          data-testid="popup-ticket-purchase-success"
+        >
+          <style>{`
+            @keyframes ticketCelebrationIn {
+              0%   { transform: scale(0.6) translateY(20px); opacity: 0; }
+              60%  { transform: scale(1.08) translateY(0); opacity: 1; }
+              100% { transform: scale(1)    translateY(0); opacity: 1; }
+            }
+            @keyframes ticketCelebrationGlow {
+              0%, 100% { box-shadow: 0 18px 50px rgba(0,0,0,0.7), 0 0 30px rgba(251,191,36,0.45); }
+              50%      { box-shadow: 0 18px 50px rgba(0,0,0,0.7), 0 0 55px rgba(251,191,36,0.85); }
+            }
+          `}</style>
+          <div
+            onClick={() => setCelebration(null)}
+            className="pointer-events-auto cursor-pointer rounded-2xl px-6 py-5 flex flex-col items-center gap-2"
+            style={{
+              minWidth: 240,
+              background: "linear-gradient(180deg, #2a1f4a 0%, #120a26 100%)",
+              border: "1px solid rgba(251,191,36,0.55)",
+              animation: "ticketCelebrationIn 360ms cubic-bezier(0.18, 1.2, 0.4, 1) both, ticketCelebrationGlow 1.6s ease-in-out infinite",
+            }}
+          >
+            <img
+              src={pvpTicketImg}
+              alt=""
+              style={{
+                width: 72,
+                height: 72,
+                objectFit: "contain",
+                filter: "drop-shadow(0 6px 12px rgba(251,191,36,0.55))",
+              }}
+            />
+            <div
+              className="text-[26px] font-black tracking-wide text-amber-200 leading-none"
+              style={{ textShadow: "0 0 14px rgba(251,191,36,0.65)" }}
+              data-testid="text-celebration-tickets"
+            >
+              +{celebration.tickets} TICKET{celebration.tickets === 1 ? "" : "S"}
+            </div>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <img src={coinIconImg} alt="" style={{ width: 14, height: 14, objectFit: "contain" }} />
+              <span
+                className="text-[12px] font-bold text-amber-100/80"
+                data-testid="text-celebration-cost"
+              >
+                {celebration.cost.toLocaleString()} coins spent
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showTicketShop && (
         <div
           className="absolute inset-0 z-[85] flex items-end sm:items-center justify-center"
