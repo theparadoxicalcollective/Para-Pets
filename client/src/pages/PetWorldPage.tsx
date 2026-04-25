@@ -1183,7 +1183,6 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                 isOwn={isOwn}
                 isMoving={isOwn ? petIsMoving : false}
                 facingLeft={isOwn ? facingLeft : false}
-                facingDirection={pet.facingDirection}
                 onTap={() => setSelectedPet(pet)}
               />
             );
@@ -3187,7 +3186,6 @@ function WorldRoamingPet({
   isOwn,
   isMoving,
   facingLeft,
-  facingDirection,
   onTap,
 }: {
   pet: WorldActivePet;
@@ -3196,7 +3194,6 @@ function WorldRoamingPet({
   isOwn: boolean;
   isMoving: boolean;
   facingLeft: boolean;
-  facingDirection: string | null;
   onTap: () => void;
 }) {
   const { data: templateData } = useQuery<{
@@ -3289,9 +3286,35 @@ function WorldRoamingPet({
 
             {/* Pet sprite — XOR flip: movement direction vs natural facing direction.
                 Use the template's 'facing' (already resolved above) so that side-view
-                pets with facing="left" are not incorrectly mirrored when moving left. */}
-            <div style={{ transform: (facingLeft !== (facing === "left")) ? "scaleX(-1)" : undefined, transition: "transform 0.1s ease" }}>
-              {pet.petTemplateId ? (
+                pets with facing="left" are not incorrectly mirrored when moving left.
+                Falls back to pet.facingDirection when templateData hasn't loaded yet
+                (own pet uses the still image and doesn't need the parts payload). */}
+            <div
+              style={{
+                transform: (facingLeft !== ((templateData?.facing ?? pet.facingDirection ?? "front") === "left"))
+                  ? "scaleX(-1)"
+                  : undefined,
+                transition: "transform 0.1s ease",
+              }}
+            >
+              {isOwn && petImg ? (
+                /* Own pet renders as the pet's still image so it always shows up
+                   on Keeper's Central even if the part-based animator hasn't
+                   loaded. The squish-on-move comes from kcPetWalkBounce on the
+                   parent wrapper; no idle bounce here so it sits still when not
+                   walking. */
+                <img
+                  src={petImg}
+                  alt={displayName}
+                  draggable={false}
+                  style={{
+                    width: sz, height: sz,
+                    objectFit: "contain",
+                    pointerEvents: "none",
+                    transformOrigin: "center bottom",
+                  }}
+                />
+              ) : pet.petTemplateId ? (
                 <PetAnimator
                   petTemplateId={pet.petTemplateId}
                   mode="idle"
