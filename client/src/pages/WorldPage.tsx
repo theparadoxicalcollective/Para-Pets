@@ -4085,19 +4085,27 @@ export default function WorldPage({ user }: WorldPageProps) {
           setBattlePotionSlots(updated);
         };
 
-        // Picker → equip the next available inventory item from this stack
-        // into the first empty slot. Auto-closes the picker so the player
-        // sees the slot fill in instantly (PvP UX).
+        // Picker → equip a STACK of up to 50 of this potion type into
+        // the first empty slot. Auto-closes the picker so the player
+        // sees the slot fill in instantly (PvP UX). Each slot now
+        // holds a stack instead of a single potion, so 50 healing
+        // potions fit in one slot instead of needing all 5.
+        const POTION_STACK_SIZE = 50;
         const equipPotionFromGroup = (group: typeof potionGroups[0]) => {
           const updated = [...battlePotionSlots] as (BattlePotionSlot | null)[];
           const emptyIdx = updated.findIndex(s => s === null);
           if (emptyIdx === -1) return;
-          const allAssignedIds = updated.reduce((acc, s) => s ? [...acc, ...s.inventoryIds] : acc, [] as string[]);
-          const nextId = group.items.map(i => i.inventoryId).find(id => !allAssignedIds.includes(id));
-          if (!nextId) return;
+          const allAssignedIds = new Set(
+            updated.reduce((acc, s) => s ? [...acc, ...s.inventoryIds] : acc, [] as string[]),
+          );
+          const ids = group.items
+            .map(i => i.inventoryId)
+            .filter(id => !allAssignedIds.has(id))
+            .slice(0, POTION_STACK_SIZE);
+          if (ids.length === 0) return;
           updated[emptyIdx] = {
             shopItemId: group.shopItemId,
-            inventoryIds: [nextId],
+            inventoryIds: ids,
             name: group.name,
             imageUrl: group.imageUrl ?? null,
             healthRestored: group.healthRestored ?? null,
@@ -4159,11 +4167,27 @@ export default function WorldPage({ user }: WorldPageProps) {
                         }}
                       >
                         {slot ? (
-                          slot.imageUrl ? (
-                            <img src={slot.imageUrl} alt={slot.name} className="w-8 h-8 object-contain" />
-                          ) : isHeal
-                          ? <Heart className="w-5 h-5" style={{ color: "#f87171", fill: "rgba(248,113,113,0.3)" }} />
-                          : <Droplets className="w-5 h-5" style={{ color: "#a78bfa" }} />
+                          <>
+                            {slot.imageUrl ? (
+                              <img src={slot.imageUrl} alt={slot.name} className="w-8 h-8 object-contain" />
+                            ) : isHeal
+                              ? <Heart className="w-5 h-5" style={{ color: "#f87171", fill: "rgba(248,113,113,0.3)" }} />
+                              : <Droplets className="w-5 h-5" style={{ color: "#a78bfa" }} />}
+                            {/* Stack quantity badge — slots now hold up
+                                to 50 of one potion type. */}
+                            <div
+                              className="absolute -bottom-1 -right-1 min-w-[20px] h-[18px] px-1.5 rounded-full flex items-center justify-center text-[10px] font-black tabular-nums"
+                              data-testid={`text-prep-slot-qty-${i}`}
+                              style={{
+                                background: "rgba(0,0,0,0.85)",
+                                border: `1px solid ${isMana ? "rgba(167,139,250,0.55)" : "rgba(34,197,94,0.55)"}`,
+                                color: isMana ? "#c4b5fd" : "#86efac",
+                                boxShadow: "0 1px 4px rgba(0,0,0,0.5)",
+                              }}
+                            >
+                              ×{slot.inventoryIds.length}
+                            </div>
+                          </>
                         ) : (
                           <span className="text-2xl" style={{ color: "rgba(255,255,255,0.18)" }}>+</span>
                         )}

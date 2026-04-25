@@ -5,6 +5,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { playHit, playPlayerHurt, playBattleVictory, playDefeat } from "@/lib/sounds";
 import { ArrowLeft, X } from "lucide-react";
+import type { BattlePotionSlot } from "@/components/BattleArena";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import battleTrophyIcon from "@assets/generated_images/icon_battle_trophy.png";
 import skullDefeatIcon from "@assets/generated_images/icon_skull_defeat.png";
@@ -84,7 +85,11 @@ interface Charger {
 }
 
 interface DraggingPotion {
-  invId: string;
+  /** Index into slotsRemaining of the slot being dragged. The actual
+   *  inventoryId consumed at drop time is the FIRST id of that slot's
+   *  remaining stack, looked up at drop time so a stale snapshot can't
+   *  consume the wrong potion. */
+  slotIndex: number;
   pointerId: number;
   /** Latest pointer position in arena % (for ally hit-test on drop). */
   arenaX: number;
@@ -193,13 +198,17 @@ const nextUid = () => `u${_uid++}`;
 export default function PvpBattlePage({
   opponent,
   myPetIds,
-  potionInventoryIds = [],
+  potionSlots = [],
   battleToken,
   onClose,
 }: {
   opponent: Opponent;
   myPetIds: string[];
-  potionInventoryIds?: string[];
+  /** Slot-based potion loadout (each slot is a stack of up to 50 of one
+   *  potion type). Replaces the old flat `potionInventoryIds` so the
+   *  bottom bar shows 5 chips with a quantity badge instead of one chip
+   *  per potion (which overflowed the screen for stacks). */
+  potionSlots?: BattlePotionSlot[];
   battleToken: string;
   onClose: (result: "win" | "loss" | null) => void;
 }) {
@@ -1061,8 +1070,20 @@ export default function PvpBattlePage({
   // INCOMING indicator UI — see comment in the JSX block.)
 
   // ── Potion DnD ─────────────────────────────────────────────
-  const [potionsRemaining, setPotionsRemaining] = useState<string[]>(potionInventoryIds);
-  useEffect(() => { setPotionsRemaining(potionInventoryIds); }, [potionInventoryIds]);
+  // Slot-based: each slot is a STACK of up to 50 of one potion type.
+  // The bottom bar shows 5 chips with a quantity badge instead of one
+  // chip per potion (which would overflow horribly for stacks of 50).
+  // `remaining` tracks consumption — drop one at a time off the front.
+  type SlotState = BattlePotionSlot & { remaining: string[] };
+  const [slotsRemaining, setSlotsRemaining] = useState<SlotState[]>(
+    () => potionSlots.map(s => ({ ...s, remaining: [...s.inventoryIds] })),
+  );
+  const slotsRemainingRef = useRef<SlotState[]>(slotsRemaining);
+  useEffect(() => {
+    const next = potionSlots.map(s => ({ ...s, remaining: [...s.inventoryIds] }));
+    slotsRemainingRef.current = next;
+    setSlotsRemaining(next);
+  }, [potionSlots]);
 
   const usePotionMutation = useMutation({
     mutationFn: async (inventoryId: string) => {
@@ -1074,13 +1095,18 @@ export default function PvpBattlePage({
     },
   });
 
-  const consumePotion = useCallback((inventoryId: string, targetAllyUid: string | null) => {
+  const consumePotion = useCallback((slotIndex: number, targetAllyUid: string | null) => {
     if (!battleActiveRef.current) return;
-    const inv = (myInventory as any[]).find((i: any) => (i.inventoryId || i.id) === inventoryId);
-    if (!inv) return;
-    const heal = inv.healthRestored ?? 0;
-    const mana = inv.manaRestored ?? 0;
-    const revives = inv.petsRevived ?? 0;
+    const slot = slotsRemainingRef.current[slotIndex];
+    if (!slot || slot.remaining.length === 0) return;
+    const inventoryId = slot.remaining[0];
+    // Prefer slot metadata (which is captured at battle-prep time and
+    // doesn't depend on `myInventory` having loaded by now). Fall back
+    // to the live inventory row if the slot somehow lost its stats.
+    const invFromBag = (myInventory as any[]).find((i: any) => (i.inventoryId || i.id) === inventoryId);
+    const heal = (slot.healthRestored ?? invFromBag?.healthRestored ?? 0) || 0;
+    const mana = (slot.manaRestored ?? invFromBag?.manaRestored ?? 0) || 0;
+    const revives = (slot.petsRevived ?? invFromBag?.petsRevived ?? 0) || 0;
     const ps = petsRef.current;
     const myAlive = ps.filter(p => p.isPlayer && !p.isDead);
     const myDead = ps.filter(p => p.isPlayer && p.isDead);
@@ -1136,17 +1162,25 @@ export default function PvpBattlePage({
       spawnSparks(reviveTarget.x, reviveTarget.y, ["#fbbf24", "#fde68a", "#fef3c7"]);
     }
 
-    setPotionsRemaining(prev => {
-      const idx = prev.indexOf(inventoryId);
-      if (idx < 0) return prev;
-      const next = [...prev];
-      next.splice(idx, 1);
-      return next;
-    });
+    // Pop the consumed id off this slot's remaining stack.
+    {
+      const updated = slotsRemainingRef.current.map((s, i) =>
+        i === slotIndex ? { ...s, remaining: s.remaining.slice(1) } : s,
+      );
+      slotsRemainingRef.current = updated;
+      setSlotsRemaining(updated);
+    }
 
     usePotionMutation.mutate(inventoryId, {
       onError: () => {
-        setPotionsRemaining(prev => (prev.includes(inventoryId) ? prev : [...prev, inventoryId]));
+        // Roll back the pet state AND put the consumed id back at the
+        // front of the slot's remaining stack so the player gets the
+        // potion they thought they'd used.
+        const reverted = slotsRemainingRef.current.map((s, i) =>
+          i === slotIndex ? { ...s, remaining: [inventoryId, ...s.remaining] } : s,
+        );
+        slotsRemainingRef.current = reverted;
+        setSlotsRemaining(reverted);
         for (const r of rollback) {
           const p = petsRef.current.find(x => x.uid === r.uid);
           if (!p) continue;
@@ -1177,14 +1211,16 @@ export default function PvpBattlePage({
     }
   }, [getArenaPos]);
 
-  const beginPotionDrag = useCallback((invId: string, e: React.PointerEvent) => {
+  const beginPotionDrag = useCallback((slotIndex: number, e: React.PointerEvent) => {
     if (!battleActiveRef.current) return;
+    const slot = slotsRemainingRef.current[slotIndex];
+    if (!slot || slot.remaining.length === 0) return;
     e.stopPropagation();
     e.preventDefault();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     const arenaPos = getArenaPos(e.clientX, e.clientY);
     const next: DraggingPotion = {
-      invId, pointerId: e.pointerId,
+      slotIndex, pointerId: e.pointerId,
       arenaX: arenaPos.x, arenaY: arenaPos.y,
       screenX: e.clientX, screenY: e.clientY,
     };
@@ -1210,7 +1246,7 @@ export default function PvpBattlePage({
     // Drop hit-test includes DEAD player pets too (revive targeting).
     const myPets = ps.filter(p => p.isPlayer);
     const target = myPets.find(a => Math.hypot(a.x - arenaPos.x, a.y - arenaPos.y) < 14);
-    consumePotion(drag.invId, target?.uid ?? null);
+    consumePotion(drag.slotIndex, target?.uid ?? null);
   }, [consumePotion, getArenaPos]);
 
   /** Cancel an in-progress drag without consuming the potion. Used as a
@@ -1242,7 +1278,7 @@ export default function PvpBattlePage({
       // Drop hit-test includes DEAD player pets too (revive targeting).
       const myPets = ps.filter(p => p.isPlayer);
       const target = myPets.find(a => Math.hypot(a.x - arenaPos.x, a.y - arenaPos.y) < 14);
-      consumePotion(drag.invId, target?.uid ?? null);
+      consumePotion(drag.slotIndex, target?.uid ?? null);
     };
     const cancelHandler = (ev: PointerEvent) => {
       const drag = draggingPotionRef.current;
@@ -2058,7 +2094,8 @@ export default function PvpBattlePage({
               Positioned in fixed/screen coords so it tracks the finger
               perfectly even outside the arena bounds. */}
           {draggingPotion && (() => {
-            const inv = (myInventory as any[]).find((x: any) => (x.inventoryId || x.id) === draggingPotion.invId);
+            const slot = slotsRemaining[draggingPotion.slotIndex];
+            if (!slot) return null;
             return (
               <div
                 className="fixed z-50 pointer-events-none"
@@ -2077,39 +2114,42 @@ export default function PvpBattlePage({
                     boxShadow: "0 6px 18px rgba(0,0,0,0.6), 0 0 18px rgba(74,222,128,0.45)",
                   }}
                 >
-                  {inv?.imageUrl
-                    ? <img src={inv.imageUrl} alt="" style={{ width: 36, height: 36, objectFit: "contain" }} />
+                  {slot.imageUrl
+                    ? <img src={slot.imageUrl} alt="" style={{ width: 36, height: 36, objectFit: "contain" }} />
                     : <span className="text-white text-base font-black">P</span>}
                 </div>
               </div>
             );
           })()}
 
-          {/* Potion bar — drag a chip onto an ally. The chip captures
-              the pointer on press so the parent arena's slash-handler
-              never starts. Drop on an ally → consume. */}
-          {phase === "battle" && potionsRemaining.length > 0 && (
+          {/* Potion bar — drag a chip onto an ally. Each chip is a
+              SLOT (a stack of up to 50 of one potion type) with a
+              quantity badge. The chip captures the pointer on press
+              so the parent arena's slash-handler never starts. Drop
+              on an ally → consume one from the front of that slot's
+              remaining stack. */}
+          {phase === "battle" && slotsRemaining.some(s => s.remaining.length > 0) && (
             <div
               className="absolute z-30 flex gap-1.5 pointer-events-auto left-1/2 -translate-x-1/2"
               style={{ bottom: 32 }}
               data-testid="pvp-potion-bar"
             >
-              {potionsRemaining.map((invId, i) => {
-                const inv = (myInventory as any[]).find((x: any) => (x.inventoryId || x.id) === invId);
-                if (!inv) return null;
-                const isMana = (inv.manaRestored ?? 0) > 0;
-                const isRevive = (inv.petsRevived ?? 0) > 0;
-                const isBeingDragged = draggingPotion?.invId === invId;
+              {slotsRemaining.map((slot, i) => {
+                const qty = slot.remaining.length;
+                if (qty === 0) return null;
+                const isMana = (slot.manaRestored ?? 0) > 0;
+                const isRevive = (slot.petsRevived ?? 0) > 0;
+                const isBeingDragged = draggingPotion?.slotIndex === i;
                 return (
                   <div
-                    key={`${invId}-${i}`}
+                    key={`slot-${i}-${slot.shopItemId}`}
                     data-testid={`button-pvp-potion-${i}`}
-                    onPointerDown={(e) => beginPotionDrag(invId, e)}
+                    onPointerDown={(e) => beginPotionDrag(i, e)}
                     onPointerMove={movePotionDrag}
                     onPointerUp={endPotionDrag}
                     onPointerCancel={() => cancelPotionDrag()}
                     onLostPointerCapture={() => cancelPotionDrag()}
-                    className="w-11 h-11 rounded-lg flex items-center justify-center transition-transform"
+                    className="relative w-11 h-11 rounded-lg flex items-center justify-center transition-transform"
                     style={{
                       touchAction: "none",
                       background: isRevive
@@ -2123,9 +2163,27 @@ export default function PvpBattlePage({
                       cursor: "grab",
                     }}
                   >
-                    {inv.imageUrl
-                      ? <img src={inv.imageUrl} alt={inv.name} style={{ width: 32, height: 32, objectFit: "contain", pointerEvents: "none" }} draggable={false} />
+                    {slot.imageUrl
+                      ? <img src={slot.imageUrl} alt={slot.name} style={{ width: 32, height: 32, objectFit: "contain", pointerEvents: "none" }} draggable={false} />
                       : <span className="text-white text-sm font-black">{isRevive ? "R" : isMana ? "M" : "H"}</span>}
+                    {/* Quantity badge — how many of this stack are
+                        still available to drop. Hidden during a drag
+                        of this same chip so the ghost icon reads
+                        cleanly. */}
+                    {qty > 1 && (
+                      <div
+                        className="absolute -bottom-1 -right-1 min-w-[16px] h-[14px] px-1 rounded-full flex items-center justify-center text-[9px] font-black tabular-nums pointer-events-none"
+                        data-testid={`text-pvp-potion-qty-${i}`}
+                        style={{
+                          background: "rgba(0,0,0,0.85)",
+                          border: `1px solid ${isRevive ? "rgba(251,191,36,0.6)" : isMana ? "rgba(167,139,250,0.6)" : "rgba(34,197,94,0.6)"}`,
+                          color: isRevive ? "#fde68a" : isMana ? "#c4b5fd" : "#86efac",
+                          opacity: isBeingDragged ? 0 : 1,
+                        }}
+                      >
+                        {qty}
+                      </div>
+                    )}
                   </div>
                 );
               })}

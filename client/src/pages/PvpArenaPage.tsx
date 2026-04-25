@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -10,6 +10,7 @@ import pvpNavIcon from "@assets/generated_images/nav_icon_pvp.png";
 import coinIconImg from "@assets/icon_coin.png";
 import { ArrowLeft, Users, Check, Heart, Droplets, Trophy, Plus, X } from "lucide-react";
 import PvpBattlePage from "./PvpBattlePage";
+import type { BattlePotionSlot } from "@/components/BattleArena";
 import PvpMatchmakingOverlay from "@/components/PvpMatchmakingOverlay";
 import forestBgImg from "@assets/generated_images/pvp_ruins_battlefield_bg.png";
 import swordImg from "@assets/generated_images/pvp_battle_sword.png";
@@ -181,7 +182,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
   // Inventory drives both the pet picker and the potion picker on the
   // single-page lobby, so it's loaded eagerly now (was only loaded for the
   // old "group" tab).
-  const { data: inventory = [] } = useQuery<any[]>({ queryKey: ["/api/inventory"] });
+  const { data: inventory = [], isSuccess: inventoryReady } = useQuery<any[]>({ queryKey: ["/api/inventory"] });
 
   // Client-side fallback ticket count: sum of every inventory stack whose
   // backing shop item is flagged as a PvP ticket. If the dedicated
@@ -194,20 +195,46 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
   const ticketCount = Math.max(ticketsData?.count ?? 0, inventoryTicketCount);
 
   // Local potion selection — picked here on the lobby and forwarded into
-  // the battle screen. Five slots max, mirrors the PvE battle prep flow.
-  // Potion picks live only on the client — restored from localStorage so
-  // they survive navigating away from the arena and back.
-  const POTION_LS_KEY = "pvp:selectedPotionIds";
-  const [selectedPotionIds, setSelectedPotionIds] = useState<string[]>(() => {
+  // the battle screen. Five SLOT max; each slot is a STACK of up to 50 of
+  // one potion type (mirrors world battle prep). Slot positions are
+  // stable: equipping a stack always fills the lowest-index empty slot,
+  // and the slot persists across battles (used potions just shrink the
+  // count via auto-clamping when inventory changes). Restored from
+  // localStorage so the loadout survives reloads.
+  const POTION_LS_KEY = "pvp:potionSlots:v2";
+  const [selectedPotionSlots, setSelectedPotionSlots] = useState<(BattlePotionSlot | null)[]>(() => {
+    // Strict v2 schema validator. We can't trust localStorage —
+    // older builds, malformed entries, or tampered values would
+    // otherwise leak straight into runtime state and crash deeper
+    // consumers (BattleArena reads imageUrl, name, healthRestored,
+    // etc.). So we explicitly require every field to be the right
+    // shape before promoting a slot.
+    const isValidSlot = (s: any): s is BattlePotionSlot => {
+      if (!s || typeof s !== "object") return false;
+      if (typeof s.shopItemId !== "string") return false;
+      if (!Array.isArray(s.inventoryIds) || s.inventoryIds.length === 0) return false;
+      if (!s.inventoryIds.every((id: unknown) => typeof id === "string" && id.length > 0)) return false;
+      if (typeof s.name !== "string") return false;
+      if (s.imageUrl != null && typeof s.imageUrl !== "string") return false;
+      if (s.healthRestored != null && typeof s.healthRestored !== "number") return false;
+      if (s.manaRestored != null && typeof s.manaRestored !== "number") return false;
+      if (s.petsRevived != null && typeof s.petsRevived !== "number") return false;
+      return true;
+    };
     try {
       const raw = typeof window !== "undefined" ? localStorage.getItem(POTION_LS_KEY) : null;
-      const parsed = raw ? JSON.parse(raw) : [];
-      return Array.isArray(parsed) ? parsed.slice(0, 5).filter((x: any) => typeof x === "string") : [];
-    } catch { return []; }
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length === 5) {
+          return parsed.map((s: any) => (isValidSlot(s) ? s : null));
+        }
+      }
+    } catch {}
+    return [null, null, null, null, null];
   });
   useEffect(() => {
-    try { localStorage.setItem(POTION_LS_KEY, JSON.stringify(selectedPotionIds)); } catch {}
-  }, [selectedPotionIds]);
+    try { localStorage.setItem(POTION_LS_KEY, JSON.stringify(selectedPotionSlots)); } catch {}
+  }, [selectedPotionSlots]);
 
   // Which inventory picker is open (if any). Tapping an empty slot opens
   // the corresponding picker; tapping a tile inside the picker fills the
@@ -518,18 +545,92 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
     );
   };
 
-  const togglePotion = (invId: string) => {
-    setSelectedPotionIds(prev =>
-      prev.includes(invId) ? prev.filter(id => id !== invId) : prev.length < 5 ? [...prev, invId] : prev
-    );
+  // Tap a filled slot → clear that slot. Tap an empty slot → open picker.
+  const removePotionSlot = (slotIdx: number) => {
+    setSelectedPotionSlots(prev => {
+      if (!prev[slotIdx]) return prev;
+      const next = [...prev];
+      next[slotIdx] = null;
+      return next;
+    });
   };
+
+  // Picker → equip up to 50 unequipped ids of this type into the
+  // lowest-index empty slot. Auto-closes the picker.
+  const equipPotionStackToNextEmpty = (rep: any, allIdsForType: string[]) => {
+    setSelectedPotionSlots(prev => {
+      const emptyIdx = prev.findIndex(s => s === null);
+      if (emptyIdx === -1) return prev;
+      const alreadyEquipped = new Set(prev.flatMap(s => s ? s.inventoryIds : []));
+      const available = allIdsForType
+        .filter(id => !alreadyEquipped.has(id))
+        .slice(0, POTION_STACK_SIZE);
+      if (available.length === 0) return prev;
+      const next = [...prev];
+      next[emptyIdx] = {
+        shopItemId: rep.shopItemId || `name:${rep.name}`,
+        inventoryIds: available,
+        name: rep.name,
+        imageUrl: rep.imageUrl ?? null,
+        healthRestored: rep.healthRestored ?? null,
+        manaRestored: rep.manaRestored ?? null,
+        petsRevived: rep.petsRevived ?? null,
+      };
+      return next;
+    });
+    setPickerOpen(null);
+  };
+
+  // Auto-clamp slots when inventory changes — drop ids that no longer
+  // exist (consumed in battle, sold, etc.) so the slot count reflects
+  // only what's actually usable. If a slot's stack drops to zero it
+  // becomes empty and the player can re-fill it. We intentionally
+  // also clamp when inventory is an empty array (no potions left)
+  // so persisted-from-localStorage stale ids don't keep haunting
+  // the loadout — that was the root cause of the "first empty slot
+  // gets skipped" bug. Only skip when the query hasn't resolved yet
+  // (inventory is not an array at all).
+  useEffect(() => {
+    // Wait for the first successful inventory load. The default `[]`
+    // on the query means we can't distinguish "loading with empty
+    // fallback" from "resolved with no potions" using `inventory`
+    // alone — without this gate, a cold reload would clamp persisted
+    // slots to null before inventory ever arrived.
+    if (!inventoryReady || !Array.isArray(inventory)) return;
+    const validIds = new Set<string>();
+    for (const i of inventory as any[]) {
+      if (i && i.type === "potion") validIds.add(i.inventoryId || i.id);
+    }
+    setSelectedPotionSlots(prev => {
+      let changed = false;
+      const next = prev.map(slot => {
+        if (!slot) return slot;
+        const filtered = slot.inventoryIds.filter(id => validIds.has(id));
+        if (filtered.length === slot.inventoryIds.length) return slot;
+        changed = true;
+        if (filtered.length === 0) return null;
+        return { ...slot, inventoryIds: filtered };
+      });
+      return changed ? next : prev;
+    });
+  }, [inventory, inventoryReady]);
+
+  // Memoize the filtered potion slots so the array's identity only
+  // changes when the underlying slots actually change. Without this,
+  // every parent rerender would hand a brand-new array to
+  // PvpBattlePage, retriggering its `useEffect([potionSlots])` reset
+  // and clobbering any optimistic local consumption mid-battle.
+  const battlePotionSlotsProp = useMemo(
+    () => selectedPotionSlots.filter((s): s is BattlePotionSlot => s !== null),
+    [selectedPotionSlots],
+  );
 
   if (tab === "battle" && battleOpponent && battleToken) {
     return (
       <PvpBattlePage
         opponent={battleOpponent}
         myPetIds={selectedPetIds.length > 0 ? selectedPetIds : battleGroup?.petInventoryIds ?? []}
-        potionInventoryIds={selectedPotionIds}
+        potionSlots={battlePotionSlotsProp}
         battleToken={battleToken}
         onClose={(result) => {
           setTab("lobby");
@@ -1083,33 +1184,65 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                 <Droplets size={13} className="text-emerald-300" />
                 <span className="text-[10px] tracking-[0.18em] font-bold text-emerald-200">POTIONS</span>
               </div>
-              <span className="text-[10px] text-white/40" data-testid="text-potions-selected-count">{selectedPotionIds.length}/5</span>
+              <span className="text-[10px] text-white/40" data-testid="text-potions-selected-count">{selectedPotionSlots.filter(Boolean).length}/5</span>
             </div>
             <div className="flex gap-2 justify-between">
               {Array.from({ length: 5 }, (_, i) => {
-                const invId = selectedPotionIds[i];
-                const inv = invId ? battlePotions.find((p: any) => (p.inventoryId || p.id) === invId) : null;
-                const isMana = inv && (inv.manaRestored ?? 0) > 0;
+                const slot = selectedPotionSlots[i];
+                const qty = slot?.inventoryIds.length ?? 0;
+                const isEmpty = !slot || qty === 0;
+                const isMana = slot && (slot.manaRestored ?? 0) > 0;
+                const isRevive = slot && (slot.petsRevived ?? 0) > 0;
                 return (
                   <button
                     key={i}
                     data-testid={`div-potion-slot-${i}`}
-                    onClick={() => inv ? togglePotion(invId) : setPickerOpen("potion")}
+                    onClick={() => isEmpty ? setPickerOpen("potion") : removePotionSlot(i)}
                     className="relative flex-1 rounded-xl flex items-center justify-center transition-all active:scale-95"
                     style={{
                       aspectRatio: "1 / 1",
-                      background: inv ? (isMana ? "rgba(124,58,237,0.22)" : "rgba(34,197,94,0.18)") : "rgba(255,255,255,0.04)",
-                      border: `1px solid ${inv ? (isMana ? "rgba(167,139,250,0.55)" : "rgba(34,197,94,0.5)") : "rgba(255,255,255,0.10)"}`,
+                      background: isEmpty
+                        ? "rgba(255,255,255,0.04)"
+                        : isRevive
+                          ? "rgba(251,191,36,0.20)"
+                          : isMana
+                            ? "rgba(124,58,237,0.22)"
+                            : "rgba(34,197,94,0.18)",
+                      border: `1px solid ${isEmpty
+                        ? "rgba(255,255,255,0.10)"
+                        : isRevive
+                          ? "rgba(251,191,36,0.55)"
+                          : isMana
+                            ? "rgba(167,139,250,0.55)"
+                            : "rgba(34,197,94,0.5)"}`,
                     }}
                   >
-                    {inv ? (
-                      inv.imageUrl
-                        ? <img src={inv.imageUrl} className="w-12 h-12 object-contain" />
-                        : isMana
-                          ? <Droplets className="w-7 h-7" style={{ color: "#a78bfa" }} />
-                          : <Heart className="w-7 h-7" style={{ color: "#f87171", fill: "rgba(248,113,113,0.3)" }} />
-                    ) : (
+                    {isEmpty ? (
                       <span className="text-2xl text-white/30 font-light">+</span>
+                    ) : (
+                      <>
+                        {slot.imageUrl
+                          ? <img src={slot.imageUrl} className="w-12 h-12 object-contain" />
+                          : isRevive
+                            ? <span className="text-2xl">✨</span>
+                            : isMana
+                              ? <Droplets className="w-7 h-7" style={{ color: "#a78bfa" }} />
+                              : <Heart className="w-7 h-7" style={{ color: "#f87171", fill: "rgba(248,113,113,0.3)" }} />}
+                        {/* Stack count badge — shows how many of this
+                            potion are currently equipped in this slot. */}
+                        <div
+                          className="absolute -bottom-1 -right-1 min-w-[20px] h-[18px] px-1.5 rounded-full flex items-center justify-center text-[10px] font-black tabular-nums"
+                          data-testid={`text-potion-slot-qty-${i}`}
+                          style={{
+                            background: "rgba(0,0,0,0.85)",
+                            border: `1px solid ${isRevive ? "rgba(251,191,36,0.55)" : isMana ? "rgba(167,139,250,0.55)" : "rgba(34,197,94,0.55)"}`,
+                            color: isRevive ? "#fde68a" : isMana ? "#c4b5fd" : "#86efac",
+                            boxShadow: "0 1px 4px rgba(0,0,0,0.5)",
+                          }}
+                        >
+                          ×{qty}
+                        </div>
+                      </>
                     )}
                   </button>
                 );
@@ -1265,9 +1398,12 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                       // equipped, so the picker can show e.g. "×48"
                       // (50 in stack − 2 already in slots) and disable
                       // the stack once it's empty or the loadout is full.
-                      const equippedFromStack = stack.ids.filter(id => selectedPotionIds.includes(id)).length;
+                      const allEquippedIds = new Set(
+                        selectedPotionSlots.flatMap(s => s ? s.inventoryIds : []),
+                      );
+                      const equippedFromStack = stack.ids.filter(id => allEquippedIds.has(id)).length;
                       const remaining = stack.count - equippedFromStack;
-                      const loadoutFull = selectedPotionIds.length >= 5;
+                      const loadoutFull = selectedPotionSlots.every(s => s !== null);
                       const disabled = remaining <= 0 || loadoutFull;
                       const partiallySelected = equippedFromStack > 0;
                       return (
@@ -1276,13 +1412,11 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                           data-testid={`button-potion-stack-${stack.key}`}
                           disabled={disabled}
                           onClick={() => {
-                            // Equip the next un-selected potion from this
-                            // stack and immediately close the picker so
-                            // the player can see the slot fill in.
-                            const nextId = stack.ids.find(id => !selectedPotionIds.includes(id));
-                            if (!nextId) return;
-                            togglePotion(nextId);
-                            setPickerOpen(null);
+                            // Equip the entire stack (up to 50 of this
+                            // potion type) into the lowest-index empty
+                            // slot and close the picker so the player
+                            // immediately sees the slot fill in.
+                            equipPotionStackToNextEmpty(stack.rep, stack.ids);
                           }}
                           className="relative rounded-xl p-2 flex flex-col items-center gap-1 transition-all active:scale-95"
                           style={{
