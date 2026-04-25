@@ -1200,6 +1200,19 @@
   100% { transform: translateY(0)    scaleX(1)    scaleY(1); }
 }
 
+/* Subtle golden glow that marks player-clickable door entrances on KC map.
+   Animates only opacity + a tiny scale on a child element so the parent
+   wrapper can keep the bottom-center anchor transform untouched. */
+@keyframes kcDoorGlowPulse {
+  0%, 100% { opacity: 0.55; transform: scale(0.92); }
+  50%      { opacity: 1;    transform: scale(1.08); }
+}
+@keyframes kcDoorGlowSpark {
+  0%   { opacity: 0;   transform: translate(-50%, 0)    scale(0.6); }
+  35%  { opacity: 0.9; transform: translate(-50%, -28px) scale(1);   }
+  100% { opacity: 0;   transform: translate(-50%, -56px) scale(0.7); }
+}
+
 /* Own pet quick pounce forward when attack lands */
 @keyframes kcPetPounce {
   0%   { transform: translateX(0)    scaleX(1)    scaleY(1); }

@@ -1368,6 +1368,126 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
             );
           })}
 
+          {/* ── Player-visible door glow ─────────────────────────────────
+               A soft golden orb at every door's entrance. Visible to ALL
+               users (admins included, on top of their own admin UI). The
+               admin door panel itself stays admin-gated below — players
+               only ever see this glow effect, not the admin chrome.
+               Click opens the door, even if the user has no roaming pet
+               on the map.                                                  */}
+          {kcDoors.map(door => (
+            <div
+              key={`door-glow-${door.id}`}
+              style={{
+                position: "absolute",
+                left: `${door.posX}%`,
+                top: `${door.posY}%`,
+                // Match the bottom-center anchor used by pets, doors and
+                // buildings so the glow sits right at the entrance level.
+                transform: "translate(-50%, -100%)",
+                width: 64,
+                height: 64,
+                zIndex: 90,
+                pointerEvents: "none",
+              }}
+              data-testid={`door-glow-wrap-${door.id}`}
+            >
+              {/* Outer halo — large soft falloff, never intercepts clicks
+                  (pointerEvents none) so the inner orb is the actual hit
+                  target and the halo doesn't smother nearby map elements. */}
+              <div
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  inset: -18,
+                  borderRadius: "50%",
+                  background:
+                    "radial-gradient(circle at center, rgba(252,211,77,0.55) 0%, rgba(251,191,36,0.22) 40%, rgba(251,191,36,0) 75%)",
+                  filter: "blur(2px)",
+                  pointerEvents: "none",
+                  animation: "kcDoorGlowPulse 2.6s ease-in-out infinite",
+                }}
+              />
+              {/* Inner orb — the click target. Slightly out-of-phase pulse
+                  so the halo and core breathe together but not identically. */}
+              <button
+                type="button"
+                aria-label={`Enter ${door.name}`}
+                data-testid={`button-door-glow-${door.id}`}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Don't open the door if the user was actually panning
+                  // the map (mid-drag or just-finished-drag) — otherwise
+                  // a pan that ends over an orb would feel like a
+                  // misclick.
+                  if (mapPanningRef.current || mapJustPannedRef.current) return;
+                  activeDoorIdRef.current = door.id;
+                  setActiveDoorId(door.id);
+                  // Defensive: stop any joystick movement so a pet that was
+                  // walking doesn't keep stepping under the door overlay.
+                  joystickDirRef.current = { dx: 0, dy: 0 };
+                  if (rafRef.current !== null) {
+                    cancelAnimationFrame(rafRef.current);
+                    rafRef.current = null;
+                  }
+                }}
+                style={{
+                  position: "absolute",
+                  left: "50%",
+                  top: "50%",
+                  width: 26,
+                  height: 26,
+                  marginLeft: -13,
+                  marginTop: -13,
+                  borderRadius: "50%",
+                  border: "1px solid rgba(255,236,170,0.85)",
+                  background:
+                    "radial-gradient(circle at 35% 30%, rgba(255,250,220,1) 0%, rgba(252,211,77,0.95) 35%, rgba(217,150,12,0.85) 70%, rgba(120,70,4,0.75) 100%)",
+                  boxShadow:
+                    "0 0 10px rgba(252,211,77,0.85), 0 0 22px rgba(251,191,36,0.55)",
+                  cursor: "pointer",
+                  pointerEvents: "auto",
+                  padding: 0,
+                  animation: "kcDoorGlowPulse 1.9s ease-in-out infinite",
+                }}
+              />
+              {/* Two tiny rising sparks for the "magical entrance" feel.
+                  Pure decoration, no pointer interaction. Staggered delays
+                  so they don't fire in unison. */}
+              <div
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  left: "50%",
+                  bottom: 6,
+                  width: 5,
+                  height: 5,
+                  borderRadius: "50%",
+                  background: "rgba(255,236,170,0.95)",
+                  boxShadow: "0 0 6px rgba(252,211,77,0.95)",
+                  pointerEvents: "none",
+                  animation: "kcDoorGlowSpark 2.4s ease-in-out infinite",
+                }}
+              />
+              <div
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  left: "50%",
+                  bottom: 6,
+                  width: 4,
+                  height: 4,
+                  borderRadius: "50%",
+                  background: "rgba(255,236,170,0.85)",
+                  boxShadow: "0 0 5px rgba(252,211,77,0.85)",
+                  pointerEvents: "none",
+                  animation: "kcDoorGlowSpark 2.4s ease-in-out 1.1s infinite",
+                }}
+              />
+            </div>
+          ))}
+
           {/* ── Door trigger zones (admin-visible only) ─────────────────── */}
           {user.isAdmin && kcDoors.map(door => {
             const pos = doorDragPos?.id === door.id ? { x: doorDragPos.x, y: doorDragPos.y } : { x: door.posX, y: door.posY };
