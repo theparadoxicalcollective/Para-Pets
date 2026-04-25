@@ -20,11 +20,10 @@ import adminIconItems from "@assets/admin_icon_items.png";
 import adminIconPets from "@assets/admin_icon_pets.png";
 import adminIconMessages from "@assets/admin_icon_messages.png";
 import adminIconBadges from "@assets/admin_icon_badges.png";
-import adminIconWelcome from "@assets/admin_icon_welcome.png";
 import adminIconHouseBundle from "@assets/admin_icon_house_bundle.png";
 import adminIconMaintenance from "@assets/admin_icon_maintenance.png";
-import adminIconChatFilter from "@assets/admin_icon_chat_filter.png";
-import adminIconVeridianWatcher from "@assets/admin_icon_veridian_watcher.png";
+import adminIconVeridianWatcher from "@assets/admin_icon_veridian_watcher_transparent.png";
+import adminIconQuest from "@assets/icon_quest_v5.png";
 
 import adminIconPurchases from "@assets/admin_icon_purchases.png";
 
@@ -64,10 +63,12 @@ export default function AdminPage({ user }: AdminPageProps) {
   const [banModalUserId, setBanModalUserId] = useState<string | null>(null);
   const [banDays, setBanDays] = useState<string>("");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
-  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "welcome" | "items" | "pets" | "messages" | "badges" | "emblems" | "maintenance" | "home_bundle" | "purchases" | "chat_filter" | "veridian_watcher" | null>(null);
+  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "items" | "pets" | "messages" | "badges" | "emblems" | "maintenance" | "home_bundle" | "purchases" | "veridian_watcher" | "quest" | null>(null);
   const [orphanResult, setOrphanResult] = useState<{ summary: string; cleaned: number } | null>(null);
   const [characterTab, setCharacterTab] = useState<"pet" | "enemy" | "npc" | "fish">("pet");
   const [itemsTab, setItemsTab] = useState<"items" | "fishing">("items");
+  const [rewardsTab, setRewardsTab] = useState<"rewards" | "welcome">("rewards");
+  const [watcherTab, setWatcherTab] = useState<"watcher" | "chat_filter">("watcher");
   const [partsOverlayTemplateId, setPartsOverlayTemplateId] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -155,18 +156,17 @@ export default function AdminPage({ user }: AdminPageProps) {
   const sections = [
     { key: "members" as const, label: "Members", count: members.length, icon: adminIconMembers, desc: "Manage players", color: "#f0c040", glow: "rgba(240,192,64,0.35)", bg: "linear-gradient(145deg, rgba(60,38,8,0.92) 0%, rgba(92,58,20,0.88) 100%)", border: "rgba(212,160,23,0.5)" },
     { key: "rewards" as const, label: "Rewards", icon: adminIconRewards, desc: "Send bundles", color: "#c4b5fd", glow: "rgba(192,132,252,0.35)", bg: "linear-gradient(145deg, rgba(50,18,88,0.92) 0%, rgba(80,28,120,0.88) 100%)", border: "rgba(192,132,252,0.5)" },
-    { key: "items" as const, label: "Items", icon: adminIconItems, desc: "Items & fishing supplies", color: "#fdba74", glow: "rgba(251,146,60,0.30)", bg: "linear-gradient(145deg, rgba(72,32,8,0.92) 0%, rgba(110,52,12,0.88) 100%)", border: "rgba(251,146,60,0.45)" },
-    { key: "pets" as const, label: "Add Character", icon: adminIconPets, desc: "Pets, enemies, NPCs & fish", color: "#5eead4", glow: "rgba(94,234,212,0.30)", bg: "linear-gradient(145deg, rgba(8,45,42,0.92) 0%, rgba(14,70,65,0.88) 100%)", border: "rgba(94,234,212,0.45)" },
+    { key: "items" as const, label: "Items", icon: adminIconItems, desc: "Items & fishing supplies", color: "#5eead4", glow: "rgba(94,234,212,0.30)", bg: "linear-gradient(145deg, rgba(8,45,42,0.92) 0%, rgba(14,70,65,0.88) 100%)", border: "rgba(94,234,212,0.45)" },
+    { key: "pets" as const, label: "Add Character", icon: adminIconPets, desc: "Pets, enemies, NPCs & fish", color: "#fdba74", glow: "rgba(251,146,60,0.30)", bg: "linear-gradient(145deg, rgba(72,32,8,0.92) 0%, rgba(110,52,12,0.88) 100%)", border: "rgba(251,146,60,0.45)" },
     { key: "messages" as const, label: "Messages", count: unreadSupportCount || undefined, icon: adminIconMessages, desc: "Support inbox", color: "#fca5a5", glow: "rgba(252,165,165,0.30)", bg: "linear-gradient(145deg, rgba(80,18,18,0.92) 0%, rgba(110,28,28,0.88) 100%)", border: "rgba(252,165,165,0.45)" },
     { key: "badges" as const, label: "Badges", icon: adminIconBadges, desc: "Award badges", color: "#fde68a", glow: "rgba(253,230,138,0.30)", bg: "linear-gradient(145deg, rgba(72,54,0,0.92) 0%, rgba(108,80,0,0.88) 100%)", border: "rgba(253,230,138,0.45)" },
     { key: "emblems" as const, label: "Emblems", icon: adminIconBadges, desc: "PvP rank trophies", color: "#fca5a5", glow: "rgba(252,165,165,0.30)", bg: "linear-gradient(145deg, rgba(80,18,18,0.92) 0%, rgba(110,28,28,0.88) 100%)", border: "rgba(252,165,165,0.45)" },
-    { key: "welcome" as const, label: "Welcome Bundle", icon: adminIconWelcome, desc: "New user gifts", color: "#6ee7b7", glow: "rgba(110,231,183,0.35)", bg: "linear-gradient(145deg, rgba(8,50,35,0.92) 0%, rgba(14,80,55,0.88) 100%)", border: "rgba(110,231,183,0.45)" },
+    { key: "quest" as const, label: "Quests", icon: adminIconQuest, desc: "Manage quests", color: "#6ee7b7", glow: "rgba(110,231,183,0.35)", bg: "linear-gradient(145deg, rgba(8,50,35,0.92) 0%, rgba(14,80,55,0.88) 100%)", border: "rgba(110,231,183,0.45)" },
 
     { key: "home_bundle" as const, label: "Home Bundle", icon: adminIconHouseBundle, desc: "Decor & bundles", color: "#fbbf24", glow: "rgba(251,191,36,0.30)", bg: "linear-gradient(145deg, rgba(60,40,4,0.92) 0%, rgba(90,60,8,0.88) 100%)", border: "rgba(251,191,36,0.45)" },
     { key: "purchases" as const, label: "Purchases", icon: adminIconPurchases, desc: "Coin shop history", color: "#86efac", glow: "rgba(134,239,172,0.30)", bg: "linear-gradient(145deg, rgba(8,45,18,0.92) 0%, rgba(12,70,28,0.88) 100%)", border: "rgba(134,239,172,0.45)" },
     { key: "maintenance" as const, label: "Maintenance", icon: adminIconMaintenance, desc: "DB cleanup tools", color: "#f9a8d4", glow: "rgba(249,168,212,0.30)", bg: "linear-gradient(145deg, rgba(60,8,40,0.92) 0%, rgba(90,12,60,0.88) 100%)", border: "rgba(249,168,212,0.45)" },
-    { key: "chat_filter" as const, label: "Chat Filter", icon: adminIconChatFilter, desc: "Blocked word list", color: "#fca5a5", glow: "rgba(252,165,165,0.30)", bg: "linear-gradient(145deg, rgba(60,8,8,0.92) 0%, rgba(90,12,12,0.88) 100%)", border: "rgba(252,165,165,0.45)" },
-    { key: "veridian_watcher" as const, label: "Veridian Watcher", icon: adminIconVeridianWatcher, desc: "Bot quotes", color: "#5eead4", glow: "rgba(94,234,212,0.30)", bg: "linear-gradient(145deg, rgba(8,45,42,0.92) 0%, rgba(14,70,65,0.88) 100%)", border: "rgba(94,234,212,0.45)" },
+    { key: "veridian_watcher" as const, label: "Veridian Watcher", icon: adminIconVeridianWatcher, desc: "Bot quotes & chat filter", color: "#5eead4", glow: "rgba(94,234,212,0.30)", bg: "linear-gradient(145deg, rgba(8,45,42,0.92) 0%, rgba(14,70,65,0.88) 100%)", border: "rgba(94,234,212,0.45)" },
   ];
 
   const activeSectionMeta = activeSection ? sections.find(s => s.key === activeSection) : null;
@@ -474,7 +474,74 @@ export default function AdminPage({ user }: AdminPageProps) {
           )}
 
               {activeSection === "rewards" && (
-                <RewardBundleSection members={members.filter(m => !m.isAdmin)} />
+                <div>
+                  {/* ── Rewards: Tabs ──────────────────────────────────── */}
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      marginBottom: 16,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    {([
+                      { key: "rewards", label: "Rewards" },
+                      { key: "welcome", label: "Welcome Bundle" },
+                    ] as const).map(t => {
+                      const active = rewardsTab === t.key;
+                      return (
+                        <button
+                          key={t.key}
+                          data-testid={`tab-rewards-${t.key}`}
+                          onClick={() => setRewardsTab(t.key)}
+                          className="font-fantasy text-[11px] tracking-wider"
+                          style={{
+                            padding: "8px 16px",
+                            borderRadius: 8,
+                            cursor: "pointer",
+                            background: active
+                              ? "linear-gradient(135deg, rgba(192,132,252,0.25) 0%, rgba(168,85,247,0.18) 100%)"
+                              : "rgba(0,0,0,0.35)",
+                            border: active
+                              ? "1px solid rgba(192,132,252,0.6)"
+                              : "1px solid rgba(192,132,252,0.2)",
+                            color: active ? "#c4b5fd" : "#a89878",
+                            boxShadow: active ? "0 0 14px rgba(192,132,252,0.25)" : "none",
+                            transition: "all 0.15s ease",
+                          }}
+                        >
+                          {t.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {rewardsTab === "rewards" && (
+                    <RewardBundleSection members={members.filter(m => !m.isAdmin)} />
+                  )}
+                  {rewardsTab === "welcome" && <WelcomeBundleSection />}
+                </div>
+              )}
+
+              {activeSection === "quest" && (
+                <div
+                  data-testid="panel-quest-placeholder"
+                  style={{
+                    padding: "40px 20px",
+                    textAlign: "center",
+                    background: "rgba(0,0,0,0.35)",
+                    border: "1px dashed rgba(110,231,183,0.3)",
+                    borderRadius: 10,
+                    color: "#a89878",
+                  }}
+                >
+                  <p className="font-fantasy text-[#6ee7b7] text-sm mb-2">
+                    Quests
+                  </p>
+                  <p className="text-[11px]">
+                    Coming soon — created quests will appear here.
+                  </p>
+                </div>
               )}
 
               {activeSection === "items" && (
@@ -504,13 +571,13 @@ export default function AdminPage({ user }: AdminPageProps) {
                             borderRadius: 8,
                             cursor: "pointer",
                             background: active
-                              ? "linear-gradient(135deg, rgba(251,146,60,0.25) 0%, rgba(234,88,12,0.18) 100%)"
+                              ? "linear-gradient(135deg, rgba(94,234,212,0.25) 0%, rgba(45,212,191,0.18) 100%)"
                               : "rgba(0,0,0,0.35)",
                             border: active
-                              ? "1px solid rgba(251,146,60,0.6)"
-                              : "1px solid rgba(251,146,60,0.2)",
-                            color: active ? "#fdba74" : "#a89878",
-                            boxShadow: active ? "0 0 14px rgba(251,146,60,0.25)" : "none",
+                              ? "1px solid rgba(94,234,212,0.6)"
+                              : "1px solid rgba(94,234,212,0.2)",
+                            color: active ? "#5eead4" : "#a89878",
+                            boxShadow: active ? "0 0 14px rgba(94,234,212,0.25)" : "none",
                             transition: "all 0.15s ease",
                           }}
                         >
@@ -554,14 +621,14 @@ export default function AdminPage({ user }: AdminPageProps) {
                             borderRadius: 8,
                             cursor: "pointer",
                             background: active
-                              ? "linear-gradient(135deg, rgba(94,234,212,0.25) 0%, rgba(45,212,191,0.18) 100%)"
+                              ? "linear-gradient(135deg, rgba(251,146,60,0.25) 0%, rgba(234,88,12,0.18) 100%)"
                               : "rgba(0,0,0,0.35)",
                             border: active
-                              ? "1px solid rgba(94,234,212,0.6)"
-                              : "1px solid rgba(94,234,212,0.2)",
-                            color: active ? "#5eead4" : "#a89878",
+                              ? "1px solid rgba(251,146,60,0.6)"
+                              : "1px solid rgba(251,146,60,0.2)",
+                            color: active ? "#fdba74" : "#a89878",
                             boxShadow: active
-                              ? "0 0 14px rgba(94,234,212,0.25)"
+                              ? "0 0 14px rgba(251,146,60,0.25)"
                               : "none",
                             transition: "all 0.15s ease",
                           }}
@@ -615,11 +682,6 @@ export default function AdminPage({ user }: AdminPageProps) {
                 <EmblemDatabaseSection />
               )}
 
-              {activeSection === "welcome" && (
-                <WelcomeBundleSection />
-              )}
-
-
               {activeSection === "home_bundle" && (
                 <HomeBundleSection />
               )}
@@ -632,12 +694,56 @@ export default function AdminPage({ user }: AdminPageProps) {
                 <MaintenanceSection />
               )}
 
-              {activeSection === "chat_filter" && (
-                <ChatFilterSection currentUsername={user.username} />
-              )}
-
               {activeSection === "veridian_watcher" && (
-                <VeridianWatcherSection currentUsername={user.username} />
+                <div>
+                  {/* ── Veridian Watcher: Tabs ─────────────────────────── */}
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      marginBottom: 16,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    {([
+                      { key: "watcher", label: "Watcher" },
+                      { key: "chat_filter", label: "Chat Filter" },
+                    ] as const).map(t => {
+                      const active = watcherTab === t.key;
+                      return (
+                        <button
+                          key={t.key}
+                          data-testid={`tab-watcher-${t.key}`}
+                          onClick={() => setWatcherTab(t.key)}
+                          className="font-fantasy text-[11px] tracking-wider"
+                          style={{
+                            padding: "8px 16px",
+                            borderRadius: 8,
+                            cursor: "pointer",
+                            background: active
+                              ? "linear-gradient(135deg, rgba(94,234,212,0.25) 0%, rgba(45,212,191,0.18) 100%)"
+                              : "rgba(0,0,0,0.35)",
+                            border: active
+                              ? "1px solid rgba(94,234,212,0.6)"
+                              : "1px solid rgba(94,234,212,0.2)",
+                            color: active ? "#5eead4" : "#a89878",
+                            boxShadow: active ? "0 0 14px rgba(94,234,212,0.25)" : "none",
+                            transition: "all 0.15s ease",
+                          }}
+                        >
+                          {t.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {watcherTab === "watcher" && (
+                    <VeridianWatcherSection currentUsername={user.username} />
+                  )}
+                  {watcherTab === "chat_filter" && (
+                    <ChatFilterSection currentUsername={user.username} />
+                  )}
+                </div>
               )}
             </>
           )}
