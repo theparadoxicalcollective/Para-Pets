@@ -344,7 +344,7 @@ const ANIMATION_STYLES = `
      the body's 4.5 s breath cycle (via bodyBreathDelay + 4.5 s
      duration → halved by alternate to 2.25 s forward + 2.25 s reverse)
      so the mouth opens on the inhale and closes on the exhale.
-     Templates that have BOTH a `mouth` and a `mouth_closed` part need
+     Templates that have BOTH a 'mouth' and a 'mouth_closed' part need
      this paired cross-fade because the closed overlay sits on top of
      the open one (higher z-index, opaque) and would otherwise hide any
      fade-in of the open mouth completely. */
@@ -806,7 +806,10 @@ const ALTERNATE_MOTION_ANIMS = new Set<string>([
   // Per-pet override mouth-breath. Same rationale: alternates with the
   // body breath so the open-mouth overlay smoothly fades in (inhale)
   // and out (exhale) instead of snapping back to opacity 0 every cycle.
-  "petIdleMouthBreath",
+  // petIdleMouthClose is the inverse — applied to the closed-mouth
+  // overlay so the two cross-fade in lock-step (closed visible at the
+  // exhale extreme, open visible at the inhale extreme).
+  "petIdleMouthBreath", "petIdleMouthClose",
 ]);
 
 // Build the CSS `animation` shorthand for a given keyframe name. For the
@@ -1598,14 +1601,19 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
                   const delay = isEyePart ? groupBlinkOffset : `${groupDelay}s`;
                   return renderPartImg(part, animName, undefined, delay);
                 }
-                // Per-pet mouth-breath override: cross-fade the open-mouth
-                // overlay in/out with the body's breath. Phase-locked to
-                // bodyBreathDelay + duration 4.5 s (matches petIdleBody)
-                // so the mouth opens on inhale and closes on exhale. Only
-                // the open-mouth part gets this — mouth_closed keeps its
-                // always-on opacity so it stays visible underneath, making
-                // the effect read as "jaws part slightly" rather than a
-                // full mouth swap.
+                // Per-pet mouth-breath override: PAIRED cross-fade between
+                // the open-mouth overlay and the closed-mouth overlay,
+                // phase-locked to bodyBreathDelay + 4.5 s duration so the
+                // jaws open on inhale and close on exhale.
+                //
+                // Why a paired cross-fade (not just fading mouth in):
+                //   For templates that have BOTH `mouth` and `mouth_closed`
+                //   parts, the closed overlay typically sits on TOP of the
+                //   open overlay (higher z-index, fully opaque). Fading the
+                //   open mouth IN underneath does nothing visible — the
+                //   closed mouth covers it. So we ALSO fade the closed
+                //   overlay OUT in lock-step (petIdleMouthClose), and the
+                //   two swap as the breath progresses.
                 //
                 // Strict gates:
                 //   - mode === "idle": this is an IDLE-only effect; walk
@@ -1624,10 +1632,14 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
                   mode === "idle" &&
                   effectiveExpression === "neutral" &&
                   idleMouthBreath &&
-                  baseType === "mouth" &&
                   bodyBreathDelay !== undefined
                 ) {
-                  return renderPartImg(part, "petIdleMouthBreath", undefined, bodyBreathDelay, undefined, undefined, "4.5s");
+                  if (baseType === "mouth") {
+                    return renderPartImg(part, "petIdleMouthBreath", undefined, bodyBreathDelay, undefined, undefined, "4.5s");
+                  }
+                  if (baseType === "mouth_closed") {
+                    return renderPartImg(part, "petIdleMouthClose", undefined, bodyBreathDelay, undefined, undefined, "4.5s");
+                  }
                 }
                 // Head itself has no per-part animation (wrapper handles the bobbing)
                 const partAnimName = isHeadPartType(part.partType) ? null : (lookupAnim(anims, part.partType) ?? null);
