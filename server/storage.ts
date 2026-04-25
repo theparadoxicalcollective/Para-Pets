@@ -1527,6 +1527,31 @@ export class DatabaseStorage implements IStorage {
     await db.delete(userBadges).where(and(eq(userBadges.userId, userId), eq(userBadges.badgeId, badgeId)));
   }
 
+  // Overlay each listing's `itemImageUrl` with the LATEST imageUrl from the
+  // matching shop_items row (when shop_item_id resolves). The listing's
+  // image_url column is a snapshot taken at listing creation time, which
+  // means admin updates to a shop item's artwork would otherwise never
+  // propagate to existing market listings — a buyer browsing the player
+  // market would still see the old picture even though the same item in
+  // the shop / inventory has been refreshed. This batch-fetches all the
+  // referenced shop items in a single query and rewrites the field on
+  // the way out, so reads are always "live" without needing to backfill
+  // or re-write rows on every admin save. Listings whose shop_item_id is
+  // null or missing from shop_items keep their stored snapshot URL.
+  private async overlayMarketImages(listings: PlayerMarketListing[]): Promise<PlayerMarketListing[]> {
+    if (listings.length === 0) return listings;
+    const ids = Array.from(new Set(listings.map(l => l.shopItemId).filter((v): v is string => !!v)));
+    if (ids.length === 0) return listings;
+    const items = await db.select({ id: shopItems.id, imageUrl: shopItems.imageUrl })
+      .from(shopItems)
+      .where(inArray(shopItems.id, ids));
+    const imageById = new Map(items.map(i => [i.id, i.imageUrl] as const));
+    return listings.map(l => {
+      const fresh = l.shopItemId ? imageById.get(l.shopItemId) : undefined;
+      return fresh ? { ...l, itemImageUrl: fresh } : l;
+    });
+  }
+
   async getMarketListings(filters?: { search?: string; itemType?: string; orderAsc?: boolean }): Promise<PlayerMarketListing[]> {
     let query = db.select().from(playerMarketListings).where(eq(playerMarketListings.status, "active")).$dynamic();
 
@@ -1549,20 +1574,24 @@ export class DatabaseStorage implements IStorage {
         query = query.where(and(cond, searchCond));
       }
     }
-    return filters?.orderAsc
+    const rows = await (filters?.orderAsc
       ? query.orderBy(asc(playerMarketListings.createdAt))
-      : query.orderBy(desc(playerMarketListings.createdAt));
+      : query.orderBy(desc(playerMarketListings.createdAt)));
+    return this.overlayMarketImages(rows);
   }
 
   async getMyMarketListings(sellerId: string): Promise<PlayerMarketListing[]> {
-    return db.select().from(playerMarketListings)
+    const rows = await db.select().from(playerMarketListings)
       .where(eq(playerMarketListings.sellerId, sellerId))
       .orderBy(asc(playerMarketListings.createdAt));
+    return this.overlayMarketImages(rows);
   }
 
   async getMarketListing(id: string): Promise<PlayerMarketListing | undefined> {
     const [listing] = await db.select().from(playerMarketListings).where(eq(playerMarketListings.id, id));
-    return listing;
+    if (!listing) return undefined;
+    const [fresh] = await this.overlayMarketImages([listing]);
+    return fresh;
   }
 
   async createMarketListing(data: { sellerId: string; sellerName: string; inventoryId: string; shopItemId: string; itemName: string; itemImageUrl?: string | null; itemType: string; price: number }): Promise<PlayerMarketListing> {

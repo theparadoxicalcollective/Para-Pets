@@ -396,17 +396,16 @@ const ANIMATION_STYLES = `
     to   { transform: translateY(-0.9%) scale(1.028, 1.05); }
   }
   /* Per-pet override pairing (idle.subtleBreath without headScalesWithBody):
-     same upward head bob as petIdleHead but with under half the
-     amplitude (-0.35% vs -0.9%). Used by visually large pets like
-     Crimson Dragon where the body is using petIdleBodySubtle (half
-     amplitude) but the head's standard -0.9% lift reads as the head
-     "flying off" the body because the body itself is barely
-     swelling. Matching the head lift to the body's calmer breath
-     keeps the silhouette glued together while preserving the gentle
-     up-down sway. */
+     same upward head bob as petIdleHead but with a tiny fraction of
+     the amplitude (-0.15% vs -0.9%, roughly 1/6th). Used by visually
+     large pets like Crimson Dragon where the body is using
+     petIdleBodySubtle (half amplitude) and even a half-amplitude
+     head lift still read as "the head is flying off the body". At
+     -0.15% the head is doing a barely-perceptible sway that simply
+     follows the body's calm breath without ever looking detached. */
   @keyframes petIdleHeadSubtle {
     from { transform: translateY(0%); }
-    to   { transform: translateY(-0.35%); }
+    to   { transform: translateY(-0.15%); }
   }
   @keyframes petIdleLeftEar {
     from { transform: rotate(-2deg); }
