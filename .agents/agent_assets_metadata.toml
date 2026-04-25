@@ -286,7 +286,19 @@ title = "platinum trophy"
 id = "netxvwXGHO3eKYNkNasX5"
 uri = "file://attached_assets/generated_images/bg_central_market.png"
 type = "image"
-title = "central market forest cottage bg"
+title = "central market interior portrait"
+
+[[generated]]
+id = "W9i_VejEbxoZkfdf4POyy"
+uri = "file://attached_assets/generated_images/joystick_base.png"
+type = "image"
+title = "joystick base ring"
+
+[[generated]]
+id = "LP6x0-SKYavke2ovdOPuo"
+uri = "file://attached_assets/generated_images/joystick_thumb.png"
+type = "image"
+title = "joystick thumb orb"
 
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"

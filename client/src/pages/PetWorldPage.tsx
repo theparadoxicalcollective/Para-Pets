@@ -11,6 +11,8 @@ import UserProfilePanel from "@/components/UserProfilePanel";
 import bgGround from "@assets/IMG_6459_1774675340089.jpeg";
 import coinIconImg from "@assets/icon_coin.png";
 import petHouseIconImg from "@assets/icon_pet_house.png";
+import joystickBaseImg  from "@assets/generated_images/joystick_base.png";
+import joystickThumbImg from "@assets/generated_images/joystick_thumb.png";
 
 const WORLD_ID = "pet_world";
 const ACCENT = "#7fffd4";
@@ -707,6 +709,76 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
 
     return () => es.close();
   }, [user.id]);
+
+  // ── Bulletproof active-pet fallback ───────────────────────────────────────
+  // The SSE roster *should* include the user's own pet (the server picks
+  // their activePetId or the most-recent hatched pet as a fallback). But if
+  // ANYTHING about that path fails — bad DB row, missing shopItems join,
+  // banned-flag wonkiness, transient SSE auth issue — the user's pet
+  // disappears from KC and there's no second chance. This effect runs
+  // independently: if 1.5 s after mounting we still have no own-pet entry
+  // in the roster, fetch the user's inventory directly, pick the active
+  // (or most recent) hatched pet, and synthesize a roster entry locally.
+  // This guarantees the player always sees their own pet on KC, no matter
+  // what the server-side path does.
+  useEffect(() => {
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      if (cancelled) return;
+      // Already have a roster entry — nothing to do.
+      if (onlinePetsRef.current.some(p => p.userId === user.id)) return;
+      try {
+        const res = await fetch("/api/inventory", { credentials: "include" });
+        if (!res.ok) return;
+        const inv: any[] = await res.json();
+        const hatched = inv
+          .filter(it => it && it.type === "pet" && it.isHatched === true)
+          // Sort newest-first so [0] is always the most recently acquired
+          // hatched pet, regardless of inventory order from the server.
+          .sort((a, b) => {
+            const ta = a.acquiredAt ? Date.parse(a.acquiredAt) : 0;
+            const tb = b.acquiredAt ? Date.parse(b.acquiredAt) : 0;
+            return tb - ta;
+          });
+        if (hatched.length === 0) return;
+        // Prefer the explicitly-chosen active pet. Fall back to the most
+        // recently acquired hatched pet so the player always has SOME
+        // sprite walking around.
+        const preferred = (me?.activePetId
+          ? hatched.find(it => it.inventoryId === me.activePetId)
+          : null) ?? hatched[0];
+        if (!preferred || cancelled) return;
+        const synth: WorldActivePet = {
+          userId: user.id,
+          username: me?.username ?? "you",
+          profileImage: me?.profileImage ?? null,
+          inventoryId: preferred.inventoryId,
+          shopItemId: preferred.shopItemId,
+          name: preferred.name,
+          petNickname: preferred.petNickname ?? null,
+          imageUrl: preferred.imageUrl ?? null,
+          hatchedImageUrl: preferred.hatchedImageUrl ?? null,
+          petLevel: preferred.petLevel ?? 1,
+          petHealth: preferred.petHealth ?? null,
+          petAtk: preferred.petAtk ?? null,
+          petDef: preferred.petDef ?? null,
+          rarity: preferred.rarity ?? null,
+          petTemplateId: preferred.petTemplateId ?? null,
+          facingDirection: preferred.facingDirection ?? null,
+          posX: null,
+          posY: null,
+        };
+        if (cancelled) return;
+        setOnlinePets(prev =>
+          prev.some(p => p.userId === user.id) ? prev : [...prev, synth],
+        );
+      } catch {
+        // Network error — nothing we can do; user just won't see their pet
+        // until SSE recovers. This fallback is best-effort.
+      }
+    }, 1500);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [user.id, me?.activePetId, me?.username, me?.profileImage]);
 
   // ── mutations ──────────────────────────────────────────────────────────────
   const addDecorItemMutation = useMutation({
@@ -1445,12 +1517,17 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                     borderRadius: "50%",
                   }}
                 />
-                {/* Magical light orbs — soft luminous spheres with a bright
-                    white core, golden body, warm amber halo, and a wide
-                    diffuse glow that bleeds into the air. Each orb pulses
-                    on its own delay/duration so the cluster feels alive. */}
+                {/* Magical light orbs — translucent balls of light that
+                    bloom and fade like the rarity halo on the active-pet
+                    page. NO hard core; the brightest center is still
+                    semi-transparent so background detail shows through.
+                    The wide soft falloff plus drop-shadow glow gives the
+                    "ball of pure light" effect the player is asking for. */}
                 {orbs.map((orb, i) => {
-                  const sizePx = Math.max(7, Math.round(rPx * orb.sizeRel));
+                  // Make orbs ~3x bigger than before so the bloom area is
+                  // clearly visible — the gradient fades to transparent at
+                  // the edges so they still feel airy, not heavy.
+                  const sizePx = Math.max(18, Math.round(rPx * orb.sizeRel * 2.6));
                   return (
                     <div
                       key={i}
@@ -1464,13 +1541,19 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                         marginLeft: rPx * orb.cx - sizePx / 2,
                         marginTop:  rPx * orb.cy - sizePx / 2,
                         borderRadius: "50%",
-                        // Bright pearly core, warm gold body, deep amber rim
+                        // Translucent pearly center → warm honey mid →
+                        // fully transparent edges. Background detail
+                        // shows through every layer.
                         background:
-                          "radial-gradient(circle at 35% 30%, rgba(255,255,240,1) 0%, rgba(255,236,170,0.95) 25%, rgba(252,211,77,0.90) 55%, rgba(217,150,12,0.6) 90%, rgba(120,70,4,0) 100%)",
-                        // Layered halos for that "magical aura" feel
-                        boxShadow: `0 0 ${sizePx * 0.8}px rgba(255,236,170,0.95), 0 0 ${sizePx * 1.8}px rgba(252,211,77,0.7), 0 0 ${sizePx * 3.2}px rgba(251,191,36,0.35)`,
+                          "radial-gradient(circle, rgba(255,248,210,0.85) 0%, rgba(255,225,150,0.55) 18%, rgba(252,200,80,0.30) 38%, rgba(232,160,30,0.12) 60%, rgba(180,110,10,0.04) 78%, rgba(120,70,4,0) 100%)",
+                        // Soft diffuse outer bloom — this is what makes
+                        // the orb read as a "ball of light" instead of a
+                        // solid ball. Spread is large so it bleeds into
+                        // the surrounding pixels gently.
+                        filter: `blur(0.5px) drop-shadow(0 0 ${sizePx * 0.35}px rgba(255,225,150,0.55)) drop-shadow(0 0 ${sizePx * 0.9}px rgba(252,200,80,0.30))`,
                         pointerEvents: "none",
                         animation: `kcDoorOrb ${orb.duration} ease-in-out ${orb.delay} infinite`,
+                        mixBlendMode: "screen",
                       }}
                     />
                   );
@@ -2495,12 +2578,22 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                 overflow: "hidden",
                 touchAction: "none",
                 // CSS background-image avoids all img-tag CSS constraints (max-width, height:auto)
-                ...(door.bgUrl ? {
-                  backgroundImage: `url(${door.bgUrl})`,
-                  backgroundSize: "auto 100%",
-                  backgroundRepeat: "no-repeat",
-                  backgroundPosition: `-${bgPanX}px 0`,
-                } : {}),
+                ...(door.bgUrl ? (
+                  // Shop doors are like the bayou shops — a single contained
+                  // scene that fits the screen with NO horizontal scroll.
+                  // Non-shop doors keep the panoramic side-scroll interior.
+                  door.isShop ? {
+                    backgroundImage: `url(${door.bgUrl})`,
+                    backgroundSize: "cover",
+                    backgroundRepeat: "no-repeat",
+                    backgroundPosition: "center center",
+                  } : {
+                    backgroundImage: `url(${door.bgUrl})`,
+                    backgroundSize: "auto 100%",
+                    backgroundRepeat: "no-repeat",
+                    backgroundPosition: `-${bgPanX}px 0`,
+                  }
+                ) : {}),
               }}
               onPointerDown={handleInteriorPointerDown}
               onPointerMove={handleDoorDecorPointerMove}
@@ -3558,25 +3651,33 @@ function Joystick({ onChange }: { onChange: (dx: number, dy: number, active: boo
         zIndex: 60,
       }}
     >
-      {/* Base ring — pure CSS golden glowing disc. Outer subtle halo via
-          box-shadow (animated), inner sunken-stone gradient so the thumb
-          orb visually nests inside the ring. */}
-      <div
+      {/* Base ring — ornate golden filigree PNG with a real transparent
+          centre hole. The image bleeds beyond the BASE_R*2 box because of
+          its built-in glow halo, so we let it overflow naturally rather
+          than clipping. A subtle box-shadow pulse adds a living feel
+          underneath the static art. */}
+      <img
+        src={joystickBaseImg}
+        alt=""
         aria-hidden
+        draggable={false}
         style={{
           position: "absolute",
-          inset: 0,
-          borderRadius: "50%",
-          border: "1.5px solid rgba(252,211,77,0.85)",
-          background:
-            "radial-gradient(circle at 50% 45%, rgba(50,30,4,0.55) 0%, rgba(28,18,4,0.7) 55%, rgba(60,38,8,0.55) 100%)",
-          animation: "kcJoystickGlow 3.2s ease-in-out infinite",
+          left: "50%",
+          top: "50%",
+          width: BASE_R * 2.2,
+          height: BASE_R * 2.2,
+          transform: "translate(-50%, -50%)",
+          objectFit: "contain",
           pointerEvents: "none",
           userSelect: "none",
+          filter: "drop-shadow(0 0 12px rgba(252,211,77,0.45))",
         }}
       />
 
-      {/* Thumb — golden orb that catches and follows the player's drag. */}
+      {/* Thumb — polished golden orb PNG that catches and follows the
+          player's drag. Sized small enough to nest inside the base's
+          inner ring. */}
       <div
         ref={thumbRef}
         style={{
@@ -3589,15 +3690,17 @@ function Joystick({ onChange }: { onChange: (dx: number, dy: number, active: boo
           pointerEvents: "none",
         }}
       >
-        <div
+        <img
+          src={joystickThumbImg}
+          alt=""
+          aria-hidden
+          draggable={false}
           style={{
             width: "100%",
             height: "100%",
-            borderRadius: "50%",
-            border: "1px solid rgba(255,236,170,0.9)",
-            background:
-              "radial-gradient(circle at 35% 30%, rgba(255,250,220,1) 0%, rgba(252,211,77,0.95) 40%, rgba(217,150,12,0.9) 75%, rgba(120,70,4,0.85) 100%)",
-            animation: "kcJoystickThumbGlow 2.2s ease-in-out infinite",
+            objectFit: "contain",
+            userSelect: "none",
+            filter: "drop-shadow(0 0 8px rgba(252,211,77,0.55))",
           }}
         />
       </div>
