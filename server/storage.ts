@@ -54,6 +54,7 @@ import {
   type WorldChatMessage, worldChatMessages,
   type ChatFilterWord, chatFilterWords,
   type VeridianWatcherQuote, veridianWatcherQuotes,
+  type Founder, founders,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, ne, gte, asc, desc, ilike, or, sql, inArray } from "drizzle-orm";
@@ -313,6 +314,11 @@ export interface IStorage {
   getChatFilterWords(): Promise<ChatFilterWord[]>;
   addChatFilterWord(word: string, addedBy?: string): Promise<ChatFilterWord>;
   deleteChatFilterWord(id: string): Promise<void>;
+
+  // Founders — public list of supporter names, admin-managed.
+  getFounders(): Promise<Founder[]>;
+  addFounder(name: string, addedBy?: string): Promise<Founder>;
+  deleteFounder(id: string): Promise<void>;
   getVWQuotes(): Promise<VeridianWatcherQuote[]>;
   addVWQuote(message: string, addedBy?: string): Promise<VeridianWatcherQuote>;
   deleteVWQuote(id: string): Promise<void>;
@@ -3036,6 +3042,20 @@ export class DatabaseStorage implements IStorage {
 
   async deleteChatFilterWord(id: string): Promise<void> {
     await db.delete(chatFilterWords).where(eq(chatFilterWords.id, id));
+  }
+
+  // ── Founders ─────────────────────────────────────────────────────────────
+  async getFounders(): Promise<Founder[]> {
+    return db.select().from(founders).orderBy(asc(founders.createdAt));
+  }
+
+  async addFounder(name: string, addedBy?: string): Promise<Founder> {
+    const [row] = await db.insert(founders).values({ name: name.trim(), addedBy }).returning();
+    return row;
+  }
+
+  async deleteFounder(id: string): Promise<void> {
+    await db.delete(founders).where(eq(founders.id, id));
   }
 
   async getVWQuotes(): Promise<VeridianWatcherQuote[]> {

@@ -6955,6 +6955,47 @@ export async function registerRoutes(
     }
   });
 
+  // ── Founders ───────────────────────────────────────────────────────────────
+  // Public list of supporter names shown on the public Founders page (no auth
+  // required to read — the page is public). Add / delete are admin-only.
+  app.get("/api/founders", async (_req, res) => {
+    try {
+      const list = await storage.getFounders();
+      return res.json(list);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/founders", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
+      const { name } = req.body;
+      if (!name || typeof name !== "string" || !name.trim()) {
+        return res.status(400).json({ message: "Name required" });
+      }
+      if (name.trim().length > 120) {
+        return res.status(400).json({ message: "Name too long (max 120)" });
+      }
+      const row = await storage.addFounder(name.trim(), user.username);
+      return res.json(row);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/founders/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
+      await storage.deleteFounder(String(req.params.id));
+      return res.json({ ok: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
   // ── Veridian Watcher Quote Admin Routes ───────────────────────────────────
   app.get("/api/admin/vw-quotes", async (req, res) => {
     try {

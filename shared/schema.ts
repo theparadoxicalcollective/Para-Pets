@@ -871,6 +871,21 @@ export const veridianWatcherQuotes = pgTable("veridian_watcher_quotes", {
 
 export type VeridianWatcherQuote = typeof veridianWatcherQuotes.$inferSelect;
 
+// ── Founders ──────────────────────────────────────────────────────────────────
+// Curated list of names shown on the public Founders page as a thank-you to
+// people who supported the artist and made the game possible. Maintained
+// exclusively by admins (see /api/founders endpoints). Stored as freeform
+// text so an admin can write the name however they want — display name,
+// real name, handle, etc. — without coupling to the user table.
+export const founders = pgTable("founders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 120 }).notNull(),
+  addedBy: varchar("added_by"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export type Founder = typeof founders.$inferSelect;
+
 // ── Chat Filter Words ─────────────────────────────────────────────────────────
 export const chatFilterWords = pgTable("chat_filter_words", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

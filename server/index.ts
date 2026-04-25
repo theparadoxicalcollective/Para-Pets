@@ -511,6 +511,25 @@ app.use((req, res, next) => {
     `);
   });
 
+  // Reduce the crimson dragon's back/head breath offset. The previous tuning
+  // (backOffsetSec: 0.6) created a visible separation where the head/back
+  // appeared to lift too far off the body during the idle breath, reading as
+  // a heave rather than a calm sway. Halving the offset to 0.25 keeps the
+  // depth cue (back parts still phase-shifted from body) but reduces the
+  // visible head-lift to "just a tab" as requested.
+  await runOnce("crimson_dragon_back_offset_tighten_2026_04", async () => {
+    await db.execute(sql`
+      UPDATE pet_templates
+      SET animation_overrides = COALESCE(animation_overrides, '{}'::jsonb) || jsonb_build_object(
+        'idle',
+        COALESCE(animation_overrides->'idle', '{}'::jsonb) || jsonb_build_object(
+          'backOffsetSec', 0.25
+        )
+      )
+      WHERE LOWER(name) LIKE '%crimson%dragon%'
+    `);
+  });
+
   // Backfill `item_image_url` on player_market_listings for any historical
   // rows that were created before the listing endpoint started copying the
   // shop item's image URL into the row. Without this, a number of legacy

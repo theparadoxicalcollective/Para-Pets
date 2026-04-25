@@ -1,0 +1,485 @@
+import { useEffect, useState } from "react";
+import { Link } from "wouter";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { ChevronLeft, Plus, X, Trash2, Heart } from "lucide-react";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import foundersBg from "@assets/generated_images/founders_bg.png";
+import mascot from "@assets/icon_app_logo.png";
+
+interface Founder {
+  id: string;
+  name: string;
+  addedBy: string | null;
+  createdAt: string;
+}
+
+interface MeUser {
+  id: string;
+  username: string;
+  isAdmin?: boolean;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Founders page — public thank-you wall.
+// Header: heartfelt message thanking supporters of the artist.
+// Body: scrollable list of curated founder names (admin-managed via /api/founders).
+// Admin only: a small (+) at the top-right opens an inline modal to add names,
+// and a trash icon appears next to each name when an admin is signed in.
+// ─────────────────────────────────────────────────────────────────────────────
+export default function FoundersPage() {
+  const { toast } = useToast();
+
+  const { data: user } = useQuery<MeUser | null>({
+    queryKey: ["/api/auth/me"],
+    retry: false,
+    staleTime: 60_000,
+  });
+
+  const { data: founders = [], isLoading } = useQuery<Founder[]>({
+    queryKey: ["/api/founders"],
+    staleTime: 30_000,
+  });
+
+  const isAdmin = !!user?.isAdmin;
+
+  const [showAdd, setShowAdd] = useState(false);
+  const [newName, setNewName] = useState("");
+
+  const addMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const res = await apiRequest("POST", "/api/founders", { name });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/founders"] });
+      setNewName("");
+      setShowAdd(false);
+      toast({ title: "Founder added", description: "Their name now graces the wall." });
+    },
+    onError: (err: any) => {
+      toast({ title: "Could not add", description: err?.message ?? "Try again", variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/founders/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/founders"] });
+    },
+    onError: (err: any) => {
+      toast({ title: "Could not remove", description: err?.message ?? "Try again", variant: "destructive" });
+    },
+  });
+
+  // Close modal on Escape key
+  useEffect(() => {
+    if (!showAdd) return;
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") setShowAdd(false); };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [showAdd]);
+
+  return (
+    <div
+      className="relative min-h-screen w-full overflow-x-hidden"
+      style={{
+        backgroundColor: "#06120a",
+        color: "#e8d97a",
+      }}
+      data-testid="founders-page"
+    >
+      {/* ── Background art — magical rainforest, gold + green ─────────────── */}
+      <div
+        aria-hidden
+        className="fixed inset-0 pointer-events-none"
+        style={{
+          backgroundImage: `url(${foundersBg})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center top",
+          backgroundRepeat: "no-repeat",
+          opacity: 0.85,
+        }}
+      />
+      {/* Top + bottom darkening gradient so the heading and list stay
+          readable over the brightest part of the painting. */}
+      <div
+        aria-hidden
+        className="fixed inset-0 pointer-events-none"
+        style={{
+          background:
+            "linear-gradient(to bottom," +
+            "rgba(4,10,6,0.92) 0%," +
+            "rgba(4,10,6,0.55) 18%," +
+            "rgba(4,10,6,0.35) 45%," +
+            "rgba(4,10,6,0.78) 80%," +
+            "rgba(4,10,6,0.96) 100%)",
+        }}
+      />
+      {/* Subtle warm gold vignette */}
+      <div
+        aria-hidden
+        className="fixed inset-0 pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(ellipse 60% 40% at 50% 22%, rgba(232,200,88,0.18) 0%, transparent 65%)",
+        }}
+      />
+
+      {/* ── Sticky top bar — back link + admin (+) ────────────────────────── */}
+      <div
+        className="sticky top-0 z-30 w-full"
+        style={{
+          background: "rgba(4,10,6,0.78)",
+          backdropFilter: "blur(14px)",
+          WebkitBackdropFilter: "blur(14px)",
+          borderBottom: "1px solid rgba(232,200,88,0.14)",
+          paddingTop: "env(safe-area-inset-top)",
+        }}
+      >
+        <div className="max-w-2xl mx-auto h-14 px-4 flex items-center justify-between">
+          <Link
+            href="/hub"
+            data-testid="link-back-to-hub"
+            className="flex items-center gap-1.5 font-fantasy text-xs tracking-widest transition-all active:scale-95"
+            style={{ color: "#c8a93a" }}
+          >
+            <ChevronLeft size={16} />
+            <span>Hub</span>
+          </Link>
+
+          <div className="flex items-center gap-2">
+            <img src={mascot} alt="" className="w-5 h-5 object-contain opacity-80" />
+            <span className="font-fantasy text-[11px] tracking-widest" style={{ color: "#c8a93a", letterSpacing: "0.18em" }}>
+              FOUNDERS
+            </span>
+          </div>
+
+          {isAdmin ? (
+            <button
+              data-testid="button-add-founder"
+              onClick={() => setShowAdd(true)}
+              aria-label="Add founder"
+              className="flex items-center justify-center rounded-full transition-all active:scale-90"
+              style={{
+                width: 32, height: 32,
+                background: "rgba(232,200,88,0.10)",
+                border: "1px solid rgba(232,200,88,0.40)",
+                color: "#e8c858",
+                boxShadow: "0 0 12px rgba(232,200,88,0.18)",
+              }}
+            >
+              <Plus size={18} />
+            </button>
+          ) : (
+            <div style={{ width: 32 }} />
+          )}
+        </div>
+      </div>
+
+      {/* ── Main content ──────────────────────────────────────────────────── */}
+      <main className="relative max-w-2xl mx-auto px-5 pt-8 pb-24" style={{ zIndex: 1 }}>
+        {/* Heart medallion */}
+        <div className="flex justify-center mb-5">
+          <div
+            className="flex items-center justify-center rounded-full"
+            style={{
+              width: 64, height: 64,
+              background: "radial-gradient(circle at 30% 25%, #f6dc8a 0%, #c8a93a 45%, #6e561a 100%)",
+              boxShadow:
+                "0 0 30px rgba(232,200,88,0.45), 0 0 60px rgba(127,191,176,0.18), inset 0 -2px 6px rgba(0,0,0,0.35)",
+              border: "1px solid rgba(255,235,160,0.55)",
+            }}
+            data-testid="founders-medallion"
+          >
+            <Heart size={28} fill="#3a2a08" stroke="#3a2a08" strokeWidth={1.5} />
+          </div>
+        </div>
+
+        <h1
+          className="font-fantasy text-center tracking-widest"
+          style={{
+            fontSize: 32,
+            color: "#f0d770",
+            letterSpacing: "0.16em",
+            textShadow: "0 0 22px rgba(232,200,88,0.55), 0 4px 18px rgba(0,0,0,0.85)",
+            marginBottom: 8,
+          }}
+          data-testid="text-founders-title"
+        >
+          Our Founders
+        </h1>
+
+        <p
+          className="font-fantasy text-center mx-auto"
+          style={{
+            color: "#a9b495",
+            fontSize: 12,
+            letterSpacing: "0.18em",
+            maxWidth: 380,
+            marginBottom: 28,
+          }}
+        >
+          The hands that lit the lanterns
+        </p>
+
+        {/* Heartfelt thank-you */}
+        <div
+          className="rounded-3xl mx-auto px-6 py-6 mb-10 text-center"
+          style={{
+            maxWidth: 540,
+            background: "linear-gradient(160deg, rgba(10,18,12,0.82) 0%, rgba(20,28,14,0.78) 100%)",
+            border: "1px solid rgba(232,200,88,0.22)",
+            boxShadow:
+              "0 0 40px rgba(232,200,88,0.10), inset 0 1px 0 rgba(232,200,88,0.10), 0 12px 30px rgba(0,0,0,0.55)",
+          }}
+          data-testid="founders-message"
+        >
+          <p
+            className="font-fantasy"
+            style={{
+              color: "#efe3a5",
+              fontSize: 15,
+              lineHeight: 1.7,
+              letterSpacing: "0.02em",
+              textShadow: "0 1px 6px rgba(0,0,0,0.7)",
+            }}
+          >
+            From the bottom of our hearts —
+            <br />
+            <span style={{ color: "#f6dc8a", fontStyle: "italic" }}>thank you</span>.
+          </p>
+          <p
+            className="font-fantasy mt-4"
+            style={{
+              color: "#cbd6b4",
+              fontSize: 13,
+              lineHeight: 1.75,
+              letterSpacing: "0.015em",
+            }}
+          >
+            Every name on this page belongs to someone who believed in the artist
+            behind Para Pets and helped this little world come to life. Your
+            kindness paid for the lanterns in the trees, the songs in the wind,
+            and the very first heartbeat of every pet that has hatched here.
+            Because of you, others get to play, dream, and explore — for free.
+          </p>
+          <p
+            className="font-fantasy mt-4"
+            style={{
+              color: "#e8d97a",
+              fontSize: 13,
+              lineHeight: 1.75,
+              fontStyle: "italic",
+            }}
+          >
+            You are seen. You are loved. You will always be a part of this story.
+          </p>
+          <div className="flex items-center justify-center gap-2 mt-5">
+            <span style={{ height: 1, width: 30, background: "rgba(232,200,88,0.35)" }} />
+            <span style={{ color: "#c8a93a", fontSize: 14 }}>✦</span>
+            <span style={{ height: 1, width: 30, background: "rgba(232,200,88,0.35)" }} />
+          </div>
+        </div>
+
+        {/* Section heading */}
+        <div className="flex items-center gap-3 mb-5 max-w-md mx-auto">
+          <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, transparent, rgba(232,200,88,0.35))" }} />
+          <span
+            className="font-fantasy text-[10px] tracking-widest"
+            style={{ color: "#c8a93a", letterSpacing: "0.28em" }}
+          >
+            THE LANTERN BEARERS
+          </span>
+          <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, rgba(232,200,88,0.35), transparent)" }} />
+        </div>
+
+        {/* Names list */}
+        {isLoading ? (
+          <div className="flex flex-col gap-2 max-w-md mx-auto" data-testid="founders-loading">
+            {[1, 2, 3, 4].map(i => (
+              <div
+                key={i}
+                className="h-12 rounded-2xl animate-pulse"
+                style={{ background: "rgba(232,200,88,0.05)", border: "1px solid rgba(232,200,88,0.10)" }}
+              />
+            ))}
+          </div>
+        ) : founders.length === 0 ? (
+          <div
+            className="text-center py-12 rounded-2xl mx-auto"
+            style={{
+              maxWidth: 380,
+              border: "1px dashed rgba(232,200,88,0.18)",
+              background: "rgba(8,14,10,0.55)",
+            }}
+            data-testid="founders-empty"
+          >
+            <p className="font-fantasy" style={{ color: "#9ba385", fontSize: 13 }}>
+              The first names will appear here soon.
+            </p>
+          </div>
+        ) : (
+          <ul className="flex flex-col gap-2 max-w-md mx-auto" data-testid="founders-list">
+            {founders.map(f => (
+              <li
+                key={f.id}
+                data-testid={`founder-row-${f.id}`}
+                className="rounded-2xl px-5 py-3 flex items-center justify-between gap-3"
+                style={{
+                  background: "linear-gradient(135deg, rgba(12,20,12,0.78) 0%, rgba(20,28,14,0.74) 100%)",
+                  border: "1px solid rgba(232,200,88,0.18)",
+                  boxShadow: "inset 0 1px 0 rgba(232,200,88,0.06), 0 4px 14px rgba(0,0,0,0.45)",
+                }}
+              >
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <span
+                    aria-hidden
+                    className="flex items-center justify-center rounded-full flex-shrink-0"
+                    style={{
+                      width: 26, height: 26,
+                      background: "radial-gradient(circle at 30% 25%, #f6dc8a 0%, #c8a93a 70%)",
+                      boxShadow: "0 0 10px rgba(232,200,88,0.35)",
+                      color: "#3a2a08",
+                      fontSize: 12,
+                    }}
+                  >
+                    ✦
+                  </span>
+                  <span
+                    className="font-fantasy truncate"
+                    data-testid={`text-founder-name-${f.id}`}
+                    style={{
+                      color: "#f0e3a3",
+                      fontSize: 15,
+                      letterSpacing: "0.04em",
+                      textShadow: "0 1px 4px rgba(0,0,0,0.55)",
+                    }}
+                  >
+                    {f.name}
+                  </span>
+                </div>
+                {isAdmin && (
+                  <button
+                    data-testid={`button-remove-founder-${f.id}`}
+                    onClick={() => {
+                      if (confirm(`Remove "${f.name}" from the founders list?`)) {
+                        deleteMutation.mutate(f.id);
+                      }
+                    }}
+                    aria-label={`Remove ${f.name}`}
+                    className="rounded-full p-1.5 transition-all active:scale-90 flex-shrink-0"
+                    style={{
+                      color: "#a06060",
+                      background: "rgba(160,80,80,0.07)",
+                      border: "1px solid rgba(160,80,80,0.20)",
+                    }}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {/* Footer keepsake */}
+        <p
+          className="font-fantasy text-center mt-12"
+          style={{ color: "rgba(232,200,88,0.45)", fontSize: 11, letterSpacing: "0.2em" }}
+        >
+          ✦ With love, from everyone at Para Pets ✦
+        </p>
+      </main>
+
+      {/* ── Admin add modal ────────────────────────────────────────────────── */}
+      {showAdd && isAdmin && (
+        <div
+          className="fixed inset-0 flex items-center justify-center px-5"
+          style={{ zIndex: 99999, background: "rgba(4,10,6,0.85)", backdropFilter: "blur(10px)" }}
+          onClick={e => { if (e.target === e.currentTarget) setShowAdd(false); }}
+          data-testid="add-founder-modal-backdrop"
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl overflow-hidden"
+            style={{
+              background: "linear-gradient(160deg, rgba(12,20,12,0.97) 0%, rgba(8,14,8,0.97) 100%)",
+              border: "1px solid rgba(232,200,88,0.30)",
+              boxShadow: "0 0 50px rgba(232,200,88,0.15), 0 24px 60px rgba(0,0,0,0.75)",
+            }}
+            data-testid="add-founder-modal"
+          >
+            <div
+              className="relative flex flex-col items-center pt-6 pb-4 px-6"
+              style={{ borderBottom: "1px solid rgba(232,200,88,0.10)" }}
+            >
+              <h2
+                className="font-fantasy text-base tracking-widest"
+                style={{ color: "#e8c858", textShadow: "0 0 16px rgba(232,200,88,0.4)" }}
+              >
+                Add a Founder
+              </h2>
+              <p className="font-fantasy text-[10px] tracking-widest mt-1" style={{ color: "#7a6a30" }}>
+                Their name will appear on the wall
+              </p>
+              <button
+                data-testid="button-close-add-founder"
+                onClick={() => setShowAdd(false)}
+                className="absolute top-4 right-4 rounded-full p-1.5"
+                style={{ background: "rgba(232,200,88,0.10)", color: "#7a6a30" }}
+                aria-label="Close"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <div className="px-6 py-5 flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label
+                  className="font-fantasy text-[10px] tracking-widest uppercase"
+                  style={{ color: "#7a6a30" }}
+                >
+                  Name
+                </label>
+                <input
+                  data-testid="input-founder-name"
+                  type="text"
+                  value={newName}
+                  onChange={e => setNewName(e.target.value)}
+                  placeholder="Founder's name"
+                  maxLength={120}
+                  autoFocus
+                  className="w-full rounded-xl px-4 py-3 text-sm outline-none"
+                  style={{
+                    background: "rgba(232,200,88,0.06)",
+                    border: "1px solid rgba(232,200,88,0.22)",
+                    color: "#efe3a5",
+                    fontFamily: "inherit",
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && newName.trim()) addMutation.mutate(newName.trim());
+                  }}
+                />
+              </div>
+              <button
+                data-testid="button-confirm-add-founder"
+                disabled={!newName.trim() || addMutation.isPending}
+                onClick={() => addMutation.mutate(newName.trim())}
+                className="font-fantasy text-xs tracking-widest rounded-2xl px-5 py-3 transition-all active:scale-95 disabled:opacity-40"
+                style={{
+                  background: "linear-gradient(135deg, #f6dc8a 0%, #c8a93a 100%)",
+                  color: "#3a2a08",
+                  boxShadow: "0 0 18px rgba(232,200,88,0.30)",
+                }}
+              >
+                {addMutation.isPending ? "Adding…" : "Add to Wall"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
