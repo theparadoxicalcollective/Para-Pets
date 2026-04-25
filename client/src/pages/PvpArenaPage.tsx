@@ -624,11 +624,19 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
               filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.6))",
             }}
           />
-          {/* Discoverability badge moved INLINE to the left of the
-              count (was floating at the chip's top-right corner) so
-              it reads naturally as "+ tickets" instead of an
-              unrelated notification dot. Slightly smaller than the
-              old absolute version so it doesn't crowd the count. */}
+          {/* Order: [ticket icon] [×count] [+ badge]. The count sits
+              immediately next to its icon so the "you have N tickets"
+              read happens in one glance, and the "+" sits on the
+              right as the obvious "tap to buy more" affordance.
+              Slightly smaller than the old absolute version so it
+              doesn't crowd the count. */}
+          <span
+            className="text-[13px] font-black text-amber-200"
+            style={{ textShadow: "0 0 8px rgba(251,191,36,0.4)" }}
+            data-testid="text-pvp-ticket-count"
+          >
+            ×{ticketCount}
+          </span>
           <span
             className="w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0"
             style={{
@@ -639,13 +647,6 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
             aria-hidden
           >
             <Plus size={8} strokeWidth={3.5} color="#1a0e00" />
-          </span>
-          <span
-            className="text-[13px] font-black text-amber-200"
-            style={{ textShadow: "0 0 8px rgba(251,191,36,0.4)" }}
-            data-testid="text-pvp-ticket-count"
-          >
-            ×{ticketCount}
           </span>
         </button>
       </div>

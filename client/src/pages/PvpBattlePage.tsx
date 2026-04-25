@@ -912,39 +912,73 @@ export default function PvpBattlePage({
     if (draggingPotionRef.current) return;
     if (!isSlashingRef.current) return;
     const pos = getArenaPos(e.clientX, e.clientY);
-    const prev = slashPathRef.current[slashPathRef.current.length - 1];
-    slashPathRef.current.push(pos);
-    // Keep the visible slash short — a 6-point cap reads as a quick
-    // saber-flick instead of the long red snake the previous 12-point
-    // cap drew. The hit-detection segment loop below only ever uses
-    // `prev` → `pos` (the most recent step), so the cap only affects
-    // what's RENDERED, not which enemies the swipe actually hits.
-    if (slashPathRef.current.length > 6) slashPathRef.current.shift();
+    // Single-segment swipe: render a STRAIGHT line from the original
+    // pointer-down to the current finger position (capped in length).
+    // Was previously a 6-point trailing polyline that followed the
+    // finger's wiggle — that read as a "continuous saber trail" and
+    // tended to hit multiple enemies in one drag. Per the user spec
+    // the swipe is now a quick diagonal stroke that lands on at most
+    // one enemy.
+    const start = slashPathRef.current[0];
+    if (!start) return;
+    // Cap the visible segment so even if the player drags a long way
+    // the line stays "swipe-sized". 22 arena-% works out to roughly
+    // one pet-width across the lane, which is enough to overlap a
+    // single enemy without spanning the whole row.
+    const MAX_SWIPE_LEN = 22;
+    let endX = pos.x, endY = pos.y;
+    const tdx = pos.x - start.x, tdy = pos.y - start.y;
+    const tdist = Math.hypot(tdx, tdy);
+    if (tdist > MAX_SWIPE_LEN) {
+      const s = MAX_SWIPE_LEN / tdist;
+      endX = start.x + tdx * s;
+      endY = start.y + tdy * s;
+    }
+    slashPathRef.current = [start, { x: endX, y: endY }];
     // DOM-direct polyline update — bypasses React reconciliation so a
     // dragging finger doesn't tank battle FPS by re-rendering every pet
     // wrapper, hp bar, mana bar, sparks, etc on every pointermove.
-    const ptsStr = slashPathRef.current.map(p => `${p.x},${p.y}`).join(" ");
+    const ptsStr = `${start.x},${start.y} ${endX},${endY}`;
     slashOuterRef.current?.setAttribute("points", ptsStr);
     slashInnerRef.current?.setAttribute("points", ptsStr);
-    if (!prev) return;
+
+    // One-enemy-per-swipe gate. Once we've registered a hit, no
+    // further pointer-move tick will land additional damage even if
+    // the line still passes through other enemies.
+    if (hitSetRef.current.size >= 1) return;
 
     const oppAlive = petsRef.current.filter(p => !p.isPlayer && !p.isDead);
+    // Run hit detection along the FULL swipe segment (start → end),
+    // not just the latest tiny pointermove delta — otherwise a fast
+    // diagonal flick would skip past an enemy between samples.
+    let bestHit: { opp: typeof oppAlive[number]; dist: number } | null = null;
     for (const opp of oppAlive) {
       if (hitSetRef.current.has(opp.uid)) continue;
-      const ax = prev.x, ay = prev.y, bx = pos.x, by = pos.y;
+      const ax = start.x, ay = start.y, bx = endX, by = endY;
       const dx = bx - ax, dy = by - ay;
       const len = Math.hypot(dx, dy) || 1;
       const tParam = Math.max(0, Math.min(1, ((opp.x - ax) * dx + (opp.y - ay) * dy) / (len * len)));
       const dist = Math.hypot(ax + tParam * dx - opp.x, ay + tParam * dy - opp.y);
       if (dist >= 14) continue;
-
+      // Pick the closest-to-line enemy as THE one this swipe hits —
+      // if two enemies overlap the swipe at the same instant the
+      // player hit the one they aimed at, not whichever happened to
+      // come first in the iteration order.
+      if (!bestHit || dist < bestHit.dist) bestHit = { opp, dist };
+    }
+    if (bestHit) {
+      const opp = bestHit.opp;
       hitSetRef.current.add(opp.uid);
       const isCrit = Math.random() < 0.15;
       const myAlive = petsRef.current.filter(p => p.isPlayer && !p.isDead);
       // Slot-0 is the lead attacker for swipe-damage attribution. If
-      // they've been KO'd, fall back to whoever's alive.
+      // they've been KO'd, fall back to whoever's alive. (Was
+      // `continue` when this lived inside the per-enemy for-loop;
+      // now that we resolve a single best-hit enemy and apply damage
+      // outside the loop, the no-attacker case just bails out of the
+      // pointer-move callback entirely.)
       const attacker = myAlive.find(p => p.slotIdx === 0) ?? myAlive[0];
-      if (!attacker) continue;
+      if (!attacker) return;
 
       const newCombo = bumpCombo();
       const comboMult = 1 + Math.min(newCombo * 0.12, 0.6);
