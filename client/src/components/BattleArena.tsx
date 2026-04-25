@@ -14,10 +14,12 @@ import hitMarkPng from "@assets/icon_battle_hitmark.png";
 // Canvas-based renderer — each PetAnimator <img>-per-part allocates its own
 // full-resolution GPU texture on iOS Safari. With 3 pets in battle (1 active +
 // 2 extras) that easily exceeds the per-tab GPU memory budget on iPhone and
-// kills the page. PetAnimatorCanvas draws every part into a single <canvas>
-// per pet and keeps the source images in system RAM, so total GPU usage stays
-// well within budget regardless of how many pets are on screen.
-import PetAnimatorCanvas from "./PetAnimatorCanvas";
+// kills the page on iOS Safari. PetAnimatorCanvas was previously used
+// here for the world-battle arena to consolidate every part into a
+// single GPU texture, but the user requested still PNG portraits in
+// PvE — same ones used in PvP and the rest of the app — so the canvas
+// rig is no longer imported in this file. It's still used elsewhere
+// in the app (see PetAnimatorCanvas.tsx for those callers).
 
 export interface EquippedPet {
   inventoryId: string;

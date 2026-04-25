@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, Fragment } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -251,6 +251,27 @@ export default function PvpBattlePage({
   const [sparks, setSparks] = useState<SparkParticle[]>([]);
   const [hitFlash, setHitFlash] = useState<Record<string, boolean>>({});
   const [koSet, setKoSet] = useState<Set<string>>(new Set());
+
+  // ── Special-skill VFX overlay (mirrors PvE BattleArena) ────────────────
+  // Holds the cosmetic style (Lazer / Bubble / Surrounding Light / Large Orb
+  // / Missile / Heal Self / Heal Party) plus the resolved caster + target
+  // positions in arena % coordinates. The render block at the end of the
+  // arena reads this and draws the same beams, orbs, and bursts the PvE
+  // BattleArena does. `nonce` lets the same skill re-trigger and re-mount
+  // the JSX (otherwise React would dedupe the keyframe restart).
+  type PvpSkillFx = {
+    style: string;
+    casterPos: { x: number; y: number };
+    targets: { x: number; y: number }[];
+    beamRgb: string;
+    rarity: number;
+    nonce: number;
+  } | null;
+  const [skillEffect, setSkillEffect] = useState<PvpSkillFx>(null);
+  const skillFxNonceRef = useRef(0);
+  // Per-rarity beam tint — mirrors RARITY_COLORS in BattleArena so a
+  // 3-star pet's Lazer in PvP looks identical to its PvE Lazer.
+  const RARITY_COLORS = ["", "#a0a0b0", "#4ade80", "#60a5fa", "#c084fc", "#f0c040"];
 
   // Combo: increments each unique enemy hit within COMBO_WINDOW_MS.
   // The damage multiplier scales 1× → 1.6× by combo 5+. We mirror the
@@ -539,6 +560,43 @@ export default function PvpBattlePage({
       poison: ["#a3e635", "#84cc16", "#d9f99d"],
     };
     const sparkColors = sparksByStyle[styleName] ?? colorsForType[routing.type] ?? ["#fbbf24", "#f59e0b", "#fde68a"];
+
+    // ── Trigger PvE-style VFX overlay ──────────────────────────────────
+    // Resolves the cast's actual landing pets (relative to the attacker)
+    // and stores their arena positions so the JSX overlay can draw
+    // beams, bubbles, halos, etc. exactly the same way PvE BattleArena
+    // does. Self-clears after 3s; nonce avoids React deduping a
+    // re-cast of the same style.
+    if (styleName) {
+      const fxTargets: { x: number; y: number }[] = (() => {
+        if (routing.affects === "self") return [{ x: attacker.x, y: attacker.y }];
+        if (routing.affects === "party") {
+          const allies = ps.filter(p => p.isPlayer === attacker.isPlayer && !p.isDead);
+          return allies.length ? allies.map(p => ({ x: p.x, y: p.y })) : [{ x: attacker.x, y: attacker.y }];
+        }
+        if (routing.affects === "enemy_party") {
+          const enemies = ps.filter(p => p.isPlayer !== attacker.isPlayer && !p.isDead);
+          return enemies.length ? enemies.map(p => ({ x: p.x, y: p.y })) : [{ x: attacker.x, y: attacker.y - 30 }];
+        }
+        // single enemy
+        if (target && !target.isDead) return [{ x: target.x, y: target.y }];
+        const fallback = ps.find(p => p.isPlayer !== attacker.isPlayer && !p.isDead);
+        return fallback ? [{ x: fallback.x, y: fallback.y }] : [{ x: attacker.x, y: attacker.y - 30 }];
+      })();
+      const beamRgb = RARITY_COLORS[Math.max(1, Math.min(5, attacker.starRarity || 1))] ?? "#a78bfa";
+      const nonce = ++skillFxNonceRef.current;
+      setSkillEffect({
+        style: styleName,
+        casterPos: { x: attacker.x, y: attacker.y },
+        targets: fxTargets,
+        beamRgb,
+        rarity: attacker.starRarity || 1,
+        nonce,
+      });
+      setTimeout(() => {
+        setSkillEffect(cur => (cur && cur.nonce === nonce ? null : cur));
+      }, 3000);
+    }
 
     // Damage % defaults by type so unconfigured legacy pets still hit
     // for sensible numbers. The admin-set value (when present) wins.
@@ -1267,6 +1325,50 @@ export default function PvpBattlePage({
         @keyframes bOrb { 0%{transform:translate(0,0) scale(0.6);opacity:0} 30%{opacity:1} 100%{transform:translate(var(--ox,0px),-180px) scale(1.1);opacity:0} }
         @keyframes bWinText { 0%{transform:scale(0.6) rotate(-6deg);opacity:0;letter-spacing:0.05em} 60%{transform:scale(1.12) rotate(2deg);opacity:1} 100%{transform:scale(1) rotate(0deg);opacity:1;letter-spacing:0.18em} }
         @keyframes comboText { 0%{transform:scale(1.4) translateY(-4px);opacity:0} 60%{transform:scale(0.95) translateY(0);opacity:1} 100%{transform:scale(1) translateY(0);opacity:1} }
+        /* ── Special-skill VFX (mirrors PvE BattleArena) ────────────────
+           Identical keyframes to BattleArena.tsx so PvP Lazer / Bubble /
+           Surrounding Light / Large Orb / Missile / Heal look exactly
+           the same as their PvE counterparts. Kept inline (rather than
+           in index.css) so removing PvP doesn't leak unused animations
+           into the global stylesheet. */
+        @keyframes laserPulse { 0%{opacity:0.8} 100%{opacity:1} }
+        @keyframes skillFadeOut { 0%,80%{opacity:1} 100%{opacity:0} }
+        @keyframes lazerOrbRide {
+          0%   { top: var(--lz-from-y, 80%); opacity: 0; transform: translate(-50%,-50%) scale(0.6); }
+          15%  { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+          85%  { opacity: 1; }
+          100% { top: var(--lz-to-y, 20%); opacity: 0; transform: translate(-50%,-50%) scale(1.1); }
+        }
+        @keyframes bubbleFly {
+          0%   { opacity: 0; left: var(--bub-from-x, 50%); top: var(--bub-from-y, 80%); transform: translate(-50%,-50%) scale(0.6); }
+          15%  { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+          90%  { opacity: 1; }
+          100% { opacity: 0; left: var(--bub-to-x, 50%); top: var(--bub-to-y, 20%); transform: translate(-50%,-50%) scale(0.5); }
+        }
+        @keyframes surroundLightPulse {
+          0%   { opacity: 0.7; transform: translate(-50%,-50%) scale(0.95); }
+          100% { opacity: 1;   transform: translate(-50%,-50%) scale(1.1); }
+        }
+        @keyframes surroundOrbit {
+          0%   { transform: translate(-50%,-50%) rotate(var(--sl-angle,0deg)) translateX(46px) rotate(calc(-1 * var(--sl-angle,0deg))); }
+          100% { transform: translate(-50%,-50%) rotate(calc(var(--sl-angle,0deg) + 360deg)) translateX(46px) rotate(calc(-1 * (var(--sl-angle,0deg) + 360deg))); }
+        }
+        @keyframes largeOrbGrow {
+          0%   { width: 24px;  height: 24px;  opacity: 0; }
+          15%  { opacity: 1; }
+          70%  { width: 160px; height: 160px; opacity: 0.95; }
+          100% { width: 220px; height: 220px; opacity: 0; }
+        }
+        @keyframes missileStreak {
+          0%   { opacity: 0; left: var(--ms-from-x, 50%); top: var(--ms-from-y, 80%); transform: translate(-50%,-50%) rotate(0deg) scale(0.8); }
+          10%  { opacity: 1; transform: translate(-50%,-50%) rotate(0deg) scale(1); }
+          100% { opacity: 0; left: var(--ms-to-x, 50%); top: var(--ms-to-y, 20%); transform: translate(-50%,-50%) rotate(8deg) scale(1.1); }
+        }
+        @keyframes healBurst {
+          0%   { transform: translate(-50%,-50%) scale(0.6); opacity: 0; }
+          25%  { opacity: 1; }
+          100% { transform: translate(-50%,-50%) scale(1.6); opacity: 0; }
+        }
       `}</style>
 
       {/* Backdrop */}
@@ -1732,6 +1834,149 @@ export default function PvpBattlePage({
               </div>
             );
           })}
+
+          {/* ── Special-skill VFX overlay ─────────────────────────────────
+              Mirrors PvE BattleArena 1:1 so a Lazer pet looks identical in
+              PvP. Driven entirely by `skillEffect` which fireSkill sets
+              when a special is cast (and self-clears after 3s). The
+              `tg.y >= casterPos.y` check is removed (vs PvE) because PvP
+              has casters on BOTH ends of the arena — the AI casts
+              top-down and the player casts bottom-up — so the beam needs
+              to render in either direction. */}
+          {skillEffect && (() => {
+            const fx = skillEffect;
+            const beamRgb = fx.beamRgb;
+            const targets = fx.targets;
+            const casterPos = fx.casterPos;
+            return (
+              <>
+                {/* Lazer — vertical beam from caster to each target.
+                    Bidirectional via min/abs so AI Lazers (top→bottom)
+                    render the same as player Lazers (bottom→top). */}
+                {fx.style === "Lazer" && targets.map((tg, ti) => {
+                  const orbCount = Math.min(8, 1 + fx.rarity);
+                  const top = Math.min(casterPos.y, tg.y);
+                  const height = Math.abs(casterPos.y - tg.y);
+                  return (
+                    <Fragment key={`lz-${ti}-${fx.nonce}`}>
+                      <div className="absolute pointer-events-none z-36" style={{
+                        left: `${casterPos.x}%`, top: `${top}%`,
+                        transform: "translateX(-50%)", width: 8,
+                        height: `${height}%`,
+                        background: `linear-gradient(0deg, ${beamRgb} 0%, ${beamRgb}cc 60%, transparent 100%)`,
+                        boxShadow: `0 0 18px ${beamRgb}, 0 0 6px white`, borderRadius: 4,
+                        animation: "laserPulse 0.12s ease-in-out infinite alternate, skillFadeOut 3s ease-out forwards",
+                      }} />
+                      {Array.from({ length: orbCount }).map((_, i) => (
+                        <div key={`lzo-${ti}-${i}`} className="absolute pointer-events-none z-37" style={{
+                          left: `${casterPos.x}%`, top: `${casterPos.y}%`,
+                          transform: "translate(-50%,-50%)",
+                          width: 10, height: 10, borderRadius: "50%",
+                          background: `radial-gradient(circle, white 0%, ${beamRgb} 60%, transparent 100%)`,
+                          boxShadow: `0 0 12px ${beamRgb}`,
+                          ["--lz-from-y" as any]: `${casterPos.y}%`,
+                          ["--lz-to-y" as any]: `${tg.y}%`,
+                          animation: `lazerOrbRide 1.4s ${i * 0.18}s linear infinite`,
+                          opacity: 0.95,
+                        }} />
+                      ))}
+                    </Fragment>
+                  );
+                })}
+
+                {/* Bubble — homing bubbles from caster to each target. */}
+                {fx.style === "Bubble" && (() => {
+                  const count = 5 + Math.min(4, fx.rarity);
+                  return targets.flatMap((tg, ti) =>
+                    Array.from({ length: count }).map((_, i) => (
+                      <div key={`bub-${ti}-${i}-${fx.nonce}`} className="absolute pointer-events-none z-36" style={{
+                        left: `${casterPos.x}%`, top: `${casterPos.y}%`, transform: "translate(-50%,-50%)",
+                        width: 22, height: 22, borderRadius: "50%",
+                        background: `radial-gradient(circle at 35% 30%, white, ${beamRgb})`,
+                        border: `1.5px solid ${beamRgb}`,
+                        boxShadow: `0 0 14px ${beamRgb}`,
+                        ["--bub-from-x" as any]: `${casterPos.x}%`,
+                        ["--bub-from-y" as any]: `${casterPos.y}%`,
+                        ["--bub-to-x" as any]: `${tg.x}%`,
+                        ["--bub-to-y" as any]: `${tg.y}%`,
+                        animation: `bubbleFly 1.1s ${i * 0.16}s ease-out forwards`,
+                        opacity: 0,
+                      }} />
+                    ))
+                  );
+                })()}
+
+                {/* Surrounding Light — wraps every targeted ally. */}
+                {fx.style === "Surrounding Light" && targets.map((tg, ti) => (
+                  <Fragment key={`sl-${ti}-${fx.nonce}`}>
+                    <div className="absolute pointer-events-none z-36" style={{
+                      left: `${tg.x}%`, top: `${tg.y}%`, transform: "translate(-50%,-50%)",
+                      width: 140, height: 140, borderRadius: "50%",
+                      background: "radial-gradient(circle, rgba(74,222,128,0.55) 0%, rgba(34,197,94,0.25) 50%, transparent 75%)",
+                      boxShadow: "0 0 40px rgba(74,222,128,0.7), 0 0 80px rgba(34,197,94,0.5)",
+                      animation: "surroundLightPulse 1.2s ease-in-out infinite alternate, skillFadeOut 3s ease-out forwards",
+                    }} />
+                    {[0,1,2,3,4,5,6,7].map((i) => (
+                      <div key={`slo-${ti}-${i}`} className="absolute pointer-events-none z-37" style={{
+                        left: `${tg.x}%`, top: `${tg.y}%`, transform: "translate(-50%,-50%)",
+                        width: 12, height: 12, borderRadius: "50%",
+                        background: "radial-gradient(circle, #ecfccb 0%, #22c55e 60%, transparent 100%)",
+                        boxShadow: "0 0 10px #4ade80",
+                        ["--sl-angle" as any]: `${i * 45}deg`,
+                        animation: `surroundOrbit 2.4s ${i * 0.05}s linear infinite, skillFadeOut 3s ease-out forwards`,
+                      }} />
+                    ))}
+                  </Fragment>
+                ))}
+
+                {/* Large Orb — engulfs every targeted ally. */}
+                {fx.style === "Large Orb" && targets.map((tg, ti) => (
+                  <div key={`lo-${ti}-${fx.nonce}`} className="absolute pointer-events-none z-36" style={{
+                    left: `${tg.x}%`, top: `${tg.y}%`, transform: "translate(-50%,-50%)",
+                    width: 30, height: 30, borderRadius: "50%",
+                    background: "radial-gradient(circle at 35% 30%, rgba(220,255,235,0.95) 0%, rgba(74,222,128,0.85) 35%, rgba(56,189,248,0.55) 70%, transparent 100%)",
+                    border: "2px solid rgba(190,255,220,0.9)",
+                    boxShadow: "0 0 32px rgba(74,222,128,0.8), 0 0 60px rgba(56,189,248,0.5)",
+                    animation: "largeOrbGrow 2.6s ease-out forwards",
+                  }} />
+                ))}
+
+                {/* Missile — small barrage of homing streaks. */}
+                {fx.style === "Missile" && (() => {
+                  const count = 8;
+                  return targets.flatMap((tg, ti) =>
+                    Array.from({ length: count }).map((_, i) => {
+                      const dx = (i - (count - 1) / 2) * 1.6;
+                      return (
+                        <div key={`ms-${ti}-${i}-${fx.nonce}`} className="absolute pointer-events-none z-36" style={{
+                          left: `${casterPos.x + dx}%`, top: `${casterPos.y}%`, transform: "translate(-50%,-50%) rotate(0deg)",
+                          width: 4, height: 22, borderRadius: 2,
+                          background: "linear-gradient(180deg, rgba(255,200,200,1) 0%, rgba(248,113,113,0.95) 40%, rgba(220,38,38,0.6) 100%)",
+                          boxShadow: "0 0 12px rgba(248,113,113,1), 0 0 4px white",
+                          ["--ms-from-x" as any]: `${casterPos.x + dx}%`,
+                          ["--ms-from-y" as any]: `${casterPos.y}%`,
+                          ["--ms-to-x" as any]: `${tg.x + dx * 0.4}%`,
+                          ["--ms-to-y" as any]: `${tg.y}%`,
+                          animation: `missileStreak 0.95s ${i * 0.10}s ease-in forwards`,
+                          opacity: 0,
+                        }} />
+                      );
+                    })
+                  );
+                })()}
+
+                {/* Heal Self / Heal Party — green burst over each healed ally. */}
+                {(fx.style === "Heal Self" || fx.style === "Heal Party") && targets.map((tg, ti) => (
+                  <div key={`hb-${ti}-${fx.nonce}`} className="absolute pointer-events-none z-36" style={{
+                    left: `${tg.x}%`, top: `${tg.y}%`, transform: "translate(-50%,-50%)",
+                    width: 120, height: 120, borderRadius: "50%",
+                    background: "radial-gradient(circle, rgba(34,197,94,0.5) 0%, transparent 65%)",
+                    boxShadow: "0 0 32px rgba(34,197,94,0.6)", animation: "healBurst 0.9s ease-out forwards",
+                  }} />
+                ))}
+              </>
+            );
+          })()}
 
           {/* Sparks */}
           {sparks.map(s => (
