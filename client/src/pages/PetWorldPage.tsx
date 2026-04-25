@@ -3045,8 +3045,12 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
 
 
 
-      {/* ── Joystick — only shown when player has an active pet and is on the map ─── */}
-      {ownPet && !activeDoorId && (
+      {/* ── Joystick — always visible on the map (hidden only while inside a
+           door overlay). When the player has no active pet, the stick still
+           shows but its movement loop is a harmless no-op (startRaf and
+           handleJoystickChange both guard ownPet before saving / moving),
+           which keeps the on-screen affordance consistent for everyone. ─── */}
+      {!activeDoorId && (
         <Joystick onChange={handleJoystickChange} />
       )}
 

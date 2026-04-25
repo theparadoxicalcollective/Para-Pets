@@ -2899,6 +2899,16 @@ export async function registerRoutes(
     // Look up this user's active pet
     const petData = await storage.getWorldActivePetForUser("pet_world", userId);
 
+    // Diagnostic log so we can confirm in production whether the storage
+    // lookup is finding a hatched pet for this user. If `petData` is null
+    // here, the user will not appear in their own roster entry — this is
+    // the single most common cause of "my pet isn't showing in KC".
+    console.log(
+      `[KC SSE] user=${userId} → ${petData
+        ? `pet inv=${petData.inventoryId} name="${petData.name}" hasImg=${!!(petData.hatchedImageUrl || petData.imageUrl)} tpl=${petData.petTemplateId ?? "none"}`
+        : "NO HATCHED PET FOUND (no roster self-entry)"}`,
+    );
+
     if (!petData) {
       // No active pet — user can still watch the world but won't appear as a pet.
       // Send current roster so they can see who is online, then keep stream open.
