@@ -2225,31 +2225,71 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getWorldActivePetForUser(worldId: string, userId: string): Promise<any | null> {
-    const rows = await db
-      .select({
-        userId:          users.id,
-        username:        users.username,
-        profileImage:    users.profileImage,
-        inventoryId:     userInventory.id,
-        shopItemId:      shopItems.id,
-        name:            shopItems.name,
-        petNickname:     userInventory.petNickname,
-        imageUrl:        shopItems.imageUrl,
-        hatchedImageUrl: shopItems.hatchedImageUrl,
-        petLevel:        userInventory.petLevel,
-        petHealth:       userInventory.petHealth,
-        petAtk:          userInventory.petAtk,
-        petDef:          userInventory.petDef,
-        rarity:          shopItems.rarity,
-        petTemplateId:   shopItems.petTemplateId,
-        facingDirection: shopItems.facingDirection,
-      })
+    // Confirm the user exists and isn't banned. If they are banned (or
+    // gone) we don't put them on the world map at all.
+    const [u] = await db
+      .select({ id: users.id, username: users.username, profileImage: users.profileImage, activePetId: users.activePetId })
+      .from(users)
+      .where(and(eq(users.id, userId), eq(users.isBanned, false)))
+      .limit(1);
+    if (!u) return null;
+
+    const baseSelect = {
+      userId:          users.id,
+      username:        users.username,
+      profileImage:    users.profileImage,
+      inventoryId:     userInventory.id,
+      shopItemId:      shopItems.id,
+      name:            shopItems.name,
+      petNickname:     userInventory.petNickname,
+      imageUrl:        shopItems.imageUrl,
+      hatchedImageUrl: shopItems.hatchedImageUrl,
+      petLevel:        userInventory.petLevel,
+      petHealth:       userInventory.petHealth,
+      petAtk:          userInventory.petAtk,
+      petDef:          userInventory.petDef,
+      rarity:          shopItems.rarity,
+      petTemplateId:   shopItems.petTemplateId,
+      facingDirection: shopItems.facingDirection,
+    };
+
+    // Preferred: the pet the user explicitly chose as their active pet,
+    // and only when that pet is hatched.
+    if (u.activePetId) {
+      const rows = await db
+        .select(baseSelect)
+        .from(users)
+        .innerJoin(
+          userInventory,
+          and(
+            eq(userInventory.userId, users.id),
+            sql`${userInventory.id} = ${users.activePetId}`,
+            eq(userInventory.isHatched, true),
+          ),
+        )
+        .innerJoin(shopItems, and(
+          eq(shopItems.id, userInventory.shopItemId),
+          eq(shopItems.type, "pet"),
+        ))
+        .where(eq(users.id, userId))
+        .limit(1);
+      if (rows[0]) return rows[0];
+    }
+
+    // Fallback: the user owns one or more hatched pets but hasn't picked
+    // one as their "active" pet (or their saved active pet was deleted /
+    // is no longer hatched). Without this fallback the user simply
+    // doesn't appear on Keeper's Central — no sprite and no joystick —
+    // which reads as "the page is broken" rather than "you need to set
+    // an active pet". Pick the most recent hatched pet so they always
+    // have a working roaming sprite the moment they enter the world.
+    const fallback = await db
+      .select(baseSelect)
       .from(users)
       .innerJoin(
         userInventory,
         and(
           eq(userInventory.userId, users.id),
-          sql`${userInventory.id} = ${users.activePetId}`,
           eq(userInventory.isHatched, true),
         ),
       )
@@ -2257,13 +2297,10 @@ export class DatabaseStorage implements IStorage {
         eq(shopItems.id, userInventory.shopItemId),
         eq(shopItems.type, "pet"),
       ))
-      .where(and(
-        eq(users.id, userId),
-        eq(users.isBanned, false),
-        sql`${users.activePetId} IS NOT NULL`,
-      ))
+      .where(eq(users.id, userId))
+      .orderBy(sql`${userInventory.acquiredAt} DESC NULLS LAST`)
       .limit(1);
-    return rows[0] ?? null;
+    return fallback[0] ?? null;
   }
 
   async getWorldActivePets(worldId: string): Promise<any[]> {
