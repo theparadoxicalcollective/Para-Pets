@@ -99,19 +99,38 @@ const MAX_MANA = 100;
 /** Combo decays after this many ms with no swipe-hits. */
 const COMBO_WINDOW_MS = 1400;
 /** How often we try to spawn a new enemy charger when none is active.
- *  Reduced from 2800 → 900 because at the old value the player only
- *  saw an enemy attack roughly every 4.4 s (charge + return + gap),
- *  which read as "the enemies aren't fighting back". */
-const CHARGE_INTERVAL_MS = 900;
+ *  Tuned to 1500 ms so the total cycle (charge + return + gap) lands
+ *  around 2.4 s — fast enough that enemies clearly read as "fighting
+ *  back" but slow enough that the screen doesn't feel chaotic and the
+ *  player has time to react with swipes / skills between hits. The
+ *  earlier 900 ms cadence felt frantic per playtest feedback. */
+const CHARGE_INTERVAL_MS = 1500;
 /** How fast a charging enemy travels down to its target ally. */
-const CHARGE_DIVE_MS = 650;
+const CHARGE_DIVE_MS = 720;
 /** How fast it returns to the swarm after impact. */
-const CHARGE_RETURN_MS = 260;
+const CHARGE_RETURN_MS = 300;
 /** Damage % of enemy ATK when a charge lands on an ally. */
 const CHARGE_DMG_MULT = 0.85;
 /** Passive mana the enemy AI gains per RAF frame (matches allies so
  *  enemy specials actually fire instead of waiting for charge-landings). */
 const ENEMY_PASSIVE_MANA = 0.05;
+/** Passive mana every alive ally gains per RAF frame. Bumped from
+ *  0.05 → 0.10 so non-attacker pets in the party charge their special
+ *  in a reasonable window even without taking swipe-credit hits, so
+ *  the player can see them glow and tap-to-fire mid-battle. */
+const ALLY_PASSIVE_MANA = 0.10;
+/** Mana the slot-0 attacker (the swipe focal pet) gains per landed
+ *  swipe-hit. Held at 16 to match the pre-share-distribution rate so
+ *  slot-0's special doesn't charge any slower than it did before — we
+ *  ADD the party share on top of the existing attacker baseline rather
+ *  than splitting it out of slot-0's allotment. */
+const SWIPE_MANA_ATTACKER = 16;
+/** Mana every OTHER alive ally gains per landed swipe-hit. Smaller
+ *  than the attacker share so slot-0 still charges first, but enough
+ *  that backup pets reach full mana within ~10 swipes — without this,
+ *  party pets behind slot-0 effectively never got to use their
+ *  specials, which read as "added pets don't get skills". */
+const SWIPE_MANA_PARTY = 6;
 
 function hpColor(pct: number) {
   if (pct > 0.5) return "#4ade80";
@@ -648,7 +667,13 @@ export default function PvpBattlePage({
             setChargerView(null);
           } else if (!charger.returning) {
             const k = Math.min(1, (now - charger.startMs) / charger.chargeMs);
-            const eased = k * k; // ease-in: snaps faster as it nears
+            // Smoothstep ease in-out — accelerates softly off the
+            // formation, glides through the middle, then settles
+            // smoothly into the target. Replaces the old `k * k`
+            // ease-in which made the dive look like a discrete teleport
+            // at impact (read by playtesters as "the enemies lag /
+            // jump when attacking").
+            const eased = k * k * (3 - 2 * k);
             e.x = e.baseX + (target.x - e.baseX) * eased;
             e.y = e.baseY + (target.y - e.baseY) * eased;
             if (k >= 1) {
@@ -739,7 +764,7 @@ export default function PvpBattlePage({
       for (const a of myAlive) {
         a.x = a.baseX;
         a.y = a.baseY + Math.sin(t * 1.05 + (a.phase || a.slotIdx)) * 0.6;
-        a.mana = Math.min(MAX_MANA, a.mana + 0.05);
+        a.mana = Math.min(MAX_MANA, a.mana + ALLY_PASSIVE_MANA);
       }
 
       // ── Per-frame DOM-direct sync (avoids React re-render storm) ──
@@ -914,7 +939,17 @@ export default function PvpBattlePage({
       const raw = attacker.atk - Math.floor(opp.def * 0.25) + Math.floor(Math.random() * 8) - 4;
       const dmg = Math.max(1, Math.floor(raw * (isCrit ? 1.8 : 1) * comboMult));
       opp.hp = Math.max(0, opp.hp - dmg);
-      attacker.mana = Math.min(MAX_MANA, attacker.mana + 16);
+      // Distribute swipe-mana across the whole alive party, not just
+      // the slot-0 attacker. The attacker still gets the lion's share
+      // (they "swing the blade") but every other live ally also banks
+      // some so backup pets actually charge their special during a
+      // match — without this they'd cap out at the slow passive trickle
+      // and never glow / be tappable, which is what the player saw as
+      // "added pets don't get their special skills".
+      for (const ally of myAlive) {
+        const share = ally.uid === attacker.uid ? SWIPE_MANA_ATTACKER : SWIPE_MANA_PARTY;
+        ally.mana = Math.min(MAX_MANA, ally.mana + share);
+      }
 
       // Red sparks/colors to keep the PvP theme consistent — gold only
       // on a crit so the player can read the special hit at a glance.

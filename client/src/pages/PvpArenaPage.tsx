@@ -532,12 +532,20 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
         <button
           type="button"
           onClick={() => setShowTicketShop(true)}
-          className="relative flex items-center gap-1.5 shrink-0 px-2 py-1 rounded-md active:scale-95 transition-transform"
+          className="relative flex items-center gap-1.5 shrink-0 active:scale-95 transition-transform"
           data-testid="button-open-ticket-shop"
-          style={{ background: "rgba(251,191,36,0.10)", border: "1px solid rgba(251,191,36,0.32)" }}
           aria-label="Open ticket shop"
         >
-          <img src={pvpTicketImg} alt="PvP ticket" style={{ width: 24, height: 24, objectFit: "contain" }} />
+          <img
+            src={pvpTicketImg}
+            alt="PvP ticket"
+            style={{
+              width: 40,
+              height: 40,
+              objectFit: "contain",
+              filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.6))",
+            }}
+          />
           <span
             className="text-[13px] font-black text-amber-200"
             style={{ textShadow: "0 0 8px rgba(251,191,36,0.4)" }}

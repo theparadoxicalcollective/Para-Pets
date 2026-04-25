@@ -360,7 +360,12 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
 
       ctx.clearRect(0, 0, canvasPx, canvasPx);
       ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = "low";
+      // Bumped from "low" → "high" because the previous setting made
+      // pet sprites look pixellated / fuzzy in PvP (5 pets at small
+      // sizes amplify any sampling artifacts). The cost on a throttled
+      // 30 FPS canvas is negligible — we're well under the GPU budget
+      // even on older mobile hardware.
+      ctx.imageSmoothingQuality = "high";
 
       // Fit-to-visible-bbox: compute the union of every part's alpha-
       // tight rect (in 1000-unit logical coords), then scale + recenter
