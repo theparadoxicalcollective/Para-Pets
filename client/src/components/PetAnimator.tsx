@@ -338,6 +338,18 @@ const ANIMATION_STYLES = `
   @keyframes petIdleMouthClosed {
     0%, 100% { opacity: 1; }
   }
+  /* Per-pet override (idle.mouthBreath): cross-fades the open-mouth
+     overlay in and out so the pet looks like it's breathing through a
+     slightly parted jaw. Pairs with the body's 4.5 s breath cycle (via
+     bodyBreathDelay + 4.5 s duration → halved by alternate to 2.25 s
+     forward + 2.25 s reverse) so the mouth opens on the inhale and
+     closes on the exhale. Peak opacity 0.45 keeps the effect subtle —
+     the mouth_closed underneath stays fully visible, so this reads as
+     "jaws part slightly" rather than a full mouth swap. */
+  @keyframes petIdleMouthBreath {
+    from { opacity: 0; }
+    to   { opacity: 0.45; }
+  }
   /* ── Idle: 2-keyframe motion designed for animation-direction: alternate.
 
      Why 2 keyframes (not 5+):
@@ -785,6 +797,10 @@ const ALTERNATE_MOTION_ANIMS = new Set<string>([
   // would inflate then snap back to 1.0 each cycle while the body keeps
   // breathing smoothly, producing a visible "pop" at every loop reset.
   "petIdleHeadBreath",
+  // Per-pet override mouth-breath. Same rationale: alternates with the
+  // body breath so the open-mouth overlay smoothly fades in (inhale)
+  // and out (exhale) instead of snapping back to opacity 0 every cycle.
+  "petIdleMouthBreath",
 ]);
 
 // Build the CSS `animation` shorthand for a given keyframe name. For the
@@ -1024,6 +1040,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   // tweaks via direct DB updates.
   const animOverrides = templateData?.animationOverrides ?? {};
   const idleHeadScalesWithBody = !!animOverrides.idle?.headScalesWithBody;
+  const idleMouthBreath = !!animOverrides.idle?.mouthBreath;
 
   // Determine which view to render:
   // 1. If template is explicitly saved as side-facing ("back"), always use "back"
@@ -1258,6 +1275,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     delayOverride?: string,
     transformOriginOverride?: string,
     zOverride?: number,
+    durationOverride?: string,
   ) => {
     const leftPct = (part.posX / CANVAS_SIZE) * 100;
     const topPct = (part.posY / CANVAS_SIZE) * 100;
@@ -1294,7 +1312,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
       }
     }
     const delay = computedDelay;
-    const duration = getPartDuration(part.partType, mode);
+    const duration = durationOverride ?? getPartDuration(part.partType, mode);
     // Re-map the artist's pivot percentage onto the visible pixels of
     // the part image (alpha bbox) instead of the full padded PNG.
     // CSS `transform-origin` is expressed as a percentage of the
@@ -1573,6 +1591,37 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
                   }
                   const delay = isEyePart ? groupBlinkOffset : `${groupDelay}s`;
                   return renderPartImg(part, animName, undefined, delay);
+                }
+                // Per-pet mouth-breath override: cross-fade the open-mouth
+                // overlay in/out with the body's breath. Phase-locked to
+                // bodyBreathDelay + duration 4.5 s (matches petIdleBody)
+                // so the mouth opens on inhale and closes on exhale. Only
+                // the open-mouth part gets this — mouth_closed keeps its
+                // always-on opacity so it stays visible underneath, making
+                // the effect read as "jaws part slightly" rather than a
+                // full mouth swap.
+                //
+                // Strict gates:
+                //   - mode === "idle": this is an IDLE-only effect; walk
+                //     / zoom / sleep / petting / house / static all keep
+                //     their existing mouth behavior (sleep / petting
+                //     branches above already early-return so this guard
+                //     is also belt-and-braces against future mode
+                //     additions that fall through to the bottom).
+                //   - effectiveExpression === "neutral": when the caller
+                //     forces a happy / petted pose, that takes precedence
+                //     over the override (happy already pins mouth visible
+                //     via expressionOpacity above; petted leaves mouth
+                //     hidden — both should ignore the breath fade).
+                const baseType = part.partType.replace(/^h[23]_/, "");
+                if (
+                  mode === "idle" &&
+                  effectiveExpression === "neutral" &&
+                  idleMouthBreath &&
+                  baseType === "mouth" &&
+                  bodyBreathDelay !== undefined
+                ) {
+                  return renderPartImg(part, "petIdleMouthBreath", undefined, bodyBreathDelay, undefined, undefined, "4.5s");
                 }
                 // Head itself has no per-part animation (wrapper handles the bobbing)
                 const partAnimName = isHeadPartType(part.partType) ? null : (lookupAnim(anims, part.partType) ?? null);

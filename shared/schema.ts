@@ -242,6 +242,13 @@ export type PetAnimationOverrides = {
      *  in lockstep with the torso (used to make Crimson Dragon's whole
      *  silhouette breathe as one). Default false. */
     headScalesWithBody?: boolean;
+    /** When true, the open-mouth overlay ("mouth" part) cross-fades in and
+     *  out gently in sync with the body's breath, so the pet's jaws appear
+     *  to part slightly during inhale and close on exhale. Used for pets
+     *  that should look like they're breathing through an open mouth (e.g.
+     *  Crimson Dragon). Requires both "mouth" (open) and "mouth_closed"
+     *  parts to exist on the template; ignored otherwise. Default false. */
+    mouthBreath?: boolean;
   };
 };
 

@@ -20,7 +20,7 @@ async function main() {
     console.log(`BEFORE: ${m.name} (${m.id}) animationOverrides =`, JSON.stringify(m.current));
     await db
       .update(petTemplates)
-      .set({ animationOverrides: { idle: { headScalesWithBody: true } } })
+      .set({ animationOverrides: { idle: { headScalesWithBody: true, mouthBreath: true } } })
       .where(eq(petTemplates.id, m.id));
     const [after] = await db
       .select({ animationOverrides: petTemplates.animationOverrides })

@@ -281,6 +281,7 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
   // point so the head appears to inflate WITH the torso instead of
   // detaching from it.
   const idleHeadScalesWithBodyRef = useRef(false);
+  const idleMouthBreathRef = useRef(false);
   const bodyAnchorRef = useRef<{ x: number; y: number } | null>(null);
 
   // Cap DPR at 2 — battle-arena renders 3 of these at once and 3× DPR (iPhone)
@@ -327,6 +328,7 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
     // global default. New pets get `{}` automatically so they don't trigger
     // any opt-in tweaks until an admin updates them via direct DB write.
     idleHeadScalesWithBodyRef.current = !!templateData.animationOverrides?.idle?.headScalesWithBody;
+    idleMouthBreathRef.current = !!templateData.animationOverrides?.idle?.mouthBreath;
 
     // Compute the body's world-space breathe anchor — same formula the img
     // renderer uses (PetAnimator.tsx ≈ L1208–1218). Non-flying pets anchor
@@ -551,12 +553,33 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
         headWrapAy = offset + (aLogicalY / CANVAS_SIZE) * drawSpan;
       }
 
+      // Mouth-breath sample (per-pet override). Same 4.5 s sine the body
+      // uses, mapped 0→0.45 so the open-mouth overlay gently fades in
+      // during inhale and back out during exhale. Sampled once per
+      // frame; checked per-part below for "mouth" / "h2_mouth" / "h3_mouth".
+      // Mirrors the img-renderer's petIdleMouthBreath keyframe.
+      const mouthBreathOp = idleMouthBreathRef.current
+        ? (1 + Math.sin((sec / 4.5) * 2 * Math.PI - Math.PI / 2)) * 0.5 * 0.45
+        : null;
+
       for (const { part, img } of parts) {
         // Heads route through evalAnim("head") above; for individual
         // head-group parts we still call evalAnim so eyes blink and
         // ears sway, then layer the shared head bob on top.
         const anim = evalAnim(part.partType, sec, blinkRef.current);
-        const { op, rot } = anim;
+        const { rot } = anim;
+        let op = anim.op;
+        // Per-pet mouth-breath override: replace the mouth overlay's
+        // baseline op:0 with a sine-driven 0..0.45 fade so the open
+        // jaws appear to part on inhale and close on exhale, in lock
+        // step with the body's breath. Strip h2_/h3_ prefix so multi-
+        // head pets all opt in together. Other expression overlays
+        // (eyes_closed, mouth_closed) keep their normal behaviour.
+        if (mouthBreathOp !== null) {
+          const baseTypeForBreath = part.partType.startsWith("h2_") || part.partType.startsWith("h3_")
+            ? part.partType.slice(3) : part.partType;
+          if (baseTypeForBreath === "mouth") op = mouthBreathOp;
+        }
         if (ANIM_ONLY_PARTS.has(part.partType) && op <= 0) continue;
 
         // Apply fit-to-bbox transform in logical (1000-unit) space:
