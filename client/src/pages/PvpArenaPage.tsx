@@ -7,7 +7,8 @@ import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import battleTrophyIcon from "@assets/generated_images/icon_battle_trophy.png";
 import pvpTicketImg from "@assets/Photoroom_20260415_83701_PM_1776304592941.png";
 import pvpNavIcon from "@assets/generated_images/nav_icon_pvp.png";
-import { ArrowLeft, Users, Check, Heart, Droplets, Trophy } from "lucide-react";
+import coinIconImg from "@assets/icon_coin.png";
+import { ArrowLeft, Users, Check, Heart, Droplets, Trophy, Plus, X } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
 import PvpBattlePage from "./PvpBattlePage";
 import PvpMatchmakingOverlay from "@/components/PvpMatchmakingOverlay";
@@ -15,6 +16,40 @@ import forestBgImg from "@assets/generated_images/pvp_ruins_battlefield_bg.png";
 import swordImg from "@assets/generated_images/pvp_battle_sword.png";
 import RoleBadge from "@/components/RoleBadge";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
+
+// Ticket Shop bundles. Mirrors the server-authoritative price map in
+// server/routes.ts (POST /api/pvp/tickets/buy). The server rejects any
+// bundleId not in this map, so duplicating the table here is purely a
+// UX choice — it lets the lobby render the shop without an extra
+// round-trip and keeps prices visible at a glance for the player.
+// Each entry also carries the visual "tier" used to style the card
+// (border, glow, and how many fanned ticket cutouts sit behind the
+// main one) so the higher bundles read as more premium at a glance.
+const TICKET_BUNDLES: Array<{
+  id: string;
+  tickets: number;
+  cost: number;
+  tier: "bronze" | "silver" | "gold" | "purple" | "amber" | "magenta";
+}> = [
+  { id: "1",   tickets: 1,   cost: 50,   tier: "bronze"  },
+  { id: "5",   tickets: 5,   cost: 250,  tier: "silver"  },
+  { id: "10",  tickets: 10,  cost: 500,  tier: "gold"    },
+  { id: "25",  tickets: 25,  cost: 1250, tier: "purple"  },
+  { id: "50",  tickets: 50,  cost: 2500, tier: "amber"   },
+  { id: "100", tickets: 100, cost: 5000, tier: "magenta" },
+];
+
+// Per-tier visual treatment. Borders/glows escalate so the 100-pack
+// doesn't get visually lost next to the 1-pack. `stack` controls how
+// many fanned ticket cutouts render behind the main ticket art.
+const TIER_VISUALS: Record<string, { border: string; glow: string; chip: string; text: string; stack: number }> = {
+  bronze:  { border: "rgba(205,127,50,0.55)",  glow: "0 0 18px rgba(205,127,50,0.30)",  chip: "rgba(205,127,50,0.18)",  text: "#d8a070", stack: 1 },
+  silver:  { border: "rgba(203,213,225,0.55)", glow: "0 0 22px rgba(203,213,225,0.30)", chip: "rgba(203,213,225,0.18)", text: "#e2e8f0", stack: 2 },
+  gold:    { border: "rgba(251,191,36,0.60)",  glow: "0 0 26px rgba(251,191,36,0.38)",  chip: "rgba(251,191,36,0.22)",  text: "#fbbf24", stack: 2 },
+  purple:  { border: "rgba(167,139,250,0.65)", glow: "0 0 30px rgba(167,139,250,0.42)", chip: "rgba(167,139,250,0.22)", text: "#c4b5fd", stack: 3 },
+  amber:   { border: "rgba(240,192,64,0.75)",  glow: "0 0 36px rgba(240,192,64,0.50)",  chip: "rgba(240,192,64,0.24)",  text: "#fcd34d", stack: 3 },
+  magenta: { border: "rgba(255,80,255,0.80)",  glow: "0 0 44px rgba(255,80,255,0.55)",  chip: "rgba(255,80,255,0.22)",  text: "#f0abfc", stack: 4 },
+};
 
 interface LeaderboardEntry {
   userId: string;
@@ -90,6 +125,12 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
   // red bar on mobile that the player can easily miss; this modal is
   // unmissable.
   const [alertModal, setAlertModal] = useState<{ title: string; message: string } | null>(null);
+  // Ticket Shop overlay. Opened by tapping the ticket chip (or its "+"
+  // badge) in the header. While `purchasingBundleId` is non-null the
+  // matching card shows a spinner and all cards are disabled so a
+  // double-tap can't fire two charges.
+  const [showTicketShop, setShowTicketShop] = useState(false);
+  const [purchasingBundleId, setPurchasingBundleId] = useState<string | null>(null);
   const [selectedPetIds, setSelectedPetIds] = useState<string[]>([]);
   const [groupSaved, setGroupSaved] = useState(false);
   // Tap-to-inspect: clicking any leaderboard row (or your own pinned row)
@@ -178,6 +219,71 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
     },
   });
+
+  // Buy a Ticket Shop bundle. The server holds the authoritative price
+  // table (see POST /api/pvp/tickets/buy in server/routes.ts), so the
+  // client just sends the bundleId. After a successful purchase we
+  // refresh the ticket count, inventory, and the auth/me query so the
+  // top-bar coin balance updates everywhere immediately — no flicker.
+  const buyTickets = useMutation({
+    mutationFn: async (bundleId: string) => {
+      const res = await apiRequest("POST", "/api/pvp/tickets/buy", { bundleId });
+      return res.json() as Promise<{
+        user: any;
+        ticketsAdded: number;
+        ticketsRemaining: number;
+        cost: number;
+      }>;
+    },
+    onSuccess: (data) => {
+      // Push the fresh user (with deducted coins) into the cache so the
+      // header coin chip and any other consumer of /api/auth/me update
+      // synchronously without waiting for a refetch.
+      if (data.user) queryClient.setQueryData(["/api/auth/me"], data.user);
+      queryClient.invalidateQueries({ queryKey: ["/api/pvp/tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      toast({
+        title: "Tickets added",
+        description: `+${data.ticketsAdded} ticket${data.ticketsAdded === 1 ? "" : "s"} for ${data.cost.toLocaleString()} coins.`,
+      });
+    },
+    onError: (err: any) => {
+      const msg = err?.message || "Failed to buy tickets";
+      const parsed = (() => { try { return JSON.parse(msg.replace(/^\d+:\s*/, "")); } catch { return null; } })();
+      toast({
+        title: "Purchase failed",
+        description: parsed?.message || msg,
+        variant: "destructive",
+      });
+    },
+    onSettled: () => setPurchasingBundleId(null),
+  });
+
+  const handleBuyBundle = (bundleId: string) => {
+    // Double-gate: `purchasingBundleId` covers the common case (we set
+    // it synchronously below), and `buyTickets.isPending` is the
+    // ground-truth in-flight flag — so even ultra-fast repeat taps
+    // that fire before React commits the local-state update can't
+    // queue a second purchase and double-charge the player.
+    if (purchasingBundleId || buyTickets.isPending) return;
+    setPurchasingBundleId(bundleId);
+    buyTickets.mutate(bundleId);
+  };
+
+  // Close the ticket shop on Escape (standard dialog behavior). We
+  // refuse to close while a purchase is mid-flight so the user can't
+  // accidentally lose visibility of the spinner / outcome toast.
+  useEffect(() => {
+    if (!showTicketShop) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !purchasingBundleId && !buyTickets.isPending) {
+        setShowTicketShop(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showTicketShop, purchasingBundleId, buyTickets.isPending]);
 
   // Sync saved group into local selection — only on the first load so we
   // don't clobber edits the user is making while typing.
@@ -397,15 +503,42 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
           <div className="text-amber-300 text-[10px] tracking-wider font-bold" data-testid="text-header-bp">{Math.max(0, myBp)} BP</div>
         </div>
         {/* PvP ticket chip — moved up here from the row below so it's
-            the most prominent control in the header. */}
-        <div
-          className="flex items-center gap-1.5 shrink-0 px-2 py-1 rounded-md"
-          data-testid="pvp-ticket-count"
+            the most prominent control in the header. Now doubles as
+            the entry point to the Ticket Shop: tapping the chip (or
+            the "+" badge) opens the buy-with-coins overlay so a
+            player who's running low can refill in two taps without
+            leaving the arena. */}
+        <button
+          type="button"
+          onClick={() => setShowTicketShop(true)}
+          className="relative flex items-center gap-1.5 shrink-0 px-2 py-1 rounded-md active:scale-95 transition-transform"
+          data-testid="button-open-ticket-shop"
           style={{ background: "rgba(251,191,36,0.10)", border: "1px solid rgba(251,191,36,0.32)" }}
+          aria-label="Open ticket shop"
         >
           <img src={pvpTicketImg} alt="PvP ticket" style={{ width: 24, height: 24, objectFit: "contain" }} />
-          <span className="text-[13px] font-black text-amber-200" style={{ textShadow: "0 0 8px rgba(251,191,36,0.4)" }}>×{ticketCount}</span>
-        </div>
+          <span
+            className="text-[13px] font-black text-amber-200"
+            style={{ textShadow: "0 0 8px rgba(251,191,36,0.4)" }}
+            data-testid="text-pvp-ticket-count"
+          >
+            ×{ticketCount}
+          </span>
+          {/* Discoverability badge so the chip clearly reads as a
+              shop entry point, not just a counter. Pulsing soft glow
+              keeps the eye drawn to it without becoming noisy. */}
+          <span
+            className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
+            style={{
+              background: "linear-gradient(180deg, #fbbf24 0%, #d97706 100%)",
+              border: "1px solid rgba(0,0,0,0.5)",
+              boxShadow: "0 0 8px rgba(251,191,36,0.7)",
+            }}
+            aria-hidden
+          >
+            <Plus size={10} strokeWidth={3.5} color="#1a0e00" />
+          </span>
+        </button>
       </div>
 
       {/* ── Body ──────────────────────────────────────────────────── */}
@@ -1253,6 +1386,194 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
             >
               GOT IT
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Ticket Shop overlay ──────────────────────────────────────
+          Buy more PvP tickets with in-game coins. Six bundles, each
+          rendered as a card with a layered ticket cutout (more layers
+          = bigger bundle), the ticket count, and the coin price. The
+          server validates bundleId against its own price map so the
+          client cannot fake a cheaper purchase. */}
+      {showTicketShop && (
+        <div
+          className="absolute inset-0 z-[85] flex items-end sm:items-center justify-center"
+          style={{ background: "rgba(0,0,0,0.78)", backdropFilter: "blur(4px)" }}
+          onClick={() => { if (!purchasingBundleId) setShowTicketShop(false); }}
+          data-testid="modal-ticket-shop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="ticket-shop-title"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-t-2xl sm:rounded-2xl flex flex-col"
+            style={{
+              maxHeight: "90vh",
+              background: "linear-gradient(180deg, #1a1230 0%, #0a0814 100%)",
+              border: "1px solid rgba(167,139,250,0.35)",
+              boxShadow: "0 18px 50px rgba(0,0,0,0.6), 0 0 28px rgba(167,139,250,0.2)",
+            }}
+          >
+            {/* Header — title, current coin balance, close button */}
+            <div
+              className="flex items-center gap-3 px-4 py-3 border-b shrink-0"
+              style={{ borderColor: "rgba(167,139,250,0.18)" }}
+            >
+              <img src={pvpTicketImg} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />
+              <div className="flex-1 min-w-0">
+                <div
+                  id="ticket-shop-title"
+                  className="text-[14px] font-black tracking-[0.18em] text-amber-200"
+                  style={{ textShadow: "0 0 10px rgba(251,191,36,0.4)" }}
+                  data-testid="text-ticket-shop-title"
+                >
+                  TICKET SHOP
+                </div>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <img src={coinIconImg} alt="" style={{ width: 14, height: 14, objectFit: "contain" }} />
+                  <span
+                    className="text-[12px] font-bold text-amber-100/90"
+                    data-testid="text-ticket-shop-balance"
+                  >
+                    {(me?.coins ?? 0).toLocaleString()}
+                  </span>
+                  <span className="text-white/40 text-[10px] ml-1">coins</span>
+                </div>
+              </div>
+              <button
+                onClick={() => { if (!purchasingBundleId) setShowTicketShop(false); }}
+                disabled={!!purchasingBundleId}
+                data-testid="button-close-ticket-shop"
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-white/60 hover:text-white active:scale-90 disabled:opacity-40"
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)" }}
+                aria-label="Close ticket shop"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Bundle grid */}
+            <div className="overflow-y-auto px-3 py-3">
+              <div className="grid grid-cols-2 gap-2.5">
+                {TICKET_BUNDLES.map((bundle) => {
+                  const v = TIER_VISUALS[bundle.tier];
+                  const canAfford = (me?.coins ?? 0) >= bundle.cost;
+                  const isBuying = purchasingBundleId === bundle.id;
+                  const disabled = !!purchasingBundleId || !canAfford;
+                  return (
+                    <button
+                      key={bundle.id}
+                      type="button"
+                      onClick={() => handleBuyBundle(bundle.id)}
+                      disabled={disabled}
+                      data-testid={`button-buy-ticket-bundle-${bundle.id}`}
+                      className="relative flex flex-col items-center justify-between rounded-xl px-2 pt-3 pb-2.5 active:scale-[0.97] transition-transform disabled:opacity-50 disabled:active:scale-100"
+                      style={{
+                        background: "linear-gradient(180deg, rgba(20,14,38,0.95) 0%, rgba(8,6,18,0.95) 100%)",
+                        border: `1px solid ${v.border}`,
+                        boxShadow: v.glow,
+                        minHeight: 168,
+                      }}
+                    >
+                      {/* Ticket fan — layered ticket cutouts behind the
+                          main one so bigger bundles read as more loot.
+                          Each underlying layer is rotated and offset so
+                          the stack fans out. */}
+                      <div
+                        className="relative flex items-center justify-center"
+                        style={{ width: 72, height: 64 }}
+                      >
+                        {Array.from({ length: Math.max(0, v.stack - 1) }).map((_, i) => {
+                          const offset = (i + 1);
+                          const angle = (i % 2 === 0 ? -1 : 1) * (8 + offset * 4);
+                          return (
+                            <img
+                              key={i}
+                              src={pvpTicketImg}
+                              alt=""
+                              aria-hidden
+                              style={{
+                                position: "absolute",
+                                width: 56,
+                                height: 56,
+                                objectFit: "contain",
+                                transform: `translate(${angle * 0.4}px, ${offset * -2}px) rotate(${angle}deg)`,
+                                opacity: 0.55 - i * 0.08,
+                                filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))",
+                              }}
+                            />
+                          );
+                        })}
+                        <img
+                          src={pvpTicketImg}
+                          alt={`${bundle.tickets} PvP tickets`}
+                          style={{
+                            position: "relative",
+                            zIndex: 1,
+                            width: 64,
+                            height: 64,
+                            objectFit: "contain",
+                            filter: `drop-shadow(0 0 10px ${v.border})`,
+                          }}
+                        />
+                      </div>
+
+                      {/* Quantity */}
+                      <div
+                        className="mt-1 px-2 py-0.5 rounded-md text-[15px] font-black"
+                        style={{
+                          background: v.chip,
+                          color: v.text,
+                          textShadow: `0 0 10px ${v.border}`,
+                          letterSpacing: "0.04em",
+                        }}
+                        data-testid={`text-bundle-qty-${bundle.id}`}
+                      >
+                        ×{bundle.tickets}
+                      </div>
+
+                      {/* Price */}
+                      <div className="flex items-center gap-1 mt-1.5">
+                        <img src={coinIconImg} alt="" style={{ width: 14, height: 14, objectFit: "contain" }} />
+                        <span
+                          className={`text-[12px] font-bold ${canAfford ? "text-amber-100" : "text-red-300/80"}`}
+                          data-testid={`text-bundle-cost-${bundle.id}`}
+                        >
+                          {bundle.cost.toLocaleString()}
+                        </span>
+                      </div>
+
+                      {/* Buying spinner / Not enough overlay */}
+                      {isBuying && (
+                        <div
+                          className="absolute inset-0 rounded-xl flex items-center justify-center"
+                          style={{ background: "rgba(10,8,20,0.7)" }}
+                        >
+                          <div
+                            className="w-6 h-6 rounded-full border-2 border-amber-200 border-t-transparent animate-spin"
+                            data-testid={`spinner-buy-${bundle.id}`}
+                          />
+                        </div>
+                      )}
+                      {!isBuying && !canAfford && !purchasingBundleId && (
+                        <div
+                          className="absolute bottom-1 left-1 right-1 text-center text-[9px] tracking-[0.15em] font-bold text-red-300/70 uppercase"
+                          data-testid={`text-cant-afford-${bundle.id}`}
+                        >
+                          Not enough
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-3 text-center text-[10px] text-white/40 leading-relaxed">
+                Tickets stack with what you already own.<br />
+                One ticket lets you enter the Veridia Arena.
+              </div>
+            </div>
           </div>
         </div>
       )}

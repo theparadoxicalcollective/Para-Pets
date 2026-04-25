@@ -5498,6 +5498,75 @@ export async function registerRoutes(
     }
   });
 
+  // ── PvP Ticket Shop ──────────────────────────────────────────────────
+  // Buy PvP tickets in bundles using in-game coins. The price map is
+  // server-authoritative so the client cannot fake a cheaper bundle by
+  // posting a different price. Coins are deducted atomically (same
+  // pattern as the regular shop buy endpoint) so a race with another
+  // request can never overdraw the player's balance.
+  const PVP_TICKET_BUNDLES: Record<string, { tickets: number; cost: number }> = {
+    "1":   { tickets: 1,   cost: 50 },
+    "5":   { tickets: 5,   cost: 250 },
+    "10":  { tickets: 10,  cost: 500 },
+    "25":  { tickets: 25,  cost: 1250 },
+    "50":  { tickets: 50,  cost: 2500 },
+    "100": { tickets: 100, cost: 5000 },
+  };
+
+  app.get("/api/pvp/tickets/bundles", isAuthenticated, async (_req: Request, res: Response) => {
+    return res.json({
+      bundles: Object.entries(PVP_TICKET_BUNDLES).map(([id, b]) => ({ id, tickets: b.tickets, cost: b.cost })),
+    });
+  });
+
+  app.post("/api/pvp/tickets/buy", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as any;
+      const bundleId = String(req.body?.bundleId ?? "");
+      const bundle = PVP_TICKET_BUNDLES[bundleId];
+      if (!bundle) {
+        return res.status(400).json({ message: "Invalid bundle" });
+      }
+
+      // PvP ticket shop item UUID, seeded in server/index.ts.
+      // Resolved by id (rather than scanning a world's items) so the
+      // lookup is a single index hit and stays correct even if the
+      // ticket is later moved between worlds.
+      const PVP_TICKET_ID = "a1b2c3d4-9001-4000-8000-000000000099";
+      const ticketItem = await storage.getShopItem(PVP_TICKET_ID);
+      if (!ticketItem || ticketItem.specialType !== "pvp_ticket") {
+        return res.status(500).json({ message: "Ticket item not configured" });
+      }
+
+      // Single transactional call: deducts coins AND credits tickets in
+      // one DB transaction with a SQL-side atomic increment, so the
+      // player can never be charged without receiving the tickets and
+      // two concurrent purchases can never lose-update each other's
+      // ticket increment. Returns null only if the player can't afford
+      // the bundle (the coin deduct's `coins >= cost` guard fails).
+      const result = await storage.purchasePvpTicketBundleAtomic(
+        user.id,
+        ticketItem.id,
+        bundle.cost,
+        bundle.tickets,
+      );
+      if (!result) {
+        return res.status(400).json({ message: "Not enough coins" });
+      }
+
+      const { password: _pw, ...safeUser } = result.user;
+      return res.json({
+        user: safeUser,
+        ticketsAdded: bundle.tickets,
+        ticketsRemaining: result.ticketsRemaining,
+        cost: bundle.cost,
+      });
+    } catch (err) {
+      console.error("PvP ticket buy error:", err);
+      return res.status(500).json({ message: "Failed to buy tickets" });
+    }
+  });
+
   // Get battle history for the logged-in user
   app.get("/api/pvp/history", isAuthenticated, async (req: Request, res: Response) => {
     try {

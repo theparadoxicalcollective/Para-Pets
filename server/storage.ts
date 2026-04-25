@@ -266,6 +266,18 @@ export interface IStorage {
   getUserPvpStats(userId: string): Promise<{ battlePoints: number; wins: number; losses: number }>;
   getPvpTicketCount(userId: string): Promise<number>;
   consumePvpTicket(userId: string): Promise<boolean>;
+  /** Atomic ticket-bundle purchase. Wraps coin deduct + inventory
+   *  credit in a single DB transaction so the player can never be
+   *  charged without receiving the tickets (or vice versa), and uses
+   *  a SQL-side `quantity = quantity + N` increment so two concurrent
+   *  purchases can't cause a lost-update on the stack row. Returns
+   *  null if the player can't afford the bundle. */
+  purchasePvpTicketBundleAtomic(
+    userId: string,
+    ticketShopItemId: string,
+    cost: number,
+    ticketsToAdd: number,
+  ): Promise<{ user: User; ticketsRemaining: number } | null>;
   createPvpBattleToken(userId: string): Promise<string>;
   consumePvpBattleToken(userId: string, tokenId: string): Promise<boolean>;
   startPvpBattleAtomic(
@@ -1925,6 +1937,77 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
       .where(and(eq(userInventory.userId, userId), eq(shopItems.specialType, "pvp_ticket")));
     return rows.reduce((sum, r) => sum + (r.quantity ?? 1), 0);
+  }
+
+  async purchasePvpTicketBundleAtomic(
+    userId: string,
+    ticketShopItemId: string,
+    cost: number,
+    ticketsToAdd: number,
+  ): Promise<{ user: User; ticketsRemaining: number } | null> {
+    return db.transaction(async (tx) => {
+      // 1. Atomic coin deduct, guarded by `coins >= cost` so a stale
+      //    balance can never go negative. Same one-shot UPDATE pattern
+      //    `atomicDeductCoins` uses, but inlined here so we can roll
+      //    the whole purchase back if the inventory credit fails.
+      const [updatedUser] = await tx
+        .update(users)
+        .set({ coins: sql`${users.coins} - ${cost}` })
+        .where(and(eq(users.id, userId), gte(users.coins, cost)))
+        .returning();
+      if (!updatedUser) {
+        // Insufficient funds — nothing to roll back yet, just signal.
+        return null;
+      }
+
+      // 2. Pick exactly ONE existing stack row to increment. We must
+      //    target a single row by id (rather than UPDATE ... WHERE
+      //    userId=? AND shopItemId=?) because user_inventory has no
+      //    unique constraint on (userId, shopItemId) — if duplicate
+      //    ticket rows ever exist, an unscoped UPDATE would credit
+      //    every duplicate and over-credit the player by a multiplier
+      //    of the row count on every subsequent purchase.
+      const [existing] = await tx
+        .select({ id: userInventory.id })
+        .from(userInventory)
+        .where(and(
+          eq(userInventory.userId, userId),
+          eq(userInventory.shopItemId, ticketShopItemId),
+        ))
+        .limit(1);
+
+      if (existing) {
+        // Atomic SQL-side increment on the chosen row. Postgres row
+        // locks serialize concurrent UPDATEs on the same id, so two
+        // simultaneous buys can't lost-update each other (the second
+        // one reads the post-first-increment value).
+        await tx
+          .update(userInventory)
+          .set({ quantity: sql`${userInventory.quantity} + ${ticketsToAdd}` })
+          .where(eq(userInventory.id, existing.id));
+      } else {
+        // 3. No existing row → insert a fresh stack. In the rare race
+        //    where two first-time buyers both reach this branch and
+        //    each insert their own row, the player's total stays
+        //    correct because getPvpTicketCount sums quantity across
+        //    every row, AND every future purchase still credits only
+        //    one row (per step 2 above).
+        await tx
+          .insert(userInventory)
+          .values({ userId, shopItemId: ticketShopItemId, quantity: ticketsToAdd });
+      }
+
+      // 4. Recompute the post-purchase ticket total inside the same
+      //    transaction so the response reflects the new reality.
+      const ticketRows = await tx
+        .select({ quantity: userInventory.quantity })
+        .from(userInventory)
+        .leftJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
+        .where(and(eq(userInventory.userId, userId), eq(shopItems.specialType, "pvp_ticket")));
+      const ticketsRemaining = ticketRows.reduce((sum, r) => sum + (r.quantity ?? 1), 0);
+
+      return { user: updatedUser, ticketsRemaining };
+    });
   }
 
   /** Consume one PvP ticket. Decrements the smallest-quantity stack first
