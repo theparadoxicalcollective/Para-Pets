@@ -1591,13 +1591,54 @@ export class DatabaseStorage implements IStorage {
   }
 
   async addFishToPond(locationId: string, shopItemId: string): Promise<PondFish> {
-    const existing = await db.select().from(pondFish).where(and(eq(pondFish.locationId, locationId), eq(pondFish.shopItemId, shopItemId)));
-    if (existing.length > 0) return existing[0];
-    const [row] = await db.insert(pondFish).values({ locationId, shopItemId }).returning();
+    // Spot stocking is synchronized across every fishing spot in the same
+    // world: adding a fish to one Bayou spot adds it to every Bayou spot,
+    // adding a fish to a Forest spot adds it to every Forest spot, and so on.
+    // This way an admin only has to maintain a single fish list per world.
+    // We only propagate when the source location is itself a fishing spot —
+    // calling this with a non-fishing location falls back to a single-row
+    // insert at that location, leaving sibling worlds untouched.
+    const [sourceLoc] = await db.select().from(worldLocations).where(eq(worldLocations.id, locationId));
+    const targetIds: string[] = (sourceLoc && sourceLoc.type === "fishing")
+      ? (await db
+          .select({ id: worldLocations.id })
+          .from(worldLocations)
+          .where(and(eq(worldLocations.worldId, sourceLoc.worldId), eq(worldLocations.type, "fishing")))
+        ).map(p => p.id)
+      : [locationId];
+    // Insert a row for every target. The unique index on
+    // (location_id, shop_item_id) plus onConflictDoNothing makes this safe
+    // against concurrent admins and avoids duplicate rows.
+    for (const lid of targetIds) {
+      await db
+        .insert(pondFish)
+        .values({ locationId: lid, shopItemId })
+        .onConflictDoNothing({ target: [pondFish.locationId, pondFish.shopItemId] });
+    }
+    const [row] = await db
+      .select()
+      .from(pondFish)
+      .where(and(eq(pondFish.locationId, locationId), eq(pondFish.shopItemId, shopItemId)));
     return row;
   }
 
   async removeFishFromPond(locationId: string, shopItemId: string): Promise<void> {
+    // Removal is synchronized across all fishing spots in the world so the
+    // spot lists stay in lockstep with the per-world stock. Same defensive
+    // type-check as addFishToPond: only propagate when the source is itself
+    // a fishing spot, otherwise fall back to a single-row delete.
+    const [sourceLoc] = await db.select().from(worldLocations).where(eq(worldLocations.id, locationId));
+    if (sourceLoc && sourceLoc.type === "fishing") {
+      const peers = await db
+        .select({ id: worldLocations.id })
+        .from(worldLocations)
+        .where(and(eq(worldLocations.worldId, sourceLoc.worldId), eq(worldLocations.type, "fishing")));
+      const ids = peers.map(p => p.id);
+      if (ids.length > 0) {
+        await db.delete(pondFish).where(and(inArray(pondFish.locationId, ids), eq(pondFish.shopItemId, shopItemId)));
+        return;
+      }
+    }
     await db.delete(pondFish).where(and(eq(pondFish.locationId, locationId), eq(pondFish.shopItemId, shopItemId)));
   }
 

@@ -386,6 +386,74 @@ app.use((req, res, next) => {
   await runOnce("reset_pet_petting_counters_2026_04_per_pet",
     () => db.execute(sql`UPDATE user_inventory SET last_petting_reward_at = NULL, petting_rewards_today = 0`));
 
+  // Drop any pre-existing duplicate (location_id, shop_item_id) rows so we can
+  // safely add the unique index below. Keeps the oldest row of each pair.
+  await runMigration("pond_fish.dedupe_before_unique", () =>
+    db.execute(sql`
+      DELETE FROM pond_fish a
+      USING pond_fish b
+      WHERE a.ctid > b.ctid
+        AND a.location_id = b.location_id
+        AND a.shop_item_id = b.shop_item_id
+    `));
+  // Pond membership is logically a set per (location, fish). The unique index
+  // makes ON CONFLICT DO NOTHING reliable and prevents races between concurrent
+  // admin actions or app instances.
+  await runMigration("uq_pond_fish_location_item", () =>
+    db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS uq_pond_fish_location_item ON pond_fish (location_id, shop_item_id)`));
+
+  // One-time backfill: synchronize each world's fishing-spot stock so every
+  // spot in a given world has the same fish list. We pick the spot with the
+  // most fish in each world as the source of truth and copy its fish into
+  // every other fishing spot in that world. Going forward the
+  // addFishToPond / removeFishFromPond storage methods keep things in sync
+  // automatically, so this only needs to run once per deploy environment.
+  await runOnce("sync_pond_fish_per_world_2026_04", async () => {
+    const r: any = await db.execute(sql`
+      SELECT id, world_id FROM world_locations WHERE type = 'fishing'
+    `);
+    const rows: { id: string; world_id: string }[] = r.rows ?? r;
+    const byWorld = new Map<string, string[]>();
+    for (const row of rows) {
+      const list = byWorld.get(row.world_id) ?? [];
+      list.push(row.id);
+      byWorld.set(row.world_id, list);
+    }
+    for (const [worldId, locIds] of Array.from(byWorld.entries())) {
+      if (locIds.length < 2) continue;
+      // Find the location with the most fish in this world.
+      let bestId = locIds[0];
+      let bestCount = -1;
+      let bestFish: string[] = [];
+      for (const lid of locIds) {
+        const fr: any = await db.execute(sql`
+          SELECT shop_item_id FROM pond_fish WHERE location_id = ${lid}
+        `);
+        const frows: { shop_item_id: string }[] = fr.rows ?? fr;
+        if (frows.length > bestCount) {
+          bestCount = frows.length;
+          bestId = lid;
+          bestFish = frows.map(f => f.shop_item_id);
+        }
+      }
+      if (bestCount <= 0) continue;
+      // Insert each best-fish into every other location, ignoring duplicates.
+      for (const lid of locIds) {
+        if (lid === bestId) continue;
+        for (const sid of bestFish) {
+          await db.execute(sql`
+            INSERT INTO pond_fish (location_id, shop_item_id)
+            SELECT ${lid}, ${sid}
+            WHERE NOT EXISTS (
+              SELECT 1 FROM pond_fish WHERE location_id = ${lid} AND shop_item_id = ${sid}
+            )
+          `);
+        }
+      }
+      console.log(`Synced ${bestCount} fish across ${locIds.length} '${worldId}' spots from source ${bestId}.`);
+    }
+  });
+
   // ── Performance indexes ────────────────────────────────────────────────────
   // Hot foreign-key + sort columns that were previously sequential-scanned.
   // CREATE INDEX IF NOT EXISTS is idempotent and safe on every restart, so

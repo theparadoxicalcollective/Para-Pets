@@ -43,10 +43,11 @@ interface SwimmingFish extends AqFishEntry {
 
 // Bottom-zone Y bands: most of the time the fish lives in BOTTOM_FLOOR; every
 // so often it drifts up to BOTTOM_VISIT (mid) before settling back down.
-// Push the floor band much closer to the actual aquarium gravel — the fish
-// graphic is centered on this Y value, so even at 92 the bottom of a 130–160px
-// fish reaches the visible substrate.
-const BOTTOM_FLOOR_MIN = 86;
+// The floor band is intentionally tall so bottom-roaming fish have meaningful
+// vertical room to wander instead of being pinned to a thin strip near the
+// substrate. The Y value is the fish's center, so even at 94 the bottom of a
+// 130–160px fish still reaches the visible gravel.
+const BOTTOM_FLOOR_MIN = 76;
 const BOTTOM_FLOOR_MAX = 94;
 const BOTTOM_VISIT_MIN = 50;
 const BOTTOM_VISIT_MAX = 65;

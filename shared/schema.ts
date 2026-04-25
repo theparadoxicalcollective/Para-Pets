@@ -444,7 +444,7 @@ export const pondFish = pgTable("pond_fish", {
   locationId: varchar("location_id").notNull(),
   shopItemId: varchar("shop_item_id").notNull(),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
-});
+}, (t) => [uniqueIndex("uq_pond_fish_location_item").on(t.locationId, t.shopItemId)]);
 
 export const playerFishInventory = pgTable("player_fish_inventory", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

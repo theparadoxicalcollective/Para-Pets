@@ -1769,7 +1769,12 @@ function PondAdminPanel({
         maxHeight: "80vh",
       }}>
         <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${ACCENT}20` }}>
-          <h4 className="font-fantasy text-sm tracking-widest" style={{ color: ACCENT }}>Pond Stock</h4>
+          <div className="flex flex-col">
+            <h4 className="font-fantasy text-sm tracking-widest" style={{ color: ACCENT }}>Pond Stock</h4>
+            <p className="font-fantasy text-[9px] tracking-wider mt-0.5" style={{ color: `${ACCENT}70` }}>
+              Applies to every fishing spot in this world
+            </p>
+          </div>
           <button onClick={onClose} style={{ color: `${ACCENT}80`, cursor: "pointer" }}>
             <X className="w-5 h-5" />
           </button>
