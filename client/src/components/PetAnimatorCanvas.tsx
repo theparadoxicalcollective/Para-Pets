@@ -553,15 +553,14 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
         headWrapAy = offset + (aLogicalY / CANVAS_SIZE) * drawSpan;
       }
 
-      // Mouth-breath sample (per-pet override). Same 4.5 s sine the body
-      // uses, mapped 0→1 so the open-mouth overlay swaps in during inhale
-      // and out during exhale. Sampled once per frame; the inverse value
-      // is applied to mouth_closed so the two overlays cross-fade in
-      // lock-step (necessary because mouth_closed's higher z-index would
-      // otherwise hide any partial fade-in of the open mouth). Mirrors
-      // the img-renderer's petIdleMouthBreath / petIdleMouthClose pair.
-      const mouthBreathOp = idleMouthBreathRef.current
-        ? (1 + Math.sin((sec / 4.5) * 2 * Math.PI - Math.PI / 2)) * 0.5
+      // Mouth-swivel sample (per-pet override). Same 4.5 s sine the body
+      // uses, mapped to a tiny ±0.6° rotation applied to the closed-mouth
+      // overlay so the jaw drifts gently with the breath. Open-mouth is
+      // never shown — the prior paired cross-fade produced a visible
+      // white-edged ghost where the two overlays' alpha didn't align.
+      // Mirrors the img-renderer's petIdleMouthSwivel keyframe.
+      const mouthSwivelRot = idleMouthBreathRef.current
+        ? Math.sin((sec / 4.5) * 2 * Math.PI - Math.PI / 2) * 0.6 * D2R
         : null;
 
       for (const { part, img } of parts) {
@@ -569,20 +568,16 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
         // head-group parts we still call evalAnim so eyes blink and
         // ears sway, then layer the shared head bob on top.
         const anim = evalAnim(part.partType, sec, blinkRef.current);
-        const { rot } = anim;
+        let rot = anim.rot;
         let op = anim.op;
-        // Per-pet mouth-breath override: paired cross-fade between
-        // the open mouth (op = mouthBreathOp, fades 0→1) and the
-        // closed mouth (op = 1 - mouthBreathOp, fades 1→0) so the
-        // jaws appear to part on inhale and close on exhale, in lock
-        // step with the body's breath. Strip h2_/h3_ prefix so multi-
-        // head pets all opt in together. Other expression overlays
-        // (eyes_closed) keep their normal behaviour.
-        if (mouthBreathOp !== null) {
+        // Per-pet mouth-swivel override: tiny ±0.6° rotation on the
+        // closed-mouth overlay only. The open-mouth overlay stays
+        // hidden by its default op:0 (set in evalAnim's "mouth" case).
+        // Strip h2_/h3_ prefix so multi-head pets all opt in together.
+        if (mouthSwivelRot !== null) {
           const baseTypeForBreath = part.partType.startsWith("h2_") || part.partType.startsWith("h3_")
             ? part.partType.slice(3) : part.partType;
-          if (baseTypeForBreath === "mouth") op = mouthBreathOp;
-          else if (baseTypeForBreath === "mouth_closed") op = 1 - mouthBreathOp;
+          if (baseTypeForBreath === "mouth_closed") rot += mouthSwivelRot;
         }
         if (ANIM_ONLY_PARTS.has(part.partType) && op <= 0) continue;
 
