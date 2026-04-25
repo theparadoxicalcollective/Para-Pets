@@ -1212,6 +1212,22 @@
   35%  { opacity: 0.9; transform: translate(-50%, -28px) scale(1);   }
   100% { opacity: 0;   transform: translate(-50%, -56px) scale(0.7); }
 }
+/* Tiny firefly twinkle — fades in/out and drifts a few px upward so the
+   cluster feels alive without forming an obvious beacon. */
+@keyframes kcDoorFirefly {
+  0%, 100% { opacity: 0.18; transform: translateY(0)    scale(0.85); }
+  50%      { opacity: 1;    transform: translateY(-3px) scale(1.15); }
+}
+/* Joystick golden orb glow — slow soft pulse on the base ring. */
+@keyframes kcJoystickGlow {
+  0%, 100% { box-shadow: 0 0 14px rgba(252,211,77,0.45), 0 0 28px rgba(251,191,36,0.20), inset 0 0 12px rgba(120,70,4,0.35); }
+  50%      { box-shadow: 0 0 22px rgba(252,211,77,0.70), 0 0 44px rgba(251,191,36,0.35), inset 0 0 12px rgba(120,70,4,0.35); }
+}
+/* Joystick thumb halo — slightly faster pulse so the controls feel "alive". */
+@keyframes kcJoystickThumbGlow {
+  0%, 100% { box-shadow: 0 0 8px rgba(255,236,170,0.6),  0 0 14px rgba(252,211,77,0.45); }
+  50%      { box-shadow: 0 0 14px rgba(255,236,170,0.9), 0 0 24px rgba(252,211,77,0.65); }
+}
 
 /* Own pet quick pounce forward when attack lands */
 @keyframes kcPetPounce {

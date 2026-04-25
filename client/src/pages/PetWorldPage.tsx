@@ -11,8 +11,6 @@ import UserProfilePanel from "@/components/UserProfilePanel";
 import bgGround from "@assets/IMG_6459_1774675340089.jpeg";
 import coinIconImg from "@assets/icon_coin.png";
 import petHouseIconImg from "@assets/icon_pet_house.png";
-import joystickBaseImg  from "@assets/joystick_base_vines.png";
-import joystickThumbImg from "@assets/joystick_thumb_vines.png";
 
 const WORLD_ID = "pet_world";
 const ACCENT = "#7fffd4";
@@ -1375,118 +1373,96 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                only ever see this glow effect, not the admin chrome.
                Click opens the door, even if the user has no roaming pet
                on the map.                                                  */}
-          {kcDoors.map(door => (
-            <div
-              key={`door-glow-${door.id}`}
-              style={{
-                position: "absolute",
-                left: `${door.posX}%`,
-                top: `${door.posY}%`,
-                // Match the bottom-center anchor used by pets, doors and
-                // buildings so the glow sits right at the entrance level.
-                transform: "translate(-50%, -100%)",
-                width: 64,
-                height: 64,
-                zIndex: 90,
-                pointerEvents: "none",
-              }}
-              data-testid={`door-glow-wrap-${door.id}`}
-            >
-              {/* Outer halo — large soft falloff, never intercepts clicks
-                  (pointerEvents none) so the inner orb is the actual hit
-                  target and the halo doesn't smother nearby map elements. */}
+          {kcDoors.map(door => {
+            // Five tiny firefly dots scattered in a small cluster at the
+            // door entrance. Each one is dim, small, and pulses on its
+            // own offset/delay so the cluster shimmers softly rather
+            // than reading as a single beacon. The whole cluster fits
+            // inside ~50px so it just hints at "something here" without
+            // calling out the door's exact shape or position. Fixed
+            // offsets (not random) so the layout is stable across
+            // re-renders and matches between server-controlled doors.
+            const fireflies: Array<{ x: number; y: number; size: number; delay: string; duration: string; alpha: number }> = [
+              { x: -14, y:  -6, size: 4, delay: "0s",    duration: "2.6s", alpha: 0.85 },
+              { x:   8, y: -18, size: 3, delay: "0.7s",  duration: "3.1s", alpha: 0.75 },
+              { x:  16, y:  -2, size: 5, delay: "1.4s",  duration: "2.9s", alpha: 0.95 },
+              { x:  -6, y: -22, size: 3, delay: "0.3s",  duration: "3.4s", alpha: 0.7  },
+              { x:   2, y:  -8, size: 4, delay: "1.9s",  duration: "2.4s", alpha: 0.8  },
+            ];
+            return (
               <div
-                aria-hidden
+                key={`door-glow-${door.id}`}
                 style={{
                   position: "absolute",
-                  inset: -18,
-                  borderRadius: "50%",
-                  background:
-                    "radial-gradient(circle at center, rgba(252,211,77,0.55) 0%, rgba(251,191,36,0.22) 40%, rgba(251,191,36,0) 75%)",
-                  filter: "blur(2px)",
+                  left: `${door.posX}%`,
+                  top: `${door.posY}%`,
+                  // Match the bottom-center anchor used by pets, doors and
+                  // buildings so the cluster sits right at the entrance.
+                  transform: "translate(-50%, -100%)",
+                  width: 64,
+                  height: 64,
+                  zIndex: 90,
                   pointerEvents: "none",
-                  animation: "kcDoorGlowPulse 2.6s ease-in-out infinite",
                 }}
-              />
-              {/* Inner orb — the click target. Slightly out-of-phase pulse
-                  so the halo and core breathe together but not identically. */}
-              <button
-                type="button"
-                aria-label={`Enter ${door.name}`}
-                data-testid={`button-door-glow-${door.id}`}
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  // Don't open the door if the user was actually panning
-                  // the map (mid-drag or just-finished-drag) — otherwise
-                  // a pan that ends over an orb would feel like a
-                  // misclick.
-                  if (mapPanningRef.current || mapJustPannedRef.current) return;
-                  activeDoorIdRef.current = door.id;
-                  setActiveDoorId(door.id);
-                  // Defensive: stop any joystick movement so a pet that was
-                  // walking doesn't keep stepping under the door overlay.
-                  joystickDirRef.current = { dx: 0, dy: 0 };
-                  if (rafRef.current !== null) {
-                    cancelAnimationFrame(rafRef.current);
-                    rafRef.current = null;
-                  }
-                }}
-                style={{
-                  position: "absolute",
-                  left: "50%",
-                  top: "50%",
-                  width: 26,
-                  height: 26,
-                  marginLeft: -13,
-                  marginTop: -13,
-                  borderRadius: "50%",
-                  border: "1px solid rgba(255,236,170,0.85)",
-                  background:
-                    "radial-gradient(circle at 35% 30%, rgba(255,250,220,1) 0%, rgba(252,211,77,0.95) 35%, rgba(217,150,12,0.85) 70%, rgba(120,70,4,0.75) 100%)",
-                  boxShadow:
-                    "0 0 10px rgba(252,211,77,0.85), 0 0 22px rgba(251,191,36,0.55)",
-                  cursor: "pointer",
-                  pointerEvents: "auto",
-                  padding: 0,
-                  animation: "kcDoorGlowPulse 1.9s ease-in-out infinite",
-                }}
-              />
-              {/* Two tiny rising sparks for the "magical entrance" feel.
-                  Pure decoration, no pointer interaction. Staggered delays
-                  so they don't fire in unison. */}
-              <div
-                aria-hidden
-                style={{
-                  position: "absolute",
-                  left: "50%",
-                  bottom: 6,
-                  width: 5,
-                  height: 5,
-                  borderRadius: "50%",
-                  background: "rgba(255,236,170,0.95)",
-                  boxShadow: "0 0 6px rgba(252,211,77,0.95)",
-                  pointerEvents: "none",
-                  animation: "kcDoorGlowSpark 2.4s ease-in-out infinite",
-                }}
-              />
-              <div
-                aria-hidden
-                style={{
-                  position: "absolute",
-                  left: "50%",
-                  bottom: 6,
-                  width: 4,
-                  height: 4,
-                  borderRadius: "50%",
-                  background: "rgba(255,236,170,0.85)",
-                  boxShadow: "0 0 5px rgba(252,211,77,0.85)",
-                  pointerEvents: "none",
-                  animation: "kcDoorGlowSpark 2.4s ease-in-out 1.1s infinite",
-                }}
-              />
-            </div>
-          ))}
+                data-testid={`door-glow-wrap-${door.id}`}
+              >
+                {/* Invisible click target — covers the whole cluster so
+                    players can tap anywhere near the fireflies, but the
+                    target itself is fully transparent so the area still
+                    looks empty / mysterious. */}
+                <button
+                  type="button"
+                  aria-label={`Enter ${door.name}`}
+                  data-testid={`button-door-glow-${door.id}`}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (mapPanningRef.current || mapJustPannedRef.current) return;
+                    activeDoorIdRef.current = door.id;
+                    setActiveDoorId(door.id);
+                    joystickDirRef.current = { dx: 0, dy: 0 };
+                    if (rafRef.current !== null) {
+                      cancelAnimationFrame(rafRef.current);
+                      rafRef.current = null;
+                    }
+                  }}
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    pointerEvents: "auto",
+                    padding: 0,
+                  }}
+                />
+                {/* The fireflies themselves — tiny dim golden dots with
+                    soft halos. Each dot pulses independently. None of
+                    them intercept pointer events; the invisible button
+                    above handles all clicks. */}
+                {fireflies.map((f, i) => (
+                  <div
+                    key={i}
+                    aria-hidden
+                    style={{
+                      position: "absolute",
+                      left: "50%",
+                      bottom: 18,
+                      width: f.size,
+                      height: f.size,
+                      marginLeft: f.x - f.size / 2,
+                      marginBottom: f.y,
+                      borderRadius: "50%",
+                      background: `rgba(255,236,170,${f.alpha})`,
+                      boxShadow: `0 0 ${f.size + 2}px rgba(252,211,77,${f.alpha * 0.8}), 0 0 ${f.size * 2}px rgba(251,191,36,${f.alpha * 0.4})`,
+                      pointerEvents: "none",
+                      animation: `kcDoorFirefly ${f.duration} ease-in-out ${f.delay} infinite`,
+                    }}
+                  />
+                ))}
+              </div>
+            );
+          })}
 
           {/* ── Door trigger zones (admin-visible only) ─────────────────── */}
           {user.isAdmin && kcDoors.map(door => {
@@ -3567,23 +3543,25 @@ function Joystick({ onChange }: { onChange: (dx: number, dy: number, active: boo
         zIndex: 60,
       }}
     >
-      {/* Base ring — transparent PNG, no blend mode needed */}
-      <img
-        src={joystickBaseImg}
-        alt=""
-        draggable={false}
+      {/* Base ring — pure CSS golden glowing disc. Outer subtle halo via
+          box-shadow (animated), inner sunken-stone gradient so the thumb
+          orb visually nests inside the ring. */}
+      <div
+        aria-hidden
         style={{
           position: "absolute",
           inset: 0,
-          width: "100%",
-          height: "100%",
-          objectFit: "contain",
+          borderRadius: "50%",
+          border: "1.5px solid rgba(252,211,77,0.85)",
+          background:
+            "radial-gradient(circle at 50% 45%, rgba(50,30,4,0.55) 0%, rgba(28,18,4,0.7) 55%, rgba(60,38,8,0.55) 100%)",
+          animation: "kcJoystickGlow 3.2s ease-in-out infinite",
           pointerEvents: "none",
           userSelect: "none",
         }}
       />
 
-      {/* Thumb — vine disc with glowing flower */}
+      {/* Thumb — golden orb that catches and follows the player's drag. */}
       <div
         ref={thumbRef}
         style={{
@@ -3596,16 +3574,15 @@ function Joystick({ onChange }: { onChange: (dx: number, dy: number, active: boo
           pointerEvents: "none",
         }}
       >
-        <img
-          src={joystickThumbImg}
-          alt=""
-          draggable={false}
+        <div
           style={{
             width: "100%",
             height: "100%",
-            objectFit: "contain",
-            userSelect: "none",
-            display: "block",
+            borderRadius: "50%",
+            border: "1px solid rgba(255,236,170,0.9)",
+            background:
+              "radial-gradient(circle at 35% 30%, rgba(255,250,220,1) 0%, rgba(252,211,77,0.95) 40%, rgba(217,150,12,0.9) 75%, rgba(120,70,4,0.85) 100%)",
+            animation: "kcJoystickThumbGlow 2.2s ease-in-out infinite",
           }}
         />
       </div>
