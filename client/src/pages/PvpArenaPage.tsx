@@ -131,6 +131,14 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
   // double-tap can't fire two charges.
   const [showTicketShop, setShowTicketShop] = useState(false);
   const [purchasingBundleId, setPurchasingBundleId] = useState<string | null>(null);
+  // Confirmation step — when the player taps a bundle we DON'T charge
+  // immediately. We stash the bundle id here so the confirmation overlay
+  // can render the price + count and explicitly ask "Buy N tickets for X
+  // coins?" before any coins are deducted. This protects against fat-
+  // finger taps in a busy header and is also a standard pattern for any
+  // hard-currency purchase. Cleared on Cancel or right before the actual
+  // mutation fires on Confirm.
+  const [pendingConfirmBundleId, setPendingConfirmBundleId] = useState<string | null>(null);
   // Celebration popup shown after a successful ticket purchase. The
   // `key` field is bumped on every win so React remounts the popup and
   // re-runs the entry animation, even when a player buys two bundles
@@ -268,18 +276,55 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
         variant: "destructive",
       });
     },
-    onSettled: () => setPurchasingBundleId(null),
+    onSettled: () => {
+      setPurchasingBundleId(null);
+      // Release the imperative submit lock that confirmPendingPurchase
+      // grabs — without this, a player who hits any error and then re-
+      // opens the shop would find Confirm permanently disabled.
+      confirmSubmitLock.current = false;
+    },
   });
 
+  // Tapping a bundle stages it for confirmation — it does NOT charge
+  // the player yet. The actual mutation only fires from
+  // `confirmPendingPurchase` once the player taps Confirm in the
+  // overlay, so any accidental fat-finger tap on a 5,000-coin bundle
+  // is recoverable. We still gate against the in-flight flags so a
+  // second tap during a still-resolving purchase can't restage.
   const handleBuyBundle = (bundleId: string) => {
-    // Double-gate: `purchasingBundleId` covers the common case (we set
-    // it synchronously below), and `buyTickets.isPending` is the
-    // ground-truth in-flight flag — so even ultra-fast repeat taps
-    // that fire before React commits the local-state update can't
-    // queue a second purchase and double-charge the player.
+    if (purchasingBundleId || buyTickets.isPending || pendingConfirmBundleId) return;
+    setPendingConfirmBundleId(bundleId);
+  };
+
+  // Imperative submit lock for Confirm. Belt-and-suspenders on top of
+  // the React-state gate below: if two click events fire within the
+  // same micro-task batch (before React has a chance to re-render with
+  // the new `purchasingBundleId`), the ref check rejects the second
+  // call synchronously. Cleared in the mutation's `onSettled` via
+  // `setPurchasingBundleId(null)` — see below.
+  const confirmSubmitLock = useRef(false);
+
+  // Confirm path — flip from "asking" to "buying" and fire the
+  // mutation. Triple-gate (ref lock + React state + react-query's
+  // own pending flag) so a stuck-key, accessibility tool, or rapid
+  // double-tap can't ever queue two charges for the same bundle.
+  const confirmPendingPurchase = () => {
+    const bundleId = pendingConfirmBundleId;
+    if (!bundleId) return;
+    if (confirmSubmitLock.current) return;
     if (purchasingBundleId || buyTickets.isPending) return;
+    confirmSubmitLock.current = true;
+    setPendingConfirmBundleId(null);
     setPurchasingBundleId(bundleId);
     buyTickets.mutate(bundleId);
+  };
+
+  // Cancel path — drop the staged bundle without charging. Safe to
+  // call any time; the celebration popup is gated on a successful
+  // mutation response so it can never appear from a cancel.
+  const cancelPendingPurchase = () => {
+    if (purchasingBundleId || buyTickets.isPending) return;
+    setPendingConfirmBundleId(null);
   };
 
   // Close the ticket shop on Escape (standard dialog behavior). We
@@ -288,13 +333,47 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     if (!showTicketShop) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !purchasingBundleId && !buyTickets.isPending) {
+      if (e.key !== "Escape") return;
+      if (purchasingBundleId || buyTickets.isPending) return;
+      // Esc has a layered behavior: if a confirmation overlay is up,
+      // Esc dismisses just the confirm step (returning the player to
+      // the shop). Otherwise Esc closes the shop itself. This matches
+      // standard nested-dialog behavior and keeps the player from
+      // accidentally bailing out of the whole shop when they only
+      // wanted to back out of a single bundle.
+      if (pendingConfirmBundleId) {
+        setPendingConfirmBundleId(null);
+      } else {
         setShowTicketShop(false);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [showTicketShop, purchasingBundleId, buyTickets.isPending]);
+  }, [showTicketShop, purchasingBundleId, buyTickets.isPending, pendingConfirmBundleId]);
+
+  // Focus management for the purchase-confirmation dialog. When it
+  // opens we move focus to Cancel (safer default than Confirm — a
+  // stray Enter shouldn't charge the player), and when it closes we
+  // restore focus to whatever element had it before, so keyboard
+  // users land back on the bundle button they tapped.
+  const cancelBtnRef = useRef<HTMLButtonElement | null>(null);
+  const confirmBtnRef = useRef<HTMLButtonElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!pendingConfirmBundleId) return;
+    previousFocusRef.current = (document.activeElement as HTMLElement) || null;
+    // requestAnimationFrame to ensure the button is mounted before we
+    // try to focus it on the first commit.
+    const raf = requestAnimationFrame(() => cancelBtnRef.current?.focus());
+    return () => {
+      cancelAnimationFrame(raf);
+      // Only restore if the previously-focused node still lives in the
+      // DOM (e.g. the bundle button) — otherwise the browser's default
+      // focus-fallback to <body> is fine.
+      const prev = previousFocusRef.current;
+      if (prev && document.contains(prev)) prev.focus();
+    };
+  }, [pendingConfirmBundleId]);
 
   // Auto-dismiss the celebration popup ~2.2s after it appears. We key
   // the timer on `celebration?.key` so a second purchase that re-opens
@@ -1492,7 +1571,14 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
         <div
           className="absolute inset-0 z-[85] flex items-end sm:items-center justify-center"
           style={{ background: "rgba(0,0,0,0.78)", backdropFilter: "blur(4px)" }}
-          onClick={() => { if (!purchasingBundleId) setShowTicketShop(false); }}
+          onClick={() => {
+            // Block backdrop-dismiss while a purchase is in flight or a
+            // confirmation is staged — otherwise tapping outside would
+            // either lose the in-flight result or silently abandon the
+            // staged buy without a clear cancel.
+            if (purchasingBundleId || pendingConfirmBundleId) return;
+            setShowTicketShop(false);
+          }}
           data-testid="modal-ticket-shop"
           role="dialog"
           aria-modal="true"
@@ -1535,8 +1621,11 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                 </div>
               </div>
               <button
-                onClick={() => { if (!purchasingBundleId) setShowTicketShop(false); }}
-                disabled={!!purchasingBundleId}
+                onClick={() => {
+                  if (purchasingBundleId || pendingConfirmBundleId) return;
+                  setShowTicketShop(false);
+                }}
+                disabled={!!purchasingBundleId || !!pendingConfirmBundleId}
                 data-testid="button-close-ticket-shop"
                 className="w-8 h-8 flex items-center justify-center rounded-lg text-white/60 hover:text-white active:scale-90 disabled:opacity-40"
                 style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)" }}
@@ -1553,7 +1642,17 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                   const v = TIER_VISUALS[bundle.tier];
                   const canAfford = (me?.coins ?? 0) >= bundle.cost;
                   const isBuying = purchasingBundleId === bundle.id;
-                  const disabled = !!purchasingBundleId || !canAfford;
+                  // Disable every other bundle once one is staged for
+                  // confirmation, so the player commits to a single
+                  // choice before being asked. The staged bundle stays
+                  // tappable but is a no-op (handleBuyBundle early-
+                  // returns) — its visual state is unchanged so it
+                  // doesn't look "selected" in a confusing way.
+                  const isPendingConfirm = pendingConfirmBundleId === bundle.id;
+                  const disabled =
+                    !!purchasingBundleId ||
+                    (!!pendingConfirmBundleId && !isPendingConfirm) ||
+                    !canAfford;
                   return (
                     <button
                       key={bundle.id}
@@ -1669,6 +1768,136 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
           </div>
         </div>
       )}
+
+      {/* ── Purchase Confirmation overlay ──────────────────────────────
+          Sits between the shop (z-[85]) and celebration (z-[95]) so it
+          renders ON TOP of the shop dialog but never obscures a success
+          popup. The mutation does not fire until the player taps
+          Confirm here, which gives them an explicit chance to back out
+          of any expensive bundle before any coins move. */}
+      {(() => {
+        if (!pendingConfirmBundleId) return null;
+        const bundle = TICKET_BUNDLES.find((b) => b.id === pendingConfirmBundleId);
+        if (!bundle) return null;
+        const v = TIER_VISUALS[bundle.tier];
+        const canAfford = (me?.coins ?? 0) >= bundle.cost;
+        return (
+          <div
+            className="absolute inset-0 z-[90] flex items-center justify-center px-4"
+            style={{ background: "rgba(0,0,0,0.72)", backdropFilter: "blur(6px)" }}
+            onClick={cancelPendingPurchase}
+            data-testid="modal-ticket-purchase-confirm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ticket-confirm-title"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                // Minimal focus trap — only two interactive elements
+                // live in this dialog (Cancel + Confirm), so we just
+                // bounce focus between them on Tab. Keeps keyboard
+                // users from tabbing into the shop behind the dialog.
+                if (e.key !== "Tab") return;
+                const cancel = cancelBtnRef.current;
+                const confirm = confirmBtnRef.current;
+                if (!cancel || !confirm) return;
+                const active = document.activeElement;
+                if (e.shiftKey && active === cancel) {
+                  e.preventDefault();
+                  confirm.focus();
+                } else if (!e.shiftKey && active === confirm) {
+                  e.preventDefault();
+                  cancel.focus();
+                }
+              }}
+              className="w-full max-w-xs rounded-2xl px-5 py-5 flex flex-col items-center gap-3"
+              style={{
+                background: "linear-gradient(180deg, #1a1230 0%, #0a0814 100%)",
+                border: `1px solid ${v.border}`,
+                boxShadow: `0 18px 50px rgba(0,0,0,0.7), ${v.glow}`,
+              }}
+            >
+              <div
+                id="ticket-confirm-title"
+                className="text-[11px] font-black tracking-[0.22em] text-white/60"
+                data-testid="text-ticket-confirm-title"
+              >
+                CONFIRM PURCHASE
+              </div>
+              <img
+                src={pvpTicketImg}
+                alt=""
+                style={{
+                  width: 64,
+                  height: 64,
+                  objectFit: "contain",
+                  filter: `drop-shadow(0 0 12px ${v.border})`,
+                }}
+              />
+              <div
+                className="text-[22px] font-black leading-none"
+                style={{ color: v.text, textShadow: `0 0 12px ${v.border}` }}
+                data-testid="text-confirm-tickets"
+              >
+                ×{bundle.tickets} TICKET{bundle.tickets === 1 ? "" : "S"}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-white/50 text-[11px] tracking-wider">FOR</span>
+                <img src={coinIconImg} alt="" style={{ width: 14, height: 14, objectFit: "contain" }} />
+                <span
+                  className={`text-[14px] font-bold ${canAfford ? "text-amber-100" : "text-red-300"}`}
+                  data-testid="text-confirm-cost"
+                >
+                  {bundle.cost.toLocaleString()}
+                </span>
+                <span className="text-white/50 text-[11px] tracking-wider">COINS</span>
+              </div>
+              {!canAfford && (
+                <div
+                  className="text-[10px] font-bold text-red-300/90 tracking-wider uppercase"
+                  data-testid="text-confirm-cant-afford"
+                >
+                  Not enough coins
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-2 w-full mt-1">
+                <button
+                  ref={cancelBtnRef}
+                  type="button"
+                  onClick={cancelPendingPurchase}
+                  data-testid="button-cancel-purchase"
+                  className="py-2.5 rounded-lg text-[13px] font-bold text-white/80 active:scale-[0.97] transition-transform"
+                  style={{
+                    background: "rgba(255,255,255,0.06)",
+                    border: "1px solid rgba(255,255,255,0.14)",
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  ref={confirmBtnRef}
+                  type="button"
+                  onClick={confirmPendingPurchase}
+                  disabled={!canAfford}
+                  data-testid="button-confirm-purchase"
+                  className="py-2.5 rounded-lg text-[13px] font-black tracking-wide active:scale-[0.97] transition-transform disabled:opacity-50 disabled:active:scale-100"
+                  style={{
+                    background: canAfford
+                      ? "linear-gradient(180deg, #facc15 0%, #d97706 100%)"
+                      : "rgba(120,80,20,0.4)",
+                    color: canAfford ? "#1a1230" : "rgba(255,255,255,0.5)",
+                    border: `1px solid ${canAfford ? "rgba(251,191,36,0.7)" : "rgba(255,255,255,0.1)"}`,
+                    boxShadow: canAfford ? "0 4px 14px rgba(251,191,36,0.45)" : "none",
+                  }}
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Opponents List (legacy manual picker, kept for admins) ─── */}
       {(tab as string) === "opponents" && (
