@@ -5,7 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Mail } from "lucide-react";
 import coinIconImg from "@assets/icon_coin.png";
-import giftIconImg from "@assets/generated_images/gift_icon_forest_nobg.png";
+import giftIconImg from "@assets/generated_images/icon_gift_treasure.png";
 import RewardClaimModal from "./RewardClaimModal";
 
 interface TopBarProps {
@@ -329,7 +329,13 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                 src={giftIconImg}
                 alt="Gifts"
                 className="w-12 h-12 object-contain"
-                style={{ filter: "drop-shadow(0 0 8px rgba(120,200,80,0.7)) drop-shadow(0 0 16px rgba(192,132,252,0.4))" }}
+                style={{
+                  WebkitMaskImage:
+                    "radial-gradient(circle at 50% 55%, rgba(0,0,0,1) 38%, rgba(0,0,0,0) 72%)",
+                  maskImage:
+                    "radial-gradient(circle at 50% 55%, rgba(0,0,0,1) 38%, rgba(0,0,0,0) 72%)",
+                  filter: "drop-shadow(0 0 8px rgba(255,200,80,0.65)) drop-shadow(0 0 16px rgba(127,191,176,0.45))",
+                }}
               />
               <div
                 className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
@@ -367,7 +373,13 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
             src={giftIconImg}
             alt="Gifts"
             className="w-12 h-12 object-contain"
-            style={{ filter: "drop-shadow(0 0 8px rgba(120,200,80,0.7)) drop-shadow(0 0 16px rgba(192,132,252,0.45)) drop-shadow(0 2px 6px rgba(0,0,0,0.6))" }}
+            style={{
+              WebkitMaskImage:
+                "radial-gradient(circle at 50% 55%, rgba(0,0,0,1) 38%, rgba(0,0,0,0) 72%)",
+              maskImage:
+                "radial-gradient(circle at 50% 55%, rgba(0,0,0,1) 38%, rgba(0,0,0,0) 72%)",
+              filter: "drop-shadow(0 0 8px rgba(255,200,80,0.7)) drop-shadow(0 0 16px rgba(127,191,176,0.45)) drop-shadow(0 2px 6px rgba(0,0,0,0.6))",
+            }}
           />
           <div
             className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
