@@ -12,7 +12,6 @@ import bgGround from "@assets/IMG_6459_1774675340089.jpeg";
 import coinIconImg from "@assets/icon_coin.png";
 import petHouseIconImg from "@assets/icon_pet_house.png";
 import joystickBaseImg  from "@assets/generated_images/joystick_base.png";
-import joystickThumbImg from "@assets/generated_images/joystick_thumb.png";
 
 const WORLD_ID = "pet_world";
 const ACCENT = "#7fffd4";
@@ -3447,10 +3446,31 @@ function WorldRoamingPet({
   const minTopFrac = 0.5 + (rawMinTopFrac - 0.5) * partScale;
   const maxBotFrac = 0.5 + (rawMaxBotFrac - 0.5) * partScale;
 
-  // sz is in map-canvas pixels. Kept small so pets are always in reach.
-  const sz     = 150;
+  // sz is in map-canvas pixels. Kept small so pets read as little
+  // characters on the world map and don't dwarf nearby locations.
+  const sz     = 100;
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
   const displayName = pet.petNickname || pet.name;
+
+  // Which branch will actually render below decides where the name
+  // badge should sit and what counts as the sprite's "natural" facing
+  // direction:
+  //   - Own pet always renders as a still image (hatchedImageUrl) sized
+  //     to the full sz×sz box via objectFit:contain. Its visible top
+  //     therefore lives at y≈0, so the parts-derived minTopFrac would
+  //     push the badge inside the image. Same for any non-template
+  //     fallback still image.
+  //   - Parts-based PetAnimator pets are positioned by template part
+  //     coords on a 1000×1000 canvas, so minTopFrac is meaningful.
+  //
+  // The natural-facing source differs too: still images were generated
+  // facing pet.facingDirection at hatch, while parts pets are arranged
+  // according to templateData.facing.
+  const rendersAsStillImage = (isOwn && !!petImg) || (!pet.petTemplateId && !!petImg);
+  const naturalFacingLeft   = rendersAsStillImage
+    ? (pet.facingDirection === "left")
+    : ((templateData?.facing ?? pet.facingDirection ?? "front") === "left");
+  const nameTopPx = rendersAsStillImage ? -4 : Math.round(minTopFrac * sz) - 4;
 
   // Seeded per-pet so each pet drifts and bobs at a unique phase/speed
   const seed = (pet.userId.charCodeAt(0) + pet.userId.charCodeAt(1) * 31) & 0xffff;
@@ -3493,15 +3513,15 @@ function WorldRoamingPet({
           <div style={{ position: "relative", width: sz, height: sz, pointerEvents: "none" }}>
 
             {/* Pet sprite — XOR flip: movement direction vs natural facing direction.
-                Use the template's 'facing' (already resolved above) so that side-view
-                pets with facing="left" are not incorrectly mirrored when moving left.
-                Falls back to pet.facingDirection when templateData hasn't loaded yet
-                (own pet uses the still image and doesn't need the parts payload). */}
+                naturalFacingLeft is computed above and picks the right source
+                per render branch (still image uses pet.facingDirection;
+                parts-based uses templateData.facing). Without that split,
+                a left-facing still image would get flipped to face right
+                when the player moved left, because templateData.facing
+                defaults to "front" for most templates. */}
             <div
               style={{
-                transform: (facingLeft !== ((templateData?.facing ?? pet.facingDirection ?? "front") === "left"))
-                  ? "scaleX(-1)"
-                  : undefined,
+                transform: (facingLeft !== naturalFacingLeft) ? "scaleX(-1)" : undefined,
                 transition: "transform 0.1s ease",
               }}
             >
@@ -3547,16 +3567,18 @@ function WorldRoamingPet({
               ) : null}
             </div>
 
-            {/* Username badge — sits just above the topmost visible part */}
+            {/* Username badge — sits just above the topmost visible part.
+                For still-image renders we use the top of the box; for
+                parts-based renders we use the parts-derived bounding box. */}
             <span
               className="font-fantasy tracking-wide"
               style={{
                 position: "absolute",
-                top: Math.round(minTopFrac * sz) - 4,
+                top: nameTopPx,
                 left: "50%",
                 transform: "translate(-50%, -100%)",
-                fontSize: Math.round(sz * 0.032),
-                padding: `${Math.round(sz * 0.008)}px ${Math.round(sz * 0.022)}px`,
+                fontSize: Math.max(11, Math.round(sz * 0.13)),
+                padding: `${Math.max(2, Math.round(sz * 0.02))}px ${Math.max(6, Math.round(sz * 0.06))}px`,
                 borderRadius: 999,
                 background: "rgba(4,10,6,0.82)",
                 border: "1px solid rgba(127,255,212,0.30)",
@@ -3675,9 +3697,11 @@ function Joystick({ onChange }: { onChange: (dx: number, dy: number, active: boo
         }}
       />
 
-      {/* Thumb — polished golden orb PNG that catches and follows the
-          player's drag. Sized small enough to nest inside the base's
-          inner ring. */}
+      {/* Thumb — pure-CSS polished golden orb. Rendered with a radial
+          gradient (highlight at upper-left, deeper gold falling off to
+          the rim) plus a soft outer glow. We avoid the PNG sprite
+          because its built-in highlight read as a stray pearl glued
+          to the side of the orb. */}
       <div
         ref={thumbRef}
         style={{
@@ -3690,17 +3714,16 @@ function Joystick({ onChange }: { onChange: (dx: number, dy: number, active: boo
           pointerEvents: "none",
         }}
       >
-        <img
-          src={joystickThumbImg}
-          alt=""
+        <div
           aria-hidden
-          draggable={false}
           style={{
             width: "100%",
             height: "100%",
-            objectFit: "contain",
-            userSelect: "none",
-            filter: "drop-shadow(0 0 8px rgba(252,211,77,0.55))",
+            borderRadius: "50%",
+            background: "radial-gradient(circle at 32% 30%, #fff7d6 0%, #fcd34d 28%, #b8860b 70%, #6b4a08 100%)",
+            boxShadow:
+              "inset -2px -3px 6px rgba(0,0,0,0.45), inset 2px 3px 5px rgba(255,250,210,0.55), 0 0 10px rgba(252,211,77,0.55)",
+            border: "1px solid rgba(252,211,77,0.55)",
           }}
         />
       </div>
