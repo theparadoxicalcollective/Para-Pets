@@ -1002,9 +1002,20 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           animation: "poleCast 1s ease-in-out forwards",
           transformOrigin: "bottom left",
         }}>
-          <img src={equipData.poleItem.imageUrl} alt="" className="w-full h-full object-contain" style={{
-            filter: `drop-shadow(0 0 10px ${ACCENT}80)`,
-          }} />
+          {/* During the cast THROW the line + bobber are leaving the
+              pole, so the pole should already be hookless — same as
+              the `waiting` and `reeling` phases below. Previously
+              this branch was hardcoded to the with-hook `imageUrl`,
+              which left the hook visibly attached during the throw
+              animation and only swapped it out once the cast landed
+              (phase → waiting). Fall back to `imageUrl` if the admin
+              hasn't uploaded a hookless variant for this pole. */}
+          <img
+            src={equipData.poleItem.hooklessImageUrl || equipData.poleItem.imageUrl}
+            alt=""
+            className="w-full h-full object-contain"
+            style={{ filter: `drop-shadow(0 0 10px ${ACCENT}80)` }}
+          />
         </div>
       )}
 
