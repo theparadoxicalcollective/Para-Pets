@@ -249,6 +249,22 @@ export type PetAnimationOverrides = {
      *  Crimson Dragon). Requires both "mouth" (open) and "mouth_closed"
      *  parts to exist on the template; ignored otherwise. Default false. */
     mouthBreath?: boolean;
+    /** When true, the body's breath keyframe is swapped for a smaller-
+     *  amplitude version (about half the inflate). Combines naturally with
+     *  headScalesWithBody — the larger the silhouette, the more the
+     *  default ±2.8/5 % scale reads as a heave. Used for visually big
+     *  pets like Crimson Dragon where the standard breath looks
+     *  exaggerated. Default false (= standard amplitude). */
+    subtleBreath?: boolean;
+    /** Seconds of phase offset applied to back_arm + back_accessory_1/2
+     *  relative to the body's breath cycle. The three back parts SHARE
+     *  the same offset so they remain perfectly in sync with each other,
+     *  but they sit slightly out of phase with the body — adds a hint of
+     *  separate motion (a satchel / wing settling a beat after the
+     *  shoulders) without ever drifting far enough to look broken.
+     *  Clamped to the 0–4.5 s breath cycle. Default 0 (= locked to
+     *  body, current behaviour). */
+    backOffsetSec?: number;
   };
 };
 

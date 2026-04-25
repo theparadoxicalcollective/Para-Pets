@@ -490,6 +490,27 @@ app.use((req, res, next) => {
   // every other fishing spot in that world. Going forward the
   // addFishToPond / removeFishFromPond storage methods keep things in sync
   // automatically, so this only needs to run once per deploy environment.
+  // Crimson Dragon idle-animation tuning. The default body-breath
+  // amplitude is too dramatic on this pet because its silhouette is
+  // large and the headScalesWithBody override doubles the visual
+  // impact. We also want the back arm + back accessories to read as
+  // slightly separate motion (a satchel/wing settling a beat after
+  // the shoulders) without ever drifting apart from each other.
+  // Idempotent jsonb merge keeps any existing overrides intact.
+  await runOnce("crimson_dragon_idle_breath_tuning_2026_04", async () => {
+    await db.execute(sql`
+      UPDATE pet_templates
+      SET animation_overrides = COALESCE(animation_overrides, '{}'::jsonb) || jsonb_build_object(
+        'idle',
+        COALESCE(animation_overrides->'idle', '{}'::jsonb) || jsonb_build_object(
+          'subtleBreath', true,
+          'backOffsetSec', 0.6
+        )
+      )
+      WHERE LOWER(name) LIKE '%crimson%dragon%'
+    `);
+  });
+
   await runOnce("sync_pond_fish_per_world_2026_04", async () => {
     const r: any = await db.execute(sql`
       SELECT id, world_id FROM world_locations WHERE type = 'fishing'

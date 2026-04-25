@@ -416,6 +416,18 @@ const ANIMATION_STYLES = `
     from { transform: scale(1, 1); }
     to   { transform: scale(1.028, 1.05); }
   }
+  /* Per-pet override (idle.subtleBreath): same breath rhythm at roughly
+     half the inflate amplitude. Used by visually large pets like Crimson
+     Dragon where the standard breath reads as a heave (especially when
+     headScalesWithBody is also active and the head is riding the body's
+     scale). All body-synced parts (back_arm, back_accessory_*, shoulders)
+     are routed through this keyframe via idleBodyAnimName below so the
+     subtle breath stays consistent across the whole "breathes with body"
+     group. */
+  @keyframes petIdleBodySubtle {
+    from { transform: scale(1, 1); }
+    to   { transform: scale(1.014, 1.025); }
+  }
   /* Wings — flap motion. The wings travel UP together (matched
      translateY) on the up-stroke and DOWN together on the down-stroke,
      which reads as the bird/dragon pushing air down to hover. A ±5°
@@ -785,6 +797,13 @@ const ALTERNATE_MOTION_ANIMS = new Set<string>([
   "petIdleLeftEar", "petIdleRightEar",
   "petIdleLeftArm", "petIdleRightArm",
   "petIdleBody",
+  // Per-pet override (idle.subtleBreath): same 2-keyframe shape as
+  // petIdleBody, just with a smaller scale target. Must alternate so it
+  // shares the body's sine ping-pong rhythm — without this it would
+  // snap back to 1.0 every cycle while every other body-synced part
+  // (which keeps using petIdleBody's alternate behaviour via this set)
+  // smoothly ping-pongs, producing a visible "tic" at the loop reset.
+  "petIdleBodySubtle",
   "petIdleLeftWing", "petIdleRightWing",
   "petIdleLeftLeg", "petIdleRightLeg",
   "petIdleTail", "petIdleTail2", "petIdleTail3",
@@ -1042,6 +1061,28 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   const animOverrides = templateData?.animationOverrides ?? {};
   const idleHeadScalesWithBody = !!animOverrides.idle?.headScalesWithBody;
   const idleMouthBreath = !!animOverrides.idle?.mouthBreath;
+  const idleSubtleBreath = !!animOverrides.idle?.subtleBreath;
+  // Clamp the back-offset into the body's 4.5 s breath cycle. Anything
+  // larger just wraps and reads as a smaller offset; anything <= 0 is
+  // treated as "no offset" and back parts ride the body in lockstep
+  // (the existing default).
+  const rawBackOffset = animOverrides.idle?.backOffsetSec ?? 0;
+  const idleBackOffsetSec = rawBackOffset > 0 ? Math.min(rawBackOffset, 4.5) : 0;
+  // Body-synced parts (body, shoulders, back_arm, back_accessory_*) all
+  // pick up this animation name in idle mode. Per-pet `subtleBreath`
+  // override swaps in the smaller-amplitude keyframe so the WHOLE
+  // breathing group stays consistent.
+  const idleBodyAnimName = idleSubtleBreath ? "petIdleBodySubtle" : "petIdleBody";
+  // Set of animation names that count as "the body's breath keyframe"
+  // for delay-sync, transform-origin sync, and the alternate-motion
+  // ease — both the standard and the subtle override variant qualify.
+  const isBodyBreathAnim = (name: string | null | undefined) =>
+    name === "petIdleBody" || name === "petIdleBodySubtle";
+  // Back-arm + back-accessory parts share a SECOND delay (offset from
+  // bodyBreathDelay by idleBackOffsetSec) so they remain in sync with
+  // each other but slightly out of sync with the body. See the
+  // `backBreathDelay` derivation below renderPartImg.
+  const BACK_OFFSET_PARTS = new Set(["back_arm", "back_accessory_1", "back_accessory_2"]);
 
   // Determine which view to render:
   // 1. If template is explicitly saved as side-facing ("back"), always use "back"
@@ -1228,6 +1269,12 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   // front_shoulder + front_accessory_1/2 moved to petIdleSideShoulder for
   // an independent depth cue, so they no longer share this delay.
   let bodyBreathDelay: string | undefined;
+  // Sibling delay for back_arm + back_accessory_1/2 when the per-pet
+  // override `idle.backOffsetSec` is active. Stays undefined for pets
+  // without the override so back parts continue to ride bodyBreathDelay
+  // exactly. Computed below alongside bodyBreathDelay so they share the
+  // same source phase.
+  let backBreathDelay: string | undefined;
   // World-space anchor (in canvas units) where the body's breathe scale
   // pivots — every body-synced part (back_arm, back_accessory_1/2,
   // shoulders) needs to scale around THIS exact point so their inflate
@@ -1243,7 +1290,16 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     for (let i = 0; i < bodyPartForBreath.id.length; i++) {
       h = (h * 31 + bodyPartForBreath.id.charCodeAt(i)) >>> 0;
     }
-    bodyBreathDelay = `-${((h % 1500) / 1000).toFixed(2)}s`;
+    const bodyBreathOffsetSec = (h % 1500) / 1000;
+    bodyBreathDelay = `-${bodyBreathOffsetSec.toFixed(2)}s`;
+    if (idleBackOffsetSec > 0) {
+      // Wrap into 0..4.5 (the body breath cycle) so the offset always
+      // reads as a small phase shift no matter how big the override
+      // value is. Negative CSS animation-delay keeps the same convention
+      // as bodyBreathDelay.
+      const backOffsetMod = (bodyBreathOffsetSec + idleBackOffsetSec) % 4.5;
+      backBreathDelay = `-${backOffsetMod.toFixed(2)}s`;
+    }
     // Mirror the body part's own transform-origin choice (see the
     // bodyOrigin computation in the part-render loop and the override
     // logic in renderPartImg below): non-flying pets anchor at "50%
@@ -1304,8 +1360,14 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
       // part stable hash so different parts of the same pet don't all sit
       // in lockstep (which would create a visible "stop" at every cycle
       // boundary).
-      if (animName === "petIdleBody" && bodyBreathDelay !== undefined) {
-        computedDelay = bodyBreathDelay;
+      if (isBodyBreathAnim(animName) && bodyBreathDelay !== undefined) {
+        // Per-pet `idle.backOffsetSec` override: back_arm + back_accessory_*
+        // share their own (slightly shifted) delay so they remain in sync
+        // with each other but a beat off the body. Every other body-synced
+        // part keeps the canonical bodyBreathDelay.
+        computedDelay = (backBreathDelay !== undefined && BACK_OFFSET_PARTS.has(part.partType))
+          ? backBreathDelay
+          : bodyBreathDelay;
       } else {
         let h = 0;
         for (let i = 0; i < part.id.length; i++) h = (h * 31 + part.id.charCodeAt(i)) >>> 0;
@@ -1346,7 +1408,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     let resolvedOrigin = transformOriginOverride;
     if (
       resolvedOrigin === undefined &&
-      animName === "petIdleBody" &&
+      isBodyBreathAnim(animName) &&
       bodyAnchorWorldX !== undefined &&
       bodyAnchorWorldY !== undefined &&
       part.partType !== "body" &&
@@ -1470,8 +1532,16 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
             return renderPartImg(part, animName ?? null, undefined, wingDelay, bodyOrigin, partZ);
           }
           const anims = mode === "idle" ? idleAnimMap : mode === "zoom" ? ZOOM_ANIMATIONS : WALK_ANIMATIONS;
-          const animName = lookupAnim(anims, part.partType) || anims.body;
-          if (!animName) return null;
+          const rawAnimName = lookupAnim(anims, part.partType) || anims.body;
+          if (!rawAnimName) return null;
+          // Per-pet `idle.subtleBreath` override swaps the body breath
+          // keyframe for the smaller-amplitude variant on every body-
+          // synced part (body, shoulders, back_arm, back_accessory_*)
+          // so the WHOLE breathing group reads as the same calmer
+          // breath instead of just the body.
+          const animName = (mode === "idle" && rawAnimName === "petIdleBody")
+            ? idleBodyAnimName
+            : rawAnimName;
           // Only the idle body keyframe scales — walk/zoom body uses
           // translateY only, so the anchor override is harmless either way.
           return renderPartImg(part, animName, undefined, wingDelay, bodyOrigin, partZ);
