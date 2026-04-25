@@ -7111,6 +7111,33 @@ export async function registerRoutes(
     }
   }, 30 * 60 * 1000);
 
+  // Stale gift / reward cleanup — if a player hasn't accepted a reward bundle
+  // or friend gift in 25 days, drop it so the reward box doesn't pile up with
+  // forgotten items. Runs at startup and then every 6 hours.
+  const cleanupStaleRewards = async () => {
+    try {
+      const r1 = await db.execute(sql`
+        DELETE FROM user_rewards
+        WHERE claimed = false
+          AND created_at < NOW() - INTERVAL '25 days'
+      `);
+      const c1 = (r1 as any).rowCount ?? 0;
+      const r2 = await db.execute(sql`
+        DELETE FROM gifts
+        WHERE status = 'pending'
+          AND created_at < NOW() - INTERVAL '25 days'
+      `);
+      const c2 = (r2 as any).rowCount ?? 0;
+      if (c1 > 0 || c2 > 0) {
+        console.log(`[RewardCleanup] Removed ${c1} unclaimed reward bundle(s) and ${c2} pending gift(s) older than 25 days.`);
+      }
+    } catch (err) {
+      console.error("[RewardCleanup] Error:", err);
+    }
+  };
+  cleanupStaleRewards();
+  setInterval(cleanupStaleRewards, 6 * 60 * 60 * 1000);
+
   // Leaderboard monitor — fires only when a NEW player enters the top 3 (not on reorders).
   // Polls every 5 minutes so newcomers are surfaced quickly.
   let lastLeaderboardTop3Names = new Set<string>();
