@@ -87,13 +87,22 @@ const IDLE_ANIMATIONS: Record<string, string> = {
   tail: "petIdleTail",
   tail_2: "petIdleTail2",
   tail_3: "petIdleTail3",
-  // Front-facing shoulders + side-facing shoulders / accessories breathe with body
+  // Front-facing shoulders breathe with body (they sit ON the body
+  // silhouette so they should inflate / deflate together).
   left_shoulder: "petIdleBody",
   right_shoulder: "petIdleBody",
-  front_shoulder: "petIdleBody",
+  // Side-view shoulders: the FRONT shoulder gets a tiny independent
+  // rotation (petIdleSideShoulder) so it reads with depth — not
+  // glued-flat to the body. The BACK shoulder stays on petIdleBody so
+  // the body silhouette behind the torso never breaks.
+  front_shoulder: "petIdleSideShoulder",
   back_shoulder: "petIdleBody",
-  front_accessory_1: "petIdleBody",
-  front_accessory_2: "petIdleBody",
+  // Front accessories also get a hint of independent motion via the
+  // shoulder keyframe so a chest-mounted accessory (medal, harness)
+  // doesn't read as locked to the body. Back accessories must stay on
+  // petIdleBody so they ride the breath in lockstep with back_arm.
+  front_accessory_1: "petIdleSideShoulder",
+  front_accessory_2: "petIdleSideShoulder",
   back_accessory_1: "petIdleBody",
   back_accessory_2: "petIdleBody",
   // Hair pieces sway gently like ears
@@ -113,7 +122,11 @@ const IDLE_ANIMATIONS: Record<string, string> = {
   // capes etc. mounted on the back arm don't drift away from the back
   // accessories during idle. Duration is also matched to body (4.5 s) in
   // getPartDuration so the phase locks.
-  front_arm: "petIdleLeftArm",
+  // front_arm gets its own slightly-larger amplitude keyframe so the
+  // forward arm in profile reads with a clearer swing for depth (the
+  // shared petIdleLeftArm keyframe is a smaller 5° sweep that's tuned
+  // for the front-view left arm).
+  front_arm: "petIdleSideFrontArm",
   back_arm: "petIdleBody",
   front_leg: "petIdleLeftLeg",
   back_leg: "petIdleRightLeg",
@@ -344,12 +357,16 @@ const ANIMATION_STYLES = `
      canvas) so the lift scales naturally with the rendered pet size.
      The wrapper sits inside an inner-div that's scaled by partScale
      (0.3 for 1000-px source pets), so an absolute pixel value here gets
-     squashed by the same factor on screen. -1.5% on a 1000-unit canvas
-     = 15 inner-px = ~4.5 px on screen at typical pet sizes — small
-     enough to feel like a breath, big enough to actually be perceived. */
+     squashed by the same factor on screen. -0.9% on a 1000-unit canvas
+     = 9 inner-px = ~2.7 px on screen at typical pet sizes — small
+     enough to feel like a breath, big enough to actually be perceived.
+     Reduced from -1.5% so the head reads as a calm bob instead of a
+     visible nod (especially noticeable on the side-view care/active-pet
+     pages where the head is in profile and any vertical motion stands
+     out more than on the front-facing arena view). */
   @keyframes petIdleHead {
     from { transform: translateY(0%); }
-    to   { transform: translateY(-1.5%); }
+    to   { transform: translateY(-0.9%); }
   }
   @keyframes petIdleLeftEar {
     from { transform: rotate(-2deg); }
@@ -417,10 +434,13 @@ const ANIMATION_STYLES = `
     from { transform: translate(0px, 0px); }
     to   { transform: translate(1.5px, -1.5px); }
   }
-  /* Ground head: small left/right tilt instead of upward bob. */
+  /* Ground head: small left/right tilt instead of upward bob. Reduced
+     from ±0.6deg → ±0.4deg so the head reads as a barely-there sway
+     instead of an active head-shake — matches the calmer petIdleHead
+     amplitude above. */
   @keyframes petIdleHeadGround {
-    from { transform: rotate(-0.6deg); }
-    to   { transform: rotate(0.6deg); }
+    from { transform: rotate(-0.4deg); }
+    to   { transform: rotate(0.4deg); }
   }
 
   @keyframes petWalkEyes {
@@ -604,15 +624,31 @@ const ANIMATION_STYLES = `
      object would. */
   /* Above-head accessory float. % of the part's own height instead of
      pixels — pure-px (-7 px) was getting squashed by the same 0.3×
-     inner-div scale that flattens the wing translate. The amplitude was
-     previously -15 % which lifted crowns / halos clear off the head and
-     read as "wobbling violently" on tall accessories like horns or
-     pointed hats. Reduced to -5 % so the accessory still has a gentle
-     buoyant float on top of the head bob, but never visibly detaches
-     from the skull. */
+     inner-div scale that flattens the wing translate. The amplitude
+     ladder has come down twice now: -15% → -5% (stopped tall
+     accessories from wobbling off the head) and now -5% → -3% (the
+     side-view care + active-pet pages still showed the crown/hat
+     visibly lifting too high above the skull on each breath). At -3%
+     the float reads as a faint buoyancy that follows the head bob
+     instead of an independent hop. */
   @keyframes petAboveHeadBounce {
     from { transform: translateY(0%); }
-    to   { transform: translateY(-5%); }
+    to   { transform: translateY(-3%); }
+  }
+  /* Side-view front shoulder — a small independent rotation so the
+     forward shoulder reads with a subtle depth cue instead of just
+     scaling with the body. Back shoulders stay on petIdleBody so the
+     silhouette behind the body never breaks. */
+  @keyframes petIdleSideShoulder {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(1.8deg); }
+  }
+  /* Side-view front arm — slightly larger amplitude than petIdleLeftArm
+     (which is also used for the front-view left arm) so the front arm
+     in profile reads with a clearer "swing" / depth cue. */
+  @keyframes petIdleSideFrontArm {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(7deg); }
   }
 
 `;
@@ -670,14 +706,16 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "hou
       // Every part that's mapped to `petIdleBody` MUST share the body's
       // 4.5 s period — otherwise even with a shared bodyBreathDelay the
       // shorter-cycle parts visibly drift out of phase within a few
-      // seconds. shoulders + back/front accessories are all on petIdleBody
-      // (see ANIMS), so they all need 4.5 s here. Without this they'd
-      // fall through to the default 3 s and the back accessory would
-      // visibly inhale faster than the body it's clipped to.
-      back_shoulder: "4.5s", front_shoulder: "4.5s",
+      // seconds. back_shoulder + back_accessory_1/2 + the front-view
+      // shoulders are all on petIdleBody (see ANIMS) so they all need
+      // 4.5 s here. The SIDE-VIEW front_shoulder + front_accessory_1/2
+      // moved off petIdleBody onto petIdleSideShoulder — they get a
+      // 4 s cycle so they drift slightly out of phase with the body
+      // for the depth cue.
+      back_shoulder: "4.5s", front_shoulder: "4s",
       left_shoulder: "4.5s", right_shoulder: "4.5s",
       back_accessory_1: "4.5s", back_accessory_2: "4.5s",
-      front_accessory_1: "4.5s", front_accessory_2: "4.5s",
+      front_accessory_1: "4s", front_accessory_2: "4s",
       // Above-head accessory floats on its own slow cycle, deliberately
       // out of phase with the head bob (3 s) so crowns / halos read as
       // a separate floating object rather than rigidly attached.
@@ -724,6 +762,9 @@ const ALTERNATE_MOTION_ANIMS = new Set<string>([
   "petIdleLeftLeg", "petIdleRightLeg",
   "petIdleTail", "petIdleTail2", "petIdleTail3",
   "petAboveHeadBounce",
+  // Side-view depth keyframes — also 2-keyframe from/to motions, so they
+  // must alternate (ping-pong) instead of snapping back to 0 each cycle.
+  "petIdleSideShoulder", "petIdleSideFrontArm",
 ]);
 
 // Build the CSS `animation` shorthand for a given keyframe name. For the
@@ -1137,9 +1178,20 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   // why the back arm wasn't visibly moving in time with back_accessory_1
   // even though both shared the same keyframe. We seed the shared delay off
   // the body part's id so it stays stable per-pet but identical across the
-  // whole "breathes with body" group: body, shoulders (front/back/left/
-  // right), back_arm, front_accessory_1/2, back_accessory_1/2.
+  // whole "breathes with body" group: body, back_shoulder, left/right
+  // (front-view) shoulders, back_arm, back_accessory_1/2. The side-view
+  // front_shoulder + front_accessory_1/2 moved to petIdleSideShoulder for
+  // an independent depth cue, so they no longer share this delay.
   let bodyBreathDelay: string | undefined;
+  // World-space anchor (in canvas units) where the body's breathe scale
+  // pivots — every body-synced part (back_arm, back_accessory_1/2,
+  // shoulders) needs to scale around THIS exact point so their inflate
+  // / deflate stays glued to the body silhouette. Without this, each
+  // part scales around its own bbox center and visibly drifts apart
+  // from the body and from each other on the side-view care + active-
+  // pet pages.
+  let bodyAnchorWorldX: number | undefined;
+  let bodyAnchorWorldY: number | undefined;
   const bodyPartForBreath = bodyParts.find(p => p.partType === "body");
   if (bodyPartForBreath) {
     let h = 0;
@@ -1147,6 +1199,24 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
       h = (h * 31 + bodyPartForBreath.id.charCodeAt(i)) >>> 0;
     }
     bodyBreathDelay = `-${((h % 1500) / 1000).toFixed(2)}s`;
+    // Mirror the body part's own transform-origin choice (see the
+    // bodyOrigin computation in the part-render loop and the override
+    // logic in renderPartImg below): non-flying pets anchor at "50%
+    // 100%" (feet) so the body inflates UPWARD; flying pets use the
+    // pivot-based origin computed off the alpha bbox so the body
+    // inflates around its hover pivot.
+    if (!canFly) {
+      bodyAnchorWorldX = bodyPartForBreath.posX + bodyPartForBreath.width * 0.5;
+      bodyAnchorWorldY = bodyPartForBreath.posY + bodyPartForBreath.height * 1.0;
+    } else {
+      const bodyAb = getAlphaBoundsSync(bodyPartForBreath.imageUrl) ?? FULL_BOUNDS;
+      const bpxFrac = (bodyPartForBreath.pivotX ?? 50) / 100;
+      const bpyFrac = (bodyPartForBreath.pivotY ?? 50) / 100;
+      const bodyOriginXFrac = bodyAb.left + bodyAb.width * bpxFrac;
+      const bodyOriginYFrac = bodyAb.top + bodyAb.height * bpyFrac;
+      bodyAnchorWorldX = bodyPartForBreath.posX + bodyPartForBreath.width * bodyOriginXFrac;
+      bodyAnchorWorldY = bodyPartForBreath.posY + bodyPartForBreath.height * bodyOriginYFrac;
+    }
   }
 
   // Helper: render a single part image with given animation (or none).
@@ -1210,21 +1280,36 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     const pyPct = (part.pivotY ?? 50) / 100;
     const originX = (ab.left + ab.width  * pxPct) * 100;
     const originY = (ab.top  + ab.height * pyPct) * 100;
-    // Body-breath origin sync — the body part itself anchors at "50%
-    // 100%" (its feet) for non-flying pets so it inhales UPWARD instead
-    // of swelling off the ground. Every other part on the petIdleBody
-    // animation (shoulders, back_arm, back/front accessories) was
-    // scaling around its OWN pivot, which meant the body grew up while
-    // the accessory grew sideways from its center — that's the "still
-    // a bit off" sync the user noticed on the side view. Forcing the
-    // same "50% 100%" origin on every body-synced part makes them all
-    // expand UPWARD in lockstep with the body, locking the back-arm to
-    // its mounted accessory and keeping the shoulders glued to the
-    // torso silhouette. Flying pets (canFly) keep the per-part pivot
-    // since the body itself isn't feet-anchored in that case.
+    // Body-breath origin sync — every part on the petIdleBody keyframe
+    // (back_arm, back_accessory_1/2, back/front-view shoulders) MUST
+    // scale around the SAME WORLD POINT as the body itself, otherwise
+    // each part scales around its own bbox center, so the body inflates
+    // upward while a back accessory inflates sideways and they visibly
+    // drift apart on the side-view care + active-pet pages.
+    //
+    // Earlier fix used a flat "50% 100%" override on every body-synced
+    // part — but "50% 100%" is each part's OWN bottom-center, which is
+    // a different world point for every part (back_arm's bottom is up
+    // by the shoulder, back_accessory's bottom is mid-torso, body's
+    // bottom is at the feet). So they STILL scaled out of sync.
+    //
+    // Real fix: compute the body's world anchor once (above, where
+    // bodyAnchorWorldX/Y are derived) and convert it into each part's
+    // own local %-of-box for transform-origin. Now every body-synced
+    // part inflates / deflates around the body's pivot — perfect lock.
     let resolvedOrigin = transformOriginOverride;
-    if (resolvedOrigin === undefined && animName === "petIdleBody" && !canFly) {
-      resolvedOrigin = "50% 100%";
+    if (
+      resolvedOrigin === undefined &&
+      animName === "petIdleBody" &&
+      bodyAnchorWorldX !== undefined &&
+      bodyAnchorWorldY !== undefined &&
+      part.partType !== "body" &&
+      part.width > 0 &&
+      part.height > 0
+    ) {
+      const localXPct = ((bodyAnchorWorldX - part.posX) / part.width) * 100;
+      const localYPct = ((bodyAnchorWorldY - part.posY) / part.height) * 100;
+      resolvedOrigin = `${localXPct.toFixed(2)}% ${localYPct.toFixed(2)}%`;
     }
     return (
       <img
