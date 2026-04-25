@@ -383,8 +383,25 @@ function AppRouter() {
 
       {/* Game overlays — each fades in quickly to smooth page-to-page transitions.
           A single <Suspense> wraps every overlay so lazy chunks load without
-          unmounting the persistent HomePage base layer underneath. */}
-      <Suspense fallback={null}>
+          unmounting the persistent HomePage base layer underneath.
+          ── Fallback note ──────────────────────────────────────────────
+          The fallback used to be `null`, which meant that whenever a
+          player tapped a route whose chunk wasn't cached yet (most
+          commonly /pvp on first visit, or after a fresh deploy), the
+          empty Suspense fallback let the persistent <HomePage> base
+          layer underneath show through for the duration of the chunk
+          download. To the player this looked exactly like "the page
+          closed out to the main page before opening back up" — they
+          weren't actually navigating home, they were just seeing the
+          base layer until the lazy chunk arrived. Swapping in
+          <LoadingScreen> (the same fallback we use for /auth, /hub,
+          and admin routes) covers HomePage with the standard loading
+          orb during chunk fetch. Once the chunk is cached, Suspense
+          doesn't re-suspend, so subsequent navigations are instant
+          and never flash the loader. This also incidentally hides any
+          temporary Home-flash on iOS Safari where chunk downloads can
+          take noticeably longer over cellular. */}
+      <Suspense fallback={<LoadingScreen label="Loading…" />}>
         {location === "/map" && (
           <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
             <MapPage user={user} />

@@ -49,6 +49,7 @@ The application is built as a monolithic web app with a clear separation of conc
 - **Image Handling**: All images are stored as base64 data URIs in the database. Profile images are resized to 500x500 JPEG; shop item images (PNG/GIF) are resized to fit within 2000x2000.
 
 ### Technical Implementations
+- **Routing & Lazy Loading**: All overlay pages (PvP, Map, World, Coins, Pet House, Badges, Market, Pet Inventory, Bag, Equip Accessories) are wrapped in a single shared `<Suspense>` in `client/src/App.tsx`. The fallback **must remain `<LoadingScreen .../>` (NOT `null`)** because the persistent `<HomePage>` base layer is always mounted underneath at `position: absolute; inset: 0`. If the Suspense fallback is ever changed back to `null`, players whose lazy chunk hasn't downloaded yet (first-time visit, after a fresh deploy, or on cellular iOS Safari where chunk downloads are slower) will see HomePage flash through during the chunk fetch — and they'll perceive this as "the page closed out to the main page before opening back up." LoadingScreen-as-fallback is the targeted fix; once a chunk is cached in the same session, Suspense doesn't re-suspend so subsequent navigations stay instant. Lazy loaders use `lazyWithRetry` (in `client/src/lib/lazyWithRetry.ts`), which auto-reloads on stale-deploy `ChunkLoadError`s once per session.
 - **Frontend**: React, Vite, TypeScript, TailwindCSS, wouter for routing.
 - **Backend**: Express.js, TypeScript.
 - **Authentication**: Passport.js with local strategy (username or email), `express-session`, and `connect-pg-simple`.

@@ -360,12 +360,15 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
 
       ctx.clearRect(0, 0, canvasPx, canvasPx);
       ctx.imageSmoothingEnabled = true;
-      // Bumped from "low" → "high" because the previous setting made
-      // pet sprites look pixellated / fuzzy in PvP (5 pets at small
-      // sizes amplify any sampling artifacts). The cost on a throttled
-      // 30 FPS canvas is negligible — we're well under the GPU budget
-      // even on older mobile hardware.
-      ctx.imageSmoothingQuality = "high";
+      // Pixel-quality dial. We tried "low" (looked fuzzy in PvP with 5
+      // pets at small sizes) and "high" (sharp but caused GPU stutter
+      // on older iPhones running iOS Safari, which renders the high
+      // setting via a multi-tap downsampler that's quite expensive at
+      // DPR=2/3). "medium" lands in the sweet spot — visibly sharper
+      // than "low" while staying within budget even on iPhone X-class
+      // hardware. Spec: bilinear-with-prefilter ≈ trilinear, well-
+      // supported since iOS 10.1.
+      ctx.imageSmoothingQuality = "medium";
 
       // Fit-to-visible-bbox: compute the union of every part's alpha-
       // tight rect (in 1000-unit logical coords), then scale + recenter
