@@ -339,16 +339,22 @@ const ANIMATION_STYLES = `
     0%, 100% { opacity: 1; }
   }
   /* Per-pet override (idle.mouthBreath): cross-fades the open-mouth
-     overlay in and out so the pet looks like it's breathing through a
-     slightly parted jaw. Pairs with the body's 4.5 s breath cycle (via
-     bodyBreathDelay + 4.5 s duration → halved by alternate to 2.25 s
-     forward + 2.25 s reverse) so the mouth opens on the inhale and
-     closes on the exhale. Peak opacity 0.45 keeps the effect subtle —
-     the mouth_closed underneath stays fully visible, so this reads as
-     "jaws part slightly" rather than a full mouth swap. */
+     overlay in and the closed-mouth overlay out (and vice versa), so
+     the pet looks like it's breathing with a parting jaw. Pairs with
+     the body's 4.5 s breath cycle (via bodyBreathDelay + 4.5 s
+     duration → halved by alternate to 2.25 s forward + 2.25 s reverse)
+     so the mouth opens on the inhale and closes on the exhale.
+     Templates that have BOTH a `mouth` and a `mouth_closed` part need
+     this paired cross-fade because the closed overlay sits on top of
+     the open one (higher z-index, opaque) and would otherwise hide any
+     fade-in of the open mouth completely. */
   @keyframes petIdleMouthBreath {
     from { opacity: 0; }
-    to   { opacity: 0.45; }
+    to   { opacity: 1; }
+  }
+  @keyframes petIdleMouthClose {
+    from { opacity: 1; }
+    to   { opacity: 0; }
   }
   /* ── Idle: 2-keyframe motion designed for animation-direction: alternate.
 
