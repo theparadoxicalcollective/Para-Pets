@@ -103,21 +103,29 @@ const COMBO_WINDOW_MS = 1400;
  *  back" but slow enough that the screen doesn't feel chaotic and the
  *  player has time to react with swipes / skills between hits. The
  *  earlier 900 ms cadence felt frantic per playtest feedback. */
-const CHARGE_INTERVAL_MS = 1500;
+// Lowered from 1500 → 700 ms per user feedback that "some enemy pets
+// just sit there." With one-charger-at-a-time and a
+// 5v5 lineup, a 1.5 s gap between attempts meant each individual
+// enemy only got a chance to attack roughly once every ~3 seconds —
+// enemies in the back of the rotation looked idle. 700 ms keeps the
+// pacing feeling deliberate (enemies still telegraph and dive) while
+// pushing the rotation through the lineup fast enough that every
+// enemy visibly participates within the first few seconds. Combined
+// with the round-robin candidate selection further down (longest-
+// waiting enemy preferred), this addresses the "just sitting there"
+// complaint without needing a full multi-charger refactor.
+const CHARGE_INTERVAL_MS = 700;
 /** How fast a charging enemy travels down to its target ally. */
 const CHARGE_DIVE_MS = 720;
 /** How fast it returns to the swarm after impact. */
 const CHARGE_RETURN_MS = 300;
 /** Damage % of enemy ATK when a charge lands on an ally. */
 const CHARGE_DMG_MULT = 0.85;
-/** Passive mana the enemy AI gains per RAF frame (matches allies so
- *  enemy specials actually fire instead of waiting for charge-landings). */
-const ENEMY_PASSIVE_MANA = 0.05;
-/** Passive mana every alive ally gains per RAF frame. Bumped from
- *  0.05 → 0.10 so non-attacker pets in the party charge their special
- *  in a reasonable window even without taking swipe-credit hits, so
- *  the player can see them glow and tap-to-fire mid-battle. */
-const ALLY_PASSIVE_MANA = 0.10;
+// Passive mana constants removed per user feedback ("mana shouldn't
+// fill automatically"). Mana now only accrues from giving or
+// receiving hits — see SWIPE_MANA_* below for the swipe-side income
+// and the +25 (charger) / +10 (target) / +8 (enemy hit by swipe)
+// inline credits in the animate loop and handlePointerMove.
 /** Mana the slot-0 attacker (the swipe focal pet) gains per landed
  *  swipe-hit. Held at 16 to match the pre-share-distribution rate so
  *  slot-0's special doesn't charge any slower than it did before — we
@@ -273,6 +281,11 @@ export default function PvpBattlePage({
   // mutates it every frame; mirrored to state only for "INCOMING!" UI.
   const chargerRef = useRef<Charger | null>(null);
   const lastChargeAttemptRef = useRef(0);
+  // Per-enemy timestamp of the last charge attempt. Used by the
+  // candidate-picker in the animate loop to prefer the longest-waiting
+  // enemy, so attacks rotate through the whole lineup instead of
+  // clustering on one or two pets.
+  const enemyLastChargeMsRef = useRef<Record<string, number>>({});
   const [chargerView, setChargerView] = useState<Charger | null>(null);
 
   // Potion drag state — mirrored to a ref so the animate loop / pointer
@@ -698,6 +711,12 @@ export default function PvpBattlePage({
               flashHit(target.uid);
               playPlayerHurt();
               e.mana = Math.min(MAX_MANA, e.mana + 25);
+              // Hit ally also gains some mana from being hit — per
+              // user feedback, mana should ONLY fill from giving or
+              // receiving hits (no passive ticks). +10 lets a pet
+              // that's getting pummelled charge its special back up
+              // for retaliation without feeling like free meter.
+              target.mana = Math.min(MAX_MANA, target.mana + 10);
               if (target.hp <= 0 && !target.isDead) doKo(target);
               charger.returning = true;
               charger.returnStartMs = now;
@@ -720,10 +739,12 @@ export default function PvpBattlePage({
           e.y = e.baseY + Math.sin(t * 0.6 + e.phase) * 1.5;
         }
 
-        // Passive enemy mana so AI specials still fire even if their
-        // charges keep getting dodged / KO'd. Without this the enemy
-        // never casts because mana only ticked up on a landed charge.
-        e.mana = Math.min(MAX_MANA, e.mana + ENEMY_PASSIVE_MANA);
+        // Passive enemy mana removed per user feedback ("mana bars
+        // shouldn't automatically fill"). Enemies now only build mana
+        // from landing a charge (+25 above) or being hit by a swipe
+        // (+8 in handlePointerMove). With ~4 landed charges to a
+        // special, AI casts are now a meaningful event rather than a
+        // background timer.
 
         // AI special: auto-fire when mana fills. Keeps the screen
         // alive even if no charger has landed yet.
@@ -744,11 +765,26 @@ export default function PvpBattlePage({
       }
 
       // ── Spawn a new charger if none active ─────────────────
+      // Prefer the enemy that has been waiting longest (smallest
+      // lastChargeMs). With pure random selection we saw the same 1-2
+      // enemies attack repeatedly while the rest "just sat there" —
+      // tracking per-enemy last-charge time and picking from the two
+      // most-stale candidates guarantees every enemy in the lineup
+      // gets a turn within a single rotation, while keeping enough
+      // randomness that the order isn't completely predictable.
       if (!chargerRef.current && now - lastChargeAttemptRef.current > CHARGE_INTERVAL_MS) {
         lastChargeAttemptRef.current = now;
-        const candidates = oppAlive.filter(e => e.uid !== chargerRef.current?.enemyUid);
+        const candidates = oppAlive;
         if (candidates.length && myAlive.length) {
-          const enemy = candidates[Math.floor(Math.random() * candidates.length)];
+          const sorted = [...candidates].sort(
+            (a, b) =>
+              (enemyLastChargeMsRef.current[a.uid] ?? 0) -
+              (enemyLastChargeMsRef.current[b.uid] ?? 0)
+          );
+          // Pick from the two most-stale (or just the one if 1v?).
+          const pickWindow = Math.min(2, sorted.length);
+          const enemy = sorted[Math.floor(Math.random() * pickWindow)];
+          enemyLastChargeMsRef.current[enemy.uid] = now;
           const target = myAlive[Math.floor(Math.random() * myAlive.length)];
           const next: Charger = {
             enemyUid: enemy.uid,
@@ -773,10 +809,13 @@ export default function PvpBattlePage({
       // jittery and allies look like they were ticking discrete frames.
       // Driving the bob from this single RAF loop keeps every pet on
       // the same time-base.
+      // Passive ally mana removed per user feedback. Allies now only
+      // build mana from swiping (SWIPE_MANA_ATTACKER / SWIPE_MANA_PARTY,
+      // see handlePointerMove) or being hit by an enemy charge (+10
+      // above). The bob is purely cosmetic.
       for (const a of myAlive) {
         a.x = a.baseX;
         a.y = a.baseY + Math.sin(t * 1.05 + (a.phase || a.slotIdx)) * 0.6;
-        a.mana = Math.min(MAX_MANA, a.mana + ALLY_PASSIVE_MANA);
       }
 
       // ── Per-frame DOM-direct sync (avoids React re-render storm) ──
@@ -996,6 +1035,12 @@ export default function PvpBattlePage({
         const share = ally.uid === attacker.uid ? SWIPE_MANA_ATTACKER : SWIPE_MANA_PARTY;
         ally.mana = Math.min(MAX_MANA, ally.mana + share);
       }
+      // Hit enemy gains a small amount of mana from being struck — same
+      // "give-or-take a hit" rule we apply to allies. +8 keeps it modest
+      // so the player still feels in control while ensuring the enemy
+      // line can build special-attack pressure if they're being heavily
+      // swiped instead of charging successfully.
+      opp.mana = Math.min(MAX_MANA, opp.mana + 8);
 
       // Red sparks/colors to keep the PvP theme consistent — gold only
       // on a crit so the player can read the special hit at a glance.
@@ -1022,13 +1067,8 @@ export default function PvpBattlePage({
   const enemyPets = pets.filter(p => !p.isPlayer);
   const pendingPet = pendingSkill ? pets.find(p => p.uid === pendingSkill.petUid) : null;
 
-  // Charger UI: who's the targeted ally? (For INCOMING bar.)
-  const incomingTarget = chargerView && !chargerView.returning
-    ? pets.find(p => p.uid === chargerView.targetUid)
-    : null;
-  const incomingPct = chargerView && !chargerView.returning
-    ? Math.min(1, (Date.now() - chargerView.startMs) / chargerView.chargeMs)
-    : 0;
+  // (incomingTarget / incomingPct derivations removed along with the
+  // INCOMING indicator UI — see comment in the JSX block.)
 
   // ── Potion DnD ─────────────────────────────────────────────
   const [potionsRemaining, setPotionsRemaining] = useState<string[]>(potionInventoryIds);
@@ -1262,10 +1302,14 @@ export default function PvpBattlePage({
            effect on the still-image sprite. */
         @keyframes pDefeat { 0%{transform:rotate(0deg) scale(1);opacity:1;filter:saturate(1)} 100%{transform:rotate(75deg) scale(0.85);opacity:0.35;filter:saturate(0.2) brightness(0.6)} }
         @keyframes bShake { 0%,100%{margin-left:0} 20%{margin-left:-4px} 40%{margin-left:4px} 60%{margin-left:-3px} 80%{margin-left:2px} }
-        @keyframes skillGlow { 0%,100%{box-shadow:0 0 12px 4px rgba(167,139,250,0.6), 0 0 24px 8px rgba(124,58,237,0.35)} 50%{box-shadow:0 0 20px 8px rgba(196,181,253,0.85), 0 0 38px 14px rgba(167,139,250,0.55)} }
+        /* Pet-image glow applied via filter: drop-shadow so it traces
+           the actual silhouette of the sprite (rather than a circular
+           box-shadow halo around the wrapper, which read as "the pet
+           is inside a glowing bubble"). drop-shadow follows the alpha
+           edge, so the pet itself appears to emit light. */
+        @keyframes skillGlowImg { 0%,100%{filter:drop-shadow(0 0 8px rgba(196,181,253,0.85)) drop-shadow(0 0 16px rgba(167,139,250,0.55))} 50%{filter:drop-shadow(0 0 14px rgba(221,214,254,1)) drop-shadow(0 0 28px rgba(167,139,250,0.85))} }
         @keyframes targetPulse { 0%,100%{opacity:0.55} 50%{opacity:1} }
         @keyframes dropZonePulse { 0%,100%{box-shadow:0 0 0 0 rgba(74,222,128,0.55), 0 0 18px rgba(74,222,128,0.35)} 50%{box-shadow:0 0 0 8px rgba(74,222,128,0.0), 0 0 28px rgba(74,222,128,0.55)} }
-        @keyframes incomingBar { 0%{width:0%} 100%{width:100%} }
         @keyframes bOrb { 0%{transform:translate(0,0) scale(0.6);opacity:0} 30%{opacity:1} 100%{transform:translate(var(--ox,0px),-180px) scale(1.1);opacity:0} }
         @keyframes bWinText { 0%{transform:scale(0.6) rotate(-6deg);opacity:0;letter-spacing:0.05em} 60%{transform:scale(1.12) rotate(2deg);opacity:1} 100%{transform:scale(1) rotate(0deg);opacity:1;letter-spacing:0.18em} }
         @keyframes comboText { 0%{transform:scale(1.4) translateY(-4px);opacity:0} 60%{transform:scale(0.95) translateY(0);opacity:1} 100%{transform:scale(1) translateY(0);opacity:1} }
@@ -1403,29 +1447,11 @@ export default function PvpBattlePage({
             </svg>
           )}
 
-          {/* INCOMING bar above the targeted ally */}
-          {incomingTarget && (
-            <div
-              className="absolute pointer-events-none z-30"
-              style={{
-                left: `${incomingTarget.x}%`,
-                top: `${incomingTarget.y - 16}%`,
-                transform: "translate(-50%,-50%)",
-                width: 72,
-              }}
-              data-testid={`incoming-${incomingTarget.uid}`}
-            >
-              <div className="text-center text-[9px] font-black tracking-[0.18em] text-red-300 mb-0.5" style={{ textShadow: "0 0 6px rgba(239,68,68,0.9)" }}>
-                INCOMING!
-              </div>
-              <div className="h-1.5 w-full bg-black/70 rounded-full overflow-hidden border border-red-400/40">
-                <div
-                  className="h-full rounded-full"
-                  style={{ width: `${incomingPct * 100}%`, background: "linear-gradient(90deg, #fca5a5, #ef4444)" }}
-                />
-              </div>
-            </div>
-          )}
+          {/* INCOMING indicator removed per user request — the red
+              "INCOMING!" label + progress bar above the targeted ally
+              read as confusing UI clutter rather than useful gameplay
+              info. The charger's own dive animation already telegraphs
+              the attack visually. */}
 
           {/* Pets — sprite size scales DOWN as the row gets fuller so
               edge-slot pets at 12 / 88 % don't clip off the side of the
@@ -1579,11 +1605,9 @@ export default function PvpBattlePage({
                     transform: pet.isPlayer ? undefined : "scaleX(-1)",
                     animation: isHoveredDrop
                       ? "dropZonePulse 0.7s ease-in-out infinite"
-                      : isSkillReady
-                        ? "skillGlow 1.2s ease-in-out infinite"
-                        : isHit
-                          ? "bHit 0.32s ease-out"
-                          : undefined,
+                      : isHit
+                        ? "bHit 0.32s ease-out"
+                        : undefined,
                     outline: isPendingSource
                       ? "2px solid rgba(250,204,21,0.8)"
                       : isHoveredDrop
@@ -1620,8 +1644,23 @@ export default function PvpBattlePage({
                         // through its midline (which reads more like a
                         // hit absorbed in the legs than a body
                         // teleport).
-                        animation: isHit ? "pSquish 0.32s ease-out" : undefined,
+                        // Skill-ready glow lives HERE on the <img> (was
+                        // previously on the wrapper as box-shadow, which
+                        // produced a circular halo around the bounding
+                        // box). drop-shadow on the image traces the
+                        // pet's silhouette so the pet itself appears to
+                        // glow when its special is ready. Hit squish
+                        // takes precedence so the impact feedback isn't
+                        // muted by the slow skill pulse.
+                        animation: isHit
+                          ? "pSquish 0.32s ease-out"
+                          : isSkillReady
+                            ? "skillGlowImg 1.2s ease-in-out infinite"
+                            : undefined,
                         transformOrigin: "50% 100%",
+                        // Base team-color drop-shadow. Overridden by the
+                        // skillGlowImg keyframe while the pulse runs;
+                        // otherwise provides the static purple/red rim.
                         filter: pet.isPlayer
                           ? "drop-shadow(0 0 10px rgba(167,139,250,0.5))"
                           : "drop-shadow(0 0 10px rgba(239,68,68,0.45))",
