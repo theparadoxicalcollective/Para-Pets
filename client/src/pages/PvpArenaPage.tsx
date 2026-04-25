@@ -587,7 +587,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                that matters in PvP)
              • PvP ticket chip pinned to the right so the player can
                always see how many matches they have left at a glance. */}
-      <div className="relative z-10 flex items-center gap-3 px-4 pb-2.5 shrink-0" style={{ background: "rgba(5,8,15,0.7)", borderBottom: "1px solid rgba(167,139,250,0.12)", paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
+      <div className="relative z-10 flex items-center gap-3 pl-4 pr-2 pb-2.5 shrink-0" style={{ background: "rgba(5,8,15,0.7)", borderBottom: "1px solid rgba(167,139,250,0.12)", paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
         <button onClick={onClose} data-testid="button-close-pvp" className="w-10 h-10 flex items-center justify-center rounded-lg text-white/50 hover:text-white/80 transition-colors shrink-0 active:scale-90" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
           <ArrowLeft size={20} />
         </button>
@@ -610,7 +610,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
         <button
           type="button"
           onClick={() => setShowTicketShop(true)}
-          className="relative flex items-center gap-1.5 shrink-0 active:scale-95 transition-transform"
+          className="relative flex items-center gap-1 shrink-0 active:scale-95 transition-transform"
           data-testid="button-open-ticket-shop"
           aria-label="Open ticket shop"
         >
@@ -624,26 +624,28 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
               filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.6))",
             }}
           />
+          {/* Discoverability badge moved INLINE to the left of the
+              count (was floating at the chip's top-right corner) so
+              it reads naturally as "+ tickets" instead of an
+              unrelated notification dot. Slightly smaller than the
+              old absolute version so it doesn't crowd the count. */}
+          <span
+            className="w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0"
+            style={{
+              background: "linear-gradient(180deg, #fbbf24 0%, #d97706 100%)",
+              border: "1px solid rgba(0,0,0,0.5)",
+              boxShadow: "0 0 6px rgba(251,191,36,0.6)",
+            }}
+            aria-hidden
+          >
+            <Plus size={8} strokeWidth={3.5} color="#1a0e00" />
+          </span>
           <span
             className="text-[13px] font-black text-amber-200"
             style={{ textShadow: "0 0 8px rgba(251,191,36,0.4)" }}
             data-testid="text-pvp-ticket-count"
           >
             ×{ticketCount}
-          </span>
-          {/* Discoverability badge so the chip clearly reads as a
-              shop entry point, not just a counter. Pulsing soft glow
-              keeps the eye drawn to it without becoming noisy. */}
-          <span
-            className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
-            style={{
-              background: "linear-gradient(180deg, #fbbf24 0%, #d97706 100%)",
-              border: "1px solid rgba(0,0,0,0.5)",
-              boxShadow: "0 0 8px rgba(251,191,36,0.7)",
-            }}
-            aria-hidden
-          >
-            <Plus size={10} strokeWidth={3.5} color="#1a0e00" />
           </span>
         </button>
       </div>
@@ -1047,8 +1049,8 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                             still-image-only across the lobby + battle
                             (matches the user's "we don't need the canvas
                             for PvP" decision). */}
-                        {inv.imageUrl
-                          ? <img src={inv.imageUrl} className="w-full h-full object-contain" draggable={false} />
+                        {(inv.hatchedImageUrl || inv.imageUrl)
+                          ? <img src={inv.hatchedImageUrl || inv.imageUrl} className="w-full h-full object-contain" draggable={false} />
                           : <img src={petPawIcon} alt="" className="w-full h-full object-contain" style={{ opacity: 0.7 }} draggable={false} />}
                       </div>
                     ) : (
@@ -1239,8 +1241,8 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                             </div>
                           )}
                           <div className="w-20 h-20 flex items-center justify-center">
-                            {inv.imageUrl
-                              ? <img src={inv.imageUrl} className="w-full h-full object-contain" draggable={false} />
+                            {(inv.hatchedImageUrl || inv.imageUrl)
+                              ? <img src={inv.hatchedImageUrl || inv.imageUrl} className="w-full h-full object-contain" draggable={false} />
                               : <img src={petPawIcon} alt="" className="w-14 h-14 object-contain" draggable={false} />}
                           </div>
                           <div className="text-white/85 text-[10px] truncate w-full text-center font-medium">{inv.petNickname || inv.name}</div>
@@ -1363,8 +1365,8 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                         </div>
                       )}
                       <div className="w-20 h-20 flex items-center justify-center">
-                        {inv.imageUrl
-                          ? <img src={inv.imageUrl} className="w-full h-full object-contain" draggable={false} />
+                        {(inv.hatchedImageUrl || inv.imageUrl)
+                          ? <img src={inv.hatchedImageUrl || inv.imageUrl} className="w-full h-full object-contain" draggable={false} />
                           : <img src={petPawIcon} alt="" className="w-14 h-14 object-contain" draggable={false} />}
                       </div>
                       <div className="text-center">
