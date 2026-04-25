@@ -103,6 +103,15 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   // with page-level UI. See `lib/navVisibility.ts`.
   if (navHidden) return null;
 
+  // When ANY full-page panel managed by this nav is open (Quest scroll,
+  // PvP notice, Aquarium, Keeper's Central) the panel renders at
+  // panelZ (300+) which would otherwise cover the main floating
+  // navigation button — leaving the user stranded inside the panel
+  // with no way back to the rest of the app except hitting the
+  // panel's own close button. Lift the nav container above panelZ
+  // when a panel is open so the user always has navigation access.
+  const anyPanelOpen = showQuest || showPvpNote || showAquarium || showKeepers;
+
   return (
     <>
       {/* ── Backdrop (closes nav) ─────────────────────────────────────────── */}
@@ -117,7 +126,11 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
           When the nav is closed we keep the container at a low z-index so
           page-level popups (pet/decor/home/friends inventory drawers, etc.)
           can render above the main floating button. When the nav is open we
-          lift it to z-[9999] so the fan-out items appear above everything. */}
+          lift it to z-[9999] so the fan-out items appear above everything.
+          When a managed panel (Keeper's Central, Aquarium, etc.) is open
+          we lift to panelZ + 1 so the nav button stays tappable on top of
+          the panel — letting the user navigate elsewhere without first
+          having to close the panel manually. */}
       <div
         className="absolute"
         style={{
@@ -125,7 +138,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
           right: 12,
           width: BUTTON_SIZE,
           height: BUTTON_SIZE,
-          zIndex: isOpen ? 9999 : 95,
+          zIndex: isOpen ? 9999 : (anyPanelOpen ? panelZ + 1 : 95),
         }}
       >
         {/* LEFT items – fan out to the left */}

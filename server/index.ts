@@ -511,6 +511,26 @@ app.use((req, res, next) => {
     `);
   });
 
+  // Backfill `item_image_url` on player_market_listings for any historical
+  // rows that were created before the listing endpoint started copying the
+  // shop item's image URL into the row. Without this, a number of legacy
+  // listings (Basic Rod, Sturdy Rod, The Hunter, etc.) render as blank
+  // squares in the market because the client `<img src={null}>` falls
+  // through to nothing. We resolve the image from shop_items joined on
+  // shop_item_id; rows with no shop_item_id (or no matching shop item) are
+  // left null and the client renders a generic placeholder bag icon.
+  await runOnce("backfill_market_item_images_2026_04", async () => {
+    await db.execute(sql`
+      UPDATE player_market_listings AS m
+      SET item_image_url = s.image_url
+      FROM shop_items AS s
+      WHERE m.shop_item_id = s.id
+        AND (m.item_image_url IS NULL OR m.item_image_url = '')
+        AND s.image_url IS NOT NULL
+        AND s.image_url <> ''
+    `);
+  });
+
   await runOnce("sync_pond_fish_per_world_2026_04", async () => {
     const r: any = await db.execute(sql`
       SELECT id, world_id FROM world_locations WHERE type = 'fishing'

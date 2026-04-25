@@ -12,6 +12,7 @@ import bgGround from "@assets/IMG_6459_1774675340089.jpeg";
 import coinIconImg from "@assets/icon_coin.png";
 import petHouseIconImg from "@assets/icon_pet_house.png";
 import joystickBaseImg  from "@assets/generated_images/joystick_base.png";
+import joystickThumbImg from "@assets/generated_images/joystick_thumb_v2.png";
 
 const WORLD_ID = "pet_world";
 const ACCENT = "#7fffd4";
@@ -3506,6 +3507,26 @@ function WorldRoamingPet({
             : undefined
           : `${floatAnim} ${floatDuration} ease-in-out ${floatDelay} infinite ${hasWings ? "alternate" : ""}`,
       }}>
+          {/* Directional lean — when the player is actively moving their
+              own pet, tilt the sprite a few degrees toward the travel
+              direction (left = lean left, right = lean right). Many of
+              our pet images are roughly front-facing or symmetric, so a
+              pure horizontal flip gives almost no visual feedback that
+              the player is moving — the camera follows the pet, so the
+              pet stays centered on screen and the world shifts under
+              it. The lean adds an unmistakable cue without needing any
+              per-pet artwork changes. Applied on a wrapper OUTSIDE the
+              scaleX flip below so the rotation direction stays correct
+              regardless of whether the sprite is mirrored. */}
+          <div
+            style={{
+              transform: (isOwn && isMoving)
+                ? `rotate(${facingLeft ? -6 : 6}deg)`
+                : undefined,
+              transformOrigin: "center bottom",
+              transition: "transform 0.18s ease-out",
+            }}
+          >
           {/* Single position:relative box (sz × sz map-pixels).
               Badge and stars are absolutely positioned using the pet's ACTUAL
               bounding box (minTopFrac / maxBotFrac) computed from the real part
@@ -3611,6 +3632,7 @@ function WorldRoamingPet({
               }}
             />
           </div>
+          </div>
       </div>
       </div>
     </div>
@@ -3621,7 +3643,11 @@ function WorldRoamingPet({
 // Virtual analog stick for walking the player's pet around the map.
 // Positioned bottom-right so it never overlaps the bottom-right FloatingNav button.
 const BASE_R  = 56;
-const THUMB_R = 23;
+// Smaller than before (was 23) so the centerpiece sits inside the
+// base ring's filigree hole instead of bulging past it. Also lets
+// the orb image read as "the gem in the centre of an ornate ring"
+// rather than a separate pearl glued on top.
+const THUMB_R = 17;
 
 function Joystick({ onChange }: { onChange: (dx: number, dy: number, active: boolean) => void }) {
   const baseRef   = useRef<HTMLDivElement>(null);
@@ -3697,11 +3723,12 @@ function Joystick({ onChange }: { onChange: (dx: number, dy: number, active: boo
         }}
       />
 
-      {/* Thumb — pure-CSS polished golden orb. Rendered with a radial
-          gradient (highlight at upper-left, deeper gold falling off to
-          the rim) plus a soft outer glow. We avoid the PNG sprite
-          because its built-in highlight read as a stray pearl glued
-          to the side of the orb. */}
+      {/* Thumb — ornate emerald gem PNG that fits inside the base ring's
+          centre hole. Sized small (THUMB_R * 2 = 34px) so the gold
+          filigree on the base remains the dominant ornament; the gem
+          reads as the centerpiece, not as the whole control. The image
+          carries its own glow + highlight, so we just add a soft drop
+          shadow underneath for depth and let the file do the work. */}
       <div
         ref={thumbRef}
         style={{
@@ -3714,16 +3741,18 @@ function Joystick({ onChange }: { onChange: (dx: number, dy: number, active: boo
           pointerEvents: "none",
         }}
       >
-        <div
+        <img
+          src={joystickThumbImg}
+          alt=""
           aria-hidden
+          draggable={false}
           style={{
             width: "100%",
             height: "100%",
-            borderRadius: "50%",
-            background: "radial-gradient(circle at 32% 30%, #fff7d6 0%, #fcd34d 28%, #b8860b 70%, #6b4a08 100%)",
-            boxShadow:
-              "inset -2px -3px 6px rgba(0,0,0,0.45), inset 2px 3px 5px rgba(255,250,210,0.55), 0 0 10px rgba(252,211,77,0.55)",
-            border: "1px solid rgba(252,211,77,0.55)",
+            objectFit: "contain",
+            pointerEvents: "none",
+            userSelect: "none",
+            filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.55))",
           }}
         />
       </div>
