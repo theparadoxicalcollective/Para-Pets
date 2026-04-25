@@ -5,7 +5,7 @@ import { ChevronLeft, Plus, X, Trash2, Heart } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import foundersBg from "@assets/generated_images/founders_bg.png";
-import mascot from "@assets/icon_app_logo.png";
+import mascot from "@assets/hub_mascot.png";
 
 interface Founder {
   id: string;

@@ -36,20 +36,7 @@ import worldIsland       from "@assets/bg_island_map.png";
 import worldSwamp        from "@assets/bg_swamp_map.png";
 import worldVolcanic     from "@assets/bg_volcanic_map.png";
 import worldSnowy        from "@assets/bg_snowy_mountain_map.png";
-import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import DailyClaimCard from "@/components/DailyClaimCard";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────────────────────────────────
-interface LeaderboardEntry {
-  userId: string;
-  username: string;
-  profileImage: string | null;
-  totalPoints: number;
-  topBadges: { id: string; name: string; imageUrl: string }[];
-  allBadges: { id: string; name: string; imageUrl: string }[];
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -368,239 +355,6 @@ function GameplayShowcase() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Top-3 podium display
-// ─────────────────────────────────────────────────────────────────────────────
-const PODIUM_SLOT = [
-  { rank: 2, order: 0, scale: 0.88, yOffset: 18, glowColor: "rgba(192,192,192,0.55)", borderColor: "rgba(192,192,192,0.7)", nameColor: "#d0d8d0" },
-  { rank: 1, order: 1, scale: 1,    yOffset: 0,  glowColor: "rgba(255,215,0,0.7)",    borderColor: "rgba(255,215,0,0.9)",    nameColor: "#ffd700" },
-  { rank: 3, order: 2, scale: 0.78, yOffset: 30, glowColor: "rgba(205,127,50,0.5)",   borderColor: "rgba(205,127,50,0.7)",   nameColor: "#cd9f5c" },
-];
-
-function TopThreePodium({ top3, avatars, onPlayerClick }: { top3: LeaderboardEntry[]; avatars?: Record<string, string | null>; onPlayerClick?: (userId: string) => void }) {
-  const avatarFor = (e: LeaderboardEntry) => (avatars && avatars[e.userId]) || e.profileImage || null;
-  return (
-    <div className="relative w-full" style={{ maxWidth: 560, margin: "0 auto" }}>
-      {/* Rank crowns strip */}
-      <div className="flex justify-center mb-2">
-        <img src={rankCrowns} alt="Rank crowns" className="h-14 object-contain opacity-90"
-          style={{ filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.6))" }} />
-      </div>
-
-      {/* Player cards in podium order: 2nd | 1st | 3rd */}
-      <div className="flex items-end justify-center gap-2 pb-2 px-2" style={{ position: "relative", zIndex: 2 }}>
-        {PODIUM_SLOT.map(slot => {
-          const entry = top3[slot.rank - 1];
-          if (!entry) return (
-            <div key={slot.rank}
-              style={{ flex: slot.rank === 1 ? "0 0 38%" : "0 0 28%", marginBottom: slot.yOffset }} />
-          );
-          return (
-            <div
-              key={slot.rank}
-              data-testid={`podium-slot-${slot.rank}`}
-              className="flex flex-col items-center gap-1.5 rounded-2xl px-3 py-4"
-              onClick={() => onPlayerClick?.(entry.userId)}
-              style={{
-                flex: slot.rank === 1 ? "0 0 38%" : "0 0 28%",
-                marginBottom: slot.yOffset,
-                background: "linear-gradient(160deg,rgba(10,18,14,0.95),rgba(6,12,10,0.97))",
-                border: `1.5px solid ${slot.borderColor}`,
-                boxShadow: `0 0 28px ${slot.glowColor}, 0 8px 24px rgba(0,0,0,0.6)`,
-                transform: `scale(${slot.scale})`,
-                transformOrigin: "bottom center",
-                transition: "transform 0.2s",
-                cursor: onPlayerClick ? "pointer" : "default",
-              }}
-            >
-              {/* Avatar */}
-              <div className="relative">
-                {avatarFor(entry) ? (
-                  <img src={avatarFor(entry)!} alt={entry.username}
-                    className="rounded-full object-cover"
-                    style={{
-                      width: slot.rank === 1 ? 56 : 42, height: slot.rank === 1 ? 56 : 42,
-                      border: `2px solid ${slot.borderColor}`,
-                      boxShadow: `0 0 16px ${slot.glowColor}`,
-                    }} />
-                ) : (
-                  <div className="rounded-full flex items-center justify-center font-fantasy"
-                    style={{
-                      width: slot.rank === 1 ? 56 : 42, height: slot.rank === 1 ? 56 : 42,
-                      background: "rgba(127,191,176,0.1)",
-                      border: `2px solid ${slot.borderColor}`,
-                      boxShadow: `0 0 16px ${slot.glowColor}`,
-                      color: slot.nameColor,
-                      fontSize: slot.rank === 1 ? 22 : 16,
-                    }}>
-                    {entry.username[0]?.toUpperCase()}
-                  </div>
-                )}
-                {/* Rank badge */}
-                <div className="absolute -top-2 -right-2 w-5 h-5 rounded-full flex items-center justify-center font-fantasy text-[10px] font-bold"
-                  style={{
-                    background: slot.rank === 1 ? "linear-gradient(135deg,#b87d08,#fde272)" : slot.rank === 2 ? "linear-gradient(135deg,#888,#ddd)" : "linear-gradient(135deg,#8b4513,#cd9f5c)",
-                    color: "#000", boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
-                  }}>
-                  {slot.rank}
-                </div>
-              </div>
-
-              <p className="font-fantasy text-center leading-tight truncate w-full text-center"
-                style={{ color: slot.nameColor, fontSize: slot.rank === 1 ? 12 : 10, maxWidth: "100%",
-                  textShadow: `0 0 10px ${slot.glowColor}` }}>
-                {entry.username}
-              </p>
-
-              <div className="flex items-center gap-1">
-                <Coins size={slot.rank === 1 ? 9 : 7} style={{ color: slot.nameColor }} />
-                <span className="font-fantasy" style={{ color: slot.nameColor, fontSize: slot.rank === 1 ? 11 : 9 }}>
-                  {entry.totalPoints.toLocaleString()}
-                </span>
-              </div>
-
-              {/* Top badges row */}
-              {entry.topBadges.length > 0 && (
-                <div className="flex gap-1 justify-center">
-                  {entry.topBadges.slice(0, slot.rank === 1 ? 3 : 2).map(b => (
-                    <img key={b.id} src={b.imageUrl} alt={b.name}
-                      className="rounded-full object-cover"
-                      style={{
-                        width: slot.rank === 1 ? 18 : 14,
-                        height: slot.rank === 1 ? 18 : 14,
-                        border: "1px solid rgba(255,215,0,0.3)",
-                        boxShadow: "0 0 4px rgba(0,0,0,0.5)",
-                      }} />
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Podium image — sits below the cards */}
-      <div className="w-full flex justify-center" style={{ marginTop: -20, position: "relative", zIndex: 1 }}>
-        <img src={podiumImg} alt="Podium" className="w-full object-contain"
-          style={{
-            maxWidth: 500, opacity: 0.85,
-            filter: "drop-shadow(0 8px 32px rgba(0,0,0,0.8))",
-          }} />
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Ranks 4+ row
-// ─────────────────────────────────────────────────────────────────────────────
-function RankRow({ entry, rank, avatars, onPlayerClick }: { entry: LeaderboardEntry; rank: number; avatars?: Record<string, string | null>; onPlayerClick?: (userId: string) => void }) {
-  const [expanded, setExpanded] = useState(false);
-  const avatarUrl = (avatars && avatars[entry.userId]) || entry.profileImage || null;
-
-  return (
-    <div
-      data-testid={`leaderboard-row-${entry.userId}`}
-      className="rounded-2xl overflow-hidden mb-2"
-      style={{
-        background: "linear-gradient(90deg,rgba(8,14,10,0.85),rgba(6,10,8,0.85))",
-        border: "1px solid rgba(127,191,176,0.1)",
-        boxShadow: "inset 0 1px 0 rgba(127,191,176,0.05)",
-      }}
-    >
-      <div className="w-full flex items-center gap-3 px-4 py-3">
-        {/* Rank number in a gem-style badge */}
-        <div className="flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center"
-          style={{ background: "rgba(127,191,176,0.07)", border: "1px solid rgba(127,191,176,0.15)" }}>
-          <span className="font-fantasy text-xs" style={{ color: "#4a7a6a" }}>{rank}</span>
-        </div>
-
-        {/* Avatar — clickable to open PlayerDetailPanel */}
-        <button
-          data-testid={`button-player-avatar-${entry.userId}`}
-          onClick={() => onPlayerClick?.(entry.userId)}
-          style={{ background: "none", border: "none", padding: 0, cursor: onPlayerClick ? "pointer" : "default" }}
-        >
-        {avatarUrl ? (
-          <img src={avatarUrl} alt={entry.username}
-            className="w-9 h-9 rounded-full flex-shrink-0 object-cover"
-            style={{ border: "1.5px solid rgba(127,191,176,0.2)" }} />
-        ) : (
-          <div className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center font-fantasy text-sm"
-            style={{ background: "rgba(127,191,176,0.07)", border: "1.5px solid rgba(127,191,176,0.15)", color: "#5a8a7a" }}>
-            {entry.username[0]?.toUpperCase()}
-          </div>
-        )}
-        </button>
-
-        <button
-          data-testid={`button-expand-player-${entry.userId}`}
-          className="flex-1 min-w-0 flex items-center gap-2 text-left"
-          style={{ background: "none", border: "none", cursor: "pointer" }}
-          onClick={() => setExpanded(v => !v)}
-        >
-          <div className="flex-1 min-w-0">
-            <p className="font-fantasy text-sm tracking-wide truncate" style={{ color: "#b0c8b0" }}
-              data-testid={`text-username-${entry.userId}`}>
-              {entry.username}
-            </p>
-            <div className="flex items-center gap-1 mt-0.5">
-              {entry.topBadges.map(b => (
-                <img key={b.id} src={b.imageUrl} alt={b.name}
-                  title={b.name}
-                  className="w-4 h-4 rounded-full object-cover"
-                  style={{ border: "1px solid rgba(255,215,0,0.18)" }}
-                  data-testid={`badge-icon-${b.id}-${entry.userId}`} />
-              ))}
-              {entry.allBadges.length > 3 && (
-                <span className="font-fantasy text-[9px]" style={{ color: "#3a5a4a" }}>
-                  +{entry.allBadges.length - 3}
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="flex-shrink-0 flex items-center gap-2">
-            <div className="flex items-center gap-1 rounded-xl px-2 py-1"
-              style={{ background: "rgba(127,191,176,0.08)", border: "1px solid rgba(127,191,176,0.12)" }}>
-              <Coins size={9} style={{ color: "#7fbfb0" }} />
-              <span className="font-fantasy text-xs" style={{ color: "#7fbfb0" }}
-                data-testid={`text-points-${entry.userId}`}>
-                {entry.totalPoints.toLocaleString()}
-              </span>
-            </div>
-            {expanded
-              ? <ChevronUp className="w-3.5 h-3.5" style={{ color: "#3a5a4a" }} />
-              : <ChevronDown className="w-3.5 h-3.5" style={{ color: "#3a5a4a" }} />}
-          </div>
-        </button>
-      </div>
-
-      {expanded && (
-        <div data-testid={`expanded-badges-${entry.userId}`} className="px-4 pb-4"
-          style={{ borderTop: "1px solid rgba(127,191,176,0.06)" }}>
-          <p className="font-fantasy text-[9px] tracking-widest uppercase mt-3 mb-2" style={{ color: "#2a4a3a" }}>
-            All Badges ({entry.allBadges.length})
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {entry.allBadges.map(b => (
-              <div key={b.id} className="flex flex-col items-center gap-1" style={{ minWidth: "2.8rem" }}
-                data-testid={`badge-card-${b.id}-${entry.userId}`}>
-                <img src={b.imageUrl} alt={b.name}
-                  className="w-9 h-9 rounded-full object-cover"
-                  style={{ border: "1.5px solid rgba(255,215,0,0.25)", boxShadow: "0 0 6px rgba(0,0,0,0.5)" }} />
-                <span className="font-fantasy text-[8px] text-center leading-tight" style={{ color: "#7a6848", maxWidth: "2.8rem" }}>
-                  {b.name}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Add to Homescreen modal
 // ─────────────────────────────────────────────────────────────────────────────
 function HomeScreenModal({ onClose }: { onClose: () => void }) {
@@ -720,8 +474,8 @@ function HomeScreenModal({ onClose }: { onClose: () => void }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Egg showcase carousel (public, no names)
 // ─────────────────────────────────────────────────────────────────────────────
-const EGG_SIZE  = 88;
-const EGG_GAP   = 14;
+const EGG_SIZE  = 130;
+const EGG_GAP   = 18;
 const EGG_STEP  = EGG_SIZE + EGG_GAP;
 const EGG_INTERVAL = 2600;
 
@@ -794,7 +548,7 @@ function EggShowcase() {
           transform: `translateX(${stripOffset}px)`,
           transition: "transform 0.48s cubic-bezier(0.25,0.46,0.45,0.94)",
           willChange: "transform",
-          paddingTop: 10, paddingBottom: 20,
+          paddingTop: 18, paddingBottom: 28,
         }}>
           {eggs.map((egg, i) => {
             const active = i === activeIdx;
@@ -820,7 +574,7 @@ function EggShowcase() {
                 <img
                   src={egg.eggImageUrl}
                   alt="Mystery Egg"
-                  style={{ width: 62, height: 62, objectFit: "contain",
+                  style={{ width: 92, height: 92, objectFit: "contain",
                     filter: active ? "drop-shadow(0 0 10px rgba(127,191,176,0.5))" : "none",
                     transition: "filter 0.4s" }}
                 />
@@ -979,12 +733,8 @@ function SignInModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
 export default function ParaPetsHubPage() {
   const [showSignIn, setShowSignIn]               = useState(false);
   const [showHomescreen, setShowHomescreen]       = useState(false);
-  const [challengersAtTop, setChallengersAtTop]   = useState(true);
-  const [challengersAtBottom, setChallengersAtBottom] = useState(false);
-  const [selectedPlayerId, setSelectedPlayerId]   = useState<string | null>(null);
   const { toast }                                 = useToast();
   const worldsRef                                 = useRef<HTMLDivElement>(null);
-  const challengersRef                            = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const el = worldsRef.current;
@@ -1001,19 +751,6 @@ export default function ParaPetsHubPage() {
     return () => clearInterval(timer);
   }, []);
 
-  const scrollChallengers = (dir: "up" | "down") => {
-    const el = challengersRef.current;
-    if (!el) return;
-    el.scrollBy({ top: dir === "down" ? 200 : -200, behavior: "smooth" });
-  };
-
-  const handleChallengersScroll = () => {
-    const el = challengersRef.current;
-    if (!el) return;
-    setChallengersAtTop(el.scrollTop <= 4);
-    setChallengersAtBottom(el.scrollTop + el.clientHeight >= el.scrollHeight - 4);
-  };
-
   const { data: user } = useQuery<any>({ queryKey: ["/api/auth/me"], retry: false });
 
   const { data: team } = useQuery<{ id: string; username: string; profileImage: string | null; isAdmin: boolean; isModerator: boolean }[]>({
@@ -1021,67 +758,6 @@ export default function ParaPetsHubPage() {
     retry: false,
     staleTime: 60_000,
   });
-
-  const [leaderboardTab, setLeaderboardTab] = useState<"earnings" | "devotion">("earnings");
-
-  const { data: earningsLeaderboard, isLoading: earningsLoading } = useQuery<LeaderboardEntry[]>({
-    queryKey: ["/api/badges/leaderboard"],
-    retry: false,
-    staleTime: 0,
-    refetchInterval: leaderboardTab === "earnings" ? 5_000 : false,
-    refetchIntervalInBackground: false,
-    refetchOnWindowFocus: true,
-    refetchOnMount: "always",
-    refetchOnReconnect: true,
-  });
-
-  const { data: devotionLeaderboard, isLoading: devotionLoading } = useQuery<LeaderboardEntry[]>({
-    queryKey: ["/api/badges/leaderboard/devotion"],
-    retry: false,
-    staleTime: 0,
-    refetchInterval: leaderboardTab === "devotion" ? 5_000 : false,
-    refetchIntervalInBackground: false,
-    refetchOnWindowFocus: true,
-    refetchOnMount: "always",
-    refetchOnReconnect: true,
-  });
-
-  const leaderboard = leaderboardTab === "earnings" ? earningsLeaderboard : devotionLeaderboard;
-  const lbLoading   = leaderboardTab === "earnings" ? earningsLoading     : devotionLoading;
-  const top3  = leaderboard?.slice(0, 3)  ?? [];
-  const rest  = leaderboard?.slice(3)     ?? [];
-
-  // Batch-fetch avatars for the visible leaderboard. Profile images are stored
-  // as base64 data URLs and are intentionally NOT included in the leaderboard
-  // payload — fetching them in one batch with a long staleTime keeps the
-  // hot-polled list small while still showing photos.
-  const visibleIds = (leaderboard ?? []).map(e => e.userId);
-  const visibleIdsKey = visibleIds.join(",");
-  const { data: avatarMap } = useQuery<Record<string, string | null>>({
-    queryKey: ["/api/users/avatars", visibleIdsKey],
-    queryFn: async () => {
-      if (visibleIds.length === 0) return {};
-      const res = await apiRequest("POST", "/api/users/avatars", { userIds: visibleIds });
-      return (await res.json()) as Record<string, string | null>;
-    },
-    enabled: visibleIds.length > 0,
-    staleTime: 5 * 60_000, // avatars rarely change
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchInterval: false,
-  });
-
-  // Re-check scroll bounds whenever the challengers list changes (data load / refetch)
-  useEffect(() => {
-    const el = challengersRef.current;
-    if (!el) return;
-    // Run after paint so the DOM has updated heights
-    const raf = requestAnimationFrame(() => {
-      setChallengersAtTop(el.scrollTop <= 4);
-      setChallengersAtBottom(el.scrollTop + el.clientHeight >= el.scrollHeight - 4);
-    });
-    return () => cancelAnimationFrame(raf);
-  }, [rest.length]);
 
   const handleSignInSuccess = () => {
     setShowSignIn(false);
@@ -1122,6 +798,17 @@ export default function ParaPetsHubPage() {
               </span>
             </div>
             <div className="flex items-center gap-3">
+              <Link href="/founders" data-testid="link-founders"
+                className="font-fantasy text-xs tracking-widest transition-all active:scale-95"
+                style={{
+                  color: "#f6dc8a", border: "1px solid rgba(232,200,88,0.32)",
+                  borderRadius: 9999, padding: "7px 14px",
+                  background: "linear-gradient(135deg,rgba(232,200,88,0.10),rgba(26,155,112,0.08))",
+                  boxShadow: "0 0 12px rgba(232,200,88,0.18)",
+                  letterSpacing: "0.16em",
+                }}>
+                Founders
+              </Link>
               {user ? (
                 <span className="font-fantasy text-xs tracking-wide" style={{ color: "#7fbfb0" }}>
                   {user.username}
@@ -1195,7 +882,7 @@ export default function ParaPetsHubPage() {
                 Begin your adventure
               </p>
               <p className="font-fantasy text-[11px] mb-5" style={{ color: "#2a5040" }}>
-                Hatch magical pets, explore enchanted worlds, and climb the leaderboard
+                Hatch magical pets, explore enchanted worlds, and grow your collection
               </p>
               <div className="flex items-center justify-center gap-3 flex-wrap">
                 <Link href="/auth?mode=register" data-testid="link-create-account-cta"
@@ -1281,179 +968,6 @@ export default function ParaPetsHubPage() {
 
           {/* ── Egg showcase ─────────────────────────────────────────────── */}
           <EggShowcase />
-
-          <RuneDivider />
-
-          {/* ── Leaderboard ─────────────────────────────────────────────────── */}
-          <div data-testid="leaderboard-section">
-
-            {/* Leaderboard header — tabs */}
-            <div className="flex flex-col items-center gap-3 mb-6">
-              <h2 className="font-fantasy text-2xl tracking-widest"
-                style={{ color: "#ffd700", textShadow: "0 0 24px rgba(255,215,0,0.7), 0 2px 14px rgba(0,0,0,0.95)" }}
-                data-testid="text-leaderboard-title">
-                Hall of Legends
-              </h2>
-
-              <div
-                role="tablist"
-                aria-label="Leaderboard category"
-                data-testid="leaderboard-tabs"
-                className="flex items-center gap-1 rounded-full p-1"
-                style={{
-                  background: "rgba(8,14,10,0.85)",
-                  border: "1px solid rgba(127,191,176,0.18)",
-                  boxShadow: "inset 0 1px 0 rgba(127,191,176,0.06), 0 4px 14px rgba(0,0,0,0.4)",
-                }}
-              >
-                {([
-                  { key: "earnings" as const, label: "Hall of Earnings", color: "#ffd700", glow: "rgba(255,215,0,0.55)" },
-                  { key: "devotion" as const, label: "Adventurer's Devotion", color: "#c084fc", glow: "rgba(192,132,252,0.55)" },
-                ]).map(t => {
-                  const active = leaderboardTab === t.key;
-                  return (
-                    <button
-                      key={t.key}
-                      role="tab"
-                      aria-selected={active}
-                      data-testid={`tab-leaderboard-${t.key}`}
-                      onClick={() => setLeaderboardTab(t.key)}
-                      className="font-fantasy text-[10px] sm:text-[11px] tracking-widest rounded-full transition-all active:scale-95"
-                      style={{
-                        padding: "8px 14px",
-                        color: active ? "#060a10" : t.color,
-                        background: active
-                          ? `linear-gradient(135deg, ${t.color}, ${t.color}cc)`
-                          : "transparent",
-                        boxShadow: active ? `0 0 16px ${t.glow}` : "none",
-                        letterSpacing: "0.1em",
-                      }}
-                    >
-                      {t.label}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <p
-                className="font-fantasy text-[10px] tracking-widest text-center px-4"
-                style={{ color: leaderboardTab === "earnings" ? "rgba(200,190,140,0.6)" : "rgba(200,180,240,0.6)" }}
-                data-testid="text-leaderboard-subtitle"
-              >
-                {leaderboardTab === "earnings"
-                  ? "Ranked by total coins earned"
-                  : "Coins earned through adventure — bundle purchases excluded"}
-              </p>
-            </div>
-
-            {lbLoading ? (
-              <div className="flex flex-col gap-2" data-testid="leaderboard-loading">
-                {[1,2,3,4,5].map(i => (
-                  <div key={i} className="h-16 rounded-2xl animate-pulse"
-                    style={{ background: "rgba(127,191,176,0.04)", border: "1px solid rgba(127,191,176,0.07)" }} />
-                ))}
-              </div>
-
-            ) : !leaderboard || leaderboard.length === 0 ? (
-              <div data-testid="leaderboard-empty" className="text-center py-16 rounded-2xl"
-                style={{ border: "1px dashed rgba(127,191,176,0.1)", background: "rgba(8,13,10,0.5)" }}>
-                <p className="font-fantasy text-3xl mb-3" style={{ filter: "grayscale(0.3)" }}>🏅</p>
-                <p className="font-fantasy text-sm tracking-wider" style={{ color: "#2a5040" }}>No legends yet</p>
-                <p className="font-fantasy text-[10px] mt-1" style={{ color: "#1a3028" }}>
-                  Earn coins to claim your place
-                </p>
-              </div>
-
-            ) : (
-              <>
-                {/* Top 3 podium */}
-                {top3.length > 0 && (
-                  <div className="mb-6">
-                    <TopThreePodium top3={top3} avatars={avatarMap} onPlayerClick={id => setSelectedPlayerId(id)} />
-                  </div>
-                )}
-
-                {/* Ranks 4+ */}
-                {rest.length > 0 && (
-                  <div data-testid="leaderboard-list">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div style={{ height: 1, flex: 1, background: "linear-gradient(90deg,transparent,rgba(127,191,176,0.15))" }} />
-                      <span className="font-fantasy text-[10px] tracking-widest" style={{ color: "#2a4a38" }}>
-                        CHALLENGERS
-                      </span>
-                      <div style={{ height: 1, flex: 1, background: "linear-gradient(90deg,rgba(127,191,176,0.15),transparent)" }} />
-                    </div>
-
-                    {/* Scroll up arrow — hidden when already at top */}
-                    <div className="flex justify-center mb-1.5"
-                      style={{ opacity: challengersAtTop ? 0 : 1, pointerEvents: challengersAtTop ? "none" : "auto", transition: "opacity 0.2s" }}>
-                      <button
-                        data-testid="button-challengers-scroll-up"
-                        onClick={() => scrollChallengers("up")}
-                        className="flex items-center justify-center rounded-full transition-all active:scale-90"
-                        style={{
-                          width: 36, height: 36,
-                          background: "rgba(127,191,176,0.07)",
-                          border: "1px solid rgba(127,191,176,0.18)",
-                          color: "#4a7a6a",
-                        }}
-                      >
-                        <ChevronUp size={18} />
-                      </button>
-                    </div>
-
-                    {/* Scrollable container — natural overscroll so page scroll takes over at the bottom */}
-                    <div style={{ position: "relative" }}>
-                      <div
-                        ref={challengersRef}
-                        data-testid="challengers-scroll-box"
-                        onScroll={handleChallengersScroll}
-                        style={{
-                          maxHeight: 640,
-                          overflowY: "auto",
-                          scrollbarWidth: "none",
-                          msOverflowStyle: "none",
-                          overscrollBehavior: "auto",
-                        }}
-                      >
-                        {rest.map((entry, i) => (
-                          <RankRow key={entry.userId} entry={entry} rank={i + 4} avatars={avatarMap} onPlayerClick={id => setSelectedPlayerId(id)} />
-                        ))}
-                      </div>
-
-                      {/* Bottom fade — disappears when scrolled to the end */}
-                      {!challengersAtBottom && rest.length > 10 && (
-                        <div style={{
-                          position: "absolute", bottom: 0, left: 0, right: 0, height: 56,
-                          pointerEvents: "none",
-                          background: "linear-gradient(to bottom, transparent, rgba(6,12,10,0.92))",
-                          borderRadius: "0 0 12px 12px",
-                        }} />
-                      )}
-                    </div>
-
-                    {/* Scroll down arrow — hidden when at the bottom */}
-                    <div className="flex justify-center mt-1.5"
-                      style={{ opacity: challengersAtBottom ? 0 : 1, pointerEvents: challengersAtBottom ? "none" : "auto", transition: "opacity 0.2s" }}>
-                      <button
-                        data-testid="button-challengers-scroll-down"
-                        onClick={() => scrollChallengers("down")}
-                        className="flex items-center justify-center rounded-full transition-all active:scale-90"
-                        style={{
-                          width: 36, height: 36,
-                          background: "rgba(127,191,176,0.07)",
-                          border: "1px solid rgba(127,191,176,0.18)",
-                          color: "#4a7a6a",
-                        }}
-                      >
-                        <ChevronDown size={18} />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
 
           {/* ── Meet the Team ─────────────────────────────────────────────── */}
           {team && team.length > 0 && (
@@ -1652,13 +1166,6 @@ export default function ParaPetsHubPage() {
         )}
         {showHomescreen && (
           <HomeScreenModal onClose={() => setShowHomescreen(false)} />
-        )}
-        {selectedPlayerId && (
-          <PlayerDetailPanel
-            userId={selectedPlayerId}
-            currentUserId={user?.id}
-            onClose={() => setSelectedPlayerId(null)}
-          />
         )}
       </div>
     </>
