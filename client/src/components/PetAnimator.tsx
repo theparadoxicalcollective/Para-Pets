@@ -395,6 +395,19 @@ const ANIMATION_STYLES = `
     from { transform: translateY(0%) scale(1, 1); }
     to   { transform: translateY(-0.9%) scale(1.028, 1.05); }
   }
+  /* Per-pet override pairing (idle.subtleBreath without headScalesWithBody):
+     same upward head bob as petIdleHead but with under half the
+     amplitude (-0.35% vs -0.9%). Used by visually large pets like
+     Crimson Dragon where the body is using petIdleBodySubtle (half
+     amplitude) but the head's standard -0.9% lift reads as the head
+     "flying off" the body because the body itself is barely
+     swelling. Matching the head lift to the body's calmer breath
+     keeps the silhouette glued together while preserving the gentle
+     up-down sway. */
+  @keyframes petIdleHeadSubtle {
+    from { transform: translateY(0%); }
+    to   { transform: translateY(-0.35%); }
+  }
   @keyframes petIdleLeftEar {
     from { transform: rotate(-2deg); }
     to   { transform: rotate(1deg); }
@@ -816,6 +829,11 @@ const ALTERNATE_MOTION_ANIMS = new Set<string>([
   // would inflate then snap back to 1.0 each cycle while the body keeps
   // breathing smoothly, producing a visible "pop" at every loop reset.
   "petIdleHeadBreath",
+  // Per-pet override head-bob subtle. 2-keyframe shape so it must
+  // alternate (sine ping-pong) like every other 2-keyframe motion —
+  // shares the body's 4.5 s alternate cycle so the head lift / settle
+  // tracks the subtle body breath instead of snapping back each loop.
+  "petIdleHeadSubtle",
   // Per-pet override mouth-swivel. Alternates so the closed-mouth
   // overlay sweeps gently from −0.6° → +0.6° → −0.6° in lock-step with
   // the body's breath (the half-period of the alternate matches the
@@ -1567,7 +1585,11 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
             // with the body's breath. Anchored at the body pivot below
             // so the scale reads as "head rises with torso" rather than
             // detaching from it.
-            mode === "idle" ? (idleHeadScalesWithBody ? "petIdleHeadBreath" : "petIdleHead") :
+            mode === "idle" ? (
+              idleHeadScalesWithBody
+                ? "petIdleHeadBreath"
+                : (idleSubtleBreath ? "petIdleHeadSubtle" : "petIdleHead")
+            ) :
             (mode !== "house" && mode !== "static") ? anims["head"] :
             undefined;
           // Head wrapper transform-origin. Default leaves it at the
