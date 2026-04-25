@@ -216,19 +216,13 @@ export default function PvpBattlePage({
   const animFrameRef = useRef(0);
 
   const arenaRef = useRef<HTMLDivElement>(null);
-  const isSlashingRef = useRef(false);
-  const slashPathRef = useRef<{x:number;y:number}[]>([]);
-  // DOM refs for the slash trail polylines so the pointer-move handler
-  // can mutate the SVG `points` attribute DIRECTLY at finger-move rate
-  // (~120 Hz on iOS) without triggering a React re-render of the whole
-  // PvP page on every event. Without this the swipe handler called
-  // setSlashTrail on every move event, which forced React to reconcile
-  // 10+ pet wrappers, hp bars, mana bars, sparks, float numbers — the
-  // exact "battle is laggy" symptom.
-  const slashOuterRef = useRef<SVGPolylineElement>(null);
-  const slashInnerRef = useRef<SVGPolylineElement>(null);
-  const showSlashRef = useRef(false);
-  const hitSetRef = useRef<Set<string>>(new Set());
+  // Slash mechanic was replaced with tap-to-hit per user feedback:
+  // "change the slash to just a 'tap' to hit function". A tap on a
+  // live enemy now registers a single hit (combo, mana credit, sparks,
+  // KO check) — no polyline trail, no segment hit-test, no swipe
+  // motion required. The slashOuter/InnerRef + slashPathRef +
+  // showSlash + isSlashingRef + hitSetRef state was all in service of
+  // the polyline trail and is gone with it.
   const lastAiSkillTime = useRef<Record<string, number>>({});
   const idRef = useRef(0);
 
@@ -253,10 +247,6 @@ export default function PvpBattlePage({
   const petManaRefs    = useRef<Map<string, HTMLDivElement | null>>(new Map());
   const lastSetPetsMsRef = useRef(0);
 
-  // Boolean gate for the swipe trail — actual point list is mutated
-  // straight onto the SVG polyline refs (see slashOuter/InnerRef above)
-  // so a 60-Hz finger drag doesn't force a React re-render per event.
-  const [showSlash, setShowSlash] = useState(false);
   const [floatNums, setFloatNums] = useState<FloatNum[]>([]);
   const [sparks, setSparks] = useState<SparkParticle[]>([]);
   const [hitFlash, setHitFlash] = useState<Record<string, boolean>>({});
@@ -497,7 +487,18 @@ export default function PvpBattlePage({
     if (pet.isPlayer) playPlayerHurt(); else playHit();
     setKoSet(prev => new Set([...prev, pet.uid]));
     setTimeout(() => {
-      petsRef.current = petsRef.current.filter(p => p.uid !== pet.uid);
+      // Player pets stay in petsRef after KO so they remain VISIBLE
+      // (rendered in a desaturated, squished "downed" pose) — per
+      // user feedback "when a players pet is knocked out it should
+      // not disappear. Just lose color and squish down." Keeping them
+      // in the array also lets the player drop a revive potion onto
+      // a specific dead pet (the drop hit-test now includes dead
+      // allies too). Enemies still vanish after the KO animation —
+      // they don't need to persist for revive targeting and clearing
+      // them keeps the enemy half of the arena visually clean.
+      if (!pet.isPlayer) {
+        petsRef.current = petsRef.current.filter(p => p.uid !== pet.uid);
+      }
       setPets([...petsRef.current]);
       setKoSet(prev => { const n = new Set(prev); n.delete(pet.uid); return n; });
     }, 1000);
@@ -929,138 +930,69 @@ export default function PvpBattlePage({
       return;
     }
 
-    // ─ Otherwise: start a slash ─
-    isSlashingRef.current = true;
-    slashPathRef.current = [pos];
-    hitSetRef.current = new Set();
-    // Push initial point straight to the polyline DOM nodes — they
-    // mount the moment showSlash flips true on the next render, so
-    // we both flip the gate AND seed the points so the swipe is
-    // visible from the very first move event.
-    const initial = `${pos.x},${pos.y} ${pos.x},${pos.y}`;
-    showSlashRef.current = true;
-    setShowSlash(true);
-    requestAnimationFrame(() => {
-      slashOuterRef.current?.setAttribute("points", initial);
-      slashInnerRef.current?.setAttribute("points", initial);
-    });
-  }, [getArenaPos, fireSkill]);
-
-  const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (!battleActiveRef.current) return;
-    if (draggingPotionRef.current) return;
-    if (!isSlashingRef.current) return;
-    const pos = getArenaPos(e.clientX, e.clientY);
-    // Single-segment swipe: render a STRAIGHT line from the original
-    // pointer-down to the current finger position (capped in length).
-    // Was previously a 6-point trailing polyline that followed the
-    // finger's wiggle — that read as a "continuous saber trail" and
-    // tended to hit multiple enemies in one drag. Per the user spec
-    // the swipe is now a quick diagonal stroke that lands on at most
-    // one enemy.
-    const start = slashPathRef.current[0];
-    if (!start) return;
-    // Cap the visible segment so even if the player drags a long way
-    // the line stays "swipe-sized". 22 arena-% works out to roughly
-    // one pet-width across the lane, which is enough to overlap a
-    // single enemy without spanning the whole row.
-    const MAX_SWIPE_LEN = 22;
-    let endX = pos.x, endY = pos.y;
-    const tdx = pos.x - start.x, tdy = pos.y - start.y;
-    const tdist = Math.hypot(tdx, tdy);
-    if (tdist > MAX_SWIPE_LEN) {
-      const s = MAX_SWIPE_LEN / tdist;
-      endX = start.x + tdx * s;
-      endY = start.y + tdy * s;
+    // ─ Tap a live enemy → land a single hit ─
+    // Closest-to-tap enemy within ~14 arena-% (≈ one pet width) is
+    // the target. Damage / combo / mana distribution / spark colors
+    // mirror the prior swipe-hit pipeline so balance is unchanged —
+    // the only thing that changed is the input gesture (tap vs swipe).
+    const oppAliveTap = ps.filter(p => !p.isPlayer && !p.isDead);
+    let bestTap: { opp: typeof oppAliveTap[number]; dist: number } | null = null;
+    for (const opp of oppAliveTap) {
+      const d = Math.hypot(opp.x - pos.x, opp.y - pos.y);
+      if (d >= 14) continue;
+      if (!bestTap || d < bestTap.dist) bestTap = { opp, dist: d };
     }
-    slashPathRef.current = [start, { x: endX, y: endY }];
-    // DOM-direct polyline update — bypasses React reconciliation so a
-    // dragging finger doesn't tank battle FPS by re-rendering every pet
-    // wrapper, hp bar, mana bar, sparks, etc on every pointermove.
-    const ptsStr = `${start.x},${start.y} ${endX},${endY}`;
-    slashOuterRef.current?.setAttribute("points", ptsStr);
-    slashInnerRef.current?.setAttribute("points", ptsStr);
+    if (!bestTap) return;
+    const tapOpp = bestTap.opp;
 
-    // One-enemy-per-swipe gate. Once we've registered a hit, no
-    // further pointer-move tick will land additional damage even if
-    // the line still passes through other enemies.
-    if (hitSetRef.current.size >= 1) return;
+    const tapIsCrit = Math.random() < 0.15;
+    // Slot-0 is the lead attacker for damage attribution. If they've
+    // been KO'd, fall back to whoever's alive in the party.
+    const tapAttacker = myAlive.find(p => p.slotIdx === 0) ?? myAlive[0];
+    if (!tapAttacker) return;
 
-    const oppAlive = petsRef.current.filter(p => !p.isPlayer && !p.isDead);
-    // Run hit detection along the FULL swipe segment (start → end),
-    // not just the latest tiny pointermove delta — otherwise a fast
-    // diagonal flick would skip past an enemy between samples.
-    let bestHit: { opp: typeof oppAlive[number]; dist: number } | null = null;
-    for (const opp of oppAlive) {
-      if (hitSetRef.current.has(opp.uid)) continue;
-      const ax = start.x, ay = start.y, bx = endX, by = endY;
-      const dx = bx - ax, dy = by - ay;
-      const len = Math.hypot(dx, dy) || 1;
-      const tParam = Math.max(0, Math.min(1, ((opp.x - ax) * dx + (opp.y - ay) * dy) / (len * len)));
-      const dist = Math.hypot(ax + tParam * dx - opp.x, ay + tParam * dy - opp.y);
-      if (dist >= 14) continue;
-      // Pick the closest-to-line enemy as THE one this swipe hits —
-      // if two enemies overlap the swipe at the same instant the
-      // player hit the one they aimed at, not whichever happened to
-      // come first in the iteration order.
-      if (!bestHit || dist < bestHit.dist) bestHit = { opp, dist };
+    const tapCombo = bumpCombo();
+    const tapComboMult = 1 + Math.min(tapCombo * 0.12, 0.6);
+    const tapRaw = tapAttacker.atk - Math.floor(tapOpp.def * 0.25) + Math.floor(Math.random() * 8) - 4;
+    const tapDmg = Math.max(1, Math.floor(tapRaw * (tapIsCrit ? 1.8 : 1) * tapComboMult));
+    tapOpp.hp = Math.max(0, tapOpp.hp - tapDmg);
+    // Mana distribution — slot-0 attacker takes the lion's share, all
+    // other live allies bank a smaller amount so backup pets still
+    // charge their specials during a fight.
+    for (const ally of myAlive) {
+      const share = ally.uid === tapAttacker.uid ? SWIPE_MANA_ATTACKER : SWIPE_MANA_PARTY;
+      ally.mana = Math.min(MAX_MANA, ally.mana + share);
     }
-    if (bestHit) {
-      const opp = bestHit.opp;
-      hitSetRef.current.add(opp.uid);
-      const isCrit = Math.random() < 0.15;
-      const myAlive = petsRef.current.filter(p => p.isPlayer && !p.isDead);
-      // Slot-0 is the lead attacker for swipe-damage attribution. If
-      // they've been KO'd, fall back to whoever's alive. (Was
-      // `continue` when this lived inside the per-enemy for-loop;
-      // now that we resolve a single best-hit enemy and apply damage
-      // outside the loop, the no-attacker case just bails out of the
-      // pointer-move callback entirely.)
-      const attacker = myAlive.find(p => p.slotIdx === 0) ?? myAlive[0];
-      if (!attacker) return;
+    // Hit enemy banks a touch of mana too (give-or-take a hit rule).
+    tapOpp.mana = Math.min(MAX_MANA, tapOpp.mana + 8);
 
-      const newCombo = bumpCombo();
-      const comboMult = 1 + Math.min(newCombo * 0.12, 0.6);
-      const raw = attacker.atk - Math.floor(opp.def * 0.25) + Math.floor(Math.random() * 8) - 4;
-      const dmg = Math.max(1, Math.floor(raw * (isCrit ? 1.8 : 1) * comboMult));
-      opp.hp = Math.max(0, opp.hp - dmg);
-      // Distribute swipe-mana across the whole alive party, not just
-      // the slot-0 attacker. The attacker still gets the lion's share
-      // (they "swing the blade") but every other live ally also banks
-      // some so backup pets actually charge their special during a
-      // match — without this they'd cap out at the slow passive trickle
-      // and never glow / be tappable, which is what the player saw as
-      // "added pets don't get their special skills".
-      for (const ally of myAlive) {
-        const share = ally.uid === attacker.uid ? SWIPE_MANA_ATTACKER : SWIPE_MANA_PARTY;
-        ally.mana = Math.min(MAX_MANA, ally.mana + share);
-      }
-      // Hit enemy gains a small amount of mana from being struck — same
-      // "give-or-take a hit" rule we apply to allies. +8 keeps it modest
-      // so the player still feels in control while ensuring the enemy
-      // line can build special-attack pressure if they're being heavily
-      // swiped instead of charging successfully.
-      opp.mana = Math.min(MAX_MANA, opp.mana + 8);
+    // RED glowing sparks at the tap point (gold on a crit) so the
+    // strike reads clearly without the prior swipe-trail polyline.
+    // We spawn TWO bursts — one at the actual tap location and one
+    // centered on the enemy — so the feedback is unmistakable even
+    // when the player taps slightly off-center.
+    const tapColors = tapIsCrit ? ["#fbbf24", "#f59e0b", "#fde68a"] : ["#ef4444", "#f87171", "#fca5a5"];
+    spawnSparks(pos.x, pos.y, tapColors);
+    spawnSparks(tapOpp.x, tapOpp.y, tapColors);
+    spawnFloatNum(tapOpp.x, tapOpp.y - 8, tapDmg, false, tapIsCrit);
+    flashHit(tapOpp.uid);
+    playHit();
+    if (tapOpp.hp <= 0 && !tapOpp.isDead) doKo(tapOpp);
+  }, [getArenaPos, fireSkill, bumpCombo, spawnSparks, spawnFloatNum, flashHit, doKo]);
 
-      // Red sparks/colors to keep the PvP theme consistent — gold only
-      // on a crit so the player can read the special hit at a glance.
-      const colors = isCrit ? ["#fbbf24", "#f59e0b", "#fde68a"] : ["#ef4444", "#f87171", "#fca5a5"];
-      spawnSparks(opp.x, opp.y, colors);
-      spawnFloatNum(opp.x, opp.y - 8, dmg, false, isCrit);
-      flashHit(opp.uid);
-      playHit();
+  // Pointer-move / pointer-up are no-ops on the arena now that the
+  // swipe-trail mechanic has been replaced with tap-to-hit. The
+  // potion chip has its OWN onPointerMove / onPointerUp handlers
+  // (with stopPropagation) so the in-flight drag still works fine
+  // without the arena participating in pointer-move events.
+  const handlePointerMove = useCallback((_e: React.PointerEvent) => {
+    // intentional no-op — tap-to-hit doesn't need pointer-move data
+    void _e;
+  }, []);
 
-      if (opp.hp <= 0 && !opp.isDead) doKo(opp);
-    }
-  }, [getArenaPos, spawnSparks, spawnFloatNum, flashHit, doKo, bumpCombo]);
-
-  const handlePointerUp = useCallback(() => {
-    isSlashingRef.current = false;
-    hitSetRef.current = new Set();
-    setTimeout(() => {
-      showSlashRef.current = false;
-      setShowSlash(false);
-    }, 110);
+  const handlePointerUp = useCallback((_e: React.PointerEvent) => {
+    // intentional no-op — tap-to-hit fires on pointer-down
+    void _e;
   }, []);
 
   // ── Derived ────────────────────────────────────────────────────
@@ -1094,32 +1026,49 @@ export default function PvpBattlePage({
     const ps = petsRef.current;
     const myAlive = ps.filter(p => p.isPlayer && !p.isDead);
     const myDead = ps.filter(p => p.isPlayer && p.isDead);
-    // Target precedence: explicit drop target → first alive ally.
-    const target = (targetAllyUid && myAlive.find(p => p.uid === targetAllyUid))
-      || myAlive.find(p => p.slotIdx === 0)
-      || myAlive[0];
+    // The drop hit-test now includes dead player pets too (so the
+    // player can drop a revive potion on a SPECIFIC downed ally).
+    // Resolve two distinct targets from that single drop:
+    //   • aliveTarget — used by heal / mana operations (must be alive)
+    //   • reviveTarget — used by the revive operation (must be dead)
+    // If the drop landed on a pet that doesn't match the operation's
+    // requirement, we fall back to the first alive (heal/mana) or first
+    // dead (revive) ally so the potion still does something useful.
+    const droppedOnPet = targetAllyUid ? ps.find(p => p.uid === targetAllyUid && p.isPlayer) : null;
+    const aliveTarget =
+      (droppedOnPet && !droppedOnPet.isDead ? droppedOnPet : null)
+      ?? myAlive.find(p => p.slotIdx === 0)
+      ?? myAlive[0];
+    const reviveTarget =
+      (droppedOnPet && droppedOnPet.isDead ? droppedOnPet : null)
+      ?? myDead[0];
 
-    if (heal > 0 && (!target || target.hp >= target.maxHp)) return;
-    if (mana > 0 && (!target || target.mana >= MAX_MANA)) return;
-    if (revives > 0 && myDead.length === 0) return;
-    if (heal === 0 && mana === 0 && revives === 0) return;
+    // Per-effect applicability — each potion field is gated independently
+    // so a combined potion (e.g. heal + revive) still applies the effects
+    // that CAN apply when one of them would be a no-op (e.g. alive target
+    // is full HP but a dead ally is waiting to be revived). Previously
+    // the routine early-returned on the first no-op which silently ate
+    // the rest of the potion's effects.
+    const canHeal   = heal > 0    && !!aliveTarget  && aliveTarget.hp < aliveTarget.maxHp;
+    const canMana   = mana > 0    && !!aliveTarget  && aliveTarget.mana < MAX_MANA;
+    const canRevive = revives > 0 && !!reviveTarget;
+    if (!canHeal && !canMana && !canRevive) return;
 
     const rollback: { uid: string; hp: number; mana: number; isDead: boolean }[] = [];
     const snap = (p: BattlePet) => rollback.push({ uid: p.uid, hp: p.hp, mana: p.mana, isDead: p.isDead });
 
-    if (target && heal > 0) {
-      snap(target);
-      target.hp = Math.min(target.maxHp, target.hp + heal);
-      spawnFloatNum(target.x, target.y - 10, heal, true);
-      spawnSparks(target.x, target.y, ["#4ade80", "#86efac", "#bbf7d0"]);
+    if (canHeal) {
+      snap(aliveTarget);
+      aliveTarget.hp = Math.min(aliveTarget.maxHp, aliveTarget.hp + heal);
+      spawnFloatNum(aliveTarget.x, aliveTarget.y - 10, heal, true);
+      spawnSparks(aliveTarget.x, aliveTarget.y, ["#4ade80", "#86efac", "#bbf7d0"]);
     }
-    if (target && mana > 0) {
-      if (!rollback.some(r => r.uid === target.uid)) snap(target);
-      target.mana = Math.min(MAX_MANA, target.mana + mana);
-      spawnSparks(target.x, target.y, ["#a78bfa", "#c4b5fd", "#ddd6fe"]);
+    if (canMana) {
+      if (!rollback.some(r => r.uid === aliveTarget.uid)) snap(aliveTarget);
+      aliveTarget.mana = Math.min(MAX_MANA, aliveTarget.mana + mana);
+      spawnSparks(aliveTarget.x, aliveTarget.y, ["#a78bfa", "#c4b5fd", "#ddd6fe"]);
     }
-    if (revives > 0 && myDead.length > 0) {
-      const reviveTarget = myDead[0];
+    if (canRevive) {
       snap(reviveTarget);
       reviveTarget.isDead = false;
       reviveTarget.hp = Math.max(1, Math.floor(reviveTarget.maxHp * 0.5));
@@ -1153,12 +1102,15 @@ export default function PvpBattlePage({
   }, [myInventory, spawnFloatNum, spawnSparks, usePotionMutation]);
 
   // Update hovered ally during a potion drag — used to highlight the
-  // would-be target before the player releases.
+  // would-be target before the player releases. We include DEAD player
+  // pets in the hit-test so a revive potion can be dropped on a
+  // specific downed ally (consumePotion picks the right one based on
+  // the potion type — heal/mana → alive, revive → dead).
   const updatePotionHover = useCallback((screenX: number, screenY: number) => {
     const arenaPos = getArenaPos(screenX, screenY);
     const ps = petsRef.current;
-    const myAlive = ps.filter(p => p.isPlayer && !p.isDead);
-    const target = myAlive.find(a => Math.hypot(a.x - arenaPos.x, a.y - arenaPos.y) < 14);
+    const myPets = ps.filter(p => p.isPlayer);
+    const target = myPets.find(a => Math.hypot(a.x - arenaPos.x, a.y - arenaPos.y) < 14);
     setHoveredAllyUid(target?.uid ?? null);
     if (draggingPotionRef.current) {
       const next = { ...draggingPotionRef.current, screenX, screenY, arenaX: arenaPos.x, arenaY: arenaPos.y };
@@ -1197,8 +1149,9 @@ export default function PvpBattlePage({
     setHoveredAllyUid(null);
     const arenaPos = getArenaPos(e.clientX, e.clientY);
     const ps = petsRef.current;
-    const myAlive = ps.filter(p => p.isPlayer && !p.isDead);
-    const target = myAlive.find(a => Math.hypot(a.x - arenaPos.x, a.y - arenaPos.y) < 14);
+    // Drop hit-test includes DEAD player pets too (revive targeting).
+    const myPets = ps.filter(p => p.isPlayer);
+    const target = myPets.find(a => Math.hypot(a.x - arenaPos.x, a.y - arenaPos.y) < 14);
     consumePotion(drag.invId, target?.uid ?? null);
   }, [consumePotion, getArenaPos]);
 
@@ -1228,8 +1181,9 @@ export default function PvpBattlePage({
       setHoveredAllyUid(null);
       const arenaPos = getArenaPos(ev.clientX, ev.clientY);
       const ps = petsRef.current;
-      const myAlive = ps.filter(p => p.isPlayer && !p.isDead);
-      const target = myAlive.find(a => Math.hypot(a.x - arenaPos.x, a.y - arenaPos.y) < 14);
+      // Drop hit-test includes DEAD player pets too (revive targeting).
+      const myPets = ps.filter(p => p.isPlayer);
+      const target = myPets.find(a => Math.hypot(a.x - arenaPos.x, a.y - arenaPos.y) < 14);
       consumePotion(drag.invId, target?.uid ?? null);
     };
     const cancelHandler = (ev: PointerEvent) => {
@@ -1405,47 +1359,12 @@ export default function PvpBattlePage({
               style={{ left: `${p.x}%`, top: `${p.y}%`, transform: "translate(-50%,-50%)", width: 72, height: 72, border: "2px solid rgba(239,68,68,0.7)", animation: "targetPulse 0.7s ease-in-out infinite", boxShadow: "0 0 12px rgba(239,68,68,0.4)" }} />
           ))}
 
-          {/* RED swipe trail — drives the PvP color theme.
-              We use a `viewBox="0 0 100 100"` + `preserveAspectRatio="none"`
-              so the polyline points (which are kept in the same 0–100 %
-              coordinate space the rest of the arena uses for pet
-              positions) map cleanly to the SVG element regardless of
-              its rendered pixel size. The previous version put `%`
-              suffixes inside the polyline `points` attribute, which is
-              NOT valid SVG syntax — Safari and most browsers silently
-              dropped the points and rendered nothing, which is why the
-              red trail "wasn't showing" on iPhone. */}
-          {showSlash && (
-            <svg
-              className="absolute inset-0 w-full h-full pointer-events-none z-30"
-              viewBox="0 0 100 100"
-              preserveAspectRatio="none"
-            >
-              {/* Glowing red swipe — drawn as TWO stacked polylines so
-                  Safari renders an actual halo: the outer line is a
-                  thicker, semi-transparent bloom that survives the SVG
-                  drop-shadow being clipped by overflow:hidden parents,
-                  and the inner line is the bright core.
-                  IMPORTANT: the `points` attribute is mutated in
-                  handlePointerMove via slashOuterRef / slashInnerRef
-                  instead of being passed as a React prop — that's how
-                  this avoids a 60-Hz state churn during a swipe. */}
-              <polyline
-                ref={slashOuterRef}
-                fill="none" stroke="#ff2a3a" strokeLinecap="round" strokeLinejoin="round"
-                opacity="0.55"
-                vectorEffect="non-scaling-stroke"
-                style={{ strokeWidth: 12, filter: "blur(2px)" }}
-              />
-              <polyline
-                ref={slashInnerRef}
-                fill="none" stroke="#ffffff" strokeLinecap="round" strokeLinejoin="round"
-                opacity="1"
-                vectorEffect="non-scaling-stroke"
-                style={{ strokeWidth: 3.5, filter: "drop-shadow(0 0 6px #ff2a3a) drop-shadow(0 0 12px #ff2a3a)" }}
-              />
-            </svg>
-          )}
+          {/* Slash polyline trail removed — replaced by tap-to-hit. The
+              old SVG block (red glowing polyline drawn DOM-direct via
+              slashOuter/InnerRef on every pointer-move) was gated by
+              showSlash and is no longer needed. Tap feedback is now
+              delivered via spawnSparks() at the tap point + on the
+              enemy in handlePointerDown. */}
 
           {/* INCOMING indicator removed per user request — the red
               "INCOMING!" label + progress bar above the targeted ally
@@ -1458,12 +1377,27 @@ export default function PvpBattlePage({
               arena on a 390-px phone (5 sprites × 180 px = 900 px, way
               wider than the viewport). PvE arena uses 230 px because
               there's only one focal pet; PvP fits up to 5. */}
-          {pets.filter(p => !p.isDead).map(pet => {
+          {/* Render filter — dead PLAYER pets are kept in the list and
+              rendered in a desaturated, squished "downed" pose (per
+              user feedback "when a players pet is knocked out it
+              should not disappear. Just lose color and squish down").
+              Dead ENEMY pets are still removed by doKo's setTimeout
+              after the KO animation, so they vanish as before. */}
+          {pets.filter(p => !p.isDead || p.isPlayer).map(pet => {
+            const isDead = pet.isDead;
             const hasSkill = petHasSkill(pet);
-            const isSkillReady = pet.isPlayer && pet.mana >= MAX_MANA && hasSkill;
-            const isPendingSource = pendingSkill?.petUid === pet.uid;
-            const isEnemyTarget = pendingSkill?.mode === "needs-enemy" && !pet.isPlayer;
+            const isSkillReady = !isDead && pet.isPlayer && pet.mana >= MAX_MANA && hasSkill;
+            const isPendingSource = !isDead && pendingSkill?.petUid === pet.uid;
+            const isEnemyTarget = !isDead && pendingSkill?.mode === "needs-enemy" && !pet.isPlayer;
             const isHoveredDrop = pet.isPlayer && hoveredAllyUid === pet.uid;
+            // sideCount counts ALL rendered pets on the side (alive +
+            // dead for the player side; enemy side is always alive-only
+            // because dead enemies are filtered out after the KO
+            // animation). Using alive-only here would upscale the
+            // remaining sprites every time an ally fell, then those
+            // larger sprites would overlap the still-rendered dead
+            // (squished) ally next to them. Keeping the total count
+            // stable preserves the original slot positions/sizes.
             const sideCount = pet.isPlayer
               ? pets.filter(p => p.isPlayer).length
               : pets.filter(p => !p.isPlayer).length;
@@ -1496,7 +1430,7 @@ export default function PvpBattlePage({
             const baseAlly  = Math.round((sideCount <= 1 ? 168 : sideCount === 2 ? 132 : sideCount === 3 ? 110 : sideCount === 4 ? 92 : 78) * sizeScale);
             const baseEnemy = Math.round((sideCount <= 1 ? 162 : sideCount === 2 ? 126 : sideCount === 3 ? 105 : sideCount === 4 ? 88 : 74) * sizeScale);
             const size = pet.isPlayer ? baseAlly : baseEnemy;
-            const isHit = !!hitFlash[pet.uid];
+            const isHit = !isDead && !!hitFlash[pet.uid];
             const stars = Math.max(0, Math.min(5, Math.floor(pet.starRarity || 0)));
             // Bar width tracks sprite size. Reduced from 0.55 → 0.42
             // because the previous ribbon was wider than most pets'
@@ -1602,18 +1536,32 @@ export default function PvpBattlePage({
                     height: size,
                     position: "relative",
                     borderRadius: "50%",
-                    transform: pet.isPlayer ? undefined : "scaleX(-1)",
-                    animation: isHoveredDrop
-                      ? "dropZonePulse 0.7s ease-in-out infinite"
-                      : isHit
-                        ? "bHit 0.32s ease-out"
-                        : undefined,
-                    outline: isPendingSource
-                      ? "2px solid rgba(250,204,21,0.8)"
+                    // Dead player pets get a "downed" pose: squished
+                    // toward the floor (scaleY < 1, pivoting from the
+                    // feet) and pushed down a touch so they read as
+                    // collapsed rather than just shorter. The wrapper's
+                    // own translate(-50%,-50%) is on the OUTER box, so
+                    // the squish here doesn't shift the logical anchor.
+                    transform: isDead
+                      ? `${pet.isPlayer ? "" : "scaleX(-1) "}scaleY(0.55) translateY(18%)`
+                      : (pet.isPlayer ? undefined : "scaleX(-1)"),
+                    transformOrigin: "50% 100%",
+                    animation: isDead
+                      ? undefined
                       : isHoveredDrop
-                        ? "2px solid rgba(74,222,128,0.85)"
-                        : undefined,
+                        ? "dropZonePulse 0.7s ease-in-out infinite"
+                        : isHit
+                          ? "bHit 0.32s ease-out"
+                          : undefined,
+                    outline: isDead
+                      ? undefined
+                      : isPendingSource
+                        ? "2px solid rgba(250,204,21,0.8)"
+                        : isHoveredDrop
+                          ? "2px solid rgba(74,222,128,0.85)"
+                          : undefined,
                     outlineOffset: 3,
+                    opacity: isDead ? 0.65 : 1,
                   }}
                 >
                   {pet.imageUrl ? (
@@ -1652,18 +1600,26 @@ export default function PvpBattlePage({
                         // glow when its special is ready. Hit squish
                         // takes precedence so the impact feedback isn't
                         // muted by the slow skill pulse.
-                        animation: isHit
-                          ? "pSquish 0.32s ease-out"
-                          : isSkillReady
-                            ? "skillGlowImg 1.2s ease-in-out infinite"
-                            : undefined,
+                        animation: isDead
+                          ? undefined
+                          : isHit
+                            ? "pSquish 0.32s ease-out"
+                            : isSkillReady
+                              ? "skillGlowImg 1.2s ease-in-out infinite"
+                              : undefined,
                         transformOrigin: "50% 100%",
                         // Base team-color drop-shadow. Overridden by the
                         // skillGlowImg keyframe while the pulse runs;
                         // otherwise provides the static purple/red rim.
-                        filter: pet.isPlayer
-                          ? "drop-shadow(0 0 10px rgba(167,139,250,0.5))"
-                          : "drop-shadow(0 0 10px rgba(239,68,68,0.45))",
+                        // Dead player pets are desaturated + dimmed so
+                        // they read as "downed" at a glance — combined
+                        // with the wrapper's squish, this gives the
+                        // collapsed-on-the-floor look the user asked for.
+                        filter: isDead
+                          ? "grayscale(1) brightness(0.55)"
+                          : pet.isPlayer
+                            ? "drop-shadow(0 0 10px rgba(167,139,250,0.5))"
+                            : "drop-shadow(0 0 10px rgba(239,68,68,0.45))",
                         WebkitUserSelect: "none",
                         userSelect: "none",
                         WebkitTouchCallout: "none",
@@ -1694,8 +1650,12 @@ export default function PvpBattlePage({
                     the enemy treatment). Absolute so it doesn't change
                     wrapper height (which would shift the sprite off the
                     JS-driven float anchor). Stack grows DOWNWARD from
-                    the anchor (stars first, then HP, then mana). */}
-                {pet.isPlayer && (
+                    the anchor (stars first, then HP, then mana).
+                    Dead player pets hide the bar stack — bars on a
+                    downed pet add visual noise without conveying
+                    actionable info (HP is 0, mana is irrelevant until
+                    revived). */}
+                {pet.isPlayer && !isDead && (
                   <div
                     className="absolute flex flex-col items-center gap-0.5"
                     style={{
@@ -1739,13 +1699,36 @@ export default function PvpBattlePage({
             );
           })}
 
-          {/* KO effects */}
+          {/* KO effects — the per-KO marker that flashes for ~1 s right
+              after a pet goes down. The previous skull PNG was replaced
+              per user feedback ("change the skull icon that's used once
+              an enemy is knocked out"). The new marker is a CSS-built
+              "X_X" dazed-eyes glyph with a red glow + the same koSpin
+              animation, so it reads as "knocked out" without depending
+              on a generic skull asset. The bigger skull on the result
+              screen (DEFEAT overlay) is intentionally left alone — the
+              user's request was specifically about the in-arena KO
+              moment, and the result-screen skull serves a different,
+              clearly-labeled "you lost the match" purpose. */}
           {[...koSet].map(uid => {
             const pet = pets.find(p => p.uid === uid);
             if (!pet) return null;
             return (
               <div key={uid} className="absolute pointer-events-none z-40" style={{ left: `${pet.x}%`, top: `${pet.y}%`, transform: "translate(-50%,-50%)" }}>
-                <img src={skullDefeatIcon} alt="" style={{ width: 48, height: 48, objectFit: "contain", animation: "koSpin 1s ease-in forwards" }} />
+                <div
+                  style={{
+                    fontFamily: "Lora, serif",
+                    fontWeight: 900,
+                    fontSize: 30,
+                    letterSpacing: "0.16em",
+                    color: "#fecaca",
+                    textShadow: "0 0 10px rgba(239,68,68,0.95), 0 0 22px rgba(239,68,68,0.6), 0 2px 4px rgba(0,0,0,0.7)",
+                    animation: "koSpin 1s ease-in forwards",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  X_X
+                </div>
               </div>
             );
           })}
@@ -1845,7 +1828,7 @@ export default function PvpBattlePage({
           {/* Hint */}
           {phase === "battle" && !pendingSkill && (
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-white/12 text-[9px] tracking-widest pointer-events-none animate-pulse whitespace-nowrap">
-              Swipe enemies · Tap glowing ally for skill · Drag potion to ally
+              Tap enemies · Tap glowing ally for skill · Drag potion to ally
             </div>
           )}
 
